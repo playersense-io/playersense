@@ -303,23 +303,39 @@ flowchart LR
 
 ---
 
-## 6. Regional/cell architecture
+## 6. Region and cell
 
-PlayerSense should be designed as a **cell-based data plane** from the start even if only one cell exists for years.
+PlayerSense is a **cell-based data plane** from the start, even though only one cell exists
+for years.
 
-A cell is a mostly independent analytics ingestion region containing:
+### The two words mean different things
+
+They are separated because they split for different reasons, and conflating them is how a
+system ends up unable to answer "where is our players' data".
+
+**A region is a legal boundary** — `eu`, `us`. It says what law applies and where bytes may
+sit. Regions exist because a customer's procurement asks the question and because a
+regulator can, in principle, ask it too.
+
+**A cell is one stack inside a region** — `eu-1`, `eu-2`. It is a unit of capacity and of
+blast radius. One region may hold several cells, and splitting one is an engineering
+decision that needs nobody's legal opinion.
+
+### What a cell contains
+
+One complete, self-contained copy of the machinery that stores and processes events:
 
 - an ingestion endpoint;
 - a queue/topic;
 - ClickHouse capacity;
-- archive writers;
-- a regional GCS prefix/bucket;
+- a PostgreSQL database for everything that names a player (§99);
+- archive writers and a regional GCS prefix/bucket;
 - query workers;
-- local caches.
+- Valkey, for the cache, the rate-limit counters and the device state.
 
-Each production project has a `home_region` / `cell_id`.
-
-Example:
+A project is assigned to exactly one cell **at creation** and its data never leaves it. The
+assignment is immutable for the reason §75 gives about `policy_tier`: a project that could
+change cells is a project whose stored rows no longer all mean the same thing.
 
 ```text
 project A -> eu-1
@@ -328,15 +344,48 @@ project C -> us-1
 project D -> asia-1
 ```
 
-The control plane knows the mapping and returns the correct endpoints to the SDK/dashboard.
+### The registry
 
-Benefits:
+The global control plane (§11) holds a `cells` table: slug, region, status, and the public
+ingest URL. It holds identity and endpoints and deliberately **never credentials** — a
+table of database passwords is a table of database passwords. DSNs live in each service's
+own environment, and a service asserts at start-up that the cell it was configured as
+exists and agrees with its configuration, so a typo fails to boot rather than writing
+somewhere nobody is reading.
 
-- data residency becomes possible later;
-- EU and US event traffic does not need to cross the world;
+`status` is `active`, `draining` or `readonly`. A draining cell still serves the projects
+it holds but accepts no new ones; a readonly cell serves queries only, which is what
+migrating out of a cell needs.
+
+### A foreign key at a gateway is refused, not served
+
+A gateway that receives a key belonging to another cell answers **421 Misdirected Request**
+and names the `ingest_url` that can serve it.
+
+This is the single most important rule in the whole cell design. Without it, one wrong
+hostname in an SDK configuration puts one region's player data on another region's disks —
+the exact outcome the design exists to prevent, defeated by a typo. 421 rather than 403
+because the request is well-formed and the credential is good; it simply arrived somewhere
+that cannot serve it, and a misconfigured integration is better told where to go than
+merely refused.
+
+### What it buys
+
+- data residency is real rather than aspirational;
+- EU and US event traffic does not cross the world;
 - one very large customer can be moved to a dedicated cell;
-- analytics failures are isolated;
-- the system can grow beyond one ClickHouse cluster without inventing cross-region sharding later.
+- analytics failures are isolated to a cell;
+- the system grows past one ClickHouse cluster without inventing cross-region sharding.
+
+### One thing a cell is not
+
+The control plane is **not** a cell. There is exactly one of it, it is global, and it holds
+no player data at all (§99). That is what lets it stay singular — and it has a second,
+purely mechanical consequence worth stating: every entity's auto-increment id becomes an
+`org_seq` / `project_seq` / `environment_seq` in ClickHouse's sort keys. One global tier
+means one allocator, so those integers are globally unique and two cells' rows can never
+blend. Replicating the control plane per region would have required inventing a surrogate
+allocation scheme first.
 
 **Stage 1:** one cell.  
 **Stage 2:** add cells only when justified.
@@ -720,7 +769,7 @@ audit_log
 - raw telemetry properties;
 - billions of log rows.
 
-### The control plane is split by region
+### The control plane is two databases, not one
 
 The list above is written as one database, and it cannot stay that way once a customer
 requires that European data remains in Europe. Some of those tables hold nothing about a
@@ -728,10 +777,30 @@ player — organizations, billing, entitlements — while others are full of pla
 rows: `verified_purchases`, `purchase_entitlements`, `data_deletion_requests`, `exports`,
 `archive_manifests`.
 
-§99 splits them into a global tier and a per-region tier under one governing rule: **a
-player identifier never appears in the global tier.** This is among the few decisions in
-this document that genuinely cannot be retrofitted, because undoing it means migrating
+§99 splits them into a **global tier** and a **per-cell tier** under one governing rule:
+**a player identifier never appears in the global tier.** This is among the few decisions
+in this document that genuinely cannot be retrofitted, because undoing it means migrating
 live transactional data across a jurisdiction boundary.
+
+They are separate **databases**, not separate schemas in one, because in production they
+are separate servers under separate jurisdictions: the global tier is US-hosted and the
+cell tier sits in the cell's region. Locally they are two databases in one container, so
+the development stack does not grow while the code is shaped for the split production
+actually has.
+
+Two mechanisms keep the split honest rather than merely intended:
+
+- **The compiler.** Two generated ORM clients, one per tier. A query written against the
+  global client cannot reach a cell entity because the type does not exist in that package.
+- **`migrate verify`.** Every column in both databases carries a §96 classification, read
+  back out of `pg_description`, and a column classified `identifier` in the global tier is
+  a build failure. This check is what makes a US-hosted control plane defensible rather
+  than merely convenient: it is the mechanical proof that no player data crosses.
+
+Each database also carries a marker table naming the tier it holds, and each migration
+refuses to run against the other. Without that, pointing the migrator at the wrong DSN
+grows a second `organizations` and `projects` there — the control plane forking rather than
+erroring, a mistake discovered weeks later by two customers holding the same project id.
 
 ---
 
@@ -3523,9 +3592,15 @@ A project also carries two attributes that govern how its data may be handled, b
 at creation rather than editable in place:
 
 ```text
-home_region    which cell holds this project's data (§6, §99)
+cell           which cell holds this project's data — a row in the registry, not a string (§6)
 policy_tier    standard | child_directed | kids_strict (§98)
 ```
+
+`cell` is a foreign key into §6's registry rather than free text, and the difference is not
+cosmetic: a free-text region is a field nothing validates and nothing routes on, so a
+project can be created in a region no code can reach and nobody finds out until somebody
+asks where the data went. A key is refused at creation if the cell does not exist or is not
+`active`, and the gateway reads the same row to decide whether a batch belongs to it (§6).
 
 Both are stamped onto every event, not merely looked up when a query runs. A project that
 changes tier does so from that moment forward: the rows already written keep the basis they
@@ -4158,6 +4233,12 @@ plane that cannot keep European data in Europe, takes a migration to fix.
 This Part describes what the architecture must make possible. It is not legal advice, and
 it does not claim certification.
 
+**Who and where.** PlayerSense is operated by a United States entity. It is a **processor**
+for the player data a studio sends it and a **controller** for its own customer accounts
+and billing. The global control plane is hosted in the United States; every cell holding
+player data is hosted in its own region, and `eu-1` is in Europe. §99 sets out why those
+differ and what it does and does not buy.
+
 **Architected for:** GDPR and UK GDPR; CCPA and CPRA; COPPA; Apple's App Review
 Guidelines, including App Tracking Transparency and privacy manifests; Google Play's Data
 Safety and Families requirements.
@@ -4171,6 +4252,10 @@ scope than half-designed.
 The four things in this Part that genuinely cannot be retrofitted are consent provenance
 (§97), the policy tier (§98), the control-plane split (§99) and the column classification
 (§96). Everything else can arrive later.
+
+The reasoning behind each decision, and the code and test that enforce it, are recorded
+separately: `docs/adr/` for the decisions and `docs/compliance/` for the obligations they
+discharge, including a controls map naming the mechanism for each clause.
 
 ---
 
@@ -4263,16 +4348,16 @@ gives.
 
 ## 99. Residency and the control-plane split
 
-§6 makes the data plane cellular: ingestion, Pub/Sub, ClickHouse and the archive all belong
-to a region, and a project names its `home_region`. §11's control plane has no such
-division, and that is where European residency breaks — not in the analytics data, which is
-already regional, but in PostgreSQL, where `verified_purchases`, `purchase_entitlements`,
-`data_deletion_requests`, `exports` and `archive_manifests` all hold rows about identifiable
-players.
+§6 makes the data plane cellular: ingestion, the queue, ClickHouse and the archive all
+belong to a cell, and a project is assigned to one at creation. §11's control plane has no
+such division, and that is where European residency breaks — not in the analytics data,
+which is already cellular, but in PostgreSQL, where `verified_purchases`,
+`purchase_entitlements`, `data_deletion_requests`, `exports` and `archive_manifests` all
+hold rows about identifiable players.
 
 Split it in two.
 
-**Global tier** — no player-linked data:
+**Global tier** — one database, holding no player-linked data:
 
 ```text
 users                    billing_customers
@@ -4283,10 +4368,11 @@ project_environments     billing_period_snapshots
 project_api_keys         feature_flags
 project_settings         feature_flag_versions
 retention_policies       segments / experiments
-webhook_endpoints        liveops_campaigns / config_versions
+cells                    liveops_campaigns / config_versions
+webhook_endpoints
 ```
 
-**Regional tier** — anything naming a player:
+**Cell tier** — one database per cell, holding anything that names a player:
 
 ```text
 verified_purchases       exports
@@ -4298,13 +4384,58 @@ One rule governs the split, and it is short enough to check in review:
 
 > **A player identifier never appears in the global tier.**
 
-§38 already respects it: the billing meter computes its actor set regionally and sends the
-global tier a count. Everything else follows the same shape — the global tier learns
+§38 already respects it: the billing meter computes its actor set inside the cell and sends
+the global tier a count. Everything else follows the same shape — the global tier learns
 aggregates, never subjects.
 
-Stage 1 runs one cell (§6), so both tiers can share a server. The split is in the schema
-and in the code that reaches it, which is what makes adding a second region an operational
-move rather than a migration of live transactional data across a jurisdiction boundary.
+### Where each one sits, and why they differ
+
+| | Global tier | Cell tier |
+|---|---|---|
+| How many | Exactly one | One per cell |
+| Where | United States | The cell's region — `eu-1` is in Europe |
+| Holds | Accounts, projects, keys, billing, cells | Everything naming a player |
+| Why there | Beside the entity and its payment processor | Because that is the part painful to move |
+
+**The global tier is US-hosted** because the company is a US entity, billing sits next to
+Stripe, and — decisively — it holds no player data. Its rows describe direct customers who
+signed the terms themselves, and there are thousands of them rather than millions.
+
+**A cell's tier is in the cell's region** because it holds the player data, and that is the
+part a customer's procurement asks about. "Frankfurt" is a better answer than "the United
+States, under a framework". Ingest latency does not argue against it: batches are
+fire-and-forget and answered `202` (§19), so an extra hundred milliseconds is invisible.
+
+One thing must be stated plainly, because it is easy to assume otherwise: **hosting the
+control plane in the United States does not reduce GDPR exposure.** GDPR attaches because
+EU players' data is processed and services are offered to EU studios, not because of where
+a server sits. A US entity needs a transfer mechanism — Data Privacy Framework
+self-certification, or standard contractual clauses — for EU personal data it controls
+*wherever* that data is hosted, since US staff can reach it. What actually keeps that
+surface small is the rule above: no player identifier ever reaches the global tier, so the
+US-hosted database holds only customer account records.
+
+### How the rule is enforced rather than intended
+
+Three mechanisms, in increasing order of how hard they are to bypass:
+
+1. **Two ORM clients.** Each tier's entities are generated into their own package, so a
+   query written against the global client cannot name a cell entity — the type is not
+   there. §99 becomes a compile error rather than a review comment.
+2. **Tier markers.** Each database carries a table naming the tier it holds, and each
+   migration refuses to run against the other. Pointing the migrator at the wrong DSN would
+   otherwise grow a second control plane inside a cell's database, silently.
+3. **`migrate verify`.** Every column in both databases carries its §96 classification in
+   the column comment. The verifier reads them back out of the catalog and fails on any
+   column classified `identifier` in the global tier, and on any column classified at all.
+   Reading the catalog rather than the schema files is deliberate: the question is what the
+   database actually holds, and a column added by hand is exactly the one a schema-file
+   check would miss.
+
+Stage 1 runs one cell (§6), and locally both tiers are two databases inside one container.
+The split lives in the schema, in the connection strings and in the code that reaches them,
+which is what makes adding a second region an operational move rather than a migration of
+live transactional data across a jurisdiction boundary.
 
 ---
 
