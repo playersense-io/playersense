@@ -1,6 +1,18 @@
+<!--
+  The macros that ReplicatedMergeTree's default path is built from.
+
+  {shard} is the cell slug, not a constant. The replica path is
+  /clickhouse/tables/{shard}/{database}/{table}, so two cells pointed at one Keeper would
+  otherwise share every znode — and a table recreated in one cell would replay the other
+  cell's schema.
+
+  Read from the environment so one compose file serves any cell; the literal text is the
+  fallback when the variable is unset, and replace="1" is what makes having both legal —
+  without it the server refuses to start rather than choosing between them.
+-->
 <clickhouse>
     <macros>
-        <shard>01</shard>
-        <replica>stage1-01</replica>
+        <shard from_env="CH_SHARD"/>
+        <replica from_env="CH_REPLICA"/>
     </macros>
 </clickhouse>

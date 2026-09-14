@@ -8,6 +8,7 @@ import (
 
 	"playersense.dev/backend/ent/global"
 	"playersense.dev/backend/ent/global/apikey"
+	"playersense.dev/backend/ent/global/cell"
 	"playersense.dev/backend/ent/global/environment"
 	"playersense.dev/backend/ent/global/organization"
 	"playersense.dev/backend/ent/global/project"
@@ -24,9 +25,9 @@ func Health(ctx *muzak.Context, _ muzak.Empty) (schemas.HealthOut, error) {
 
 // CreateOrganization registers an organization.
 func CreateOrganization(ctx *muzak.Context, in schemas.CreateOrganizationIn) (schemas.OrganizationOut, error) {
-	control := muzak.From[*core.Control](ctx)
+	ctrl := muzak.From[*core.Global](ctx)
 
-	org, err := control.Global.Organization.Create().
+	org, err := ctrl.Client.Organization.Create().
 		SetName(in.Name).
 		SetSlug(in.Slug).
 		Save(ctx.Context())
@@ -38,9 +39,9 @@ func CreateOrganization(ctx *muzak.Context, in schemas.CreateOrganizationIn) (sc
 
 // ListOrganizations returns every organization.
 func ListOrganizations(ctx *muzak.Context, _ muzak.Empty) (schemas.OrganizationListOut, error) {
-	control := muzak.From[*core.Control](ctx)
+	ctrl := muzak.From[*core.Global](ctx)
 
-	orgs, err := control.Global.Organization.Query().
+	orgs, err := ctrl.Client.Organization.Query().
 		Order(global.Asc(organization.FieldSlug)).
 		All(ctx.Context())
 	if err != nil {
@@ -55,9 +56,9 @@ func ListOrganizations(ctx *muzak.Context, _ muzak.Empty) (schemas.OrganizationL
 
 // ReadOrganization returns one organization by slug.
 func ReadOrganization(ctx *muzak.Context, in schemas.OrganizationParams) (schemas.OrganizationOut, error) {
-	control := muzak.From[*core.Control](ctx)
+	ctrl := muzak.From[*core.Global](ctx)
 
-	org, err := findOrg(ctx.Context(), control, in.Slug)
+	org, err := findOrg(ctx.Context(), ctrl, in.Slug)
 	if err != nil {
 		return schemas.OrganizationOut{}, err
 	}
@@ -72,14 +73,21 @@ func ReadOrganization(ctx *muzak.Context, in schemas.OrganizationParams) (schema
 // event to carry an environment resolved from its key, and a project with no environments
 // is a project nothing can send to.
 func CreateProject(ctx *muzak.Context, in schemas.CreateProjectIn) (schemas.ProjectOut, error) {
-	control := muzak.From[*core.Control](ctx)
+	ctrl := muzak.From[*core.Global](ctx)
 
-	org, err := findOrg(ctx.Context(), control, in.OrgSlug)
+	org, err := findOrg(ctx.Context(), ctrl, in.OrgSlug)
 	if err != nil {
 		return schemas.ProjectOut{}, err
 	}
 
-	tx, err := control.Global.Tx(ctx.Context())
+	// A project is placed in a cell at creation and never moves: the data goes where the
+	// cell is, and moving it later crosses a jurisdiction boundary (§6).
+	home, err := findCell(ctx.Context(), ctrl, orDefault(in.Cell, defaultCell))
+	if err != nil {
+		return schemas.ProjectOut{}, err
+	}
+
+	tx, err := ctrl.Client.Tx(ctx.Context())
 	if err != nil {
 		return schemas.ProjectOut{}, core.AsHTTPError(err)
 	}
@@ -87,7 +95,7 @@ func CreateProject(ctx *muzak.Context, in schemas.CreateProjectIn) (schemas.Proj
 	proj, err := tx.Project.Create().
 		SetName(in.Name).
 		SetSlug(in.Slug).
-		SetHomeRegion(orDefault(in.HomeRegion, "eu-1")).
+		SetCellID(home.ID).
 		SetPolicyTier(project.PolicyTier(orDefault(in.PolicyTier, "standard"))).
 		SetRetentionDays(retentionOrDefault(in.RetentionDays)).
 		SetOrganizationID(org.ID).
@@ -113,26 +121,27 @@ func CreateProject(ctx *muzak.Context, in schemas.CreateProjectIn) (schemas.Proj
 		return schemas.ProjectOut{}, core.AsHTTPError(err)
 	}
 
-	envs, err := control.Global.Environment.Query().
+	envs, err := ctrl.Client.Environment.Query().
 		Where(environment.ProjectID(proj.ID)).
 		Order(global.Asc(environment.FieldKind)).
 		All(ctx.Context())
 	if err != nil {
 		return schemas.ProjectOut{}, core.AsHTTPError(err)
 	}
-	return projectOut(proj, envs), nil
+	return projectOut(proj, home, envs), nil
 }
 
 // ListProjects returns an organization's projects.
 func ListProjects(ctx *muzak.Context, in schemas.OrganizationParams) (schemas.ProjectListOut, error) {
-	control := muzak.From[*core.Control](ctx)
+	ctrl := muzak.From[*core.Global](ctx)
 
-	org, err := findOrg(ctx.Context(), control, in.Slug)
+	org, err := findOrg(ctx.Context(), ctrl, in.Slug)
 	if err != nil {
 		return schemas.ProjectListOut{}, err
 	}
-	projects, err := control.Global.Project.Query().
+	projects, err := ctrl.Client.Project.Query().
 		Where(project.OrganizationID(org.ID)).
+		WithCell().
 		Order(global.Asc(project.FieldSlug)).
 		All(ctx.Context())
 	if err != nil {
@@ -140,40 +149,40 @@ func ListProjects(ctx *muzak.Context, in schemas.OrganizationParams) (schemas.Pr
 	}
 	out := schemas.ProjectListOut{Projects: make([]schemas.ProjectOut, 0, len(projects))}
 	for _, proj := range projects {
-		out.Projects = append(out.Projects, projectOut(proj, nil))
+		out.Projects = append(out.Projects, projectOut(proj, proj.Edges.Cell, nil))
 	}
 	return out, nil
 }
 
 // ReadProject returns one project with its environments.
 func ReadProject(ctx *muzak.Context, in schemas.ProjectParams) (schemas.ProjectOut, error) {
-	control := muzak.From[*core.Control](ctx)
+	ctrl := muzak.From[*core.Global](ctx)
 
-	proj, err := findProject(ctx.Context(), control, in.OrgSlug, in.ProjectSlug)
+	proj, err := findProject(ctx.Context(), ctrl, in.OrgSlug, in.ProjectSlug)
 	if err != nil {
 		return schemas.ProjectOut{}, err
 	}
-	envs, err := control.Global.Environment.Query().
+	envs, err := ctrl.Client.Environment.Query().
 		Where(environment.ProjectID(proj.ID)).
 		Order(global.Asc(environment.FieldKind)).
 		All(ctx.Context())
 	if err != nil {
 		return schemas.ProjectOut{}, core.AsHTTPError(err)
 	}
-	return projectOut(proj, envs), nil
+	return projectOut(proj, proj.Edges.Cell, envs), nil
 }
 
 // ---- API keys ---------------------------------------------------------------
 
 // CreateAPIKey mints a key and returns it once.
 func CreateAPIKey(ctx *muzak.Context, in schemas.CreateAPIKeyIn) (schemas.APIKeyCreatedOut, error) {
-	control := muzak.From[*core.Control](ctx)
+	ctrl := muzak.From[*core.Global](ctx)
 
-	proj, err := findProject(ctx.Context(), control, in.OrgSlug, in.ProjectSlug)
+	proj, err := findProject(ctx.Context(), ctrl, in.OrgSlug, in.ProjectSlug)
 	if err != nil {
 		return schemas.APIKeyCreatedOut{}, err
 	}
-	env, err := control.Global.Environment.Query().
+	env, err := ctrl.Client.Environment.Query().
 		Where(environment.ProjectID(proj.ID), environment.KindEQ(environment.Kind(in.Environment))).
 		Only(ctx.Context())
 	if err != nil {
@@ -185,7 +194,7 @@ func CreateAPIKey(ctx *muzak.Context, in schemas.CreateAPIKeyIn) (schemas.APIKey
 		return schemas.APIKeyCreatedOut{}, muzak.BadRequest(err.Error())
 	}
 
-	key, err := control.Global.APIKey.Create().
+	key, err := ctrl.Client.APIKey.Create().
 		SetKind(apikey.Kind(in.Kind)).
 		SetPublicID(generated.PublicID).
 		SetSecretHash(generated.Hash).
@@ -207,13 +216,13 @@ func CreateAPIKey(ctx *muzak.Context, in schemas.CreateAPIKeyIn) (schemas.APIKey
 
 // ListAPIKeys returns a project's keys, without their secrets.
 func ListAPIKeys(ctx *muzak.Context, in schemas.ProjectParams) (schemas.APIKeyListOut, error) {
-	control := muzak.From[*core.Control](ctx)
+	ctrl := muzak.From[*core.Global](ctx)
 
-	proj, err := findProject(ctx.Context(), control, in.OrgSlug, in.ProjectSlug)
+	proj, err := findProject(ctx.Context(), ctrl, in.OrgSlug, in.ProjectSlug)
 	if err != nil {
 		return schemas.APIKeyListOut{}, err
 	}
-	envs, err := control.Global.Environment.Query().
+	envs, err := ctrl.Client.Environment.Query().
 		Where(environment.ProjectID(proj.ID)).All(ctx.Context())
 	if err != nil {
 		return schemas.APIKeyListOut{}, core.AsHTTPError(err)
@@ -225,7 +234,7 @@ func ListAPIKeys(ctx *muzak.Context, in schemas.ProjectParams) (schemas.APIKeyLi
 		ids = append(ids, env.ID)
 	}
 
-	keys, err := control.Global.APIKey.Query().
+	keys, err := ctrl.Client.APIKey.Query().
 		Where(apikey.EnvironmentIDIn(ids...)).
 		Order(global.Asc(apikey.FieldID)).
 		All(ctx.Context())
@@ -244,13 +253,13 @@ func ListAPIKeys(ctx *muzak.Context, in schemas.ProjectParams) (schemas.APIKeyLi
 // The row is kept rather than deleted: §53 records revoked_at, and an audit that cannot
 // say a key once existed is not an audit.
 func RevokeAPIKey(ctx *muzak.Context, in schemas.RevokeAPIKeyIn) (schemas.APIKeyOut, error) {
-	control := muzak.From[*core.Control](ctx)
+	ctrl := muzak.From[*core.Global](ctx)
 
-	proj, err := findProject(ctx.Context(), control, in.OrgSlug, in.ProjectSlug)
+	proj, err := findProject(ctx.Context(), ctrl, in.OrgSlug, in.ProjectSlug)
 	if err != nil {
 		return schemas.APIKeyOut{}, err
 	}
-	key, err := control.Global.APIKey.Query().
+	key, err := ctrl.Client.APIKey.Query().
 		Where(apikey.UID(in.KeyID), apikey.HasEnvironmentWith(environment.ProjectID(proj.ID))).
 		Only(ctx.Context())
 	if err != nil {
@@ -287,8 +296,8 @@ func RevokeAPIKey(ctx *muzak.Context, in schemas.RevokeAPIKeyIn) (schemas.APIKey
 
 // ---- lookups and mapping ----------------------------------------------------
 
-func findOrg(ctx context.Context, control *core.Control, slug string) (*global.Organization, error) {
-	org, err := control.Global.Organization.Query().
+func findOrg(ctx context.Context, ctrl *core.Global, slug string) (*global.Organization, error) {
+	org, err := ctrl.Client.Organization.Query().
 		Where(organization.Slug(slug)).Only(ctx)
 	if err != nil {
 		return nil, core.AsHTTPError(err)
@@ -296,15 +305,42 @@ func findOrg(ctx context.Context, control *core.Control, slug string) (*global.O
 	return org, nil
 }
 
-func findProject(ctx context.Context, control *core.Control, orgSlug, projectSlug string) (*global.Project, error) {
-	org, err := findOrg(ctx, control, orgSlug)
+func findProject(ctx context.Context, ctrl *core.Global, orgSlug, projectSlug string) (*global.Project, error) {
+	org, err := findOrg(ctx, ctrl, orgSlug)
 	if err != nil {
 		return nil, err
 	}
-	proj, err := control.Global.Project.Query().
-		Where(project.OrganizationID(org.ID), project.Slug(projectSlug)).Only(ctx)
+	proj, err := ctrl.Client.Project.Query().
+		Where(project.OrganizationID(org.ID), project.Slug(projectSlug)).
+		WithCell().Only(ctx)
 	if err != nil {
 		return nil, core.AsHTTPError(err)
 	}
 	return proj, nil
+}
+
+// defaultCell is where a project goes when the caller names none.
+//
+// Stage 1 runs one cell (§6), so this is every project. It is a constant rather than a
+// setting because a typo in a setting would place projects in a cell that does not exist,
+// and findCell would then refuse every creation until somebody noticed.
+const defaultCell = "eu-1"
+
+// findCell resolves a cell by slug and insists it can accept new projects.
+//
+// A draining or readonly cell still serves the projects it holds, but placing a new one
+// there is how a cell that is being emptied quietly refills.
+func findCell(ctx context.Context, ctrl *core.Global, slug string) (*global.Cell, error) {
+	home, err := ctrl.Client.Cell.Query().Where(cell.Slug(slug)).Only(ctx)
+	if err != nil {
+		if global.IsNotFound(err) {
+			return nil, muzak.BadRequest("no cell named " + slug).WithCode("unknown_cell")
+		}
+		return nil, core.AsHTTPError(err)
+	}
+	if home.Status != cell.StatusActive {
+		return nil, muzak.Conflict("cell " + slug + " is not accepting new projects").
+			WithCode("cell_not_active")
+	}
+	return home, nil
 }

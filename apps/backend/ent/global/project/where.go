@@ -81,9 +81,9 @@ func Slug(v string) predicate.Project {
 	return predicate.Project(sql.FieldEQ(FieldSlug, v))
 }
 
-// HomeRegion applies equality check predicate on the "home_region" field. It's identical to HomeRegionEQ.
-func HomeRegion(v string) predicate.Project {
-	return predicate.Project(sql.FieldEQ(FieldHomeRegion, v))
+// CellID applies equality check predicate on the "cell_id" field. It's identical to CellIDEQ.
+func CellID(v int) predicate.Project {
+	return predicate.Project(sql.FieldEQ(FieldCellID, v))
 }
 
 // RetentionDays applies equality check predicate on the "retention_days" field. It's identical to RetentionDaysEQ.
@@ -346,69 +346,24 @@ func SlugContainsFold(v string) predicate.Project {
 	return predicate.Project(sql.FieldContainsFold(FieldSlug, v))
 }
 
-// HomeRegionEQ applies the EQ predicate on the "home_region" field.
-func HomeRegionEQ(v string) predicate.Project {
-	return predicate.Project(sql.FieldEQ(FieldHomeRegion, v))
+// CellIDEQ applies the EQ predicate on the "cell_id" field.
+func CellIDEQ(v int) predicate.Project {
+	return predicate.Project(sql.FieldEQ(FieldCellID, v))
 }
 
-// HomeRegionNEQ applies the NEQ predicate on the "home_region" field.
-func HomeRegionNEQ(v string) predicate.Project {
-	return predicate.Project(sql.FieldNEQ(FieldHomeRegion, v))
+// CellIDNEQ applies the NEQ predicate on the "cell_id" field.
+func CellIDNEQ(v int) predicate.Project {
+	return predicate.Project(sql.FieldNEQ(FieldCellID, v))
 }
 
-// HomeRegionIn applies the In predicate on the "home_region" field.
-func HomeRegionIn(vs ...string) predicate.Project {
-	return predicate.Project(sql.FieldIn(FieldHomeRegion, vs...))
+// CellIDIn applies the In predicate on the "cell_id" field.
+func CellIDIn(vs ...int) predicate.Project {
+	return predicate.Project(sql.FieldIn(FieldCellID, vs...))
 }
 
-// HomeRegionNotIn applies the NotIn predicate on the "home_region" field.
-func HomeRegionNotIn(vs ...string) predicate.Project {
-	return predicate.Project(sql.FieldNotIn(FieldHomeRegion, vs...))
-}
-
-// HomeRegionGT applies the GT predicate on the "home_region" field.
-func HomeRegionGT(v string) predicate.Project {
-	return predicate.Project(sql.FieldGT(FieldHomeRegion, v))
-}
-
-// HomeRegionGTE applies the GTE predicate on the "home_region" field.
-func HomeRegionGTE(v string) predicate.Project {
-	return predicate.Project(sql.FieldGTE(FieldHomeRegion, v))
-}
-
-// HomeRegionLT applies the LT predicate on the "home_region" field.
-func HomeRegionLT(v string) predicate.Project {
-	return predicate.Project(sql.FieldLT(FieldHomeRegion, v))
-}
-
-// HomeRegionLTE applies the LTE predicate on the "home_region" field.
-func HomeRegionLTE(v string) predicate.Project {
-	return predicate.Project(sql.FieldLTE(FieldHomeRegion, v))
-}
-
-// HomeRegionContains applies the Contains predicate on the "home_region" field.
-func HomeRegionContains(v string) predicate.Project {
-	return predicate.Project(sql.FieldContains(FieldHomeRegion, v))
-}
-
-// HomeRegionHasPrefix applies the HasPrefix predicate on the "home_region" field.
-func HomeRegionHasPrefix(v string) predicate.Project {
-	return predicate.Project(sql.FieldHasPrefix(FieldHomeRegion, v))
-}
-
-// HomeRegionHasSuffix applies the HasSuffix predicate on the "home_region" field.
-func HomeRegionHasSuffix(v string) predicate.Project {
-	return predicate.Project(sql.FieldHasSuffix(FieldHomeRegion, v))
-}
-
-// HomeRegionEqualFold applies the EqualFold predicate on the "home_region" field.
-func HomeRegionEqualFold(v string) predicate.Project {
-	return predicate.Project(sql.FieldEqualFold(FieldHomeRegion, v))
-}
-
-// HomeRegionContainsFold applies the ContainsFold predicate on the "home_region" field.
-func HomeRegionContainsFold(v string) predicate.Project {
-	return predicate.Project(sql.FieldContainsFold(FieldHomeRegion, v))
+// CellIDNotIn applies the NotIn predicate on the "cell_id" field.
+func CellIDNotIn(vs ...int) predicate.Project {
+	return predicate.Project(sql.FieldNotIn(FieldCellID, vs...))
 }
 
 // PolicyTierEQ applies the EQ predicate on the "policy_tier" field.
@@ -506,6 +461,29 @@ func HasOrganization() predicate.Project {
 func HasOrganizationWith(preds ...predicate.Organization) predicate.Project {
 	return predicate.Project(func(s *sql.Selector) {
 		step := newOrganizationStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasCell applies the HasEdge predicate on the "cell" edge.
+func HasCell() predicate.Project {
+	return predicate.Project(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, CellTable, CellColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasCellWith applies the HasEdge predicate on the "cell" edge with a given conditions (other predicates).
+func HasCellWith(preds ...predicate.Cell) predicate.Project {
+	return predicate.Project(func(s *sql.Selector) {
+		step := newCellStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

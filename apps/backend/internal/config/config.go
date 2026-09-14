@@ -13,11 +13,36 @@ import (
 // Every connection string carries its own port rather than composing one from a host and
 // a port setting, so that the ports declared in .env are the only place a port appears.
 type Settings struct {
-	// ClickHouseDSN addresses the analytics database (§13).
+	// Cell is which data plane this process belongs to (§6).
+	//
+	// Every stateful thing below except the global tier belongs to this cell, and the
+	// slug prefixes every Valkey key and every ClickHouse replica path. A service
+	// asserts at start-up that the cell exists in the registry and is active, so a typo
+	// fails to boot rather than writing somewhere unexpected.
+	Cell string `env:"CELL" default:"eu-1"`
+
+	// CellRegion is the jurisdiction the cell sits in — the legal boundary, as distinct
+	// from the cell, which is a stack inside it (§6).
+	CellRegion string `env:"CELL_REGION" default:"eu"`
+
+	// CellIngestURL is the address SDKs for this cell's projects must send batches to.
+	// Returned to a client that reaches the wrong cell, so a misconfigured integration
+	// is told where to go rather than merely refused.
+	CellIngestURL string `env:"CELL_INGEST_URL" default:"http://localhost:21081"`
+
+	// GlobalPostgresDSN addresses the one global control-plane tier (§99).
+	//
+	// US-hosted: it holds accounts, organisations, projects, keys and aggregate counts,
+	// and by §99's rule no player data at all.
+	GlobalPostgresDSN string `env:"GLOBAL_POSTGRES_DSN" required:"true" secret:"true"`
+
+	// CellPostgresDSN addresses this cell's own database, holding everything that names
+	// a player. It never leaves the cell's region.
+	CellPostgresDSN string `env:"CELL_POSTGRES_DSN" secret:"true"`
+
+	// ClickHouseDSN addresses this cell's analytics database (§13).
 	ClickHouseDSN string `env:"CLICKHOUSE_DSN" required:"true" secret:"true"`
-	// PostgresDSN addresses the control plane (§11).
-	PostgresDSN string `env:"POSTGRES_DSN" required:"true" secret:"true"`
-	// ValkeyDSN addresses the cache and the device-state store (§12).
+	// ValkeyDSN addresses this cell's cache and device-state store (§12).
 	ValkeyDSN string `env:"VALKEY_DSN"`
 
 	// MigrationsDir is the repository-root directory holding both migration sets.
@@ -77,6 +102,15 @@ type Settings struct {
 	// next suite's budget, and a test that fails because a previous test ran is a test
 	// nobody trusts. The limiter itself is exercised by a test written for it.
 	RateLimitDisabled bool `env:"RATE_LIMIT_DISABLED" default:"false"`
+
+	// AnalyticsWriterAddr is where the writer serves its health probe. It has no API.
+	AnalyticsWriterAddr string `env:"ANALYTICS_WRITER_ADDR" default:":21082"`
+
+	// WriterBatchSize and WriterFlushInterval bound how much the writer accumulates
+	// before an insert. Never one event per insert (§86), and never so large that a
+	// crash loses more than a few seconds of acknowledged work.
+	WriterBatchSize     int           `env:"WRITER_BATCH_SIZE" default:"5000"`
+	WriterFlushInterval time.Duration `env:"WRITER_FLUSH_INTERVAL" default:"2s"`
 
 	// LogFormat is auto, console, json or none.
 	//

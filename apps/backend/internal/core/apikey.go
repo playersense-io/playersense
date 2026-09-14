@@ -158,14 +158,17 @@ func KindOf(publicID string) string {
 	return parts[1]
 }
 
-// CacheKey is the identifier a verified key is cached under.
+// CacheDigest is the identifier a verified key is cached under.
 //
 // SHA-256 of the whole credential, so the cache is keyed by something only a holder of
 // the key can produce, and the cache itself never holds the key. It is fast on purpose:
 // this runs on every request, and the slow hash is what the cache exists to avoid.
-func CacheKey(presented string) string {
+//
+// The cell prefix is added by the client that stores it, so one cell's verified
+// credential is never served from another cell's keyspace.
+func CacheDigest(presented string) string {
 	sum := sha256.Sum256([]byte(presented))
-	return "apikey:" + base64.RawURLEncoding.EncodeToString(sum[:])
+	return base64.RawURLEncoding.EncodeToString(sum[:])
 }
 
 // HashSecret produces a PHC-encoded Argon2id digest of the private half.

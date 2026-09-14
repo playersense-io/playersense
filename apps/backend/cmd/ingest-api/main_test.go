@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -13,7 +14,9 @@ import (
 	"muzak.dev/framework"
 	"muzak.dev/framework/testclient"
 
+	"playersense.dev/backend/ent/global"
 	"playersense.dev/backend/ent/global/apikey"
+	"playersense.dev/backend/ent/global/cell"
 	"playersense.dev/backend/ent/global/environment"
 	"playersense.dev/backend/ent/global/project"
 	"playersense.dev/backend/internal/config"
@@ -26,12 +29,14 @@ import (
 	"playersense.dev/backend/internal/valkey"
 )
 
-// fixture is one project, one key and a bus the test can read back.
+// fixture is one project in this cell, one key and a bus the test can read back.
 type fixture struct {
-	client  *testclient.Client
-	bus     *eventbus.Local
-	key     string
-	control *pgdb.Control
+	client *testclient.Client
+	bus    *eventbus.Local
+	key    string
+	ctrl   *pgdb.Global
+	home   core.CellIdentity
+	envID  int
 }
 
 func newFixture(t *testing.T, tier string) *fixture {
@@ -44,58 +49,97 @@ func newFixture(t *testing.T, tier string) *fixture {
 	settings.Addr, settings.LogFormat = ":0", "none"
 	settings.RateLimitDisabled = true
 
-	control := pgdb.New(settings.PostgresDSN)
-	if err := control.Start(t.Context()); err != nil {
+	ctrl := pgdb.NewGlobal(settings.GlobalPostgresDSN)
+	if err := ctrl.Start(t.Context()); err != nil {
 		t.Skipf("no control plane: %v", err)
 	}
-	t.Cleanup(func() { _ = control.Close() })
+	t.Cleanup(func() { _ = ctrl.Close() })
 
-	secret := seedKey(t, control, tier)
+	home := core.CellFrom(settings)
+	secret, envID := seedKey(t, ctrl, tier, seedCell(t, ctrl, home).ID)
 
 	// Its own spool per test, so tests do not read each other's messages.
-	bus := eventbus.NewLocal(t.TempDir())
+	bus := eventbus.NewLocal(home.Slug, t.TempDir())
 
 	app := muzak.New(muzak.AppOptions{
 		Title:         "ingest-test",
 		Addr:          ":0",
 		LoggerOptions: muzak.LoggerOptions{Format: muzak.LogFormatNone},
 	},
-		muzak.WithSingleton(control),
-		muzak.WithSingleton(core.NewKeyResolver(control, testCache(t), core.KeyResolverOptions{TTL: time.Minute, NegativeTTL: time.Second, LocalTTL: time.Second, MaxLocal: 1000})),
+		muzak.WithSingleton(ctrl),
+		muzak.WithSingleton(core.NewKeyResolver(ctrl, testCache(t), core.KeyResolverOptions{TTL: time.Minute, NegativeTTL: time.Second, LocalTTL: time.Second, MaxLocal: 1000})),
 		muzak.WithSingleton(ingest.DefaultLimits()),
 		muzak.WithSingleton(eventbus.Bus(bus)),
+		muzak.WithSingleton(home),
 	)
 	app.Include(routers.Meta())
 	app.Include(routers.Ingest())
 
 	return &fixture{
-		client:  testclient.New(t, app, testclient.WithHeader("Authorization", "Bearer "+secret)),
-		bus:     bus,
-		key:     secret,
-		control: control,
+		client: testclient.New(t, app, testclient.WithHeader("Authorization", "Bearer "+secret)),
+		bus:    bus,
+		key:    secret,
+		ctrl:   ctrl,
+		home:   home,
+		envID:  envID,
 	}
 }
 
-// seedKey creates an organization, a project on the given tier and a publishable key.
-func seedKey(t *testing.T, control *pgdb.Control, tier string) string {
+// seedCell makes sure a cell is in the registry and returns it.
+//
+// The registry is global state shared by every test in this package, so this is an upsert
+// rather than a create: whichever test runs first provisions it and the rest find it.
+func seedCell(t *testing.T, ctrl *pgdb.Global, identity core.CellIdentity) *global.Cell {
+	t.Helper()
+	ctx := context.Background()
+
+	found, err := ctrl.Client.Cell.Query().Where(cell.Slug(identity.Slug)).Only(ctx)
+	if err == nil {
+		return found
+	}
+	if !global.IsNotFound(err) {
+		t.Fatalf("read the cell registry: %v", err)
+	}
+	created, err := ctrl.Client.Cell.Create().
+		SetSlug(identity.Slug).
+		SetRegion(identity.Region).
+		SetIngestURL(identity.IngestURL).
+		Save(ctx)
+	if err != nil {
+		// A parallel test may have won the race to create it.
+		if found, qerr := ctrl.Client.Cell.Query().Where(cell.Slug(identity.Slug)).Only(ctx); qerr == nil {
+			return found
+		}
+		t.Fatalf("seed cell %s: %v", identity.Slug, err)
+	}
+	return created
+}
+
+// seedKey creates an organization, a project in the given cell and a publishable key.
+//
+// The environment id is returned rather than looked up later: keys minted for a test have
+// to belong to *that* test's project, and "the first environment in the table" stops being
+// that as soon as one test registers a project in a second cell.
+func seedKey(t *testing.T, ctrl *pgdb.Global, tier string, cellID int) (secret string, envID int) {
 	t.Helper()
 	ctx := context.Background()
 	suffix := uuid.NewString()[:8]
 
-	org, err := control.Global.Organization.Create().
+	org, err := ctrl.Client.Organization.Create().
 		SetName("Test Org").SetSlug("t-" + suffix).Save(ctx)
 	if err != nil {
 		t.Fatalf("seed organization: %v", err)
 	}
-	proj, err := control.Global.Project.Create().
+	proj, err := ctrl.Client.Project.Create().
 		SetName("Test Game").SetSlug("p-" + suffix).
+		SetCellID(cellID).
 		SetPolicyTier(project.PolicyTier(tier)).
 		SetRetentionDays(30).
 		SetOrganizationID(org.ID).Save(ctx)
 	if err != nil {
 		t.Fatalf("seed project: %v", err)
 	}
-	env, err := control.Global.Environment.Create().
+	env, err := ctrl.Client.Environment.Create().
 		SetKind(environment.KindProduction).SetProjectID(proj.ID).Save(ctx)
 	if err != nil {
 		t.Fatalf("seed environment: %v", err)
@@ -105,14 +149,14 @@ func seedKey(t *testing.T, control *pgdb.Control, tier string) string {
 	if err != nil {
 		t.Fatalf("mint key: %v", err)
 	}
-	if _, err := control.Global.APIKey.Create().
+	if _, err := ctrl.Client.APIKey.Create().
 		SetKind("project").
 		SetPublicID(generated.PublicID).
 		SetSecretHash(generated.Hash).
 		SetEnvironmentID(env.ID).Save(ctx); err != nil {
 		t.Fatalf("store key: %v", err)
 	}
-	return generated.Secret
+	return generated.Secret, env.ID
 }
 
 // published returns every message the bus holds for today.
@@ -204,10 +248,11 @@ func buildTestApp(t *testing.T, f *fixture) *muzak.App {
 		Title: "ingest-test", Addr: ":0",
 		LoggerOptions: muzak.LoggerOptions{Format: muzak.LogFormatNone},
 	},
-		muzak.WithSingleton(f.control),
-		muzak.WithSingleton(core.NewKeyResolver(f.control, testCache(t), core.KeyResolverOptions{TTL: time.Minute, NegativeTTL: time.Second, LocalTTL: time.Millisecond, MaxLocal: 1000})),
+		muzak.WithSingleton(f.ctrl),
+		muzak.WithSingleton(core.NewKeyResolver(f.ctrl, testCache(t), core.KeyResolverOptions{TTL: time.Minute, NegativeTTL: time.Second, LocalTTL: time.Millisecond, MaxLocal: 1000})),
 		muzak.WithSingleton(ingest.DefaultLimits()),
 		muzak.WithSingleton(eventbus.Bus(f.bus)),
+		muzak.WithSingleton(f.home),
 	)
 	app.Include(routers.Ingest())
 	return app
@@ -388,7 +433,7 @@ func TestIngestionSurvivesAControlPlaneOutage(t *testing.T) {
 	// Take the control plane away for real: close the pools underneath the running
 	// application, which is what an outage looks like from in here. A test that merely
 	// sends a second request would pass with no cache at all.
-	if err := f.control.Close(); err != nil {
+	if err := f.ctrl.Close(); err != nil {
 		t.Fatalf("close control plane: %v", err)
 	}
 
@@ -411,7 +456,7 @@ func TestAnUncachedKeyFailsClosedDuringAnOutage(t *testing.T) {
 	// Nothing is warmed for this key, and the control plane is gone.
 	other := testclient.New(t, buildTestApp(t, f),
 		testclient.WithHeader("Authorization", "Bearer "+f.key))
-	if err := f.control.Close(); err != nil {
+	if err := f.ctrl.Close(); err != nil {
 		t.Fatalf("close control plane: %v", err)
 	}
 
@@ -447,7 +492,7 @@ func testCache(t *testing.T) *valkey.Client {
 	if err != nil {
 		t.Skipf("no local environment: %v", err)
 	}
-	c := valkey.New(settings.ValkeyDSN)
+	c := valkey.New(settings.Cell, settings.ValkeyDSN)
 	if err := c.Start(t.Context()); err != nil {
 		t.Skipf("no valkey: %v", err)
 	}
@@ -455,22 +500,18 @@ func testCache(t *testing.T) *valkey.Client {
 	return c
 }
 
-// seedKindKey mints a key of an arbitrary kind against the fixture's project.
+// seedKindKey mints a key of an arbitrary kind against the fixture's own project.
 func seedKindKey(t *testing.T, f *fixture, kind string) (secret, publicID string) {
 	t.Helper()
-	env, err := f.control.Global.Environment.Query().First(context.Background())
-	if err != nil {
-		t.Fatalf("find environment: %v", err)
-	}
 	generated, err := core.NewAPIKey(kind, "production")
 	if err != nil {
 		t.Fatalf("mint %s key: %v", kind, err)
 	}
-	if _, err := f.control.Global.APIKey.Create().
+	if _, err := f.ctrl.Client.APIKey.Create().
 		SetKind(apikey.Kind(kind)).
 		SetPublicID(generated.PublicID).
 		SetSecretHash(generated.Hash).
-		SetEnvironmentID(env.ID).Save(context.Background()); err != nil {
+		SetEnvironmentID(f.envID).Save(context.Background()); err != nil {
 		t.Fatalf("store %s key: %v", kind, err)
 	}
 	return generated.Secret, generated.PublicID
@@ -503,7 +544,7 @@ func TestRevocationTakesEffectImmediately(t *testing.T) {
 	secret, publicID := seedKindKey(t, f, core.KindProject)
 
 	cache := testCache(t)
-	resolver := core.NewKeyResolver(f.control, cache, core.KeyResolverOptions{
+	resolver := core.NewKeyResolver(f.ctrl, cache, core.KeyResolverOptions{
 		TTL: time.Minute, NegativeTTL: time.Second, LocalTTL: time.Millisecond, MaxLocal: 100,
 	})
 
@@ -513,7 +554,7 @@ func TestRevocationTakesEffectImmediately(t *testing.T) {
 	}
 
 	// Revoke it the way control-api does.
-	if _, err := f.control.Global.APIKey.Update().
+	if _, err := f.ctrl.Client.APIKey.Update().
 		Where(apikey.PublicID(publicID)).
 		SetRevokedAt(time.Now().UTC()).Save(context.Background()); err != nil {
 		t.Fatalf("revoke: %v", err)
@@ -540,7 +581,7 @@ func TestValkeyAnswersWhenPostgresIsDown(t *testing.T) {
 	secret, _ := seedKindKey(t, f, core.KindProject)
 
 	cache := testCache(t)
-	warm := core.NewKeyResolver(f.control, cache, core.KeyResolverOptions{
+	warm := core.NewKeyResolver(f.ctrl, cache, core.KeyResolverOptions{
 		TTL: time.Minute, NegativeTTL: time.Second, LocalTTL: time.Millisecond, MaxLocal: 100,
 	})
 	if _, err := warm.Resolve(t.Context(), secret); err != nil {
@@ -549,7 +590,7 @@ func TestValkeyAnswersWhenPostgresIsDown(t *testing.T) {
 
 	// A different instance, with no in-process cache of its own and no usable database.
 	cold := core.NewKeyResolver(
-		pgdb.New("postgres://nobody:nobody@127.0.0.1:1/none?sslmode=disable"),
+		pgdb.NewGlobal("postgres://nobody:nobody@127.0.0.1:1/none?sslmode=disable"),
 		cache,
 		core.KeyResolverOptions{TTL: time.Minute, NegativeTTL: time.Second, LocalTTL: time.Millisecond, MaxLocal: 100},
 	)
@@ -565,5 +606,59 @@ func TestValkeyAnswersWhenPostgresIsDown(t *testing.T) {
 	unknown, _ := core.NewAPIKey(core.KindProject, "production")
 	if _, err := cold.Resolve(t.Context(), unknown.Secret); err == nil {
 		t.Fatal("an unverifiable key was accepted; resolution must fail closed")
+	}
+}
+
+// TestAKeyFromAnotherCellIsRefused is the residency check, and the single most important
+// line in the cell design (§6, §99).
+//
+// Without it, one wrong hostname in an SDK config puts one region's player data on another
+// region's disks — the exact outcome the whole design exists to prevent, defeated by a
+// typo. With one cell nothing can currently be misdirected, so the path is exercised by
+// registering a second cell and putting a project in it.
+//
+// 421 rather than 403, and the body names the endpoint that can serve the key: a
+// misconfigured integration is told where to go rather than merely refused.
+func TestAKeyFromAnotherCellIsRefused(t *testing.T) {
+	f := newFixture(t, "standard")
+
+	foreign := seedCell(t, f.ctrl, core.CellIdentity{
+		Slug: "us-1", Region: "us", IngestURL: "https://us.ingest.playersense.test",
+	})
+	if foreign.Slug == f.home.Slug {
+		t.Fatalf("the test cell and the home cell are both %q", foreign.Slug)
+	}
+	secret, _ := seedKey(t, f.ctrl, "standard", foreign.ID)
+
+	client := testclient.New(t, buildTestApp(t, f),
+		testclient.WithHeader("Authorization", "Bearer "+secret))
+
+	res := client.Post("/v1/batches", testclient.JSON(batch(event("session_start", nil))))
+	if res.Status != http.StatusMisdirectedRequest {
+		t.Fatalf("status = %d, want 421 for a key belonging to another cell", res.Status)
+	}
+	if !strings.Contains(res.String(), foreign.IngestURL) {
+		t.Errorf("the refusal must name the endpoint that can serve it; got %s", res.String())
+	}
+	if len(f.published(t)) != 0 {
+		t.Fatal("another cell's batch reached this cell's bus")
+	}
+}
+
+// TestTheAcceptedMessageCarriesItsCell — the writer, the archive and every counter
+// downstream are per cell, so a message that does not say which one it came from is a
+// message a consumer has to guess about.
+func TestTheAcceptedMessageCarriesItsCell(t *testing.T) {
+	f := newFixture(t, "standard")
+
+	f.client.Post("/v1/batches", testclient.JSON(batch(event("session_start", nil)))).
+		AssertStatus(http.StatusAccepted)
+
+	msgs := f.published(t)
+	if len(msgs) != 1 {
+		t.Fatalf("want one message, got %d", len(msgs))
+	}
+	if msgs[0].Cell != f.home.Slug {
+		t.Errorf("message cell = %q, want %q", msgs[0].Cell, f.home.Slug)
 	}
 }

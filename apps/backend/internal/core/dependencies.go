@@ -48,8 +48,11 @@ func AsHTTPError(err error) error {
 	}
 }
 
-// Control is the control plane, published to handlers with muzak.WithSingleton.
-type Control = pgdb.Control
+// Global is the global control-plane tier, published to handlers with WithSingleton.
+//
+// Handlers reach the global tier and nothing else. Anything naming a player lives in a
+// cell's own database (§99), and a handler that wants one has to say which cell it means.
+type Global = pgdb.Global
 
 // RateLimitPolicy is the application-wide budget every route inherits.
 //

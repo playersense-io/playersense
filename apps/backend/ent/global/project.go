@@ -10,6 +10,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
+	"playersense.dev/backend/ent/global/cell"
 	"playersense.dev/backend/ent/global/organization"
 	"playersense.dev/backend/ent/global/project"
 )
@@ -31,7 +32,7 @@ type Project struct {
 	// class=none
 	Slug string `json:"slug,omitempty"`
 	// class=none
-	HomeRegion string `json:"home_region,omitempty"`
+	CellID int `json:"cell_id,omitempty"`
 	// class=none
 	PolicyTier project.PolicyTier `json:"policy_tier,omitempty"`
 	// class=none
@@ -48,11 +49,13 @@ type Project struct {
 type ProjectEdges struct {
 	// Organization holds the value of the organization edge.
 	Organization *Organization `json:"organization,omitempty"`
+	// Cell holds the value of the cell edge.
+	Cell *Cell `json:"cell,omitempty"`
 	// Environments holds the value of the environments edge.
 	Environments []*Environment `json:"environments,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [2]bool
+	loadedTypes [3]bool
 }
 
 // OrganizationOrErr returns the Organization value or an error if the edge
@@ -66,10 +69,21 @@ func (e ProjectEdges) OrganizationOrErr() (*Organization, error) {
 	return nil, &NotLoadedError{edge: "organization"}
 }
 
+// CellOrErr returns the Cell value or an error if the edge
+// was not loaded in eager-loading, or loaded but was not found.
+func (e ProjectEdges) CellOrErr() (*Cell, error) {
+	if e.Cell != nil {
+		return e.Cell, nil
+	} else if e.loadedTypes[1] {
+		return nil, &NotFoundError{label: cell.Label}
+	}
+	return nil, &NotLoadedError{edge: "cell"}
+}
+
 // EnvironmentsOrErr returns the Environments value or an error if the edge
 // was not loaded in eager-loading.
 func (e ProjectEdges) EnvironmentsOrErr() ([]*Environment, error) {
-	if e.loadedTypes[1] {
+	if e.loadedTypes[2] {
 		return e.Environments, nil
 	}
 	return nil, &NotLoadedError{edge: "environments"}
@@ -80,9 +94,9 @@ func (*Project) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case project.FieldID, project.FieldRetentionDays, project.FieldOrganizationID:
+		case project.FieldID, project.FieldCellID, project.FieldRetentionDays, project.FieldOrganizationID:
 			values[i] = new(sql.NullInt64)
-		case project.FieldName, project.FieldSlug, project.FieldHomeRegion, project.FieldPolicyTier:
+		case project.FieldName, project.FieldSlug, project.FieldPolicyTier:
 			values[i] = new(sql.NullString)
 		case project.FieldCreatedAt, project.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -139,11 +153,11 @@ func (_m *Project) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.Slug = value.String
 			}
-		case project.FieldHomeRegion:
-			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field home_region", values[i])
+		case project.FieldCellID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field cell_id", values[i])
 			} else if value.Valid {
-				_m.HomeRegion = value.String
+				_m.CellID = int(value.Int64)
 			}
 		case project.FieldPolicyTier:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -179,6 +193,11 @@ func (_m *Project) Value(name string) (ent.Value, error) {
 // QueryOrganization queries the "organization" edge of the Project entity.
 func (_m *Project) QueryOrganization() *OrganizationQuery {
 	return NewProjectClient(_m.config).QueryOrganization(_m)
+}
+
+// QueryCell queries the "cell" edge of the Project entity.
+func (_m *Project) QueryCell() *CellQuery {
+	return NewProjectClient(_m.config).QueryCell(_m)
 }
 
 // QueryEnvironments queries the "environments" edge of the Project entity.
@@ -224,8 +243,8 @@ func (_m *Project) String() string {
 	builder.WriteString("slug=")
 	builder.WriteString(_m.Slug)
 	builder.WriteString(", ")
-	builder.WriteString("home_region=")
-	builder.WriteString(_m.HomeRegion)
+	builder.WriteString("cell_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.CellID))
 	builder.WriteString(", ")
 	builder.WriteString("policy_tier=")
 	builder.WriteString(fmt.Sprintf("%v", _m.PolicyTier))

@@ -34,17 +34,26 @@ func main() {
 // It is a function rather than inline in main so that the test suite exercises exactly
 // the application that runs, rather than a second one assembled to look like it.
 func build(settings config.Settings) *muzak.App {
-	// Construction is cheap and dials nothing. Control implements muzak.Lifecycle, so
-	// the application opens it before the server accepts traffic and closes it after the
+	// The control API speaks only to the global tier (§99): accounts, projects, keys and
+	// cells. Anything naming a player lives in a cell's own database, and this service
+	// has no connection to one.
+	//
+	// Construction is cheap and dials nothing. Global implements muzak.Lifecycle, so the
+	// application opens it before the server accepts traffic and closes it after the
 	// server has drained — a request still in flight keeps a usable connection to the
 	// very end.
-	control := pgdb.New(settings.PostgresDSN)
+	ctrl := pgdb.NewGlobal(settings.GlobalPostgresDSN)
 
 	// The cache is here so revoking a key can evict it immediately rather than leaving
 	// it usable until its entry expires — which is exactly the minutes during which
 	// somebody needs it to stop working (§53).
-	cache := valkey.New(settings.ValkeyDSN)
-	resolver := core.NewKeyResolver(control, cache, core.KeyResolverOptions{
+	//
+	// It is a *cell's* cache, and that is a real limit worth naming rather than hiding:
+	// the revocation tombstone is written into one cell's keyspace, so with several cells
+	// this service needs a client per cell and must evict from all of them. Stage 1 runs
+	// one cell (§6), so one client is the whole fleet.
+	cache := valkey.New(settings.Cell, settings.ValkeyDSN)
+	resolver := core.NewKeyResolver(ctrl, cache, core.KeyResolverOptions{
 		TTL:         settings.KeyCacheTTL,
 		NegativeTTL: settings.KeyCacheNegativeTTL,
 		LocalTTL:    settings.KeyCacheLocalTTL,
@@ -84,8 +93,9 @@ func build(settings config.Settings) *muzak.App {
 	},
 		// Published by value, and started and stopped by the application because it
 		// implements Lifecycle.
-		muzak.WithSingleton(control),
+		muzak.WithSingleton(ctrl),
 		muzak.WithSingleton(cache),
+		muzak.WithSingleton(core.CellFrom(settings)),
 		muzak.WithSingleton(resolver),
 		muzak.WithSingleton(settings),
 	)

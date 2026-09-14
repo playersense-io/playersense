@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"net/http"
 	"time"
 
 	"github.com/google/uuid"
@@ -28,9 +29,32 @@ func AcceptBatch(ctx *muzak.Context, in schemas.IngestBatchIn) (protocol.Accepte
 	tenant := muzak.From[*core.Tenant](ctx)
 	bus := muzak.From[eventbus.Bus](ctx)
 	limits := muzak.From[ingest.Limits](ctx)
+	home := muzak.From[core.CellIdentity](ctx)
 
-	// A secret key is for server-to-server work. Ingesting with one is not wrong, but a
-	// publishable key is what ships in a game, so both are accepted here (§52).
+	// Residency, enforced here rather than assumed (§6, §99).
+	//
+	// This project's data belongs in another cell, and that cell may be in another
+	// jurisdiction. Accepting the batch would put one region's player data on another
+	// region's disks — the exact outcome the whole cell design exists to prevent,
+	// defeated by one wrong hostname in an SDK config.
+	//
+	// 421 rather than 403: the request is well-formed and the credential is good, it
+	// simply arrived at a server that cannot serve it. The response names the address
+	// that can, so a misconfigured integration is told where to go rather than merely
+	// refused.
+	if tenant.Cell != home.Slug {
+		return protocol.Accepted{}, muzak.NewHTTPError(http.StatusMisdirectedRequest,
+			"this project belongs to cell "+tenant.Cell+"; send its batches to "+tenant.IngestURL).
+			WithCode("wrong_cell").
+			WithDetails(muzak.ErrorDetail{
+				Field:    "ingest_url",
+				Location: "header",
+				Issue:    tenant.IngestURL,
+			})
+	}
+
+	// The key class was already enforced by the provider: only a project key reaches
+	// here (§52).
 	if in.SchemaVersion != protocol.SchemaVersion {
 		return protocol.Accepted{}, muzak.BadRequest("unsupported schema_version").
 			WithCode("unsupported_schema_version")
@@ -91,6 +115,7 @@ func AcceptBatch(ctx *muzak.Context, in schemas.IngestBatchIn) (protocol.Accepte
 
 	msg := &eventbus.Message{
 		PublishedAt:    now,
+		Cell:           home.Slug,
 		DedupKey:       dedupKey(tenant, in.BatchID),
 		OrgSeq:         tenant.OrgSeq,
 		ProjectSeq:     tenant.ProjectSeq,
@@ -127,6 +152,7 @@ func AcceptBatch(ctx *muzak.Context, in schemas.IngestBatchIn) (protocol.Accepte
 // that identifies the batch rather than the delivery. It is scoped by tenant so two
 // projects cannot collide on a client-chosen identifier.
 func dedupKey(tenant *core.Tenant, batchID string) string {
-	sum := sha256.Sum256([]byte(tenant.ProjectID + "/" + tenant.EnvironmentID + "/" + batchID))
+	sum := sha256.Sum256([]byte(tenant.Cell + "/" + tenant.ProjectID + "/" +
+		tenant.EnvironmentID + "/" + batchID))
 	return hex.EncodeToString(sum[:16])
 }

@@ -202,6 +202,9 @@ func (_u *ProjectUpdate) check() error {
 	if _u.mutation.OrganizationCleared() && len(_u.mutation.OrganizationIDs()) > 0 {
 		return errors.New(`global: clearing a required unique edge "Project.organization"`)
 	}
+	if _u.mutation.CellCleared() && len(_u.mutation.CellIDs()) > 0 {
+		return errors.New(`global: clearing a required unique edge "Project.cell"`)
+	}
 	return nil
 }
 
@@ -510,6 +513,9 @@ func (_u *ProjectUpdateOne) check() error {
 	}
 	if _u.mutation.OrganizationCleared() && len(_u.mutation.OrganizationIDs()) > 0 {
 		return errors.New(`global: clearing a required unique edge "Project.organization"`)
+	}
+	if _u.mutation.CellCleared() && len(_u.mutation.CellIDs()) > 0 {
+		return errors.New(`global: clearing a required unique edge "Project.cell"`)
 	}
 	return nil
 }

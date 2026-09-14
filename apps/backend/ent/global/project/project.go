@@ -26,8 +26,8 @@ const (
 	FieldName = "name"
 	// FieldSlug holds the string denoting the slug field in the database.
 	FieldSlug = "slug"
-	// FieldHomeRegion holds the string denoting the home_region field in the database.
-	FieldHomeRegion = "home_region"
+	// FieldCellID holds the string denoting the cell_id field in the database.
+	FieldCellID = "cell_id"
 	// FieldPolicyTier holds the string denoting the policy_tier field in the database.
 	FieldPolicyTier = "policy_tier"
 	// FieldRetentionDays holds the string denoting the retention_days field in the database.
@@ -36,6 +36,8 @@ const (
 	FieldOrganizationID = "organization_id"
 	// EdgeOrganization holds the string denoting the organization edge name in mutations.
 	EdgeOrganization = "organization"
+	// EdgeCell holds the string denoting the cell edge name in mutations.
+	EdgeCell = "cell"
 	// EdgeEnvironments holds the string denoting the environments edge name in mutations.
 	EdgeEnvironments = "environments"
 	// Table holds the table name of the project in the database.
@@ -47,6 +49,13 @@ const (
 	OrganizationInverseTable = "organizations"
 	// OrganizationColumn is the table column denoting the organization relation/edge.
 	OrganizationColumn = "organization_id"
+	// CellTable is the table that holds the cell relation/edge.
+	CellTable = "projects"
+	// CellInverseTable is the table name for the Cell entity.
+	// It exists in this package in order to avoid circular dependency with the "cell" package.
+	CellInverseTable = "cells"
+	// CellColumn is the table column denoting the cell relation/edge.
+	CellColumn = "cell_id"
 	// EnvironmentsTable is the table that holds the environments relation/edge.
 	EnvironmentsTable = "environments"
 	// EnvironmentsInverseTable is the table name for the Environment entity.
@@ -64,7 +73,7 @@ var Columns = []string{
 	FieldUpdatedAt,
 	FieldName,
 	FieldSlug,
-	FieldHomeRegion,
+	FieldCellID,
 	FieldPolicyTier,
 	FieldRetentionDays,
 	FieldOrganizationID,
@@ -93,10 +102,6 @@ var (
 	NameValidator func(string) error
 	// SlugValidator is a validator for the "slug" field. It is called by the builders before save.
 	SlugValidator func(string) error
-	// DefaultHomeRegion holds the default value on creation for the "home_region" field.
-	DefaultHomeRegion string
-	// HomeRegionValidator is a validator for the "home_region" field. It is called by the builders before save.
-	HomeRegionValidator func(string) error
 	// DefaultRetentionDays holds the default value on creation for the "retention_days" field.
 	DefaultRetentionDays uint16
 )
@@ -161,9 +166,9 @@ func BySlug(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldSlug, opts...).ToFunc()
 }
 
-// ByHomeRegion orders the results by the home_region field.
-func ByHomeRegion(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldHomeRegion, opts...).ToFunc()
+// ByCellID orders the results by the cell_id field.
+func ByCellID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCellID, opts...).ToFunc()
 }
 
 // ByPolicyTier orders the results by the policy_tier field.
@@ -188,6 +193,13 @@ func ByOrganizationField(field string, opts ...sql.OrderTermOption) OrderOption 
 	}
 }
 
+// ByCellField orders the results by cell field.
+func ByCellField(field string, opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newCellStep(), sql.OrderByField(field, opts...))
+	}
+}
+
 // ByEnvironmentsCount orders the results by environments count.
 func ByEnvironmentsCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -206,6 +218,13 @@ func newOrganizationStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(OrganizationInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.M2O, true, OrganizationTable, OrganizationColumn),
+	)
+}
+func newCellStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(CellInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.M2O, true, CellTable, CellColumn),
 	)
 }
 func newEnvironmentsStep() *sqlgraph.Step {

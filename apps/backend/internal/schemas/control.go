@@ -55,7 +55,9 @@ type ProjectOut struct {
 	ID            uuid.UUID        `json:"id"`
 	Name          string           `json:"name"`
 	Slug          string           `json:"slug"`
-	HomeRegion    string           `json:"home_region" doc:"The cell holding this project's data"`
+	Cell          string           `json:"cell" doc:"The cell holding this project's data"`
+	Region        string           `json:"region" doc:"The jurisdiction that cell sits in"`
+	IngestURL     string           `json:"ingest_url,omitzero" doc:"Where this project's SDKs must send batches"`
 	PolicyTier    string           `json:"policy_tier" doc:"standard, child_directed or kids_strict"`
 	RetentionDays uint16           `json:"retention_days" doc:"Raw event retention, in days"`
 	Environments  []EnvironmentOut `json:"environments,omitzero"`
@@ -89,7 +91,7 @@ type CreateProjectIn struct {
 
 	Name       string `json:"name"`
 	Slug       string `json:"slug" doc:"URL-safe short name, unique within the organization"`
-	HomeRegion string `json:"home_region,omitzero" default:"eu-1" doc:"Which cell holds this project's data"`
+	Cell       string `json:"cell,omitzero" default:"eu-1" doc:"Which cell holds this project's data. Fixed at creation"`
 	PolicyTier string `json:"policy_tier,omitzero" default:"standard" doc:"standard, child_directed or kids_strict"`
 
 	// A pointer, not a uint16. An absent member arrives as zero, and this field's
@@ -103,7 +105,9 @@ func (in *CreateProjectIn) Validate(v *muzak.Validation) {
 	v.String(&in.OrgSlug).Trim().Lower().Required().MaxLen(64)
 	v.String(&in.Name).Trim().Required().MinLen(2).MaxLen(120)
 	v.String(&in.Slug).Trim().Lower().Required().MinLen(2).MaxLen(64).Slug()
-	v.String(&in.HomeRegion).Trim().Lower().OneOf("eu-1", "us-1")
+	// Not an enum here: the registry is the authority on which cells exist, and a list
+	// in a validator would drift from it the first time one is added.
+	v.String(&in.Cell).Trim().Lower().MaxLen(32)
 	v.String(&in.PolicyTier).Trim().Lower().OneOf("standard", "child_directed", "kids_strict")
 	// §24 prefers discrete retention tiers over arbitrary values: fewer combinations,
 	// predictable lifecycle, and a partition key that can include the tier.

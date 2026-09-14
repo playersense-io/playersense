@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"playersense.dev/backend/ent/global/apikey"
+	"playersense.dev/backend/ent/global/cell"
 	"playersense.dev/backend/ent/global/environment"
 	"playersense.dev/backend/ent/global/organization"
 	"playersense.dev/backend/ent/global/organizationmember"
@@ -78,6 +79,83 @@ func init() {
 	apikeyDescName := apikeyFields[3].Descriptor()
 	// apikey.NameValidator is a validator for the "name" field. It is called by the builders before save.
 	apikey.NameValidator = apikeyDescName.Validators[0].(func(string) error)
+	cellMixin := globaltier.Cell{}.Mixin()
+	cellMixinFields0 := cellMixin[0].Fields()
+	_ = cellMixinFields0
+	cellFields := globaltier.Cell{}.Fields()
+	_ = cellFields
+	// cellDescUID is the schema descriptor for uid field.
+	cellDescUID := cellMixinFields0[1].Descriptor()
+	// cell.DefaultUID holds the default value on creation for the uid field.
+	cell.DefaultUID = cellDescUID.Default.(func() uuid.UUID)
+	// cellDescCreatedAt is the schema descriptor for created_at field.
+	cellDescCreatedAt := cellMixinFields0[2].Descriptor()
+	// cell.DefaultCreatedAt holds the default value on creation for the created_at field.
+	cell.DefaultCreatedAt = cellDescCreatedAt.Default.(func() time.Time)
+	// cellDescUpdatedAt is the schema descriptor for updated_at field.
+	cellDescUpdatedAt := cellMixinFields0[3].Descriptor()
+	// cell.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	cell.DefaultUpdatedAt = cellDescUpdatedAt.Default.(func() time.Time)
+	// cell.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	cell.UpdateDefaultUpdatedAt = cellDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// cellDescSlug is the schema descriptor for slug field.
+	cellDescSlug := cellFields[0].Descriptor()
+	// cell.SlugValidator is a validator for the "slug" field. It is called by the builders before save.
+	cell.SlugValidator = func() func(string) error {
+		validators := cellDescSlug.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(slug string) error {
+			for _, fn := range fns {
+				if err := fn(slug); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// cellDescRegion is the schema descriptor for region field.
+	cellDescRegion := cellFields[1].Descriptor()
+	// cell.RegionValidator is a validator for the "region" field. It is called by the builders before save.
+	cell.RegionValidator = func() func(string) error {
+		validators := cellDescRegion.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(region string) error {
+			for _, fn := range fns {
+				if err := fn(region); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// cellDescIngestURL is the schema descriptor for ingest_url field.
+	cellDescIngestURL := cellFields[3].Descriptor()
+	// cell.IngestURLValidator is a validator for the "ingest_url" field. It is called by the builders before save.
+	cell.IngestURLValidator = func() func(string) error {
+		validators := cellDescIngestURL.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(ingest_url string) error {
+			for _, fn := range fns {
+				if err := fn(ingest_url); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// cellDescLocation is the schema descriptor for location field.
+	cellDescLocation := cellFields[4].Descriptor()
+	// cell.LocationValidator is a validator for the "location" field. It is called by the builders before save.
+	cell.LocationValidator = cellDescLocation.Validators[0].(func(string) error)
 	environmentMixin := globaltier.Environment{}.Mixin()
 	environmentMixinFields0 := environmentMixin[0].Fields()
 	_ = environmentMixinFields0
@@ -220,26 +298,6 @@ func init() {
 		return func(slug string) error {
 			for _, fn := range fns {
 				if err := fn(slug); err != nil {
-					return err
-				}
-			}
-			return nil
-		}
-	}()
-	// projectDescHomeRegion is the schema descriptor for home_region field.
-	projectDescHomeRegion := projectFields[2].Descriptor()
-	// project.DefaultHomeRegion holds the default value on creation for the home_region field.
-	project.DefaultHomeRegion = projectDescHomeRegion.Default.(string)
-	// project.HomeRegionValidator is a validator for the "home_region" field. It is called by the builders before save.
-	project.HomeRegionValidator = func() func(string) error {
-		validators := projectDescHomeRegion.Validators
-		fns := [...]func(string) error{
-			validators[0].(func(string) error),
-			validators[1].(func(string) error),
-		}
-		return func(home_region string) error {
-			for _, fn := range fns {
-				if err := fn(home_region); err != nil {
 					return err
 				}
 			}

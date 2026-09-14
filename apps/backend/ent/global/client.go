@@ -16,6 +16,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"playersense.dev/backend/ent/global/apikey"
+	"playersense.dev/backend/ent/global/cell"
 	"playersense.dev/backend/ent/global/environment"
 	"playersense.dev/backend/ent/global/organization"
 	"playersense.dev/backend/ent/global/organizationmember"
@@ -30,6 +31,8 @@ type Client struct {
 	Schema *migrate.Schema
 	// APIKey is the client for interacting with the APIKey builders.
 	APIKey *APIKeyClient
+	// Cell is the client for interacting with the Cell builders.
+	Cell *CellClient
 	// Environment is the client for interacting with the Environment builders.
 	Environment *EnvironmentClient
 	// Organization is the client for interacting with the Organization builders.
@@ -52,6 +55,7 @@ func NewClient(opts ...Option) *Client {
 func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
 	c.APIKey = NewAPIKeyClient(c.config)
+	c.Cell = NewCellClient(c.config)
 	c.Environment = NewEnvironmentClient(c.config)
 	c.Organization = NewOrganizationClient(c.config)
 	c.OrganizationMember = NewOrganizationMemberClient(c.config)
@@ -150,6 +154,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		ctx:                ctx,
 		config:             cfg,
 		APIKey:             NewAPIKeyClient(cfg),
+		Cell:               NewCellClient(cfg),
 		Environment:        NewEnvironmentClient(cfg),
 		Organization:       NewOrganizationClient(cfg),
 		OrganizationMember: NewOrganizationMemberClient(cfg),
@@ -175,6 +180,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		ctx:                ctx,
 		config:             cfg,
 		APIKey:             NewAPIKeyClient(cfg),
+		Cell:               NewCellClient(cfg),
 		Environment:        NewEnvironmentClient(cfg),
 		Organization:       NewOrganizationClient(cfg),
 		OrganizationMember: NewOrganizationMemberClient(cfg),
@@ -209,8 +215,8 @@ func (c *Client) Close() error {
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
-		c.APIKey, c.Environment, c.Organization, c.OrganizationMember, c.Project,
-		c.User,
+		c.APIKey, c.Cell, c.Environment, c.Organization, c.OrganizationMember,
+		c.Project, c.User,
 	} {
 		n.Use(hooks...)
 	}
@@ -220,8 +226,8 @@ func (c *Client) Use(hooks ...Hook) {
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
-		c.APIKey, c.Environment, c.Organization, c.OrganizationMember, c.Project,
-		c.User,
+		c.APIKey, c.Cell, c.Environment, c.Organization, c.OrganizationMember,
+		c.Project, c.User,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -232,6 +238,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 	switch m := m.(type) {
 	case *APIKeyMutation:
 		return c.APIKey.mutate(ctx, m)
+	case *CellMutation:
+		return c.Cell.mutate(ctx, m)
 	case *EnvironmentMutation:
 		return c.Environment.mutate(ctx, m)
 	case *OrganizationMutation:
@@ -393,6 +401,155 @@ func (c *APIKeyClient) mutate(ctx context.Context, m *APIKeyMutation) (Value, er
 		return (&APIKeyDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("global: unknown APIKey mutation op: %q", m.Op())
+	}
+}
+
+// CellClient is a client for the Cell schema.
+type CellClient struct {
+	config
+}
+
+// NewCellClient returns a client for the Cell from the given config.
+func NewCellClient(c config) *CellClient {
+	return &CellClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `cell.Hooks(f(g(h())))`.
+func (c *CellClient) Use(hooks ...Hook) {
+	c.hooks.Cell = append(c.hooks.Cell, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `cell.Intercept(f(g(h())))`.
+func (c *CellClient) Intercept(interceptors ...Interceptor) {
+	c.inters.Cell = append(c.inters.Cell, interceptors...)
+}
+
+// Create returns a builder for creating a Cell entity.
+func (c *CellClient) Create() *CellCreate {
+	mutation := newCellMutation(c.config, OpCreate)
+	return &CellCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Cell entities.
+func (c *CellClient) CreateBulk(builders ...*CellCreate) *CellCreateBulk {
+	return &CellCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *CellClient) MapCreateBulk(slice any, setFunc func(*CellCreate, int)) *CellCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &CellCreateBulk{err: fmt.Errorf("calling to CellClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*CellCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &CellCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Cell.
+func (c *CellClient) Update() *CellUpdate {
+	mutation := newCellMutation(c.config, OpUpdate)
+	return &CellUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *CellClient) UpdateOne(_m *Cell) *CellUpdateOne {
+	mutation := newCellMutation(c.config, OpUpdateOne, withCell(_m))
+	return &CellUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *CellClient) UpdateOneID(id int) *CellUpdateOne {
+	mutation := newCellMutation(c.config, OpUpdateOne, withCellID(id))
+	return &CellUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Cell.
+func (c *CellClient) Delete() *CellDelete {
+	mutation := newCellMutation(c.config, OpDelete)
+	return &CellDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *CellClient) DeleteOne(_m *Cell) *CellDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *CellClient) DeleteOneID(id int) *CellDeleteOne {
+	builder := c.Delete().Where(cell.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &CellDeleteOne{builder}
+}
+
+// Query returns a query builder for Cell.
+func (c *CellClient) Query() *CellQuery {
+	return &CellQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeCell},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a Cell entity by its id.
+func (c *CellClient) Get(ctx context.Context, id int) (*Cell, error) {
+	return c.Query().Where(cell.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *CellClient) GetX(ctx context.Context, id int) *Cell {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryProjects queries the projects edge of a Cell.
+func (c *CellClient) QueryProjects(_m *Cell) *ProjectQuery {
+	query := (&ProjectClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(cell.Table, cell.FieldID, id),
+			sqlgraph.To(project.Table, project.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, cell.ProjectsTable, cell.ProjectsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *CellClient) Hooks() []Hook {
+	return c.hooks.Cell
+}
+
+// Interceptors returns the client interceptors.
+func (c *CellClient) Interceptors() []Interceptor {
+	return c.inters.Cell
+}
+
+func (c *CellClient) mutate(ctx context.Context, m *CellMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&CellCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&CellUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&CellUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&CellDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("global: unknown Cell mutation op: %q", m.Op())
 	}
 }
 
@@ -1015,6 +1172,22 @@ func (c *ProjectClient) QueryOrganization(_m *Project) *OrganizationQuery {
 	return query
 }
 
+// QueryCell queries the cell edge of a Project.
+func (c *ProjectClient) QueryCell(_m *Project) *CellQuery {
+	query := (&CellClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(project.Table, project.FieldID, id),
+			sqlgraph.To(cell.Table, cell.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, project.CellTable, project.CellColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // QueryEnvironments queries the environments edge of a Project.
 func (c *ProjectClient) QueryEnvironments(_m *Project) *EnvironmentQuery {
 	query := (&EnvironmentClient{config: c.config}).Query()
@@ -1208,10 +1381,11 @@ func (c *UserClient) mutate(ctx context.Context, m *UserMutation) (Value, error)
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		APIKey, Environment, Organization, OrganizationMember, Project, User []ent.Hook
+		APIKey, Cell, Environment, Organization, OrganizationMember, Project,
+		User []ent.Hook
 	}
 	inters struct {
-		APIKey, Environment, Organization, OrganizationMember, Project,
+		APIKey, Cell, Environment, Organization, OrganizationMember, Project,
 		User []ent.Interceptor
 	}
 )

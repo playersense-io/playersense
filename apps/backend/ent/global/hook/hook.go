@@ -21,6 +21,18 @@ func (f APIKeyFunc) Mutate(ctx context.Context, m global.Mutation) (global.Value
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *global.APIKeyMutation", m)
 }
 
+// The CellFunc type is an adapter to allow the use of ordinary
+// function as Cell mutator.
+type CellFunc func(context.Context, *global.CellMutation) (global.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f CellFunc) Mutate(ctx context.Context, m global.Mutation) (global.Value, error) {
+	if mv, ok := m.(*global.CellMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *global.CellMutation", m)
+}
+
 // The EnvironmentFunc type is an adapter to allow the use of ordinary
 // function as Environment mutator.
 type EnvironmentFunc func(context.Context, *global.EnvironmentMutation) (global.Value, error)

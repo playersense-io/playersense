@@ -33,6 +33,14 @@ type Tenant struct {
 	PolicyTier    string `json:"policy_tier"`
 	RetentionTier uint16 `json:"retention_tier"`
 
+	// Cell is where this project's data lives (§6). A gateway serving another cell must
+	// refuse the key rather than accept the batch: one wrong hostname in an SDK config
+	// would otherwise put one region's player data on another region's disks, which is
+	// the exact outcome the cell design exists to prevent.
+	Cell      string `json:"cell"`
+	Region    string `json:"region"`
+	IngestURL string `json:"ingest_url"`
+
 	KeyKind     string `json:"key_kind"`
 	KeyPublicID string `json:"key_public_id"`
 }
@@ -63,8 +71,8 @@ type localEntry struct {
 // outage, and §65 requires losing Valkey to cost speed rather than data. Each tier exists
 // because one of those sentences does.
 type KeyResolver struct {
-	control *Control
-	cache   *valkey.Client
+	global *Global
+	cache  *valkey.Client
 
 	ttl      time.Duration
 	negTTL   time.Duration
@@ -93,9 +101,9 @@ type KeyResolverOptions struct {
 }
 
 // NewKeyResolver returns a resolver over the control plane and the cache.
-func NewKeyResolver(control *Control, cache *valkey.Client, opts KeyResolverOptions) *KeyResolver {
+func NewKeyResolver(global *Global, cache *valkey.Client, opts KeyResolverOptions) *KeyResolver {
 	return &KeyResolver{
-		control:  control,
+		global:   global,
 		cache:    cache,
 		ttl:      opts.TTL,
 		negTTL:   opts.NegativeTTL,
@@ -111,7 +119,7 @@ func (r *KeyResolver) Resolve(ctx context.Context, presented string) (*Tenant, e
 	if err != nil {
 		return nil, ErrUnknownKey
 	}
-	cacheKey := CacheKey(presented)
+	cacheKey := r.cache.Key("apikey", CacheDigest(presented))
 
 	// Tier 1: this process. Survives everything else being unreachable.
 	if entry, ok := r.readLocal(cacheKey); ok {
@@ -137,7 +145,7 @@ func (r *KeyResolver) Resolve(ctx context.Context, presented string) (*Tenant, e
 // happens to expire. The in-process tier is not reachable from here, which is why its TTL
 // is measured in seconds.
 func (r *KeyResolver) Evict(ctx context.Context, presented string) error {
-	return r.cache.Del(ctx, CacheKey(presented))
+	return r.cache.Del(ctx, r.cache.Key("apikey", CacheDigest(presented)))
 }
 
 // EvictPublicID removes every cached form of a key by its public half.
@@ -147,10 +155,12 @@ func (r *KeyResolver) Evict(ctx context.Context, presented string) error {
 // tombstone under the public identifier, and Resolve refuses anything matching it. That
 // is what lets a key be revoked by somebody who cannot reproduce it.
 func (r *KeyResolver) EvictPublicID(ctx context.Context, publicID string, ttl time.Duration) error {
-	return r.cache.Set(ctx, tombstoneKey(publicID), []byte("revoked"), ttl)
+	return r.cache.Set(ctx, r.tombstoneKey(publicID), []byte("revoked"), ttl)
 }
 
-func tombstoneKey(publicID string) string { return "apikey:revoked:" + publicID }
+func (r *KeyResolver) tombstoneKey(publicID string) string {
+	return r.cache.Key("apikey", "revoked", publicID)
+}
 
 func (r *KeyResolver) readLocal(cacheKey string) (localEntry, bool) {
 	r.mu.RLock()
@@ -204,7 +214,7 @@ func (r *KeyResolver) readCache(ctx context.Context, cacheKey string) (*Tenant, 
 		return nil, nil, false
 	}
 	// A revoked key is refused even while its entry is still warm.
-	if tomb, err := r.cache.Get(ctx, tombstoneKey(tenant.KeyPublicID)); err == nil && tomb != nil {
+	if tomb, err := r.cache.Get(ctx, r.tombstoneKey(tenant.KeyPublicID)); err == nil && tomb != nil {
 		return nil, ErrUnknownKey, true
 	}
 	return &tenant, nil, true
@@ -230,13 +240,16 @@ func (r *KeyResolver) verify(ctx context.Context, publicID, private string) (*Te
 	// outage rather than a rejection, and the difference matters: a rejection would be
 	// cached, and an outage remembered as a rejection turns a blip into an hour of
 	// refused traffic.
-	if !r.control.Ready() {
+	if !r.global.Ready() {
 		return nil, pgdb.ErrNotStarted
 	}
-	key, err := r.control.Global.APIKey.Query().
+	key, err := r.global.Client.APIKey.Query().
 		Where(apikey.PublicID(publicID)).
 		WithEnvironment(func(q *global.EnvironmentQuery) {
-			q.WithProject(func(pq *global.ProjectQuery) { pq.WithOrganization() })
+			q.WithProject(func(pq *global.ProjectQuery) {
+				pq.WithOrganization()
+				pq.WithCell()
+			})
 		}).
 		Only(ctx)
 	if err != nil {
@@ -263,6 +276,13 @@ func (r *KeyResolver) verify(ctx context.Context, publicID, private string) (*Te
 	}
 	proj := env.Edges.Project
 	org := proj.Edges.Organization
+	home := proj.Edges.Cell
+	if home == nil {
+		// Every project has a cell — the edge is required — so a missing one means the
+		// row is corrupt rather than merely unusual. Refusing is the only safe answer:
+		// accepting would mean writing player data with no idea where it belongs.
+		return nil, ErrUnknownKey
+	}
 
 	// A digest written under weaker parameters is upgraded on use, so raising the cost
 	// later does not invalidate anyone's key.
@@ -284,6 +304,10 @@ func (r *KeyResolver) verify(ctx context.Context, publicID, private string) (*Te
 		Environment:   string(env.Kind),
 		PolicyTier:    string(proj.PolicyTier),
 		RetentionTier: proj.RetentionDays,
+
+		Cell:      home.Slug,
+		Region:    home.Region,
+		IngestURL: home.IngestURL,
 
 		KeyKind:     string(key.Kind),
 		KeyPublicID: key.PublicID,

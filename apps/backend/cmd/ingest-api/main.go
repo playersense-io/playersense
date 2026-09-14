@@ -43,12 +43,16 @@ func build(settings config.Settings) (*muzak.App, error) {
 		return nil, err
 	}
 
-	// The control plane is here only to fill the key cache. Ingestion never queries it
-	// per request, which is what lets a batch still be accepted while PostgreSQL is
-	// down (§64).
-	control := pgdb.New(settings.PostgresDSN)
-	cache := valkey.New(settings.ValkeyDSN)
-	resolver := core.NewKeyResolver(control, cache, core.KeyResolverOptions{
+	// The global tier is here only to fill the key cache. Ingestion never queries it per
+	// request, which is what lets a batch still be accepted while PostgreSQL is down
+	// (§64). It is also the only control-plane connection this service has: the gateway
+	// writes nothing to any database, it enqueues.
+	ctrl := pgdb.NewGlobal(settings.GlobalPostgresDSN)
+
+	// Cell-scoped, so a misrouted read is a miss rather than one cell silently serving
+	// another cell's credential or spending its rate-limit budget (§6).
+	cache := valkey.New(settings.Cell, settings.ValkeyDSN)
+	resolver := core.NewKeyResolver(ctrl, cache, core.KeyResolverOptions{
 		TTL:         settings.KeyCacheTTL,
 		NegativeTTL: settings.KeyCacheNegativeTTL,
 		LocalTTL:    settings.KeyCacheLocalTTL,
@@ -76,11 +80,20 @@ func build(settings config.Settings) (*muzak.App, error) {
 			SkipPaths: []string{"/healthz"},
 		},
 	},
-		muzak.WithSingleton(control),
+		muzak.WithSingleton(ctrl),
 		muzak.WithSingleton(cache),
 		muzak.WithSingleton(resolver),
 		muzak.WithSingleton(settings),
 		muzak.WithSingleton(ingest.DefaultLimits()),
+
+		// Which cell this gateway is. The handler compares it with the cell the key
+		// belongs to and refuses the mismatch (§6, §99) — one wrong hostname in an SDK
+		// config would otherwise put one region's player data on another's disks.
+		muzak.WithSingleton(core.CellFrom(settings)),
+
+		// And a start-up check that the slug names a real cell, so a typo fails to boot
+		// rather than writing somewhere nobody is reading.
+		muzak.WithLifecycle(core.NewCellCheck(settings)),
 
 		// Published as the interface, so no handler can depend on which implementation is
 		// running — §3.6's whole point. Both implementations satisfy muzak.Lifecycle, so
@@ -130,7 +143,7 @@ func newBus(settings config.Settings) (eventbus.Bus, error) {
 		// what it means in production. It is not a queue — there is no subscription or
 		// redelivery — but the publish side of §19 behaves identically, which is what
 		// makes this endpoint exercisable without a cloud dependency.
-		return eventbus.NewLocal(settings.EventBusDir), nil
+		return eventbus.NewLocal(settings.Cell, settings.EventBusDir), nil
 	default:
 		return nil, fmt.Errorf("unknown EVENT_BUS %q; want local or pubsub", settings.EventBus)
 	}

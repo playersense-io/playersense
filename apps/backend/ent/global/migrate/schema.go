@@ -43,6 +43,36 @@ var (
 			},
 		},
 	}
+	// CellsColumns holds the columns for the "cells" table.
+	CellsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
+		{Name: "uid", Type: field.TypeUUID, Unique: true, Comment: "class=none"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "updated_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "slug", Type: field.TypeString, Unique: true, Size: 32, Comment: "class=none"},
+		{Name: "region", Type: field.TypeString, Size: 16, Comment: "class=none"},
+		{Name: "status", Type: field.TypeEnum, Comment: "class=none", Enums: []string{"active", "draining", "readonly"}, Default: "active"},
+		{Name: "ingest_url", Type: field.TypeString, Size: 255, Comment: "class=none"},
+		{Name: "location", Type: field.TypeString, Nullable: true, Size: 64, Comment: "class=none"},
+	}
+	// CellsTable holds the schema information for the "cells" table.
+	CellsTable = &schema.Table{
+		Name:       "cells",
+		Columns:    CellsColumns,
+		PrimaryKey: []*schema.Column{CellsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "cell_region",
+				Unique:  false,
+				Columns: []*schema.Column{CellsColumns[5]},
+			},
+			{
+				Name:    "cell_status",
+				Unique:  false,
+				Columns: []*schema.Column{CellsColumns[6]},
+			},
+		},
+	}
 	// EnvironmentsColumns holds the columns for the "environments" table.
 	EnvironmentsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
@@ -133,9 +163,9 @@ var (
 		{Name: "updated_at", Type: field.TypeTime, Comment: "class=none"},
 		{Name: "name", Type: field.TypeString, Size: 120, Comment: "class=none"},
 		{Name: "slug", Type: field.TypeString, Size: 64, Comment: "class=none"},
-		{Name: "home_region", Type: field.TypeString, Size: 16, Comment: "class=none", Default: "eu-1"},
 		{Name: "policy_tier", Type: field.TypeEnum, Comment: "class=none", Enums: []string{"standard", "child_directed", "kids_strict"}, Default: "standard"},
 		{Name: "retention_days", Type: field.TypeUint16, Comment: "class=none", Default: 30},
+		{Name: "cell_id", Type: field.TypeInt, Comment: "class=none"},
 		{Name: "organization_id", Type: field.TypeInt, Comment: "class=none"},
 	}
 	// ProjectsTable holds the schema information for the "projects" table.
@@ -144,6 +174,12 @@ var (
 		Columns:    ProjectsColumns,
 		PrimaryKey: []*schema.Column{ProjectsColumns[0]},
 		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "projects_cells_projects",
+				Columns:    []*schema.Column{ProjectsColumns[8]},
+				RefColumns: []*schema.Column{CellsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
 			{
 				Symbol:     "projects_organizations_projects",
 				Columns:    []*schema.Column{ProjectsColumns[9]},
@@ -177,6 +213,7 @@ var (
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
 		APIKeysTable,
+		CellsTable,
 		EnvironmentsTable,
 		OrganizationsTable,
 		OrganizationMembersTable,
@@ -190,5 +227,6 @@ func init() {
 	EnvironmentsTable.ForeignKeys[0].RefTable = ProjectsTable
 	OrganizationMembersTable.ForeignKeys[0].RefTable = OrganizationsTable
 	OrganizationMembersTable.ForeignKeys[1].RefTable = UsersTable
-	ProjectsTable.ForeignKeys[0].RefTable = OrganizationsTable
+	ProjectsTable.ForeignKeys[0].RefTable = CellsTable
+	ProjectsTable.ForeignKeys[1].RefTable = OrganizationsTable
 }

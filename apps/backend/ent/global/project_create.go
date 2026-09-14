@@ -11,6 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
+	"playersense.dev/backend/ent/global/cell"
 	"playersense.dev/backend/ent/global/environment"
 	"playersense.dev/backend/ent/global/organization"
 	"playersense.dev/backend/ent/global/project"
@@ -77,17 +78,9 @@ func (_c *ProjectCreate) SetSlug(v string) *ProjectCreate {
 	return _c
 }
 
-// SetHomeRegion sets the "home_region" field.
-func (_c *ProjectCreate) SetHomeRegion(v string) *ProjectCreate {
-	_c.mutation.SetHomeRegion(v)
-	return _c
-}
-
-// SetNillableHomeRegion sets the "home_region" field if the given value is not nil.
-func (_c *ProjectCreate) SetNillableHomeRegion(v *string) *ProjectCreate {
-	if v != nil {
-		_c.SetHomeRegion(*v)
-	}
+// SetCellID sets the "cell_id" field.
+func (_c *ProjectCreate) SetCellID(v int) *ProjectCreate {
+	_c.mutation.SetCellID(v)
 	return _c
 }
 
@@ -134,6 +127,11 @@ func (_c *ProjectCreate) SetID(v int) *ProjectCreate {
 // SetOrganization sets the "organization" edge to the Organization entity.
 func (_c *ProjectCreate) SetOrganization(v *Organization) *ProjectCreate {
 	return _c.SetOrganizationID(v.ID)
+}
+
+// SetCell sets the "cell" edge to the Cell entity.
+func (_c *ProjectCreate) SetCell(v *Cell) *ProjectCreate {
+	return _c.SetCellID(v.ID)
 }
 
 // AddEnvironmentIDs adds the "environments" edge to the Environment entity by IDs.
@@ -198,10 +196,6 @@ func (_c *ProjectCreate) defaults() {
 		v := project.DefaultUpdatedAt()
 		_c.mutation.SetUpdatedAt(v)
 	}
-	if _, ok := _c.mutation.HomeRegion(); !ok {
-		v := project.DefaultHomeRegion
-		_c.mutation.SetHomeRegion(v)
-	}
 	if _, ok := _c.mutation.PolicyTier(); !ok {
 		v := project.DefaultPolicyTier
 		_c.mutation.SetPolicyTier(v)
@@ -239,13 +233,8 @@ func (_c *ProjectCreate) check() error {
 			return &ValidationError{Name: "slug", err: fmt.Errorf(`global: validator failed for field "Project.slug": %w`, err)}
 		}
 	}
-	if _, ok := _c.mutation.HomeRegion(); !ok {
-		return &ValidationError{Name: "home_region", err: errors.New(`global: missing required field "Project.home_region"`)}
-	}
-	if v, ok := _c.mutation.HomeRegion(); ok {
-		if err := project.HomeRegionValidator(v); err != nil {
-			return &ValidationError{Name: "home_region", err: fmt.Errorf(`global: validator failed for field "Project.home_region": %w`, err)}
-		}
+	if _, ok := _c.mutation.CellID(); !ok {
+		return &ValidationError{Name: "cell_id", err: errors.New(`global: missing required field "Project.cell_id"`)}
 	}
 	if _, ok := _c.mutation.PolicyTier(); !ok {
 		return &ValidationError{Name: "policy_tier", err: errors.New(`global: missing required field "Project.policy_tier"`)}
@@ -263,6 +252,9 @@ func (_c *ProjectCreate) check() error {
 	}
 	if len(_c.mutation.OrganizationIDs()) == 0 {
 		return &ValidationError{Name: "organization", err: errors.New(`global: missing required edge "Project.organization"`)}
+	}
+	if len(_c.mutation.CellIDs()) == 0 {
+		return &ValidationError{Name: "cell", err: errors.New(`global: missing required edge "Project.cell"`)}
 	}
 	return nil
 }
@@ -316,10 +308,6 @@ func (_c *ProjectCreate) createSpec() (*Project, *sqlgraph.CreateSpec) {
 		_spec.SetField(project.FieldSlug, field.TypeString, value)
 		_node.Slug = value
 	}
-	if value, ok := _c.mutation.HomeRegion(); ok {
-		_spec.SetField(project.FieldHomeRegion, field.TypeString, value)
-		_node.HomeRegion = value
-	}
 	if value, ok := _c.mutation.PolicyTier(); ok {
 		_spec.SetField(project.FieldPolicyTier, field.TypeEnum, value)
 		_node.PolicyTier = value
@@ -343,6 +331,23 @@ func (_c *ProjectCreate) createSpec() (*Project, *sqlgraph.CreateSpec) {
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_node.OrganizationID = nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.CellIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   project.CellTable,
+			Columns: []string{project.CellColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(cell.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_node.CellID = nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
 	if nodes := _c.mutation.EnvironmentsIDs(); len(nodes) > 0 {

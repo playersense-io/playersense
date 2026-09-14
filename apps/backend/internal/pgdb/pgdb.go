@@ -1,4 +1,22 @@
-// Package pgdb opens the control plane and applies its schema.
+// Package pgdb opens the control plane's two databases.
+//
+// There are two, and they are in different places for different reasons (§99).
+//
+// The **global tier** is one database, US-hosted, holding accounts, organisations,
+// projects, keys, billing and aggregate counts. It holds no player data at all, which is
+// what lets there be exactly one of it — and what makes hosting it beside the company's
+// own entity and its payment processor an unremarkable choice.
+//
+// The **cell tier** is one database per cell, hosted in that cell's region, holding
+// everything that names a player: verified purchases, deletion requests, exports, archive
+// manifests. It never leaves the region that produced it.
+//
+// One rule separates them, short enough to check in review:
+//
+//	a player identifier never appears in the global tier
+//
+// `migrate verify` enforces it mechanically. That check matters more now than when the
+// two shared a server: it is the proof that no player data reaches the US.
 package pgdb
 
 import (
@@ -6,7 +24,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"net/url"
 
 	"entgo.io/ent/dialect"
 	entsql "entgo.io/ent/dialect/sql"
@@ -15,176 +32,267 @@ import (
 
 	entglobal "playersense.dev/backend/ent/global"
 	entregional "playersense.dev/backend/ent/regional"
+	"playersense.dev/backend/internal/dataclass"
 )
 
-// The two PostgreSQL schemas the control plane is split across (§99).
-//
-// Global holds nothing about a player. Regional holds everything that does and never
-// leaves the region that produced it. They are schemas rather than servers because
-// Stage 1 runs one cell (§6); keeping the boundary real now is what makes splitting them
-// later a connection string rather than a data migration.
-const (
-	TierGlobal   = "global"
-	TierRegional = "regional"
+var (
+	// ErrNotStarted reports use of a database that never connected.
+	ErrNotStarted = errors.New("database is not started")
+	// ErrWrongTier reports an attempt to use one tier's database as the other's.
+	ErrWrongTier = errors.New("wrong tier for this database")
+	// ErrNoTier reports a database that has never been migrated, so it holds neither.
+	ErrNoTier = errors.New("this database holds no tier yet")
 )
 
-// Tiers is every tier, in the order they are created.
-var Tiers = []string{TierGlobal, TierRegional}
+// ---- global tier ------------------------------------------------------------
 
-// Control is the control plane: one client per tier, sharing one connection pool while
-// the tiers share a server.
-//
-// Two clients is the point. A query written against Global cannot reach a regional
-// entity, because the generated types do not exist in that package — §99's rule is
-// enforced by the compiler rather than by review.
-type Control struct {
-	Global   *entglobal.Client
-	Regional *entregional.Client
+// Global is the single, global control-plane database.
+type Global struct {
+	dsn string
 
-	globalDB   *sql.DB
-	regionalDB *sql.DB
-	dsn        string
+	Client *entglobal.Client
+	db     *sql.DB
 }
 
-// tierDSN pins a connection to one tier's schema.
+// NewGlobal returns an unconnected global tier.
 //
-// search_path rather than a migration option, because that is the mechanism that
-// actually places the tables — and because it is the same mechanism that will point a
-// tier at a different server when the two are separated. Each tier already has its own
-// pool here, so that separation is a DSN change and nothing else.
-func tierDSN(dsn, tier string) (string, error) {
-	u, err := url.Parse(dsn)
-	if err != nil {
-		return "", fmt.Errorf("parse POSTGRES_DSN: %w", err)
-	}
-	q := u.Query()
-	q.Set("search_path", tier)
-	u.RawQuery = q.Encode()
-	return u.String(), nil
-}
-
-func openTier(dsn, tier string) (*sql.DB, error) {
-	scoped, err := tierDSN(dsn, tier)
-	if err != nil {
-		return nil, err
-	}
-	db, err := sql.Open("pgx", scoped)
-	if err != nil {
-		return nil, fmt.Errorf("open %s tier: %w", tier, err)
-	}
-	if err := db.Ping(); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("connect to %s tier: %w", tier, err)
-	}
-	return db, nil
-}
-
-// New returns an unconnected control plane.
-//
-// Construction is deliberately cheap and nothing is dialled here. Control implements
-// muzak.Lifecycle, so the application opens it before the server accepts traffic and
-// closes it after the server has drained — which is what keeps a connection usable by a
-// request that is still in flight during shutdown.
-func New(dsn string) *Control { return &Control{dsn: dsn} }
+// Construction dials nothing. It implements muzak.Lifecycle, so an application opens it
+// before accepting traffic and closes it after draining.
+func NewGlobal(dsn string) *Global { return &Global{dsn: dsn} }
 
 // Name identifies the component in start-up and shutdown logs.
-func (c *Control) Name() string { return "control-plane" }
+func (g *Global) Name() string { return "control-plane-global" }
 
-// Start dials both tiers. It honours ctx, which the application cancels as soon as a
-// sibling component fails.
-func (c *Control) Start(ctx context.Context) error {
-	opened, err := Open(c.dsn)
+// Start dials the global tier.
+func (g *Global) Start(ctx context.Context) error {
+	db, err := open(ctx, g.dsn, "global tier")
 	if err != nil {
 		return err
 	}
-	c.Global, c.Regional = opened.Global, opened.Regional
-	c.globalDB, c.regionalDB = opened.globalDB, opened.regionalDB
+	g.db = db
+	g.Client = entglobal.NewClient(entglobal.Driver(entsql.OpenDB(dialect.Postgres, db)))
 	return nil
 }
 
-// Stop releases both pools. It is called even for a start-up that failed part way, so
-// every field is checked.
-func (c *Control) Stop(context.Context) error { return c.Close() }
+// Stop releases the pool.
+func (g *Global) Stop(context.Context) error { return g.Close() }
 
-// Open dials PostgreSQL and builds both tier clients.
-func Open(dsn string) (*Control, error) {
-	// The schemas have to exist before a connection can select them as its search_path.
-	bootstrap, err := sql.Open("pgx", dsn)
-	if err != nil {
-		return nil, fmt.Errorf("open postgres: %w", err)
-	}
-	defer bootstrap.Close()
-	if err := bootstrap.Ping(); err != nil {
-		return nil, fmt.Errorf("connect to postgres: %w", err)
-	}
-	for _, tier := range Tiers {
-		if _, err := bootstrap.Exec(fmt.Sprintf("CREATE SCHEMA IF NOT EXISTS %q", tier)); err != nil {
-			return nil, fmt.Errorf("create schema %s: %w", tier, err)
-		}
-	}
-
-	globalDB, err := openTier(dsn, TierGlobal)
-	if err != nil {
-		return nil, err
-	}
-	regionalDB, err := openTier(dsn, TierRegional)
-	if err != nil {
-		globalDB.Close()
-		return nil, err
-	}
-	return &Control{
-		Global:     entglobal.NewClient(entglobal.Driver(entsql.OpenDB(dialect.Postgres, globalDB))),
-		Regional:   entregional.NewClient(entregional.Driver(entsql.OpenDB(dialect.Postgres, regionalDB))),
-		globalDB:   globalDB,
-		regionalDB: regionalDB,
-	}, nil
-}
-
-// Ready reports whether Start has run and both tiers are usable.
+// Ready reports whether Start has run.
 //
-// A Control that never started has nil clients, and a caller that dereferences one gets a
-// panic rather than an error it can act on. Every path that might run before or after the
-// lifecycle — a resolver falling through to the authority, a health check — asks first.
-func (c *Control) Ready() bool {
-	return c != nil && c.globalDB != nil && c.regionalDB != nil && c.Global != nil && c.Regional != nil
-}
+// Callers ask rather than assume: a tier that never started has a nil client, and
+// dereferencing one gives a panic instead of an error a caller can act on.
+func (g *Global) Ready() bool { return g != nil && g.db != nil && g.Client != nil }
 
-// ErrNotStarted reports use of a control plane that never connected.
-var ErrNotStarted = errors.New("control plane is not started")
+// DB exposes the pool for catalog queries, which read no entity.
+func (g *Global) DB() *sql.DB { return g.db }
 
-// DB exposes a pool for the verification queries, which read the catalog rather than any
-// entity and so are indifferent to which tier answers them.
-func (c *Control) DB() *sql.DB { return c.globalDB }
-
-// Close releases both pools. A partially constructed Control is exactly what exists when
-// Start failed halfway, so each pool is checked before it is closed.
-func (c *Control) Close() error {
-	var err error
-	if c.globalDB != nil {
-		err = c.globalDB.Close()
+// Close releases the pool, tolerating a tier that never started.
+func (g *Global) Close() error {
+	if g == nil || g.db == nil {
+		return nil
 	}
-	if c.regionalDB != nil {
-		if rerr := c.regionalDB.Close(); err == nil {
-			err = rerr
-		}
-	}
+	err := g.db.Close()
+	g.db, g.Client = nil, nil
 	return err
 }
 
-// Migrate creates both tier schemas and brings each up to date.
+// Migrate brings the global tier up to date.
 //
-// Each client holds a pool pinned to its tier's search_path, which is what puts global
-// entities in `global` and regional ones in `regional`.
-func (c *Control) Migrate(ctx context.Context) error {
-	opts := []entschema.MigrateOption{
-		entschema.WithDropColumn(true),
-		entschema.WithDropIndex(true),
+// It refuses to run against a database that already holds a cell tier. Without that check,
+// pointing this at a cell's database would grow a second `organizations` and `projects`
+// there — the control plane forking rather than erroring, which is the kind of mistake
+// discovered weeks later by two customers holding the same project id.
+func (g *Global) Migrate(ctx context.Context) error {
+	if !g.Ready() {
+		return ErrNotStarted
 	}
-	if err := c.Global.Schema.Create(ctx, opts...); err != nil {
-		return fmt.Errorf("migrate global tier: %w", err)
+	if err := assertTierAbsent(ctx, g.db, cellMarkerTable, "cell"); err != nil {
+		return err
 	}
-	if err := c.Regional.Schema.Create(ctx, opts...); err != nil {
-		return fmt.Errorf("migrate regional tier: %w", err)
+	if err := ensureMarker(ctx, g.db, globalMarkerTable); err != nil {
+		return err
+	}
+	return g.Client.Schema.Create(ctx,
+		entschema.WithDropColumn(true), entschema.WithDropIndex(true))
+}
+
+// AssertTier confirms this database is the global tier and has been migrated.
+//
+// A service calls it at start-up, because the alternative to asking is finding out: a
+// `GLOBAL_POSTGRES_DSN` copied from the wrong line of a secret store points at a cell's
+// database, where every query returns nothing rather than failing, and a control plane
+// that appears to have lost its customers is a worse morning than one that refused to
+// boot.
+func (g *Global) AssertTier(ctx context.Context) error {
+	if !g.Ready() {
+		return ErrNotStarted
+	}
+	return assertTier(ctx, g.db, globalMarkerTable, cellMarkerTable, "global")
+}
+
+// ---- cell tier --------------------------------------------------------------
+
+// Cell is one cell's regional database.
+type Cell struct {
+	slug string
+	dsn  string
+
+	Client *entregional.Client
+	db     *sql.DB
+}
+
+// NewCell returns an unconnected cell tier.
+func NewCell(slug, dsn string) *Cell { return &Cell{slug: slug, dsn: dsn} }
+
+// Name identifies the component in start-up and shutdown logs.
+func (c *Cell) Name() string { return "control-plane-cell" }
+
+// Slug is the cell this tier belongs to.
+func (c *Cell) Slug() string { return c.slug }
+
+// Start dials the cell tier.
+func (c *Cell) Start(ctx context.Context) error {
+	db, err := open(ctx, c.dsn, "cell tier "+c.slug)
+	if err != nil {
+		return err
+	}
+	c.db = db
+	c.Client = entregional.NewClient(entregional.Driver(entsql.OpenDB(dialect.Postgres, db)))
+	return nil
+}
+
+// Stop releases the pool.
+func (c *Cell) Stop(context.Context) error { return c.Close() }
+
+// Ready reports whether Start has run.
+func (c *Cell) Ready() bool { return c != nil && c.db != nil && c.Client != nil }
+
+// DB exposes the pool for catalog queries.
+func (c *Cell) DB() *sql.DB { return c.db }
+
+// Close releases the pool, tolerating a tier that never started.
+func (c *Cell) Close() error {
+	if c == nil || c.db == nil {
+		return nil
+	}
+	err := c.db.Close()
+	c.db, c.Client = nil, nil
+	return err
+}
+
+// Migrate brings this cell's regional tier up to date, refusing to run against the global
+// database for the same reason Global.Migrate refuses the reverse.
+func (c *Cell) Migrate(ctx context.Context) error {
+	if !c.Ready() {
+		return ErrNotStarted
+	}
+	if err := assertTierAbsent(ctx, c.db, globalMarkerTable, "global"); err != nil {
+		return err
+	}
+	if err := ensureMarker(ctx, c.db, cellMarkerTable); err != nil {
+		return err
+	}
+	return c.Client.Schema.Create(ctx,
+		entschema.WithDropColumn(true), entschema.WithDropIndex(true))
+}
+
+// AssertTier confirms this database is a cell tier and has been migrated.
+func (c *Cell) AssertTier(ctx context.Context) error {
+	if !c.Ready() {
+		return ErrNotStarted
+	}
+	return assertTier(ctx, c.db, cellMarkerTable, globalMarkerTable, "cell")
+}
+
+// ---- tier markers -----------------------------------------------------------
+
+// Each database carries a marker table naming the tier it holds.
+//
+// A marker rather than a heuristic over table names: "does `organizations` exist" answers
+// the question only until somebody adds a table by that name for another reason. The
+// marker is explicit, and it makes the refusal a one-line check.
+const (
+	globalMarkerTable = "playersense_global_tier"
+	cellMarkerTable   = "playersense_cell_tier"
+)
+
+func ensureMarker(ctx context.Context, db *sql.DB, table string) error {
+	if _, err := db.ExecContext(ctx, fmt.Sprintf(
+		`CREATE TABLE IF NOT EXISTS %q (
+			tier       text PRIMARY KEY,
+			created_at timestamptz NOT NULL DEFAULT now()
+		)`, table)); err != nil {
+		return fmt.Errorf("create tier marker: %w", err)
+	}
+	// §96 says a column cannot exist without a classification, and this table is not
+	// exempt from that because it happens to be written in SQL rather than declared in
+	// Ent. `migrate verify` reads pg_description and would otherwise report two
+	// unclassified columns that nobody could fix from a schema file.
+	for _, column := range []string{"tier", "created_at"} {
+		if _, err := db.ExecContext(ctx, fmt.Sprintf(
+			`COMMENT ON COLUMN %q.%q IS '%s'`, table, column, dataclass.None)); err != nil {
+			return fmt.Errorf("classify tier marker: %w", err)
+		}
+	}
+	_, err := db.ExecContext(ctx, fmt.Sprintf(
+		`INSERT INTO %q (tier) VALUES ($1) ON CONFLICT DO NOTHING`, table), table)
+	return err
+}
+
+func tableExists(ctx context.Context, db *sql.DB, table string) (bool, error) {
+	var exists bool
+	if err := db.QueryRowContext(ctx,
+		`SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = $1)`,
+		table).Scan(&exists); err != nil {
+		return false, fmt.Errorf("check tier marker: %w", err)
+	}
+	return exists, nil
+}
+
+func assertTierAbsent(ctx context.Context, db *sql.DB, marker, otherTier string) error {
+	exists, err := tableExists(ctx, db, marker)
+	if err != nil {
+		return err
+	}
+	if exists {
+		return fmt.Errorf("%w: this database already holds the %s tier, and a database holds exactly one",
+			ErrWrongTier, otherTier)
 	}
 	return nil
+}
+
+func assertTier(ctx context.Context, db *sql.DB, own, other, ownTier string) error {
+	if err := assertTierAbsent(ctx, db, other, tierName(other)); err != nil {
+		return err
+	}
+	exists, err := tableExists(ctx, db, own)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return fmt.Errorf("%w; run `migrate %s up` against it", ErrNoTier, ownTier)
+	}
+	return nil
+}
+
+func tierName(marker string) string {
+	if marker == globalMarkerTable {
+		return "global"
+	}
+	return "cell"
+}
+
+func open(ctx context.Context, dsn, what string) (*sql.DB, error) {
+	if dsn == "" {
+		return nil, fmt.Errorf("no DSN configured for the %s", what)
+	}
+	db, err := sql.Open("pgx", dsn)
+	if err != nil {
+		return nil, fmt.Errorf("open %s: %w", what, err)
+	}
+	if err := db.PingContext(ctx); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("connect to %s: %w", what, err)
+	}
+	return db, nil
 }

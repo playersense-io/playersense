@@ -19,6 +19,13 @@ services:
       POSTGRES_USER: ${PG_USER:-playersense}
       POSTGRES_PASSWORD: ${PG_PASSWORD:-playersense_local}
       POSTGRES_DB: ${PG_DATABASE:-playersense}
+      # The two control-plane tiers (§99), created by the init script below. Separate
+      # databases rather than separate schemas, because in production they are separate
+      # servers in separate jurisdictions — the global tier is US-hosted and holds no
+      # player data, a cell's tier lives in the cell's region and holds everything that
+      # names a player. One container locally, two DSNs in the code.
+      PG_GLOBAL_DATABASE: ${PG_GLOBAL_DATABASE:-playersense_global}
+      PG_CELL_DATABASE: ${PG_CELL_DATABASE:-playersense_eu_1}
       # Deterministic collation, so ORDER BY does not depend on the host locale.
       POSTGRES_INITDB_ARGS: "--locale-provider=icu --icu-locale=und-x-icu --encoding=UTF8"
     ports:
@@ -28,6 +35,8 @@ services:
       # /var/lib/postgresql/data — the data directory then lives in a subdirectory,
       # which is what lets `pg_upgrade --link` work across a mount boundary later.
       - postgres-data:/var/lib/postgresql
+      # Runs only on a fresh data directory.
+      - ./postgres/initdb:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${PG_USER:-playersense} -d ${PG_DATABASE:-playersense}"]
       interval: 3s
@@ -44,6 +53,11 @@ services:
       CLICKHOUSE_PASSWORD: ${CH_PASSWORD:-playersense_local}
       CLICKHOUSE_DB: ${CH_DATABASE:-playersense}
       CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
+      # The Keeper replica path is /clickhouse/tables/{shard}/{database}/{table}, and
+      # {shard} is the cell rather than a constant: two cells sharing a Keeper would
+      # otherwise collide on every znode. Read by macros.xml through from_env.
+      CH_SHARD: ${CELL:-eu-1}
+      CH_REPLICA: ${CELL:-eu-1}-01
     ports:
       - "127.0.0.1:${CH_HTTP_PORT:-21123}:8123"
       - "127.0.0.1:${CH_NATIVE_PORT:-21900}:9000"

@@ -33,12 +33,11 @@ return {count, redis.call('PTTL', KEYS[1])}
 // hundred a minute silently becomes a hundred a minute per instance.
 type RateLimitStorage struct {
 	client *Client
-	prefix string
 }
 
 // NewRateLimitStorage returns storage backed by the given client.
 func NewRateLimitStorage(client *Client) *RateLimitStorage {
-	return &RateLimitStorage{client: client, prefix: "ratelimit:"}
+	return &RateLimitStorage{client: client}
 }
 
 // Increment counts one request against a quota for one client.
@@ -60,7 +59,7 @@ func (s *RateLimitStorage) Increment(ctx context.Context, quota, key string, win
 	}
 
 	res := incrementScript.Exec(ctx, s.client.client,
-		[]string{s.prefix + quota + ":" + key},
+		[]string{s.client.Key("ratelimit", quota, key)},
 		[]string{formatMillis(window)})
 	if err := res.Error(); err != nil {
 		return 0, 0, err

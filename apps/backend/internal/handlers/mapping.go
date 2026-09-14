@@ -61,16 +61,22 @@ func policyNotes(tier string) []string {
 	}
 }
 
-func projectOut(proj *global.Project, envs []*global.Environment) schemas.ProjectOut {
+func projectOut(proj *global.Project, home *global.Cell, envs []*global.Environment) schemas.ProjectOut {
 	out := schemas.ProjectOut{
 		ID:            proj.UID,
 		Name:          proj.Name,
 		Slug:          proj.Slug,
-		HomeRegion:    proj.HomeRegion,
 		PolicyTier:    string(proj.PolicyTier),
 		RetentionDays: proj.RetentionDays,
 		CreatedAt:     proj.CreatedAt,
 		Notes:         policyNotes(string(proj.PolicyTier)),
+	}
+	// The cell is where this project's player data physically lives, so a customer's
+	// privacy review can read it straight off the API rather than asking (§6).
+	if home != nil {
+		out.Cell = home.Slug
+		out.Region = home.Region
+		out.IngestURL = home.IngestURL
 	}
 	for _, env := range envs {
 		out.Environments = append(out.Environments, schemas.EnvironmentOut{

@@ -90,19 +90,19 @@ func TestMalformedKeysAreRefusedBeforeAnyLookup(t *testing.T) {
 	}
 }
 
-func TestCacheKeyRevealsNothing(t *testing.T) {
+func TestCacheDigestRevealsNothing(t *testing.T) {
 	got, _ := core.NewAPIKey(core.KindProject, "production")
 
-	key := core.CacheKey(got.Secret)
+	key := core.CacheDigest(got.Secret)
 	if strings.Contains(key, got.Secret) {
 		t.Fatal("the cache key contains the credential")
 	}
 	// Same credential, same key; different credential, different key.
-	if key != core.CacheKey(got.Secret) {
+	if key != core.CacheDigest(got.Secret) {
 		t.Error("the cache key is not stable")
 	}
 	other, _ := core.NewAPIKey(core.KindProject, "production")
-	if key == core.CacheKey(other.Secret) {
+	if key == core.CacheDigest(other.Secret) {
 		t.Error("two credentials share a cache key")
 	}
 }

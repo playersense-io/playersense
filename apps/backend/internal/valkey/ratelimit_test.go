@@ -11,7 +11,9 @@ import (
 	"playersense.dev/backend/internal/valkey"
 )
 
-func testClient(t *testing.T) *valkey.Client {
+func testClient(t *testing.T) *valkey.Client { return testClientFor(t, "test-cell") }
+
+func testClientFor(t *testing.T, cell string) *valkey.Client {
 	t.Helper()
 	dsn := os.Getenv("VALKEY_DSN")
 	if dsn == "" {
@@ -20,7 +22,7 @@ func testClient(t *testing.T) *valkey.Client {
 	if dsn == "" {
 		t.Skip("no VALKEY_DSN")
 	}
-	c := valkey.New(dsn)
+	c := valkey.New(cell, dsn)
 	if err := c.Start(t.Context()); err != nil {
 		t.Skipf("no valkey: %v", err)
 	}
@@ -114,7 +116,7 @@ func TestCountersAreSharedAcrossInstances(t *testing.T) {
 // implementation that silently returned a count would let an attacker who can reach the
 // storage choose the moment limits stop applying.
 func TestUnavailableStorageReportsAnError(t *testing.T) {
-	storage := valkey.NewRateLimitStorage(valkey.New("redis://127.0.0.1:1/0"))
+	storage := valkey.NewRateLimitStorage(valkey.New("test-cell", "redis://127.0.0.1:1/0"))
 
 	if _, _, err := storage.Increment(t.Context(), "unit", "k", time.Minute); err == nil {
 		t.Fatal("an unavailable storage reported success")
@@ -140,5 +142,51 @@ func TestCacheRoundTrip(t *testing.T) {
 	}
 	if got, _ := c.Get(t.Context(), key); got != nil {
 		t.Error("the key survived deletion")
+	}
+}
+
+// TestCellsDoNotShareABudget is the other half of the previous test, and the reason Key
+// exists.
+//
+// Instances of one service must share a budget; two *cells* must not. A cell is a
+// self-contained data plane (§6) and one region's traffic spending another region's
+// allowance would be a limit nobody could reason about — and, in a development stack where
+// both cells point at one Valkey, one that only appears when two cells are configured.
+func TestCellsDoNotShareABudget(t *testing.T) {
+	eu := valkey.NewRateLimitStorage(testClientFor(t, "eu-1"))
+	us := valkey.NewRateLimitStorage(testClientFor(t, "us-1"))
+	key := "test-cells-" + time.Now().Format("150405.000000000")
+
+	if got, _, err := eu.Increment(t.Context(), "unit", key, time.Minute); err != nil || got != 1 {
+		t.Fatalf("eu-1 first request: count=%d err=%v", got, err)
+	}
+	got, _, err := us.Increment(t.Context(), "unit", key, time.Minute)
+	if err != nil {
+		t.Fatalf("us-1: %v", err)
+	}
+	if got != 1 {
+		t.Fatalf("us-1 saw count=%d; it is spending eu-1's budget", got)
+	}
+}
+
+// TestCellsDoNotShareACache is the same property for cached values rather than counters.
+//
+// It matters more than the budget does: an entry read across cells would be a credential
+// or a device state resolved in one jurisdiction and served in another.
+func TestCellsDoNotShareACache(t *testing.T) {
+	eu := testClientFor(t, "eu-1")
+	us := testClientFor(t, "us-1")
+	key := "test-cache-cells-" + time.Now().Format("150405.000000000")
+
+	if err := eu.Set(t.Context(), eu.Key("apikey", key), []byte("eu"), time.Minute); err != nil {
+		t.Fatalf("Set = %v", err)
+	}
+	t.Cleanup(func() { _ = eu.Del(context.Background(), eu.Key("apikey", key)) })
+
+	if got, err := us.Get(t.Context(), us.Key("apikey", key)); err != nil || got != nil {
+		t.Fatalf("us-1 read eu-1's entry: (%q, %v)", got, err)
+	}
+	if got, err := eu.Get(t.Context(), eu.Key("apikey", key)); err != nil || string(got) != "eu" {
+		t.Fatalf("eu-1 cannot read its own entry: (%q, %v)", got, err)
 	}
 }

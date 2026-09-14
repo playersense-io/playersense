@@ -25,9 +25,11 @@ func (Project) Fields() []ent.Field {
 		field.String("name").NotEmpty().MaxLen(120).Comment(dataclass.None),
 		field.String("slug").NotEmpty().MaxLen(64).Comment(dataclass.None),
 
-		// Which cell holds this project's data (§6, §99).
-		field.String("home_region").NotEmpty().MaxLen(16).Immutable().
-			Default("eu-1").Comment(dataclass.None),
+		// Which cell holds this project's data (§6, §99) — an edge rather than the free
+		// text it used to be. As a string nothing read it, nothing routed on it, and the
+		// validator accepted regions no code could reach, so a project could be created
+		// somewhere that did not exist.
+		field.Int("cell_id").Immutable().Comment(dataclass.None),
 
 		// standard | child_directed | kids_strict (§98). kids_strict has no persistent
 		// identifier at all, so cross-day retention is not computable for it — the
@@ -47,6 +49,11 @@ func (Project) Edges() []ent.Edge {
 	return []ent.Edge{
 		edge.From("organization", Organization.Type).Ref("projects").
 			Field("organization_id").Unique().Required(),
+		// Immutable for the same reason policy_tier is: moving a project between cells
+		// moves live player data across a boundary, which is an operation with its own
+		// design rather than a field update.
+		edge.From("cell", Cell.Type).Ref("projects").
+			Field("cell_id").Unique().Required().Immutable(),
 		edge.To("environments", Environment.Type),
 	}
 }

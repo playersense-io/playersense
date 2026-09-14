@@ -20,24 +20,35 @@ import (
 //
 // It is not a queue. There is no subscription, no acknowledgement and no redelivery, so
 // it stands in for Pub/Sub only as far as the publish side of §19 is concerned.
+//
+// Segments live under a directory named for the cell, so a writer for one cell tails one
+// directory and a developer running two cells against one spool does not get one cell's
+// batches delivered to the other's writer.
 type Local struct {
-	dir string
+	cell string
+	dir  string
 
 	mu   sync.Mutex
 	file *os.File
 	day  string
 }
 
-// NewLocal returns a bus writing under dir.
-func NewLocal(dir string) *Local { return &Local{dir: dir} }
+// NewLocal returns a bus writing under dir for one cell.
+func NewLocal(cell, dir string) *Local { return &Local{cell: cell, dir: dir} }
+
+// segment is where a day's messages for this cell are spooled.
+func (l *Local) segment(day string) string {
+	return filepath.Join(l.dir, l.cell, "analytics-events-"+day+".ndjson")
+}
 
 // Name identifies the component in start-up and shutdown logs.
 func (l *Local) Name() string { return "eventbus-local" }
 
 // Start creates the spool directory.
 func (l *Local) Start(context.Context) error {
-	if err := os.MkdirAll(l.dir, 0o750); err != nil {
-		return fmt.Errorf("create spool %s: %w", l.dir, err)
+	dir := filepath.Join(l.dir, l.cell)
+	if err := os.MkdirAll(dir, 0o750); err != nil {
+		return fmt.Errorf("create spool %s: %w", dir, err)
 	}
 	return nil
 }
@@ -69,8 +80,7 @@ func (l *Local) Publish(_ context.Context, msg *Message) error {
 		if l.file != nil {
 			_ = l.file.Close()
 		}
-		path := filepath.Join(l.dir, "analytics-events-"+day+".ndjson")
-		f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o640)
+		f, err := os.OpenFile(l.segment(day), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o640)
 		if err != nil {
 			return fmt.Errorf("open spool segment: %w", err)
 		}
@@ -89,8 +99,7 @@ func (l *Local) Publish(_ context.Context, msg *Message) error {
 
 // Read returns every message published on a day, for tests and for the writer to replay.
 func (l *Local) Read(day time.Time) ([]*Message, error) {
-	path := filepath.Join(l.dir, "analytics-events-"+day.UTC().Format("2006-01-02")+".ndjson")
-	raw, err := os.ReadFile(path)
+	raw, err := os.ReadFile(l.segment(day.UTC().Format("2006-01-02")))
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, nil

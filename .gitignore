@@ -6,6 +6,12 @@
 /bin/
 *.test
 *.out
+# Binaries left by `go build ./cmd/...`, which writes them beside the module.
+/apps/backend/control-api
+/apps/backend/ingest-api
+/apps/backend/analytics-writer
+/apps/backend/migrate
+/apps/backend/cohortcheck
 
 # Node
 node_modules/

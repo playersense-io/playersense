@@ -13,6 +13,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
 	"playersense.dev/backend/ent/global/apikey"
+	"playersense.dev/backend/ent/global/cell"
 	"playersense.dev/backend/ent/global/environment"
 	"playersense.dev/backend/ent/global/organization"
 	"playersense.dev/backend/ent/global/organizationmember"
@@ -31,6 +32,7 @@ const (
 
 	// Node types.
 	TypeAPIKey             = "APIKey"
+	TypeCell               = "Cell"
 	TypeEnvironment        = "Environment"
 	TypeOrganization       = "Organization"
 	TypeOrganizationMember = "OrganizationMember"
@@ -971,6 +973,831 @@ func (m *APIKeyMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown APIKey edge %s", name)
+}
+
+// CellMutation represents an operation that mutates the Cell nodes in the graph.
+type CellMutation struct {
+	config
+	op              Op
+	typ             string
+	id              *int
+	uid             *uuid.UUID
+	created_at      *time.Time
+	updated_at      *time.Time
+	slug            *string
+	region          *string
+	status          *cell.Status
+	ingest_url      *string
+	location        *string
+	clearedFields   map[string]struct{}
+	projects        map[int]struct{}
+	removedprojects map[int]struct{}
+	clearedprojects bool
+	done            bool
+	oldValue        func(context.Context) (*Cell, error)
+	predicates      []predicate.Cell
+}
+
+var _ ent.Mutation = (*CellMutation)(nil)
+
+// cellOption allows management of the mutation configuration using functional options.
+type cellOption func(*CellMutation)
+
+// newCellMutation creates new mutation for the Cell entity.
+func newCellMutation(c config, op Op, opts ...cellOption) *CellMutation {
+	m := &CellMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeCell,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withCellID sets the ID field of the mutation.
+func withCellID(id int) cellOption {
+	return func(m *CellMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *Cell
+		)
+		m.oldValue = func(ctx context.Context) (*Cell, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().Cell.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withCell sets the old Cell of the mutation.
+func withCell(node *Cell) cellOption {
+	return func(m *CellMutation) {
+		m.oldValue = func(context.Context) (*Cell, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m CellMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m CellMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("global: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of Cell entities.
+func (m *CellMutation) SetID(id int) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *CellMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *CellMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().Cell.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetUID sets the "uid" field.
+func (m *CellMutation) SetUID(u uuid.UUID) {
+	m.uid = &u
+}
+
+// UID returns the value of the "uid" field in the mutation.
+func (m *CellMutation) UID() (r uuid.UUID, exists bool) {
+	v := m.uid
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUID returns the old "uid" field's value of the Cell entity.
+// If the Cell object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CellMutation) OldUID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUID: %w", err)
+	}
+	return oldValue.UID, nil
+}
+
+// ResetUID resets all changes to the "uid" field.
+func (m *CellMutation) ResetUID() {
+	m.uid = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *CellMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *CellMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the Cell entity.
+// If the Cell object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CellMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *CellMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *CellMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *CellMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the Cell entity.
+// If the Cell object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CellMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *CellMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetSlug sets the "slug" field.
+func (m *CellMutation) SetSlug(s string) {
+	m.slug = &s
+}
+
+// Slug returns the value of the "slug" field in the mutation.
+func (m *CellMutation) Slug() (r string, exists bool) {
+	v := m.slug
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSlug returns the old "slug" field's value of the Cell entity.
+// If the Cell object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CellMutation) OldSlug(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSlug is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSlug requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSlug: %w", err)
+	}
+	return oldValue.Slug, nil
+}
+
+// ResetSlug resets all changes to the "slug" field.
+func (m *CellMutation) ResetSlug() {
+	m.slug = nil
+}
+
+// SetRegion sets the "region" field.
+func (m *CellMutation) SetRegion(s string) {
+	m.region = &s
+}
+
+// Region returns the value of the "region" field in the mutation.
+func (m *CellMutation) Region() (r string, exists bool) {
+	v := m.region
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRegion returns the old "region" field's value of the Cell entity.
+// If the Cell object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CellMutation) OldRegion(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRegion is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRegion requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRegion: %w", err)
+	}
+	return oldValue.Region, nil
+}
+
+// ResetRegion resets all changes to the "region" field.
+func (m *CellMutation) ResetRegion() {
+	m.region = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *CellMutation) SetStatus(c cell.Status) {
+	m.status = &c
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *CellMutation) Status() (r cell.Status, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the Cell entity.
+// If the Cell object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CellMutation) OldStatus(ctx context.Context) (v cell.Status, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *CellMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetIngestURL sets the "ingest_url" field.
+func (m *CellMutation) SetIngestURL(s string) {
+	m.ingest_url = &s
+}
+
+// IngestURL returns the value of the "ingest_url" field in the mutation.
+func (m *CellMutation) IngestURL() (r string, exists bool) {
+	v := m.ingest_url
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIngestURL returns the old "ingest_url" field's value of the Cell entity.
+// If the Cell object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CellMutation) OldIngestURL(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIngestURL is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIngestURL requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIngestURL: %w", err)
+	}
+	return oldValue.IngestURL, nil
+}
+
+// ResetIngestURL resets all changes to the "ingest_url" field.
+func (m *CellMutation) ResetIngestURL() {
+	m.ingest_url = nil
+}
+
+// SetLocation sets the "location" field.
+func (m *CellMutation) SetLocation(s string) {
+	m.location = &s
+}
+
+// Location returns the value of the "location" field in the mutation.
+func (m *CellMutation) Location() (r string, exists bool) {
+	v := m.location
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLocation returns the old "location" field's value of the Cell entity.
+// If the Cell object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CellMutation) OldLocation(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLocation is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLocation requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLocation: %w", err)
+	}
+	return oldValue.Location, nil
+}
+
+// ClearLocation clears the value of the "location" field.
+func (m *CellMutation) ClearLocation() {
+	m.location = nil
+	m.clearedFields[cell.FieldLocation] = struct{}{}
+}
+
+// LocationCleared returns if the "location" field was cleared in this mutation.
+func (m *CellMutation) LocationCleared() bool {
+	_, ok := m.clearedFields[cell.FieldLocation]
+	return ok
+}
+
+// ResetLocation resets all changes to the "location" field.
+func (m *CellMutation) ResetLocation() {
+	m.location = nil
+	delete(m.clearedFields, cell.FieldLocation)
+}
+
+// AddProjectIDs adds the "projects" edge to the Project entity by ids.
+func (m *CellMutation) AddProjectIDs(ids ...int) {
+	if m.projects == nil {
+		m.projects = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.projects[ids[i]] = struct{}{}
+	}
+}
+
+// ClearProjects clears the "projects" edge to the Project entity.
+func (m *CellMutation) ClearProjects() {
+	m.clearedprojects = true
+}
+
+// ProjectsCleared reports if the "projects" edge to the Project entity was cleared.
+func (m *CellMutation) ProjectsCleared() bool {
+	return m.clearedprojects
+}
+
+// RemoveProjectIDs removes the "projects" edge to the Project entity by IDs.
+func (m *CellMutation) RemoveProjectIDs(ids ...int) {
+	if m.removedprojects == nil {
+		m.removedprojects = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.projects, ids[i])
+		m.removedprojects[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedProjects returns the removed IDs of the "projects" edge to the Project entity.
+func (m *CellMutation) RemovedProjectsIDs() (ids []int) {
+	for id := range m.removedprojects {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ProjectsIDs returns the "projects" edge IDs in the mutation.
+func (m *CellMutation) ProjectsIDs() (ids []int) {
+	for id := range m.projects {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetProjects resets all changes to the "projects" edge.
+func (m *CellMutation) ResetProjects() {
+	m.projects = nil
+	m.clearedprojects = false
+	m.removedprojects = nil
+}
+
+// Where appends a list predicates to the CellMutation builder.
+func (m *CellMutation) Where(ps ...predicate.Cell) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the CellMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *CellMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.Cell, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *CellMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *CellMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (Cell).
+func (m *CellMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *CellMutation) Fields() []string {
+	fields := make([]string, 0, 8)
+	if m.uid != nil {
+		fields = append(fields, cell.FieldUID)
+	}
+	if m.created_at != nil {
+		fields = append(fields, cell.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, cell.FieldUpdatedAt)
+	}
+	if m.slug != nil {
+		fields = append(fields, cell.FieldSlug)
+	}
+	if m.region != nil {
+		fields = append(fields, cell.FieldRegion)
+	}
+	if m.status != nil {
+		fields = append(fields, cell.FieldStatus)
+	}
+	if m.ingest_url != nil {
+		fields = append(fields, cell.FieldIngestURL)
+	}
+	if m.location != nil {
+		fields = append(fields, cell.FieldLocation)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *CellMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case cell.FieldUID:
+		return m.UID()
+	case cell.FieldCreatedAt:
+		return m.CreatedAt()
+	case cell.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case cell.FieldSlug:
+		return m.Slug()
+	case cell.FieldRegion:
+		return m.Region()
+	case cell.FieldStatus:
+		return m.Status()
+	case cell.FieldIngestURL:
+		return m.IngestURL()
+	case cell.FieldLocation:
+		return m.Location()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *CellMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case cell.FieldUID:
+		return m.OldUID(ctx)
+	case cell.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case cell.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case cell.FieldSlug:
+		return m.OldSlug(ctx)
+	case cell.FieldRegion:
+		return m.OldRegion(ctx)
+	case cell.FieldStatus:
+		return m.OldStatus(ctx)
+	case cell.FieldIngestURL:
+		return m.OldIngestURL(ctx)
+	case cell.FieldLocation:
+		return m.OldLocation(ctx)
+	}
+	return nil, fmt.Errorf("unknown Cell field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *CellMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case cell.FieldUID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUID(v)
+		return nil
+	case cell.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case cell.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case cell.FieldSlug:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSlug(v)
+		return nil
+	case cell.FieldRegion:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRegion(v)
+		return nil
+	case cell.FieldStatus:
+		v, ok := value.(cell.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case cell.FieldIngestURL:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIngestURL(v)
+		return nil
+	case cell.FieldLocation:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLocation(v)
+		return nil
+	}
+	return fmt.Errorf("unknown Cell field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *CellMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *CellMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *CellMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown Cell numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *CellMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(cell.FieldLocation) {
+		fields = append(fields, cell.FieldLocation)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *CellMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *CellMutation) ClearField(name string) error {
+	switch name {
+	case cell.FieldLocation:
+		m.ClearLocation()
+		return nil
+	}
+	return fmt.Errorf("unknown Cell nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *CellMutation) ResetField(name string) error {
+	switch name {
+	case cell.FieldUID:
+		m.ResetUID()
+		return nil
+	case cell.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case cell.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case cell.FieldSlug:
+		m.ResetSlug()
+		return nil
+	case cell.FieldRegion:
+		m.ResetRegion()
+		return nil
+	case cell.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case cell.FieldIngestURL:
+		m.ResetIngestURL()
+		return nil
+	case cell.FieldLocation:
+		m.ResetLocation()
+		return nil
+	}
+	return fmt.Errorf("unknown Cell field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *CellMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.projects != nil {
+		edges = append(edges, cell.EdgeProjects)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *CellMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case cell.EdgeProjects:
+		ids := make([]ent.Value, 0, len(m.projects))
+		for id := range m.projects {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *CellMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.removedprojects != nil {
+		edges = append(edges, cell.EdgeProjects)
+	}
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *CellMutation) RemovedIDs(name string) []ent.Value {
+	switch name {
+	case cell.EdgeProjects:
+		ids := make([]ent.Value, 0, len(m.removedprojects))
+		for id := range m.removedprojects {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *CellMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.clearedprojects {
+		edges = append(edges, cell.EdgeProjects)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *CellMutation) EdgeCleared(name string) bool {
+	switch name {
+	case cell.EdgeProjects:
+		return m.clearedprojects
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *CellMutation) ClearEdge(name string) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown Cell unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *CellMutation) ResetEdge(name string) error {
+	switch name {
+	case cell.EdgeProjects:
+		m.ResetProjects()
+		return nil
+	}
+	return fmt.Errorf("unknown Cell edge %s", name)
 }
 
 // EnvironmentMutation represents an operation that mutates the Environment nodes in the graph.
@@ -3103,13 +3930,14 @@ type ProjectMutation struct {
 	updated_at          *time.Time
 	name                *string
 	slug                *string
-	home_region         *string
 	policy_tier         *project.PolicyTier
 	retention_days      *uint16
 	addretention_days   *int16
 	clearedFields       map[string]struct{}
 	organization        *int
 	clearedorganization bool
+	cell                *int
+	clearedcell         bool
 	environments        map[int]struct{}
 	removedenvironments map[int]struct{}
 	clearedenvironments bool
@@ -3402,40 +4230,40 @@ func (m *ProjectMutation) ResetSlug() {
 	m.slug = nil
 }
 
-// SetHomeRegion sets the "home_region" field.
-func (m *ProjectMutation) SetHomeRegion(s string) {
-	m.home_region = &s
+// SetCellID sets the "cell_id" field.
+func (m *ProjectMutation) SetCellID(i int) {
+	m.cell = &i
 }
 
-// HomeRegion returns the value of the "home_region" field in the mutation.
-func (m *ProjectMutation) HomeRegion() (r string, exists bool) {
-	v := m.home_region
+// CellID returns the value of the "cell_id" field in the mutation.
+func (m *ProjectMutation) CellID() (r int, exists bool) {
+	v := m.cell
 	if v == nil {
 		return
 	}
 	return *v, true
 }
 
-// OldHomeRegion returns the old "home_region" field's value of the Project entity.
+// OldCellID returns the old "cell_id" field's value of the Project entity.
 // If the Project object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *ProjectMutation) OldHomeRegion(ctx context.Context) (v string, err error) {
+func (m *ProjectMutation) OldCellID(ctx context.Context) (v int, err error) {
 	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldHomeRegion is only allowed on UpdateOne operations")
+		return v, errors.New("OldCellID is only allowed on UpdateOne operations")
 	}
 	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldHomeRegion requires an ID field in the mutation")
+		return v, errors.New("OldCellID requires an ID field in the mutation")
 	}
 	oldValue, err := m.oldValue(ctx)
 	if err != nil {
-		return v, fmt.Errorf("querying old value for OldHomeRegion: %w", err)
+		return v, fmt.Errorf("querying old value for OldCellID: %w", err)
 	}
-	return oldValue.HomeRegion, nil
+	return oldValue.CellID, nil
 }
 
-// ResetHomeRegion resets all changes to the "home_region" field.
-func (m *ProjectMutation) ResetHomeRegion() {
-	m.home_region = nil
+// ResetCellID resets all changes to the "cell_id" field.
+func (m *ProjectMutation) ResetCellID() {
+	m.cell = nil
 }
 
 // SetPolicyTier sets the "policy_tier" field.
@@ -3593,6 +4421,33 @@ func (m *ProjectMutation) ResetOrganization() {
 	m.clearedorganization = false
 }
 
+// ClearCell clears the "cell" edge to the Cell entity.
+func (m *ProjectMutation) ClearCell() {
+	m.clearedcell = true
+	m.clearedFields[project.FieldCellID] = struct{}{}
+}
+
+// CellCleared reports if the "cell" edge to the Cell entity was cleared.
+func (m *ProjectMutation) CellCleared() bool {
+	return m.clearedcell
+}
+
+// CellIDs returns the "cell" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// CellID instead. It exists only for internal usage by the builders.
+func (m *ProjectMutation) CellIDs() (ids []int) {
+	if id := m.cell; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetCell resets all changes to the "cell" edge.
+func (m *ProjectMutation) ResetCell() {
+	m.cell = nil
+	m.clearedcell = false
+}
+
 // AddEnvironmentIDs adds the "environments" edge to the Environment entity by ids.
 func (m *ProjectMutation) AddEnvironmentIDs(ids ...int) {
 	if m.environments == nil {
@@ -3697,8 +4552,8 @@ func (m *ProjectMutation) Fields() []string {
 	if m.slug != nil {
 		fields = append(fields, project.FieldSlug)
 	}
-	if m.home_region != nil {
-		fields = append(fields, project.FieldHomeRegion)
+	if m.cell != nil {
+		fields = append(fields, project.FieldCellID)
 	}
 	if m.policy_tier != nil {
 		fields = append(fields, project.FieldPolicyTier)
@@ -3727,8 +4582,8 @@ func (m *ProjectMutation) Field(name string) (ent.Value, bool) {
 		return m.Name()
 	case project.FieldSlug:
 		return m.Slug()
-	case project.FieldHomeRegion:
-		return m.HomeRegion()
+	case project.FieldCellID:
+		return m.CellID()
 	case project.FieldPolicyTier:
 		return m.PolicyTier()
 	case project.FieldRetentionDays:
@@ -3754,8 +4609,8 @@ func (m *ProjectMutation) OldField(ctx context.Context, name string) (ent.Value,
 		return m.OldName(ctx)
 	case project.FieldSlug:
 		return m.OldSlug(ctx)
-	case project.FieldHomeRegion:
-		return m.OldHomeRegion(ctx)
+	case project.FieldCellID:
+		return m.OldCellID(ctx)
 	case project.FieldPolicyTier:
 		return m.OldPolicyTier(ctx)
 	case project.FieldRetentionDays:
@@ -3806,12 +4661,12 @@ func (m *ProjectMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetSlug(v)
 		return nil
-	case project.FieldHomeRegion:
-		v, ok := value.(string)
+	case project.FieldCellID:
+		v, ok := value.(int)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
-		m.SetHomeRegion(v)
+		m.SetCellID(v)
 		return nil
 	case project.FieldPolicyTier:
 		v, ok := value.(project.PolicyTier)
@@ -3913,8 +4768,8 @@ func (m *ProjectMutation) ResetField(name string) error {
 	case project.FieldSlug:
 		m.ResetSlug()
 		return nil
-	case project.FieldHomeRegion:
-		m.ResetHomeRegion()
+	case project.FieldCellID:
+		m.ResetCellID()
 		return nil
 	case project.FieldPolicyTier:
 		m.ResetPolicyTier()
@@ -3931,9 +4786,12 @@ func (m *ProjectMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *ProjectMutation) AddedEdges() []string {
-	edges := make([]string, 0, 2)
+	edges := make([]string, 0, 3)
 	if m.organization != nil {
 		edges = append(edges, project.EdgeOrganization)
+	}
+	if m.cell != nil {
+		edges = append(edges, project.EdgeCell)
 	}
 	if m.environments != nil {
 		edges = append(edges, project.EdgeEnvironments)
@@ -3949,6 +4807,10 @@ func (m *ProjectMutation) AddedIDs(name string) []ent.Value {
 		if id := m.organization; id != nil {
 			return []ent.Value{*id}
 		}
+	case project.EdgeCell:
+		if id := m.cell; id != nil {
+			return []ent.Value{*id}
+		}
 	case project.EdgeEnvironments:
 		ids := make([]ent.Value, 0, len(m.environments))
 		for id := range m.environments {
@@ -3961,7 +4823,7 @@ func (m *ProjectMutation) AddedIDs(name string) []ent.Value {
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *ProjectMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 2)
+	edges := make([]string, 0, 3)
 	if m.removedenvironments != nil {
 		edges = append(edges, project.EdgeEnvironments)
 	}
@@ -3984,9 +4846,12 @@ func (m *ProjectMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *ProjectMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 2)
+	edges := make([]string, 0, 3)
 	if m.clearedorganization {
 		edges = append(edges, project.EdgeOrganization)
+	}
+	if m.clearedcell {
+		edges = append(edges, project.EdgeCell)
 	}
 	if m.clearedenvironments {
 		edges = append(edges, project.EdgeEnvironments)
@@ -4000,6 +4865,8 @@ func (m *ProjectMutation) EdgeCleared(name string) bool {
 	switch name {
 	case project.EdgeOrganization:
 		return m.clearedorganization
+	case project.EdgeCell:
+		return m.clearedcell
 	case project.EdgeEnvironments:
 		return m.clearedenvironments
 	}
@@ -4013,6 +4880,9 @@ func (m *ProjectMutation) ClearEdge(name string) error {
 	case project.EdgeOrganization:
 		m.ClearOrganization()
 		return nil
+	case project.EdgeCell:
+		m.ClearCell()
+		return nil
 	}
 	return fmt.Errorf("unknown Project unique edge %s", name)
 }
@@ -4023,6 +4893,9 @@ func (m *ProjectMutation) ResetEdge(name string) error {
 	switch name {
 	case project.EdgeOrganization:
 		m.ResetOrganization()
+		return nil
+	case project.EdgeCell:
+		m.ResetCell()
 		return nil
 	case project.EdgeEnvironments:
 		m.ResetEnvironments()

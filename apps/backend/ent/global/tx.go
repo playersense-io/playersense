@@ -14,6 +14,8 @@ type Tx struct {
 	config
 	// APIKey is the client for interacting with the APIKey builders.
 	APIKey *APIKeyClient
+	// Cell is the client for interacting with the Cell builders.
+	Cell *CellClient
 	// Environment is the client for interacting with the Environment builders.
 	Environment *EnvironmentClient
 	// Organization is the client for interacting with the Organization builders.
@@ -156,6 +158,7 @@ func (tx *Tx) Client() *Client {
 
 func (tx *Tx) init() {
 	tx.APIKey = NewAPIKeyClient(tx.config)
+	tx.Cell = NewCellClient(tx.config)
 	tx.Environment = NewEnvironmentClient(tx.config)
 	tx.Organization = NewOrganizationClient(tx.config)
 	tx.OrganizationMember = NewOrganizationMemberClient(tx.config)
