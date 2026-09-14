@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -14,18 +13,14 @@ import (
 	"muzak.dev/framework"
 	"muzak.dev/framework/testclient"
 
-	"playersense.dev/backend/ent/global"
 	"playersense.dev/backend/ent/global/apikey"
-	"playersense.dev/backend/ent/global/cell"
-	"playersense.dev/backend/ent/global/environment"
-	"playersense.dev/backend/ent/global/project"
-	"playersense.dev/backend/internal/config"
 	"playersense.dev/backend/internal/core"
 	"playersense.dev/backend/internal/eventbus"
 	"playersense.dev/backend/internal/ingest"
 	"playersense.dev/backend/internal/pgdb"
 	"playersense.dev/backend/internal/protocol"
 	"playersense.dev/backend/internal/routers"
+	"playersense.dev/backend/internal/testsupport"
 	"playersense.dev/backend/internal/valkey"
 )
 
@@ -42,21 +37,12 @@ type fixture struct {
 func newFixture(t *testing.T, tier string) *fixture {
 	t.Helper()
 
-	settings, err := config.Load(filepath.Join(repoRoot(), ".env"))
-	if err != nil {
-		t.Skipf("no local environment: %v", err)
-	}
-	settings.Addr, settings.LogFormat = ":0", "none"
-	settings.RateLimitDisabled = true
+	settings := testsupport.Settings(t)
+	settings.Addr = ":0"
 
-	ctrl := pgdb.NewGlobal(settings.GlobalPostgresDSN)
-	if err := ctrl.Start(t.Context()); err != nil {
-		t.Skipf("no control plane: %v", err)
-	}
-	t.Cleanup(func() { _ = ctrl.Close() })
-
+	ctrl := testsupport.Global(t, settings)
 	home := core.CellFrom(settings)
-	secret, envID := seedKey(t, ctrl, tier, seedCell(t, ctrl, home).ID)
+	seeded := testsupport.SeedProject(t, ctrl, tier, testsupport.SeedCell(t, ctrl, home).ID)
 
 	// Its own spool per test, so tests do not read each other's messages.
 	bus := eventbus.NewLocal(home.Slug, t.TempDir())
@@ -76,87 +62,14 @@ func newFixture(t *testing.T, tier string) *fixture {
 	app.Include(routers.Ingest())
 
 	return &fixture{
-		client: testclient.New(t, app, testclient.WithHeader("Authorization", "Bearer "+secret)),
-		bus:    bus,
-		key:    secret,
-		ctrl:   ctrl,
-		home:   home,
-		envID:  envID,
+		client: testclient.New(t, app,
+			testclient.WithHeader("Authorization", "Bearer "+seeded.Secret)),
+		bus:   bus,
+		key:   seeded.Secret,
+		ctrl:  ctrl,
+		home:  home,
+		envID: seeded.EnvironmentID,
 	}
-}
-
-// seedCell makes sure a cell is in the registry and returns it.
-//
-// The registry is global state shared by every test in this package, so this is an upsert
-// rather than a create: whichever test runs first provisions it and the rest find it.
-func seedCell(t *testing.T, ctrl *pgdb.Global, identity core.CellIdentity) *global.Cell {
-	t.Helper()
-	ctx := context.Background()
-
-	found, err := ctrl.Client.Cell.Query().Where(cell.Slug(identity.Slug)).Only(ctx)
-	if err == nil {
-		return found
-	}
-	if !global.IsNotFound(err) {
-		t.Fatalf("read the cell registry: %v", err)
-	}
-	created, err := ctrl.Client.Cell.Create().
-		SetSlug(identity.Slug).
-		SetRegion(identity.Region).
-		SetIngestURL(identity.IngestURL).
-		Save(ctx)
-	if err != nil {
-		// A parallel test may have won the race to create it.
-		if found, qerr := ctrl.Client.Cell.Query().Where(cell.Slug(identity.Slug)).Only(ctx); qerr == nil {
-			return found
-		}
-		t.Fatalf("seed cell %s: %v", identity.Slug, err)
-	}
-	return created
-}
-
-// seedKey creates an organization, a project in the given cell and a publishable key.
-//
-// The environment id is returned rather than looked up later: keys minted for a test have
-// to belong to *that* test's project, and "the first environment in the table" stops being
-// that as soon as one test registers a project in a second cell.
-func seedKey(t *testing.T, ctrl *pgdb.Global, tier string, cellID int) (secret string, envID int) {
-	t.Helper()
-	ctx := context.Background()
-	suffix := uuid.NewString()[:8]
-
-	org, err := ctrl.Client.Organization.Create().
-		SetName("Test Org").SetSlug("t-" + suffix).Save(ctx)
-	if err != nil {
-		t.Fatalf("seed organization: %v", err)
-	}
-	proj, err := ctrl.Client.Project.Create().
-		SetName("Test Game").SetSlug("p-" + suffix).
-		SetCellID(cellID).
-		SetPolicyTier(project.PolicyTier(tier)).
-		SetRetentionDays(30).
-		SetOrganizationID(org.ID).Save(ctx)
-	if err != nil {
-		t.Fatalf("seed project: %v", err)
-	}
-	env, err := ctrl.Client.Environment.Create().
-		SetKind(environment.KindProduction).SetProjectID(proj.ID).Save(ctx)
-	if err != nil {
-		t.Fatalf("seed environment: %v", err)
-	}
-
-	generated, err := core.NewAPIKey(core.KindProject, "production")
-	if err != nil {
-		t.Fatalf("mint key: %v", err)
-	}
-	if _, err := ctrl.Client.APIKey.Create().
-		SetKind("project").
-		SetPublicID(generated.PublicID).
-		SetSecretHash(generated.Hash).
-		SetEnvironmentID(env.ID).Save(ctx); err != nil {
-		t.Fatalf("store key: %v", err)
-	}
-	return generated.Secret, env.ID
 }
 
 // published returns every message the bus holds for today.
@@ -207,12 +120,7 @@ func decodeAccepted(t *testing.T, res *testclient.Response) protocol.Accepted {
 }
 
 func TestAppBuilds(t *testing.T) {
-	settings, err := config.Load(filepath.Join(repoRoot(), ".env"))
-	if err != nil {
-		t.Skipf("no local environment: %v", err)
-	}
-	settings.LogFormat = "none"
-	settings.RateLimitDisabled = true
+	settings := testsupport.Settings(t)
 	app, err := build(settings)
 	if err != nil {
 		t.Fatalf("build = %v", err)
@@ -488,16 +396,7 @@ func TestBatchMustCarryEvents(t *testing.T) {
 // testing about it.
 func testCache(t *testing.T) *valkey.Client {
 	t.Helper()
-	settings, err := config.Load(filepath.Join(repoRoot(), ".env"))
-	if err != nil {
-		t.Skipf("no local environment: %v", err)
-	}
-	c := valkey.New(settings.Cell, settings.ValkeyDSN)
-	if err := c.Start(t.Context()); err != nil {
-		t.Skipf("no valkey: %v", err)
-	}
-	t.Cleanup(func() { _ = c.Stop(context.Background()) })
-	return c
+	return testsupport.Cache(t, testsupport.Settings(t))
 }
 
 // seedKindKey mints a key of an arbitrary kind against the fixture's own project.
@@ -622,13 +521,13 @@ func TestValkeyAnswersWhenPostgresIsDown(t *testing.T) {
 func TestAKeyFromAnotherCellIsRefused(t *testing.T) {
 	f := newFixture(t, "standard")
 
-	foreign := seedCell(t, f.ctrl, core.CellIdentity{
+	foreign := testsupport.SeedCell(t, f.ctrl, core.CellIdentity{
 		Slug: "us-1", Region: "us", IngestURL: "https://us.ingest.playersense.test",
 	})
 	if foreign.Slug == f.home.Slug {
 		t.Fatalf("the test cell and the home cell are both %q", foreign.Slug)
 	}
-	secret, _ := seedKey(t, f.ctrl, "standard", foreign.ID)
+	secret := testsupport.SeedProject(t, f.ctrl, "standard", foreign.ID).Secret
 
 	client := testclient.New(t, buildTestApp(t, f),
 		testclient.WithHeader("Authorization", "Bearer "+secret))

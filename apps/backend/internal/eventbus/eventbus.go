@@ -51,12 +51,28 @@ type Message struct {
 	Payload []byte `json:"payload"`
 }
 
-// Bus is the whole of what ingestion needs from the outside world.
+// Handler processes a group of messages.
+//
+// **It must not return nil until their effect is durable.** The bus advances its position
+// only on a nil return, so a nil returned before the insert has landed is a batch that was
+// acknowledged and then lost — Appendix C.2, and the one contract in this package that
+// cannot be relaxed.
+//
+// A group rather than a single message because the consumer wants to amortise a round trip
+// over several, and because the bus is the only thing that knows how many are available.
+type Handler func(ctx context.Context, msgs []*Message) error
+
+// Bus is the whole of what ingestion and the writers need from the outside world.
 //
 // Publish returns only once the message is durable. §19's contract is that a 202 means
 // the batch reached durable queueing, and a Publish that returns before that would make
 // the status a lie.
+//
+// Subscribe runs until the context is cancelled. Delivery is at-least-once (§21), so a
+// handler must make its effect idempotent rather than assume it is called once — which is
+// what the DedupKey above is for.
 type Bus interface {
 	Publish(ctx context.Context, msg *Message) error
+	Subscribe(ctx context.Context, handle Handler) error
 	Name() string
 }

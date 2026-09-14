@@ -655,6 +655,36 @@ must stay cheap and must not acquire a dependency that can make it fail. If Valk
 unavailable the writer stamps nulls and the nightly derivation backfills them, which is
 §65's rule that losing Valkey costs speed rather than data.
 
+**It never touches the control plane.** The tenant travels on the message — surrogates,
+UUIDs, policy tier, retention tier, cell — which is what makes §64's claim true of storage
+rather than only of ingestion. Its only dependencies are its cell's bus, its cell's Valkey
+and its cell's ClickHouse.
+
+Three things it refuses to store, each for a different reason:
+
+- **A message from another cell** is a routing mistake, and storing it would put one
+  region's player data in another region's ClickHouse — the same failure §6's 421 prevents,
+  arriving by a different road. Dropped and counted rather than retried: redelivering it
+  would never make it belong.
+- **A batch for a deleted project** (§61). A queue holds messages for hours, so this is
+  ordinary rather than exceptional, and writing it would resurrect data somebody asked to
+  have erased. The writer reads a project tombstone from its cell's Valkey. If Valkey
+  cannot answer, the batch **is** written and the asynchronous purge removes it — the purge
+  is the guarantee and this is a fast path, because making the fast path the guarantee
+  would let a cache outage silently resurrect deleted data.
+- **A message it cannot decode**, which will never decode. Counted and skipped, because
+  retrying it forever would stall the subscription behind one bad record.
+
+The deduplication token is the message's own key, and a message with more events than one
+block holds is split **deterministically** — `key#0`, `key#1` — so a redelivery produces
+the same blocks with the same tokens. A token reused across two different blocks would make
+ClickHouse discard the second as a duplicate of the first, which is a silent loss rather
+than a duplicate.
+
+Acknowledgement happens only after `Send` returns (Appendix C.2). Shutdown waits for the
+message in flight for the same reason: a process cut off between the insert and the
+acknowledgement replays, which the token absorbs — but by design rather than by luck.
+
 ### 10.4 `archive-writer`
 
 Consumes the same logical event stream using its own subscription and writes compressed Parquet objects to GCS.

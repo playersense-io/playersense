@@ -148,3 +148,41 @@ func parseDSN(dsn string) (vk.ClientOption, error) {
 	}
 	return opt, nil
 }
+
+// GetEx reads a key and extends its life in one round trip.
+//
+// A device-state entry (§29.5) should live as long as the device keeps playing, so every
+// read is also a renewal. Doing it as two calls would double the writer's Valkey traffic
+// on its hottest path, and doing it as a read without a renewal would expire an entry for
+// a device that is active every day.
+func (c *Client) GetEx(ctx context.Context, key string, ttl time.Duration) ([]byte, error) {
+	if !c.Ready() {
+		return nil, ErrUnavailable
+	}
+	msg := c.client.Do(ctx,
+		c.client.B().Getex().Key(key).PxMilliseconds(ttl.Milliseconds()).Build())
+	if err := msg.Error(); err != nil {
+		if vk.IsValkeyNil(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return msg.AsBytes()
+}
+
+// Exists reports whether a key is present.
+//
+// Used for tombstones, where the value carries nothing and only presence matters. An
+// unavailable cache reports the error rather than "absent": a tombstone read that fails
+// open would let a deleted project's batch be written, and the caller decides what to do
+// about that rather than having it decided silently here.
+func (c *Client) Exists(ctx context.Context, key string) (bool, error) {
+	if !c.Ready() {
+		return false, ErrUnavailable
+	}
+	n, err := c.client.Do(ctx, c.client.B().Exists().Key(key).Build()).AsInt64()
+	if err != nil {
+		return false, err
+	}
+	return n > 0, nil
+}

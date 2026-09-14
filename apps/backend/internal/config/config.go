@@ -106,11 +106,24 @@ type Settings struct {
 	// AnalyticsWriterAddr is where the writer serves its health probe. It has no API.
 	AnalyticsWriterAddr string `env:"ANALYTICS_WRITER_ADDR" default:":21082"`
 
-	// WriterBatchSize and WriterFlushInterval bound how much the writer accumulates
-	// before an insert. Never one event per insert (§86), and never so large that a
-	// crash loses more than a few seconds of acknowledged work.
-	WriterBatchSize     int           `env:"WRITER_BATCH_SIZE" default:"5000"`
+	// WriterBatchSize is the maximum number of rows in one ClickHouse insert block. A
+	// message carrying more events than this is split deterministically, so a
+	// redelivery produces the same blocks with the same deduplication tokens.
+	//
+	// Never one event per insert (§86). A message is already one SDK batch of up to a
+	// thousand events, so this is a ceiling rather than a target.
+	WriterBatchSize int `env:"WRITER_BATCH_SIZE" default:"5000"`
+
+	// WriterFlushInterval is how often the writer looks for new messages when the queue
+	// is empty. It bounds delivery latency on an idle system and costs nothing on a busy
+	// one, where the consumer drains without waiting.
 	WriterFlushInterval time.Duration `env:"WRITER_FLUSH_INTERVAL" default:"2s"`
+
+	// WriterDeviceStateTTL is how long a device's sticky cohort dimensions are
+	// remembered in Valkey (§29.5). Every read renews it, so a device that keeps playing
+	// keeps its entry; a device absent longer than this is stamped as a new cohort at
+	// write time and corrected by the nightly derivation, which reads player_lifetime.
+	WriterDeviceStateTTL time.Duration `env:"WRITER_DEVICE_STATE_TTL" default:"720h"`
 
 	// LogFormat is auto, console, json or none.
 	//
