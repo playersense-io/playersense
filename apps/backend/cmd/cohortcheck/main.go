@@ -23,6 +23,7 @@ import (
 
 	"playersense.dev/backend/internal/cohort"
 	"playersense.dev/backend/internal/config"
+	"playersense.dev/backend/internal/rollup"
 )
 
 const (
@@ -101,6 +102,10 @@ func run() error {
 	if err := deriver.DeriveBuckets(ctx, month); err != nil {
 		return err
 	}
+	rollups := &rollup.Deriver{DB: sqlDB}
+	if err := rollups.DeriveMonth(ctx, month); err != nil {
+		return err
+	}
 
 	checks := []check{
 		{"1. classic retention matches the seeded construction", checkClassicRetention(ctx, conn)},
@@ -113,6 +118,11 @@ func run() error {
 		{"8. rolling retention is a correct suffix sum", checkRolling(ctx, conn, deriver)},
 		{"9. every breakdown cell has a within-value denominator", checkBreakdownDenominator(ctx, conn)},
 		{"10. a bucket kind partitions the returners at every offset", checkBuckets(ctx, conn, deriver, month)},
+		{"11. daily active players is an exact distinct count", checkDailyActive(ctx, conn, rollups, month)},
+		{"12. new and returning players sum to active", checkNewAndReturning(ctx, conn)},
+		{"13. a metric breakdown partitions the active players", checkMetricBreakdown(ctx, conn)},
+		{"14. monthly active players is not the sum of the days", checkMonthlyActive(ctx, conn)},
+		{"15. an unmerged partial row does not inflate the active count", checkPartialRow(ctx, conn, rollups, month)},
 	}
 
 	fmt.Println()
@@ -588,6 +598,189 @@ func checkBuckets(ctx context.Context, conn driver.Conn, d *cohort.Deriver, m co
 		return fmt.Errorf("%d (kind, cohort, offset) cells do not sum to the returners", bad)
 	}
 	return nil
+}
+
+// checkDailyActive is the one number this whole tier exists to get right.
+//
+// metrics_daily.active_players must equal the exact distinct devices in
+// player_activity_daily for that day. The failure this guards is not a wrong query — it is
+// §29.14's trap: player_activity_daily is a SummingMergeTree, so a device-day exists as
+// several partial rows until parts merge, and counting without collapsing first counts one
+// player more than once. The drift is upward, gradual, and reports no error.
+func checkDailyActive(ctx context.Context, conn driver.Conn, d *rollup.Deriver, m cohort.Month) error {
+	// Re-derived first, for the reason check 10 gives: the checks above deliberately mutate
+	// the month, and comparing a rollup built before check 6's late event against a source
+	// that now includes it measures the gap between two derivations. Re-running also
+	// asserts that a late event is absorbed here, which is check 6's property for the
+	// cohort tier.
+	if err := d.DeriveMonth(ctx, m); err != nil {
+		return err
+	}
+
+	bad, err := scalar[uint64](ctx, conn, `
+		SELECT count() FROM (
+		    SELECT activity_date, sum(active_players) AS reported
+		    FROM metrics_daily GROUP BY activity_date
+		) AS m
+		INNER JOIN (
+		    SELECT activity_date, uniqExact(device_id) AS actual
+		    FROM player_activity_daily GROUP BY activity_date
+		) AS a USING (activity_date)
+		WHERE m.reported != a.actual`)
+	if err != nil {
+		return err
+	}
+	if bad != 0 {
+		return fmt.Errorf("%d days report an active-player count that is not the distinct device count", bad)
+	}
+	return nil
+}
+
+// checkNewAndReturning holds the invariant by construction rather than by two counts that
+// happen to agree.
+//
+// A player is new on the day they arrived and returning on every other day they appear.
+// There is no third state — a device whose cohort is unknown because Valkey was down at
+// write time is counted as returning, deliberately, so this identity never breaks.
+func checkNewAndReturning(ctx context.Context, conn driver.Conn) error {
+	for _, table := range []string{"metrics_daily", "metrics_breakdown_daily"} {
+		bad, err := scalar[uint64](ctx, conn, fmt.Sprintf(`
+			SELECT count() FROM %s
+			WHERE new_players + returning_players != active_players`, table))
+		if err != nil {
+			return err
+		}
+		if bad != 0 {
+			return fmt.Errorf("%d rows of %s do not split into new and returning", bad, table)
+		}
+	}
+	return nil
+}
+
+// checkMetricBreakdown is the daily tier's version of check 9.
+//
+// Every device has exactly one value per dimension, so summing a dimension's active players
+// must reproduce the day's total. A mismatch means a device was counted under two values or
+// dropped by one of the four UNION arms.
+func checkMetricBreakdown(ctx context.Context, conn driver.Conn) error {
+	bad, err := scalar[uint64](ctx, conn, `
+		SELECT count() FROM (
+		    SELECT dim_name, activity_date, sum(active_players) AS n
+		    FROM metrics_breakdown_daily GROUP BY dim_name, activity_date
+		) AS b
+		INNER JOIN (
+		    SELECT activity_date, sum(active_players) AS total
+		    FROM metrics_daily GROUP BY activity_date
+		) AS m USING (activity_date)
+		WHERE b.n != m.total`)
+	if err != nil {
+		return err
+	}
+	if bad != 0 {
+		return fmt.Errorf("%d (dimension, day) pairs do not sum to the day's active players", bad)
+	}
+	return nil
+}
+
+// checkMonthlyActive proves MAU is its own distinct count rather than an aggregate of DAU.
+//
+// A player active on the 3rd and the 9th is one monthly active player and two daily ones.
+// So MAU must be at least the largest single day and at most the sum of the days, and on
+// any real data it is strictly between them — a MAU equal to the sum would mean nobody ever
+// came back twice, which is exactly what summing the days would produce.
+func checkMonthlyActive(ctx context.Context, conn driver.Conn) error {
+	type row struct{ mau, peak, summed uint64 }
+	var got row
+	if err := conn.QueryRow(ctx, `
+		SELECT
+		    (SELECT sum(active_players) FROM metrics_monthly),
+		    (SELECT max(active_players) FROM metrics_daily),
+		    (SELECT sum(active_players) FROM metrics_daily)`).
+		Scan(&got.mau, &got.peak, &got.summed); err != nil {
+		return err
+	}
+	if got.mau == 0 {
+		return fmt.Errorf("no monthly actives were derived")
+	}
+	if got.mau < got.peak {
+		return fmt.Errorf("MAU %d is smaller than the busiest day %d", got.mau, got.peak)
+	}
+	if got.mau > got.summed {
+		return fmt.Errorf("MAU %d exceeds the sum of the days %d", got.mau, got.summed)
+	}
+	if got.mau == got.summed && got.summed != got.peak {
+		return fmt.Errorf("MAU %d equals the sum of the days, so returning players were counted twice", got.mau)
+	}
+	return nil
+}
+
+// checkPartialRow forces §29.14's trap instead of hoping to observe it.
+//
+// player_activity_daily is a SummingMergeTree: a device-day exists as several partial rows
+// until parts merge, and the derivation must collapse them before counting or it counts one
+// player once per part. The trap is that on small, already-merged data the wrong query
+// gives the right answer — so a test that merely reads whatever is there proves nothing.
+// This writes a second partial row for a device-day that already exists, which is exactly
+// what an unmerged part looks like, and then asserts two things at once:
+//
+//   - the active count does not move, because it is still one player;
+//   - the measures do move, because the partial row's sessions are real.
+//
+// Getting only the first right is a derivation that drops data. Getting only the second
+// right is DAU that drifts upward and reports no error.
+func checkPartialRow(ctx context.Context, conn driver.Conn, d *rollup.Deriver, m cohort.Month) error {
+	var (
+		day      time.Time
+		deviceID uint64
+	)
+	if err := conn.QueryRow(ctx, `
+		SELECT activity_date, device_id FROM player_activity_daily
+		ORDER BY activity_date, device_id LIMIT 1`).Scan(&day, &deviceID); err != nil {
+		return fmt.Errorf("find a device-day to duplicate: %w", err)
+	}
+
+	before, err := dailyRow(ctx, conn, day)
+	if err != nil {
+		return err
+	}
+
+	const extraSessions = 3
+	if err := conn.Exec(ctx, `
+		INSERT INTO player_activity_daily
+		    (project_seq, environment_seq, activity_date, device_id, cohort_date,
+		     install_platform, install_country, first_app_version, acquisition_source,
+		     sessions, playtime_ms, events, revenue_micros, purchases)
+		VALUES (?, ?, ?, ?, ?, '', '', '', '', ?, 0, 0, 0, 0)`,
+		projectSeq, environmentSeq, day, deviceID, day, uint64(extraSessions)); err != nil {
+		return fmt.Errorf("write a partial row: %w", err)
+	}
+	if err := d.DeriveMonth(ctx, m); err != nil {
+		return err
+	}
+
+	after, err := dailyRow(ctx, conn, day)
+	if err != nil {
+		return err
+	}
+	if after.active != before.active {
+		return fmt.Errorf("a partial row for an existing device changed the active count from %d to %d",
+			before.active, after.active)
+	}
+	if after.sessions != before.sessions+extraSessions {
+		return fmt.Errorf("the partial row's %d sessions were not absorbed: %d -> %d",
+			extraSessions, before.sessions, after.sessions)
+	}
+	return nil
+}
+
+type dailyTotals struct{ active, sessions uint64 }
+
+func dailyRow(ctx context.Context, conn driver.Conn, day time.Time) (dailyTotals, error) {
+	var out dailyTotals
+	err := conn.QueryRow(ctx, `
+		SELECT sum(active_players), sum(sessions) FROM metrics_daily WHERE activity_date = ?`,
+		day).Scan(&out.active, &out.sessions)
+	return out, err
 }
 
 func checkRolling(ctx context.Context, conn driver.Conn, d *cohort.Deriver) error {
