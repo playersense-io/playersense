@@ -43,5 +43,24 @@ func Cohorts() *muzak.Router {
 		muzak.WithResponseDoc(http.StatusServiceUnavailable, "The cohort facts could not be read"),
 	)
 
+	r.Post("/v1/metrics/query", handlers.QueryMetrics,
+		muzak.Summary("Answer a time-series question"),
+		muzak.Description("Active players, sessions, events and revenue over time. The planner "+
+			"chooses the summary table from the requested grain (§26); a grain finer than the "+
+			"range can carry is refused rather than returned as tens of thousands of points."),
+		muzak.Status(http.StatusOK),
+
+		muzak.Needs(core.ResolveReportingKey),
+		muzak.MaxBodySize(64<<10),
+
+		muzak.WithResponseDoc(http.StatusUnauthorized, "The key is missing, unknown or revoked"),
+		muzak.WithResponseDoc(http.StatusForbidden, "This endpoint needs a reporting key"),
+		muzak.WithResponseDoc(http.StatusMisdirectedRequest,
+			"This project's data lives in another cell; the body names where to send the query"),
+		muzak.WithResponseDoc(http.StatusUnprocessableEntity,
+			"The summaries cannot answer this question, and the body explains why"),
+		muzak.WithResponseDoc(http.StatusServiceUnavailable, "The summaries could not be read"),
+	)
+
 	return r
 }

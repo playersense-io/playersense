@@ -31,29 +31,62 @@ func QueryCohorts(ctx *muzak.Context, in schemas.CohortQueryIn) (protocol.Cohort
 		return protocol.CohortResult{}, misdirected(tenant)
 	}
 
-	result, err := engine.Run(ctx.Context(), query.Scope{
+	result, err := engine.Run(ctx.Context(), scopeOf(tenant), in.CohortQuery)
+	if err != nil {
+		return protocol.CohortResult{}, answerFailed(err, "cohort")
+	}
+	return *result, nil
+}
+
+// QueryMetrics answers one time-series question (§26, §27, §57).
+//
+// The same service, the same credential and the same residency rule as the cohort endpoint;
+// a different set of tables. §27 keeps them apart because they answer different questions —
+// this one is keyed on when something happened, not on when a player arrived — and mixing
+// them in one request would mean a planner choosing between two fact families per field.
+func QueryMetrics(ctx *muzak.Context, in schemas.MetricQueryIn) (protocol.MetricResult, error) {
+	tenant := muzak.From[*core.Tenant](ctx)
+	home := muzak.From[core.CellIdentity](ctx)
+	engine := muzak.From[*query.Engine](ctx)
+
+	if tenant.Cell != home.Slug {
+		return protocol.MetricResult{}, misdirected(tenant)
+	}
+
+	result, err := engine.RunSeries(ctx.Context(), scopeOf(tenant), in.MetricQuery)
+	if err != nil {
+		return protocol.MetricResult{}, answerFailed(err, "metric")
+	}
+	return *result, nil
+}
+
+// scopeOf is the only way a scope is built, so a handler cannot assemble one from anything
+// but the resolved credential (§69, Appendix C #3).
+func scopeOf(tenant *core.Tenant) query.Scope {
+	return query.Scope{
 		ProjectSeq:     tenant.ProjectSeq,
 		EnvironmentSeq: tenant.EnvironmentSeq,
 		PolicyTier:     tenant.PolicyTier,
-	}, in.CohortQuery)
-	if err != nil {
-		var refusal *query.Refusal
-		if errors.As(err, &refusal) {
-			// 422 rather than 400: the request is well-formed and the credential is good.
-			// The facts cannot answer this particular question, and §32.1 asks for that to
-			// be said out loud rather than approximated.
-			return protocol.CohortResult{}, muzak.UnprocessableEntity(refusal.Reason).
-				WithCode("cohort_not_answerable").
-				WithDetails(muzak.ErrorDetail{
-					Field:    refusal.Field,
-					Location: "body",
-					Issue:    refusal.Reason,
-				})
-		}
-		return protocol.CohortResult{}, muzak.ServiceUnavailable(
-			"the cohort facts could not be read; retry shortly").Wrap(err)
 	}
-	return *result, nil
+}
+
+// answerFailed turns a planner refusal into an explanation and anything else into a 503.
+func answerFailed(err error, kind string) error {
+	var refusal *query.Refusal
+	if errors.As(err, &refusal) {
+		// 422 rather than 400: the request is well-formed and the credential is good. The
+		// facts cannot answer this particular question, and §32.1 asks for that to be said
+		// out loud rather than approximated.
+		return muzak.UnprocessableEntity(refusal.Reason).
+			WithCode(kind + "_not_answerable").
+			WithDetails(muzak.ErrorDetail{
+				Field:    refusal.Field,
+				Location: "body",
+				Issue:    refusal.Reason,
+			})
+	}
+	return muzak.ServiceUnavailable(
+		"the " + kind + " facts could not be read; retry shortly").Wrap(err)
 }
 
 // misdirected refuses a key belonging to another cell, and says where to go.

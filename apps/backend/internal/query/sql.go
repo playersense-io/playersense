@@ -47,6 +47,15 @@ const (
 	factBuckets Fact = "cohort_bucket_daily"
 	// factLifetime answers rolling retention, which per-offset counters cannot (§29.10).
 	factLifetime Fact = "player_lifetime_v"
+
+	// The time-series tiers (§26, §27). Minute and hour are continuous materialized views
+	// and carry an approximate player count; day and month are derived nightly and are
+	// exact.
+	factEvents1m         Fact = "events_1m"
+	factEvents1h         Fact = "events_1h"
+	factMetricsDaily     Fact = "metrics_daily"
+	factMetricsBreakdown Fact = "metrics_breakdown_daily"
+	factMetricsMonthly   Fact = "metrics_monthly"
 )
 
 // Statement is compiled SQL and its arguments, never interpolated values.
@@ -98,6 +107,19 @@ func (b *builder) notEq(column string, value any) *builder {
 func (b *builder) between(column string, low, high any) *builder {
 	b.where = append(b.where, column+" BETWEEN ? AND ?")
 	b.args = append(b.args, low, high)
+	return b
+}
+
+// gte and lt bound a column from one side, for windows whose ends are not both inclusive.
+func (b *builder) gte(column string, value any) *builder {
+	b.where = append(b.where, column+" >= ?")
+	b.args = append(b.args, value)
+	return b
+}
+
+func (b *builder) lt(column string, value any) *builder {
+	b.where = append(b.where, column+" < ?")
+	b.args = append(b.args, value)
 	return b
 }
 

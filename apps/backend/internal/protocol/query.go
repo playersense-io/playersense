@@ -175,3 +175,92 @@ type CohortRow struct {
 	// (§29.12).
 	RevenueMicrosCumulative int64 `json:"revenue_micros_cumulative,omitzero"`
 }
+
+// ---- ordinary metrics (§57) --------------------------------------------------
+
+// MetricQuery is one logical question about what happened, rather than about who arrived.
+//
+// The distinction is §27's: a cohort fact is keyed on when a player *arrived*, crossed with
+// how long after that something happened; these are keyed on when it happened. They read
+// different tables and they cannot be mixed in one request, which is why this is a separate
+// shape rather than a flag on CohortQuery.
+//
+// As with cohorts, no project, environment or organisation appears here. Scope comes from
+// the key (§76, §69, Appendix C #3).
+type MetricQuery struct {
+	// Metric is what to plot: active_players, new_players, returning_players, sessions,
+	// playtime, events, revenue, purchases or payers.
+	Metric string `json:"metric" doc:"active_players, new_players, sessions, revenue…"`
+
+	// From and To bound the window, inclusive.
+	From Day `json:"from"`
+	To   Day `json:"to"`
+
+	// Interval is the output grain: minute, hour, day or month.
+	//
+	// It selects the source as well as the shape, and §26 bounds which is allowed for a
+	// given range — a minute-grain chart over ninety days is 129,600 points, which is not a
+	// chart.
+	Interval string `json:"interval,omitzero" doc:"minute, hour, day (default) or month"`
+
+	// GroupBy splits the series by at most one sticky dimension.
+	//
+	// An array because §57's shape has one, and capped at a single entry for §29.13's
+	// reason: a summary carrying the product of its dimensions recreates raw cardinality.
+	GroupBy []string `json:"group_by,omitzero" doc:"At most one dimension"`
+
+	// EventName narrows to a single event, on the minute and hour tiers where the rollup
+	// is keyed by it.
+	EventName string `json:"event_name,omitzero" doc:"Only on minute and hour intervals"`
+
+	// Filters narrow the population by a sticky dimension.
+	Filters []Filter `json:"filters,omitzero"`
+}
+
+// MetricResult is a time series with the provenance a reader needs.
+type MetricResult struct {
+	Rows []MetricRow `json:"rows"`
+
+	// Interval and Source say what was actually read, because §57's whole point is that
+	// the planner chooses and the client does not have to know — which only works if the
+	// client can still find out.
+	Interval string `json:"interval"`
+	Source   string `json:"source"`
+
+	// Approximate marks a series whose player counts come from a sketch rather than a
+	// distinct count. The realtime tiers trade exactness for immediacy (§27), and a number
+	// that might be off by a fraction of a percent must say so rather than be compared
+	// against an invoice.
+	Approximate bool `json:"approximate"`
+
+	// ComputedAt is when the facts were derived, and is zero for the realtime tiers, which
+	// are continuous rather than derived.
+	ComputedAt time.Time `json:"computed_at,omitzero"`
+
+	SuppressedCells      int `json:"suppressed_cells"`
+	SuppressionThreshold int `json:"suppression_threshold"`
+}
+
+// MetricRow is one point of the series.
+//
+// It carries every measure the chosen source has, not only the requested one. They came
+// back in the same scan, so a dashboard drawing active players, sessions and revenue on one
+// screen makes one request rather than three — and the three are then guaranteed to describe
+// the same rows, which three separate requests spanning a derivation are not.
+type MetricRow struct {
+	Bucket   time.Time `json:"bucket" doc:"Start of the interval, UTC"`
+	DimValue string    `json:"dim_value,omitzero"`
+
+	// Value is the metric the request named, as a number a chart can plot directly.
+	Value float64 `json:"value"`
+
+	ActivePlayers    uint64 `json:"active_players,omitzero"`
+	NewPlayers       uint64 `json:"new_players,omitzero"`
+	ReturningPlayers uint64 `json:"returning_players,omitzero"`
+	Sessions         uint64 `json:"sessions,omitzero"`
+	PlaytimeMs       uint64 `json:"playtime_ms,omitzero"`
+	Events           uint64 `json:"events,omitzero"`
+	RevenueMicros    int64  `json:"revenue_micros,omitzero"`
+	Purchases        uint64 `json:"purchases,omitzero"`
+	Payers           uint64 `json:"payers,omitzero"`
+}

@@ -21,6 +21,7 @@ import (
 	"playersense.dev/backend/internal/ingest"
 	"playersense.dev/backend/internal/protocol"
 	"playersense.dev/backend/internal/query"
+	"playersense.dev/backend/internal/rollup"
 	"playersense.dev/backend/internal/routers"
 	"playersense.dev/backend/internal/testsupport"
 	"playersense.dev/backend/internal/writer"
@@ -40,6 +41,7 @@ type reporting struct {
 	projectCl *testclient.Client
 	writer    *writer.Writer
 	deriver   *cohort.Deriver
+	rollups   *rollup.Deriver
 	project   testsupport.Project
 	ch        *chdb.Conn
 }
@@ -114,6 +116,7 @@ func newReporting(t *testing.T, tier string) *reporting {
 			testclient.WithHeader("Authorization", "Bearer "+seeded.Secret)),
 		writer:  consumer,
 		deriver: &cohort.Deriver{DB: sqlDB},
+		rollups: &rollup.Deriver{DB: sqlDB},
 		project: seeded,
 		ch:      ch,
 	}
@@ -277,6 +280,9 @@ func (r *reporting) derive(t *testing.T, from, to time.Time) {
 		if err := r.deriver.DeriveBuckets(ctx, m); err != nil {
 			t.Fatalf("derive buckets %s: %v", m, err)
 		}
+		if err := r.rollups.DeriveMonth(ctx, m); err != nil {
+			t.Fatalf("derive metrics %s: %v", m, err)
+		}
 	}
 }
 
@@ -317,6 +323,30 @@ func (r *reporting) ask(t *testing.T, body map[string]any) protocol.CohortResult
 	var out protocol.CohortResult
 	res.JSON(&out)
 	return out
+}
+
+// series sends a time-series query and decodes the answer.
+func (r *reporting) series(t *testing.T, body map[string]any) protocol.MetricResult {
+	t.Helper()
+	res := r.reader.Post("/v1/metrics/query", testclient.JSON(body))
+	res.AssertStatus(http.StatusOK)
+	var out protocol.MetricResult
+	res.JSON(&out)
+	return out
+}
+
+// seriesQuery covers the window seedCurve populated.
+func (r *reporting) seriesQuery(over map[string]any) map[string]any {
+	q := map[string]any{
+		"metric":   "active_players",
+		"from":     r.cohortDay().Format("2006-01-02"),
+		"to":       r.cohortDay().AddDate(0, 0, returnOffset).Format("2006-01-02"),
+		"interval": "day",
+	}
+	for k, v := range over {
+		q[k] = v
+	}
+	return q
 }
 
 // retentionQuery is the plain shape, over the day seedCurve used.
@@ -601,4 +631,205 @@ func TestKidsStrictIsToldWhyRatherThanShownNothing(t *testing.T) {
 		"offsets": []int{0},
 	}))
 	ok.AssertStatus(http.StatusOK)
+}
+
+// TestADailySeriesIsReadBackCorrectly is the other half of the read path.
+//
+// The same seeded population as the cohort tests, asked the other kind of question: not "of
+// the players who arrived on day C, how many came back" but "how many were active each day".
+// Thirteen on the install day, seven three days later, and every one of the thirteen is new
+// on the day they arrived.
+func TestADailySeriesIsReadBackCorrectly(t *testing.T) {
+	r := newReporting(t, "standard")
+	r.seedCurve(t)
+
+	result := r.series(t, r.seriesQuery(nil))
+	if result.Interval != "day" || result.Source != "metrics_daily" {
+		t.Fatalf("answered from %s at a %s grain", result.Source, result.Interval)
+	}
+	if result.Approximate {
+		t.Fatal("the daily tier is derived and exact; it must not be marked approximate")
+	}
+
+	byDay := map[string]protocol.MetricRow{}
+	for _, row := range result.Rows {
+		byDay[row.Bucket.UTC().Format("2006-01-02")] = row
+	}
+
+	install := byDay[r.cohortDay().Format("2006-01-02")]
+	if install.ActivePlayers != totalInstalls {
+		t.Fatalf("install day: %d active, want %d", install.ActivePlayers, totalInstalls)
+	}
+	if install.NewPlayers != totalInstalls || install.ReturningPlayers != 0 {
+		t.Fatalf("install day: %d new and %d returning, want %d and 0",
+			install.NewPlayers, install.ReturningPlayers, totalInstalls)
+	}
+	if install.Value != float64(totalInstalls) {
+		t.Fatalf("value is %v, want the requested metric %d", install.Value, totalInstalls)
+	}
+
+	back := byDay[r.cohortDay().AddDate(0, 0, returnOffset).Format("2006-01-02")]
+	if back.ActivePlayers != returners {
+		t.Fatalf("day %d: %d active, want %d", returnOffset, back.ActivePlayers, returners)
+	}
+	if back.NewPlayers != 0 || back.ReturningPlayers != returners {
+		t.Fatalf("day %d: %d new and %d returning, want 0 and %d",
+			returnOffset, back.NewPlayers, back.ReturningPlayers, returners)
+	}
+}
+
+// TestMonthlyActivesAreNotTheSumOfTheDays is the property a summed DAU would break.
+//
+// The seeded month has twenty device-days across thirteen devices, because seven of them
+// came back. MAU is thirteen.
+func TestMonthlyActivesAreNotTheSumOfTheDays(t *testing.T) {
+	r := newReporting(t, "standard")
+	r.seedCurve(t)
+
+	result := r.series(t, r.seriesQuery(map[string]any{"interval": "month"}))
+	if result.Source != "metrics_monthly" {
+		t.Fatalf("a month grain read %s", result.Source)
+	}
+
+	var mau uint64
+	for _, row := range result.Rows {
+		mau += row.ActivePlayers
+	}
+	if mau != totalInstalls {
+		t.Fatalf("MAU is %d; %d devices were active, %d of them twice",
+			mau, totalInstalls, returners)
+	}
+}
+
+// TestAMetricBreakdownSuppressesAThinValue is §32.2 on the time-series path.
+//
+// A day's active players split by platform is still a count of people, and three of them in
+// one cell identify three people exactly as well as a cohort cell would.
+func TestAMetricBreakdownSuppressesAThinValue(t *testing.T) {
+	r := newReporting(t, "standard")
+	r.seedCurve(t)
+
+	split := r.series(t, r.seriesQuery(map[string]any{
+		"group_by": []string{"install_platform"},
+	}))
+	if split.Source != "metrics_breakdown_daily" {
+		t.Fatalf("a grouped query read %s", split.Source)
+	}
+
+	seen := map[string]uint64{}
+	for _, row := range split.Rows {
+		if row.Bucket.UTC().Format("2006-01-02") == r.cohortDay().Format("2006-01-02") {
+			seen[row.DimValue] = row.ActivePlayers
+		}
+	}
+	if seen["ios"] != iosInstalls {
+		t.Fatalf("ios shows %d active, want %d", seen["ios"], iosInstalls)
+	}
+	if _, disclosed := seen["android"]; disclosed {
+		t.Fatalf("%d Android players were disclosed under k=%d",
+			androidInstalls, split.SuppressionThreshold)
+	}
+	if split.SuppressedCells == 0 {
+		t.Fatal("cells were withheld without saying so")
+	}
+}
+
+// TestAGrainFinerThanItsRangeIsRefused is §26 enforced rather than advised.
+//
+// A minute grain over ninety days is 129,600 points. Nothing draws that, and answering it
+// would read the minute tier for a quarter to produce a chart nobody can look at.
+func TestAGrainFinerThanItsRangeIsRefused(t *testing.T) {
+	r := newReporting(t, "standard")
+	res := r.reader.Post("/v1/metrics/query", testclient.JSON(map[string]any{
+		"metric":   "active_players",
+		"from":     time.Now().UTC().AddDate(0, 0, -30).Format("2006-01-02"),
+		"to":       time.Now().UTC().Format("2006-01-02"),
+		"interval": "minute",
+	}))
+	res.AssertStatus(http.StatusUnprocessableEntity)
+}
+
+// TestARealtimeGrainCannotAnswerAPlayerLifecycleQuestion.
+//
+// events_1m and events_1h are built from insert blocks. A block knows how many events it
+// holds; it does not know whether the device sending them arrived today, because that is a
+// property of the player. Refused with the grain that can answer it.
+func TestARealtimeGrainCannotAnswerAPlayerLifecycleQuestion(t *testing.T) {
+	r := newReporting(t, "standard")
+	res := r.reader.Post("/v1/metrics/query", testclient.JSON(map[string]any{
+		"metric":   "new_players",
+		"from":     time.Now().UTC().Format("2006-01-02"),
+		"to":       time.Now().UTC().Format("2006-01-02"),
+		"interval": "hour",
+	}))
+	res.AssertStatus(http.StatusUnprocessableEntity)
+}
+
+// TestARealtimeSeriesSaysItIsApproximate is §27's trade, made visible.
+//
+// The minute and hour tiers count players with a sketch. That is the right trade for a chart
+// of the last hour and the wrong one for a number compared against an invoice, so the answer
+// has to say which it is.
+func TestARealtimeSeriesSaysItIsApproximate(t *testing.T) {
+	r := newReporting(t, "standard")
+	r.run(t)
+	r.post(t, uuid.NewString(), "ios", time.Now().UTC())
+	if got := r.waitForRows(t, 1); got != 1 {
+		t.Fatalf("stored %d rows", got)
+	}
+
+	result := r.series(t, map[string]any{
+		"metric":   "events",
+		"from":     time.Now().UTC().Format("2006-01-02"),
+		"to":       time.Now().UTC().Format("2006-01-02"),
+		"interval": "hour",
+	})
+	if result.Source != "events_1h" {
+		t.Fatalf("an hour grain read %s", result.Source)
+	}
+	if !result.Approximate {
+		t.Fatal("a sketch-counted series did not say it was approximate")
+	}
+	if !result.ComputedAt.IsZero() {
+		t.Fatal("a continuously updated view reported a derivation time it does not have")
+	}
+}
+
+// TestKidsStrictHasNoNewReturningSplit is §29.15 on the time-series path.
+//
+// §98 gives every batch a fresh installation identifier, so every player looks new every
+// day. The number would be confidently wrong rather than missing, which is the worst kind.
+func TestKidsStrictHasNoNewReturningSplit(t *testing.T) {
+	r := newReporting(t, "kids_strict")
+
+	for _, body := range []map[string]any{
+		{"metric": "new_players", "interval": "day"},
+		{"metric": "active_players", "interval": "month"},
+	} {
+		body["from"] = r.cohortDay().Format("2006-01-02")
+		body["to"] = time.Now().UTC().Format("2006-01-02")
+		res := r.reader.Post("/v1/metrics/query", testclient.JSON(body))
+		res.AssertStatus(http.StatusUnprocessableEntity)
+	}
+
+	// Active players per day is a same-day aggregate and stays available.
+	ok := r.reader.Post("/v1/metrics/query", testclient.JSON(map[string]any{
+		"metric":   "active_players",
+		"from":     r.cohortDay().Format("2006-01-02"),
+		"to":       time.Now().UTC().Format("2006-01-02"),
+		"interval": "day",
+	}))
+	ok.AssertStatus(http.StatusOK)
+}
+
+// TestTwoDimensionsInASeriesAreRefused is §29.13 on the summary tables.
+func TestTwoDimensionsInASeriesAreRefused(t *testing.T) {
+	r := newReporting(t, "standard")
+	res := r.reader.Post("/v1/metrics/query", testclient.JSON(r.seriesQuery(map[string]any{
+		"group_by": []string{"install_country"},
+		"filters": []map[string]any{
+			{"field": "install_platform", "op": "eq", "value": "ios"},
+		},
+	})))
+	res.AssertStatus(http.StatusUnprocessableEntity)
 }

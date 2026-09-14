@@ -194,3 +194,141 @@ func (in *CohortQueryIn) rejectScopeInBody(v *muzak.Validation) {
 		v.Reject(&in.OrgID, why)
 	}
 }
+
+// ---- ordinary metrics --------------------------------------------------------
+
+// Metrics and intervals, named once.
+const (
+	MetricActivePlayers    = "active_players"
+	MetricNewPlayers       = "new_players"
+	MetricReturningPlayers = "returning_players"
+	MetricSessions         = "sessions"
+	MetricEvents           = "events"
+	MetricPurchases        = "purchases"
+	MetricPayers           = "payers"
+
+	IntervalMinute = "minute"
+	IntervalHour   = "hour"
+	IntervalDay    = "day"
+	IntervalMonth  = "month"
+)
+
+// SeriesMetrics is every metric the time-series planner can resolve.
+//
+// MetricRevenue and MetricPlaytime are shared with the cohort list rather than redeclared:
+// "revenue" and "playtime" mean the same thing whether the question is keyed on arrival or
+// on occurrence, and two constants for one word is how they drift apart.
+var SeriesMetrics = []string{
+	MetricActivePlayers, MetricNewPlayers, MetricReturningPlayers,
+	MetricSessions, MetricPlaytime, MetricEvents,
+	MetricRevenue, MetricPurchases, MetricPayers,
+}
+
+// Intervals is every output grain.
+var Intervals = []string{IntervalMinute, IntervalHour, IntervalDay, IntervalMonth}
+
+// Range ceilings per §26. A grain finer than the range can carry is refused rather than
+// served as tens of thousands of points nobody can read and no browser can draw.
+const (
+	MaxMinuteDays = 1
+	MaxHourDays   = 90
+	MaxSeriesDays = 1095
+)
+
+// MetricQueryIn is the time-series query as a bindable input.
+type MetricQueryIn struct {
+	protocol.MetricQuery
+
+	// The same decoys the cohort contract carries, and for the same reason.
+	ProjectID     string `json:"project_id,omitzero" doc:"Not accepted; scope comes from the key"`
+	EnvironmentID string `json:"environment_id,omitzero" doc:"Not accepted; scope comes from the key"`
+	OrgID         string `json:"org_id,omitzero" doc:"Not accepted; scope comes from the key"`
+}
+
+// Validate bounds the query before anything is planned.
+func (in *MetricQueryIn) Validate(v *muzak.Validation) {
+	v.String(&in.Metric).Trim().Lower().Required().OneOf(SeriesMetrics...)
+	v.String(&in.Interval).Trim().Lower().OneOf(Intervals...)
+	v.String(&in.EventName).Trim().MaxLen(128)
+
+	// §29.13, expressed as a cap rather than as a type this time, because §57's shape has
+	// an array here and the contract should look like the document.
+	v.Slice(&in.GroupBy).MaxItems(1).
+		Message("a summary carries one dimension at a time; " +
+			"the product of two dimensions recreates raw cardinality")
+	for i := range in.GroupBy {
+		v.String(&in.GroupBy[i]).As(fmt.Sprintf("group_by.%d", i)).
+			Trim().Lower().Required().OneOf(CohortDimensions...)
+	}
+
+	v.Slice(&in.Filters).MaxItems(MaxFilters)
+	for i := range in.Filters {
+		f := &in.Filters[i]
+		v.String(&f.Field).As(fmt.Sprintf("filters.%d.field", i)).Trim().Lower().
+			Required().OneOf(CohortDimensions...)
+		v.String(&f.Op).As(fmt.Sprintf("filters.%d.op", i)).Trim().Lower().
+			Required().OneOf("eq", "ne", "in")
+		if f.Op == "in" {
+			v.Slice(&f.In).As(fmt.Sprintf("filters.%d.in", i)).Required().MinItems(1).MaxItems(50)
+		} else if f.Value == "" {
+			v.Reject(&f.Value, "a value is required for the "+f.Op+" operator")
+		}
+	}
+
+	in.validateWindow(v)
+	in.rejectScopeInBody(v)
+}
+
+// validateWindow bounds the range and enforces §26's grain policy.
+func (in *MetricQueryIn) validateWindow(v *muzak.Validation) {
+	if in.From.IsZero() {
+		v.Reject(&in.From, "a first day is required")
+		return
+	}
+	if in.To.IsZero() {
+		v.Reject(&in.To, "a last day is required")
+		return
+	}
+	if in.To.Before(in.From.Time) {
+		v.Reject(&in.To, "the last day is before the first")
+		return
+	}
+
+	days := int(in.To.Sub(in.From.Time).Hours()/24) + 1
+	if days > MaxSeriesDays {
+		v.Reject(&in.To, fmt.Sprintf("a range covers at most %d days, and this one covers %d",
+			MaxSeriesDays, days))
+		return
+	}
+
+	// §26's policy, enforced rather than advised. The ceiling is about what a chart can
+	// mean: a minute grain over ninety days is 129,600 points.
+	switch in.Interval {
+	case IntervalMinute:
+		if days > MaxMinuteDays {
+			v.Reject(&in.Interval, fmt.Sprintf(
+				"a minute grain covers at most %d day, and this range covers %d; "+
+					"use an hour or a day grain", MaxMinuteDays, days))
+		}
+	case IntervalHour:
+		if days > MaxHourDays {
+			v.Reject(&in.Interval, fmt.Sprintf(
+				"an hour grain covers at most %d days, and this range covers %d; "+
+					"use a day grain", MaxHourDays, days))
+		}
+	}
+}
+
+func (in *MetricQueryIn) rejectScopeInBody(v *muzak.Validation) {
+	const why = "scope comes from the API key, never from the body; " +
+		"use a key issued for the project and environment you mean"
+	if in.ProjectID != "" {
+		v.Reject(&in.ProjectID, why)
+	}
+	if in.EnvironmentID != "" {
+		v.Reject(&in.EnvironmentID, why)
+	}
+	if in.OrgID != "" {
+		v.Reject(&in.OrgID, why)
+	}
+}

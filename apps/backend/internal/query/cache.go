@@ -130,3 +130,73 @@ func (c *Cache) TTL(q protocol.CohortQuery, offsets []int, now time.Time) time.D
 	}
 	return c.Settled
 }
+
+// ---- the time-series half ----------------------------------------------------
+
+// SeriesKey is §58's cache key for a time-series question.
+//
+// A separate namespace from the cohort keys — the prefix differs — so the two shapes cannot
+// collide even if their parts happened to hash the same. Everything else is the same list
+// and the same reasoning: the tenant and the schema version are in it because leaving either
+// out serves somebody another project's numbers or last release's meaning.
+func (c *Cache) SeriesKey(scope Scope, q protocol.MetricQuery) string {
+	var sb strings.Builder
+	fmt.Fprintf(&sb, "v%d|p=%d|e=%d|m=%s|i=%s|from=%s|to=%s|ev=%s",
+		protocol.QuerySchemaVersion, scope.ProjectSeq, scope.EnvironmentSeq,
+		q.Metric, q.Interval, day(q.From), day(q.To), q.EventName)
+	for _, g := range q.GroupBy {
+		fmt.Fprintf(&sb, "|g=%s", g)
+	}
+	for _, f := range q.Filters {
+		fmt.Fprintf(&sb, "|f=%s%s%s%s", f.Field, f.Op, f.Value, strings.Join(f.In, ","))
+	}
+	sum := sha256.Sum256([]byte(sb.String()))
+	return c.client.Key("series", hex.EncodeToString(sum[:16]))
+}
+
+// GetSeries returns a cached series, or reports a miss.
+func (c *Cache) GetSeries(ctx context.Context, key string) (*protocol.MetricResult, bool) {
+	if c == nil || c.client == nil {
+		return nil, false
+	}
+	raw, err := c.client.Get(ctx, key)
+	if err != nil || len(raw) == 0 {
+		return nil, false
+	}
+	var out protocol.MetricResult
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return nil, false
+	}
+	return &out, true
+}
+
+// PutSeries stores a series.
+func (c *Cache) PutSeries(ctx context.Context, key string, result *protocol.MetricResult, ttl time.Duration) {
+	if c == nil || c.client == nil {
+		return
+	}
+	raw, err := json.Marshal(result)
+	if err != nil {
+		return
+	}
+	_ = c.client.Set(ctx, key, raw, ttl)
+}
+
+// SeriesTTL decides how long a series may be reused.
+//
+// A realtime tier is never held long, whatever window it covers: the minute and hour views
+// update continuously as events arrive, so a minute of cache is already most of what the
+// grain resolves. §58 calls for "very short TTLs" on realtime charts by name.
+//
+// The derived tiers follow the same rule the cohort answers do — a window the nightly job
+// will rebuild is held briefly, an older one for as long as §58 allows.
+func (c *Cache) SeriesTTL(q protocol.MetricQuery, interval string, now time.Time) time.Duration {
+	if interval == "minute" || interval == "hour" {
+		return c.Fresh
+	}
+	rebuildFloor := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC).AddDate(0, -1, 0)
+	if !q.To.Before(rebuildFloor) {
+		return c.Fresh
+	}
+	return c.Settled
+}

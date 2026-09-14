@@ -330,3 +330,126 @@ func rate(metric string, row protocol.CohortRow) float64 {
 	}
 	return float64(numerator) / float64(row.CohortSize)
 }
+
+// RunSeries answers one time-series question (§26, §27, §57).
+//
+// One statement rather than two: a time series has no denominator. The suppression rule
+// still applies, because an active-player count is a count of people whatever it is keyed
+// on — a breakdown cell holding two players on one day identifies them exactly as well as a
+// cohort cell holding two would.
+func (e *Engine) RunSeries(ctx context.Context, scope Scope, q protocol.MetricQuery) (*protocol.MetricResult, error) {
+	plan, err := CompileSeries(scope, q, e.limits)
+	if err != nil {
+		return nil, err
+	}
+
+	var key string
+	if e.cache != nil {
+		key = e.cache.SeriesKey(scope, q)
+		if hit, ok := e.cache.GetSeries(ctx, key); ok {
+			return hit, nil
+		}
+	}
+
+	conn, err := e.ch.DB()
+	if err != nil {
+		return nil, err
+	}
+	rows, err := conn.Query(e.bound(ctx), plan.Statement.SQL, plan.Statement.Args...)
+	if err != nil {
+		return nil, fmt.Errorf("read %s: %w", plan.Fact, err)
+	}
+	defer rows.Close()
+
+	out := make([]protocol.MetricRow, 0, 64)
+	for rows.Next() {
+		var r protocol.MetricRow
+		if err := rows.Scan(&r.Bucket, &r.DimValue,
+			&r.ActivePlayers, &r.NewPlayers, &r.ReturningPlayers, &r.Sessions, &r.Payers,
+			&r.PlaytimeMs, &r.Events, &r.RevenueMicros, &r.Purchases); err != nil {
+			return nil, err
+		}
+		r.Value = seriesValue(plan.Metric, r)
+		out = append(out, r)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	kept, suppressed := suppressSeries(out, e.k, plan.Metric)
+
+	result := &protocol.MetricResult{
+		Rows:                 kept,
+		Interval:             plan.Interval,
+		Source:               string(plan.Fact),
+		Approximate:          plan.Approximate,
+		ComputedAt:           e.derivedAt(ctx, plan),
+		SuppressedCells:      suppressed,
+		SuppressionThreshold: e.k,
+	}
+
+	if e.cache != nil && key != "" {
+		e.cache.PutSeries(ctx, key, result, e.cache.SeriesTTL(q, plan.Interval, time.Now().UTC()))
+	}
+	return result, nil
+}
+
+// derivedAt reports when the tier the answer came from was last rebuilt.
+//
+// Zero for the realtime tiers, deliberately. They are materialized views rather than
+// derivations — there is no "last run" to report, and inventing one would be a claim about
+// freshness that nothing backs. A zero renders as absent, which is the honest answer.
+func (e *Engine) derivedAt(ctx context.Context, plan *SeriesPlan) time.Time {
+	column := ""
+	switch plan.Fact {
+	case factMetricsDaily:
+		column = "metrics_daily"
+	case factMetricsMonthly:
+		column = "metrics_monthly"
+	default:
+		return time.Time{}
+	}
+	conn, err := e.ch.DB()
+	if err != nil {
+		return time.Time{}
+	}
+	var at time.Time
+	if err := conn.QueryRow(ctx, "SELECT max(computed_at) FROM "+column).Scan(&at); err != nil {
+		return time.Time{}
+	}
+	return at
+}
+
+// suppressSeries applies §32.2 to a time series.
+//
+// Same rule as the cohort path and the same reasoning: the population gates the row, the
+// paying subgroup gates only the money. A genuine zero is kept, because a day when nobody
+// played is a fact about the game rather than a withholding — and on a time series that
+// distinction is starker than anywhere else, since a gap in a line reads as an outage.
+func suppressSeries(rows []protocol.MetricRow, k int, metric string) ([]protocol.MetricRow, int) {
+	threshold := uint64(k)
+	kept := make([]protocol.MetricRow, 0, len(rows))
+	suppressed := 0
+
+	for _, row := range rows {
+		if thin(row.ActivePlayers, threshold) {
+			suppressed++
+			continue
+		}
+		if metric == schemas.MetricPayers && thin(row.Payers, threshold) {
+			suppressed++
+			continue
+		}
+		if thin(row.Payers, threshold) {
+			row.Payers = 0
+			row.RevenueMicros = 0
+			row.Purchases = 0
+			if metric == schemas.MetricRevenue || metric == schemas.MetricPurchases {
+				row.Value = 0
+			}
+			suppressed++
+		}
+		kept = append(kept, row)
+	}
+	return kept, suppressed
+}
