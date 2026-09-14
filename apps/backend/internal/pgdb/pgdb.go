@@ -24,6 +24,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
 	"entgo.io/ent/dialect"
 	entsql "entgo.io/ent/dialect/sql"
@@ -282,6 +283,25 @@ func tierName(marker string) string {
 	return "cell"
 }
 
+// Pool bounds.
+//
+// database/sql defaults MaxOpenConns to *unlimited*, which is not a default any service
+// pointed at a shared PostgreSQL should keep. A burst of requests then opens connections
+// until the server refuses them — and the server refuses them for everything, so one
+// service under load takes down every other service on that instance. PostgreSQL's own
+// max_connections is typically 100, and four services plus migrations share it here.
+//
+// Bounded low rather than high on purpose. None of these services is supposed to be
+// PostgreSQL-heavy: §3.2 keeps ingestion off it entirely, the key cache exists so that
+// authentication does not query it per request, and the analytics path never touches it.
+// A service that needs more than this is a service doing something §11 says it should not.
+const (
+	maxOpenConns    = 20
+	maxIdleConns    = 5
+	connMaxLifetime = 30 * time.Minute
+	connMaxIdleTime = 5 * time.Minute
+)
+
 func open(ctx context.Context, dsn, what string) (*sql.DB, error) {
 	if dsn == "" {
 		return nil, fmt.Errorf("no DSN configured for the %s", what)
@@ -290,6 +310,12 @@ func open(ctx context.Context, dsn, what string) (*sql.DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open %s: %w", what, err)
 	}
+	db.SetMaxOpenConns(maxOpenConns)
+	db.SetMaxIdleConns(maxIdleConns)
+	// A lifetime as well as an idle timeout, so a failover, a rotated credential or a
+	// resized instance is picked up without restarting the service.
+	db.SetConnMaxLifetime(connMaxLifetime)
+	db.SetConnMaxIdleTime(connMaxIdleTime)
 	if err := db.PingContext(ctx); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("connect to %s: %w", what, err)

@@ -236,6 +236,7 @@ func (r *reporting) seedCurve(t *testing.T) {
 	if got := r.waitForRows(t, len(rows)); got != len(rows) {
 		t.Fatalf("seeded %d of %d rows", got, len(rows))
 	}
+	r.waitForDevices(t, totalInstalls)
 	r.derive(t, day, day.AddDate(0, 0, returnOffset))
 }
 
@@ -298,6 +299,37 @@ func (r *reporting) waitForRows(t *testing.T, want int) int {
 		time.Sleep(50 * time.Millisecond)
 	}
 	return int(got)
+}
+
+// waitForDevices waits for the derivation's *input* to be complete.
+//
+// waitForRows watches events_raw, which is the wrong precondition: the derivation reads
+// player_activity_daily, and a materialized view's target becomes visible a moment after the
+// table it reads from. Deriving in that window produces a correct answer about incomplete
+// data — a cohort short one player, with nothing anywhere reporting a problem.
+//
+// It costs nothing in production, where the job runs nightly and is idempotent. It costs a
+// flaky test here, which is how it was noticed.
+func (r *reporting) waitForDevices(t *testing.T, want int) {
+	t.Helper()
+	conn, err := r.ch.DB()
+	if err != nil {
+		t.Fatalf("clickhouse: %v", err)
+	}
+	deadline := time.Now().Add(15 * time.Second)
+	var got uint64
+	for time.Now().Before(deadline) {
+		if err := conn.QueryRow(context.Background(),
+			"SELECT uniqExact(device_id) FROM player_activity_daily WHERE project_seq = ?",
+			uint32(r.project.ProjectSeq)).Scan(&got); err != nil {
+			t.Fatalf("count devices: %v", err)
+		}
+		if int(got) >= want {
+			return
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	t.Fatalf("the derivation's input settled at %d of %d devices", got, want)
 }
 
 func (r *reporting) countRows(t *testing.T) uint64 {
@@ -397,6 +429,7 @@ func TestABatchBecomesAnAnswer(t *testing.T) {
 	if got := r.waitForRows(t, installs); got != installs {
 		t.Fatalf("stored %d of %d batches", got, installs)
 	}
+	r.waitForDevices(t, installs)
 	now := time.Now().UTC()
 	r.derive(t, now, now)
 
