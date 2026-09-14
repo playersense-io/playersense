@@ -18,6 +18,7 @@ import (
 	"playersense.dev/backend/internal/core"
 	"playersense.dev/backend/internal/pgdb"
 	"playersense.dev/backend/internal/routers"
+	"playersense.dev/backend/internal/valkey"
 )
 
 func main() {
@@ -38,6 +39,17 @@ func build(settings config.Settings) *muzak.App {
 	// server has drained — a request still in flight keeps a usable connection to the
 	// very end.
 	control := pgdb.New(settings.PostgresDSN)
+
+	// The cache is here so revoking a key can evict it immediately rather than leaving
+	// it usable until its entry expires — which is exactly the minutes during which
+	// somebody needs it to stop working (§53).
+	cache := valkey.New(settings.ValkeyDSN)
+	resolver := core.NewKeyResolver(control, cache, core.KeyResolverOptions{
+		TTL:         settings.KeyCacheTTL,
+		NegativeTTL: settings.KeyCacheNegativeTTL,
+		LocalTTL:    settings.KeyCacheLocalTTL,
+		MaxLocal:    settings.KeyCacheMaxEntries,
+	})
 
 	app := muzak.New(muzak.AppOptions{
 		Title:       settings.AppName,
@@ -73,12 +85,17 @@ func build(settings config.Settings) *muzak.App {
 		// Published by value, and started and stopped by the application because it
 		// implements Lifecycle.
 		muzak.WithSingleton(control),
+		muzak.WithSingleton(cache),
+		muzak.WithSingleton(resolver),
 		muzak.WithSingleton(settings),
-
-		// Counted before the guards, so a request a guard rejects still costs the caller
-		// its budget.
-		muzak.WithRateLimit(core.RateLimitPolicy()),
 	)
+
+	// Counted before the guards, so a request a guard rejects still costs the caller its
+	// budget. Behind a flag only because the counters are now shared through Valkey: one
+	// test suite would otherwise spend the next one's budget.
+	if !settings.RateLimitDisabled {
+		app.Options(muzak.WithRateLimit(core.RateLimitPolicy(valkey.NewRateLimitStorage(cache))))
+	}
 
 	// Operational routes answer without a credential; everything else sits behind the
 	// guard. Both decisions are made here rather than inside the routers, which keeps the

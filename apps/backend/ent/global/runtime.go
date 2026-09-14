@@ -38,28 +38,42 @@ func init() {
 	apikey.DefaultUpdatedAt = apikeyDescUpdatedAt.Default.(func() time.Time)
 	// apikey.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	apikey.UpdateDefaultUpdatedAt = apikeyDescUpdatedAt.UpdateDefault.(func() time.Time)
-	// apikeyDescPrefix is the schema descriptor for prefix field.
-	apikeyDescPrefix := apikeyFields[1].Descriptor()
-	// apikey.PrefixValidator is a validator for the "prefix" field. It is called by the builders before save.
-	apikey.PrefixValidator = func() func(string) error {
-		validators := apikeyDescPrefix.Validators
+	// apikeyDescPublicID is the schema descriptor for public_id field.
+	apikeyDescPublicID := apikeyFields[1].Descriptor()
+	// apikey.PublicIDValidator is a validator for the "public_id" field. It is called by the builders before save.
+	apikey.PublicIDValidator = func() func(string) error {
+		validators := apikeyDescPublicID.Validators
 		fns := [...]func(string) error{
 			validators[0].(func(string) error),
 			validators[1].(func(string) error),
 		}
-		return func(prefix string) error {
+		return func(public_id string) error {
 			for _, fn := range fns {
-				if err := fn(prefix); err != nil {
+				if err := fn(public_id); err != nil {
 					return err
 				}
 			}
 			return nil
 		}
 	}()
-	// apikeyDescHash is the schema descriptor for hash field.
-	apikeyDescHash := apikeyFields[2].Descriptor()
-	// apikey.HashValidator is a validator for the "hash" field. It is called by the builders before save.
-	apikey.HashValidator = apikeyDescHash.Validators[0].(func([]byte) error)
+	// apikeyDescSecretHash is the schema descriptor for secret_hash field.
+	apikeyDescSecretHash := apikeyFields[2].Descriptor()
+	// apikey.SecretHashValidator is a validator for the "secret_hash" field. It is called by the builders before save.
+	apikey.SecretHashValidator = func() func(string) error {
+		validators := apikeyDescSecretHash.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(secret_hash string) error {
+			for _, fn := range fns {
+				if err := fn(secret_hash); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
 	// apikeyDescName is the schema descriptor for name field.
 	apikeyDescName := apikeyFields[3].Descriptor()
 	// apikey.NameValidator is a validator for the "name" field. It is called by the builders before save.

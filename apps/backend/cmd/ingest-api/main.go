@@ -22,6 +22,7 @@ import (
 	"playersense.dev/backend/internal/ingest"
 	"playersense.dev/backend/internal/pgdb"
 	"playersense.dev/backend/internal/routers"
+	"playersense.dev/backend/internal/valkey"
 )
 
 func main() {
@@ -46,8 +47,13 @@ func build(settings config.Settings) (*muzak.App, error) {
 	// per request, which is what lets a batch still be accepted while PostgreSQL is
 	// down (§64).
 	control := pgdb.New(settings.PostgresDSN)
-	resolver := core.NewKeyResolver(control,
-		settings.KeyCacheTTL, settings.KeyCacheNegativeTTL, settings.KeyCacheMaxEntries)
+	cache := valkey.New(settings.ValkeyDSN)
+	resolver := core.NewKeyResolver(control, cache, core.KeyResolverOptions{
+		TTL:         settings.KeyCacheTTL,
+		NegativeTTL: settings.KeyCacheNegativeTTL,
+		LocalTTL:    settings.KeyCacheLocalTTL,
+		MaxLocal:    settings.KeyCacheMaxEntries,
+	})
 
 	app := muzak.New(muzak.AppOptions{
 		Title:       "PlayerSense Ingestion API",
@@ -71,6 +77,7 @@ func build(settings config.Settings) (*muzak.App, error) {
 		},
 	},
 		muzak.WithSingleton(control),
+		muzak.WithSingleton(cache),
 		muzak.WithSingleton(resolver),
 		muzak.WithSingleton(settings),
 		muzak.WithSingleton(ingest.DefaultLimits()),
@@ -84,14 +91,22 @@ func build(settings config.Settings) (*muzak.App, error) {
 		// costs the sender its budget rather than costing a key lookup each time (§71).
 		// An IPv6 /64 is the block most providers hand out, so keying on the exact
 		// address would give one client a fresh budget on every request.
-		muzak.WithRateLimit(muzak.RateLimitOptions{
+	)
+
+	if !settings.RateLimitDisabled {
+		app.Options(muzak.WithRateLimit(muzak.RateLimitOptions{
+			// Counters live in Valkey so every instance shares one budget. The
+			// in-process default the framework ships is right for a single process and
+			// wrong for several: a limit of six thousand a minute silently becomes six
+			// thousand a minute per instance.
+			Storage: valkey.NewRateLimitStorage(cache),
 			Tracker: muzak.IPPrefixTracker(32, 64),
 			Quotas: []muzak.Quota{
 				{Name: "ingest-burst", Window: time.Second, Limit: 200},
 				{Name: "ingest-sustained", Window: time.Minute, Limit: 6000},
 			},
-		}),
-	)
+		}))
+	}
 
 	app.Include(routers.Meta())
 	app.Include(routers.Ingest())

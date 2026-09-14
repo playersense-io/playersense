@@ -180,15 +180,15 @@ func CreateAPIKey(ctx *muzak.Context, in schemas.CreateAPIKeyIn) (schemas.APIKey
 		return schemas.APIKeyCreatedOut{}, core.AsHTTPError(err)
 	}
 
-	secret, prefix, hash, err := core.NewAPIKey(in.Kind, in.Environment)
+	generated, err := core.NewAPIKey(in.Kind, in.Environment)
 	if err != nil {
-		return schemas.APIKeyCreatedOut{}, err
+		return schemas.APIKeyCreatedOut{}, muzak.BadRequest(err.Error())
 	}
 
 	key, err := control.Global.APIKey.Create().
 		SetKind(apikey.Kind(in.Kind)).
-		SetPrefix(prefix).
-		SetHash(hash).
+		SetPublicID(generated.PublicID).
+		SetSecretHash(generated.Hash).
 		SetName(in.Name).
 		SetEnvironmentID(env.ID).
 		Save(ctx.Context())
@@ -199,7 +199,9 @@ func CreateAPIKey(ctx *muzak.Context, in schemas.CreateAPIKeyIn) (schemas.APIKey
 	ctx.SetStatus(201)
 	return schemas.APIKeyCreatedOut{
 		APIKeyOut: apiKeyOut(key, string(env.Kind)),
-		Secret:    secret,
+		// The one and only time the private half leaves this process. What was stored is
+		// an Argon2id digest, so there is no path by which it could be shown again.
+		Secret: generated.Secret,
 	}, nil
 }
 
@@ -260,6 +262,21 @@ func RevokeAPIKey(ctx *muzak.Context, in schemas.RevokeAPIKeyIn) (schemas.APIKey
 	updated, err := key.Update().SetRevokedAt(nowUTC()).Save(ctx.Context())
 	if err != nil {
 		return schemas.APIKeyOut{}, core.AsHTTPError(err)
+	}
+
+	// Revocation has to reach the cache, or a leaked key keeps working until its entry
+	// happens to expire — which is exactly the minutes during which somebody needs it to
+	// stop. The cache is keyed by a digest of the whole credential, which this service
+	// never saw, so a tombstone is written under the public half instead and every
+	// resolver refuses anything matching it.
+	if resolver, ok := muzak.TryFrom[*core.KeyResolver](ctx); ok {
+		if err := resolver.EvictPublicID(ctx.Context(), updated.PublicID, core.RevocationTombstoneTTL); err != nil {
+			// Valkey being unavailable must not fail the revocation: the row is already
+			// written, and the key stops working when the cache entry expires. Log it and
+			// move on rather than leaving the caller thinking nothing happened.
+			ctx.Logger().Warn("could not evict a revoked key from the cache",
+				"public_id", updated.PublicID, "error", err.Error())
+		}
 	}
 	env, err := updated.QueryEnvironment().Only(ctx.Context())
 	if err != nil {

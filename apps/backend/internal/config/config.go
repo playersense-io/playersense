@@ -64,6 +64,20 @@ type Settings struct {
 	KeyCacheNegativeTTL time.Duration `env:"KEY_CACHE_NEGATIVE_TTL" default:"30s"`
 	KeyCacheMaxEntries  int           `env:"KEY_CACHE_MAX_ENTRIES" default:"50000"`
 
+	// KeyCacheLocalTTL bounds the in-process tier, which exists so ingestion survives
+	// both Valkey and PostgreSQL being unreachable (§64, §65). It is deliberately short:
+	// revoking a key evicts it from Valkey at once, and this is the one window eviction
+	// cannot reach.
+	KeyCacheLocalTTL time.Duration `env:"KEY_CACHE_LOCAL_TTL" default:"10s"`
+
+	// RateLimitDisabled turns the limiter off entirely.
+	//
+	// Only a test sets this. Counters now live in Valkey and are shared by every
+	// instance, which is the point — but it also means one suite's requests spend the
+	// next suite's budget, and a test that fails because a previous test ran is a test
+	// nobody trusts. The limiter itself is exercised by a test written for it.
+	RateLimitDisabled bool `env:"RATE_LIMIT_DISABLED" default:"false"`
+
 	// LogFormat is auto, console, json or none.
 	//
 	// Auto picks JSON when the output is not a terminal, which is right for a production

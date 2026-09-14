@@ -13,6 +13,7 @@ import (
 	"muzak.dev/framework"
 	"muzak.dev/framework/testclient"
 
+	"playersense.dev/backend/ent/global/apikey"
 	"playersense.dev/backend/ent/global/environment"
 	"playersense.dev/backend/ent/global/project"
 	"playersense.dev/backend/internal/config"
@@ -22,6 +23,7 @@ import (
 	"playersense.dev/backend/internal/pgdb"
 	"playersense.dev/backend/internal/protocol"
 	"playersense.dev/backend/internal/routers"
+	"playersense.dev/backend/internal/valkey"
 )
 
 // fixture is one project, one key and a bus the test can read back.
@@ -40,6 +42,7 @@ func newFixture(t *testing.T, tier string) *fixture {
 		t.Skipf("no local environment: %v", err)
 	}
 	settings.Addr, settings.LogFormat = ":0", "none"
+	settings.RateLimitDisabled = true
 
 	control := pgdb.New(settings.PostgresDSN)
 	if err := control.Start(t.Context()); err != nil {
@@ -58,7 +61,7 @@ func newFixture(t *testing.T, tier string) *fixture {
 		LoggerOptions: muzak.LoggerOptions{Format: muzak.LogFormatNone},
 	},
 		muzak.WithSingleton(control),
-		muzak.WithSingleton(core.NewKeyResolver(control, time.Minute, time.Second, 1000)),
+		muzak.WithSingleton(core.NewKeyResolver(control, testCache(t), core.KeyResolverOptions{TTL: time.Minute, NegativeTTL: time.Second, LocalTTL: time.Second, MaxLocal: 1000})),
 		muzak.WithSingleton(ingest.DefaultLimits()),
 		muzak.WithSingleton(eventbus.Bus(bus)),
 	)
@@ -98,16 +101,18 @@ func seedKey(t *testing.T, control *pgdb.Control, tier string) string {
 		t.Fatalf("seed environment: %v", err)
 	}
 
-	secret, prefix, hash, err := core.NewAPIKey("publishable", "production")
+	generated, err := core.NewAPIKey(core.KindProject, "production")
 	if err != nil {
 		t.Fatalf("mint key: %v", err)
 	}
 	if _, err := control.Global.APIKey.Create().
-		SetKind("publishable").SetPrefix(prefix).SetHash(hash).
+		SetKind("project").
+		SetPublicID(generated.PublicID).
+		SetSecretHash(generated.Hash).
 		SetEnvironmentID(env.ID).Save(ctx); err != nil {
 		t.Fatalf("store key: %v", err)
 	}
-	return secret
+	return generated.Secret
 }
 
 // published returns every message the bus holds for today.
@@ -163,6 +168,7 @@ func TestAppBuilds(t *testing.T) {
 		t.Skipf("no local environment: %v", err)
 	}
 	settings.LogFormat = "none"
+	settings.RateLimitDisabled = true
 	app, err := build(settings)
 	if err != nil {
 		t.Fatalf("build = %v", err)
@@ -199,7 +205,7 @@ func buildTestApp(t *testing.T, f *fixture) *muzak.App {
 		LoggerOptions: muzak.LoggerOptions{Format: muzak.LogFormatNone},
 	},
 		muzak.WithSingleton(f.control),
-		muzak.WithSingleton(core.NewKeyResolver(f.control, time.Minute, time.Second, 1000)),
+		muzak.WithSingleton(core.NewKeyResolver(f.control, testCache(t), core.KeyResolverOptions{TTL: time.Minute, NegativeTTL: time.Second, LocalTTL: time.Millisecond, MaxLocal: 1000})),
 		muzak.WithSingleton(ingest.DefaultLimits()),
 		muzak.WithSingleton(eventbus.Bus(f.bus)),
 	)
@@ -428,4 +434,136 @@ func TestBatchMustCarryEvents(t *testing.T) {
 		  "consent":{"analytics":true,"policy_version":"2026-01-15"},"events":[]}`,
 		uuid.NewString(), uuid.NewString()))).
 		AssertStatus(http.StatusUnprocessableEntity)
+}
+
+// testCache returns a connected Valkey client, or skips.
+//
+// The tests run against the real cache rather than a fake: the three-tier resolver is the
+// thing under test, and a fake for the middle tier would remove most of what is worth
+// testing about it.
+func testCache(t *testing.T) *valkey.Client {
+	t.Helper()
+	settings, err := config.Load(filepath.Join(repoRoot(), ".env"))
+	if err != nil {
+		t.Skipf("no local environment: %v", err)
+	}
+	c := valkey.New(settings.ValkeyDSN)
+	if err := c.Start(t.Context()); err != nil {
+		t.Skipf("no valkey: %v", err)
+	}
+	t.Cleanup(func() { _ = c.Stop(context.Background()) })
+	return c
+}
+
+// seedKindKey mints a key of an arbitrary kind against the fixture's project.
+func seedKindKey(t *testing.T, f *fixture, kind string) (secret, publicID string) {
+	t.Helper()
+	env, err := f.control.Global.Environment.Query().First(context.Background())
+	if err != nil {
+		t.Fatalf("find environment: %v", err)
+	}
+	generated, err := core.NewAPIKey(kind, "production")
+	if err != nil {
+		t.Fatalf("mint %s key: %v", kind, err)
+	}
+	if _, err := f.control.Global.APIKey.Create().
+		SetKind(apikey.Kind(kind)).
+		SetPublicID(generated.PublicID).
+		SetSecretHash(generated.Hash).
+		SetEnvironmentID(env.ID).Save(context.Background()); err != nil {
+		t.Fatalf("store %s key: %v", kind, err)
+	}
+	return generated.Secret, generated.PublicID
+}
+
+// TestOnlyAProjectKeyMayIngest — §52. A reporting or server credential reaching this
+// endpoint is a misconfiguration, and accepting it would widen what a leaked analytics
+// key can do.
+func TestOnlyAProjectKeyMayIngest(t *testing.T) {
+	f := newFixture(t, "standard")
+
+	for _, kind := range []string{core.KindReporting, core.KindServer} {
+		secret, _ := seedKindKey(t, f, kind)
+		client := testclient.New(t, buildTestApp(t, f),
+			testclient.WithHeader("Authorization", "Bearer "+secret))
+
+		res := client.Post("/v1/batches", testclient.JSON(batch(event("session_start", nil))))
+		if res.Status != http.StatusForbidden {
+			t.Errorf("a %s key got status %d; ingestion needs a project key", kind, res.Status)
+		}
+	}
+}
+
+// TestRevocationTakesEffectImmediately — §53.
+//
+// A revoked key must stop working now, not when its cache entry happens to expire. That
+// window is exactly the minutes during which somebody needs it to stop.
+func TestRevocationTakesEffectImmediately(t *testing.T) {
+	f := newFixture(t, "standard")
+	secret, publicID := seedKindKey(t, f, core.KindProject)
+
+	cache := testCache(t)
+	resolver := core.NewKeyResolver(f.control, cache, core.KeyResolverOptions{
+		TTL: time.Minute, NegativeTTL: time.Second, LocalTTL: time.Millisecond, MaxLocal: 100,
+	})
+
+	// Warm it: the credential is now in Valkey with a minute to live.
+	if _, err := resolver.Resolve(t.Context(), secret); err != nil {
+		t.Fatalf("a fresh key did not resolve: %v", err)
+	}
+
+	// Revoke it the way control-api does.
+	if _, err := f.control.Global.APIKey.Update().
+		Where(apikey.PublicID(publicID)).
+		SetRevokedAt(time.Now().UTC()).Save(context.Background()); err != nil {
+		t.Fatalf("revoke: %v", err)
+	}
+	if err := resolver.EvictPublicID(t.Context(), publicID, core.RevocationTombstoneTTL); err != nil {
+		t.Fatalf("evict: %v", err)
+	}
+
+	// Let the in-process tier lapse; the Valkey entry is still well inside its TTL.
+	time.Sleep(20 * time.Millisecond)
+
+	if _, err := resolver.Resolve(t.Context(), secret); err == nil {
+		t.Fatal("a revoked key still resolved from a warm cache entry")
+	}
+}
+
+// TestValkeyAnswersWhenPostgresIsDown is the middle tier earning its place.
+//
+// The control plane is the authority, but it is not on the request path. Once a key has
+// been verified, every instance sharing the cache can serve it without a query — which is
+// both §3.2's requirement and what makes an outage survivable (§64).
+func TestValkeyAnswersWhenPostgresIsDown(t *testing.T) {
+	f := newFixture(t, "standard")
+	secret, _ := seedKindKey(t, f, core.KindProject)
+
+	cache := testCache(t)
+	warm := core.NewKeyResolver(f.control, cache, core.KeyResolverOptions{
+		TTL: time.Minute, NegativeTTL: time.Second, LocalTTL: time.Millisecond, MaxLocal: 100,
+	})
+	if _, err := warm.Resolve(t.Context(), secret); err != nil {
+		t.Fatalf("warm the cache: %v", err)
+	}
+
+	// A different instance, with no in-process cache of its own and no usable database.
+	cold := core.NewKeyResolver(
+		pgdb.New("postgres://nobody:nobody@127.0.0.1:1/none?sslmode=disable"),
+		cache,
+		core.KeyResolverOptions{TTL: time.Minute, NegativeTTL: time.Second, LocalTTL: time.Millisecond, MaxLocal: 100},
+	)
+	tenant, err := cold.Resolve(t.Context(), secret)
+	if err != nil {
+		t.Fatalf("the shared cache did not serve the key: %v", err)
+	}
+	if tenant.ProjectSeq == 0 || tenant.KeyKind != core.KindProject {
+		t.Errorf("the cached tenant is incomplete: %+v", tenant)
+	}
+
+	// And a key that was never cached still fails closed rather than being invented.
+	unknown, _ := core.NewAPIKey(core.KindProject, "production")
+	if _, err := cold.Resolve(t.Context(), unknown.Secret); err == nil {
+		t.Fatal("an unverifiable key was accepted; resolution must fail closed")
+	}
 }

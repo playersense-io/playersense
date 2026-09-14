@@ -24,10 +24,10 @@ const (
 	FieldUpdatedAt = "updated_at"
 	// FieldKind holds the string denoting the kind field in the database.
 	FieldKind = "kind"
-	// FieldPrefix holds the string denoting the prefix field in the database.
-	FieldPrefix = "prefix"
-	// FieldHash holds the string denoting the hash field in the database.
-	FieldHash = "hash"
+	// FieldPublicID holds the string denoting the public_id field in the database.
+	FieldPublicID = "public_id"
+	// FieldSecretHash holds the string denoting the secret_hash field in the database.
+	FieldSecretHash = "secret_hash"
 	// FieldName holds the string denoting the name field in the database.
 	FieldName = "name"
 	// FieldLastUsedAt holds the string denoting the last_used_at field in the database.
@@ -56,8 +56,8 @@ var Columns = []string{
 	FieldCreatedAt,
 	FieldUpdatedAt,
 	FieldKind,
-	FieldPrefix,
-	FieldHash,
+	FieldPublicID,
+	FieldSecretHash,
 	FieldName,
 	FieldLastUsedAt,
 	FieldRevokedAt,
@@ -83,10 +83,10 @@ var (
 	DefaultUpdatedAt func() time.Time
 	// UpdateDefaultUpdatedAt holds the default value on update for the "updated_at" field.
 	UpdateDefaultUpdatedAt func() time.Time
-	// PrefixValidator is a validator for the "prefix" field. It is called by the builders before save.
-	PrefixValidator func(string) error
-	// HashValidator is a validator for the "hash" field. It is called by the builders before save.
-	HashValidator func([]byte) error
+	// PublicIDValidator is a validator for the "public_id" field. It is called by the builders before save.
+	PublicIDValidator func(string) error
+	// SecretHashValidator is a validator for the "secret_hash" field. It is called by the builders before save.
+	SecretHashValidator func(string) error
 	// NameValidator is a validator for the "name" field. It is called by the builders before save.
 	NameValidator func(string) error
 )
@@ -96,8 +96,9 @@ type Kind string
 
 // Kind values.
 const (
-	KindPublishable Kind = "publishable"
-	KindSecret      Kind = "secret"
+	KindProject   Kind = "project"
+	KindReporting Kind = "reporting"
+	KindServer    Kind = "server"
 )
 
 func (k Kind) String() string {
@@ -107,7 +108,7 @@ func (k Kind) String() string {
 // KindValidator is a validator for the "kind" field enum values. It is called by the builders before save.
 func KindValidator(k Kind) error {
 	switch k {
-	case KindPublishable, KindSecret:
+	case KindProject, KindReporting, KindServer:
 		return nil
 	default:
 		return fmt.Errorf("apikey: invalid enum value for kind field: %q", k)
@@ -142,9 +143,14 @@ func ByKind(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldKind, opts...).ToFunc()
 }
 
-// ByPrefix orders the results by the prefix field.
-func ByPrefix(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldPrefix, opts...).ToFunc()
+// ByPublicID orders the results by the public_id field.
+func ByPublicID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPublicID, opts...).ToFunc()
+}
+
+// BySecretHash orders the results by the secret_hash field.
+func BySecretHash(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSecretHash, opts...).ToFunc()
 }
 
 // ByName orders the results by the name field.

@@ -48,8 +48,8 @@ type APIKeyMutation struct {
 	created_at         *time.Time
 	updated_at         *time.Time
 	kind               *apikey.Kind
-	prefix             *string
-	hash               *[]byte
+	public_id          *string
+	secret_hash        *string
 	name               *string
 	last_used_at       *time.Time
 	revoked_at         *time.Time
@@ -309,76 +309,76 @@ func (m *APIKeyMutation) ResetKind() {
 	m.kind = nil
 }
 
-// SetPrefix sets the "prefix" field.
-func (m *APIKeyMutation) SetPrefix(s string) {
-	m.prefix = &s
+// SetPublicID sets the "public_id" field.
+func (m *APIKeyMutation) SetPublicID(s string) {
+	m.public_id = &s
 }
 
-// Prefix returns the value of the "prefix" field in the mutation.
-func (m *APIKeyMutation) Prefix() (r string, exists bool) {
-	v := m.prefix
+// PublicID returns the value of the "public_id" field in the mutation.
+func (m *APIKeyMutation) PublicID() (r string, exists bool) {
+	v := m.public_id
 	if v == nil {
 		return
 	}
 	return *v, true
 }
 
-// OldPrefix returns the old "prefix" field's value of the APIKey entity.
+// OldPublicID returns the old "public_id" field's value of the APIKey entity.
 // If the APIKey object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *APIKeyMutation) OldPrefix(ctx context.Context) (v string, err error) {
+func (m *APIKeyMutation) OldPublicID(ctx context.Context) (v string, err error) {
 	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldPrefix is only allowed on UpdateOne operations")
+		return v, errors.New("OldPublicID is only allowed on UpdateOne operations")
 	}
 	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldPrefix requires an ID field in the mutation")
+		return v, errors.New("OldPublicID requires an ID field in the mutation")
 	}
 	oldValue, err := m.oldValue(ctx)
 	if err != nil {
-		return v, fmt.Errorf("querying old value for OldPrefix: %w", err)
+		return v, fmt.Errorf("querying old value for OldPublicID: %w", err)
 	}
-	return oldValue.Prefix, nil
+	return oldValue.PublicID, nil
 }
 
-// ResetPrefix resets all changes to the "prefix" field.
-func (m *APIKeyMutation) ResetPrefix() {
-	m.prefix = nil
+// ResetPublicID resets all changes to the "public_id" field.
+func (m *APIKeyMutation) ResetPublicID() {
+	m.public_id = nil
 }
 
-// SetHash sets the "hash" field.
-func (m *APIKeyMutation) SetHash(b []byte) {
-	m.hash = &b
+// SetSecretHash sets the "secret_hash" field.
+func (m *APIKeyMutation) SetSecretHash(s string) {
+	m.secret_hash = &s
 }
 
-// Hash returns the value of the "hash" field in the mutation.
-func (m *APIKeyMutation) Hash() (r []byte, exists bool) {
-	v := m.hash
+// SecretHash returns the value of the "secret_hash" field in the mutation.
+func (m *APIKeyMutation) SecretHash() (r string, exists bool) {
+	v := m.secret_hash
 	if v == nil {
 		return
 	}
 	return *v, true
 }
 
-// OldHash returns the old "hash" field's value of the APIKey entity.
+// OldSecretHash returns the old "secret_hash" field's value of the APIKey entity.
 // If the APIKey object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *APIKeyMutation) OldHash(ctx context.Context) (v []byte, err error) {
+func (m *APIKeyMutation) OldSecretHash(ctx context.Context) (v string, err error) {
 	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldHash is only allowed on UpdateOne operations")
+		return v, errors.New("OldSecretHash is only allowed on UpdateOne operations")
 	}
 	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldHash requires an ID field in the mutation")
+		return v, errors.New("OldSecretHash requires an ID field in the mutation")
 	}
 	oldValue, err := m.oldValue(ctx)
 	if err != nil {
-		return v, fmt.Errorf("querying old value for OldHash: %w", err)
+		return v, fmt.Errorf("querying old value for OldSecretHash: %w", err)
 	}
-	return oldValue.Hash, nil
+	return oldValue.SecretHash, nil
 }
 
-// ResetHash resets all changes to the "hash" field.
-func (m *APIKeyMutation) ResetHash() {
-	m.hash = nil
+// ResetSecretHash resets all changes to the "secret_hash" field.
+func (m *APIKeyMutation) ResetSecretHash() {
+	m.secret_hash = nil
 }
 
 // SetName sets the "name" field.
@@ -638,11 +638,11 @@ func (m *APIKeyMutation) Fields() []string {
 	if m.kind != nil {
 		fields = append(fields, apikey.FieldKind)
 	}
-	if m.prefix != nil {
-		fields = append(fields, apikey.FieldPrefix)
+	if m.public_id != nil {
+		fields = append(fields, apikey.FieldPublicID)
 	}
-	if m.hash != nil {
-		fields = append(fields, apikey.FieldHash)
+	if m.secret_hash != nil {
+		fields = append(fields, apikey.FieldSecretHash)
 	}
 	if m.name != nil {
 		fields = append(fields, apikey.FieldName)
@@ -672,10 +672,10 @@ func (m *APIKeyMutation) Field(name string) (ent.Value, bool) {
 		return m.UpdatedAt()
 	case apikey.FieldKind:
 		return m.Kind()
-	case apikey.FieldPrefix:
-		return m.Prefix()
-	case apikey.FieldHash:
-		return m.Hash()
+	case apikey.FieldPublicID:
+		return m.PublicID()
+	case apikey.FieldSecretHash:
+		return m.SecretHash()
 	case apikey.FieldName:
 		return m.Name()
 	case apikey.FieldLastUsedAt:
@@ -701,10 +701,10 @@ func (m *APIKeyMutation) OldField(ctx context.Context, name string) (ent.Value, 
 		return m.OldUpdatedAt(ctx)
 	case apikey.FieldKind:
 		return m.OldKind(ctx)
-	case apikey.FieldPrefix:
-		return m.OldPrefix(ctx)
-	case apikey.FieldHash:
-		return m.OldHash(ctx)
+	case apikey.FieldPublicID:
+		return m.OldPublicID(ctx)
+	case apikey.FieldSecretHash:
+		return m.OldSecretHash(ctx)
 	case apikey.FieldName:
 		return m.OldName(ctx)
 	case apikey.FieldLastUsedAt:
@@ -750,19 +750,19 @@ func (m *APIKeyMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetKind(v)
 		return nil
-	case apikey.FieldPrefix:
+	case apikey.FieldPublicID:
 		v, ok := value.(string)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
-		m.SetPrefix(v)
+		m.SetPublicID(v)
 		return nil
-	case apikey.FieldHash:
-		v, ok := value.([]byte)
+	case apikey.FieldSecretHash:
+		v, ok := value.(string)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
-		m.SetHash(v)
+		m.SetSecretHash(v)
 		return nil
 	case apikey.FieldName:
 		v, ok := value.(string)
@@ -877,11 +877,11 @@ func (m *APIKeyMutation) ResetField(name string) error {
 	case apikey.FieldKind:
 		m.ResetKind()
 		return nil
-	case apikey.FieldPrefix:
-		m.ResetPrefix()
+	case apikey.FieldPublicID:
+		m.ResetPublicID()
 		return nil
-	case apikey.FieldHash:
-		m.ResetHash()
+	case apikey.FieldSecretHash:
+		m.ResetSecretHash()
 		return nil
 	case apikey.FieldName:
 		m.ResetName()

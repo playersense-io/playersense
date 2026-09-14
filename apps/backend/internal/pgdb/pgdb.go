@@ -4,6 +4,7 @@ package pgdb
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"net/url"
 
@@ -138,6 +139,18 @@ func Open(dsn string) (*Control, error) {
 		regionalDB: regionalDB,
 	}, nil
 }
+
+// Ready reports whether Start has run and both tiers are usable.
+//
+// A Control that never started has nil clients, and a caller that dereferences one gets a
+// panic rather than an error it can act on. Every path that might run before or after the
+// lifecycle — a resolver falling through to the authority, a health check — asks first.
+func (c *Control) Ready() bool {
+	return c != nil && c.globalDB != nil && c.regionalDB != nil && c.Global != nil && c.Regional != nil
+}
+
+// ErrNotStarted reports use of a control plane that never connected.
+var ErrNotStarted = errors.New("control plane is not started")
 
 // DB exposes a pool for the verification queries, which read the catalog rather than any
 // entity and so are indifferent to which tier answers them.

@@ -12,8 +12,14 @@ import (
 
 // APIKey is a credential scoped to one environment (§52, §53).
 //
-// Only a hash is stored. The plaintext is returned once, at creation, and never again:
-// a key readable from the database is a key readable by anyone who reaches the database.
+// A key is `<public>:<private>`. The public half is stored in clear and indexed; the
+// private half is stored only as an Argon2id digest and is returned to the caller once,
+// at creation, never again.
+//
+// The split is what makes a deliberately slow hash affordable. Verifying a presented key
+// is one indexed lookup on the public half followed by exactly one Argon2 comparison —
+// without it, checking a key would mean running a slow hash against every row, which is
+// a denial-of-service vector rather than a defence.
 type APIKey struct{ ent.Schema }
 
 func (APIKey) Mixin() []ent.Mixin               { return []ent.Mixin{mixin{}} }
@@ -21,16 +27,20 @@ func (APIKey) Annotations() []schema.Annotation { return []schema.Annotation{wit
 
 func (APIKey) Fields() []ent.Field {
 	return []ent.Field{
-		// publishable ships inside a game binary and is assumed discoverable (§71);
-		// secret is server-to-server and never leaves a server.
-		field.Enum("kind").Values("publishable", "secret").Immutable().Comment(dataclass.None),
+		// project ships inside a game binary and is assumed discoverable (§71);
+		// reporting reads analytics; server is the server-to-server credential §47 wants
+		// for purchase verification.
+		field.Enum("kind").Values("project", "reporting", "server").Immutable().Comment(dataclass.None),
 
-		// The displayable head of the key. Enough to identify which key a dashboard row
-		// refers to, not enough to use.
-		field.String("prefix").NotEmpty().MaxLen(32).Immutable().Comment(dataclass.None),
+		// The public half: `ps_<kind>_<env>_<random>`. Not a secret — it is the lookup
+		// key, and it is what makes a leaked credential recognisable to a secret scanner
+		// or to a person reading a diff.
+		field.String("public_id").NotEmpty().MaxLen(64).Immutable().Unique().Comment(dataclass.None),
 
-		// SHA-256 of the full key, compared in constant time (§53).
-		field.Bytes("hash").MaxLen(32).Immutable().Sensitive().Comment(dataclass.None),
+		// PHC-encoded Argon2id digest of the private half. Sensitive so it never appears
+		// in a log line or an error, and not Immutable so a digest written under older
+		// parameters can be upgraded in place when the key is next presented.
+		field.String("secret_hash").NotEmpty().MaxLen(255).Sensitive().Comment(dataclass.None),
 
 		field.String("name").MaxLen(120).Optional().Comment(dataclass.None),
 		field.Time("last_used_at").Optional().Nillable().Comment(dataclass.None),
@@ -47,5 +57,7 @@ func (APIKey) Edges() []ent.Edge {
 }
 
 func (APIKey) Indexes() []ent.Index {
-	return []ent.Index{index.Fields("hash").Unique(), index.Fields("prefix")}
+	// One index, on the half a presented key is looked up by. Nothing looks a key up by
+	// its digest, because the digest cannot be recomputed without the secret.
+	return []ent.Index{index.Fields("public_id").Unique()}
 }

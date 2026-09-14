@@ -85,7 +85,7 @@ func apiKeyOut(key *global.APIKey, environment string) schemas.APIKeyOut {
 	return schemas.APIKeyOut{
 		ID:          key.UID,
 		Kind:        string(key.Kind),
-		Prefix:      key.Prefix,
+		PublicID:    key.PublicID,
 		Name:        key.Name,
 		Environment: environment,
 		CreatedAt:   key.CreatedAt,

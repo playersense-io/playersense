@@ -56,8 +56,13 @@ type Control = pgdb.Control
 // Three windows rather than one, because a single number cannot tell a person clicking
 // from a script that never stops. Every quota is counted for every request, so pausing
 // between bursts launders nothing.
-func RateLimitPolicy() muzak.RateLimitOptions {
+func RateLimitPolicy(storage muzak.RateLimitStorage) muzak.RateLimitOptions {
 	return muzak.RateLimitOptions{
+		// Counters live in Valkey so every instance shares one budget. The in-process
+		// default the framework ships is right for a single process and wrong for
+		// several: a limit of three hundred a minute silently becomes three hundred a
+		// minute per instance.
+		Storage: storage,
 		// An IPv6 /64 is the block most providers hand out, so keying on the exact
 		// address gives a client holding one a fresh budget on every request.
 		Tracker: muzak.IPPrefixTracker(32, 64),

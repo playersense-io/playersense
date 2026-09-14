@@ -2283,6 +2283,7 @@ Examples:
 - constrained dimensions/metrics;
 - concurrency quotas per organization;
 - asynchronous mode for heavy queries;
+- rate-limit counters in Valkey, shared by every instance;
 - no join on an actor-cardinality key;
 - minimum cell size on any aggregate that could identify one player.
 
@@ -2782,59 +2783,90 @@ Delivery policy:
 
 ## 52. Key classes
 
-Do not use one universal project key.
+Do not use one universal project key. A credential is scoped to exactly one class, and
+the class is an enum rather than a set of scopes — what a credential may do is the single
+most important thing about it, and an enum is harder to get subtly wrong than a list.
 
-### Publishable SDK key
+### Key format
 
-Example prefix:
-
-```text
-ps_client_...
-```
-
-Capabilities:
-
-- analytics ingestion;
-- config fetch;
-- low-risk SDK operations.
-
-It is embedded in shipped games and therefore **cannot be considered secret**.
-
-### Server secret key
+Every key has two halves:
 
 ```text
-ps_secret_...
+ps_<kind>_<env>_<random> : <secret>
+└─────── public ────────┘ └ private ┘
 ```
 
-Capabilities:
+The **public half** is stored in clear and indexed. It is not a secret: it is the lookup
+key, and it is what makes a leaked credential recognisable to a secret scanner, a log
+filter or a person reading a diff. It also names its own class and environment, so a
+development key pasted into a production build is visibly wrong before it is ever sent.
 
-- server-to-server APIs;
-- purchase verification;
-- secure player operations;
-- exports/admin actions allowed by scope.
+The **private half** is 192 random bits and is stored only as an Argon2id digest (§53).
 
-Never ship this key inside a game binary.
+The split is what makes a deliberately slow hash affordable. Verifying a presented key is
+one indexed lookup on the public half followed by exactly one Argon2 comparison. Without
+it, checking a key would mean running a slow hash against every row in the table — and a
+slow hash you have to run N times is a denial-of-service vector rather than a defence.
+
+The random part of the public half is encoded in an alphabet of letters and digits only.
+The separator is `_`, and an encoding that can emit one produces keys that do not parse.
+
+### `project`
+
+```text
+ps_project_live_...
+```
+
+Capabilities: analytics ingestion, config fetch, low-risk SDK operations.
+
+Embedded in shipped games and therefore **cannot be considered secret** (§71). Ingestion
+accepts this class and no other: a reporting or server credential reaching the ingestion
+endpoint is a misconfiguration, and accepting it would widen what a leaked analytics key
+can do.
+
+### `reporting`
+
+```text
+ps_reporting_live_...
+```
+
+Capabilities: reading analytics through the reporting API.
+
+Issued to a studio's own backend or dashboard and never shipped in a client. It reads and
+never writes, so a leaked reporting key discloses data but cannot corrupt it.
+
+### `server`
+
+```text
+ps_server_live_...
+```
+
+Capabilities: server-to-server operations — purchase verification (§47), secure player
+operations, exports and administrative actions within its scope.
+
+Never ship this inside a game binary.
 
 ### Dashboard/user tokens
 
-Used for studio users and the Nuxt client/admin applications.
+Used by studio users and the Nuxt client/admin applications. A per-user credential, not a
+key of the classes above, and it resolves to a user rather than to a project.
 
 ### Webhook signing secret
 
-Dedicated secret for outbound signature validation.
+Dedicated secret for outbound signature validation (§51).
 
 ---
 
 ## 53. Key storage
 
-Store only a secure hash of API keys in PostgreSQL.
-
-Keep:
+Store an **Argon2id digest of the private half**, and never the key itself. The plaintext
+exists only in the response to the request that created it.
 
 ```text
 key_id
-prefix/display suffix
-hash
+public_id            the public half, in clear and uniquely indexed
+secret_hash          PHC-encoded Argon2id digest of the private half
+kind                 project | reporting | server
 scopes
 project_id
 environment_id
@@ -2843,7 +2875,54 @@ last_used_at
 revoked_at
 ```
 
-Valkey caches successful key lookups for a short period.
+The digest carries its own parameters, so raising the cost later re-hashes each key the
+next time it is presented rather than invalidating anyone's credential.
+
+Argon2 is chosen for defence in depth rather than for necessity. It exists to make
+guessing a *low-entropy* secret expensive, and 192 random bits is already infeasible to
+guess against any hash — what it buys is that a leaked database is not a leaked fleet of
+keys even if the entropy assumption turns out to be wrong.
+
+### 53.1 Verification path
+
+A presented credential is resolved through three tiers, each covering the failure of the
+one below it:
+
+```text
+in-process cache    survives Valkey and PostgreSQL both being unreachable
+Valkey              shared by every instance; keyed by SHA-256 of the credential
+PostgreSQL          the authority: one indexed lookup, one Argon2 comparison
+```
+
+The tiers are not an optimisation. §3.2 forbids the ingestion path from querying the
+control plane per request, §64 requires ingestion to keep working through a PostgreSQL
+outage, and §65 requires losing Valkey to cost speed rather than data. Each tier exists
+because one of those sentences does.
+
+The cache is keyed by a SHA-256 digest of the whole credential, so it is keyed by
+something only a holder of the key can produce and the cache itself never holds the key.
+That hash is deliberately fast: it runs on every request, and the slow hash is what the
+cache exists to avoid.
+
+Rejections are cached too, for a shorter window. A project key is assumed discoverable
+(§71), so wrong keys arrive in volume and none of them should reach an Argon2 comparison
+twice. A key that is merely *unverifiable* — because the control plane is unreachable —
+is never cached as a rejection: an outage remembered as a rejection turns a blip into an
+hour of refused traffic.
+
+Resolution **fails closed**. If no tier can answer, the request is refused with `503` and
+retried by the client, never accepted on the assumption that the key was probably fine.
+
+### 53.2 Revocation
+
+Revoking a key writes `revoked_at` **and evicts the credential from the cache**. Waiting
+for a TTL to expire leaves a leaked key working for minutes, which is exactly the window
+during which somebody needs it to stop.
+
+The control plane cannot reproduce the cache key, because it only ever saw the secret
+once. So revocation writes a short-lived tombstone under the public identifier instead,
+and every resolver refuses anything matching it. The in-process tier is the one window
+eviction cannot reach, which is why its lifetime is measured in seconds.
 
 ---
 
@@ -3349,7 +3428,7 @@ Stage 2:
 
 ## 71. Abuse controls
 
-Because the publishable SDK key exists in game binaries, assume attackers can obtain it.
+Because the project key exists in game binaries, assume attackers can obtain it.
 
 Protect ingestion using:
 
@@ -3362,7 +3441,7 @@ Protect ingestion using:
 - server-side validation;
 - WAF/bot mitigation where useful.
 
-A publishable SDK key proves project routing, not client trustworthiness.
+A project key proves project routing, not client trustworthiness.
 
 ---
 
@@ -3466,9 +3545,9 @@ Recommended key model:
 
 ```text
 project
-  production publishable key
-  staging publishable key
-  development publishable key
+  production project key
+  staging project key
+  development project key
 ```
 
 Retention and rate limits may differ by environment.
@@ -4467,7 +4546,8 @@ These should be treated as hard engineering rules.
 7. Stripe is never the only copy of usage calculations.
 8. Published feature/config versions are immutable.
 9. Webhook delivery is at least once and carries a stable event ID.
-10. Publishable SDK keys are assumed discoverable by attackers.
+10. Project keys are assumed discoverable by attackers, and no key is stored in a form
+    that could be presented as a credential.
 11. Analytics failures must not break feature-flag control-plane CRUD.
 12. Valkey loss must not cause permanent data loss.
 13. A failed archival/retention job must be retryable and auditable.

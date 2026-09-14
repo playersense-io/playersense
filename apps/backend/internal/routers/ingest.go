@@ -25,8 +25,11 @@ func Ingest() *muzak.Router {
 		muzak.Status(http.StatusAccepted),
 
 		// The tenant is resolved from the Authorization header before binding, so an
-		// unauthenticated caller gets a 401 rather than a map of the schema.
-		muzak.Needs(core.ResolveTenant),
+		// unauthenticated caller gets a 401 rather than a map of the schema. It insists
+		// on a project key: a reporting or server credential reaching this endpoint is a
+		// misconfiguration, and accepting it would widen what a leaked analytics key can
+		// do (§52).
+		muzak.Needs(core.ResolveProjectKey),
 
 		// A batch is larger than a control-plane document and smaller than an upload.
 		// §19.1 wants this bounded per project; this is the ceiling.

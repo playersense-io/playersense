@@ -29,9 +29,9 @@ type APIKey struct {
 	// class=none
 	Kind apikey.Kind `json:"kind,omitempty"`
 	// class=none
-	Prefix string `json:"prefix,omitempty"`
+	PublicID string `json:"public_id,omitempty"`
 	// class=none
-	Hash []byte `json:"-"`
+	SecretHash string `json:"-"`
 	// class=none
 	Name string `json:"name,omitempty"`
 	// class=none
@@ -71,11 +71,9 @@ func (*APIKey) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case apikey.FieldHash:
-			values[i] = new([]byte)
 		case apikey.FieldID, apikey.FieldEnvironmentID:
 			values[i] = new(sql.NullInt64)
-		case apikey.FieldKind, apikey.FieldPrefix, apikey.FieldName:
+		case apikey.FieldKind, apikey.FieldPublicID, apikey.FieldSecretHash, apikey.FieldName:
 			values[i] = new(sql.NullString)
 		case apikey.FieldCreatedAt, apikey.FieldUpdatedAt, apikey.FieldLastUsedAt, apikey.FieldRevokedAt:
 			values[i] = new(sql.NullTime)
@@ -126,17 +124,17 @@ func (_m *APIKey) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.Kind = apikey.Kind(value.String)
 			}
-		case apikey.FieldPrefix:
+		case apikey.FieldPublicID:
 			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field prefix", values[i])
+				return fmt.Errorf("unexpected type %T for field public_id", values[i])
 			} else if value.Valid {
-				_m.Prefix = value.String
+				_m.PublicID = value.String
 			}
-		case apikey.FieldHash:
-			if value, ok := values[i].(*[]byte); !ok {
-				return fmt.Errorf("unexpected type %T for field hash", values[i])
-			} else if value != nil {
-				_m.Hash = *value
+		case apikey.FieldSecretHash:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field secret_hash", values[i])
+			} else if value.Valid {
+				_m.SecretHash = value.String
 			}
 		case apikey.FieldName:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -217,10 +215,10 @@ func (_m *APIKey) String() string {
 	builder.WriteString("kind=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Kind))
 	builder.WriteString(", ")
-	builder.WriteString("prefix=")
-	builder.WriteString(_m.Prefix)
+	builder.WriteString("public_id=")
+	builder.WriteString(_m.PublicID)
 	builder.WriteString(", ")
-	builder.WriteString("hash=<sensitive>")
+	builder.WriteString("secret_hash=<sensitive>")
 	builder.WriteString(", ")
 	builder.WriteString("name=")
 	builder.WriteString(_m.Name)

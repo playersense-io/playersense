@@ -126,8 +126,8 @@ func (in *ProjectParams) Validate(v *muzak.Validation) {
 // APIKeyOut describes a key without disclosing it.
 type APIKeyOut struct {
 	ID          uuid.UUID  `json:"id"`
-	Kind        string     `json:"kind" doc:"publishable or secret"`
-	Prefix      string     `json:"prefix" doc:"The displayable head of the key"`
+	Kind        string     `json:"kind" doc:"project, reporting or server"`
+	PublicID    string     `json:"public_id" doc:"The public half of the key; not a secret"`
 	Name        string     `json:"name,omitzero"`
 	Environment string     `json:"environment" doc:"Which environment the key is scoped to"`
 	CreatedAt   time.Time  `json:"created_at"`
@@ -144,9 +144,9 @@ type APIKeyListOut struct {
 type APIKeyCreatedOut struct {
 	APIKeyOut
 
-	// Secret is the full key. It is shown once because only its hash is stored, and a
-	// key readable from the database is a key readable by anyone who reaches the
-	// database (§53).
+	// Secret is the full `<public>:<private>` credential. It is shown once because only
+	// an Argon2id digest of the private half is stored, so there is no path by which it
+	// could be shown again (§53).
 	Secret string `json:"secret" doc:"The full key. Shown once and never again"`
 }
 
@@ -155,7 +155,7 @@ type CreateAPIKeyIn struct {
 	OrgSlug     string `path:"org"`
 	ProjectSlug string `path:"project"`
 
-	Kind        string `json:"kind" doc:"publishable for a game binary, secret for server-to-server"`
+	Kind        string `json:"kind" doc:"project for a game binary, reporting for analytics reads, server for server-to-server"`
 	Environment string `json:"environment" doc:"development, staging or production"`
 	Name        string `json:"name,omitzero" doc:"A label, so a dashboard row is identifiable"`
 }
@@ -163,7 +163,7 @@ type CreateAPIKeyIn struct {
 func (in *CreateAPIKeyIn) Validate(v *muzak.Validation) {
 	v.String(&in.OrgSlug).Trim().Lower().Required().MaxLen(64)
 	v.String(&in.ProjectSlug).Trim().Lower().Required().MaxLen(64)
-	v.String(&in.Kind).Trim().Lower().Required().OneOf("publishable", "secret")
+	v.String(&in.Kind).Trim().Lower().Required().OneOf("project", "reporting", "server")
 	v.String(&in.Environment).Trim().Lower().Required().OneOf("development", "staging", "production")
 	v.String(&in.Name).Trim().MaxLen(120)
 }

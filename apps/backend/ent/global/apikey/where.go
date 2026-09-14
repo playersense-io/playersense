@@ -71,14 +71,14 @@ func UpdatedAt(v time.Time) predicate.APIKey {
 	return predicate.APIKey(sql.FieldEQ(FieldUpdatedAt, v))
 }
 
-// Prefix applies equality check predicate on the "prefix" field. It's identical to PrefixEQ.
-func Prefix(v string) predicate.APIKey {
-	return predicate.APIKey(sql.FieldEQ(FieldPrefix, v))
+// PublicID applies equality check predicate on the "public_id" field. It's identical to PublicIDEQ.
+func PublicID(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldEQ(FieldPublicID, v))
 }
 
-// Hash applies equality check predicate on the "hash" field. It's identical to HashEQ.
-func Hash(v []byte) predicate.APIKey {
-	return predicate.APIKey(sql.FieldEQ(FieldHash, v))
+// SecretHash applies equality check predicate on the "secret_hash" field. It's identical to SecretHashEQ.
+func SecretHash(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldEQ(FieldSecretHash, v))
 }
 
 // Name applies equality check predicate on the "name" field. It's identical to NameEQ.
@@ -241,109 +241,134 @@ func KindNotIn(vs ...Kind) predicate.APIKey {
 	return predicate.APIKey(sql.FieldNotIn(FieldKind, vs...))
 }
 
-// PrefixEQ applies the EQ predicate on the "prefix" field.
-func PrefixEQ(v string) predicate.APIKey {
-	return predicate.APIKey(sql.FieldEQ(FieldPrefix, v))
+// PublicIDEQ applies the EQ predicate on the "public_id" field.
+func PublicIDEQ(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldEQ(FieldPublicID, v))
 }
 
-// PrefixNEQ applies the NEQ predicate on the "prefix" field.
-func PrefixNEQ(v string) predicate.APIKey {
-	return predicate.APIKey(sql.FieldNEQ(FieldPrefix, v))
+// PublicIDNEQ applies the NEQ predicate on the "public_id" field.
+func PublicIDNEQ(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldNEQ(FieldPublicID, v))
 }
 
-// PrefixIn applies the In predicate on the "prefix" field.
-func PrefixIn(vs ...string) predicate.APIKey {
-	return predicate.APIKey(sql.FieldIn(FieldPrefix, vs...))
+// PublicIDIn applies the In predicate on the "public_id" field.
+func PublicIDIn(vs ...string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldIn(FieldPublicID, vs...))
 }
 
-// PrefixNotIn applies the NotIn predicate on the "prefix" field.
-func PrefixNotIn(vs ...string) predicate.APIKey {
-	return predicate.APIKey(sql.FieldNotIn(FieldPrefix, vs...))
+// PublicIDNotIn applies the NotIn predicate on the "public_id" field.
+func PublicIDNotIn(vs ...string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldNotIn(FieldPublicID, vs...))
 }
 
-// PrefixGT applies the GT predicate on the "prefix" field.
-func PrefixGT(v string) predicate.APIKey {
-	return predicate.APIKey(sql.FieldGT(FieldPrefix, v))
+// PublicIDGT applies the GT predicate on the "public_id" field.
+func PublicIDGT(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldGT(FieldPublicID, v))
 }
 
-// PrefixGTE applies the GTE predicate on the "prefix" field.
-func PrefixGTE(v string) predicate.APIKey {
-	return predicate.APIKey(sql.FieldGTE(FieldPrefix, v))
+// PublicIDGTE applies the GTE predicate on the "public_id" field.
+func PublicIDGTE(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldGTE(FieldPublicID, v))
 }
 
-// PrefixLT applies the LT predicate on the "prefix" field.
-func PrefixLT(v string) predicate.APIKey {
-	return predicate.APIKey(sql.FieldLT(FieldPrefix, v))
+// PublicIDLT applies the LT predicate on the "public_id" field.
+func PublicIDLT(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldLT(FieldPublicID, v))
 }
 
-// PrefixLTE applies the LTE predicate on the "prefix" field.
-func PrefixLTE(v string) predicate.APIKey {
-	return predicate.APIKey(sql.FieldLTE(FieldPrefix, v))
+// PublicIDLTE applies the LTE predicate on the "public_id" field.
+func PublicIDLTE(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldLTE(FieldPublicID, v))
 }
 
-// PrefixContains applies the Contains predicate on the "prefix" field.
-func PrefixContains(v string) predicate.APIKey {
-	return predicate.APIKey(sql.FieldContains(FieldPrefix, v))
+// PublicIDContains applies the Contains predicate on the "public_id" field.
+func PublicIDContains(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldContains(FieldPublicID, v))
 }
 
-// PrefixHasPrefix applies the HasPrefix predicate on the "prefix" field.
-func PrefixHasPrefix(v string) predicate.APIKey {
-	return predicate.APIKey(sql.FieldHasPrefix(FieldPrefix, v))
+// PublicIDHasPrefix applies the HasPrefix predicate on the "public_id" field.
+func PublicIDHasPrefix(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldHasPrefix(FieldPublicID, v))
 }
 
-// PrefixHasSuffix applies the HasSuffix predicate on the "prefix" field.
-func PrefixHasSuffix(v string) predicate.APIKey {
-	return predicate.APIKey(sql.FieldHasSuffix(FieldPrefix, v))
+// PublicIDHasSuffix applies the HasSuffix predicate on the "public_id" field.
+func PublicIDHasSuffix(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldHasSuffix(FieldPublicID, v))
 }
 
-// PrefixEqualFold applies the EqualFold predicate on the "prefix" field.
-func PrefixEqualFold(v string) predicate.APIKey {
-	return predicate.APIKey(sql.FieldEqualFold(FieldPrefix, v))
+// PublicIDEqualFold applies the EqualFold predicate on the "public_id" field.
+func PublicIDEqualFold(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldEqualFold(FieldPublicID, v))
 }
 
-// PrefixContainsFold applies the ContainsFold predicate on the "prefix" field.
-func PrefixContainsFold(v string) predicate.APIKey {
-	return predicate.APIKey(sql.FieldContainsFold(FieldPrefix, v))
+// PublicIDContainsFold applies the ContainsFold predicate on the "public_id" field.
+func PublicIDContainsFold(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldContainsFold(FieldPublicID, v))
 }
 
-// HashEQ applies the EQ predicate on the "hash" field.
-func HashEQ(v []byte) predicate.APIKey {
-	return predicate.APIKey(sql.FieldEQ(FieldHash, v))
+// SecretHashEQ applies the EQ predicate on the "secret_hash" field.
+func SecretHashEQ(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldEQ(FieldSecretHash, v))
 }
 
-// HashNEQ applies the NEQ predicate on the "hash" field.
-func HashNEQ(v []byte) predicate.APIKey {
-	return predicate.APIKey(sql.FieldNEQ(FieldHash, v))
+// SecretHashNEQ applies the NEQ predicate on the "secret_hash" field.
+func SecretHashNEQ(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldNEQ(FieldSecretHash, v))
 }
 
-// HashIn applies the In predicate on the "hash" field.
-func HashIn(vs ...[]byte) predicate.APIKey {
-	return predicate.APIKey(sql.FieldIn(FieldHash, vs...))
+// SecretHashIn applies the In predicate on the "secret_hash" field.
+func SecretHashIn(vs ...string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldIn(FieldSecretHash, vs...))
 }
 
-// HashNotIn applies the NotIn predicate on the "hash" field.
-func HashNotIn(vs ...[]byte) predicate.APIKey {
-	return predicate.APIKey(sql.FieldNotIn(FieldHash, vs...))
+// SecretHashNotIn applies the NotIn predicate on the "secret_hash" field.
+func SecretHashNotIn(vs ...string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldNotIn(FieldSecretHash, vs...))
 }
 
-// HashGT applies the GT predicate on the "hash" field.
-func HashGT(v []byte) predicate.APIKey {
-	return predicate.APIKey(sql.FieldGT(FieldHash, v))
+// SecretHashGT applies the GT predicate on the "secret_hash" field.
+func SecretHashGT(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldGT(FieldSecretHash, v))
 }
 
-// HashGTE applies the GTE predicate on the "hash" field.
-func HashGTE(v []byte) predicate.APIKey {
-	return predicate.APIKey(sql.FieldGTE(FieldHash, v))
+// SecretHashGTE applies the GTE predicate on the "secret_hash" field.
+func SecretHashGTE(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldGTE(FieldSecretHash, v))
 }
 
-// HashLT applies the LT predicate on the "hash" field.
-func HashLT(v []byte) predicate.APIKey {
-	return predicate.APIKey(sql.FieldLT(FieldHash, v))
+// SecretHashLT applies the LT predicate on the "secret_hash" field.
+func SecretHashLT(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldLT(FieldSecretHash, v))
 }
 
-// HashLTE applies the LTE predicate on the "hash" field.
-func HashLTE(v []byte) predicate.APIKey {
-	return predicate.APIKey(sql.FieldLTE(FieldHash, v))
+// SecretHashLTE applies the LTE predicate on the "secret_hash" field.
+func SecretHashLTE(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldLTE(FieldSecretHash, v))
+}
+
+// SecretHashContains applies the Contains predicate on the "secret_hash" field.
+func SecretHashContains(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldContains(FieldSecretHash, v))
+}
+
+// SecretHashHasPrefix applies the HasPrefix predicate on the "secret_hash" field.
+func SecretHashHasPrefix(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldHasPrefix(FieldSecretHash, v))
+}
+
+// SecretHashHasSuffix applies the HasSuffix predicate on the "secret_hash" field.
+func SecretHashHasSuffix(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldHasSuffix(FieldSecretHash, v))
+}
+
+// SecretHashEqualFold applies the EqualFold predicate on the "secret_hash" field.
+func SecretHashEqualFold(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldEqualFold(FieldSecretHash, v))
+}
+
+// SecretHashContainsFold applies the ContainsFold predicate on the "secret_hash" field.
+func SecretHashContainsFold(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldContainsFold(FieldSecretHash, v))
 }
 
 // NameEQ applies the EQ predicate on the "name" field.

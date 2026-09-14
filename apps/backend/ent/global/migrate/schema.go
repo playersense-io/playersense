@@ -14,9 +14,9 @@ var (
 		{Name: "uid", Type: field.TypeUUID, Unique: true, Comment: "class=none"},
 		{Name: "created_at", Type: field.TypeTime, Comment: "class=none"},
 		{Name: "updated_at", Type: field.TypeTime, Comment: "class=none"},
-		{Name: "kind", Type: field.TypeEnum, Comment: "class=none", Enums: []string{"publishable", "secret"}},
-		{Name: "prefix", Type: field.TypeString, Size: 32, Comment: "class=none"},
-		{Name: "hash", Type: field.TypeBytes, Size: 32, Comment: "class=none"},
+		{Name: "kind", Type: field.TypeEnum, Comment: "class=none", Enums: []string{"project", "reporting", "server"}},
+		{Name: "public_id", Type: field.TypeString, Unique: true, Size: 64, Comment: "class=none"},
+		{Name: "secret_hash", Type: field.TypeString, Size: 255, Comment: "class=none"},
 		{Name: "name", Type: field.TypeString, Nullable: true, Size: 120, Comment: "class=none"},
 		{Name: "last_used_at", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
 		{Name: "revoked_at", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
@@ -37,13 +37,8 @@ var (
 		},
 		Indexes: []*schema.Index{
 			{
-				Name:    "apikey_hash",
+				Name:    "apikey_public_id",
 				Unique:  true,
-				Columns: []*schema.Column{APIKeysColumns[6]},
-			},
-			{
-				Name:    "apikey_prefix",
-				Unique:  false,
 				Columns: []*schema.Column{APIKeysColumns[5]},
 			},
 		},

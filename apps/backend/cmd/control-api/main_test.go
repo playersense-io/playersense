@@ -28,6 +28,9 @@ func testSettings(t *testing.T) config.Settings {
 	settings.Addr = ":0"
 	// A passing run should print nothing.
 	settings.LogFormat = "none"
+	// Counters are shared through Valkey now, so one suite would spend the next one's
+	// budget. The limiter has a test of its own.
+	settings.RateLimitDisabled = true
 	return settings
 }
 
@@ -187,7 +190,7 @@ func TestAPIKeyIsDisclosedOnce(t *testing.T) {
 
 	minted := testclient.Decoded[keyCreatedOut](client.Post(base,
 		testclient.JSON(map[string]string{
-			"kind": "publishable", "environment": "production", "name": "unity",
+			"kind": "project", "environment": "production", "name": "unity",
 		})))
 	if minted.Secret == "" {
 		t.Fatal("creating a key must return it once")

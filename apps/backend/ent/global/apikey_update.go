@@ -35,6 +35,20 @@ func (_u *APIKeyUpdate) SetUpdatedAt(v time.Time) *APIKeyUpdate {
 	return _u
 }
 
+// SetSecretHash sets the "secret_hash" field.
+func (_u *APIKeyUpdate) SetSecretHash(v string) *APIKeyUpdate {
+	_u.mutation.SetSecretHash(v)
+	return _u
+}
+
+// SetNillableSecretHash sets the "secret_hash" field if the given value is not nil.
+func (_u *APIKeyUpdate) SetNillableSecretHash(v *string) *APIKeyUpdate {
+	if v != nil {
+		_u.SetSecretHash(*v)
+	}
+	return _u
+}
+
 // SetName sets the "name" field.
 func (_u *APIKeyUpdate) SetName(v string) *APIKeyUpdate {
 	_u.mutation.SetName(v)
@@ -163,6 +177,11 @@ func (_u *APIKeyUpdate) defaults() {
 
 // check runs all checks and user-defined validators on the builder.
 func (_u *APIKeyUpdate) check() error {
+	if v, ok := _u.mutation.SecretHash(); ok {
+		if err := apikey.SecretHashValidator(v); err != nil {
+			return &ValidationError{Name: "secret_hash", err: fmt.Errorf(`global: validator failed for field "APIKey.secret_hash": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Name(); ok {
 		if err := apikey.NameValidator(v); err != nil {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`global: validator failed for field "APIKey.name": %w`, err)}
@@ -188,6 +207,9 @@ func (_u *APIKeyUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(apikey.FieldUpdatedAt, field.TypeTime, value)
+	}
+	if value, ok := _u.mutation.SecretHash(); ok {
+		_spec.SetField(apikey.FieldSecretHash, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Name(); ok {
 		_spec.SetField(apikey.FieldName, field.TypeString, value)
@@ -259,6 +281,20 @@ type APIKeyUpdateOne struct {
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *APIKeyUpdateOne) SetUpdatedAt(v time.Time) *APIKeyUpdateOne {
 	_u.mutation.SetUpdatedAt(v)
+	return _u
+}
+
+// SetSecretHash sets the "secret_hash" field.
+func (_u *APIKeyUpdateOne) SetSecretHash(v string) *APIKeyUpdateOne {
+	_u.mutation.SetSecretHash(v)
+	return _u
+}
+
+// SetNillableSecretHash sets the "secret_hash" field if the given value is not nil.
+func (_u *APIKeyUpdateOne) SetNillableSecretHash(v *string) *APIKeyUpdateOne {
+	if v != nil {
+		_u.SetSecretHash(*v)
+	}
 	return _u
 }
 
@@ -403,6 +439,11 @@ func (_u *APIKeyUpdateOne) defaults() {
 
 // check runs all checks and user-defined validators on the builder.
 func (_u *APIKeyUpdateOne) check() error {
+	if v, ok := _u.mutation.SecretHash(); ok {
+		if err := apikey.SecretHashValidator(v); err != nil {
+			return &ValidationError{Name: "secret_hash", err: fmt.Errorf(`global: validator failed for field "APIKey.secret_hash": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Name(); ok {
 		if err := apikey.NameValidator(v); err != nil {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`global: validator failed for field "APIKey.name": %w`, err)}
@@ -445,6 +486,9 @@ func (_u *APIKeyUpdateOne) sqlSave(ctx context.Context) (_node *APIKey, err erro
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(apikey.FieldUpdatedAt, field.TypeTime, value)
+	}
+	if value, ok := _u.mutation.SecretHash(); ok {
+		_spec.SetField(apikey.FieldSecretHash, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Name(); ok {
 		_spec.SetField(apikey.FieldName, field.TypeString, value)

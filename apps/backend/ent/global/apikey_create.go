@@ -70,15 +70,15 @@ func (_c *APIKeyCreate) SetKind(v apikey.Kind) *APIKeyCreate {
 	return _c
 }
 
-// SetPrefix sets the "prefix" field.
-func (_c *APIKeyCreate) SetPrefix(v string) *APIKeyCreate {
-	_c.mutation.SetPrefix(v)
+// SetPublicID sets the "public_id" field.
+func (_c *APIKeyCreate) SetPublicID(v string) *APIKeyCreate {
+	_c.mutation.SetPublicID(v)
 	return _c
 }
 
-// SetHash sets the "hash" field.
-func (_c *APIKeyCreate) SetHash(v []byte) *APIKeyCreate {
-	_c.mutation.SetHash(v)
+// SetSecretHash sets the "secret_hash" field.
+func (_c *APIKeyCreate) SetSecretHash(v string) *APIKeyCreate {
+	_c.mutation.SetSecretHash(v)
 	return _c
 }
 
@@ -209,20 +209,20 @@ func (_c *APIKeyCreate) check() error {
 			return &ValidationError{Name: "kind", err: fmt.Errorf(`global: validator failed for field "APIKey.kind": %w`, err)}
 		}
 	}
-	if _, ok := _c.mutation.Prefix(); !ok {
-		return &ValidationError{Name: "prefix", err: errors.New(`global: missing required field "APIKey.prefix"`)}
+	if _, ok := _c.mutation.PublicID(); !ok {
+		return &ValidationError{Name: "public_id", err: errors.New(`global: missing required field "APIKey.public_id"`)}
 	}
-	if v, ok := _c.mutation.Prefix(); ok {
-		if err := apikey.PrefixValidator(v); err != nil {
-			return &ValidationError{Name: "prefix", err: fmt.Errorf(`global: validator failed for field "APIKey.prefix": %w`, err)}
+	if v, ok := _c.mutation.PublicID(); ok {
+		if err := apikey.PublicIDValidator(v); err != nil {
+			return &ValidationError{Name: "public_id", err: fmt.Errorf(`global: validator failed for field "APIKey.public_id": %w`, err)}
 		}
 	}
-	if _, ok := _c.mutation.Hash(); !ok {
-		return &ValidationError{Name: "hash", err: errors.New(`global: missing required field "APIKey.hash"`)}
+	if _, ok := _c.mutation.SecretHash(); !ok {
+		return &ValidationError{Name: "secret_hash", err: errors.New(`global: missing required field "APIKey.secret_hash"`)}
 	}
-	if v, ok := _c.mutation.Hash(); ok {
-		if err := apikey.HashValidator(v); err != nil {
-			return &ValidationError{Name: "hash", err: fmt.Errorf(`global: validator failed for field "APIKey.hash": %w`, err)}
+	if v, ok := _c.mutation.SecretHash(); ok {
+		if err := apikey.SecretHashValidator(v); err != nil {
+			return &ValidationError{Name: "secret_hash", err: fmt.Errorf(`global: validator failed for field "APIKey.secret_hash": %w`, err)}
 		}
 	}
 	if v, ok := _c.mutation.Name(); ok {
@@ -284,13 +284,13 @@ func (_c *APIKeyCreate) createSpec() (*APIKey, *sqlgraph.CreateSpec) {
 		_spec.SetField(apikey.FieldKind, field.TypeEnum, value)
 		_node.Kind = value
 	}
-	if value, ok := _c.mutation.Prefix(); ok {
-		_spec.SetField(apikey.FieldPrefix, field.TypeString, value)
-		_node.Prefix = value
+	if value, ok := _c.mutation.PublicID(); ok {
+		_spec.SetField(apikey.FieldPublicID, field.TypeString, value)
+		_node.PublicID = value
 	}
-	if value, ok := _c.mutation.Hash(); ok {
-		_spec.SetField(apikey.FieldHash, field.TypeBytes, value)
-		_node.Hash = value
+	if value, ok := _c.mutation.SecretHash(); ok {
+		_spec.SetField(apikey.FieldSecretHash, field.TypeString, value)
+		_node.SecretHash = value
 	}
 	if value, ok := _c.mutation.Name(); ok {
 		_spec.SetField(apikey.FieldName, field.TypeString, value)
