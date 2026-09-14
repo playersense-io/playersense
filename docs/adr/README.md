@@ -44,6 +44,7 @@ a record is never updated to match a drifting document, it is superseded by a ne
 | [0015](0015-rate-limiting-in-valkey.md) | Rate-limit counters live in Valkey, and the limiter fails closed | Accepted |
 | [0016](0016-non-default-ports.md) | The local stack publishes no default port | Accepted |
 | [0017](0017-aggregate-disclosure-threshold.md) | A thin aggregate is suppressed at query time, not at write time | Accepted |
+| [0018](0018-writer-acknowledgement-and-deduplication.md) | The writer acknowledges after the insert, and splits deterministically | Accepted |
 
 ## Template
 

@@ -30,17 +30,18 @@ machinery does not.
 | **Actor tombstone** | Stops the data being *used* immediately, while removal takes hours |
 | **Purge job** | Across `events_raw`, `player_lifetime`, `player_activity_daily`, the cell tier's purchases, and the archive |
 | **Export job** | Access and portability, actor-scoped |
-| **Project tombstone** honoured by the writer | A queue can hold messages for hours; a batch for a deleted project must not be written |
+| **Project tombstone written on deletion** | The writer already honours one and drops the batch; nothing writes it yet, so today a deleted project's queued batches are removed by the purge rather than skipped |
 | **Restore-and-redact procedure** for backups | Written procedure plus the job that reapplies pending deletions |
 
 ## Engineering — storage lifecycle
 
 | Item | Notes |
 |---|---|
-| **analytics-writer** | Consumes the queue, stamps cohort keys, inserts into ClickHouse. Next to be built |
-| **Insert deduplication** | `insert_deduplication_token` from the message's dedup key — the thing that makes at-least-once delivery land once |
 | **archive-writer** and the per-cell bucket | The cold copy, and the manifests breach scoping depends on |
 | **Archive-before-expiry ordering** | Appendix C.6. Local data must not be expired before archive durability is confirmed |
+
+`analytics-writer` and its insert deduplication are **built** — see
+[09](09-controls-map.md).
 
 ## Engineering — disclosure and reporting
 

@@ -102,7 +102,10 @@ migrate: 1 invariant violation(s)
 | A `202` means durable queueing | Publish fsyncs before returning; a failure is a 503 | `apps/backend/internal/eventbus/local.go` | `TestAcceptedBatchReachesTheBus` | **Built** |
 | One bad event does not fail a batch | Per-event validation with reasons | `apps/backend/internal/ingest/normalize.go` | `TestOneBadEventDoesNotFailTheBatch` | **Built** |
 | A wrong device clock cannot poison a cohort | Timestamps clamped, original preserved | `internal/ingest/normalize.go` | `TestClientClockIsClamped` | **Built** |
-| A redelivered batch lands once | `insert_deduplication_token` from the message's dedup key | — | — | *Designed* |
+| A redelivered batch lands once | `insert_deduplication_token` from the message's dedup key, split deterministically | `apps/backend/internal/writer/writer.go` | `TestARedeliveredBatchLandsOnce` | **Built** |
+| Nothing is acknowledged before it is durable | The handler returns nil only after the insert block is sent; the bus advances only on nil | `apps/backend/internal/writer/writer.go`, `internal/eventbus/local.go` | `TestABatchTravelsFromTheGatewayToClickHouse` | **Built** |
+| Losing Valkey costs accuracy, not rows | The writer stamps null cohort keys and the nightly derivation backfills | `apps/backend/internal/writer/device.go` | `TestRowsAreStoredWithValkeyDown` | **Built** |
+| One cell's data cannot reach another's ClickHouse | The writer drops a message whose cell is not its own | `apps/backend/internal/writer/writer.go` | `TestAMessageFromAnotherCellIsNotStored` | **Built** |
 | A cohort query never joins | Cohort key and sticky dimensions stamped at write time | `db/clickhouse/migrations/00003_player_activity_daily.sql` | `cmd/cohortcheck` | **Built** |
 | A rebuild cannot destroy older cells | Activity-month partitioning, whole-month rebuilds | `apps/backend/internal/cohort/derive.go` | `cmd/cohortcheck` | **Built** |
 
@@ -114,7 +117,9 @@ migrate: 1 invariant violation(s)
 | Erasure is tracked to completion | `data_deletion_requests` with a status machine, in the cell tier | `apps/backend/ent/schema/regionaltier/regional.go` | — | **Built (schema)** |
 | Erasure is executed | Tombstone, then asynchronous purge | — | — | *Designed* |
 | Export and portability | Actor-scoped export job | — | — | *Designed* |
-| A batch for a deleted project is not written | Project tombstone in the cell's Valkey | — | — | *Designed* |
+| A batch for a deleted project is not written | The writer reads a project tombstone from the cell's Valkey and drops the batch | `apps/backend/internal/writer/writer.go` | `TestABatchForADeletedProjectIsDropped` | **Built** |
+| …and the tombstone is written when a project is deleted | Control plane, on deletion | — | — | *Designed* |
+| A cache outage cannot resurrect deleted data | When Valkey cannot answer the batch **is** written and the purge removes it — the purge is the guarantee, the tombstone a fast path | `internal/writer/writer.go` | — | **Built** |
 | Restored backups have deletions reapplied | Operational procedure | — | — | *Designed* |
 
 ## Disclosure
