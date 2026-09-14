@@ -35,3 +35,13 @@ infra/stage1/     Local compose stack
 ```
 
 Requires Go 1.27 (Muzak uses generic methods and `encoding/json/v2`).
+
+## control-api
+
+```bash
+go run ./apps/backend/cmd/control-api        # listens on :21080
+go test ./apps/backend/cmd/control-api -race
+```
+
+`GET /openapi.json` describes it. Everything under `/v1` needs
+`Authorization: Bearer $CONTROL_API_ADMIN_TOKEN`; `/healthz` does not.

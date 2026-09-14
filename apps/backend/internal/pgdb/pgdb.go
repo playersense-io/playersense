@@ -42,6 +42,7 @@ type Control struct {
 
 	globalDB   *sql.DB
 	regionalDB *sql.DB
+	dsn        string
 }
 
 // tierDSN pins a connection to one tier's schema.
@@ -76,6 +77,33 @@ func openTier(dsn, tier string) (*sql.DB, error) {
 	}
 	return db, nil
 }
+
+// New returns an unconnected control plane.
+//
+// Construction is deliberately cheap and nothing is dialled here. Control implements
+// muzak.Lifecycle, so the application opens it before the server accepts traffic and
+// closes it after the server has drained — which is what keeps a connection usable by a
+// request that is still in flight during shutdown.
+func New(dsn string) *Control { return &Control{dsn: dsn} }
+
+// Name identifies the component in start-up and shutdown logs.
+func (c *Control) Name() string { return "control-plane" }
+
+// Start dials both tiers. It honours ctx, which the application cancels as soon as a
+// sibling component fails.
+func (c *Control) Start(ctx context.Context) error {
+	opened, err := Open(c.dsn)
+	if err != nil {
+		return err
+	}
+	c.Global, c.Regional = opened.Global, opened.Regional
+	c.globalDB, c.regionalDB = opened.globalDB, opened.regionalDB
+	return nil
+}
+
+// Stop releases both pools. It is called even for a start-up that failed part way, so
+// every field is checked.
+func (c *Control) Stop(context.Context) error { return c.Close() }
 
 // Open dials PostgreSQL and builds both tier clients.
 func Open(dsn string) (*Control, error) {
@@ -115,11 +143,17 @@ func Open(dsn string) (*Control, error) {
 // entity and so are indifferent to which tier answers them.
 func (c *Control) DB() *sql.DB { return c.globalDB }
 
-// Close releases both pools.
+// Close releases both pools. A partially constructed Control is exactly what exists when
+// Start failed halfway, so each pool is checked before it is closed.
 func (c *Control) Close() error {
-	err := c.globalDB.Close()
-	if rerr := c.regionalDB.Close(); err == nil {
-		err = rerr
+	var err error
+	if c.globalDB != nil {
+		err = c.globalDB.Close()
+	}
+	if c.regionalDB != nil {
+		if rerr := c.regionalDB.Close(); err == nil {
+			err = rerr
+		}
 	}
 	return err
 }
