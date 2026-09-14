@@ -77,6 +77,7 @@ func projectOut(proj *global.Project, home *global.Cell, envs []*global.Environm
 		out.Cell = home.Slug
 		out.Region = home.Region
 		out.IngestURL = home.IngestURL
+		out.QueryURL = home.QueryURL
 	}
 	for _, env := range envs {
 		out.Environments = append(out.Environments, schemas.EnvironmentOut{

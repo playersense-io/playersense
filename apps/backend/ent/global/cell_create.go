@@ -96,6 +96,20 @@ func (_c *CellCreate) SetIngestURL(v string) *CellCreate {
 	return _c
 }
 
+// SetQueryURL sets the "query_url" field.
+func (_c *CellCreate) SetQueryURL(v string) *CellCreate {
+	_c.mutation.SetQueryURL(v)
+	return _c
+}
+
+// SetNillableQueryURL sets the "query_url" field if the given value is not nil.
+func (_c *CellCreate) SetNillableQueryURL(v *string) *CellCreate {
+	if v != nil {
+		_c.SetQueryURL(*v)
+	}
+	return _c
+}
+
 // SetLocation sets the "location" field.
 func (_c *CellCreate) SetLocation(v string) *CellCreate {
 	_c.mutation.SetLocation(v)
@@ -227,6 +241,11 @@ func (_c *CellCreate) check() error {
 			return &ValidationError{Name: "ingest_url", err: fmt.Errorf(`global: validator failed for field "Cell.ingest_url": %w`, err)}
 		}
 	}
+	if v, ok := _c.mutation.QueryURL(); ok {
+		if err := cell.QueryURLValidator(v); err != nil {
+			return &ValidationError{Name: "query_url", err: fmt.Errorf(`global: validator failed for field "Cell.query_url": %w`, err)}
+		}
+	}
 	if v, ok := _c.mutation.Location(); ok {
 		if err := cell.LocationValidator(v); err != nil {
 			return &ValidationError{Name: "location", err: fmt.Errorf(`global: validator failed for field "Cell.location": %w`, err)}
@@ -291,6 +310,10 @@ func (_c *CellCreate) createSpec() (*Cell, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.IngestURL(); ok {
 		_spec.SetField(cell.FieldIngestURL, field.TypeString, value)
 		_node.IngestURL = value
+	}
+	if value, ok := _c.mutation.QueryURL(); ok {
+		_spec.SetField(cell.FieldQueryURL, field.TypeString, value)
+		_node.QueryURL = value
 	}
 	if value, ok := _c.mutation.Location(); ok {
 		_spec.SetField(cell.FieldLocation, field.TypeString, value)

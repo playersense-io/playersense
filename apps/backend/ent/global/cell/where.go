@@ -86,6 +86,11 @@ func IngestURL(v string) predicate.Cell {
 	return predicate.Cell(sql.FieldEQ(FieldIngestURL, v))
 }
 
+// QueryURL applies equality check predicate on the "query_url" field. It's identical to QueryURLEQ.
+func QueryURL(v string) predicate.Cell {
+	return predicate.Cell(sql.FieldEQ(FieldQueryURL, v))
+}
+
 // Location applies equality check predicate on the "location" field. It's identical to LocationEQ.
 func Location(v string) predicate.Cell {
 	return predicate.Cell(sql.FieldEQ(FieldLocation, v))
@@ -424,6 +429,81 @@ func IngestURLEqualFold(v string) predicate.Cell {
 // IngestURLContainsFold applies the ContainsFold predicate on the "ingest_url" field.
 func IngestURLContainsFold(v string) predicate.Cell {
 	return predicate.Cell(sql.FieldContainsFold(FieldIngestURL, v))
+}
+
+// QueryURLEQ applies the EQ predicate on the "query_url" field.
+func QueryURLEQ(v string) predicate.Cell {
+	return predicate.Cell(sql.FieldEQ(FieldQueryURL, v))
+}
+
+// QueryURLNEQ applies the NEQ predicate on the "query_url" field.
+func QueryURLNEQ(v string) predicate.Cell {
+	return predicate.Cell(sql.FieldNEQ(FieldQueryURL, v))
+}
+
+// QueryURLIn applies the In predicate on the "query_url" field.
+func QueryURLIn(vs ...string) predicate.Cell {
+	return predicate.Cell(sql.FieldIn(FieldQueryURL, vs...))
+}
+
+// QueryURLNotIn applies the NotIn predicate on the "query_url" field.
+func QueryURLNotIn(vs ...string) predicate.Cell {
+	return predicate.Cell(sql.FieldNotIn(FieldQueryURL, vs...))
+}
+
+// QueryURLGT applies the GT predicate on the "query_url" field.
+func QueryURLGT(v string) predicate.Cell {
+	return predicate.Cell(sql.FieldGT(FieldQueryURL, v))
+}
+
+// QueryURLGTE applies the GTE predicate on the "query_url" field.
+func QueryURLGTE(v string) predicate.Cell {
+	return predicate.Cell(sql.FieldGTE(FieldQueryURL, v))
+}
+
+// QueryURLLT applies the LT predicate on the "query_url" field.
+func QueryURLLT(v string) predicate.Cell {
+	return predicate.Cell(sql.FieldLT(FieldQueryURL, v))
+}
+
+// QueryURLLTE applies the LTE predicate on the "query_url" field.
+func QueryURLLTE(v string) predicate.Cell {
+	return predicate.Cell(sql.FieldLTE(FieldQueryURL, v))
+}
+
+// QueryURLContains applies the Contains predicate on the "query_url" field.
+func QueryURLContains(v string) predicate.Cell {
+	return predicate.Cell(sql.FieldContains(FieldQueryURL, v))
+}
+
+// QueryURLHasPrefix applies the HasPrefix predicate on the "query_url" field.
+func QueryURLHasPrefix(v string) predicate.Cell {
+	return predicate.Cell(sql.FieldHasPrefix(FieldQueryURL, v))
+}
+
+// QueryURLHasSuffix applies the HasSuffix predicate on the "query_url" field.
+func QueryURLHasSuffix(v string) predicate.Cell {
+	return predicate.Cell(sql.FieldHasSuffix(FieldQueryURL, v))
+}
+
+// QueryURLIsNil applies the IsNil predicate on the "query_url" field.
+func QueryURLIsNil() predicate.Cell {
+	return predicate.Cell(sql.FieldIsNull(FieldQueryURL))
+}
+
+// QueryURLNotNil applies the NotNil predicate on the "query_url" field.
+func QueryURLNotNil() predicate.Cell {
+	return predicate.Cell(sql.FieldNotNull(FieldQueryURL))
+}
+
+// QueryURLEqualFold applies the EqualFold predicate on the "query_url" field.
+func QueryURLEqualFold(v string) predicate.Cell {
+	return predicate.Cell(sql.FieldEqualFold(FieldQueryURL, v))
+}
+
+// QueryURLContainsFold applies the ContainsFold predicate on the "query_url" field.
+func QueryURLContainsFold(v string) predicate.Cell {
+	return predicate.Cell(sql.FieldContainsFold(FieldQueryURL, v))
 }
 
 // LocationEQ applies the EQ predicate on the "location" field.

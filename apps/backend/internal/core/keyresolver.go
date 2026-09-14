@@ -40,6 +40,7 @@ type Tenant struct {
 	Cell      string `json:"cell"`
 	Region    string `json:"region"`
 	IngestURL string `json:"ingest_url"`
+	QueryURL  string `json:"query_url"`
 
 	KeyKind     string `json:"key_kind"`
 	KeyPublicID string `json:"key_public_id"`
@@ -308,6 +309,7 @@ func (r *KeyResolver) verify(ctx context.Context, publicID, private string) (*Te
 		Cell:      home.Slug,
 		Region:    home.Region,
 		IngestURL: home.IngestURL,
+		QueryURL:  home.QueryURL,
 
 		KeyKind:     string(key.Kind),
 		KeyPublicID: key.PublicID,

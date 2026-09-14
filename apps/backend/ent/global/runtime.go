@@ -152,8 +152,12 @@ func init() {
 			return nil
 		}
 	}()
+	// cellDescQueryURL is the schema descriptor for query_url field.
+	cellDescQueryURL := cellFields[4].Descriptor()
+	// cell.QueryURLValidator is a validator for the "query_url" field. It is called by the builders before save.
+	cell.QueryURLValidator = cellDescQueryURL.Validators[0].(func(string) error)
 	// cellDescLocation is the schema descriptor for location field.
-	cellDescLocation := cellFields[4].Descriptor()
+	cellDescLocation := cellFields[5].Descriptor()
 	// cell.LocationValidator is a validator for the "location" field. It is called by the builders before save.
 	cell.LocationValidator = cellDescLocation.Validators[0].(func(string) error)
 	environmentMixin := globaltier.Environment{}.Mixin()

@@ -988,6 +988,7 @@ type CellMutation struct {
 	region          *string
 	status          *cell.Status
 	ingest_url      *string
+	query_url       *string
 	location        *string
 	clearedFields   map[string]struct{}
 	projects        map[int]struct{}
@@ -1354,6 +1355,55 @@ func (m *CellMutation) ResetIngestURL() {
 	m.ingest_url = nil
 }
 
+// SetQueryURL sets the "query_url" field.
+func (m *CellMutation) SetQueryURL(s string) {
+	m.query_url = &s
+}
+
+// QueryURL returns the value of the "query_url" field in the mutation.
+func (m *CellMutation) QueryURL() (r string, exists bool) {
+	v := m.query_url
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldQueryURL returns the old "query_url" field's value of the Cell entity.
+// If the Cell object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CellMutation) OldQueryURL(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldQueryURL is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldQueryURL requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldQueryURL: %w", err)
+	}
+	return oldValue.QueryURL, nil
+}
+
+// ClearQueryURL clears the value of the "query_url" field.
+func (m *CellMutation) ClearQueryURL() {
+	m.query_url = nil
+	m.clearedFields[cell.FieldQueryURL] = struct{}{}
+}
+
+// QueryURLCleared returns if the "query_url" field was cleared in this mutation.
+func (m *CellMutation) QueryURLCleared() bool {
+	_, ok := m.clearedFields[cell.FieldQueryURL]
+	return ok
+}
+
+// ResetQueryURL resets all changes to the "query_url" field.
+func (m *CellMutation) ResetQueryURL() {
+	m.query_url = nil
+	delete(m.clearedFields, cell.FieldQueryURL)
+}
+
 // SetLocation sets the "location" field.
 func (m *CellMutation) SetLocation(s string) {
 	m.location = &s
@@ -1491,7 +1541,7 @@ func (m *CellMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *CellMutation) Fields() []string {
-	fields := make([]string, 0, 8)
+	fields := make([]string, 0, 9)
 	if m.uid != nil {
 		fields = append(fields, cell.FieldUID)
 	}
@@ -1512,6 +1562,9 @@ func (m *CellMutation) Fields() []string {
 	}
 	if m.ingest_url != nil {
 		fields = append(fields, cell.FieldIngestURL)
+	}
+	if m.query_url != nil {
+		fields = append(fields, cell.FieldQueryURL)
 	}
 	if m.location != nil {
 		fields = append(fields, cell.FieldLocation)
@@ -1538,6 +1591,8 @@ func (m *CellMutation) Field(name string) (ent.Value, bool) {
 		return m.Status()
 	case cell.FieldIngestURL:
 		return m.IngestURL()
+	case cell.FieldQueryURL:
+		return m.QueryURL()
 	case cell.FieldLocation:
 		return m.Location()
 	}
@@ -1563,6 +1618,8 @@ func (m *CellMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldStatus(ctx)
 	case cell.FieldIngestURL:
 		return m.OldIngestURL(ctx)
+	case cell.FieldQueryURL:
+		return m.OldQueryURL(ctx)
 	case cell.FieldLocation:
 		return m.OldLocation(ctx)
 	}
@@ -1623,6 +1680,13 @@ func (m *CellMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetIngestURL(v)
 		return nil
+	case cell.FieldQueryURL:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetQueryURL(v)
+		return nil
 	case cell.FieldLocation:
 		v, ok := value.(string)
 		if !ok {
@@ -1660,6 +1724,9 @@ func (m *CellMutation) AddField(name string, value ent.Value) error {
 // mutation.
 func (m *CellMutation) ClearedFields() []string {
 	var fields []string
+	if m.FieldCleared(cell.FieldQueryURL) {
+		fields = append(fields, cell.FieldQueryURL)
+	}
 	if m.FieldCleared(cell.FieldLocation) {
 		fields = append(fields, cell.FieldLocation)
 	}
@@ -1677,6 +1744,9 @@ func (m *CellMutation) FieldCleared(name string) bool {
 // error if the field is not defined in the schema.
 func (m *CellMutation) ClearField(name string) error {
 	switch name {
+	case cell.FieldQueryURL:
+		m.ClearQueryURL()
+		return nil
 	case cell.FieldLocation:
 		m.ClearLocation()
 		return nil
@@ -1708,6 +1778,9 @@ func (m *CellMutation) ResetField(name string) error {
 		return nil
 	case cell.FieldIngestURL:
 		m.ResetIngestURL()
+		return nil
+	case cell.FieldQueryURL:
+		m.ResetQueryURL()
 		return nil
 	case cell.FieldLocation:
 		m.ResetLocation()

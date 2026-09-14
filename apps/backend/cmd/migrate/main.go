@@ -227,14 +227,20 @@ func registerCell(ctx context.Context, g *pgdb.Global, settings config.Settings)
 					"a cell's region is immutable, because changing it would reclassify every row it already holds",
 				settings.Cell, existing.Region, settings.CellRegion)
 		}
-		if existing.IngestURL == settings.CellIngestURL {
+		// The endpoints are the one part of a registration that is meant to change: a cell
+		// keeps its slug and its region forever but can move behind a new hostname.
+		if existing.IngestURL == settings.CellIngestURL && existing.QueryURL == settings.CellQueryURL {
 			fmt.Printf("ok   cell %s already registered in region %s\n", settings.Cell, settings.CellRegion)
 			return nil
 		}
-		if _, err := existing.Update().SetIngestURL(settings.CellIngestURL).Save(ctx); err != nil {
+		if _, err := existing.Update().
+			SetIngestURL(settings.CellIngestURL).
+			SetQueryURL(settings.CellQueryURL).
+			Save(ctx); err != nil {
 			return fmt.Errorf("update cell %s: %w", settings.Cell, err)
 		}
-		fmt.Printf("ok   cell %s ingest URL is now %s\n", settings.Cell, settings.CellIngestURL)
+		fmt.Printf("ok   cell %s endpoints are now ingest=%s query=%s\n",
+			settings.Cell, settings.CellIngestURL, settings.CellQueryURL)
 		return nil
 
 	case global.IsNotFound(err):
@@ -242,6 +248,7 @@ func registerCell(ctx context.Context, g *pgdb.Global, settings config.Settings)
 			SetSlug(settings.Cell).
 			SetRegion(settings.CellRegion).
 			SetIngestURL(settings.CellIngestURL).
+			SetQueryURL(settings.CellQueryURL).
 			Save(ctx); err != nil {
 			return fmt.Errorf("register cell %s: %w", settings.Cell, err)
 		}

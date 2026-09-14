@@ -55,6 +55,17 @@ func (Cell) Fields() []ent.Field {
 		// merely refused (§6).
 		field.String("ingest_url").NotEmpty().MaxLen(255).Comment(dataclass.None),
 
+		// The public address a reporting client queries. Separate from ingest_url because
+		// the two are different services on different hosts with very different traffic,
+		// and because a 421 can only direct a caller if it knows the address for the
+		// surface they were actually using — telling a dashboard to talk to the ingest
+		// endpoint is not help.
+		//
+		// Optional, so a cell registered before this field existed stays valid. A cell
+		// without one refuses a foreign reporting key rather than redirecting it, which is
+		// the safe half of the behaviour.
+		field.String("query_url").MaxLen(255).Optional().Comment(dataclass.None),
+
 		// Human-readable placement, for the dashboard and for a customer's privacy
 		// review. Not used for routing.
 		field.String("location").MaxLen(64).Optional().Comment(dataclass.None),

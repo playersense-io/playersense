@@ -53,6 +53,7 @@ var (
 		{Name: "region", Type: field.TypeString, Size: 16, Comment: "class=none"},
 		{Name: "status", Type: field.TypeEnum, Comment: "class=none", Enums: []string{"active", "draining", "readonly"}, Default: "active"},
 		{Name: "ingest_url", Type: field.TypeString, Size: 255, Comment: "class=none"},
+		{Name: "query_url", Type: field.TypeString, Nullable: true, Size: 255, Comment: "class=none"},
 		{Name: "location", Type: field.TypeString, Nullable: true, Size: 64, Comment: "class=none"},
 	}
 	// CellsTable holds the schema information for the "cells" table.

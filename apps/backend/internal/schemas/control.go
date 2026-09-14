@@ -58,6 +58,7 @@ type ProjectOut struct {
 	Cell          string           `json:"cell" doc:"The cell holding this project's data"`
 	Region        string           `json:"region" doc:"The jurisdiction that cell sits in"`
 	IngestURL     string           `json:"ingest_url,omitzero" doc:"Where this project's SDKs must send batches"`
+	QueryURL      string           `json:"query_url,omitzero" doc:"Where this project's reporting clients must send queries"`
 	PolicyTier    string           `json:"policy_tier" doc:"standard, child_directed or kids_strict"`
 	RetentionDays uint16           `json:"retention_days" doc:"Raw event retention, in days"`
 	Environments  []EnvironmentOut `json:"environments,omitzero"`

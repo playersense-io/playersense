@@ -20,6 +20,7 @@ type CellIdentity struct {
 	Slug      string
 	Region    string
 	IngestURL string
+	QueryURL  string
 }
 
 // CellFrom reads the identity out of the configuration.
@@ -28,6 +29,7 @@ func CellFrom(settings config.Settings) CellIdentity {
 		Slug:      settings.Cell,
 		Region:    settings.CellRegion,
 		IngestURL: settings.CellIngestURL,
+		QueryURL:  settings.CellQueryURL,
 	}
 }
 
@@ -96,6 +98,7 @@ func (c *CellCheck) Start(ctx context.Context) error {
 	}
 
 	slog.Default().Info("cell confirmed",
-		"cell", home.Slug, "region", home.Region, "status", home.Status, "ingest_url", home.IngestURL)
+		"cell", home.Slug, "region", home.Region, "status", home.Status,
+		"ingest_url", home.IngestURL, "query_url", home.QueryURL)
 	return nil
 }

@@ -30,6 +30,12 @@ type Settings struct {
 	// is told where to go rather than merely refused.
 	CellIngestURL string `env:"CELL_INGEST_URL" default:"http://localhost:21081"`
 
+	// CellQueryURL is the address reporting clients for this cell's projects must query.
+	// A separate host from the ingest endpoint: the two are different services with very
+	// different traffic, and a 421 can only direct a caller if it names the address for
+	// the surface they were actually using.
+	CellQueryURL string `env:"CELL_QUERY_URL" default:"http://localhost:21083"`
+
 	// GlobalPostgresDSN addresses the one global control-plane tier (§99).
 	//
 	// US-hosted: it holds accounts, organisations, projects, keys and aggregate counts,
