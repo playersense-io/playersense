@@ -98,6 +98,9 @@ func run() error {
 	if err := deriver.DeriveSizes(ctx, month, date(2026, 9, 30)); err != nil {
 		return err
 	}
+	if err := deriver.DeriveBuckets(ctx, month); err != nil {
+		return err
+	}
 
 	checks := []check{
 		{"1. classic retention matches the seeded construction", checkClassicRetention(ctx, conn)},
@@ -109,6 +112,7 @@ func run() error {
 		{"7. no cell has returned_players > cohort_size", checkDenominator(ctx, conn)},
 		{"8. rolling retention is a correct suffix sum", checkRolling(ctx, conn, deriver)},
 		{"9. every breakdown cell has a within-value denominator", checkBreakdownDenominator(ctx, conn)},
+		{"10. a bucket kind partitions the returners at every offset", checkBuckets(ctx, conn, deriver, month)},
 	}
 
 	fmt.Println()
@@ -530,6 +534,58 @@ func checkBreakdownDenominator(ctx context.Context, conn driver.Conn) error {
 	}
 	if split != 0 {
 		return fmt.Errorf("%d (dimension, cohort) pairs do not sum to the cohort size", split)
+	}
+	return nil
+}
+
+// checkBuckets proves a behavioural segment is a partition, not a filter.
+//
+// Every device active at (cohort_date, day_offset) falls into exactly one playtime bucket
+// and exactly one spend bucket, so summing `players` across the codes of one kind must
+// reproduce cohort_metrics_daily's returned_players for that cell. The two tables are
+// derived from different sources — buckets resolve the device against player_lifetime_v,
+// the metrics fact reads player_activity_daily alone — so agreeing is a real check on the
+// join rather than a restatement of it.
+//
+// Off-by-one in a boundary would still partition, so this does not catch a wrong boundary.
+// It catches the failures that matter operationally: a device dropped by the join, a device
+// counted under two codes, and a bucket set that does not cover the whole range.
+func checkBuckets(ctx context.Context, conn driver.Conn, d *cohort.Deriver, m cohort.Month) error {
+	// Re-derived first, because the checks above deliberately mutate the month: 6 adds a
+	// late event and rebuilds the metrics fact. Comparing a bucket table derived before
+	// that against a metrics table derived after it measures the gap between two
+	// derivations rather than anything about buckets. Re-running also means this asserts
+	// that a late event is absorbed here too, which is the property 6 checks for the
+	// metrics fact.
+	if err := d.DeriveBuckets(ctx, m); err != nil {
+		return err
+	}
+
+	total, err := scalar[uint64](ctx, conn, "SELECT count() FROM cohort_bucket_daily")
+	if err != nil {
+		return err
+	}
+	if total == 0 {
+		return fmt.Errorf("cohort_bucket_daily is empty; the derivation wrote nothing")
+	}
+
+	bad, err := scalar[uint64](ctx, conn, `
+		SELECT count() FROM (
+		    SELECT bucket_kind, cohort_date, day_offset, sum(players) AS n
+		    FROM cohort_bucket_daily
+		    GROUP BY bucket_kind, cohort_date, day_offset
+		) AS b
+		INNER JOIN (
+		    SELECT cohort_date, day_offset, sum(returned_players) AS returned
+		    FROM cohort_metrics_daily
+		    GROUP BY cohort_date, day_offset
+		) AS m USING (cohort_date, day_offset)
+		WHERE b.n != m.returned`)
+	if err != nil {
+		return err
+	}
+	if bad != 0 {
+		return fmt.Errorf("%d (kind, cohort, offset) cells do not sum to the returners", bad)
 	}
 	return nil
 }
