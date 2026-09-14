@@ -171,6 +171,18 @@ func (d *Deriver) DeriveMonth(ctx context.Context, m Month) error {
 // two rebuild on their own cadences without fighting (§29.9). The denominator is never
 // frozen: freezing it while the numerator keeps absorbing late players is what produces
 // retention above 100%.
+//
+// Two statements, because §29.9 asks for two kinds of denominator and getting the second
+// wrong is the classic way a breakdown chart lies:
+//
+//  1. `__total__`, one row per cohort day — the denominator of an unbroken-down curve;
+//  2. one row per (dimension, value) — the denominator of a broken-down curve, counted
+//     **within** the value.
+//
+// The second is not optional and it is not derivable from the first. Dividing a
+// breakdown numerator by the whole cohort's size understates every value, and reusing the
+// whole cohort's size against each value multiplies the denominator by the number of
+// values the moment anyone sums across them. Both produce a chart that looks plausible.
 func (d *Deriver) DeriveSizes(ctx context.Context, cohortMonth Month, asOf time.Time) error {
 	part := cohortMonth.Partition()
 
@@ -198,6 +210,60 @@ func (d *Deriver) DeriveSizes(ctx context.Context, cohortMonth Month, asOf time.
 		return fmt.Errorf("build cohort_sizes: %w", err)
 	}
 
+	// The four sticky dimensions, one arm each (§29.13) — additive in the sum of the
+	// dimension sizes rather than multiplicative in their product.
+	//
+	// Same source table as the total above, so a cohort's size and its composition can
+	// never disagree about which devices are in it. The attributes come from
+	// player_lifetime's argMin state, which is the arrival fact: a cohort's composition is
+	// a property of the players who arrived, not of what they did afterwards.
+	//
+	// A GROUP BY materializes only the pairs that exist, which is §29.13's third cap —
+	// on any given day only a handful of versions and perhaps eighty countries actually
+	// produce installs.
+	if _, err := d.DB.ExecContext(ctx, `
+		INSERT INTO cohort_sizes_staging
+		WITH arrivals AS
+		(
+		    SELECT
+		        project_seq,
+		        environment_seq,
+		        cohort_date,
+		        first_attrs.1      AS install_platform,
+		        first_attrs.2      AS install_country,
+		        first_attrs.3      AS first_app_version,
+		        acquisition_source AS acquisition_source
+		    FROM player_lifetime_v
+		    WHERE toYYYYMM(cohort_date) = ?
+		)
+		SELECT
+		    project_seq,
+		    environment_seq,
+		    cohort_date,
+		    dim_name,
+		    dim_value,
+		    count()                                   AS cohort_size,
+		    toUInt16(dateDiff('day', cohort_date, ?)) AS cohort_maturity_days,
+		    now()                                     AS computed_at
+		FROM
+		(
+		    SELECT *, 'install_platform'   AS dim_name, install_platform   AS dim_value FROM arrivals
+		    UNION ALL
+		    SELECT *, 'install_country'    AS dim_name, install_country    AS dim_value FROM arrivals
+		    UNION ALL
+		    SELECT *, 'first_app_version'  AS dim_name, first_app_version  AS dim_value FROM arrivals
+		    UNION ALL
+		    SELECT *, 'acquisition_source' AS dim_name, acquisition_source AS dim_value FROM arrivals
+		)
+		GROUP BY project_seq, environment_seq, cohort_date, dim_name, dim_value`,
+		part, asOf); err != nil {
+		return fmt.Errorf("build cohort_sizes breakdown: %w", err)
+	}
+
+	// One swap for both statements. The partition is replaced whole, so the totals and the
+	// per-dimension sizes become visible in the same instant — §29.9's rule that the
+	// numerator and denominator are published from one snapshot applies just as much to
+	// the two halves of the denominator.
 	if _, err := d.DB.ExecContext(ctx,
 		"ALTER TABLE cohort_sizes REPLACE PARTITION ? FROM cohort_sizes_staging", part); err != nil {
 		return fmt.Errorf("swap cohort_sizes: %w", err)

@@ -108,6 +108,7 @@ func run() error {
 		{"6. a late event is absorbed without double counting", checkLateEvent(ctx, conn, deriver, month)},
 		{"7. no cell has returned_players > cohort_size", checkDenominator(ctx, conn)},
 		{"8. rolling retention is a correct suffix sum", checkRolling(ctx, conn, deriver)},
+		{"9. every breakdown cell has a within-value denominator", checkBreakdownDenominator(ctx, conn)},
 	}
 
 	fmt.Println()
@@ -476,6 +477,59 @@ func checkDenominator(ctx context.Context, conn driver.Conn) error {
 	}
 	if bad != 0 {
 		return fmt.Errorf("%d cells have more returners than the cohort had members", bad)
+	}
+	return nil
+}
+
+// checkBreakdownDenominator proves the two properties §29.9 asks of a breakdown size, both
+// of which are silent when they break.
+//
+// A broken-down retention chart divides a numerator from cohort_metrics_breakdown_daily by
+// a size from cohort_sizes carrying the same (dim_name, dim_value). If the size is missing
+// the rate is undefined; if it is the *whole* cohort's size rather than the value's own,
+// every value reads low and they no longer sum to the unbroken-down curve. Neither shows up
+// as an error — the chart just renders a wrong number.
+func checkBreakdownDenominator(ctx context.Context, conn driver.Conn) error {
+	// 1. Every numerator cell has a denominator, and never exceeds it.
+	//
+	// The lookup is bounded — cohort_sizes is a few hundred thousand rows per project, not
+	// one row per player — so §29.1 permits it here for the same reason checkDenominator
+	// does it for the total.
+	bad, err := scalar[uint64](ctx, conn, `
+		SELECT count() FROM cohort_metrics_breakdown_daily AS b
+		LEFT JOIN cohort_sizes AS s
+		    USING (project_seq, environment_seq, cohort_date, dim_name, dim_value)
+		WHERE s.cohort_size = 0 OR b.returned_players > s.cohort_size`)
+	if err != nil {
+		return err
+	}
+	if bad != 0 {
+		return fmt.Errorf("%d breakdown cells have no denominator or more returners than members", bad)
+	}
+
+	// 2. Each dimension partitions the cohort exactly once.
+	//
+	// Every device has exactly one value per dimension, so summing the sizes within a
+	// dimension must reproduce the total. A mismatch means either a device was counted
+	// under two values or the whole cohort's size was stored against each value — the
+	// failure that multiplies the denominator the moment anyone sums across values.
+	split, err := scalar[uint64](ctx, conn, `
+		SELECT count() FROM (
+		    SELECT dim_name, cohort_date, sum(cohort_size) AS n
+		    FROM cohort_sizes WHERE dim_name != '__total__'
+		    GROUP BY dim_name, cohort_date
+		) AS d
+		INNER JOIN (
+		    SELECT cohort_date, sum(cohort_size) AS total
+		    FROM cohort_sizes WHERE dim_name = '__total__'
+		    GROUP BY cohort_date
+		) AS t USING (cohort_date)
+		WHERE d.n != t.total`)
+	if err != nil {
+		return err
+	}
+	if split != 0 {
+		return fmt.Errorf("%d (dimension, cohort) pairs do not sum to the cohort size", split)
 	}
 	return nil
 }
