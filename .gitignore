@@ -21,3 +21,4 @@ infra/**/data/
 
 # Ent generates into apps/backend/ent; the schema is the source, but the
 # generated client is committed so a clone builds without a codegen step.
+.data/

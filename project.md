@@ -1061,8 +1061,8 @@ Batch envelope:
 {
   "schema_version": 1,
   "batch_id": "...",
-  "project_key": "ps_live_...",
   "environment": "production",
+  "install_id": "...",
   "sdk": {
     "name": "unity",
     "version": "1.4.0"
@@ -1089,7 +1089,28 @@ Batch envelope:
 
 Production transport should support a compact encoding such as Protobuf in addition to JSON.
 
-### 17.1 The consent block
+### 17.1 Where the key and the installation identifier live
+
+Two fields are not in the envelope above, and both moved deliberately.
+
+**The project key travels in the `Authorization` header**, not in the body. A credential
+in a body cannot authenticate the request under the framework's request ordering — guards
+and providers resolve before binding, so the body has not been decoded yet — and the
+alternative, capturing and parsing the body inside a guard, means parsing untrusted input
+before anything has authorised it. A key in a body is also a key in every proxy, log and
+crash report that captures one.
+
+```text
+Authorization: Bearer ps_client_live_...
+```
+
+**`install_id` is on the batch, not on each event.** A batch is one flush from one
+installation, so it cannot change within one, and repeating a UUID on every event is bytes
+§4.1 actually cares about. `player_id` stays per-event, because that one genuinely can
+change mid-batch when somebody signs in — which is also why cohorts key on the device
+rather than on the coalesced actor (§29.2).
+
+### 17.2 The consent block
 
 Consent is the one field in this envelope that cannot be reconstructed on the server, and
 the one that becomes impossible to add once data exists. Without it, no stored row can
@@ -1145,7 +1166,7 @@ POST /v1/batches
 
 The endpoint performs only inexpensive operations:
 
-1. authenticate project/environment key;
+1. authenticate the project key from the `Authorization` header;
 2. enforce body size limit;
 3. decompress;
 4. validate batch envelope;
@@ -4099,7 +4120,7 @@ they cannot describe a field that does not exist or omit one that does.
 
 ## 97. Consent
 
-Consent reaches PlayerSense in the batch envelope (§17.1) and is stamped onto every event
+Consent reaches PlayerSense in the batch envelope (§17.2) and is stamped onto every event
 as columns (§23). It is not held only at the batch level and it is not looked up at query
 time.
 

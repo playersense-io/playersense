@@ -41,6 +41,29 @@ type Settings struct {
 	// budget it spends (§70).
 	TrustedProxies []string `env:"TRUSTED_PROXIES"`
 
+	// --- ingest-api ---------------------------------------------------------
+
+	// IngestAddr is the address ingest-api listens on. Separate from the control API
+	// because §10.2 makes it a separate deployable: it scales on a different axis and
+	// must keep serving when the control plane cannot.
+	IngestAddr      string `env:"INGEST_API_ADDR" default:":21081"`
+	IngestPublicURL string `env:"INGEST_API_PUBLIC_URL" default:"http://localhost:21081"`
+
+	// EventBus selects the queue implementation: local or pubsub (§3.6).
+	EventBus    string `env:"EVENT_BUS" default:"local"`
+	EventBusDir string `env:"EVENT_BUS_DIR" default:".data/eventbus"`
+
+	PubSubProjectID string `env:"PUBSUB_PROJECT_ID"`
+	PubSubTopic     string `env:"PUBSUB_TOPIC" default:"analytics-events"`
+
+	// The key cache is what lets ingestion keep accepting batches while the control
+	// plane is unreachable (§64). A short negative TTL matters as much as the positive
+	// one: a publishable key is assumed discoverable (§71), so wrong keys arrive in
+	// volume and none of them should become a query.
+	KeyCacheTTL         time.Duration `env:"KEY_CACHE_TTL" default:"5m"`
+	KeyCacheNegativeTTL time.Duration `env:"KEY_CACHE_NEGATIVE_TTL" default:"30s"`
+	KeyCacheMaxEntries  int           `env:"KEY_CACHE_MAX_ENTRIES" default:"50000"`
+
 	// LogFormat is auto, console, json or none.
 	//
 	// Auto picks JSON when the output is not a terminal, which is right for a production

@@ -45,3 +45,14 @@ go test ./apps/backend/cmd/control-api -race
 
 `GET /openapi.json` describes it. Everything under `/v1` needs
 `Authorization: Bearer $CONTROL_API_ADMIN_TOKEN`; `/healthz` does not.
+
+## ingest-api
+
+```bash
+go run ./apps/backend/cmd/ingest-api       # listens on :21081
+go test ./apps/backend/cmd/ingest-api -race
+```
+
+`POST /v1/batches` with `Authorization: Bearer ps_client_...`. Answers 202 once the batch
+is durably queued. `EVENT_BUS=local` writes an fsynced NDJSON spool under
+`EVENT_BUS_DIR`; `EVENT_BUS=pubsub` publishes to Google Pub/Sub.
