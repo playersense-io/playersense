@@ -6,6 +6,9 @@ import (
 	"entgo.io/ent/dialect/sql"
 )
 
+// ArchiveManifest is the predicate function for archivemanifest builders.
+type ArchiveManifest func(*sql.Selector)
+
 // DataDeletionRequest is the predicate function for datadeletionrequest builders.
 type DataDeletionRequest func(*sql.Selector)
 

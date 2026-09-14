@@ -134,6 +134,7 @@ func applyAttributes(msg *Message, attrs map[string]string) {
 	msg.OrgID = attrs["org_id"]
 	msg.ProjectID = attrs["project_id"]
 	msg.EnvironmentID = attrs["environment_id"]
+	msg.Environment = attrs["environment"]
 	msg.PolicyTier = attrs["policy_tier"]
 	msg.OrgSeq = uint32(parseUint(attrs["org_seq"], 32))
 	msg.ProjectSeq = uint32(parseUint(attrs["project_seq"], 32))

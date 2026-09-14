@@ -9,6 +9,18 @@ import (
 	"playersense.dev/backend/ent/regional"
 )
 
+// The ArchiveManifestFunc type is an adapter to allow the use of ordinary
+// function as ArchiveManifest mutator.
+type ArchiveManifestFunc func(context.Context, *regional.ArchiveManifestMutation) (regional.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ArchiveManifestFunc) Mutate(ctx context.Context, m regional.Mutation) (regional.Value, error) {
+	if mv, ok := m.(*regional.ArchiveManifestMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *regional.ArchiveManifestMutation", m)
+}
+
 // The DataDeletionRequestFunc type is an adapter to allow the use of ordinary
 // function as DataDeletionRequest mutator.
 type DataDeletionRequestFunc func(context.Context, *regional.DataDeletionRequestMutation) (regional.Value, error)

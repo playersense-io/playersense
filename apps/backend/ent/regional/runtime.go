@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"playersense.dev/backend/ent/regional/archivemanifest"
 	"playersense.dev/backend/ent/regional/datadeletionrequest"
 	"playersense.dev/backend/ent/regional/verifiedpurchase"
 	"playersense.dev/backend/ent/schema/regionaltier"
@@ -15,6 +16,83 @@ import (
 // (default values, validators, hooks and policies) and stitches it
 // to their package variables.
 func init() {
+	archivemanifestMixin := regionaltier.ArchiveManifest{}.Mixin()
+	archivemanifestMixinFields0 := archivemanifestMixin[0].Fields()
+	_ = archivemanifestMixinFields0
+	archivemanifestFields := regionaltier.ArchiveManifest{}.Fields()
+	_ = archivemanifestFields
+	// archivemanifestDescUID is the schema descriptor for uid field.
+	archivemanifestDescUID := archivemanifestMixinFields0[1].Descriptor()
+	// archivemanifest.DefaultUID holds the default value on creation for the uid field.
+	archivemanifest.DefaultUID = archivemanifestDescUID.Default.(func() uuid.UUID)
+	// archivemanifestDescCreatedAt is the schema descriptor for created_at field.
+	archivemanifestDescCreatedAt := archivemanifestMixinFields0[2].Descriptor()
+	// archivemanifest.DefaultCreatedAt holds the default value on creation for the created_at field.
+	archivemanifest.DefaultCreatedAt = archivemanifestDescCreatedAt.Default.(func() time.Time)
+	// archivemanifestDescUpdatedAt is the schema descriptor for updated_at field.
+	archivemanifestDescUpdatedAt := archivemanifestMixinFields0[3].Descriptor()
+	// archivemanifest.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	archivemanifest.DefaultUpdatedAt = archivemanifestDescUpdatedAt.Default.(func() time.Time)
+	// archivemanifest.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	archivemanifest.UpdateDefaultUpdatedAt = archivemanifestDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// archivemanifestDescBucket is the schema descriptor for bucket field.
+	archivemanifestDescBucket := archivemanifestFields[0].Descriptor()
+	// archivemanifest.BucketValidator is a validator for the "bucket" field. It is called by the builders before save.
+	archivemanifest.BucketValidator = func() func(string) error {
+		validators := archivemanifestDescBucket.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(bucket string) error {
+			for _, fn := range fns {
+				if err := fn(bucket); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// archivemanifestDescObjectPath is the schema descriptor for object_path field.
+	archivemanifestDescObjectPath := archivemanifestFields[1].Descriptor()
+	// archivemanifest.ObjectPathValidator is a validator for the "object_path" field. It is called by the builders before save.
+	archivemanifest.ObjectPathValidator = func() func(string) error {
+		validators := archivemanifestDescObjectPath.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(object_path string) error {
+			for _, fn := range fns {
+				if err := fn(object_path); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// archivemanifestDescRegion is the schema descriptor for region field.
+	archivemanifestDescRegion := archivemanifestFields[2].Descriptor()
+	// archivemanifest.RegionValidator is a validator for the "region" field. It is called by the builders before save.
+	archivemanifest.RegionValidator = func() func(string) error {
+		validators := archivemanifestDescRegion.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(region string) error {
+			for _, fn := range fns {
+				if err := fn(region); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// archivemanifestDescFailureReason is the schema descriptor for failure_reason field.
+	archivemanifestDescFailureReason := archivemanifestFields[14].Descriptor()
+	// archivemanifest.FailureReasonValidator is a validator for the "failure_reason" field. It is called by the builders before save.
+	archivemanifest.FailureReasonValidator = archivemanifestDescFailureReason.Validators[0].(func(string) error)
 	datadeletionrequestMixin := regionaltier.DataDeletionRequest{}.Mixin()
 	datadeletionrequestMixinFields0 := datadeletionrequestMixin[0].Fields()
 	_ = datadeletionrequestMixinFields0

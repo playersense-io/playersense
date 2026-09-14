@@ -44,6 +44,12 @@ type Message struct {
 	ProjectID     string `json:"project_id"`
 	EnvironmentID string `json:"environment_id"`
 
+	// Environment is the kind — production, staging or development — as opposed to the
+	// UUID above. It travels because §14.1's archive path is keyed on the readable name:
+	// a prefix of `env=production` is one a human can scan and a lifecycle rule can match,
+	// and `env=<uuid>` is neither.
+	Environment string `json:"environment,omitzero"`
+
 	PolicyTier    string `json:"policy_tier"`
 	RetentionTier uint16 `json:"retention_tier"`
 

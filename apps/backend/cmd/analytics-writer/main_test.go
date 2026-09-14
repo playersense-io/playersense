@@ -99,7 +99,8 @@ func newPipeline(t *testing.T, tier string) *pipeline {
 func (p *pipeline) offsets(t *testing.T) []string {
 	t.Helper()
 	found, err := filepath.Glob(
-		filepath.Join(p.settings.EventBusDir, p.settings.Cell, ".offsets", "*.offset"))
+		filepath.Join(p.settings.EventBusDir, p.settings.Cell, ".offsets",
+			eventbus.GroupAnalyticsWriter, "*.offset"))
 	if err != nil {
 		t.Fatalf("find offsets: %v", err)
 	}

@@ -14,6 +14,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/sql"
+	"playersense.dev/backend/ent/regional/archivemanifest"
 	"playersense.dev/backend/ent/regional/datadeletionrequest"
 	"playersense.dev/backend/ent/regional/verifiedpurchase"
 )
@@ -23,6 +24,8 @@ type Client struct {
 	config
 	// Schema is the client for creating, migrating and dropping schema.
 	Schema *migrate.Schema
+	// ArchiveManifest is the client for interacting with the ArchiveManifest builders.
+	ArchiveManifest *ArchiveManifestClient
 	// DataDeletionRequest is the client for interacting with the DataDeletionRequest builders.
 	DataDeletionRequest *DataDeletionRequestClient
 	// VerifiedPurchase is the client for interacting with the VerifiedPurchase builders.
@@ -38,6 +41,7 @@ func NewClient(opts ...Option) *Client {
 
 func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
+	c.ArchiveManifest = NewArchiveManifestClient(c.config)
 	c.DataDeletionRequest = NewDataDeletionRequestClient(c.config)
 	c.VerifiedPurchase = NewVerifiedPurchaseClient(c.config)
 }
@@ -132,6 +136,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	return &Tx{
 		ctx:                 ctx,
 		config:              cfg,
+		ArchiveManifest:     NewArchiveManifestClient(cfg),
 		DataDeletionRequest: NewDataDeletionRequestClient(cfg),
 		VerifiedPurchase:    NewVerifiedPurchaseClient(cfg),
 	}, nil
@@ -153,6 +158,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	return &Tx{
 		ctx:                 ctx,
 		config:              cfg,
+		ArchiveManifest:     NewArchiveManifestClient(cfg),
 		DataDeletionRequest: NewDataDeletionRequestClient(cfg),
 		VerifiedPurchase:    NewVerifiedPurchaseClient(cfg),
 	}, nil
@@ -161,7 +167,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 // Debug returns a new debug-client. It's used to get verbose logging on specific operations.
 //
 //	client.Debug().
-//		DataDeletionRequest.
+//		ArchiveManifest.
 //		Query().
 //		Count(ctx)
 func (c *Client) Debug() *Client {
@@ -183,6 +189,7 @@ func (c *Client) Close() error {
 // Use adds the mutation hooks to all the entity clients.
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
+	c.ArchiveManifest.Use(hooks...)
 	c.DataDeletionRequest.Use(hooks...)
 	c.VerifiedPurchase.Use(hooks...)
 }
@@ -190,6 +197,7 @@ func (c *Client) Use(hooks ...Hook) {
 // Intercept adds the query interceptors to all the entity clients.
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
+	c.ArchiveManifest.Intercept(interceptors...)
 	c.DataDeletionRequest.Intercept(interceptors...)
 	c.VerifiedPurchase.Intercept(interceptors...)
 }
@@ -197,12 +205,147 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 // Mutate implements the ent.Mutator interface.
 func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 	switch m := m.(type) {
+	case *ArchiveManifestMutation:
+		return c.ArchiveManifest.mutate(ctx, m)
 	case *DataDeletionRequestMutation:
 		return c.DataDeletionRequest.mutate(ctx, m)
 	case *VerifiedPurchaseMutation:
 		return c.VerifiedPurchase.mutate(ctx, m)
 	default:
 		return nil, fmt.Errorf("regional: unknown mutation type %T", m)
+	}
+}
+
+// ArchiveManifestClient is a client for the ArchiveManifest schema.
+type ArchiveManifestClient struct {
+	config
+}
+
+// NewArchiveManifestClient returns a client for the ArchiveManifest from the given config.
+func NewArchiveManifestClient(c config) *ArchiveManifestClient {
+	return &ArchiveManifestClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `archivemanifest.Hooks(f(g(h())))`.
+func (c *ArchiveManifestClient) Use(hooks ...Hook) {
+	c.hooks.ArchiveManifest = append(c.hooks.ArchiveManifest, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `archivemanifest.Intercept(f(g(h())))`.
+func (c *ArchiveManifestClient) Intercept(interceptors ...Interceptor) {
+	c.inters.ArchiveManifest = append(c.inters.ArchiveManifest, interceptors...)
+}
+
+// Create returns a builder for creating a ArchiveManifest entity.
+func (c *ArchiveManifestClient) Create() *ArchiveManifestCreate {
+	mutation := newArchiveManifestMutation(c.config, OpCreate)
+	return &ArchiveManifestCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of ArchiveManifest entities.
+func (c *ArchiveManifestClient) CreateBulk(builders ...*ArchiveManifestCreate) *ArchiveManifestCreateBulk {
+	return &ArchiveManifestCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ArchiveManifestClient) MapCreateBulk(slice any, setFunc func(*ArchiveManifestCreate, int)) *ArchiveManifestCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ArchiveManifestCreateBulk{err: fmt.Errorf("calling to ArchiveManifestClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ArchiveManifestCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ArchiveManifestCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for ArchiveManifest.
+func (c *ArchiveManifestClient) Update() *ArchiveManifestUpdate {
+	mutation := newArchiveManifestMutation(c.config, OpUpdate)
+	return &ArchiveManifestUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ArchiveManifestClient) UpdateOne(_m *ArchiveManifest) *ArchiveManifestUpdateOne {
+	mutation := newArchiveManifestMutation(c.config, OpUpdateOne, withArchiveManifest(_m))
+	return &ArchiveManifestUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ArchiveManifestClient) UpdateOneID(id int) *ArchiveManifestUpdateOne {
+	mutation := newArchiveManifestMutation(c.config, OpUpdateOne, withArchiveManifestID(id))
+	return &ArchiveManifestUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for ArchiveManifest.
+func (c *ArchiveManifestClient) Delete() *ArchiveManifestDelete {
+	mutation := newArchiveManifestMutation(c.config, OpDelete)
+	return &ArchiveManifestDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ArchiveManifestClient) DeleteOne(_m *ArchiveManifest) *ArchiveManifestDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ArchiveManifestClient) DeleteOneID(id int) *ArchiveManifestDeleteOne {
+	builder := c.Delete().Where(archivemanifest.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ArchiveManifestDeleteOne{builder}
+}
+
+// Query returns a query builder for ArchiveManifest.
+func (c *ArchiveManifestClient) Query() *ArchiveManifestQuery {
+	return &ArchiveManifestQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeArchiveManifest},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a ArchiveManifest entity by its id.
+func (c *ArchiveManifestClient) Get(ctx context.Context, id int) (*ArchiveManifest, error) {
+	return c.Query().Where(archivemanifest.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ArchiveManifestClient) GetX(ctx context.Context, id int) *ArchiveManifest {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *ArchiveManifestClient) Hooks() []Hook {
+	return c.hooks.ArchiveManifest
+}
+
+// Interceptors returns the client interceptors.
+func (c *ArchiveManifestClient) Interceptors() []Interceptor {
+	return c.inters.ArchiveManifest
+}
+
+func (c *ArchiveManifestClient) mutate(ctx context.Context, m *ArchiveManifestMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ArchiveManifestCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ArchiveManifestUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ArchiveManifestUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ArchiveManifestDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("regional: unknown ArchiveManifest mutation op: %q", m.Op())
 	}
 }
 
@@ -475,9 +618,9 @@ func (c *VerifiedPurchaseClient) mutate(ctx context.Context, m *VerifiedPurchase
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		DataDeletionRequest, VerifiedPurchase []ent.Hook
+		ArchiveManifest, DataDeletionRequest, VerifiedPurchase []ent.Hook
 	}
 	inters struct {
-		DataDeletionRequest, VerifiedPurchase []ent.Interceptor
+		ArchiveManifest, DataDeletionRequest, VerifiedPurchase []ent.Interceptor
 	}
 )

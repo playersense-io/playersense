@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
+	"playersense.dev/backend/ent/regional/archivemanifest"
 	"playersense.dev/backend/ent/regional/datadeletionrequest"
 	"playersense.dev/backend/ent/regional/predicate"
 	"playersense.dev/backend/ent/regional/verifiedpurchase"
@@ -26,9 +27,1417 @@ const (
 	OpUpdateOne = ent.OpUpdateOne
 
 	// Node types.
+	TypeArchiveManifest     = "ArchiveManifest"
 	TypeDataDeletionRequest = "DataDeletionRequest"
 	TypeVerifiedPurchase    = "VerifiedPurchase"
 )
+
+// ArchiveManifestMutation represents an operation that mutates the ArchiveManifest nodes in the graph.
+type ArchiveManifestMutation struct {
+	config
+	op                        Op
+	typ                       string
+	id                        *int
+	uid                       *uuid.UUID
+	created_at                *time.Time
+	updated_at                *time.Time
+	bucket                    *string
+	object_path               *string
+	region                    *string
+	org_uid                   *uuid.UUID
+	project_uid               *uuid.UUID
+	environment_uid           *uuid.UUID
+	min_event_time            *time.Time
+	max_event_time            *time.Time
+	event_count               *uint64
+	addevent_count            *int64
+	object_size_bytes         *uint64
+	addobject_size_bytes      *int64
+	normalized_input_bytes    *uint64
+	addnormalized_input_bytes *int64
+	schema_version            *uint16
+	addschema_version         *int16
+	delete_after              *time.Time
+	status                    *archivemanifest.Status
+	failure_reason            *string
+	clearedFields             map[string]struct{}
+	done                      bool
+	oldValue                  func(context.Context) (*ArchiveManifest, error)
+	predicates                []predicate.ArchiveManifest
+}
+
+var _ ent.Mutation = (*ArchiveManifestMutation)(nil)
+
+// archivemanifestOption allows management of the mutation configuration using functional options.
+type archivemanifestOption func(*ArchiveManifestMutation)
+
+// newArchiveManifestMutation creates new mutation for the ArchiveManifest entity.
+func newArchiveManifestMutation(c config, op Op, opts ...archivemanifestOption) *ArchiveManifestMutation {
+	m := &ArchiveManifestMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeArchiveManifest,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withArchiveManifestID sets the ID field of the mutation.
+func withArchiveManifestID(id int) archivemanifestOption {
+	return func(m *ArchiveManifestMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *ArchiveManifest
+		)
+		m.oldValue = func(ctx context.Context) (*ArchiveManifest, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().ArchiveManifest.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withArchiveManifest sets the old ArchiveManifest of the mutation.
+func withArchiveManifest(node *ArchiveManifest) archivemanifestOption {
+	return func(m *ArchiveManifestMutation) {
+		m.oldValue = func(context.Context) (*ArchiveManifest, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m ArchiveManifestMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m ArchiveManifestMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("regional: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of ArchiveManifest entities.
+func (m *ArchiveManifestMutation) SetID(id int) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *ArchiveManifestMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *ArchiveManifestMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().ArchiveManifest.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetUID sets the "uid" field.
+func (m *ArchiveManifestMutation) SetUID(u uuid.UUID) {
+	m.uid = &u
+}
+
+// UID returns the value of the "uid" field in the mutation.
+func (m *ArchiveManifestMutation) UID() (r uuid.UUID, exists bool) {
+	v := m.uid
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUID returns the old "uid" field's value of the ArchiveManifest entity.
+// If the ArchiveManifest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ArchiveManifestMutation) OldUID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUID: %w", err)
+	}
+	return oldValue.UID, nil
+}
+
+// ResetUID resets all changes to the "uid" field.
+func (m *ArchiveManifestMutation) ResetUID() {
+	m.uid = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *ArchiveManifestMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *ArchiveManifestMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the ArchiveManifest entity.
+// If the ArchiveManifest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ArchiveManifestMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *ArchiveManifestMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *ArchiveManifestMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *ArchiveManifestMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the ArchiveManifest entity.
+// If the ArchiveManifest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ArchiveManifestMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *ArchiveManifestMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetBucket sets the "bucket" field.
+func (m *ArchiveManifestMutation) SetBucket(s string) {
+	m.bucket = &s
+}
+
+// Bucket returns the value of the "bucket" field in the mutation.
+func (m *ArchiveManifestMutation) Bucket() (r string, exists bool) {
+	v := m.bucket
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBucket returns the old "bucket" field's value of the ArchiveManifest entity.
+// If the ArchiveManifest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ArchiveManifestMutation) OldBucket(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBucket is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBucket requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBucket: %w", err)
+	}
+	return oldValue.Bucket, nil
+}
+
+// ResetBucket resets all changes to the "bucket" field.
+func (m *ArchiveManifestMutation) ResetBucket() {
+	m.bucket = nil
+}
+
+// SetObjectPath sets the "object_path" field.
+func (m *ArchiveManifestMutation) SetObjectPath(s string) {
+	m.object_path = &s
+}
+
+// ObjectPath returns the value of the "object_path" field in the mutation.
+func (m *ArchiveManifestMutation) ObjectPath() (r string, exists bool) {
+	v := m.object_path
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldObjectPath returns the old "object_path" field's value of the ArchiveManifest entity.
+// If the ArchiveManifest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ArchiveManifestMutation) OldObjectPath(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldObjectPath is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldObjectPath requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldObjectPath: %w", err)
+	}
+	return oldValue.ObjectPath, nil
+}
+
+// ResetObjectPath resets all changes to the "object_path" field.
+func (m *ArchiveManifestMutation) ResetObjectPath() {
+	m.object_path = nil
+}
+
+// SetRegion sets the "region" field.
+func (m *ArchiveManifestMutation) SetRegion(s string) {
+	m.region = &s
+}
+
+// Region returns the value of the "region" field in the mutation.
+func (m *ArchiveManifestMutation) Region() (r string, exists bool) {
+	v := m.region
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRegion returns the old "region" field's value of the ArchiveManifest entity.
+// If the ArchiveManifest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ArchiveManifestMutation) OldRegion(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRegion is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRegion requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRegion: %w", err)
+	}
+	return oldValue.Region, nil
+}
+
+// ResetRegion resets all changes to the "region" field.
+func (m *ArchiveManifestMutation) ResetRegion() {
+	m.region = nil
+}
+
+// SetOrgUID sets the "org_uid" field.
+func (m *ArchiveManifestMutation) SetOrgUID(u uuid.UUID) {
+	m.org_uid = &u
+}
+
+// OrgUID returns the value of the "org_uid" field in the mutation.
+func (m *ArchiveManifestMutation) OrgUID() (r uuid.UUID, exists bool) {
+	v := m.org_uid
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOrgUID returns the old "org_uid" field's value of the ArchiveManifest entity.
+// If the ArchiveManifest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ArchiveManifestMutation) OldOrgUID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOrgUID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOrgUID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOrgUID: %w", err)
+	}
+	return oldValue.OrgUID, nil
+}
+
+// ResetOrgUID resets all changes to the "org_uid" field.
+func (m *ArchiveManifestMutation) ResetOrgUID() {
+	m.org_uid = nil
+}
+
+// SetProjectUID sets the "project_uid" field.
+func (m *ArchiveManifestMutation) SetProjectUID(u uuid.UUID) {
+	m.project_uid = &u
+}
+
+// ProjectUID returns the value of the "project_uid" field in the mutation.
+func (m *ArchiveManifestMutation) ProjectUID() (r uuid.UUID, exists bool) {
+	v := m.project_uid
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProjectUID returns the old "project_uid" field's value of the ArchiveManifest entity.
+// If the ArchiveManifest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ArchiveManifestMutation) OldProjectUID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProjectUID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProjectUID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProjectUID: %w", err)
+	}
+	return oldValue.ProjectUID, nil
+}
+
+// ResetProjectUID resets all changes to the "project_uid" field.
+func (m *ArchiveManifestMutation) ResetProjectUID() {
+	m.project_uid = nil
+}
+
+// SetEnvironmentUID sets the "environment_uid" field.
+func (m *ArchiveManifestMutation) SetEnvironmentUID(u uuid.UUID) {
+	m.environment_uid = &u
+}
+
+// EnvironmentUID returns the value of the "environment_uid" field in the mutation.
+func (m *ArchiveManifestMutation) EnvironmentUID() (r uuid.UUID, exists bool) {
+	v := m.environment_uid
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEnvironmentUID returns the old "environment_uid" field's value of the ArchiveManifest entity.
+// If the ArchiveManifest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ArchiveManifestMutation) OldEnvironmentUID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEnvironmentUID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEnvironmentUID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEnvironmentUID: %w", err)
+	}
+	return oldValue.EnvironmentUID, nil
+}
+
+// ResetEnvironmentUID resets all changes to the "environment_uid" field.
+func (m *ArchiveManifestMutation) ResetEnvironmentUID() {
+	m.environment_uid = nil
+}
+
+// SetMinEventTime sets the "min_event_time" field.
+func (m *ArchiveManifestMutation) SetMinEventTime(t time.Time) {
+	m.min_event_time = &t
+}
+
+// MinEventTime returns the value of the "min_event_time" field in the mutation.
+func (m *ArchiveManifestMutation) MinEventTime() (r time.Time, exists bool) {
+	v := m.min_event_time
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMinEventTime returns the old "min_event_time" field's value of the ArchiveManifest entity.
+// If the ArchiveManifest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ArchiveManifestMutation) OldMinEventTime(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMinEventTime is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMinEventTime requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMinEventTime: %w", err)
+	}
+	return oldValue.MinEventTime, nil
+}
+
+// ResetMinEventTime resets all changes to the "min_event_time" field.
+func (m *ArchiveManifestMutation) ResetMinEventTime() {
+	m.min_event_time = nil
+}
+
+// SetMaxEventTime sets the "max_event_time" field.
+func (m *ArchiveManifestMutation) SetMaxEventTime(t time.Time) {
+	m.max_event_time = &t
+}
+
+// MaxEventTime returns the value of the "max_event_time" field in the mutation.
+func (m *ArchiveManifestMutation) MaxEventTime() (r time.Time, exists bool) {
+	v := m.max_event_time
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMaxEventTime returns the old "max_event_time" field's value of the ArchiveManifest entity.
+// If the ArchiveManifest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ArchiveManifestMutation) OldMaxEventTime(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMaxEventTime is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMaxEventTime requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMaxEventTime: %w", err)
+	}
+	return oldValue.MaxEventTime, nil
+}
+
+// ResetMaxEventTime resets all changes to the "max_event_time" field.
+func (m *ArchiveManifestMutation) ResetMaxEventTime() {
+	m.max_event_time = nil
+}
+
+// SetEventCount sets the "event_count" field.
+func (m *ArchiveManifestMutation) SetEventCount(u uint64) {
+	m.event_count = &u
+	m.addevent_count = nil
+}
+
+// EventCount returns the value of the "event_count" field in the mutation.
+func (m *ArchiveManifestMutation) EventCount() (r uint64, exists bool) {
+	v := m.event_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEventCount returns the old "event_count" field's value of the ArchiveManifest entity.
+// If the ArchiveManifest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ArchiveManifestMutation) OldEventCount(ctx context.Context) (v uint64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEventCount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEventCount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEventCount: %w", err)
+	}
+	return oldValue.EventCount, nil
+}
+
+// AddEventCount adds u to the "event_count" field.
+func (m *ArchiveManifestMutation) AddEventCount(u int64) {
+	if m.addevent_count != nil {
+		*m.addevent_count += u
+	} else {
+		m.addevent_count = &u
+	}
+}
+
+// AddedEventCount returns the value that was added to the "event_count" field in this mutation.
+func (m *ArchiveManifestMutation) AddedEventCount() (r int64, exists bool) {
+	v := m.addevent_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetEventCount resets all changes to the "event_count" field.
+func (m *ArchiveManifestMutation) ResetEventCount() {
+	m.event_count = nil
+	m.addevent_count = nil
+}
+
+// SetObjectSizeBytes sets the "object_size_bytes" field.
+func (m *ArchiveManifestMutation) SetObjectSizeBytes(u uint64) {
+	m.object_size_bytes = &u
+	m.addobject_size_bytes = nil
+}
+
+// ObjectSizeBytes returns the value of the "object_size_bytes" field in the mutation.
+func (m *ArchiveManifestMutation) ObjectSizeBytes() (r uint64, exists bool) {
+	v := m.object_size_bytes
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldObjectSizeBytes returns the old "object_size_bytes" field's value of the ArchiveManifest entity.
+// If the ArchiveManifest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ArchiveManifestMutation) OldObjectSizeBytes(ctx context.Context) (v uint64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldObjectSizeBytes is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldObjectSizeBytes requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldObjectSizeBytes: %w", err)
+	}
+	return oldValue.ObjectSizeBytes, nil
+}
+
+// AddObjectSizeBytes adds u to the "object_size_bytes" field.
+func (m *ArchiveManifestMutation) AddObjectSizeBytes(u int64) {
+	if m.addobject_size_bytes != nil {
+		*m.addobject_size_bytes += u
+	} else {
+		m.addobject_size_bytes = &u
+	}
+}
+
+// AddedObjectSizeBytes returns the value that was added to the "object_size_bytes" field in this mutation.
+func (m *ArchiveManifestMutation) AddedObjectSizeBytes() (r int64, exists bool) {
+	v := m.addobject_size_bytes
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetObjectSizeBytes resets all changes to the "object_size_bytes" field.
+func (m *ArchiveManifestMutation) ResetObjectSizeBytes() {
+	m.object_size_bytes = nil
+	m.addobject_size_bytes = nil
+}
+
+// SetNormalizedInputBytes sets the "normalized_input_bytes" field.
+func (m *ArchiveManifestMutation) SetNormalizedInputBytes(u uint64) {
+	m.normalized_input_bytes = &u
+	m.addnormalized_input_bytes = nil
+}
+
+// NormalizedInputBytes returns the value of the "normalized_input_bytes" field in the mutation.
+func (m *ArchiveManifestMutation) NormalizedInputBytes() (r uint64, exists bool) {
+	v := m.normalized_input_bytes
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNormalizedInputBytes returns the old "normalized_input_bytes" field's value of the ArchiveManifest entity.
+// If the ArchiveManifest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ArchiveManifestMutation) OldNormalizedInputBytes(ctx context.Context) (v uint64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNormalizedInputBytes is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNormalizedInputBytes requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNormalizedInputBytes: %w", err)
+	}
+	return oldValue.NormalizedInputBytes, nil
+}
+
+// AddNormalizedInputBytes adds u to the "normalized_input_bytes" field.
+func (m *ArchiveManifestMutation) AddNormalizedInputBytes(u int64) {
+	if m.addnormalized_input_bytes != nil {
+		*m.addnormalized_input_bytes += u
+	} else {
+		m.addnormalized_input_bytes = &u
+	}
+}
+
+// AddedNormalizedInputBytes returns the value that was added to the "normalized_input_bytes" field in this mutation.
+func (m *ArchiveManifestMutation) AddedNormalizedInputBytes() (r int64, exists bool) {
+	v := m.addnormalized_input_bytes
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetNormalizedInputBytes resets all changes to the "normalized_input_bytes" field.
+func (m *ArchiveManifestMutation) ResetNormalizedInputBytes() {
+	m.normalized_input_bytes = nil
+	m.addnormalized_input_bytes = nil
+}
+
+// SetSchemaVersion sets the "schema_version" field.
+func (m *ArchiveManifestMutation) SetSchemaVersion(u uint16) {
+	m.schema_version = &u
+	m.addschema_version = nil
+}
+
+// SchemaVersion returns the value of the "schema_version" field in the mutation.
+func (m *ArchiveManifestMutation) SchemaVersion() (r uint16, exists bool) {
+	v := m.schema_version
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSchemaVersion returns the old "schema_version" field's value of the ArchiveManifest entity.
+// If the ArchiveManifest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ArchiveManifestMutation) OldSchemaVersion(ctx context.Context) (v uint16, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSchemaVersion is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSchemaVersion requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSchemaVersion: %w", err)
+	}
+	return oldValue.SchemaVersion, nil
+}
+
+// AddSchemaVersion adds u to the "schema_version" field.
+func (m *ArchiveManifestMutation) AddSchemaVersion(u int16) {
+	if m.addschema_version != nil {
+		*m.addschema_version += u
+	} else {
+		m.addschema_version = &u
+	}
+}
+
+// AddedSchemaVersion returns the value that was added to the "schema_version" field in this mutation.
+func (m *ArchiveManifestMutation) AddedSchemaVersion() (r int16, exists bool) {
+	v := m.addschema_version
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetSchemaVersion resets all changes to the "schema_version" field.
+func (m *ArchiveManifestMutation) ResetSchemaVersion() {
+	m.schema_version = nil
+	m.addschema_version = nil
+}
+
+// SetDeleteAfter sets the "delete_after" field.
+func (m *ArchiveManifestMutation) SetDeleteAfter(t time.Time) {
+	m.delete_after = &t
+}
+
+// DeleteAfter returns the value of the "delete_after" field in the mutation.
+func (m *ArchiveManifestMutation) DeleteAfter() (r time.Time, exists bool) {
+	v := m.delete_after
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDeleteAfter returns the old "delete_after" field's value of the ArchiveManifest entity.
+// If the ArchiveManifest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ArchiveManifestMutation) OldDeleteAfter(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDeleteAfter is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDeleteAfter requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDeleteAfter: %w", err)
+	}
+	return oldValue.DeleteAfter, nil
+}
+
+// ResetDeleteAfter resets all changes to the "delete_after" field.
+func (m *ArchiveManifestMutation) ResetDeleteAfter() {
+	m.delete_after = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *ArchiveManifestMutation) SetStatus(a archivemanifest.Status) {
+	m.status = &a
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *ArchiveManifestMutation) Status() (r archivemanifest.Status, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the ArchiveManifest entity.
+// If the ArchiveManifest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ArchiveManifestMutation) OldStatus(ctx context.Context) (v archivemanifest.Status, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *ArchiveManifestMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetFailureReason sets the "failure_reason" field.
+func (m *ArchiveManifestMutation) SetFailureReason(s string) {
+	m.failure_reason = &s
+}
+
+// FailureReason returns the value of the "failure_reason" field in the mutation.
+func (m *ArchiveManifestMutation) FailureReason() (r string, exists bool) {
+	v := m.failure_reason
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFailureReason returns the old "failure_reason" field's value of the ArchiveManifest entity.
+// If the ArchiveManifest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ArchiveManifestMutation) OldFailureReason(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFailureReason is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFailureReason requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFailureReason: %w", err)
+	}
+	return oldValue.FailureReason, nil
+}
+
+// ClearFailureReason clears the value of the "failure_reason" field.
+func (m *ArchiveManifestMutation) ClearFailureReason() {
+	m.failure_reason = nil
+	m.clearedFields[archivemanifest.FieldFailureReason] = struct{}{}
+}
+
+// FailureReasonCleared returns if the "failure_reason" field was cleared in this mutation.
+func (m *ArchiveManifestMutation) FailureReasonCleared() bool {
+	_, ok := m.clearedFields[archivemanifest.FieldFailureReason]
+	return ok
+}
+
+// ResetFailureReason resets all changes to the "failure_reason" field.
+func (m *ArchiveManifestMutation) ResetFailureReason() {
+	m.failure_reason = nil
+	delete(m.clearedFields, archivemanifest.FieldFailureReason)
+}
+
+// Where appends a list predicates to the ArchiveManifestMutation builder.
+func (m *ArchiveManifestMutation) Where(ps ...predicate.ArchiveManifest) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the ArchiveManifestMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *ArchiveManifestMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.ArchiveManifest, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *ArchiveManifestMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *ArchiveManifestMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (ArchiveManifest).
+func (m *ArchiveManifestMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *ArchiveManifestMutation) Fields() []string {
+	fields := make([]string, 0, 18)
+	if m.uid != nil {
+		fields = append(fields, archivemanifest.FieldUID)
+	}
+	if m.created_at != nil {
+		fields = append(fields, archivemanifest.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, archivemanifest.FieldUpdatedAt)
+	}
+	if m.bucket != nil {
+		fields = append(fields, archivemanifest.FieldBucket)
+	}
+	if m.object_path != nil {
+		fields = append(fields, archivemanifest.FieldObjectPath)
+	}
+	if m.region != nil {
+		fields = append(fields, archivemanifest.FieldRegion)
+	}
+	if m.org_uid != nil {
+		fields = append(fields, archivemanifest.FieldOrgUID)
+	}
+	if m.project_uid != nil {
+		fields = append(fields, archivemanifest.FieldProjectUID)
+	}
+	if m.environment_uid != nil {
+		fields = append(fields, archivemanifest.FieldEnvironmentUID)
+	}
+	if m.min_event_time != nil {
+		fields = append(fields, archivemanifest.FieldMinEventTime)
+	}
+	if m.max_event_time != nil {
+		fields = append(fields, archivemanifest.FieldMaxEventTime)
+	}
+	if m.event_count != nil {
+		fields = append(fields, archivemanifest.FieldEventCount)
+	}
+	if m.object_size_bytes != nil {
+		fields = append(fields, archivemanifest.FieldObjectSizeBytes)
+	}
+	if m.normalized_input_bytes != nil {
+		fields = append(fields, archivemanifest.FieldNormalizedInputBytes)
+	}
+	if m.schema_version != nil {
+		fields = append(fields, archivemanifest.FieldSchemaVersion)
+	}
+	if m.delete_after != nil {
+		fields = append(fields, archivemanifest.FieldDeleteAfter)
+	}
+	if m.status != nil {
+		fields = append(fields, archivemanifest.FieldStatus)
+	}
+	if m.failure_reason != nil {
+		fields = append(fields, archivemanifest.FieldFailureReason)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *ArchiveManifestMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case archivemanifest.FieldUID:
+		return m.UID()
+	case archivemanifest.FieldCreatedAt:
+		return m.CreatedAt()
+	case archivemanifest.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case archivemanifest.FieldBucket:
+		return m.Bucket()
+	case archivemanifest.FieldObjectPath:
+		return m.ObjectPath()
+	case archivemanifest.FieldRegion:
+		return m.Region()
+	case archivemanifest.FieldOrgUID:
+		return m.OrgUID()
+	case archivemanifest.FieldProjectUID:
+		return m.ProjectUID()
+	case archivemanifest.FieldEnvironmentUID:
+		return m.EnvironmentUID()
+	case archivemanifest.FieldMinEventTime:
+		return m.MinEventTime()
+	case archivemanifest.FieldMaxEventTime:
+		return m.MaxEventTime()
+	case archivemanifest.FieldEventCount:
+		return m.EventCount()
+	case archivemanifest.FieldObjectSizeBytes:
+		return m.ObjectSizeBytes()
+	case archivemanifest.FieldNormalizedInputBytes:
+		return m.NormalizedInputBytes()
+	case archivemanifest.FieldSchemaVersion:
+		return m.SchemaVersion()
+	case archivemanifest.FieldDeleteAfter:
+		return m.DeleteAfter()
+	case archivemanifest.FieldStatus:
+		return m.Status()
+	case archivemanifest.FieldFailureReason:
+		return m.FailureReason()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *ArchiveManifestMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case archivemanifest.FieldUID:
+		return m.OldUID(ctx)
+	case archivemanifest.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case archivemanifest.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case archivemanifest.FieldBucket:
+		return m.OldBucket(ctx)
+	case archivemanifest.FieldObjectPath:
+		return m.OldObjectPath(ctx)
+	case archivemanifest.FieldRegion:
+		return m.OldRegion(ctx)
+	case archivemanifest.FieldOrgUID:
+		return m.OldOrgUID(ctx)
+	case archivemanifest.FieldProjectUID:
+		return m.OldProjectUID(ctx)
+	case archivemanifest.FieldEnvironmentUID:
+		return m.OldEnvironmentUID(ctx)
+	case archivemanifest.FieldMinEventTime:
+		return m.OldMinEventTime(ctx)
+	case archivemanifest.FieldMaxEventTime:
+		return m.OldMaxEventTime(ctx)
+	case archivemanifest.FieldEventCount:
+		return m.OldEventCount(ctx)
+	case archivemanifest.FieldObjectSizeBytes:
+		return m.OldObjectSizeBytes(ctx)
+	case archivemanifest.FieldNormalizedInputBytes:
+		return m.OldNormalizedInputBytes(ctx)
+	case archivemanifest.FieldSchemaVersion:
+		return m.OldSchemaVersion(ctx)
+	case archivemanifest.FieldDeleteAfter:
+		return m.OldDeleteAfter(ctx)
+	case archivemanifest.FieldStatus:
+		return m.OldStatus(ctx)
+	case archivemanifest.FieldFailureReason:
+		return m.OldFailureReason(ctx)
+	}
+	return nil, fmt.Errorf("unknown ArchiveManifest field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *ArchiveManifestMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case archivemanifest.FieldUID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUID(v)
+		return nil
+	case archivemanifest.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case archivemanifest.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case archivemanifest.FieldBucket:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBucket(v)
+		return nil
+	case archivemanifest.FieldObjectPath:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetObjectPath(v)
+		return nil
+	case archivemanifest.FieldRegion:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRegion(v)
+		return nil
+	case archivemanifest.FieldOrgUID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOrgUID(v)
+		return nil
+	case archivemanifest.FieldProjectUID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProjectUID(v)
+		return nil
+	case archivemanifest.FieldEnvironmentUID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEnvironmentUID(v)
+		return nil
+	case archivemanifest.FieldMinEventTime:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMinEventTime(v)
+		return nil
+	case archivemanifest.FieldMaxEventTime:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMaxEventTime(v)
+		return nil
+	case archivemanifest.FieldEventCount:
+		v, ok := value.(uint64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEventCount(v)
+		return nil
+	case archivemanifest.FieldObjectSizeBytes:
+		v, ok := value.(uint64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetObjectSizeBytes(v)
+		return nil
+	case archivemanifest.FieldNormalizedInputBytes:
+		v, ok := value.(uint64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNormalizedInputBytes(v)
+		return nil
+	case archivemanifest.FieldSchemaVersion:
+		v, ok := value.(uint16)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSchemaVersion(v)
+		return nil
+	case archivemanifest.FieldDeleteAfter:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDeleteAfter(v)
+		return nil
+	case archivemanifest.FieldStatus:
+		v, ok := value.(archivemanifest.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case archivemanifest.FieldFailureReason:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFailureReason(v)
+		return nil
+	}
+	return fmt.Errorf("unknown ArchiveManifest field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *ArchiveManifestMutation) AddedFields() []string {
+	var fields []string
+	if m.addevent_count != nil {
+		fields = append(fields, archivemanifest.FieldEventCount)
+	}
+	if m.addobject_size_bytes != nil {
+		fields = append(fields, archivemanifest.FieldObjectSizeBytes)
+	}
+	if m.addnormalized_input_bytes != nil {
+		fields = append(fields, archivemanifest.FieldNormalizedInputBytes)
+	}
+	if m.addschema_version != nil {
+		fields = append(fields, archivemanifest.FieldSchemaVersion)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *ArchiveManifestMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case archivemanifest.FieldEventCount:
+		return m.AddedEventCount()
+	case archivemanifest.FieldObjectSizeBytes:
+		return m.AddedObjectSizeBytes()
+	case archivemanifest.FieldNormalizedInputBytes:
+		return m.AddedNormalizedInputBytes()
+	case archivemanifest.FieldSchemaVersion:
+		return m.AddedSchemaVersion()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *ArchiveManifestMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case archivemanifest.FieldEventCount:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddEventCount(v)
+		return nil
+	case archivemanifest.FieldObjectSizeBytes:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddObjectSizeBytes(v)
+		return nil
+	case archivemanifest.FieldNormalizedInputBytes:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddNormalizedInputBytes(v)
+		return nil
+	case archivemanifest.FieldSchemaVersion:
+		v, ok := value.(int16)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSchemaVersion(v)
+		return nil
+	}
+	return fmt.Errorf("unknown ArchiveManifest numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *ArchiveManifestMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(archivemanifest.FieldFailureReason) {
+		fields = append(fields, archivemanifest.FieldFailureReason)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *ArchiveManifestMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *ArchiveManifestMutation) ClearField(name string) error {
+	switch name {
+	case archivemanifest.FieldFailureReason:
+		m.ClearFailureReason()
+		return nil
+	}
+	return fmt.Errorf("unknown ArchiveManifest nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *ArchiveManifestMutation) ResetField(name string) error {
+	switch name {
+	case archivemanifest.FieldUID:
+		m.ResetUID()
+		return nil
+	case archivemanifest.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case archivemanifest.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case archivemanifest.FieldBucket:
+		m.ResetBucket()
+		return nil
+	case archivemanifest.FieldObjectPath:
+		m.ResetObjectPath()
+		return nil
+	case archivemanifest.FieldRegion:
+		m.ResetRegion()
+		return nil
+	case archivemanifest.FieldOrgUID:
+		m.ResetOrgUID()
+		return nil
+	case archivemanifest.FieldProjectUID:
+		m.ResetProjectUID()
+		return nil
+	case archivemanifest.FieldEnvironmentUID:
+		m.ResetEnvironmentUID()
+		return nil
+	case archivemanifest.FieldMinEventTime:
+		m.ResetMinEventTime()
+		return nil
+	case archivemanifest.FieldMaxEventTime:
+		m.ResetMaxEventTime()
+		return nil
+	case archivemanifest.FieldEventCount:
+		m.ResetEventCount()
+		return nil
+	case archivemanifest.FieldObjectSizeBytes:
+		m.ResetObjectSizeBytes()
+		return nil
+	case archivemanifest.FieldNormalizedInputBytes:
+		m.ResetNormalizedInputBytes()
+		return nil
+	case archivemanifest.FieldSchemaVersion:
+		m.ResetSchemaVersion()
+		return nil
+	case archivemanifest.FieldDeleteAfter:
+		m.ResetDeleteAfter()
+		return nil
+	case archivemanifest.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case archivemanifest.FieldFailureReason:
+		m.ResetFailureReason()
+		return nil
+	}
+	return fmt.Errorf("unknown ArchiveManifest field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *ArchiveManifestMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *ArchiveManifestMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *ArchiveManifestMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *ArchiveManifestMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *ArchiveManifestMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *ArchiveManifestMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *ArchiveManifestMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown ArchiveManifest unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *ArchiveManifestMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown ArchiveManifest edge %s", name)
+}
 
 // DataDeletionRequestMutation represents an operation that mutates the DataDeletionRequest nodes in the graph.
 type DataDeletionRequestMutation struct {

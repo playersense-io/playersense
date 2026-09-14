@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"time"
 
+	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
@@ -19,6 +20,7 @@ type VerifiedPurchaseCreate struct {
 	config
 	mutation *VerifiedPurchaseMutation
 	hooks    []Hook
+	conflict []sql.ConflictOption
 }
 
 // SetUID sets the "uid" field.
@@ -254,6 +256,7 @@ func (_c *VerifiedPurchaseCreate) createSpec() (*VerifiedPurchase, *sqlgraph.Cre
 		_node = &VerifiedPurchase{config: _c.config}
 		_spec = sqlgraph.NewCreateSpec(verifiedpurchase.Table, sqlgraph.NewFieldSpec(verifiedpurchase.FieldID, field.TypeInt))
 	)
+	_spec.OnConflict = _c.conflict
 	if id, ok := _c.mutation.ID(); ok {
 		_node.ID = id
 		_spec.ID.Value = id
@@ -305,11 +308,395 @@ func (_c *VerifiedPurchaseCreate) createSpec() (*VerifiedPurchase, *sqlgraph.Cre
 	return _node, _spec
 }
 
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.VerifiedPurchase.Create().
+//		SetUID(v).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.VerifiedPurchaseUpsert) {
+//			SetUID(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *VerifiedPurchaseCreate) OnConflict(opts ...sql.ConflictOption) *VerifiedPurchaseUpsertOne {
+	_c.conflict = opts
+	return &VerifiedPurchaseUpsertOne{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.VerifiedPurchase.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *VerifiedPurchaseCreate) OnConflictColumns(columns ...string) *VerifiedPurchaseUpsertOne {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &VerifiedPurchaseUpsertOne{
+		create: _c,
+	}
+}
+
+type (
+	// VerifiedPurchaseUpsertOne is the builder for "upsert"-ing
+	//  one VerifiedPurchase node.
+	VerifiedPurchaseUpsertOne struct {
+		create *VerifiedPurchaseCreate
+	}
+
+	// VerifiedPurchaseUpsert is the "OnConflict" setter.
+	VerifiedPurchaseUpsert struct {
+		*sql.UpdateSet
+	}
+)
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *VerifiedPurchaseUpsert) SetUpdatedAt(v time.Time) *VerifiedPurchaseUpsert {
+	u.Set(verifiedpurchase.FieldUpdatedAt, v)
+	return u
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsert) UpdateUpdatedAt() *VerifiedPurchaseUpsert {
+	u.SetExcluded(verifiedpurchase.FieldUpdatedAt)
+	return u
+}
+
+// SetProjectUID sets the "project_uid" field.
+func (u *VerifiedPurchaseUpsert) SetProjectUID(v uuid.UUID) *VerifiedPurchaseUpsert {
+	u.Set(verifiedpurchase.FieldProjectUID, v)
+	return u
+}
+
+// UpdateProjectUID sets the "project_uid" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsert) UpdateProjectUID() *VerifiedPurchaseUpsert {
+	u.SetExcluded(verifiedpurchase.FieldProjectUID)
+	return u
+}
+
+// SetPlayerID sets the "player_id" field.
+func (u *VerifiedPurchaseUpsert) SetPlayerID(v string) *VerifiedPurchaseUpsert {
+	u.Set(verifiedpurchase.FieldPlayerID, v)
+	return u
+}
+
+// UpdatePlayerID sets the "player_id" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsert) UpdatePlayerID() *VerifiedPurchaseUpsert {
+	u.SetExcluded(verifiedpurchase.FieldPlayerID)
+	return u
+}
+
+// SetPlatform sets the "platform" field.
+func (u *VerifiedPurchaseUpsert) SetPlatform(v verifiedpurchase.Platform) *VerifiedPurchaseUpsert {
+	u.Set(verifiedpurchase.FieldPlatform, v)
+	return u
+}
+
+// UpdatePlatform sets the "platform" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsert) UpdatePlatform() *VerifiedPurchaseUpsert {
+	u.SetExcluded(verifiedpurchase.FieldPlatform)
+	return u
+}
+
+// SetStoreTransactionID sets the "store_transaction_id" field.
+func (u *VerifiedPurchaseUpsert) SetStoreTransactionID(v string) *VerifiedPurchaseUpsert {
+	u.Set(verifiedpurchase.FieldStoreTransactionID, v)
+	return u
+}
+
+// UpdateStoreTransactionID sets the "store_transaction_id" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsert) UpdateStoreTransactionID() *VerifiedPurchaseUpsert {
+	u.SetExcluded(verifiedpurchase.FieldStoreTransactionID)
+	return u
+}
+
+// SetProductID sets the "product_id" field.
+func (u *VerifiedPurchaseUpsert) SetProductID(v string) *VerifiedPurchaseUpsert {
+	u.Set(verifiedpurchase.FieldProductID, v)
+	return u
+}
+
+// UpdateProductID sets the "product_id" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsert) UpdateProductID() *VerifiedPurchaseUpsert {
+	u.SetExcluded(verifiedpurchase.FieldProductID)
+	return u
+}
+
+// SetAmountMicros sets the "amount_micros" field.
+func (u *VerifiedPurchaseUpsert) SetAmountMicros(v int64) *VerifiedPurchaseUpsert {
+	u.Set(verifiedpurchase.FieldAmountMicros, v)
+	return u
+}
+
+// UpdateAmountMicros sets the "amount_micros" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsert) UpdateAmountMicros() *VerifiedPurchaseUpsert {
+	u.SetExcluded(verifiedpurchase.FieldAmountMicros)
+	return u
+}
+
+// AddAmountMicros adds v to the "amount_micros" field.
+func (u *VerifiedPurchaseUpsert) AddAmountMicros(v int64) *VerifiedPurchaseUpsert {
+	u.Add(verifiedpurchase.FieldAmountMicros, v)
+	return u
+}
+
+// SetCurrency sets the "currency" field.
+func (u *VerifiedPurchaseUpsert) SetCurrency(v string) *VerifiedPurchaseUpsert {
+	u.Set(verifiedpurchase.FieldCurrency, v)
+	return u
+}
+
+// UpdateCurrency sets the "currency" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsert) UpdateCurrency() *VerifiedPurchaseUpsert {
+	u.SetExcluded(verifiedpurchase.FieldCurrency)
+	return u
+}
+
+// SetPurchasedAt sets the "purchased_at" field.
+func (u *VerifiedPurchaseUpsert) SetPurchasedAt(v time.Time) *VerifiedPurchaseUpsert {
+	u.Set(verifiedpurchase.FieldPurchasedAt, v)
+	return u
+}
+
+// UpdatePurchasedAt sets the "purchased_at" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsert) UpdatePurchasedAt() *VerifiedPurchaseUpsert {
+	u.SetExcluded(verifiedpurchase.FieldPurchasedAt)
+	return u
+}
+
+// UpdateNewValues updates the mutable fields using the new values that were set on create except the ID field.
+// Using this option is equivalent to using:
+//
+//	client.VerifiedPurchase.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//			sql.ResolveWith(func(u *sql.UpdateSet) {
+//				u.SetIgnore(verifiedpurchase.FieldID)
+//			}),
+//		).
+//		Exec(ctx)
+func (u *VerifiedPurchaseUpsertOne) UpdateNewValues() *VerifiedPurchaseUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		if _, exists := u.create.mutation.ID(); exists {
+			s.SetIgnore(verifiedpurchase.FieldID)
+		}
+		if _, exists := u.create.mutation.UID(); exists {
+			s.SetIgnore(verifiedpurchase.FieldUID)
+		}
+		if _, exists := u.create.mutation.CreatedAt(); exists {
+			s.SetIgnore(verifiedpurchase.FieldCreatedAt)
+		}
+	}))
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.VerifiedPurchase.Create().
+//	    OnConflict(sql.ResolveWithIgnore()).
+//	    Exec(ctx)
+func (u *VerifiedPurchaseUpsertOne) Ignore() *VerifiedPurchaseUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *VerifiedPurchaseUpsertOne) DoNothing() *VerifiedPurchaseUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the VerifiedPurchaseCreate.OnConflict
+// documentation for more info.
+func (u *VerifiedPurchaseUpsertOne) Update(set func(*VerifiedPurchaseUpsert)) *VerifiedPurchaseUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&VerifiedPurchaseUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *VerifiedPurchaseUpsertOne) SetUpdatedAt(v time.Time) *VerifiedPurchaseUpsertOne {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsertOne) UpdateUpdatedAt() *VerifiedPurchaseUpsertOne {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.UpdateUpdatedAt()
+	})
+}
+
+// SetProjectUID sets the "project_uid" field.
+func (u *VerifiedPurchaseUpsertOne) SetProjectUID(v uuid.UUID) *VerifiedPurchaseUpsertOne {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.SetProjectUID(v)
+	})
+}
+
+// UpdateProjectUID sets the "project_uid" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsertOne) UpdateProjectUID() *VerifiedPurchaseUpsertOne {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.UpdateProjectUID()
+	})
+}
+
+// SetPlayerID sets the "player_id" field.
+func (u *VerifiedPurchaseUpsertOne) SetPlayerID(v string) *VerifiedPurchaseUpsertOne {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.SetPlayerID(v)
+	})
+}
+
+// UpdatePlayerID sets the "player_id" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsertOne) UpdatePlayerID() *VerifiedPurchaseUpsertOne {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.UpdatePlayerID()
+	})
+}
+
+// SetPlatform sets the "platform" field.
+func (u *VerifiedPurchaseUpsertOne) SetPlatform(v verifiedpurchase.Platform) *VerifiedPurchaseUpsertOne {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.SetPlatform(v)
+	})
+}
+
+// UpdatePlatform sets the "platform" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsertOne) UpdatePlatform() *VerifiedPurchaseUpsertOne {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.UpdatePlatform()
+	})
+}
+
+// SetStoreTransactionID sets the "store_transaction_id" field.
+func (u *VerifiedPurchaseUpsertOne) SetStoreTransactionID(v string) *VerifiedPurchaseUpsertOne {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.SetStoreTransactionID(v)
+	})
+}
+
+// UpdateStoreTransactionID sets the "store_transaction_id" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsertOne) UpdateStoreTransactionID() *VerifiedPurchaseUpsertOne {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.UpdateStoreTransactionID()
+	})
+}
+
+// SetProductID sets the "product_id" field.
+func (u *VerifiedPurchaseUpsertOne) SetProductID(v string) *VerifiedPurchaseUpsertOne {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.SetProductID(v)
+	})
+}
+
+// UpdateProductID sets the "product_id" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsertOne) UpdateProductID() *VerifiedPurchaseUpsertOne {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.UpdateProductID()
+	})
+}
+
+// SetAmountMicros sets the "amount_micros" field.
+func (u *VerifiedPurchaseUpsertOne) SetAmountMicros(v int64) *VerifiedPurchaseUpsertOne {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.SetAmountMicros(v)
+	})
+}
+
+// AddAmountMicros adds v to the "amount_micros" field.
+func (u *VerifiedPurchaseUpsertOne) AddAmountMicros(v int64) *VerifiedPurchaseUpsertOne {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.AddAmountMicros(v)
+	})
+}
+
+// UpdateAmountMicros sets the "amount_micros" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsertOne) UpdateAmountMicros() *VerifiedPurchaseUpsertOne {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.UpdateAmountMicros()
+	})
+}
+
+// SetCurrency sets the "currency" field.
+func (u *VerifiedPurchaseUpsertOne) SetCurrency(v string) *VerifiedPurchaseUpsertOne {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.SetCurrency(v)
+	})
+}
+
+// UpdateCurrency sets the "currency" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsertOne) UpdateCurrency() *VerifiedPurchaseUpsertOne {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.UpdateCurrency()
+	})
+}
+
+// SetPurchasedAt sets the "purchased_at" field.
+func (u *VerifiedPurchaseUpsertOne) SetPurchasedAt(v time.Time) *VerifiedPurchaseUpsertOne {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.SetPurchasedAt(v)
+	})
+}
+
+// UpdatePurchasedAt sets the "purchased_at" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsertOne) UpdatePurchasedAt() *VerifiedPurchaseUpsertOne {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.UpdatePurchasedAt()
+	})
+}
+
+// Exec executes the query.
+func (u *VerifiedPurchaseUpsertOne) Exec(ctx context.Context) error {
+	if len(u.create.conflict) == 0 {
+		return errors.New("regional: missing options for VerifiedPurchaseCreate.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *VerifiedPurchaseUpsertOne) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// Exec executes the UPSERT query and returns the inserted/updated ID.
+func (u *VerifiedPurchaseUpsertOne) ID(ctx context.Context) (id int, err error) {
+	node, err := u.create.Save(ctx)
+	if err != nil {
+		return id, err
+	}
+	return node.ID, nil
+}
+
+// IDX is like ID, but panics if an error occurs.
+func (u *VerifiedPurchaseUpsertOne) IDX(ctx context.Context) int {
+	id, err := u.ID(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
 // VerifiedPurchaseCreateBulk is the builder for creating many VerifiedPurchase entities in bulk.
 type VerifiedPurchaseCreateBulk struct {
 	config
 	err      error
 	builders []*VerifiedPurchaseCreate
+	conflict []sql.ConflictOption
 }
 
 // Save creates the VerifiedPurchase entities in the database.
@@ -339,6 +726,7 @@ func (_c *VerifiedPurchaseCreateBulk) Save(ctx context.Context) ([]*VerifiedPurc
 					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
 				} else {
 					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+					spec.OnConflict = _c.conflict
 					// Invoke the actual operation on the latest mutation in the chain.
 					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
 						if sqlgraph.IsConstraintError(err) {
@@ -389,6 +777,259 @@ func (_c *VerifiedPurchaseCreateBulk) Exec(ctx context.Context) error {
 // ExecX is like Exec, but panics if an error occurs.
 func (_c *VerifiedPurchaseCreateBulk) ExecX(ctx context.Context) {
 	if err := _c.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.VerifiedPurchase.CreateBulk(builders...).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.VerifiedPurchaseUpsert) {
+//			SetUID(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *VerifiedPurchaseCreateBulk) OnConflict(opts ...sql.ConflictOption) *VerifiedPurchaseUpsertBulk {
+	_c.conflict = opts
+	return &VerifiedPurchaseUpsertBulk{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.VerifiedPurchase.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *VerifiedPurchaseCreateBulk) OnConflictColumns(columns ...string) *VerifiedPurchaseUpsertBulk {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &VerifiedPurchaseUpsertBulk{
+		create: _c,
+	}
+}
+
+// VerifiedPurchaseUpsertBulk is the builder for "upsert"-ing
+// a bulk of VerifiedPurchase nodes.
+type VerifiedPurchaseUpsertBulk struct {
+	create *VerifiedPurchaseCreateBulk
+}
+
+// UpdateNewValues updates the mutable fields using the new values that
+// were set on create. Using this option is equivalent to using:
+//
+//	client.VerifiedPurchase.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//			sql.ResolveWith(func(u *sql.UpdateSet) {
+//				u.SetIgnore(verifiedpurchase.FieldID)
+//			}),
+//		).
+//		Exec(ctx)
+func (u *VerifiedPurchaseUpsertBulk) UpdateNewValues() *VerifiedPurchaseUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		for _, b := range u.create.builders {
+			if _, exists := b.mutation.ID(); exists {
+				s.SetIgnore(verifiedpurchase.FieldID)
+			}
+			if _, exists := b.mutation.UID(); exists {
+				s.SetIgnore(verifiedpurchase.FieldUID)
+			}
+			if _, exists := b.mutation.CreatedAt(); exists {
+				s.SetIgnore(verifiedpurchase.FieldCreatedAt)
+			}
+		}
+	}))
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.VerifiedPurchase.Create().
+//		OnConflict(sql.ResolveWithIgnore()).
+//		Exec(ctx)
+func (u *VerifiedPurchaseUpsertBulk) Ignore() *VerifiedPurchaseUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *VerifiedPurchaseUpsertBulk) DoNothing() *VerifiedPurchaseUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the VerifiedPurchaseCreateBulk.OnConflict
+// documentation for more info.
+func (u *VerifiedPurchaseUpsertBulk) Update(set func(*VerifiedPurchaseUpsert)) *VerifiedPurchaseUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&VerifiedPurchaseUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *VerifiedPurchaseUpsertBulk) SetUpdatedAt(v time.Time) *VerifiedPurchaseUpsertBulk {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsertBulk) UpdateUpdatedAt() *VerifiedPurchaseUpsertBulk {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.UpdateUpdatedAt()
+	})
+}
+
+// SetProjectUID sets the "project_uid" field.
+func (u *VerifiedPurchaseUpsertBulk) SetProjectUID(v uuid.UUID) *VerifiedPurchaseUpsertBulk {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.SetProjectUID(v)
+	})
+}
+
+// UpdateProjectUID sets the "project_uid" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsertBulk) UpdateProjectUID() *VerifiedPurchaseUpsertBulk {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.UpdateProjectUID()
+	})
+}
+
+// SetPlayerID sets the "player_id" field.
+func (u *VerifiedPurchaseUpsertBulk) SetPlayerID(v string) *VerifiedPurchaseUpsertBulk {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.SetPlayerID(v)
+	})
+}
+
+// UpdatePlayerID sets the "player_id" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsertBulk) UpdatePlayerID() *VerifiedPurchaseUpsertBulk {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.UpdatePlayerID()
+	})
+}
+
+// SetPlatform sets the "platform" field.
+func (u *VerifiedPurchaseUpsertBulk) SetPlatform(v verifiedpurchase.Platform) *VerifiedPurchaseUpsertBulk {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.SetPlatform(v)
+	})
+}
+
+// UpdatePlatform sets the "platform" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsertBulk) UpdatePlatform() *VerifiedPurchaseUpsertBulk {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.UpdatePlatform()
+	})
+}
+
+// SetStoreTransactionID sets the "store_transaction_id" field.
+func (u *VerifiedPurchaseUpsertBulk) SetStoreTransactionID(v string) *VerifiedPurchaseUpsertBulk {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.SetStoreTransactionID(v)
+	})
+}
+
+// UpdateStoreTransactionID sets the "store_transaction_id" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsertBulk) UpdateStoreTransactionID() *VerifiedPurchaseUpsertBulk {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.UpdateStoreTransactionID()
+	})
+}
+
+// SetProductID sets the "product_id" field.
+func (u *VerifiedPurchaseUpsertBulk) SetProductID(v string) *VerifiedPurchaseUpsertBulk {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.SetProductID(v)
+	})
+}
+
+// UpdateProductID sets the "product_id" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsertBulk) UpdateProductID() *VerifiedPurchaseUpsertBulk {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.UpdateProductID()
+	})
+}
+
+// SetAmountMicros sets the "amount_micros" field.
+func (u *VerifiedPurchaseUpsertBulk) SetAmountMicros(v int64) *VerifiedPurchaseUpsertBulk {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.SetAmountMicros(v)
+	})
+}
+
+// AddAmountMicros adds v to the "amount_micros" field.
+func (u *VerifiedPurchaseUpsertBulk) AddAmountMicros(v int64) *VerifiedPurchaseUpsertBulk {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.AddAmountMicros(v)
+	})
+}
+
+// UpdateAmountMicros sets the "amount_micros" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsertBulk) UpdateAmountMicros() *VerifiedPurchaseUpsertBulk {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.UpdateAmountMicros()
+	})
+}
+
+// SetCurrency sets the "currency" field.
+func (u *VerifiedPurchaseUpsertBulk) SetCurrency(v string) *VerifiedPurchaseUpsertBulk {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.SetCurrency(v)
+	})
+}
+
+// UpdateCurrency sets the "currency" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsertBulk) UpdateCurrency() *VerifiedPurchaseUpsertBulk {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.UpdateCurrency()
+	})
+}
+
+// SetPurchasedAt sets the "purchased_at" field.
+func (u *VerifiedPurchaseUpsertBulk) SetPurchasedAt(v time.Time) *VerifiedPurchaseUpsertBulk {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.SetPurchasedAt(v)
+	})
+}
+
+// UpdatePurchasedAt sets the "purchased_at" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsertBulk) UpdatePurchasedAt() *VerifiedPurchaseUpsertBulk {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.UpdatePurchasedAt()
+	})
+}
+
+// Exec executes the query.
+func (u *VerifiedPurchaseUpsertBulk) Exec(ctx context.Context) error {
+	if u.create.err != nil {
+		return u.create.err
+	}
+	for i, b := range u.create.builders {
+		if len(b.conflict) != 0 {
+			return fmt.Errorf("regional: OnConflict was set for builder %d. Set it on the VerifiedPurchaseCreateBulk instead", i)
+		}
+	}
+	if len(u.create.conflict) == 0 {
+		return errors.New("regional: missing options for VerifiedPurchaseCreateBulk.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *VerifiedPurchaseUpsertBulk) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

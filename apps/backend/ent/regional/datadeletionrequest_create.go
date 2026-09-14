@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"time"
 
+	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
@@ -19,6 +20,7 @@ type DataDeletionRequestCreate struct {
 	config
 	mutation *DataDeletionRequestMutation
 	hooks    []Hook
+	conflict []sql.ConflictOption
 }
 
 // SetUID sets the "uid" field.
@@ -239,6 +241,7 @@ func (_c *DataDeletionRequestCreate) createSpec() (*DataDeletionRequest, *sqlgra
 		_node = &DataDeletionRequest{config: _c.config}
 		_spec = sqlgraph.NewCreateSpec(datadeletionrequest.Table, sqlgraph.NewFieldSpec(datadeletionrequest.FieldID, field.TypeInt))
 	)
+	_spec.OnConflict = _c.conflict
 	if id, ok := _c.mutation.ID(); ok {
 		_node.ID = id
 		_spec.ID.Value = id
@@ -278,11 +281,330 @@ func (_c *DataDeletionRequestCreate) createSpec() (*DataDeletionRequest, *sqlgra
 	return _node, _spec
 }
 
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.DataDeletionRequest.Create().
+//		SetUID(v).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.DataDeletionRequestUpsert) {
+//			SetUID(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *DataDeletionRequestCreate) OnConflict(opts ...sql.ConflictOption) *DataDeletionRequestUpsertOne {
+	_c.conflict = opts
+	return &DataDeletionRequestUpsertOne{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.DataDeletionRequest.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *DataDeletionRequestCreate) OnConflictColumns(columns ...string) *DataDeletionRequestUpsertOne {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &DataDeletionRequestUpsertOne{
+		create: _c,
+	}
+}
+
+type (
+	// DataDeletionRequestUpsertOne is the builder for "upsert"-ing
+	//  one DataDeletionRequest node.
+	DataDeletionRequestUpsertOne struct {
+		create *DataDeletionRequestCreate
+	}
+
+	// DataDeletionRequestUpsert is the "OnConflict" setter.
+	DataDeletionRequestUpsert struct {
+		*sql.UpdateSet
+	}
+)
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *DataDeletionRequestUpsert) SetUpdatedAt(v time.Time) *DataDeletionRequestUpsert {
+	u.Set(datadeletionrequest.FieldUpdatedAt, v)
+	return u
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *DataDeletionRequestUpsert) UpdateUpdatedAt() *DataDeletionRequestUpsert {
+	u.SetExcluded(datadeletionrequest.FieldUpdatedAt)
+	return u
+}
+
+// SetProjectUID sets the "project_uid" field.
+func (u *DataDeletionRequestUpsert) SetProjectUID(v uuid.UUID) *DataDeletionRequestUpsert {
+	u.Set(datadeletionrequest.FieldProjectUID, v)
+	return u
+}
+
+// UpdateProjectUID sets the "project_uid" field to the value that was provided on create.
+func (u *DataDeletionRequestUpsert) UpdateProjectUID() *DataDeletionRequestUpsert {
+	u.SetExcluded(datadeletionrequest.FieldProjectUID)
+	return u
+}
+
+// SetActorKey sets the "actor_key" field.
+func (u *DataDeletionRequestUpsert) SetActorKey(v string) *DataDeletionRequestUpsert {
+	u.Set(datadeletionrequest.FieldActorKey, v)
+	return u
+}
+
+// UpdateActorKey sets the "actor_key" field to the value that was provided on create.
+func (u *DataDeletionRequestUpsert) UpdateActorKey() *DataDeletionRequestUpsert {
+	u.SetExcluded(datadeletionrequest.FieldActorKey)
+	return u
+}
+
+// SetStatus sets the "status" field.
+func (u *DataDeletionRequestUpsert) SetStatus(v datadeletionrequest.Status) *DataDeletionRequestUpsert {
+	u.Set(datadeletionrequest.FieldStatus, v)
+	return u
+}
+
+// UpdateStatus sets the "status" field to the value that was provided on create.
+func (u *DataDeletionRequestUpsert) UpdateStatus() *DataDeletionRequestUpsert {
+	u.SetExcluded(datadeletionrequest.FieldStatus)
+	return u
+}
+
+// SetCompletedAt sets the "completed_at" field.
+func (u *DataDeletionRequestUpsert) SetCompletedAt(v time.Time) *DataDeletionRequestUpsert {
+	u.Set(datadeletionrequest.FieldCompletedAt, v)
+	return u
+}
+
+// UpdateCompletedAt sets the "completed_at" field to the value that was provided on create.
+func (u *DataDeletionRequestUpsert) UpdateCompletedAt() *DataDeletionRequestUpsert {
+	u.SetExcluded(datadeletionrequest.FieldCompletedAt)
+	return u
+}
+
+// ClearCompletedAt clears the value of the "completed_at" field.
+func (u *DataDeletionRequestUpsert) ClearCompletedAt() *DataDeletionRequestUpsert {
+	u.SetNull(datadeletionrequest.FieldCompletedAt)
+	return u
+}
+
+// SetFailureReason sets the "failure_reason" field.
+func (u *DataDeletionRequestUpsert) SetFailureReason(v string) *DataDeletionRequestUpsert {
+	u.Set(datadeletionrequest.FieldFailureReason, v)
+	return u
+}
+
+// UpdateFailureReason sets the "failure_reason" field to the value that was provided on create.
+func (u *DataDeletionRequestUpsert) UpdateFailureReason() *DataDeletionRequestUpsert {
+	u.SetExcluded(datadeletionrequest.FieldFailureReason)
+	return u
+}
+
+// ClearFailureReason clears the value of the "failure_reason" field.
+func (u *DataDeletionRequestUpsert) ClearFailureReason() *DataDeletionRequestUpsert {
+	u.SetNull(datadeletionrequest.FieldFailureReason)
+	return u
+}
+
+// UpdateNewValues updates the mutable fields using the new values that were set on create except the ID field.
+// Using this option is equivalent to using:
+//
+//	client.DataDeletionRequest.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//			sql.ResolveWith(func(u *sql.UpdateSet) {
+//				u.SetIgnore(datadeletionrequest.FieldID)
+//			}),
+//		).
+//		Exec(ctx)
+func (u *DataDeletionRequestUpsertOne) UpdateNewValues() *DataDeletionRequestUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		if _, exists := u.create.mutation.ID(); exists {
+			s.SetIgnore(datadeletionrequest.FieldID)
+		}
+		if _, exists := u.create.mutation.UID(); exists {
+			s.SetIgnore(datadeletionrequest.FieldUID)
+		}
+		if _, exists := u.create.mutation.CreatedAt(); exists {
+			s.SetIgnore(datadeletionrequest.FieldCreatedAt)
+		}
+	}))
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.DataDeletionRequest.Create().
+//	    OnConflict(sql.ResolveWithIgnore()).
+//	    Exec(ctx)
+func (u *DataDeletionRequestUpsertOne) Ignore() *DataDeletionRequestUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *DataDeletionRequestUpsertOne) DoNothing() *DataDeletionRequestUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the DataDeletionRequestCreate.OnConflict
+// documentation for more info.
+func (u *DataDeletionRequestUpsertOne) Update(set func(*DataDeletionRequestUpsert)) *DataDeletionRequestUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&DataDeletionRequestUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *DataDeletionRequestUpsertOne) SetUpdatedAt(v time.Time) *DataDeletionRequestUpsertOne {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *DataDeletionRequestUpsertOne) UpdateUpdatedAt() *DataDeletionRequestUpsertOne {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.UpdateUpdatedAt()
+	})
+}
+
+// SetProjectUID sets the "project_uid" field.
+func (u *DataDeletionRequestUpsertOne) SetProjectUID(v uuid.UUID) *DataDeletionRequestUpsertOne {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.SetProjectUID(v)
+	})
+}
+
+// UpdateProjectUID sets the "project_uid" field to the value that was provided on create.
+func (u *DataDeletionRequestUpsertOne) UpdateProjectUID() *DataDeletionRequestUpsertOne {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.UpdateProjectUID()
+	})
+}
+
+// SetActorKey sets the "actor_key" field.
+func (u *DataDeletionRequestUpsertOne) SetActorKey(v string) *DataDeletionRequestUpsertOne {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.SetActorKey(v)
+	})
+}
+
+// UpdateActorKey sets the "actor_key" field to the value that was provided on create.
+func (u *DataDeletionRequestUpsertOne) UpdateActorKey() *DataDeletionRequestUpsertOne {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.UpdateActorKey()
+	})
+}
+
+// SetStatus sets the "status" field.
+func (u *DataDeletionRequestUpsertOne) SetStatus(v datadeletionrequest.Status) *DataDeletionRequestUpsertOne {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.SetStatus(v)
+	})
+}
+
+// UpdateStatus sets the "status" field to the value that was provided on create.
+func (u *DataDeletionRequestUpsertOne) UpdateStatus() *DataDeletionRequestUpsertOne {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.UpdateStatus()
+	})
+}
+
+// SetCompletedAt sets the "completed_at" field.
+func (u *DataDeletionRequestUpsertOne) SetCompletedAt(v time.Time) *DataDeletionRequestUpsertOne {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.SetCompletedAt(v)
+	})
+}
+
+// UpdateCompletedAt sets the "completed_at" field to the value that was provided on create.
+func (u *DataDeletionRequestUpsertOne) UpdateCompletedAt() *DataDeletionRequestUpsertOne {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.UpdateCompletedAt()
+	})
+}
+
+// ClearCompletedAt clears the value of the "completed_at" field.
+func (u *DataDeletionRequestUpsertOne) ClearCompletedAt() *DataDeletionRequestUpsertOne {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.ClearCompletedAt()
+	})
+}
+
+// SetFailureReason sets the "failure_reason" field.
+func (u *DataDeletionRequestUpsertOne) SetFailureReason(v string) *DataDeletionRequestUpsertOne {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.SetFailureReason(v)
+	})
+}
+
+// UpdateFailureReason sets the "failure_reason" field to the value that was provided on create.
+func (u *DataDeletionRequestUpsertOne) UpdateFailureReason() *DataDeletionRequestUpsertOne {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.UpdateFailureReason()
+	})
+}
+
+// ClearFailureReason clears the value of the "failure_reason" field.
+func (u *DataDeletionRequestUpsertOne) ClearFailureReason() *DataDeletionRequestUpsertOne {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.ClearFailureReason()
+	})
+}
+
+// Exec executes the query.
+func (u *DataDeletionRequestUpsertOne) Exec(ctx context.Context) error {
+	if len(u.create.conflict) == 0 {
+		return errors.New("regional: missing options for DataDeletionRequestCreate.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *DataDeletionRequestUpsertOne) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// Exec executes the UPSERT query and returns the inserted/updated ID.
+func (u *DataDeletionRequestUpsertOne) ID(ctx context.Context) (id int, err error) {
+	node, err := u.create.Save(ctx)
+	if err != nil {
+		return id, err
+	}
+	return node.ID, nil
+}
+
+// IDX is like ID, but panics if an error occurs.
+func (u *DataDeletionRequestUpsertOne) IDX(ctx context.Context) int {
+	id, err := u.ID(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
 // DataDeletionRequestCreateBulk is the builder for creating many DataDeletionRequest entities in bulk.
 type DataDeletionRequestCreateBulk struct {
 	config
 	err      error
 	builders []*DataDeletionRequestCreate
+	conflict []sql.ConflictOption
 }
 
 // Save creates the DataDeletionRequest entities in the database.
@@ -312,6 +634,7 @@ func (_c *DataDeletionRequestCreateBulk) Save(ctx context.Context) ([]*DataDelet
 					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
 				} else {
 					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+					spec.OnConflict = _c.conflict
 					// Invoke the actual operation on the latest mutation in the chain.
 					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
 						if sqlgraph.IsConstraintError(err) {
@@ -362,6 +685,224 @@ func (_c *DataDeletionRequestCreateBulk) Exec(ctx context.Context) error {
 // ExecX is like Exec, but panics if an error occurs.
 func (_c *DataDeletionRequestCreateBulk) ExecX(ctx context.Context) {
 	if err := _c.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.DataDeletionRequest.CreateBulk(builders...).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.DataDeletionRequestUpsert) {
+//			SetUID(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *DataDeletionRequestCreateBulk) OnConflict(opts ...sql.ConflictOption) *DataDeletionRequestUpsertBulk {
+	_c.conflict = opts
+	return &DataDeletionRequestUpsertBulk{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.DataDeletionRequest.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *DataDeletionRequestCreateBulk) OnConflictColumns(columns ...string) *DataDeletionRequestUpsertBulk {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &DataDeletionRequestUpsertBulk{
+		create: _c,
+	}
+}
+
+// DataDeletionRequestUpsertBulk is the builder for "upsert"-ing
+// a bulk of DataDeletionRequest nodes.
+type DataDeletionRequestUpsertBulk struct {
+	create *DataDeletionRequestCreateBulk
+}
+
+// UpdateNewValues updates the mutable fields using the new values that
+// were set on create. Using this option is equivalent to using:
+//
+//	client.DataDeletionRequest.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//			sql.ResolveWith(func(u *sql.UpdateSet) {
+//				u.SetIgnore(datadeletionrequest.FieldID)
+//			}),
+//		).
+//		Exec(ctx)
+func (u *DataDeletionRequestUpsertBulk) UpdateNewValues() *DataDeletionRequestUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		for _, b := range u.create.builders {
+			if _, exists := b.mutation.ID(); exists {
+				s.SetIgnore(datadeletionrequest.FieldID)
+			}
+			if _, exists := b.mutation.UID(); exists {
+				s.SetIgnore(datadeletionrequest.FieldUID)
+			}
+			if _, exists := b.mutation.CreatedAt(); exists {
+				s.SetIgnore(datadeletionrequest.FieldCreatedAt)
+			}
+		}
+	}))
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.DataDeletionRequest.Create().
+//		OnConflict(sql.ResolveWithIgnore()).
+//		Exec(ctx)
+func (u *DataDeletionRequestUpsertBulk) Ignore() *DataDeletionRequestUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *DataDeletionRequestUpsertBulk) DoNothing() *DataDeletionRequestUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the DataDeletionRequestCreateBulk.OnConflict
+// documentation for more info.
+func (u *DataDeletionRequestUpsertBulk) Update(set func(*DataDeletionRequestUpsert)) *DataDeletionRequestUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&DataDeletionRequestUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *DataDeletionRequestUpsertBulk) SetUpdatedAt(v time.Time) *DataDeletionRequestUpsertBulk {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *DataDeletionRequestUpsertBulk) UpdateUpdatedAt() *DataDeletionRequestUpsertBulk {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.UpdateUpdatedAt()
+	})
+}
+
+// SetProjectUID sets the "project_uid" field.
+func (u *DataDeletionRequestUpsertBulk) SetProjectUID(v uuid.UUID) *DataDeletionRequestUpsertBulk {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.SetProjectUID(v)
+	})
+}
+
+// UpdateProjectUID sets the "project_uid" field to the value that was provided on create.
+func (u *DataDeletionRequestUpsertBulk) UpdateProjectUID() *DataDeletionRequestUpsertBulk {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.UpdateProjectUID()
+	})
+}
+
+// SetActorKey sets the "actor_key" field.
+func (u *DataDeletionRequestUpsertBulk) SetActorKey(v string) *DataDeletionRequestUpsertBulk {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.SetActorKey(v)
+	})
+}
+
+// UpdateActorKey sets the "actor_key" field to the value that was provided on create.
+func (u *DataDeletionRequestUpsertBulk) UpdateActorKey() *DataDeletionRequestUpsertBulk {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.UpdateActorKey()
+	})
+}
+
+// SetStatus sets the "status" field.
+func (u *DataDeletionRequestUpsertBulk) SetStatus(v datadeletionrequest.Status) *DataDeletionRequestUpsertBulk {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.SetStatus(v)
+	})
+}
+
+// UpdateStatus sets the "status" field to the value that was provided on create.
+func (u *DataDeletionRequestUpsertBulk) UpdateStatus() *DataDeletionRequestUpsertBulk {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.UpdateStatus()
+	})
+}
+
+// SetCompletedAt sets the "completed_at" field.
+func (u *DataDeletionRequestUpsertBulk) SetCompletedAt(v time.Time) *DataDeletionRequestUpsertBulk {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.SetCompletedAt(v)
+	})
+}
+
+// UpdateCompletedAt sets the "completed_at" field to the value that was provided on create.
+func (u *DataDeletionRequestUpsertBulk) UpdateCompletedAt() *DataDeletionRequestUpsertBulk {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.UpdateCompletedAt()
+	})
+}
+
+// ClearCompletedAt clears the value of the "completed_at" field.
+func (u *DataDeletionRequestUpsertBulk) ClearCompletedAt() *DataDeletionRequestUpsertBulk {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.ClearCompletedAt()
+	})
+}
+
+// SetFailureReason sets the "failure_reason" field.
+func (u *DataDeletionRequestUpsertBulk) SetFailureReason(v string) *DataDeletionRequestUpsertBulk {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.SetFailureReason(v)
+	})
+}
+
+// UpdateFailureReason sets the "failure_reason" field to the value that was provided on create.
+func (u *DataDeletionRequestUpsertBulk) UpdateFailureReason() *DataDeletionRequestUpsertBulk {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.UpdateFailureReason()
+	})
+}
+
+// ClearFailureReason clears the value of the "failure_reason" field.
+func (u *DataDeletionRequestUpsertBulk) ClearFailureReason() *DataDeletionRequestUpsertBulk {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.ClearFailureReason()
+	})
+}
+
+// Exec executes the query.
+func (u *DataDeletionRequestUpsertBulk) Exec(ctx context.Context) error {
+	if u.create.err != nil {
+		return u.create.err
+	}
+	for i, b := range u.create.builders {
+		if len(b.conflict) != 0 {
+			return fmt.Errorf("regional: OnConflict was set for builder %d. Set it on the DataDeletionRequestCreateBulk instead", i)
+		}
+	}
+	if len(u.create.conflict) == 0 {
+		return errors.New("regional: missing options for DataDeletionRequestCreateBulk.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *DataDeletionRequestUpsertBulk) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

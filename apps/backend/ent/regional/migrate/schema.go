@@ -8,6 +8,51 @@ import (
 )
 
 var (
+	// ArchiveManifestsColumns holds the columns for the "archive_manifests" table.
+	ArchiveManifestsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
+		{Name: "uid", Type: field.TypeUUID, Unique: true, Comment: "class=none"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "updated_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "bucket", Type: field.TypeString, Size: 255, Comment: "class=none"},
+		{Name: "object_path", Type: field.TypeString, Size: 1024, Comment: "class=none"},
+		{Name: "region", Type: field.TypeString, Size: 16, Comment: "class=none"},
+		{Name: "org_uid", Type: field.TypeUUID, Comment: "class=none"},
+		{Name: "project_uid", Type: field.TypeUUID, Comment: "class=none"},
+		{Name: "environment_uid", Type: field.TypeUUID, Comment: "class=none"},
+		{Name: "min_event_time", Type: field.TypeTime, Comment: "class=behavioural"},
+		{Name: "max_event_time", Type: field.TypeTime, Comment: "class=behavioural"},
+		{Name: "event_count", Type: field.TypeUint64, Comment: "class=derived"},
+		{Name: "object_size_bytes", Type: field.TypeUint64, Comment: "class=none"},
+		{Name: "normalized_input_bytes", Type: field.TypeUint64, Comment: "class=none"},
+		{Name: "schema_version", Type: field.TypeUint16, Comment: "class=none"},
+		{Name: "delete_after", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "status", Type: field.TypeEnum, Comment: "class=none", Enums: []string{"durable", "deleting", "deleted", "failed"}, Default: "durable"},
+		{Name: "failure_reason", Type: field.TypeString, Nullable: true, Size: 512, Comment: "class=none"},
+	}
+	// ArchiveManifestsTable holds the schema information for the "archive_manifests" table.
+	ArchiveManifestsTable = &schema.Table{
+		Name:       "archive_manifests",
+		Columns:    ArchiveManifestsColumns,
+		PrimaryKey: []*schema.Column{ArchiveManifestsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "archivemanifest_bucket_object_path",
+				Unique:  true,
+				Columns: []*schema.Column{ArchiveManifestsColumns[4], ArchiveManifestsColumns[5]},
+			},
+			{
+				Name:    "archivemanifest_project_uid_min_event_time",
+				Unique:  false,
+				Columns: []*schema.Column{ArchiveManifestsColumns[8], ArchiveManifestsColumns[10]},
+			},
+			{
+				Name:    "archivemanifest_status_delete_after",
+				Unique:  false,
+				Columns: []*schema.Column{ArchiveManifestsColumns[17], ArchiveManifestsColumns[16]},
+			},
+		},
+	}
 	// DataDeletionRequestsColumns holds the columns for the "data_deletion_requests" table.
 	DataDeletionRequestsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
@@ -68,6 +113,7 @@ var (
 	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
+		ArchiveManifestsTable,
 		DataDeletionRequestsTable,
 		VerifiedPurchasesTable,
 	}

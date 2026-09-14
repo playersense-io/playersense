@@ -146,6 +146,26 @@ type Settings struct {
 	QueryMaxRowsToRead  uint64 `env:"QUERY_MAX_ROWS_TO_READ" default:"200000000"`
 	QueryMaxBytesToRead uint64 `env:"QUERY_MAX_BYTES_TO_READ" default:"4294967296"`
 
+	// ArchiveWriterAddr is where the archive writer serves its health probe. It has no API.
+	ArchiveWriterAddr string `env:"ARCHIVE_WRITER_ADDR" default:":21084"`
+
+	// ArchiveStore picks the object store: local writes to a directory, gcs to a bucket.
+	// The same shape as EVENT_BUS, and for §3.6's reason — the archive must not couple the
+	// writer to one deployment product.
+	ArchiveStore string `env:"ARCHIVE_STORE" default:"local"`
+
+	// ArchiveBucket is the cell's bucket. One per cell, in that cell's region (§6, §14):
+	// an archive in the wrong region is the same residency failure as a database in the
+	// wrong region, and a quieter one.
+	ArchiveBucket string `env:"ARCHIVE_BUCKET" default:"playersense-events-local"`
+
+	// ArchiveDir is where ARCHIVE_STORE=local keeps its buckets.
+	ArchiveDir string `env:"ARCHIVE_DIR" default:".data/archive"`
+
+	// ArchiveMaxRowsPerObject bounds one object, so a very large delivery is split rather
+	// than buffered whole in memory. A ceiling, not a target.
+	ArchiveMaxRowsPerObject int `env:"ARCHIVE_MAX_ROWS_PER_OBJECT" default:"200000"`
+
 	// AnalyticsWriterAddr is where the writer serves its health probe. It has no API.
 	AnalyticsWriterAddr string `env:"ANALYTICS_WRITER_ADDR" default:":21082"`
 

@@ -123,6 +123,7 @@ func AcceptBatch(ctx *muzak.Context, in schemas.IngestBatchIn) (protocol.Accepte
 		OrgID:          tenant.OrgID,
 		ProjectID:      tenant.ProjectID,
 		EnvironmentID:  tenant.EnvironmentID,
+		Environment:    tenant.Environment,
 		PolicyTier:     tenant.PolicyTier,
 		RetentionTier:  tenant.RetentionTier,
 		Payload:        payload,

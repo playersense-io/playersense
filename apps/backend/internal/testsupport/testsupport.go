@@ -74,6 +74,21 @@ func Global(t *testing.T, settings config.Settings) *pgdb.Global {
 	return db
 }
 
+// CellDB opens this cell's regional tier, skipping the test if it is unreachable.
+//
+// The first fixture for the cell tier. Everything before the archive lived in the global
+// tier or in ClickHouse; a manifest is the first row a service writes to the database that
+// sits in the cell's own region (§99).
+func CellDB(t *testing.T, settings config.Settings) *pgdb.Cell {
+	t.Helper()
+	db := pgdb.NewCell(settings.Cell, settings.CellPostgresDSN)
+	if err := db.Start(context.Background()); err != nil {
+		t.Skipf("cell tier unavailable: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	return db
+}
+
 // Cache opens this cell's Valkey, skipping when it is unreachable.
 func Cache(t *testing.T, settings config.Settings) *valkey.Client {
 	t.Helper()

@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"playersense.dev/backend/ent/regional/archivemanifest"
 	"playersense.dev/backend/ent/regional/datadeletionrequest"
 	"playersense.dev/backend/ent/regional/verifiedpurchase"
 )
@@ -74,6 +75,7 @@ var (
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
+			archivemanifest.Table:     archivemanifest.ValidColumn,
 			datadeletionrequest.Table: datadeletionrequest.ValidColumn,
 			verifiedpurchase.Table:    verifiedpurchase.ValidColumn,
 		})
