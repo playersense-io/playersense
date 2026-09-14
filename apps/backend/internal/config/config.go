@@ -122,6 +122,15 @@ type Settings struct {
 	// the stored cells stay complete. Five is a default, not a finding.
 	QuerySuppressionK int `env:"QUERY_SUPPRESSION_K" default:"5"`
 
+	// QueryCacheTTL is how long an answer is reused while the nightly derivation could
+	// still change it (§58).
+	QueryCacheTTL time.Duration `env:"QUERY_CACHE_TTL" default:"60s"`
+
+	// QueryCacheSettledTTL applies to a window nothing will rebuild. Longer because it
+	// cannot change, and because the historical range somebody left open in a browser tab
+	// is the most expensive repeated query a dashboard makes.
+	QueryCacheSettledTTL time.Duration `env:"QUERY_CACHE_SETTLED_TTL" default:"1h"`
+
 	// QueryMaxRows caps a result set. Exceeding it is an error rather than a truncation:
 	// a silently truncated cohort curve is a curve that appears to end.
 	QueryMaxRows int `env:"QUERY_MAX_ROWS" default:"50000"`

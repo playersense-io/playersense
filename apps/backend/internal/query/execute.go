@@ -19,6 +19,7 @@ import (
 // impossible to serve a request against a scope left over from the last one.
 type Engine struct {
 	ch     *chdb.Conn
+	cache  *Cache
 	limits Limits
 	k      int
 }
@@ -34,6 +35,13 @@ func NewEngine(conn *chdb.Conn, limits Limits, threshold int) *Engine {
 	return &Engine{ch: conn, limits: limits, k: threshold}
 }
 
+// WithCache attaches §58's result cache. An engine without one answers every query from
+// ClickHouse, which is what the tests that are about the numbers want.
+func (e *Engine) WithCache(cache *Cache) *Engine {
+	e.cache = cache
+	return e
+}
+
 // Threshold is the minimum cell size in force, published in every response so a client can
 // say what was withheld rather than guessing (§57.1).
 func (e *Engine) Threshold() int { return e.k }
@@ -44,9 +52,26 @@ func (e *Engine) Threshold() int { return e.k }
 // happens here rather than in ClickHouse, which is what lets the compiler have no join at
 // all rather than one exception (see the package note and Appendix C #16).
 func (e *Engine) Run(ctx context.Context, scope Scope, q protocol.CohortQuery) (*protocol.CohortResult, error) {
+	// Compiled before the cache is consulted, so a question the facts cannot answer is
+	// refused on its merits every time rather than remembered as a result. A cached
+	// refusal would also outlive the thing that caused it — a project's policy tier is
+	// immutable, but its cell registration is not.
 	plan, err := Compile(scope, q, e.limits)
 	if err != nil {
 		return nil, err
+	}
+
+	var key string
+	if e.cache != nil {
+		key = e.cache.Key(scope, q)
+		if hit, ok := e.cache.Get(ctx, key); ok {
+			// Returned exactly as it was stored, computed_at included. That timestamp
+			// belongs to the derivation, so a cached answer reports when the facts were
+			// built and not when this response was assembled — otherwise a cache would
+			// make stale numbers look fresh, which is the one thing §57.1's provenance
+			// exists to prevent.
+			return hit, nil
+		}
 	}
 
 	ctx = e.bound(ctx)
@@ -86,13 +111,19 @@ func (e *Engine) Run(ctx context.Context, scope Scope, q protocol.CohortQuery) (
 
 	kept, suppressed := Suppression{K: e.k, Metric: plan.Metric}.Apply(rows)
 
-	return &protocol.CohortResult{
+	result := &protocol.CohortResult{
 		Rows:                 kept,
 		CohortMaturityDays:   maturity,
 		ComputedAt:           computedAt,
 		SuppressedCells:      suppressed,
 		SuppressionThreshold: e.k,
-	}, nil
+	}
+
+	// Stored after suppression, so a cache can never hold a cell that was withheld.
+	if e.cache != nil && key != "" {
+		e.cache.Put(ctx, key, result, e.cache.TTL(q, plan.Offsets, time.Now().UTC()))
+	}
+	return result, nil
 }
 
 // bound attaches the per-query resource limits (§32).

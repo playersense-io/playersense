@@ -89,7 +89,8 @@ func newReporting(t *testing.T, tier string) *reporting {
 		muzak.WithSingleton(db),
 		muzak.WithSingleton(resolver),
 		muzak.WithSingleton(ch),
-		muzak.WithSingleton(query.NewEngine(ch, query.DefaultLimits(), settings.QuerySuppressionK)),
+		muzak.WithSingleton(query.NewEngine(ch, query.DefaultLimits(), settings.QuerySuppressionK).
+			WithCache(query.NewCache(cache, settings.QueryCacheTTL, settings.QueryCacheSettledTTL))),
 		muzak.WithSingleton(home),
 	)
 	reader.Include(routers.Cohorts())
@@ -519,6 +520,39 @@ func TestTheResponseSaysHowFreshAndHowCensoredItIs(t *testing.T) {
 	// The cohort is six days old, so the curve cannot yet be claimed beyond that.
 	if result.CohortMaturityDays < 5 || result.CohortMaturityDays > 7 {
 		t.Fatalf("a six-day-old cohort reports %d days of maturity", result.CohortMaturityDays)
+	}
+}
+
+// TestACachedAnswerKeepsTheDerivationsTimestamp is §57.1's provenance rule meeting §58's
+// cache.
+//
+// computed_at says when the *facts* were built, so re-deriving and asking again must return
+// the timestamp the cached answer was built from — not the new one, and not the moment the
+// response was assembled. Getting this wrong is how a cache makes stale numbers look fresh,
+// which is worse than serving them slowly.
+//
+// It doubles as the proof that the cache is actually used: DeriveSizes stamps computed_at
+// with now(), so an unchanged timestamp after a re-derivation could only have come from the
+// cache.
+func TestACachedAnswerKeepsTheDerivationsTimestamp(t *testing.T) {
+	r := newReporting(t, "standard")
+	r.seedCurve(t)
+
+	first := r.ask(t, r.retentionQuery(nil))
+	if first.ComputedAt.IsZero() {
+		t.Fatal("the first answer has no derivation timestamp")
+	}
+
+	// A second derivation, a second later, so the stamp genuinely moves.
+	time.Sleep(1100 * time.Millisecond)
+	day := r.cohortDay()
+	r.derive(t, day, day.AddDate(0, 0, returnOffset))
+
+	second := r.ask(t, r.retentionQuery(nil))
+	if !second.ComputedAt.Equal(first.ComputedAt) {
+		t.Fatalf("the cached answer reported %s after a re-derivation at %s; either the "+
+			"cache was not used or it rewrote the provenance",
+			second.ComputedAt.Format(time.RFC3339), first.ComputedAt.Format(time.RFC3339))
 	}
 }
 

@@ -62,7 +62,8 @@ func build(settings config.Settings) (*muzak.App, error) {
 		MaxExecutionTime: settings.QueryMaxExecutionTime,
 		MaxRowsToRead:    settings.QueryMaxRowsToRead,
 		MaxBytesToRead:   settings.QueryMaxBytesToRead,
-	}, settings.QuerySuppressionK)
+	}, settings.QuerySuppressionK).
+		WithCache(query.NewCache(cache, settings.QueryCacheTTL, settings.QueryCacheSettledTTL))
 
 	app := muzak.New(muzak.AppOptions{
 		Title:       "PlayerSense Reporting API",
