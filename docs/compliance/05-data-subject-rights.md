@@ -82,10 +82,24 @@ The position is **restore-and-redact**:
 
 ## Timelines
 
-GDPR allows one month, extensible to three for complex requests. The architecture's
-contribution is that the answer is a query rather than an investigation: the actor key is a
-sort-key prefix in ClickHouse and an index in the cell tier, so scoping a request is fast
-enough that the month is spent on the studio's process rather than on PlayerSense's.
+GDPR allows one month, extensible to three for complex requests.
+
+The cell tier is fast: `data_deletion_requests` and `verified_purchases` are both indexed on
+`(project_uid, actor_key)` and `(project_uid, player_id)`, so finding what is held about one
+person there is a lookup.
+
+ClickHouse is not, and the honest version matters more than a reassuring one. `actor_key` is
+a MATERIALIZED column and appears in **no** sort key. `device_id` appears in all three
+player-linked tables but never as a prefix: it is sixth of seven in `events_raw`, behind
+`event_date` and `event_name`, and fourth in `player_activity_daily`. Only `player_lifetime`
+places it early enough to seek. So an actor-scoped purge of `events_raw` reads that tenant's
+partitions rather than seeking to a range.
+
+That is affordable inside a month and would not be inside an hour, which is why §61 makes
+deletion asynchronous and puts a tombstone in front of it. It is also why the purge job is
+scoped by project and time range where the request allows it. If per-actor work ever needs
+to be fast rather than merely finished, the change is a sort key and therefore a rebuild —
+worth knowing before it is promised to anyone.
 
 ## Status
 

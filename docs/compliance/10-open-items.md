@@ -45,10 +45,19 @@ machinery does not.
 
 ## Engineering — disclosure and reporting
 
+The **reporting API** and the **minimum cell size** are **built** — see
+[09](09-controls-map.md). The threshold shipped with the API rather than after it, which is
+what [07](07-aggregate-disclosure.md) asked for.
+
+What it does not yet cover:
+
 | Item | Notes |
 |---|---|
-| **Reporting API** | Not built |
-| **Minimum cell size** at the query layer | Must be built *with* the reporting API, not after it — see [07](07-aggregate-disclosure.md) |
+| **Ordinary metrics** — DAU/MAU, event counts, sessions, revenue over time | §27's summary tables (`events_1m`, `events_1h`, `players_1d`, `sessions_1d`, `revenue_1d`) and §28's materialized views do not exist. Only the cohort facts are built, so only cohort questions can be answered. The query contract is shaped to take these without changing |
+| **Progression buckets** | The enum member exists and nothing writes it. Progression is a game-specific milestone the SDK does not report, and deriving it would mean inventing a definition of progress on the studio's behalf |
+| **Asynchronous cold queries and exports** | §34. The machinery §101's data-subject export also depends on |
+| **Per-organisation concurrency quotas** | §32 asks for these alongside the per-caller rate limit, which is built |
+| **§29.13's first two caps** | `first_app_version` is not capped to the top 20 values per project, and `acquisition_source` is not split from campaign. The third cap — only materializing pairs that exist — falls out of the GROUP BY. Alarm at 27M rows per project, per §29.13 |
 
 ## Engineering — audit and access
 

@@ -32,6 +32,8 @@ Paths are relative to the repository root.
 | Obligation | Mechanism | Code | Test | Status |
 |---|---|---|---|---|
 | A kids_strict project has no persistent identifier | Gateway replaces `install_id` per batch, whatever the SDK sent | `apps/backend/internal/handlers/ingest.go` | `TestKidsStrictHasNoPersistentIdentifier` | **Built** |
+| …and is told so rather than shown an empty chart | Cross-day retention is refused, naming the tier and pointing at same-day aggregates | `apps/backend/internal/query/plan.go` | `TestKidsStrictIsToldWhyRatherThanShownNothing` | **Built** |
+| A child_directed project has no acquisition cohorts | The breakdown and the filter are both refused, naming the tier | `internal/query/plan.go` | `TestChildDirectedHasNoAcquisitionCohorts` | **Built** |
 | The tier is immutable after creation | Ent field marked immutable | `apps/backend/ent/schema/globaltier/project.go` | — | **Built** |
 | The kids_strict limitation is stated at signup | The API announces it when a project is created on that tier | `apps/backend/internal/handlers/control.go` | `TestKidsStrictAnnouncesItsLimit` | **Built** |
 | Apple privacy manifest, signed | Generated from the column classification | — | — | *Designed* |
@@ -107,6 +109,9 @@ migrate: 1 invariant violation(s)
 | Losing Valkey costs accuracy, not rows | The writer stamps null cohort keys and the nightly derivation backfills | `apps/backend/internal/writer/device.go` | `TestRowsAreStoredWithValkeyDown` | **Built** |
 | One cell's data cannot reach another's ClickHouse | The writer drops a message whose cell is not its own | `apps/backend/internal/writer/writer.go` | `TestAMessageFromAnotherCellIsNotStored` | **Built** |
 | A cohort query never joins | Cohort key and sticky dimensions stamped at write time | `db/clickhouse/migrations/00003_player_activity_daily.sql` | `cmd/cohortcheck` | **Built** |
+| A cohort is assigned by the server, not the device | `cohort_date` from `ingest_time`; a wrong clock cannot make a 1970 cohort, and a late event cannot move a reported one | `apps/backend/internal/writer/device.go` | `TestABackdatedEventKeepsTodaysCohort` | **Built** |
+| A breakdown divides by its own value's cohort | `cohort_sizes` carries a row per (dimension, value), counted within the value | `apps/backend/internal/cohort/derive.go` | `cmd/cohortcheck` check 9 | **Built** |
+| Rolling retention counts a player once | A suffix sum over last-activity offsets, not a sum of per-offset counters | `apps/backend/internal/query/execute.go` | `TestRollingRetentionCountsAPlayerOnce` | **Built** |
 | A rebuild cannot destroy older cells | Activity-month partitioning, whole-month rebuilds | `apps/backend/internal/cohort/derive.go` | `cmd/cohortcheck` | **Built** |
 
 ## Retention and rights
@@ -126,7 +131,27 @@ migrate: 1 invariant violation(s)
 
 | Obligation | Mechanism | Code | Test | Status |
 |---|---|---|---|---|
-| Thin aggregates are suppressed, not zeroed | Minimum cell size at the query layer | — | — | *Designed* |
+| Thin aggregates are suppressed, not zeroed | Minimum cell size applied to the response, `k = 5` by default | `apps/backend/internal/query/suppress.go` | `TestAThinCellIsSuppressedNotZeroed` | **Built** |
+| …and a suppressed cell still rolls up | Suppression at query time, never in the derivation, so the stored cells stay complete | `internal/query/suppress.go` | `TestAThinBreakdownValueIsSuppressedButStillRollsUp` | **Built** |
+| A thin cohort is withheld at every offset | The denominator gates the whole row | `internal/query/suppress.go` | `TestAThinCohortWithholdsEveryOffset` | **Built** |
+| A thin payer subgroup inside a thick cell | The financial measures are dropped; the population number stays | `internal/query/suppress.go` | `TestAThinPayerCountDropsOnlyTheMoney` | **Built** |
+| A genuine zero is still shown | Zero names nobody, and a gap cannot be told from a withholding | `internal/query/suppress.go` | `TestAZeroIsNotSuppressed` | **Built** |
+| The response says what was withheld | `suppressed_cells` and `suppression_threshold` on every answer | `apps/backend/internal/protocol/query.go` | `TestTheResponseSaysHowFreshAndHowCensoredItIs` | **Built** |
+
+## Query safety
+
+| Obligation | Mechanism | Code | Test | Status |
+|---|---|---|---|---|
+| No customer query runs without tenant scope | The compiler injects both predicates from the credential; `Compile` cannot be called without a `Scope` | `apps/backend/internal/query/plan.go` | `TestTenantScopeIsAlwaysInjected` | **Built** |
+| A body cannot widen scope | `project_id`, `environment_id` and `org_id` are refused, not ignored | `apps/backend/internal/schemas/query.go` | `TestScopeInTheBodyIsRefused` | **Built** |
+| No cohort query joins on a player key | The builder has no join method; `FROM` holds a closed type | `apps/backend/internal/query/sql.go` | `TestACohortQueryNeverJoins` (67 shapes) | **Built** |
+| …and no dictionary stands in for one | Denominators are a second single-table read, divided in Go | `internal/query/plan.go` | same | **Built** |
+| Only a reporting key may read analytics | Provider gates by kind; a project key ships in a game and is public | `apps/backend/internal/routers/query.go` | `TestOnlyAReportingKeyMayQuery` | **Built** |
+| A query cannot read the node out from under everyone | `max_execution_time`, `max_rows_to_read`, `max_bytes_to_read`, `readonly` per query | `apps/backend/internal/query/execute.go` | — | **Built** |
+| An unanswerable question is refused with a reason | 422 naming the fields, never an empty chart | `apps/backend/internal/handlers/query.go` | `TestTwoDimensionsAtOnceIsRefusedWithAReason` | **Built** |
+| A cached answer cannot claim false freshness | `computed_at` is the derivation's own timestamp and is stored with the answer | `apps/backend/internal/query/cache.go` | `TestACachedAnswerKeepsTheDerivationsTimestamp` | **Built** |
+| One cell cannot read another's answers | The cache key carries the cell | `internal/query/cache.go` | `TestOneCellCannotReadAnothersAnswers` | **Built** |
+| Reporting honours residency | 421 naming the cell's `query_url` | `apps/backend/internal/handlers/query.go` | — | **Built** |
 
 ## Audit
 

@@ -43,5 +43,22 @@ cell is created by the product offering the breakdown.
 
 ## Enforcement
 
-- Query layer, per §32.2. The reporting API is not yet built; this record exists so it is
-  built with the threshold rather than retrofitted.
+Built, in the query layer, per §32.2.
+
+- `apps/backend/internal/query/suppress.go` — applied to the response in one place, after
+  the facts are read and before they are serialised. `QUERY_SUPPRESSION_K` sets the
+  threshold; it defaults to 5.
+- The row test is on whichever count the row is *about*: `cohort_size` withholds the whole
+  row, because a denominator of three is three identifiable people whatever the numerator
+  says; `players` withholds the cell; `payers` withholds it too where payers are the
+  measure. A thin payer count inside a thick cell drops the money and keeps the population
+  number.
+- A genuine zero is shown. It names nobody, and a gap in a curve cannot be told apart from
+  a withheld cell.
+- `TestAThinCellIsSuppressedNotZeroed`, `TestAZeroIsNotSuppressed`,
+  `TestAThinCohortWithholdsEveryOffset`, `TestAThinPayerCountDropsOnlyTheMoney`,
+  `TestPayerConversionSuppressesOnItsOwnNumerator`.
+- `TestAThinBreakdownValueIsSuppressedButStillRollsUp` proves this record's central claim
+  against data that arrived through the real pipeline: three Android installs are withheld
+  while the same three stay inside the unbroken-down total. Verified to have teeth by
+  disabling the population test — "a cohort of 3 Android players was disclosed under k=5".

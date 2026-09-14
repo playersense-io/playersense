@@ -714,6 +714,33 @@ Responsibilities:
 
 The browser never receives ClickHouse credentials and never submits arbitrary SQL.
 
+Cell-local, like the writer. It reads its own cell's ClickHouse and holds a global-tier
+connection for one purpose: filling the key cache. A reporting key belonging to another cell
+is refused with **421** naming that cell's `query_url`, for a reason worth spelling out —
+this cell holds none of that project's data, so serving the request would return no rows,
+and "no rows" reads as "no players" rather than "wrong server". A studio would conclude
+their game was dead.
+
+Three properties are enforced by construction rather than by care, and ADR 0019 records why:
+
+- **The compiler has no join.** Not a check — no method adds a second table, and the `FROM`
+  clause holds a closed type with five members (§32.1).
+- **The tenant is a parameter of compilation.** Every statement carries `project_seq` and
+  `environment_seq` from the credential before any other predicate, and a body naming a
+  project is refused rather than ignored (§69, Appendix C #3).
+- **A question the facts cannot answer is refused with the reason**, never served empty.
+  That includes the cohorts a collection policy tier cannot have: a `kids_strict` project is
+  told that cross-day retention is not computable and that same-day aggregates are
+  available, rather than shown a flat line (§29.15).
+
+Accepts the `reporting` key class and no other. A project key is shipped inside a game and
+is therefore public (§52); accepting one here would publish a studio's analytics to anyone
+who unpacked their build.
+
+**Built for cohorts only.** §29's facts exist, so §57.1's shapes are answerable. §27's
+summary tables do not, so DAU/MAU, event counts and revenue over time have nothing to read
+yet — the DSL is shaped to take them behind the same contract (§57).
+
 ### 10.6 `config-api`
 
 Low-latency read path for:
@@ -3163,9 +3190,26 @@ is keyed on when the player arrived rather than on when the event happened.
 
 The planner resolves the shape to exactly one fact: `cohort_metrics_daily` with no
 breakdown, `cohort_metrics_breakdown_daily` with one, `cohort_bucket_daily` for segments,
-and `player_lifetime_v` for rolling retention. Denominators come from the `cohort_sizes`
-dictionary. A request naming two breakdown dimensions is rejected at the contract rather
-than compiled into a cartesian scan.
+and `player_lifetime_v` for rolling retention. A request naming two breakdown dimensions is
+rejected at the contract rather than compiled into a cartesian scan.
+
+Denominators are read from `cohort_sizes` as a **second single-table query** and divided in
+the service, not joined and not resolved through a dictionary. §29.9 would permit the
+dictionary — the table is bounded — but Appendix C #16 forbids one *standing in for* an
+actor-cardinality join, and keeping the rule exception-free is what makes it checkable by
+reading the emitted SQL rather than by review. The cost is one round trip against a table
+of a few tens of thousands of rows. ADR 0019 records the trade.
+
+Two consequences of "one dimension at a time" are worth stating because they read as
+limitations until the reason is visible:
+
+- **A filter is not a cheaper breakdown.** `cohort_metrics_daily` carries no dimension
+  columns, so filtering by platform means reading the breakdown fact. A breakdown by one
+  dimension filtered by another — "iOS players, split by country" — is a cartesian cell and
+  is refused with both dimensions named.
+- **A cumulative metric reads every offset up to the highest requested**, then returns the
+  ones asked for. LTV at D30 is the revenue of days 0 to 30; sampling a sparse set would
+  understate it, and the understatement renders as a flatter curve rather than an error.
 
 Every cohort response carries the provenance the numbers need to be read correctly:
 
@@ -4677,6 +4721,7 @@ app.playersense.io                client dashboard
 admin.playersense.io              internal admin
 api.playersense.io                control/public API
 ingest.playersense.io             analytics ingestion
+query.playersense.io              reporting API
 config.playersense.io             flags/liveops config
 status.playersense.io             status page
 docs.playersense.io               docs
@@ -4690,7 +4735,18 @@ us.ingest.playersense.io
 asia.ingest.playersense.io
 ```
 
+And regional reporting alongside it, because a cell's data is read where it is stored:
+
+```text
+eu.query.playersense.io
+us.query.playersense.io
+```
+
 The SDK may receive its assigned endpoint from project configuration rather than hardcoding a region forever.
+
+Both addresses are held per cell in the registry (§6) as `ingest_url` and `query_url`, and
+both are returned to a caller that reaches the wrong one. A gateway that refuses without
+saying where to go turns one wrong hostname into a support conversation.
 
 ---
 

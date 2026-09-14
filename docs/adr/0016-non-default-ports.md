@@ -18,10 +18,11 @@ block, chosen to sit below the macOS ephemeral range (49152+) so nothing collide
 OS-assigned port either.
 
 ```text
-21080  control-api      21123  clickhouse http
-21081  ingest-api       21900  clickhouse native
-21082  analytics-writer 21379  valkey
-21432  postgres         21085  pubsub emulator (reserved)
+21080  control-api       21123  clickhouse http
+21081  ingest-api        21900  clickhouse native
+21082  analytics-writer  21379  valkey
+21083  query-api         21432  postgres
+                         21085  pubsub emulator (reserved)
 ```
 
 Both `docker-compose.yml` and the Go configuration read the same variables, so a port is

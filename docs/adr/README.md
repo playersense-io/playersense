@@ -45,6 +45,8 @@ a record is never updated to match a drifting document, it is superseded by a ne
 | [0016](0016-non-default-ports.md) | The local stack publishes no default port | Accepted |
 | [0017](0017-aggregate-disclosure-threshold.md) | A thin aggregate is suppressed at query time, not at write time | Accepted |
 | [0018](0018-writer-acknowledgement-and-deduplication.md) | The writer acknowledges after the insert, and splits deterministically | Accepted |
+| [0019](0019-a-compiler-that-cannot-join.md) | The cohort compiler has no join to give | Accepted |
+| [0020](0020-a-cohort-is-assigned-on-arrival.md) | A cohort is assigned when the server sees the batch | Accepted |
 
 ## Template
 
