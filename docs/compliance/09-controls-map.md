@@ -161,9 +161,23 @@ migrate: 1 invariant violation(s)
 | A grain finer than its range is refused | §26's policy enforced, not advised | `apps/backend/internal/schemas/query.go` | `TestAGrainFinerThanItsRangeIsRefused` | **Built** |
 | A series query never joins either | The same builder, over the summary tables | `apps/backend/internal/query/metrics.go` | `TestASeriesQueryNeverJoins` | **Built** |
 
+## The archive
+
+| Obligation | Mechanism | Code | Test | Status |
+|---|---|---|---|---|
+| A canonical copy outlives the hot window | Compressed Parquet in the cell's own bucket, in its own region | `apps/backend/internal/archive/`, `internal/blobstore/` | `TestABatchBecomesAnArchiveObject` | **Built** |
+| The lawful basis survives into the archive | Consent columns on every archived row, not only on the ClickHouse row | `internal/archive/row.go` | `TestABatchBecomesAnArchiveObject` | **Built** |
+| A redelivered batch is archived once | The object is named by a digest of the batches inside it; the manifest conflicts | `internal/archive/writer.go` | `TestARedeliveredBatchArchivesOnce` | **Built** |
+| Nothing is acknowledged before object *and* manifest are durable | The handler returns nil only after both | `internal/archive/writer.go` | — | **Built** |
+| A slow archive cannot hold storage back | Its own subscription and its own position (§20) | `apps/backend/internal/eventbus/` | `TestTheArchiveHasItsOwnPosition` | **Built** |
+| Storage is billed on a recorded size | `object_size_bytes` on the manifest, written with the object | `internal/archive/writer.go` | `TestTheManifestDescribesItsObject` | **Built** |
+| Local data is not expired before it is archived | **Unenforceable** — a ClickHouse TTL is a declarative instruction to a background merge with no hook. Held by margin, and the margin is measured | `apps/backend/cmd/archivecheck` | `archivecheck` fails when a day would expire inside the warning window | **Measured, not enforced** |
+| The archive stays in its cell's region | One bucket per cell; the region is recorded on every manifest | `internal/blobstore/gcs.go` | `TestTheManifestDescribesItsObject` | **Built** |
+
 ## Audit
 
 | Obligation | Mechanism | Code | Test | Status |
 |---|---|---|---|---|
 | Staff reads of customer data are logged with a reason | Admin console audit log, append-only, stored apart | — | — | *Designed* |
-| Breach scoping is a query | Archive manifests recording project, environment and time range per object | — | — | *Designed* |
+| Breach scoping is a query | Archive manifests recording project, environment and time range per object | `apps/backend/ent/schema/regionaltier/regional.go`, `internal/archive/writer.go` | `TestTheManifestDescribesItsObject` | **Built** |
+| …and the ranges are tight enough to be useful | An object holds one project, one environment and one hour; a batch spanning two is split | `internal/archive/writer.go` | `TestEachHourIsItsOwnObject` | **Built** |

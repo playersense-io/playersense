@@ -48,6 +48,7 @@ a record is never updated to match a drifting document, it is superseded by a ne
 | [0019](0019-a-compiler-that-cannot-join.md) | The cohort compiler has no join to give | Accepted |
 | [0020](0020-a-cohort-is-assigned-on-arrival.md) | A cohort is assigned when the server sees the batch | Accepted |
 | [0021](0021-two-metric-tiers.md) | Two metric tiers: one immediate and approximate, one derived and exact | Accepted |
+| [0022](0022-an-archive-object-is-named-by-its-contents.md) | An archive object is named by what is inside it | Accepted |
 
 ## Template
 

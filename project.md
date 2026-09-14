@@ -697,6 +697,20 @@ Responsibilities:
 - compact small files later;
 - expose exact archive byte counts for storage billing.
 
+Its own subscription is the load-bearing word. The archive and the storage writer are a
+fan-out rather than a chain (§20), so a slow archive cannot hold storage back and a broken
+archive cannot lose events storage already took. Each keeps its own position.
+
+It acknowledges only after the object is durable **and** its manifest is committed. An
+object with no manifest is invisible to §60's expiry, §39's billing and §104's breach
+scoping, which makes it indistinguishable from data nobody knows about.
+
+**There is no buffering across deliveries**, and the first responsibility above is bounded
+by that: a delivery is the flush boundary, because holding rows back would mean
+acknowledging messages whose effect is still in memory (Appendix C.2). Light traffic
+therefore produces small objects, which is what the fourth responsibility exists for and
+what §10.7 owns.
+
 ### 10.5 `query-api`
 
 Responsible for analytics queries.
@@ -963,16 +977,29 @@ Example:
 
 ```text
 gs://playersense-events-prod/
-  region=eu-1/
+  cell=eu-1/
     org=<org_id>/
       project=<project_id>/
         env=production/
           dt=2026-09-14/
             hour=10/
-              part-<ulid>.parquet
+              part-<digest>.parquet
 ```
 
-Each object should contain events for **one project/environment** so that:
+Two segments changed once this was built, and both are worth the sentence.
+
+The first is `cell=`, not `region=`. An earlier draft wrote `region=eu-1`, but `eu-1` is a
+cell and §6 separates the two: one bucket belongs to one cell, so the cell is what
+distinguishes a prefix. The legal region is a column on the manifest, where a query can use
+it.
+
+The object name is a **digest of the batches inside it**, not a ULID. Delivery is
+at-least-once (§21), so a name derived from a clock or a random id makes every redelivery a
+new object holding events that are already archived — silently, and billably (§39). A
+content-derived name makes a redelivery an overwrite. ADR 0022 records the trade and names
+what it does not cover.
+
+Each object contains events for **one project, one environment and one hour** so that:
 
 - storage can be attributed correctly;
 - project deletion is practical;

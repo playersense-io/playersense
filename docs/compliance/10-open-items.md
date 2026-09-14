@@ -37,8 +37,16 @@ machinery does not.
 
 | Item | Notes |
 |---|---|
-| **archive-writer** and the per-cell bucket | The cold copy, and the manifests breach scoping depends on |
-| **Archive-before-expiry ordering** | Appendix C.6. Local data must not be expired before archive durability is confirmed |
+**archive-writer** and the per-cell bucket are **built** — see [09](09-controls-map.md).
+What is not:
+
+| Item | Notes |
+|---|---|
+| **Compaction** | §10.4 and §10.7. A delivery is the flush boundary, so light traffic produces small objects. Nothing merges them yet |
+| **The retention worker** | §60. `delete_after` is written on every manifest and nothing sweeps it, so no archive object has ever been expired |
+| **Read-side deduplication** | A *partial* redelivery produces a second, overlapping object — see [ADR 0022](../adr/0022-an-archive-object-is-named-by-its-contents.md). The manifests make the overlap visible; §34's cold-query path has to resolve it on `event_id`, and §34 is not built |
+| **Archive-before-expiry, enforced** | Appendix C.6 cannot be enforced: a ClickHouse TTL has no hook. `archivecheck` measures the margin and fails when it runs out, which is the strongest available form |
+| **Project deletion reaching the archive** | §61's "rewrite or remove affected archive objects". The archive writer honours no project tombstone, deliberately — §61 assigns this to the compaction/deletion job |
 
 `analytics-writer` and its insert deduplication are **built** — see
 [09](09-controls-map.md).

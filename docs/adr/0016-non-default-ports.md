@@ -22,7 +22,7 @@ OS-assigned port either.
 21081  ingest-api        21900  clickhouse native
 21082  analytics-writer  21379  valkey
 21083  query-api         21432  postgres
-                         21085  pubsub emulator (reserved)
+21084  archive-writer    21085  pubsub emulator (reserved)
 ```
 
 Both `docker-compose.yml` and the Go configuration read the same variables, so a port is

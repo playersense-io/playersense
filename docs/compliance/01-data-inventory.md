@@ -120,7 +120,7 @@ Everything naming a player:
 verified_purchases       player_id, store_transaction_id
 data_deletion_requests   actor_key
 exports                  (designed, not built)
-archive_manifests        (designed, not built)
+archive_manifests
 ```
 
 ### Valkey — one per cell, ephemeral
@@ -131,7 +131,7 @@ with the cell slug, so nothing crosses ([03](03-residency-and-transfers.md)).
 
 ### Google Cloud Storage — one bucket per cell
 
-Cold archive of raw events, in the cell's region. Designed, not built
+Cold archive of raw events, as compressed Parquet, in the cell's region
 ([10-open-items.md](10-open-items.md)).
 
 ## What is never stored

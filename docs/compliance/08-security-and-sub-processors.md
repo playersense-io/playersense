@@ -88,6 +88,6 @@ residency claim that will not survive its first customer questionnaire.
 
 ## Status
 
-Encryption at rest and in transit are provider defaults in the deployment; the audit log,
-the admin console and the archive manifests are designed and not built —
+Encryption at rest and in transit are provider defaults in the deployment. The archive
+manifests breach scoping depends on are built; the audit log and the admin console are not —
 [10-open-items.md](10-open-items.md).

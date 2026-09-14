@@ -85,6 +85,16 @@ go run ./apps/backend/cmd/analytics-writer
 Consumes the cell's queue and stores batches in ClickHouse, stamping each one's cohort key
 so no cohort query ever needs a join. It never touches the control plane.
 
+### archive-writer — `:21084` (health probe only)
+
+```bash
+go run ./apps/backend/cmd/archive-writer
+```
+
+Consumes the cell's event stream on its own subscription and writes the canonical Parquet
+archive, with a manifest per object in the cell tier. `ARCHIVE_STORE=local` writes under
+`ARCHIVE_DIR`; `ARCHIVE_STORE=gcs` writes to the bucket.
+
 ### query-api — `:21083`
 
 ```bash
@@ -107,8 +117,14 @@ count is exact or a sketch.
 
 ```bash
 go test ./apps/backend/... -race
-go run ./apps/backend/cmd/cohortcheck    # 15 correctness checks against real derived data
+go run ./apps/backend/cmd/cohortcheck     # 15 correctness checks against real derived data
+go run ./apps/backend/cmd/archivecheck   # Appendix C.6: is anything about to expire unarchived?
 ```
 
 `cohortcheck` seeds synthetic events with a known answer and asserts the pipeline reproduces
 it. It is the independent second opinion on every number the reporting API serves.
+
+`archivecheck` compares what ClickHouse still holds against what the archive has, and fails
+when a day would reach its TTL with no archive. Nothing can *enforce* that ordering — a
+ClickHouse TTL is a declarative instruction to a background merge, with no hook to wait on —
+so the invariant is held by margin, and this is what measures it.
