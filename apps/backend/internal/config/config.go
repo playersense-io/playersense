@@ -109,6 +109,34 @@ type Settings struct {
 	// nobody trusts. The limiter itself is exercised by a test written for it.
 	RateLimitDisabled bool `env:"RATE_LIMIT_DISABLED" default:"false"`
 
+	// QueryAPIAddr is where the reporting API listens (§10.5).
+	QueryAPIAddr string `env:"QUERY_API_ADDR" default:":21083"`
+
+	// QueryAPIPublicURL is this deployment's own address, for its OpenAPI document.
+	QueryAPIPublicURL string `env:"QUERY_API_PUBLIC_URL" default:"http://localhost:21083"`
+
+	// QuerySuppressionK is the minimum cell size (§32.2, ADR 0017).
+	//
+	// Configurable, and the record says why that matters: "the threshold can be raised
+	// later without recomputing history", because suppression happens at query time and
+	// the stored cells stay complete. Five is a default, not a finding.
+	QuerySuppressionK int `env:"QUERY_SUPPRESSION_K" default:"5"`
+
+	// QueryMaxRows caps a result set. Exceeding it is an error rather than a truncation:
+	// a silently truncated cohort curve is a curve that appears to end.
+	QueryMaxRows int `env:"QUERY_MAX_ROWS" default:"50000"`
+
+	// QueryMaxExecutionTime bounds wall-clock time in ClickHouse. §80 wants a
+	// pre-aggregated chart under a second, so anything approaching this is already a
+	// query that has escaped the cohort facts.
+	QueryMaxExecutionTime time.Duration `env:"QUERY_MAX_EXECUTION_TIME" default:"10s"`
+
+	// QueryMaxRowsToRead and QueryMaxBytesToRead bound the scan rather than the result,
+	// which is what actually protects the node: a query returning ten rows can still read
+	// the whole table.
+	QueryMaxRowsToRead  uint64 `env:"QUERY_MAX_ROWS_TO_READ" default:"200000000"`
+	QueryMaxBytesToRead uint64 `env:"QUERY_MAX_BYTES_TO_READ" default:"4294967296"`
+
 	// AnalyticsWriterAddr is where the writer serves its health probe. It has no API.
 	AnalyticsWriterAddr string `env:"ANALYTICS_WRITER_ADDR" default:":21082"`
 

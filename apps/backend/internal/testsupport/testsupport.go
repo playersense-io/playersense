@@ -18,6 +18,7 @@ import (
 	"github.com/google/uuid"
 
 	"playersense.dev/backend/ent/global"
+	"playersense.dev/backend/ent/global/apikey"
 	"playersense.dev/backend/ent/global/cell"
 	"playersense.dev/backend/ent/global/environment"
 	"playersense.dev/backend/ent/global/project"
@@ -165,23 +166,34 @@ func SeedProject(t *testing.T, db *pgdb.Global, tier string, cellID int) Project
 		t.Fatalf("seed environment: %v", err)
 	}
 
-	generated, err := core.NewAPIKey(core.KindProject, "production")
-	if err != nil {
-		t.Fatalf("mint key: %v", err)
-	}
-	if _, err := db.Client.APIKey.Create().
-		SetKind("project").
-		SetPublicID(generated.PublicID).
-		SetSecretHash(generated.Hash).
-		SetEnvironmentID(env.ID).Save(ctx); err != nil {
-		t.Fatalf("store key: %v", err)
-	}
-
 	return Project{
 		OrgSeq:        org.ID,
 		ProjectSeq:    proj.ID,
 		EnvironmentID: env.ID,
 		ProjectUID:    proj.UID.String(),
-		Secret:        generated.Secret,
+		Secret:        SeedKey(t, db, core.KindProject, env.ID),
 	}
+}
+
+// SeedKey mints one key of the given class for an existing environment and returns the
+// plaintext secret.
+//
+// The environment is passed rather than looked up, for the reason SeedProject gives about
+// its own: a key that belongs to some other test's project authenticates perfectly and
+// answers questions about the wrong data, which is the kind of test failure that reads as a
+// product bug.
+func SeedKey(t *testing.T, db *pgdb.Global, kind string, envID int) string {
+	t.Helper()
+	generated, err := core.NewAPIKey(kind, "production")
+	if err != nil {
+		t.Fatalf("mint %s key: %v", kind, err)
+	}
+	if _, err := db.Client.APIKey.Create().
+		SetKind(apikey.Kind(kind)).
+		SetPublicID(generated.PublicID).
+		SetSecretHash(generated.Hash).
+		SetEnvironmentID(envID).Save(context.Background()); err != nil {
+		t.Fatalf("store %s key: %v", kind, err)
+	}
+	return generated.Secret
 }
