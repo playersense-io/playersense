@@ -7,7 +7,9 @@
 //	migrate reset     drop everything, including the replica metadata in Keeper
 //	migrate verify    check §96 classification and the §99 residency rule
 //
-// PostgreSQL migrations are not handled here: Ent owns the control-plane schema.
+// `up` applies both: goose for the ClickHouse analytics schema, Ent for the PostgreSQL
+// control plane. `verify` checks both, because §96 and §99 are claims about the whole
+// system rather than about one database.
 package main
 
 import (
@@ -25,6 +27,7 @@ import (
 	"github.com/pressly/goose/v3"
 
 	"playersense.dev/backend/internal/config"
+	"playersense.dev/backend/internal/pgdb"
 )
 
 func main() {
@@ -77,7 +80,10 @@ func run() error {
 
 	switch cmd {
 	case "up":
-		return goose.UpContext(ctx, db, *dir)
+		if err := goose.UpContext(ctx, db, *dir); err != nil {
+			return err
+		}
+		return migratePostgres(ctx, settings)
 	case "down":
 		return goose.DownContext(ctx, db, *dir)
 	case "status":
@@ -85,7 +91,7 @@ func run() error {
 	case "reset":
 		return reset(ctx, db, settings)
 	case "verify":
-		return verify(ctx, db)
+		return verify(ctx, db, settings)
 	default:
 		return fmt.Errorf("unknown command %q; want up, down, status, reset or verify", cmd)
 	}
@@ -160,8 +166,79 @@ func reset(ctx context.Context, db *sql.DB, settings config.Settings) error {
 	return nil
 }
 
-// verify enforces the two invariants project.md states but nothing else checks.
-func verify(ctx context.Context, db *sql.DB) error {
+// migratePostgres brings the control plane up to date. Ent owns this schema, so there
+// are no .sql files for it — the Go schema definitions are the source.
+func migratePostgres(ctx context.Context, settings config.Settings) error {
+	control, err := pgdb.Open(settings.PostgresDSN)
+	if err != nil {
+		return err
+	}
+	defer control.Close()
+
+	if err := control.Migrate(ctx); err != nil {
+		return err
+	}
+	fmt.Printf("OK   control-plane schema (ent): %s\n", strings.Join(pgdb.Tiers, ", "))
+	return nil
+}
+
+// verifyPostgres enforces §96 and §99 against the control plane.
+//
+// §99's rule is one line and this is the whole of its enforcement: a player identifier
+// never appears in the global tier. It is a single query, which is the point — an
+// invariant that costs a query to check has no excuse for going unchecked.
+func verifyPostgres(ctx context.Context, settings config.Settings) ([]string, error) {
+	control, err := pgdb.Open(settings.PostgresDSN)
+	if err != nil {
+		return nil, err
+	}
+	defer control.Close()
+
+	var problems []string
+
+	rows, err := control.DB().QueryContext(ctx, `
+		SELECT c.table_schema, c.table_name, c.column_name,
+		       coalesce(d.description, '') AS comment
+		FROM information_schema.columns AS c
+		JOIN pg_class     AS cl ON cl.relname = c.table_name
+		JOIN pg_namespace AS ns ON ns.oid = cl.relnamespace AND ns.nspname = c.table_schema
+		LEFT JOIN pg_description AS d
+		       ON d.objoid = cl.oid AND d.objsubid = c.ordinal_position
+		WHERE c.table_schema = ANY($1)
+		ORDER BY c.table_schema, c.table_name, c.ordinal_position`, pgdb.Tiers)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var schemaName, table, column, comment string
+		if err := rows.Scan(&schemaName, &table, &column, &comment); err != nil {
+			return nil, err
+		}
+		class, ok := strings.CutPrefix(comment, "class=")
+		if !ok {
+			problems = append(problems,
+				fmt.Sprintf("§96 unclassified column: %s.%s.%s", schemaName, table, column))
+			continue
+		}
+		switch class {
+		case "identifier", "behavioural", "derived", "financial", "none":
+		default:
+			problems = append(problems,
+				fmt.Sprintf("§96 unknown classification %q on %s.%s.%s", class, schemaName, table, column))
+			continue
+		}
+		if schemaName == "global" && class == "identifier" {
+			problems = append(problems, fmt.Sprintf(
+				"§99 player identifier in the global tier: %s.%s.%s", schemaName, table, column))
+		}
+	}
+	return problems, rows.Err()
+}
+
+// verify enforces the invariants project.md states but nothing else checks.
+func verify(ctx context.Context, db *sql.DB, settings config.Settings) error {
 	var problems []string
 
 	// §96: a column cannot exist without a classification. Views are excluded because a
@@ -217,6 +294,12 @@ func verify(ctx context.Context, db *sql.DB) error {
 		return err
 	}
 
+	pgProblems, err := verifyPostgres(ctx, settings)
+	if err != nil {
+		return err
+	}
+	problems = append(problems, pgProblems...)
+
 	if len(problems) > 0 {
 		for _, p := range problems {
 			fmt.Fprintln(os.Stderr, " ", p)
@@ -234,8 +317,17 @@ func verify(ctx context.Context, db *sql.DB) error {
 		Scan(&columns, &tables); err != nil {
 		return err
 	}
-	fmt.Printf("ok: %d columns across %d tables, all classified (§96); no identifier outside its tier (§99)\n",
-		columns, tables)
+	var pgColumns, pgTables int
+	if control, err := pgdb.Open(settings.PostgresDSN); err == nil {
+		defer control.Close()
+		_ = control.DB().QueryRowContext(ctx, `
+			SELECT count(*), count(DISTINCT table_name)
+			FROM information_schema.columns WHERE table_schema = ANY($1)`, pgdb.Tiers).
+			Scan(&pgColumns, &pgTables)
+	}
+	fmt.Printf("ok  clickhouse: %d columns / %d tables, all classified (§96)\n", columns, tables)
+	fmt.Printf("ok  postgres:   %d columns / %d tables, all classified (§96); no identifier in the global tier (§99)\n",
+		pgColumns, pgTables)
 	return nil
 }
 
