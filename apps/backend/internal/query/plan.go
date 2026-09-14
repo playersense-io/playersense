@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
 	"playersense.dev/backend/internal/protocol"
 	"playersense.dev/backend/internal/schemas"
@@ -68,8 +69,46 @@ func DefaultOffsets() []int {
 }
 
 // Limits bounds what one statement may read (§32).
+//
+// Every one of these is a ceiling rather than a target. §32's list exists because an
+// analytics API without them has exactly one failure mode — a customer discovers the
+// expensive query and everybody else's dashboard stops loading — and because a query that
+// would exceed a ceiling is better refused than served slowly (§80).
 type Limits struct {
+	// MaxRows caps the result. Hit, it is an error rather than a truncation: a silently
+	// truncated cohort curve is a curve that appears to end.
 	MaxRows int
+
+	// MaxExecutionTime bounds wall-clock time in ClickHouse.
+	MaxExecutionTime time.Duration
+
+	// MaxRowsToRead and MaxBytesToRead bound the *scan*, not the result. They are what
+	// actually protects the node: a query returning ten rows can still read the table.
+	MaxRowsToRead  uint64
+	MaxBytesToRead uint64
+}
+
+// DefaultLimits are the ceilings a cohort read runs under.
+//
+// Generous against the cohort facts and ungenerous against anything else, which is the
+// point: the facts are small by construction (§29.12 puts cohort_metrics_daily at about 34k
+// rows per project per environment over three years), so a query that reads hundreds of
+// millions of rows is a query that has escaped them.
+func DefaultLimits() Limits {
+	return Limits{
+		MaxRows:          50_000,
+		MaxExecutionTime: 10 * time.Second,
+		MaxRowsToRead:    200_000_000,
+		MaxBytesToRead:   4 << 30,
+	}
+}
+
+// seconds renders the execution ceiling the way ClickHouse's setting expects it.
+func (l Limits) seconds() int {
+	if l.MaxExecutionTime <= 0 {
+		return 10
+	}
+	return int(l.MaxExecutionTime.Seconds())
 }
 
 // Compile resolves a validated query into statements.
