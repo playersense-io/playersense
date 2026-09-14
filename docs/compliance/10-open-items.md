@@ -47,13 +47,16 @@ machinery does not.
 
 The **reporting API** and the **minimum cell size** are **built** — see
 [09](09-controls-map.md). The threshold shipped with the API rather than after it, which is
-what [07](07-aggregate-disclosure.md) asked for.
+what [07](07-aggregate-disclosure.md) asked for. Both families of question are answerable:
+cohorts (§29) and the ordinary time series (§26, §27).
 
 What it does not yet cover:
 
 | Item | Notes |
 |---|---|
-| **Ordinary metrics** — DAU/MAU, event counts, sessions, revenue over time | §27's summary tables (`events_1m`, `events_1h`, `players_1d`, `sessions_1d`, `revenue_1d`) and §28's materialized views do not exist. Only the cohort facts are built, so only cohort questions can be answered. The query contract is shaped to take these without changing |
+| **Current-version and current-country breakdowns** | The daily summaries carry the *arrival* dimensions `player_activity_daily` holds, so a breakdown by `first_app_version` answers "how many active players installed on version X", not "how many are running it". A version-adoption chart needs a different source — see [ADR 0021](../adr/0021-two-metric-tiers.md) |
+| **Session duration percentiles** | §27 asks for median/pXX. They need `sessions_final` (§30's sessionization), which is not built; the daily tier carries session counts and total playtime only |
+| **Funnels, the event explorer and the player timeline** | §31, §3.5. The last of these is the one query that legitimately reads raw |
 | **Progression buckets** | The enum member exists and nothing writes it. Progression is a game-specific milestone the SDK does not report, and deriving it would mean inventing a definition of progress on the studio's behalf |
 | **Asynchronous cold queries and exports** | §34. The machinery §101's data-subject export also depends on |
 | **Per-organisation concurrency quotas** | §32 asks for these alongside the per-caller rate limit, which is built |

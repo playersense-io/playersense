@@ -91,16 +91,23 @@ so no cohort query ever needs a join. It never touches the control plane.
 go run ./apps/backend/cmd/query-api
 ```
 
-`POST /v1/cohorts/query` with `Authorization: Bearer ps_reporting_live_...`. Answers cohort
-questions from pre-aggregated facts; cells describing too few players are suppressed rather
-than returned as zero, and the response says how many were withheld. Cohorts only — §27's
-summary tables are not built, so DAU/MAU and event counts have nothing to read yet.
+Two shapes, both with `Authorization: Bearer ps_reporting_live_...`:
+
+- `POST /v1/cohorts/query` — retention, playtime, revenue, LTV, payer conversion and
+  behavioural segments, keyed on when a player arrived (§29).
+- `POST /v1/metrics/query` — active players, sessions, events and revenue over time, keyed
+  on when something happened (§26, §27).
+
+Both read pre-aggregated facts and never join on a player key. Cells describing too few
+players are suppressed rather than returned as zero, and every answer says how many were
+withheld. A time series also says which summary tier answered it and whether its player
+count is exact or a sketch.
 
 ## Tests
 
 ```bash
 go test ./apps/backend/... -race
-go run ./apps/backend/cmd/cohortcheck    # 10 correctness checks against real derived data
+go run ./apps/backend/cmd/cohortcheck    # 15 correctness checks against real derived data
 ```
 
 `cohortcheck` seeds synthetic events with a known answer and asserts the pipeline reproduces

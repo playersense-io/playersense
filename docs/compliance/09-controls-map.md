@@ -33,6 +33,7 @@ Paths are relative to the repository root.
 |---|---|---|---|---|
 | A kids_strict project has no persistent identifier | Gateway replaces `install_id` per batch, whatever the SDK sent | `apps/backend/internal/handlers/ingest.go` | `TestKidsStrictHasNoPersistentIdentifier` | **Built** |
 | …and is told so rather than shown an empty chart | Cross-day retention is refused, naming the tier and pointing at same-day aggregates | `apps/backend/internal/query/plan.go` | `TestKidsStrictIsToldWhyRatherThanShownNothing` | **Built** |
+| …including on the time series | New/returning and MAU are refused: every player would look new every day | `apps/backend/internal/query/metrics.go` | `TestKidsStrictHasNoNewReturningSplit` | **Built** |
 | A child_directed project has no acquisition cohorts | The breakdown and the filter are both refused, naming the tier | `internal/query/plan.go` | `TestChildDirectedHasNoAcquisitionCohorts` | **Built** |
 | The tier is immutable after creation | Ent field marked immutable | `apps/backend/ent/schema/globaltier/project.go` | — | **Built** |
 | The kids_strict limitation is stated at signup | The API announces it when a project is created on that tier | `apps/backend/internal/handlers/control.go` | `TestKidsStrictAnnouncesItsLimit` | **Built** |
@@ -112,6 +113,9 @@ migrate: 1 invariant violation(s)
 | A cohort is assigned by the server, not the device | `cohort_date` from `ingest_time`; a wrong clock cannot make a 1970 cohort, and a late event cannot move a reported one | `apps/backend/internal/writer/device.go` | `TestABackdatedEventKeepsTodaysCohort` | **Built** |
 | A breakdown divides by its own value's cohort | `cohort_sizes` carries a row per (dimension, value), counted within the value | `apps/backend/internal/cohort/derive.go` | `cmd/cohortcheck` check 9 | **Built** |
 | Rolling retention counts a player once | A suffix sum over last-activity offsets, not a sum of per-offset counters | `apps/backend/internal/query/execute.go` | `TestRollingRetentionCountsAPlayerOnce` | **Built** |
+| Daily actives are an exact distinct count | The derivation collapses partial rows before counting; a chained view would drift upward silently | `apps/backend/internal/rollup/derive.go` | `cmd/cohortcheck` checks 11 and 15 | **Built** |
+| Monthly actives are not the sum of the days | MAU is its own distinct count over the month | `internal/rollup/derive.go` | `cmd/cohortcheck` check 14, `TestMonthlyActivesAreNotTheSumOfTheDays` | **Built** |
+| The dashboard and the invoice read one fact | Both derive from `player_activity_daily`, per §38 | `internal/rollup/derive.go` | — | **Built** |
 | A rebuild cannot destroy older cells | Activity-month partitioning, whole-month rebuilds | `apps/backend/internal/cohort/derive.go` | `cmd/cohortcheck` | **Built** |
 
 ## Retention and rights
@@ -152,6 +156,10 @@ migrate: 1 invariant violation(s)
 | A cached answer cannot claim false freshness | `computed_at` is the derivation's own timestamp and is stored with the answer | `apps/backend/internal/query/cache.go` | `TestACachedAnswerKeepsTheDerivationsTimestamp` | **Built** |
 | One cell cannot read another's answers | The cache key carries the cell | `internal/query/cache.go` | `TestOneCellCannotReadAnothersAnswers` | **Built** |
 | Reporting honours residency | 421 naming the cell's `query_url` | `apps/backend/internal/handlers/query.go` | — | **Built** |
+| A time series is suppressed on the same rule | An active-player count is a count of people whatever it is keyed on | `apps/backend/internal/query/execute.go` | `TestAMetricBreakdownSuppressesAThinValue` | **Built** |
+| An approximate count says it is approximate | The realtime tiers are marked, and carry no derivation time | `apps/backend/internal/query/metrics.go` | `TestARealtimeSeriesSaysItIsApproximate`, `TestOnlyTheRealtimeTiersAreApproximate` | **Built** |
+| A grain finer than its range is refused | §26's policy enforced, not advised | `apps/backend/internal/schemas/query.go` | `TestAGrainFinerThanItsRangeIsRefused` | **Built** |
+| A series query never joins either | The same builder, over the summary tables | `apps/backend/internal/query/metrics.go` | `TestASeriesQueryNeverJoins` | **Built** |
 
 ## Audit
 

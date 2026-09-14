@@ -737,9 +737,15 @@ Accepts the `reporting` key class and no other. A project key is shipped inside 
 is therefore public (§52); accepting one here would publish a studio's analytics to anyone
 who unpacked their build.
 
-**Built for cohorts only.** §29's facts exist, so §57.1's shapes are answerable. §27's
-summary tables do not, so DAU/MAU, event counts and revenue over time have nothing to read
-yet — the DSL is shaped to take them behind the same contract (§57).
+Two shapes, kept apart because §27 keeps them apart. `POST /v1/cohorts/query` answers
+§57.1's questions, keyed on when a player arrived. `POST /v1/metrics/query` answers §57's,
+keyed on when something happened, and the planner picks the summary tier from the requested
+grain per §26 — refusing a grain finer than its range can carry rather than returning tens of
+thousands of points.
+
+A time-series answer names the tier that served it and says whether its player count is
+exact or a sketch, because the realtime tiers trade one for the other (§27) and a number
+that might be off by a fraction of a percent must not be silently comparable to an invoice.
 
 ### 10.6 `config-api`
 
@@ -908,10 +914,9 @@ sessions_final
 
 events_1m
 events_1h
-events_1d
-players_1d
-sessions_1d
-revenue_1d
+metrics_daily
+metrics_breakdown_daily
+metrics_monthly
 
 player_lifetime
 player_activity_daily
@@ -933,6 +938,10 @@ Two names from earlier drafts are deliberately absent. `player_first_seen` is su
 splitting them buys nothing. `retention_cohort_daily` is subsumed by `cohort_metrics_daily`,
 because retention, playtime and revenue share one grain and three tables of the same shape
 cost three scans to answer one question. See §29.
+
+The same argument later took three more names with it: `events_1d`, `players_1d`,
+`sessions_1d` and `revenue_1d` are one `metrics_daily`, with `metrics_breakdown_daily` for a
+single dimension and `metrics_monthly` for MAU. See §27 and ADR 0021.
 
 ---
 
@@ -1748,6 +1757,29 @@ Metrics:
 - ARPU;
 - ARPPU;
 - currency-normalized revenue if FX normalization exists.
+
+### One table, not three
+
+`players_1d`, `sessions_1d` and `revenue_1d` are built as a single `metrics_daily`, with a
+`metrics_breakdown_daily` beside it carrying one dimension at a time and a `metrics_monthly`
+above it for MAU.
+
+The reason is the one §13.1 already gives for folding `retention_cohort_daily` into
+`cohort_metrics_daily`: they share a grain and a key, and three tables of the same shape cost
+three scans to answer one question. A dashboard asking for DAU, sessions and revenue over
+September is asking one question.
+
+They are derived by a nightly job from `player_activity_daily`, not by a materialized view
+over `events_raw`, and both halves of that matter:
+
+- **From `player_activity_daily`**, because §38 requires the billing meter to read that fact
+  and a dashboard that disagrees with an invoice is the same failure it describes.
+- **By a job**, because §29.14's trap applies exactly: a chained view over a
+  `SummingMergeTree` counts a device-day once per insert block, so DAU would drift upward
+  and nothing would report an error. The job collapses to one row per device-day first,
+  which is what makes these counts exact.
+
+`events_1m` and `events_1h` stay materialized views and stay approximate. See ADR 0021.
 
 ### Cohort facts
 
