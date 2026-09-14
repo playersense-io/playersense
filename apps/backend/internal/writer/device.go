@@ -57,7 +57,7 @@ func (w *Writer) deviceKey(msg *eventbus.Message, installID string) string {
 // write-time stamp is a fast path for fresh data, not the source of truth.
 func (w *Writer) deviceState(ctx context.Context, msg *eventbus.Message, batch *ingest.NormalizedBatch) DeviceState {
 	fresh := DeviceState{
-		CohortDate:      firstEventDate(batch),
+		CohortDate:      firstCohortDate(batch),
 		InstallPlatform: batch.Platform,
 		InstallCountry:  batch.CountryCode,
 		FirstAppVersion: batch.AppVersion,
@@ -97,23 +97,32 @@ func (w *Writer) deviceState(ctx context.Context, msg *eventbus.Message, batch *
 	return fresh
 }
 
-// firstEventDate is the cohort date for a device seen for the first time.
+// firstCohortDate is the cohort date for a device seen for the first time.
 //
-// The earliest *event* time rather than the arrival time: a batch spooled offline for two
-// days and delivered on Wednesday belongs to Monday's cohort, and using arrival would put
-// every offline player in the wrong one.
-func firstEventDate(batch *ingest.NormalizedBatch) string {
-	earliest := time.Time{}
-	for i := range batch.Events {
-		t := batch.Events[i].EventTime
-		if earliest.IsZero() || t.Before(earliest) {
-			earliest = t
-		}
+// The server-assigned ingest time, never the client's event time. §29.4 is explicit about
+// this and gives two reasons, both of which are silent corruption rather than errors:
+//
+//   - A late event bearing an earlier timestamp would relocate a player into an earlier
+//     cohort, retroactively — changing a closed cohort's size and shifting that player's
+//     whole offset history. Cohorts that have already been reported would move.
+//   - A device with a wrong clock would land in a 1970 cohort with a day_offset around
+//     20,700, and nothing downstream would flag it.
+//
+// There is a real cost, and §29.4 accepted it: a batch spooled offline for two days is
+// assigned to the day it arrived rather than the day it happened. §19.2's clamp bounds that
+// to seven days.
+//
+// The decisive reason is arithmetic rather than policy. cohort_sizes — every retention
+// rate's denominator — is derived from player_lifetime, whose first_seen is min(ingest_time)
+// (00002_player_lifetime.sql). A numerator keyed on event time and a denominator keyed on
+// ingest time are not the same cohort, so every rate computed from the pair would be wrong,
+// and the mismatch shows up as a missing denominator rather than as an error.
+func firstCohortDate(batch *ingest.NormalizedBatch) string {
+	at := batch.IngestTime
+	if at.IsZero() {
+		at = batch.ReceivedAt
 	}
-	if earliest.IsZero() {
-		earliest = batch.ReceivedAt
-	}
-	return earliest.UTC().Format(time.DateOnly)
+	return at.UTC().Format(time.DateOnly)
 }
 
 // tombstoneKey names a project whose data has been deleted (§61).

@@ -217,6 +217,52 @@ func event(name string, over map[string]any) map[string]any {
 	return e
 }
 
+// TestABackdatedEventKeepsTodaysCohort is §29.4.
+//
+// A device whose clock is behind, or whose batch sat in an offline spool, must still be
+// assigned to the cohort of the day the server saw it. Using the client's event time
+// instead has two failure modes that produce no error at all: a late event bearing an
+// earlier timestamp relocates a player into an already-reported cohort, and a wrong clock
+// lands a device in a 1970 cohort with a day_offset around 20,700.
+//
+// It is also the only way the numbers add up. cohort_sizes is derived from
+// player_lifetime, whose first_seen is min(ingest_time), so a cohort_date keyed on event
+// time gives every retention rate a denominator that belongs to a different cohort.
+func TestABackdatedEventKeepsTodaysCohort(t *testing.T) {
+	p := newPipeline(t, "standard")
+	p.run(t)
+
+	backdated := time.Now().UTC().AddDate(0, 0, -5)
+	p.client.Post("/v1/batches", testclient.JSON(batch(
+		event("session_start", map[string]any{
+			"event_time": backdated.Format(time.RFC3339Nano),
+		})))).AssertStatus(http.StatusAccepted)
+
+	if got := p.waitForRows(t, 1); got != 1 {
+		t.Fatalf("stored %d rows, want 1", got)
+	}
+
+	conn, err := p.ch.DB()
+	if err != nil {
+		t.Fatalf("clickhouse: %v", err)
+	}
+	var stamped, ingested time.Time
+	if err := conn.QueryRow(context.Background(), `
+		SELECT assumeNotNull(cohort_date), toDate(ingest_time)
+		FROM events_raw WHERE project_seq = ? LIMIT 1`,
+		uint32(p.project.ProjectSeq)).Scan(&stamped, &ingested); err != nil {
+		t.Fatalf("read the stamped cohort: %v", err)
+	}
+
+	if !stamped.Equal(ingested) {
+		t.Fatalf("cohort_date is %s but the batch arrived on %s; the client's clock decided "+
+			"the cohort", stamped.Format(time.DateOnly), ingested.Format(time.DateOnly))
+	}
+	if stamped.Equal(backdated.Truncate(24 * time.Hour)) {
+		t.Fatal("the cohort followed the backdated event time")
+	}
+}
+
 func TestAppBuilds(t *testing.T) {
 	settings := testsupport.Settings(t)
 	app, err := build(settings)
