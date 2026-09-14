@@ -1,0 +1,48 @@
+<!--
+  Embedded ClickHouse Keeper, single node.
+
+  §23 declares events_raw as ReplicatedMergeTree, and the reason is insert
+  deduplication: §21 guarantees only at-least-once delivery, so a retried batch
+  must not be stored twice. replicated_deduplication_window is a Replicated-engine
+  feature, so plain MergeTree would silently lose that guarantee.
+
+  Running Keeper in-process rather than as a second container keeps the Stage 1
+  stack to three services while giving the engine what it needs.
+-->
+<clickhouse>
+    <keeper_server>
+        <tcp_port>9181</tcp_port>
+        <server_id>1</server_id>
+        <log_storage_path>/var/lib/clickhouse/coordination/log</log_storage_path>
+        <snapshot_storage_path>/var/lib/clickhouse/coordination/snapshots</snapshot_storage_path>
+        <coordination_settings>
+            <operation_timeout_ms>10000</operation_timeout_ms>
+            <session_timeout_ms>30000</session_timeout_ms>
+            <raft_logs_level>warning</raft_logs_level>
+        </coordination_settings>
+        <raft_configuration>
+            <server>
+                <id>1</id>
+                <hostname>localhost</hostname>
+                <port>9234</port>
+            </server>
+        </raft_configuration>
+    </keeper_server>
+
+    <zookeeper>
+        <node>
+            <host>localhost</host>
+            <port>9181</port>
+        </node>
+    </zookeeper>
+
+    <!--
+      Lets CREATE TABLE ... ReplicatedMergeTree be written with no arguments.
+
+      Keyed on {database}/{table} rather than {uuid}: the {uuid} macro only resolves
+      for an ON CLUSTER query or under the Replicated database engine, and a plain
+      single-node CREATE TABLE fails with BAD_ARGUMENTS.
+    -->
+    <default_replica_path>/clickhouse/tables/{shard}/{database}/{table}</default_replica_path>
+    <default_replica_name>{replica}</default_replica_name>
+</clickhouse>

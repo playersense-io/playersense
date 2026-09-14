@@ -1,0 +1,13 @@
+<!--
+  Listen on all interfaces inside the container.
+
+  The image's default binds 127.0.0.1 and ::1 only, so a published port accepts the TCP
+  connection at the Docker bridge and the server then closes it — which surfaces as
+  "handshake: failed to read packet ... read: EOF" from the client, and is invisible to a
+  healthcheck that runs inside the container against loopback.
+
+  Safe here because compose publishes every port to 127.0.0.1 on the host.
+-->
+<clickhouse>
+    <listen_host>0.0.0.0</listen_host>
+</clickhouse>

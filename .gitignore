@@ -1,0 +1,20 @@
+# Local environment
+.env
+.env.local
+
+# Go
+/bin/
+*.test
+*.out
+
+# Node
+node_modules/
+.nuxt/
+.output/
+dist/
+
+# macOS
+.DS_Store
+
+# Local data volumes
+infra/**/data/
