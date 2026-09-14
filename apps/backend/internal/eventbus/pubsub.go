@@ -97,11 +97,14 @@ func (p *PubSub) Publish(ctx context.Context, msg *Message) error {
 //
 // Grouping is worth revisiting when Pub/Sub is actually deployed and the cost is
 // measurable. It is not worth guessing at now.
-func (p *PubSub) Subscribe(ctx context.Context, handle Handler) error {
+func (p *PubSub) Subscribe(ctx context.Context, group string, handle Handler) error {
 	if p.client == nil {
 		return fmt.Errorf("pubsub bus is not started")
 	}
-	sub := p.client.Subscription(p.subscriptionID())
+	if group == "" {
+		return fmt.Errorf("a subscription needs a group")
+	}
+	sub := p.client.Subscription(p.subscriptionID(group))
 	return sub.Receive(ctx, func(ctx context.Context, m *pubsub.Message) {
 		msg := &Message{
 			Payload:  m.Data,
@@ -120,9 +123,12 @@ func (p *PubSub) Subscribe(ctx context.Context, handle Handler) error {
 	})
 }
 
-// subscriptionID is the topic's own subscription. One subscription per topic per cell,
-// because a cell's writer consumes only its own cell's messages.
-func (p *PubSub) subscriptionID() string { return p.topicID + "-writer" }
+// subscriptionID names one consumer's subscription on the topic.
+//
+// One per group per topic per cell (§20): the storage writer and the archive writer read
+// the same stream independently, and a cell's consumers read only their own cell's
+// messages.
+func (p *PubSub) subscriptionID(group string) string { return p.topicID + "-" + group }
 
 func applyAttributes(msg *Message, attrs map[string]string) {
 	msg.OrgID = attrs["org_id"]

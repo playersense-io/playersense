@@ -62,17 +62,31 @@ type Message struct {
 // over several, and because the bus is the only thing that knows how many are available.
 type Handler func(ctx context.Context, msgs []*Message) error
 
+// Consumer groups (§20).
+//
+// One topic, several independent subscriptions: the storage writer and the archive writer
+// consume the same stream and must not consume it *for* each other. A group names a
+// position, so each consumer has its own and a slow archive cannot hold back storage or
+// skip what storage has already taken.
+//
+// The names are §20's own, because the Pub/Sub subscription is created with them and a
+// deployment reading the document should find the same words in the console.
+const (
+	GroupAnalyticsWriter = "clickhouse-writer"
+	GroupArchiveWriter   = "archive-writer"
+)
+
 // Bus is the whole of what ingestion and the writers need from the outside world.
 //
 // Publish returns only once the message is durable. §19's contract is that a 202 means
 // the batch reached durable queueing, and a Publish that returns before that would make
 // the status a lie.
 //
-// Subscribe runs until the context is cancelled. Delivery is at-least-once (§21), so a
-// handler must make its effect idempotent rather than assume it is called once — which is
-// what the DedupKey above is for.
+// Subscribe runs until the context is cancelled, consuming on behalf of one group.
+// Delivery is at-least-once (§21), so a handler must make its effect idempotent rather than
+// assume it is called once — which is what the DedupKey above is for.
 type Bus interface {
 	Publish(ctx context.Context, msg *Message) error
-	Subscribe(ctx context.Context, handle Handler) error
+	Subscribe(ctx context.Context, group string, handle Handler) error
 	Name() string
 }

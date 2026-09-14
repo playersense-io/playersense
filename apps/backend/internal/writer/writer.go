@@ -109,7 +109,7 @@ func (w *Writer) Start(context.Context) error {
 
 	go func() {
 		defer close(w.done)
-		if err := w.bus.Subscribe(ctx, w.handle); err != nil && ctx.Err() == nil {
+		if err := w.bus.Subscribe(ctx, eventbus.GroupAnalyticsWriter, w.handle); err != nil && ctx.Err() == nil {
 			w.log.Error("the subscription stopped", "error", err)
 		}
 	}()

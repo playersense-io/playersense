@@ -139,8 +139,12 @@ func (l *Local) Read(day time.Time) ([]*Message, error) {
 //
 // The offset is committed after a successful handler call and fsynced, because an offset
 // that outlives a crash by being in the page cache is an offset that can skip a batch.
-func (l *Local) Subscribe(ctx context.Context, handle Handler) error {
-	if err := os.MkdirAll(l.offsetDir(), 0o750); err != nil {
+func (l *Local) Subscribe(ctx context.Context, group string, handle Handler) error {
+	if group == "" {
+		return fmt.Errorf("a subscription needs a group; two consumers sharing one position " +
+			"would each skip what the other took")
+	}
+	if err := os.MkdirAll(l.offsetDir(group), 0o750); err != nil {
 		return fmt.Errorf("create offset directory: %w", err)
 	}
 
@@ -150,7 +154,7 @@ func (l *Local) Subscribe(ctx context.Context, handle Handler) error {
 	for {
 		// Drain first, so a backlog is worked through without waiting a tick per group.
 		for {
-			delivered, err := l.deliverOnce(ctx, handle)
+			delivered, err := l.deliverOnce(ctx, group, handle)
 			if err != nil {
 				return err
 			}
@@ -180,7 +184,11 @@ func (l *Local) poll() time.Duration {
 	return 250 * time.Millisecond
 }
 
-func (l *Local) offsetDir() string { return filepath.Join(l.dir, l.cell, ".offsets") }
+// offsetDir is per group, so two consumers of the same spool keep independent positions —
+// the property a shared directory silently removed.
+func (l *Local) offsetDir(group string) string {
+	return filepath.Join(l.dir, l.cell, ".offsets", group)
+}
 
 // maxReadPerPoll bounds how much of a segment is read in one pass, so a large backlog is
 // worked through in pieces rather than loaded whole.
@@ -188,7 +196,7 @@ const maxReadPerPoll = 8 << 20
 
 // deliverOnce finds the oldest segment with unread bytes, delivers what is there, and
 // reports whether it delivered anything.
-func (l *Local) deliverOnce(ctx context.Context, handle Handler) (bool, error) {
+func (l *Local) deliverOnce(ctx context.Context, group string, handle Handler) (bool, error) {
 	segments, err := filepath.Glob(filepath.Join(l.dir, l.cell, "analytics-events-*.ndjson"))
 	if err != nil {
 		return false, err
@@ -197,7 +205,7 @@ func (l *Local) deliverOnce(ctx context.Context, handle Handler) (bool, error) {
 	sort.Strings(segments)
 
 	for _, segment := range segments {
-		offset, err := l.readOffset(segment)
+		offset, err := l.readOffset(group, segment)
 		if err != nil {
 			return false, err
 		}
@@ -213,7 +221,7 @@ func (l *Local) deliverOnce(ctx context.Context, handle Handler) (bool, error) {
 			// next pass, which is the whole point of committing after rather than before.
 			return false, err
 		}
-		if err := l.writeOffset(segment, next); err != nil {
+		if err := l.writeOffset(group, segment, next); err != nil {
 			return false, err
 		}
 		return true, nil
@@ -270,12 +278,12 @@ func readFrom(path string, offset int64) ([]*Message, int64, error) {
 	return msgs, offset + int64(len(buf)), nil
 }
 
-func (l *Local) offsetPath(segment string) string {
-	return filepath.Join(l.offsetDir(), filepath.Base(segment)+".offset")
+func (l *Local) offsetPath(group, segment string) string {
+	return filepath.Join(l.offsetDir(group), filepath.Base(segment)+".offset")
 }
 
-func (l *Local) readOffset(segment string) (int64, error) {
-	raw, err := os.ReadFile(l.offsetPath(segment))
+func (l *Local) readOffset(group, segment string) (int64, error) {
+	raw, err := os.ReadFile(l.offsetPath(group, segment))
 	if err != nil {
 		if os.IsNotExist(err) {
 			return 0, nil
@@ -294,8 +302,8 @@ func (l *Local) readOffset(segment string) (int64, error) {
 // Written to a temporary file and renamed, so a crash part way through leaves the previous
 // offset rather than a truncated one — an unreadable offset would mean replaying a whole
 // segment, and a half-written number could mean skipping part of one.
-func (l *Local) writeOffset(segment string, offset int64) error {
-	path := l.offsetPath(segment)
+func (l *Local) writeOffset(group, segment string, offset int64) error {
+	path := l.offsetPath(group, segment)
 	tmp := path + ".tmp"
 	f, err := os.OpenFile(tmp, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o640)
 	if err != nil {
