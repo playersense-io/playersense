@@ -21,8 +21,8 @@ import (
 // checks the same rule against the live database, which catches anything added by hand.
 //
 // A project is referenced by its public UUID rather than by an edge. The two tiers are
-// separate PostgreSQL schemas today and separate databases later, and a foreign key
-// across that boundary would not survive the split.
+// separate databases — in production, separate servers in separate jurisdictions — and a
+// foreign key across that boundary is not a thing PostgreSQL can express.
 
 func withComments() schema.Annotation {
 	yes := true
