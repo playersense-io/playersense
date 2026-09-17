@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
 	"playersense.dev/backend/ent/global/apikey"
+	"playersense.dev/backend/ent/global/configversion"
 	"playersense.dev/backend/ent/global/environment"
 	"playersense.dev/backend/ent/global/project"
 )
@@ -101,6 +102,21 @@ func (_c *EnvironmentCreate) AddAPIKeys(v ...*APIKey) *EnvironmentCreate {
 		ids[i] = v[i].ID
 	}
 	return _c.AddAPIKeyIDs(ids...)
+}
+
+// AddConfigVersionIDs adds the "config_versions" edge to the ConfigVersion entity by IDs.
+func (_c *EnvironmentCreate) AddConfigVersionIDs(ids ...int) *EnvironmentCreate {
+	_c.mutation.AddConfigVersionIDs(ids...)
+	return _c
+}
+
+// AddConfigVersions adds the "config_versions" edges to the ConfigVersion entity.
+func (_c *EnvironmentCreate) AddConfigVersions(v ...*ConfigVersion) *EnvironmentCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddConfigVersionIDs(ids...)
 }
 
 // Mutation returns the EnvironmentMutation object of the builder.
@@ -251,6 +267,22 @@ func (_c *EnvironmentCreate) createSpec() (*Environment, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(apikey.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.ConfigVersionsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   environment.ConfigVersionsTable,
+			Columns: []string{environment.ConfigVersionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(configversion.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

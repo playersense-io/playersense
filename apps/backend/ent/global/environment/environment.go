@@ -30,6 +30,8 @@ const (
 	EdgeProject = "project"
 	// EdgeAPIKeys holds the string denoting the api_keys edge name in mutations.
 	EdgeAPIKeys = "api_keys"
+	// EdgeConfigVersions holds the string denoting the config_versions edge name in mutations.
+	EdgeConfigVersions = "config_versions"
 	// Table holds the table name of the environment in the database.
 	Table = "environments"
 	// ProjectTable is the table that holds the project relation/edge.
@@ -46,6 +48,13 @@ const (
 	APIKeysInverseTable = "api_keys"
 	// APIKeysColumn is the table column denoting the api_keys relation/edge.
 	APIKeysColumn = "environment_id"
+	// ConfigVersionsTable is the table that holds the config_versions relation/edge.
+	ConfigVersionsTable = "config_versions"
+	// ConfigVersionsInverseTable is the table name for the ConfigVersion entity.
+	// It exists in this package in order to avoid circular dependency with the "configversion" package.
+	ConfigVersionsInverseTable = "config_versions"
+	// ConfigVersionsColumn is the table column denoting the config_versions relation/edge.
+	ConfigVersionsColumn = "environment_id"
 )
 
 // Columns holds all SQL columns for environment fields.
@@ -156,6 +165,20 @@ func ByAPIKeys(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newAPIKeysStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
+
+// ByConfigVersionsCount orders the results by config_versions count.
+func ByConfigVersionsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newConfigVersionsStep(), opts...)
+	}
+}
+
+// ByConfigVersions orders the results by config_versions terms.
+func ByConfigVersions(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newConfigVersionsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newProjectStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -168,5 +191,12 @@ func newAPIKeysStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(APIKeysInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, APIKeysTable, APIKeysColumn),
+	)
+}
+func newConfigVersionsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(ConfigVersionsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, ConfigVersionsTable, ConfigVersionsColumn),
 	)
 }

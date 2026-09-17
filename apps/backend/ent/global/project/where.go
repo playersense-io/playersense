@@ -515,6 +515,98 @@ func HasEnvironmentsWith(preds ...predicate.Environment) predicate.Project {
 	})
 }
 
+// HasSegments applies the HasEdge predicate on the "segments" edge.
+func HasSegments() predicate.Project {
+	return predicate.Project(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, SegmentsTable, SegmentsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasSegmentsWith applies the HasEdge predicate on the "segments" edge with a given conditions (other predicates).
+func HasSegmentsWith(preds ...predicate.Segment) predicate.Project {
+	return predicate.Project(func(s *sql.Selector) {
+		step := newSegmentsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasFeatureFlags applies the HasEdge predicate on the "feature_flags" edge.
+func HasFeatureFlags() predicate.Project {
+	return predicate.Project(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, FeatureFlagsTable, FeatureFlagsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasFeatureFlagsWith applies the HasEdge predicate on the "feature_flags" edge with a given conditions (other predicates).
+func HasFeatureFlagsWith(preds ...predicate.FeatureFlag) predicate.Project {
+	return predicate.Project(func(s *sql.Selector) {
+		step := newFeatureFlagsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasCampaigns applies the HasEdge predicate on the "campaigns" edge.
+func HasCampaigns() predicate.Project {
+	return predicate.Project(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, CampaignsTable, CampaignsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasCampaignsWith applies the HasEdge predicate on the "campaigns" edge with a given conditions (other predicates).
+func HasCampaignsWith(preds ...predicate.Campaign) predicate.Project {
+	return predicate.Project(func(s *sql.Selector) {
+		step := newCampaignsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasConfigVersions applies the HasEdge predicate on the "config_versions" edge.
+func HasConfigVersions() predicate.Project {
+	return predicate.Project(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, ConfigVersionsTable, ConfigVersionsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasConfigVersionsWith applies the HasEdge predicate on the "config_versions" edge with a given conditions (other predicates).
+func HasConfigVersionsWith(preds ...predicate.ConfigVersion) predicate.Project {
+	return predicate.Project(func(s *sql.Selector) {
+		step := newConfigVersionsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // And groups predicates with the AND operator between them.
 func And(predicates ...predicate.Project) predicate.Project {
 	return predicate.Project(sql.AndPredicates(predicates...))

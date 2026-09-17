@@ -9,11 +9,20 @@ import (
 // APIKey is the predicate function for apikey builders.
 type APIKey func(*sql.Selector)
 
+// Campaign is the predicate function for campaign builders.
+type Campaign func(*sql.Selector)
+
 // Cell is the predicate function for cell builders.
 type Cell func(*sql.Selector)
 
+// ConfigVersion is the predicate function for configversion builders.
+type ConfigVersion func(*sql.Selector)
+
 // Environment is the predicate function for environment builders.
 type Environment func(*sql.Selector)
+
+// FeatureFlag is the predicate function for featureflag builders.
+type FeatureFlag func(*sql.Selector)
 
 // Organization is the predicate function for organization builders.
 type Organization func(*sql.Selector)
@@ -23,6 +32,9 @@ type OrganizationMember func(*sql.Selector)
 
 // Project is the predicate function for project builders.
 type Project func(*sql.Selector)
+
+// Segment is the predicate function for segment builders.
+type Segment func(*sql.Selector)
 
 // User is the predicate function for user builders.
 type User func(*sql.Selector)

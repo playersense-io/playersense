@@ -11,10 +11,14 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
+	"playersense.dev/backend/ent/global/campaign"
 	"playersense.dev/backend/ent/global/cell"
+	"playersense.dev/backend/ent/global/configversion"
 	"playersense.dev/backend/ent/global/environment"
+	"playersense.dev/backend/ent/global/featureflag"
 	"playersense.dev/backend/ent/global/organization"
 	"playersense.dev/backend/ent/global/project"
+	"playersense.dev/backend/ent/global/segment"
 )
 
 // ProjectCreate is the builder for creating a Project entity.
@@ -147,6 +151,66 @@ func (_c *ProjectCreate) AddEnvironments(v ...*Environment) *ProjectCreate {
 		ids[i] = v[i].ID
 	}
 	return _c.AddEnvironmentIDs(ids...)
+}
+
+// AddSegmentIDs adds the "segments" edge to the Segment entity by IDs.
+func (_c *ProjectCreate) AddSegmentIDs(ids ...int) *ProjectCreate {
+	_c.mutation.AddSegmentIDs(ids...)
+	return _c
+}
+
+// AddSegments adds the "segments" edges to the Segment entity.
+func (_c *ProjectCreate) AddSegments(v ...*Segment) *ProjectCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddSegmentIDs(ids...)
+}
+
+// AddFeatureFlagIDs adds the "feature_flags" edge to the FeatureFlag entity by IDs.
+func (_c *ProjectCreate) AddFeatureFlagIDs(ids ...int) *ProjectCreate {
+	_c.mutation.AddFeatureFlagIDs(ids...)
+	return _c
+}
+
+// AddFeatureFlags adds the "feature_flags" edges to the FeatureFlag entity.
+func (_c *ProjectCreate) AddFeatureFlags(v ...*FeatureFlag) *ProjectCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddFeatureFlagIDs(ids...)
+}
+
+// AddCampaignIDs adds the "campaigns" edge to the Campaign entity by IDs.
+func (_c *ProjectCreate) AddCampaignIDs(ids ...int) *ProjectCreate {
+	_c.mutation.AddCampaignIDs(ids...)
+	return _c
+}
+
+// AddCampaigns adds the "campaigns" edges to the Campaign entity.
+func (_c *ProjectCreate) AddCampaigns(v ...*Campaign) *ProjectCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddCampaignIDs(ids...)
+}
+
+// AddConfigVersionIDs adds the "config_versions" edge to the ConfigVersion entity by IDs.
+func (_c *ProjectCreate) AddConfigVersionIDs(ids ...int) *ProjectCreate {
+	_c.mutation.AddConfigVersionIDs(ids...)
+	return _c
+}
+
+// AddConfigVersions adds the "config_versions" edges to the ConfigVersion entity.
+func (_c *ProjectCreate) AddConfigVersions(v ...*ConfigVersion) *ProjectCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddConfigVersionIDs(ids...)
 }
 
 // Mutation returns the ProjectMutation object of the builder.
@@ -359,6 +423,70 @@ func (_c *ProjectCreate) createSpec() (*Project, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(environment.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.SegmentsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.SegmentsTable,
+			Columns: []string{project.SegmentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(segment.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.FeatureFlagsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.FeatureFlagsTable,
+			Columns: []string{project.FeatureFlagsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(featureflag.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.CampaignsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.CampaignsTable,
+			Columns: []string{project.CampaignsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(campaign.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.ConfigVersionsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.ConfigVersionsTable,
+			Columns: []string{project.ConfigVersionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(configversion.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

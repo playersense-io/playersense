@@ -7,11 +7,15 @@ import (
 
 	"github.com/google/uuid"
 	"playersense.dev/backend/ent/global/apikey"
+	"playersense.dev/backend/ent/global/campaign"
 	"playersense.dev/backend/ent/global/cell"
+	"playersense.dev/backend/ent/global/configversion"
 	"playersense.dev/backend/ent/global/environment"
+	"playersense.dev/backend/ent/global/featureflag"
 	"playersense.dev/backend/ent/global/organization"
 	"playersense.dev/backend/ent/global/organizationmember"
 	"playersense.dev/backend/ent/global/project"
+	"playersense.dev/backend/ent/global/segment"
 	"playersense.dev/backend/ent/global/user"
 	"playersense.dev/backend/ent/schema/globaltier"
 )
@@ -79,6 +83,113 @@ func init() {
 	apikeyDescName := apikeyFields[3].Descriptor()
 	// apikey.NameValidator is a validator for the "name" field. It is called by the builders before save.
 	apikey.NameValidator = apikeyDescName.Validators[0].(func(string) error)
+	campaignMixin := globaltier.Campaign{}.Mixin()
+	campaignMixinFields0 := campaignMixin[0].Fields()
+	_ = campaignMixinFields0
+	campaignFields := globaltier.Campaign{}.Fields()
+	_ = campaignFields
+	// campaignDescUID is the schema descriptor for uid field.
+	campaignDescUID := campaignMixinFields0[1].Descriptor()
+	// campaign.DefaultUID holds the default value on creation for the uid field.
+	campaign.DefaultUID = campaignDescUID.Default.(func() uuid.UUID)
+	// campaignDescCreatedAt is the schema descriptor for created_at field.
+	campaignDescCreatedAt := campaignMixinFields0[2].Descriptor()
+	// campaign.DefaultCreatedAt holds the default value on creation for the created_at field.
+	campaign.DefaultCreatedAt = campaignDescCreatedAt.Default.(func() time.Time)
+	// campaignDescUpdatedAt is the schema descriptor for updated_at field.
+	campaignDescUpdatedAt := campaignMixinFields0[3].Descriptor()
+	// campaign.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	campaign.DefaultUpdatedAt = campaignDescUpdatedAt.Default.(func() time.Time)
+	// campaign.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	campaign.UpdateDefaultUpdatedAt = campaignDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// campaignDescKey is the schema descriptor for key field.
+	campaignDescKey := campaignFields[1].Descriptor()
+	// campaign.KeyValidator is a validator for the "key" field. It is called by the builders before save.
+	campaign.KeyValidator = func() func(string) error {
+		validators := campaignDescKey.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(key string) error {
+			for _, fn := range fns {
+				if err := fn(key); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// campaignDescKind is the schema descriptor for kind field.
+	campaignDescKind := campaignFields[2].Descriptor()
+	// campaign.KindValidator is a validator for the "kind" field. It is called by the builders before save.
+	campaign.KindValidator = func() func(string) error {
+		validators := campaignDescKind.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(kind string) error {
+			for _, fn := range fns {
+				if err := fn(kind); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// campaignDescName is the schema descriptor for name field.
+	campaignDescName := campaignFields[3].Descriptor()
+	// campaign.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	campaign.NameValidator = func() func(string) error {
+		validators := campaignDescName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(name string) error {
+			for _, fn := range fns {
+				if err := fn(name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// campaignDescPriority is the schema descriptor for priority field.
+	campaignDescPriority := campaignFields[7].Descriptor()
+	// campaign.DefaultPriority holds the default value on creation for the priority field.
+	campaign.DefaultPriority = campaignDescPriority.Default.(int)
+	// campaignDescAudience is the schema descriptor for audience field.
+	campaignDescAudience := campaignFields[8].Descriptor()
+	// campaign.DefaultAudience holds the default value on creation for the audience field.
+	campaign.DefaultAudience = campaignDescAudience.Default.(map[string]interface{})
+	// campaignDescRollout is the schema descriptor for rollout field.
+	campaignDescRollout := campaignFields[10].Descriptor()
+	// campaign.DefaultRollout holds the default value on creation for the rollout field.
+	campaign.DefaultRollout = campaignDescRollout.Default.(int)
+	// campaign.RolloutValidator is a validator for the "rollout" field. It is called by the builders before save.
+	campaign.RolloutValidator = func() func(int) error {
+		validators := campaignDescRollout.Validators
+		fns := [...]func(int) error{
+			validators[0].(func(int) error),
+			validators[1].(func(int) error),
+		}
+		return func(rollout int) error {
+			for _, fn := range fns {
+				if err := fn(rollout); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// campaignDescSalt is the schema descriptor for salt field.
+	campaignDescSalt := campaignFields[11].Descriptor()
+	// campaign.DefaultSalt holds the default value on creation for the salt field.
+	campaign.DefaultSalt = campaignDescSalt.Default.(string)
+	// campaign.SaltValidator is a validator for the "salt" field. It is called by the builders before save.
+	campaign.SaltValidator = campaignDescSalt.Validators[0].(func(string) error)
 	cellMixin := globaltier.Cell{}.Mixin()
 	cellMixinFields0 := cellMixin[0].Fields()
 	_ = cellMixinFields0
@@ -160,6 +271,41 @@ func init() {
 	cellDescLocation := cellFields[5].Descriptor()
 	// cell.LocationValidator is a validator for the "location" field. It is called by the builders before save.
 	cell.LocationValidator = cellDescLocation.Validators[0].(func(string) error)
+	configversionMixin := globaltier.ConfigVersion{}.Mixin()
+	configversionMixinFields0 := configversionMixin[0].Fields()
+	_ = configversionMixinFields0
+	configversionFields := globaltier.ConfigVersion{}.Fields()
+	_ = configversionFields
+	// configversionDescUID is the schema descriptor for uid field.
+	configversionDescUID := configversionMixinFields0[1].Descriptor()
+	// configversion.DefaultUID holds the default value on creation for the uid field.
+	configversion.DefaultUID = configversionDescUID.Default.(func() uuid.UUID)
+	// configversionDescCreatedAt is the schema descriptor for created_at field.
+	configversionDescCreatedAt := configversionMixinFields0[2].Descriptor()
+	// configversion.DefaultCreatedAt holds the default value on creation for the created_at field.
+	configversion.DefaultCreatedAt = configversionDescCreatedAt.Default.(func() time.Time)
+	// configversionDescUpdatedAt is the schema descriptor for updated_at field.
+	configversionDescUpdatedAt := configversionMixinFields0[3].Descriptor()
+	// configversion.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	configversion.DefaultUpdatedAt = configversionDescUpdatedAt.Default.(func() time.Time)
+	// configversion.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	configversion.UpdateDefaultUpdatedAt = configversionDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// configversionDescVersion is the schema descriptor for version field.
+	configversionDescVersion := configversionFields[2].Descriptor()
+	// configversion.VersionValidator is a validator for the "version" field. It is called by the builders before save.
+	configversion.VersionValidator = configversionDescVersion.Validators[0].(func(int) error)
+	// configversionDescPublishedBy is the schema descriptor for published_by field.
+	configversionDescPublishedBy := configversionFields[4].Descriptor()
+	// configversion.DefaultPublishedBy holds the default value on creation for the published_by field.
+	configversion.DefaultPublishedBy = configversionDescPublishedBy.Default.(string)
+	// configversion.PublishedByValidator is a validator for the "published_by" field. It is called by the builders before save.
+	configversion.PublishedByValidator = configversionDescPublishedBy.Validators[0].(func(string) error)
+	// configversionDescNote is the schema descriptor for note field.
+	configversionDescNote := configversionFields[5].Descriptor()
+	// configversion.DefaultNote holds the default value on creation for the note field.
+	configversion.DefaultNote = configversionDescNote.Default.(string)
+	// configversion.NoteValidator is a validator for the "note" field. It is called by the builders before save.
+	configversion.NoteValidator = configversionDescNote.Validators[0].(func(string) error)
 	environmentMixin := globaltier.Environment{}.Mixin()
 	environmentMixinFields0 := environmentMixin[0].Fields()
 	_ = environmentMixinFields0
@@ -179,6 +325,101 @@ func init() {
 	environment.DefaultUpdatedAt = environmentDescUpdatedAt.Default.(func() time.Time)
 	// environment.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	environment.UpdateDefaultUpdatedAt = environmentDescUpdatedAt.UpdateDefault.(func() time.Time)
+	featureflagMixin := globaltier.FeatureFlag{}.Mixin()
+	featureflagMixinFields0 := featureflagMixin[0].Fields()
+	_ = featureflagMixinFields0
+	featureflagFields := globaltier.FeatureFlag{}.Fields()
+	_ = featureflagFields
+	// featureflagDescUID is the schema descriptor for uid field.
+	featureflagDescUID := featureflagMixinFields0[1].Descriptor()
+	// featureflag.DefaultUID holds the default value on creation for the uid field.
+	featureflag.DefaultUID = featureflagDescUID.Default.(func() uuid.UUID)
+	// featureflagDescCreatedAt is the schema descriptor for created_at field.
+	featureflagDescCreatedAt := featureflagMixinFields0[2].Descriptor()
+	// featureflag.DefaultCreatedAt holds the default value on creation for the created_at field.
+	featureflag.DefaultCreatedAt = featureflagDescCreatedAt.Default.(func() time.Time)
+	// featureflagDescUpdatedAt is the schema descriptor for updated_at field.
+	featureflagDescUpdatedAt := featureflagMixinFields0[3].Descriptor()
+	// featureflag.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	featureflag.DefaultUpdatedAt = featureflagDescUpdatedAt.Default.(func() time.Time)
+	// featureflag.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	featureflag.UpdateDefaultUpdatedAt = featureflagDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// featureflagDescKey is the schema descriptor for key field.
+	featureflagDescKey := featureflagFields[1].Descriptor()
+	// featureflag.KeyValidator is a validator for the "key" field. It is called by the builders before save.
+	featureflag.KeyValidator = func() func(string) error {
+		validators := featureflagDescKey.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(key string) error {
+			for _, fn := range fns {
+				if err := fn(key); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// featureflagDescName is the schema descriptor for name field.
+	featureflagDescName := featureflagFields[2].Descriptor()
+	// featureflag.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	featureflag.NameValidator = func() func(string) error {
+		validators := featureflagDescName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(name string) error {
+			for _, fn := range fns {
+				if err := fn(name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// featureflagDescDescription is the schema descriptor for description field.
+	featureflagDescDescription := featureflagFields[3].Descriptor()
+	// featureflag.DefaultDescription holds the default value on creation for the description field.
+	featureflag.DefaultDescription = featureflagDescDescription.Default.(string)
+	// featureflag.DescriptionValidator is a validator for the "description" field. It is called by the builders before save.
+	featureflag.DescriptionValidator = featureflagDescDescription.Validators[0].(func(string) error)
+	// featureflagDescRules is the schema descriptor for rules field.
+	featureflagDescRules := featureflagFields[6].Descriptor()
+	// featureflag.DefaultRules holds the default value on creation for the rules field.
+	featureflag.DefaultRules = featureflagDescRules.Default.([]interface{})
+	// featureflagDescRollout is the schema descriptor for rollout field.
+	featureflagDescRollout := featureflagFields[7].Descriptor()
+	// featureflag.DefaultRollout holds the default value on creation for the rollout field.
+	featureflag.DefaultRollout = featureflagDescRollout.Default.(int)
+	// featureflag.RolloutValidator is a validator for the "rollout" field. It is called by the builders before save.
+	featureflag.RolloutValidator = func() func(int) error {
+		validators := featureflagDescRollout.Validators
+		fns := [...]func(int) error{
+			validators[0].(func(int) error),
+			validators[1].(func(int) error),
+		}
+		return func(rollout int) error {
+			for _, fn := range fns {
+				if err := fn(rollout); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// featureflagDescSalt is the schema descriptor for salt field.
+	featureflagDescSalt := featureflagFields[8].Descriptor()
+	// featureflag.DefaultSalt holds the default value on creation for the salt field.
+	featureflag.DefaultSalt = featureflagDescSalt.Default.(string)
+	// featureflag.SaltValidator is a validator for the "salt" field. It is called by the builders before save.
+	featureflag.SaltValidator = featureflagDescSalt.Validators[0].(func(string) error)
+	// featureflagDescArchived is the schema descriptor for archived field.
+	featureflagDescArchived := featureflagFields[9].Descriptor()
+	// featureflag.DefaultArchived holds the default value on creation for the archived field.
+	featureflag.DefaultArchived = featureflagDescArchived.Default.(bool)
 	organizationMixin := globaltier.Organization{}.Mixin()
 	organizationMixinFields0 := organizationMixin[0].Fields()
 	_ = organizationMixinFields0
@@ -312,6 +553,71 @@ func init() {
 	projectDescRetentionDays := projectFields[4].Descriptor()
 	// project.DefaultRetentionDays holds the default value on creation for the retention_days field.
 	project.DefaultRetentionDays = projectDescRetentionDays.Default.(uint16)
+	segmentMixin := globaltier.Segment{}.Mixin()
+	segmentMixinFields0 := segmentMixin[0].Fields()
+	_ = segmentMixinFields0
+	segmentFields := globaltier.Segment{}.Fields()
+	_ = segmentFields
+	// segmentDescUID is the schema descriptor for uid field.
+	segmentDescUID := segmentMixinFields0[1].Descriptor()
+	// segment.DefaultUID holds the default value on creation for the uid field.
+	segment.DefaultUID = segmentDescUID.Default.(func() uuid.UUID)
+	// segmentDescCreatedAt is the schema descriptor for created_at field.
+	segmentDescCreatedAt := segmentMixinFields0[2].Descriptor()
+	// segment.DefaultCreatedAt holds the default value on creation for the created_at field.
+	segment.DefaultCreatedAt = segmentDescCreatedAt.Default.(func() time.Time)
+	// segmentDescUpdatedAt is the schema descriptor for updated_at field.
+	segmentDescUpdatedAt := segmentMixinFields0[3].Descriptor()
+	// segment.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	segment.DefaultUpdatedAt = segmentDescUpdatedAt.Default.(func() time.Time)
+	// segment.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	segment.UpdateDefaultUpdatedAt = segmentDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// segmentDescKey is the schema descriptor for key field.
+	segmentDescKey := segmentFields[1].Descriptor()
+	// segment.KeyValidator is a validator for the "key" field. It is called by the builders before save.
+	segment.KeyValidator = func() func(string) error {
+		validators := segmentDescKey.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(key string) error {
+			for _, fn := range fns {
+				if err := fn(key); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// segmentDescName is the schema descriptor for name field.
+	segmentDescName := segmentFields[2].Descriptor()
+	// segment.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	segment.NameValidator = func() func(string) error {
+		validators := segmentDescName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(name string) error {
+			for _, fn := range fns {
+				if err := fn(name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// segmentDescDescription is the schema descriptor for description field.
+	segmentDescDescription := segmentFields[3].Descriptor()
+	// segment.DefaultDescription holds the default value on creation for the description field.
+	segment.DefaultDescription = segmentDescDescription.Default.(string)
+	// segment.DescriptionValidator is a validator for the "description" field. It is called by the builders before save.
+	segment.DescriptionValidator = segmentDescDescription.Validators[0].(func(string) error)
+	// segmentDescArchived is the schema descriptor for archived field.
+	segmentDescArchived := segmentFields[5].Descriptor()
+	// segment.DefaultArchived holds the default value on creation for the archived field.
+	segment.DefaultArchived = segmentDescArchived.Default.(bool)
 	userMixin := globaltier.User{}.Mixin()
 	userMixinFields0 := userMixin[0].Fields()
 	_ = userMixinFields0

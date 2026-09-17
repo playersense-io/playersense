@@ -12,23 +12,31 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"playersense.dev/backend/ent/global/campaign"
 	"playersense.dev/backend/ent/global/cell"
+	"playersense.dev/backend/ent/global/configversion"
 	"playersense.dev/backend/ent/global/environment"
+	"playersense.dev/backend/ent/global/featureflag"
 	"playersense.dev/backend/ent/global/organization"
 	"playersense.dev/backend/ent/global/predicate"
 	"playersense.dev/backend/ent/global/project"
+	"playersense.dev/backend/ent/global/segment"
 )
 
 // ProjectQuery is the builder for querying Project entities.
 type ProjectQuery struct {
 	config
-	ctx              *QueryContext
-	order            []project.OrderOption
-	inters           []Interceptor
-	predicates       []predicate.Project
-	withOrganization *OrganizationQuery
-	withCell         *CellQuery
-	withEnvironments *EnvironmentQuery
+	ctx                *QueryContext
+	order              []project.OrderOption
+	inters             []Interceptor
+	predicates         []predicate.Project
+	withOrganization   *OrganizationQuery
+	withCell           *CellQuery
+	withEnvironments   *EnvironmentQuery
+	withSegments       *SegmentQuery
+	withFeatureFlags   *FeatureFlagQuery
+	withCampaigns      *CampaignQuery
+	withConfigVersions *ConfigVersionQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -124,6 +132,94 @@ func (_q *ProjectQuery) QueryEnvironments() *EnvironmentQuery {
 			sqlgraph.From(project.Table, project.FieldID, selector),
 			sqlgraph.To(environment.Table, environment.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, project.EnvironmentsTable, project.EnvironmentsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QuerySegments chains the current query on the "segments" edge.
+func (_q *ProjectQuery) QuerySegments() *SegmentQuery {
+	query := (&SegmentClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(project.Table, project.FieldID, selector),
+			sqlgraph.To(segment.Table, segment.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, project.SegmentsTable, project.SegmentsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryFeatureFlags chains the current query on the "feature_flags" edge.
+func (_q *ProjectQuery) QueryFeatureFlags() *FeatureFlagQuery {
+	query := (&FeatureFlagClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(project.Table, project.FieldID, selector),
+			sqlgraph.To(featureflag.Table, featureflag.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, project.FeatureFlagsTable, project.FeatureFlagsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryCampaigns chains the current query on the "campaigns" edge.
+func (_q *ProjectQuery) QueryCampaigns() *CampaignQuery {
+	query := (&CampaignClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(project.Table, project.FieldID, selector),
+			sqlgraph.To(campaign.Table, campaign.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, project.CampaignsTable, project.CampaignsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryConfigVersions chains the current query on the "config_versions" edge.
+func (_q *ProjectQuery) QueryConfigVersions() *ConfigVersionQuery {
+	query := (&ConfigVersionClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(project.Table, project.FieldID, selector),
+			sqlgraph.To(configversion.Table, configversion.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, project.ConfigVersionsTable, project.ConfigVersionsColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -318,14 +414,18 @@ func (_q *ProjectQuery) Clone() *ProjectQuery {
 		return nil
 	}
 	return &ProjectQuery{
-		config:           _q.config,
-		ctx:              _q.ctx.Clone(),
-		order:            append([]project.OrderOption{}, _q.order...),
-		inters:           append([]Interceptor{}, _q.inters...),
-		predicates:       append([]predicate.Project{}, _q.predicates...),
-		withOrganization: _q.withOrganization.Clone(),
-		withCell:         _q.withCell.Clone(),
-		withEnvironments: _q.withEnvironments.Clone(),
+		config:             _q.config,
+		ctx:                _q.ctx.Clone(),
+		order:              append([]project.OrderOption{}, _q.order...),
+		inters:             append([]Interceptor{}, _q.inters...),
+		predicates:         append([]predicate.Project{}, _q.predicates...),
+		withOrganization:   _q.withOrganization.Clone(),
+		withCell:           _q.withCell.Clone(),
+		withEnvironments:   _q.withEnvironments.Clone(),
+		withSegments:       _q.withSegments.Clone(),
+		withFeatureFlags:   _q.withFeatureFlags.Clone(),
+		withCampaigns:      _q.withCampaigns.Clone(),
+		withConfigVersions: _q.withConfigVersions.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -362,6 +462,50 @@ func (_q *ProjectQuery) WithEnvironments(opts ...func(*EnvironmentQuery)) *Proje
 		opt(query)
 	}
 	_q.withEnvironments = query
+	return _q
+}
+
+// WithSegments tells the query-builder to eager-load the nodes that are connected to
+// the "segments" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *ProjectQuery) WithSegments(opts ...func(*SegmentQuery)) *ProjectQuery {
+	query := (&SegmentClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withSegments = query
+	return _q
+}
+
+// WithFeatureFlags tells the query-builder to eager-load the nodes that are connected to
+// the "feature_flags" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *ProjectQuery) WithFeatureFlags(opts ...func(*FeatureFlagQuery)) *ProjectQuery {
+	query := (&FeatureFlagClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withFeatureFlags = query
+	return _q
+}
+
+// WithCampaigns tells the query-builder to eager-load the nodes that are connected to
+// the "campaigns" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *ProjectQuery) WithCampaigns(opts ...func(*CampaignQuery)) *ProjectQuery {
+	query := (&CampaignClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withCampaigns = query
+	return _q
+}
+
+// WithConfigVersions tells the query-builder to eager-load the nodes that are connected to
+// the "config_versions" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *ProjectQuery) WithConfigVersions(opts ...func(*ConfigVersionQuery)) *ProjectQuery {
+	query := (&ConfigVersionClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withConfigVersions = query
 	return _q
 }
 
@@ -443,10 +587,14 @@ func (_q *ProjectQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Proj
 	var (
 		nodes       = []*Project{}
 		_spec       = _q.querySpec()
-		loadedTypes = [3]bool{
+		loadedTypes = [7]bool{
 			_q.withOrganization != nil,
 			_q.withCell != nil,
 			_q.withEnvironments != nil,
+			_q.withSegments != nil,
+			_q.withFeatureFlags != nil,
+			_q.withCampaigns != nil,
+			_q.withConfigVersions != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -483,6 +631,34 @@ func (_q *ProjectQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Proj
 		if err := _q.loadEnvironments(ctx, query, nodes,
 			func(n *Project) { n.Edges.Environments = []*Environment{} },
 			func(n *Project, e *Environment) { n.Edges.Environments = append(n.Edges.Environments, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withSegments; query != nil {
+		if err := _q.loadSegments(ctx, query, nodes,
+			func(n *Project) { n.Edges.Segments = []*Segment{} },
+			func(n *Project, e *Segment) { n.Edges.Segments = append(n.Edges.Segments, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withFeatureFlags; query != nil {
+		if err := _q.loadFeatureFlags(ctx, query, nodes,
+			func(n *Project) { n.Edges.FeatureFlags = []*FeatureFlag{} },
+			func(n *Project, e *FeatureFlag) { n.Edges.FeatureFlags = append(n.Edges.FeatureFlags, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withCampaigns; query != nil {
+		if err := _q.loadCampaigns(ctx, query, nodes,
+			func(n *Project) { n.Edges.Campaigns = []*Campaign{} },
+			func(n *Project, e *Campaign) { n.Edges.Campaigns = append(n.Edges.Campaigns, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withConfigVersions; query != nil {
+		if err := _q.loadConfigVersions(ctx, query, nodes,
+			func(n *Project) { n.Edges.ConfigVersions = []*ConfigVersion{} },
+			func(n *Project, e *ConfigVersion) { n.Edges.ConfigVersions = append(n.Edges.ConfigVersions, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -562,6 +738,126 @@ func (_q *ProjectQuery) loadEnvironments(ctx context.Context, query *Environment
 	}
 	query.Where(predicate.Environment(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(project.EnvironmentsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.ProjectID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "project_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *ProjectQuery) loadSegments(ctx context.Context, query *SegmentQuery, nodes []*Project, init func(*Project), assign func(*Project, *Segment)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Project)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(segment.FieldProjectID)
+	}
+	query.Where(predicate.Segment(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(project.SegmentsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.ProjectID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "project_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *ProjectQuery) loadFeatureFlags(ctx context.Context, query *FeatureFlagQuery, nodes []*Project, init func(*Project), assign func(*Project, *FeatureFlag)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Project)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(featureflag.FieldProjectID)
+	}
+	query.Where(predicate.FeatureFlag(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(project.FeatureFlagsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.ProjectID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "project_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *ProjectQuery) loadCampaigns(ctx context.Context, query *CampaignQuery, nodes []*Project, init func(*Project), assign func(*Project, *Campaign)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Project)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(campaign.FieldProjectID)
+	}
+	query.Where(predicate.Campaign(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(project.CampaignsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.ProjectID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "project_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *ProjectQuery) loadConfigVersions(ctx context.Context, query *ConfigVersionQuery, nodes []*Project, init func(*Project), assign func(*Project, *ConfigVersion)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Project)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(configversion.FieldProjectID)
+	}
+	query.Where(predicate.ConfigVersion(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(project.ConfigVersionsColumn), fks...))
 	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {

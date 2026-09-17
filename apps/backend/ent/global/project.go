@@ -53,9 +53,17 @@ type ProjectEdges struct {
 	Cell *Cell `json:"cell,omitempty"`
 	// Environments holds the value of the environments edge.
 	Environments []*Environment `json:"environments,omitempty"`
+	// Segments holds the value of the segments edge.
+	Segments []*Segment `json:"segments,omitempty"`
+	// FeatureFlags holds the value of the feature_flags edge.
+	FeatureFlags []*FeatureFlag `json:"feature_flags,omitempty"`
+	// Campaigns holds the value of the campaigns edge.
+	Campaigns []*Campaign `json:"campaigns,omitempty"`
+	// ConfigVersions holds the value of the config_versions edge.
+	ConfigVersions []*ConfigVersion `json:"config_versions,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [3]bool
+	loadedTypes [7]bool
 }
 
 // OrganizationOrErr returns the Organization value or an error if the edge
@@ -87,6 +95,42 @@ func (e ProjectEdges) EnvironmentsOrErr() ([]*Environment, error) {
 		return e.Environments, nil
 	}
 	return nil, &NotLoadedError{edge: "environments"}
+}
+
+// SegmentsOrErr returns the Segments value or an error if the edge
+// was not loaded in eager-loading.
+func (e ProjectEdges) SegmentsOrErr() ([]*Segment, error) {
+	if e.loadedTypes[3] {
+		return e.Segments, nil
+	}
+	return nil, &NotLoadedError{edge: "segments"}
+}
+
+// FeatureFlagsOrErr returns the FeatureFlags value or an error if the edge
+// was not loaded in eager-loading.
+func (e ProjectEdges) FeatureFlagsOrErr() ([]*FeatureFlag, error) {
+	if e.loadedTypes[4] {
+		return e.FeatureFlags, nil
+	}
+	return nil, &NotLoadedError{edge: "feature_flags"}
+}
+
+// CampaignsOrErr returns the Campaigns value or an error if the edge
+// was not loaded in eager-loading.
+func (e ProjectEdges) CampaignsOrErr() ([]*Campaign, error) {
+	if e.loadedTypes[5] {
+		return e.Campaigns, nil
+	}
+	return nil, &NotLoadedError{edge: "campaigns"}
+}
+
+// ConfigVersionsOrErr returns the ConfigVersions value or an error if the edge
+// was not loaded in eager-loading.
+func (e ProjectEdges) ConfigVersionsOrErr() ([]*ConfigVersion, error) {
+	if e.loadedTypes[6] {
+		return e.ConfigVersions, nil
+	}
+	return nil, &NotLoadedError{edge: "config_versions"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -203,6 +247,26 @@ func (_m *Project) QueryCell() *CellQuery {
 // QueryEnvironments queries the "environments" edge of the Project entity.
 func (_m *Project) QueryEnvironments() *EnvironmentQuery {
 	return NewProjectClient(_m.config).QueryEnvironments(_m)
+}
+
+// QuerySegments queries the "segments" edge of the Project entity.
+func (_m *Project) QuerySegments() *SegmentQuery {
+	return NewProjectClient(_m.config).QuerySegments(_m)
+}
+
+// QueryFeatureFlags queries the "feature_flags" edge of the Project entity.
+func (_m *Project) QueryFeatureFlags() *FeatureFlagQuery {
+	return NewProjectClient(_m.config).QueryFeatureFlags(_m)
+}
+
+// QueryCampaigns queries the "campaigns" edge of the Project entity.
+func (_m *Project) QueryCampaigns() *CampaignQuery {
+	return NewProjectClient(_m.config).QueryCampaigns(_m)
+}
+
+// QueryConfigVersions queries the "config_versions" edge of the Project entity.
+func (_m *Project) QueryConfigVersions() *ConfigVersionQuery {
+	return NewProjectClient(_m.config).QueryConfigVersions(_m)
 }
 
 // Update returns a builder for updating this Project.

@@ -220,8 +220,14 @@ func TestAnUnresolvableDeviceIsCountedRatherThanHidden(t *testing.T) {
 		t.Fatalf("backfill: %v", err)
 	}
 
+	// A month-wide count, so this asserts something global: any other unstamped device-day
+	// in the same month is counted here too. That is correct in CI, which starts from an
+	// empty database, and fragile on a developer's machine — a failure reading "saw 8
+	// device-days, want 1" almost always means leftover rows from an experiment rather than
+	// a defect. `SELECT project_seq, count() FROM player_activity_daily WHERE cohort_date =
+	// toDate(0) GROUP BY project_seq` names them.
 	if result.DeviceDays != 1 {
-		t.Fatalf("saw %d device-days, want 1", result.DeviceDays)
+		t.Fatalf("saw %d device-days, want 1 — is player_activity_daily clean?", result.DeviceDays)
 	}
 	if result.Remaining != 1 {
 		t.Errorf("Remaining = %d, want 1 — an unresolvable device must be reported, not "+

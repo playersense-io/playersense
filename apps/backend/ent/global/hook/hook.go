@@ -21,6 +21,18 @@ func (f APIKeyFunc) Mutate(ctx context.Context, m global.Mutation) (global.Value
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *global.APIKeyMutation", m)
 }
 
+// The CampaignFunc type is an adapter to allow the use of ordinary
+// function as Campaign mutator.
+type CampaignFunc func(context.Context, *global.CampaignMutation) (global.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f CampaignFunc) Mutate(ctx context.Context, m global.Mutation) (global.Value, error) {
+	if mv, ok := m.(*global.CampaignMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *global.CampaignMutation", m)
+}
+
 // The CellFunc type is an adapter to allow the use of ordinary
 // function as Cell mutator.
 type CellFunc func(context.Context, *global.CellMutation) (global.Value, error)
@@ -33,6 +45,18 @@ func (f CellFunc) Mutate(ctx context.Context, m global.Mutation) (global.Value, 
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *global.CellMutation", m)
 }
 
+// The ConfigVersionFunc type is an adapter to allow the use of ordinary
+// function as ConfigVersion mutator.
+type ConfigVersionFunc func(context.Context, *global.ConfigVersionMutation) (global.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ConfigVersionFunc) Mutate(ctx context.Context, m global.Mutation) (global.Value, error) {
+	if mv, ok := m.(*global.ConfigVersionMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *global.ConfigVersionMutation", m)
+}
+
 // The EnvironmentFunc type is an adapter to allow the use of ordinary
 // function as Environment mutator.
 type EnvironmentFunc func(context.Context, *global.EnvironmentMutation) (global.Value, error)
@@ -43,6 +67,18 @@ func (f EnvironmentFunc) Mutate(ctx context.Context, m global.Mutation) (global.
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *global.EnvironmentMutation", m)
+}
+
+// The FeatureFlagFunc type is an adapter to allow the use of ordinary
+// function as FeatureFlag mutator.
+type FeatureFlagFunc func(context.Context, *global.FeatureFlagMutation) (global.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f FeatureFlagFunc) Mutate(ctx context.Context, m global.Mutation) (global.Value, error) {
+	if mv, ok := m.(*global.FeatureFlagMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *global.FeatureFlagMutation", m)
 }
 
 // The OrganizationFunc type is an adapter to allow the use of ordinary
@@ -79,6 +115,18 @@ func (f ProjectFunc) Mutate(ctx context.Context, m global.Mutation) (global.Valu
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *global.ProjectMutation", m)
+}
+
+// The SegmentFunc type is an adapter to allow the use of ordinary
+// function as Segment mutator.
+type SegmentFunc func(context.Context, *global.SegmentMutation) (global.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f SegmentFunc) Mutate(ctx context.Context, m global.Mutation) (global.Value, error) {
+	if mv, ok := m.(*global.SegmentMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *global.SegmentMutation", m)
 }
 
 // The UserFunc type is an adapter to allow the use of ordinary

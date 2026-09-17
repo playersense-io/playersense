@@ -55,6 +55,13 @@ func (Project) Edges() []ent.Edge {
 		edge.From("cell", Cell.Type).Ref("projects").
 			Field("cell_id").Unique().Required().Immutable(),
 		edge.To("environments", Environment.Type),
+
+		// Targeting definitions (§41, §45). They name no player, so they live here rather
+		// than in a cell: a studio writes a campaign once instead of once per region.
+		edge.To("segments", Segment.Type),
+		edge.To("feature_flags", FeatureFlag.Type),
+		edge.To("campaigns", Campaign.Type),
+		edge.To("config_versions", ConfigVersion.Type),
 	}
 }
 
@@ -80,6 +87,10 @@ func (Environment) Edges() []ent.Edge {
 		edge.From("project", Project.Type).Ref("environments").
 			Field("project_id").Unique().Required(),
 		edge.To("api_keys", APIKey.Type),
+
+		// A published config belongs to one environment, so development can be republished
+		// without touching what players are running (§76).
+		edge.To("config_versions", ConfigVersion.Type),
 	}
 }
 

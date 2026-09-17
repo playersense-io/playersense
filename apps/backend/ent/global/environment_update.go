@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"playersense.dev/backend/ent/global/apikey"
+	"playersense.dev/backend/ent/global/configversion"
 	"playersense.dev/backend/ent/global/environment"
 	"playersense.dev/backend/ent/global/predicate"
 	"playersense.dev/backend/ent/global/project"
@@ -84,6 +85,21 @@ func (_u *EnvironmentUpdate) AddAPIKeys(v ...*APIKey) *EnvironmentUpdate {
 	return _u.AddAPIKeyIDs(ids...)
 }
 
+// AddConfigVersionIDs adds the "config_versions" edge to the ConfigVersion entity by IDs.
+func (_u *EnvironmentUpdate) AddConfigVersionIDs(ids ...int) *EnvironmentUpdate {
+	_u.mutation.AddConfigVersionIDs(ids...)
+	return _u
+}
+
+// AddConfigVersions adds the "config_versions" edges to the ConfigVersion entity.
+func (_u *EnvironmentUpdate) AddConfigVersions(v ...*ConfigVersion) *EnvironmentUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddConfigVersionIDs(ids...)
+}
+
 // Mutation returns the EnvironmentMutation object of the builder.
 func (_u *EnvironmentUpdate) Mutation() *EnvironmentMutation {
 	return _u.mutation
@@ -114,6 +130,27 @@ func (_u *EnvironmentUpdate) RemoveAPIKeys(v ...*APIKey) *EnvironmentUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveAPIKeyIDs(ids...)
+}
+
+// ClearConfigVersions clears all "config_versions" edges to the ConfigVersion entity.
+func (_u *EnvironmentUpdate) ClearConfigVersions() *EnvironmentUpdate {
+	_u.mutation.ClearConfigVersions()
+	return _u
+}
+
+// RemoveConfigVersionIDs removes the "config_versions" edge to ConfigVersion entities by IDs.
+func (_u *EnvironmentUpdate) RemoveConfigVersionIDs(ids ...int) *EnvironmentUpdate {
+	_u.mutation.RemoveConfigVersionIDs(ids...)
+	return _u
+}
+
+// RemoveConfigVersions removes "config_versions" edges to ConfigVersion entities.
+func (_u *EnvironmentUpdate) RemoveConfigVersions(v ...*ConfigVersion) *EnvironmentUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveConfigVersionIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -257,6 +294,51 @@ func (_u *EnvironmentUpdate) sqlSave(ctx context.Context) (_node int, err error)
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.ConfigVersionsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   environment.ConfigVersionsTable,
+			Columns: []string{environment.ConfigVersionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(configversion.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedConfigVersionsIDs(); len(nodes) > 0 && !_u.mutation.ConfigVersionsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   environment.ConfigVersionsTable,
+			Columns: []string{environment.ConfigVersionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(configversion.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ConfigVersionsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   environment.ConfigVersionsTable,
+			Columns: []string{environment.ConfigVersionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(configversion.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{environment.Label}
@@ -331,6 +413,21 @@ func (_u *EnvironmentUpdateOne) AddAPIKeys(v ...*APIKey) *EnvironmentUpdateOne {
 	return _u.AddAPIKeyIDs(ids...)
 }
 
+// AddConfigVersionIDs adds the "config_versions" edge to the ConfigVersion entity by IDs.
+func (_u *EnvironmentUpdateOne) AddConfigVersionIDs(ids ...int) *EnvironmentUpdateOne {
+	_u.mutation.AddConfigVersionIDs(ids...)
+	return _u
+}
+
+// AddConfigVersions adds the "config_versions" edges to the ConfigVersion entity.
+func (_u *EnvironmentUpdateOne) AddConfigVersions(v ...*ConfigVersion) *EnvironmentUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddConfigVersionIDs(ids...)
+}
+
 // Mutation returns the EnvironmentMutation object of the builder.
 func (_u *EnvironmentUpdateOne) Mutation() *EnvironmentMutation {
 	return _u.mutation
@@ -361,6 +458,27 @@ func (_u *EnvironmentUpdateOne) RemoveAPIKeys(v ...*APIKey) *EnvironmentUpdateOn
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveAPIKeyIDs(ids...)
+}
+
+// ClearConfigVersions clears all "config_versions" edges to the ConfigVersion entity.
+func (_u *EnvironmentUpdateOne) ClearConfigVersions() *EnvironmentUpdateOne {
+	_u.mutation.ClearConfigVersions()
+	return _u
+}
+
+// RemoveConfigVersionIDs removes the "config_versions" edge to ConfigVersion entities by IDs.
+func (_u *EnvironmentUpdateOne) RemoveConfigVersionIDs(ids ...int) *EnvironmentUpdateOne {
+	_u.mutation.RemoveConfigVersionIDs(ids...)
+	return _u
+}
+
+// RemoveConfigVersions removes "config_versions" edges to ConfigVersion entities.
+func (_u *EnvironmentUpdateOne) RemoveConfigVersions(v ...*ConfigVersion) *EnvironmentUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveConfigVersionIDs(ids...)
 }
 
 // Where appends a list predicates to the EnvironmentUpdate builder.
@@ -527,6 +645,51 @@ func (_u *EnvironmentUpdateOne) sqlSave(ctx context.Context) (_node *Environment
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(apikey.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ConfigVersionsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   environment.ConfigVersionsTable,
+			Columns: []string{environment.ConfigVersionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(configversion.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedConfigVersionsIDs(); len(nodes) > 0 && !_u.mutation.ConfigVersionsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   environment.ConfigVersionsTable,
+			Columns: []string{environment.ConfigVersionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(configversion.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ConfigVersionsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   environment.ConfigVersionsTable,
+			Columns: []string{environment.ConfigVersionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(configversion.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

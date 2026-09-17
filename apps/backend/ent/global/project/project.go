@@ -40,6 +40,14 @@ const (
 	EdgeCell = "cell"
 	// EdgeEnvironments holds the string denoting the environments edge name in mutations.
 	EdgeEnvironments = "environments"
+	// EdgeSegments holds the string denoting the segments edge name in mutations.
+	EdgeSegments = "segments"
+	// EdgeFeatureFlags holds the string denoting the feature_flags edge name in mutations.
+	EdgeFeatureFlags = "feature_flags"
+	// EdgeCampaigns holds the string denoting the campaigns edge name in mutations.
+	EdgeCampaigns = "campaigns"
+	// EdgeConfigVersions holds the string denoting the config_versions edge name in mutations.
+	EdgeConfigVersions = "config_versions"
 	// Table holds the table name of the project in the database.
 	Table = "projects"
 	// OrganizationTable is the table that holds the organization relation/edge.
@@ -63,6 +71,34 @@ const (
 	EnvironmentsInverseTable = "environments"
 	// EnvironmentsColumn is the table column denoting the environments relation/edge.
 	EnvironmentsColumn = "project_id"
+	// SegmentsTable is the table that holds the segments relation/edge.
+	SegmentsTable = "segments"
+	// SegmentsInverseTable is the table name for the Segment entity.
+	// It exists in this package in order to avoid circular dependency with the "segment" package.
+	SegmentsInverseTable = "segments"
+	// SegmentsColumn is the table column denoting the segments relation/edge.
+	SegmentsColumn = "project_id"
+	// FeatureFlagsTable is the table that holds the feature_flags relation/edge.
+	FeatureFlagsTable = "feature_flags"
+	// FeatureFlagsInverseTable is the table name for the FeatureFlag entity.
+	// It exists in this package in order to avoid circular dependency with the "featureflag" package.
+	FeatureFlagsInverseTable = "feature_flags"
+	// FeatureFlagsColumn is the table column denoting the feature_flags relation/edge.
+	FeatureFlagsColumn = "project_id"
+	// CampaignsTable is the table that holds the campaigns relation/edge.
+	CampaignsTable = "campaigns"
+	// CampaignsInverseTable is the table name for the Campaign entity.
+	// It exists in this package in order to avoid circular dependency with the "campaign" package.
+	CampaignsInverseTable = "campaigns"
+	// CampaignsColumn is the table column denoting the campaigns relation/edge.
+	CampaignsColumn = "project_id"
+	// ConfigVersionsTable is the table that holds the config_versions relation/edge.
+	ConfigVersionsTable = "config_versions"
+	// ConfigVersionsInverseTable is the table name for the ConfigVersion entity.
+	// It exists in this package in order to avoid circular dependency with the "configversion" package.
+	ConfigVersionsInverseTable = "config_versions"
+	// ConfigVersionsColumn is the table column denoting the config_versions relation/edge.
+	ConfigVersionsColumn = "project_id"
 )
 
 // Columns holds all SQL columns for project fields.
@@ -213,6 +249,62 @@ func ByEnvironments(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newEnvironmentsStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
+
+// BySegmentsCount orders the results by segments count.
+func BySegmentsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newSegmentsStep(), opts...)
+	}
+}
+
+// BySegments orders the results by segments terms.
+func BySegments(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newSegmentsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByFeatureFlagsCount orders the results by feature_flags count.
+func ByFeatureFlagsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newFeatureFlagsStep(), opts...)
+	}
+}
+
+// ByFeatureFlags orders the results by feature_flags terms.
+func ByFeatureFlags(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newFeatureFlagsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByCampaignsCount orders the results by campaigns count.
+func ByCampaignsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newCampaignsStep(), opts...)
+	}
+}
+
+// ByCampaigns orders the results by campaigns terms.
+func ByCampaigns(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newCampaignsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByConfigVersionsCount orders the results by config_versions count.
+func ByConfigVersionsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newConfigVersionsStep(), opts...)
+	}
+}
+
+// ByConfigVersions orders the results by config_versions terms.
+func ByConfigVersions(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newConfigVersionsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newOrganizationStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -232,5 +324,33 @@ func newEnvironmentsStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(EnvironmentsInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, EnvironmentsTable, EnvironmentsColumn),
+	)
+}
+func newSegmentsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(SegmentsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, SegmentsTable, SegmentsColumn),
+	)
+}
+func newFeatureFlagsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(FeatureFlagsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, FeatureFlagsTable, FeatureFlagsColumn),
+	)
+}
+func newCampaignsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(CampaignsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, CampaignsTable, CampaignsColumn),
+	)
+}
+func newConfigVersionsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(ConfigVersionsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, ConfigVersionsTable, ConfigVersionsColumn),
 	)
 }

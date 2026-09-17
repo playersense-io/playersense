@@ -282,6 +282,29 @@ func HasAPIKeysWith(preds ...predicate.APIKey) predicate.Environment {
 	})
 }
 
+// HasConfigVersions applies the HasEdge predicate on the "config_versions" edge.
+func HasConfigVersions() predicate.Environment {
+	return predicate.Environment(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, ConfigVersionsTable, ConfigVersionsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasConfigVersionsWith applies the HasEdge predicate on the "config_versions" edge with a given conditions (other predicates).
+func HasConfigVersionsWith(preds ...predicate.ConfigVersion) predicate.Environment {
+	return predicate.Environment(func(s *sql.Selector) {
+		step := newConfigVersionsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // And groups predicates with the AND operator between them.
 func And(predicates ...predicate.Environment) predicate.Environment {
 	return predicate.Environment(sql.AndPredicates(predicates...))

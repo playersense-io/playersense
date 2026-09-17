@@ -42,9 +42,11 @@ type EnvironmentEdges struct {
 	Project *Project `json:"project,omitempty"`
 	// APIKeys holds the value of the api_keys edge.
 	APIKeys []*APIKey `json:"api_keys,omitempty"`
+	// ConfigVersions holds the value of the config_versions edge.
+	ConfigVersions []*ConfigVersion `json:"config_versions,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [2]bool
+	loadedTypes [3]bool
 }
 
 // ProjectOrErr returns the Project value or an error if the edge
@@ -65,6 +67,15 @@ func (e EnvironmentEdges) APIKeysOrErr() ([]*APIKey, error) {
 		return e.APIKeys, nil
 	}
 	return nil, &NotLoadedError{edge: "api_keys"}
+}
+
+// ConfigVersionsOrErr returns the ConfigVersions value or an error if the edge
+// was not loaded in eager-loading.
+func (e EnvironmentEdges) ConfigVersionsOrErr() ([]*ConfigVersion, error) {
+	if e.loadedTypes[2] {
+		return e.ConfigVersions, nil
+	}
+	return nil, &NotLoadedError{edge: "config_versions"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -152,6 +163,11 @@ func (_m *Environment) QueryProject() *ProjectQuery {
 // QueryAPIKeys queries the "api_keys" edge of the Environment entity.
 func (_m *Environment) QueryAPIKeys() *APIKeyQuery {
 	return NewEnvironmentClient(_m.config).QueryAPIKeys(_m)
+}
+
+// QueryConfigVersions queries the "config_versions" edge of the Environment entity.
+func (_m *Environment) QueryConfigVersions() *ConfigVersionQuery {
+	return NewEnvironmentClient(_m.config).QueryConfigVersions(_m)
 }
 
 // Update returns a builder for updating this Environment.

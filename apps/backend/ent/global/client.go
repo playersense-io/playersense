@@ -16,11 +16,15 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"playersense.dev/backend/ent/global/apikey"
+	"playersense.dev/backend/ent/global/campaign"
 	"playersense.dev/backend/ent/global/cell"
+	"playersense.dev/backend/ent/global/configversion"
 	"playersense.dev/backend/ent/global/environment"
+	"playersense.dev/backend/ent/global/featureflag"
 	"playersense.dev/backend/ent/global/organization"
 	"playersense.dev/backend/ent/global/organizationmember"
 	"playersense.dev/backend/ent/global/project"
+	"playersense.dev/backend/ent/global/segment"
 	"playersense.dev/backend/ent/global/user"
 )
 
@@ -31,16 +35,24 @@ type Client struct {
 	Schema *migrate.Schema
 	// APIKey is the client for interacting with the APIKey builders.
 	APIKey *APIKeyClient
+	// Campaign is the client for interacting with the Campaign builders.
+	Campaign *CampaignClient
 	// Cell is the client for interacting with the Cell builders.
 	Cell *CellClient
+	// ConfigVersion is the client for interacting with the ConfigVersion builders.
+	ConfigVersion *ConfigVersionClient
 	// Environment is the client for interacting with the Environment builders.
 	Environment *EnvironmentClient
+	// FeatureFlag is the client for interacting with the FeatureFlag builders.
+	FeatureFlag *FeatureFlagClient
 	// Organization is the client for interacting with the Organization builders.
 	Organization *OrganizationClient
 	// OrganizationMember is the client for interacting with the OrganizationMember builders.
 	OrganizationMember *OrganizationMemberClient
 	// Project is the client for interacting with the Project builders.
 	Project *ProjectClient
+	// Segment is the client for interacting with the Segment builders.
+	Segment *SegmentClient
 	// User is the client for interacting with the User builders.
 	User *UserClient
 }
@@ -55,11 +67,15 @@ func NewClient(opts ...Option) *Client {
 func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
 	c.APIKey = NewAPIKeyClient(c.config)
+	c.Campaign = NewCampaignClient(c.config)
 	c.Cell = NewCellClient(c.config)
+	c.ConfigVersion = NewConfigVersionClient(c.config)
 	c.Environment = NewEnvironmentClient(c.config)
+	c.FeatureFlag = NewFeatureFlagClient(c.config)
 	c.Organization = NewOrganizationClient(c.config)
 	c.OrganizationMember = NewOrganizationMemberClient(c.config)
 	c.Project = NewProjectClient(c.config)
+	c.Segment = NewSegmentClient(c.config)
 	c.User = NewUserClient(c.config)
 }
 
@@ -154,11 +170,15 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		ctx:                ctx,
 		config:             cfg,
 		APIKey:             NewAPIKeyClient(cfg),
+		Campaign:           NewCampaignClient(cfg),
 		Cell:               NewCellClient(cfg),
+		ConfigVersion:      NewConfigVersionClient(cfg),
 		Environment:        NewEnvironmentClient(cfg),
+		FeatureFlag:        NewFeatureFlagClient(cfg),
 		Organization:       NewOrganizationClient(cfg),
 		OrganizationMember: NewOrganizationMemberClient(cfg),
 		Project:            NewProjectClient(cfg),
+		Segment:            NewSegmentClient(cfg),
 		User:               NewUserClient(cfg),
 	}, nil
 }
@@ -180,11 +200,15 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		ctx:                ctx,
 		config:             cfg,
 		APIKey:             NewAPIKeyClient(cfg),
+		Campaign:           NewCampaignClient(cfg),
 		Cell:               NewCellClient(cfg),
+		ConfigVersion:      NewConfigVersionClient(cfg),
 		Environment:        NewEnvironmentClient(cfg),
+		FeatureFlag:        NewFeatureFlagClient(cfg),
 		Organization:       NewOrganizationClient(cfg),
 		OrganizationMember: NewOrganizationMemberClient(cfg),
 		Project:            NewProjectClient(cfg),
+		Segment:            NewSegmentClient(cfg),
 		User:               NewUserClient(cfg),
 	}, nil
 }
@@ -215,8 +239,8 @@ func (c *Client) Close() error {
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
-		c.APIKey, c.Cell, c.Environment, c.Organization, c.OrganizationMember,
-		c.Project, c.User,
+		c.APIKey, c.Campaign, c.Cell, c.ConfigVersion, c.Environment, c.FeatureFlag,
+		c.Organization, c.OrganizationMember, c.Project, c.Segment, c.User,
 	} {
 		n.Use(hooks...)
 	}
@@ -226,8 +250,8 @@ func (c *Client) Use(hooks ...Hook) {
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
-		c.APIKey, c.Cell, c.Environment, c.Organization, c.OrganizationMember,
-		c.Project, c.User,
+		c.APIKey, c.Campaign, c.Cell, c.ConfigVersion, c.Environment, c.FeatureFlag,
+		c.Organization, c.OrganizationMember, c.Project, c.Segment, c.User,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -238,16 +262,24 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 	switch m := m.(type) {
 	case *APIKeyMutation:
 		return c.APIKey.mutate(ctx, m)
+	case *CampaignMutation:
+		return c.Campaign.mutate(ctx, m)
 	case *CellMutation:
 		return c.Cell.mutate(ctx, m)
+	case *ConfigVersionMutation:
+		return c.ConfigVersion.mutate(ctx, m)
 	case *EnvironmentMutation:
 		return c.Environment.mutate(ctx, m)
+	case *FeatureFlagMutation:
+		return c.FeatureFlag.mutate(ctx, m)
 	case *OrganizationMutation:
 		return c.Organization.mutate(ctx, m)
 	case *OrganizationMemberMutation:
 		return c.OrganizationMember.mutate(ctx, m)
 	case *ProjectMutation:
 		return c.Project.mutate(ctx, m)
+	case *SegmentMutation:
+		return c.Segment.mutate(ctx, m)
 	case *UserMutation:
 		return c.User.mutate(ctx, m)
 	default:
@@ -404,6 +436,155 @@ func (c *APIKeyClient) mutate(ctx context.Context, m *APIKeyMutation) (Value, er
 	}
 }
 
+// CampaignClient is a client for the Campaign schema.
+type CampaignClient struct {
+	config
+}
+
+// NewCampaignClient returns a client for the Campaign from the given config.
+func NewCampaignClient(c config) *CampaignClient {
+	return &CampaignClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `campaign.Hooks(f(g(h())))`.
+func (c *CampaignClient) Use(hooks ...Hook) {
+	c.hooks.Campaign = append(c.hooks.Campaign, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `campaign.Intercept(f(g(h())))`.
+func (c *CampaignClient) Intercept(interceptors ...Interceptor) {
+	c.inters.Campaign = append(c.inters.Campaign, interceptors...)
+}
+
+// Create returns a builder for creating a Campaign entity.
+func (c *CampaignClient) Create() *CampaignCreate {
+	mutation := newCampaignMutation(c.config, OpCreate)
+	return &CampaignCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Campaign entities.
+func (c *CampaignClient) CreateBulk(builders ...*CampaignCreate) *CampaignCreateBulk {
+	return &CampaignCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *CampaignClient) MapCreateBulk(slice any, setFunc func(*CampaignCreate, int)) *CampaignCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &CampaignCreateBulk{err: fmt.Errorf("calling to CampaignClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*CampaignCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &CampaignCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Campaign.
+func (c *CampaignClient) Update() *CampaignUpdate {
+	mutation := newCampaignMutation(c.config, OpUpdate)
+	return &CampaignUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *CampaignClient) UpdateOne(_m *Campaign) *CampaignUpdateOne {
+	mutation := newCampaignMutation(c.config, OpUpdateOne, withCampaign(_m))
+	return &CampaignUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *CampaignClient) UpdateOneID(id int) *CampaignUpdateOne {
+	mutation := newCampaignMutation(c.config, OpUpdateOne, withCampaignID(id))
+	return &CampaignUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Campaign.
+func (c *CampaignClient) Delete() *CampaignDelete {
+	mutation := newCampaignMutation(c.config, OpDelete)
+	return &CampaignDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *CampaignClient) DeleteOne(_m *Campaign) *CampaignDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *CampaignClient) DeleteOneID(id int) *CampaignDeleteOne {
+	builder := c.Delete().Where(campaign.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &CampaignDeleteOne{builder}
+}
+
+// Query returns a query builder for Campaign.
+func (c *CampaignClient) Query() *CampaignQuery {
+	return &CampaignQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeCampaign},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a Campaign entity by its id.
+func (c *CampaignClient) Get(ctx context.Context, id int) (*Campaign, error) {
+	return c.Query().Where(campaign.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *CampaignClient) GetX(ctx context.Context, id int) *Campaign {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryProject queries the project edge of a Campaign.
+func (c *CampaignClient) QueryProject(_m *Campaign) *ProjectQuery {
+	query := (&ProjectClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(campaign.Table, campaign.FieldID, id),
+			sqlgraph.To(project.Table, project.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, campaign.ProjectTable, campaign.ProjectColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *CampaignClient) Hooks() []Hook {
+	return c.hooks.Campaign
+}
+
+// Interceptors returns the client interceptors.
+func (c *CampaignClient) Interceptors() []Interceptor {
+	return c.inters.Campaign
+}
+
+func (c *CampaignClient) mutate(ctx context.Context, m *CampaignMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&CampaignCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&CampaignUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&CampaignUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&CampaignDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("global: unknown Campaign mutation op: %q", m.Op())
+	}
+}
+
 // CellClient is a client for the Cell schema.
 type CellClient struct {
 	config
@@ -553,6 +734,171 @@ func (c *CellClient) mutate(ctx context.Context, m *CellMutation) (Value, error)
 	}
 }
 
+// ConfigVersionClient is a client for the ConfigVersion schema.
+type ConfigVersionClient struct {
+	config
+}
+
+// NewConfigVersionClient returns a client for the ConfigVersion from the given config.
+func NewConfigVersionClient(c config) *ConfigVersionClient {
+	return &ConfigVersionClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `configversion.Hooks(f(g(h())))`.
+func (c *ConfigVersionClient) Use(hooks ...Hook) {
+	c.hooks.ConfigVersion = append(c.hooks.ConfigVersion, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `configversion.Intercept(f(g(h())))`.
+func (c *ConfigVersionClient) Intercept(interceptors ...Interceptor) {
+	c.inters.ConfigVersion = append(c.inters.ConfigVersion, interceptors...)
+}
+
+// Create returns a builder for creating a ConfigVersion entity.
+func (c *ConfigVersionClient) Create() *ConfigVersionCreate {
+	mutation := newConfigVersionMutation(c.config, OpCreate)
+	return &ConfigVersionCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of ConfigVersion entities.
+func (c *ConfigVersionClient) CreateBulk(builders ...*ConfigVersionCreate) *ConfigVersionCreateBulk {
+	return &ConfigVersionCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ConfigVersionClient) MapCreateBulk(slice any, setFunc func(*ConfigVersionCreate, int)) *ConfigVersionCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ConfigVersionCreateBulk{err: fmt.Errorf("calling to ConfigVersionClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ConfigVersionCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ConfigVersionCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for ConfigVersion.
+func (c *ConfigVersionClient) Update() *ConfigVersionUpdate {
+	mutation := newConfigVersionMutation(c.config, OpUpdate)
+	return &ConfigVersionUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ConfigVersionClient) UpdateOne(_m *ConfigVersion) *ConfigVersionUpdateOne {
+	mutation := newConfigVersionMutation(c.config, OpUpdateOne, withConfigVersion(_m))
+	return &ConfigVersionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ConfigVersionClient) UpdateOneID(id int) *ConfigVersionUpdateOne {
+	mutation := newConfigVersionMutation(c.config, OpUpdateOne, withConfigVersionID(id))
+	return &ConfigVersionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for ConfigVersion.
+func (c *ConfigVersionClient) Delete() *ConfigVersionDelete {
+	mutation := newConfigVersionMutation(c.config, OpDelete)
+	return &ConfigVersionDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ConfigVersionClient) DeleteOne(_m *ConfigVersion) *ConfigVersionDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ConfigVersionClient) DeleteOneID(id int) *ConfigVersionDeleteOne {
+	builder := c.Delete().Where(configversion.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ConfigVersionDeleteOne{builder}
+}
+
+// Query returns a query builder for ConfigVersion.
+func (c *ConfigVersionClient) Query() *ConfigVersionQuery {
+	return &ConfigVersionQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeConfigVersion},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a ConfigVersion entity by its id.
+func (c *ConfigVersionClient) Get(ctx context.Context, id int) (*ConfigVersion, error) {
+	return c.Query().Where(configversion.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ConfigVersionClient) GetX(ctx context.Context, id int) *ConfigVersion {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryProject queries the project edge of a ConfigVersion.
+func (c *ConfigVersionClient) QueryProject(_m *ConfigVersion) *ProjectQuery {
+	query := (&ProjectClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(configversion.Table, configversion.FieldID, id),
+			sqlgraph.To(project.Table, project.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, configversion.ProjectTable, configversion.ProjectColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryEnvironment queries the environment edge of a ConfigVersion.
+func (c *ConfigVersionClient) QueryEnvironment(_m *ConfigVersion) *EnvironmentQuery {
+	query := (&EnvironmentClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(configversion.Table, configversion.FieldID, id),
+			sqlgraph.To(environment.Table, environment.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, configversion.EnvironmentTable, configversion.EnvironmentColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *ConfigVersionClient) Hooks() []Hook {
+	return c.hooks.ConfigVersion
+}
+
+// Interceptors returns the client interceptors.
+func (c *ConfigVersionClient) Interceptors() []Interceptor {
+	return c.inters.ConfigVersion
+}
+
+func (c *ConfigVersionClient) mutate(ctx context.Context, m *ConfigVersionMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ConfigVersionCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ConfigVersionUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ConfigVersionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ConfigVersionDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("global: unknown ConfigVersion mutation op: %q", m.Op())
+	}
+}
+
 // EnvironmentClient is a client for the Environment schema.
 type EnvironmentClient struct {
 	config
@@ -693,6 +1039,22 @@ func (c *EnvironmentClient) QueryAPIKeys(_m *Environment) *APIKeyQuery {
 	return query
 }
 
+// QueryConfigVersions queries the config_versions edge of a Environment.
+func (c *EnvironmentClient) QueryConfigVersions(_m *Environment) *ConfigVersionQuery {
+	query := (&ConfigVersionClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(environment.Table, environment.FieldID, id),
+			sqlgraph.To(configversion.Table, configversion.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, environment.ConfigVersionsTable, environment.ConfigVersionsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *EnvironmentClient) Hooks() []Hook {
 	return c.hooks.Environment
@@ -715,6 +1077,155 @@ func (c *EnvironmentClient) mutate(ctx context.Context, m *EnvironmentMutation) 
 		return (&EnvironmentDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("global: unknown Environment mutation op: %q", m.Op())
+	}
+}
+
+// FeatureFlagClient is a client for the FeatureFlag schema.
+type FeatureFlagClient struct {
+	config
+}
+
+// NewFeatureFlagClient returns a client for the FeatureFlag from the given config.
+func NewFeatureFlagClient(c config) *FeatureFlagClient {
+	return &FeatureFlagClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `featureflag.Hooks(f(g(h())))`.
+func (c *FeatureFlagClient) Use(hooks ...Hook) {
+	c.hooks.FeatureFlag = append(c.hooks.FeatureFlag, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `featureflag.Intercept(f(g(h())))`.
+func (c *FeatureFlagClient) Intercept(interceptors ...Interceptor) {
+	c.inters.FeatureFlag = append(c.inters.FeatureFlag, interceptors...)
+}
+
+// Create returns a builder for creating a FeatureFlag entity.
+func (c *FeatureFlagClient) Create() *FeatureFlagCreate {
+	mutation := newFeatureFlagMutation(c.config, OpCreate)
+	return &FeatureFlagCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of FeatureFlag entities.
+func (c *FeatureFlagClient) CreateBulk(builders ...*FeatureFlagCreate) *FeatureFlagCreateBulk {
+	return &FeatureFlagCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *FeatureFlagClient) MapCreateBulk(slice any, setFunc func(*FeatureFlagCreate, int)) *FeatureFlagCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &FeatureFlagCreateBulk{err: fmt.Errorf("calling to FeatureFlagClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*FeatureFlagCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &FeatureFlagCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for FeatureFlag.
+func (c *FeatureFlagClient) Update() *FeatureFlagUpdate {
+	mutation := newFeatureFlagMutation(c.config, OpUpdate)
+	return &FeatureFlagUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *FeatureFlagClient) UpdateOne(_m *FeatureFlag) *FeatureFlagUpdateOne {
+	mutation := newFeatureFlagMutation(c.config, OpUpdateOne, withFeatureFlag(_m))
+	return &FeatureFlagUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *FeatureFlagClient) UpdateOneID(id int) *FeatureFlagUpdateOne {
+	mutation := newFeatureFlagMutation(c.config, OpUpdateOne, withFeatureFlagID(id))
+	return &FeatureFlagUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for FeatureFlag.
+func (c *FeatureFlagClient) Delete() *FeatureFlagDelete {
+	mutation := newFeatureFlagMutation(c.config, OpDelete)
+	return &FeatureFlagDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *FeatureFlagClient) DeleteOne(_m *FeatureFlag) *FeatureFlagDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *FeatureFlagClient) DeleteOneID(id int) *FeatureFlagDeleteOne {
+	builder := c.Delete().Where(featureflag.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &FeatureFlagDeleteOne{builder}
+}
+
+// Query returns a query builder for FeatureFlag.
+func (c *FeatureFlagClient) Query() *FeatureFlagQuery {
+	return &FeatureFlagQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeFeatureFlag},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a FeatureFlag entity by its id.
+func (c *FeatureFlagClient) Get(ctx context.Context, id int) (*FeatureFlag, error) {
+	return c.Query().Where(featureflag.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *FeatureFlagClient) GetX(ctx context.Context, id int) *FeatureFlag {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryProject queries the project edge of a FeatureFlag.
+func (c *FeatureFlagClient) QueryProject(_m *FeatureFlag) *ProjectQuery {
+	query := (&ProjectClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(featureflag.Table, featureflag.FieldID, id),
+			sqlgraph.To(project.Table, project.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, featureflag.ProjectTable, featureflag.ProjectColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *FeatureFlagClient) Hooks() []Hook {
+	return c.hooks.FeatureFlag
+}
+
+// Interceptors returns the client interceptors.
+func (c *FeatureFlagClient) Interceptors() []Interceptor {
+	return c.inters.FeatureFlag
+}
+
+func (c *FeatureFlagClient) mutate(ctx context.Context, m *FeatureFlagMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&FeatureFlagCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&FeatureFlagUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&FeatureFlagUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&FeatureFlagDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("global: unknown FeatureFlag mutation op: %q", m.Op())
 	}
 }
 
@@ -1204,6 +1715,70 @@ func (c *ProjectClient) QueryEnvironments(_m *Project) *EnvironmentQuery {
 	return query
 }
 
+// QuerySegments queries the segments edge of a Project.
+func (c *ProjectClient) QuerySegments(_m *Project) *SegmentQuery {
+	query := (&SegmentClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(project.Table, project.FieldID, id),
+			sqlgraph.To(segment.Table, segment.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, project.SegmentsTable, project.SegmentsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryFeatureFlags queries the feature_flags edge of a Project.
+func (c *ProjectClient) QueryFeatureFlags(_m *Project) *FeatureFlagQuery {
+	query := (&FeatureFlagClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(project.Table, project.FieldID, id),
+			sqlgraph.To(featureflag.Table, featureflag.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, project.FeatureFlagsTable, project.FeatureFlagsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryCampaigns queries the campaigns edge of a Project.
+func (c *ProjectClient) QueryCampaigns(_m *Project) *CampaignQuery {
+	query := (&CampaignClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(project.Table, project.FieldID, id),
+			sqlgraph.To(campaign.Table, campaign.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, project.CampaignsTable, project.CampaignsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryConfigVersions queries the config_versions edge of a Project.
+func (c *ProjectClient) QueryConfigVersions(_m *Project) *ConfigVersionQuery {
+	query := (&ConfigVersionClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(project.Table, project.FieldID, id),
+			sqlgraph.To(configversion.Table, configversion.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, project.ConfigVersionsTable, project.ConfigVersionsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *ProjectClient) Hooks() []Hook {
 	return c.hooks.Project
@@ -1226,6 +1801,155 @@ func (c *ProjectClient) mutate(ctx context.Context, m *ProjectMutation) (Value, 
 		return (&ProjectDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("global: unknown Project mutation op: %q", m.Op())
+	}
+}
+
+// SegmentClient is a client for the Segment schema.
+type SegmentClient struct {
+	config
+}
+
+// NewSegmentClient returns a client for the Segment from the given config.
+func NewSegmentClient(c config) *SegmentClient {
+	return &SegmentClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `segment.Hooks(f(g(h())))`.
+func (c *SegmentClient) Use(hooks ...Hook) {
+	c.hooks.Segment = append(c.hooks.Segment, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `segment.Intercept(f(g(h())))`.
+func (c *SegmentClient) Intercept(interceptors ...Interceptor) {
+	c.inters.Segment = append(c.inters.Segment, interceptors...)
+}
+
+// Create returns a builder for creating a Segment entity.
+func (c *SegmentClient) Create() *SegmentCreate {
+	mutation := newSegmentMutation(c.config, OpCreate)
+	return &SegmentCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Segment entities.
+func (c *SegmentClient) CreateBulk(builders ...*SegmentCreate) *SegmentCreateBulk {
+	return &SegmentCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *SegmentClient) MapCreateBulk(slice any, setFunc func(*SegmentCreate, int)) *SegmentCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &SegmentCreateBulk{err: fmt.Errorf("calling to SegmentClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*SegmentCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &SegmentCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Segment.
+func (c *SegmentClient) Update() *SegmentUpdate {
+	mutation := newSegmentMutation(c.config, OpUpdate)
+	return &SegmentUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *SegmentClient) UpdateOne(_m *Segment) *SegmentUpdateOne {
+	mutation := newSegmentMutation(c.config, OpUpdateOne, withSegment(_m))
+	return &SegmentUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *SegmentClient) UpdateOneID(id int) *SegmentUpdateOne {
+	mutation := newSegmentMutation(c.config, OpUpdateOne, withSegmentID(id))
+	return &SegmentUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Segment.
+func (c *SegmentClient) Delete() *SegmentDelete {
+	mutation := newSegmentMutation(c.config, OpDelete)
+	return &SegmentDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *SegmentClient) DeleteOne(_m *Segment) *SegmentDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *SegmentClient) DeleteOneID(id int) *SegmentDeleteOne {
+	builder := c.Delete().Where(segment.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &SegmentDeleteOne{builder}
+}
+
+// Query returns a query builder for Segment.
+func (c *SegmentClient) Query() *SegmentQuery {
+	return &SegmentQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeSegment},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a Segment entity by its id.
+func (c *SegmentClient) Get(ctx context.Context, id int) (*Segment, error) {
+	return c.Query().Where(segment.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *SegmentClient) GetX(ctx context.Context, id int) *Segment {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryProject queries the project edge of a Segment.
+func (c *SegmentClient) QueryProject(_m *Segment) *ProjectQuery {
+	query := (&ProjectClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(segment.Table, segment.FieldID, id),
+			sqlgraph.To(project.Table, project.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, segment.ProjectTable, segment.ProjectColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *SegmentClient) Hooks() []Hook {
+	return c.hooks.Segment
+}
+
+// Interceptors returns the client interceptors.
+func (c *SegmentClient) Interceptors() []Interceptor {
+	return c.inters.Segment
+}
+
+func (c *SegmentClient) mutate(ctx context.Context, m *SegmentMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&SegmentCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&SegmentUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&SegmentUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&SegmentDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("global: unknown Segment mutation op: %q", m.Op())
 	}
 }
 
@@ -1381,11 +2105,11 @@ func (c *UserClient) mutate(ctx context.Context, m *UserMutation) (Value, error)
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		APIKey, Cell, Environment, Organization, OrganizationMember, Project,
-		User []ent.Hook
+		APIKey, Campaign, Cell, ConfigVersion, Environment, FeatureFlag, Organization,
+		OrganizationMember, Project, Segment, User []ent.Hook
 	}
 	inters struct {
-		APIKey, Cell, Environment, Organization, OrganizationMember, Project,
-		User []ent.Interceptor
+		APIKey, Campaign, Cell, ConfigVersion, Environment, FeatureFlag, Organization,
+		OrganizationMember, Project, Segment, User []ent.Interceptor
 	}
 )

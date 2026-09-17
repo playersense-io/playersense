@@ -43,6 +43,51 @@ var (
 			},
 		},
 	}
+	// CampaignsColumns holds the columns for the "campaigns" table.
+	CampaignsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
+		{Name: "uid", Type: field.TypeUUID, Unique: true, Comment: "class=none"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "updated_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "key", Type: field.TypeString, Size: 64, Comment: "class=none"},
+		{Name: "kind", Type: field.TypeString, Size: 64, Comment: "class=none"},
+		{Name: "name", Type: field.TypeString, Size: 120, Comment: "class=none"},
+		{Name: "status", Type: field.TypeEnum, Comment: "class=none", Enums: []string{"draft", "scheduled", "live", "paused", "ended"}, Default: "draft"},
+		{Name: "starts_at", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
+		{Name: "ends_at", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
+		{Name: "priority", Type: field.TypeInt, Comment: "class=none", Default: 0},
+		{Name: "audience", Type: field.TypeJSON, Comment: "class=none"},
+		{Name: "payload", Type: field.TypeJSON, Comment: "class=none"},
+		{Name: "rollout", Type: field.TypeInt, Comment: "class=none", Default: 10000},
+		{Name: "salt", Type: field.TypeString, Size: 64, Comment: "class=none", Default: ""},
+		{Name: "project_id", Type: field.TypeInt, Comment: "class=none"},
+	}
+	// CampaignsTable holds the schema information for the "campaigns" table.
+	CampaignsTable = &schema.Table{
+		Name:       "campaigns",
+		Columns:    CampaignsColumns,
+		PrimaryKey: []*schema.Column{CampaignsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "campaigns_projects_campaigns",
+				Columns:    []*schema.Column{CampaignsColumns[15]},
+				RefColumns: []*schema.Column{ProjectsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "campaign_key_project_id",
+				Unique:  true,
+				Columns: []*schema.Column{CampaignsColumns[4], CampaignsColumns[15]},
+			},
+			{
+				Name:    "campaign_status_starts_at",
+				Unique:  false,
+				Columns: []*schema.Column{CampaignsColumns[7], CampaignsColumns[8]},
+			},
+		},
+	}
 	// CellsColumns holds the columns for the "cells" table.
 	CellsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
@@ -74,6 +119,46 @@ var (
 			},
 		},
 	}
+	// ConfigVersionsColumns holds the columns for the "config_versions" table.
+	ConfigVersionsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
+		{Name: "uid", Type: field.TypeUUID, Unique: true, Comment: "class=none"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "updated_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "version", Type: field.TypeInt, Comment: "class=none"},
+		{Name: "document", Type: field.TypeJSON, Comment: "class=none"},
+		{Name: "published_by", Type: field.TypeString, Size: 120, Comment: "class=none", Default: ""},
+		{Name: "note", Type: field.TypeString, Size: 500, Comment: "class=none", Default: ""},
+		{Name: "environment_id", Type: field.TypeInt, Comment: "class=none"},
+		{Name: "project_id", Type: field.TypeInt, Comment: "class=none"},
+	}
+	// ConfigVersionsTable holds the schema information for the "config_versions" table.
+	ConfigVersionsTable = &schema.Table{
+		Name:       "config_versions",
+		Columns:    ConfigVersionsColumns,
+		PrimaryKey: []*schema.Column{ConfigVersionsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "config_versions_environments_config_versions",
+				Columns:    []*schema.Column{ConfigVersionsColumns[8]},
+				RefColumns: []*schema.Column{EnvironmentsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "config_versions_projects_config_versions",
+				Columns:    []*schema.Column{ConfigVersionsColumns[9]},
+				RefColumns: []*schema.Column{ProjectsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "configversion_version_environment_id",
+				Unique:  true,
+				Columns: []*schema.Column{ConfigVersionsColumns[4], ConfigVersionsColumns[8]},
+			},
+		},
+	}
 	// EnvironmentsColumns holds the columns for the "environments" table.
 	EnvironmentsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
@@ -101,6 +186,44 @@ var (
 				Name:    "environment_kind_project_id",
 				Unique:  true,
 				Columns: []*schema.Column{EnvironmentsColumns[4], EnvironmentsColumns[5]},
+			},
+		},
+	}
+	// FeatureFlagsColumns holds the columns for the "feature_flags" table.
+	FeatureFlagsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
+		{Name: "uid", Type: field.TypeUUID, Unique: true, Comment: "class=none"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "updated_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "key", Type: field.TypeString, Size: 64, Comment: "class=none"},
+		{Name: "name", Type: field.TypeString, Size: 120, Comment: "class=none"},
+		{Name: "description", Type: field.TypeString, Size: 500, Comment: "class=none", Default: ""},
+		{Name: "kind", Type: field.TypeEnum, Comment: "class=none", Enums: []string{"bool", "string", "number", "json"}},
+		{Name: "fallback", Type: field.TypeJSON, Comment: "class=none"},
+		{Name: "rules", Type: field.TypeJSON, Comment: "class=none"},
+		{Name: "rollout", Type: field.TypeInt, Comment: "class=none", Default: 10000},
+		{Name: "salt", Type: field.TypeString, Size: 64, Comment: "class=none", Default: ""},
+		{Name: "archived", Type: field.TypeBool, Comment: "class=none", Default: false},
+		{Name: "project_id", Type: field.TypeInt, Comment: "class=none"},
+	}
+	// FeatureFlagsTable holds the schema information for the "feature_flags" table.
+	FeatureFlagsTable = &schema.Table{
+		Name:       "feature_flags",
+		Columns:    FeatureFlagsColumns,
+		PrimaryKey: []*schema.Column{FeatureFlagsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "feature_flags_projects_feature_flags",
+				Columns:    []*schema.Column{FeatureFlagsColumns[13]},
+				RefColumns: []*schema.Column{ProjectsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "featureflag_key_project_id",
+				Unique:  true,
+				Columns: []*schema.Column{FeatureFlagsColumns[4], FeatureFlagsColumns[13]},
 			},
 		},
 	}
@@ -196,6 +319,40 @@ var (
 			},
 		},
 	}
+	// SegmentsColumns holds the columns for the "segments" table.
+	SegmentsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
+		{Name: "uid", Type: field.TypeUUID, Unique: true, Comment: "class=none"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "updated_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "key", Type: field.TypeString, Size: 64, Comment: "class=none"},
+		{Name: "name", Type: field.TypeString, Size: 120, Comment: "class=none"},
+		{Name: "description", Type: field.TypeString, Size: 500, Comment: "class=none", Default: ""},
+		{Name: "rule", Type: field.TypeJSON, Comment: "class=none"},
+		{Name: "archived", Type: field.TypeBool, Comment: "class=none", Default: false},
+		{Name: "project_id", Type: field.TypeInt, Comment: "class=none"},
+	}
+	// SegmentsTable holds the schema information for the "segments" table.
+	SegmentsTable = &schema.Table{
+		Name:       "segments",
+		Columns:    SegmentsColumns,
+		PrimaryKey: []*schema.Column{SegmentsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "segments_projects_segments",
+				Columns:    []*schema.Column{SegmentsColumns[9]},
+				RefColumns: []*schema.Column{ProjectsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "segment_key_project_id",
+				Unique:  true,
+				Columns: []*schema.Column{SegmentsColumns[4], SegmentsColumns[9]},
+			},
+		},
+	}
 	// UsersColumns holds the columns for the "users" table.
 	UsersColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
@@ -214,20 +371,29 @@ var (
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
 		APIKeysTable,
+		CampaignsTable,
 		CellsTable,
+		ConfigVersionsTable,
 		EnvironmentsTable,
+		FeatureFlagsTable,
 		OrganizationsTable,
 		OrganizationMembersTable,
 		ProjectsTable,
+		SegmentsTable,
 		UsersTable,
 	}
 )
 
 func init() {
 	APIKeysTable.ForeignKeys[0].RefTable = EnvironmentsTable
+	CampaignsTable.ForeignKeys[0].RefTable = ProjectsTable
+	ConfigVersionsTable.ForeignKeys[0].RefTable = EnvironmentsTable
+	ConfigVersionsTable.ForeignKeys[1].RefTable = ProjectsTable
 	EnvironmentsTable.ForeignKeys[0].RefTable = ProjectsTable
+	FeatureFlagsTable.ForeignKeys[0].RefTable = ProjectsTable
 	OrganizationMembersTable.ForeignKeys[0].RefTable = OrganizationsTable
 	OrganizationMembersTable.ForeignKeys[1].RefTable = UsersTable
 	ProjectsTable.ForeignKeys[0].RefTable = CellsTable
 	ProjectsTable.ForeignKeys[1].RefTable = OrganizationsTable
+	SegmentsTable.ForeignKeys[0].RefTable = ProjectsTable
 }

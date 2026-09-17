@@ -13,6 +13,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"playersense.dev/backend/ent/global/apikey"
+	"playersense.dev/backend/ent/global/configversion"
 	"playersense.dev/backend/ent/global/environment"
 	"playersense.dev/backend/ent/global/predicate"
 	"playersense.dev/backend/ent/global/project"
@@ -21,12 +22,13 @@ import (
 // EnvironmentQuery is the builder for querying Environment entities.
 type EnvironmentQuery struct {
 	config
-	ctx         *QueryContext
-	order       []environment.OrderOption
-	inters      []Interceptor
-	predicates  []predicate.Environment
-	withProject *ProjectQuery
-	withAPIKeys *APIKeyQuery
+	ctx                *QueryContext
+	order              []environment.OrderOption
+	inters             []Interceptor
+	predicates         []predicate.Environment
+	withProject        *ProjectQuery
+	withAPIKeys        *APIKeyQuery
+	withConfigVersions *ConfigVersionQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -100,6 +102,28 @@ func (_q *EnvironmentQuery) QueryAPIKeys() *APIKeyQuery {
 			sqlgraph.From(environment.Table, environment.FieldID, selector),
 			sqlgraph.To(apikey.Table, apikey.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, environment.APIKeysTable, environment.APIKeysColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryConfigVersions chains the current query on the "config_versions" edge.
+func (_q *EnvironmentQuery) QueryConfigVersions() *ConfigVersionQuery {
+	query := (&ConfigVersionClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(environment.Table, environment.FieldID, selector),
+			sqlgraph.To(configversion.Table, configversion.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, environment.ConfigVersionsTable, environment.ConfigVersionsColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -294,13 +318,14 @@ func (_q *EnvironmentQuery) Clone() *EnvironmentQuery {
 		return nil
 	}
 	return &EnvironmentQuery{
-		config:      _q.config,
-		ctx:         _q.ctx.Clone(),
-		order:       append([]environment.OrderOption{}, _q.order...),
-		inters:      append([]Interceptor{}, _q.inters...),
-		predicates:  append([]predicate.Environment{}, _q.predicates...),
-		withProject: _q.withProject.Clone(),
-		withAPIKeys: _q.withAPIKeys.Clone(),
+		config:             _q.config,
+		ctx:                _q.ctx.Clone(),
+		order:              append([]environment.OrderOption{}, _q.order...),
+		inters:             append([]Interceptor{}, _q.inters...),
+		predicates:         append([]predicate.Environment{}, _q.predicates...),
+		withProject:        _q.withProject.Clone(),
+		withAPIKeys:        _q.withAPIKeys.Clone(),
+		withConfigVersions: _q.withConfigVersions.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -326,6 +351,17 @@ func (_q *EnvironmentQuery) WithAPIKeys(opts ...func(*APIKeyQuery)) *Environment
 		opt(query)
 	}
 	_q.withAPIKeys = query
+	return _q
+}
+
+// WithConfigVersions tells the query-builder to eager-load the nodes that are connected to
+// the "config_versions" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *EnvironmentQuery) WithConfigVersions(opts ...func(*ConfigVersionQuery)) *EnvironmentQuery {
+	query := (&ConfigVersionClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withConfigVersions = query
 	return _q
 }
 
@@ -407,9 +443,10 @@ func (_q *EnvironmentQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*
 	var (
 		nodes       = []*Environment{}
 		_spec       = _q.querySpec()
-		loadedTypes = [2]bool{
+		loadedTypes = [3]bool{
 			_q.withProject != nil,
 			_q.withAPIKeys != nil,
+			_q.withConfigVersions != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -440,6 +477,13 @@ func (_q *EnvironmentQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*
 		if err := _q.loadAPIKeys(ctx, query, nodes,
 			func(n *Environment) { n.Edges.APIKeys = []*APIKey{} },
 			func(n *Environment, e *APIKey) { n.Edges.APIKeys = append(n.Edges.APIKeys, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withConfigVersions; query != nil {
+		if err := _q.loadConfigVersions(ctx, query, nodes,
+			func(n *Environment) { n.Edges.ConfigVersions = []*ConfigVersion{} },
+			func(n *Environment, e *ConfigVersion) { n.Edges.ConfigVersions = append(n.Edges.ConfigVersions, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -490,6 +534,36 @@ func (_q *EnvironmentQuery) loadAPIKeys(ctx context.Context, query *APIKeyQuery,
 	}
 	query.Where(predicate.APIKey(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(environment.APIKeysColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.EnvironmentID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "environment_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *EnvironmentQuery) loadConfigVersions(ctx context.Context, query *ConfigVersionQuery, nodes []*Environment, init func(*Environment), assign func(*Environment, *ConfigVersion)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Environment)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(configversion.FieldEnvironmentID)
+	}
+	query.Where(predicate.ConfigVersion(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(environment.ConfigVersionsColumn), fks...))
 	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {
