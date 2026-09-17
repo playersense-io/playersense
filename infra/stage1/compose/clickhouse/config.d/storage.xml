@@ -1,0 +1,144 @@
+<!--
+  Tiered storage: local NVMe for the hot window, object storage for everything older
+  (project.md §3.4, §33, §35, Appendix A).
+
+  This is the answer to the question a bounded VPS disk always raises. §4.2 puts a billion
+  events a day at roughly a terabyte before compression, so no local disk is a retention
+  plan — and §33's "3-14 day hot window" reads like a retention ceiling when it is really a
+  statement about which disk the bytes are on.
+
+  A storage policy separates the two. `events_raw` names the policy, not a disk, so the
+  schema is identical everywhere and the deployment decides what "cold" means:
+
+      development   a second local directory, so the mechanism is exercised for real
+      production    a GCS bucket, where the volume is effectively unbounded and billed
+                    per gigabyte
+
+  That is exactly how managed ClickHouse appears to have unlimited storage. It is not a
+  larger disk; it is object storage as the primary store with local disk as a cache. The
+  same arrangement is available here, which is why §35's "Stage 2 hot/cold simplification"
+  does not have to wait for Stage 2.
+
+  The archive (§14) stays where it is and is not replaced by this. It is Parquet, it is
+  portable, and it is the copy that survives losing the cluster — the cold volume is a
+  ClickHouse-internal format that only ClickHouse can read.
+
+  ## The disk under `cold` in production
+
+  GCS through its S3-compatible XML API, which is what ClickHouse speaks:
+
+      <cold>
+          <type>s3</type>
+          <endpoint>https://storage.googleapis.com/BUCKET/clickhouse/</endpoint>
+          <access_key_id from_env="GCS_HMAC_ACCESS_KEY"/>
+          <secret_access_key from_env="GCS_HMAC_SECRET"/>
+          <support_batch_delete>false</support_batch_delete>
+      </cold>
+
+  The credentials are read from the environment rather than written here, because this file
+  is in version control and an HMAC key in version control is a leaked HMAC key.
+  `support_batch_delete` is false because GCS does not implement S3's batch delete.
+
+  A `<cache>` disk sits in front of it, so a granule read once is served from local NVMe the
+  next time. That is the other half of how managed deployments make object storage feel
+  local.
+
+  ## Choosing between them
+
+  `cold` is the cached object store when CH_COLD_ENDPOINT and the HMAC pair are set, and
+  `cold_local` is a plain directory for a stack that has neither. Point the policy's cold
+  volume at whichever the deployment has; the schema names the *policy*, so `events_raw`
+  never knows the difference.
+-->
+<clickhouse>
+    <storage_configuration>
+        <disks>
+            <!--
+              Deliberately outside /var/lib/clickhouse. A disk nested inside the default
+              path makes the server's own accounting ambiguous — it would see the cold
+              volume's bytes twice, once as themselves and once as part of the default
+              disk — and the disk-space guard in Appendix A reads exactly that number.
+            -->
+            <cold_local>
+                <type>local</type>
+                <path>/var/lib/clickhouse-cold/</path>
+            </cold_local>
+
+            <!--
+              GCS through its S3-compatible XML API, which is what ClickHouse speaks.
+
+              The endpoint and both halves of the credential come from the environment, so
+              this file — which is in version control — never contains an HMAC key. A
+              deployment without them configured simply has no `cold_object` disk, which is
+              why `cold_local` exists beside it rather than instead of it.
+            -->
+            <cold_object>
+                <type>s3</type>
+                <endpoint from_env="CH_COLD_ENDPOINT"/>
+                <access_key_id from_env="GCS_HMAC_ACCESS_KEY"/>
+                <secret_access_key from_env="GCS_HMAC_SECRET"/>
+                <!-- GCS does not implement S3's batch delete. -->
+                <support_batch_delete>false</support_batch_delete>
+                <!--
+                  Metadata stays local. ClickHouse keeps a small local record of which
+                  remote blobs make up each part, so reading a part's structure does not
+                  cost a network round trip per file.
+                -->
+                <metadata_path>/var/lib/clickhouse/disks/cold_object/</metadata_path>
+            </cold_object>
+
+            <!--
+              A read-through cache in front of the object store, on local NVMe.
+
+              This is the other half of why managed deployments make object storage feel
+              local: a granule read once is read from disk the next time. Without it every
+              cold query pays a network round trip per granule, and §32's
+              max_execution_time was tuned against local disk.
+            -->
+            <cold>
+                <type>cache</type>
+                <disk>cold_object</disk>
+                <path>/var/lib/clickhouse/disks/cold_cache/</path>
+                <max_size>10Gi</max_size>
+                <cache_on_write_operations>false</cache_on_write_operations>
+            </cold>
+        </disks>
+
+        <policies>
+            <hot_cold>
+                <volumes>
+                    <!--
+                      Named `default`, not `hot`, and the name is load-bearing rather than
+                      cosmetic. ALTER TABLE ... MODIFY SETTING storage_policy accepts a new
+                      policy only if it contains the *volumes* of the old one — not merely
+                      its disks — so a table already on the `default` policy can move here
+                      only while a volume of that name still exists. Calling it `hot` reads
+                      better and makes the migration fail with "New storage policy
+                      `hot_cold` shall contain volumes of the old storage policy `default`".
+                    -->
+                    <default>
+                        <disk>default</disk>
+                    </default>
+                    <cold>
+                        <disk>cold</disk>
+                        <!--
+                          Merging parts that already live on the cold volume rewrites
+                          them there, which on object storage is a download, a merge and
+                          an upload for no query benefit — the data is past the hot window
+                          and is read rarely. Merges still happen on the hot volume, where
+                          §25's insert path needs them.
+                        -->
+                        <prefer_not_to_merge>true</prefer_not_to_merge>
+                    </cold>
+                </volumes>
+                <!--
+                  Move off the hot volume before the disk is full rather than when it is.
+                  Appendix A's guard escalates at 80% and 85%; this keeps ordinary
+                  operation below that, so the guard stays an alarm rather than a routine
+                  event.
+                -->
+                <move_factor>0.2</move_factor>
+            </hot_cold>
+        </policies>
+    </storage_configuration>
+</clickhouse>

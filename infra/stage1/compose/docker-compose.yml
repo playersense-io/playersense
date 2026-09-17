@@ -58,11 +58,23 @@ services:
       # otherwise collide on every znode. Read by macros.xml through from_env.
       CH_SHARD: ${CELL:-eu-1}
       CH_REPLICA: ${CELL:-eu-1}-01
+      # The cold volume of the hot_cold policy (storage.xml). Set these and `cold` is a
+      # GCS bucket through the S3-compatible endpoint; leave them unset and the stack
+      # falls back to the local cold directory. The credential lives in .env, which is
+      # gitignored — an HMAC key in version control is a leaked HMAC key (ADR 0024).
+      CH_COLD_ENDPOINT: ${CH_COLD_ENDPOINT:-}
+      GCS_HMAC_ACCESS_KEY: ${GCS_HMAC_ACCESS_KEY:-}
+      GCS_HMAC_SECRET: ${GCS_HMAC_SECRET:-}
     ports:
       - "127.0.0.1:${CH_HTTP_PORT:-21123}:8123"
       - "127.0.0.1:${CH_NATIVE_PORT:-21900}:9000"
     volumes:
       - clickhouse-data:/var/lib/clickhouse
+      # The cold volume of the hot_cold storage policy (storage.xml). A separate volume
+      # rather than a directory inside the first, because in production this is object
+      # storage and the point of the policy is that the schema does not know the
+      # difference.
+      - clickhouse-cold:/var/lib/clickhouse-cold
       # Embedded Keeper + macros, so ReplicatedMergeTree works on one node and §23
       # keeps the insert deduplication §21's at-least-once delivery requires.
       - ./clickhouse/config.d:/etc/clickhouse-server/config.d:ro
@@ -93,3 +105,4 @@ services:
 volumes:
   postgres-data:
   clickhouse-data:
+  clickhouse-cold:
