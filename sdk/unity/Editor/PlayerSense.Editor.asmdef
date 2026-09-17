@@ -1,0 +1,11 @@
+{
+  "name": "PlayerSense.Editor",
+  "rootNamespace": "PlayerSense.Editor",
+  "references": ["PlayerSense.Runtime"],
+  "includePlatforms": ["Editor"],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "autoReferenced": true,
+  "noEngineReferences": false
+}

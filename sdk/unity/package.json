@@ -1,0 +1,22 @@
+{
+  "name": "com.playersense.unity",
+  "version": "0.1.0",
+  "displayName": "PlayerSense",
+  "description": "Game analytics that never blocks, never throws and never loses a session. Track is one line; sessions, consent, offline spooling, retries and deduplication are handled for you.",
+  "unity": "2021.3",
+  "dependencies": {
+    "com.unity.modules.unitywebrequest": "1.0.0",
+    "com.unity.modules.androidjni": "1.0.0",
+    "com.unity.modules.imgui": "1.0.0"
+  },
+  "documentationUrl": "https://github.com/playersense/playersense/blob/main/docs/sdk/protocol.md",
+  "keywords": [
+    "analytics",
+    "telemetry",
+    "liveops"
+  ],
+  "author": {
+    "name": "PlayerSense"
+  },
+  "hideInEditor": false
+}

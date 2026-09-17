@@ -1,0 +1,11 @@
+{
+  "name": "PlayerSense.Runtime",
+  "rootNamespace": "PlayerSense",
+  "references": [],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": true,
+  "overrideReferences": false,
+  "autoReferenced": true,
+  "noEngineReferences": false
+}
