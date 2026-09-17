@@ -155,6 +155,12 @@ func (r Rule) validateCondition() error {
 	if r.Key == "" {
 		return fmt.Errorf("a condition needs a key")
 	}
+	// Refused rather than accepted-and-never-matched. A key with no column behind it would
+	// make a campaign reach nobody and give no reason, which is the failure mode this
+	// repository keeps finding in its own work.
+	if why, missing := Unavailable[r.Key]; missing {
+		return fmt.Errorf("%q is not available yet: %s", r.Key, why)
+	}
 	switch r.Op {
 	case OpExists, OpNotExists:
 		if r.Value != nil || len(r.Values) > 0 {

@@ -191,6 +191,81 @@ func TestAnInvalidRuleIsRefusedWhenItIsWritten(t *testing.T) {
 	}
 }
 
+// The two fact families answer different questions, and a studio must not have to guess
+// which one a rule got.
+func TestInstallAndPlayerFactsAreSeparateSubjects(t *testing.T) {
+	// A player with a phone and a tablet: neither install is a whale, the account is.
+	phone := Context{
+		FactInstallSpend: int64(60_000_000),
+		FactPlayerSpend:  int64(120_000_000),
+	}
+
+	perInstall := rule(t, `{"key":"commerce.install.lifetime_spend_micros","op":"gte","value":100000000}`)
+	perPlayer := rule(t, `{"key":"commerce.player.lifetime_spend_micros","op":"gte","value":100000000}`)
+
+	if perInstall.Matches(phone) {
+		t.Error("a $60 installation matched a $100 whale rule")
+	}
+	if !perPlayer.Matches(phone) {
+		t.Error("a $120 account did not match a $100 whale rule")
+	}
+
+	// And an anonymous player has no account facts at all, so the account rule cannot match.
+	anonymous := Context{FactInstallSpend: int64(150_000_000)}
+	if perPlayer.Matches(anonymous) {
+		t.Error("an account rule matched a player who has never identified themselves")
+	}
+}
+
+// A fact with no column behind it is refused when the rule is written, not accepted and then
+// silently never matched.
+func TestAFactWithNoColumnIsRefused(t *testing.T) {
+	for key := range Unavailable {
+		raw := fmt.Sprintf(`{"key":%q,"op":"gte","value":30}`, key)
+		if _, err := Parse([]byte(raw)); err == nil {
+			t.Errorf("%s was accepted but nothing computes it", key)
+		}
+	}
+
+	// The ones that do exist still work.
+	if _, err := Parse([]byte(`{"key":"commerce.player.purchases","op":"gt","value":0}`)); err != nil {
+		t.Errorf("a real fact was refused: %v", err)
+	}
+}
+
+// The optimisation that keeps the common case free: only a rule that actually names a fact
+// costs a lookup.
+func TestOnlyAFactRuleCostsALookup(t *testing.T) {
+	free := rule(t, `{"all":[
+		{"key":"geo.country","op":"eq","value":"TR"},
+		{"key":"app.version","op":"version_gte","value":"1.12.0"},
+		{"key":"context.rank","op":"eq","value":"diamond"}
+	]}`)
+	if free.NeedsPlayerFacts() {
+		t.Error("a rule over request-time context asked for a lookup")
+	}
+	if (Rule{}).NeedsPlayerFacts() {
+		t.Error("an empty rule asked for a lookup")
+	}
+
+	costly := rule(t, `{"any":[
+		{"key":"geo.country","op":"eq","value":"TR"},
+		{"key":"commerce.player.purchases","op":"gt","value":0}
+	]}`)
+	if !costly.NeedsPlayerFacts() {
+		t.Error("a rule naming commerce.* did not ask for a lookup")
+	}
+
+	// And the dashboard warning: which parts of this rule could a modified build choose?
+	warned := free.ClientSupplied()
+	if len(warned) != 2 || warned[0] != "context" || warned[1] != "app" {
+		t.Errorf("ClientSupplied() = %v, want context and app", warned)
+	}
+	if len(costly.ClientSupplied()) != 0 {
+		t.Errorf("a geo/commerce rule reported client-supplied inputs: %v", costly.ClientSupplied())
+	}
+}
+
 func TestARuleCannotBeUnboundedlyDeep(t *testing.T) {
 	deep := `{"key":"a","op":"exists"}`
 	for i := 0; i <= MaxDepth+1; i++ {

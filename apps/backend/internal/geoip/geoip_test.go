@@ -1,7 +1,6 @@
 package geoip
 
 import (
-	"net/http"
 	"net/netip"
 	"testing"
 )
@@ -116,74 +115,5 @@ func TestUnknownValuesAreAbsentRatherThanEmpty(t *testing.T) {
 	}
 	if known["network.hosting"] != true {
 		t.Errorf("network.hosting = %v", known["network.hosting"])
-	}
-}
-
-func request(remote string, forwarded ...string) *http.Request {
-	r := &http.Request{RemoteAddr: remote, Header: http.Header{}}
-	for _, value := range forwarded {
-		r.Header.Add("X-Forwarded-For", value)
-	}
-	return r
-}
-
-// The test this package exists for. If a caller can choose the address PlayerSense resolves,
-// every geo.* rule is worthless and ADR 0027's whole argument collapses.
-func TestAForgedForwardedHeaderCannotChooseTheAddress(t *testing.T) {
-	// One balancer in front. The caller sends a forged entry; the balancer appends the
-	// address it actually saw and connects from itself.
-	got := ClientIP(request("10.1.0.1:54321", "1.2.3.4, 203.0.113.9"), 1)
-	if got.String() != "203.0.113.9" {
-		t.Fatalf("client = %s, want 203.0.113.9 — the forged entry was believed", got)
-	}
-
-	// However many the caller adds, they land to the left of the real one and are never
-	// reached, because the count is from the right.
-	got = ClientIP(request("10.1.0.1:54321", "9.9.9.9, 8.8.8.8, 1.2.3.4, 203.0.113.9"), 1)
-	if got.String() != "203.0.113.9" {
-		t.Fatalf("client = %s with a longer forged chain", got)
-	}
-}
-
-func TestTheSocketIsTrustedWhenNothingElseIs(t *testing.T) {
-	// hops = 0: the header is ignored entirely, whatever it says.
-	got := ClientIP(request("203.0.113.9:443", "1.2.3.4"), 0)
-	if got.String() != "203.0.113.9" {
-		t.Fatalf("client = %s, want the socket address", got)
-	}
-
-	// Two proxies, both ours.
-	got = ClientIP(request("10.1.0.2:443", "203.0.113.9, 10.1.0.1"), 2)
-	if got.String() != "203.0.113.9" {
-		t.Fatalf("client = %s behind two hops", got)
-	}
-
-	// Configured for a balancer, reached directly — a health probe, or a mistake. The
-	// leftmost available entry is the least-trusted thing there is.
-	got = ClientIP(request("203.0.113.9:443"), 1)
-	if got.String() != "203.0.113.9" {
-		t.Fatalf("client = %s with a shorter chain than configured", got)
-	}
-}
-
-func TestAddressesParseWithOrWithoutAPort(t *testing.T) {
-	cases := map[string]string{
-		"203.0.113.9:443":  "203.0.113.9",
-		"203.0.113.9":      "203.0.113.9",
-		"[2001:db8::1]:80": "2001:db8::1",
-		"2001:db8::1":      "2001:db8::1",
-		"::ffff:1.2.3.4":   "1.2.3.4", // v4-mapped, unmapped so a lookup finds it
-	}
-	for input, want := range cases {
-		if got := ClientIP(request(input), 0); got.String() != want {
-			t.Errorf("%q -> %s, want %s", input, got, want)
-		}
-	}
-
-	// A malformed entry is dropped, not fatal: refusing would let any caller turn their own
-	// bad header into an outage.
-	got := ClientIP(request("10.1.0.1:443", "not-an-address, 203.0.113.9"), 1)
-	if got.String() != "203.0.113.9" {
-		t.Errorf("client = %s with a malformed entry in the chain", got)
 	}
 }

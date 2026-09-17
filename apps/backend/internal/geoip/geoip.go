@@ -9,6 +9,19 @@
 // connection exits from an address geolocated to Turkey*. It does not mean *this person is
 // in Turkey*. When both matter they are separate facts — `account.country` is the studio's
 // own record — and collapsing them would throw away the only interesting part.
+//
+// # Where the address comes from
+//
+// From the framework: `ctx.ClientAddr()`, configured once by `TRUSTED_PROXIES`. This package
+// deliberately does **not** work it out for itself.
+//
+// That matters more than it looks. Behind a load balancer the socket address is the balancer
+// and `X-Forwarded-For` carries the chain — but a caller writes that header too, so believing
+// it as written lets a modified build choose its own country and every `geo.*` rule becomes
+// worthless. The framework resolves it against a CIDR list of proxies that are actually ours,
+// trusts nothing by default, and bounds the walk. An earlier version of this package
+// reimplemented that with a hop count, which was a second and weaker answer to a question the
+// application had already settled.
 package geoip
 
 import (
