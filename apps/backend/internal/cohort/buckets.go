@@ -191,9 +191,7 @@ func (d *Deriver) DeriveBuckets(ctx context.Context, m Month) error {
 		return fmt.Errorf("build cohort_bucket_daily (partition %s): %w", part, err)
 	}
 
-	if _, err := d.DB.ExecContext(ctx,
-		"ALTER TABLE cohort_bucket_daily REPLACE PARTITION ? FROM cohort_bucket_daily_staging",
-		part); err != nil {
+	if err := SwapPartition(ctx, d.DB, "cohort_bucket_daily", "cohort_bucket_daily_staging", part); err != nil {
 		return fmt.Errorf("swap cohort_bucket_daily: %w", err)
 	}
 	return nil

@@ -18,6 +18,47 @@ type Deriver struct {
 	DB *sql.DB
 }
 
+// SwapPartition publishes a rebuilt staging partition, unless there is nothing to publish.
+//
+// The emptiness check is not an optimisation; without it the derivation cannot run at all.
+// Recent ClickHouse refuses `REPLACE PARTITION` from an empty source, because the previous
+// behaviour was to drop the destination partition silently — which is ADR 0003's bug in a
+// different costume. Any month with no activity therefore fails the swap outright, and on
+// a young deployment that is almost every month in the window.
+//
+// Skipping rather than enabling `allow_replace_partition_from_empty_source`, and the
+// difference matters. "Staging is empty" has two causes that look identical here:
+//
+//   - the month genuinely has no activity, in which case the destination is already empty
+//     and dropping it changes nothing;
+//   - the *source* no longer holds the month. `player_activity_daily` has a 400-day TTL
+//     (§29.7) while the cohort facts are aggregate retention and are meant to outlive it
+//     (§59) — a studio on a 30-day raw tier still sees a 365-day retention curve. Dropping
+//     the destination there destroys served facts that nothing can rebuild, because the
+//     rows they were derived from are gone.
+//
+// The second is the one that cannot be undone, so the empty source is treated as "nothing
+// to say" rather than "say nothing". Emptying a partition on purpose belongs to the
+// deletion and retention paths (§60, §61), which know why they are doing it.
+func SwapPartition(ctx context.Context, db *sql.DB, dest, staging, part string) error {
+	var parts uint64
+	if err := db.QueryRowContext(ctx, `
+		SELECT count()
+		FROM system.parts
+		WHERE database = currentDatabase() AND table = ? AND partition_id = ? AND active`,
+		staging, part).Scan(&parts); err != nil {
+		return fmt.Errorf("inspect %s partition %s: %w", staging, part, err)
+	}
+	if parts == 0 {
+		return nil
+	}
+	if _, err := db.ExecContext(ctx,
+		"ALTER TABLE "+dest+" REPLACE PARTITION ? FROM "+staging, part); err != nil {
+		return fmt.Errorf("swap %s partition %s: %w", dest, part, err)
+	}
+	return nil
+}
+
 // Month is an activity month, as ClickHouse partitions name them.
 type Month struct {
 	Year  int
@@ -47,6 +88,12 @@ func (d *Deriver) DeriveMonth(ctx context.Context, m Month) error {
 		name string
 		stmt string
 		args []any
+
+		// dest and staging mark a step as a partition swap, which goes through
+		// SwapPartition rather than being executed directly — an empty staging partition
+		// must be skipped rather than dropping what it would have replaced.
+		dest    string
+		staging string
 	}{
 		{
 			name: "clear metrics staging",
@@ -97,9 +144,9 @@ func (d *Deriver) DeriveMonth(ctx context.Context, m Month) error {
 			args: []any{part},
 		},
 		{
-			name: "swap cohort_metrics_daily",
-			stmt: "ALTER TABLE cohort_metrics_daily REPLACE PARTITION ? FROM cohort_metrics_daily_staging",
-			args: []any{part},
+			name:    "swap cohort_metrics_daily",
+			dest:    "cohort_metrics_daily",
+			staging: "cohort_metrics_daily_staging",
 		},
 		{
 			name: "clear breakdown staging",
@@ -151,13 +198,19 @@ func (d *Deriver) DeriveMonth(ctx context.Context, m Month) error {
 			args: []any{part},
 		},
 		{
-			name: "swap cohort_metrics_breakdown_daily",
-			stmt: "ALTER TABLE cohort_metrics_breakdown_daily REPLACE PARTITION ? FROM cohort_metrics_breakdown_daily_staging",
-			args: []any{part},
+			name:    "swap cohort_metrics_breakdown_daily",
+			dest:    "cohort_metrics_breakdown_daily",
+			staging: "cohort_metrics_breakdown_daily_staging",
 		},
 	}
 
 	for _, s := range steps {
+		if s.dest != "" {
+			if err := SwapPartition(ctx, d.DB, s.dest, s.staging, part); err != nil {
+				return fmt.Errorf("%s: %w", s.name, err)
+			}
+			continue
+		}
 		if _, err := d.DB.ExecContext(ctx, s.stmt, s.args...); err != nil {
 			return fmt.Errorf("%s (partition %s): %w", s.name, part, err)
 		}
@@ -264,8 +317,7 @@ func (d *Deriver) DeriveSizes(ctx context.Context, cohortMonth Month, asOf time.
 	// per-dimension sizes become visible in the same instant — §29.9's rule that the
 	// numerator and denominator are published from one snapshot applies just as much to
 	// the two halves of the denominator.
-	if _, err := d.DB.ExecContext(ctx,
-		"ALTER TABLE cohort_sizes REPLACE PARTITION ? FROM cohort_sizes_staging", part); err != nil {
+	if err := SwapPartition(ctx, d.DB, "cohort_sizes", "cohort_sizes_staging", part); err != nil {
 		return fmt.Errorf("swap cohort_sizes: %w", err)
 	}
 	return nil

@@ -62,6 +62,12 @@ func (d *Deriver) DeriveMonth(ctx context.Context, m cohort.Month) error {
 		name string
 		stmt string
 		args []any
+
+		// dest and staging mark a step as a partition swap, which goes through
+		// cohort.SwapPartition rather than being executed directly — an empty staging
+		// partition must be skipped rather than dropping what it would have replaced.
+		dest    string
+		staging string
 	}{
 		{
 			name: "clear daily staging",
@@ -99,9 +105,9 @@ func (d *Deriver) DeriveMonth(ctx context.Context, m cohort.Month) error {
 			args: []any{part},
 		},
 		{
-			name: "swap metrics_daily",
-			stmt: "ALTER TABLE metrics_daily REPLACE PARTITION ? FROM metrics_daily_staging",
-			args: []any{part},
+			name:    "swap metrics_daily",
+			dest:    "metrics_daily",
+			staging: "metrics_daily_staging",
 		},
 		{
 			name: "clear breakdown staging",
@@ -144,9 +150,9 @@ func (d *Deriver) DeriveMonth(ctx context.Context, m cohort.Month) error {
 			args: []any{part},
 		},
 		{
-			name: "swap metrics_breakdown_daily",
-			stmt: "ALTER TABLE metrics_breakdown_daily REPLACE PARTITION ? FROM metrics_breakdown_daily_staging",
-			args: []any{part},
+			name:    "swap metrics_breakdown_daily",
+			dest:    "metrics_breakdown_daily",
+			staging: "metrics_breakdown_daily_staging",
 		},
 		{
 			name: "clear monthly staging",
@@ -179,13 +185,19 @@ func (d *Deriver) DeriveMonth(ctx context.Context, m cohort.Month) error {
 			args: []any{part},
 		},
 		{
-			name: "swap metrics_monthly",
-			stmt: "ALTER TABLE metrics_monthly REPLACE PARTITION ? FROM metrics_monthly_staging",
-			args: []any{part},
+			name:    "swap metrics_monthly",
+			dest:    "metrics_monthly",
+			staging: "metrics_monthly_staging",
 		},
 	}
 
 	for _, s := range steps {
+		if s.dest != "" {
+			if err := cohort.SwapPartition(ctx, d.DB, s.dest, s.staging, part); err != nil {
+				return fmt.Errorf("%s: %w", s.name, err)
+			}
+			continue
+		}
 		if _, err := d.DB.ExecContext(ctx, s.stmt, s.args...); err != nil {
 			return fmt.Errorf("%s (partition %s): %w", s.name, part, err)
 		}
