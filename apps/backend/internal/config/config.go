@@ -145,6 +145,20 @@ type Settings struct {
 	GeoIPLocationDB string `env:"GEOIP_LOCATION_DB" default:""`
 	GeoIPPrivacyDB  string `env:"GEOIP_PRIVACY_DB" default:""`
 
+	// FactsTTL bounds how stale a player's history may be (§41).
+	//
+	// A staleness bound rather than an idle timeout: the entry is never renewed on read,
+	// so a player who buys something stops being a non-payer within the hour rather than
+	// whenever they next stop playing.
+	FactsTTL time.Duration `env:"FACTS_TTL" default:"1h"`
+
+	// FactsAbsentTTL is how long "this player has no history" is remembered.
+	//
+	// The difference between a cache and a stampede. A brand-new installation has no
+	// lifetime row until the materialized views have seen its first events, and new
+	// installations are the population that requests config most eagerly.
+	FactsAbsentTTL time.Duration `env:"FACTS_ABSENT_TTL" default:"5m"`
+
 	// The key cache is what lets ingestion keep accepting batches while the control
 	// plane is unreachable (§64). A short negative TTL matters as much as the positive
 	// one: a publishable key is assumed discoverable (§71), so wrong keys arrive in
