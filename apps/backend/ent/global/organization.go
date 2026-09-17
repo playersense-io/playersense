@@ -29,6 +29,8 @@ type Organization struct {
 	Name string `json:"name,omitempty"`
 	// class=none
 	Slug string `json:"slug,omitempty"`
+	// class=none
+	MemberLimit int `json:"member_limit,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the OrganizationQuery when eager-loading is set.
 	Edges        OrganizationEdges `json:"edges"`
@@ -41,9 +43,11 @@ type OrganizationEdges struct {
 	Projects []*Project `json:"projects,omitempty"`
 	// Members holds the value of the members edge.
 	Members []*OrganizationMember `json:"members,omitempty"`
+	// Invitations holds the value of the invitations edge.
+	Invitations []*Invitation `json:"invitations,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [2]bool
+	loadedTypes [3]bool
 }
 
 // ProjectsOrErr returns the Projects value or an error if the edge
@@ -64,12 +68,21 @@ func (e OrganizationEdges) MembersOrErr() ([]*OrganizationMember, error) {
 	return nil, &NotLoadedError{edge: "members"}
 }
 
+// InvitationsOrErr returns the Invitations value or an error if the edge
+// was not loaded in eager-loading.
+func (e OrganizationEdges) InvitationsOrErr() ([]*Invitation, error) {
+	if e.loadedTypes[2] {
+		return e.Invitations, nil
+	}
+	return nil, &NotLoadedError{edge: "invitations"}
+}
+
 // scanValues returns the types for scanning values from sql.Rows.
 func (*Organization) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case organization.FieldID:
+		case organization.FieldID, organization.FieldMemberLimit:
 			values[i] = new(sql.NullInt64)
 		case organization.FieldName, organization.FieldSlug:
 			values[i] = new(sql.NullString)
@@ -128,6 +141,12 @@ func (_m *Organization) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.Slug = value.String
 			}
+		case organization.FieldMemberLimit:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field member_limit", values[i])
+			} else if value.Valid {
+				_m.MemberLimit = int(value.Int64)
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -149,6 +168,11 @@ func (_m *Organization) QueryProjects() *ProjectQuery {
 // QueryMembers queries the "members" edge of the Organization entity.
 func (_m *Organization) QueryMembers() *OrganizationMemberQuery {
 	return NewOrganizationClient(_m.config).QueryMembers(_m)
+}
+
+// QueryInvitations queries the "invitations" edge of the Organization entity.
+func (_m *Organization) QueryInvitations() *InvitationQuery {
+	return NewOrganizationClient(_m.config).QueryInvitations(_m)
 }
 
 // Update returns a builder for updating this Organization.
@@ -188,6 +212,9 @@ func (_m *Organization) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("slug=")
 	builder.WriteString(_m.Slug)
+	builder.WriteString(", ")
+	builder.WriteString("member_limit=")
+	builder.WriteString(fmt.Sprintf("%v", _m.MemberLimit))
 	builder.WriteByte(')')
 	return builder.String()
 }

@@ -227,6 +227,52 @@ var (
 			},
 		},
 	}
+	// InvitationsColumns holds the columns for the "invitations" table.
+	InvitationsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
+		{Name: "uid", Type: field.TypeUUID, Unique: true, Comment: "class=none"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "updated_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "email", Type: field.TypeString, Size: 254, Comment: "class=none"},
+		{Name: "token_digest", Type: field.TypeString, Size: 64, Comment: "class=none"},
+		{Name: "status", Type: field.TypeEnum, Comment: "class=none", Enums: []string{"pending", "accepted", "revoked", "expired"}, Default: "pending"},
+		{Name: "expires_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "accepted_at", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
+		{Name: "organization_id", Type: field.TypeInt, Comment: "class=none"},
+		{Name: "invited_by_id", Type: field.TypeInt, Nullable: true, Comment: "class=none"},
+	}
+	// InvitationsTable holds the schema information for the "invitations" table.
+	InvitationsTable = &schema.Table{
+		Name:       "invitations",
+		Columns:    InvitationsColumns,
+		PrimaryKey: []*schema.Column{InvitationsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "invitations_organizations_invitations",
+				Columns:    []*schema.Column{InvitationsColumns[9]},
+				RefColumns: []*schema.Column{OrganizationsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "invitations_users_sent_invitations",
+				Columns:    []*schema.Column{InvitationsColumns[10]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "invitation_token_digest",
+				Unique:  true,
+				Columns: []*schema.Column{InvitationsColumns[5]},
+			},
+			{
+				Name:    "invitation_organization_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{InvitationsColumns[9], InvitationsColumns[6]},
+			},
+		},
+	}
 	// OrganizationsColumns holds the columns for the "organizations" table.
 	OrganizationsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
@@ -235,6 +281,7 @@ var (
 		{Name: "updated_at", Type: field.TypeTime, Comment: "class=none"},
 		{Name: "name", Type: field.TypeString, Size: 120, Comment: "class=none"},
 		{Name: "slug", Type: field.TypeString, Unique: true, Size: 64, Comment: "class=none"},
+		{Name: "member_limit", Type: field.TypeInt, Comment: "class=none", Default: 50},
 	}
 	// OrganizationsTable holds the schema information for the "organizations" table.
 	OrganizationsTable = &schema.Table{
@@ -249,6 +296,7 @@ var (
 		{Name: "created_at", Type: field.TypeTime, Comment: "class=none"},
 		{Name: "updated_at", Type: field.TypeTime, Comment: "class=none"},
 		{Name: "role", Type: field.TypeEnum, Comment: "class=none", Enums: []string{"owner", "admin", "member", "viewer"}},
+		{Name: "joined_at", Type: field.TypeTime, Comment: "class=none"},
 		{Name: "organization_id", Type: field.TypeInt, Comment: "class=none"},
 		{Name: "user_id", Type: field.TypeInt, Comment: "class=none"},
 	}
@@ -260,13 +308,13 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "organization_members_organizations_members",
-				Columns:    []*schema.Column{OrganizationMembersColumns[5]},
+				Columns:    []*schema.Column{OrganizationMembersColumns[6]},
 				RefColumns: []*schema.Column{OrganizationsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "organization_members_users_memberships",
-				Columns:    []*schema.Column{OrganizationMembersColumns[6]},
+				Columns:    []*schema.Column{OrganizationMembersColumns[7]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -275,7 +323,7 @@ var (
 			{
 				Name:    "organizationmember_organization_id_user_id",
 				Unique:  true,
-				Columns: []*schema.Column{OrganizationMembersColumns[5], OrganizationMembersColumns[6]},
+				Columns: []*schema.Column{OrganizationMembersColumns[6], OrganizationMembersColumns[7]},
 			},
 		},
 	}
@@ -359,8 +407,14 @@ var (
 		{Name: "uid", Type: field.TypeUUID, Unique: true, Comment: "class=none"},
 		{Name: "created_at", Type: field.TypeTime, Comment: "class=none"},
 		{Name: "updated_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "firebase_uid", Type: field.TypeString, Unique: true, Size: 128, Comment: "class=none"},
 		{Name: "email", Type: field.TypeString, Unique: true, Size: 254, Comment: "class=none"},
+		{Name: "email_verified", Type: field.TypeBool, Comment: "class=none", Default: false},
 		{Name: "name", Type: field.TypeString, Nullable: true, Size: 120, Comment: "class=none"},
+		{Name: "avatar_url", Type: field.TypeString, Nullable: true, Size: 500, Comment: "class=none"},
+		{Name: "last_provider", Type: field.TypeString, Nullable: true, Size: 64, Comment: "class=none"},
+		{Name: "last_seen_at", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
+		{Name: "active", Type: field.TypeBool, Comment: "class=none", Default: true},
 	}
 	// UsersTable holds the schema information for the "users" table.
 	UsersTable = &schema.Table{
@@ -376,6 +430,7 @@ var (
 		ConfigVersionsTable,
 		EnvironmentsTable,
 		FeatureFlagsTable,
+		InvitationsTable,
 		OrganizationsTable,
 		OrganizationMembersTable,
 		ProjectsTable,
@@ -391,6 +446,8 @@ func init() {
 	ConfigVersionsTable.ForeignKeys[1].RefTable = ProjectsTable
 	EnvironmentsTable.ForeignKeys[0].RefTable = ProjectsTable
 	FeatureFlagsTable.ForeignKeys[0].RefTable = ProjectsTable
+	InvitationsTable.ForeignKeys[0].RefTable = OrganizationsTable
+	InvitationsTable.ForeignKeys[1].RefTable = UsersTable
 	OrganizationMembersTable.ForeignKeys[0].RefTable = OrganizationsTable
 	OrganizationMembersTable.ForeignKeys[1].RefTable = UsersTable
 	ProjectsTable.ForeignKeys[0].RefTable = CellsTable

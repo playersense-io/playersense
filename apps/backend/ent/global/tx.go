@@ -24,6 +24,8 @@ type Tx struct {
 	Environment *EnvironmentClient
 	// FeatureFlag is the client for interacting with the FeatureFlag builders.
 	FeatureFlag *FeatureFlagClient
+	// Invitation is the client for interacting with the Invitation builders.
+	Invitation *InvitationClient
 	// Organization is the client for interacting with the Organization builders.
 	Organization *OrganizationClient
 	// OrganizationMember is the client for interacting with the OrganizationMember builders.
@@ -171,6 +173,7 @@ func (tx *Tx) init() {
 	tx.ConfigVersion = NewConfigVersionClient(tx.config)
 	tx.Environment = NewEnvironmentClient(tx.config)
 	tx.FeatureFlag = NewFeatureFlagClient(tx.config)
+	tx.Invitation = NewInvitationClient(tx.config)
 	tx.Organization = NewOrganizationClient(tx.config)
 	tx.OrganizationMember = NewOrganizationMemberClient(tx.config)
 	tx.Project = NewProjectClient(tx.config)

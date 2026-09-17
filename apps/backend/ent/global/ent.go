@@ -18,6 +18,7 @@ import (
 	"playersense.dev/backend/ent/global/configversion"
 	"playersense.dev/backend/ent/global/environment"
 	"playersense.dev/backend/ent/global/featureflag"
+	"playersense.dev/backend/ent/global/invitation"
 	"playersense.dev/backend/ent/global/organization"
 	"playersense.dev/backend/ent/global/organizationmember"
 	"playersense.dev/backend/ent/global/project"
@@ -89,6 +90,7 @@ func checkColumn(t, c string) error {
 			configversion.Table:      configversion.ValidColumn,
 			environment.Table:        environment.ValidColumn,
 			featureflag.Table:        featureflag.ValidColumn,
+			invitation.Table:         invitation.ValidColumn,
 			organization.Table:       organization.ValidColumn,
 			organizationmember.Table: organizationmember.ValidColumn,
 			project.Table:            project.ValidColumn,

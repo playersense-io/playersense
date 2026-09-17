@@ -81,6 +81,18 @@ func (f FeatureFlagFunc) Mutate(ctx context.Context, m global.Mutation) (global.
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *global.FeatureFlagMutation", m)
 }
 
+// The InvitationFunc type is an adapter to allow the use of ordinary
+// function as Invitation mutator.
+type InvitationFunc func(context.Context, *global.InvitationMutation) (global.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f InvitationFunc) Mutate(ctx context.Context, m global.Mutation) (global.Value, error) {
+	if mv, ok := m.(*global.InvitationMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *global.InvitationMutation", m)
+}
+
 // The OrganizationFunc type is an adapter to allow the use of ordinary
 // function as Organization mutator.
 type OrganizationFunc func(context.Context, *global.OrganizationMutation) (global.Value, error)

@@ -81,6 +81,11 @@ func UserID(v int) predicate.OrganizationMember {
 	return predicate.OrganizationMember(sql.FieldEQ(FieldUserID, v))
 }
 
+// JoinedAt applies equality check predicate on the "joined_at" field. It's identical to JoinedAtEQ.
+func JoinedAt(v time.Time) predicate.OrganizationMember {
+	return predicate.OrganizationMember(sql.FieldEQ(FieldJoinedAt, v))
+}
+
 // UIDEQ applies the EQ predicate on the "uid" field.
 func UIDEQ(v uuid.UUID) predicate.OrganizationMember {
 	return predicate.OrganizationMember(sql.FieldEQ(FieldUID, v))
@@ -259,6 +264,46 @@ func UserIDIn(vs ...int) predicate.OrganizationMember {
 // UserIDNotIn applies the NotIn predicate on the "user_id" field.
 func UserIDNotIn(vs ...int) predicate.OrganizationMember {
 	return predicate.OrganizationMember(sql.FieldNotIn(FieldUserID, vs...))
+}
+
+// JoinedAtEQ applies the EQ predicate on the "joined_at" field.
+func JoinedAtEQ(v time.Time) predicate.OrganizationMember {
+	return predicate.OrganizationMember(sql.FieldEQ(FieldJoinedAt, v))
+}
+
+// JoinedAtNEQ applies the NEQ predicate on the "joined_at" field.
+func JoinedAtNEQ(v time.Time) predicate.OrganizationMember {
+	return predicate.OrganizationMember(sql.FieldNEQ(FieldJoinedAt, v))
+}
+
+// JoinedAtIn applies the In predicate on the "joined_at" field.
+func JoinedAtIn(vs ...time.Time) predicate.OrganizationMember {
+	return predicate.OrganizationMember(sql.FieldIn(FieldJoinedAt, vs...))
+}
+
+// JoinedAtNotIn applies the NotIn predicate on the "joined_at" field.
+func JoinedAtNotIn(vs ...time.Time) predicate.OrganizationMember {
+	return predicate.OrganizationMember(sql.FieldNotIn(FieldJoinedAt, vs...))
+}
+
+// JoinedAtGT applies the GT predicate on the "joined_at" field.
+func JoinedAtGT(v time.Time) predicate.OrganizationMember {
+	return predicate.OrganizationMember(sql.FieldGT(FieldJoinedAt, v))
+}
+
+// JoinedAtGTE applies the GTE predicate on the "joined_at" field.
+func JoinedAtGTE(v time.Time) predicate.OrganizationMember {
+	return predicate.OrganizationMember(sql.FieldGTE(FieldJoinedAt, v))
+}
+
+// JoinedAtLT applies the LT predicate on the "joined_at" field.
+func JoinedAtLT(v time.Time) predicate.OrganizationMember {
+	return predicate.OrganizationMember(sql.FieldLT(FieldJoinedAt, v))
+}
+
+// JoinedAtLTE applies the LTE predicate on the "joined_at" field.
+func JoinedAtLTE(v time.Time) predicate.OrganizationMember {
+	return predicate.OrganizationMember(sql.FieldLTE(FieldJoinedAt, v))
 }
 
 // HasOrganization applies the HasEdge predicate on the "organization" edge.

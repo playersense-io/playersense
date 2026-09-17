@@ -33,6 +33,8 @@ type OrganizationMember struct {
 	OrganizationID int `json:"organization_id,omitempty"`
 	// class=none
 	UserID int `json:"user_id,omitempty"`
+	// class=none
+	JoinedAt time.Time `json:"joined_at,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the OrganizationMemberQuery when eager-loading is set.
 	Edges        OrganizationMemberEdges `json:"edges"`
@@ -81,7 +83,7 @@ func (*OrganizationMember) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullInt64)
 		case organizationmember.FieldRole:
 			values[i] = new(sql.NullString)
-		case organizationmember.FieldCreatedAt, organizationmember.FieldUpdatedAt:
+		case organizationmember.FieldCreatedAt, organizationmember.FieldUpdatedAt, organizationmember.FieldJoinedAt:
 			values[i] = new(sql.NullTime)
 		case organizationmember.FieldUID:
 			values[i] = new(uuid.UUID)
@@ -141,6 +143,12 @@ func (_m *OrganizationMember) assignValues(columns []string, values []any) error
 				return fmt.Errorf("unexpected type %T for field user_id", values[i])
 			} else if value.Valid {
 				_m.UserID = int(value.Int64)
+			}
+		case organizationmember.FieldJoinedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field joined_at", values[i])
+			} else if value.Valid {
+				_m.JoinedAt = value.Time
 			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
@@ -205,6 +213,9 @@ func (_m *OrganizationMember) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("user_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.UserID))
+	builder.WriteString(", ")
+	builder.WriteString("joined_at=")
+	builder.WriteString(_m.JoinedAt.Format(time.ANSIC))
 	builder.WriteByte(')')
 	return builder.String()
 }

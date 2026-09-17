@@ -11,6 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"playersense.dev/backend/ent/global/invitation"
 	"playersense.dev/backend/ent/global/organizationmember"
 	"playersense.dev/backend/ent/global/predicate"
 	"playersense.dev/backend/ent/global/user"
@@ -49,6 +50,20 @@ func (_u *UserUpdate) SetNillableEmail(v *string) *UserUpdate {
 	return _u
 }
 
+// SetEmailVerified sets the "email_verified" field.
+func (_u *UserUpdate) SetEmailVerified(v bool) *UserUpdate {
+	_u.mutation.SetEmailVerified(v)
+	return _u
+}
+
+// SetNillableEmailVerified sets the "email_verified" field if the given value is not nil.
+func (_u *UserUpdate) SetNillableEmailVerified(v *bool) *UserUpdate {
+	if v != nil {
+		_u.SetEmailVerified(*v)
+	}
+	return _u
+}
+
 // SetName sets the "name" field.
 func (_u *UserUpdate) SetName(v string) *UserUpdate {
 	_u.mutation.SetName(v)
@@ -69,6 +84,80 @@ func (_u *UserUpdate) ClearName() *UserUpdate {
 	return _u
 }
 
+// SetAvatarURL sets the "avatar_url" field.
+func (_u *UserUpdate) SetAvatarURL(v string) *UserUpdate {
+	_u.mutation.SetAvatarURL(v)
+	return _u
+}
+
+// SetNillableAvatarURL sets the "avatar_url" field if the given value is not nil.
+func (_u *UserUpdate) SetNillableAvatarURL(v *string) *UserUpdate {
+	if v != nil {
+		_u.SetAvatarURL(*v)
+	}
+	return _u
+}
+
+// ClearAvatarURL clears the value of the "avatar_url" field.
+func (_u *UserUpdate) ClearAvatarURL() *UserUpdate {
+	_u.mutation.ClearAvatarURL()
+	return _u
+}
+
+// SetLastProvider sets the "last_provider" field.
+func (_u *UserUpdate) SetLastProvider(v string) *UserUpdate {
+	_u.mutation.SetLastProvider(v)
+	return _u
+}
+
+// SetNillableLastProvider sets the "last_provider" field if the given value is not nil.
+func (_u *UserUpdate) SetNillableLastProvider(v *string) *UserUpdate {
+	if v != nil {
+		_u.SetLastProvider(*v)
+	}
+	return _u
+}
+
+// ClearLastProvider clears the value of the "last_provider" field.
+func (_u *UserUpdate) ClearLastProvider() *UserUpdate {
+	_u.mutation.ClearLastProvider()
+	return _u
+}
+
+// SetLastSeenAt sets the "last_seen_at" field.
+func (_u *UserUpdate) SetLastSeenAt(v time.Time) *UserUpdate {
+	_u.mutation.SetLastSeenAt(v)
+	return _u
+}
+
+// SetNillableLastSeenAt sets the "last_seen_at" field if the given value is not nil.
+func (_u *UserUpdate) SetNillableLastSeenAt(v *time.Time) *UserUpdate {
+	if v != nil {
+		_u.SetLastSeenAt(*v)
+	}
+	return _u
+}
+
+// ClearLastSeenAt clears the value of the "last_seen_at" field.
+func (_u *UserUpdate) ClearLastSeenAt() *UserUpdate {
+	_u.mutation.ClearLastSeenAt()
+	return _u
+}
+
+// SetActive sets the "active" field.
+func (_u *UserUpdate) SetActive(v bool) *UserUpdate {
+	_u.mutation.SetActive(v)
+	return _u
+}
+
+// SetNillableActive sets the "active" field if the given value is not nil.
+func (_u *UserUpdate) SetNillableActive(v *bool) *UserUpdate {
+	if v != nil {
+		_u.SetActive(*v)
+	}
+	return _u
+}
+
 // AddMembershipIDs adds the "memberships" edge to the OrganizationMember entity by IDs.
 func (_u *UserUpdate) AddMembershipIDs(ids ...int) *UserUpdate {
 	_u.mutation.AddMembershipIDs(ids...)
@@ -82,6 +171,21 @@ func (_u *UserUpdate) AddMemberships(v ...*OrganizationMember) *UserUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.AddMembershipIDs(ids...)
+}
+
+// AddSentInvitationIDs adds the "sent_invitations" edge to the Invitation entity by IDs.
+func (_u *UserUpdate) AddSentInvitationIDs(ids ...int) *UserUpdate {
+	_u.mutation.AddSentInvitationIDs(ids...)
+	return _u
+}
+
+// AddSentInvitations adds the "sent_invitations" edges to the Invitation entity.
+func (_u *UserUpdate) AddSentInvitations(v ...*Invitation) *UserUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddSentInvitationIDs(ids...)
 }
 
 // Mutation returns the UserMutation object of the builder.
@@ -108,6 +212,27 @@ func (_u *UserUpdate) RemoveMemberships(v ...*OrganizationMember) *UserUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveMembershipIDs(ids...)
+}
+
+// ClearSentInvitations clears all "sent_invitations" edges to the Invitation entity.
+func (_u *UserUpdate) ClearSentInvitations() *UserUpdate {
+	_u.mutation.ClearSentInvitations()
+	return _u
+}
+
+// RemoveSentInvitationIDs removes the "sent_invitations" edge to Invitation entities by IDs.
+func (_u *UserUpdate) RemoveSentInvitationIDs(ids ...int) *UserUpdate {
+	_u.mutation.RemoveSentInvitationIDs(ids...)
+	return _u
+}
+
+// RemoveSentInvitations removes "sent_invitations" edges to Invitation entities.
+func (_u *UserUpdate) RemoveSentInvitations(v ...*Invitation) *UserUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveSentInvitationIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -158,6 +283,16 @@ func (_u *UserUpdate) check() error {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`global: validator failed for field "User.name": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.AvatarURL(); ok {
+		if err := user.AvatarURLValidator(v); err != nil {
+			return &ValidationError{Name: "avatar_url", err: fmt.Errorf(`global: validator failed for field "User.avatar_url": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.LastProvider(); ok {
+		if err := user.LastProviderValidator(v); err != nil {
+			return &ValidationError{Name: "last_provider", err: fmt.Errorf(`global: validator failed for field "User.last_provider": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -179,11 +314,35 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.Email(); ok {
 		_spec.SetField(user.FieldEmail, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.EmailVerified(); ok {
+		_spec.SetField(user.FieldEmailVerified, field.TypeBool, value)
+	}
 	if value, ok := _u.mutation.Name(); ok {
 		_spec.SetField(user.FieldName, field.TypeString, value)
 	}
 	if _u.mutation.NameCleared() {
 		_spec.ClearField(user.FieldName, field.TypeString)
+	}
+	if value, ok := _u.mutation.AvatarURL(); ok {
+		_spec.SetField(user.FieldAvatarURL, field.TypeString, value)
+	}
+	if _u.mutation.AvatarURLCleared() {
+		_spec.ClearField(user.FieldAvatarURL, field.TypeString)
+	}
+	if value, ok := _u.mutation.LastProvider(); ok {
+		_spec.SetField(user.FieldLastProvider, field.TypeString, value)
+	}
+	if _u.mutation.LastProviderCleared() {
+		_spec.ClearField(user.FieldLastProvider, field.TypeString)
+	}
+	if value, ok := _u.mutation.LastSeenAt(); ok {
+		_spec.SetField(user.FieldLastSeenAt, field.TypeTime, value)
+	}
+	if _u.mutation.LastSeenAtCleared() {
+		_spec.ClearField(user.FieldLastSeenAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.Active(); ok {
+		_spec.SetField(user.FieldActive, field.TypeBool, value)
 	}
 	if _u.mutation.MembershipsCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -223,6 +382,51 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(organizationmember.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.SentInvitationsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.SentInvitationsTable,
+			Columns: []string{user.SentInvitationsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(invitation.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedSentInvitationsIDs(); len(nodes) > 0 && !_u.mutation.SentInvitationsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.SentInvitationsTable,
+			Columns: []string{user.SentInvitationsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(invitation.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.SentInvitationsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.SentInvitationsTable,
+			Columns: []string{user.SentInvitationsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(invitation.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {
@@ -270,6 +474,20 @@ func (_u *UserUpdateOne) SetNillableEmail(v *string) *UserUpdateOne {
 	return _u
 }
 
+// SetEmailVerified sets the "email_verified" field.
+func (_u *UserUpdateOne) SetEmailVerified(v bool) *UserUpdateOne {
+	_u.mutation.SetEmailVerified(v)
+	return _u
+}
+
+// SetNillableEmailVerified sets the "email_verified" field if the given value is not nil.
+func (_u *UserUpdateOne) SetNillableEmailVerified(v *bool) *UserUpdateOne {
+	if v != nil {
+		_u.SetEmailVerified(*v)
+	}
+	return _u
+}
+
 // SetName sets the "name" field.
 func (_u *UserUpdateOne) SetName(v string) *UserUpdateOne {
 	_u.mutation.SetName(v)
@@ -290,6 +508,80 @@ func (_u *UserUpdateOne) ClearName() *UserUpdateOne {
 	return _u
 }
 
+// SetAvatarURL sets the "avatar_url" field.
+func (_u *UserUpdateOne) SetAvatarURL(v string) *UserUpdateOne {
+	_u.mutation.SetAvatarURL(v)
+	return _u
+}
+
+// SetNillableAvatarURL sets the "avatar_url" field if the given value is not nil.
+func (_u *UserUpdateOne) SetNillableAvatarURL(v *string) *UserUpdateOne {
+	if v != nil {
+		_u.SetAvatarURL(*v)
+	}
+	return _u
+}
+
+// ClearAvatarURL clears the value of the "avatar_url" field.
+func (_u *UserUpdateOne) ClearAvatarURL() *UserUpdateOne {
+	_u.mutation.ClearAvatarURL()
+	return _u
+}
+
+// SetLastProvider sets the "last_provider" field.
+func (_u *UserUpdateOne) SetLastProvider(v string) *UserUpdateOne {
+	_u.mutation.SetLastProvider(v)
+	return _u
+}
+
+// SetNillableLastProvider sets the "last_provider" field if the given value is not nil.
+func (_u *UserUpdateOne) SetNillableLastProvider(v *string) *UserUpdateOne {
+	if v != nil {
+		_u.SetLastProvider(*v)
+	}
+	return _u
+}
+
+// ClearLastProvider clears the value of the "last_provider" field.
+func (_u *UserUpdateOne) ClearLastProvider() *UserUpdateOne {
+	_u.mutation.ClearLastProvider()
+	return _u
+}
+
+// SetLastSeenAt sets the "last_seen_at" field.
+func (_u *UserUpdateOne) SetLastSeenAt(v time.Time) *UserUpdateOne {
+	_u.mutation.SetLastSeenAt(v)
+	return _u
+}
+
+// SetNillableLastSeenAt sets the "last_seen_at" field if the given value is not nil.
+func (_u *UserUpdateOne) SetNillableLastSeenAt(v *time.Time) *UserUpdateOne {
+	if v != nil {
+		_u.SetLastSeenAt(*v)
+	}
+	return _u
+}
+
+// ClearLastSeenAt clears the value of the "last_seen_at" field.
+func (_u *UserUpdateOne) ClearLastSeenAt() *UserUpdateOne {
+	_u.mutation.ClearLastSeenAt()
+	return _u
+}
+
+// SetActive sets the "active" field.
+func (_u *UserUpdateOne) SetActive(v bool) *UserUpdateOne {
+	_u.mutation.SetActive(v)
+	return _u
+}
+
+// SetNillableActive sets the "active" field if the given value is not nil.
+func (_u *UserUpdateOne) SetNillableActive(v *bool) *UserUpdateOne {
+	if v != nil {
+		_u.SetActive(*v)
+	}
+	return _u
+}
+
 // AddMembershipIDs adds the "memberships" edge to the OrganizationMember entity by IDs.
 func (_u *UserUpdateOne) AddMembershipIDs(ids ...int) *UserUpdateOne {
 	_u.mutation.AddMembershipIDs(ids...)
@@ -303,6 +595,21 @@ func (_u *UserUpdateOne) AddMemberships(v ...*OrganizationMember) *UserUpdateOne
 		ids[i] = v[i].ID
 	}
 	return _u.AddMembershipIDs(ids...)
+}
+
+// AddSentInvitationIDs adds the "sent_invitations" edge to the Invitation entity by IDs.
+func (_u *UserUpdateOne) AddSentInvitationIDs(ids ...int) *UserUpdateOne {
+	_u.mutation.AddSentInvitationIDs(ids...)
+	return _u
+}
+
+// AddSentInvitations adds the "sent_invitations" edges to the Invitation entity.
+func (_u *UserUpdateOne) AddSentInvitations(v ...*Invitation) *UserUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddSentInvitationIDs(ids...)
 }
 
 // Mutation returns the UserMutation object of the builder.
@@ -329,6 +636,27 @@ func (_u *UserUpdateOne) RemoveMemberships(v ...*OrganizationMember) *UserUpdate
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveMembershipIDs(ids...)
+}
+
+// ClearSentInvitations clears all "sent_invitations" edges to the Invitation entity.
+func (_u *UserUpdateOne) ClearSentInvitations() *UserUpdateOne {
+	_u.mutation.ClearSentInvitations()
+	return _u
+}
+
+// RemoveSentInvitationIDs removes the "sent_invitations" edge to Invitation entities by IDs.
+func (_u *UserUpdateOne) RemoveSentInvitationIDs(ids ...int) *UserUpdateOne {
+	_u.mutation.RemoveSentInvitationIDs(ids...)
+	return _u
+}
+
+// RemoveSentInvitations removes "sent_invitations" edges to Invitation entities.
+func (_u *UserUpdateOne) RemoveSentInvitations(v ...*Invitation) *UserUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveSentInvitationIDs(ids...)
 }
 
 // Where appends a list predicates to the UserUpdate builder.
@@ -392,6 +720,16 @@ func (_u *UserUpdateOne) check() error {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`global: validator failed for field "User.name": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.AvatarURL(); ok {
+		if err := user.AvatarURLValidator(v); err != nil {
+			return &ValidationError{Name: "avatar_url", err: fmt.Errorf(`global: validator failed for field "User.avatar_url": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.LastProvider(); ok {
+		if err := user.LastProviderValidator(v); err != nil {
+			return &ValidationError{Name: "last_provider", err: fmt.Errorf(`global: validator failed for field "User.last_provider": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -430,11 +768,35 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 	if value, ok := _u.mutation.Email(); ok {
 		_spec.SetField(user.FieldEmail, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.EmailVerified(); ok {
+		_spec.SetField(user.FieldEmailVerified, field.TypeBool, value)
+	}
 	if value, ok := _u.mutation.Name(); ok {
 		_spec.SetField(user.FieldName, field.TypeString, value)
 	}
 	if _u.mutation.NameCleared() {
 		_spec.ClearField(user.FieldName, field.TypeString)
+	}
+	if value, ok := _u.mutation.AvatarURL(); ok {
+		_spec.SetField(user.FieldAvatarURL, field.TypeString, value)
+	}
+	if _u.mutation.AvatarURLCleared() {
+		_spec.ClearField(user.FieldAvatarURL, field.TypeString)
+	}
+	if value, ok := _u.mutation.LastProvider(); ok {
+		_spec.SetField(user.FieldLastProvider, field.TypeString, value)
+	}
+	if _u.mutation.LastProviderCleared() {
+		_spec.ClearField(user.FieldLastProvider, field.TypeString)
+	}
+	if value, ok := _u.mutation.LastSeenAt(); ok {
+		_spec.SetField(user.FieldLastSeenAt, field.TypeTime, value)
+	}
+	if _u.mutation.LastSeenAtCleared() {
+		_spec.ClearField(user.FieldLastSeenAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.Active(); ok {
+		_spec.SetField(user.FieldActive, field.TypeBool, value)
 	}
 	if _u.mutation.MembershipsCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -474,6 +836,51 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(organizationmember.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.SentInvitationsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.SentInvitationsTable,
+			Columns: []string{user.SentInvitationsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(invitation.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedSentInvitationsIDs(); len(nodes) > 0 && !_u.mutation.SentInvitationsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.SentInvitationsTable,
+			Columns: []string{user.SentInvitationsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(invitation.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.SentInvitationsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.SentInvitationsTable,
+			Columns: []string{user.SentInvitationsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(invitation.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

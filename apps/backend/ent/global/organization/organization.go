@@ -25,10 +25,14 @@ const (
 	FieldName = "name"
 	// FieldSlug holds the string denoting the slug field in the database.
 	FieldSlug = "slug"
+	// FieldMemberLimit holds the string denoting the member_limit field in the database.
+	FieldMemberLimit = "member_limit"
 	// EdgeProjects holds the string denoting the projects edge name in mutations.
 	EdgeProjects = "projects"
 	// EdgeMembers holds the string denoting the members edge name in mutations.
 	EdgeMembers = "members"
+	// EdgeInvitations holds the string denoting the invitations edge name in mutations.
+	EdgeInvitations = "invitations"
 	// Table holds the table name of the organization in the database.
 	Table = "organizations"
 	// ProjectsTable is the table that holds the projects relation/edge.
@@ -45,6 +49,13 @@ const (
 	MembersInverseTable = "organization_members"
 	// MembersColumn is the table column denoting the members relation/edge.
 	MembersColumn = "organization_id"
+	// InvitationsTable is the table that holds the invitations relation/edge.
+	InvitationsTable = "invitations"
+	// InvitationsInverseTable is the table name for the Invitation entity.
+	// It exists in this package in order to avoid circular dependency with the "invitation" package.
+	InvitationsInverseTable = "invitations"
+	// InvitationsColumn is the table column denoting the invitations relation/edge.
+	InvitationsColumn = "organization_id"
 )
 
 // Columns holds all SQL columns for organization fields.
@@ -55,6 +66,7 @@ var Columns = []string{
 	FieldUpdatedAt,
 	FieldName,
 	FieldSlug,
+	FieldMemberLimit,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -80,6 +92,10 @@ var (
 	NameValidator func(string) error
 	// SlugValidator is a validator for the "slug" field. It is called by the builders before save.
 	SlugValidator func(string) error
+	// DefaultMemberLimit holds the default value on creation for the "member_limit" field.
+	DefaultMemberLimit int
+	// MemberLimitValidator is a validator for the "member_limit" field. It is called by the builders before save.
+	MemberLimitValidator func(int) error
 )
 
 // OrderOption defines the ordering options for the Organization queries.
@@ -115,6 +131,11 @@ func BySlug(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldSlug, opts...).ToFunc()
 }
 
+// ByMemberLimit orders the results by the member_limit field.
+func ByMemberLimit(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldMemberLimit, opts...).ToFunc()
+}
+
 // ByProjectsCount orders the results by projects count.
 func ByProjectsCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -142,6 +163,20 @@ func ByMembers(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newMembersStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
+
+// ByInvitationsCount orders the results by invitations count.
+func ByInvitationsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newInvitationsStep(), opts...)
+	}
+}
+
+// ByInvitations orders the results by invitations terms.
+func ByInvitations(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newInvitationsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newProjectsStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -154,5 +189,12 @@ func newMembersStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(MembersInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, MembersTable, MembersColumn),
+	)
+}
+func newInvitationsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(InvitationsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, InvitationsTable, InvitationsColumn),
 	)
 }

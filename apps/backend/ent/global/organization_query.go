@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"playersense.dev/backend/ent/global/invitation"
 	"playersense.dev/backend/ent/global/organization"
 	"playersense.dev/backend/ent/global/organizationmember"
 	"playersense.dev/backend/ent/global/predicate"
@@ -21,12 +22,13 @@ import (
 // OrganizationQuery is the builder for querying Organization entities.
 type OrganizationQuery struct {
 	config
-	ctx          *QueryContext
-	order        []organization.OrderOption
-	inters       []Interceptor
-	predicates   []predicate.Organization
-	withProjects *ProjectQuery
-	withMembers  *OrganizationMemberQuery
+	ctx             *QueryContext
+	order           []organization.OrderOption
+	inters          []Interceptor
+	predicates      []predicate.Organization
+	withProjects    *ProjectQuery
+	withMembers     *OrganizationMemberQuery
+	withInvitations *InvitationQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -100,6 +102,28 @@ func (_q *OrganizationQuery) QueryMembers() *OrganizationMemberQuery {
 			sqlgraph.From(organization.Table, organization.FieldID, selector),
 			sqlgraph.To(organizationmember.Table, organizationmember.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, organization.MembersTable, organization.MembersColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryInvitations chains the current query on the "invitations" edge.
+func (_q *OrganizationQuery) QueryInvitations() *InvitationQuery {
+	query := (&InvitationClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(organization.Table, organization.FieldID, selector),
+			sqlgraph.To(invitation.Table, invitation.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, organization.InvitationsTable, organization.InvitationsColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -294,13 +318,14 @@ func (_q *OrganizationQuery) Clone() *OrganizationQuery {
 		return nil
 	}
 	return &OrganizationQuery{
-		config:       _q.config,
-		ctx:          _q.ctx.Clone(),
-		order:        append([]organization.OrderOption{}, _q.order...),
-		inters:       append([]Interceptor{}, _q.inters...),
-		predicates:   append([]predicate.Organization{}, _q.predicates...),
-		withProjects: _q.withProjects.Clone(),
-		withMembers:  _q.withMembers.Clone(),
+		config:          _q.config,
+		ctx:             _q.ctx.Clone(),
+		order:           append([]organization.OrderOption{}, _q.order...),
+		inters:          append([]Interceptor{}, _q.inters...),
+		predicates:      append([]predicate.Organization{}, _q.predicates...),
+		withProjects:    _q.withProjects.Clone(),
+		withMembers:     _q.withMembers.Clone(),
+		withInvitations: _q.withInvitations.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -326,6 +351,17 @@ func (_q *OrganizationQuery) WithMembers(opts ...func(*OrganizationMemberQuery))
 		opt(query)
 	}
 	_q.withMembers = query
+	return _q
+}
+
+// WithInvitations tells the query-builder to eager-load the nodes that are connected to
+// the "invitations" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *OrganizationQuery) WithInvitations(opts ...func(*InvitationQuery)) *OrganizationQuery {
+	query := (&InvitationClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withInvitations = query
 	return _q
 }
 
@@ -407,9 +443,10 @@ func (_q *OrganizationQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]
 	var (
 		nodes       = []*Organization{}
 		_spec       = _q.querySpec()
-		loadedTypes = [2]bool{
+		loadedTypes = [3]bool{
 			_q.withProjects != nil,
 			_q.withMembers != nil,
+			_q.withInvitations != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -441,6 +478,13 @@ func (_q *OrganizationQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]
 		if err := _q.loadMembers(ctx, query, nodes,
 			func(n *Organization) { n.Edges.Members = []*OrganizationMember{} },
 			func(n *Organization, e *OrganizationMember) { n.Edges.Members = append(n.Edges.Members, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withInvitations; query != nil {
+		if err := _q.loadInvitations(ctx, query, nodes,
+			func(n *Organization) { n.Edges.Invitations = []*Invitation{} },
+			func(n *Organization, e *Invitation) { n.Edges.Invitations = append(n.Edges.Invitations, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -492,6 +536,36 @@ func (_q *OrganizationQuery) loadMembers(ctx context.Context, query *Organizatio
 	}
 	query.Where(predicate.OrganizationMember(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(organization.MembersColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.OrganizationID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "organization_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *OrganizationQuery) loadInvitations(ctx context.Context, query *InvitationQuery, nodes []*Organization, init func(*Organization), assign func(*Organization, *Invitation)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Organization)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(invitation.FieldOrganizationID)
+	}
+	query.Where(predicate.Invitation(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(organization.InvitationsColumn), fks...))
 	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {

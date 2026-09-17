@@ -11,6 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"playersense.dev/backend/ent/global/invitation"
 	"playersense.dev/backend/ent/global/organization"
 	"playersense.dev/backend/ent/global/organizationmember"
 	"playersense.dev/backend/ent/global/predicate"
@@ -64,6 +65,27 @@ func (_u *OrganizationUpdate) SetNillableSlug(v *string) *OrganizationUpdate {
 	return _u
 }
 
+// SetMemberLimit sets the "member_limit" field.
+func (_u *OrganizationUpdate) SetMemberLimit(v int) *OrganizationUpdate {
+	_u.mutation.ResetMemberLimit()
+	_u.mutation.SetMemberLimit(v)
+	return _u
+}
+
+// SetNillableMemberLimit sets the "member_limit" field if the given value is not nil.
+func (_u *OrganizationUpdate) SetNillableMemberLimit(v *int) *OrganizationUpdate {
+	if v != nil {
+		_u.SetMemberLimit(*v)
+	}
+	return _u
+}
+
+// AddMemberLimit adds value to the "member_limit" field.
+func (_u *OrganizationUpdate) AddMemberLimit(v int) *OrganizationUpdate {
+	_u.mutation.AddMemberLimit(v)
+	return _u
+}
+
 // AddProjectIDs adds the "projects" edge to the Project entity by IDs.
 func (_u *OrganizationUpdate) AddProjectIDs(ids ...int) *OrganizationUpdate {
 	_u.mutation.AddProjectIDs(ids...)
@@ -92,6 +114,21 @@ func (_u *OrganizationUpdate) AddMembers(v ...*OrganizationMember) *Organization
 		ids[i] = v[i].ID
 	}
 	return _u.AddMemberIDs(ids...)
+}
+
+// AddInvitationIDs adds the "invitations" edge to the Invitation entity by IDs.
+func (_u *OrganizationUpdate) AddInvitationIDs(ids ...int) *OrganizationUpdate {
+	_u.mutation.AddInvitationIDs(ids...)
+	return _u
+}
+
+// AddInvitations adds the "invitations" edges to the Invitation entity.
+func (_u *OrganizationUpdate) AddInvitations(v ...*Invitation) *OrganizationUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddInvitationIDs(ids...)
 }
 
 // Mutation returns the OrganizationMutation object of the builder.
@@ -139,6 +176,27 @@ func (_u *OrganizationUpdate) RemoveMembers(v ...*OrganizationMember) *Organizat
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveMemberIDs(ids...)
+}
+
+// ClearInvitations clears all "invitations" edges to the Invitation entity.
+func (_u *OrganizationUpdate) ClearInvitations() *OrganizationUpdate {
+	_u.mutation.ClearInvitations()
+	return _u
+}
+
+// RemoveInvitationIDs removes the "invitations" edge to Invitation entities by IDs.
+func (_u *OrganizationUpdate) RemoveInvitationIDs(ids ...int) *OrganizationUpdate {
+	_u.mutation.RemoveInvitationIDs(ids...)
+	return _u
+}
+
+// RemoveInvitations removes "invitations" edges to Invitation entities.
+func (_u *OrganizationUpdate) RemoveInvitations(v ...*Invitation) *OrganizationUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveInvitationIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -189,6 +247,11 @@ func (_u *OrganizationUpdate) check() error {
 			return &ValidationError{Name: "slug", err: fmt.Errorf(`global: validator failed for field "Organization.slug": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.MemberLimit(); ok {
+		if err := organization.MemberLimitValidator(v); err != nil {
+			return &ValidationError{Name: "member_limit", err: fmt.Errorf(`global: validator failed for field "Organization.member_limit": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -212,6 +275,12 @@ func (_u *OrganizationUpdate) sqlSave(ctx context.Context) (_node int, err error
 	}
 	if value, ok := _u.mutation.Slug(); ok {
 		_spec.SetField(organization.FieldSlug, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.MemberLimit(); ok {
+		_spec.SetField(organization.FieldMemberLimit, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedMemberLimit(); ok {
+		_spec.AddField(organization.FieldMemberLimit, field.TypeInt, value)
 	}
 	if _u.mutation.ProjectsCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -303,6 +372,51 @@ func (_u *OrganizationUpdate) sqlSave(ctx context.Context) (_node int, err error
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.InvitationsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   organization.InvitationsTable,
+			Columns: []string{organization.InvitationsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(invitation.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedInvitationsIDs(); len(nodes) > 0 && !_u.mutation.InvitationsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   organization.InvitationsTable,
+			Columns: []string{organization.InvitationsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(invitation.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.InvitationsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   organization.InvitationsTable,
+			Columns: []string{organization.InvitationsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(invitation.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{organization.Label}
@@ -357,6 +471,27 @@ func (_u *OrganizationUpdateOne) SetNillableSlug(v *string) *OrganizationUpdateO
 	return _u
 }
 
+// SetMemberLimit sets the "member_limit" field.
+func (_u *OrganizationUpdateOne) SetMemberLimit(v int) *OrganizationUpdateOne {
+	_u.mutation.ResetMemberLimit()
+	_u.mutation.SetMemberLimit(v)
+	return _u
+}
+
+// SetNillableMemberLimit sets the "member_limit" field if the given value is not nil.
+func (_u *OrganizationUpdateOne) SetNillableMemberLimit(v *int) *OrganizationUpdateOne {
+	if v != nil {
+		_u.SetMemberLimit(*v)
+	}
+	return _u
+}
+
+// AddMemberLimit adds value to the "member_limit" field.
+func (_u *OrganizationUpdateOne) AddMemberLimit(v int) *OrganizationUpdateOne {
+	_u.mutation.AddMemberLimit(v)
+	return _u
+}
+
 // AddProjectIDs adds the "projects" edge to the Project entity by IDs.
 func (_u *OrganizationUpdateOne) AddProjectIDs(ids ...int) *OrganizationUpdateOne {
 	_u.mutation.AddProjectIDs(ids...)
@@ -385,6 +520,21 @@ func (_u *OrganizationUpdateOne) AddMembers(v ...*OrganizationMember) *Organizat
 		ids[i] = v[i].ID
 	}
 	return _u.AddMemberIDs(ids...)
+}
+
+// AddInvitationIDs adds the "invitations" edge to the Invitation entity by IDs.
+func (_u *OrganizationUpdateOne) AddInvitationIDs(ids ...int) *OrganizationUpdateOne {
+	_u.mutation.AddInvitationIDs(ids...)
+	return _u
+}
+
+// AddInvitations adds the "invitations" edges to the Invitation entity.
+func (_u *OrganizationUpdateOne) AddInvitations(v ...*Invitation) *OrganizationUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddInvitationIDs(ids...)
 }
 
 // Mutation returns the OrganizationMutation object of the builder.
@@ -432,6 +582,27 @@ func (_u *OrganizationUpdateOne) RemoveMembers(v ...*OrganizationMember) *Organi
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveMemberIDs(ids...)
+}
+
+// ClearInvitations clears all "invitations" edges to the Invitation entity.
+func (_u *OrganizationUpdateOne) ClearInvitations() *OrganizationUpdateOne {
+	_u.mutation.ClearInvitations()
+	return _u
+}
+
+// RemoveInvitationIDs removes the "invitations" edge to Invitation entities by IDs.
+func (_u *OrganizationUpdateOne) RemoveInvitationIDs(ids ...int) *OrganizationUpdateOne {
+	_u.mutation.RemoveInvitationIDs(ids...)
+	return _u
+}
+
+// RemoveInvitations removes "invitations" edges to Invitation entities.
+func (_u *OrganizationUpdateOne) RemoveInvitations(v ...*Invitation) *OrganizationUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveInvitationIDs(ids...)
 }
 
 // Where appends a list predicates to the OrganizationUpdate builder.
@@ -495,6 +666,11 @@ func (_u *OrganizationUpdateOne) check() error {
 			return &ValidationError{Name: "slug", err: fmt.Errorf(`global: validator failed for field "Organization.slug": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.MemberLimit(); ok {
+		if err := organization.MemberLimitValidator(v); err != nil {
+			return &ValidationError{Name: "member_limit", err: fmt.Errorf(`global: validator failed for field "Organization.member_limit": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -535,6 +711,12 @@ func (_u *OrganizationUpdateOne) sqlSave(ctx context.Context) (_node *Organizati
 	}
 	if value, ok := _u.mutation.Slug(); ok {
 		_spec.SetField(organization.FieldSlug, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.MemberLimit(); ok {
+		_spec.SetField(organization.FieldMemberLimit, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedMemberLimit(); ok {
+		_spec.AddField(organization.FieldMemberLimit, field.TypeInt, value)
 	}
 	if _u.mutation.ProjectsCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -619,6 +801,51 @@ func (_u *OrganizationUpdateOne) sqlSave(ctx context.Context) (_node *Organizati
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(organizationmember.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.InvitationsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   organization.InvitationsTable,
+			Columns: []string{organization.InvitationsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(invitation.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedInvitationsIDs(); len(nodes) > 0 && !_u.mutation.InvitationsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   organization.InvitationsTable,
+			Columns: []string{organization.InvitationsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(invitation.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.InvitationsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   organization.InvitationsTable,
+			Columns: []string{organization.InvitationsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(invitation.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

@@ -12,6 +12,7 @@ import (
 	"playersense.dev/backend/ent/global/configversion"
 	"playersense.dev/backend/ent/global/environment"
 	"playersense.dev/backend/ent/global/featureflag"
+	"playersense.dev/backend/ent/global/invitation"
 	"playersense.dev/backend/ent/global/organization"
 	"playersense.dev/backend/ent/global/organizationmember"
 	"playersense.dev/backend/ent/global/project"
@@ -420,6 +421,61 @@ func init() {
 	featureflagDescArchived := featureflagFields[9].Descriptor()
 	// featureflag.DefaultArchived holds the default value on creation for the archived field.
 	featureflag.DefaultArchived = featureflagDescArchived.Default.(bool)
+	invitationMixin := globaltier.Invitation{}.Mixin()
+	invitationMixinFields0 := invitationMixin[0].Fields()
+	_ = invitationMixinFields0
+	invitationFields := globaltier.Invitation{}.Fields()
+	_ = invitationFields
+	// invitationDescUID is the schema descriptor for uid field.
+	invitationDescUID := invitationMixinFields0[1].Descriptor()
+	// invitation.DefaultUID holds the default value on creation for the uid field.
+	invitation.DefaultUID = invitationDescUID.Default.(func() uuid.UUID)
+	// invitationDescCreatedAt is the schema descriptor for created_at field.
+	invitationDescCreatedAt := invitationMixinFields0[2].Descriptor()
+	// invitation.DefaultCreatedAt holds the default value on creation for the created_at field.
+	invitation.DefaultCreatedAt = invitationDescCreatedAt.Default.(func() time.Time)
+	// invitationDescUpdatedAt is the schema descriptor for updated_at field.
+	invitationDescUpdatedAt := invitationMixinFields0[3].Descriptor()
+	// invitation.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	invitation.DefaultUpdatedAt = invitationDescUpdatedAt.Default.(func() time.Time)
+	// invitation.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	invitation.UpdateDefaultUpdatedAt = invitationDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// invitationDescEmail is the schema descriptor for email field.
+	invitationDescEmail := invitationFields[1].Descriptor()
+	// invitation.EmailValidator is a validator for the "email" field. It is called by the builders before save.
+	invitation.EmailValidator = func() func(string) error {
+		validators := invitationDescEmail.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(email string) error {
+			for _, fn := range fns {
+				if err := fn(email); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// invitationDescTokenDigest is the schema descriptor for token_digest field.
+	invitationDescTokenDigest := invitationFields[2].Descriptor()
+	// invitation.TokenDigestValidator is a validator for the "token_digest" field. It is called by the builders before save.
+	invitation.TokenDigestValidator = func() func(string) error {
+		validators := invitationDescTokenDigest.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(token_digest string) error {
+			for _, fn := range fns {
+				if err := fn(token_digest); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
 	organizationMixin := globaltier.Organization{}.Mixin()
 	organizationMixinFields0 := organizationMixin[0].Fields()
 	_ = organizationMixinFields0
@@ -475,6 +531,12 @@ func init() {
 			return nil
 		}
 	}()
+	// organizationDescMemberLimit is the schema descriptor for member_limit field.
+	organizationDescMemberLimit := organizationFields[2].Descriptor()
+	// organization.DefaultMemberLimit holds the default value on creation for the member_limit field.
+	organization.DefaultMemberLimit = organizationDescMemberLimit.Default.(int)
+	// organization.MemberLimitValidator is a validator for the "member_limit" field. It is called by the builders before save.
+	organization.MemberLimitValidator = organizationDescMemberLimit.Validators[0].(func(int) error)
 	organizationmemberMixin := globaltier.OrganizationMember{}.Mixin()
 	organizationmemberMixinFields0 := organizationmemberMixin[0].Fields()
 	_ = organizationmemberMixinFields0
@@ -494,6 +556,10 @@ func init() {
 	organizationmember.DefaultUpdatedAt = organizationmemberDescUpdatedAt.Default.(func() time.Time)
 	// organizationmember.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	organizationmember.UpdateDefaultUpdatedAt = organizationmemberDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// organizationmemberDescJoinedAt is the schema descriptor for joined_at field.
+	organizationmemberDescJoinedAt := organizationmemberFields[3].Descriptor()
+	// organizationmember.DefaultJoinedAt holds the default value on creation for the joined_at field.
+	organizationmember.DefaultJoinedAt = organizationmemberDescJoinedAt.Default.(func() time.Time)
 	projectMixin := globaltier.Project{}.Mixin()
 	projectMixinFields0 := projectMixin[0].Fields()
 	_ = projectMixinFields0
@@ -637,8 +703,26 @@ func init() {
 	user.DefaultUpdatedAt = userDescUpdatedAt.Default.(func() time.Time)
 	// user.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	user.UpdateDefaultUpdatedAt = userDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// userDescFirebaseUID is the schema descriptor for firebase_uid field.
+	userDescFirebaseUID := userFields[0].Descriptor()
+	// user.FirebaseUIDValidator is a validator for the "firebase_uid" field. It is called by the builders before save.
+	user.FirebaseUIDValidator = func() func(string) error {
+		validators := userDescFirebaseUID.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(firebase_uid string) error {
+			for _, fn := range fns {
+				if err := fn(firebase_uid); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
 	// userDescEmail is the schema descriptor for email field.
-	userDescEmail := userFields[0].Descriptor()
+	userDescEmail := userFields[1].Descriptor()
 	// user.EmailValidator is a validator for the "email" field. It is called by the builders before save.
 	user.EmailValidator = func() func(string) error {
 		validators := userDescEmail.Validators
@@ -655,8 +739,24 @@ func init() {
 			return nil
 		}
 	}()
+	// userDescEmailVerified is the schema descriptor for email_verified field.
+	userDescEmailVerified := userFields[2].Descriptor()
+	// user.DefaultEmailVerified holds the default value on creation for the email_verified field.
+	user.DefaultEmailVerified = userDescEmailVerified.Default.(bool)
 	// userDescName is the schema descriptor for name field.
-	userDescName := userFields[1].Descriptor()
+	userDescName := userFields[3].Descriptor()
 	// user.NameValidator is a validator for the "name" field. It is called by the builders before save.
 	user.NameValidator = userDescName.Validators[0].(func(string) error)
+	// userDescAvatarURL is the schema descriptor for avatar_url field.
+	userDescAvatarURL := userFields[4].Descriptor()
+	// user.AvatarURLValidator is a validator for the "avatar_url" field. It is called by the builders before save.
+	user.AvatarURLValidator = userDescAvatarURL.Validators[0].(func(string) error)
+	// userDescLastProvider is the schema descriptor for last_provider field.
+	userDescLastProvider := userFields[5].Descriptor()
+	// user.LastProviderValidator is a validator for the "last_provider" field. It is called by the builders before save.
+	user.LastProviderValidator = userDescLastProvider.Validators[0].(func(string) error)
+	// userDescActive is the schema descriptor for active field.
+	userDescActive := userFields[7].Descriptor()
+	// user.DefaultActive holds the default value on creation for the active field.
+	user.DefaultActive = userDescActive.Default.(bool)
 }

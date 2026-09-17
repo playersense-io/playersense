@@ -24,6 +24,9 @@ type Environment func(*sql.Selector)
 // FeatureFlag is the predicate function for featureflag builders.
 type FeatureFlag func(*sql.Selector)
 
+// Invitation is the predicate function for invitation builders.
+type Invitation func(*sql.Selector)
+
 // Organization is the predicate function for organization builders.
 type Organization func(*sql.Selector)
 

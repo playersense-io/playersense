@@ -83,6 +83,20 @@ func (_c *OrganizationMemberCreate) SetUserID(v int) *OrganizationMemberCreate {
 	return _c
 }
 
+// SetJoinedAt sets the "joined_at" field.
+func (_c *OrganizationMemberCreate) SetJoinedAt(v time.Time) *OrganizationMemberCreate {
+	_c.mutation.SetJoinedAt(v)
+	return _c
+}
+
+// SetNillableJoinedAt sets the "joined_at" field if the given value is not nil.
+func (_c *OrganizationMemberCreate) SetNillableJoinedAt(v *time.Time) *OrganizationMemberCreate {
+	if v != nil {
+		_c.SetJoinedAt(*v)
+	}
+	return _c
+}
+
 // SetID sets the "id" field.
 func (_c *OrganizationMemberCreate) SetID(v int) *OrganizationMemberCreate {
 	_c.mutation.SetID(v)
@@ -146,6 +160,10 @@ func (_c *OrganizationMemberCreate) defaults() {
 		v := organizationmember.DefaultUpdatedAt()
 		_c.mutation.SetUpdatedAt(v)
 	}
+	if _, ok := _c.mutation.JoinedAt(); !ok {
+		v := organizationmember.DefaultJoinedAt()
+		_c.mutation.SetJoinedAt(v)
+	}
 }
 
 // check runs all checks and user-defined validators on the builder.
@@ -172,6 +190,9 @@ func (_c *OrganizationMemberCreate) check() error {
 	}
 	if _, ok := _c.mutation.UserID(); !ok {
 		return &ValidationError{Name: "user_id", err: errors.New(`global: missing required field "OrganizationMember.user_id"`)}
+	}
+	if _, ok := _c.mutation.JoinedAt(); !ok {
+		return &ValidationError{Name: "joined_at", err: errors.New(`global: missing required field "OrganizationMember.joined_at"`)}
 	}
 	if len(_c.mutation.OrganizationIDs()) == 0 {
 		return &ValidationError{Name: "organization", err: errors.New(`global: missing required edge "OrganizationMember.organization"`)}
@@ -226,6 +247,10 @@ func (_c *OrganizationMemberCreate) createSpec() (*OrganizationMember, *sqlgraph
 	if value, ok := _c.mutation.Role(); ok {
 		_spec.SetField(organizationmember.FieldRole, field.TypeEnum, value)
 		_node.Role = value
+	}
+	if value, ok := _c.mutation.JoinedAt(); ok {
+		_spec.SetField(organizationmember.FieldJoinedAt, field.TypeTime, value)
+		_node.JoinedAt = value
 	}
 	if nodes := _c.mutation.OrganizationIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{

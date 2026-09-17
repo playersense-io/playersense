@@ -21,6 +21,7 @@ import (
 	"playersense.dev/backend/ent/global/configversion"
 	"playersense.dev/backend/ent/global/environment"
 	"playersense.dev/backend/ent/global/featureflag"
+	"playersense.dev/backend/ent/global/invitation"
 	"playersense.dev/backend/ent/global/organization"
 	"playersense.dev/backend/ent/global/organizationmember"
 	"playersense.dev/backend/ent/global/project"
@@ -45,6 +46,8 @@ type Client struct {
 	Environment *EnvironmentClient
 	// FeatureFlag is the client for interacting with the FeatureFlag builders.
 	FeatureFlag *FeatureFlagClient
+	// Invitation is the client for interacting with the Invitation builders.
+	Invitation *InvitationClient
 	// Organization is the client for interacting with the Organization builders.
 	Organization *OrganizationClient
 	// OrganizationMember is the client for interacting with the OrganizationMember builders.
@@ -72,6 +75,7 @@ func (c *Client) init() {
 	c.ConfigVersion = NewConfigVersionClient(c.config)
 	c.Environment = NewEnvironmentClient(c.config)
 	c.FeatureFlag = NewFeatureFlagClient(c.config)
+	c.Invitation = NewInvitationClient(c.config)
 	c.Organization = NewOrganizationClient(c.config)
 	c.OrganizationMember = NewOrganizationMemberClient(c.config)
 	c.Project = NewProjectClient(c.config)
@@ -175,6 +179,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		ConfigVersion:      NewConfigVersionClient(cfg),
 		Environment:        NewEnvironmentClient(cfg),
 		FeatureFlag:        NewFeatureFlagClient(cfg),
+		Invitation:         NewInvitationClient(cfg),
 		Organization:       NewOrganizationClient(cfg),
 		OrganizationMember: NewOrganizationMemberClient(cfg),
 		Project:            NewProjectClient(cfg),
@@ -205,6 +210,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		ConfigVersion:      NewConfigVersionClient(cfg),
 		Environment:        NewEnvironmentClient(cfg),
 		FeatureFlag:        NewFeatureFlagClient(cfg),
+		Invitation:         NewInvitationClient(cfg),
 		Organization:       NewOrganizationClient(cfg),
 		OrganizationMember: NewOrganizationMemberClient(cfg),
 		Project:            NewProjectClient(cfg),
@@ -240,7 +246,8 @@ func (c *Client) Close() error {
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.APIKey, c.Campaign, c.Cell, c.ConfigVersion, c.Environment, c.FeatureFlag,
-		c.Organization, c.OrganizationMember, c.Project, c.Segment, c.User,
+		c.Invitation, c.Organization, c.OrganizationMember, c.Project, c.Segment,
+		c.User,
 	} {
 		n.Use(hooks...)
 	}
@@ -251,7 +258,8 @@ func (c *Client) Use(hooks ...Hook) {
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.APIKey, c.Campaign, c.Cell, c.ConfigVersion, c.Environment, c.FeatureFlag,
-		c.Organization, c.OrganizationMember, c.Project, c.Segment, c.User,
+		c.Invitation, c.Organization, c.OrganizationMember, c.Project, c.Segment,
+		c.User,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -272,6 +280,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Environment.mutate(ctx, m)
 	case *FeatureFlagMutation:
 		return c.FeatureFlag.mutate(ctx, m)
+	case *InvitationMutation:
+		return c.Invitation.mutate(ctx, m)
 	case *OrganizationMutation:
 		return c.Organization.mutate(ctx, m)
 	case *OrganizationMemberMutation:
@@ -1229,6 +1239,171 @@ func (c *FeatureFlagClient) mutate(ctx context.Context, m *FeatureFlagMutation) 
 	}
 }
 
+// InvitationClient is a client for the Invitation schema.
+type InvitationClient struct {
+	config
+}
+
+// NewInvitationClient returns a client for the Invitation from the given config.
+func NewInvitationClient(c config) *InvitationClient {
+	return &InvitationClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `invitation.Hooks(f(g(h())))`.
+func (c *InvitationClient) Use(hooks ...Hook) {
+	c.hooks.Invitation = append(c.hooks.Invitation, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `invitation.Intercept(f(g(h())))`.
+func (c *InvitationClient) Intercept(interceptors ...Interceptor) {
+	c.inters.Invitation = append(c.inters.Invitation, interceptors...)
+}
+
+// Create returns a builder for creating a Invitation entity.
+func (c *InvitationClient) Create() *InvitationCreate {
+	mutation := newInvitationMutation(c.config, OpCreate)
+	return &InvitationCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Invitation entities.
+func (c *InvitationClient) CreateBulk(builders ...*InvitationCreate) *InvitationCreateBulk {
+	return &InvitationCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *InvitationClient) MapCreateBulk(slice any, setFunc func(*InvitationCreate, int)) *InvitationCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &InvitationCreateBulk{err: fmt.Errorf("calling to InvitationClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*InvitationCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &InvitationCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Invitation.
+func (c *InvitationClient) Update() *InvitationUpdate {
+	mutation := newInvitationMutation(c.config, OpUpdate)
+	return &InvitationUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *InvitationClient) UpdateOne(_m *Invitation) *InvitationUpdateOne {
+	mutation := newInvitationMutation(c.config, OpUpdateOne, withInvitation(_m))
+	return &InvitationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *InvitationClient) UpdateOneID(id int) *InvitationUpdateOne {
+	mutation := newInvitationMutation(c.config, OpUpdateOne, withInvitationID(id))
+	return &InvitationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Invitation.
+func (c *InvitationClient) Delete() *InvitationDelete {
+	mutation := newInvitationMutation(c.config, OpDelete)
+	return &InvitationDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *InvitationClient) DeleteOne(_m *Invitation) *InvitationDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *InvitationClient) DeleteOneID(id int) *InvitationDeleteOne {
+	builder := c.Delete().Where(invitation.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &InvitationDeleteOne{builder}
+}
+
+// Query returns a query builder for Invitation.
+func (c *InvitationClient) Query() *InvitationQuery {
+	return &InvitationQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeInvitation},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a Invitation entity by its id.
+func (c *InvitationClient) Get(ctx context.Context, id int) (*Invitation, error) {
+	return c.Query().Where(invitation.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *InvitationClient) GetX(ctx context.Context, id int) *Invitation {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryOrganization queries the organization edge of a Invitation.
+func (c *InvitationClient) QueryOrganization(_m *Invitation) *OrganizationQuery {
+	query := (&OrganizationClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(invitation.Table, invitation.FieldID, id),
+			sqlgraph.To(organization.Table, organization.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, invitation.OrganizationTable, invitation.OrganizationColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryInvitedBy queries the invited_by edge of a Invitation.
+func (c *InvitationClient) QueryInvitedBy(_m *Invitation) *UserQuery {
+	query := (&UserClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(invitation.Table, invitation.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, invitation.InvitedByTable, invitation.InvitedByColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *InvitationClient) Hooks() []Hook {
+	return c.hooks.Invitation
+}
+
+// Interceptors returns the client interceptors.
+func (c *InvitationClient) Interceptors() []Interceptor {
+	return c.inters.Invitation
+}
+
+func (c *InvitationClient) mutate(ctx context.Context, m *InvitationMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&InvitationCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&InvitationUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&InvitationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&InvitationDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("global: unknown Invitation mutation op: %q", m.Op())
+	}
+}
+
 // OrganizationClient is a client for the Organization schema.
 type OrganizationClient struct {
 	config
@@ -1362,6 +1537,22 @@ func (c *OrganizationClient) QueryMembers(_m *Organization) *OrganizationMemberQ
 			sqlgraph.From(organization.Table, organization.FieldID, id),
 			sqlgraph.To(organizationmember.Table, organizationmember.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, organization.MembersTable, organization.MembersColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryInvitations queries the invitations edge of a Organization.
+func (c *OrganizationClient) QueryInvitations(_m *Organization) *InvitationQuery {
+	query := (&InvitationClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(organization.Table, organization.FieldID, id),
+			sqlgraph.To(invitation.Table, invitation.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, organization.InvitationsTable, organization.InvitationsColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -2077,6 +2268,22 @@ func (c *UserClient) QueryMemberships(_m *User) *OrganizationMemberQuery {
 	return query
 }
 
+// QuerySentInvitations queries the sent_invitations edge of a User.
+func (c *UserClient) QuerySentInvitations(_m *User) *InvitationQuery {
+	query := (&InvitationClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(invitation.Table, invitation.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.SentInvitationsTable, user.SentInvitationsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *UserClient) Hooks() []Hook {
 	return c.hooks.User
@@ -2105,11 +2312,11 @@ func (c *UserClient) mutate(ctx context.Context, m *UserMutation) (Value, error)
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		APIKey, Campaign, Cell, ConfigVersion, Environment, FeatureFlag, Organization,
-		OrganizationMember, Project, Segment, User []ent.Hook
+		APIKey, Campaign, Cell, ConfigVersion, Environment, FeatureFlag, Invitation,
+		Organization, OrganizationMember, Project, Segment, User []ent.Hook
 	}
 	inters struct {
-		APIKey, Campaign, Cell, ConfigVersion, Environment, FeatureFlag, Organization,
-		OrganizationMember, Project, Segment, User []ent.Interceptor
+		APIKey, Campaign, Cell, ConfigVersion, Environment, FeatureFlag, Invitation,
+		Organization, OrganizationMember, Project, Segment, User []ent.Interceptor
 	}
 )

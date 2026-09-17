@@ -26,9 +26,21 @@ type User struct {
 	// class=none
 	UpdatedAt time.Time `json:"updated_at,omitempty"`
 	// class=none
+	FirebaseUID string `json:"firebase_uid,omitempty"`
+	// class=none
 	Email string `json:"email,omitempty"`
 	// class=none
+	EmailVerified bool `json:"email_verified,omitempty"`
+	// class=none
 	Name string `json:"name,omitempty"`
+	// class=none
+	AvatarURL string `json:"avatar_url,omitempty"`
+	// class=none
+	LastProvider string `json:"last_provider,omitempty"`
+	// class=none
+	LastSeenAt *time.Time `json:"last_seen_at,omitempty"`
+	// class=none
+	Active bool `json:"active,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the UserQuery when eager-loading is set.
 	Edges        UserEdges `json:"edges"`
@@ -39,9 +51,11 @@ type User struct {
 type UserEdges struct {
 	// Memberships holds the value of the memberships edge.
 	Memberships []*OrganizationMember `json:"memberships,omitempty"`
+	// SentInvitations holds the value of the sent_invitations edge.
+	SentInvitations []*Invitation `json:"sent_invitations,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [1]bool
+	loadedTypes [2]bool
 }
 
 // MembershipsOrErr returns the Memberships value or an error if the edge
@@ -53,16 +67,27 @@ func (e UserEdges) MembershipsOrErr() ([]*OrganizationMember, error) {
 	return nil, &NotLoadedError{edge: "memberships"}
 }
 
+// SentInvitationsOrErr returns the SentInvitations value or an error if the edge
+// was not loaded in eager-loading.
+func (e UserEdges) SentInvitationsOrErr() ([]*Invitation, error) {
+	if e.loadedTypes[1] {
+		return e.SentInvitations, nil
+	}
+	return nil, &NotLoadedError{edge: "sent_invitations"}
+}
+
 // scanValues returns the types for scanning values from sql.Rows.
 func (*User) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case user.FieldEmailVerified, user.FieldActive:
+			values[i] = new(sql.NullBool)
 		case user.FieldID:
 			values[i] = new(sql.NullInt64)
-		case user.FieldEmail, user.FieldName:
+		case user.FieldFirebaseUID, user.FieldEmail, user.FieldName, user.FieldAvatarURL, user.FieldLastProvider:
 			values[i] = new(sql.NullString)
-		case user.FieldCreatedAt, user.FieldUpdatedAt:
+		case user.FieldCreatedAt, user.FieldUpdatedAt, user.FieldLastSeenAt:
 			values[i] = new(sql.NullTime)
 		case user.FieldUID:
 			values[i] = new(uuid.UUID)
@@ -105,17 +130,54 @@ func (_m *User) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.UpdatedAt = value.Time
 			}
+		case user.FieldFirebaseUID:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field firebase_uid", values[i])
+			} else if value.Valid {
+				_m.FirebaseUID = value.String
+			}
 		case user.FieldEmail:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field email", values[i])
 			} else if value.Valid {
 				_m.Email = value.String
 			}
+		case user.FieldEmailVerified:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field email_verified", values[i])
+			} else if value.Valid {
+				_m.EmailVerified = value.Bool
+			}
 		case user.FieldName:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field name", values[i])
 			} else if value.Valid {
 				_m.Name = value.String
+			}
+		case user.FieldAvatarURL:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field avatar_url", values[i])
+			} else if value.Valid {
+				_m.AvatarURL = value.String
+			}
+		case user.FieldLastProvider:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field last_provider", values[i])
+			} else if value.Valid {
+				_m.LastProvider = value.String
+			}
+		case user.FieldLastSeenAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field last_seen_at", values[i])
+			} else if value.Valid {
+				_m.LastSeenAt = new(time.Time)
+				*_m.LastSeenAt = value.Time
+			}
+		case user.FieldActive:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field active", values[i])
+			} else if value.Valid {
+				_m.Active = value.Bool
 			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
@@ -133,6 +195,11 @@ func (_m *User) Value(name string) (ent.Value, error) {
 // QueryMemberships queries the "memberships" edge of the User entity.
 func (_m *User) QueryMemberships() *OrganizationMemberQuery {
 	return NewUserClient(_m.config).QueryMemberships(_m)
+}
+
+// QuerySentInvitations queries the "sent_invitations" edge of the User entity.
+func (_m *User) QuerySentInvitations() *InvitationQuery {
+	return NewUserClient(_m.config).QuerySentInvitations(_m)
 }
 
 // Update returns a builder for updating this User.
@@ -167,11 +234,31 @@ func (_m *User) String() string {
 	builder.WriteString("updated_at=")
 	builder.WriteString(_m.UpdatedAt.Format(time.ANSIC))
 	builder.WriteString(", ")
+	builder.WriteString("firebase_uid=")
+	builder.WriteString(_m.FirebaseUID)
+	builder.WriteString(", ")
 	builder.WriteString("email=")
 	builder.WriteString(_m.Email)
 	builder.WriteString(", ")
+	builder.WriteString("email_verified=")
+	builder.WriteString(fmt.Sprintf("%v", _m.EmailVerified))
+	builder.WriteString(", ")
 	builder.WriteString("name=")
 	builder.WriteString(_m.Name)
+	builder.WriteString(", ")
+	builder.WriteString("avatar_url=")
+	builder.WriteString(_m.AvatarURL)
+	builder.WriteString(", ")
+	builder.WriteString("last_provider=")
+	builder.WriteString(_m.LastProvider)
+	builder.WriteString(", ")
+	if v := _m.LastSeenAt; v != nil {
+		builder.WriteString("last_seen_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("active=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Active))
 	builder.WriteByte(')')
 	return builder.String()
 }

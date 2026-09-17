@@ -81,6 +81,11 @@ func Slug(v string) predicate.Organization {
 	return predicate.Organization(sql.FieldEQ(FieldSlug, v))
 }
 
+// MemberLimit applies equality check predicate on the "member_limit" field. It's identical to MemberLimitEQ.
+func MemberLimit(v int) predicate.Organization {
+	return predicate.Organization(sql.FieldEQ(FieldMemberLimit, v))
+}
+
 // UIDEQ applies the EQ predicate on the "uid" field.
 func UIDEQ(v uuid.UUID) predicate.Organization {
 	return predicate.Organization(sql.FieldEQ(FieldUID, v))
@@ -331,6 +336,46 @@ func SlugContainsFold(v string) predicate.Organization {
 	return predicate.Organization(sql.FieldContainsFold(FieldSlug, v))
 }
 
+// MemberLimitEQ applies the EQ predicate on the "member_limit" field.
+func MemberLimitEQ(v int) predicate.Organization {
+	return predicate.Organization(sql.FieldEQ(FieldMemberLimit, v))
+}
+
+// MemberLimitNEQ applies the NEQ predicate on the "member_limit" field.
+func MemberLimitNEQ(v int) predicate.Organization {
+	return predicate.Organization(sql.FieldNEQ(FieldMemberLimit, v))
+}
+
+// MemberLimitIn applies the In predicate on the "member_limit" field.
+func MemberLimitIn(vs ...int) predicate.Organization {
+	return predicate.Organization(sql.FieldIn(FieldMemberLimit, vs...))
+}
+
+// MemberLimitNotIn applies the NotIn predicate on the "member_limit" field.
+func MemberLimitNotIn(vs ...int) predicate.Organization {
+	return predicate.Organization(sql.FieldNotIn(FieldMemberLimit, vs...))
+}
+
+// MemberLimitGT applies the GT predicate on the "member_limit" field.
+func MemberLimitGT(v int) predicate.Organization {
+	return predicate.Organization(sql.FieldGT(FieldMemberLimit, v))
+}
+
+// MemberLimitGTE applies the GTE predicate on the "member_limit" field.
+func MemberLimitGTE(v int) predicate.Organization {
+	return predicate.Organization(sql.FieldGTE(FieldMemberLimit, v))
+}
+
+// MemberLimitLT applies the LT predicate on the "member_limit" field.
+func MemberLimitLT(v int) predicate.Organization {
+	return predicate.Organization(sql.FieldLT(FieldMemberLimit, v))
+}
+
+// MemberLimitLTE applies the LTE predicate on the "member_limit" field.
+func MemberLimitLTE(v int) predicate.Organization {
+	return predicate.Organization(sql.FieldLTE(FieldMemberLimit, v))
+}
+
 // HasProjects applies the HasEdge predicate on the "projects" edge.
 func HasProjects() predicate.Organization {
 	return predicate.Organization(func(s *sql.Selector) {
@@ -369,6 +414,29 @@ func HasMembers() predicate.Organization {
 func HasMembersWith(preds ...predicate.OrganizationMember) predicate.Organization {
 	return predicate.Organization(func(s *sql.Selector) {
 		step := newMembersStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasInvitations applies the HasEdge predicate on the "invitations" edge.
+func HasInvitations() predicate.Organization {
+	return predicate.Organization(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, InvitationsTable, InvitationsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasInvitationsWith applies the HasEdge predicate on the "invitations" edge with a given conditions (other predicates).
+func HasInvitationsWith(preds ...predicate.Invitation) predicate.Organization {
+	return predicate.Organization(func(s *sql.Selector) {
+		step := newInvitationsStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

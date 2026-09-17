@@ -21,12 +21,26 @@ const (
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
 	FieldUpdatedAt = "updated_at"
+	// FieldFirebaseUID holds the string denoting the firebase_uid field in the database.
+	FieldFirebaseUID = "firebase_uid"
 	// FieldEmail holds the string denoting the email field in the database.
 	FieldEmail = "email"
+	// FieldEmailVerified holds the string denoting the email_verified field in the database.
+	FieldEmailVerified = "email_verified"
 	// FieldName holds the string denoting the name field in the database.
 	FieldName = "name"
+	// FieldAvatarURL holds the string denoting the avatar_url field in the database.
+	FieldAvatarURL = "avatar_url"
+	// FieldLastProvider holds the string denoting the last_provider field in the database.
+	FieldLastProvider = "last_provider"
+	// FieldLastSeenAt holds the string denoting the last_seen_at field in the database.
+	FieldLastSeenAt = "last_seen_at"
+	// FieldActive holds the string denoting the active field in the database.
+	FieldActive = "active"
 	// EdgeMemberships holds the string denoting the memberships edge name in mutations.
 	EdgeMemberships = "memberships"
+	// EdgeSentInvitations holds the string denoting the sent_invitations edge name in mutations.
+	EdgeSentInvitations = "sent_invitations"
 	// Table holds the table name of the user in the database.
 	Table = "users"
 	// MembershipsTable is the table that holds the memberships relation/edge.
@@ -36,6 +50,13 @@ const (
 	MembershipsInverseTable = "organization_members"
 	// MembershipsColumn is the table column denoting the memberships relation/edge.
 	MembershipsColumn = "user_id"
+	// SentInvitationsTable is the table that holds the sent_invitations relation/edge.
+	SentInvitationsTable = "invitations"
+	// SentInvitationsInverseTable is the table name for the Invitation entity.
+	// It exists in this package in order to avoid circular dependency with the "invitation" package.
+	SentInvitationsInverseTable = "invitations"
+	// SentInvitationsColumn is the table column denoting the sent_invitations relation/edge.
+	SentInvitationsColumn = "invited_by_id"
 )
 
 // Columns holds all SQL columns for user fields.
@@ -44,8 +65,14 @@ var Columns = []string{
 	FieldUID,
 	FieldCreatedAt,
 	FieldUpdatedAt,
+	FieldFirebaseUID,
 	FieldEmail,
+	FieldEmailVerified,
 	FieldName,
+	FieldAvatarURL,
+	FieldLastProvider,
+	FieldLastSeenAt,
+	FieldActive,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -67,10 +94,20 @@ var (
 	DefaultUpdatedAt func() time.Time
 	// UpdateDefaultUpdatedAt holds the default value on update for the "updated_at" field.
 	UpdateDefaultUpdatedAt func() time.Time
+	// FirebaseUIDValidator is a validator for the "firebase_uid" field. It is called by the builders before save.
+	FirebaseUIDValidator func(string) error
 	// EmailValidator is a validator for the "email" field. It is called by the builders before save.
 	EmailValidator func(string) error
+	// DefaultEmailVerified holds the default value on creation for the "email_verified" field.
+	DefaultEmailVerified bool
 	// NameValidator is a validator for the "name" field. It is called by the builders before save.
 	NameValidator func(string) error
+	// AvatarURLValidator is a validator for the "avatar_url" field. It is called by the builders before save.
+	AvatarURLValidator func(string) error
+	// LastProviderValidator is a validator for the "last_provider" field. It is called by the builders before save.
+	LastProviderValidator func(string) error
+	// DefaultActive holds the default value on creation for the "active" field.
+	DefaultActive bool
 )
 
 // OrderOption defines the ordering options for the User queries.
@@ -96,14 +133,44 @@ func ByUpdatedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldUpdatedAt, opts...).ToFunc()
 }
 
+// ByFirebaseUID orders the results by the firebase_uid field.
+func ByFirebaseUID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldFirebaseUID, opts...).ToFunc()
+}
+
 // ByEmail orders the results by the email field.
 func ByEmail(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldEmail, opts...).ToFunc()
 }
 
+// ByEmailVerified orders the results by the email_verified field.
+func ByEmailVerified(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldEmailVerified, opts...).ToFunc()
+}
+
 // ByName orders the results by the name field.
 func ByName(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldName, opts...).ToFunc()
+}
+
+// ByAvatarURL orders the results by the avatar_url field.
+func ByAvatarURL(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAvatarURL, opts...).ToFunc()
+}
+
+// ByLastProvider orders the results by the last_provider field.
+func ByLastProvider(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLastProvider, opts...).ToFunc()
+}
+
+// ByLastSeenAt orders the results by the last_seen_at field.
+func ByLastSeenAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLastSeenAt, opts...).ToFunc()
+}
+
+// ByActive orders the results by the active field.
+func ByActive(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldActive, opts...).ToFunc()
 }
 
 // ByMembershipsCount orders the results by memberships count.
@@ -119,10 +186,31 @@ func ByMemberships(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newMembershipsStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
+
+// BySentInvitationsCount orders the results by sent_invitations count.
+func BySentInvitationsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newSentInvitationsStep(), opts...)
+	}
+}
+
+// BySentInvitations orders the results by sent_invitations terms.
+func BySentInvitations(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newSentInvitationsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newMembershipsStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(MembershipsInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, MembershipsTable, MembershipsColumn),
+	)
+}
+func newSentInvitationsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(SentInvitationsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, SentInvitationsTable, SentInvitationsColumn),
 	)
 }

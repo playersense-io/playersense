@@ -11,6 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
+	"playersense.dev/backend/ent/global/invitation"
 	"playersense.dev/backend/ent/global/organization"
 	"playersense.dev/backend/ent/global/organizationmember"
 	"playersense.dev/backend/ent/global/project"
@@ -77,6 +78,20 @@ func (_c *OrganizationCreate) SetSlug(v string) *OrganizationCreate {
 	return _c
 }
 
+// SetMemberLimit sets the "member_limit" field.
+func (_c *OrganizationCreate) SetMemberLimit(v int) *OrganizationCreate {
+	_c.mutation.SetMemberLimit(v)
+	return _c
+}
+
+// SetNillableMemberLimit sets the "member_limit" field if the given value is not nil.
+func (_c *OrganizationCreate) SetNillableMemberLimit(v *int) *OrganizationCreate {
+	if v != nil {
+		_c.SetMemberLimit(*v)
+	}
+	return _c
+}
+
 // SetID sets the "id" field.
 func (_c *OrganizationCreate) SetID(v int) *OrganizationCreate {
 	_c.mutation.SetID(v)
@@ -111,6 +126,21 @@ func (_c *OrganizationCreate) AddMembers(v ...*OrganizationMember) *Organization
 		ids[i] = v[i].ID
 	}
 	return _c.AddMemberIDs(ids...)
+}
+
+// AddInvitationIDs adds the "invitations" edge to the Invitation entity by IDs.
+func (_c *OrganizationCreate) AddInvitationIDs(ids ...int) *OrganizationCreate {
+	_c.mutation.AddInvitationIDs(ids...)
+	return _c
+}
+
+// AddInvitations adds the "invitations" edges to the Invitation entity.
+func (_c *OrganizationCreate) AddInvitations(v ...*Invitation) *OrganizationCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddInvitationIDs(ids...)
 }
 
 // Mutation returns the OrganizationMutation object of the builder.
@@ -160,6 +190,10 @@ func (_c *OrganizationCreate) defaults() {
 		v := organization.DefaultUpdatedAt()
 		_c.mutation.SetUpdatedAt(v)
 	}
+	if _, ok := _c.mutation.MemberLimit(); !ok {
+		v := organization.DefaultMemberLimit
+		_c.mutation.SetMemberLimit(v)
+	}
 }
 
 // check runs all checks and user-defined validators on the builder.
@@ -187,6 +221,14 @@ func (_c *OrganizationCreate) check() error {
 	if v, ok := _c.mutation.Slug(); ok {
 		if err := organization.SlugValidator(v); err != nil {
 			return &ValidationError{Name: "slug", err: fmt.Errorf(`global: validator failed for field "Organization.slug": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.MemberLimit(); !ok {
+		return &ValidationError{Name: "member_limit", err: errors.New(`global: missing required field "Organization.member_limit"`)}
+	}
+	if v, ok := _c.mutation.MemberLimit(); ok {
+		if err := organization.MemberLimitValidator(v); err != nil {
+			return &ValidationError{Name: "member_limit", err: fmt.Errorf(`global: validator failed for field "Organization.member_limit": %w`, err)}
 		}
 	}
 	return nil
@@ -241,6 +283,10 @@ func (_c *OrganizationCreate) createSpec() (*Organization, *sqlgraph.CreateSpec)
 		_spec.SetField(organization.FieldSlug, field.TypeString, value)
 		_node.Slug = value
 	}
+	if value, ok := _c.mutation.MemberLimit(); ok {
+		_spec.SetField(organization.FieldMemberLimit, field.TypeInt, value)
+		_node.MemberLimit = value
+	}
 	if nodes := _c.mutation.ProjectsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
@@ -266,6 +312,22 @@ func (_c *OrganizationCreate) createSpec() (*Organization, *sqlgraph.CreateSpec)
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(organizationmember.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.InvitationsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   organization.InvitationsTable,
+			Columns: []string{organization.InvitationsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(invitation.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

@@ -11,6 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
+	"playersense.dev/backend/ent/global/invitation"
 	"playersense.dev/backend/ent/global/organizationmember"
 	"playersense.dev/backend/ent/global/user"
 )
@@ -64,9 +65,29 @@ func (_c *UserCreate) SetNillableUpdatedAt(v *time.Time) *UserCreate {
 	return _c
 }
 
+// SetFirebaseUID sets the "firebase_uid" field.
+func (_c *UserCreate) SetFirebaseUID(v string) *UserCreate {
+	_c.mutation.SetFirebaseUID(v)
+	return _c
+}
+
 // SetEmail sets the "email" field.
 func (_c *UserCreate) SetEmail(v string) *UserCreate {
 	_c.mutation.SetEmail(v)
+	return _c
+}
+
+// SetEmailVerified sets the "email_verified" field.
+func (_c *UserCreate) SetEmailVerified(v bool) *UserCreate {
+	_c.mutation.SetEmailVerified(v)
+	return _c
+}
+
+// SetNillableEmailVerified sets the "email_verified" field if the given value is not nil.
+func (_c *UserCreate) SetNillableEmailVerified(v *bool) *UserCreate {
+	if v != nil {
+		_c.SetEmailVerified(*v)
+	}
 	return _c
 }
 
@@ -80,6 +101,62 @@ func (_c *UserCreate) SetName(v string) *UserCreate {
 func (_c *UserCreate) SetNillableName(v *string) *UserCreate {
 	if v != nil {
 		_c.SetName(*v)
+	}
+	return _c
+}
+
+// SetAvatarURL sets the "avatar_url" field.
+func (_c *UserCreate) SetAvatarURL(v string) *UserCreate {
+	_c.mutation.SetAvatarURL(v)
+	return _c
+}
+
+// SetNillableAvatarURL sets the "avatar_url" field if the given value is not nil.
+func (_c *UserCreate) SetNillableAvatarURL(v *string) *UserCreate {
+	if v != nil {
+		_c.SetAvatarURL(*v)
+	}
+	return _c
+}
+
+// SetLastProvider sets the "last_provider" field.
+func (_c *UserCreate) SetLastProvider(v string) *UserCreate {
+	_c.mutation.SetLastProvider(v)
+	return _c
+}
+
+// SetNillableLastProvider sets the "last_provider" field if the given value is not nil.
+func (_c *UserCreate) SetNillableLastProvider(v *string) *UserCreate {
+	if v != nil {
+		_c.SetLastProvider(*v)
+	}
+	return _c
+}
+
+// SetLastSeenAt sets the "last_seen_at" field.
+func (_c *UserCreate) SetLastSeenAt(v time.Time) *UserCreate {
+	_c.mutation.SetLastSeenAt(v)
+	return _c
+}
+
+// SetNillableLastSeenAt sets the "last_seen_at" field if the given value is not nil.
+func (_c *UserCreate) SetNillableLastSeenAt(v *time.Time) *UserCreate {
+	if v != nil {
+		_c.SetLastSeenAt(*v)
+	}
+	return _c
+}
+
+// SetActive sets the "active" field.
+func (_c *UserCreate) SetActive(v bool) *UserCreate {
+	_c.mutation.SetActive(v)
+	return _c
+}
+
+// SetNillableActive sets the "active" field if the given value is not nil.
+func (_c *UserCreate) SetNillableActive(v *bool) *UserCreate {
+	if v != nil {
+		_c.SetActive(*v)
 	}
 	return _c
 }
@@ -103,6 +180,21 @@ func (_c *UserCreate) AddMemberships(v ...*OrganizationMember) *UserCreate {
 		ids[i] = v[i].ID
 	}
 	return _c.AddMembershipIDs(ids...)
+}
+
+// AddSentInvitationIDs adds the "sent_invitations" edge to the Invitation entity by IDs.
+func (_c *UserCreate) AddSentInvitationIDs(ids ...int) *UserCreate {
+	_c.mutation.AddSentInvitationIDs(ids...)
+	return _c
+}
+
+// AddSentInvitations adds the "sent_invitations" edges to the Invitation entity.
+func (_c *UserCreate) AddSentInvitations(v ...*Invitation) *UserCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddSentInvitationIDs(ids...)
 }
 
 // Mutation returns the UserMutation object of the builder.
@@ -152,6 +244,14 @@ func (_c *UserCreate) defaults() {
 		v := user.DefaultUpdatedAt()
 		_c.mutation.SetUpdatedAt(v)
 	}
+	if _, ok := _c.mutation.EmailVerified(); !ok {
+		v := user.DefaultEmailVerified
+		_c.mutation.SetEmailVerified(v)
+	}
+	if _, ok := _c.mutation.Active(); !ok {
+		v := user.DefaultActive
+		_c.mutation.SetActive(v)
+	}
 }
 
 // check runs all checks and user-defined validators on the builder.
@@ -165,6 +265,14 @@ func (_c *UserCreate) check() error {
 	if _, ok := _c.mutation.UpdatedAt(); !ok {
 		return &ValidationError{Name: "updated_at", err: errors.New(`global: missing required field "User.updated_at"`)}
 	}
+	if _, ok := _c.mutation.FirebaseUID(); !ok {
+		return &ValidationError{Name: "firebase_uid", err: errors.New(`global: missing required field "User.firebase_uid"`)}
+	}
+	if v, ok := _c.mutation.FirebaseUID(); ok {
+		if err := user.FirebaseUIDValidator(v); err != nil {
+			return &ValidationError{Name: "firebase_uid", err: fmt.Errorf(`global: validator failed for field "User.firebase_uid": %w`, err)}
+		}
+	}
 	if _, ok := _c.mutation.Email(); !ok {
 		return &ValidationError{Name: "email", err: errors.New(`global: missing required field "User.email"`)}
 	}
@@ -173,10 +281,26 @@ func (_c *UserCreate) check() error {
 			return &ValidationError{Name: "email", err: fmt.Errorf(`global: validator failed for field "User.email": %w`, err)}
 		}
 	}
+	if _, ok := _c.mutation.EmailVerified(); !ok {
+		return &ValidationError{Name: "email_verified", err: errors.New(`global: missing required field "User.email_verified"`)}
+	}
 	if v, ok := _c.mutation.Name(); ok {
 		if err := user.NameValidator(v); err != nil {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`global: validator failed for field "User.name": %w`, err)}
 		}
+	}
+	if v, ok := _c.mutation.AvatarURL(); ok {
+		if err := user.AvatarURLValidator(v); err != nil {
+			return &ValidationError{Name: "avatar_url", err: fmt.Errorf(`global: validator failed for field "User.avatar_url": %w`, err)}
+		}
+	}
+	if v, ok := _c.mutation.LastProvider(); ok {
+		if err := user.LastProviderValidator(v); err != nil {
+			return &ValidationError{Name: "last_provider", err: fmt.Errorf(`global: validator failed for field "User.last_provider": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.Active(); !ok {
+		return &ValidationError{Name: "active", err: errors.New(`global: missing required field "User.active"`)}
 	}
 	return nil
 }
@@ -222,13 +346,37 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 		_spec.SetField(user.FieldUpdatedAt, field.TypeTime, value)
 		_node.UpdatedAt = value
 	}
+	if value, ok := _c.mutation.FirebaseUID(); ok {
+		_spec.SetField(user.FieldFirebaseUID, field.TypeString, value)
+		_node.FirebaseUID = value
+	}
 	if value, ok := _c.mutation.Email(); ok {
 		_spec.SetField(user.FieldEmail, field.TypeString, value)
 		_node.Email = value
 	}
+	if value, ok := _c.mutation.EmailVerified(); ok {
+		_spec.SetField(user.FieldEmailVerified, field.TypeBool, value)
+		_node.EmailVerified = value
+	}
 	if value, ok := _c.mutation.Name(); ok {
 		_spec.SetField(user.FieldName, field.TypeString, value)
 		_node.Name = value
+	}
+	if value, ok := _c.mutation.AvatarURL(); ok {
+		_spec.SetField(user.FieldAvatarURL, field.TypeString, value)
+		_node.AvatarURL = value
+	}
+	if value, ok := _c.mutation.LastProvider(); ok {
+		_spec.SetField(user.FieldLastProvider, field.TypeString, value)
+		_node.LastProvider = value
+	}
+	if value, ok := _c.mutation.LastSeenAt(); ok {
+		_spec.SetField(user.FieldLastSeenAt, field.TypeTime, value)
+		_node.LastSeenAt = &value
+	}
+	if value, ok := _c.mutation.Active(); ok {
+		_spec.SetField(user.FieldActive, field.TypeBool, value)
+		_node.Active = value
 	}
 	if nodes := _c.mutation.MembershipsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
@@ -239,6 +387,22 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(organizationmember.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.SentInvitationsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.SentInvitationsTable,
+			Columns: []string{user.SentInvitationsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(invitation.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

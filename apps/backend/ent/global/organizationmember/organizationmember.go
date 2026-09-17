@@ -28,6 +28,8 @@ const (
 	FieldOrganizationID = "organization_id"
 	// FieldUserID holds the string denoting the user_id field in the database.
 	FieldUserID = "user_id"
+	// FieldJoinedAt holds the string denoting the joined_at field in the database.
+	FieldJoinedAt = "joined_at"
 	// EdgeOrganization holds the string denoting the organization edge name in mutations.
 	EdgeOrganization = "organization"
 	// EdgeUser holds the string denoting the user edge name in mutations.
@@ -59,6 +61,7 @@ var Columns = []string{
 	FieldRole,
 	FieldOrganizationID,
 	FieldUserID,
+	FieldJoinedAt,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -80,6 +83,8 @@ var (
 	DefaultUpdatedAt func() time.Time
 	// UpdateDefaultUpdatedAt holds the default value on update for the "updated_at" field.
 	UpdateDefaultUpdatedAt func() time.Time
+	// DefaultJoinedAt holds the default value on creation for the "joined_at" field.
+	DefaultJoinedAt func() time.Time
 )
 
 // Role defines the type for the "role" enum field.
@@ -143,6 +148,11 @@ func ByOrganizationID(opts ...sql.OrderTermOption) OrderOption {
 // ByUserID orders the results by the user_id field.
 func ByUserID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldUserID, opts...).ToFunc()
+}
+
+// ByJoinedAt orders the results by the joined_at field.
+func ByJoinedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldJoinedAt, opts...).ToFunc()
 }
 
 // ByOrganizationField orders the results by organization field.

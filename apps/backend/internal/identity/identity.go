@@ -1,0 +1,276 @@
+// Package identity turns a verified sign-in into a row, and holds the two rules the schema
+// cannot express.
+//
+// # What it deliberately does not do
+//
+// It does not verify anything. `Claims` is what a caller has *already* proved — the HTTP layer
+// checks the Firebase ID token's signature, issuer, audience and expiry, and passes the result
+// here. Splitting it that way is the same split `geoip` uses: the domain takes a value that has
+// been established, not a request it has to interrogate, so every rule below is testable
+// without a network.
+//
+// It also does not decide what anybody may *do*. Roles, permissions and per-project access are
+// a separate design; this package places a person in an organization and stops there.
+package identity
+
+import (
+	"context"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/hex"
+	"errors"
+	"fmt"
+	"strings"
+	"time"
+
+	"playersense.dev/backend/ent/global"
+	"playersense.dev/backend/ent/global/organization"
+	"playersense.dev/backend/ent/global/organizationmember"
+	"playersense.dev/backend/ent/global/user"
+)
+
+// Claims is a Firebase ID token that somebody has already verified.
+//
+// PlayerSense never holds a credential: no password column, no reset flow, no session store.
+// This is the projection of an identity Firebase vouched for.
+type Claims struct {
+	// UID is Firebase's own, and the only identifier that is stable. An email address
+	// changes — somebody marries, a studio renames its domain — and matching on one would
+	// silently turn a user into a different person.
+	UID string
+
+	Email         string
+	EmailVerified bool
+	Name          string
+	AvatarURL     string
+
+	// Provider is Firebase's id: "password", "google.com", "apple.com", "microsoft.com",
+	// "github.com", "emailLink".
+	Provider string
+}
+
+// Valid reports whether the claims carry enough to act on.
+func (c Claims) Valid() error {
+	switch {
+	case strings.TrimSpace(c.UID) == "":
+		return errors.New("the token has no uid")
+	case strings.TrimSpace(c.Email) == "":
+		return errors.New("the token has no email address")
+	}
+	return nil
+}
+
+// ErrMemberLimit is returned when an organization is full.
+var ErrMemberLimit = errors.New("this organization has as many members as it may have")
+
+// EnsureUser projects a verified sign-in onto a row, and guarantees the invariant.
+//
+// # Every user belongs to at least one organization
+//
+// Signing up creates a personal one, so there is no state where somebody is signed in with
+// nowhere to be. That invariant is what lets every project, key and invoice hang off an
+// organization rather than off a user — and it removes the empty-state screen that would
+// otherwise have to exist and be got right.
+//
+// Idempotent: the same token twice updates the profile and creates nothing.
+func EnsureUser(ctx context.Context, db *global.Client, claims Claims, now time.Time) (*global.User, error) {
+	if err := claims.Valid(); err != nil {
+		return nil, err
+	}
+
+	existing, err := db.User.Query().Where(user.FirebaseUID(claims.UID)).Only(ctx)
+	switch {
+	case err == nil:
+		// Mirrored from the token on every sign-in rather than stored once: a person who
+		// changes their Google avatar or verifies their address should not have to be
+		// told to update a profile page.
+		update := existing.Update().
+			SetEmail(claims.Email).
+			SetEmailVerified(claims.EmailVerified).
+			SetLastSeenAt(now)
+		if claims.Name != "" {
+			update.SetName(claims.Name)
+		}
+		if claims.AvatarURL != "" {
+			update.SetAvatarURL(claims.AvatarURL)
+		}
+		if claims.Provider != "" {
+			update.SetLastProvider(claims.Provider)
+		}
+		return update.Save(ctx)
+
+	case !global.IsNotFound(err):
+		return nil, fmt.Errorf("look up user: %w", err)
+	}
+
+	created, err := db.User.Create().
+		SetFirebaseUID(claims.UID).
+		SetEmail(claims.Email).
+		SetEmailVerified(claims.EmailVerified).
+		SetName(claims.Name).
+		SetAvatarURL(claims.AvatarURL).
+		SetLastProvider(claims.Provider).
+		SetLastSeenAt(now).
+		Save(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("create user: %w", err)
+	}
+
+	if _, err := createPersonalOrganization(ctx, db, created, now); err != nil {
+		return nil, err
+	}
+	return created, nil
+}
+
+// createPersonalOrganization gives a new user somewhere to be.
+func createPersonalOrganization(ctx context.Context, db *global.Client, owner *global.User, now time.Time) (*global.Organization, error) {
+	name := owner.Name
+	if name == "" {
+		name = strings.SplitN(owner.Email, "@", 2)[0]
+	}
+
+	org, err := db.Organization.Create().
+		SetName(name).
+		SetSlug(uniqueSlug(ctx, db, name)).
+		Save(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("create personal organization: %w", err)
+	}
+
+	// The role here is the placeholder enum the schema already had, not an authorization
+	// decision: the person who created an organization is its owner, which is true under
+	// any permission model that will replace it.
+	if _, err := db.OrganizationMember.Create().
+		SetOrganizationID(org.ID).
+		SetUserID(owner.ID).
+		SetRole(organizationmember.RoleOwner).
+		SetJoinedAt(now).
+		Save(ctx); err != nil {
+		return nil, fmt.Errorf("add owner to personal organization: %w", err)
+	}
+	return org, nil
+}
+
+// AddMember places a user in an organization, refusing to exceed its ceiling.
+//
+// Checked here rather than as a database constraint, because the rule is "how many are there
+// now", which is not something a column constraint can say. A trigger could, and would put the
+// rule somewhere nobody reading the Go would find it.
+//
+// The race is real and bounded: two concurrent adds can both see 49. An organization of 51 is
+// not a security failure and the next add is refused, so this is a ceiling rather than a lock —
+// and taking one would serialise every invitation accept in the product.
+func AddMember(ctx context.Context, db *global.Client, orgID, userID int, role organizationmember.Role, now time.Time) (*global.OrganizationMember, error) {
+	org, err := db.Organization.Get(ctx, orgID)
+	if err != nil {
+		return nil, fmt.Errorf("look up organization: %w", err)
+	}
+
+	members, err := db.OrganizationMember.Query().
+		Where(organizationmember.OrganizationID(orgID)).Count(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("count members: %w", err)
+	}
+	if members >= org.MemberLimit {
+		return nil, fmt.Errorf("%w: %d of %d", ErrMemberLimit, members, org.MemberLimit)
+	}
+
+	return db.OrganizationMember.Create().
+		SetOrganizationID(orgID).
+		SetUserID(userID).
+		SetRole(role).
+		SetJoinedAt(now).
+		Save(ctx)
+}
+
+// Organizations lists what a user belongs to.
+func Organizations(ctx context.Context, db *global.Client, userID int) ([]*global.Organization, error) {
+	return db.Organization.Query().
+		Where(organization.HasMembersWith(organizationmember.UserID(userID))).
+		Order(global.Asc(organization.FieldName)).
+		All(ctx)
+}
+
+// ---- invitation tokens -------------------------------------------------------
+
+// TokenBytes is the length of an invitation token before encoding.
+//
+// 32 bytes of crypto/rand. There is nothing to guess and nothing to brute-force, which is why
+// the digest below is a plain SHA-256 rather than the Argon2id an API key's private half uses:
+// a KDF exists to slow an attacker down against a secret a *person* chose, and this is not one.
+const TokenBytes = 32
+
+// NewToken returns a token and the digest to store.
+//
+// The token is returned once, put in a link, and never stored. An invitation link reaches an
+// inbox, an inbox is not a secure channel, and the database must not contain anything that
+// could reissue one.
+func NewToken() (token string, digest string, err error) {
+	raw := make([]byte, TokenBytes)
+	if _, err := rand.Read(raw); err != nil {
+		return "", "", fmt.Errorf("generate invitation token: %w", err)
+	}
+	token = base64.RawURLEncoding.EncodeToString(raw)
+	return token, Digest(token), nil
+}
+
+// Digest is what is stored for a token.
+func Digest(token string) string {
+	sum := sha256.Sum256([]byte(token))
+	return hex.EncodeToString(sum[:])
+}
+
+// uniqueSlug turns a name into a URL-safe slug that no organization is using.
+//
+// Slugs are unique across the whole system, and two people called "studio" will sign up. The
+// suffix is random rather than a counter: a counter would tell the second person how many
+// organizations of that name exist, and it needs a read-modify-write that two concurrent
+// signups would lose.
+//
+// A collision after the suffix is possible and is handled by trying again rather than by
+// widening the suffix — four random characters over a namespace this small collide about once
+// in a million, and a retry costs one query in that case.
+func uniqueSlug(ctx context.Context, db *global.Client, name string) string {
+	base := slugify(name)
+	if base == "" {
+		base = "org"
+	}
+
+	for range 5 {
+		candidate := base + "-" + randomSuffix()
+		exists, err := db.Organization.Query().
+			Where(organization.Slug(candidate)).Exist(ctx)
+		if err == nil && !exists {
+			return candidate
+		}
+	}
+	// Five collisions in a row is not a thing that happens; falling back to a longer
+	// suffix beats returning an empty slug and failing the signup.
+	return base + "-" + randomSuffix() + randomSuffix()
+}
+
+func slugify(name string) string {
+	var out strings.Builder
+	previousDash := false
+	for _, r := range strings.ToLower(strings.TrimSpace(name)) {
+		switch {
+		case r >= 'a' && r <= 'z', r >= '0' && r <= '9':
+			out.WriteRune(r)
+			previousDash = false
+		case !previousDash && out.Len() > 0:
+			out.WriteByte('-')
+			previousDash = true
+		}
+	}
+	return strings.Trim(out.String(), "-")
+}
+
+func randomSuffix() string {
+	raw := make([]byte, 3)
+	if _, err := rand.Read(raw); err != nil {
+		// crypto/rand does not fail in practice, and a signup must not.
+		return fmt.Sprintf("%d", time.Now().UnixNano()%100000)
+	}
+	return base64.RawURLEncoding.EncodeToString(raw)
+}
