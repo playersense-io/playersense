@@ -138,6 +138,26 @@ type Settings struct {
 	// compression is for sending the same batch in fewer bytes rather than a bigger one.
 	IngestMaxCompressedBytes int64 `env:"INGEST_MAX_COMPRESSED_BYTES" default:"1048576"`
 
+	// TrustedProxyHops is how many proxies PlayerSense sits behind (§100, ADR 0027).
+	//
+	// A deployment fact, not a guess: 0 reached directly, 1 behind one load balancer, 2
+	// behind a CDN and a load balancer. It decides which entry of X-Forwarded-For is
+	// believed, and the default of 0 ignores the header entirely.
+	//
+	// Zero by default because the failure is silent and one-directional. Set too high, a
+	// caller's own forged entry becomes the address PlayerSense resolves, every `geo.*`
+	// rule can be chosen by the client, and nothing reports a problem — the whole reason
+	// geography is derived rather than sent. Set too low, everyone resolves to the load
+	// balancer's country, which is obvious within a minute of looking at a chart.
+	TrustedProxyHops int `env:"TRUSTED_PROXY_HOPS" default:"0"`
+
+	// GeoIPLocationDB and GeoIPPrivacyDB are the MaxMind-format databases behind `geo.*`
+	// and `network.*`. Both optional: without them those namespaces are simply absent and
+	// a rule naming one never matches, which is a degraded product rather than a stopped
+	// one and is the right behaviour on a developer's machine.
+	GeoIPLocationDB string `env:"GEOIP_LOCATION_DB" default:""`
+	GeoIPPrivacyDB  string `env:"GEOIP_PRIVACY_DB" default:""`
+
 	// The key cache is what lets ingestion keep accepting batches while the control
 	// plane is unreachable (§64). A short negative TTL matters as much as the positive
 	// one: a publishable key is assumed discoverable (§71), so wrong keys arrive in
