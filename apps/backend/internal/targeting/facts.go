@@ -62,33 +62,34 @@ const (
 	FactPlayerSpend     = "commerce.player.lifetime_spend_micros"
 	FactPlayerPurchase  = "commerce.player.purchases"
 
+	// Nullable in storage and therefore absent here for a player who has never bought
+	// (ADR 0031). "Has not bought in 30 days" and "has never bought" are different
+	// audiences, and a sentinel date would have merged them.
+	FactInstallFirstPurchase = "commerce.install.days_since_first_purchase"
+	FactInstallLastPurchase  = "commerce.install.days_since_last_purchase"
+	FactPlayerFirstPurchase  = "commerce.player.days_since_first_purchase"
+	FactPlayerLastPurchase   = "commerce.player.days_since_last_purchase"
+
 	FactInstallDaysActive    = "activity.install.days_active"
+	FactInstallSessions      = "activity.install.sessions"
 	FactInstallPlaytime      = "activity.install.playtime_seconds"
 	FactInstallAge           = "activity.install.days_since_install"
 	FactInstallDaysSinceSeen = "activity.install.days_since_last_seen"
 
 	FactPlayerDaysActive    = "activity.player.days_active"
+	FactPlayerSessions      = "activity.player.sessions"
 	FactPlayerPlaytime      = "activity.player.playtime_seconds"
 	FactPlayerAge           = "activity.player.days_since_install"
 	FactPlayerDaysSinceSeen = "activity.player.days_since_last_seen"
 )
 
-// Facts that are declared here and have no column behind them yet.
+// Facts that are declared and have no column behind them yet.
 //
-// Named rather than omitted, because the failure this repository keeps finding is a
-// vocabulary that accepts a key and then silently never matches. A rule using one of these
-// is refused at publish until migration 00013 lands and the loader carries them.
-//
-// `sessions` lives only per-day on `player_activity_daily`; the purchase timestamps do not
-// exist at all — `player_lifetime` keeps a count and a sum and no dates.
-var Unavailable = map[string]string{
-	"commerce.install.days_since_first_purchase": "needs a first_purchase_at column (migration 00013)",
-	"commerce.install.days_since_last_purchase":  "needs a last_purchase_at column (migration 00013)",
-	"commerce.player.days_since_first_purchase":  "needs a first_purchase_at column (migration 00013)",
-	"commerce.player.days_since_last_purchase":   "needs a last_purchase_at column (migration 00013)",
-	"activity.install.sessions":                  "needs a lifetime sessions column (migration 00013)",
-	"activity.player.sessions":                   "needs a lifetime sessions column (migration 00013)",
-}
+// Empty, and kept rather than deleted: it is the mechanism, and the next fact somebody
+// declares ahead of its migration belongs here. A key in this map is refused when a rule is
+// written, because the failure this repository keeps finding is a vocabulary that accepts a
+// key and then silently never matches — a campaign that reaches nobody and gives no reason.
+var Unavailable = map[string]string{}
 
 // Needs reports which namespaces a rule reads.
 //

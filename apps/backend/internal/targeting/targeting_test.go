@@ -219,17 +219,38 @@ func TestInstallAndPlayerFactsAreSeparateSubjects(t *testing.T) {
 
 // A fact with no column behind it is refused when the rule is written, not accepted and then
 // silently never matched.
+//
+// `Unavailable` is empty now that migration 00013's columns exist, so the entry is added here
+// rather than asserted over an empty map — a test that ranges over nothing passes for the
+// wrong reason, and this one is guarding a mechanism that has to keep working the next time
+// a fact is declared ahead of its migration.
 func TestAFactWithNoColumnIsRefused(t *testing.T) {
-	for key := range Unavailable {
-		raw := fmt.Sprintf(`{"key":%q,"op":"gte","value":30}`, key)
-		if _, err := Parse([]byte(raw)); err == nil {
-			t.Errorf("%s was accepted but nothing computes it", key)
-		}
+	const pending = "commerce.player.days_since_refund"
+	Unavailable[pending] = "needs a refunds column"
+	t.Cleanup(func() { delete(Unavailable, pending) })
+
+	raw := fmt.Sprintf(`{"key":%q,"op":"gte","value":30}`, pending)
+	if _, err := Parse([]byte(raw)); err == nil {
+		t.Errorf("%s was accepted but nothing computes it", pending)
 	}
 
-	// The ones that do exist still work.
-	if _, err := Parse([]byte(`{"key":"commerce.player.purchases","op":"gt","value":0}`)); err != nil {
-		t.Errorf("a real fact was refused: %v", err)
+	// Every fact the vocabulary declares must parse, or the vocabulary is lying.
+	for _, key := range []string{
+		FactInstallSpend, FactInstallPurchase, FactPlayerSpend, FactPlayerPurchase,
+		FactInstallFirstPurchase, FactInstallLastPurchase,
+		FactPlayerFirstPurchase, FactPlayerLastPurchase,
+		FactInstallDaysActive, FactInstallSessions, FactInstallPlaytime,
+		FactInstallAge, FactInstallDaysSinceSeen,
+		FactPlayerDaysActive, FactPlayerSessions, FactPlayerPlaytime,
+		FactPlayerAge, FactPlayerDaysSinceSeen,
+	} {
+		declaration := fmt.Sprintf(`{"key":%q,"op":"gte","value":1}`, key)
+		if _, err := Parse([]byte(declaration)); err != nil {
+			t.Errorf("%s is declared but refused: %v", key, err)
+		}
+		if !rule(t, declaration).NeedsPlayerFacts() {
+			t.Errorf("%s does not ask for a lookup; its namespace is wrong", key)
+		}
 	}
 }
 

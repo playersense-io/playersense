@@ -42,7 +42,15 @@ CREATE TABLE IF NOT EXISTS player_lifetime
     playtime_ms     SimpleAggregateFunction(sum, UInt64)        COMMENT 'class=derived',
     revenue_micros  SimpleAggregateFunction(sum, Int64)         COMMENT 'class=financial',
     purchases       SimpleAggregateFunction(sum, UInt64)        COMMENT 'class=financial',
-    active_days     AggregateFunction(uniq, Date)               COMMENT 'class=derived'
+    active_days     AggregateFunction(uniq, Date)               COMMENT 'class=derived',
+    sessions        SimpleAggregateFunction(sum, UInt64)        COMMENT 'class=derived',
+    -- Nullable, following ADR 0031: a player who has never bought has no first purchase,
+    -- and 1970 is not an answer to "when did they first buy". min() over a Nullable skips
+    -- NULLs and returns NULL for an empty set, which is exactly the semantics wanted —
+    -- "has not bought in 30 days" is a core LiveOps audience and it has to be able to tell
+    -- "bought long ago" from "never bought".
+    first_purchase_at SimpleAggregateFunction(min, Nullable(DateTime64(3, 'UTC'))) COMMENT 'class=financial',
+    last_purchase_at  SimpleAggregateFunction(max, Nullable(DateTime64(3, 'UTC'))) COMMENT 'class=financial'
 )
 ENGINE = ReplicatedAggregatingMergeTree
 ORDER BY (project_seq, environment_seq, device_id)
@@ -67,7 +75,10 @@ SELECT
     sum(playtime_ms)                                                AS playtime_ms,
     sum(revenue_micros)                                             AS revenue_micros,
     countIf(event_type = 'purchase')                                AS purchases,
-    uniqState(event_date)                                           AS active_days
+    uniqState(event_date)                                           AS active_days,
+    countIf(event_name = 'session_start')                           AS sessions,
+    min(if(event_type = 'purchase', ingest_time, NULL))             AS first_purchase_at,
+    max(if(event_type = 'purchase', ingest_time, NULL))             AS last_purchase_at
 FROM events_raw
 GROUP BY project_seq, environment_seq, device_id
 -- +goose StatementEnd
@@ -94,7 +105,10 @@ SELECT
     sum(pl.playtime_ms)                 AS playtime_ms,
     sum(pl.revenue_micros)              AS revenue_micros,
     sum(pl.purchases)                   AS purchases,
-    uniqMerge(pl.active_days)           AS active_days
+    uniqMerge(pl.active_days)           AS active_days,
+    sum(pl.sessions)                    AS sessions,
+    min(pl.first_purchase_at)           AS first_purchase_at,
+    max(pl.last_purchase_at)            AS last_purchase_at
 FROM player_lifetime AS pl
 GROUP BY pl.project_seq, pl.environment_seq, pl.device_id
 -- +goose StatementEnd

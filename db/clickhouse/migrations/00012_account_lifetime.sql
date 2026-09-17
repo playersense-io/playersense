@@ -44,7 +44,10 @@ CREATE TABLE IF NOT EXISTS account_lifetime
     playtime_ms     SimpleAggregateFunction(sum, UInt64)               COMMENT 'class=derived',
     revenue_micros  SimpleAggregateFunction(sum, Int64)                COMMENT 'class=financial',
     purchases       SimpleAggregateFunction(sum, UInt64)               COMMENT 'class=financial',
-    active_days     AggregateFunction(uniq, Date)                      COMMENT 'class=derived'
+    active_days     AggregateFunction(uniq, Date)                      COMMENT 'class=derived',
+    sessions        SimpleAggregateFunction(sum, UInt64)               COMMENT 'class=derived',
+    first_purchase_at SimpleAggregateFunction(min, Nullable(DateTime64(3, 'UTC'))) COMMENT 'class=financial',
+    last_purchase_at  SimpleAggregateFunction(max, Nullable(DateTime64(3, 'UTC'))) COMMENT 'class=financial'
 )
 ENGINE = ReplicatedAggregatingMergeTree
 ORDER BY (project_seq, environment_seq, account_id);
@@ -67,7 +70,10 @@ SELECT
     sum(playtime_ms)                                     AS playtime_ms,
     sum(revenue_micros)                                  AS revenue_micros,
     countIf(event_type = 'purchase')                     AS purchases,
-    uniqState(event_date)                                AS active_days
+    uniqState(event_date)                                AS active_days,
+    countIf(event_name = 'session_start')                AS sessions,
+    min(if(event_type = 'purchase', ingest_time, NULL))  AS first_purchase_at,
+    max(if(event_type = 'purchase', ingest_time, NULL))  AS last_purchase_at
 FROM events_raw
 -- Not `actor_key IS NOT NULL`, which is never false: actor_key falls back to the install.
 -- Only rows from a player who has identified themselves belong in an account table.
@@ -90,7 +96,10 @@ SELECT
     sum(al.playtime_ms)         AS playtime_ms,
     sum(al.revenue_micros)      AS revenue_micros,
     sum(al.purchases)           AS purchases,
-    uniqMerge(al.active_days)   AS active_days
+    uniqMerge(al.active_days)   AS active_days,
+    sum(al.sessions)            AS sessions,
+    min(al.first_purchase_at)   AS first_purchase_at,
+    max(al.last_purchase_at)    AS last_purchase_at
 FROM account_lifetime AS al
 GROUP BY al.project_seq, al.environment_seq, al.account_id;
 -- +goose StatementEnd
