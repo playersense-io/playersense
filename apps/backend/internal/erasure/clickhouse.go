@@ -46,6 +46,34 @@ func (p *Purger) purgeDevices(ctx context.Context, db *sql.DB, req *regional.Dat
 	return nil
 }
 
+// purgeAccount removes the account-level aggregate (§61).
+//
+// `account_lifetime` holds `account_key`, which is the studio's own player identifier, so it
+// is personal data and it is in scope. A per-player table outside the erasure path is a
+// person who was told they were deleted and was not — which is the whole failure §61 exists
+// to prevent, and the kind that surfaces in an audit rather than in a log.
+//
+// Matched on `account_key` rather than on the surrogate. The surrogate is
+// `sipHash64(project_seq, environment_seq, player_id)` computed by ClickHouse, and
+// reproducing that hash in Go would be a second implementation of a key that must agree
+// exactly or delete the wrong person's row. The string predicate does not use the sort key,
+// so it scans — acceptable for work §05 budgets in hours and puts a tombstone in front of.
+//
+// An erasure naming an install rather than a player matches nothing here, correctly: an
+// account table has no row for somebody who never signed in.
+func (p *Purger) purgeAccount(ctx context.Context, db *sql.DB, req *regional.DataDeletionRequest) error {
+	if req.ActorKey == "" {
+		return nil
+	}
+	if _, err := db.ExecContext(ctx, `
+		ALTER TABLE account_lifetime
+		DELETE WHERE project_seq = ? AND account_key = ?
+		SETTINGS mutations_sync = 2`, req.ProjectSeq, req.ActorKey); err != nil {
+		return fmt.Errorf("purge account: %w", err)
+	}
+	return nil
+}
+
 // purgeEvents removes the raw events themselves.
 //
 // Last of the ClickHouse work, because resolution reads this table: deleting it first would

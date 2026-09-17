@@ -267,6 +267,22 @@ func (f *fixture) countDevice(t *testing.T, table string, install uuid.UUID) int
 	return int(n)
 }
 
+// countAccount counts the account-level aggregate's rows for one player.
+//
+// On account_key rather than on the surrogate, for the same reason the purge matches on it:
+// reproducing ClickHouse's sipHash64 in Go would be a second implementation of a key that
+// has to agree exactly.
+func (f *fixture) countAccount(t *testing.T, player string) int {
+	t.Helper()
+	var n uint64
+	if err := f.db.QueryRowContext(t.Context(),
+		`SELECT count() FROM account_lifetime WHERE project_seq = ? AND account_key = ?`,
+		f.project, player).Scan(&n); err != nil {
+		t.Fatalf("count account_lifetime: %v", err)
+	}
+	return int(n)
+}
+
 func (f *fixture) reloadRequest(t *testing.T, req *regional.DataDeletionRequest) *regional.DataDeletionRequest {
 	t.Helper()
 	got, err := f.cell.Client.DataDeletionRequest.Get(t.Context(), req.ID)
@@ -317,6 +333,16 @@ func TestAnErasureRemovesThePersonAndKeepsEveryoneElse(t *testing.T) {
 		if n := f.countDevice(t, table, f.installBystander); n == 0 {
 			t.Errorf("%s lost the bystander's device; an erasure is not a project wipe", table)
 		}
+	}
+
+	// The account-level aggregate, which holds the studio's own player identifier and is
+	// therefore personal data. A per-player table outside the erasure path is a person who
+	// was told they were deleted and was not.
+	if n := f.countAccount(t, erased); n != 0 {
+		t.Errorf("account_lifetime still holds %d rows for the erased player, want 0", n)
+	}
+	if n := f.countAccount(t, bystander); n == 0 {
+		t.Error("account_lifetime lost the bystander; an erasure is not a project wipe")
 	}
 
 	// The archive: rewritten, not deleted. An object holds one project-hour — hundreds of

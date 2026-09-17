@@ -327,6 +327,12 @@ func (p *Purger) advance(
 	}
 	out.Devices = len(who.Devices)
 
+	// The account-level aggregate, before the events it was built from — same ordering
+	// reason as the device tables: resolution reads events_raw, so it goes last.
+	if err := p.purgeAccount(ctx, db, req); err != nil {
+		return out, err
+	}
+
 	if err := p.purgeEvents(ctx, db, req, who); err != nil {
 		return out, err
 	}
