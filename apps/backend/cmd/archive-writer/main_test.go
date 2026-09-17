@@ -176,6 +176,28 @@ func (p *pipeline) waitForObjects(t *testing.T, want int) []string {
 	return found
 }
 
+// waitForOffsets waits for a consumer group to commit a position.
+//
+// Polled rather than asserted outright, because committing the offset happens *after* the
+// object is written: a test that globs the moment the object appears is asserting an
+// ordering the code never promised. It passed on a developer's machine and failed on a
+// two-core CI runner, which is the ordinary shape of this bug.
+func (p *pipeline) waitForOffsets(t *testing.T, group string) []string {
+	t.Helper()
+	pattern := filepath.Join(p.settings.EventBusDir, p.settings.Cell, ".offsets", group, "*.offset")
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		found, err := filepath.Glob(pattern)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(found) > 0 || time.Now().After(deadline) {
+			return found
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+}
+
 // rowsIn reads an archive object back.
 func (p *pipeline) rowsIn(t *testing.T, object string) []archive.Row {
 	t.Helper()
@@ -383,12 +405,7 @@ func TestTheArchiveHasItsOwnPosition(t *testing.T) {
 		t.Fatalf("archived %d objects, want 1", len(objects))
 	}
 
-	offsets, err := filepath.Glob(filepath.Join(
-		p.settings.EventBusDir, p.settings.Cell, ".offsets", eventbus.GroupArchiveWriter, "*.offset"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(offsets) == 0 {
+	if offsets := p.waitForOffsets(t, eventbus.GroupArchiveWriter); len(offsets) == 0 {
 		t.Fatal("the archive committed no position of its own")
 	}
 
