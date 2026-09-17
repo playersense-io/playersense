@@ -7,7 +7,6 @@ import (
 
 	"playersense.dev/backend/internal/eventbus"
 	"playersense.dev/backend/internal/ingest"
-	"playersense.dev/backend/internal/valkey"
 )
 
 // DeviceState is what makes every cohort query a single-table GROUP BY (§29.5).
@@ -123,11 +122,6 @@ func firstCohortDate(batch *ingest.NormalizedBatch) string {
 		at = batch.ReceivedAt
 	}
 	return at.UTC().Format(time.DateOnly)
-}
-
-// tombstoneKey names a project whose data has been deleted (§61).
-func tombstoneKey(cache *valkey.Client, projectID string) string {
-	return cache.Key("project", "tombstoned", projectID)
 }
 
 func itoa(n uint64) string {

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"log/slog"
 	"net/http"
@@ -21,6 +22,7 @@ import (
 	"playersense.dev/backend/internal/ingest"
 	"playersense.dev/backend/internal/routers"
 	"playersense.dev/backend/internal/testsupport"
+	"playersense.dev/backend/internal/tombstone"
 	"playersense.dev/backend/internal/valkey"
 	"playersense.dev/backend/internal/writer"
 )
@@ -188,6 +190,26 @@ func (p *pipeline) countRows(t *testing.T) uint64 {
 		t.Fatalf("count rows: %v", err)
 	}
 	return n
+}
+
+// waitForMessages polls the writer's own counter until it has finished the delivery.
+//
+// ClickHouse reports the rows the instant the insert returns, and the writer increments its
+// counters immediately afterwards — correctly, because they measure what actually landed.
+// A test that reads Stats() the moment the rows appear can therefore catch the writer
+// between the two, so it waits on the writer's signal rather than on storage's.
+func (p *pipeline) waitForMessages(t *testing.T, want int) map[string]int64 {
+	t.Helper()
+	deadline := time.Now().Add(10 * time.Second)
+	var stats map[string]int64
+	for time.Now().Before(deadline) {
+		stats = p.writer.Stats()
+		if stats["messages"] >= int64(want) {
+			return stats
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	return stats
 }
 
 func batch(events ...map[string]any) map[string]any {
@@ -394,7 +416,7 @@ func TestABatchForADeletedProjectIsDropped(t *testing.T) {
 	p.client.Post("/v1/batches", testclient.JSON(batch(event("session_start", nil)))).
 		AssertStatus(http.StatusAccepted)
 
-	key := p.cache.Key("project", "tombstoned", p.project.ProjectUID)
+	key := tombstone.Project(p.cache, p.project.ProjectUID)
 	if err := p.cache.Set(t.Context(), key, []byte("deleted"), time.Hour); err != nil {
 		t.Fatalf("write tombstone: %v", err)
 	}
@@ -409,6 +431,66 @@ func TestABatchForADeletedProjectIsDropped(t *testing.T) {
 	if got := p.writer.Stats()["dropped_tombstoned"]; got != 1 {
 		t.Errorf("dropped_tombstoned = %d, want 1 — the drop must be counted, not silent", got)
 	}
+}
+
+// TestAnErasedActorsEventsAreDropped is §61's other tombstone.
+//
+// The project tombstone above is per message, because a deleted project deletes every batch.
+// This one is per event, and the difference is §29.2's: a batch is one flush from one
+// installation, but the actor inside it can change when an anonymous player signs in half
+// way through. A message is not the unit an erasure applies to.
+//
+// The two events here share a batch and differ only in their player, which is the shape that
+// would pass a per-message check and store the erased half anyway.
+func TestAnErasedActorsEventsAreDropped(t *testing.T) {
+	p := newPipeline(t, "standard")
+
+	// Accepted first, tombstoned after — the order that actually happens, and the reason a
+	// tombstone is needed rather than a check at the gateway.
+	body := batch(
+		event("session_start", map[string]any{"player_id": "player-erased"}),
+		event("session_start", map[string]any{"player_id": "player-bystander"}),
+	)
+	p.client.Post("/v1/batches", testclient.JSON(body)).AssertStatus(http.StatusAccepted)
+
+	key := tombstone.Actor(p.cache, p.project.ProjectUID, "player-erased")
+	if err := p.cache.Set(t.Context(), key, []byte("erased"), time.Hour); err != nil {
+		t.Fatalf("raise the tombstone: %v", err)
+	}
+	t.Cleanup(func() { _ = p.cache.Del(context.Background(), key) })
+
+	p.run(t)
+	p.waitForRows(t, 1)
+	time.Sleep(500 * time.Millisecond)
+
+	if got := p.countRows(t); got != 1 {
+		t.Fatalf("events_raw holds %d rows, want 1 — the erased actor's event and no other", got)
+	}
+	if got := p.countActor(t, "player-erased"); got != 0 {
+		t.Errorf("the erased actor has %d rows, want 0", got)
+	}
+	if got := p.countActor(t, "player-bystander"); got != 1 {
+		t.Errorf("the bystander has %d rows, want 1 — one erasure is not two", got)
+	}
+	if got := p.writer.Stats()["dropped_erased"]; got != 1 {
+		t.Errorf("dropped_erased = %d, want 1 — the drop must be counted, not silent", got)
+	}
+}
+
+// countActor counts this project's rows for one actor.
+func (p *pipeline) countActor(t *testing.T, actorKey string) uint64 {
+	t.Helper()
+	conn, err := p.ch.DB()
+	if err != nil {
+		t.Fatalf("clickhouse: %v", err)
+	}
+	var n uint64
+	if err := conn.QueryRow(context.Background(),
+		"SELECT count() FROM events_raw WHERE project_seq = ? AND actor_key = ?",
+		uint32(p.project.ProjectSeq), actorKey).Scan(&n); err != nil {
+		t.Fatalf("count rows: %v", err)
+	}
+	return n
 }
 
 // TestAMessageFromAnotherCellIsNotStored is the gateway's 421 arriving by a different road.
@@ -488,5 +570,235 @@ func TestRowsAreStoredWithValkeyDown(t *testing.T) {
 	}
 	if got := blind.Stats()["device_lookup_failures"]; got == 0 {
 		t.Error("the failed device lookup must be counted, so a cache outage is visible")
+	}
+}
+
+// TestADeliveryBecomesOneBlockPerPartition is the property the whole ingestion path's
+// scale ceiling rests on (ADR 0023).
+//
+// One insert per message is the natural thing to write and it does not survive §4's
+// envelope. `insert_deduplication_token` is part of an async insert's grouping key, so
+// ClickHouse never coalesces two inserts carrying different tokens — measured on the local
+// stack, 200 concurrent inserts produce 200 parts with a token each and 9 without. At a
+// billion events a day and five hundred events a batch that is two million parts a day
+// arriving in a handful of daily partitions, against a default `parts_to_throw_insert` of
+// three thousand. The node stops accepting inserts.
+//
+// The batches are published before the writer starts, so the whole spool is one delivery
+// and the assertion is about the writer rather than about poll timing.
+func TestADeliveryBecomesOneBlockPerPartition(t *testing.T) {
+	p := newPipeline(t, "standard")
+
+	const batches = 40
+	for range batches {
+		p.client.Post("/v1/batches", testclient.JSON(batch(
+			event("session_start", nil), event("level_complete", nil), event("session_end", nil),
+		))).AssertStatus(http.StatusAccepted)
+	}
+
+	// Only now, so everything published above arrives as one delivery.
+	p.run(t)
+
+	if got := p.waitForRows(t, batches*3); got != batches*3 {
+		t.Fatalf("stored %d rows, want %d", got, batches*3)
+	}
+
+	stats := p.waitForMessages(t, batches)
+	inserts, rows := stats["inserts"], stats["rows"]
+	if rows != batches*3 {
+		t.Fatalf("the writer counted %d rows, want %d", rows, batches*3)
+	}
+
+	// Every event carries today's date and one retention tier, so all 40 batches share a
+	// partition and belong in one block. Allowing a couple covers the writer picking the
+	// spool up in more than one poll.
+	if inserts > 3 {
+		t.Errorf("%d batches became %d inserts; they share one partition and should coalesce "+
+			"— a part per batch is what makes a node unusable at scale", batches, inserts)
+	}
+	if inserts == 0 {
+		t.Fatal("the writer reported no inserts, so this test proved nothing")
+	}
+	t.Logf("%d batches / %d rows became %d insert(s)", batches, rows, inserts)
+}
+
+// TestABlockNeverSpansTwoPartitions keeps the coalescing from trading one problem for
+// another.
+//
+// An insert spanning two partitions writes a part in each, so grouping rows by arrival
+// rather than by partition would put a day boundary inside a block and produce exactly the
+// small parts the grouping exists to avoid. Grouping on ClickHouse's own partition key —
+// (retention_tier, toDate(event_time)) — is what makes one insert one part.
+func TestABlockNeverSpansTwoPartitions(t *testing.T) {
+	p := newPipeline(t, "standard")
+
+	// Inside §19.2's clamp window, so the gateway keeps the dates rather than pulling them
+	// forward. Two days means two partitions.
+	twoDaysAgo := time.Now().UTC().AddDate(0, 0, -2).Format(time.RFC3339Nano)
+	for range 10 {
+		p.client.Post("/v1/batches", testclient.JSON(batch(
+			event("session_start", nil),
+			event("level_complete", map[string]any{"event_time": twoDaysAgo}),
+		))).AssertStatus(http.StatusAccepted)
+	}
+
+	p.run(t)
+
+	if got := p.waitForRows(t, 20); got != 20 {
+		t.Fatalf("stored %d rows, want 20", got)
+	}
+
+	inserts := p.waitForMessages(t, 10)["inserts"]
+	if inserts < 2 {
+		t.Errorf("rows spanning two days became %d insert(s); a block spanning two "+
+			"partitions writes a part in each, so they must be split", inserts)
+	}
+	if inserts > 4 {
+		t.Errorf("rows spanning two days became %d inserts; two partitions should need "+
+			"about two blocks", inserts)
+	}
+	t.Logf("two partitions became %d insert(s)", inserts)
+}
+
+// TestAPoisonedMessageIsParkedAndTheQueueMovesOn is the failure this path exists for.
+//
+// A message that ClickHouse will never accept used to have two possible outcomes, both
+// bad. On the local bus a handler error ended the subscription outright, so the writer
+// stopped consuming while its health probe kept answering. On Pub/Sub it was nacked
+// forever, stalling every batch behind it. Batching made the blast radius worse: one bad
+// message now fails a delivery of hundreds.
+//
+// The poisoned message is published straight onto the bus rather than through the gateway,
+// and that is the honest shape of this test rather than a shortcut.
+//
+// It used to go through the gateway carrying an event_id that was not a UUID, which the
+// gateway accepted and the writer then choked on. That hole is closed — a bad event_id is
+// now a per-event drop with a reason the SDK can read — so the gateway can no longer produce
+// a message the writer cannot store. The dead-letter path still has to work, because "the
+// gateway cannot produce one *today*" is not the same claim as "one can never arrive": a
+// redelivery written by an older build, or a message published by hand during an incident,
+// reaches the same consumer.
+func TestAPoisonedMessageIsParkedAndTheQueueMovesOn(t *testing.T) {
+	p := newPipeline(t, "standard")
+
+	good := batch(event("session_start", nil))
+	alsoGood := batch(event("session_end", nil))
+
+	p.client.Post("/v1/batches", testclient.JSON(good)).AssertStatus(http.StatusAccepted)
+	p.publishPoison(t)
+	p.client.Post("/v1/batches", testclient.JSON(alsoGood)).AssertStatus(http.StatusAccepted)
+
+	p.run(t)
+
+	// The two healthy batches must land even though a poisoned one sits between them.
+	if got := p.waitForRows(t, 2); got != 2 {
+		t.Fatalf("stored %d rows, want the 2 healthy ones — the poisoned batch stalled the queue", got)
+	}
+
+	deadline := time.Now().Add(20 * time.Second)
+	for time.Now().Before(deadline) {
+		if p.writer.Stats()["dead_lettered"] > 0 {
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	if got := p.writer.Stats()["dead_lettered"]; got != 1 {
+		t.Fatalf("dead_lettered = %d, want 1", got)
+	}
+
+	// Parked, not discarded: the bytes are what an operator needs to find the bug.
+	parked, err := p.bus.DeadLettered(eventbus.GroupAnalyticsWriter, time.Now().UTC())
+	if err != nil {
+		t.Fatalf("read the dead-letter spool: %v", err)
+	}
+	if len(parked) != 1 {
+		t.Fatalf("the dead-letter spool holds %d messages, want 1", len(parked))
+	}
+	if parked[0].EventCount != 1 {
+		t.Errorf("the parked message lost its payload: %+v", parked[0])
+	}
+}
+
+// publishPoison puts a message on the bus that the writer can never store.
+//
+// An event_id the column's type cannot hold, which is what `uuid.Parse` refuses in the
+// writer. Published directly because the gateway would now reject it, which is the point of
+// the note on the test above.
+func (p *pipeline) publishPoison(t *testing.T) {
+	t.Helper()
+
+	payload, err := json.Marshal(map[string]any{
+		"batch_id":   uuid.NewString(),
+		"install_id": uuid.NewString(),
+		"sdk_name":   "unity", "sdk_version": "1.4.0",
+		"app_version": "2.7.1", "platform": "ios",
+		"consent_analytics": 1,
+		"received_at":       time.Now().UTC(),
+		"ingest_time":       time.Now().UTC(),
+		"events": []map[string]any{{
+			"event_id":   "not-a-uuid",
+			"event_name": "level_complete",
+			"event_type": "custom",
+			"event_time": time.Now().UTC(),
+			"install_id": uuid.NewString(),
+		}},
+	})
+	if err != nil {
+		t.Fatalf("build the poisoned payload: %v", err)
+	}
+
+	if err := p.bus.Publish(t.Context(), &eventbus.Message{
+		PublishedAt:    time.Now().UTC(),
+		Cell:           p.settings.Cell,
+		DedupKey:       "poison-" + uuid.NewString(),
+		OrgSeq:         uint32(p.project.OrgSeq),
+		ProjectSeq:     uint32(p.project.ProjectSeq),
+		EnvironmentSeq: 1,
+		OrgID:          uuid.NewString(),
+		ProjectID:      p.project.ProjectUID,
+		EnvironmentID:  uuid.NewString(),
+		Environment:    "production",
+		PolicyTier:     "standard",
+		RetentionTier:  30,
+		EventCount:     1,
+		Payload:        payload,
+	}); err != nil {
+		t.Fatalf("publish the poisoned message: %v", err)
+	}
+}
+
+// TestAnOutageDoesNotDeadLetterTheBacklog is the other half, and the more dangerous one.
+//
+// Attempt counting alone cannot tell a poisoned message from an unavailable database. A
+// writer that dead-letters on attempt count would move an entire backlog to the
+// dead-letter topic during a ClickHouse outage and call it poison — turning a recoverable
+// incident into a data-loss one. The writer probes the database before parking anything,
+// so "this data is unstorable" is a question it asks ClickHouse rather than a conclusion it
+// draws from a counter.
+func TestAnOutageDoesNotDeadLetterTheBacklog(t *testing.T) {
+	p := newPipeline(t, "standard")
+
+	for range 5 {
+		p.client.Post("/v1/batches", testclient.JSON(batch(event("session_start", nil)))).
+			AssertStatus(http.StatusAccepted)
+	}
+
+	// Close ClickHouse underneath the writer, so every insert and every probe fails.
+	if err := p.ch.Stop(context.Background()); err != nil {
+		t.Fatalf("stop clickhouse: %v", err)
+	}
+
+	p.run(t)
+
+	// Long enough for the delivery to exhaust its attempts several times over.
+	time.Sleep(6 * time.Second)
+
+	if got := p.writer.Stats()["dead_lettered"]; got != 0 {
+		t.Fatalf("dead_lettered = %d during an outage; a backlog must never be parked "+
+			"because the database is down", got)
+	}
+	if got := p.writer.Stats()["retries"]; got == 0 {
+		t.Error("the writer never retried, so this test proved nothing about an outage")
 	}
 }
