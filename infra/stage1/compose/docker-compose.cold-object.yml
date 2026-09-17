@@ -1,0 +1,24 @@
+# The object-storage cold volume, as an overlay.
+#
+# Not part of the base stack, because ClickHouse constructs every declared disk eagerly: an
+# s3 disk whose endpoint resolves to an empty string is not an absent disk, it is
+# `Code: 36 ... Empty protocol in the URL` and a server that refuses to start. So whether the
+# disk exists is a question of which files are mounted, and a compose overlay is how that is
+# said without a commented-out line somebody has to remember to edit.
+#
+# Turn it on where CH_COLD_ENDPOINT and the HMAC pair are set in .env:
+#
+#     export COMPOSE_FILE=infra/stage1/compose/docker-compose.yml:infra/stage1/compose/docker-compose.cold-object.yml
+#     docker compose up -d
+#
+# Without it the cold volume is a second local directory, which still exercises the policy
+# and the part movement for real — and is what CI runs, so the fallback path is executed on
+# every push rather than only believed in.
+#
+# `z-` in the mounted name matters: config.d files merge in filename order, so this one lands
+# after storage.xml and replaces the cold volume's disk.
+
+services:
+  clickhouse:
+    volumes:
+      - ./clickhouse/cold-object.xml:/etc/clickhouse-server/config.d/z-cold-object.xml:ro

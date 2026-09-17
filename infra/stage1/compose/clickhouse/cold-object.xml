@@ -1,0 +1,72 @@
+<!--
+  The object-storage cold volume. **Not mounted by default** — see config.d/storage.xml.
+
+  Mount this only where CH_COLD_ENDPOINT and the HMAC pair are set. It merges after
+  `storage.xml` (config.d files merge in filename order, and `z-` sorts last) and replaces
+  the cold volume's disk, so the schema still names the *policy* and `events_raw` never
+  knows which one it got:
+
+      volumes:
+        - ./clickhouse/cold-object.xml:/etc/clickhouse-server/config.d/z-cold-object.xml:ro
+
+  It lives outside config.d because ClickHouse constructs every declared disk eagerly, before
+  the server is ready. An s3 disk whose endpoint resolves to an empty string does not become
+  absent — it becomes `Code: 36 ... Empty protocol in the URL` and the server refuses to
+  start. Declaring it conditionally is therefore a question of which files are mounted, not
+  of what is inside them.
+-->
+<clickhouse>
+    <storage_configuration>
+        <disks>
+            <!--
+              GCS through its S3-compatible XML API, which is what ClickHouse speaks.
+
+              The credentials come from the environment rather than from this file, because
+              this file is in version control and an HMAC key in version control is a leaked
+              HMAC key. `support_batch_delete` is false because GCS does not implement S3's
+              batch delete.
+            -->
+            <cold_object>
+                <type>s3</type>
+                <endpoint from_env="CH_COLD_ENDPOINT"/>
+                <access_key_id from_env="GCS_HMAC_ACCESS_KEY"/>
+                <secret_access_key from_env="GCS_HMAC_SECRET"/>
+                <support_batch_delete>false</support_batch_delete>
+                <!--
+                  Metadata stays local. ClickHouse keeps a small local record of which
+                  remote blobs make up each part, so reading a part's structure does not
+                  cost a network round trip per file.
+                -->
+                <metadata_path>/var/lib/clickhouse/disks/cold_object/</metadata_path>
+            </cold_object>
+
+            <!--
+              A read-through cache in front of the object store, on local NVMe.
+
+              This is the other half of why managed deployments make object storage feel
+              local: a granule read once is read from disk the next time. Without it every
+              cold query pays a network round trip per granule, and §32's max_execution_time
+              was tuned against local disk.
+            -->
+            <cold>
+                <type>cache</type>
+                <disk>cold_object</disk>
+                <path>/var/lib/clickhouse/disks/cold_cache/</path>
+                <max_size>10Gi</max_size>
+                <cache_on_write_operations>false</cache_on_write_operations>
+            </cold>
+        </disks>
+
+        <policies>
+            <hot_cold>
+                <volumes>
+                    <!-- Replaces storage.xml's cold_local. -->
+                    <cold>
+                        <disk>cold</disk>
+                        <prefer_not_to_merge>true</prefer_not_to_merge>
+                    </cold>
+                </volumes>
+            </hot_cold>
+        </policies>
+    </storage_configuration>
+</clickhouse>

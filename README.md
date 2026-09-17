@@ -23,6 +23,17 @@ export COMPOSE_FILE=infra/stage1/compose/docker-compose.yml
 docker compose up -d
 ```
 
+The cold volume of the hot/cold policy is a second local directory by default, which
+exercises the policy and the part movement for real. To point it at a GCS bucket instead, set
+`CH_COLD_ENDPOINT` and the HMAC pair in `.env` and add the overlay:
+
+```bash
+export COMPOSE_FILE=infra/stage1/compose/docker-compose.yml:infra/stage1/compose/docker-compose.cold-object.yml
+```
+
+It is an overlay rather than a flag because ClickHouse constructs every declared disk eagerly:
+an S3 disk with an empty endpoint is not an absent disk, it is a server that will not start.
+
 ## Migrations
 
 The control plane is **two databases** (§99): one global tier holding accounts, projects and
