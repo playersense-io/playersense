@@ -55,8 +55,13 @@ CREATE MATERIALIZED VIEW IF NOT EXISTS mv_account_lifetime TO account_lifetime A
 SELECT
     project_seq,
     environment_seq,
-    sipHash64(project_seq, environment_seq, player_id)   AS account_id,
-    any(player_id)                                       AS account_key,
+    -- assumeNotNull, and it is not decoration. player_id is Nullable, so sipHash64 over it
+    -- returns Nullable(UInt64) and any() returns Nullable(String) — neither of which is the
+    -- column's type. The WHERE below already guarantees there is a value; this says so to the
+    -- type system instead of relying on a coercion that is silent when it works and silent
+    -- when it does not.
+    sipHash64(project_seq, environment_seq, assumeNotNull(player_id)) AS account_id,
+    any(assumeNotNull(player_id))                        AS account_key,
     min(ingest_time)                                     AS first_seen,
     max(ingest_time)                                     AS last_seen,
     sum(playtime_ms)                                     AS playtime_ms,
@@ -64,9 +69,9 @@ SELECT
     countIf(event_type = 'purchase')                     AS purchases,
     uniqState(event_date)                                AS active_days
 FROM events_raw
--- Not `actor_key != ''`, which is never false. Only rows from a player who has identified
--- themselves belong in an account table.
-WHERE player_id != ''
+-- Not `actor_key IS NOT NULL`, which is never false: actor_key falls back to the install.
+-- Only rows from a player who has identified themselves belong in an account table.
+WHERE player_id IS NOT NULL
 GROUP BY project_seq, environment_seq, account_id;
 -- +goose StatementEnd
 

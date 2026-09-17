@@ -360,16 +360,19 @@ func (e *Exporter) writeEvents(ctx context.Context, db *sql.DB, req *regional.Da
 	where, args := subject.Actor.Predicate(req.ProjectSeq, req.ActorKey)
 	args = append(args, e.maxRows()+1)
 
+	// ifNull at the edge rather than *string in the bundle: NULL is how absence is stored,
+	// and "" plus `omitempty` is how absence is rendered in JSON. The bundle is a document a
+	// person reads, and an omitted field says "we hold nothing here" better than `null` does.
 	rows, err := db.QueryContext(ctx, `
 		SELECT
 			event_time, ingest_time, received_at,
-			toString(event_id), toString(batch_id), session_id, player_id, toString(install_id),
+			toString(event_id), toString(batch_id), session_id, ifNull(player_id, ''), toString(install_id),
 			event_name, event_type,
 			platform, country_code, app_version, sdk_name, sdk_version,
-			consent_analytics, consent_policy_version, att_status,
+			consent_analytics, ifNull(consent_policy_version, ''), ifNull(att_status, ''),
 			toJSONString(props_string), toJSONString(props_int),
 			toJSONString(props_float), toJSONString(props_bool),
-			revenue_micros, currency, playtime_ms
+			revenue_micros, ifNull(currency, ''), playtime_ms
 		FROM events_raw
 		WHERE `+where+`
 		ORDER BY event_time

@@ -447,7 +447,7 @@ func (w *Writer) erasedActors(ctx context.Context, projectID string, batch *inge
 
 // actorKeyOf computes the identity ClickHouse materializes as `actor_key`.
 //
-//	actor_key = if(player_id != '', player_id, toString(install_id))
+//	actor_key = ifNull(player_id, toString(install_id))
 //
 // Written here as well as in the archive's Row because the writer has to recognise an erased
 // actor *before* the row exists — the column it would read is computed by the insert this
@@ -722,16 +722,17 @@ func (w *Writer) insert(ctx context.Context, rows []pendingRow, token string) er
 			d.orgID, d.projectID, d.environmentID,
 			d.msg.RetentionTier, d.msg.PolicyTier,
 			ev.EventTime, d.batch.IngestTime, d.batch.ReceivedAt,
-			eventID, d.batchID, ev.SessionID, ev.PlayerID, d.installID,
+			eventID, d.batchID, ev.SessionID, nullable(ev.PlayerID), d.installID,
 			ev.EventName, ev.EventType,
 			d.batch.Platform, d.batch.CountryCode, d.batch.AppVersion,
 			d.batch.SDKName, d.batch.SDKVersion,
 			d.cohortDate, d.state.InstallPlatform, d.state.InstallCountry,
 			d.state.FirstAppVersion, d.state.AcquisitionSource,
-			d.batch.ConsentAnalytics, d.batch.ConsentPolicyVersion, d.batch.ATTStatus,
+			d.batch.ConsentAnalytics, nullable(d.batch.ConsentPolicyVersion),
+			nullable(d.batch.ATTStatus),
 			orEmptyString(ev.PropsString), orEmptyInt(ev.PropsInt),
 			orEmptyFloat(ev.PropsFloat), orEmptyBool(ev.PropsBool),
-			ev.RevenueMicros, ev.Currency, playtimeMillis(ev),
+			ev.RevenueMicros, nullable(ev.Currency), playtimeMillis(ev),
 			ev.PayloadBytes,
 		); err != nil {
 			return fmt.Errorf("append row: %w", err)
@@ -805,4 +806,22 @@ func orEmptyBool(m map[string]uint8) map[string]uint8 {
 		return map[string]uint8{}
 	}
 	return m
+}
+
+// nullable turns Go's empty string into a SQL NULL.
+//
+// The four columns this is used for are Nullable in ClickHouse because absence is a distinct
+// state there: an anonymous event has no player, and that is not a player whose identifier is
+// the empty string. Go has no such distinction — "" is the zero value of every string — so the
+// conversion has to happen here, at the one place a value crosses into the database.
+//
+// Getting this wrong is silent and expensive. An anonymous event stored with player_id = ”
+// instead of NULL still satisfies `IS NOT NULL`, so it would enter `account_lifetime` and give
+// every anonymous install an "account" whose key is the empty string — one enormous fake
+// player that every account-level targeting rule would match.
+func nullable(value string) any {
+	if value == "" {
+		return nil
+	}
+	return value
 }

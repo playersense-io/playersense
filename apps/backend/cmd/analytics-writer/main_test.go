@@ -361,6 +361,87 @@ func TestABatchTravelsFromTheGatewayToClickHouse(t *testing.T) {
 // The offset is rewound, which is exactly what a crash between the insert and the
 // acknowledgement produces. The rows must not double: insert_deduplication_token is what
 // makes that true, and it works because events_raw is a ReplicatedMergeTree.
+// TestAnAnonymousEventStoresNoPlayerAtAll is the reason `player_id` is Nullable.
+//
+// Go has one empty string and no concept of absence, so a writer that passed `ev.PlayerID`
+// straight through would store `”` for an event that has no player. That still satisfies
+// `IS NOT NULL`, so every anonymous install in the product would flow into
+// `account_lifetime` as a single account whose key is the empty string — one enormous fake
+// player that every account-level targeting rule would match, and nothing would report it.
+//
+// The distinction only exists if it is preserved at the boundary, so this checks the
+// boundary.
+func TestAnAnonymousEventStoresNoPlayerAtAll(t *testing.T) {
+	p := newPipeline(t, "standard")
+	p.run(t)
+
+	identified := batch(event("session_start", map[string]any{"player_id": "player-7"}))
+	anonymous := batch(event("session_start", nil))
+
+	p.client.Post("/v1/batches", testclient.JSON(identified)).AssertStatus(http.StatusAccepted)
+	p.client.Post("/v1/batches", testclient.JSON(anonymous)).AssertStatus(http.StatusAccepted)
+
+	if got := p.waitForRows(t, 2); got != 2 {
+		t.Fatalf("events_raw holds %d rows, want 2", got)
+	}
+
+	conn, _ := p.ch.DB()
+	var nulls, empties uint64
+	if err := conn.QueryRow(context.Background(), `
+		SELECT countIf(player_id IS NULL), countIf(player_id = '')
+		FROM events_raw WHERE project_seq = ?`,
+		uint32(p.project.ProjectSeq)).Scan(&nulls, &empties); err != nil {
+		t.Fatalf("read back: %v", err)
+	}
+	if nulls != 1 {
+		t.Errorf("%d rows have a NULL player, want 1", nulls)
+	}
+	if empties != 0 {
+		t.Errorf("%d rows store the empty string instead of NULL", empties)
+	}
+
+	// And the consequence that matters: the anonymous install is not an account.
+	//
+	// Polled, because a materialized view's target becomes visible a moment after the table
+	// it reads from. Asserting the instant events_raw has both rows is asserting an ordering
+	// nothing promised — the same mistake as reading an offset file the moment its object
+	// appears.
+	accounts := p.waitForAccounts(t, 1)
+	if accounts != 1 {
+		t.Errorf("account_lifetime holds %d accounts, want exactly the identified one", accounts)
+	}
+
+	// actor_key still falls back to the install, so a player timeline is unaffected.
+	var actors uint64
+	if err := conn.QueryRow(context.Background(), `
+		SELECT uniqExact(actor_key) FROM events_raw WHERE project_seq = ?`,
+		uint32(p.project.ProjectSeq)).Scan(&actors); err != nil {
+		t.Fatalf("read actors: %v", err)
+	}
+	if actors != 2 {
+		t.Errorf("%d distinct actor keys, want 2 — actor_key must still coalesce", actors)
+	}
+}
+
+// waitForAccounts waits for the account-level aggregate to catch up with events_raw.
+func (p *pipeline) waitForAccounts(t *testing.T, want uint64) uint64 {
+	t.Helper()
+	conn, _ := p.ch.DB()
+	deadline := time.Now().Add(10 * time.Second)
+	var got uint64
+	for {
+		if err := conn.QueryRow(context.Background(),
+			`SELECT count() FROM account_lifetime_v WHERE project_seq = ?`,
+			uint32(p.project.ProjectSeq)).Scan(&got); err != nil {
+			t.Fatalf("read accounts: %v", err)
+		}
+		if got >= want || time.Now().After(deadline) {
+			return got
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+}
+
 func TestARedeliveredBatchLandsOnce(t *testing.T) {
 	p := newPipeline(t, "standard")
 	p.run(t)

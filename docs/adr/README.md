@@ -57,6 +57,7 @@ a record is never updated to match a drifting document, it is superseded by a ne
 | [0028](0028-context-travels-as-a-timeline.md) | Context travels as a timeline and is materialized at ingestion | Accepted |
 | [0029](0029-a-c-abi-over-an-opaque-handle.md) | A C ABI over an opaque handle, and unwinding panics | Accepted |
 | [0030](0030-the-unity-surface-is-types-in-a-namespace.md) | The Unity binding: types in a namespace, no_backup, and importer settings in code | Accepted |
+| [0031](0031-absence-is-null-not-the-empty-string.md) | Absence is NULL, not the empty string | Accepted |
 
 ## Template
 
