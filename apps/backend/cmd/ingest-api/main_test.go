@@ -21,6 +21,7 @@ import (
 	"playersense.dev/backend/internal/protocol"
 	"playersense.dev/backend/internal/routers"
 	"playersense.dev/backend/internal/testsupport"
+	"playersense.dev/backend/internal/transport"
 	"playersense.dev/backend/internal/valkey"
 )
 
@@ -58,6 +59,13 @@ func newFixture(t *testing.T, tier string) *fixture {
 		muzak.WithSingleton(eventbus.Bus(bus)),
 		muzak.WithSingleton(home),
 	)
+	// The same middleware `build` installs, so a test exercises the wire the way the
+	// service serves it. It no-ops on a request with no Content-Encoding, which is most of
+	// this file.
+	app.Use(transport.Decompress(transport.Options{
+		MaxCompressedBytes: settings.IngestMaxCompressedBytes,
+	}))
+
 	app.Include(routers.Meta())
 	app.Include(routers.Ingest())
 

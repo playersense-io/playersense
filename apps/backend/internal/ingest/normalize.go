@@ -10,8 +10,11 @@ import (
 	"fmt"
 	"math"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
 
 	"playersense.dev/backend/internal/core"
 	"playersense.dev/backend/internal/protocol"
@@ -24,6 +27,8 @@ import (
 // otherwise arrive as a bill.
 type Limits struct {
 	MaxEventsPerBatch    int
+	MaxContextFrames     int
+	MaxContextKeys       int
 	MaxPropertiesPerItem int
 	MaxPropertyKeyLen    int
 	MaxStringValueLen    int
@@ -38,7 +43,13 @@ type Limits struct {
 // before being called final.
 func DefaultLimits() Limits {
 	return Limits{
-		MaxEventsPerBatch:    1000,
+		MaxEventsPerBatch: 1000,
+		// A frame per event would be a context change between every pair of events, which
+		// is not a thing a game does; it is a client with a bug in its batching.
+		MaxContextFrames: 64,
+		// §context: the SDK bounds a scope at 64 keys, and the merged view of two scopes
+		// cannot exceed both.
+		MaxContextKeys:       128,
 		MaxPropertiesPerItem: 64,
 		MaxPropertyKeyLen:    64,
 		MaxStringValueLen:    1024,
@@ -153,9 +164,28 @@ func Normalize(batch *protocol.Batch, tenant *core.Tenant, clientIP string, now 
 
 	result := &Result{Batch: out}
 
+	if err := checkContext(batch.Context, limits); err != nil {
+		return nil, err
+	}
+
+	// The context as it stands at the event being read, advanced by the timeline.
+	//
+	// The loop index is the event's position **in the batch as sent**, and that is the index
+	// the frames are keyed on. Dropping a malformed event must therefore not shift it — which
+	// is why the cursor advances inside this loop rather than over `out.Events`. Get that
+	// wrong and every event after a dropped one silently inherits somebody else's context,
+	// which is a corruption rather than a loss and nothing would report it.
+	context := map[string]any{}
+	frame := 0
+
 	for i := range batch.Events {
+		for frame < len(batch.Context) && batch.Context[frame].At <= i {
+			applyFrame(context, batch.Context[frame])
+			frame++
+		}
+
 		ev := &batch.Events[i]
-		normalized, err := normalizeEvent(ev, batch, now, limits)
+		normalized, err := normalizeEvent(ev, batch, i, context, now, limits)
 		if err != nil {
 			result.Dropped++
 			if len(result.Reasons) < maxReasons {
@@ -168,16 +198,73 @@ func Normalize(batch *protocol.Batch, tenant *core.Tenant, clientIP string, now 
 	return result, nil
 }
 
-func normalizeEvent(ev *protocol.Event, batch *protocol.Batch, now time.Time, limits Limits) (*NormalizedEvent, error) {
-	if ev.EventID == "" {
-		return nil, fmt.Errorf("event_id is required")
+// checkContext bounds the timeline before any of it is applied.
+//
+// A whole-batch refusal rather than a per-event one, because a malformed timeline is not a
+// property of any single event: it is a client that cannot be trusted about which context
+// belongs to what, and expanding it would attribute real events to invented state.
+func checkContext(frames []protocol.ContextFrame, limits Limits) error {
+	if len(frames) > limits.MaxContextFrames {
+		return fmt.Errorf("a batch may carry at most %d context frames, got %d",
+			limits.MaxContextFrames, len(frames))
+	}
+	last := -1
+	for i, f := range frames {
+		if f.At < 0 {
+			return fmt.Errorf("context frame %d applies from a negative index", i)
+		}
+		// Ascending, so one pass over the events resolves the whole timeline. A frame out
+		// of order would silently never be applied.
+		if f.At < last {
+			return fmt.Errorf("context frame %d applies from index %d, before frame %d's %d",
+				i, f.At, i-1, last)
+		}
+		last = f.At
+		if len(f.Values)+len(f.Set) > limits.MaxContextKeys {
+			return fmt.Errorf("context frame %d carries more than %d keys",
+				i, limits.MaxContextKeys)
+		}
+	}
+	return nil
+}
+
+// applyFrame advances the running context. Values replaces, then Set applies, then Unset
+// removes — the order the envelope documents, so a frame carrying more than one is
+// unambiguous.
+func applyFrame(context map[string]any, frame protocol.ContextFrame) {
+	if frame.Values != nil {
+		clear(context)
+		for key, value := range frame.Values {
+			context[key] = value
+		}
+	}
+	for key, value := range frame.Set {
+		context[key] = value
+	}
+	for _, key := range frame.Unset {
+		delete(context, key)
+	}
+}
+
+// contextPrefix marks a property that came from the studio's context rather than from the
+// event itself.
+//
+// Prefixed rather than merged flat, so an event named property and a context key of the same
+// name cannot collide — and so a reader can always tell what described the occurrence from
+// what described the player at the time.
+const contextPrefix = "ctx."
+
+func normalizeEvent(ev *protocol.Event, batch *protocol.Batch, index int, context map[string]any, now time.Time, limits Limits) (*NormalizedEvent, error) {
+	id, err := resolveEventID(ev.EventID, batch.BatchID, index)
+	if err != nil {
+		return nil, err
 	}
 	if !eventNamePattern.MatchString(ev.EventName) {
 		return nil, fmt.Errorf("event_name %q is not an accepted name", truncate(ev.EventName, 32))
 	}
 
 	out := &NormalizedEvent{
-		EventID:       ev.EventID,
+		EventID:       id,
 		EventName:     ev.EventName,
 		EventType:     eventType(ev),
 		SessionID:     truncate(ev.SessionID, 128),
@@ -215,8 +302,67 @@ func normalizeEvent(ev *protocol.Event, batch *protocol.Batch, now time.Time, li
 		return nil, err
 	}
 
+	// Metered **before** the context is expanded, and the order is the whole point.
+	//
+	// §39 bills on normalized logical bytes, and the studio sent the context once for the
+	// batch. Counting it again on every event would bill them two hundred and fifty times
+	// for something they transmitted once — which is precisely the cost the timeline exists
+	// to avoid, reintroduced at the meter.
 	out.PayloadBytes = uint32(estimateBytes(out))
+
+	applyContext(out, context, limits)
 	return out, nil
+}
+
+// applyContext materializes the studio's context onto one event (§context frames).
+//
+// This is what keeps §29.1 intact. The row ClickHouse stores is fully denormalized, so a
+// breakdown by `rank` is a GROUP BY over one table and never a join to reconstruct what the
+// player's rank was at the time.
+//
+// An event's own property wins a collision, though the prefix makes one all but impossible:
+// a property describes the occurrence and is the more specific statement.
+func applyContext(out *NormalizedEvent, context map[string]any, limits Limits) {
+	for key, value := range context {
+		if len(key) > limits.MaxPropertyKeyLen {
+			continue
+		}
+		prefixed := contextPrefix + key
+		switch v := value.(type) {
+		case string:
+			setIfAbsent(&out.PropsString, prefixed, truncate(v, limits.MaxStringValueLen))
+		case bool:
+			setIfAbsent(&out.PropsBool, prefixed, boolToUint8(v))
+		case float64:
+			// JSON has one number type, so an integral value is an integer. The same rule
+			// splitProperties applies, and the two must not disagree or a key would land in
+			// one map from an event and the other from the context.
+			if v == math.Trunc(v) && math.Abs(v) < 1<<53 {
+				setIfAbsent(&out.PropsInt, prefixed, int64(v))
+			} else {
+				setIfAbsent(&out.PropsFloat, prefixed, v)
+			}
+		case int64:
+			setIfAbsent(&out.PropsInt, prefixed, v)
+		}
+	}
+}
+
+// setIfAbsent writes unless the event already said something under that name.
+func setIfAbsent[T any](m *map[string]T, key string, value T) {
+	if *m == nil {
+		*m = make(map[string]T, 4)
+	}
+	if _, taken := (*m)[key]; !taken {
+		(*m)[key] = value
+	}
+}
+
+func boolToUint8(v bool) uint8 {
+	if v {
+		return 1
+	}
+	return 0
 }
 
 // splitProperties sorts a property bag into typed maps (§22).
@@ -278,6 +424,33 @@ func looksLikeDirectPII(v string) bool {
 		return true
 	}
 	return false
+}
+
+// eventIDNamespace names the derivation, so an id produced here cannot collide with a v4
+// UUID a client generated or with a v5 UUID anything else derives.
+var eventIDNamespace = uuid.MustParse("80049b13-30ea-4b53-9718-71a1ac5add36")
+
+// eventID takes the client's identifier, or derives one.
+//
+// Derived from the batch and the event's position in it, which is unique by construction
+// and stable across a redelivery — because §18 requires a batch to be immutable once
+// created, so the same events arrive in the same order under the same batch_id however many
+// times it is retried. That is exactly the property §21's read-side deduplication needs, and
+// it is the property a client-generated UUID was buying at a cost of sixteen incompressible
+// bytes an event.
+//
+// A client-supplied id is used as given and must be a UUID, because that is the column's
+// type. Rejecting it per event rather than per batch keeps §19's promise that one bad event
+// does not fail the batch around it.
+func resolveEventID(supplied, batchID string, index int) (string, error) {
+	if supplied == "" {
+		return uuid.NewSHA1(eventIDNamespace,
+			[]byte(batchID+"\x00"+strconv.Itoa(index))).String(), nil
+	}
+	if _, err := uuid.Parse(supplied); err != nil {
+		return "", fmt.Errorf("event_id %q is not a uuid", truncate(supplied, 40))
+	}
+	return supplied, nil
 }
 
 func eventType(ev *protocol.Event) string {

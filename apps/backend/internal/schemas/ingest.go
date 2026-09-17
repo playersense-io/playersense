@@ -23,7 +23,12 @@ type IngestBatchIn struct {
 // unauthenticated caller about the schema.
 func (in *IngestBatchIn) Validate(v *muzak.Validation) {
 	v.Number(&in.SchemaVersion).Required().Between(1, 1)
-	v.String(&in.BatchID).Trim().Required().MinLen(8).MaxLen(64)
+	// A UUID, like install_id, because that is what storage requires. Until this rule
+	// existed the gateway accepted any eight-character string and answered 202, and the
+	// writer then found it unparseable and dropped the whole message with a log line no
+	// SDK could see — an acknowledgement that was not true. A contract has to be enforced
+	// where it is promised.
+	v.String(&in.BatchID).Trim().Required().UUID()
 	v.String(&in.InstallID).Trim().Required().UUID()
 	v.String(&in.Environment).Trim().Lower().OneOf("development", "staging", "production")
 

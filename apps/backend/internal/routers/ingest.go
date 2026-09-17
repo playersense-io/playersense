@@ -21,7 +21,9 @@ func Ingest() *muzak.Router {
 		muzak.Summary("Accept a batch of analytics events"),
 		muzak.Description("Answers 202 once the batch has reached durable queueing. "+
 			"The response says how many events were accepted and how many were dropped, "+
-			"so an SDK can stop retrying a batch that will never be accepted."),
+			"so an SDK can stop retrying a batch that will never be accepted. "+
+			"The body may be sent with Content-Encoding: gzip or zstd; the size limit "+
+			"below applies to the decoded batch either way."),
 		muzak.Status(http.StatusAccepted),
 
 		// The tenant is resolved from the Authorization header before binding, so an
@@ -33,11 +35,20 @@ func Ingest() *muzak.Router {
 
 		// A batch is larger than a control-plane document and smaller than an upload.
 		// §19.1 wants this bounded per project; this is the ceiling.
+		//
+		// It is also §19.1's "maximum decompressed bytes". The framework applies it while
+		// binding, to whatever `transport.Decompress` left in the body — so a compressed
+		// batch is held to the same size as an uncompressed one, and a decompression bomb
+		// stops being read here rather than being read and then measured. The companion
+		// limit on the *compressed* wire bytes is INGEST_MAX_COMPRESSED_BYTES.
 		muzak.MaxBodySize(4<<20),
 
 		muzak.WithResponseDoc(http.StatusUnauthorized, "The key is missing, unknown or revoked"),
 		muzak.WithResponseDoc(http.StatusForbidden, "The key is scoped to another environment"),
-		muzak.WithResponseDoc(http.StatusRequestEntityTooLarge, "The batch exceeded the body limit"),
+		muzak.WithResponseDoc(http.StatusRequestEntityTooLarge,
+			"The batch exceeded the body limit, compressed or decoded"),
+		muzak.WithResponseDoc(http.StatusUnsupportedMediaType,
+			"The Content-Encoding is not gzip or zstd"),
 		muzak.WithResponseDoc(http.StatusServiceUnavailable, "The batch could not be queued; retry with backoff"),
 	)
 

@@ -22,6 +22,7 @@ import (
 	"playersense.dev/backend/internal/ingest"
 	"playersense.dev/backend/internal/pgdb"
 	"playersense.dev/backend/internal/routers"
+	"playersense.dev/backend/internal/transport"
 	"playersense.dev/backend/internal/valkey"
 )
 
@@ -120,6 +121,15 @@ func build(settings config.Settings) (*muzak.App, error) {
 			},
 		}))
 	}
+
+	// Before anything binds a body, because §19.1's "maximum decompressed bytes" is the
+	// route's own body limit and a limit applied after decoding is not a limit (§17, §19).
+	//
+	// A request with no Content-Encoding passes straight through, so the uncompressed path
+	// pays one header lookup.
+	app.Use(transport.Decompress(transport.Options{
+		MaxCompressedBytes: settings.IngestMaxCompressedBytes,
+	}))
 
 	app.Include(routers.Meta())
 	app.Include(routers.Ingest())
