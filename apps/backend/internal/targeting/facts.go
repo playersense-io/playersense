@@ -116,6 +116,8 @@ func (r Rule) collect(into map[string]bool) {
 	if r.Not != nil {
 		r.Not.collect(into)
 	}
+	// A reference names no namespace of its own; whatever it resolves to is accounted for
+	// when the compiler inlines it.
 	if r.Key == "" {
 		return
 	}

@@ -42,6 +42,13 @@ func (r Rule) Matches(ctx Context) bool {
 
 	case r.Not != nil:
 		return !r.Not.Matches(ctx)
+
+	case r.Segment != "":
+		// A reference that survived publishing is a compiler bug, not a runtime case.
+		// False rather than a panic: analytics must never crash a game, and a campaign
+		// that reaches nobody is findable while a crash in a config handler is an
+		// outage. `liveconfig.Compile` is what should have replaced this.
+		return false
 	}
 
 	return r.match(ctx)

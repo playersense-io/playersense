@@ -72,6 +72,14 @@ type Rule struct {
 	Any []Rule `json:"any,omitempty"`
 	Not *Rule  `json:"not,omitempty"`
 
+	// Segment names another rule by key, so an audience can be reused rather than retyped.
+	//
+	// **Authored only.** Publishing replaces it with the segment's own rule, so a rule that
+	// is being evaluated never contains one — which is why the evaluator needs no resolver
+	// and cannot recurse into shared state, and why a segment that refers to itself is a
+	// publish-time error rather than a request-time hang.
+	Segment string `json:"segment,omitempty"`
+
 	// Key is a context key: "geo.country", "context.progress.level", "app.version".
 	Key string `json:"key,omitempty"`
 	Op  Op     `json:"op,omitempty"`
@@ -89,7 +97,7 @@ type Rule struct {
 // condition somebody meant to write, and calling it empty would turn a typo into a campaign
 // for the entire game. The only empty rule is the one with nothing in it at all.
 func (r Rule) Empty() bool {
-	return len(r.All) == 0 && len(r.Any) == 0 && r.Not == nil &&
+	return len(r.All) == 0 && len(r.Any) == 0 && r.Not == nil && r.Segment == "" &&
 		r.Key == "" && r.Op == "" && r.Value == nil && len(r.Values) == 0
 }
 
@@ -112,6 +120,13 @@ func (r Rule) validate(depth int, conditions *int) error {
 			return nil // No audience: everyone.
 		}
 		return fmt.Errorf("an empty condition at depth %d matches everything; remove it", depth)
+	}
+
+	if r.Segment != "" {
+		if len(r.All) > 0 || len(r.Any) > 0 || r.Not != nil || r.Key != "" {
+			return fmt.Errorf("a segment reference (%q) stands alone", r.Segment)
+		}
+		return nil
 	}
 
 	groups := 0
