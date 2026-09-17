@@ -271,6 +271,22 @@ The layout one is the one to keep honest: add a field to `Native.PsConfig` and i
 *"PsConfig: the binding says 272 and this binary says 264"*, and the SDK refuses to start
 rather than writing past the end of a struct.
 
+## Continuous integration
+
+`.github/workflows/ci.yml`, on every push. Four jobs, because they fail for four different
+reasons: the Rust protocol and its ABI (fmt, clippy `--all-targets`, tests, and the
+header-drift check), Miri over the boundary code, Go against the real stack in Docker, and a
+native matrix across macOS, Linux and Windows runners.
+
+That last job is the one that changes what can ship. Windows, Linux and Intel macOS cannot be
+built on an Apple-silicon developer machine — no MSVC toolchain, no Linux linker — so until
+now those three libraries did not exist and the Unity package could not ship to PC at all.
+See [docs/sdk/platforms.md](docs/sdk/platforms.md).
+
+**What CI does not cover: Unity.** `verify.sh` needs a Unity editor and a licence, and the
+play-mode tests need the native plugin for whichever platform the runner is. It is run by hand
+before a release, and a workflow that had never executed would be worse than admitting that.
+
 `cohortcheck` seeds synthetic events with a known answer and asserts the pipeline reproduces
 it. It is the independent second opinion on every number the reporting API serves.
 

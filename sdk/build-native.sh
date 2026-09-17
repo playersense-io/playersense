@@ -73,9 +73,19 @@ for entry in "${ALL_TARGETS[@]}"; do
     printf '  %-28s ' "$target"
     if cargo build --release --target "$target" -p playersense-ffi >/dev/null 2>&1; then
         built+=("$target")
-        size=$(stat -f%z "target/$target/release/libplayersense.a" 2>/dev/null \
-            || stat -c%s "target/$target/release/libplayersense.a" 2>/dev/null || echo 0)
-        printf 'ok  (%s bytes, unlinked archive)\n' "$size"
+        # The artifact is named by the platform, not by us: libplayersense.a everywhere
+        # except Windows, which produces playersense.lib and playersense.dll. Reported by
+        # whichever exists so a Windows runner does not print "0 bytes" and look broken.
+        size=0 artifact=""
+        for candidate in libplayersense.a playersense.lib; do
+            path="target/$target/release/$candidate"
+            if [[ -f "$path" ]]; then
+                size=$(stat -f%z "$path" 2>/dev/null || stat -c%s "$path")
+                artifact="$candidate"
+                break
+            fi
+        done
+        printf 'ok  (%s bytes, %s)\n' "$size" "${artifact:-no static library}"
     else
         printf 'FAILED — the target is installed but the linker or SDK is not\n'
         missing+=("$target — $description (toolchain incomplete)")

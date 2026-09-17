@@ -1,0 +1,162 @@
+# What runs on every push. Four jobs, because they fail for four different reasons.
+#
+# There was no CI until now: the ABI self-check, the header-drift test, Miri, the C harness
+# and the Unity boundary tests were all run by hand. For a package whose failure mode is
+# "silently collects nothing", a check that runs when somebody remembers is not a check.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rust:
+    name: Rust — the protocol and its ABI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            sdk/target
+          key: cargo-${{ runner.os }}-${{ hashFiles('sdk/Cargo.lock') }}
+          restore-keys: cargo-${{ runner.os }}-
+
+      - run: rustup component add clippy rustfmt
+
+      - name: Format
+        working-directory: sdk
+        run: cargo fmt --check
+
+      # --all-targets, or the test fixtures go unlinted — which is how a `&mut` handed out
+      # from a `&self` sat in the ABI test fixture unnoticed.
+      - name: Clippy
+        working-directory: sdk
+        run: cargo clippy --all-targets -- -D warnings
+
+      # Includes the header-drift test: cbindgen regenerates include/playersense.h and fails
+      # if the committed one differs, so it cannot drift from the structs it describes.
+      - name: Test
+        working-directory: sdk
+        run: cargo test
+
+  miri:
+    name: Miri — the pointer and handle code
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - run: rustup toolchain install nightly --component miri
+
+      # The skips are the nine tests that compress a batch. gzip under an interpreter takes
+      # longer than the run is worth, and the unsafe code they add over the rest is one
+      # struct construction.
+      - name: Boundary tests under Miri
+        working-directory: sdk
+        run: |
+          cargo +nightly miri test -p playersense-ffi --test abi -- \
+            --skip a_host_that_calls_back --skip a_spooled_batch_survives \
+            --skip tracking_survives --skip a_dead_endpoint --skip a_202_reaches \
+            --skip context_set_through --skip a_401_stops --skip a_batch_is_spooled \
+            --skip track_reports_consent_outcomes
+
+  go:
+    name: Go — against the real stack
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/backend/go.mod
+          cache-dependency-path: apps/backend/go.sum
+
+      # The real services, not fakes. The three-tier key resolver, the Valkey namespacing and
+      # ClickHouse's insert deduplication are the things under test, and a fake for any of
+      # them removes most of what is worth testing.
+      - name: Start the stack
+        run: |
+          cp .env.example .env
+          docker compose -f infra/stage1/compose/docker-compose.yml up -d --wait
+
+      - name: Migrate
+        run: go run ./apps/backend/cmd/migrate up
+
+      - name: Vet and format
+        run: |
+          go vet ./apps/backend/...
+          test -z "$(gofmt -l apps/backend)" || { gofmt -l apps/backend; exit 1; }
+
+      # -race, because the writer, the scheduler and the bus consumer are all concurrent and
+      # the interesting failures are ordering ones.
+      - name: Test
+        run: go test ./apps/backend/... -race
+
+      - name: Verify the invariants
+        run: go run ./apps/backend/cmd/migrate verify
+
+      - name: Stack logs
+        if: failure()
+        run: docker compose -f infra/stage1/compose/docker-compose.yml logs --tail=100
+
+  native:
+    name: Native — ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Apple
+            os: macos-latest
+            targets: aarch64-apple-darwin x86_64-apple-darwin aarch64-apple-ios aarch64-apple-ios-sim
+          - name: Linux and Android
+            os: ubuntu-latest
+            targets: x86_64-unknown-linux-gnu aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
+          - name: Windows
+            os: windows-latest
+            targets: x86_64-pc-windows-msvc
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: native-${{ runner.os }}-${{ hashFiles('sdk/Cargo.lock') }}
+
+      - name: Add the targets
+        shell: bash
+        run: rustup target add ${{ matrix.targets }}
+
+      # build-native.sh finds the Android NDK from ANDROID_NDK_ROOT, which the Ubuntu runner
+      # already sets, and names any target it cannot build rather than skipping it quietly.
+      - name: Build
+        shell: bash
+        working-directory: sdk
+        run: ./build-native.sh
+
+      # These three are why this job exists: Windows, Linux and Intel macOS cannot be built
+      # on a developer's Apple-silicon machine, so until now they did not exist at all.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-${{ matrix.os }}
+          if-no-files-found: error
+          path: |
+            sdk/target/*/release/libplayersense.a
+            sdk/target/*/release/libplayersense.so
+            sdk/target/*/release/libplayersense.dylib
+            sdk/target/*/release/playersense.dll
+            sdk/target/*/release/playersense.lib
