@@ -16,6 +16,8 @@ type Tx struct {
 	ArchiveManifest *ArchiveManifestClient
 	// DataDeletionRequest is the client for interacting with the DataDeletionRequest builders.
 	DataDeletionRequest *DataDeletionRequestClient
+	// DataExportRequest is the client for interacting with the DataExportRequest builders.
+	DataExportRequest *DataExportRequestClient
 	// VerifiedPurchase is the client for interacting with the VerifiedPurchase builders.
 	VerifiedPurchase *VerifiedPurchaseClient
 
@@ -151,6 +153,7 @@ func (tx *Tx) Client() *Client {
 func (tx *Tx) init() {
 	tx.ArchiveManifest = NewArchiveManifestClient(tx.config)
 	tx.DataDeletionRequest = NewDataDeletionRequestClient(tx.config)
+	tx.DataExportRequest = NewDataExportRequestClient(tx.config)
 	tx.VerifiedPurchase = NewVerifiedPurchaseClient(tx.config)
 }
 

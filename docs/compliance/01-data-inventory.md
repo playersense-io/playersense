@@ -24,9 +24,9 @@ or omit one that does. See ADR 0007.
 Current state, from a live `migrate verify`:
 
 ```text
-global tier   57 columns /  8 tables, all classified; no identifier anywhere in it
-cell eu-1     23 columns /  3 tables, all classified
-clickhouse   141 columns / 10 tables, all classified
+global tier   58 columns /  8 tables, all classified; no identifier anywhere in it
+cell eu-1     42 columns /  4 tables, all classified
+clickhouse   248 columns / 19 tables, all classified
 ```
 
 ## What is collected about a player
@@ -95,13 +95,21 @@ intended it to hold.
 Events and everything derived from them. Never any account data.
 
 ```text
-events_raw               every accepted event, TTL by retention tier
-player_lifetime          first/last seen and sticky install dimensions, per device
-player_activity_daily    one row per device per active day, carrying its cohort key
-cohort_sizes             denominators
-cohort_metrics_daily     published cohort numerators
-cohort_bucket_daily      playtime and spend buckets
-*_staging                rebuild targets, published by REPLACE PARTITION
+events_raw                       every accepted event, TTL by retention tier
+player_lifetime                  first/last seen and sticky install dimensions, per device
+player_activity_daily            one row per device per active day, carrying its cohort key
+
+cohort_sizes                     denominators
+cohort_metrics_daily             published cohort numerators
+cohort_metrics_breakdown_daily   the same, split by one sticky dimension at a time
+cohort_bucket_daily              playtime and spend buckets
+
+events_1m, events_1h             realtime event summaries; approximate player counts
+metrics_daily                    active players, sessions, events and revenue per day
+metrics_breakdown_daily          the same, split by one dimension at a time
+metrics_monthly                  monthly actives, its own distinct count
+
+*_staging                        rebuild targets, published by REPLACE PARTITION
 ```
 
 ### PostgreSQL global tier — exactly one, US-hosted
@@ -119,9 +127,15 @@ Everything naming a player:
 ```text
 verified_purchases       player_id, store_transaction_id
 data_deletion_requests   actor_key
-exports                  (designed, not built)
+data_export_requests     actor_key
 archive_manifests
 ```
+
+The two request tables outlive the data they name, and deliberately. Proving an erasure
+happened needs a record that it happened ([06](06-retention-and-deletion.md)), and that record
+has to carry the identifier it was about — which is why both are here and not in the global
+tier ([03](03-residency-and-transfers.md)). Neither holds anything else about the person:
+what an erasure removed is recorded as counts, not as a copy of what was removed.
 
 ### Valkey — one per cell, ephemeral
 
@@ -131,8 +145,14 @@ with the cell slug, so nothing crosses ([03](03-residency-and-transfers.md)).
 
 ### Google Cloud Storage — one bucket per cell
 
-Cold archive of raw events, as compressed Parquet, in the cell's region
-([10-open-items.md](10-open-items.md)).
+Cold archive of raw events, as compressed Parquet, in the cell's region. Objects expire on
+the project's retention tier, swept from the manifests rather than by a bucket lifecycle rule
+— retention is a per-project term and a lifecycle rule can only express one age for the whole
+bucket ([06](06-retention-and-deletion.md)).
+
+Under a separate `export/` prefix, the bundles produced by an access request
+([05](05-data-subject-rights.md)). Each is a copy of everything held about one person, so
+each has its own short expiry and is removed sooner if that person asks to be erased.
 
 ## What is never stored
 

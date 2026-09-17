@@ -49,6 +49,27 @@ func (_u *DataDeletionRequestUpdate) SetNillableProjectUID(v *uuid.UUID) *DataDe
 	return _u
 }
 
+// SetProjectSeq sets the "project_seq" field.
+func (_u *DataDeletionRequestUpdate) SetProjectSeq(v uint32) *DataDeletionRequestUpdate {
+	_u.mutation.ResetProjectSeq()
+	_u.mutation.SetProjectSeq(v)
+	return _u
+}
+
+// SetNillableProjectSeq sets the "project_seq" field if the given value is not nil.
+func (_u *DataDeletionRequestUpdate) SetNillableProjectSeq(v *uint32) *DataDeletionRequestUpdate {
+	if v != nil {
+		_u.SetProjectSeq(*v)
+	}
+	return _u
+}
+
+// AddProjectSeq adds value to the "project_seq" field.
+func (_u *DataDeletionRequestUpdate) AddProjectSeq(v int32) *DataDeletionRequestUpdate {
+	_u.mutation.AddProjectSeq(v)
+	return _u
+}
+
 // SetActorKey sets the "actor_key" field.
 func (_u *DataDeletionRequestUpdate) SetActorKey(v string) *DataDeletionRequestUpdate {
 	_u.mutation.SetActorKey(v)
@@ -74,6 +95,47 @@ func (_u *DataDeletionRequestUpdate) SetNillableStatus(v *datadeletionrequest.St
 	if v != nil {
 		_u.SetStatus(*v)
 	}
+	return _u
+}
+
+// SetTombstonedAt sets the "tombstoned_at" field.
+func (_u *DataDeletionRequestUpdate) SetTombstonedAt(v time.Time) *DataDeletionRequestUpdate {
+	_u.mutation.SetTombstonedAt(v)
+	return _u
+}
+
+// SetNillableTombstonedAt sets the "tombstoned_at" field if the given value is not nil.
+func (_u *DataDeletionRequestUpdate) SetNillableTombstonedAt(v *time.Time) *DataDeletionRequestUpdate {
+	if v != nil {
+		_u.SetTombstonedAt(*v)
+	}
+	return _u
+}
+
+// ClearTombstonedAt clears the value of the "tombstoned_at" field.
+func (_u *DataDeletionRequestUpdate) ClearTombstonedAt() *DataDeletionRequestUpdate {
+	_u.mutation.ClearTombstonedAt()
+	return _u
+}
+
+// SetArchiveCursor sets the "archive_cursor" field.
+func (_u *DataDeletionRequestUpdate) SetArchiveCursor(v int) *DataDeletionRequestUpdate {
+	_u.mutation.ResetArchiveCursor()
+	_u.mutation.SetArchiveCursor(v)
+	return _u
+}
+
+// SetNillableArchiveCursor sets the "archive_cursor" field if the given value is not nil.
+func (_u *DataDeletionRequestUpdate) SetNillableArchiveCursor(v *int) *DataDeletionRequestUpdate {
+	if v != nil {
+		_u.SetArchiveCursor(*v)
+	}
+	return _u
+}
+
+// AddArchiveCursor adds value to the "archive_cursor" field.
+func (_u *DataDeletionRequestUpdate) AddArchiveCursor(v int) *DataDeletionRequestUpdate {
+	_u.mutation.AddArchiveCursor(v)
 	return _u
 }
 
@@ -114,6 +176,69 @@ func (_u *DataDeletionRequestUpdate) SetNillableFailureReason(v *string) *DataDe
 // ClearFailureReason clears the value of the "failure_reason" field.
 func (_u *DataDeletionRequestUpdate) ClearFailureReason() *DataDeletionRequestUpdate {
 	_u.mutation.ClearFailureReason()
+	return _u
+}
+
+// SetDevicesDeleted sets the "devices_deleted" field.
+func (_u *DataDeletionRequestUpdate) SetDevicesDeleted(v uint32) *DataDeletionRequestUpdate {
+	_u.mutation.ResetDevicesDeleted()
+	_u.mutation.SetDevicesDeleted(v)
+	return _u
+}
+
+// SetNillableDevicesDeleted sets the "devices_deleted" field if the given value is not nil.
+func (_u *DataDeletionRequestUpdate) SetNillableDevicesDeleted(v *uint32) *DataDeletionRequestUpdate {
+	if v != nil {
+		_u.SetDevicesDeleted(*v)
+	}
+	return _u
+}
+
+// AddDevicesDeleted adds value to the "devices_deleted" field.
+func (_u *DataDeletionRequestUpdate) AddDevicesDeleted(v int32) *DataDeletionRequestUpdate {
+	_u.mutation.AddDevicesDeleted(v)
+	return _u
+}
+
+// SetObjectsRedacted sets the "objects_redacted" field.
+func (_u *DataDeletionRequestUpdate) SetObjectsRedacted(v uint32) *DataDeletionRequestUpdate {
+	_u.mutation.ResetObjectsRedacted()
+	_u.mutation.SetObjectsRedacted(v)
+	return _u
+}
+
+// SetNillableObjectsRedacted sets the "objects_redacted" field if the given value is not nil.
+func (_u *DataDeletionRequestUpdate) SetNillableObjectsRedacted(v *uint32) *DataDeletionRequestUpdate {
+	if v != nil {
+		_u.SetObjectsRedacted(*v)
+	}
+	return _u
+}
+
+// AddObjectsRedacted adds value to the "objects_redacted" field.
+func (_u *DataDeletionRequestUpdate) AddObjectsRedacted(v int32) *DataDeletionRequestUpdate {
+	_u.mutation.AddObjectsRedacted(v)
+	return _u
+}
+
+// SetPurchasesDeleted sets the "purchases_deleted" field.
+func (_u *DataDeletionRequestUpdate) SetPurchasesDeleted(v uint32) *DataDeletionRequestUpdate {
+	_u.mutation.ResetPurchasesDeleted()
+	_u.mutation.SetPurchasesDeleted(v)
+	return _u
+}
+
+// SetNillablePurchasesDeleted sets the "purchases_deleted" field if the given value is not nil.
+func (_u *DataDeletionRequestUpdate) SetNillablePurchasesDeleted(v *uint32) *DataDeletionRequestUpdate {
+	if v != nil {
+		_u.SetPurchasesDeleted(*v)
+	}
+	return _u
+}
+
+// AddPurchasesDeleted adds value to the "purchases_deleted" field.
+func (_u *DataDeletionRequestUpdate) AddPurchasesDeleted(v int32) *DataDeletionRequestUpdate {
+	_u.mutation.AddPurchasesDeleted(v)
 	return _u
 }
 
@@ -196,11 +321,29 @@ func (_u *DataDeletionRequestUpdate) sqlSave(ctx context.Context) (_node int, er
 	if value, ok := _u.mutation.ProjectUID(); ok {
 		_spec.SetField(datadeletionrequest.FieldProjectUID, field.TypeUUID, value)
 	}
+	if value, ok := _u.mutation.ProjectSeq(); ok {
+		_spec.SetField(datadeletionrequest.FieldProjectSeq, field.TypeUint32, value)
+	}
+	if value, ok := _u.mutation.AddedProjectSeq(); ok {
+		_spec.AddField(datadeletionrequest.FieldProjectSeq, field.TypeUint32, value)
+	}
 	if value, ok := _u.mutation.ActorKey(); ok {
 		_spec.SetField(datadeletionrequest.FieldActorKey, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(datadeletionrequest.FieldStatus, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.TombstonedAt(); ok {
+		_spec.SetField(datadeletionrequest.FieldTombstonedAt, field.TypeTime, value)
+	}
+	if _u.mutation.TombstonedAtCleared() {
+		_spec.ClearField(datadeletionrequest.FieldTombstonedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.ArchiveCursor(); ok {
+		_spec.SetField(datadeletionrequest.FieldArchiveCursor, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedArchiveCursor(); ok {
+		_spec.AddField(datadeletionrequest.FieldArchiveCursor, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.CompletedAt(); ok {
 		_spec.SetField(datadeletionrequest.FieldCompletedAt, field.TypeTime, value)
@@ -213,6 +356,24 @@ func (_u *DataDeletionRequestUpdate) sqlSave(ctx context.Context) (_node int, er
 	}
 	if _u.mutation.FailureReasonCleared() {
 		_spec.ClearField(datadeletionrequest.FieldFailureReason, field.TypeString)
+	}
+	if value, ok := _u.mutation.DevicesDeleted(); ok {
+		_spec.SetField(datadeletionrequest.FieldDevicesDeleted, field.TypeUint32, value)
+	}
+	if value, ok := _u.mutation.AddedDevicesDeleted(); ok {
+		_spec.AddField(datadeletionrequest.FieldDevicesDeleted, field.TypeUint32, value)
+	}
+	if value, ok := _u.mutation.ObjectsRedacted(); ok {
+		_spec.SetField(datadeletionrequest.FieldObjectsRedacted, field.TypeUint32, value)
+	}
+	if value, ok := _u.mutation.AddedObjectsRedacted(); ok {
+		_spec.AddField(datadeletionrequest.FieldObjectsRedacted, field.TypeUint32, value)
+	}
+	if value, ok := _u.mutation.PurchasesDeleted(); ok {
+		_spec.SetField(datadeletionrequest.FieldPurchasesDeleted, field.TypeUint32, value)
+	}
+	if value, ok := _u.mutation.AddedPurchasesDeleted(); ok {
+		_spec.AddField(datadeletionrequest.FieldPurchasesDeleted, field.TypeUint32, value)
 	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -254,6 +415,27 @@ func (_u *DataDeletionRequestUpdateOne) SetNillableProjectUID(v *uuid.UUID) *Dat
 	return _u
 }
 
+// SetProjectSeq sets the "project_seq" field.
+func (_u *DataDeletionRequestUpdateOne) SetProjectSeq(v uint32) *DataDeletionRequestUpdateOne {
+	_u.mutation.ResetProjectSeq()
+	_u.mutation.SetProjectSeq(v)
+	return _u
+}
+
+// SetNillableProjectSeq sets the "project_seq" field if the given value is not nil.
+func (_u *DataDeletionRequestUpdateOne) SetNillableProjectSeq(v *uint32) *DataDeletionRequestUpdateOne {
+	if v != nil {
+		_u.SetProjectSeq(*v)
+	}
+	return _u
+}
+
+// AddProjectSeq adds value to the "project_seq" field.
+func (_u *DataDeletionRequestUpdateOne) AddProjectSeq(v int32) *DataDeletionRequestUpdateOne {
+	_u.mutation.AddProjectSeq(v)
+	return _u
+}
+
 // SetActorKey sets the "actor_key" field.
 func (_u *DataDeletionRequestUpdateOne) SetActorKey(v string) *DataDeletionRequestUpdateOne {
 	_u.mutation.SetActorKey(v)
@@ -279,6 +461,47 @@ func (_u *DataDeletionRequestUpdateOne) SetNillableStatus(v *datadeletionrequest
 	if v != nil {
 		_u.SetStatus(*v)
 	}
+	return _u
+}
+
+// SetTombstonedAt sets the "tombstoned_at" field.
+func (_u *DataDeletionRequestUpdateOne) SetTombstonedAt(v time.Time) *DataDeletionRequestUpdateOne {
+	_u.mutation.SetTombstonedAt(v)
+	return _u
+}
+
+// SetNillableTombstonedAt sets the "tombstoned_at" field if the given value is not nil.
+func (_u *DataDeletionRequestUpdateOne) SetNillableTombstonedAt(v *time.Time) *DataDeletionRequestUpdateOne {
+	if v != nil {
+		_u.SetTombstonedAt(*v)
+	}
+	return _u
+}
+
+// ClearTombstonedAt clears the value of the "tombstoned_at" field.
+func (_u *DataDeletionRequestUpdateOne) ClearTombstonedAt() *DataDeletionRequestUpdateOne {
+	_u.mutation.ClearTombstonedAt()
+	return _u
+}
+
+// SetArchiveCursor sets the "archive_cursor" field.
+func (_u *DataDeletionRequestUpdateOne) SetArchiveCursor(v int) *DataDeletionRequestUpdateOne {
+	_u.mutation.ResetArchiveCursor()
+	_u.mutation.SetArchiveCursor(v)
+	return _u
+}
+
+// SetNillableArchiveCursor sets the "archive_cursor" field if the given value is not nil.
+func (_u *DataDeletionRequestUpdateOne) SetNillableArchiveCursor(v *int) *DataDeletionRequestUpdateOne {
+	if v != nil {
+		_u.SetArchiveCursor(*v)
+	}
+	return _u
+}
+
+// AddArchiveCursor adds value to the "archive_cursor" field.
+func (_u *DataDeletionRequestUpdateOne) AddArchiveCursor(v int) *DataDeletionRequestUpdateOne {
+	_u.mutation.AddArchiveCursor(v)
 	return _u
 }
 
@@ -319,6 +542,69 @@ func (_u *DataDeletionRequestUpdateOne) SetNillableFailureReason(v *string) *Dat
 // ClearFailureReason clears the value of the "failure_reason" field.
 func (_u *DataDeletionRequestUpdateOne) ClearFailureReason() *DataDeletionRequestUpdateOne {
 	_u.mutation.ClearFailureReason()
+	return _u
+}
+
+// SetDevicesDeleted sets the "devices_deleted" field.
+func (_u *DataDeletionRequestUpdateOne) SetDevicesDeleted(v uint32) *DataDeletionRequestUpdateOne {
+	_u.mutation.ResetDevicesDeleted()
+	_u.mutation.SetDevicesDeleted(v)
+	return _u
+}
+
+// SetNillableDevicesDeleted sets the "devices_deleted" field if the given value is not nil.
+func (_u *DataDeletionRequestUpdateOne) SetNillableDevicesDeleted(v *uint32) *DataDeletionRequestUpdateOne {
+	if v != nil {
+		_u.SetDevicesDeleted(*v)
+	}
+	return _u
+}
+
+// AddDevicesDeleted adds value to the "devices_deleted" field.
+func (_u *DataDeletionRequestUpdateOne) AddDevicesDeleted(v int32) *DataDeletionRequestUpdateOne {
+	_u.mutation.AddDevicesDeleted(v)
+	return _u
+}
+
+// SetObjectsRedacted sets the "objects_redacted" field.
+func (_u *DataDeletionRequestUpdateOne) SetObjectsRedacted(v uint32) *DataDeletionRequestUpdateOne {
+	_u.mutation.ResetObjectsRedacted()
+	_u.mutation.SetObjectsRedacted(v)
+	return _u
+}
+
+// SetNillableObjectsRedacted sets the "objects_redacted" field if the given value is not nil.
+func (_u *DataDeletionRequestUpdateOne) SetNillableObjectsRedacted(v *uint32) *DataDeletionRequestUpdateOne {
+	if v != nil {
+		_u.SetObjectsRedacted(*v)
+	}
+	return _u
+}
+
+// AddObjectsRedacted adds value to the "objects_redacted" field.
+func (_u *DataDeletionRequestUpdateOne) AddObjectsRedacted(v int32) *DataDeletionRequestUpdateOne {
+	_u.mutation.AddObjectsRedacted(v)
+	return _u
+}
+
+// SetPurchasesDeleted sets the "purchases_deleted" field.
+func (_u *DataDeletionRequestUpdateOne) SetPurchasesDeleted(v uint32) *DataDeletionRequestUpdateOne {
+	_u.mutation.ResetPurchasesDeleted()
+	_u.mutation.SetPurchasesDeleted(v)
+	return _u
+}
+
+// SetNillablePurchasesDeleted sets the "purchases_deleted" field if the given value is not nil.
+func (_u *DataDeletionRequestUpdateOne) SetNillablePurchasesDeleted(v *uint32) *DataDeletionRequestUpdateOne {
+	if v != nil {
+		_u.SetPurchasesDeleted(*v)
+	}
+	return _u
+}
+
+// AddPurchasesDeleted adds value to the "purchases_deleted" field.
+func (_u *DataDeletionRequestUpdateOne) AddPurchasesDeleted(v int32) *DataDeletionRequestUpdateOne {
+	_u.mutation.AddPurchasesDeleted(v)
 	return _u
 }
 
@@ -431,11 +717,29 @@ func (_u *DataDeletionRequestUpdateOne) sqlSave(ctx context.Context) (_node *Dat
 	if value, ok := _u.mutation.ProjectUID(); ok {
 		_spec.SetField(datadeletionrequest.FieldProjectUID, field.TypeUUID, value)
 	}
+	if value, ok := _u.mutation.ProjectSeq(); ok {
+		_spec.SetField(datadeletionrequest.FieldProjectSeq, field.TypeUint32, value)
+	}
+	if value, ok := _u.mutation.AddedProjectSeq(); ok {
+		_spec.AddField(datadeletionrequest.FieldProjectSeq, field.TypeUint32, value)
+	}
 	if value, ok := _u.mutation.ActorKey(); ok {
 		_spec.SetField(datadeletionrequest.FieldActorKey, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(datadeletionrequest.FieldStatus, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.TombstonedAt(); ok {
+		_spec.SetField(datadeletionrequest.FieldTombstonedAt, field.TypeTime, value)
+	}
+	if _u.mutation.TombstonedAtCleared() {
+		_spec.ClearField(datadeletionrequest.FieldTombstonedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.ArchiveCursor(); ok {
+		_spec.SetField(datadeletionrequest.FieldArchiveCursor, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedArchiveCursor(); ok {
+		_spec.AddField(datadeletionrequest.FieldArchiveCursor, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.CompletedAt(); ok {
 		_spec.SetField(datadeletionrequest.FieldCompletedAt, field.TypeTime, value)
@@ -448,6 +752,24 @@ func (_u *DataDeletionRequestUpdateOne) sqlSave(ctx context.Context) (_node *Dat
 	}
 	if _u.mutation.FailureReasonCleared() {
 		_spec.ClearField(datadeletionrequest.FieldFailureReason, field.TypeString)
+	}
+	if value, ok := _u.mutation.DevicesDeleted(); ok {
+		_spec.SetField(datadeletionrequest.FieldDevicesDeleted, field.TypeUint32, value)
+	}
+	if value, ok := _u.mutation.AddedDevicesDeleted(); ok {
+		_spec.AddField(datadeletionrequest.FieldDevicesDeleted, field.TypeUint32, value)
+	}
+	if value, ok := _u.mutation.ObjectsRedacted(); ok {
+		_spec.SetField(datadeletionrequest.FieldObjectsRedacted, field.TypeUint32, value)
+	}
+	if value, ok := _u.mutation.AddedObjectsRedacted(); ok {
+		_spec.AddField(datadeletionrequest.FieldObjectsRedacted, field.TypeUint32, value)
+	}
+	if value, ok := _u.mutation.PurchasesDeleted(); ok {
+		_spec.SetField(datadeletionrequest.FieldPurchasesDeleted, field.TypeUint32, value)
+	}
+	if value, ok := _u.mutation.AddedPurchasesDeleted(); ok {
+		_spec.AddField(datadeletionrequest.FieldPurchasesDeleted, field.TypeUint32, value)
 	}
 	_node = &DataDeletionRequest{config: _u.config}
 	_spec.Assign = _node.assignValues

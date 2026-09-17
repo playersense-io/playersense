@@ -118,6 +118,7 @@ const (
 	StatusDurable  Status = "durable"
 	StatusDeleting Status = "deleting"
 	StatusDeleted  Status = "deleted"
+	StatusRedacted Status = "redacted"
 	StatusFailed   Status = "failed"
 )
 
@@ -128,7 +129,7 @@ func (s Status) String() string {
 // StatusValidator is a validator for the "status" field enum values. It is called by the builders before save.
 func StatusValidator(s Status) error {
 	switch s {
-	case StatusDurable, StatusDeleting, StatusDeleted, StatusFailed:
+	case StatusDurable, StatusDeleting, StatusDeleted, StatusRedacted, StatusFailed:
 		return nil
 	default:
 		return fmt.Errorf("archivemanifest: invalid enum value for status field: %q", s)

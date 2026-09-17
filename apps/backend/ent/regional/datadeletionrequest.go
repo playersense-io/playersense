@@ -27,15 +27,27 @@ type DataDeletionRequest struct {
 	UpdatedAt time.Time `json:"updated_at,omitempty"`
 	// class=none
 	ProjectUID uuid.UUID `json:"project_uid,omitempty"`
+	// class=none
+	ProjectSeq uint32 `json:"project_seq,omitempty"`
 	// class=identifier
 	ActorKey string `json:"actor_key,omitempty"`
 	// class=none
 	Status datadeletionrequest.Status `json:"status,omitempty"`
 	// class=none
+	TombstonedAt *time.Time `json:"tombstoned_at,omitempty"`
+	// class=none
+	ArchiveCursor int `json:"archive_cursor,omitempty"`
+	// class=none
 	CompletedAt *time.Time `json:"completed_at,omitempty"`
 	// class=none
 	FailureReason string `json:"failure_reason,omitempty"`
-	selectValues  sql.SelectValues
+	// class=none
+	DevicesDeleted uint32 `json:"devices_deleted,omitempty"`
+	// class=none
+	ObjectsRedacted uint32 `json:"objects_redacted,omitempty"`
+	// class=none
+	PurchasesDeleted uint32 `json:"purchases_deleted,omitempty"`
+	selectValues     sql.SelectValues
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -43,11 +55,11 @@ func (*DataDeletionRequest) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case datadeletionrequest.FieldID:
+		case datadeletionrequest.FieldID, datadeletionrequest.FieldProjectSeq, datadeletionrequest.FieldArchiveCursor, datadeletionrequest.FieldDevicesDeleted, datadeletionrequest.FieldObjectsRedacted, datadeletionrequest.FieldPurchasesDeleted:
 			values[i] = new(sql.NullInt64)
 		case datadeletionrequest.FieldActorKey, datadeletionrequest.FieldStatus, datadeletionrequest.FieldFailureReason:
 			values[i] = new(sql.NullString)
-		case datadeletionrequest.FieldCreatedAt, datadeletionrequest.FieldUpdatedAt, datadeletionrequest.FieldCompletedAt:
+		case datadeletionrequest.FieldCreatedAt, datadeletionrequest.FieldUpdatedAt, datadeletionrequest.FieldTombstonedAt, datadeletionrequest.FieldCompletedAt:
 			values[i] = new(sql.NullTime)
 		case datadeletionrequest.FieldUID, datadeletionrequest.FieldProjectUID:
 			values[i] = new(uuid.UUID)
@@ -96,6 +108,12 @@ func (_m *DataDeletionRequest) assignValues(columns []string, values []any) erro
 			} else if value != nil {
 				_m.ProjectUID = *value
 			}
+		case datadeletionrequest.FieldProjectSeq:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field project_seq", values[i])
+			} else if value.Valid {
+				_m.ProjectSeq = uint32(value.Int64)
+			}
 		case datadeletionrequest.FieldActorKey:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field actor_key", values[i])
@@ -107,6 +125,19 @@ func (_m *DataDeletionRequest) assignValues(columns []string, values []any) erro
 				return fmt.Errorf("unexpected type %T for field status", values[i])
 			} else if value.Valid {
 				_m.Status = datadeletionrequest.Status(value.String)
+			}
+		case datadeletionrequest.FieldTombstonedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field tombstoned_at", values[i])
+			} else if value.Valid {
+				_m.TombstonedAt = new(time.Time)
+				*_m.TombstonedAt = value.Time
+			}
+		case datadeletionrequest.FieldArchiveCursor:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field archive_cursor", values[i])
+			} else if value.Valid {
+				_m.ArchiveCursor = int(value.Int64)
 			}
 		case datadeletionrequest.FieldCompletedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -120,6 +151,24 @@ func (_m *DataDeletionRequest) assignValues(columns []string, values []any) erro
 				return fmt.Errorf("unexpected type %T for field failure_reason", values[i])
 			} else if value.Valid {
 				_m.FailureReason = value.String
+			}
+		case datadeletionrequest.FieldDevicesDeleted:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field devices_deleted", values[i])
+			} else if value.Valid {
+				_m.DevicesDeleted = uint32(value.Int64)
+			}
+		case datadeletionrequest.FieldObjectsRedacted:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field objects_redacted", values[i])
+			} else if value.Valid {
+				_m.ObjectsRedacted = uint32(value.Int64)
+			}
+		case datadeletionrequest.FieldPurchasesDeleted:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field purchases_deleted", values[i])
+			} else if value.Valid {
+				_m.PurchasesDeleted = uint32(value.Int64)
 			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
@@ -169,11 +218,22 @@ func (_m *DataDeletionRequest) String() string {
 	builder.WriteString("project_uid=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ProjectUID))
 	builder.WriteString(", ")
+	builder.WriteString("project_seq=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ProjectSeq))
+	builder.WriteString(", ")
 	builder.WriteString("actor_key=")
 	builder.WriteString(_m.ActorKey)
 	builder.WriteString(", ")
 	builder.WriteString("status=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Status))
+	builder.WriteString(", ")
+	if v := _m.TombstonedAt; v != nil {
+		builder.WriteString("tombstoned_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("archive_cursor=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ArchiveCursor))
 	builder.WriteString(", ")
 	if v := _m.CompletedAt; v != nil {
 		builder.WriteString("completed_at=")
@@ -182,6 +242,15 @@ func (_m *DataDeletionRequest) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("failure_reason=")
 	builder.WriteString(_m.FailureReason)
+	builder.WriteString(", ")
+	builder.WriteString("devices_deleted=")
+	builder.WriteString(fmt.Sprintf("%v", _m.DevicesDeleted))
+	builder.WriteString(", ")
+	builder.WriteString("objects_redacted=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ObjectsRedacted))
+	builder.WriteString(", ")
+	builder.WriteString("purchases_deleted=")
+	builder.WriteString(fmt.Sprintf("%v", _m.PurchasesDeleted))
 	builder.WriteByte(')')
 	return builder.String()
 }

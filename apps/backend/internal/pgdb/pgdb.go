@@ -25,6 +25,7 @@ import (
 	"errors"
 	"fmt"
 	"time"
+	"unicode/utf8"
 
 	"entgo.io/ent/dialect"
 	entsql "entgo.io/ent/dialect/sql"
@@ -203,6 +204,31 @@ func (c *Cell) AssertTier(ctx context.Context) error {
 		return ErrNotStarted
 	}
 	return assertTier(ctx, c.db, cellMarkerTable, globalMarkerTable, "cell")
+}
+
+// ---- failure reasons --------------------------------------------------------
+
+// MaxFailureReason is the width of every `failure_reason` column in the cell tier.
+//
+// One number, declared once, because three different jobs write to those columns — §60's
+// expiry, §61's purge and §101's export — and a helper per package is three chances for one
+// of them to write a string the database then refuses.
+const MaxFailureReason = 512
+
+// Reason fits an explanation into that column.
+//
+// Truncated rather than rejected: losing the tail of an explanation is much better than
+// losing the record that something failed at all, which is what an INSERT that errors on
+// length would cost. Cut on a rune boundary, so the stored value is still text.
+func Reason(s string) string {
+	if len(s) <= MaxFailureReason {
+		return s
+	}
+	cut := MaxFailureReason - len("…")
+	for cut > 0 && !utf8.RuneStart(s[cut]) {
+		cut--
+	}
+	return s[:cut] + "…"
 }
 
 // ---- tier markers -----------------------------------------------------------

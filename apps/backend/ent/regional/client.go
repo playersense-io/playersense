@@ -16,6 +16,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"playersense.dev/backend/ent/regional/archivemanifest"
 	"playersense.dev/backend/ent/regional/datadeletionrequest"
+	"playersense.dev/backend/ent/regional/dataexportrequest"
 	"playersense.dev/backend/ent/regional/verifiedpurchase"
 )
 
@@ -28,6 +29,8 @@ type Client struct {
 	ArchiveManifest *ArchiveManifestClient
 	// DataDeletionRequest is the client for interacting with the DataDeletionRequest builders.
 	DataDeletionRequest *DataDeletionRequestClient
+	// DataExportRequest is the client for interacting with the DataExportRequest builders.
+	DataExportRequest *DataExportRequestClient
 	// VerifiedPurchase is the client for interacting with the VerifiedPurchase builders.
 	VerifiedPurchase *VerifiedPurchaseClient
 }
@@ -43,6 +46,7 @@ func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
 	c.ArchiveManifest = NewArchiveManifestClient(c.config)
 	c.DataDeletionRequest = NewDataDeletionRequestClient(c.config)
+	c.DataExportRequest = NewDataExportRequestClient(c.config)
 	c.VerifiedPurchase = NewVerifiedPurchaseClient(c.config)
 }
 
@@ -138,6 +142,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		config:              cfg,
 		ArchiveManifest:     NewArchiveManifestClient(cfg),
 		DataDeletionRequest: NewDataDeletionRequestClient(cfg),
+		DataExportRequest:   NewDataExportRequestClient(cfg),
 		VerifiedPurchase:    NewVerifiedPurchaseClient(cfg),
 	}, nil
 }
@@ -160,6 +165,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		config:              cfg,
 		ArchiveManifest:     NewArchiveManifestClient(cfg),
 		DataDeletionRequest: NewDataDeletionRequestClient(cfg),
+		DataExportRequest:   NewDataExportRequestClient(cfg),
 		VerifiedPurchase:    NewVerifiedPurchaseClient(cfg),
 	}, nil
 }
@@ -191,6 +197,7 @@ func (c *Client) Close() error {
 func (c *Client) Use(hooks ...Hook) {
 	c.ArchiveManifest.Use(hooks...)
 	c.DataDeletionRequest.Use(hooks...)
+	c.DataExportRequest.Use(hooks...)
 	c.VerifiedPurchase.Use(hooks...)
 }
 
@@ -199,6 +206,7 @@ func (c *Client) Use(hooks ...Hook) {
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	c.ArchiveManifest.Intercept(interceptors...)
 	c.DataDeletionRequest.Intercept(interceptors...)
+	c.DataExportRequest.Intercept(interceptors...)
 	c.VerifiedPurchase.Intercept(interceptors...)
 }
 
@@ -209,6 +217,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.ArchiveManifest.mutate(ctx, m)
 	case *DataDeletionRequestMutation:
 		return c.DataDeletionRequest.mutate(ctx, m)
+	case *DataExportRequestMutation:
+		return c.DataExportRequest.mutate(ctx, m)
 	case *VerifiedPurchaseMutation:
 		return c.VerifiedPurchase.mutate(ctx, m)
 	default:
@@ -482,6 +492,139 @@ func (c *DataDeletionRequestClient) mutate(ctx context.Context, m *DataDeletionR
 	}
 }
 
+// DataExportRequestClient is a client for the DataExportRequest schema.
+type DataExportRequestClient struct {
+	config
+}
+
+// NewDataExportRequestClient returns a client for the DataExportRequest from the given config.
+func NewDataExportRequestClient(c config) *DataExportRequestClient {
+	return &DataExportRequestClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `dataexportrequest.Hooks(f(g(h())))`.
+func (c *DataExportRequestClient) Use(hooks ...Hook) {
+	c.hooks.DataExportRequest = append(c.hooks.DataExportRequest, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `dataexportrequest.Intercept(f(g(h())))`.
+func (c *DataExportRequestClient) Intercept(interceptors ...Interceptor) {
+	c.inters.DataExportRequest = append(c.inters.DataExportRequest, interceptors...)
+}
+
+// Create returns a builder for creating a DataExportRequest entity.
+func (c *DataExportRequestClient) Create() *DataExportRequestCreate {
+	mutation := newDataExportRequestMutation(c.config, OpCreate)
+	return &DataExportRequestCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of DataExportRequest entities.
+func (c *DataExportRequestClient) CreateBulk(builders ...*DataExportRequestCreate) *DataExportRequestCreateBulk {
+	return &DataExportRequestCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *DataExportRequestClient) MapCreateBulk(slice any, setFunc func(*DataExportRequestCreate, int)) *DataExportRequestCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &DataExportRequestCreateBulk{err: fmt.Errorf("calling to DataExportRequestClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*DataExportRequestCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &DataExportRequestCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for DataExportRequest.
+func (c *DataExportRequestClient) Update() *DataExportRequestUpdate {
+	mutation := newDataExportRequestMutation(c.config, OpUpdate)
+	return &DataExportRequestUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *DataExportRequestClient) UpdateOne(_m *DataExportRequest) *DataExportRequestUpdateOne {
+	mutation := newDataExportRequestMutation(c.config, OpUpdateOne, withDataExportRequest(_m))
+	return &DataExportRequestUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *DataExportRequestClient) UpdateOneID(id int) *DataExportRequestUpdateOne {
+	mutation := newDataExportRequestMutation(c.config, OpUpdateOne, withDataExportRequestID(id))
+	return &DataExportRequestUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for DataExportRequest.
+func (c *DataExportRequestClient) Delete() *DataExportRequestDelete {
+	mutation := newDataExportRequestMutation(c.config, OpDelete)
+	return &DataExportRequestDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *DataExportRequestClient) DeleteOne(_m *DataExportRequest) *DataExportRequestDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *DataExportRequestClient) DeleteOneID(id int) *DataExportRequestDeleteOne {
+	builder := c.Delete().Where(dataexportrequest.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &DataExportRequestDeleteOne{builder}
+}
+
+// Query returns a query builder for DataExportRequest.
+func (c *DataExportRequestClient) Query() *DataExportRequestQuery {
+	return &DataExportRequestQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeDataExportRequest},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a DataExportRequest entity by its id.
+func (c *DataExportRequestClient) Get(ctx context.Context, id int) (*DataExportRequest, error) {
+	return c.Query().Where(dataexportrequest.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *DataExportRequestClient) GetX(ctx context.Context, id int) *DataExportRequest {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *DataExportRequestClient) Hooks() []Hook {
+	return c.hooks.DataExportRequest
+}
+
+// Interceptors returns the client interceptors.
+func (c *DataExportRequestClient) Interceptors() []Interceptor {
+	return c.inters.DataExportRequest
+}
+
+func (c *DataExportRequestClient) mutate(ctx context.Context, m *DataExportRequestMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&DataExportRequestCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&DataExportRequestUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&DataExportRequestUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&DataExportRequestDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("regional: unknown DataExportRequest mutation op: %q", m.Op())
+	}
+}
+
 // VerifiedPurchaseClient is a client for the VerifiedPurchase schema.
 type VerifiedPurchaseClient struct {
 	config
@@ -618,9 +761,11 @@ func (c *VerifiedPurchaseClient) mutate(ctx context.Context, m *VerifiedPurchase
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		ArchiveManifest, DataDeletionRequest, VerifiedPurchase []ent.Hook
+		ArchiveManifest, DataDeletionRequest, DataExportRequest,
+		VerifiedPurchase []ent.Hook
 	}
 	inters struct {
-		ArchiveManifest, DataDeletionRequest, VerifiedPurchase []ent.Interceptor
+		ArchiveManifest, DataDeletionRequest, DataExportRequest,
+		VerifiedPurchase []ent.Interceptor
 	}
 )

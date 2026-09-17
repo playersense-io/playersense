@@ -28,9 +28,31 @@ this plainly is better than producing a partial export labelled as complete.
 
 Everything held about one actor, exported in a documented format, scoped to one project.
 
-Built on the same asynchronous job machinery as every other long-running operation, with an
-actor-scoped variant. The export record lives in the **cell tier** because it names a player
-([03](03-residency-and-transfers.md)).
+The bundle is newline-delimited JSON: one line per record, with a `section` naming what each
+line is — the raw events, the device lifetime records, the daily activity and the verified
+purchases. It opens with a line stating what the answer covers and what it does not, and
+closes with a summary, so a file truncated by any accident is recognisable as one rather than
+read as a shorter answer.
+
+It is written to the cell's own bucket and served back through the cell-local API on the
+credential the studio already holds — never as a signed bucket URL, which would be a second
+credential with different lifetime rules and no revocation, issued for an object holding one
+named person's entire history. The export record lives in the **cell tier** because it names
+a player ([03](03-residency-and-transfers.md)), and the bundle itself expires: it is a second
+copy of everything held about someone, so it is the last thing that should sit around.
+
+Events come from ClickHouse rather than from the archive, which is a reversal of what §10.4
+originally anticipated. It was written when the hot window was a fraction of the retention
+tier; [ADR 0024](../adr/0024-the-hot-window-is-a-cache-not-a-retention-limit.md) moved
+`events_raw` onto tiered storage, so the cold half of the tier is still in the table, merely
+on object storage. The two copies now cover the same span and one of them answers a scoped
+query. The residue is worth naming: an event that reached the archive and not ClickHouse —
+the two consume the queue independently — is not in the bundle.
+
+**A subject with more history than one bundle holds is refused**, with the number in the
+reason, rather than served a shorter file. That is the same instinct as the paragraph above
+about reinstalls: a partial answer presented as a complete one is the failure this right
+exists to prevent.
 
 ### Rectification
 
@@ -47,10 +69,12 @@ A tombstone, then an asynchronous purge, then confirmation.
 
 1. The request is recorded in the cell tier with status `received`.
 2. A tombstone is written so nothing further is accepted or served for that actor —
-   `tombstoned`.
+   `tombstoned`. This happens inside the submitting request, so the data stops being used in
+   the same round trip the studio submitted in.
 3. The purge runs — `purging` — across `events_raw`, `player_lifetime` and
    `player_activity_daily`, which are the tables holding device identifiers, plus the
-   verified purchases in the cell tier and the archived objects in the cell's bucket.
+   verified purchases in the cell tier, any export bundle held for that actor, and the
+   archived objects in the cell's bucket.
 4. `completed`, with a timestamp. A failure is recorded with a reason and is retryable
    (Appendix C.13).
 
@@ -58,6 +82,37 @@ Asynchronous because ClickHouse deletion is a rewrite of whole parts, and becaus
 synchronous erasure endpoint would be an availability problem and a denial-of-service vector
 at once. The tombstone is what makes the asynchrony safe: the data stops being *used*
 immediately even though it stops *existing* over the following hours.
+
+**`completed` waits for a drain window.** Delivery is at-least-once and a queue can hold
+messages for hours, so events for an erased actor keep arriving after the purge has run. The
+tombstone drops them; if the cache could not answer, the purge is what removes them. A
+request that completed on its first pass would be claiming something it cannot know yet, so
+the purge keeps running — idempotently, and cheaply once there is nothing left to find — and
+the request completes only when the window has closed. `completed` therefore means "and
+nothing has arrived since".
+
+**The archive is rewritten, not deleted.** An object holds one project, one environment and
+one hour — hundreds of people — so deleting it to erase one of them would destroy everyone
+else's events, which the studio is paying to retain. The object is read, the subject's rows
+dropped, and what remains written back under a name derived from its contents; only an object
+that held nobody else is deleted outright. See
+[ADR 0025](../adr/0025-an-erasure-rewrites-the-archive.md).
+
+### Two limits of an erasure, stated rather than implied
+
+**A shared device.** `player_lifetime` and `player_activity_daily` are keyed on the device,
+not the actor, and cannot be split: the events that would let the row be rebuilt are the
+events being deleted, and past the raw window they are gone anyway. So the row is deleted
+whole. Where two accounts signed in on one installation, the second one loses that device's
+derived totals and keeps every event. §61 already says of the cohort facts that "a deleted
+player simply stops being counted"; this is the same trade one table lower down.
+
+**A device that has gone quiet.** The mapping from a studio's actor key to a device *is* the
+event, so beyond the project's retention tier there is nothing left to resolve it with. A
+device someone used and abandoned longer ago than that cannot be linked to the name in the
+request — `player_lifetime` keeps a row keyed on an install that nothing connects to them. A
+request naming the **install** reaches it directly, which is the practical reason the
+paragraph above asks for every identifier rather than one.
 
 ### Objection and restriction
 
@@ -101,8 +156,37 @@ scoped by project and time range where the request allows it. If per-actor work 
 to be fast rather than merely finished, the change is a sort key and therefore a rebuild —
 worth knowing before it is promised to anyone.
 
+## How a request is made
+
+Two endpoints on the cell-local reporting service, and that placement is a residency decision
+rather than a convenience: both requests name a player, so neither may reach the US-hosted
+control plane ([03](03-residency-and-transfers.md)).
+
+```text
+POST /v1/privacy/erasures          {"actor_key": "..."}   → 202, a request id
+GET  /v1/privacy/erasures/{id}                            → status and timestamps
+POST /v1/privacy/exports           {"actor_key": "..."}   → 202, a request id
+GET  /v1/privacy/exports/{id}                             → status and where to collect it
+GET  /v1/privacy/exports/{id}/download                    → the bundle
+```
+
+Both take a **server key** and no other class. Erasing a studio's player is not the same
+privilege as reading its aggregates, and a project key ships inside a game binary.
+
+Submitting the same erasure twice returns the first one: a studio whose request timed out
+will send it again, and two records of one erasure would be two audit trails of one event.
+
+An export is refused while an erasure is open for the same actor — assembling the bundle would
+create a fresh copy of exactly what the erasure is removing. The order between the two rights
+is the studio's to choose, so the refusal says so rather than silently reordering them.
+
 ## Status
 
-The schema exists — `data_deletion_requests` is in the cell tier with its status machine —
-and the jobs that execute it are not yet built. See [10-open-items.md](10-open-items.md).
-Claiming otherwise here would be exactly the kind of statement somebody relies on.
+Built: the request surface, the tombstone, the purge across ClickHouse, the cell tier and the
+archive, and the export with its own expiry. [09](09-controls-map.md) maps each claim here to
+the code and the test that holds it up.
+
+Not built: the **project** tombstone — the writer honours one, and nothing writes it when a
+project is deleted, so today a deleted project's queued batches are removed by the purge
+rather than skipped — and the restore-and-redact procedure for backups. See
+[10-open-items.md](10-open-items.md).

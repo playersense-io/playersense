@@ -71,6 +71,12 @@ func (_c *DataDeletionRequestCreate) SetProjectUID(v uuid.UUID) *DataDeletionReq
 	return _c
 }
 
+// SetProjectSeq sets the "project_seq" field.
+func (_c *DataDeletionRequestCreate) SetProjectSeq(v uint32) *DataDeletionRequestCreate {
+	_c.mutation.SetProjectSeq(v)
+	return _c
+}
+
 // SetActorKey sets the "actor_key" field.
 func (_c *DataDeletionRequestCreate) SetActorKey(v string) *DataDeletionRequestCreate {
 	_c.mutation.SetActorKey(v)
@@ -87,6 +93,34 @@ func (_c *DataDeletionRequestCreate) SetStatus(v datadeletionrequest.Status) *Da
 func (_c *DataDeletionRequestCreate) SetNillableStatus(v *datadeletionrequest.Status) *DataDeletionRequestCreate {
 	if v != nil {
 		_c.SetStatus(*v)
+	}
+	return _c
+}
+
+// SetTombstonedAt sets the "tombstoned_at" field.
+func (_c *DataDeletionRequestCreate) SetTombstonedAt(v time.Time) *DataDeletionRequestCreate {
+	_c.mutation.SetTombstonedAt(v)
+	return _c
+}
+
+// SetNillableTombstonedAt sets the "tombstoned_at" field if the given value is not nil.
+func (_c *DataDeletionRequestCreate) SetNillableTombstonedAt(v *time.Time) *DataDeletionRequestCreate {
+	if v != nil {
+		_c.SetTombstonedAt(*v)
+	}
+	return _c
+}
+
+// SetArchiveCursor sets the "archive_cursor" field.
+func (_c *DataDeletionRequestCreate) SetArchiveCursor(v int) *DataDeletionRequestCreate {
+	_c.mutation.SetArchiveCursor(v)
+	return _c
+}
+
+// SetNillableArchiveCursor sets the "archive_cursor" field if the given value is not nil.
+func (_c *DataDeletionRequestCreate) SetNillableArchiveCursor(v *int) *DataDeletionRequestCreate {
+	if v != nil {
+		_c.SetArchiveCursor(*v)
 	}
 	return _c
 }
@@ -115,6 +149,48 @@ func (_c *DataDeletionRequestCreate) SetFailureReason(v string) *DataDeletionReq
 func (_c *DataDeletionRequestCreate) SetNillableFailureReason(v *string) *DataDeletionRequestCreate {
 	if v != nil {
 		_c.SetFailureReason(*v)
+	}
+	return _c
+}
+
+// SetDevicesDeleted sets the "devices_deleted" field.
+func (_c *DataDeletionRequestCreate) SetDevicesDeleted(v uint32) *DataDeletionRequestCreate {
+	_c.mutation.SetDevicesDeleted(v)
+	return _c
+}
+
+// SetNillableDevicesDeleted sets the "devices_deleted" field if the given value is not nil.
+func (_c *DataDeletionRequestCreate) SetNillableDevicesDeleted(v *uint32) *DataDeletionRequestCreate {
+	if v != nil {
+		_c.SetDevicesDeleted(*v)
+	}
+	return _c
+}
+
+// SetObjectsRedacted sets the "objects_redacted" field.
+func (_c *DataDeletionRequestCreate) SetObjectsRedacted(v uint32) *DataDeletionRequestCreate {
+	_c.mutation.SetObjectsRedacted(v)
+	return _c
+}
+
+// SetNillableObjectsRedacted sets the "objects_redacted" field if the given value is not nil.
+func (_c *DataDeletionRequestCreate) SetNillableObjectsRedacted(v *uint32) *DataDeletionRequestCreate {
+	if v != nil {
+		_c.SetObjectsRedacted(*v)
+	}
+	return _c
+}
+
+// SetPurchasesDeleted sets the "purchases_deleted" field.
+func (_c *DataDeletionRequestCreate) SetPurchasesDeleted(v uint32) *DataDeletionRequestCreate {
+	_c.mutation.SetPurchasesDeleted(v)
+	return _c
+}
+
+// SetNillablePurchasesDeleted sets the "purchases_deleted" field if the given value is not nil.
+func (_c *DataDeletionRequestCreate) SetNillablePurchasesDeleted(v *uint32) *DataDeletionRequestCreate {
+	if v != nil {
+		_c.SetPurchasesDeleted(*v)
 	}
 	return _c
 }
@@ -176,6 +252,22 @@ func (_c *DataDeletionRequestCreate) defaults() {
 		v := datadeletionrequest.DefaultStatus
 		_c.mutation.SetStatus(v)
 	}
+	if _, ok := _c.mutation.ArchiveCursor(); !ok {
+		v := datadeletionrequest.DefaultArchiveCursor
+		_c.mutation.SetArchiveCursor(v)
+	}
+	if _, ok := _c.mutation.DevicesDeleted(); !ok {
+		v := datadeletionrequest.DefaultDevicesDeleted
+		_c.mutation.SetDevicesDeleted(v)
+	}
+	if _, ok := _c.mutation.ObjectsRedacted(); !ok {
+		v := datadeletionrequest.DefaultObjectsRedacted
+		_c.mutation.SetObjectsRedacted(v)
+	}
+	if _, ok := _c.mutation.PurchasesDeleted(); !ok {
+		v := datadeletionrequest.DefaultPurchasesDeleted
+		_c.mutation.SetPurchasesDeleted(v)
+	}
 }
 
 // check runs all checks and user-defined validators on the builder.
@@ -191,6 +283,9 @@ func (_c *DataDeletionRequestCreate) check() error {
 	}
 	if _, ok := _c.mutation.ProjectUID(); !ok {
 		return &ValidationError{Name: "project_uid", err: errors.New(`regional: missing required field "DataDeletionRequest.project_uid"`)}
+	}
+	if _, ok := _c.mutation.ProjectSeq(); !ok {
+		return &ValidationError{Name: "project_seq", err: errors.New(`regional: missing required field "DataDeletionRequest.project_seq"`)}
 	}
 	if _, ok := _c.mutation.ActorKey(); !ok {
 		return &ValidationError{Name: "actor_key", err: errors.New(`regional: missing required field "DataDeletionRequest.actor_key"`)}
@@ -208,10 +303,22 @@ func (_c *DataDeletionRequestCreate) check() error {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`regional: validator failed for field "DataDeletionRequest.status": %w`, err)}
 		}
 	}
+	if _, ok := _c.mutation.ArchiveCursor(); !ok {
+		return &ValidationError{Name: "archive_cursor", err: errors.New(`regional: missing required field "DataDeletionRequest.archive_cursor"`)}
+	}
 	if v, ok := _c.mutation.FailureReason(); ok {
 		if err := datadeletionrequest.FailureReasonValidator(v); err != nil {
 			return &ValidationError{Name: "failure_reason", err: fmt.Errorf(`regional: validator failed for field "DataDeletionRequest.failure_reason": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.DevicesDeleted(); !ok {
+		return &ValidationError{Name: "devices_deleted", err: errors.New(`regional: missing required field "DataDeletionRequest.devices_deleted"`)}
+	}
+	if _, ok := _c.mutation.ObjectsRedacted(); !ok {
+		return &ValidationError{Name: "objects_redacted", err: errors.New(`regional: missing required field "DataDeletionRequest.objects_redacted"`)}
+	}
+	if _, ok := _c.mutation.PurchasesDeleted(); !ok {
+		return &ValidationError{Name: "purchases_deleted", err: errors.New(`regional: missing required field "DataDeletionRequest.purchases_deleted"`)}
 	}
 	return nil
 }
@@ -262,6 +369,10 @@ func (_c *DataDeletionRequestCreate) createSpec() (*DataDeletionRequest, *sqlgra
 		_spec.SetField(datadeletionrequest.FieldProjectUID, field.TypeUUID, value)
 		_node.ProjectUID = value
 	}
+	if value, ok := _c.mutation.ProjectSeq(); ok {
+		_spec.SetField(datadeletionrequest.FieldProjectSeq, field.TypeUint32, value)
+		_node.ProjectSeq = value
+	}
 	if value, ok := _c.mutation.ActorKey(); ok {
 		_spec.SetField(datadeletionrequest.FieldActorKey, field.TypeString, value)
 		_node.ActorKey = value
@@ -270,6 +381,14 @@ func (_c *DataDeletionRequestCreate) createSpec() (*DataDeletionRequest, *sqlgra
 		_spec.SetField(datadeletionrequest.FieldStatus, field.TypeEnum, value)
 		_node.Status = value
 	}
+	if value, ok := _c.mutation.TombstonedAt(); ok {
+		_spec.SetField(datadeletionrequest.FieldTombstonedAt, field.TypeTime, value)
+		_node.TombstonedAt = &value
+	}
+	if value, ok := _c.mutation.ArchiveCursor(); ok {
+		_spec.SetField(datadeletionrequest.FieldArchiveCursor, field.TypeInt, value)
+		_node.ArchiveCursor = value
+	}
 	if value, ok := _c.mutation.CompletedAt(); ok {
 		_spec.SetField(datadeletionrequest.FieldCompletedAt, field.TypeTime, value)
 		_node.CompletedAt = &value
@@ -277,6 +396,18 @@ func (_c *DataDeletionRequestCreate) createSpec() (*DataDeletionRequest, *sqlgra
 	if value, ok := _c.mutation.FailureReason(); ok {
 		_spec.SetField(datadeletionrequest.FieldFailureReason, field.TypeString, value)
 		_node.FailureReason = value
+	}
+	if value, ok := _c.mutation.DevicesDeleted(); ok {
+		_spec.SetField(datadeletionrequest.FieldDevicesDeleted, field.TypeUint32, value)
+		_node.DevicesDeleted = value
+	}
+	if value, ok := _c.mutation.ObjectsRedacted(); ok {
+		_spec.SetField(datadeletionrequest.FieldObjectsRedacted, field.TypeUint32, value)
+		_node.ObjectsRedacted = value
+	}
+	if value, ok := _c.mutation.PurchasesDeleted(); ok {
+		_spec.SetField(datadeletionrequest.FieldPurchasesDeleted, field.TypeUint32, value)
+		_node.PurchasesDeleted = value
 	}
 	return _node, _spec
 }
@@ -354,6 +485,24 @@ func (u *DataDeletionRequestUpsert) UpdateProjectUID() *DataDeletionRequestUpser
 	return u
 }
 
+// SetProjectSeq sets the "project_seq" field.
+func (u *DataDeletionRequestUpsert) SetProjectSeq(v uint32) *DataDeletionRequestUpsert {
+	u.Set(datadeletionrequest.FieldProjectSeq, v)
+	return u
+}
+
+// UpdateProjectSeq sets the "project_seq" field to the value that was provided on create.
+func (u *DataDeletionRequestUpsert) UpdateProjectSeq() *DataDeletionRequestUpsert {
+	u.SetExcluded(datadeletionrequest.FieldProjectSeq)
+	return u
+}
+
+// AddProjectSeq adds v to the "project_seq" field.
+func (u *DataDeletionRequestUpsert) AddProjectSeq(v uint32) *DataDeletionRequestUpsert {
+	u.Add(datadeletionrequest.FieldProjectSeq, v)
+	return u
+}
+
 // SetActorKey sets the "actor_key" field.
 func (u *DataDeletionRequestUpsert) SetActorKey(v string) *DataDeletionRequestUpsert {
 	u.Set(datadeletionrequest.FieldActorKey, v)
@@ -375,6 +524,42 @@ func (u *DataDeletionRequestUpsert) SetStatus(v datadeletionrequest.Status) *Dat
 // UpdateStatus sets the "status" field to the value that was provided on create.
 func (u *DataDeletionRequestUpsert) UpdateStatus() *DataDeletionRequestUpsert {
 	u.SetExcluded(datadeletionrequest.FieldStatus)
+	return u
+}
+
+// SetTombstonedAt sets the "tombstoned_at" field.
+func (u *DataDeletionRequestUpsert) SetTombstonedAt(v time.Time) *DataDeletionRequestUpsert {
+	u.Set(datadeletionrequest.FieldTombstonedAt, v)
+	return u
+}
+
+// UpdateTombstonedAt sets the "tombstoned_at" field to the value that was provided on create.
+func (u *DataDeletionRequestUpsert) UpdateTombstonedAt() *DataDeletionRequestUpsert {
+	u.SetExcluded(datadeletionrequest.FieldTombstonedAt)
+	return u
+}
+
+// ClearTombstonedAt clears the value of the "tombstoned_at" field.
+func (u *DataDeletionRequestUpsert) ClearTombstonedAt() *DataDeletionRequestUpsert {
+	u.SetNull(datadeletionrequest.FieldTombstonedAt)
+	return u
+}
+
+// SetArchiveCursor sets the "archive_cursor" field.
+func (u *DataDeletionRequestUpsert) SetArchiveCursor(v int) *DataDeletionRequestUpsert {
+	u.Set(datadeletionrequest.FieldArchiveCursor, v)
+	return u
+}
+
+// UpdateArchiveCursor sets the "archive_cursor" field to the value that was provided on create.
+func (u *DataDeletionRequestUpsert) UpdateArchiveCursor() *DataDeletionRequestUpsert {
+	u.SetExcluded(datadeletionrequest.FieldArchiveCursor)
+	return u
+}
+
+// AddArchiveCursor adds v to the "archive_cursor" field.
+func (u *DataDeletionRequestUpsert) AddArchiveCursor(v int) *DataDeletionRequestUpsert {
+	u.Add(datadeletionrequest.FieldArchiveCursor, v)
 	return u
 }
 
@@ -411,6 +596,60 @@ func (u *DataDeletionRequestUpsert) UpdateFailureReason() *DataDeletionRequestUp
 // ClearFailureReason clears the value of the "failure_reason" field.
 func (u *DataDeletionRequestUpsert) ClearFailureReason() *DataDeletionRequestUpsert {
 	u.SetNull(datadeletionrequest.FieldFailureReason)
+	return u
+}
+
+// SetDevicesDeleted sets the "devices_deleted" field.
+func (u *DataDeletionRequestUpsert) SetDevicesDeleted(v uint32) *DataDeletionRequestUpsert {
+	u.Set(datadeletionrequest.FieldDevicesDeleted, v)
+	return u
+}
+
+// UpdateDevicesDeleted sets the "devices_deleted" field to the value that was provided on create.
+func (u *DataDeletionRequestUpsert) UpdateDevicesDeleted() *DataDeletionRequestUpsert {
+	u.SetExcluded(datadeletionrequest.FieldDevicesDeleted)
+	return u
+}
+
+// AddDevicesDeleted adds v to the "devices_deleted" field.
+func (u *DataDeletionRequestUpsert) AddDevicesDeleted(v uint32) *DataDeletionRequestUpsert {
+	u.Add(datadeletionrequest.FieldDevicesDeleted, v)
+	return u
+}
+
+// SetObjectsRedacted sets the "objects_redacted" field.
+func (u *DataDeletionRequestUpsert) SetObjectsRedacted(v uint32) *DataDeletionRequestUpsert {
+	u.Set(datadeletionrequest.FieldObjectsRedacted, v)
+	return u
+}
+
+// UpdateObjectsRedacted sets the "objects_redacted" field to the value that was provided on create.
+func (u *DataDeletionRequestUpsert) UpdateObjectsRedacted() *DataDeletionRequestUpsert {
+	u.SetExcluded(datadeletionrequest.FieldObjectsRedacted)
+	return u
+}
+
+// AddObjectsRedacted adds v to the "objects_redacted" field.
+func (u *DataDeletionRequestUpsert) AddObjectsRedacted(v uint32) *DataDeletionRequestUpsert {
+	u.Add(datadeletionrequest.FieldObjectsRedacted, v)
+	return u
+}
+
+// SetPurchasesDeleted sets the "purchases_deleted" field.
+func (u *DataDeletionRequestUpsert) SetPurchasesDeleted(v uint32) *DataDeletionRequestUpsert {
+	u.Set(datadeletionrequest.FieldPurchasesDeleted, v)
+	return u
+}
+
+// UpdatePurchasesDeleted sets the "purchases_deleted" field to the value that was provided on create.
+func (u *DataDeletionRequestUpsert) UpdatePurchasesDeleted() *DataDeletionRequestUpsert {
+	u.SetExcluded(datadeletionrequest.FieldPurchasesDeleted)
+	return u
+}
+
+// AddPurchasesDeleted adds v to the "purchases_deleted" field.
+func (u *DataDeletionRequestUpsert) AddPurchasesDeleted(v uint32) *DataDeletionRequestUpsert {
+	u.Add(datadeletionrequest.FieldPurchasesDeleted, v)
 	return u
 }
 
@@ -496,6 +735,27 @@ func (u *DataDeletionRequestUpsertOne) UpdateProjectUID() *DataDeletionRequestUp
 	})
 }
 
+// SetProjectSeq sets the "project_seq" field.
+func (u *DataDeletionRequestUpsertOne) SetProjectSeq(v uint32) *DataDeletionRequestUpsertOne {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.SetProjectSeq(v)
+	})
+}
+
+// AddProjectSeq adds v to the "project_seq" field.
+func (u *DataDeletionRequestUpsertOne) AddProjectSeq(v uint32) *DataDeletionRequestUpsertOne {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.AddProjectSeq(v)
+	})
+}
+
+// UpdateProjectSeq sets the "project_seq" field to the value that was provided on create.
+func (u *DataDeletionRequestUpsertOne) UpdateProjectSeq() *DataDeletionRequestUpsertOne {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.UpdateProjectSeq()
+	})
+}
+
 // SetActorKey sets the "actor_key" field.
 func (u *DataDeletionRequestUpsertOne) SetActorKey(v string) *DataDeletionRequestUpsertOne {
 	return u.Update(func(s *DataDeletionRequestUpsert) {
@@ -521,6 +781,48 @@ func (u *DataDeletionRequestUpsertOne) SetStatus(v datadeletionrequest.Status) *
 func (u *DataDeletionRequestUpsertOne) UpdateStatus() *DataDeletionRequestUpsertOne {
 	return u.Update(func(s *DataDeletionRequestUpsert) {
 		s.UpdateStatus()
+	})
+}
+
+// SetTombstonedAt sets the "tombstoned_at" field.
+func (u *DataDeletionRequestUpsertOne) SetTombstonedAt(v time.Time) *DataDeletionRequestUpsertOne {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.SetTombstonedAt(v)
+	})
+}
+
+// UpdateTombstonedAt sets the "tombstoned_at" field to the value that was provided on create.
+func (u *DataDeletionRequestUpsertOne) UpdateTombstonedAt() *DataDeletionRequestUpsertOne {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.UpdateTombstonedAt()
+	})
+}
+
+// ClearTombstonedAt clears the value of the "tombstoned_at" field.
+func (u *DataDeletionRequestUpsertOne) ClearTombstonedAt() *DataDeletionRequestUpsertOne {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.ClearTombstonedAt()
+	})
+}
+
+// SetArchiveCursor sets the "archive_cursor" field.
+func (u *DataDeletionRequestUpsertOne) SetArchiveCursor(v int) *DataDeletionRequestUpsertOne {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.SetArchiveCursor(v)
+	})
+}
+
+// AddArchiveCursor adds v to the "archive_cursor" field.
+func (u *DataDeletionRequestUpsertOne) AddArchiveCursor(v int) *DataDeletionRequestUpsertOne {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.AddArchiveCursor(v)
+	})
+}
+
+// UpdateArchiveCursor sets the "archive_cursor" field to the value that was provided on create.
+func (u *DataDeletionRequestUpsertOne) UpdateArchiveCursor() *DataDeletionRequestUpsertOne {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.UpdateArchiveCursor()
 	})
 }
 
@@ -563,6 +865,69 @@ func (u *DataDeletionRequestUpsertOne) UpdateFailureReason() *DataDeletionReques
 func (u *DataDeletionRequestUpsertOne) ClearFailureReason() *DataDeletionRequestUpsertOne {
 	return u.Update(func(s *DataDeletionRequestUpsert) {
 		s.ClearFailureReason()
+	})
+}
+
+// SetDevicesDeleted sets the "devices_deleted" field.
+func (u *DataDeletionRequestUpsertOne) SetDevicesDeleted(v uint32) *DataDeletionRequestUpsertOne {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.SetDevicesDeleted(v)
+	})
+}
+
+// AddDevicesDeleted adds v to the "devices_deleted" field.
+func (u *DataDeletionRequestUpsertOne) AddDevicesDeleted(v uint32) *DataDeletionRequestUpsertOne {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.AddDevicesDeleted(v)
+	})
+}
+
+// UpdateDevicesDeleted sets the "devices_deleted" field to the value that was provided on create.
+func (u *DataDeletionRequestUpsertOne) UpdateDevicesDeleted() *DataDeletionRequestUpsertOne {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.UpdateDevicesDeleted()
+	})
+}
+
+// SetObjectsRedacted sets the "objects_redacted" field.
+func (u *DataDeletionRequestUpsertOne) SetObjectsRedacted(v uint32) *DataDeletionRequestUpsertOne {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.SetObjectsRedacted(v)
+	})
+}
+
+// AddObjectsRedacted adds v to the "objects_redacted" field.
+func (u *DataDeletionRequestUpsertOne) AddObjectsRedacted(v uint32) *DataDeletionRequestUpsertOne {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.AddObjectsRedacted(v)
+	})
+}
+
+// UpdateObjectsRedacted sets the "objects_redacted" field to the value that was provided on create.
+func (u *DataDeletionRequestUpsertOne) UpdateObjectsRedacted() *DataDeletionRequestUpsertOne {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.UpdateObjectsRedacted()
+	})
+}
+
+// SetPurchasesDeleted sets the "purchases_deleted" field.
+func (u *DataDeletionRequestUpsertOne) SetPurchasesDeleted(v uint32) *DataDeletionRequestUpsertOne {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.SetPurchasesDeleted(v)
+	})
+}
+
+// AddPurchasesDeleted adds v to the "purchases_deleted" field.
+func (u *DataDeletionRequestUpsertOne) AddPurchasesDeleted(v uint32) *DataDeletionRequestUpsertOne {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.AddPurchasesDeleted(v)
+	})
+}
+
+// UpdatePurchasesDeleted sets the "purchases_deleted" field to the value that was provided on create.
+func (u *DataDeletionRequestUpsertOne) UpdatePurchasesDeleted() *DataDeletionRequestUpsertOne {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.UpdatePurchasesDeleted()
 	})
 }
 
@@ -814,6 +1179,27 @@ func (u *DataDeletionRequestUpsertBulk) UpdateProjectUID() *DataDeletionRequestU
 	})
 }
 
+// SetProjectSeq sets the "project_seq" field.
+func (u *DataDeletionRequestUpsertBulk) SetProjectSeq(v uint32) *DataDeletionRequestUpsertBulk {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.SetProjectSeq(v)
+	})
+}
+
+// AddProjectSeq adds v to the "project_seq" field.
+func (u *DataDeletionRequestUpsertBulk) AddProjectSeq(v uint32) *DataDeletionRequestUpsertBulk {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.AddProjectSeq(v)
+	})
+}
+
+// UpdateProjectSeq sets the "project_seq" field to the value that was provided on create.
+func (u *DataDeletionRequestUpsertBulk) UpdateProjectSeq() *DataDeletionRequestUpsertBulk {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.UpdateProjectSeq()
+	})
+}
+
 // SetActorKey sets the "actor_key" field.
 func (u *DataDeletionRequestUpsertBulk) SetActorKey(v string) *DataDeletionRequestUpsertBulk {
 	return u.Update(func(s *DataDeletionRequestUpsert) {
@@ -839,6 +1225,48 @@ func (u *DataDeletionRequestUpsertBulk) SetStatus(v datadeletionrequest.Status) 
 func (u *DataDeletionRequestUpsertBulk) UpdateStatus() *DataDeletionRequestUpsertBulk {
 	return u.Update(func(s *DataDeletionRequestUpsert) {
 		s.UpdateStatus()
+	})
+}
+
+// SetTombstonedAt sets the "tombstoned_at" field.
+func (u *DataDeletionRequestUpsertBulk) SetTombstonedAt(v time.Time) *DataDeletionRequestUpsertBulk {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.SetTombstonedAt(v)
+	})
+}
+
+// UpdateTombstonedAt sets the "tombstoned_at" field to the value that was provided on create.
+func (u *DataDeletionRequestUpsertBulk) UpdateTombstonedAt() *DataDeletionRequestUpsertBulk {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.UpdateTombstonedAt()
+	})
+}
+
+// ClearTombstonedAt clears the value of the "tombstoned_at" field.
+func (u *DataDeletionRequestUpsertBulk) ClearTombstonedAt() *DataDeletionRequestUpsertBulk {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.ClearTombstonedAt()
+	})
+}
+
+// SetArchiveCursor sets the "archive_cursor" field.
+func (u *DataDeletionRequestUpsertBulk) SetArchiveCursor(v int) *DataDeletionRequestUpsertBulk {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.SetArchiveCursor(v)
+	})
+}
+
+// AddArchiveCursor adds v to the "archive_cursor" field.
+func (u *DataDeletionRequestUpsertBulk) AddArchiveCursor(v int) *DataDeletionRequestUpsertBulk {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.AddArchiveCursor(v)
+	})
+}
+
+// UpdateArchiveCursor sets the "archive_cursor" field to the value that was provided on create.
+func (u *DataDeletionRequestUpsertBulk) UpdateArchiveCursor() *DataDeletionRequestUpsertBulk {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.UpdateArchiveCursor()
 	})
 }
 
@@ -881,6 +1309,69 @@ func (u *DataDeletionRequestUpsertBulk) UpdateFailureReason() *DataDeletionReque
 func (u *DataDeletionRequestUpsertBulk) ClearFailureReason() *DataDeletionRequestUpsertBulk {
 	return u.Update(func(s *DataDeletionRequestUpsert) {
 		s.ClearFailureReason()
+	})
+}
+
+// SetDevicesDeleted sets the "devices_deleted" field.
+func (u *DataDeletionRequestUpsertBulk) SetDevicesDeleted(v uint32) *DataDeletionRequestUpsertBulk {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.SetDevicesDeleted(v)
+	})
+}
+
+// AddDevicesDeleted adds v to the "devices_deleted" field.
+func (u *DataDeletionRequestUpsertBulk) AddDevicesDeleted(v uint32) *DataDeletionRequestUpsertBulk {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.AddDevicesDeleted(v)
+	})
+}
+
+// UpdateDevicesDeleted sets the "devices_deleted" field to the value that was provided on create.
+func (u *DataDeletionRequestUpsertBulk) UpdateDevicesDeleted() *DataDeletionRequestUpsertBulk {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.UpdateDevicesDeleted()
+	})
+}
+
+// SetObjectsRedacted sets the "objects_redacted" field.
+func (u *DataDeletionRequestUpsertBulk) SetObjectsRedacted(v uint32) *DataDeletionRequestUpsertBulk {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.SetObjectsRedacted(v)
+	})
+}
+
+// AddObjectsRedacted adds v to the "objects_redacted" field.
+func (u *DataDeletionRequestUpsertBulk) AddObjectsRedacted(v uint32) *DataDeletionRequestUpsertBulk {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.AddObjectsRedacted(v)
+	})
+}
+
+// UpdateObjectsRedacted sets the "objects_redacted" field to the value that was provided on create.
+func (u *DataDeletionRequestUpsertBulk) UpdateObjectsRedacted() *DataDeletionRequestUpsertBulk {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.UpdateObjectsRedacted()
+	})
+}
+
+// SetPurchasesDeleted sets the "purchases_deleted" field.
+func (u *DataDeletionRequestUpsertBulk) SetPurchasesDeleted(v uint32) *DataDeletionRequestUpsertBulk {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.SetPurchasesDeleted(v)
+	})
+}
+
+// AddPurchasesDeleted adds v to the "purchases_deleted" field.
+func (u *DataDeletionRequestUpsertBulk) AddPurchasesDeleted(v uint32) *DataDeletionRequestUpsertBulk {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.AddPurchasesDeleted(v)
+	})
+}
+
+// UpdatePurchasesDeleted sets the "purchases_deleted" field to the value that was provided on create.
+func (u *DataDeletionRequestUpsertBulk) UpdatePurchasesDeleted() *DataDeletionRequestUpsertBulk {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.UpdatePurchasesDeleted()
 	})
 }
 

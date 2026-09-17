@@ -22,31 +22,35 @@ engineering is the wrong shape.
 
 ## Engineering — the erasure path
 
-The schema exists (`data_deletion_requests`, with its status machine, in the cell tier). The
-machinery does not.
+The actor tombstone, the purge and the export are **built** — see [09](09-controls-map.md).
+An erasure is submitted on the cell-local API, tombstoned inside that request, and removed
+asynchronously from `events_raw`, both device-keyed summaries, the cell tier's purchases, any
+export bundle, and the archive objects holding the person
+([ADR 0025](../adr/0025-an-erasure-rewrites-the-archive.md)).
+
+What it does not yet cover:
 
 | Item | Notes |
 |---|---|
-| **Actor tombstone** | Stops the data being *used* immediately, while removal takes hours |
-| **Purge job** | Across `events_raw`, `player_lifetime`, `player_activity_daily`, the cell tier's purchases, and the archive |
-| **Export job** | Access and portability, actor-scoped |
 | **Project tombstone written on deletion** | The writer already honours one and drops the batch; nothing writes it yet, so today a deleted project's queued batches are removed by the purge rather than skipped |
 | **Restore-and-redact procedure** for backups | Written procedure plus the job that reapplies pending deletions |
+| **Multiple identifiers on one request** | A request names one actor key or one install. A person who reinstalled has several and the studio has to submit one request per identifier, which is a worse experience than it needs to be — the machinery already handles each of them correctly |
+| **A bundle larger than one object** | An export is written as a single object and bounded by `EXPORT_MAX_ROWS`; a subject past the bound is refused with the number rather than truncated. Splitting across objects is the fix, and it needs the request to name more than one path |
 
 ## Engineering — storage lifecycle
 
-| Item | Notes |
-|---|---|
-**archive-writer** and the per-cell bucket are **built** — see [09](09-controls-map.md).
-What is not:
+**archive-writer**, the per-cell bucket and **§60's retention worker** are **built** — see
+[09](09-controls-map.md). Every manifest's `delete_after` is swept on the worker's lifecycle
+loop, the object is deleted and the row is kept so the days it existed remain billable.
+
+What it does not yet cover:
 
 | Item | Notes |
 |---|---|
-| **Compaction** | §10.4 and §10.7. A delivery is the flush boundary, so light traffic produces small objects. Nothing merges them yet |
-| **The retention worker** | §60. `delete_after` is written on every manifest and nothing sweeps it, so no archive object has ever been expired |
+| **Compaction** | §10.4 and §10.7. A delivery is the flush boundary, so light traffic produces small objects. Nothing merges them yet. When it is built it should reuse the erasure's read-filter-write path rather than the other way round |
 | **Read-side deduplication** | A *partial* redelivery produces a second, overlapping object — see [ADR 0022](../adr/0022-an-archive-object-is-named-by-its-contents.md). The manifests make the overlap visible; §34's cold-query path has to resolve it on `event_id`, and §34 is not built |
 | **Archive-before-expiry, enforced** | Appendix C.6 cannot be enforced: a ClickHouse TTL has no hook. `archivecheck` measures the margin and fails when it runs out, which is the strongest available form |
-| **Project deletion reaching the archive** | §61's "rewrite or remove affected archive objects". The archive writer honours no project tombstone, deliberately — §61 assigns this to the compaction/deletion job |
+| **Project deletion reaching the archive** | §61's "rewrite or remove affected archive objects", for a whole project rather than one person. The per-actor path is built; this is the same machinery with a different predicate and no object left to write back |
 
 `analytics-writer` and its insert deduplication are **built** — see
 [09](09-controls-map.md).
@@ -66,7 +70,7 @@ What it does not yet cover:
 | **Session duration percentiles** | §27 asks for median/pXX. They need `sessions_final` (§30's sessionization), which is not built; the daily tier carries session counts and total playtime only |
 | **Funnels, the event explorer and the player timeline** | §31, §3.5. The last of these is the one query that legitimately reads raw |
 | **Progression buckets** | The enum member exists and nothing writes it. Progression is a game-specific milestone the SDK does not report, and deriving it would mean inventing a definition of progress on the studio's behalf |
-| **Asynchronous cold queries and exports** | §34. The machinery §101's data-subject export also depends on |
+| **Asynchronous cold queries** | §34. §101's data-subject export no longer waits on it: [ADR 0024](../adr/0024-the-hot-window-is-a-cache-not-a-retention-limit.md) put the whole retention tier back inside `events_raw`, so the export reads the table rather than the objects — see [05](05-data-subject-rights.md) for the residue that leaves |
 | **Per-organisation concurrency quotas** | §32 asks for these alongside the per-caller rate limit, which is built |
 | **§29.13's first two caps** | `first_app_version` is not capped to the top 20 values per project, and `acquisition_source` is not split from campaign. The third cap — only materializing pairs that exist — falls out of the GROUP BY. Alarm at 27M rows per project, per §29.13 |
 
@@ -80,9 +84,13 @@ What it does not yet cover:
 
 ## SDKs
 
-None of the SDKs is built. Two of their artifacts are release blockers for **customers**
-rather than for PlayerSense, which makes them more urgent than their position in a roadmap
-suggests:
+None of the SDKs is built. The **protocol specification** §15 asks for is — sessions,
+identity, consent transitions, the disk spool, retries and the conformance suite, in
+[docs/sdk/protocol.md](../sdk/protocol.md) — so the first implementation has something to
+conform to rather than something to invent.
+
+Two of their artifacts are release blockers for **customers** rather than for PlayerSense,
+which makes them more urgent than their position in a roadmap suggests:
 
 | Item | Consequence of omission |
 |---|---|

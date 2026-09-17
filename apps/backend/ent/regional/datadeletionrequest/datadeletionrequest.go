@@ -23,14 +23,26 @@ const (
 	FieldUpdatedAt = "updated_at"
 	// FieldProjectUID holds the string denoting the project_uid field in the database.
 	FieldProjectUID = "project_uid"
+	// FieldProjectSeq holds the string denoting the project_seq field in the database.
+	FieldProjectSeq = "project_seq"
 	// FieldActorKey holds the string denoting the actor_key field in the database.
 	FieldActorKey = "actor_key"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
+	// FieldTombstonedAt holds the string denoting the tombstoned_at field in the database.
+	FieldTombstonedAt = "tombstoned_at"
+	// FieldArchiveCursor holds the string denoting the archive_cursor field in the database.
+	FieldArchiveCursor = "archive_cursor"
 	// FieldCompletedAt holds the string denoting the completed_at field in the database.
 	FieldCompletedAt = "completed_at"
 	// FieldFailureReason holds the string denoting the failure_reason field in the database.
 	FieldFailureReason = "failure_reason"
+	// FieldDevicesDeleted holds the string denoting the devices_deleted field in the database.
+	FieldDevicesDeleted = "devices_deleted"
+	// FieldObjectsRedacted holds the string denoting the objects_redacted field in the database.
+	FieldObjectsRedacted = "objects_redacted"
+	// FieldPurchasesDeleted holds the string denoting the purchases_deleted field in the database.
+	FieldPurchasesDeleted = "purchases_deleted"
 	// Table holds the table name of the datadeletionrequest in the database.
 	Table = "data_deletion_requests"
 )
@@ -42,10 +54,16 @@ var Columns = []string{
 	FieldCreatedAt,
 	FieldUpdatedAt,
 	FieldProjectUID,
+	FieldProjectSeq,
 	FieldActorKey,
 	FieldStatus,
+	FieldTombstonedAt,
+	FieldArchiveCursor,
 	FieldCompletedAt,
 	FieldFailureReason,
+	FieldDevicesDeleted,
+	FieldObjectsRedacted,
+	FieldPurchasesDeleted,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -69,8 +87,16 @@ var (
 	UpdateDefaultUpdatedAt func() time.Time
 	// ActorKeyValidator is a validator for the "actor_key" field. It is called by the builders before save.
 	ActorKeyValidator func(string) error
+	// DefaultArchiveCursor holds the default value on creation for the "archive_cursor" field.
+	DefaultArchiveCursor int
 	// FailureReasonValidator is a validator for the "failure_reason" field. It is called by the builders before save.
 	FailureReasonValidator func(string) error
+	// DefaultDevicesDeleted holds the default value on creation for the "devices_deleted" field.
+	DefaultDevicesDeleted uint32
+	// DefaultObjectsRedacted holds the default value on creation for the "objects_redacted" field.
+	DefaultObjectsRedacted uint32
+	// DefaultPurchasesDeleted holds the default value on creation for the "purchases_deleted" field.
+	DefaultPurchasesDeleted uint32
 )
 
 // Status defines the type for the "status" enum field.
@@ -130,6 +156,11 @@ func ByProjectUID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldProjectUID, opts...).ToFunc()
 }
 
+// ByProjectSeq orders the results by the project_seq field.
+func ByProjectSeq(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldProjectSeq, opts...).ToFunc()
+}
+
 // ByActorKey orders the results by the actor_key field.
 func ByActorKey(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldActorKey, opts...).ToFunc()
@@ -140,6 +171,16 @@ func ByStatus(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldStatus, opts...).ToFunc()
 }
 
+// ByTombstonedAt orders the results by the tombstoned_at field.
+func ByTombstonedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTombstonedAt, opts...).ToFunc()
+}
+
+// ByArchiveCursor orders the results by the archive_cursor field.
+func ByArchiveCursor(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldArchiveCursor, opts...).ToFunc()
+}
+
 // ByCompletedAt orders the results by the completed_at field.
 func ByCompletedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCompletedAt, opts...).ToFunc()
@@ -148,4 +189,19 @@ func ByCompletedAt(opts ...sql.OrderTermOption) OrderOption {
 // ByFailureReason orders the results by the failure_reason field.
 func ByFailureReason(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldFailureReason, opts...).ToFunc()
+}
+
+// ByDevicesDeleted orders the results by the devices_deleted field.
+func ByDevicesDeleted(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDevicesDeleted, opts...).ToFunc()
+}
+
+// ByObjectsRedacted orders the results by the objects_redacted field.
+func ByObjectsRedacted(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldObjectsRedacted, opts...).ToFunc()
+}
+
+// ByPurchasesDeleted orders the results by the purchases_deleted field.
+func ByPurchasesDeleted(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPurchasesDeleted, opts...).ToFunc()
 }

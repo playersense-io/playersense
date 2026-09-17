@@ -68,17 +68,125 @@ func (DataDeletionRequest) Annotations() []schema.Annotation {
 func (DataDeletionRequest) Fields() []ent.Field {
 	return []ent.Field{
 		field.UUID("project_uid", uuid.UUID{}).Comment(dataclass.None),
+
+		// The surrogate as well as the UUID, and it is not redundant. The purge runs in
+		// ClickHouse, which sorts on project_seq (§23.1) and carries project_id only as
+		// an attribute — so a purge that knew the UUID alone would scan every tenant's
+		// parts to find one. The value is taken from the credential at submission, which
+		// is the only place it is known: the worker is cell-local (§64) and the projects
+		// table is in the global tier, in another jurisdiction (§99).
+		field.Uint32("project_seq").Comment(dataclass.None),
+
+		// The identity the studio asked about — an actor key it sends, or an install_id
+		// (§05). Not hashed: the purge has to match it against the same value in
+		// ClickHouse and in the archive, and a hash matches nothing. It is an identifier,
+		// which is why this row is in the cell tier and not the global one (§99).
 		field.String("actor_key").NotEmpty().MaxLen(128).Comment(dataclass.Identifier),
+
 		field.Enum("status").
 			Values("received", "tombstoned", "purging", "completed", "failed").
 			Default("received").Comment(dataclass.None),
+
+		// The first milestone of the SLA clock, and the one that matters soonest: the
+		// data stops being *used* here, hours before it stops existing (§05).
+		field.Time("tombstoned_at").Optional().Nillable().Comment(dataclass.None),
+
+		// How far through this project's archive the redaction has read: the id of the
+		// last manifest it examined.
+		//
+		// The archive half of a purge is bounded per pass — every candidate object is
+		// downloaded and decoded — so a subject with a long span takes several passes, and
+		// a pass has to say where the last one stopped. The obvious resume point, "objects
+		// written since the last pass ran", is wrong in the one case that matters: a first
+		// pass that filled its bound left every *older* object unexamined, and a wall-clock
+		// cut-off would skip them permanently.
+		//
+		// The **id** rather than a timestamp, and that is not interchangeable. A cursor has
+		// to advance past the row it stopped on, so it has to be compared strictly — and a
+		// strict comparison on a timestamp skips anything sharing the last one's instant,
+		// while a non-strict one re-selects it and the scan never moves. An id is unique,
+		// so `> cursor` is both exact and guaranteed to progress.
+		//
+		// Zero means nothing has been scanned yet.
+		field.Int("archive_cursor").Default(0).Comment(dataclass.None),
+		field.Time("completed_at").Optional().Nillable().Comment(dataclass.None),
+		field.String("failure_reason").MaxLen(512).Optional().Comment(dataclass.None),
+
+		// What the erasure actually removed. Proving a deletion happened needs a record
+		// that outlives the data (§06), and "completed" alone does not answer the question
+		// an auditor asks next. Counts rather than identifiers, so the audit record is not
+		// itself a second copy of what was erased.
+		field.Uint32("devices_deleted").Default(0).Comment(dataclass.None),
+		field.Uint32("objects_redacted").Default(0).Comment(dataclass.None),
+		field.Uint32("purchases_deleted").Default(0).Comment(dataclass.None),
+	}
+}
+
+func (DataDeletionRequest) Indexes() []ent.Index {
+	return []ent.Index{
+		index.Fields("project_uid", "actor_key"),
+		// The worker's own question, every pass: which requests still have work in them.
+		// Without this it reads the whole table to find the handful that are open, and the
+		// table only grows — a deletion record outlives the data it describes (§06).
+		index.Fields("status"),
+	}
+}
+
+// DataExportRequest is one actor-scoped export (§101, §05).
+//
+// The mirror of the erasure, and deliberately a separate entity rather than a flag on one:
+// the two have different states, different outcomes and very different consequences if they
+// go wrong. An erasure that half-runs leaves data behind; an export that half-runs hands
+// somebody an incomplete answer labelled complete.
+//
+// The result is an object in the cell's own bucket, because an export of one player's events
+// is that player's personal data — writing it anywhere else would move personal data out of
+// the region that produced it (§99, §03). It expires: an export bundle is a second copy of
+// everything held about a person, so it is the last thing that should sit around
+// indefinitely.
+type DataExportRequest struct{ ent.Schema }
+
+func (DataExportRequest) Mixin() []ent.Mixin { return []ent.Mixin{mixin{}} }
+func (DataExportRequest) Annotations() []schema.Annotation {
+	return []schema.Annotation{withComments()}
+}
+
+func (DataExportRequest) Fields() []ent.Field {
+	return []ent.Field{
+		field.UUID("project_uid", uuid.UUID{}).Comment(dataclass.None),
+		field.Uint32("project_seq").Comment(dataclass.None),
+		field.String("actor_key").NotEmpty().MaxLen(128).Comment(dataclass.Identifier),
+
+		field.Enum("status").
+			Values("received", "running", "completed", "failed", "expired").
+			Default("received").Comment(dataclass.None),
+
+		// Where the bundle is, once there is one. Empty until then rather than nullable:
+		// the question a caller asks is "is it ready", which the status answers.
+		field.String("bucket").MaxLen(255).Optional().Comment(dataclass.None),
+		field.String("object_path").MaxLen(1024).Optional().Comment(dataclass.None),
+		field.Uint64("object_size_bytes").Default(0).Comment(dataclass.None),
+
+		// How much was found. Zero is a real answer — §05 is explicit that a partial
+		// export must not be presented as a complete one, and "we hold nothing under this
+		// identifier" is the honest version of that.
+		field.Uint64("row_count").Default(0).Comment(dataclass.Derived),
+
+		// When the bundle is removed. Short by design and enforced by the same job that
+		// writes it, because an export nobody collected is a copy of a person's history
+		// sitting in a bucket for no reason.
+		field.Time("expires_at").Optional().Nillable().Comment(dataclass.None),
+
 		field.Time("completed_at").Optional().Nillable().Comment(dataclass.None),
 		field.String("failure_reason").MaxLen(512).Optional().Comment(dataclass.None),
 	}
 }
 
-func (DataDeletionRequest) Indexes() []ent.Index {
-	return []ent.Index{index.Fields("project_uid", "actor_key")}
+func (DataExportRequest) Indexes() []ent.Index {
+	return []ent.Index{
+		index.Fields("project_uid", "actor_key"),
+		index.Fields("status"),
+	}
 }
 
 // ArchiveManifest records one immutable archive object (§14.2).
@@ -147,8 +255,15 @@ func (ArchiveManifest) Fields() []ent.Field {
 		// object is, so a row existing means the bytes do (Appendix C.2). The rest belong
 		// to §60's retention worker, and `failed` exists so a stuck deletion is visible
 		// rather than retried forever in silence (Appendix C.13).
+		//
+		// `redacted` is §61's, and it is a separate state from `deleted` because the two
+		// answer different questions about the same absent object. A deleted object reached
+		// the end of its retention. A redacted one was replaced — an erasure rewrote it
+		// without one person's rows, and the replacement is a second manifest row carrying
+		// the same `delete_after`. An auditor asking why an object is gone gets the right
+		// answer, and §60 never picks a redacted row back up.
 		field.Enum("status").
-			Values("durable", "deleting", "deleted", "failed").
+			Values("durable", "deleting", "deleted", "redacted", "failed").
 			Default("durable").Comment(dataclass.None),
 
 		field.String("failure_reason").MaxLen(512).Optional().Comment(dataclass.None),

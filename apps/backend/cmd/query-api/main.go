@@ -9,9 +9,16 @@
 // connection for one purpose only: filling the key cache. A reporting key belonging to
 // another cell is refused with 421 and the address that can serve it, because this cell
 // holds none of that project's data and "no rows" would read as "no players".
+//
+// It also carries §101's data-subject surface — erasure and export — and that is not a
+// second responsibility bolted on. Those requests name a player, so §99 forbids them
+// reaching the US-hosted control plane, and this is the cell-local API a studio's backend
+// already talks to. They take a server key rather than a reporting one (§52): reading a
+// studio's aggregates and erasing one of its players are not the same privilege.
 package main
 
 import (
+	"fmt"
 	"log"
 	"log/slog"
 	"os"
@@ -20,6 +27,7 @@ import (
 
 	"muzak.dev/framework"
 
+	"playersense.dev/backend/internal/blobstore"
 	"playersense.dev/backend/internal/chdb"
 	"playersense.dev/backend/internal/config"
 	"playersense.dev/backend/internal/core"
@@ -56,6 +64,15 @@ func build(settings config.Settings) (*muzak.App, error) {
 		MaxLocal:    settings.KeyCacheMaxEntries,
 	})
 
+	// The cell's own tier and its bucket, for §101's requests: the deletion and export
+	// records live in the region that holds the data, and the export bundle is written to
+	// and served from the same bucket the archive uses (§99, §03).
+	cell := pgdb.NewCell(settings.Cell, settings.CellPostgresDSN)
+	store, err := newStore(settings)
+	if err != nil {
+		return nil, err
+	}
+
 	ch := chdb.New(settings.ClickHouseDSN)
 	engine := query.NewEngine(ch, query.Limits{
 		MaxRows:          settings.QueryMaxRows,
@@ -66,11 +83,15 @@ func build(settings config.Settings) (*muzak.App, error) {
 		WithCache(query.NewCache(cache, settings.QueryCacheTTL, settings.QueryCacheSettledTTL))
 
 	app := muzak.New(muzak.AppOptions{
-		Title:       "PlayerSense Reporting API",
-		Version:     "0.1.0",
-		Description: "Answers cohort questions from pre-aggregated facts. Never joins on a player key.",
-		Servers:     []muzak.Server{{URL: settings.QueryAPIPublicURL, Description: "this deployment"}},
-		Tags:        []muzak.Tag{{Name: "reporting", Description: "Reading analytics."}},
+		Title:   "PlayerSense Reporting API",
+		Version: "0.1.0",
+		Description: "Answers cohort questions from pre-aggregated facts and never joins on a " +
+			"player key, and carries this cell's data-subject requests.",
+		Servers: []muzak.Server{{URL: settings.QueryAPIPublicURL, Description: "this deployment"}},
+		Tags: []muzak.Tag{
+			{Name: "reporting", Description: "Reading analytics."},
+			{Name: "privacy", Description: "Erasing and exporting one player's data."},
+		},
 
 		Addr:            settings.QueryAPIAddr,
 		ShutdownTimeout: settings.ShutdownTimeout,
@@ -90,6 +111,8 @@ func build(settings config.Settings) (*muzak.App, error) {
 		muzak.WithSingleton(resolver),
 		muzak.WithSingleton(settings),
 		muzak.WithSingleton(engine),
+		muzak.WithSingleton(cell),
+		muzak.WithSingleton(store),
 
 		// Registered as a lifecycle as well as a singleton: the engine holds it but does
 		// not own its connection, and the application opens it before traffic and closes
@@ -121,8 +144,22 @@ func build(settings config.Settings) (*muzak.App, error) {
 
 	app.Include(routers.Meta())
 	app.Include(routers.Cohorts())
+	app.Include(routers.Privacy())
 
 	return app, nil
+}
+
+// newStore picks the object store, and must agree with archive-writer's and the worker's
+// choice: the export bundle this service serves is the one the worker wrote.
+func newStore(settings config.Settings) (blobstore.Store, error) {
+	switch settings.ArchiveStore {
+	case "gcs":
+		return blobstore.NewGCS(settings.ArchiveBucket), nil
+	case "local", "":
+		return blobstore.NewLocal(settings.ArchiveDir, settings.ArchiveBucket), nil
+	default:
+		return nil, fmt.Errorf("unknown ARCHIVE_STORE %q; want local or gcs", settings.ArchiveStore)
+	}
 }
 
 func logFormat(name string) muzak.LogFormat {

@@ -75,9 +75,24 @@ func ProjectUID(v uuid.UUID) predicate.DataDeletionRequest {
 	return predicate.DataDeletionRequest(sql.FieldEQ(FieldProjectUID, v))
 }
 
+// ProjectSeq applies equality check predicate on the "project_seq" field. It's identical to ProjectSeqEQ.
+func ProjectSeq(v uint32) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldEQ(FieldProjectSeq, v))
+}
+
 // ActorKey applies equality check predicate on the "actor_key" field. It's identical to ActorKeyEQ.
 func ActorKey(v string) predicate.DataDeletionRequest {
 	return predicate.DataDeletionRequest(sql.FieldEQ(FieldActorKey, v))
+}
+
+// TombstonedAt applies equality check predicate on the "tombstoned_at" field. It's identical to TombstonedAtEQ.
+func TombstonedAt(v time.Time) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldEQ(FieldTombstonedAt, v))
+}
+
+// ArchiveCursor applies equality check predicate on the "archive_cursor" field. It's identical to ArchiveCursorEQ.
+func ArchiveCursor(v int) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldEQ(FieldArchiveCursor, v))
 }
 
 // CompletedAt applies equality check predicate on the "completed_at" field. It's identical to CompletedAtEQ.
@@ -88,6 +103,21 @@ func CompletedAt(v time.Time) predicate.DataDeletionRequest {
 // FailureReason applies equality check predicate on the "failure_reason" field. It's identical to FailureReasonEQ.
 func FailureReason(v string) predicate.DataDeletionRequest {
 	return predicate.DataDeletionRequest(sql.FieldEQ(FieldFailureReason, v))
+}
+
+// DevicesDeleted applies equality check predicate on the "devices_deleted" field. It's identical to DevicesDeletedEQ.
+func DevicesDeleted(v uint32) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldEQ(FieldDevicesDeleted, v))
+}
+
+// ObjectsRedacted applies equality check predicate on the "objects_redacted" field. It's identical to ObjectsRedactedEQ.
+func ObjectsRedacted(v uint32) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldEQ(FieldObjectsRedacted, v))
+}
+
+// PurchasesDeleted applies equality check predicate on the "purchases_deleted" field. It's identical to PurchasesDeletedEQ.
+func PurchasesDeleted(v uint32) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldEQ(FieldPurchasesDeleted, v))
 }
 
 // UIDEQ applies the EQ predicate on the "uid" field.
@@ -250,6 +280,46 @@ func ProjectUIDLTE(v uuid.UUID) predicate.DataDeletionRequest {
 	return predicate.DataDeletionRequest(sql.FieldLTE(FieldProjectUID, v))
 }
 
+// ProjectSeqEQ applies the EQ predicate on the "project_seq" field.
+func ProjectSeqEQ(v uint32) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldEQ(FieldProjectSeq, v))
+}
+
+// ProjectSeqNEQ applies the NEQ predicate on the "project_seq" field.
+func ProjectSeqNEQ(v uint32) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldNEQ(FieldProjectSeq, v))
+}
+
+// ProjectSeqIn applies the In predicate on the "project_seq" field.
+func ProjectSeqIn(vs ...uint32) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldIn(FieldProjectSeq, vs...))
+}
+
+// ProjectSeqNotIn applies the NotIn predicate on the "project_seq" field.
+func ProjectSeqNotIn(vs ...uint32) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldNotIn(FieldProjectSeq, vs...))
+}
+
+// ProjectSeqGT applies the GT predicate on the "project_seq" field.
+func ProjectSeqGT(v uint32) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldGT(FieldProjectSeq, v))
+}
+
+// ProjectSeqGTE applies the GTE predicate on the "project_seq" field.
+func ProjectSeqGTE(v uint32) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldGTE(FieldProjectSeq, v))
+}
+
+// ProjectSeqLT applies the LT predicate on the "project_seq" field.
+func ProjectSeqLT(v uint32) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldLT(FieldProjectSeq, v))
+}
+
+// ProjectSeqLTE applies the LTE predicate on the "project_seq" field.
+func ProjectSeqLTE(v uint32) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldLTE(FieldProjectSeq, v))
+}
+
 // ActorKeyEQ applies the EQ predicate on the "actor_key" field.
 func ActorKeyEQ(v string) predicate.DataDeletionRequest {
 	return predicate.DataDeletionRequest(sql.FieldEQ(FieldActorKey, v))
@@ -333,6 +403,96 @@ func StatusIn(vs ...Status) predicate.DataDeletionRequest {
 // StatusNotIn applies the NotIn predicate on the "status" field.
 func StatusNotIn(vs ...Status) predicate.DataDeletionRequest {
 	return predicate.DataDeletionRequest(sql.FieldNotIn(FieldStatus, vs...))
+}
+
+// TombstonedAtEQ applies the EQ predicate on the "tombstoned_at" field.
+func TombstonedAtEQ(v time.Time) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldEQ(FieldTombstonedAt, v))
+}
+
+// TombstonedAtNEQ applies the NEQ predicate on the "tombstoned_at" field.
+func TombstonedAtNEQ(v time.Time) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldNEQ(FieldTombstonedAt, v))
+}
+
+// TombstonedAtIn applies the In predicate on the "tombstoned_at" field.
+func TombstonedAtIn(vs ...time.Time) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldIn(FieldTombstonedAt, vs...))
+}
+
+// TombstonedAtNotIn applies the NotIn predicate on the "tombstoned_at" field.
+func TombstonedAtNotIn(vs ...time.Time) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldNotIn(FieldTombstonedAt, vs...))
+}
+
+// TombstonedAtGT applies the GT predicate on the "tombstoned_at" field.
+func TombstonedAtGT(v time.Time) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldGT(FieldTombstonedAt, v))
+}
+
+// TombstonedAtGTE applies the GTE predicate on the "tombstoned_at" field.
+func TombstonedAtGTE(v time.Time) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldGTE(FieldTombstonedAt, v))
+}
+
+// TombstonedAtLT applies the LT predicate on the "tombstoned_at" field.
+func TombstonedAtLT(v time.Time) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldLT(FieldTombstonedAt, v))
+}
+
+// TombstonedAtLTE applies the LTE predicate on the "tombstoned_at" field.
+func TombstonedAtLTE(v time.Time) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldLTE(FieldTombstonedAt, v))
+}
+
+// TombstonedAtIsNil applies the IsNil predicate on the "tombstoned_at" field.
+func TombstonedAtIsNil() predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldIsNull(FieldTombstonedAt))
+}
+
+// TombstonedAtNotNil applies the NotNil predicate on the "tombstoned_at" field.
+func TombstonedAtNotNil() predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldNotNull(FieldTombstonedAt))
+}
+
+// ArchiveCursorEQ applies the EQ predicate on the "archive_cursor" field.
+func ArchiveCursorEQ(v int) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldEQ(FieldArchiveCursor, v))
+}
+
+// ArchiveCursorNEQ applies the NEQ predicate on the "archive_cursor" field.
+func ArchiveCursorNEQ(v int) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldNEQ(FieldArchiveCursor, v))
+}
+
+// ArchiveCursorIn applies the In predicate on the "archive_cursor" field.
+func ArchiveCursorIn(vs ...int) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldIn(FieldArchiveCursor, vs...))
+}
+
+// ArchiveCursorNotIn applies the NotIn predicate on the "archive_cursor" field.
+func ArchiveCursorNotIn(vs ...int) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldNotIn(FieldArchiveCursor, vs...))
+}
+
+// ArchiveCursorGT applies the GT predicate on the "archive_cursor" field.
+func ArchiveCursorGT(v int) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldGT(FieldArchiveCursor, v))
+}
+
+// ArchiveCursorGTE applies the GTE predicate on the "archive_cursor" field.
+func ArchiveCursorGTE(v int) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldGTE(FieldArchiveCursor, v))
+}
+
+// ArchiveCursorLT applies the LT predicate on the "archive_cursor" field.
+func ArchiveCursorLT(v int) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldLT(FieldArchiveCursor, v))
+}
+
+// ArchiveCursorLTE applies the LTE predicate on the "archive_cursor" field.
+func ArchiveCursorLTE(v int) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldLTE(FieldArchiveCursor, v))
 }
 
 // CompletedAtEQ applies the EQ predicate on the "completed_at" field.
@@ -458,6 +618,126 @@ func FailureReasonEqualFold(v string) predicate.DataDeletionRequest {
 // FailureReasonContainsFold applies the ContainsFold predicate on the "failure_reason" field.
 func FailureReasonContainsFold(v string) predicate.DataDeletionRequest {
 	return predicate.DataDeletionRequest(sql.FieldContainsFold(FieldFailureReason, v))
+}
+
+// DevicesDeletedEQ applies the EQ predicate on the "devices_deleted" field.
+func DevicesDeletedEQ(v uint32) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldEQ(FieldDevicesDeleted, v))
+}
+
+// DevicesDeletedNEQ applies the NEQ predicate on the "devices_deleted" field.
+func DevicesDeletedNEQ(v uint32) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldNEQ(FieldDevicesDeleted, v))
+}
+
+// DevicesDeletedIn applies the In predicate on the "devices_deleted" field.
+func DevicesDeletedIn(vs ...uint32) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldIn(FieldDevicesDeleted, vs...))
+}
+
+// DevicesDeletedNotIn applies the NotIn predicate on the "devices_deleted" field.
+func DevicesDeletedNotIn(vs ...uint32) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldNotIn(FieldDevicesDeleted, vs...))
+}
+
+// DevicesDeletedGT applies the GT predicate on the "devices_deleted" field.
+func DevicesDeletedGT(v uint32) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldGT(FieldDevicesDeleted, v))
+}
+
+// DevicesDeletedGTE applies the GTE predicate on the "devices_deleted" field.
+func DevicesDeletedGTE(v uint32) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldGTE(FieldDevicesDeleted, v))
+}
+
+// DevicesDeletedLT applies the LT predicate on the "devices_deleted" field.
+func DevicesDeletedLT(v uint32) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldLT(FieldDevicesDeleted, v))
+}
+
+// DevicesDeletedLTE applies the LTE predicate on the "devices_deleted" field.
+func DevicesDeletedLTE(v uint32) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldLTE(FieldDevicesDeleted, v))
+}
+
+// ObjectsRedactedEQ applies the EQ predicate on the "objects_redacted" field.
+func ObjectsRedactedEQ(v uint32) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldEQ(FieldObjectsRedacted, v))
+}
+
+// ObjectsRedactedNEQ applies the NEQ predicate on the "objects_redacted" field.
+func ObjectsRedactedNEQ(v uint32) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldNEQ(FieldObjectsRedacted, v))
+}
+
+// ObjectsRedactedIn applies the In predicate on the "objects_redacted" field.
+func ObjectsRedactedIn(vs ...uint32) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldIn(FieldObjectsRedacted, vs...))
+}
+
+// ObjectsRedactedNotIn applies the NotIn predicate on the "objects_redacted" field.
+func ObjectsRedactedNotIn(vs ...uint32) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldNotIn(FieldObjectsRedacted, vs...))
+}
+
+// ObjectsRedactedGT applies the GT predicate on the "objects_redacted" field.
+func ObjectsRedactedGT(v uint32) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldGT(FieldObjectsRedacted, v))
+}
+
+// ObjectsRedactedGTE applies the GTE predicate on the "objects_redacted" field.
+func ObjectsRedactedGTE(v uint32) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldGTE(FieldObjectsRedacted, v))
+}
+
+// ObjectsRedactedLT applies the LT predicate on the "objects_redacted" field.
+func ObjectsRedactedLT(v uint32) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldLT(FieldObjectsRedacted, v))
+}
+
+// ObjectsRedactedLTE applies the LTE predicate on the "objects_redacted" field.
+func ObjectsRedactedLTE(v uint32) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldLTE(FieldObjectsRedacted, v))
+}
+
+// PurchasesDeletedEQ applies the EQ predicate on the "purchases_deleted" field.
+func PurchasesDeletedEQ(v uint32) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldEQ(FieldPurchasesDeleted, v))
+}
+
+// PurchasesDeletedNEQ applies the NEQ predicate on the "purchases_deleted" field.
+func PurchasesDeletedNEQ(v uint32) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldNEQ(FieldPurchasesDeleted, v))
+}
+
+// PurchasesDeletedIn applies the In predicate on the "purchases_deleted" field.
+func PurchasesDeletedIn(vs ...uint32) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldIn(FieldPurchasesDeleted, vs...))
+}
+
+// PurchasesDeletedNotIn applies the NotIn predicate on the "purchases_deleted" field.
+func PurchasesDeletedNotIn(vs ...uint32) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldNotIn(FieldPurchasesDeleted, vs...))
+}
+
+// PurchasesDeletedGT applies the GT predicate on the "purchases_deleted" field.
+func PurchasesDeletedGT(v uint32) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldGT(FieldPurchasesDeleted, v))
+}
+
+// PurchasesDeletedGTE applies the GTE predicate on the "purchases_deleted" field.
+func PurchasesDeletedGTE(v uint32) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldGTE(FieldPurchasesDeleted, v))
+}
+
+// PurchasesDeletedLT applies the LT predicate on the "purchases_deleted" field.
+func PurchasesDeletedLT(v uint32) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldLT(FieldPurchasesDeleted, v))
+}
+
+// PurchasesDeletedLTE applies the LTE predicate on the "purchases_deleted" field.
+func PurchasesDeletedLTE(v uint32) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldLTE(FieldPurchasesDeleted, v))
 }
 
 // And groups predicates with the AND operator between them.

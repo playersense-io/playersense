@@ -14,6 +14,7 @@ import (
 	"github.com/google/uuid"
 	"playersense.dev/backend/ent/regional/archivemanifest"
 	"playersense.dev/backend/ent/regional/datadeletionrequest"
+	"playersense.dev/backend/ent/regional/dataexportrequest"
 	"playersense.dev/backend/ent/regional/predicate"
 	"playersense.dev/backend/ent/regional/verifiedpurchase"
 )
@@ -29,6 +30,7 @@ const (
 	// Node types.
 	TypeArchiveManifest     = "ArchiveManifest"
 	TypeDataDeletionRequest = "DataDeletionRequest"
+	TypeDataExportRequest   = "DataExportRequest"
 	TypeVerifiedPurchase    = "VerifiedPurchase"
 )
 
@@ -1442,21 +1444,32 @@ func (m *ArchiveManifestMutation) ResetEdge(name string) error {
 // DataDeletionRequestMutation represents an operation that mutates the DataDeletionRequest nodes in the graph.
 type DataDeletionRequestMutation struct {
 	config
-	op             Op
-	typ            string
-	id             *int
-	uid            *uuid.UUID
-	created_at     *time.Time
-	updated_at     *time.Time
-	project_uid    *uuid.UUID
-	actor_key      *string
-	status         *datadeletionrequest.Status
-	completed_at   *time.Time
-	failure_reason *string
-	clearedFields  map[string]struct{}
-	done           bool
-	oldValue       func(context.Context) (*DataDeletionRequest, error)
-	predicates     []predicate.DataDeletionRequest
+	op                   Op
+	typ                  string
+	id                   *int
+	uid                  *uuid.UUID
+	created_at           *time.Time
+	updated_at           *time.Time
+	project_uid          *uuid.UUID
+	project_seq          *uint32
+	addproject_seq       *int32
+	actor_key            *string
+	status               *datadeletionrequest.Status
+	tombstoned_at        *time.Time
+	archive_cursor       *int
+	addarchive_cursor    *int
+	completed_at         *time.Time
+	failure_reason       *string
+	devices_deleted      *uint32
+	adddevices_deleted   *int32
+	objects_redacted     *uint32
+	addobjects_redacted  *int32
+	purchases_deleted    *uint32
+	addpurchases_deleted *int32
+	clearedFields        map[string]struct{}
+	done                 bool
+	oldValue             func(context.Context) (*DataDeletionRequest, error)
+	predicates           []predicate.DataDeletionRequest
 }
 
 var _ ent.Mutation = (*DataDeletionRequestMutation)(nil)
@@ -1707,6 +1720,62 @@ func (m *DataDeletionRequestMutation) ResetProjectUID() {
 	m.project_uid = nil
 }
 
+// SetProjectSeq sets the "project_seq" field.
+func (m *DataDeletionRequestMutation) SetProjectSeq(u uint32) {
+	m.project_seq = &u
+	m.addproject_seq = nil
+}
+
+// ProjectSeq returns the value of the "project_seq" field in the mutation.
+func (m *DataDeletionRequestMutation) ProjectSeq() (r uint32, exists bool) {
+	v := m.project_seq
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProjectSeq returns the old "project_seq" field's value of the DataDeletionRequest entity.
+// If the DataDeletionRequest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DataDeletionRequestMutation) OldProjectSeq(ctx context.Context) (v uint32, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProjectSeq is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProjectSeq requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProjectSeq: %w", err)
+	}
+	return oldValue.ProjectSeq, nil
+}
+
+// AddProjectSeq adds u to the "project_seq" field.
+func (m *DataDeletionRequestMutation) AddProjectSeq(u int32) {
+	if m.addproject_seq != nil {
+		*m.addproject_seq += u
+	} else {
+		m.addproject_seq = &u
+	}
+}
+
+// AddedProjectSeq returns the value that was added to the "project_seq" field in this mutation.
+func (m *DataDeletionRequestMutation) AddedProjectSeq() (r int32, exists bool) {
+	v := m.addproject_seq
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetProjectSeq resets all changes to the "project_seq" field.
+func (m *DataDeletionRequestMutation) ResetProjectSeq() {
+	m.project_seq = nil
+	m.addproject_seq = nil
+}
+
 // SetActorKey sets the "actor_key" field.
 func (m *DataDeletionRequestMutation) SetActorKey(s string) {
 	m.actor_key = &s
@@ -1777,6 +1846,111 @@ func (m *DataDeletionRequestMutation) OldStatus(ctx context.Context) (v datadele
 // ResetStatus resets all changes to the "status" field.
 func (m *DataDeletionRequestMutation) ResetStatus() {
 	m.status = nil
+}
+
+// SetTombstonedAt sets the "tombstoned_at" field.
+func (m *DataDeletionRequestMutation) SetTombstonedAt(t time.Time) {
+	m.tombstoned_at = &t
+}
+
+// TombstonedAt returns the value of the "tombstoned_at" field in the mutation.
+func (m *DataDeletionRequestMutation) TombstonedAt() (r time.Time, exists bool) {
+	v := m.tombstoned_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTombstonedAt returns the old "tombstoned_at" field's value of the DataDeletionRequest entity.
+// If the DataDeletionRequest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DataDeletionRequestMutation) OldTombstonedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTombstonedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTombstonedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTombstonedAt: %w", err)
+	}
+	return oldValue.TombstonedAt, nil
+}
+
+// ClearTombstonedAt clears the value of the "tombstoned_at" field.
+func (m *DataDeletionRequestMutation) ClearTombstonedAt() {
+	m.tombstoned_at = nil
+	m.clearedFields[datadeletionrequest.FieldTombstonedAt] = struct{}{}
+}
+
+// TombstonedAtCleared returns if the "tombstoned_at" field was cleared in this mutation.
+func (m *DataDeletionRequestMutation) TombstonedAtCleared() bool {
+	_, ok := m.clearedFields[datadeletionrequest.FieldTombstonedAt]
+	return ok
+}
+
+// ResetTombstonedAt resets all changes to the "tombstoned_at" field.
+func (m *DataDeletionRequestMutation) ResetTombstonedAt() {
+	m.tombstoned_at = nil
+	delete(m.clearedFields, datadeletionrequest.FieldTombstonedAt)
+}
+
+// SetArchiveCursor sets the "archive_cursor" field.
+func (m *DataDeletionRequestMutation) SetArchiveCursor(i int) {
+	m.archive_cursor = &i
+	m.addarchive_cursor = nil
+}
+
+// ArchiveCursor returns the value of the "archive_cursor" field in the mutation.
+func (m *DataDeletionRequestMutation) ArchiveCursor() (r int, exists bool) {
+	v := m.archive_cursor
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldArchiveCursor returns the old "archive_cursor" field's value of the DataDeletionRequest entity.
+// If the DataDeletionRequest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DataDeletionRequestMutation) OldArchiveCursor(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldArchiveCursor is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldArchiveCursor requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldArchiveCursor: %w", err)
+	}
+	return oldValue.ArchiveCursor, nil
+}
+
+// AddArchiveCursor adds i to the "archive_cursor" field.
+func (m *DataDeletionRequestMutation) AddArchiveCursor(i int) {
+	if m.addarchive_cursor != nil {
+		*m.addarchive_cursor += i
+	} else {
+		m.addarchive_cursor = &i
+	}
+}
+
+// AddedArchiveCursor returns the value that was added to the "archive_cursor" field in this mutation.
+func (m *DataDeletionRequestMutation) AddedArchiveCursor() (r int, exists bool) {
+	v := m.addarchive_cursor
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetArchiveCursor resets all changes to the "archive_cursor" field.
+func (m *DataDeletionRequestMutation) ResetArchiveCursor() {
+	m.archive_cursor = nil
+	m.addarchive_cursor = nil
 }
 
 // SetCompletedAt sets the "completed_at" field.
@@ -1877,6 +2051,174 @@ func (m *DataDeletionRequestMutation) ResetFailureReason() {
 	delete(m.clearedFields, datadeletionrequest.FieldFailureReason)
 }
 
+// SetDevicesDeleted sets the "devices_deleted" field.
+func (m *DataDeletionRequestMutation) SetDevicesDeleted(u uint32) {
+	m.devices_deleted = &u
+	m.adddevices_deleted = nil
+}
+
+// DevicesDeleted returns the value of the "devices_deleted" field in the mutation.
+func (m *DataDeletionRequestMutation) DevicesDeleted() (r uint32, exists bool) {
+	v := m.devices_deleted
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDevicesDeleted returns the old "devices_deleted" field's value of the DataDeletionRequest entity.
+// If the DataDeletionRequest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DataDeletionRequestMutation) OldDevicesDeleted(ctx context.Context) (v uint32, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDevicesDeleted is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDevicesDeleted requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDevicesDeleted: %w", err)
+	}
+	return oldValue.DevicesDeleted, nil
+}
+
+// AddDevicesDeleted adds u to the "devices_deleted" field.
+func (m *DataDeletionRequestMutation) AddDevicesDeleted(u int32) {
+	if m.adddevices_deleted != nil {
+		*m.adddevices_deleted += u
+	} else {
+		m.adddevices_deleted = &u
+	}
+}
+
+// AddedDevicesDeleted returns the value that was added to the "devices_deleted" field in this mutation.
+func (m *DataDeletionRequestMutation) AddedDevicesDeleted() (r int32, exists bool) {
+	v := m.adddevices_deleted
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetDevicesDeleted resets all changes to the "devices_deleted" field.
+func (m *DataDeletionRequestMutation) ResetDevicesDeleted() {
+	m.devices_deleted = nil
+	m.adddevices_deleted = nil
+}
+
+// SetObjectsRedacted sets the "objects_redacted" field.
+func (m *DataDeletionRequestMutation) SetObjectsRedacted(u uint32) {
+	m.objects_redacted = &u
+	m.addobjects_redacted = nil
+}
+
+// ObjectsRedacted returns the value of the "objects_redacted" field in the mutation.
+func (m *DataDeletionRequestMutation) ObjectsRedacted() (r uint32, exists bool) {
+	v := m.objects_redacted
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldObjectsRedacted returns the old "objects_redacted" field's value of the DataDeletionRequest entity.
+// If the DataDeletionRequest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DataDeletionRequestMutation) OldObjectsRedacted(ctx context.Context) (v uint32, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldObjectsRedacted is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldObjectsRedacted requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldObjectsRedacted: %w", err)
+	}
+	return oldValue.ObjectsRedacted, nil
+}
+
+// AddObjectsRedacted adds u to the "objects_redacted" field.
+func (m *DataDeletionRequestMutation) AddObjectsRedacted(u int32) {
+	if m.addobjects_redacted != nil {
+		*m.addobjects_redacted += u
+	} else {
+		m.addobjects_redacted = &u
+	}
+}
+
+// AddedObjectsRedacted returns the value that was added to the "objects_redacted" field in this mutation.
+func (m *DataDeletionRequestMutation) AddedObjectsRedacted() (r int32, exists bool) {
+	v := m.addobjects_redacted
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetObjectsRedacted resets all changes to the "objects_redacted" field.
+func (m *DataDeletionRequestMutation) ResetObjectsRedacted() {
+	m.objects_redacted = nil
+	m.addobjects_redacted = nil
+}
+
+// SetPurchasesDeleted sets the "purchases_deleted" field.
+func (m *DataDeletionRequestMutation) SetPurchasesDeleted(u uint32) {
+	m.purchases_deleted = &u
+	m.addpurchases_deleted = nil
+}
+
+// PurchasesDeleted returns the value of the "purchases_deleted" field in the mutation.
+func (m *DataDeletionRequestMutation) PurchasesDeleted() (r uint32, exists bool) {
+	v := m.purchases_deleted
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPurchasesDeleted returns the old "purchases_deleted" field's value of the DataDeletionRequest entity.
+// If the DataDeletionRequest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DataDeletionRequestMutation) OldPurchasesDeleted(ctx context.Context) (v uint32, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPurchasesDeleted is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPurchasesDeleted requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPurchasesDeleted: %w", err)
+	}
+	return oldValue.PurchasesDeleted, nil
+}
+
+// AddPurchasesDeleted adds u to the "purchases_deleted" field.
+func (m *DataDeletionRequestMutation) AddPurchasesDeleted(u int32) {
+	if m.addpurchases_deleted != nil {
+		*m.addpurchases_deleted += u
+	} else {
+		m.addpurchases_deleted = &u
+	}
+}
+
+// AddedPurchasesDeleted returns the value that was added to the "purchases_deleted" field in this mutation.
+func (m *DataDeletionRequestMutation) AddedPurchasesDeleted() (r int32, exists bool) {
+	v := m.addpurchases_deleted
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetPurchasesDeleted resets all changes to the "purchases_deleted" field.
+func (m *DataDeletionRequestMutation) ResetPurchasesDeleted() {
+	m.purchases_deleted = nil
+	m.addpurchases_deleted = nil
+}
+
 // Where appends a list predicates to the DataDeletionRequestMutation builder.
 func (m *DataDeletionRequestMutation) Where(ps ...predicate.DataDeletionRequest) {
 	m.predicates = append(m.predicates, ps...)
@@ -1911,7 +2253,7 @@ func (m *DataDeletionRequestMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *DataDeletionRequestMutation) Fields() []string {
-	fields := make([]string, 0, 8)
+	fields := make([]string, 0, 14)
 	if m.uid != nil {
 		fields = append(fields, datadeletionrequest.FieldUID)
 	}
@@ -1924,17 +2266,35 @@ func (m *DataDeletionRequestMutation) Fields() []string {
 	if m.project_uid != nil {
 		fields = append(fields, datadeletionrequest.FieldProjectUID)
 	}
+	if m.project_seq != nil {
+		fields = append(fields, datadeletionrequest.FieldProjectSeq)
+	}
 	if m.actor_key != nil {
 		fields = append(fields, datadeletionrequest.FieldActorKey)
 	}
 	if m.status != nil {
 		fields = append(fields, datadeletionrequest.FieldStatus)
 	}
+	if m.tombstoned_at != nil {
+		fields = append(fields, datadeletionrequest.FieldTombstonedAt)
+	}
+	if m.archive_cursor != nil {
+		fields = append(fields, datadeletionrequest.FieldArchiveCursor)
+	}
 	if m.completed_at != nil {
 		fields = append(fields, datadeletionrequest.FieldCompletedAt)
 	}
 	if m.failure_reason != nil {
 		fields = append(fields, datadeletionrequest.FieldFailureReason)
+	}
+	if m.devices_deleted != nil {
+		fields = append(fields, datadeletionrequest.FieldDevicesDeleted)
+	}
+	if m.objects_redacted != nil {
+		fields = append(fields, datadeletionrequest.FieldObjectsRedacted)
+	}
+	if m.purchases_deleted != nil {
+		fields = append(fields, datadeletionrequest.FieldPurchasesDeleted)
 	}
 	return fields
 }
@@ -1952,14 +2312,26 @@ func (m *DataDeletionRequestMutation) Field(name string) (ent.Value, bool) {
 		return m.UpdatedAt()
 	case datadeletionrequest.FieldProjectUID:
 		return m.ProjectUID()
+	case datadeletionrequest.FieldProjectSeq:
+		return m.ProjectSeq()
 	case datadeletionrequest.FieldActorKey:
 		return m.ActorKey()
 	case datadeletionrequest.FieldStatus:
 		return m.Status()
+	case datadeletionrequest.FieldTombstonedAt:
+		return m.TombstonedAt()
+	case datadeletionrequest.FieldArchiveCursor:
+		return m.ArchiveCursor()
 	case datadeletionrequest.FieldCompletedAt:
 		return m.CompletedAt()
 	case datadeletionrequest.FieldFailureReason:
 		return m.FailureReason()
+	case datadeletionrequest.FieldDevicesDeleted:
+		return m.DevicesDeleted()
+	case datadeletionrequest.FieldObjectsRedacted:
+		return m.ObjectsRedacted()
+	case datadeletionrequest.FieldPurchasesDeleted:
+		return m.PurchasesDeleted()
 	}
 	return nil, false
 }
@@ -1977,14 +2349,26 @@ func (m *DataDeletionRequestMutation) OldField(ctx context.Context, name string)
 		return m.OldUpdatedAt(ctx)
 	case datadeletionrequest.FieldProjectUID:
 		return m.OldProjectUID(ctx)
+	case datadeletionrequest.FieldProjectSeq:
+		return m.OldProjectSeq(ctx)
 	case datadeletionrequest.FieldActorKey:
 		return m.OldActorKey(ctx)
 	case datadeletionrequest.FieldStatus:
 		return m.OldStatus(ctx)
+	case datadeletionrequest.FieldTombstonedAt:
+		return m.OldTombstonedAt(ctx)
+	case datadeletionrequest.FieldArchiveCursor:
+		return m.OldArchiveCursor(ctx)
 	case datadeletionrequest.FieldCompletedAt:
 		return m.OldCompletedAt(ctx)
 	case datadeletionrequest.FieldFailureReason:
 		return m.OldFailureReason(ctx)
+	case datadeletionrequest.FieldDevicesDeleted:
+		return m.OldDevicesDeleted(ctx)
+	case datadeletionrequest.FieldObjectsRedacted:
+		return m.OldObjectsRedacted(ctx)
+	case datadeletionrequest.FieldPurchasesDeleted:
+		return m.OldPurchasesDeleted(ctx)
 	}
 	return nil, fmt.Errorf("unknown DataDeletionRequest field %s", name)
 }
@@ -2022,6 +2406,13 @@ func (m *DataDeletionRequestMutation) SetField(name string, value ent.Value) err
 		}
 		m.SetProjectUID(v)
 		return nil
+	case datadeletionrequest.FieldProjectSeq:
+		v, ok := value.(uint32)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProjectSeq(v)
+		return nil
 	case datadeletionrequest.FieldActorKey:
 		v, ok := value.(string)
 		if !ok {
@@ -2035,6 +2426,20 @@ func (m *DataDeletionRequestMutation) SetField(name string, value ent.Value) err
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetStatus(v)
+		return nil
+	case datadeletionrequest.FieldTombstonedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTombstonedAt(v)
+		return nil
+	case datadeletionrequest.FieldArchiveCursor:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetArchiveCursor(v)
 		return nil
 	case datadeletionrequest.FieldCompletedAt:
 		v, ok := value.(time.Time)
@@ -2050,6 +2455,27 @@ func (m *DataDeletionRequestMutation) SetField(name string, value ent.Value) err
 		}
 		m.SetFailureReason(v)
 		return nil
+	case datadeletionrequest.FieldDevicesDeleted:
+		v, ok := value.(uint32)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDevicesDeleted(v)
+		return nil
+	case datadeletionrequest.FieldObjectsRedacted:
+		v, ok := value.(uint32)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetObjectsRedacted(v)
+		return nil
+	case datadeletionrequest.FieldPurchasesDeleted:
+		v, ok := value.(uint32)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPurchasesDeleted(v)
+		return nil
 	}
 	return fmt.Errorf("unknown DataDeletionRequest field %s", name)
 }
@@ -2057,13 +2483,41 @@ func (m *DataDeletionRequestMutation) SetField(name string, value ent.Value) err
 // AddedFields returns all numeric fields that were incremented/decremented during
 // this mutation.
 func (m *DataDeletionRequestMutation) AddedFields() []string {
-	return nil
+	var fields []string
+	if m.addproject_seq != nil {
+		fields = append(fields, datadeletionrequest.FieldProjectSeq)
+	}
+	if m.addarchive_cursor != nil {
+		fields = append(fields, datadeletionrequest.FieldArchiveCursor)
+	}
+	if m.adddevices_deleted != nil {
+		fields = append(fields, datadeletionrequest.FieldDevicesDeleted)
+	}
+	if m.addobjects_redacted != nil {
+		fields = append(fields, datadeletionrequest.FieldObjectsRedacted)
+	}
+	if m.addpurchases_deleted != nil {
+		fields = append(fields, datadeletionrequest.FieldPurchasesDeleted)
+	}
+	return fields
 }
 
 // AddedField returns the numeric value that was incremented/decremented on a field
 // with the given name. The second boolean return value indicates that this field
 // was not set, or was not defined in the schema.
 func (m *DataDeletionRequestMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case datadeletionrequest.FieldProjectSeq:
+		return m.AddedProjectSeq()
+	case datadeletionrequest.FieldArchiveCursor:
+		return m.AddedArchiveCursor()
+	case datadeletionrequest.FieldDevicesDeleted:
+		return m.AddedDevicesDeleted()
+	case datadeletionrequest.FieldObjectsRedacted:
+		return m.AddedObjectsRedacted()
+	case datadeletionrequest.FieldPurchasesDeleted:
+		return m.AddedPurchasesDeleted()
+	}
 	return nil, false
 }
 
@@ -2072,6 +2526,41 @@ func (m *DataDeletionRequestMutation) AddedField(name string) (ent.Value, bool) 
 // type.
 func (m *DataDeletionRequestMutation) AddField(name string, value ent.Value) error {
 	switch name {
+	case datadeletionrequest.FieldProjectSeq:
+		v, ok := value.(int32)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddProjectSeq(v)
+		return nil
+	case datadeletionrequest.FieldArchiveCursor:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddArchiveCursor(v)
+		return nil
+	case datadeletionrequest.FieldDevicesDeleted:
+		v, ok := value.(int32)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddDevicesDeleted(v)
+		return nil
+	case datadeletionrequest.FieldObjectsRedacted:
+		v, ok := value.(int32)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddObjectsRedacted(v)
+		return nil
+	case datadeletionrequest.FieldPurchasesDeleted:
+		v, ok := value.(int32)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddPurchasesDeleted(v)
+		return nil
 	}
 	return fmt.Errorf("unknown DataDeletionRequest numeric field %s", name)
 }
@@ -2080,6 +2569,9 @@ func (m *DataDeletionRequestMutation) AddField(name string, value ent.Value) err
 // mutation.
 func (m *DataDeletionRequestMutation) ClearedFields() []string {
 	var fields []string
+	if m.FieldCleared(datadeletionrequest.FieldTombstonedAt) {
+		fields = append(fields, datadeletionrequest.FieldTombstonedAt)
+	}
 	if m.FieldCleared(datadeletionrequest.FieldCompletedAt) {
 		fields = append(fields, datadeletionrequest.FieldCompletedAt)
 	}
@@ -2100,6 +2592,9 @@ func (m *DataDeletionRequestMutation) FieldCleared(name string) bool {
 // error if the field is not defined in the schema.
 func (m *DataDeletionRequestMutation) ClearField(name string) error {
 	switch name {
+	case datadeletionrequest.FieldTombstonedAt:
+		m.ClearTombstonedAt()
+		return nil
 	case datadeletionrequest.FieldCompletedAt:
 		m.ClearCompletedAt()
 		return nil
@@ -2126,17 +2621,35 @@ func (m *DataDeletionRequestMutation) ResetField(name string) error {
 	case datadeletionrequest.FieldProjectUID:
 		m.ResetProjectUID()
 		return nil
+	case datadeletionrequest.FieldProjectSeq:
+		m.ResetProjectSeq()
+		return nil
 	case datadeletionrequest.FieldActorKey:
 		m.ResetActorKey()
 		return nil
 	case datadeletionrequest.FieldStatus:
 		m.ResetStatus()
 		return nil
+	case datadeletionrequest.FieldTombstonedAt:
+		m.ResetTombstonedAt()
+		return nil
+	case datadeletionrequest.FieldArchiveCursor:
+		m.ResetArchiveCursor()
+		return nil
 	case datadeletionrequest.FieldCompletedAt:
 		m.ResetCompletedAt()
 		return nil
 	case datadeletionrequest.FieldFailureReason:
 		m.ResetFailureReason()
+		return nil
+	case datadeletionrequest.FieldDevicesDeleted:
+		m.ResetDevicesDeleted()
+		return nil
+	case datadeletionrequest.FieldObjectsRedacted:
+		m.ResetObjectsRedacted()
+		return nil
+	case datadeletionrequest.FieldPurchasesDeleted:
+		m.ResetPurchasesDeleted()
 		return nil
 	}
 	return fmt.Errorf("unknown DataDeletionRequest field %s", name)
@@ -2188,6 +2701,1240 @@ func (m *DataDeletionRequestMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *DataDeletionRequestMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown DataDeletionRequest edge %s", name)
+}
+
+// DataExportRequestMutation represents an operation that mutates the DataExportRequest nodes in the graph.
+type DataExportRequestMutation struct {
+	config
+	op                   Op
+	typ                  string
+	id                   *int
+	uid                  *uuid.UUID
+	created_at           *time.Time
+	updated_at           *time.Time
+	project_uid          *uuid.UUID
+	project_seq          *uint32
+	addproject_seq       *int32
+	actor_key            *string
+	status               *dataexportrequest.Status
+	bucket               *string
+	object_path          *string
+	object_size_bytes    *uint64
+	addobject_size_bytes *int64
+	row_count            *uint64
+	addrow_count         *int64
+	expires_at           *time.Time
+	completed_at         *time.Time
+	failure_reason       *string
+	clearedFields        map[string]struct{}
+	done                 bool
+	oldValue             func(context.Context) (*DataExportRequest, error)
+	predicates           []predicate.DataExportRequest
+}
+
+var _ ent.Mutation = (*DataExportRequestMutation)(nil)
+
+// dataexportrequestOption allows management of the mutation configuration using functional options.
+type dataexportrequestOption func(*DataExportRequestMutation)
+
+// newDataExportRequestMutation creates new mutation for the DataExportRequest entity.
+func newDataExportRequestMutation(c config, op Op, opts ...dataexportrequestOption) *DataExportRequestMutation {
+	m := &DataExportRequestMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeDataExportRequest,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withDataExportRequestID sets the ID field of the mutation.
+func withDataExportRequestID(id int) dataexportrequestOption {
+	return func(m *DataExportRequestMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *DataExportRequest
+		)
+		m.oldValue = func(ctx context.Context) (*DataExportRequest, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().DataExportRequest.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withDataExportRequest sets the old DataExportRequest of the mutation.
+func withDataExportRequest(node *DataExportRequest) dataexportrequestOption {
+	return func(m *DataExportRequestMutation) {
+		m.oldValue = func(context.Context) (*DataExportRequest, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m DataExportRequestMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m DataExportRequestMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("regional: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of DataExportRequest entities.
+func (m *DataExportRequestMutation) SetID(id int) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *DataExportRequestMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *DataExportRequestMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().DataExportRequest.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetUID sets the "uid" field.
+func (m *DataExportRequestMutation) SetUID(u uuid.UUID) {
+	m.uid = &u
+}
+
+// UID returns the value of the "uid" field in the mutation.
+func (m *DataExportRequestMutation) UID() (r uuid.UUID, exists bool) {
+	v := m.uid
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUID returns the old "uid" field's value of the DataExportRequest entity.
+// If the DataExportRequest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DataExportRequestMutation) OldUID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUID: %w", err)
+	}
+	return oldValue.UID, nil
+}
+
+// ResetUID resets all changes to the "uid" field.
+func (m *DataExportRequestMutation) ResetUID() {
+	m.uid = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *DataExportRequestMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *DataExportRequestMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the DataExportRequest entity.
+// If the DataExportRequest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DataExportRequestMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *DataExportRequestMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *DataExportRequestMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *DataExportRequestMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the DataExportRequest entity.
+// If the DataExportRequest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DataExportRequestMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *DataExportRequestMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetProjectUID sets the "project_uid" field.
+func (m *DataExportRequestMutation) SetProjectUID(u uuid.UUID) {
+	m.project_uid = &u
+}
+
+// ProjectUID returns the value of the "project_uid" field in the mutation.
+func (m *DataExportRequestMutation) ProjectUID() (r uuid.UUID, exists bool) {
+	v := m.project_uid
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProjectUID returns the old "project_uid" field's value of the DataExportRequest entity.
+// If the DataExportRequest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DataExportRequestMutation) OldProjectUID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProjectUID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProjectUID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProjectUID: %w", err)
+	}
+	return oldValue.ProjectUID, nil
+}
+
+// ResetProjectUID resets all changes to the "project_uid" field.
+func (m *DataExportRequestMutation) ResetProjectUID() {
+	m.project_uid = nil
+}
+
+// SetProjectSeq sets the "project_seq" field.
+func (m *DataExportRequestMutation) SetProjectSeq(u uint32) {
+	m.project_seq = &u
+	m.addproject_seq = nil
+}
+
+// ProjectSeq returns the value of the "project_seq" field in the mutation.
+func (m *DataExportRequestMutation) ProjectSeq() (r uint32, exists bool) {
+	v := m.project_seq
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProjectSeq returns the old "project_seq" field's value of the DataExportRequest entity.
+// If the DataExportRequest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DataExportRequestMutation) OldProjectSeq(ctx context.Context) (v uint32, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProjectSeq is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProjectSeq requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProjectSeq: %w", err)
+	}
+	return oldValue.ProjectSeq, nil
+}
+
+// AddProjectSeq adds u to the "project_seq" field.
+func (m *DataExportRequestMutation) AddProjectSeq(u int32) {
+	if m.addproject_seq != nil {
+		*m.addproject_seq += u
+	} else {
+		m.addproject_seq = &u
+	}
+}
+
+// AddedProjectSeq returns the value that was added to the "project_seq" field in this mutation.
+func (m *DataExportRequestMutation) AddedProjectSeq() (r int32, exists bool) {
+	v := m.addproject_seq
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetProjectSeq resets all changes to the "project_seq" field.
+func (m *DataExportRequestMutation) ResetProjectSeq() {
+	m.project_seq = nil
+	m.addproject_seq = nil
+}
+
+// SetActorKey sets the "actor_key" field.
+func (m *DataExportRequestMutation) SetActorKey(s string) {
+	m.actor_key = &s
+}
+
+// ActorKey returns the value of the "actor_key" field in the mutation.
+func (m *DataExportRequestMutation) ActorKey() (r string, exists bool) {
+	v := m.actor_key
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldActorKey returns the old "actor_key" field's value of the DataExportRequest entity.
+// If the DataExportRequest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DataExportRequestMutation) OldActorKey(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldActorKey is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldActorKey requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldActorKey: %w", err)
+	}
+	return oldValue.ActorKey, nil
+}
+
+// ResetActorKey resets all changes to the "actor_key" field.
+func (m *DataExportRequestMutation) ResetActorKey() {
+	m.actor_key = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *DataExportRequestMutation) SetStatus(d dataexportrequest.Status) {
+	m.status = &d
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *DataExportRequestMutation) Status() (r dataexportrequest.Status, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the DataExportRequest entity.
+// If the DataExportRequest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DataExportRequestMutation) OldStatus(ctx context.Context) (v dataexportrequest.Status, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *DataExportRequestMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetBucket sets the "bucket" field.
+func (m *DataExportRequestMutation) SetBucket(s string) {
+	m.bucket = &s
+}
+
+// Bucket returns the value of the "bucket" field in the mutation.
+func (m *DataExportRequestMutation) Bucket() (r string, exists bool) {
+	v := m.bucket
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBucket returns the old "bucket" field's value of the DataExportRequest entity.
+// If the DataExportRequest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DataExportRequestMutation) OldBucket(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBucket is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBucket requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBucket: %w", err)
+	}
+	return oldValue.Bucket, nil
+}
+
+// ClearBucket clears the value of the "bucket" field.
+func (m *DataExportRequestMutation) ClearBucket() {
+	m.bucket = nil
+	m.clearedFields[dataexportrequest.FieldBucket] = struct{}{}
+}
+
+// BucketCleared returns if the "bucket" field was cleared in this mutation.
+func (m *DataExportRequestMutation) BucketCleared() bool {
+	_, ok := m.clearedFields[dataexportrequest.FieldBucket]
+	return ok
+}
+
+// ResetBucket resets all changes to the "bucket" field.
+func (m *DataExportRequestMutation) ResetBucket() {
+	m.bucket = nil
+	delete(m.clearedFields, dataexportrequest.FieldBucket)
+}
+
+// SetObjectPath sets the "object_path" field.
+func (m *DataExportRequestMutation) SetObjectPath(s string) {
+	m.object_path = &s
+}
+
+// ObjectPath returns the value of the "object_path" field in the mutation.
+func (m *DataExportRequestMutation) ObjectPath() (r string, exists bool) {
+	v := m.object_path
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldObjectPath returns the old "object_path" field's value of the DataExportRequest entity.
+// If the DataExportRequest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DataExportRequestMutation) OldObjectPath(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldObjectPath is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldObjectPath requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldObjectPath: %w", err)
+	}
+	return oldValue.ObjectPath, nil
+}
+
+// ClearObjectPath clears the value of the "object_path" field.
+func (m *DataExportRequestMutation) ClearObjectPath() {
+	m.object_path = nil
+	m.clearedFields[dataexportrequest.FieldObjectPath] = struct{}{}
+}
+
+// ObjectPathCleared returns if the "object_path" field was cleared in this mutation.
+func (m *DataExportRequestMutation) ObjectPathCleared() bool {
+	_, ok := m.clearedFields[dataexportrequest.FieldObjectPath]
+	return ok
+}
+
+// ResetObjectPath resets all changes to the "object_path" field.
+func (m *DataExportRequestMutation) ResetObjectPath() {
+	m.object_path = nil
+	delete(m.clearedFields, dataexportrequest.FieldObjectPath)
+}
+
+// SetObjectSizeBytes sets the "object_size_bytes" field.
+func (m *DataExportRequestMutation) SetObjectSizeBytes(u uint64) {
+	m.object_size_bytes = &u
+	m.addobject_size_bytes = nil
+}
+
+// ObjectSizeBytes returns the value of the "object_size_bytes" field in the mutation.
+func (m *DataExportRequestMutation) ObjectSizeBytes() (r uint64, exists bool) {
+	v := m.object_size_bytes
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldObjectSizeBytes returns the old "object_size_bytes" field's value of the DataExportRequest entity.
+// If the DataExportRequest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DataExportRequestMutation) OldObjectSizeBytes(ctx context.Context) (v uint64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldObjectSizeBytes is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldObjectSizeBytes requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldObjectSizeBytes: %w", err)
+	}
+	return oldValue.ObjectSizeBytes, nil
+}
+
+// AddObjectSizeBytes adds u to the "object_size_bytes" field.
+func (m *DataExportRequestMutation) AddObjectSizeBytes(u int64) {
+	if m.addobject_size_bytes != nil {
+		*m.addobject_size_bytes += u
+	} else {
+		m.addobject_size_bytes = &u
+	}
+}
+
+// AddedObjectSizeBytes returns the value that was added to the "object_size_bytes" field in this mutation.
+func (m *DataExportRequestMutation) AddedObjectSizeBytes() (r int64, exists bool) {
+	v := m.addobject_size_bytes
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetObjectSizeBytes resets all changes to the "object_size_bytes" field.
+func (m *DataExportRequestMutation) ResetObjectSizeBytes() {
+	m.object_size_bytes = nil
+	m.addobject_size_bytes = nil
+}
+
+// SetRowCount sets the "row_count" field.
+func (m *DataExportRequestMutation) SetRowCount(u uint64) {
+	m.row_count = &u
+	m.addrow_count = nil
+}
+
+// RowCount returns the value of the "row_count" field in the mutation.
+func (m *DataExportRequestMutation) RowCount() (r uint64, exists bool) {
+	v := m.row_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRowCount returns the old "row_count" field's value of the DataExportRequest entity.
+// If the DataExportRequest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DataExportRequestMutation) OldRowCount(ctx context.Context) (v uint64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRowCount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRowCount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRowCount: %w", err)
+	}
+	return oldValue.RowCount, nil
+}
+
+// AddRowCount adds u to the "row_count" field.
+func (m *DataExportRequestMutation) AddRowCount(u int64) {
+	if m.addrow_count != nil {
+		*m.addrow_count += u
+	} else {
+		m.addrow_count = &u
+	}
+}
+
+// AddedRowCount returns the value that was added to the "row_count" field in this mutation.
+func (m *DataExportRequestMutation) AddedRowCount() (r int64, exists bool) {
+	v := m.addrow_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetRowCount resets all changes to the "row_count" field.
+func (m *DataExportRequestMutation) ResetRowCount() {
+	m.row_count = nil
+	m.addrow_count = nil
+}
+
+// SetExpiresAt sets the "expires_at" field.
+func (m *DataExportRequestMutation) SetExpiresAt(t time.Time) {
+	m.expires_at = &t
+}
+
+// ExpiresAt returns the value of the "expires_at" field in the mutation.
+func (m *DataExportRequestMutation) ExpiresAt() (r time.Time, exists bool) {
+	v := m.expires_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExpiresAt returns the old "expires_at" field's value of the DataExportRequest entity.
+// If the DataExportRequest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DataExportRequestMutation) OldExpiresAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExpiresAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExpiresAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExpiresAt: %w", err)
+	}
+	return oldValue.ExpiresAt, nil
+}
+
+// ClearExpiresAt clears the value of the "expires_at" field.
+func (m *DataExportRequestMutation) ClearExpiresAt() {
+	m.expires_at = nil
+	m.clearedFields[dataexportrequest.FieldExpiresAt] = struct{}{}
+}
+
+// ExpiresAtCleared returns if the "expires_at" field was cleared in this mutation.
+func (m *DataExportRequestMutation) ExpiresAtCleared() bool {
+	_, ok := m.clearedFields[dataexportrequest.FieldExpiresAt]
+	return ok
+}
+
+// ResetExpiresAt resets all changes to the "expires_at" field.
+func (m *DataExportRequestMutation) ResetExpiresAt() {
+	m.expires_at = nil
+	delete(m.clearedFields, dataexportrequest.FieldExpiresAt)
+}
+
+// SetCompletedAt sets the "completed_at" field.
+func (m *DataExportRequestMutation) SetCompletedAt(t time.Time) {
+	m.completed_at = &t
+}
+
+// CompletedAt returns the value of the "completed_at" field in the mutation.
+func (m *DataExportRequestMutation) CompletedAt() (r time.Time, exists bool) {
+	v := m.completed_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCompletedAt returns the old "completed_at" field's value of the DataExportRequest entity.
+// If the DataExportRequest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DataExportRequestMutation) OldCompletedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCompletedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCompletedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCompletedAt: %w", err)
+	}
+	return oldValue.CompletedAt, nil
+}
+
+// ClearCompletedAt clears the value of the "completed_at" field.
+func (m *DataExportRequestMutation) ClearCompletedAt() {
+	m.completed_at = nil
+	m.clearedFields[dataexportrequest.FieldCompletedAt] = struct{}{}
+}
+
+// CompletedAtCleared returns if the "completed_at" field was cleared in this mutation.
+func (m *DataExportRequestMutation) CompletedAtCleared() bool {
+	_, ok := m.clearedFields[dataexportrequest.FieldCompletedAt]
+	return ok
+}
+
+// ResetCompletedAt resets all changes to the "completed_at" field.
+func (m *DataExportRequestMutation) ResetCompletedAt() {
+	m.completed_at = nil
+	delete(m.clearedFields, dataexportrequest.FieldCompletedAt)
+}
+
+// SetFailureReason sets the "failure_reason" field.
+func (m *DataExportRequestMutation) SetFailureReason(s string) {
+	m.failure_reason = &s
+}
+
+// FailureReason returns the value of the "failure_reason" field in the mutation.
+func (m *DataExportRequestMutation) FailureReason() (r string, exists bool) {
+	v := m.failure_reason
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFailureReason returns the old "failure_reason" field's value of the DataExportRequest entity.
+// If the DataExportRequest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DataExportRequestMutation) OldFailureReason(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFailureReason is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFailureReason requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFailureReason: %w", err)
+	}
+	return oldValue.FailureReason, nil
+}
+
+// ClearFailureReason clears the value of the "failure_reason" field.
+func (m *DataExportRequestMutation) ClearFailureReason() {
+	m.failure_reason = nil
+	m.clearedFields[dataexportrequest.FieldFailureReason] = struct{}{}
+}
+
+// FailureReasonCleared returns if the "failure_reason" field was cleared in this mutation.
+func (m *DataExportRequestMutation) FailureReasonCleared() bool {
+	_, ok := m.clearedFields[dataexportrequest.FieldFailureReason]
+	return ok
+}
+
+// ResetFailureReason resets all changes to the "failure_reason" field.
+func (m *DataExportRequestMutation) ResetFailureReason() {
+	m.failure_reason = nil
+	delete(m.clearedFields, dataexportrequest.FieldFailureReason)
+}
+
+// Where appends a list predicates to the DataExportRequestMutation builder.
+func (m *DataExportRequestMutation) Where(ps ...predicate.DataExportRequest) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the DataExportRequestMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *DataExportRequestMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.DataExportRequest, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *DataExportRequestMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *DataExportRequestMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (DataExportRequest).
+func (m *DataExportRequestMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *DataExportRequestMutation) Fields() []string {
+	fields := make([]string, 0, 14)
+	if m.uid != nil {
+		fields = append(fields, dataexportrequest.FieldUID)
+	}
+	if m.created_at != nil {
+		fields = append(fields, dataexportrequest.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, dataexportrequest.FieldUpdatedAt)
+	}
+	if m.project_uid != nil {
+		fields = append(fields, dataexportrequest.FieldProjectUID)
+	}
+	if m.project_seq != nil {
+		fields = append(fields, dataexportrequest.FieldProjectSeq)
+	}
+	if m.actor_key != nil {
+		fields = append(fields, dataexportrequest.FieldActorKey)
+	}
+	if m.status != nil {
+		fields = append(fields, dataexportrequest.FieldStatus)
+	}
+	if m.bucket != nil {
+		fields = append(fields, dataexportrequest.FieldBucket)
+	}
+	if m.object_path != nil {
+		fields = append(fields, dataexportrequest.FieldObjectPath)
+	}
+	if m.object_size_bytes != nil {
+		fields = append(fields, dataexportrequest.FieldObjectSizeBytes)
+	}
+	if m.row_count != nil {
+		fields = append(fields, dataexportrequest.FieldRowCount)
+	}
+	if m.expires_at != nil {
+		fields = append(fields, dataexportrequest.FieldExpiresAt)
+	}
+	if m.completed_at != nil {
+		fields = append(fields, dataexportrequest.FieldCompletedAt)
+	}
+	if m.failure_reason != nil {
+		fields = append(fields, dataexportrequest.FieldFailureReason)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *DataExportRequestMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case dataexportrequest.FieldUID:
+		return m.UID()
+	case dataexportrequest.FieldCreatedAt:
+		return m.CreatedAt()
+	case dataexportrequest.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case dataexportrequest.FieldProjectUID:
+		return m.ProjectUID()
+	case dataexportrequest.FieldProjectSeq:
+		return m.ProjectSeq()
+	case dataexportrequest.FieldActorKey:
+		return m.ActorKey()
+	case dataexportrequest.FieldStatus:
+		return m.Status()
+	case dataexportrequest.FieldBucket:
+		return m.Bucket()
+	case dataexportrequest.FieldObjectPath:
+		return m.ObjectPath()
+	case dataexportrequest.FieldObjectSizeBytes:
+		return m.ObjectSizeBytes()
+	case dataexportrequest.FieldRowCount:
+		return m.RowCount()
+	case dataexportrequest.FieldExpiresAt:
+		return m.ExpiresAt()
+	case dataexportrequest.FieldCompletedAt:
+		return m.CompletedAt()
+	case dataexportrequest.FieldFailureReason:
+		return m.FailureReason()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *DataExportRequestMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case dataexportrequest.FieldUID:
+		return m.OldUID(ctx)
+	case dataexportrequest.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case dataexportrequest.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case dataexportrequest.FieldProjectUID:
+		return m.OldProjectUID(ctx)
+	case dataexportrequest.FieldProjectSeq:
+		return m.OldProjectSeq(ctx)
+	case dataexportrequest.FieldActorKey:
+		return m.OldActorKey(ctx)
+	case dataexportrequest.FieldStatus:
+		return m.OldStatus(ctx)
+	case dataexportrequest.FieldBucket:
+		return m.OldBucket(ctx)
+	case dataexportrequest.FieldObjectPath:
+		return m.OldObjectPath(ctx)
+	case dataexportrequest.FieldObjectSizeBytes:
+		return m.OldObjectSizeBytes(ctx)
+	case dataexportrequest.FieldRowCount:
+		return m.OldRowCount(ctx)
+	case dataexportrequest.FieldExpiresAt:
+		return m.OldExpiresAt(ctx)
+	case dataexportrequest.FieldCompletedAt:
+		return m.OldCompletedAt(ctx)
+	case dataexportrequest.FieldFailureReason:
+		return m.OldFailureReason(ctx)
+	}
+	return nil, fmt.Errorf("unknown DataExportRequest field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *DataExportRequestMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case dataexportrequest.FieldUID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUID(v)
+		return nil
+	case dataexportrequest.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case dataexportrequest.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case dataexportrequest.FieldProjectUID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProjectUID(v)
+		return nil
+	case dataexportrequest.FieldProjectSeq:
+		v, ok := value.(uint32)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProjectSeq(v)
+		return nil
+	case dataexportrequest.FieldActorKey:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetActorKey(v)
+		return nil
+	case dataexportrequest.FieldStatus:
+		v, ok := value.(dataexportrequest.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case dataexportrequest.FieldBucket:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBucket(v)
+		return nil
+	case dataexportrequest.FieldObjectPath:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetObjectPath(v)
+		return nil
+	case dataexportrequest.FieldObjectSizeBytes:
+		v, ok := value.(uint64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetObjectSizeBytes(v)
+		return nil
+	case dataexportrequest.FieldRowCount:
+		v, ok := value.(uint64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRowCount(v)
+		return nil
+	case dataexportrequest.FieldExpiresAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExpiresAt(v)
+		return nil
+	case dataexportrequest.FieldCompletedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCompletedAt(v)
+		return nil
+	case dataexportrequest.FieldFailureReason:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFailureReason(v)
+		return nil
+	}
+	return fmt.Errorf("unknown DataExportRequest field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *DataExportRequestMutation) AddedFields() []string {
+	var fields []string
+	if m.addproject_seq != nil {
+		fields = append(fields, dataexportrequest.FieldProjectSeq)
+	}
+	if m.addobject_size_bytes != nil {
+		fields = append(fields, dataexportrequest.FieldObjectSizeBytes)
+	}
+	if m.addrow_count != nil {
+		fields = append(fields, dataexportrequest.FieldRowCount)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *DataExportRequestMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case dataexportrequest.FieldProjectSeq:
+		return m.AddedProjectSeq()
+	case dataexportrequest.FieldObjectSizeBytes:
+		return m.AddedObjectSizeBytes()
+	case dataexportrequest.FieldRowCount:
+		return m.AddedRowCount()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *DataExportRequestMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case dataexportrequest.FieldProjectSeq:
+		v, ok := value.(int32)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddProjectSeq(v)
+		return nil
+	case dataexportrequest.FieldObjectSizeBytes:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddObjectSizeBytes(v)
+		return nil
+	case dataexportrequest.FieldRowCount:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRowCount(v)
+		return nil
+	}
+	return fmt.Errorf("unknown DataExportRequest numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *DataExportRequestMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(dataexportrequest.FieldBucket) {
+		fields = append(fields, dataexportrequest.FieldBucket)
+	}
+	if m.FieldCleared(dataexportrequest.FieldObjectPath) {
+		fields = append(fields, dataexportrequest.FieldObjectPath)
+	}
+	if m.FieldCleared(dataexportrequest.FieldExpiresAt) {
+		fields = append(fields, dataexportrequest.FieldExpiresAt)
+	}
+	if m.FieldCleared(dataexportrequest.FieldCompletedAt) {
+		fields = append(fields, dataexportrequest.FieldCompletedAt)
+	}
+	if m.FieldCleared(dataexportrequest.FieldFailureReason) {
+		fields = append(fields, dataexportrequest.FieldFailureReason)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *DataExportRequestMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *DataExportRequestMutation) ClearField(name string) error {
+	switch name {
+	case dataexportrequest.FieldBucket:
+		m.ClearBucket()
+		return nil
+	case dataexportrequest.FieldObjectPath:
+		m.ClearObjectPath()
+		return nil
+	case dataexportrequest.FieldExpiresAt:
+		m.ClearExpiresAt()
+		return nil
+	case dataexportrequest.FieldCompletedAt:
+		m.ClearCompletedAt()
+		return nil
+	case dataexportrequest.FieldFailureReason:
+		m.ClearFailureReason()
+		return nil
+	}
+	return fmt.Errorf("unknown DataExportRequest nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *DataExportRequestMutation) ResetField(name string) error {
+	switch name {
+	case dataexportrequest.FieldUID:
+		m.ResetUID()
+		return nil
+	case dataexportrequest.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case dataexportrequest.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case dataexportrequest.FieldProjectUID:
+		m.ResetProjectUID()
+		return nil
+	case dataexportrequest.FieldProjectSeq:
+		m.ResetProjectSeq()
+		return nil
+	case dataexportrequest.FieldActorKey:
+		m.ResetActorKey()
+		return nil
+	case dataexportrequest.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case dataexportrequest.FieldBucket:
+		m.ResetBucket()
+		return nil
+	case dataexportrequest.FieldObjectPath:
+		m.ResetObjectPath()
+		return nil
+	case dataexportrequest.FieldObjectSizeBytes:
+		m.ResetObjectSizeBytes()
+		return nil
+	case dataexportrequest.FieldRowCount:
+		m.ResetRowCount()
+		return nil
+	case dataexportrequest.FieldExpiresAt:
+		m.ResetExpiresAt()
+		return nil
+	case dataexportrequest.FieldCompletedAt:
+		m.ResetCompletedAt()
+		return nil
+	case dataexportrequest.FieldFailureReason:
+		m.ResetFailureReason()
+		return nil
+	}
+	return fmt.Errorf("unknown DataExportRequest field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *DataExportRequestMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *DataExportRequestMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *DataExportRequestMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *DataExportRequestMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *DataExportRequestMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *DataExportRequestMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *DataExportRequestMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown DataExportRequest unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *DataExportRequestMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown DataExportRequest edge %s", name)
 }
 
 // VerifiedPurchaseMutation represents an operation that mutates the VerifiedPurchase nodes in the graph.

@@ -33,6 +33,18 @@ func (f DataDeletionRequestFunc) Mutate(ctx context.Context, m regional.Mutation
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *regional.DataDeletionRequestMutation", m)
 }
 
+// The DataExportRequestFunc type is an adapter to allow the use of ordinary
+// function as DataExportRequest mutator.
+type DataExportRequestFunc func(context.Context, *regional.DataExportRequestMutation) (regional.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f DataExportRequestFunc) Mutate(ctx context.Context, m regional.Mutation) (regional.Value, error) {
+	if mv, ok := m.(*regional.DataExportRequestMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *regional.DataExportRequestMutation", m)
+}
+
 // The VerifiedPurchaseFunc type is an adapter to allow the use of ordinary
 // function as VerifiedPurchase mutator.
 type VerifiedPurchaseFunc func(context.Context, *regional.VerifiedPurchaseMutation) (regional.Value, error)

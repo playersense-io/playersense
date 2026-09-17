@@ -12,5 +12,8 @@ type ArchiveManifest func(*sql.Selector)
 // DataDeletionRequest is the predicate function for datadeletionrequest builders.
 type DataDeletionRequest func(*sql.Selector)
 
+// DataExportRequest is the predicate function for dataexportrequest builders.
+type DataExportRequest func(*sql.Selector)
+
 // VerifiedPurchase is the predicate function for verifiedpurchase builders.
 type VerifiedPurchase func(*sql.Selector)

@@ -87,6 +87,57 @@ type Settings struct {
 	PubSubProjectID string `env:"PUBSUB_PROJECT_ID"`
 	PubSubTopic     string `env:"PUBSUB_TOPIC" default:"analytics-events"`
 
+	// These three decide when a consumer is handed a group: whichever is reached first.
+	// They are the queue half of the insert-size decision (ADR 0023) and, between them,
+	// what actually sets the insert rate — WRITER_BATCH_SIZE is only a ceiling on how a
+	// delivery is split, and never makes one wait.
+	//
+	// Rows is the primary trigger, because rows are the unit ClickHouse cares about. An SDK
+	// batch is anywhere from one event to a thousand (§19.1), so a message count is not a
+	// size: two hundred messages is two hundred rows from one integration and two hundred
+	// thousand from another.
+	//
+	// The arithmetic worth doing before changing these. At §4's ceiling — a billion events
+	// a day, about 11.5k a second — a 100k row target is reached in roughly nine seconds,
+	// so the *wait* is what binds and it sets the insert rate: two seconds gives about
+	// 23k rows an insert and 43k inserts a day. Shorter makes smaller parts and more merge
+	// work; longer makes bigger blocks and costs event visibility, which §80 budgets at ten
+	// seconds p95. A quiet cell is bound by the wait in the other direction and simply
+	// writes small parts, which is affordable precisely because it is quiet.
+	BusDeliveryMaxRows int `env:"BUS_DELIVERY_MAX_ROWS" default:"100000"`
+
+	// A memory and outstanding-message bound rather than a target, and the backstop for a
+	// producer that reported no event count. Keep it below the subscription's
+	// MaxOutstandingMessages: a group is held unacknowledged while it fills, and Receive
+	// stops pulling once too many are outstanding.
+	BusDeliveryMaxMessages int `env:"BUS_DELIVERY_MAX_MESSAGES" default:"1000"`
+
+	// How long a partly-filled group waits for more. This is the latency the grouping
+	// costs, and it is paid on a quiet cell rather than a busy one.
+	//
+	// Thirty seconds is a deliberate choice about a *quiet* cell, not a busy one: at any
+	// real volume the row target above is reached first and this timer never fires. Where
+	// it does bind — development, a new customer, a trickle of traffic — an event takes up
+	// to half a minute to appear, which is outside §80's ten-second visibility target. §80
+	// qualifies that target with "at normal load", and at normal load the row trigger
+	// governs, so the two do not actually conflict; a deployment that wants snappier
+	// feedback while integrating should lower it, which is why .env.example does.
+	BusDeliveryMaxWait time.Duration `env:"BUS_DELIVERY_MAX_WAIT" default:"30s"`
+
+	// IngestMaxCompressedBytes bounds a compressed batch on the wire (§17, §19.1).
+	//
+	// The first of §19.1's two limits. The second — maximum *decompressed* bytes — is the
+	// route's own body limit, applied by the framework while binding, so a compressed batch
+	// and an uncompressed one are held to the same size and a decompression bomb stops
+	// being read at the limit rather than being read and then measured.
+	//
+	// Derived rather than picked: a batch is at most 1000 events and about 290 bytes an
+	// event of JSON, so the largest legitimate one is a little under 300 KB uncompressed and
+	// roughly 32 KB compressed (`cmd/wiresize`). A megabyte is thirty times that headroom,
+	// and four times smaller than the uncompressed limit — which is the point, since
+	// compression is for sending the same batch in fewer bytes rather than a bigger one.
+	IngestMaxCompressedBytes int64 `env:"INGEST_MAX_COMPRESSED_BYTES" default:"1048576"`
+
 	// The key cache is what lets ingestion keep accepting batches while the control
 	// plane is unreachable (§64). A short negative TTL matters as much as the positive
 	// one: a publishable key is assumed discoverable (§71), so wrong keys arrive in
@@ -169,13 +220,24 @@ type Settings struct {
 	// AnalyticsWriterAddr is where the writer serves its health probe. It has no API.
 	AnalyticsWriterAddr string `env:"ANALYTICS_WRITER_ADDR" default:":21082"`
 
-	// WriterBatchSize is the maximum number of rows in one ClickHouse insert block. A
-	// message carrying more events than this is split deterministically, so a
-	// redelivery produces the same blocks with the same deduplication tokens.
+	// WriterBatchSize is the maximum number of rows in one ClickHouse insert block.
 	//
-	// Never one event per insert (§86). A message is already one SDK batch of up to a
-	// thousand events, so this is a ceiling rather than a target.
-	WriterBatchSize int `env:"WRITER_BATCH_SIZE" default:"5000"`
+	// A ceiling, not a target: the writer fills a block from as many messages as the
+	// delivery holds and splits only when it would exceed this. Raised from five thousand
+	// once the writer began coalescing across messages — at §4's ceiling the number that
+	// matters is inserts per day, and a hundred thousand rows a block turns a billion
+	// events into ten thousand inserts rather than two million (ADR 0023).
+	//
+	// It bounds memory as much as merge pressure: a block is assembled in the writer before
+	// it is sent, so this times the average row size is what one insert costs in RAM.
+	WriterBatchSize int `env:"WRITER_BATCH_SIZE" default:"100000"`
+
+	// WriterMaxAttempts is how many times a delivery is retried whole before the writer
+	// starts storing its messages one at a time to find one it cannot store (ADR 0023).
+	//
+	// Not a dead-letter threshold on its own: a message is parked only after ClickHouse has
+	// been probed and found to be answering, so an outage cannot be mistaken for poison.
+	WriterMaxAttempts int `env:"WRITER_MAX_ATTEMPTS" default:"5"`
 
 	// WriterFlushInterval is how often the writer looks for new messages when the queue
 	// is empty. It bounds delivery latency on an idle system and costs nothing on a busy
@@ -187,6 +249,96 @@ type Settings struct {
 	// keeps its entry; a device absent longer than this is stamped as a new cohort at
 	// write time and corrected by the nightly derivation, which reads player_lifetime.
 	WriterDeviceStateTTL time.Duration `env:"WRITER_DEVICE_STATE_TTL" default:"720h"`
+
+	// WorkerAddr is where the worker serves its health probe. It has no API.
+	WorkerAddr string `env:"WORKER_ADDR" default:":21086"`
+
+	// WorkerDeriveAt is the time of day, in UTC, the nightly derivation starts (§79.1).
+	//
+	// UTC rather than a local zone: a job anchored to a zone with daylight saving either
+	// runs twice or not at all on two days a year, and the day it does not run is the day
+	// every cohort chart is stale.
+	WorkerDeriveAt string `env:"WORKER_DERIVE_AT" default:"02:00"`
+
+	// WorkerActivityMonths is how many trailing activity months are rebuilt, counting the
+	// current one. Two keeps last month open all month, so a late event arriving on the
+	// 20th is absorbed rather than only one arriving on the 2nd.
+	WorkerActivityMonths int `env:"WORKER_ACTIVITY_MONTHS" default:"2"`
+
+	// WorkerCohortMonths is how many trailing cohort months have their denominators
+	// rebuilt. A different axis from the activity window: one activity day contributes
+	// cells to every cohort month in the preceding year (§29.8), so the denominators
+	// reach much further back than the numerators do.
+	WorkerCohortMonths int `env:"WORKER_COHORT_MONTHS" default:"13"`
+
+	// WorkerLifetimeRetention is how long a device may go unseen before player_lifetime
+	// forgets it (§33.1). Empty or zero disables the prune.
+	//
+	// 550 days — about eighteen months — is derived rather than chosen. The floor is the
+	// cohort rebuild window: WORKER_COHORT_MONTHS of denominators are republished from
+	// player_lifetime_v every night, so a device that arrived inside that window must still
+	// be there, and thirteen months is about 396 days. Above that floor the number only
+	// trades storage against how long a dormant player stays recognisable, and eighteen
+	// months also comfortably covers §29.12's longest offset, which is 365 days.
+	//
+	// It keys on last activity, not arrival: an active player is never forgotten however
+	// long ago they installed, so their lifetime playtime and spend survive for §29.11's
+	// buckets. The worker refuses to start if this is below the floor.
+	WorkerLifetimeRetention time.Duration `env:"WORKER_LIFETIME_RETENTION" default:"13200h"`
+
+	// WorkerJanitorEvery is how often the data-lifecycle pass runs (§60, §61, §101).
+	//
+	// A different cadence from the derivation above and for a different reason. The
+	// derivation rebuilds whole months and gains nothing from running twice; these three
+	// jobs are each waiting on something — an erasure on a legal deadline, an export on a
+	// person, an expired object on a retention term a customer agreed to.
+	//
+	// Sized against the erasure. §61's drain window is how long a late delivery can still
+	// arrive for an erased actor, and the purge runs repeatedly inside it so that
+	// "completed" means "and nothing has arrived since". Fifteen minutes gives a day's
+	// window ninety-six passes, each of which costs almost nothing when there is nothing
+	// to do.
+	WorkerJanitorEvery time.Duration `env:"WORKER_JANITOR_EVERY" default:"15m"`
+
+	// RetentionMaxObjects bounds one archive-expiry pass (§60).
+	//
+	// A bound, not a target. The first pass over a bucket that has never been swept has
+	// every expired object in it at once; several bounded passes reach the same place
+	// without holding one enormous unit of work open against both the cell tier and the
+	// bucket.
+	RetentionMaxObjects int `env:"RETENTION_MAX_OBJECTS" default:"5000"`
+
+	// ErasureDrainWindow is how long an erasure keeps re-purging before it completes (§61).
+	//
+	// Sized on the queue rather than on the law. §21 allows a message to sit for hours and
+	// §06 makes the purge — not the tombstone — the guarantee that a late arrival is
+	// removed, so the window has to outlast any plausible backlog. A day does, and it is
+	// still far inside the month §05 works to. It also sets the tombstone's lease: the
+	// tombstone exists to drop exactly the deliveries this window is waiting for.
+	ErasureDrainWindow time.Duration `env:"ERASURE_DRAIN_WINDOW" default:"24h"`
+
+	// ErasureMaxObjects bounds the archive work inside one erasure's turn (§61).
+	//
+	// The archive is the expensive half: every candidate object is downloaded, decoded and,
+	// if it holds the person, written back. A request covering a long span is several
+	// bounded passes, and it stays in `purging` between them — a state it was going to be
+	// in anyway.
+	ErasureMaxObjects int `env:"ERASURE_MAX_OBJECTS" default:"500"`
+
+	// ExportTTL is how long a completed export bundle stays collectable (§101).
+	//
+	// A bundle is a second copy of everything held about one person. Long enough for a
+	// studio to fetch it inside a working week; short enough that an uncollected copy is
+	// not a permanent fixture of the bucket.
+	ExportTTL time.Duration `env:"EXPORT_TTL" default:"168h"`
+
+	// ExportMaxRows bounds one export bundle (§101).
+	//
+	// The bundle is written as one object and therefore assembled in memory, so the bound
+	// is real rather than defensive. A subject with more history than this is refused with
+	// a number in the failure reason: §05 would rather say "ask again, narrower" than hand
+	// over a truncated file that claims to be complete.
+	ExportMaxRows uint64 `env:"EXPORT_MAX_ROWS" default:"1000000"`
 
 	// LogFormat is auto, console, json or none.
 	//

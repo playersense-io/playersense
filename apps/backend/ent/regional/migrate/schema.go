@@ -27,7 +27,7 @@ var (
 		{Name: "normalized_input_bytes", Type: field.TypeUint64, Comment: "class=none"},
 		{Name: "schema_version", Type: field.TypeUint16, Comment: "class=none"},
 		{Name: "delete_after", Type: field.TypeTime, Comment: "class=none"},
-		{Name: "status", Type: field.TypeEnum, Comment: "class=none", Enums: []string{"durable", "deleting", "deleted", "failed"}, Default: "durable"},
+		{Name: "status", Type: field.TypeEnum, Comment: "class=none", Enums: []string{"durable", "deleting", "deleted", "redacted", "failed"}, Default: "durable"},
 		{Name: "failure_reason", Type: field.TypeString, Nullable: true, Size: 512, Comment: "class=none"},
 	}
 	// ArchiveManifestsTable holds the schema information for the "archive_manifests" table.
@@ -60,10 +60,16 @@ var (
 		{Name: "created_at", Type: field.TypeTime, Comment: "class=none"},
 		{Name: "updated_at", Type: field.TypeTime, Comment: "class=none"},
 		{Name: "project_uid", Type: field.TypeUUID, Comment: "class=none"},
+		{Name: "project_seq", Type: field.TypeUint32, Comment: "class=none"},
 		{Name: "actor_key", Type: field.TypeString, Size: 128, Comment: "class=identifier"},
 		{Name: "status", Type: field.TypeEnum, Comment: "class=none", Enums: []string{"received", "tombstoned", "purging", "completed", "failed"}, Default: "received"},
+		{Name: "tombstoned_at", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
+		{Name: "archive_cursor", Type: field.TypeInt, Comment: "class=none", Default: 0},
 		{Name: "completed_at", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
 		{Name: "failure_reason", Type: field.TypeString, Nullable: true, Size: 512, Comment: "class=none"},
+		{Name: "devices_deleted", Type: field.TypeUint32, Comment: "class=none", Default: 0},
+		{Name: "objects_redacted", Type: field.TypeUint32, Comment: "class=none", Default: 0},
+		{Name: "purchases_deleted", Type: field.TypeUint32, Comment: "class=none", Default: 0},
 	}
 	// DataDeletionRequestsTable holds the schema information for the "data_deletion_requests" table.
 	DataDeletionRequestsTable = &schema.Table{
@@ -74,7 +80,48 @@ var (
 			{
 				Name:    "datadeletionrequest_project_uid_actor_key",
 				Unique:  false,
-				Columns: []*schema.Column{DataDeletionRequestsColumns[4], DataDeletionRequestsColumns[5]},
+				Columns: []*schema.Column{DataDeletionRequestsColumns[4], DataDeletionRequestsColumns[6]},
+			},
+			{
+				Name:    "datadeletionrequest_status",
+				Unique:  false,
+				Columns: []*schema.Column{DataDeletionRequestsColumns[7]},
+			},
+		},
+	}
+	// DataExportRequestsColumns holds the columns for the "data_export_requests" table.
+	DataExportRequestsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
+		{Name: "uid", Type: field.TypeUUID, Unique: true, Comment: "class=none"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "updated_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "project_uid", Type: field.TypeUUID, Comment: "class=none"},
+		{Name: "project_seq", Type: field.TypeUint32, Comment: "class=none"},
+		{Name: "actor_key", Type: field.TypeString, Size: 128, Comment: "class=identifier"},
+		{Name: "status", Type: field.TypeEnum, Comment: "class=none", Enums: []string{"received", "running", "completed", "failed", "expired"}, Default: "received"},
+		{Name: "bucket", Type: field.TypeString, Nullable: true, Size: 255, Comment: "class=none"},
+		{Name: "object_path", Type: field.TypeString, Nullable: true, Size: 1024, Comment: "class=none"},
+		{Name: "object_size_bytes", Type: field.TypeUint64, Comment: "class=none", Default: 0},
+		{Name: "row_count", Type: field.TypeUint64, Comment: "class=derived", Default: 0},
+		{Name: "expires_at", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
+		{Name: "completed_at", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
+		{Name: "failure_reason", Type: field.TypeString, Nullable: true, Size: 512, Comment: "class=none"},
+	}
+	// DataExportRequestsTable holds the schema information for the "data_export_requests" table.
+	DataExportRequestsTable = &schema.Table{
+		Name:       "data_export_requests",
+		Columns:    DataExportRequestsColumns,
+		PrimaryKey: []*schema.Column{DataExportRequestsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "dataexportrequest_project_uid_actor_key",
+				Unique:  false,
+				Columns: []*schema.Column{DataExportRequestsColumns[4], DataExportRequestsColumns[6]},
+			},
+			{
+				Name:    "dataexportrequest_status",
+				Unique:  false,
+				Columns: []*schema.Column{DataExportRequestsColumns[7]},
 			},
 		},
 	}
@@ -115,6 +162,7 @@ var (
 	Tables = []*schema.Table{
 		ArchiveManifestsTable,
 		DataDeletionRequestsTable,
+		DataExportRequestsTable,
 		VerifiedPurchasesTable,
 	}
 )

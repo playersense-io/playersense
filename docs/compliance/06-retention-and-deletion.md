@@ -46,13 +46,40 @@ costume.
 
 ## Deletion, and what actually removes a row
 
-Three different things remove data, and they are not interchangeable:
+Four different things remove data, and they are not interchangeable:
 
 | Mechanism | Removes | Timescale | Triggered by |
 |---|---|---|---|
 | TTL expiry | Whole partitions past their retention | Daily, automatic | The retention tier |
-| Actor purge | One actor's rows across every table | Hours | An erasure request ([05](05-data-subject-rights.md)) |
+| Archive expiry | Whole objects past their `delete_after` | Every pass of the lifecycle loop | The retention tier, as stamped when the object was written |
+| Actor purge | One actor's rows across every table, and their rows inside archive objects | Hours | An erasure request ([05](05-data-subject-rights.md)) |
 | Project deletion | Everything for a project | Hours | A customer leaving |
+
+### Archive expiry
+
+Every archive object carries a `delete_after` on its manifest, computed when the object is
+written from the retention tier that arrived with the events — not read back at deletion
+time. That is what makes retention a term rather than a setting: lowering a customer's
+retention does not retroactively destroy an archive they already paid for, and raising it does
+not resurrect what already expired.
+
+It is **application-controlled rather than a bucket lifecycle rule**, and §60 is right to
+insist. A lifecycle rule can only express an age, one number for the whole bucket. Set to the
+longest tier it keeps every short-tier object far too long; set to the shortest it destroys
+data a customer is paying to keep. Neither is a retention policy. A rule remains available as
+a global safety net underneath this one.
+
+The manifest row **survives the object it described**. Storage is billed from
+`object_size_bytes` ([§39](../../project.md)), and an object deleted on the twentieth still has
+to be billed for the twenty days it existed; a row deleted with its object takes that history
+with it. The row is also the audit record of the expiry — what was removed, when, and with
+what outcome is a query rather than a log search.
+
+There is one refusal worth naming, and it exists because of the bug recorded above. A manifest
+whose `delete_after` is not after the newest event inside the object cannot be right: no
+retention tier of a day or more produces that, and a tier that arrived as zero produces
+exactly it. The sweeper marks such a manifest `failed` and leaves the object alone, rather
+than emptying the archive as fast as it is written.
 
 ### Project deletion
 
@@ -84,5 +111,13 @@ the timestamps — and it lives in the cell tier, because it names a player.
 
 ## Status
 
-The TTL is live in the schema. The archive writer, the purge job and the project tombstone
-are designed and not built — see [10-open-items.md](10-open-items.md).
+The TTL is live in the schema, and the archive writer is built — the cold copy the ordering
+rule above protects exists, and `archivecheck` measures the margin. The **archive expiry** and
+the **actor purge** are built and run in the worker's lifecycle loop, every
+`WORKER_JANITOR_EVERY`; [09](09-controls-map.md) maps each claim to its code and its test.
+
+What is not built: the **project tombstone** itself. The writer already honours one and drops
+the batch; nothing writes it when a project is deleted, so today a deleted project's queued
+batches are removed by the purge rather than skipped. Nor is **project deletion reaching the
+archive** — the per-actor path redacts objects, and the whole-project case is the same
+machinery with a different predicate. See [10-open-items.md](10-open-items.md).
