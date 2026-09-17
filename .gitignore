@@ -13,6 +13,33 @@
 /apps/backend/migrate
 /apps/backend/cohortcheck
 
+# Rust. Anchored like the Go binaries above, so a `target/` appearing anywhere else is a
+# deliberate decision rather than a silent one. Cargo.lock IS committed: this workspace
+# produces a shippable artifact (a cdylib/staticlib inside somebody's game), not a library
+# crate, so a reproducible build matters.
+/sdk/target/
+
+# Unity. The generated project files and caches only — `.meta` files must stay tracked, or
+# a package manager install produces a package Unity cannot resolve.
+/sdk/unity/Library/
+/sdk/unity/Temp/
+/sdk/unity/Obj/
+/sdk/unity/Logs/
+/sdk/unity/*.csproj
+/sdk/unity/*.sln
+
+# The native libraries the package links against are a release artifact, not a source file:
+# `./install-plugins.sh` puts them here from sdk/target. One unstripped iOS archive is 21 MB
+# against ~550 KB of linked code, and eight platforms of that would be most of the repository.
+#
+# By extension rather than by folder, because the `.meta` files beside them MUST stay tracked:
+# they carry the per-platform importer settings, and a wrong one is a DllNotFoundException in
+# somebody's build and nothing in the Editor.
+/sdk/unity/Runtime/Plugins/**/*.a
+/sdk/unity/Runtime/Plugins/**/*.so
+/sdk/unity/Runtime/Plugins/**/*.dylib
+/sdk/unity/Runtime/Plugins/**/*.dll
+
 # Node
 node_modules/
 .nuxt/
