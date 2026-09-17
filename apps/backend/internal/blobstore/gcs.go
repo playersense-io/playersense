@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"strings"
 
 	"cloud.google.com/go/storage"
 )
@@ -57,6 +59,20 @@ func (g *GCS) Stop(context.Context) error {
 	return err
 }
 
+// Ping reads the bucket's own attributes.
+//
+// A metadata read rather than a probe object: writing one to check reachability leaves
+// litter in a bucket whose contents §60 expires and §39 bills for.
+func (g *GCS) Ping(ctx context.Context) error {
+	if g.client == nil {
+		return ErrNotStarted
+	}
+	if _, err := g.client.Bucket(g.bucket).Attrs(ctx); err != nil {
+		return fmt.Errorf("stat bucket %s: %w", g.bucket, err)
+	}
+	return nil
+}
+
 // Put writes the object and waits for it to be durable.
 //
 // Waiting is the point. The writer acknowledges the queue only after this returns, so a Put
@@ -74,7 +90,7 @@ func (g *GCS) Put(ctx context.Context, path string, body []byte) (Object, error)
 	}
 
 	w := g.client.Bucket(g.bucket).Object(path).NewWriter(ctx)
-	w.ContentType = "application/vnd.apache.parquet"
+	w.ContentType = contentType(path)
 	// Already compressed by the Parquet codec (§10.4), so asking the transport to compress
 	// again spends CPU to make the object slightly larger.
 	w.ContentEncoding = ""
@@ -88,6 +104,48 @@ func (g *GCS) Put(ctx context.Context, path string, body []byte) (Object, error)
 		return Object{}, fmt.Errorf("finalise gs://%s/%s: %w", g.bucket, path, err)
 	}
 	return Object{Path: path, Size: uint64(w.Attrs().Size)}, nil
+}
+
+// Get reads an object back whole.
+func (g *GCS) Get(ctx context.Context, path string) ([]byte, error) {
+	if g.client == nil {
+		return nil, ErrNotStarted
+	}
+	if err := safePath(path); err != nil {
+		return nil, err
+	}
+	r, err := g.client.Bucket(g.bucket).Object(path).NewReader(ctx)
+	if errors.Is(err, storage.ErrObjectNotExist) {
+		return nil, fmt.Errorf("gs://%s/%s: %w", g.bucket, path, ErrNotFound)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("open gs://%s/%s: %w", g.bucket, path, err)
+	}
+	defer r.Close()
+
+	body, err := io.ReadAll(r)
+	if err != nil {
+		return nil, fmt.Errorf("read gs://%s/%s: %w", g.bucket, path, err)
+	}
+	return body, nil
+}
+
+// contentType names what is in the object, from its extension.
+//
+// The archive writes Parquet and nothing else, so this was a constant until §101's exports
+// put a second kind of object in the same bucket. A JSON bundle served as Parquet is a file
+// every tool downloads and no tool opens, which is a poor answer to a portability request.
+func contentType(path string) string {
+	switch {
+	case strings.HasSuffix(path, ".parquet"):
+		return "application/vnd.apache.parquet"
+	case strings.HasSuffix(path, ".ndjson"), strings.HasSuffix(path, ".jsonl"):
+		return "application/x-ndjson"
+	case strings.HasSuffix(path, ".json"):
+		return "application/json"
+	default:
+		return "application/octet-stream"
+	}
 }
 
 // Delete removes an object, tolerating one that is already gone (§60 retries).

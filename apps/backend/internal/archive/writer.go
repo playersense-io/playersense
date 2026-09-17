@@ -33,6 +33,10 @@ type Options struct {
 	// MaxRowsPerObject splits a very large delivery into several objects rather than
 	// building one enormous buffer in memory. A ceiling, not a target.
 	MaxRowsPerObject int
+
+	// MaxAttempts is how many times a delivery is retried whole before the writer starts
+	// looking for a single message it cannot archive. See the note on isolate.
+	MaxAttempts int
 }
 
 type stats struct {
@@ -40,6 +44,8 @@ type stats struct {
 	rows             atomic.Int64
 	objects          atomic.Int64
 	bytes            atomic.Int64
+	retries          atomic.Int64
+	deadLettered     atomic.Int64
 	droppedWrongCell atomic.Int64
 	undecodable      atomic.Int64
 }
@@ -57,6 +63,11 @@ type Writer struct {
 	log   *slog.Logger
 	opts  Options
 
+	// attempts counts consecutive failures of the delivery at the head of the queue. In
+	// memory deliberately: a restart resetting it is correct, because a restart is itself
+	// a reason the next attempt might succeed.
+	attempts map[string]int
+
 	stats  stats
 	cancel context.CancelFunc
 	done   chan struct{}
@@ -67,10 +78,17 @@ func New(bus eventbus.Bus, store blobstore.Store, cell *pgdb.Cell, log *slog.Log
 	if opts.MaxRowsPerObject <= 0 {
 		opts.MaxRowsPerObject = 200_000
 	}
+	if opts.MaxAttempts <= 0 {
+		opts.MaxAttempts = 5
+	}
 	if log == nil {
 		log = slog.Default()
 	}
-	return &Writer{bus: bus, store: store, cell: cell, log: log, opts: opts, done: make(chan struct{})}
+	return &Writer{
+		bus: bus, store: store, cell: cell, log: log, opts: opts,
+		attempts: map[string]int{},
+		done:     make(chan struct{}),
+	}
 }
 
 // Name identifies the component in start-up and shutdown logs.
@@ -117,6 +135,8 @@ func (w *Writer) Stats() map[string]int64 {
 		"rows":               w.stats.rows.Load(),
 		"objects":            w.stats.objects.Load(),
 		"bytes":              w.stats.bytes.Load(),
+		"retries":            w.stats.retries.Load(),
+		"dead_lettered":      w.stats.deadLettered.Load(),
 		"dropped_wrong_cell": w.stats.droppedWrongCell.Load(),
 		"undecodable":        w.stats.undecodable.Load(),
 	}
@@ -157,11 +177,30 @@ type groupKey struct {
 // cost is that a trickle of traffic produces small objects, which §10.4 already anticipates
 // and hands to §10.7's compaction worker.
 func (w *Writer) handle(ctx context.Context, msgs []*eventbus.Message) error {
+	if err := w.write(ctx, msgs); err == nil {
+		// Counted here rather than inside write, which runs again on every retry and once
+		// more per message during isolation: counting there reports a delivery retried
+		// five times as five times the traffic.
+		w.stats.messages.Add(int64(len(msgs)))
+		delete(w.attempts, deliveryKey(msgs))
+		return nil
+	} else if n := w.recordAttempt(msgs); n < w.opts.MaxAttempts {
+		w.stats.retries.Add(1)
+		w.log.Warn("a delivery failed and will be retried",
+			"attempt", n, "of", w.opts.MaxAttempts, "messages", len(msgs), "error", err)
+		return err
+	}
+
+	w.log.Warn("a delivery has failed repeatedly; isolating the messages",
+		"attempts", w.opts.MaxAttempts, "messages", len(msgs))
+	return w.isolate(ctx, msgs)
+}
+
+// write archives a whole delivery.
+func (w *Writer) write(ctx context.Context, msgs []*eventbus.Message) error {
 	groups := map[groupKey]*group{}
 
 	for _, msg := range msgs {
-		w.stats.messages.Add(1)
-
 		// Another cell's message cannot belong here, and redelivering it would never make
 		// it belong. Dropped and counted, as the storage writer does.
 		if msg.Cell != "" && msg.Cell != w.opts.Cell {
@@ -188,6 +227,97 @@ func (w *Writer) handle(ctx context.Context, msgs []*eventbus.Message) error {
 			// error rather than logging and continuing is what makes that true.
 			return err
 		}
+	}
+	return nil
+}
+
+// recordAttempt counts a consecutive failure of this delivery.
+func (w *Writer) recordAttempt(msgs []*eventbus.Message) int {
+	key := deliveryKey(msgs)
+	w.attempts[key]++
+	n := w.attempts[key]
+	if len(w.attempts) > 64 {
+		for k := range w.attempts {
+			if k != key {
+				delete(w.attempts, k)
+			}
+		}
+	}
+	return n
+}
+
+// deliveryKey names a delivery by its contents, so a redelivery that picked up new messages
+// starts its own count rather than inheriting one.
+func deliveryKey(msgs []*eventbus.Message) string {
+	sum := sha256.New()
+	for _, m := range msgs {
+		sum.Write([]byte(m.DedupKey))
+		sum.Write([]byte{0})
+	}
+	return hex.EncodeToString(sum.Sum(nil)[:16])
+}
+
+// isolate archives the delivery one message at a time to find the ones that cannot be.
+//
+// The same shape as the storage writer's, and for the same reason: a message that will
+// never archive must not stall every message behind it, and attempt count alone cannot tell
+// it from an unreachable bucket. The archive has two dependencies rather than one — the
+// object store and the cell's database, since an object with no manifest is invisible to
+// §60's expiry, §39's billing and §104's breach scoping — so both are probed before
+// anything is parked.
+func (w *Writer) isolate(ctx context.Context, msgs []*eventbus.Message) error {
+	var parked, stored int
+
+	for _, msg := range msgs {
+		if err := w.write(ctx, []*eventbus.Message{msg}); err == nil {
+			w.stats.messages.Add(1)
+			stored++
+			continue
+		} else if probeErr := w.probe(ctx); probeErr != nil {
+			w.log.Error("isolation stopped: a dependency is unavailable",
+				"stored_before_failure", stored, "error", probeErr)
+			return fmt.Errorf("isolate after %d archived: %w", stored, err)
+		} else {
+			reason := eventbus.DeadLetterReason{
+				Group:    eventbus.GroupArchiveWriter,
+				Reason:   err.Error(),
+				FailedAt: time.Now().UTC(),
+				Attempts: w.opts.MaxAttempts,
+			}
+			if dlErr := w.bus.DeadLetter(ctx, msg, reason); dlErr != nil {
+				// Not durable, so the message must not be acknowledged. A stalled queue
+				// beats an archive with a hole nobody knows about.
+				return fmt.Errorf("dead-letter %s: %w", msg.DedupKey, dlErr)
+			}
+			w.stats.deadLettered.Add(1)
+			w.log.Error("a message could not be archived and was dead-lettered",
+				"dedup_key", msg.DedupKey, "project_id", msg.ProjectID, "error", err)
+			parked++
+		}
+	}
+
+	delete(w.attempts, deliveryKey(msgs))
+	w.log.Warn("isolation finished", "archived", stored, "dead_lettered", parked)
+	return nil
+}
+
+// probe asks both dependencies whether they are answering.
+//
+// The store first, because it is the one that is remote in every deployment. Neither write
+// is attempted: Ping reads metadata, so a probe leaves nothing behind in a bucket §60
+// expires and §39 bills for.
+func (w *Writer) probe(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	if err := w.store.Ping(ctx); err != nil {
+		return fmt.Errorf("object store: %w", err)
+	}
+	if !w.cell.Ready() {
+		return fmt.Errorf("cell tier: %w", pgdb.ErrNotStarted)
+	}
+	if err := w.cell.DB().PingContext(ctx); err != nil {
+		return fmt.Errorf("cell tier: %w", err)
 	}
 	return nil
 }
@@ -234,7 +364,7 @@ func (w *Writer) collect(groups map[groupKey]*group, msg *eventbus.Message, batc
 // flush writes one group's objects and records a manifest for each.
 func (w *Writer) flush(ctx context.Context, g *group) error {
 	for chunk := range slices.Chunk(g.rows, w.opts.MaxRowsPerObject) {
-		body, err := encode(chunk)
+		body, err := Encode(chunk)
 		if err != nil {
 			return fmt.Errorf("encode parquet: %w", err)
 		}
@@ -307,12 +437,17 @@ func (w *Writer) record(ctx context.Context, g *group, object blobstore.Object, 
 		Exec(ctx)
 }
 
-// encode writes the rows as compressed Parquet (§10.4).
+// Encode writes the rows as compressed Parquet (§10.4).
 //
 // Zstd because it is the best ratio per CPU second among the codecs every Parquet reader
 // understands, and the archive is written once and read rarely — the asymmetry that makes
 // compression worth paying for.
-func encode(rows []Row) ([]byte, error) {
+//
+// Exported because the writer is no longer the only thing that produces an archive object:
+// §61's erasure rewrites one without the rows belonging to an erased actor, and a rewrite
+// that encoded differently from the original would be a second definition of the archive
+// format.
+func Encode(rows []Row) ([]byte, error) {
 	var buf bytes.Buffer
 	w := parquet.NewGenericWriter[Row](&buf, parquet.Compression(&zstd.Codec{}))
 	if _, err := w.Write(rows); err != nil {
@@ -324,6 +459,19 @@ func encode(rows []Row) ([]byte, error) {
 		return nil, err
 	}
 	return buf.Bytes(), nil
+}
+
+// Decode reads an object back into rows.
+//
+// The whole object at once, which is what the erasure path wants: it rewrites the object
+// without some of its rows, so it needs all of them. A reader that walked row groups would
+// be the right shape for §34's cold queries and the wrong one here.
+func Decode(body []byte) ([]Row, error) {
+	rows, err := parquet.Read[Row](bytes.NewReader(body), int64(len(body)))
+	if err != nil {
+		return nil, fmt.Errorf("read parquet: %w", err)
+	}
+	return rows, nil
 }
 
 // objectPath is §14.1's convention.

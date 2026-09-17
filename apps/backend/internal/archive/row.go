@@ -85,3 +85,36 @@ type Row struct {
 	Currency      string `parquet:"currency"`
 	PayloadBytes  uint32 `parquet:"payload_bytes"`
 }
+
+// ActorKey is the identity a data-subject request names, computed the same way
+// `events_raw` computes it (§61, 00001_events_raw.sql).
+//
+//	actor_key = if(player_id != '', player_id, toString(install_id))
+//
+// Derived here rather than stored, for the reason the type comment gives about the columns
+// ClickHouse materializes: a stored copy of a derived column is a second definition waiting
+// to disagree with the first. An erasure that missed rows because the archive computed the
+// actor differently from the table would be the worst possible version of that
+// disagreement — a deletion that reports success and leaves the person behind.
+func (r Row) ActorKey() string {
+	if r.PlayerID != "" {
+		return r.PlayerID
+	}
+	return r.InstallID
+}
+
+// Names reports whether this row is about the subject identified by key.
+//
+// Two ways to match, and both are needed (§61, §05).
+//
+// The first is the actor: a studio erasing `player-42` means the rows that player produced.
+//
+// The second is the device. A request may name an `install_id` instead — §05 allows it,
+// because an anonymous player has nothing else to offer — and an install that later signed
+// in produced rows whose actor is the account rather than the install. Matching only on the
+// actor would erase what the person did before they signed in and keep everything after,
+// which is not what anybody asking to be forgotten means. §29.2's separation of the device
+// from the actor is exactly what makes both checks necessary.
+func (r Row) Names(key string) bool {
+	return key != "" && (r.ActorKey() == key || r.InstallID == key)
+}

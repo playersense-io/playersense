@@ -61,6 +61,7 @@ func build(settings config.Settings) (*muzak.App, error) {
 		Cell:             settings.Cell,
 		Region:           settings.CellRegion,
 		MaxRowsPerObject: settings.ArchiveMaxRowsPerObject,
+		MaxAttempts:      settings.WriterMaxAttempts,
 	})
 
 	app := muzak.New(muzak.AppOptions{
@@ -106,10 +107,17 @@ func newBus(settings config.Settings) (eventbus.Bus, error) {
 		if settings.PubSubProjectID == "" {
 			return nil, fmt.Errorf("EVENT_BUS=pubsub needs PUBSUB_PROJECT_ID")
 		}
-		return eventbus.NewPubSub(settings.PubSubProjectID, settings.PubSubTopic), nil
+		bus := eventbus.NewPubSub(settings.PubSubProjectID, settings.PubSubTopic)
+		// Group messages before they reach the handler, sized in rows. One message per
+		// delivery is one ClickHouse part per SDK batch, which is what stops a node at
+		// §4's ceiling (ADR 0023).
+		bus.SetDelivery(settings.BusDeliveryMaxRows,
+			settings.BusDeliveryMaxMessages, settings.BusDeliveryMaxWait)
+		return bus, nil
 	case "local", "":
 		bus := eventbus.NewLocal(settings.Cell, settings.EventBusDir)
 		bus.SetPollInterval(settings.WriterFlushInterval)
+		bus.SetLogger(slog.Default())
 		return bus, nil
 	default:
 		return nil, fmt.Errorf("unknown EVENT_BUS %q; want local or pubsub", settings.EventBus)

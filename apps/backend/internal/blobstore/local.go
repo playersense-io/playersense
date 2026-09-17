@@ -42,6 +42,18 @@ func (l *Local) Stop(context.Context) error { return nil }
 
 func (l *Local) dir() string { return filepath.Join(l.root, l.bucket) }
 
+// Ping checks the bucket directory is there and writable.
+func (l *Local) Ping(context.Context) error {
+	info, err := os.Stat(l.dir())
+	if err != nil {
+		return fmt.Errorf("stat %s: %w", l.dir(), err)
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("%s is not a directory", l.dir())
+	}
+	return nil
+}
+
 // Put writes the object and fsyncs it.
 //
 // Written to a temporary file and renamed, so a crash part way through leaves either the
@@ -76,6 +88,18 @@ func (l *Local) Put(_ context.Context, path string, body []byte) (Object, error)
 		return Object{}, err
 	}
 	return Object{Path: path, Size: uint64(len(body))}, nil
+}
+
+// Get reads an object back whole.
+func (l *Local) Get(_ context.Context, path string) ([]byte, error) {
+	if err := safePath(path); err != nil {
+		return nil, err
+	}
+	body, err := os.ReadFile(filepath.Join(l.dir(), filepath.FromSlash(path)))
+	if os.IsNotExist(err) {
+		return nil, fmt.Errorf("%s: %w", path, ErrNotFound)
+	}
+	return body, err
 }
 
 // Delete removes an object, tolerating one that is already gone.

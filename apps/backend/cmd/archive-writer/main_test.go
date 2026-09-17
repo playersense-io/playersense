@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"io"
 	"log/slog"
 	"net/http"
@@ -466,4 +467,221 @@ func TestEachHourIsItsOwnObject(t *testing.T) {
 	if got := p.manifests(t); got != 2 {
 		t.Fatalf("recorded %d manifests, want one per object", got)
 	}
+}
+
+// TestAnUnarchivableMessageIsParkedAndTheStreamMovesOn is the archive's half of ADR 0023's
+// failure path.
+//
+// The storage writer and the archive writer consume the same stream on their own
+// subscriptions (§20), so a message neither can process stalls both — independently. The
+// archive had no dead-letter path at all: a message it could not write retried forever and
+// every batch behind it waited. An archive that quietly stops is the worst version of this,
+// because §60 expires local data on the assumption the archive is keeping up.
+//
+// The poison is published straight to the bus rather than through the gateway, because the
+// gateway cannot produce it: the tenant identifiers come from the resolved key and are
+// always well formed. What this simulates is a corrupt message already on the queue, which
+// is the case the dead-letter path exists for — the archive writes those identifiers into a
+// typed manifest column, so one that is not a UUID can never be written, however many times
+// it is redelivered.
+func TestAnUnarchivableMessageIsParkedAndTheStreamMovesOn(t *testing.T) {
+	p := newPipeline(t)
+	at := time.Now().UTC()
+
+	p.post(t, event("session_start", at))
+	p.publishPoison(t, at)
+	p.post(t, event("session_end", at))
+
+	p.run(t)
+
+	deadline := time.Now().Add(25 * time.Second)
+	for time.Now().Before(deadline) {
+		if p.writer.Stats()["dead_lettered"] > 0 {
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	stats := p.writer.Stats()
+	if stats["dead_lettered"] != 1 {
+		t.Fatalf("dead_lettered = %d, want 1 — the poisoned message stalled the archive",
+			stats["dead_lettered"])
+	}
+	if stats["objects"] == 0 {
+		t.Error("nothing was archived; the healthy batches were held up by the poisoned one")
+	}
+
+	parked, err := p.bus.DeadLettered(eventbus.GroupArchiveWriter, time.Now().UTC())
+	if err != nil {
+		t.Fatalf("read the dead-letter spool: %v", err)
+	}
+	if len(parked) != 1 {
+		t.Fatalf("the dead-letter spool holds %d messages, want 1", len(parked))
+	}
+	if parked[0].ProjectID != "not-a-uuid" {
+		t.Errorf("the wrong message was parked: %s", parked[0].ProjectID)
+	}
+}
+
+// publishPoison puts a message on the bus that the archive can never write.
+func (p *pipeline) publishPoison(t *testing.T, at time.Time) {
+	t.Helper()
+	payload, err := json.Marshal(ingest.NormalizedBatch{
+		BatchID:    uuid.NewString(),
+		InstallID:  uuid.NewString(),
+		SDKName:    "unity",
+		SDKVersion: "1.4.0",
+		AppVersion: "2.7.1",
+		Platform:   "ios",
+		ReceivedAt: at,
+		IngestTime: at,
+		Events: []ingest.NormalizedEvent{{
+			EventID:   uuid.NewString(),
+			EventName: "level_complete",
+			EventTime: at,
+		}},
+	})
+	if err != nil {
+		t.Fatalf("encode the poisoned payload: %v", err)
+	}
+	if err := p.bus.Publish(context.Background(), &eventbus.Message{
+		PublishedAt:   at,
+		Cell:          p.settings.Cell,
+		DedupKey:      "poison-" + uuid.NewString(),
+		OrgID:         uuid.NewString(),
+		ProjectID:     "not-a-uuid", // the manifest column is typed; this can never be written
+		EnvironmentID: uuid.NewString(),
+		Environment:   "production",
+		RetentionTier: 30,
+		EventCount:    1,
+		Payload:       payload,
+	}); err != nil {
+		t.Fatalf("publish the poisoned message: %v", err)
+	}
+}
+
+// TestAnUnreachableBucketDoesNotDeadLetterTheBacklog is the counterpart, and the one that
+// protects data rather than availability.
+//
+// A writer that parks on attempt count alone would empty a backlog into the dead-letter
+// spool during a GCS outage and call it poison. The archive probes the object store and the
+// cell tier before parking anything, so "these bytes are unarchivable" is a question it asks
+// rather than a conclusion it draws from a counter.
+func TestAnUnreachableBucketDoesNotDeadLetterTheBacklog(t *testing.T) {
+	p := newPipeline(t)
+	at := time.Now().UTC()
+
+	for range 4 {
+		p.post(t, event("session_start", at))
+	}
+
+	// p.root *is* the bucket directory. Replacing it with a file makes both Put and Ping
+	// fail, which is what an unreachable bucket looks like from inside the writer.
+	if err := os.RemoveAll(p.root); err != nil {
+		t.Fatalf("remove the bucket: %v", err)
+	}
+	if err := os.WriteFile(p.root, []byte("x"), 0o600); err != nil {
+		t.Fatalf("block the bucket path: %v", err)
+	}
+
+	p.run(t)
+	time.Sleep(6 * time.Second)
+
+	if got := p.writer.Stats()["dead_lettered"]; got != 0 {
+		t.Fatalf("dead_lettered = %d while the bucket was unreachable; a backlog must never "+
+			"be parked because storage is down", got)
+	}
+	if got := p.writer.Stats()["retries"]; got == 0 {
+		t.Error("the writer never retried, so this test proved nothing about an outage")
+	}
+}
+
+// TestTheArchivePathWorksAgainstRealGCS runs the whole path against a real bucket.
+//
+// Opt-in, because the rest of this file must stay runnable without a cloud account — §14's
+// local store exists for exactly that reason. But "the deployment target is never
+// exercised" is how a path that compiles turns out not to work, and the two halves that
+// only exist in the GCS implementation are precisely the ones a local directory cannot
+// stand in for: whether the client authenticates, and whether Put is genuinely durable and
+// idempotent on the path.
+//
+//	ARCHIVE_GCS_BUCKET=playersense-events-eu-1-dev go test ./apps/backend/cmd/archive-writer/ -run RealGCS -v
+func TestTheArchivePathWorksAgainstRealGCS(t *testing.T) {
+	bucket := os.Getenv("ARCHIVE_GCS_BUCKET")
+	if bucket == "" {
+		t.Skip("set ARCHIVE_GCS_BUCKET to run this against a real bucket")
+	}
+
+	p := newPipeline(t)
+
+	// Swap the local store for the real one. Everything else in the pipeline — the
+	// gateway, the bus, the writer, the manifest in the cell tier — is unchanged.
+	store := blobstore.NewGCS(bucket)
+	if err := store.Start(t.Context()); err != nil {
+		t.Fatalf("dial cloud storage: %v", err)
+	}
+	t.Cleanup(func() { _ = store.Stop(context.Background()) })
+
+	if err := store.Ping(t.Context()); err != nil {
+		t.Fatalf("the bucket is not reachable: %v", err)
+	}
+
+	writer := archive.New(p.bus, store, p.cell, quiet(), archive.Options{
+		Cell:        p.settings.Cell,
+		Region:      p.settings.CellRegion,
+		MaxAttempts: 3,
+	})
+	if err := writer.Start(t.Context()); err != nil {
+		t.Fatalf("start the writer: %v", err)
+	}
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		_ = writer.Stop(ctx)
+	})
+
+	at := time.Now().UTC()
+	p.post(t, event("session_start", at), event("level_completed", at))
+
+	deadline := time.Now().Add(30 * time.Second)
+	for time.Now().Before(deadline) && writer.Stats()["objects"] == 0 {
+		time.Sleep(200 * time.Millisecond)
+	}
+	if got := writer.Stats()["objects"]; got != 1 {
+		t.Fatalf("wrote %d objects, want 1", got)
+	}
+
+	// The manifest is what makes the object visible to §60's expiry, §39's billing and
+	// §104's breach scoping. An object without one is indistinguishable from data nobody
+	// knows about, so the manifest is the assertion, not the object.
+	if got := p.manifests(t); got != 1 {
+		t.Fatalf("the cell tier holds %d manifests, want 1", got)
+	}
+
+	manifest, err := p.cell.Client.ArchiveManifest.Query().
+		Where(archivemanifest.ProjectUIDEQ(uuid.MustParse(p.project.ProjectUID))).
+		Only(context.Background())
+	if err != nil {
+		t.Fatalf("read the manifest: %v", err)
+	}
+	if manifest.Bucket != bucket {
+		t.Errorf("the manifest names bucket %q, want %q", manifest.Bucket, bucket)
+	}
+	if manifest.EventCount != 2 {
+		t.Errorf("the manifest counts %d events, want 2", manifest.EventCount)
+	}
+	if manifest.ObjectSizeBytes == 0 {
+		t.Error("the manifest records no object size; §39 bills on this")
+	}
+
+	t.Logf("wrote gs://%s/%s (%d bytes, %d events)",
+		bucket, manifest.ObjectPath, manifest.ObjectSizeBytes, manifest.EventCount)
+
+	// Leave nothing behind: this is a real bucket and the retention worker (§60) is not
+	// built, so nothing else would ever remove it.
+	t.Cleanup(func() {
+		if err := store.Delete(context.Background(), manifest.ObjectPath); err != nil {
+			t.Errorf("clean up %s: %v", manifest.ObjectPath, err)
+		}
+	})
 }

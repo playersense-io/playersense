@@ -53,6 +53,15 @@ type Message struct {
 	PolicyTier    string `json:"policy_tier"`
 	RetentionTier uint16 `json:"retention_tier"`
 
+	// EventCount is how many events the payload holds.
+	//
+	// It travels so a consumer can group deliveries by *rows* without decoding every
+	// payload to find out how many there are. Message count is the wrong unit for that
+	// decision and the difference is large: an SDK batch is anywhere from one event to a
+	// thousand, so two hundred messages is two hundred rows from one integration and two
+	// hundred thousand from another (ADR 0023).
+	EventCount int `json:"event_count,omitzero"`
+
 	// Payload is the normalized batch, as JSON.
 	Payload []byte `json:"payload"`
 }
@@ -82,6 +91,15 @@ const (
 	GroupArchiveWriter   = "archive-writer"
 )
 
+// DeadLetterReason travels with a parked message so an operator can tell why it is there
+// without reproducing the failure.
+type DeadLetterReason struct {
+	Group    string    `json:"group"`
+	Reason   string    `json:"reason"`
+	FailedAt time.Time `json:"failed_at"`
+	Attempts int       `json:"attempts"`
+}
+
 // Bus is the whole of what ingestion and the writers need from the outside world.
 //
 // Publish returns only once the message is durable. §19's contract is that a 202 means
@@ -91,8 +109,20 @@ const (
 // Subscribe runs until the context is cancelled, consuming on behalf of one group.
 // Delivery is at-least-once (§21), so a handler must make its effect idempotent rather than
 // assume it is called once — which is what the DedupKey above is for.
+// DeadLetter parks a message no number of redeliveries will fix, so the subscription can
+// move past it.
+//
+// Without it a consumer has exactly two options for a message it cannot process, and both
+// are bad: retry forever, which stalls every message behind it, or drop it, which loses
+// data silently. §20 names an `analytics-events-dlq` topic for precisely this and nothing
+// used to write to it.
+//
+// It must be durable before it returns, for the same reason Publish must: the caller
+// acknowledges the original immediately afterwards, so a dead letter that was not written
+// is a batch that was accepted, refused and then forgotten.
 type Bus interface {
 	Publish(ctx context.Context, msg *Message) error
 	Subscribe(ctx context.Context, group string, handle Handler) error
+	DeadLetter(ctx context.Context, msg *Message, reason DeadLetterReason) error
 	Name() string
 }

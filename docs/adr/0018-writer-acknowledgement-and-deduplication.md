@@ -1,8 +1,15 @@
 # 0018. The writer acknowledges after the insert, and splits deterministically
 
-**Status:** Accepted
+**Status:** Accepted; the insert strategy is superseded by [0023](0023-blocks-are-sized-for-merges-not-for-messages.md)
 **Date:** 2026-09-14
 **Relates to:** project.md §10.3, §21, §25, §86, Appendix C.2
+
+> **Superseded in part.** The acknowledgement rule below still stands, and so does the
+> reasoning about a reused token being a silent loss. What did not survive contact with §4's
+> scale envelope is the *unit*: a deduplication token per message prevents `async_insert`
+> from coalescing anything, so every message became its own part — two million a day at the
+> ceiling, against a `parts_to_throw_insert` of three thousand. [ADR 0023](0023-blocks-are-sized-for-merges-not-for-messages.md)
+> replaces the per-message token with a per-block one and records what that costs.
 
 ## Context
 

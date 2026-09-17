@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sort"
@@ -35,6 +36,8 @@ type Local struct {
 
 	// pollInterval is how often Subscribe looks for new bytes. Zero means the default.
 	pollInterval time.Duration
+
+	log *slog.Logger
 
 	mu   sync.Mutex
 	file *os.File
@@ -105,6 +108,70 @@ func (l *Local) Publish(_ context.Context, msg *Message) error {
 	return nil
 }
 
+// DeadLetter parks a message in a spool beside the live one.
+//
+// A file rather than a deletion, because the whole point is that the bytes survive: a
+// message here is one a consumer could not process, and the reason it could not is usually
+// a bug worth reading the payload to find. It is fsynced before returning, because the
+// caller acknowledges the original immediately afterwards.
+func (l *Local) DeadLetter(_ context.Context, msg *Message, reason DeadLetterReason) error {
+	if reason.FailedAt.IsZero() {
+		reason.FailedAt = time.Now().UTC()
+	}
+	line, err := json.Marshal(struct {
+		DeadLetterReason
+		Message *Message `json:"message"`
+	}{reason, msg})
+	if err != nil {
+		return fmt.Errorf("encode dead letter: %w", err)
+	}
+
+	dir := filepath.Join(l.dir, l.cell, ".dead")
+	if err := os.MkdirAll(dir, 0o750); err != nil {
+		return fmt.Errorf("create dead-letter spool: %w", err)
+	}
+	path := filepath.Join(dir, reason.Group+"-"+reason.FailedAt.Format("2006-01-02")+".ndjson")
+
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o640)
+	if err != nil {
+		return fmt.Errorf("open dead-letter spool: %w", err)
+	}
+	defer f.Close()
+	if _, err := f.Write(append(line, '\n')); err != nil {
+		return fmt.Errorf("append dead letter: %w", err)
+	}
+	return f.Sync()
+}
+
+// DeadLettered reads back what has been parked, for tests and for an operator's tooling.
+func (l *Local) DeadLettered(group string, day time.Time) ([]*Message, error) {
+	path := filepath.Join(l.dir, l.cell, ".dead",
+		group+"-"+day.UTC().Format("2006-01-02")+".ndjson")
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	var out []*Message
+	dec := json.NewDecoder(newLineReader(raw))
+	for dec.More() {
+		var entry struct {
+			DeadLetterReason
+			Message *Message `json:"message"`
+		}
+		if err := dec.Decode(&entry); err != nil {
+			return nil, err
+		}
+		out = append(out, entry.Message)
+	}
+	return out, nil
+}
+
 // Read returns every message published on a day, for tests and for the writer to replay.
 func (l *Local) Read(day time.Time) ([]*Message, error) {
 	raw, err := os.ReadFile(l.segment(day.UTC().Format("2006-01-02")))
@@ -151,13 +218,38 @@ func (l *Local) Subscribe(ctx context.Context, group string, handle Handler) err
 	ticker := time.NewTicker(l.poll())
 	defer ticker.Stop()
 
+	// backoff grows while deliveries keep failing and resets the moment one succeeds, so a
+	// ClickHouse outage is retried at a widening interval rather than in a hot loop.
+	const maxBackoff = 30 * time.Second
+	backoff := l.poll()
+
 	for {
 		// Drain first, so a backlog is worked through without waiting a tick per group.
 		for {
 			delivered, err := l.deliverOnce(ctx, group, handle)
 			if err != nil {
-				return err
+				if ctx.Err() != nil {
+					return nil
+				}
+				// Deliberately not returned.
+				//
+				// Returning ends the subscription, and the consumer around it treats that
+				// as terminal: the process keeps running, its health probe keeps
+				// answering, and nothing is consumed again until somebody restarts it.
+				// One failed insert used to kill a writer that way. A delivery that fails
+				// is retried, because at-least-once delivery is the mechanism that makes
+				// retrying the right answer (§21).
+				l.logger().Warn("a delivery failed and will be retried",
+					"group", group, "backoff", backoff.String(), "error", err)
+				select {
+				case <-ctx.Done():
+					return nil
+				case <-time.After(backoff):
+				}
+				backoff = min(backoff*2, maxBackoff)
+				break
 			}
+			backoff = l.poll()
 			if !delivered {
 				break
 			}
@@ -176,6 +268,16 @@ func (l *Local) Subscribe(ctx context.Context, group string, handle Handler) err
 // SetPollInterval overrides how often the spool is checked for new segments. Tests set it
 // low; the default is fine for a development stack.
 func (l *Local) SetPollInterval(d time.Duration) { l.pollInterval = d }
+
+// SetLogger gives the bus somewhere to report a delivery it had to retry.
+func (l *Local) SetLogger(log *slog.Logger) { l.log = log }
+
+func (l *Local) logger() *slog.Logger {
+	if l.log != nil {
+		return l.log
+	}
+	return slog.Default()
+}
 
 func (l *Local) poll() time.Duration {
 	if l.pollInterval > 0 {
