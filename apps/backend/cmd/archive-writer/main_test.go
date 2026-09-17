@@ -362,6 +362,13 @@ func TestARedeliveredBatchArchivesOnce(t *testing.T) {
 		t.Fatalf("archived %d objects, want 1", len(objects))
 	}
 
+	// Wait for the position *before* stopping. Committing it happens after the object is
+	// written, and once the writer is stopped nothing is left to write it — so waiting
+	// inside rewind would wait for something that can no longer arrive.
+	if offsets := p.waitForOffsets(t, eventbus.GroupArchiveWriter); len(offsets) == 0 {
+		t.Fatal("the archive never committed a position to rewind")
+	}
+
 	// Rewind the archive's own position, which is exactly what a crash between the object
 	// and the acknowledgement leaves behind.
 	p.stop(t)
@@ -436,7 +443,7 @@ func (p *pipeline) rewind(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(offsets) == 0 {
-		t.Fatal("no offset to rewind; the archive never committed one")
+		t.Fatal("no offset to rewind; wait for one before stopping the writer")
 	}
 	for _, path := range offsets {
 		if err := os.Remove(path); err != nil {
