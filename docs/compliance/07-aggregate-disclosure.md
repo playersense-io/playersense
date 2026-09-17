@@ -47,5 +47,11 @@ See ADR 0017.
 
 ## Status
 
-The reporting API is not built. This record exists so that it is built with the threshold
-rather than having one retrofitted after the first thin cell is rendered to a customer.
+**Built**, and the threshold shipped with the reporting API rather than after it — which is
+what this record asked for. `apps/backend/internal/query/suppress.go` applies it to the
+response in one place, `QUERY_SUPPRESSION_K` sets it, and it defaults to 5.
+
+Both query shapes are covered: the cohort path and the ordinary time series suppress on the
+same rule, because an active-player count is a count of people whatever it is keyed on. The
+tests are named in [09-controls-map.md](09-controls-map.md) under *Disclosure* and *Query
+safety*.

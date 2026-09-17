@@ -1152,8 +1152,11 @@ because both corrupt data rather than losing it:
 
 - **Android Auto Backup** is enabled by default and copies app files to Google Drive, then
   restores them onto a *new device*. One `install_id` then emits from two physical devices
-  at once: sessions interleave, playtime double-counts and retention is wrong. The
-  identifier file must be excluded through `data_extraction_rules`.
+  at once: sessions interleave, playtime double-counts and retention is wrong. The identifier
+  is kept out of it by living under `getNoBackupFilesDir()`, which the platform excludes from
+  both Auto Backup and device-to-device transfer — chosen over a `data_extraction_rules` entry
+  in the SDK's manifest, which would have to merge with whatever backup configuration the game
+  already has (ADR 0030).
 - **iOS iCloud backup** does the same for `Application Support`. The file must be marked
   excluded from backup.
 
@@ -3806,15 +3809,15 @@ playersense/
 │  ├─ analytics-query-dsl/
 │  └─ eslint-config/
 │
-├─ sdk/
-│  ├─ spec/
-│  ├─ unity/
+├─ sdk/                  # one core, one ABI, thin bindings — see the note below
+│  ├─ core/              # the protocol in Rust, with no I/O of its own
+│  ├─ ffi/               # the C ABI over it, and the committed header
+│  ├─ unity/             # a UPM package: P/Invoke, a host, and a facade
 │  ├─ unreal/
 │  ├─ godot/
 │  ├─ android/
 │  ├─ ios/
-│  ├─ javascript/
-│  └─ conformance/
+│  └─ javascript/
 │
 ├─ proto/
 │  ├─ analytics.proto
@@ -3835,12 +3838,23 @@ playersense/
 │     └─ terraform/
 │
 └─ docs/
-   ├─ sdk-protocol.md
+   ├─ sdk/               # the protocol every binding implements, and the context model
+   ├─ adr/               # why the architecture is what it is
+   ├─ compliance/        # obligation -> mechanism -> code -> test
    ├─ events.md
    ├─ billing.md
    ├─ retention.md
    └─ runbooks/
 ```
+
+**What was built instead of `sdk/spec` and `sdk/conformance`.** The protocol lives in
+`docs/sdk/protocol.md` and is implemented **once**, in `sdk/core`, rather than described in one
+place and reimplemented per platform. Sessions, consent, batching, the disk spool, retry and
+backoff, deduplication and the response table are that one implementation; a binding is a host
+(a clock, a file, an HTTP call) and a facade in the platform's own idiom. The conformance suite
+is therefore not a separate directory either — it is `sdk/core`'s own tests against a fake
+host, plus `sdk/ffi`'s tests driving the same core through the real `extern "C"` symbols, which
+is the half a binding can get wrong. See [ADR 0029](docs/adr/0029-a-c-abi-over-an-opaque-handle.md).
 
 A split multi-repo model is also viable later, but a monorepo is attractive while the team is small because API/SDK contract changes can be coordinated atomically.
 

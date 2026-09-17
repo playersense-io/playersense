@@ -49,6 +49,14 @@ a record is never updated to match a drifting document, it is superseded by a ne
 | [0020](0020-a-cohort-is-assigned-on-arrival.md) | A cohort is assigned when the server sees the batch | Accepted |
 | [0021](0021-two-metric-tiers.md) | Two metric tiers: one immediate and approximate, one derived and exact | Accepted |
 | [0022](0022-an-archive-object-is-named-by-its-contents.md) | An archive object is named by what is inside it | Accepted |
+| [0023](0023-blocks-are-sized-for-merges-not-for-messages.md) | A block is sized for the merges, not for the message | Accepted |
+| [0024](0024-the-hot-window-is-a-cache-not-a-retention-limit.md) | The hot window is a cache, not a retention limit | Accepted |
+| [0025](0025-an-erasure-rewrites-the-archive.md) | An erasure rewrites an archive object rather than deleting it | Accepted |
+| [0026](0026-compressed-json-and-derived-event-ids.md) | Compressed JSON with derived event ids, and not Protobuf | Accepted |
+| [0027](0027-targeting-is-evaluated-on-the-server.md) | Targeting is evaluated on the server, and the client is told only the result | Accepted |
+| [0028](0028-context-travels-as-a-timeline.md) | Context travels as a timeline and is materialized at ingestion | Accepted |
+| [0029](0029-a-c-abi-over-an-opaque-handle.md) | A C ABI over an opaque handle, and unwinding panics | Accepted |
+| [0030](0030-the-unity-surface-is-types-in-a-namespace.md) | The Unity binding: types in a namespace, no_backup, and importer settings in code | Accepted |
 
 ## Template
 
