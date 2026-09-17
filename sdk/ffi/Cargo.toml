@@ -1,0 +1,23 @@
+[package]
+name = "playersense-ffi"
+description = "The C ABI over playersense-core, for every binding."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+# `playersense`, so the artifact is libplayersense.{a,dylib,so} and the C symbols read
+# `ps_*` rather than carrying the crate name twice.
+name = "playersense"
+# cdylib for Android and desktop, staticlib for iOS and consoles, and rlib because without
+# it `tests/` cannot link the crate and the whole integration-test layer disappears.
+crate-type = ["cdylib", "staticlib", "rlib"]
+
+[dev-dependencies]
+cbindgen = "0.29.4"
+# Only to read a batch back in the tests; the crate itself does no compression.
+flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
+
+[dependencies]
+playersense-core = { path = "../core" }

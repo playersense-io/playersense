@@ -1,0 +1,111 @@
+# The header is generated from the Rust types and committed, so a binding needs no Rust
+# toolchain — and `tests/header.rs` regenerates and diffs, so it cannot drift from them.
+
+language = "C"
+header = """
+/*
+ * PlayerSense — the SDK protocol, implemented once.
+ *
+ * GENERATED from sdk/ffi by cbindgen. Do not edit by hand: run
+ * `cargo test -p playersense-ffi` and move the regenerated file into place.
+ *
+ * ============================================================================
+ * OWNERSHIP — four rules, and every function obeys one of them
+ * ============================================================================
+ *
+ * R1  Anything passed IN is borrowed for the duration of the call. The callee
+ *     copies what it needs before returning. A NULL pointer is legal only with
+ *     a zero length; a negative length is PS_ERR_INVALID_ARGUMENT.
+ *
+ * R2  NOTHING IS EVER RETURNED OWNED. There is no ps_string_free, because no
+ *     function hands you memory — so a leak is not representable. Values come
+ *     back through a buffer you provide plus a required-length out-parameter;
+ *     pass (NULL, 0) to ask how much you need.
+ *
+ * R3  Buffers flowing host -> core go through a PsSink callback. Neither side
+ *     frees the other's memory, and your buffer need only live for the call.
+ *
+ * R4  Optional values use a natural sentinel, never a companion flag:
+ *     PsStr { NULL, 0 } is absent, and a negative retry_after_ms is absent.
+ *
+ * Every length is int64_t, never size_t: size_t is four bytes on 32-bit
+ * Android and eight elsewhere, which makes a binding's declaration
+ * bitness-dependent. Every boolean is int32_t, never _Bool: C#'s bool marshals
+ * as a 4-byte BOOL and the mismatch is silent.
+ *
+ * ============================================================================
+ * RETURN VALUES — check the SIGN, never equality with PS_OK
+ * ============================================================================
+ *
+ *     status <  0   failure. The call did nothing.
+ *     status == 0   PS_OK.
+ *     status >  0   it worked, and there is something to tell you.
+ *
+ * The positive range exists so that the SDK can distinguish outcomes without
+ * breaking callers. ps_client_track returns PS_HELD_FOR_CONSENT when the player
+ * has not answered the consent dialog yet and PS_DECLINED_BY_CONSENT when they
+ * have declined — neither is an error, and a binding that treats them as one
+ * will log a warning for every event a declining player generates.
+ *
+ * So: `if (status < 0) { report(); }`. A binding written as
+ * `if (status != PS_OK)` is wrong today and will be wrong again later.
+ *
+ * ============================================================================
+ * THREADING
+ * ============================================================================
+ *
+ * SAFETY:  every ps_client_* function may be called from any thread. Calls on
+ *          one handle are serialized internally.
+ *
+ * LATENCY: the "never blocks measurably" guarantee holds only when all calls on
+ *          a handle come from one thread. ps_client_on_response compresses a
+ *          batch while holding the lock, so a binding SHOULD marshal
+ *          completions onto the thread that calls ps_client_track. The lock is
+ *          insurance against a mistake, not a licence to be multi-threaded.
+ *
+ * A host callback MUST NOT call back into ps_client_* on the same handle. Doing
+ * so returns PS_ERR_REENTRANT and does nothing, rather than deadlocking.
+ *
+ * ============================================================================
+ * PANICS AND EXCEPTIONS
+ * ============================================================================
+ *
+ * A panic inside the core is caught at this boundary, the handle is poisoned,
+ * and every later call on it returns PS_ERR_POISONED. The game keeps running
+ * with analytics off, which is the correct fail-safe.
+ *
+ * The reverse is NOT true. The host callbacks below are extern "C", so a
+ * foreign exception crossing one — a C# exception, a Swift fatalError, a C++
+ * throw — ABORTS THE PROCESS at that frame. This is deliberate: letting a
+ * foreign payload unwind through Rust frames risks memory corruption, and a
+ * deterministic abort with a usable stack is the better of two bad outcomes.
+ *
+ * SO: WRAP EVERY CALLBACK BODY IN A CATCH-ALL. In C#, every callback must also
+ * be a STATIC method (IL2CPP requires it), and under Mono any delegate passed
+ * as a function pointer must be ROOTED IN A STATIC FIELD or the collector will
+ * take it and your second callback will crash.
+ *
+ * ============================================================================
+ * BEFORE ANYTHING ELSE
+ * ============================================================================
+ *
+ * Call ps_abi_selfcheck(). It is what catches a struct layout that drifted
+ * while both sides still report the same ABI version, and it turns silent heap
+ * corruption into one log line.
+ */
+"""
+include_guard = "PLAYERSENSE_H"
+tab_width = 4
+documentation = true
+documentation_style = "doxy"
+cpp_compat = true
+usize_is_size_t = false
+
+[export]
+prefix = ""
+include = ["PsStr", "PsValue", "PsProperty", "PsStats", "PsConfig", "PsRequest", "PsHost", "PsAbiSizes"]
+
+[parse]
+parse_deps = false
+
+[defines]
