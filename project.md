@@ -3221,6 +3221,55 @@ token so the backend receives the updated verified claim. Recovery responses mus
 whether an account exists. The full behavior and Firebase references are in
 [docs/rate-limits.md §6](docs/rate-limits.md#6-firebase-owns-authentication-email-sending).
 
+### 55.1 Organization / Team
+
+The one page above that is built on the backend already. `control-api` serves the members, the
+roles they can hold and the invitations that put them there.
+
+**Two axes, two requests.** A role says *what* somebody may do; the project access list says
+*where*. A LiveOps manager on two of a studio's five games holds one role and two grants, rather
+than two roles whose names have to encode a game. They are separate routes because `all_projects`
+is the widest grant in the product and must not be given by leaving a field out of a combined
+write.
+
+**Assigning a role is not a permission.** A grantable `role.manage` would be silently equivalent
+to owner — whoever held it could write themselves a role containing everything — so assigning
+roles and changing project access are reserved to the two system roles. `member.read`,
+`member.invite` and `member.remove` *are* permissions, because none of them can widen the holder's
+own privileges: a studio can hand the members screen to an office manager without handing over the
+ability to become an admin.
+
+**An invitation is a bearer token in an inbox.** Only its SHA-256 digest is stored, it is returned
+once inside the link, and accepting it requires a Firebase account that has *verified* the address
+it was sent to — so a forwarded link does not let a colleague join in somebody else's place. What
+accepting grants is fixed when the invitation is sent, because the person sending it is the one who
+knows what the new colleague is for.
+
+Somebody who lost the mail accepts by naming the organization instead. The verified address is the
+authorisation and the token is only how a link works, so requiring it would add no fact and would
+leave a person able to see they were invited with no way to act on it.
+
+**An organization always keeps one owner**, refused at both doors: demoting the last one and
+removing them reach the identical dead end, where nobody can grant a role and support edits the
+database by hand.
+
+**Removing a member deletes the row**, unlike a revoked key or an archived flag. A membership is
+not a record of what happened; it is a live grant of access to a studio's player data, and keeping
+a disabled one would make "who can reach this" depend on a boolean somebody has to remember to
+read. §08's access review asks who *can* reach the data, which is exactly the rows that remain.
+
+What this leaves open, and it is open: the removal itself is not recorded anywhere. `audit_events`
+exists as a table and nothing writes it yet, so there is no record of who ended a membership or
+when — see [docs/compliance/10-open-items.md](docs/compliance/10-open-items.md).
+
+Sending an invitation is **the only rate-limited route on the dashboard** and the only budget in
+the product that protects somebody who is not making the request. It fails closed, because a
+message cannot be taken back. See [docs/rate-limits.md](docs/rate-limits.md).
+
+An invitation is also the one email PlayerSense sends itself; every authentication message is
+Firebase's. No provider is configured, so the message is composed and not delivered, and the
+response says so rather than sending somebody to an inbox for mail that was only logged.
+
 ---
 
 ## 56. `admin`

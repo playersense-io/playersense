@@ -36,13 +36,25 @@ func newStack(t *testing.T) *stack {
 	google := fbtest.New(t, settings.FirebaseProjectID)
 	settings.FirebaseCertificateURL = google.URL
 
+	return &stack{
+		settings: settings, app: build(settings), google: google,
+		db: globalTier(t, settings),
+	}
+}
+
+// globalTier opens the control plane a test reaches around the HTTP layer with.
+//
+// Shared with the members suite, which builds its own stack so that it can substitute a mail
+// recorder for the sender — and would otherwise have copied the skip-if-absent handling that makes
+// this suite run on a machine with no local stack.
+func globalTier(t *testing.T, settings config.Settings) *pgdb.Global {
+	t.Helper()
 	db := pgdb.NewGlobal(settings.GlobalPostgresDSN)
 	if err := db.Start(t.Context()); err != nil {
 		t.Skipf("no control plane: %v", err)
 	}
 	t.Cleanup(func() { _ = db.Close() })
-
-	return &stack{settings: settings, app: build(settings), google: google, db: db}
+	return db
 }
 
 // as returns a client signed in as one person.

@@ -71,16 +71,25 @@ What it does not yet cover:
 | **Funnels, the event explorer and the player timeline** | §31, §3.5. The last of these is the one query that legitimately reads raw |
 | **Progression buckets** | The enum member exists and nothing writes it. Progression is a game-specific milestone the SDK does not report, and deriving it would mean inventing a definition of progress on the studio's behalf |
 | **Asynchronous cold queries** | §34. §101's data-subject export no longer waits on it: [ADR 0024](../adr/0024-the-hot-window-is-a-cache-not-a-retention-limit.md) put the whole retention tier back inside `events_raw`, so the export reads the table rather than the objects — see [05](05-data-subject-rights.md) for the residue that leaves |
-| **Per-caller concurrency limits** | Rate limits are built and documented in [rate-limits.md](../rate-limits.md) — per device, per address-in-project and per project on the SDK paths, none at all on the dashboard. Authentication emails go directly to Firebase, which enforces sending protections. What is not built is a *concurrency* limit as distinct from a rate one: a request in flight is not counted. `query-api`'s per-query resource bounds are what stops a slow query holding a connection |
+| **Per-caller concurrency limits** | Rate limits are built and documented in [rate-limits.md](../rate-limits.md) — per device, per address-in-project and per project on the SDK paths, and on the dashboard exactly one: sending an invitation, per address and per organization, failing closed because a message cannot be taken back. Authentication emails go directly to Firebase, which enforces sending protections. What is not built is a *concurrency* limit as distinct from a rate one: a request in flight is not counted. `query-api`'s per-query resource bounds are what stops a slow query holding a connection |
 | **§29.13's first cap** | `first_app_version` is not capped to the top 20 values per project. The second cap no longer applies — there is no acquisition dimension to split from campaign ([ADR 0033](../adr/0033-there-is-no-attribution-dimension.md)) — and the third, only materializing pairs that exist, falls out of the GROUP BY. Alarm at 27M rows per project, per §29.13 |
 
 ## Engineering — audit and access
 
+Who is in an organization and what they may do **is** built: roles, the project access list,
+invitations and removal, on `control-api` under `member.*` — with role assignment reserved to the
+two system roles rather than made grantable
+([ADR 0035](../adr/0035-an-invitation-is-addressed-not-merely-held.md)). §08's access review reads
+the memberships and their grants, which is the question "who can reach this data".
+
+What it does not yet cover:
+
 | Item | Notes |
 |---|---|
-| **Audit log**, append-only, stored apart from the data it describes | — |
+| **Audit log**, append-only, stored apart from the data it describes | The `audit_events` table exists and **nothing writes it**. So the current state of access is answerable and its history is not: a membership that was removed leaves no record of who ended it or when, and neither does a role change. This is the gap the members surface shipped with, stated rather than implied |
 | **Admin console** with per-read reason capture | The highest-risk surface in the system; the rules it must be built under are in [08](08-security-and-sub-processors.md) |
-| **Staff access review** | Who can reach a cell, and the record of when they did |
+| **Staff access review** | Who can reach a cell, and the record of when they did. Distinct from a customer's own member list, which is built: this is PlayerSense's staff, not a studio's |
+| **Custom roles** | The schema supports them — a role is a row with a permission set, and `system` is what separates the two seeded ones. Nothing creates or edits one yet, so an organization has the six it was seeded with, renameable but not extensible |
 
 ## SDKs
 

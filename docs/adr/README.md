@@ -61,6 +61,7 @@ a record is never updated to match a drifting document, it is superseded by a ne
 | [0032](0032-a-liveops-event-carries-a-schedule.md) | A LiveOps event carries a schedule, and the server evaluates it | Accepted |
 | [0033](0033-there-is-no-attribution-dimension.md) | There is no attribution dimension | Accepted |
 | [0034](0034-a-rule-is-validated-when-it-is-written.md) | A rule is validated when it is written, not only when it is published | Accepted |
+| [0035](0035-an-invitation-is-addressed-not-merely-held.md) | An invitation is addressed, not merely held | Accepted |
 
 ## Template
 

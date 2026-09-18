@@ -1,6 +1,7 @@
 package core
 
 import (
+	"strings"
 	"time"
 
 	"muzak.dev/framework"
@@ -80,6 +81,57 @@ func ConfigBudgets(tenant *Tenant, installID string, addr string) []ratelimit.Bu
 			Window: SustainedWindow, Limit: AddressConfigSustained},
 		{Quota: "project-config-sustained", Subject: tenant.ProjectID,
 			Window: SustainedWindow, Limit: ProjectConfigSustained},
+	}
+}
+
+// The invitation budgets, which are the only ones on the dashboard and the only ones that are
+// not about load.
+//
+// Every other budget in this file protects the platform from a caller. These protect **somebody
+// who is not making the request**: an invitation costs a stranger's attention, this deployment's
+// sending reputation, and — once a provider is configured — money. That is a different argument
+// from the rest of docs/rate-limits.md, and it is why a dashboard that is otherwise deliberately
+// unlimited has these two.
+//
+// # Both are derived from what a person does, not from what a machine can do
+//
+// A studio inviting one colleague sends one message and, if the first went to a typo, a second.
+// Three an hour to one address is generous for that and is nowhere near enough to use somebody's
+// inbox as a weapon. An organization onboarding a whole team invites in a sitting — thirty an hour
+// covers a studio larger than the member cap allows, so the limit can only be reached by something
+// that is not onboarding.
+//
+// # These fail closed
+//
+// Unlike the SDK paths, where §65's rule is that losing Valkey costs speed rather than data.
+// A message cannot be taken back, so when the counter cannot be read the answer is no.
+const (
+	// InvitationsPerAddress is how often one inbox may be written to.
+	InvitationsPerAddress = 3
+
+	// InvitationsPerOrganization bounds one studio's sending, so a compromised account cannot
+	// use the product as a mailer.
+	InvitationsPerOrganization = 30
+
+	// InvitationWindow is the hour both are counted over. Long enough that a burst of
+	// onboarding is one window rather than a queue somebody waits through.
+	InvitationWindow = time.Hour
+)
+
+// InvitationBudgets is what one invitation is counted against, narrowest first.
+//
+// The order is the message: a person hitting the address limit is told about the address, which is
+// the thing they can fix by checking the spelling, rather than being told their organization is
+// busy.
+//
+// The address is lowered so that two spellings of one inbox share a counter — the alternative is a
+// limit anybody can lift by pressing shift.
+func InvitationBudgets(orgSlug, email string) []ratelimit.Budget {
+	return []ratelimit.Budget{
+		{Quota: "invitation-address", Subject: strings.ToLower(strings.TrimSpace(email)),
+			Window: InvitationWindow, Limit: InvitationsPerAddress},
+		{Quota: "invitation-organization", Subject: orgSlug,
+			Window: InvitationWindow, Limit: InvitationsPerOrganization},
 	}
 }
 

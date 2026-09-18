@@ -13,10 +13,11 @@ that breaks it is wrong however sensible it looks on its own.
 |---|---|---|
 | `ingest-api` | device, address-in-project, project | a runaway device must not spend the game's budget |
 | `config-api` | device, address-in-project, project | the same, at a tenth of the volume |
-| `control-api` | **nothing** | authentication email actions go directly to Firebase |
+| `control-api` | **one route only**: sending an invitation, per address and per organization | the cost lands on somebody who is not making the request |
 | `query-api` | **nothing** | every query is already bounded individually |
 
-Two of those are absences, and both are deliberate.
+One of those is an absence, and it is deliberate. The other is a single exception that proves
+the rule rather than a retreat from it.
 
 ### The dashboard is not rate limited
 
@@ -30,6 +31,35 @@ sign-in is verified — a request carrying a bad token costs one RSA verificatio
 cached key (**96µs**, measured) and no database work at all, because the verification fails
 before any lookup. An unauthenticated flood is a problem for the platform the service runs
 on, which already has one; it is not a problem a per-caller budget solves.
+
+### Except for the one route whose cost is somebody else's
+
+Sending an invitation is the only write in the control plane that reaches outside the system.
+The person it can hurt is not the person making the request: it costs a stranger's attention,
+this deployment's sending reputation, and — once a provider is configured — money. That is a
+different argument from load, and it is the entire reason this surface has one budget when
+everything else about it deliberately has none.
+
+| budget | limit | derivation |
+|---|---|---|
+| per address | **3 / hour** | a studio inviting one colleague sends one message, and a second if the first went to a typo. Past that it is not filling a seat |
+| per organization | **30 / hour** | a whole team is onboarded in a sitting. Thirty covers a studio larger than the member cap allows, so reaching it means something other than onboarding |
+
+The address budget is counted first, so the refusal names the address — which is the thing the
+sender can act on by checking the spelling — rather than telling them their organization is busy.
+Both are counted even when the first is over, for the reason every other budget here is: a
+counter that stops being incremented stops being a measurement.
+
+Two spellings of one inbox share a counter, because a limit anybody can lift by pressing shift
+is not a limit.
+
+**This one fails closed.** Every SDK-path limit fails open, because §65's rule is that losing
+Valkey costs speed rather than data — right when the thing at risk is a batch of events. A
+message cannot be taken back, so when the counter cannot be read the answer is no.
+
+There is a second, separate rule beside the budget: **one outstanding invitation per address per
+organization.** Not a rate limit at all — two live tokens for one inbox would mean revoking "the"
+invitation leaves the other one working.
 
 ### Queries are bounded, not counted
 
@@ -162,6 +192,16 @@ The dashboard calls Firebase's browser SDK directly for authentication emails. T
 backend verifies ID tokens and enforces permissions; resolving a user or reading a dashboard
 does not send email. There is no duplicate email budget in Valkey and no backend Web API key
 or Identity Toolkit URL setting.
+
+**An invitation is not an authentication email**, which is why it is the one message PlayerSense
+sends itself (`internal/mail`). Firebase cannot send it: the message is about an organization, and
+Firebase does not know what one is. It carries no credential for an account — only a token for a
+membership — so none of the reasoning above applies to it, and it has a budget of its own (§1).
+
+No provider is configured, so `MAIL_SENDER=log` composes the message and delivers nothing, saying
+so in the line it writes and in the `delivered` member of the response. The body carries the
+token, so it is logged only under `MAIL_LOG_BODY=true` — a development setting, because a token in
+a log outlives the invitation's expiry and is readable by people who were never invited.
 
 The dashboard is not implemented yet. Its authentication email behavior is specified here:
 

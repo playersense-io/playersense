@@ -28,6 +28,13 @@ func testSettings(t *testing.T) config.Settings {
 	settings.Addr = ":0"
 	// A passing run should print nothing.
 	settings.LogFormat = "none"
+	// Limits off unless a test is about them.
+	//
+	// The invitation budget is three per address per *hour*, and its counters live in Valkey
+	// and outlive the process — so a suite that left them on would spend the next run's budget
+	// and fail somewhere unrelated to whatever was being changed. TestAnInboxCannotBeFlooded
+	// turns them back on for itself.
+	settings.RateLimitDisabled = true
 	return settings
 }
 

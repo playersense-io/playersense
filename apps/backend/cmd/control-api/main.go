@@ -17,7 +17,9 @@ import (
 	"playersense.dev/backend/internal/config"
 	"playersense.dev/backend/internal/core"
 	"playersense.dev/backend/internal/firebase"
+	"playersense.dev/backend/internal/mail"
 	"playersense.dev/backend/internal/pgdb"
+	"playersense.dev/backend/internal/ratelimit"
 	"playersense.dev/backend/internal/routers"
 	"playersense.dev/backend/internal/valkey"
 )
@@ -34,7 +36,12 @@ func main() {
 //
 // It is a function rather than inline in main so that the test suite exercises exactly
 // the application that runs, rather than a second one assembled to look like it.
-func build(settings config.Settings) *muzak.App {
+//
+// `overrides` are appended after everything below, so a later declaration of the same type wins.
+// It exists for one thing: an invitation's token leaves this process only inside the email, so a
+// test of the accept flow has to be able to substitute a [mail.Recorder] for the sender. Anything
+// a deployment needs is a setting, not an override.
+func build(settings config.Settings, overrides ...muzak.RouterOption) *muzak.App {
 	// The control API speaks only to the global tier (§99): accounts, projects, keys and
 	// cells. Anything naming a player lives in a cell's own database, and this service
 	// has no connection to one.
@@ -62,6 +69,18 @@ func build(settings config.Settings) *muzak.App {
 	verifier := firebase.NewVerifier(settings.FirebaseProjectID)
 	verifier.Keys.URL = settings.FirebaseCertificateURL
 
+	// The one thing this service sends itself. Every authentication email is Firebase's
+	// (docs/rate-limits.md §6); this is for invitations, which Firebase cannot send because it
+	// does not know what an organization is.
+	//
+	// An unknown MAIL_SENDER is fatal rather than a fallback to the placeholder: a deployment
+	// that meant to name a provider and mistyped it would otherwise start cleanly and deliver
+	// nothing at all.
+	sender, err := mail.New(settings.MailSender, nil, settings.MailLogBody)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	resolver := core.NewKeyResolver(ctrl, cache, core.KeyResolverOptions{
 		TTL:         settings.KeyCacheTTL,
 		NegativeTTL: settings.KeyCacheNegativeTTL,
@@ -69,7 +88,7 @@ func build(settings config.Settings) *muzak.App {
 		MaxLocal:    settings.KeyCacheMaxEntries,
 	})
 
-	app := muzak.New(muzak.AppOptions{
+	options := muzak.AppOptions{
 		Title:       settings.AppName,
 		Version:     "0.1.0",
 		Description: "The PlayerSense control plane: organizations, projects, environments and API keys.",
@@ -80,6 +99,8 @@ func build(settings config.Settings) *muzak.App {
 			{Name: "organizations", Description: "The billing and ownership boundary."},
 			{Name: "projects", Description: "One game, with its environments."},
 			{Name: "api-keys", Description: "Credentials scoped to one environment."},
+			{Name: "members", Description: "Who is in an organization, and what they may do."},
+			{Name: "liveops", Description: "What a studio edits, and publishing it."},
 		},
 
 		Addr: settings.Addr,
@@ -99,7 +120,9 @@ func build(settings config.Settings) *muzak.App {
 			Level:     slog.LevelInfo,
 			SkipPaths: []string{"/healthz"},
 		},
-	},
+	}
+
+	shared := []muzak.RouterOption{
 		// Published by value, and started and stopped by the application because it
 		// implements Lifecycle.
 		muzak.WithSingleton(ctrl),
@@ -113,17 +136,43 @@ func build(settings config.Settings) *muzak.App {
 		// reach Google fails while it is starting rather than on somebody's first
 		// sign-in.
 		muzak.WithSingleton(verifier, muzak.LifecycleFunc("firebase keys", verifier.Start, nil)),
-	)
 
-	// No rate limit on the dashboard, deliberately.
+		// Published as the interface, so a handler cannot reach past it to a provider's own
+		// client and the suite can substitute a recorder.
+		muzak.WithSingleton(sender),
+
+		// One limiter, for one route.
+		//
+		// The dashboard is deliberately unlimited (below), and this is the exception that
+		// proves the rule rather than a retreat from it: sending an invitation is the only
+		// write here whose cost lands on somebody who is not making the request — a
+		// stranger's inbox, and this deployment's sending reputation.
+		//
+		// **failOpen is false**, unlike both SDK paths. §65's rule is that losing Valkey
+		// costs speed rather than data, which is right when the thing at risk is a batch of
+		// events; a message cannot be taken back, so when the counter cannot be read the
+		// answer is no.
+		muzak.WithSingleton(ratelimit.New(
+			valkey.NewRateLimitStorage(cache), false, !settings.RateLimitDisabled)),
+	}
+
+	// Appended last, so a later declaration of the same type wins.
+	app := muzak.New(options, append(shared, overrides...)...)
+
+	// No application-wide rate limit on the dashboard, deliberately.
 	//
-	// A rate limit here can only ever inconvenience a customer: the surface is authenticated,
-	// low-volume and used by people rather than programs, and nothing expensive happens before
-	// the sign-in is verified — a request with a bad token costs one RSA verification against
-	// a cached key and no database work at all.
+	// A limit on every route here can only ever inconvenience a customer: the surface is
+	// authenticated, low-volume and used by people rather than programs, and nothing expensive
+	// happens before the sign-in is verified — a request with a bad token costs one RSA
+	// verification against a cached key and no database work at all.
 	//
-	// The dashboard sends authentication emails directly through Firebase, which enforces
-	// its own sending quotas and abuse protections. See docs/rate-limits.md.
+	// The limiter registered above is therefore not a policy this application applies; it is a
+	// dependency exactly one handler asks for. Sending an invitation is the only write in the
+	// control plane whose cost lands on somebody who is not making the request, which is a
+	// different argument from load and the reason it is the one exception.
+	//
+	// Authentication emails go directly to Firebase, which enforces its own sending
+	// protections. See docs/rate-limits.md.
 
 	// Operational routes answer without a credential; everything else sits behind a
 	// signed-in person. Both decisions are made here rather than inside the routers, which
@@ -134,6 +183,7 @@ func build(settings config.Settings) *muzak.App {
 	api.Include(routers.Organizations())
 	api.Include(routers.Projects())
 	api.Include(routers.Keys())
+	api.Include(routers.Members())
 	api.Include(routers.Authoring())
 	api.Include(routers.LiveConfig())
 
@@ -146,6 +196,11 @@ func build(settings config.Settings) *muzak.App {
 	// check against. A route inside this subtree that forgets its core.Require still
 	// requires a valid sign-in; it simply checks nothing further, which is the right
 	// failure direction for the two routes that deliberately need no permission.
+	// The invitation routes the *invited* person uses, which name no organization: there is no
+	// membership yet, which is the whole point. Mounted in the same subtree so they resolve a
+	// signed-in person, and guarded individually rather than by a permission — see the router.
+	api.Include(routers.Invitations())
+
 	app.Include(api,
 		muzak.WithPrefix("/v1"),
 		muzak.Needs(core.ResolveUser),

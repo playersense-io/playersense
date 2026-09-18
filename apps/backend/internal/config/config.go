@@ -392,6 +392,37 @@ type Settings struct {
 	// over a truncated file that claims to be complete.
 	ExportMaxRows uint64 `env:"EXPORT_MAX_ROWS" default:"1000000"`
 
+	// DashboardURL is where an invitation link points.
+	//
+	// The backend composes the link because the backend holds the token, so it has to know
+	// the address of a front end that does not exist yet (§88's Nuxt client). Wrong here
+	// means an invitation nobody can accept, which is why it is configuration rather than a
+	// constant.
+	DashboardURL string `env:"DASHBOARD_URL" default:"http://localhost:3000"`
+
+	// InvitationTTL is how long an invitation link works.
+	//
+	// Three days. An invitation is a bearer credential sitting in an inbox, so the window in
+	// which one is useful should be about as long as it takes somebody to read their mail
+	// over a weekend — and no longer, because the thing that makes a stale invitation
+	// dangerous is that nobody remembers it exists.
+	InvitationTTL time.Duration `env:"INVITATION_TTL" default:"72h"`
+
+	// MailSender picks how PlayerSense's own mail is delivered: `log` is the placeholder.
+	//
+	// Only invitations go through it — every authentication email is Firebase's
+	// (docs/rate-limits.md §6). An unknown name fails at start-up rather than falling back,
+	// because a deployment that meant to name a provider and mistyped it would otherwise
+	// come up clean and deliver nothing.
+	MailSender string `env:"MAIL_SENDER" default:"log"`
+
+	// MailLogBody writes the message body to the log, for a developer with no inbox.
+	//
+	// **Development only.** An invitation body contains the token, which is a bearer
+	// credential: in a log it outlives the invitation's expiry, reaches whatever aggregates
+	// logs, and is readable by people who were never invited.
+	MailLogBody bool `env:"MAIL_LOG_BODY" default:"false"`
+
 	// LogFormat is auto, console, json or none.
 	//
 	// Auto picks JSON when the output is not a terminal, which is right for a production

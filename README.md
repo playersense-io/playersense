@@ -84,7 +84,47 @@ deliberately no longer does — a secret cannot say who is asking, and every ans
 on who that is. Each route then names the permission it needs, and the refusal names the one
 that was missing.
 
-Organizations, projects, API keys — and **the three tables a studio edits**:
+Organizations, projects, API keys, **the people in an organization** — and **the three tables a
+studio edits**:
+
+```
+GET                         /v1/organizations/{org}/roles
+GET                         /v1/organizations/{org}/members
+GET                         /v1/organizations/{org}/members/{member_id}
+       PUT                  /v1/organizations/{org}/members/{member_id}/role
+       PUT                  /v1/organizations/{org}/members/{member_id}/access
+              DELETE        /v1/organizations/{org}/members/{member_id}
+GET    POST                 /v1/organizations/{org}/invitations
+              DELETE        /v1/organizations/{org}/invitations/{invitation_id}
+GET                         /v1/invitations              (waiting for you)
+       POST                 /v1/invitations/accept
+```
+
+Reading needs `member.read`, inviting and revoking `member.invite`, removing `member.remove`.
+The two `PUT`s need **an owner or an admin** and no permission at all: a grantable "manage roles"
+would be silently equivalent to owner, because whoever held it could write themselves a role
+containing everything.
+
+**A role says what, project access says where** — two routes, because `all_projects` is the widest
+grant in the product and must not be given by omitting a field from a combined write.
+
+**An invitation is a token in an inbox.** Only its SHA-256 digest is stored, it is shown once in
+the link, and accepting it needs a Firebase account that has *verified* the address it was sent to
+— so forwarding it does not let a colleague join in somebody else's place. Somebody who lost the
+mail accepts by naming the organization instead; the verified address is the authorisation and the
+token is only how a link works.
+
+**Nothing is actually emailed yet.** `MAIL_SENDER=log` composes the message and says it delivered
+nothing, and the response's `delivered` member says the same — set `MAIL_LOG_BODY=true` to get the
+link out of a local stack. Invitations are the one rate-limited route on the dashboard, three per
+address per hour, failing closed ([docs/rate-limits.md](docs/rate-limits.md)).
+
+The last owner of an organization cannot be removed or demoted, by either door.
+
+Removing a member **deletes** the row, unlike a revoked key or an archived flag: a membership is
+not a record of what happened, it is a live grant of access to player data.
+
+And **the three tables a studio edits**:
 
 ```
 GET    POST                 /v1/organizations/{org}/projects/{project}/segments
