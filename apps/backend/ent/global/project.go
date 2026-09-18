@@ -61,9 +61,13 @@ type ProjectEdges struct {
 	LiveopsEvents []*LiveOpsEvent `json:"liveops_events,omitempty"`
 	// ConfigVersions holds the value of the config_versions edge.
 	ConfigVersions []*ConfigVersion `json:"config_versions,omitempty"`
+	// MemberAccess holds the value of the member_access edge.
+	MemberAccess []*MemberProject `json:"member_access,omitempty"`
+	// UsageDaily holds the value of the usage_daily edge.
+	UsageDaily []*UsageDaily `json:"usage_daily,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [7]bool
+	loadedTypes [9]bool
 }
 
 // OrganizationOrErr returns the Organization value or an error if the edge
@@ -131,6 +135,24 @@ func (e ProjectEdges) ConfigVersionsOrErr() ([]*ConfigVersion, error) {
 		return e.ConfigVersions, nil
 	}
 	return nil, &NotLoadedError{edge: "config_versions"}
+}
+
+// MemberAccessOrErr returns the MemberAccess value or an error if the edge
+// was not loaded in eager-loading.
+func (e ProjectEdges) MemberAccessOrErr() ([]*MemberProject, error) {
+	if e.loadedTypes[7] {
+		return e.MemberAccess, nil
+	}
+	return nil, &NotLoadedError{edge: "member_access"}
+}
+
+// UsageDailyOrErr returns the UsageDaily value or an error if the edge
+// was not loaded in eager-loading.
+func (e ProjectEdges) UsageDailyOrErr() ([]*UsageDaily, error) {
+	if e.loadedTypes[8] {
+		return e.UsageDaily, nil
+	}
+	return nil, &NotLoadedError{edge: "usage_daily"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -267,6 +289,16 @@ func (_m *Project) QueryLiveopsEvents() *LiveOpsEventQuery {
 // QueryConfigVersions queries the "config_versions" edge of the Project entity.
 func (_m *Project) QueryConfigVersions() *ConfigVersionQuery {
 	return NewProjectClient(_m.config).QueryConfigVersions(_m)
+}
+
+// QueryMemberAccess queries the "member_access" edge of the Project entity.
+func (_m *Project) QueryMemberAccess() *MemberProjectQuery {
+	return NewProjectClient(_m.config).QueryMemberAccess(_m)
+}
+
+// QueryUsageDaily queries the "usage_daily" edge of the Project entity.
+func (_m *Project) QueryUsageDaily() *UsageDailyQuery {
+	return NewProjectClient(_m.config).QueryUsageDaily(_m)
 }
 
 // Update returns a builder for updating this Project.

@@ -119,6 +119,9 @@ func (_u *InvitationUpdate) check() error {
 	if _u.mutation.OrganizationCleared() && len(_u.mutation.OrganizationIDs()) > 0 {
 		return errors.New(`global: clearing a required unique edge "Invitation.organization"`)
 	}
+	if _u.mutation.RoleCleared() && len(_u.mutation.RoleIDs()) > 0 {
+		return errors.New(`global: clearing a required unique edge "Invitation.role"`)
+	}
 	return nil
 }
 
@@ -269,6 +272,9 @@ func (_u *InvitationUpdateOne) check() error {
 	}
 	if _u.mutation.OrganizationCleared() && len(_u.mutation.OrganizationIDs()) > 0 {
 		return errors.New(`global: clearing a required unique edge "Invitation.organization"`)
+	}
+	if _u.mutation.RoleCleared() && len(_u.mutation.RoleIDs()) > 0 {
+		return errors.New(`global: clearing a required unique edge "Invitation.role"`)
 	}
 	return nil
 }

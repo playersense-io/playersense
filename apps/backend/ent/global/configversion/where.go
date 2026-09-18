@@ -86,9 +86,19 @@ func Version(v int) predicate.ConfigVersion {
 	return predicate.ConfigVersion(sql.FieldEQ(FieldVersion, v))
 }
 
-// PublishedBy applies equality check predicate on the "published_by" field. It's identical to PublishedByEQ.
-func PublishedBy(v string) predicate.ConfigVersion {
-	return predicate.ConfigVersion(sql.FieldEQ(FieldPublishedBy, v))
+// PublishedByUserID applies equality check predicate on the "published_by_user_id" field. It's identical to PublishedByUserIDEQ.
+func PublishedByUserID(v int) predicate.ConfigVersion {
+	return predicate.ConfigVersion(sql.FieldEQ(FieldPublishedByUserID, v))
+}
+
+// PublishedByKeyID applies equality check predicate on the "published_by_key_id" field. It's identical to PublishedByKeyIDEQ.
+func PublishedByKeyID(v int) predicate.ConfigVersion {
+	return predicate.ConfigVersion(sql.FieldEQ(FieldPublishedByKeyID, v))
+}
+
+// PublishedByLabel applies equality check predicate on the "published_by_label" field. It's identical to PublishedByLabelEQ.
+func PublishedByLabel(v string) predicate.ConfigVersion {
+	return predicate.ConfigVersion(sql.FieldEQ(FieldPublishedByLabel, v))
 }
 
 // Note applies equality check predicate on the "note" field. It's identical to NoteEQ.
@@ -296,69 +306,129 @@ func VersionLTE(v int) predicate.ConfigVersion {
 	return predicate.ConfigVersion(sql.FieldLTE(FieldVersion, v))
 }
 
-// PublishedByEQ applies the EQ predicate on the "published_by" field.
-func PublishedByEQ(v string) predicate.ConfigVersion {
-	return predicate.ConfigVersion(sql.FieldEQ(FieldPublishedBy, v))
+// PublishedByUserIDEQ applies the EQ predicate on the "published_by_user_id" field.
+func PublishedByUserIDEQ(v int) predicate.ConfigVersion {
+	return predicate.ConfigVersion(sql.FieldEQ(FieldPublishedByUserID, v))
 }
 
-// PublishedByNEQ applies the NEQ predicate on the "published_by" field.
-func PublishedByNEQ(v string) predicate.ConfigVersion {
-	return predicate.ConfigVersion(sql.FieldNEQ(FieldPublishedBy, v))
+// PublishedByUserIDNEQ applies the NEQ predicate on the "published_by_user_id" field.
+func PublishedByUserIDNEQ(v int) predicate.ConfigVersion {
+	return predicate.ConfigVersion(sql.FieldNEQ(FieldPublishedByUserID, v))
 }
 
-// PublishedByIn applies the In predicate on the "published_by" field.
-func PublishedByIn(vs ...string) predicate.ConfigVersion {
-	return predicate.ConfigVersion(sql.FieldIn(FieldPublishedBy, vs...))
+// PublishedByUserIDIn applies the In predicate on the "published_by_user_id" field.
+func PublishedByUserIDIn(vs ...int) predicate.ConfigVersion {
+	return predicate.ConfigVersion(sql.FieldIn(FieldPublishedByUserID, vs...))
 }
 
-// PublishedByNotIn applies the NotIn predicate on the "published_by" field.
-func PublishedByNotIn(vs ...string) predicate.ConfigVersion {
-	return predicate.ConfigVersion(sql.FieldNotIn(FieldPublishedBy, vs...))
+// PublishedByUserIDNotIn applies the NotIn predicate on the "published_by_user_id" field.
+func PublishedByUserIDNotIn(vs ...int) predicate.ConfigVersion {
+	return predicate.ConfigVersion(sql.FieldNotIn(FieldPublishedByUserID, vs...))
 }
 
-// PublishedByGT applies the GT predicate on the "published_by" field.
-func PublishedByGT(v string) predicate.ConfigVersion {
-	return predicate.ConfigVersion(sql.FieldGT(FieldPublishedBy, v))
+// PublishedByUserIDIsNil applies the IsNil predicate on the "published_by_user_id" field.
+func PublishedByUserIDIsNil() predicate.ConfigVersion {
+	return predicate.ConfigVersion(sql.FieldIsNull(FieldPublishedByUserID))
 }
 
-// PublishedByGTE applies the GTE predicate on the "published_by" field.
-func PublishedByGTE(v string) predicate.ConfigVersion {
-	return predicate.ConfigVersion(sql.FieldGTE(FieldPublishedBy, v))
+// PublishedByUserIDNotNil applies the NotNil predicate on the "published_by_user_id" field.
+func PublishedByUserIDNotNil() predicate.ConfigVersion {
+	return predicate.ConfigVersion(sql.FieldNotNull(FieldPublishedByUserID))
 }
 
-// PublishedByLT applies the LT predicate on the "published_by" field.
-func PublishedByLT(v string) predicate.ConfigVersion {
-	return predicate.ConfigVersion(sql.FieldLT(FieldPublishedBy, v))
+// PublishedByKeyIDEQ applies the EQ predicate on the "published_by_key_id" field.
+func PublishedByKeyIDEQ(v int) predicate.ConfigVersion {
+	return predicate.ConfigVersion(sql.FieldEQ(FieldPublishedByKeyID, v))
 }
 
-// PublishedByLTE applies the LTE predicate on the "published_by" field.
-func PublishedByLTE(v string) predicate.ConfigVersion {
-	return predicate.ConfigVersion(sql.FieldLTE(FieldPublishedBy, v))
+// PublishedByKeyIDNEQ applies the NEQ predicate on the "published_by_key_id" field.
+func PublishedByKeyIDNEQ(v int) predicate.ConfigVersion {
+	return predicate.ConfigVersion(sql.FieldNEQ(FieldPublishedByKeyID, v))
 }
 
-// PublishedByContains applies the Contains predicate on the "published_by" field.
-func PublishedByContains(v string) predicate.ConfigVersion {
-	return predicate.ConfigVersion(sql.FieldContains(FieldPublishedBy, v))
+// PublishedByKeyIDIn applies the In predicate on the "published_by_key_id" field.
+func PublishedByKeyIDIn(vs ...int) predicate.ConfigVersion {
+	return predicate.ConfigVersion(sql.FieldIn(FieldPublishedByKeyID, vs...))
 }
 
-// PublishedByHasPrefix applies the HasPrefix predicate on the "published_by" field.
-func PublishedByHasPrefix(v string) predicate.ConfigVersion {
-	return predicate.ConfigVersion(sql.FieldHasPrefix(FieldPublishedBy, v))
+// PublishedByKeyIDNotIn applies the NotIn predicate on the "published_by_key_id" field.
+func PublishedByKeyIDNotIn(vs ...int) predicate.ConfigVersion {
+	return predicate.ConfigVersion(sql.FieldNotIn(FieldPublishedByKeyID, vs...))
 }
 
-// PublishedByHasSuffix applies the HasSuffix predicate on the "published_by" field.
-func PublishedByHasSuffix(v string) predicate.ConfigVersion {
-	return predicate.ConfigVersion(sql.FieldHasSuffix(FieldPublishedBy, v))
+// PublishedByKeyIDIsNil applies the IsNil predicate on the "published_by_key_id" field.
+func PublishedByKeyIDIsNil() predicate.ConfigVersion {
+	return predicate.ConfigVersion(sql.FieldIsNull(FieldPublishedByKeyID))
 }
 
-// PublishedByEqualFold applies the EqualFold predicate on the "published_by" field.
-func PublishedByEqualFold(v string) predicate.ConfigVersion {
-	return predicate.ConfigVersion(sql.FieldEqualFold(FieldPublishedBy, v))
+// PublishedByKeyIDNotNil applies the NotNil predicate on the "published_by_key_id" field.
+func PublishedByKeyIDNotNil() predicate.ConfigVersion {
+	return predicate.ConfigVersion(sql.FieldNotNull(FieldPublishedByKeyID))
 }
 
-// PublishedByContainsFold applies the ContainsFold predicate on the "published_by" field.
-func PublishedByContainsFold(v string) predicate.ConfigVersion {
-	return predicate.ConfigVersion(sql.FieldContainsFold(FieldPublishedBy, v))
+// PublishedByLabelEQ applies the EQ predicate on the "published_by_label" field.
+func PublishedByLabelEQ(v string) predicate.ConfigVersion {
+	return predicate.ConfigVersion(sql.FieldEQ(FieldPublishedByLabel, v))
+}
+
+// PublishedByLabelNEQ applies the NEQ predicate on the "published_by_label" field.
+func PublishedByLabelNEQ(v string) predicate.ConfigVersion {
+	return predicate.ConfigVersion(sql.FieldNEQ(FieldPublishedByLabel, v))
+}
+
+// PublishedByLabelIn applies the In predicate on the "published_by_label" field.
+func PublishedByLabelIn(vs ...string) predicate.ConfigVersion {
+	return predicate.ConfigVersion(sql.FieldIn(FieldPublishedByLabel, vs...))
+}
+
+// PublishedByLabelNotIn applies the NotIn predicate on the "published_by_label" field.
+func PublishedByLabelNotIn(vs ...string) predicate.ConfigVersion {
+	return predicate.ConfigVersion(sql.FieldNotIn(FieldPublishedByLabel, vs...))
+}
+
+// PublishedByLabelGT applies the GT predicate on the "published_by_label" field.
+func PublishedByLabelGT(v string) predicate.ConfigVersion {
+	return predicate.ConfigVersion(sql.FieldGT(FieldPublishedByLabel, v))
+}
+
+// PublishedByLabelGTE applies the GTE predicate on the "published_by_label" field.
+func PublishedByLabelGTE(v string) predicate.ConfigVersion {
+	return predicate.ConfigVersion(sql.FieldGTE(FieldPublishedByLabel, v))
+}
+
+// PublishedByLabelLT applies the LT predicate on the "published_by_label" field.
+func PublishedByLabelLT(v string) predicate.ConfigVersion {
+	return predicate.ConfigVersion(sql.FieldLT(FieldPublishedByLabel, v))
+}
+
+// PublishedByLabelLTE applies the LTE predicate on the "published_by_label" field.
+func PublishedByLabelLTE(v string) predicate.ConfigVersion {
+	return predicate.ConfigVersion(sql.FieldLTE(FieldPublishedByLabel, v))
+}
+
+// PublishedByLabelContains applies the Contains predicate on the "published_by_label" field.
+func PublishedByLabelContains(v string) predicate.ConfigVersion {
+	return predicate.ConfigVersion(sql.FieldContains(FieldPublishedByLabel, v))
+}
+
+// PublishedByLabelHasPrefix applies the HasPrefix predicate on the "published_by_label" field.
+func PublishedByLabelHasPrefix(v string) predicate.ConfigVersion {
+	return predicate.ConfigVersion(sql.FieldHasPrefix(FieldPublishedByLabel, v))
+}
+
+// PublishedByLabelHasSuffix applies the HasSuffix predicate on the "published_by_label" field.
+func PublishedByLabelHasSuffix(v string) predicate.ConfigVersion {
+	return predicate.ConfigVersion(sql.FieldHasSuffix(FieldPublishedByLabel, v))
+}
+
+// PublishedByLabelEqualFold applies the EqualFold predicate on the "published_by_label" field.
+func PublishedByLabelEqualFold(v string) predicate.ConfigVersion {
+	return predicate.ConfigVersion(sql.FieldEqualFold(FieldPublishedByLabel, v))
+}
+
+// PublishedByLabelContainsFold applies the ContainsFold predicate on the "published_by_label" field.
+func PublishedByLabelContainsFold(v string) predicate.ConfigVersion {
+	return predicate.ConfigVersion(sql.FieldContainsFold(FieldPublishedByLabel, v))
 }
 
 // NoteEQ applies the EQ predicate on the "note" field.
@@ -464,6 +534,52 @@ func HasEnvironment() predicate.ConfigVersion {
 func HasEnvironmentWith(preds ...predicate.Environment) predicate.ConfigVersion {
 	return predicate.ConfigVersion(func(s *sql.Selector) {
 		step := newEnvironmentStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasPublishedByUser applies the HasEdge predicate on the "published_by_user" edge.
+func HasPublishedByUser() predicate.ConfigVersion {
+	return predicate.ConfigVersion(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, PublishedByUserTable, PublishedByUserColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasPublishedByUserWith applies the HasEdge predicate on the "published_by_user" edge with a given conditions (other predicates).
+func HasPublishedByUserWith(preds ...predicate.User) predicate.ConfigVersion {
+	return predicate.ConfigVersion(func(s *sql.Selector) {
+		step := newPublishedByUserStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasPublishedByKey applies the HasEdge predicate on the "published_by_key" edge.
+func HasPublishedByKey() predicate.ConfigVersion {
+	return predicate.ConfigVersion(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, PublishedByKeyTable, PublishedByKeyColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasPublishedByKeyWith applies the HasEdge predicate on the "published_by_key" edge with a given conditions (other predicates).
+func HasPublishedByKeyWith(preds ...predicate.APIKey) predicate.ConfigVersion {
+	return predicate.ConfigVersion(func(s *sql.Selector) {
+		step := newPublishedByKeyStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

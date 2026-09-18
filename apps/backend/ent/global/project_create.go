@@ -16,9 +16,11 @@ import (
 	"playersense.dev/backend/ent/global/environment"
 	"playersense.dev/backend/ent/global/featureflag"
 	"playersense.dev/backend/ent/global/liveopsevent"
+	"playersense.dev/backend/ent/global/memberproject"
 	"playersense.dev/backend/ent/global/organization"
 	"playersense.dev/backend/ent/global/project"
 	"playersense.dev/backend/ent/global/segment"
+	"playersense.dev/backend/ent/global/usagedaily"
 )
 
 // ProjectCreate is the builder for creating a Project entity.
@@ -211,6 +213,36 @@ func (_c *ProjectCreate) AddConfigVersions(v ...*ConfigVersion) *ProjectCreate {
 		ids[i] = v[i].ID
 	}
 	return _c.AddConfigVersionIDs(ids...)
+}
+
+// AddMemberAccesIDs adds the "member_access" edge to the MemberProject entity by IDs.
+func (_c *ProjectCreate) AddMemberAccesIDs(ids ...int) *ProjectCreate {
+	_c.mutation.AddMemberAccesIDs(ids...)
+	return _c
+}
+
+// AddMemberAccess adds the "member_access" edges to the MemberProject entity.
+func (_c *ProjectCreate) AddMemberAccess(v ...*MemberProject) *ProjectCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddMemberAccesIDs(ids...)
+}
+
+// AddUsageDailyIDs adds the "usage_daily" edge to the UsageDaily entity by IDs.
+func (_c *ProjectCreate) AddUsageDailyIDs(ids ...int) *ProjectCreate {
+	_c.mutation.AddUsageDailyIDs(ids...)
+	return _c
+}
+
+// AddUsageDaily adds the "usage_daily" edges to the UsageDaily entity.
+func (_c *ProjectCreate) AddUsageDaily(v ...*UsageDaily) *ProjectCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddUsageDailyIDs(ids...)
 }
 
 // Mutation returns the ProjectMutation object of the builder.
@@ -487,6 +519,38 @@ func (_c *ProjectCreate) createSpec() (*Project, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(configversion.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.MemberAccessIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.MemberAccessTable,
+			Columns: []string{project.MemberAccessColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(memberproject.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.UsageDailyIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.UsageDailyTable,
+			Columns: []string{project.UsageDailyColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(usagedaily.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

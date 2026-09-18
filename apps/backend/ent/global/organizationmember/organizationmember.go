@@ -3,7 +3,6 @@
 package organizationmember
 
 import (
-	"fmt"
 	"time"
 
 	"entgo.io/ent/dialect/sql"
@@ -22,18 +21,24 @@ const (
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
 	FieldUpdatedAt = "updated_at"
-	// FieldRole holds the string denoting the role field in the database.
-	FieldRole = "role"
 	// FieldOrganizationID holds the string denoting the organization_id field in the database.
 	FieldOrganizationID = "organization_id"
 	// FieldUserID holds the string denoting the user_id field in the database.
 	FieldUserID = "user_id"
+	// FieldRoleID holds the string denoting the role_id field in the database.
+	FieldRoleID = "role_id"
+	// FieldAllProjects holds the string denoting the all_projects field in the database.
+	FieldAllProjects = "all_projects"
 	// FieldJoinedAt holds the string denoting the joined_at field in the database.
 	FieldJoinedAt = "joined_at"
 	// EdgeOrganization holds the string denoting the organization edge name in mutations.
 	EdgeOrganization = "organization"
 	// EdgeUser holds the string denoting the user edge name in mutations.
 	EdgeUser = "user"
+	// EdgeRole holds the string denoting the role edge name in mutations.
+	EdgeRole = "role"
+	// EdgeProjectAccess holds the string denoting the project_access edge name in mutations.
+	EdgeProjectAccess = "project_access"
 	// Table holds the table name of the organizationmember in the database.
 	Table = "organization_members"
 	// OrganizationTable is the table that holds the organization relation/edge.
@@ -50,6 +55,20 @@ const (
 	UserInverseTable = "users"
 	// UserColumn is the table column denoting the user relation/edge.
 	UserColumn = "user_id"
+	// RoleTable is the table that holds the role relation/edge.
+	RoleTable = "organization_members"
+	// RoleInverseTable is the table name for the Role entity.
+	// It exists in this package in order to avoid circular dependency with the "role" package.
+	RoleInverseTable = "roles"
+	// RoleColumn is the table column denoting the role relation/edge.
+	RoleColumn = "role_id"
+	// ProjectAccessTable is the table that holds the project_access relation/edge.
+	ProjectAccessTable = "member_projects"
+	// ProjectAccessInverseTable is the table name for the MemberProject entity.
+	// It exists in this package in order to avoid circular dependency with the "memberproject" package.
+	ProjectAccessInverseTable = "member_projects"
+	// ProjectAccessColumn is the table column denoting the project_access relation/edge.
+	ProjectAccessColumn = "member_id"
 )
 
 // Columns holds all SQL columns for organizationmember fields.
@@ -58,9 +77,10 @@ var Columns = []string{
 	FieldUID,
 	FieldCreatedAt,
 	FieldUpdatedAt,
-	FieldRole,
 	FieldOrganizationID,
 	FieldUserID,
+	FieldRoleID,
+	FieldAllProjects,
 	FieldJoinedAt,
 }
 
@@ -83,34 +103,11 @@ var (
 	DefaultUpdatedAt func() time.Time
 	// UpdateDefaultUpdatedAt holds the default value on update for the "updated_at" field.
 	UpdateDefaultUpdatedAt func() time.Time
+	// DefaultAllProjects holds the default value on creation for the "all_projects" field.
+	DefaultAllProjects bool
 	// DefaultJoinedAt holds the default value on creation for the "joined_at" field.
 	DefaultJoinedAt func() time.Time
 )
-
-// Role defines the type for the "role" enum field.
-type Role string
-
-// Role values.
-const (
-	RoleOwner  Role = "owner"
-	RoleAdmin  Role = "admin"
-	RoleMember Role = "member"
-	RoleViewer Role = "viewer"
-)
-
-func (r Role) String() string {
-	return string(r)
-}
-
-// RoleValidator is a validator for the "role" field enum values. It is called by the builders before save.
-func RoleValidator(r Role) error {
-	switch r {
-	case RoleOwner, RoleAdmin, RoleMember, RoleViewer:
-		return nil
-	default:
-		return fmt.Errorf("organizationmember: invalid enum value for role field: %q", r)
-	}
-}
 
 // OrderOption defines the ordering options for the OrganizationMember queries.
 type OrderOption func(*sql.Selector)
@@ -135,11 +132,6 @@ func ByUpdatedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldUpdatedAt, opts...).ToFunc()
 }
 
-// ByRole orders the results by the role field.
-func ByRole(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldRole, opts...).ToFunc()
-}
-
 // ByOrganizationID orders the results by the organization_id field.
 func ByOrganizationID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldOrganizationID, opts...).ToFunc()
@@ -148,6 +140,16 @@ func ByOrganizationID(opts ...sql.OrderTermOption) OrderOption {
 // ByUserID orders the results by the user_id field.
 func ByUserID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldUserID, opts...).ToFunc()
+}
+
+// ByRoleID orders the results by the role_id field.
+func ByRoleID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRoleID, opts...).ToFunc()
+}
+
+// ByAllProjects orders the results by the all_projects field.
+func ByAllProjects(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAllProjects, opts...).ToFunc()
 }
 
 // ByJoinedAt orders the results by the joined_at field.
@@ -168,6 +170,27 @@ func ByUserField(field string, opts ...sql.OrderTermOption) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newUserStep(), sql.OrderByField(field, opts...))
 	}
 }
+
+// ByRoleField orders the results by role field.
+func ByRoleField(field string, opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newRoleStep(), sql.OrderByField(field, opts...))
+	}
+}
+
+// ByProjectAccessCount orders the results by project_access count.
+func ByProjectAccessCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newProjectAccessStep(), opts...)
+	}
+}
+
+// ByProjectAccess orders the results by project_access terms.
+func ByProjectAccess(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newProjectAccessStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newOrganizationStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -180,5 +203,19 @@ func newUserStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(UserInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.M2O, true, UserTable, UserColumn),
+	)
+}
+func newRoleStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(RoleInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.M2O, true, RoleTable, RoleColumn),
+	)
+}
+func newProjectAccessStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(ProjectAccessInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, ProjectAccessTable, ProjectAccessColumn),
 	)
 }

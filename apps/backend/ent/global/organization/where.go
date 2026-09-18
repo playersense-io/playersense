@@ -445,6 +445,75 @@ func HasInvitationsWith(preds ...predicate.Invitation) predicate.Organization {
 	})
 }
 
+// HasRoles applies the HasEdge predicate on the "roles" edge.
+func HasRoles() predicate.Organization {
+	return predicate.Organization(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, RolesTable, RolesColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasRolesWith applies the HasEdge predicate on the "roles" edge with a given conditions (other predicates).
+func HasRolesWith(preds ...predicate.Role) predicate.Organization {
+	return predicate.Organization(func(s *sql.Selector) {
+		step := newRolesStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasAuditEvents applies the HasEdge predicate on the "audit_events" edge.
+func HasAuditEvents() predicate.Organization {
+	return predicate.Organization(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, AuditEventsTable, AuditEventsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasAuditEventsWith applies the HasEdge predicate on the "audit_events" edge with a given conditions (other predicates).
+func HasAuditEventsWith(preds ...predicate.AuditEvent) predicate.Organization {
+	return predicate.Organization(func(s *sql.Selector) {
+		step := newAuditEventsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasBillingAccount applies the HasEdge predicate on the "billing_account" edge.
+func HasBillingAccount() predicate.Organization {
+	return predicate.Organization(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, false, BillingAccountTable, BillingAccountColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasBillingAccountWith applies the HasEdge predicate on the "billing_account" edge with a given conditions (other predicates).
+func HasBillingAccountWith(preds ...predicate.BillingAccount) predicate.Organization {
+	return predicate.Organization(func(s *sql.Selector) {
+		step := newBillingAccountStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // And groups predicates with the AND operator between them.
 func And(predicates ...predicate.Organization) predicate.Organization {
 	return predicate.Organization(sql.AndPredicates(predicates...))

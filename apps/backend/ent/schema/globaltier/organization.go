@@ -54,6 +54,12 @@ func (Organization) Edges() []ent.Edge {
 		edge.To("projects", Project.Type),
 		edge.To("members", OrganizationMember.Type),
 		edge.To("invitations", Invitation.Type),
+		edge.To("roles", Role.Type),
+		edge.To("audit_events", AuditEvent.Type),
+
+		// Unique: §75 makes the organisation the billing boundary, so there is one
+		// commercial relationship per organisation and never one per project.
+		edge.To("billing_account", BillingAccount.Type).Unique(),
 	}
 }
 
@@ -121,6 +127,8 @@ func (User) Edges() []ent.Edge {
 	return []ent.Edge{
 		edge.To("memberships", OrganizationMember.Type),
 		edge.To("sent_invitations", Invitation.Type),
+		edge.To("audit_events", AuditEvent.Type),
+		edge.To("published_versions", ConfigVersion.Type),
 	}
 }
 
@@ -130,11 +138,16 @@ func (User) Edges() []ent.Edge {
 // no state where somebody is logged in with nowhere to be. That invariant is what lets every
 // project, key and invoice hang off an organization rather than off a user.
 //
-// # The role field is a placeholder
+// # Two axes, kept apart
 //
-// `role` is the enum that was here before and is **not** the authorization design. Permissions,
-// custom roles and per-project access are being specified separately; this field stays as it
-// is until then rather than being replaced by a guess that would have to be migrated twice.
+// `role_id` answers **what** this person may do and `all_projects`/MemberProject answer
+// **where**. Conflating them is what makes an IAM unreadable: a LiveOps manager on two of five
+// games would otherwise need a role whose name encodes a game, and every new game would need
+// new roles.
+//
+// This replaces the `owner/admin/member/viewer` enum that was here before the authorization
+// design existed. An enum could not express a custom role, and four names that every
+// organisation shares is the thing a studio outgrows first.
 type OrganizationMember struct{ ent.Schema }
 
 func (OrganizationMember) Mixin() []ent.Mixin { return []ent.Mixin{mixin{}} }
@@ -144,11 +157,21 @@ func (OrganizationMember) Annotations() []schema.Annotation {
 
 func (OrganizationMember) Fields() []ent.Field {
 	return []ent.Field{
-		// See the note above: a placeholder, not the authorization model.
-		field.Enum("role").Values("owner", "admin", "member", "viewer").Comment(dataclass.None),
-
 		field.Int("organization_id").Comment(dataclass.None),
 		field.Int("user_id").Comment(dataclass.None),
+
+		// What they may do. Required: a membership with no role is a person who is in the
+		// organisation and may do nothing, which is a state somebody reaches by accident
+		// and nobody means.
+		field.Int("role_id").Comment(dataclass.None),
+
+		// Whether they see every project, including ones created tomorrow.
+		//
+		// A boolean beside the rows rather than rows alone, because "everything, now and
+		// later" is the common case and a list of ids cannot say it — a studio would have
+		// to remember to add every member to every new game, and the failure mode is a
+		// person quietly missing from a project rather than an error.
+		field.Bool("all_projects").Default(true).Comment(dataclass.None),
 
 		// When they joined, which is what an access review reads (§08). Distinct from the
 		// row's created_at, because a membership can be recreated after a removal and the
@@ -164,6 +187,9 @@ func (OrganizationMember) Edges() []ent.Edge {
 			Field("organization_id").Unique().Required(),
 		edge.From("user", User.Type).Ref("memberships").
 			Field("user_id").Unique().Required(),
+		edge.From("role", Role.Type).Ref("members").
+			Field("role_id").Unique().Required(),
+		edge.To("project_access", MemberProject.Type),
 	}
 }
 
@@ -188,12 +214,13 @@ func (OrganizationMember) Indexes() []ent.Index {
 // token is 256 bits of randomness that this service generated, not a secret a person chose,
 // so there is nothing to brute-force and no reason to pay a KDF's cost on every accept.
 //
-// # The authorization fields are deliberately absent
+// # It carries what it grants
 //
-// An invitation should also carry the role and the project access being granted, and those
-// are part of the authorization design being specified separately. Adding a guess now would
-// mean migrating it twice, so this holds only what an invitation is regardless of what it
-// grants: who is asked, by whom, until when, and whether it has been used.
+// The role and the project access are decided when the invitation is sent, not when it is
+// accepted. Two reasons, and the second is the important one: the person sending it is the
+// one who knows what the new colleague is for, and an invitation that granted nothing would
+// need a second administrative step afterwards — which is a step that gets skipped, leaving
+// somebody in the organisation who can see everything or nothing depending on the default.
 type Invitation struct{ ent.Schema }
 
 func (Invitation) Mixin() []ent.Mixin               { return []ent.Mixin{mixin{}} }
@@ -216,6 +243,20 @@ func (Invitation) Fields() []ent.Field {
 		// this". Nillable because the inviter may later be deactivated.
 		field.Int("invited_by_id").Optional().Nillable().Immutable().Comment(dataclass.None),
 
+		// What accepting grants. Immutable: changing what an outstanding invitation
+		// confers, after the link has been sent and while the recipient is reading the
+		// email that describes it, is a thing nobody should be able to do quietly. Revoke
+		// it and send another.
+		field.Int("role_id").Immutable().Comment(dataclass.None),
+		field.Bool("all_projects").Default(true).Immutable().Comment(dataclass.None),
+
+		// Which projects, when it is not all of them. Project ids as JSON rather than
+		// rows, because this is a short-lived record that is translated into MemberProject
+		// rows at accept time and then never read again — and because a project deleted
+		// between sending and accepting should make that one grant disappear, not fail the
+		// whole accept.
+		field.JSON("project_ids", []int{}).Default([]int{}).Immutable().Comment(dataclass.None),
+
 		field.Enum("status").Values("pending", "accepted", "revoked", "expired").
 			Default("pending").Comment(dataclass.None),
 
@@ -231,6 +272,8 @@ func (Invitation) Edges() []ent.Edge {
 			Field("organization_id").Unique().Required().Immutable(),
 		edge.From("invited_by", User.Type).Ref("sent_invitations").
 			Field("invited_by_id").Unique().Immutable(),
+		edge.From("role", Role.Type).Ref("invitations").
+			Field("role_id").Unique().Required().Immutable(),
 	}
 }
 

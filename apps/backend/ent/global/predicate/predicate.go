@@ -9,6 +9,15 @@ import (
 // APIKey is the predicate function for apikey builders.
 type APIKey func(*sql.Selector)
 
+// AuditEvent is the predicate function for auditevent builders.
+type AuditEvent func(*sql.Selector)
+
+// BillingAccount is the predicate function for billingaccount builders.
+type BillingAccount func(*sql.Selector)
+
+// BillingPeriod is the predicate function for billingperiod builders.
+type BillingPeriod func(*sql.Selector)
+
 // Cell is the predicate function for cell builders.
 type Cell func(*sql.Selector)
 
@@ -24,8 +33,14 @@ type FeatureFlag func(*sql.Selector)
 // Invitation is the predicate function for invitation builders.
 type Invitation func(*sql.Selector)
 
+// LedgerEntry is the predicate function for ledgerentry builders.
+type LedgerEntry func(*sql.Selector)
+
 // LiveOpsEvent is the predicate function for liveopsevent builders.
 type LiveOpsEvent func(*sql.Selector)
+
+// MemberProject is the predicate function for memberproject builders.
+type MemberProject func(*sql.Selector)
 
 // Organization is the predicate function for organization builders.
 type Organization func(*sql.Selector)
@@ -33,11 +48,26 @@ type Organization func(*sql.Selector)
 // OrganizationMember is the predicate function for organizationmember builders.
 type OrganizationMember func(*sql.Selector)
 
+// Plan is the predicate function for plan builders.
+type Plan func(*sql.Selector)
+
 // Project is the predicate function for project builders.
 type Project func(*sql.Selector)
 
+// Role is the predicate function for role builders.
+type Role func(*sql.Selector)
+
 // Segment is the predicate function for segment builders.
 type Segment func(*sql.Selector)
+
+// StaffAccess is the predicate function for staffaccess builders.
+type StaffAccess func(*sql.Selector)
+
+// StripeEvent is the predicate function for stripeevent builders.
+type StripeEvent func(*sql.Selector)
+
+// UsageDaily is the predicate function for usagedaily builders.
+type UsageDaily func(*sql.Selector)
 
 // User is the predicate function for user builders.
 type User func(*sql.Selector)

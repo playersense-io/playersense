@@ -17,10 +17,12 @@ import (
 	"playersense.dev/backend/ent/global/environment"
 	"playersense.dev/backend/ent/global/featureflag"
 	"playersense.dev/backend/ent/global/liveopsevent"
+	"playersense.dev/backend/ent/global/memberproject"
 	"playersense.dev/backend/ent/global/organization"
 	"playersense.dev/backend/ent/global/predicate"
 	"playersense.dev/backend/ent/global/project"
 	"playersense.dev/backend/ent/global/segment"
+	"playersense.dev/backend/ent/global/usagedaily"
 )
 
 // ProjectQuery is the builder for querying Project entities.
@@ -37,6 +39,8 @@ type ProjectQuery struct {
 	withFeatureFlags   *FeatureFlagQuery
 	withLiveopsEvents  *LiveOpsEventQuery
 	withConfigVersions *ConfigVersionQuery
+	withMemberAccess   *MemberProjectQuery
+	withUsageDaily     *UsageDailyQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -220,6 +224,50 @@ func (_q *ProjectQuery) QueryConfigVersions() *ConfigVersionQuery {
 			sqlgraph.From(project.Table, project.FieldID, selector),
 			sqlgraph.To(configversion.Table, configversion.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, project.ConfigVersionsTable, project.ConfigVersionsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryMemberAccess chains the current query on the "member_access" edge.
+func (_q *ProjectQuery) QueryMemberAccess() *MemberProjectQuery {
+	query := (&MemberProjectClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(project.Table, project.FieldID, selector),
+			sqlgraph.To(memberproject.Table, memberproject.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, project.MemberAccessTable, project.MemberAccessColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryUsageDaily chains the current query on the "usage_daily" edge.
+func (_q *ProjectQuery) QueryUsageDaily() *UsageDailyQuery {
+	query := (&UsageDailyClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(project.Table, project.FieldID, selector),
+			sqlgraph.To(usagedaily.Table, usagedaily.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, project.UsageDailyTable, project.UsageDailyColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -426,6 +474,8 @@ func (_q *ProjectQuery) Clone() *ProjectQuery {
 		withFeatureFlags:   _q.withFeatureFlags.Clone(),
 		withLiveopsEvents:  _q.withLiveopsEvents.Clone(),
 		withConfigVersions: _q.withConfigVersions.Clone(),
+		withMemberAccess:   _q.withMemberAccess.Clone(),
+		withUsageDaily:     _q.withUsageDaily.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -509,6 +559,28 @@ func (_q *ProjectQuery) WithConfigVersions(opts ...func(*ConfigVersionQuery)) *P
 	return _q
 }
 
+// WithMemberAccess tells the query-builder to eager-load the nodes that are connected to
+// the "member_access" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *ProjectQuery) WithMemberAccess(opts ...func(*MemberProjectQuery)) *ProjectQuery {
+	query := (&MemberProjectClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withMemberAccess = query
+	return _q
+}
+
+// WithUsageDaily tells the query-builder to eager-load the nodes that are connected to
+// the "usage_daily" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *ProjectQuery) WithUsageDaily(opts ...func(*UsageDailyQuery)) *ProjectQuery {
+	query := (&UsageDailyClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withUsageDaily = query
+	return _q
+}
+
 // GroupBy is used to group vertices by one or more fields/columns.
 // It is often used with aggregate functions, like: count, max, mean, min, sum.
 //
@@ -587,7 +659,7 @@ func (_q *ProjectQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Proj
 	var (
 		nodes       = []*Project{}
 		_spec       = _q.querySpec()
-		loadedTypes = [7]bool{
+		loadedTypes = [9]bool{
 			_q.withOrganization != nil,
 			_q.withCell != nil,
 			_q.withEnvironments != nil,
@@ -595,6 +667,8 @@ func (_q *ProjectQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Proj
 			_q.withFeatureFlags != nil,
 			_q.withLiveopsEvents != nil,
 			_q.withConfigVersions != nil,
+			_q.withMemberAccess != nil,
+			_q.withUsageDaily != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -659,6 +733,20 @@ func (_q *ProjectQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Proj
 		if err := _q.loadConfigVersions(ctx, query, nodes,
 			func(n *Project) { n.Edges.ConfigVersions = []*ConfigVersion{} },
 			func(n *Project, e *ConfigVersion) { n.Edges.ConfigVersions = append(n.Edges.ConfigVersions, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withMemberAccess; query != nil {
+		if err := _q.loadMemberAccess(ctx, query, nodes,
+			func(n *Project) { n.Edges.MemberAccess = []*MemberProject{} },
+			func(n *Project, e *MemberProject) { n.Edges.MemberAccess = append(n.Edges.MemberAccess, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withUsageDaily; query != nil {
+		if err := _q.loadUsageDaily(ctx, query, nodes,
+			func(n *Project) { n.Edges.UsageDaily = []*UsageDaily{} },
+			func(n *Project, e *UsageDaily) { n.Edges.UsageDaily = append(n.Edges.UsageDaily, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -858,6 +946,66 @@ func (_q *ProjectQuery) loadConfigVersions(ctx context.Context, query *ConfigVer
 	}
 	query.Where(predicate.ConfigVersion(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(project.ConfigVersionsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.ProjectID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "project_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *ProjectQuery) loadMemberAccess(ctx context.Context, query *MemberProjectQuery, nodes []*Project, init func(*Project), assign func(*Project, *MemberProject)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Project)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(memberproject.FieldProjectID)
+	}
+	query.Where(predicate.MemberProject(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(project.MemberAccessColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.ProjectID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "project_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *ProjectQuery) loadUsageDaily(ctx context.Context, query *UsageDailyQuery, nodes []*Project, init func(*Project), assign func(*Project, *UsageDaily)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Project)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(usagedaily.FieldProjectID)
+	}
+	query.Where(predicate.UsageDaily(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(project.UsageDailyColumn), fks...))
 	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {

@@ -10,6 +10,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
+	"playersense.dev/backend/ent/global/billingaccount"
 	"playersense.dev/backend/ent/global/organization"
 )
 
@@ -45,9 +46,15 @@ type OrganizationEdges struct {
 	Members []*OrganizationMember `json:"members,omitempty"`
 	// Invitations holds the value of the invitations edge.
 	Invitations []*Invitation `json:"invitations,omitempty"`
+	// Roles holds the value of the roles edge.
+	Roles []*Role `json:"roles,omitempty"`
+	// AuditEvents holds the value of the audit_events edge.
+	AuditEvents []*AuditEvent `json:"audit_events,omitempty"`
+	// BillingAccount holds the value of the billing_account edge.
+	BillingAccount *BillingAccount `json:"billing_account,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [3]bool
+	loadedTypes [6]bool
 }
 
 // ProjectsOrErr returns the Projects value or an error if the edge
@@ -75,6 +82,35 @@ func (e OrganizationEdges) InvitationsOrErr() ([]*Invitation, error) {
 		return e.Invitations, nil
 	}
 	return nil, &NotLoadedError{edge: "invitations"}
+}
+
+// RolesOrErr returns the Roles value or an error if the edge
+// was not loaded in eager-loading.
+func (e OrganizationEdges) RolesOrErr() ([]*Role, error) {
+	if e.loadedTypes[3] {
+		return e.Roles, nil
+	}
+	return nil, &NotLoadedError{edge: "roles"}
+}
+
+// AuditEventsOrErr returns the AuditEvents value or an error if the edge
+// was not loaded in eager-loading.
+func (e OrganizationEdges) AuditEventsOrErr() ([]*AuditEvent, error) {
+	if e.loadedTypes[4] {
+		return e.AuditEvents, nil
+	}
+	return nil, &NotLoadedError{edge: "audit_events"}
+}
+
+// BillingAccountOrErr returns the BillingAccount value or an error if the edge
+// was not loaded in eager-loading, or loaded but was not found.
+func (e OrganizationEdges) BillingAccountOrErr() (*BillingAccount, error) {
+	if e.BillingAccount != nil {
+		return e.BillingAccount, nil
+	} else if e.loadedTypes[5] {
+		return nil, &NotFoundError{label: billingaccount.Label}
+	}
+	return nil, &NotLoadedError{edge: "billing_account"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -173,6 +209,21 @@ func (_m *Organization) QueryMembers() *OrganizationMemberQuery {
 // QueryInvitations queries the "invitations" edge of the Organization entity.
 func (_m *Organization) QueryInvitations() *InvitationQuery {
 	return NewOrganizationClient(_m.config).QueryInvitations(_m)
+}
+
+// QueryRoles queries the "roles" edge of the Organization entity.
+func (_m *Organization) QueryRoles() *RoleQuery {
+	return NewOrganizationClient(_m.config).QueryRoles(_m)
+}
+
+// QueryAuditEvents queries the "audit_events" edge of the Organization entity.
+func (_m *Organization) QueryAuditEvents() *AuditEventQuery {
+	return NewOrganizationClient(_m.config).QueryAuditEvents(_m)
+}
+
+// QueryBillingAccount queries the "billing_account" edge of the Organization entity.
+func (_m *Organization) QueryBillingAccount() *BillingAccountQuery {
+	return NewOrganizationClient(_m.config).QueryBillingAccount(_m)
 }
 
 // Update returns a builder for updating this Organization.

@@ -91,6 +91,16 @@ func InvitedByID(v int) predicate.Invitation {
 	return predicate.Invitation(sql.FieldEQ(FieldInvitedByID, v))
 }
 
+// RoleID applies equality check predicate on the "role_id" field. It's identical to RoleIDEQ.
+func RoleID(v int) predicate.Invitation {
+	return predicate.Invitation(sql.FieldEQ(FieldRoleID, v))
+}
+
+// AllProjects applies equality check predicate on the "all_projects" field. It's identical to AllProjectsEQ.
+func AllProjects(v bool) predicate.Invitation {
+	return predicate.Invitation(sql.FieldEQ(FieldAllProjects, v))
+}
+
 // ExpiresAt applies equality check predicate on the "expires_at" field. It's identical to ExpiresAtEQ.
 func ExpiresAt(v time.Time) predicate.Invitation {
 	return predicate.Invitation(sql.FieldEQ(FieldExpiresAt, v))
@@ -401,6 +411,36 @@ func InvitedByIDNotNil() predicate.Invitation {
 	return predicate.Invitation(sql.FieldNotNull(FieldInvitedByID))
 }
 
+// RoleIDEQ applies the EQ predicate on the "role_id" field.
+func RoleIDEQ(v int) predicate.Invitation {
+	return predicate.Invitation(sql.FieldEQ(FieldRoleID, v))
+}
+
+// RoleIDNEQ applies the NEQ predicate on the "role_id" field.
+func RoleIDNEQ(v int) predicate.Invitation {
+	return predicate.Invitation(sql.FieldNEQ(FieldRoleID, v))
+}
+
+// RoleIDIn applies the In predicate on the "role_id" field.
+func RoleIDIn(vs ...int) predicate.Invitation {
+	return predicate.Invitation(sql.FieldIn(FieldRoleID, vs...))
+}
+
+// RoleIDNotIn applies the NotIn predicate on the "role_id" field.
+func RoleIDNotIn(vs ...int) predicate.Invitation {
+	return predicate.Invitation(sql.FieldNotIn(FieldRoleID, vs...))
+}
+
+// AllProjectsEQ applies the EQ predicate on the "all_projects" field.
+func AllProjectsEQ(v bool) predicate.Invitation {
+	return predicate.Invitation(sql.FieldEQ(FieldAllProjects, v))
+}
+
+// AllProjectsNEQ applies the NEQ predicate on the "all_projects" field.
+func AllProjectsNEQ(v bool) predicate.Invitation {
+	return predicate.Invitation(sql.FieldNEQ(FieldAllProjects, v))
+}
+
 // StatusEQ applies the EQ predicate on the "status" field.
 func StatusEQ(v Status) predicate.Invitation {
 	return predicate.Invitation(sql.FieldEQ(FieldStatus, v))
@@ -549,6 +589,29 @@ func HasInvitedBy() predicate.Invitation {
 func HasInvitedByWith(preds ...predicate.User) predicate.Invitation {
 	return predicate.Invitation(func(s *sql.Selector) {
 		step := newInvitedByStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasRole applies the HasEdge predicate on the "role" edge.
+func HasRole() predicate.Invitation {
+	return predicate.Invitation(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, RoleTable, RoleColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasRoleWith applies the HasEdge predicate on the "role" edge with a given conditions (other predicates).
+func HasRoleWith(preds ...predicate.Role) predicate.Invitation {
+	return predicate.Invitation(func(s *sql.Selector) {
+		step := newRoleStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

@@ -38,6 +38,10 @@ const (
 	FieldEnvironmentID = "environment_id"
 	// EdgeEnvironment holds the string denoting the environment edge name in mutations.
 	EdgeEnvironment = "environment"
+	// EdgeAuditEvents holds the string denoting the audit_events edge name in mutations.
+	EdgeAuditEvents = "audit_events"
+	// EdgePublishedVersions holds the string denoting the published_versions edge name in mutations.
+	EdgePublishedVersions = "published_versions"
 	// Table holds the table name of the apikey in the database.
 	Table = "api_keys"
 	// EnvironmentTable is the table that holds the environment relation/edge.
@@ -47,6 +51,20 @@ const (
 	EnvironmentInverseTable = "environments"
 	// EnvironmentColumn is the table column denoting the environment relation/edge.
 	EnvironmentColumn = "environment_id"
+	// AuditEventsTable is the table that holds the audit_events relation/edge.
+	AuditEventsTable = "audit_events"
+	// AuditEventsInverseTable is the table name for the AuditEvent entity.
+	// It exists in this package in order to avoid circular dependency with the "auditevent" package.
+	AuditEventsInverseTable = "audit_events"
+	// AuditEventsColumn is the table column denoting the audit_events relation/edge.
+	AuditEventsColumn = "actor_key_id"
+	// PublishedVersionsTable is the table that holds the published_versions relation/edge.
+	PublishedVersionsTable = "config_versions"
+	// PublishedVersionsInverseTable is the table name for the ConfigVersion entity.
+	// It exists in this package in order to avoid circular dependency with the "configversion" package.
+	PublishedVersionsInverseTable = "config_versions"
+	// PublishedVersionsColumn is the table column denoting the published_versions relation/edge.
+	PublishedVersionsColumn = "published_by_key_id"
 )
 
 // Columns holds all SQL columns for apikey fields.
@@ -179,10 +197,52 @@ func ByEnvironmentField(field string, opts ...sql.OrderTermOption) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newEnvironmentStep(), sql.OrderByField(field, opts...))
 	}
 }
+
+// ByAuditEventsCount orders the results by audit_events count.
+func ByAuditEventsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newAuditEventsStep(), opts...)
+	}
+}
+
+// ByAuditEvents orders the results by audit_events terms.
+func ByAuditEvents(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newAuditEventsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByPublishedVersionsCount orders the results by published_versions count.
+func ByPublishedVersionsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newPublishedVersionsStep(), opts...)
+	}
+}
+
+// ByPublishedVersions orders the results by published_versions terms.
+func ByPublishedVersions(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newPublishedVersionsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newEnvironmentStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(EnvironmentInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.M2O, true, EnvironmentTable, EnvironmentColumn),
+	)
+}
+func newAuditEventsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(AuditEventsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, AuditEventsTable, AuditEventsColumn),
+	)
+}
+func newPublishedVersionsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(PublishedVersionsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, PublishedVersionsTable, PublishedVersionsColumn),
 	)
 }

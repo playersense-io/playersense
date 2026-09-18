@@ -4,6 +4,7 @@ package global
 
 import (
 	"context"
+	"database/sql/driver"
 	"fmt"
 	"math"
 
@@ -11,21 +12,25 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"playersense.dev/backend/ent/global/memberproject"
 	"playersense.dev/backend/ent/global/organization"
 	"playersense.dev/backend/ent/global/organizationmember"
 	"playersense.dev/backend/ent/global/predicate"
+	"playersense.dev/backend/ent/global/role"
 	"playersense.dev/backend/ent/global/user"
 )
 
 // OrganizationMemberQuery is the builder for querying OrganizationMember entities.
 type OrganizationMemberQuery struct {
 	config
-	ctx              *QueryContext
-	order            []organizationmember.OrderOption
-	inters           []Interceptor
-	predicates       []predicate.OrganizationMember
-	withOrganization *OrganizationQuery
-	withUser         *UserQuery
+	ctx               *QueryContext
+	order             []organizationmember.OrderOption
+	inters            []Interceptor
+	predicates        []predicate.OrganizationMember
+	withOrganization  *OrganizationQuery
+	withUser          *UserQuery
+	withRole          *RoleQuery
+	withProjectAccess *MemberProjectQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -99,6 +104,50 @@ func (_q *OrganizationMemberQuery) QueryUser() *UserQuery {
 			sqlgraph.From(organizationmember.Table, organizationmember.FieldID, selector),
 			sqlgraph.To(user.Table, user.FieldID),
 			sqlgraph.Edge(sqlgraph.M2O, true, organizationmember.UserTable, organizationmember.UserColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryRole chains the current query on the "role" edge.
+func (_q *OrganizationMemberQuery) QueryRole() *RoleQuery {
+	query := (&RoleClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(organizationmember.Table, organizationmember.FieldID, selector),
+			sqlgraph.To(role.Table, role.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, organizationmember.RoleTable, organizationmember.RoleColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryProjectAccess chains the current query on the "project_access" edge.
+func (_q *OrganizationMemberQuery) QueryProjectAccess() *MemberProjectQuery {
+	query := (&MemberProjectClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(organizationmember.Table, organizationmember.FieldID, selector),
+			sqlgraph.To(memberproject.Table, memberproject.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, organizationmember.ProjectAccessTable, organizationmember.ProjectAccessColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -293,13 +342,15 @@ func (_q *OrganizationMemberQuery) Clone() *OrganizationMemberQuery {
 		return nil
 	}
 	return &OrganizationMemberQuery{
-		config:           _q.config,
-		ctx:              _q.ctx.Clone(),
-		order:            append([]organizationmember.OrderOption{}, _q.order...),
-		inters:           append([]Interceptor{}, _q.inters...),
-		predicates:       append([]predicate.OrganizationMember{}, _q.predicates...),
-		withOrganization: _q.withOrganization.Clone(),
-		withUser:         _q.withUser.Clone(),
+		config:            _q.config,
+		ctx:               _q.ctx.Clone(),
+		order:             append([]organizationmember.OrderOption{}, _q.order...),
+		inters:            append([]Interceptor{}, _q.inters...),
+		predicates:        append([]predicate.OrganizationMember{}, _q.predicates...),
+		withOrganization:  _q.withOrganization.Clone(),
+		withUser:          _q.withUser.Clone(),
+		withRole:          _q.withRole.Clone(),
+		withProjectAccess: _q.withProjectAccess.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -325,6 +376,28 @@ func (_q *OrganizationMemberQuery) WithUser(opts ...func(*UserQuery)) *Organizat
 		opt(query)
 	}
 	_q.withUser = query
+	return _q
+}
+
+// WithRole tells the query-builder to eager-load the nodes that are connected to
+// the "role" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *OrganizationMemberQuery) WithRole(opts ...func(*RoleQuery)) *OrganizationMemberQuery {
+	query := (&RoleClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withRole = query
+	return _q
+}
+
+// WithProjectAccess tells the query-builder to eager-load the nodes that are connected to
+// the "project_access" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *OrganizationMemberQuery) WithProjectAccess(opts ...func(*MemberProjectQuery)) *OrganizationMemberQuery {
+	query := (&MemberProjectClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withProjectAccess = query
 	return _q
 }
 
@@ -406,9 +479,11 @@ func (_q *OrganizationMemberQuery) sqlAll(ctx context.Context, hooks ...queryHoo
 	var (
 		nodes       = []*OrganizationMember{}
 		_spec       = _q.querySpec()
-		loadedTypes = [2]bool{
+		loadedTypes = [4]bool{
 			_q.withOrganization != nil,
 			_q.withUser != nil,
+			_q.withRole != nil,
+			_q.withProjectAccess != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -438,6 +513,21 @@ func (_q *OrganizationMemberQuery) sqlAll(ctx context.Context, hooks ...queryHoo
 	if query := _q.withUser; query != nil {
 		if err := _q.loadUser(ctx, query, nodes, nil,
 			func(n *OrganizationMember, e *User) { n.Edges.User = e }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withRole; query != nil {
+		if err := _q.loadRole(ctx, query, nodes, nil,
+			func(n *OrganizationMember, e *Role) { n.Edges.Role = e }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withProjectAccess; query != nil {
+		if err := _q.loadProjectAccess(ctx, query, nodes,
+			func(n *OrganizationMember) { n.Edges.ProjectAccess = []*MemberProject{} },
+			func(n *OrganizationMember, e *MemberProject) {
+				n.Edges.ProjectAccess = append(n.Edges.ProjectAccess, e)
+			}); err != nil {
 			return nil, err
 		}
 	}
@@ -502,6 +592,65 @@ func (_q *OrganizationMemberQuery) loadUser(ctx context.Context, query *UserQuer
 	}
 	return nil
 }
+func (_q *OrganizationMemberQuery) loadRole(ctx context.Context, query *RoleQuery, nodes []*OrganizationMember, init func(*OrganizationMember), assign func(*OrganizationMember, *Role)) error {
+	ids := make([]int, 0, len(nodes))
+	nodeids := make(map[int][]*OrganizationMember)
+	for i := range nodes {
+		fk := nodes[i].RoleID
+		if _, ok := nodeids[fk]; !ok {
+			ids = append(ids, fk)
+		}
+		nodeids[fk] = append(nodeids[fk], nodes[i])
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	query.Where(role.IDIn(ids...))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		nodes, ok := nodeids[n.ID]
+		if !ok {
+			return fmt.Errorf(`unexpected foreign-key "role_id" returned %v`, n.ID)
+		}
+		for i := range nodes {
+			assign(nodes[i], n)
+		}
+	}
+	return nil
+}
+func (_q *OrganizationMemberQuery) loadProjectAccess(ctx context.Context, query *MemberProjectQuery, nodes []*OrganizationMember, init func(*OrganizationMember), assign func(*OrganizationMember, *MemberProject)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*OrganizationMember)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(memberproject.FieldMemberID)
+	}
+	query.Where(predicate.MemberProject(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(organizationmember.ProjectAccessColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.MemberID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "member_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
 
 func (_q *OrganizationMemberQuery) sqlCount(ctx context.Context) (int, error) {
 	_spec := _q.querySpec()
@@ -533,6 +682,9 @@ func (_q *OrganizationMemberQuery) querySpec() *sqlgraph.QuerySpec {
 		}
 		if _q.withUser != nil {
 			_spec.Node.AddColumnOnce(organizationmember.FieldUserID)
+		}
+		if _q.withRole != nil {
+			_spec.Node.AddColumnOnce(organizationmember.FieldRoleID)
 		}
 	}
 	if ps := _q.predicates; len(ps) > 0 {

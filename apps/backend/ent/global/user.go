@@ -53,9 +53,13 @@ type UserEdges struct {
 	Memberships []*OrganizationMember `json:"memberships,omitempty"`
 	// SentInvitations holds the value of the sent_invitations edge.
 	SentInvitations []*Invitation `json:"sent_invitations,omitempty"`
+	// AuditEvents holds the value of the audit_events edge.
+	AuditEvents []*AuditEvent `json:"audit_events,omitempty"`
+	// PublishedVersions holds the value of the published_versions edge.
+	PublishedVersions []*ConfigVersion `json:"published_versions,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [2]bool
+	loadedTypes [4]bool
 }
 
 // MembershipsOrErr returns the Memberships value or an error if the edge
@@ -74,6 +78,24 @@ func (e UserEdges) SentInvitationsOrErr() ([]*Invitation, error) {
 		return e.SentInvitations, nil
 	}
 	return nil, &NotLoadedError{edge: "sent_invitations"}
+}
+
+// AuditEventsOrErr returns the AuditEvents value or an error if the edge
+// was not loaded in eager-loading.
+func (e UserEdges) AuditEventsOrErr() ([]*AuditEvent, error) {
+	if e.loadedTypes[2] {
+		return e.AuditEvents, nil
+	}
+	return nil, &NotLoadedError{edge: "audit_events"}
+}
+
+// PublishedVersionsOrErr returns the PublishedVersions value or an error if the edge
+// was not loaded in eager-loading.
+func (e UserEdges) PublishedVersionsOrErr() ([]*ConfigVersion, error) {
+	if e.loadedTypes[3] {
+		return e.PublishedVersions, nil
+	}
+	return nil, &NotLoadedError{edge: "published_versions"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -200,6 +222,16 @@ func (_m *User) QueryMemberships() *OrganizationMemberQuery {
 // QuerySentInvitations queries the "sent_invitations" edge of the User entity.
 func (_m *User) QuerySentInvitations() *InvitationQuery {
 	return NewUserClient(_m.config).QuerySentInvitations(_m)
+}
+
+// QueryAuditEvents queries the "audit_events" edge of the User entity.
+func (_m *User) QueryAuditEvents() *AuditEventQuery {
+	return NewUserClient(_m.config).QueryAuditEvents(_m)
+}
+
+// QueryPublishedVersions queries the "published_versions" edge of the User entity.
+func (_m *User) QueryPublishedVersions() *ConfigVersionQuery {
+	return NewUserClient(_m.config).QueryPublishedVersions(_m)
 }
 
 // Update returns a builder for updating this User.

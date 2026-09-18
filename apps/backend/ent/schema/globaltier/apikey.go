@@ -53,6 +53,11 @@ func (APIKey) Edges() []ent.Edge {
 	return []ent.Edge{
 		edge.From("environment", Environment.Type).Ref("api_keys").
 			Field("environment_id").Unique().Required(),
+
+		// What this key did. A key is an actor in the audit log exactly as a person is —
+		// "who revoked this" has to be answerable when the answer is a CI job.
+		edge.To("audit_events", AuditEvent.Type),
+		edge.To("published_versions", ConfigVersion.Type),
 	}
 }
 

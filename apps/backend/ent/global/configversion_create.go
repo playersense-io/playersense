@@ -11,9 +11,11 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
+	"playersense.dev/backend/ent/global/apikey"
 	"playersense.dev/backend/ent/global/configversion"
 	"playersense.dev/backend/ent/global/environment"
 	"playersense.dev/backend/ent/global/project"
+	"playersense.dev/backend/ent/global/user"
 )
 
 // ConfigVersionCreate is the builder for creating a ConfigVersion entity.
@@ -89,16 +91,44 @@ func (_c *ConfigVersionCreate) SetDocument(v map[string]interface{}) *ConfigVers
 	return _c
 }
 
-// SetPublishedBy sets the "published_by" field.
-func (_c *ConfigVersionCreate) SetPublishedBy(v string) *ConfigVersionCreate {
-	_c.mutation.SetPublishedBy(v)
+// SetPublishedByUserID sets the "published_by_user_id" field.
+func (_c *ConfigVersionCreate) SetPublishedByUserID(v int) *ConfigVersionCreate {
+	_c.mutation.SetPublishedByUserID(v)
 	return _c
 }
 
-// SetNillablePublishedBy sets the "published_by" field if the given value is not nil.
-func (_c *ConfigVersionCreate) SetNillablePublishedBy(v *string) *ConfigVersionCreate {
+// SetNillablePublishedByUserID sets the "published_by_user_id" field if the given value is not nil.
+func (_c *ConfigVersionCreate) SetNillablePublishedByUserID(v *int) *ConfigVersionCreate {
 	if v != nil {
-		_c.SetPublishedBy(*v)
+		_c.SetPublishedByUserID(*v)
+	}
+	return _c
+}
+
+// SetPublishedByKeyID sets the "published_by_key_id" field.
+func (_c *ConfigVersionCreate) SetPublishedByKeyID(v int) *ConfigVersionCreate {
+	_c.mutation.SetPublishedByKeyID(v)
+	return _c
+}
+
+// SetNillablePublishedByKeyID sets the "published_by_key_id" field if the given value is not nil.
+func (_c *ConfigVersionCreate) SetNillablePublishedByKeyID(v *int) *ConfigVersionCreate {
+	if v != nil {
+		_c.SetPublishedByKeyID(*v)
+	}
+	return _c
+}
+
+// SetPublishedByLabel sets the "published_by_label" field.
+func (_c *ConfigVersionCreate) SetPublishedByLabel(v string) *ConfigVersionCreate {
+	_c.mutation.SetPublishedByLabel(v)
+	return _c
+}
+
+// SetNillablePublishedByLabel sets the "published_by_label" field if the given value is not nil.
+func (_c *ConfigVersionCreate) SetNillablePublishedByLabel(v *string) *ConfigVersionCreate {
+	if v != nil {
+		_c.SetPublishedByLabel(*v)
 	}
 	return _c
 }
@@ -131,6 +161,16 @@ func (_c *ConfigVersionCreate) SetProject(v *Project) *ConfigVersionCreate {
 // SetEnvironment sets the "environment" edge to the Environment entity.
 func (_c *ConfigVersionCreate) SetEnvironment(v *Environment) *ConfigVersionCreate {
 	return _c.SetEnvironmentID(v.ID)
+}
+
+// SetPublishedByUser sets the "published_by_user" edge to the User entity.
+func (_c *ConfigVersionCreate) SetPublishedByUser(v *User) *ConfigVersionCreate {
+	return _c.SetPublishedByUserID(v.ID)
+}
+
+// SetPublishedByKey sets the "published_by_key" edge to the APIKey entity.
+func (_c *ConfigVersionCreate) SetPublishedByKey(v *APIKey) *ConfigVersionCreate {
+	return _c.SetPublishedByKeyID(v.ID)
 }
 
 // Mutation returns the ConfigVersionMutation object of the builder.
@@ -180,9 +220,9 @@ func (_c *ConfigVersionCreate) defaults() {
 		v := configversion.DefaultUpdatedAt()
 		_c.mutation.SetUpdatedAt(v)
 	}
-	if _, ok := _c.mutation.PublishedBy(); !ok {
-		v := configversion.DefaultPublishedBy
-		_c.mutation.SetPublishedBy(v)
+	if _, ok := _c.mutation.PublishedByLabel(); !ok {
+		v := configversion.DefaultPublishedByLabel
+		_c.mutation.SetPublishedByLabel(v)
 	}
 	if _, ok := _c.mutation.Note(); !ok {
 		v := configversion.DefaultNote
@@ -218,12 +258,12 @@ func (_c *ConfigVersionCreate) check() error {
 	if _, ok := _c.mutation.Document(); !ok {
 		return &ValidationError{Name: "document", err: errors.New(`global: missing required field "ConfigVersion.document"`)}
 	}
-	if _, ok := _c.mutation.PublishedBy(); !ok {
-		return &ValidationError{Name: "published_by", err: errors.New(`global: missing required field "ConfigVersion.published_by"`)}
+	if _, ok := _c.mutation.PublishedByLabel(); !ok {
+		return &ValidationError{Name: "published_by_label", err: errors.New(`global: missing required field "ConfigVersion.published_by_label"`)}
 	}
-	if v, ok := _c.mutation.PublishedBy(); ok {
-		if err := configversion.PublishedByValidator(v); err != nil {
-			return &ValidationError{Name: "published_by", err: fmt.Errorf(`global: validator failed for field "ConfigVersion.published_by": %w`, err)}
+	if v, ok := _c.mutation.PublishedByLabel(); ok {
+		if err := configversion.PublishedByLabelValidator(v); err != nil {
+			return &ValidationError{Name: "published_by_label", err: fmt.Errorf(`global: validator failed for field "ConfigVersion.published_by_label": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.Note(); !ok {
@@ -292,9 +332,9 @@ func (_c *ConfigVersionCreate) createSpec() (*ConfigVersion, *sqlgraph.CreateSpe
 		_spec.SetField(configversion.FieldDocument, field.TypeJSON, value)
 		_node.Document = value
 	}
-	if value, ok := _c.mutation.PublishedBy(); ok {
-		_spec.SetField(configversion.FieldPublishedBy, field.TypeString, value)
-		_node.PublishedBy = value
+	if value, ok := _c.mutation.PublishedByLabel(); ok {
+		_spec.SetField(configversion.FieldPublishedByLabel, field.TypeString, value)
+		_node.PublishedByLabel = value
 	}
 	if value, ok := _c.mutation.Note(); ok {
 		_spec.SetField(configversion.FieldNote, field.TypeString, value)
@@ -332,6 +372,40 @@ func (_c *ConfigVersionCreate) createSpec() (*ConfigVersion, *sqlgraph.CreateSpe
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_node.EnvironmentID = nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.PublishedByUserIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   configversion.PublishedByUserTable,
+			Columns: []string{configversion.PublishedByUserColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_node.PublishedByUserID = &nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.PublishedByKeyIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   configversion.PublishedByKeyTable,
+			Columns: []string{configversion.PublishedByKeyColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(apikey.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_node.PublishedByKeyID = &nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec

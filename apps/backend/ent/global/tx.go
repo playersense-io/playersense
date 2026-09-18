@@ -14,6 +14,12 @@ type Tx struct {
 	config
 	// APIKey is the client for interacting with the APIKey builders.
 	APIKey *APIKeyClient
+	// AuditEvent is the client for interacting with the AuditEvent builders.
+	AuditEvent *AuditEventClient
+	// BillingAccount is the client for interacting with the BillingAccount builders.
+	BillingAccount *BillingAccountClient
+	// BillingPeriod is the client for interacting with the BillingPeriod builders.
+	BillingPeriod *BillingPeriodClient
 	// Cell is the client for interacting with the Cell builders.
 	Cell *CellClient
 	// ConfigVersion is the client for interacting with the ConfigVersion builders.
@@ -24,16 +30,30 @@ type Tx struct {
 	FeatureFlag *FeatureFlagClient
 	// Invitation is the client for interacting with the Invitation builders.
 	Invitation *InvitationClient
+	// LedgerEntry is the client for interacting with the LedgerEntry builders.
+	LedgerEntry *LedgerEntryClient
 	// LiveOpsEvent is the client for interacting with the LiveOpsEvent builders.
 	LiveOpsEvent *LiveOpsEventClient
+	// MemberProject is the client for interacting with the MemberProject builders.
+	MemberProject *MemberProjectClient
 	// Organization is the client for interacting with the Organization builders.
 	Organization *OrganizationClient
 	// OrganizationMember is the client for interacting with the OrganizationMember builders.
 	OrganizationMember *OrganizationMemberClient
+	// Plan is the client for interacting with the Plan builders.
+	Plan *PlanClient
 	// Project is the client for interacting with the Project builders.
 	Project *ProjectClient
+	// Role is the client for interacting with the Role builders.
+	Role *RoleClient
 	// Segment is the client for interacting with the Segment builders.
 	Segment *SegmentClient
+	// StaffAccess is the client for interacting with the StaffAccess builders.
+	StaffAccess *StaffAccessClient
+	// StripeEvent is the client for interacting with the StripeEvent builders.
+	StripeEvent *StripeEventClient
+	// UsageDaily is the client for interacting with the UsageDaily builders.
+	UsageDaily *UsageDailyClient
 	// User is the client for interacting with the User builders.
 	User *UserClient
 
@@ -168,16 +188,26 @@ func (tx *Tx) Client() *Client {
 
 func (tx *Tx) init() {
 	tx.APIKey = NewAPIKeyClient(tx.config)
+	tx.AuditEvent = NewAuditEventClient(tx.config)
+	tx.BillingAccount = NewBillingAccountClient(tx.config)
+	tx.BillingPeriod = NewBillingPeriodClient(tx.config)
 	tx.Cell = NewCellClient(tx.config)
 	tx.ConfigVersion = NewConfigVersionClient(tx.config)
 	tx.Environment = NewEnvironmentClient(tx.config)
 	tx.FeatureFlag = NewFeatureFlagClient(tx.config)
 	tx.Invitation = NewInvitationClient(tx.config)
+	tx.LedgerEntry = NewLedgerEntryClient(tx.config)
 	tx.LiveOpsEvent = NewLiveOpsEventClient(tx.config)
+	tx.MemberProject = NewMemberProjectClient(tx.config)
 	tx.Organization = NewOrganizationClient(tx.config)
 	tx.OrganizationMember = NewOrganizationMemberClient(tx.config)
+	tx.Plan = NewPlanClient(tx.config)
 	tx.Project = NewProjectClient(tx.config)
+	tx.Role = NewRoleClient(tx.config)
 	tx.Segment = NewSegmentClient(tx.config)
+	tx.StaffAccess = NewStaffAccessClient(tx.config)
+	tx.StripeEvent = NewStripeEventClient(tx.config)
+	tx.UsageDaily = NewUsageDailyClient(tx.config)
 	tx.User = NewUserClient(tx.config)
 }
 

@@ -12,6 +12,8 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
 	"playersense.dev/backend/ent/global/apikey"
+	"playersense.dev/backend/ent/global/auditevent"
+	"playersense.dev/backend/ent/global/configversion"
 	"playersense.dev/backend/ent/global/environment"
 )
 
@@ -139,6 +141,36 @@ func (_c *APIKeyCreate) SetID(v int) *APIKeyCreate {
 // SetEnvironment sets the "environment" edge to the Environment entity.
 func (_c *APIKeyCreate) SetEnvironment(v *Environment) *APIKeyCreate {
 	return _c.SetEnvironmentID(v.ID)
+}
+
+// AddAuditEventIDs adds the "audit_events" edge to the AuditEvent entity by IDs.
+func (_c *APIKeyCreate) AddAuditEventIDs(ids ...int) *APIKeyCreate {
+	_c.mutation.AddAuditEventIDs(ids...)
+	return _c
+}
+
+// AddAuditEvents adds the "audit_events" edges to the AuditEvent entity.
+func (_c *APIKeyCreate) AddAuditEvents(v ...*AuditEvent) *APIKeyCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddAuditEventIDs(ids...)
+}
+
+// AddPublishedVersionIDs adds the "published_versions" edge to the ConfigVersion entity by IDs.
+func (_c *APIKeyCreate) AddPublishedVersionIDs(ids ...int) *APIKeyCreate {
+	_c.mutation.AddPublishedVersionIDs(ids...)
+	return _c
+}
+
+// AddPublishedVersions adds the "published_versions" edges to the ConfigVersion entity.
+func (_c *APIKeyCreate) AddPublishedVersions(v ...*ConfigVersion) *APIKeyCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddPublishedVersionIDs(ids...)
 }
 
 // Mutation returns the APIKeyMutation object of the builder.
@@ -319,6 +351,38 @@ func (_c *APIKeyCreate) createSpec() (*APIKey, *sqlgraph.CreateSpec) {
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_node.EnvironmentID = nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.AuditEventsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   apikey.AuditEventsTable,
+			Columns: []string{apikey.AuditEventsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(auditevent.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.PublishedVersionsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   apikey.PublishedVersionsTable,
+			Columns: []string{apikey.PublishedVersionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(configversion.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec

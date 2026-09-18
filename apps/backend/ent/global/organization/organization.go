@@ -33,6 +33,12 @@ const (
 	EdgeMembers = "members"
 	// EdgeInvitations holds the string denoting the invitations edge name in mutations.
 	EdgeInvitations = "invitations"
+	// EdgeRoles holds the string denoting the roles edge name in mutations.
+	EdgeRoles = "roles"
+	// EdgeAuditEvents holds the string denoting the audit_events edge name in mutations.
+	EdgeAuditEvents = "audit_events"
+	// EdgeBillingAccount holds the string denoting the billing_account edge name in mutations.
+	EdgeBillingAccount = "billing_account"
 	// Table holds the table name of the organization in the database.
 	Table = "organizations"
 	// ProjectsTable is the table that holds the projects relation/edge.
@@ -56,6 +62,27 @@ const (
 	InvitationsInverseTable = "invitations"
 	// InvitationsColumn is the table column denoting the invitations relation/edge.
 	InvitationsColumn = "organization_id"
+	// RolesTable is the table that holds the roles relation/edge.
+	RolesTable = "roles"
+	// RolesInverseTable is the table name for the Role entity.
+	// It exists in this package in order to avoid circular dependency with the "role" package.
+	RolesInverseTable = "roles"
+	// RolesColumn is the table column denoting the roles relation/edge.
+	RolesColumn = "organization_id"
+	// AuditEventsTable is the table that holds the audit_events relation/edge.
+	AuditEventsTable = "audit_events"
+	// AuditEventsInverseTable is the table name for the AuditEvent entity.
+	// It exists in this package in order to avoid circular dependency with the "auditevent" package.
+	AuditEventsInverseTable = "audit_events"
+	// AuditEventsColumn is the table column denoting the audit_events relation/edge.
+	AuditEventsColumn = "organization_id"
+	// BillingAccountTable is the table that holds the billing_account relation/edge.
+	BillingAccountTable = "billing_accounts"
+	// BillingAccountInverseTable is the table name for the BillingAccount entity.
+	// It exists in this package in order to avoid circular dependency with the "billingaccount" package.
+	BillingAccountInverseTable = "billing_accounts"
+	// BillingAccountColumn is the table column denoting the billing_account relation/edge.
+	BillingAccountColumn = "organization_id"
 )
 
 // Columns holds all SQL columns for organization fields.
@@ -177,6 +204,41 @@ func ByInvitations(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newInvitationsStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
+
+// ByRolesCount orders the results by roles count.
+func ByRolesCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newRolesStep(), opts...)
+	}
+}
+
+// ByRoles orders the results by roles terms.
+func ByRoles(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newRolesStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByAuditEventsCount orders the results by audit_events count.
+func ByAuditEventsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newAuditEventsStep(), opts...)
+	}
+}
+
+// ByAuditEvents orders the results by audit_events terms.
+func ByAuditEvents(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newAuditEventsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByBillingAccountField orders the results by billing_account field.
+func ByBillingAccountField(field string, opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newBillingAccountStep(), sql.OrderByField(field, opts...))
+	}
+}
 func newProjectsStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -196,5 +258,26 @@ func newInvitationsStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(InvitationsInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, InvitationsTable, InvitationsColumn),
+	)
+}
+func newRolesStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(RolesInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, RolesTable, RolesColumn),
+	)
+}
+func newAuditEventsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(AuditEventsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, AuditEventsTable, AuditEventsColumn),
+	)
+}
+func newBillingAccountStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(BillingAccountInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2O, false, BillingAccountTable, BillingAccountColumn),
 	)
 }

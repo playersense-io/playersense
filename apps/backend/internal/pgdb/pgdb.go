@@ -35,6 +35,26 @@ import (
 	entglobal "playersense.dev/backend/ent/global"
 	entregional "playersense.dev/backend/ent/regional"
 	"playersense.dev/backend/internal/dataclass"
+
+	// Blank imports, and they are load-bearing rather than tidy.
+	//
+	// ent moves a client's defaults, validators and hooks into a `runtime` subpackage the
+	// moment any of its schemas declares a Hook — it has to, because the generated code and
+	// the schema would otherwise import each other. Nothing references that package, so
+	// without this line the linker drops it and every `DefaultUID`, `DefaultCreatedAt` and
+	// hook stays a nil function pointer.
+	//
+	// The failure is a nil dereference inside a generated `defaults()`, on the first row
+	// anything creates. Not at startup, not during migration, and not in a test that builds
+	// its client through enttest — which imports this itself, and is why the identity suite
+	// kept passing while the binaries would have panicked. It goes here, where both
+	// production and tests open their clients, so that no main() can be the one that forgot.
+	//
+	// The regional client has no hooks today and still stitches inline, so its import does
+	// nothing yet. It is here so that the first hook added over there does not reintroduce
+	// this.
+	_ "playersense.dev/backend/ent/global/runtime"
+	_ "playersense.dev/backend/ent/regional/runtime"
 )
 
 var (

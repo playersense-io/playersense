@@ -4,6 +4,7 @@ package global
 
 import (
 	"context"
+	"database/sql/driver"
 	"fmt"
 	"math"
 
@@ -12,6 +13,8 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"playersense.dev/backend/ent/global/apikey"
+	"playersense.dev/backend/ent/global/auditevent"
+	"playersense.dev/backend/ent/global/configversion"
 	"playersense.dev/backend/ent/global/environment"
 	"playersense.dev/backend/ent/global/predicate"
 )
@@ -19,11 +22,13 @@ import (
 // APIKeyQuery is the builder for querying APIKey entities.
 type APIKeyQuery struct {
 	config
-	ctx             *QueryContext
-	order           []apikey.OrderOption
-	inters          []Interceptor
-	predicates      []predicate.APIKey
-	withEnvironment *EnvironmentQuery
+	ctx                   *QueryContext
+	order                 []apikey.OrderOption
+	inters                []Interceptor
+	predicates            []predicate.APIKey
+	withEnvironment       *EnvironmentQuery
+	withAuditEvents       *AuditEventQuery
+	withPublishedVersions *ConfigVersionQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -75,6 +80,50 @@ func (_q *APIKeyQuery) QueryEnvironment() *EnvironmentQuery {
 			sqlgraph.From(apikey.Table, apikey.FieldID, selector),
 			sqlgraph.To(environment.Table, environment.FieldID),
 			sqlgraph.Edge(sqlgraph.M2O, true, apikey.EnvironmentTable, apikey.EnvironmentColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryAuditEvents chains the current query on the "audit_events" edge.
+func (_q *APIKeyQuery) QueryAuditEvents() *AuditEventQuery {
+	query := (&AuditEventClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(apikey.Table, apikey.FieldID, selector),
+			sqlgraph.To(auditevent.Table, auditevent.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, apikey.AuditEventsTable, apikey.AuditEventsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryPublishedVersions chains the current query on the "published_versions" edge.
+func (_q *APIKeyQuery) QueryPublishedVersions() *ConfigVersionQuery {
+	query := (&ConfigVersionClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(apikey.Table, apikey.FieldID, selector),
+			sqlgraph.To(configversion.Table, configversion.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, apikey.PublishedVersionsTable, apikey.PublishedVersionsColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -269,12 +318,14 @@ func (_q *APIKeyQuery) Clone() *APIKeyQuery {
 		return nil
 	}
 	return &APIKeyQuery{
-		config:          _q.config,
-		ctx:             _q.ctx.Clone(),
-		order:           append([]apikey.OrderOption{}, _q.order...),
-		inters:          append([]Interceptor{}, _q.inters...),
-		predicates:      append([]predicate.APIKey{}, _q.predicates...),
-		withEnvironment: _q.withEnvironment.Clone(),
+		config:                _q.config,
+		ctx:                   _q.ctx.Clone(),
+		order:                 append([]apikey.OrderOption{}, _q.order...),
+		inters:                append([]Interceptor{}, _q.inters...),
+		predicates:            append([]predicate.APIKey{}, _q.predicates...),
+		withEnvironment:       _q.withEnvironment.Clone(),
+		withAuditEvents:       _q.withAuditEvents.Clone(),
+		withPublishedVersions: _q.withPublishedVersions.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -289,6 +340,28 @@ func (_q *APIKeyQuery) WithEnvironment(opts ...func(*EnvironmentQuery)) *APIKeyQ
 		opt(query)
 	}
 	_q.withEnvironment = query
+	return _q
+}
+
+// WithAuditEvents tells the query-builder to eager-load the nodes that are connected to
+// the "audit_events" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *APIKeyQuery) WithAuditEvents(opts ...func(*AuditEventQuery)) *APIKeyQuery {
+	query := (&AuditEventClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withAuditEvents = query
+	return _q
+}
+
+// WithPublishedVersions tells the query-builder to eager-load the nodes that are connected to
+// the "published_versions" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *APIKeyQuery) WithPublishedVersions(opts ...func(*ConfigVersionQuery)) *APIKeyQuery {
+	query := (&ConfigVersionClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withPublishedVersions = query
 	return _q
 }
 
@@ -370,8 +443,10 @@ func (_q *APIKeyQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*APIKe
 	var (
 		nodes       = []*APIKey{}
 		_spec       = _q.querySpec()
-		loadedTypes = [1]bool{
+		loadedTypes = [3]bool{
 			_q.withEnvironment != nil,
+			_q.withAuditEvents != nil,
+			_q.withPublishedVersions != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -395,6 +470,20 @@ func (_q *APIKeyQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*APIKe
 	if query := _q.withEnvironment; query != nil {
 		if err := _q.loadEnvironment(ctx, query, nodes, nil,
 			func(n *APIKey, e *Environment) { n.Edges.Environment = e }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withAuditEvents; query != nil {
+		if err := _q.loadAuditEvents(ctx, query, nodes,
+			func(n *APIKey) { n.Edges.AuditEvents = []*AuditEvent{} },
+			func(n *APIKey, e *AuditEvent) { n.Edges.AuditEvents = append(n.Edges.AuditEvents, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withPublishedVersions; query != nil {
+		if err := _q.loadPublishedVersions(ctx, query, nodes,
+			func(n *APIKey) { n.Edges.PublishedVersions = []*ConfigVersion{} },
+			func(n *APIKey, e *ConfigVersion) { n.Edges.PublishedVersions = append(n.Edges.PublishedVersions, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -427,6 +516,72 @@ func (_q *APIKeyQuery) loadEnvironment(ctx context.Context, query *EnvironmentQu
 		for i := range nodes {
 			assign(nodes[i], n)
 		}
+	}
+	return nil
+}
+func (_q *APIKeyQuery) loadAuditEvents(ctx context.Context, query *AuditEventQuery, nodes []*APIKey, init func(*APIKey), assign func(*APIKey, *AuditEvent)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*APIKey)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(auditevent.FieldActorKeyID)
+	}
+	query.Where(predicate.AuditEvent(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(apikey.AuditEventsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.ActorKeyID
+		if fk == nil {
+			return fmt.Errorf(`foreign-key "actor_key_id" is nil for node %v`, n.ID)
+		}
+		node, ok := nodeids[*fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "actor_key_id" returned %v for node %v`, *fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *APIKeyQuery) loadPublishedVersions(ctx context.Context, query *ConfigVersionQuery, nodes []*APIKey, init func(*APIKey), assign func(*APIKey, *ConfigVersion)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*APIKey)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(configversion.FieldPublishedByKeyID)
+	}
+	query.Where(predicate.ConfigVersion(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(apikey.PublishedVersionsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.PublishedByKeyID
+		if fk == nil {
+			return fmt.Errorf(`foreign-key "published_by_key_id" is nil for node %v`, n.ID)
+		}
+		node, ok := nodeids[*fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "published_by_key_id" returned %v for node %v`, *fk, n.ID)
+		}
+		assign(node, n)
 	}
 	return nil
 }

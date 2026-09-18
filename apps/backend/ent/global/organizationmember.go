@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	"playersense.dev/backend/ent/global/organization"
 	"playersense.dev/backend/ent/global/organizationmember"
+	"playersense.dev/backend/ent/global/role"
 	"playersense.dev/backend/ent/global/user"
 )
 
@@ -28,11 +29,13 @@ type OrganizationMember struct {
 	// class=none
 	UpdatedAt time.Time `json:"updated_at,omitempty"`
 	// class=none
-	Role organizationmember.Role `json:"role,omitempty"`
-	// class=none
 	OrganizationID int `json:"organization_id,omitempty"`
 	// class=none
 	UserID int `json:"user_id,omitempty"`
+	// class=none
+	RoleID int `json:"role_id,omitempty"`
+	// class=none
+	AllProjects bool `json:"all_projects,omitempty"`
 	// class=none
 	JoinedAt time.Time `json:"joined_at,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
@@ -47,9 +50,13 @@ type OrganizationMemberEdges struct {
 	Organization *Organization `json:"organization,omitempty"`
 	// User holds the value of the user edge.
 	User *User `json:"user,omitempty"`
+	// Role holds the value of the role edge.
+	Role *Role `json:"role,omitempty"`
+	// ProjectAccess holds the value of the project_access edge.
+	ProjectAccess []*MemberProject `json:"project_access,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [2]bool
+	loadedTypes [4]bool
 }
 
 // OrganizationOrErr returns the Organization value or an error if the edge
@@ -74,15 +81,35 @@ func (e OrganizationMemberEdges) UserOrErr() (*User, error) {
 	return nil, &NotLoadedError{edge: "user"}
 }
 
+// RoleOrErr returns the Role value or an error if the edge
+// was not loaded in eager-loading, or loaded but was not found.
+func (e OrganizationMemberEdges) RoleOrErr() (*Role, error) {
+	if e.Role != nil {
+		return e.Role, nil
+	} else if e.loadedTypes[2] {
+		return nil, &NotFoundError{label: role.Label}
+	}
+	return nil, &NotLoadedError{edge: "role"}
+}
+
+// ProjectAccessOrErr returns the ProjectAccess value or an error if the edge
+// was not loaded in eager-loading.
+func (e OrganizationMemberEdges) ProjectAccessOrErr() ([]*MemberProject, error) {
+	if e.loadedTypes[3] {
+		return e.ProjectAccess, nil
+	}
+	return nil, &NotLoadedError{edge: "project_access"}
+}
+
 // scanValues returns the types for scanning values from sql.Rows.
 func (*OrganizationMember) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case organizationmember.FieldID, organizationmember.FieldOrganizationID, organizationmember.FieldUserID:
+		case organizationmember.FieldAllProjects:
+			values[i] = new(sql.NullBool)
+		case organizationmember.FieldID, organizationmember.FieldOrganizationID, organizationmember.FieldUserID, organizationmember.FieldRoleID:
 			values[i] = new(sql.NullInt64)
-		case organizationmember.FieldRole:
-			values[i] = new(sql.NullString)
 		case organizationmember.FieldCreatedAt, organizationmember.FieldUpdatedAt, organizationmember.FieldJoinedAt:
 			values[i] = new(sql.NullTime)
 		case organizationmember.FieldUID:
@@ -126,12 +153,6 @@ func (_m *OrganizationMember) assignValues(columns []string, values []any) error
 			} else if value.Valid {
 				_m.UpdatedAt = value.Time
 			}
-		case organizationmember.FieldRole:
-			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field role", values[i])
-			} else if value.Valid {
-				_m.Role = organizationmember.Role(value.String)
-			}
 		case organizationmember.FieldOrganizationID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
 				return fmt.Errorf("unexpected type %T for field organization_id", values[i])
@@ -143,6 +164,18 @@ func (_m *OrganizationMember) assignValues(columns []string, values []any) error
 				return fmt.Errorf("unexpected type %T for field user_id", values[i])
 			} else if value.Valid {
 				_m.UserID = int(value.Int64)
+			}
+		case organizationmember.FieldRoleID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field role_id", values[i])
+			} else if value.Valid {
+				_m.RoleID = int(value.Int64)
+			}
+		case organizationmember.FieldAllProjects:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field all_projects", values[i])
+			} else if value.Valid {
+				_m.AllProjects = value.Bool
 			}
 		case organizationmember.FieldJoinedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -171,6 +204,16 @@ func (_m *OrganizationMember) QueryOrganization() *OrganizationQuery {
 // QueryUser queries the "user" edge of the OrganizationMember entity.
 func (_m *OrganizationMember) QueryUser() *UserQuery {
 	return NewOrganizationMemberClient(_m.config).QueryUser(_m)
+}
+
+// QueryRole queries the "role" edge of the OrganizationMember entity.
+func (_m *OrganizationMember) QueryRole() *RoleQuery {
+	return NewOrganizationMemberClient(_m.config).QueryRole(_m)
+}
+
+// QueryProjectAccess queries the "project_access" edge of the OrganizationMember entity.
+func (_m *OrganizationMember) QueryProjectAccess() *MemberProjectQuery {
+	return NewOrganizationMemberClient(_m.config).QueryProjectAccess(_m)
 }
 
 // Update returns a builder for updating this OrganizationMember.
@@ -205,14 +248,17 @@ func (_m *OrganizationMember) String() string {
 	builder.WriteString("updated_at=")
 	builder.WriteString(_m.UpdatedAt.Format(time.ANSIC))
 	builder.WriteString(", ")
-	builder.WriteString("role=")
-	builder.WriteString(fmt.Sprintf("%v", _m.Role))
-	builder.WriteString(", ")
 	builder.WriteString("organization_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.OrganizationID))
 	builder.WriteString(", ")
 	builder.WriteString("user_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.UserID))
+	builder.WriteString(", ")
+	builder.WriteString("role_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.RoleID))
+	builder.WriteString(", ")
+	builder.WriteString("all_projects=")
+	builder.WriteString(fmt.Sprintf("%v", _m.AllProjects))
 	builder.WriteString(", ")
 	builder.WriteString("joined_at=")
 	builder.WriteString(_m.JoinedAt.Format(time.ANSIC))

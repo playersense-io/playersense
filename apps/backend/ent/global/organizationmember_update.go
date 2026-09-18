@@ -11,9 +11,11 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"playersense.dev/backend/ent/global/memberproject"
 	"playersense.dev/backend/ent/global/organization"
 	"playersense.dev/backend/ent/global/organizationmember"
 	"playersense.dev/backend/ent/global/predicate"
+	"playersense.dev/backend/ent/global/role"
 	"playersense.dev/backend/ent/global/user"
 )
 
@@ -33,20 +35,6 @@ func (_u *OrganizationMemberUpdate) Where(ps ...predicate.OrganizationMember) *O
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *OrganizationMemberUpdate) SetUpdatedAt(v time.Time) *OrganizationMemberUpdate {
 	_u.mutation.SetUpdatedAt(v)
-	return _u
-}
-
-// SetRole sets the "role" field.
-func (_u *OrganizationMemberUpdate) SetRole(v organizationmember.Role) *OrganizationMemberUpdate {
-	_u.mutation.SetRole(v)
-	return _u
-}
-
-// SetNillableRole sets the "role" field if the given value is not nil.
-func (_u *OrganizationMemberUpdate) SetNillableRole(v *organizationmember.Role) *OrganizationMemberUpdate {
-	if v != nil {
-		_u.SetRole(*v)
-	}
 	return _u
 }
 
@@ -78,6 +66,34 @@ func (_u *OrganizationMemberUpdate) SetNillableUserID(v *int) *OrganizationMembe
 	return _u
 }
 
+// SetRoleID sets the "role_id" field.
+func (_u *OrganizationMemberUpdate) SetRoleID(v int) *OrganizationMemberUpdate {
+	_u.mutation.SetRoleID(v)
+	return _u
+}
+
+// SetNillableRoleID sets the "role_id" field if the given value is not nil.
+func (_u *OrganizationMemberUpdate) SetNillableRoleID(v *int) *OrganizationMemberUpdate {
+	if v != nil {
+		_u.SetRoleID(*v)
+	}
+	return _u
+}
+
+// SetAllProjects sets the "all_projects" field.
+func (_u *OrganizationMemberUpdate) SetAllProjects(v bool) *OrganizationMemberUpdate {
+	_u.mutation.SetAllProjects(v)
+	return _u
+}
+
+// SetNillableAllProjects sets the "all_projects" field if the given value is not nil.
+func (_u *OrganizationMemberUpdate) SetNillableAllProjects(v *bool) *OrganizationMemberUpdate {
+	if v != nil {
+		_u.SetAllProjects(*v)
+	}
+	return _u
+}
+
 // SetOrganization sets the "organization" edge to the Organization entity.
 func (_u *OrganizationMemberUpdate) SetOrganization(v *Organization) *OrganizationMemberUpdate {
 	return _u.SetOrganizationID(v.ID)
@@ -86,6 +102,26 @@ func (_u *OrganizationMemberUpdate) SetOrganization(v *Organization) *Organizati
 // SetUser sets the "user" edge to the User entity.
 func (_u *OrganizationMemberUpdate) SetUser(v *User) *OrganizationMemberUpdate {
 	return _u.SetUserID(v.ID)
+}
+
+// SetRole sets the "role" edge to the Role entity.
+func (_u *OrganizationMemberUpdate) SetRole(v *Role) *OrganizationMemberUpdate {
+	return _u.SetRoleID(v.ID)
+}
+
+// AddProjectAccesIDs adds the "project_access" edge to the MemberProject entity by IDs.
+func (_u *OrganizationMemberUpdate) AddProjectAccesIDs(ids ...int) *OrganizationMemberUpdate {
+	_u.mutation.AddProjectAccesIDs(ids...)
+	return _u
+}
+
+// AddProjectAccess adds the "project_access" edges to the MemberProject entity.
+func (_u *OrganizationMemberUpdate) AddProjectAccess(v ...*MemberProject) *OrganizationMemberUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddProjectAccesIDs(ids...)
 }
 
 // Mutation returns the OrganizationMemberMutation object of the builder.
@@ -103,6 +139,33 @@ func (_u *OrganizationMemberUpdate) ClearOrganization() *OrganizationMemberUpdat
 func (_u *OrganizationMemberUpdate) ClearUser() *OrganizationMemberUpdate {
 	_u.mutation.ClearUser()
 	return _u
+}
+
+// ClearRole clears the "role" edge to the Role entity.
+func (_u *OrganizationMemberUpdate) ClearRole() *OrganizationMemberUpdate {
+	_u.mutation.ClearRole()
+	return _u
+}
+
+// ClearProjectAccess clears all "project_access" edges to the MemberProject entity.
+func (_u *OrganizationMemberUpdate) ClearProjectAccess() *OrganizationMemberUpdate {
+	_u.mutation.ClearProjectAccess()
+	return _u
+}
+
+// RemoveProjectAccesIDs removes the "project_access" edge to MemberProject entities by IDs.
+func (_u *OrganizationMemberUpdate) RemoveProjectAccesIDs(ids ...int) *OrganizationMemberUpdate {
+	_u.mutation.RemoveProjectAccesIDs(ids...)
+	return _u
+}
+
+// RemoveProjectAccess removes "project_access" edges to MemberProject entities.
+func (_u *OrganizationMemberUpdate) RemoveProjectAccess(v ...*MemberProject) *OrganizationMemberUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveProjectAccesIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -143,16 +206,14 @@ func (_u *OrganizationMemberUpdate) defaults() {
 
 // check runs all checks and user-defined validators on the builder.
 func (_u *OrganizationMemberUpdate) check() error {
-	if v, ok := _u.mutation.Role(); ok {
-		if err := organizationmember.RoleValidator(v); err != nil {
-			return &ValidationError{Name: "role", err: fmt.Errorf(`global: validator failed for field "OrganizationMember.role": %w`, err)}
-		}
-	}
 	if _u.mutation.OrganizationCleared() && len(_u.mutation.OrganizationIDs()) > 0 {
 		return errors.New(`global: clearing a required unique edge "OrganizationMember.organization"`)
 	}
 	if _u.mutation.UserCleared() && len(_u.mutation.UserIDs()) > 0 {
 		return errors.New(`global: clearing a required unique edge "OrganizationMember.user"`)
+	}
+	if _u.mutation.RoleCleared() && len(_u.mutation.RoleIDs()) > 0 {
+		return errors.New(`global: clearing a required unique edge "OrganizationMember.role"`)
 	}
 	return nil
 }
@@ -172,8 +233,8 @@ func (_u *OrganizationMemberUpdate) sqlSave(ctx context.Context) (_node int, err
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(organizationmember.FieldUpdatedAt, field.TypeTime, value)
 	}
-	if value, ok := _u.mutation.Role(); ok {
-		_spec.SetField(organizationmember.FieldRole, field.TypeEnum, value)
+	if value, ok := _u.mutation.AllProjects(); ok {
+		_spec.SetField(organizationmember.FieldAllProjects, field.TypeBool, value)
 	}
 	if _u.mutation.OrganizationCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -233,6 +294,80 @@ func (_u *OrganizationMemberUpdate) sqlSave(ctx context.Context) (_node int, err
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.RoleCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   organizationmember.RoleTable,
+			Columns: []string{organizationmember.RoleColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(role.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RoleIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   organizationmember.RoleTable,
+			Columns: []string{organizationmember.RoleColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(role.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ProjectAccessCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   organizationmember.ProjectAccessTable,
+			Columns: []string{organizationmember.ProjectAccessColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(memberproject.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedProjectAccessIDs(); len(nodes) > 0 && !_u.mutation.ProjectAccessCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   organizationmember.ProjectAccessTable,
+			Columns: []string{organizationmember.ProjectAccessColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(memberproject.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ProjectAccessIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   organizationmember.ProjectAccessTable,
+			Columns: []string{organizationmember.ProjectAccessColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(memberproject.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{organizationmember.Label}
@@ -256,20 +391,6 @@ type OrganizationMemberUpdateOne struct {
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *OrganizationMemberUpdateOne) SetUpdatedAt(v time.Time) *OrganizationMemberUpdateOne {
 	_u.mutation.SetUpdatedAt(v)
-	return _u
-}
-
-// SetRole sets the "role" field.
-func (_u *OrganizationMemberUpdateOne) SetRole(v organizationmember.Role) *OrganizationMemberUpdateOne {
-	_u.mutation.SetRole(v)
-	return _u
-}
-
-// SetNillableRole sets the "role" field if the given value is not nil.
-func (_u *OrganizationMemberUpdateOne) SetNillableRole(v *organizationmember.Role) *OrganizationMemberUpdateOne {
-	if v != nil {
-		_u.SetRole(*v)
-	}
 	return _u
 }
 
@@ -301,6 +422,34 @@ func (_u *OrganizationMemberUpdateOne) SetNillableUserID(v *int) *OrganizationMe
 	return _u
 }
 
+// SetRoleID sets the "role_id" field.
+func (_u *OrganizationMemberUpdateOne) SetRoleID(v int) *OrganizationMemberUpdateOne {
+	_u.mutation.SetRoleID(v)
+	return _u
+}
+
+// SetNillableRoleID sets the "role_id" field if the given value is not nil.
+func (_u *OrganizationMemberUpdateOne) SetNillableRoleID(v *int) *OrganizationMemberUpdateOne {
+	if v != nil {
+		_u.SetRoleID(*v)
+	}
+	return _u
+}
+
+// SetAllProjects sets the "all_projects" field.
+func (_u *OrganizationMemberUpdateOne) SetAllProjects(v bool) *OrganizationMemberUpdateOne {
+	_u.mutation.SetAllProjects(v)
+	return _u
+}
+
+// SetNillableAllProjects sets the "all_projects" field if the given value is not nil.
+func (_u *OrganizationMemberUpdateOne) SetNillableAllProjects(v *bool) *OrganizationMemberUpdateOne {
+	if v != nil {
+		_u.SetAllProjects(*v)
+	}
+	return _u
+}
+
 // SetOrganization sets the "organization" edge to the Organization entity.
 func (_u *OrganizationMemberUpdateOne) SetOrganization(v *Organization) *OrganizationMemberUpdateOne {
 	return _u.SetOrganizationID(v.ID)
@@ -309,6 +458,26 @@ func (_u *OrganizationMemberUpdateOne) SetOrganization(v *Organization) *Organiz
 // SetUser sets the "user" edge to the User entity.
 func (_u *OrganizationMemberUpdateOne) SetUser(v *User) *OrganizationMemberUpdateOne {
 	return _u.SetUserID(v.ID)
+}
+
+// SetRole sets the "role" edge to the Role entity.
+func (_u *OrganizationMemberUpdateOne) SetRole(v *Role) *OrganizationMemberUpdateOne {
+	return _u.SetRoleID(v.ID)
+}
+
+// AddProjectAccesIDs adds the "project_access" edge to the MemberProject entity by IDs.
+func (_u *OrganizationMemberUpdateOne) AddProjectAccesIDs(ids ...int) *OrganizationMemberUpdateOne {
+	_u.mutation.AddProjectAccesIDs(ids...)
+	return _u
+}
+
+// AddProjectAccess adds the "project_access" edges to the MemberProject entity.
+func (_u *OrganizationMemberUpdateOne) AddProjectAccess(v ...*MemberProject) *OrganizationMemberUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddProjectAccesIDs(ids...)
 }
 
 // Mutation returns the OrganizationMemberMutation object of the builder.
@@ -326,6 +495,33 @@ func (_u *OrganizationMemberUpdateOne) ClearOrganization() *OrganizationMemberUp
 func (_u *OrganizationMemberUpdateOne) ClearUser() *OrganizationMemberUpdateOne {
 	_u.mutation.ClearUser()
 	return _u
+}
+
+// ClearRole clears the "role" edge to the Role entity.
+func (_u *OrganizationMemberUpdateOne) ClearRole() *OrganizationMemberUpdateOne {
+	_u.mutation.ClearRole()
+	return _u
+}
+
+// ClearProjectAccess clears all "project_access" edges to the MemberProject entity.
+func (_u *OrganizationMemberUpdateOne) ClearProjectAccess() *OrganizationMemberUpdateOne {
+	_u.mutation.ClearProjectAccess()
+	return _u
+}
+
+// RemoveProjectAccesIDs removes the "project_access" edge to MemberProject entities by IDs.
+func (_u *OrganizationMemberUpdateOne) RemoveProjectAccesIDs(ids ...int) *OrganizationMemberUpdateOne {
+	_u.mutation.RemoveProjectAccesIDs(ids...)
+	return _u
+}
+
+// RemoveProjectAccess removes "project_access" edges to MemberProject entities.
+func (_u *OrganizationMemberUpdateOne) RemoveProjectAccess(v ...*MemberProject) *OrganizationMemberUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveProjectAccesIDs(ids...)
 }
 
 // Where appends a list predicates to the OrganizationMemberUpdate builder.
@@ -379,16 +575,14 @@ func (_u *OrganizationMemberUpdateOne) defaults() {
 
 // check runs all checks and user-defined validators on the builder.
 func (_u *OrganizationMemberUpdateOne) check() error {
-	if v, ok := _u.mutation.Role(); ok {
-		if err := organizationmember.RoleValidator(v); err != nil {
-			return &ValidationError{Name: "role", err: fmt.Errorf(`global: validator failed for field "OrganizationMember.role": %w`, err)}
-		}
-	}
 	if _u.mutation.OrganizationCleared() && len(_u.mutation.OrganizationIDs()) > 0 {
 		return errors.New(`global: clearing a required unique edge "OrganizationMember.organization"`)
 	}
 	if _u.mutation.UserCleared() && len(_u.mutation.UserIDs()) > 0 {
 		return errors.New(`global: clearing a required unique edge "OrganizationMember.user"`)
+	}
+	if _u.mutation.RoleCleared() && len(_u.mutation.RoleIDs()) > 0 {
+		return errors.New(`global: clearing a required unique edge "OrganizationMember.role"`)
 	}
 	return nil
 }
@@ -425,8 +619,8 @@ func (_u *OrganizationMemberUpdateOne) sqlSave(ctx context.Context) (_node *Orga
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(organizationmember.FieldUpdatedAt, field.TypeTime, value)
 	}
-	if value, ok := _u.mutation.Role(); ok {
-		_spec.SetField(organizationmember.FieldRole, field.TypeEnum, value)
+	if value, ok := _u.mutation.AllProjects(); ok {
+		_spec.SetField(organizationmember.FieldAllProjects, field.TypeBool, value)
 	}
 	if _u.mutation.OrganizationCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -479,6 +673,80 @@ func (_u *OrganizationMemberUpdateOne) sqlSave(ctx context.Context) (_node *Orga
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.RoleCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   organizationmember.RoleTable,
+			Columns: []string{organizationmember.RoleColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(role.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RoleIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   organizationmember.RoleTable,
+			Columns: []string{organizationmember.RoleColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(role.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ProjectAccessCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   organizationmember.ProjectAccessTable,
+			Columns: []string{organizationmember.ProjectAccessColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(memberproject.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedProjectAccessIDs(); len(nodes) > 0 && !_u.mutation.ProjectAccessCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   organizationmember.ProjectAccessTable,
+			Columns: []string{organizationmember.ProjectAccessColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(memberproject.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ProjectAccessIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   organizationmember.ProjectAccessTable,
+			Columns: []string{organizationmember.ProjectAccessColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(memberproject.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

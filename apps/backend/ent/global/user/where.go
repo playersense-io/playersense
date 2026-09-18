@@ -702,6 +702,52 @@ func HasSentInvitationsWith(preds ...predicate.Invitation) predicate.User {
 	})
 }
 
+// HasAuditEvents applies the HasEdge predicate on the "audit_events" edge.
+func HasAuditEvents() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, AuditEventsTable, AuditEventsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasAuditEventsWith applies the HasEdge predicate on the "audit_events" edge with a given conditions (other predicates).
+func HasAuditEventsWith(preds ...predicate.AuditEvent) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := newAuditEventsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasPublishedVersions applies the HasEdge predicate on the "published_versions" edge.
+func HasPublishedVersions() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, PublishedVersionsTable, PublishedVersionsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasPublishedVersionsWith applies the HasEdge predicate on the "published_versions" edge with a given conditions (other predicates).
+func HasPublishedVersionsWith(preds ...predicate.ConfigVersion) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := newPublishedVersionsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // And groups predicates with the AND operator between them.
 func And(predicates ...predicate.User) predicate.User {
 	return predicate.User(sql.AndPredicates(predicates...))

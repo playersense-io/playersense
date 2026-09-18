@@ -231,10 +231,20 @@ func (ConfigVersion) Fields() []ent.Field {
 		// thing.
 		field.JSON("document", map[string]any{}).Immutable().Comment(dataclass.None),
 
-		// Who published it, as an opaque actor string rather than an edge: it may be a
-		// person or an API token, and an
-		// edge would force all three to be the same kind of thing.
-		field.String("published_by").MaxLen(120).Default("").Immutable().Comment(dataclass.None),
+		// Who published it, in the same shape AuditEvent uses for an actor: a user, a key,
+		// or a label when neither resolves.
+		//
+		// It used to be one free string. Two edges and a label instead, because "who
+		// published version 7" is the first question asked when version 7 is wrong, and a
+		// string that said "ada@studio.example" could not be joined to a person who has since
+		// changed their address — while a string that said "ci" could not be told from a
+		// person called ci.
+		//
+		// The label is still written and still immutable, because an actor who is later
+		// deactivated must not turn a year-old publish into "unknown".
+		field.Int("published_by_user_id").Optional().Nillable().Immutable().Comment(dataclass.None),
+		field.Int("published_by_key_id").Optional().Nillable().Immutable().Comment(dataclass.None),
+		field.String("published_by_label").MaxLen(254).Default("").Immutable().Comment(dataclass.None),
 		field.String("note").MaxLen(500).Default("").Immutable().Comment(dataclass.None),
 	}
 }
@@ -245,6 +255,10 @@ func (ConfigVersion) Edges() []ent.Edge {
 			Field("project_id").Unique().Required().Immutable(),
 		edge.From("environment", Environment.Type).Ref("config_versions").
 			Field("environment_id").Unique().Required().Immutable(),
+		edge.From("published_by_user", User.Type).Ref("published_versions").
+			Field("published_by_user_id").Unique().Immutable(),
+		edge.From("published_by_key", APIKey.Type).Ref("published_versions").
+			Field("published_by_key_id").Unique().Immutable(),
 	}
 }
 

@@ -29,14 +29,22 @@ const (
 	FieldVersion = "version"
 	// FieldDocument holds the string denoting the document field in the database.
 	FieldDocument = "document"
-	// FieldPublishedBy holds the string denoting the published_by field in the database.
-	FieldPublishedBy = "published_by"
+	// FieldPublishedByUserID holds the string denoting the published_by_user_id field in the database.
+	FieldPublishedByUserID = "published_by_user_id"
+	// FieldPublishedByKeyID holds the string denoting the published_by_key_id field in the database.
+	FieldPublishedByKeyID = "published_by_key_id"
+	// FieldPublishedByLabel holds the string denoting the published_by_label field in the database.
+	FieldPublishedByLabel = "published_by_label"
 	// FieldNote holds the string denoting the note field in the database.
 	FieldNote = "note"
 	// EdgeProject holds the string denoting the project edge name in mutations.
 	EdgeProject = "project"
 	// EdgeEnvironment holds the string denoting the environment edge name in mutations.
 	EdgeEnvironment = "environment"
+	// EdgePublishedByUser holds the string denoting the published_by_user edge name in mutations.
+	EdgePublishedByUser = "published_by_user"
+	// EdgePublishedByKey holds the string denoting the published_by_key edge name in mutations.
+	EdgePublishedByKey = "published_by_key"
 	// Table holds the table name of the configversion in the database.
 	Table = "config_versions"
 	// ProjectTable is the table that holds the project relation/edge.
@@ -53,6 +61,20 @@ const (
 	EnvironmentInverseTable = "environments"
 	// EnvironmentColumn is the table column denoting the environment relation/edge.
 	EnvironmentColumn = "environment_id"
+	// PublishedByUserTable is the table that holds the published_by_user relation/edge.
+	PublishedByUserTable = "config_versions"
+	// PublishedByUserInverseTable is the table name for the User entity.
+	// It exists in this package in order to avoid circular dependency with the "user" package.
+	PublishedByUserInverseTable = "users"
+	// PublishedByUserColumn is the table column denoting the published_by_user relation/edge.
+	PublishedByUserColumn = "published_by_user_id"
+	// PublishedByKeyTable is the table that holds the published_by_key relation/edge.
+	PublishedByKeyTable = "config_versions"
+	// PublishedByKeyInverseTable is the table name for the APIKey entity.
+	// It exists in this package in order to avoid circular dependency with the "apikey" package.
+	PublishedByKeyInverseTable = "api_keys"
+	// PublishedByKeyColumn is the table column denoting the published_by_key relation/edge.
+	PublishedByKeyColumn = "published_by_key_id"
 )
 
 // Columns holds all SQL columns for configversion fields.
@@ -65,7 +87,9 @@ var Columns = []string{
 	FieldEnvironmentID,
 	FieldVersion,
 	FieldDocument,
-	FieldPublishedBy,
+	FieldPublishedByUserID,
+	FieldPublishedByKeyID,
+	FieldPublishedByLabel,
 	FieldNote,
 }
 
@@ -90,10 +114,10 @@ var (
 	UpdateDefaultUpdatedAt func() time.Time
 	// VersionValidator is a validator for the "version" field. It is called by the builders before save.
 	VersionValidator func(int) error
-	// DefaultPublishedBy holds the default value on creation for the "published_by" field.
-	DefaultPublishedBy string
-	// PublishedByValidator is a validator for the "published_by" field. It is called by the builders before save.
-	PublishedByValidator func(string) error
+	// DefaultPublishedByLabel holds the default value on creation for the "published_by_label" field.
+	DefaultPublishedByLabel string
+	// PublishedByLabelValidator is a validator for the "published_by_label" field. It is called by the builders before save.
+	PublishedByLabelValidator func(string) error
 	// DefaultNote holds the default value on creation for the "note" field.
 	DefaultNote string
 	// NoteValidator is a validator for the "note" field. It is called by the builders before save.
@@ -138,9 +162,19 @@ func ByVersion(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldVersion, opts...).ToFunc()
 }
 
-// ByPublishedBy orders the results by the published_by field.
-func ByPublishedBy(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldPublishedBy, opts...).ToFunc()
+// ByPublishedByUserID orders the results by the published_by_user_id field.
+func ByPublishedByUserID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPublishedByUserID, opts...).ToFunc()
+}
+
+// ByPublishedByKeyID orders the results by the published_by_key_id field.
+func ByPublishedByKeyID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPublishedByKeyID, opts...).ToFunc()
+}
+
+// ByPublishedByLabel orders the results by the published_by_label field.
+func ByPublishedByLabel(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPublishedByLabel, opts...).ToFunc()
 }
 
 // ByNote orders the results by the note field.
@@ -161,6 +195,20 @@ func ByEnvironmentField(field string, opts ...sql.OrderTermOption) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newEnvironmentStep(), sql.OrderByField(field, opts...))
 	}
 }
+
+// ByPublishedByUserField orders the results by published_by_user field.
+func ByPublishedByUserField(field string, opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newPublishedByUserStep(), sql.OrderByField(field, opts...))
+	}
+}
+
+// ByPublishedByKeyField orders the results by published_by_key field.
+func ByPublishedByKeyField(field string, opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newPublishedByKeyStep(), sql.OrderByField(field, opts...))
+	}
+}
 func newProjectStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -173,5 +221,19 @@ func newEnvironmentStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(EnvironmentInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.M2O, true, EnvironmentTable, EnvironmentColumn),
+	)
+}
+func newPublishedByUserStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(PublishedByUserInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.M2O, true, PublishedByUserTable, PublishedByUserColumn),
+	)
+}
+func newPublishedByKeyStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(PublishedByKeyInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.M2O, true, PublishedByKeyTable, PublishedByKeyColumn),
 	)
 }

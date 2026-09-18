@@ -12,23 +12,29 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"playersense.dev/backend/ent/global/auditevent"
+	"playersense.dev/backend/ent/global/billingaccount"
 	"playersense.dev/backend/ent/global/invitation"
 	"playersense.dev/backend/ent/global/organization"
 	"playersense.dev/backend/ent/global/organizationmember"
 	"playersense.dev/backend/ent/global/predicate"
 	"playersense.dev/backend/ent/global/project"
+	"playersense.dev/backend/ent/global/role"
 )
 
 // OrganizationQuery is the builder for querying Organization entities.
 type OrganizationQuery struct {
 	config
-	ctx             *QueryContext
-	order           []organization.OrderOption
-	inters          []Interceptor
-	predicates      []predicate.Organization
-	withProjects    *ProjectQuery
-	withMembers     *OrganizationMemberQuery
-	withInvitations *InvitationQuery
+	ctx                *QueryContext
+	order              []organization.OrderOption
+	inters             []Interceptor
+	predicates         []predicate.Organization
+	withProjects       *ProjectQuery
+	withMembers        *OrganizationMemberQuery
+	withInvitations    *InvitationQuery
+	withRoles          *RoleQuery
+	withAuditEvents    *AuditEventQuery
+	withBillingAccount *BillingAccountQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -124,6 +130,72 @@ func (_q *OrganizationQuery) QueryInvitations() *InvitationQuery {
 			sqlgraph.From(organization.Table, organization.FieldID, selector),
 			sqlgraph.To(invitation.Table, invitation.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, organization.InvitationsTable, organization.InvitationsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryRoles chains the current query on the "roles" edge.
+func (_q *OrganizationQuery) QueryRoles() *RoleQuery {
+	query := (&RoleClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(organization.Table, organization.FieldID, selector),
+			sqlgraph.To(role.Table, role.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, organization.RolesTable, organization.RolesColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryAuditEvents chains the current query on the "audit_events" edge.
+func (_q *OrganizationQuery) QueryAuditEvents() *AuditEventQuery {
+	query := (&AuditEventClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(organization.Table, organization.FieldID, selector),
+			sqlgraph.To(auditevent.Table, auditevent.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, organization.AuditEventsTable, organization.AuditEventsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryBillingAccount chains the current query on the "billing_account" edge.
+func (_q *OrganizationQuery) QueryBillingAccount() *BillingAccountQuery {
+	query := (&BillingAccountClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(organization.Table, organization.FieldID, selector),
+			sqlgraph.To(billingaccount.Table, billingaccount.FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, false, organization.BillingAccountTable, organization.BillingAccountColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -318,14 +390,17 @@ func (_q *OrganizationQuery) Clone() *OrganizationQuery {
 		return nil
 	}
 	return &OrganizationQuery{
-		config:          _q.config,
-		ctx:             _q.ctx.Clone(),
-		order:           append([]organization.OrderOption{}, _q.order...),
-		inters:          append([]Interceptor{}, _q.inters...),
-		predicates:      append([]predicate.Organization{}, _q.predicates...),
-		withProjects:    _q.withProjects.Clone(),
-		withMembers:     _q.withMembers.Clone(),
-		withInvitations: _q.withInvitations.Clone(),
+		config:             _q.config,
+		ctx:                _q.ctx.Clone(),
+		order:              append([]organization.OrderOption{}, _q.order...),
+		inters:             append([]Interceptor{}, _q.inters...),
+		predicates:         append([]predicate.Organization{}, _q.predicates...),
+		withProjects:       _q.withProjects.Clone(),
+		withMembers:        _q.withMembers.Clone(),
+		withInvitations:    _q.withInvitations.Clone(),
+		withRoles:          _q.withRoles.Clone(),
+		withAuditEvents:    _q.withAuditEvents.Clone(),
+		withBillingAccount: _q.withBillingAccount.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -362,6 +437,39 @@ func (_q *OrganizationQuery) WithInvitations(opts ...func(*InvitationQuery)) *Or
 		opt(query)
 	}
 	_q.withInvitations = query
+	return _q
+}
+
+// WithRoles tells the query-builder to eager-load the nodes that are connected to
+// the "roles" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *OrganizationQuery) WithRoles(opts ...func(*RoleQuery)) *OrganizationQuery {
+	query := (&RoleClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withRoles = query
+	return _q
+}
+
+// WithAuditEvents tells the query-builder to eager-load the nodes that are connected to
+// the "audit_events" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *OrganizationQuery) WithAuditEvents(opts ...func(*AuditEventQuery)) *OrganizationQuery {
+	query := (&AuditEventClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withAuditEvents = query
+	return _q
+}
+
+// WithBillingAccount tells the query-builder to eager-load the nodes that are connected to
+// the "billing_account" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *OrganizationQuery) WithBillingAccount(opts ...func(*BillingAccountQuery)) *OrganizationQuery {
+	query := (&BillingAccountClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withBillingAccount = query
 	return _q
 }
 
@@ -443,10 +551,13 @@ func (_q *OrganizationQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]
 	var (
 		nodes       = []*Organization{}
 		_spec       = _q.querySpec()
-		loadedTypes = [3]bool{
+		loadedTypes = [6]bool{
 			_q.withProjects != nil,
 			_q.withMembers != nil,
 			_q.withInvitations != nil,
+			_q.withRoles != nil,
+			_q.withAuditEvents != nil,
+			_q.withBillingAccount != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -485,6 +596,26 @@ func (_q *OrganizationQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]
 		if err := _q.loadInvitations(ctx, query, nodes,
 			func(n *Organization) { n.Edges.Invitations = []*Invitation{} },
 			func(n *Organization, e *Invitation) { n.Edges.Invitations = append(n.Edges.Invitations, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withRoles; query != nil {
+		if err := _q.loadRoles(ctx, query, nodes,
+			func(n *Organization) { n.Edges.Roles = []*Role{} },
+			func(n *Organization, e *Role) { n.Edges.Roles = append(n.Edges.Roles, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withAuditEvents; query != nil {
+		if err := _q.loadAuditEvents(ctx, query, nodes,
+			func(n *Organization) { n.Edges.AuditEvents = []*AuditEvent{} },
+			func(n *Organization, e *AuditEvent) { n.Edges.AuditEvents = append(n.Edges.AuditEvents, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withBillingAccount; query != nil {
+		if err := _q.loadBillingAccount(ctx, query, nodes, nil,
+			func(n *Organization, e *BillingAccount) { n.Edges.BillingAccount = e }); err != nil {
 			return nil, err
 		}
 	}
@@ -566,6 +697,93 @@ func (_q *OrganizationQuery) loadInvitations(ctx context.Context, query *Invitat
 	}
 	query.Where(predicate.Invitation(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(organization.InvitationsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.OrganizationID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "organization_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *OrganizationQuery) loadRoles(ctx context.Context, query *RoleQuery, nodes []*Organization, init func(*Organization), assign func(*Organization, *Role)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Organization)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(role.FieldOrganizationID)
+	}
+	query.Where(predicate.Role(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(organization.RolesColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.OrganizationID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "organization_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *OrganizationQuery) loadAuditEvents(ctx context.Context, query *AuditEventQuery, nodes []*Organization, init func(*Organization), assign func(*Organization, *AuditEvent)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Organization)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(auditevent.FieldOrganizationID)
+	}
+	query.Where(predicate.AuditEvent(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(organization.AuditEventsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.OrganizationID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "organization_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *OrganizationQuery) loadBillingAccount(ctx context.Context, query *BillingAccountQuery, nodes []*Organization, init func(*Organization), assign func(*Organization, *BillingAccount)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Organization)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(billingaccount.FieldOrganizationID)
+	}
+	query.Where(predicate.BillingAccount(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(organization.BillingAccountColumn), fks...))
 	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {

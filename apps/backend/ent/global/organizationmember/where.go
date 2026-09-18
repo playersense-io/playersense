@@ -81,6 +81,16 @@ func UserID(v int) predicate.OrganizationMember {
 	return predicate.OrganizationMember(sql.FieldEQ(FieldUserID, v))
 }
 
+// RoleID applies equality check predicate on the "role_id" field. It's identical to RoleIDEQ.
+func RoleID(v int) predicate.OrganizationMember {
+	return predicate.OrganizationMember(sql.FieldEQ(FieldRoleID, v))
+}
+
+// AllProjects applies equality check predicate on the "all_projects" field. It's identical to AllProjectsEQ.
+func AllProjects(v bool) predicate.OrganizationMember {
+	return predicate.OrganizationMember(sql.FieldEQ(FieldAllProjects, v))
+}
+
 // JoinedAt applies equality check predicate on the "joined_at" field. It's identical to JoinedAtEQ.
 func JoinedAt(v time.Time) predicate.OrganizationMember {
 	return predicate.OrganizationMember(sql.FieldEQ(FieldJoinedAt, v))
@@ -206,26 +216,6 @@ func UpdatedAtLTE(v time.Time) predicate.OrganizationMember {
 	return predicate.OrganizationMember(sql.FieldLTE(FieldUpdatedAt, v))
 }
 
-// RoleEQ applies the EQ predicate on the "role" field.
-func RoleEQ(v Role) predicate.OrganizationMember {
-	return predicate.OrganizationMember(sql.FieldEQ(FieldRole, v))
-}
-
-// RoleNEQ applies the NEQ predicate on the "role" field.
-func RoleNEQ(v Role) predicate.OrganizationMember {
-	return predicate.OrganizationMember(sql.FieldNEQ(FieldRole, v))
-}
-
-// RoleIn applies the In predicate on the "role" field.
-func RoleIn(vs ...Role) predicate.OrganizationMember {
-	return predicate.OrganizationMember(sql.FieldIn(FieldRole, vs...))
-}
-
-// RoleNotIn applies the NotIn predicate on the "role" field.
-func RoleNotIn(vs ...Role) predicate.OrganizationMember {
-	return predicate.OrganizationMember(sql.FieldNotIn(FieldRole, vs...))
-}
-
 // OrganizationIDEQ applies the EQ predicate on the "organization_id" field.
 func OrganizationIDEQ(v int) predicate.OrganizationMember {
 	return predicate.OrganizationMember(sql.FieldEQ(FieldOrganizationID, v))
@@ -264,6 +254,36 @@ func UserIDIn(vs ...int) predicate.OrganizationMember {
 // UserIDNotIn applies the NotIn predicate on the "user_id" field.
 func UserIDNotIn(vs ...int) predicate.OrganizationMember {
 	return predicate.OrganizationMember(sql.FieldNotIn(FieldUserID, vs...))
+}
+
+// RoleIDEQ applies the EQ predicate on the "role_id" field.
+func RoleIDEQ(v int) predicate.OrganizationMember {
+	return predicate.OrganizationMember(sql.FieldEQ(FieldRoleID, v))
+}
+
+// RoleIDNEQ applies the NEQ predicate on the "role_id" field.
+func RoleIDNEQ(v int) predicate.OrganizationMember {
+	return predicate.OrganizationMember(sql.FieldNEQ(FieldRoleID, v))
+}
+
+// RoleIDIn applies the In predicate on the "role_id" field.
+func RoleIDIn(vs ...int) predicate.OrganizationMember {
+	return predicate.OrganizationMember(sql.FieldIn(FieldRoleID, vs...))
+}
+
+// RoleIDNotIn applies the NotIn predicate on the "role_id" field.
+func RoleIDNotIn(vs ...int) predicate.OrganizationMember {
+	return predicate.OrganizationMember(sql.FieldNotIn(FieldRoleID, vs...))
+}
+
+// AllProjectsEQ applies the EQ predicate on the "all_projects" field.
+func AllProjectsEQ(v bool) predicate.OrganizationMember {
+	return predicate.OrganizationMember(sql.FieldEQ(FieldAllProjects, v))
+}
+
+// AllProjectsNEQ applies the NEQ predicate on the "all_projects" field.
+func AllProjectsNEQ(v bool) predicate.OrganizationMember {
+	return predicate.OrganizationMember(sql.FieldNEQ(FieldAllProjects, v))
 }
 
 // JoinedAtEQ applies the EQ predicate on the "joined_at" field.
@@ -344,6 +364,52 @@ func HasUser() predicate.OrganizationMember {
 func HasUserWith(preds ...predicate.User) predicate.OrganizationMember {
 	return predicate.OrganizationMember(func(s *sql.Selector) {
 		step := newUserStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasRole applies the HasEdge predicate on the "role" edge.
+func HasRole() predicate.OrganizationMember {
+	return predicate.OrganizationMember(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, RoleTable, RoleColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasRoleWith applies the HasEdge predicate on the "role" edge with a given conditions (other predicates).
+func HasRoleWith(preds ...predicate.Role) predicate.OrganizationMember {
+	return predicate.OrganizationMember(func(s *sql.Selector) {
+		step := newRoleStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasProjectAccess applies the HasEdge predicate on the "project_access" edge.
+func HasProjectAccess() predicate.OrganizationMember {
+	return predicate.OrganizationMember(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, ProjectAccessTable, ProjectAccessColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasProjectAccessWith applies the HasEdge predicate on the "project_access" edge with a given conditions (other predicates).
+func HasProjectAccessWith(preds ...predicate.MemberProject) predicate.OrganizationMember {
+	return predicate.OrganizationMember(func(s *sql.Selector) {
+		step := newProjectAccessStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

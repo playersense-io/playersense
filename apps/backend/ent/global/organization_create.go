@@ -11,10 +11,13 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
+	"playersense.dev/backend/ent/global/auditevent"
+	"playersense.dev/backend/ent/global/billingaccount"
 	"playersense.dev/backend/ent/global/invitation"
 	"playersense.dev/backend/ent/global/organization"
 	"playersense.dev/backend/ent/global/organizationmember"
 	"playersense.dev/backend/ent/global/project"
+	"playersense.dev/backend/ent/global/role"
 )
 
 // OrganizationCreate is the builder for creating a Organization entity.
@@ -141,6 +144,55 @@ func (_c *OrganizationCreate) AddInvitations(v ...*Invitation) *OrganizationCrea
 		ids[i] = v[i].ID
 	}
 	return _c.AddInvitationIDs(ids...)
+}
+
+// AddRoleIDs adds the "roles" edge to the Role entity by IDs.
+func (_c *OrganizationCreate) AddRoleIDs(ids ...int) *OrganizationCreate {
+	_c.mutation.AddRoleIDs(ids...)
+	return _c
+}
+
+// AddRoles adds the "roles" edges to the Role entity.
+func (_c *OrganizationCreate) AddRoles(v ...*Role) *OrganizationCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddRoleIDs(ids...)
+}
+
+// AddAuditEventIDs adds the "audit_events" edge to the AuditEvent entity by IDs.
+func (_c *OrganizationCreate) AddAuditEventIDs(ids ...int) *OrganizationCreate {
+	_c.mutation.AddAuditEventIDs(ids...)
+	return _c
+}
+
+// AddAuditEvents adds the "audit_events" edges to the AuditEvent entity.
+func (_c *OrganizationCreate) AddAuditEvents(v ...*AuditEvent) *OrganizationCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddAuditEventIDs(ids...)
+}
+
+// SetBillingAccountID sets the "billing_account" edge to the BillingAccount entity by ID.
+func (_c *OrganizationCreate) SetBillingAccountID(id int) *OrganizationCreate {
+	_c.mutation.SetBillingAccountID(id)
+	return _c
+}
+
+// SetNillableBillingAccountID sets the "billing_account" edge to the BillingAccount entity by ID if the given value is not nil.
+func (_c *OrganizationCreate) SetNillableBillingAccountID(id *int) *OrganizationCreate {
+	if id != nil {
+		_c = _c.SetBillingAccountID(*id)
+	}
+	return _c
+}
+
+// SetBillingAccount sets the "billing_account" edge to the BillingAccount entity.
+func (_c *OrganizationCreate) SetBillingAccount(v *BillingAccount) *OrganizationCreate {
+	return _c.SetBillingAccountID(v.ID)
 }
 
 // Mutation returns the OrganizationMutation object of the builder.
@@ -328,6 +380,54 @@ func (_c *OrganizationCreate) createSpec() (*Organization, *sqlgraph.CreateSpec)
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(invitation.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.RolesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   organization.RolesTable,
+			Columns: []string{organization.RolesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(role.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.AuditEventsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   organization.AuditEventsTable,
+			Columns: []string{organization.AuditEventsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(auditevent.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.BillingAccountIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   organization.BillingAccountTable,
+			Columns: []string{organization.BillingAccountColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(billingaccount.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

@@ -50,9 +50,13 @@ type APIKey struct {
 type APIKeyEdges struct {
 	// Environment holds the value of the environment edge.
 	Environment *Environment `json:"environment,omitempty"`
+	// AuditEvents holds the value of the audit_events edge.
+	AuditEvents []*AuditEvent `json:"audit_events,omitempty"`
+	// PublishedVersions holds the value of the published_versions edge.
+	PublishedVersions []*ConfigVersion `json:"published_versions,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [1]bool
+	loadedTypes [3]bool
 }
 
 // EnvironmentOrErr returns the Environment value or an error if the edge
@@ -64,6 +68,24 @@ func (e APIKeyEdges) EnvironmentOrErr() (*Environment, error) {
 		return nil, &NotFoundError{label: environment.Label}
 	}
 	return nil, &NotLoadedError{edge: "environment"}
+}
+
+// AuditEventsOrErr returns the AuditEvents value or an error if the edge
+// was not loaded in eager-loading.
+func (e APIKeyEdges) AuditEventsOrErr() ([]*AuditEvent, error) {
+	if e.loadedTypes[1] {
+		return e.AuditEvents, nil
+	}
+	return nil, &NotLoadedError{edge: "audit_events"}
+}
+
+// PublishedVersionsOrErr returns the PublishedVersions value or an error if the edge
+// was not loaded in eager-loading.
+func (e APIKeyEdges) PublishedVersionsOrErr() ([]*ConfigVersion, error) {
+	if e.loadedTypes[2] {
+		return e.PublishedVersions, nil
+	}
+	return nil, &NotLoadedError{edge: "published_versions"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -178,6 +200,16 @@ func (_m *APIKey) Value(name string) (ent.Value, error) {
 // QueryEnvironment queries the "environment" edge of the APIKey entity.
 func (_m *APIKey) QueryEnvironment() *EnvironmentQuery {
 	return NewAPIKeyClient(_m.config).QueryEnvironment(_m)
+}
+
+// QueryAuditEvents queries the "audit_events" edge of the APIKey entity.
+func (_m *APIKey) QueryAuditEvents() *AuditEventQuery {
+	return NewAPIKeyClient(_m.config).QueryAuditEvents(_m)
+}
+
+// QueryPublishedVersions queries the "published_versions" edge of the APIKey entity.
+func (_m *APIKey) QueryPublishedVersions() *ConfigVersionQuery {
+	return NewAPIKeyClient(_m.config).QueryPublishedVersions(_m)
 }
 
 // Update returns a builder for updating this APIKey.

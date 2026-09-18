@@ -13,16 +13,26 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"playersense.dev/backend/ent/global/apikey"
+	"playersense.dev/backend/ent/global/auditevent"
+	"playersense.dev/backend/ent/global/billingaccount"
+	"playersense.dev/backend/ent/global/billingperiod"
 	"playersense.dev/backend/ent/global/cell"
 	"playersense.dev/backend/ent/global/configversion"
 	"playersense.dev/backend/ent/global/environment"
 	"playersense.dev/backend/ent/global/featureflag"
 	"playersense.dev/backend/ent/global/invitation"
+	"playersense.dev/backend/ent/global/ledgerentry"
 	"playersense.dev/backend/ent/global/liveopsevent"
+	"playersense.dev/backend/ent/global/memberproject"
 	"playersense.dev/backend/ent/global/organization"
 	"playersense.dev/backend/ent/global/organizationmember"
+	"playersense.dev/backend/ent/global/plan"
 	"playersense.dev/backend/ent/global/project"
+	"playersense.dev/backend/ent/global/role"
 	"playersense.dev/backend/ent/global/segment"
+	"playersense.dev/backend/ent/global/staffaccess"
+	"playersense.dev/backend/ent/global/stripeevent"
+	"playersense.dev/backend/ent/global/usagedaily"
 	"playersense.dev/backend/ent/global/user"
 )
 
@@ -85,16 +95,26 @@ func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
 			apikey.Table:             apikey.ValidColumn,
+			auditevent.Table:         auditevent.ValidColumn,
+			billingaccount.Table:     billingaccount.ValidColumn,
+			billingperiod.Table:      billingperiod.ValidColumn,
 			cell.Table:               cell.ValidColumn,
 			configversion.Table:      configversion.ValidColumn,
 			environment.Table:        environment.ValidColumn,
 			featureflag.Table:        featureflag.ValidColumn,
 			invitation.Table:         invitation.ValidColumn,
+			ledgerentry.Table:        ledgerentry.ValidColumn,
 			liveopsevent.Table:       liveopsevent.ValidColumn,
+			memberproject.Table:      memberproject.ValidColumn,
 			organization.Table:       organization.ValidColumn,
 			organizationmember.Table: organizationmember.ValidColumn,
+			plan.Table:               plan.ValidColumn,
 			project.Table:            project.ValidColumn,
+			role.Table:               role.ValidColumn,
 			segment.Table:            segment.ValidColumn,
+			staffaccess.Table:        staffaccess.ValidColumn,
+			stripeevent.Table:        stripeevent.ValidColumn,
+			usagedaily.Table:         usagedaily.ValidColumn,
 			user.Table:               user.ValidColumn,
 		})
 	})

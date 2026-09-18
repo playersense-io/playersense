@@ -11,6 +11,8 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"playersense.dev/backend/ent/global/auditevent"
+	"playersense.dev/backend/ent/global/configversion"
 	"playersense.dev/backend/ent/global/invitation"
 	"playersense.dev/backend/ent/global/organizationmember"
 	"playersense.dev/backend/ent/global/predicate"
@@ -188,6 +190,36 @@ func (_u *UserUpdate) AddSentInvitations(v ...*Invitation) *UserUpdate {
 	return _u.AddSentInvitationIDs(ids...)
 }
 
+// AddAuditEventIDs adds the "audit_events" edge to the AuditEvent entity by IDs.
+func (_u *UserUpdate) AddAuditEventIDs(ids ...int) *UserUpdate {
+	_u.mutation.AddAuditEventIDs(ids...)
+	return _u
+}
+
+// AddAuditEvents adds the "audit_events" edges to the AuditEvent entity.
+func (_u *UserUpdate) AddAuditEvents(v ...*AuditEvent) *UserUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddAuditEventIDs(ids...)
+}
+
+// AddPublishedVersionIDs adds the "published_versions" edge to the ConfigVersion entity by IDs.
+func (_u *UserUpdate) AddPublishedVersionIDs(ids ...int) *UserUpdate {
+	_u.mutation.AddPublishedVersionIDs(ids...)
+	return _u
+}
+
+// AddPublishedVersions adds the "published_versions" edges to the ConfigVersion entity.
+func (_u *UserUpdate) AddPublishedVersions(v ...*ConfigVersion) *UserUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddPublishedVersionIDs(ids...)
+}
+
 // Mutation returns the UserMutation object of the builder.
 func (_u *UserUpdate) Mutation() *UserMutation {
 	return _u.mutation
@@ -233,6 +265,48 @@ func (_u *UserUpdate) RemoveSentInvitations(v ...*Invitation) *UserUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveSentInvitationIDs(ids...)
+}
+
+// ClearAuditEvents clears all "audit_events" edges to the AuditEvent entity.
+func (_u *UserUpdate) ClearAuditEvents() *UserUpdate {
+	_u.mutation.ClearAuditEvents()
+	return _u
+}
+
+// RemoveAuditEventIDs removes the "audit_events" edge to AuditEvent entities by IDs.
+func (_u *UserUpdate) RemoveAuditEventIDs(ids ...int) *UserUpdate {
+	_u.mutation.RemoveAuditEventIDs(ids...)
+	return _u
+}
+
+// RemoveAuditEvents removes "audit_events" edges to AuditEvent entities.
+func (_u *UserUpdate) RemoveAuditEvents(v ...*AuditEvent) *UserUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveAuditEventIDs(ids...)
+}
+
+// ClearPublishedVersions clears all "published_versions" edges to the ConfigVersion entity.
+func (_u *UserUpdate) ClearPublishedVersions() *UserUpdate {
+	_u.mutation.ClearPublishedVersions()
+	return _u
+}
+
+// RemovePublishedVersionIDs removes the "published_versions" edge to ConfigVersion entities by IDs.
+func (_u *UserUpdate) RemovePublishedVersionIDs(ids ...int) *UserUpdate {
+	_u.mutation.RemovePublishedVersionIDs(ids...)
+	return _u
+}
+
+// RemovePublishedVersions removes "published_versions" edges to ConfigVersion entities.
+func (_u *UserUpdate) RemovePublishedVersions(v ...*ConfigVersion) *UserUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemovePublishedVersionIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -434,6 +508,96 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.AuditEventsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.AuditEventsTable,
+			Columns: []string{user.AuditEventsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(auditevent.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedAuditEventsIDs(); len(nodes) > 0 && !_u.mutation.AuditEventsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.AuditEventsTable,
+			Columns: []string{user.AuditEventsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(auditevent.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.AuditEventsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.AuditEventsTable,
+			Columns: []string{user.AuditEventsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(auditevent.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.PublishedVersionsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.PublishedVersionsTable,
+			Columns: []string{user.PublishedVersionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(configversion.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedPublishedVersionsIDs(); len(nodes) > 0 && !_u.mutation.PublishedVersionsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.PublishedVersionsTable,
+			Columns: []string{user.PublishedVersionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(configversion.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.PublishedVersionsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.PublishedVersionsTable,
+			Columns: []string{user.PublishedVersionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(configversion.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{user.Label}
@@ -612,6 +776,36 @@ func (_u *UserUpdateOne) AddSentInvitations(v ...*Invitation) *UserUpdateOne {
 	return _u.AddSentInvitationIDs(ids...)
 }
 
+// AddAuditEventIDs adds the "audit_events" edge to the AuditEvent entity by IDs.
+func (_u *UserUpdateOne) AddAuditEventIDs(ids ...int) *UserUpdateOne {
+	_u.mutation.AddAuditEventIDs(ids...)
+	return _u
+}
+
+// AddAuditEvents adds the "audit_events" edges to the AuditEvent entity.
+func (_u *UserUpdateOne) AddAuditEvents(v ...*AuditEvent) *UserUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddAuditEventIDs(ids...)
+}
+
+// AddPublishedVersionIDs adds the "published_versions" edge to the ConfigVersion entity by IDs.
+func (_u *UserUpdateOne) AddPublishedVersionIDs(ids ...int) *UserUpdateOne {
+	_u.mutation.AddPublishedVersionIDs(ids...)
+	return _u
+}
+
+// AddPublishedVersions adds the "published_versions" edges to the ConfigVersion entity.
+func (_u *UserUpdateOne) AddPublishedVersions(v ...*ConfigVersion) *UserUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddPublishedVersionIDs(ids...)
+}
+
 // Mutation returns the UserMutation object of the builder.
 func (_u *UserUpdateOne) Mutation() *UserMutation {
 	return _u.mutation
@@ -657,6 +851,48 @@ func (_u *UserUpdateOne) RemoveSentInvitations(v ...*Invitation) *UserUpdateOne 
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveSentInvitationIDs(ids...)
+}
+
+// ClearAuditEvents clears all "audit_events" edges to the AuditEvent entity.
+func (_u *UserUpdateOne) ClearAuditEvents() *UserUpdateOne {
+	_u.mutation.ClearAuditEvents()
+	return _u
+}
+
+// RemoveAuditEventIDs removes the "audit_events" edge to AuditEvent entities by IDs.
+func (_u *UserUpdateOne) RemoveAuditEventIDs(ids ...int) *UserUpdateOne {
+	_u.mutation.RemoveAuditEventIDs(ids...)
+	return _u
+}
+
+// RemoveAuditEvents removes "audit_events" edges to AuditEvent entities.
+func (_u *UserUpdateOne) RemoveAuditEvents(v ...*AuditEvent) *UserUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveAuditEventIDs(ids...)
+}
+
+// ClearPublishedVersions clears all "published_versions" edges to the ConfigVersion entity.
+func (_u *UserUpdateOne) ClearPublishedVersions() *UserUpdateOne {
+	_u.mutation.ClearPublishedVersions()
+	return _u
+}
+
+// RemovePublishedVersionIDs removes the "published_versions" edge to ConfigVersion entities by IDs.
+func (_u *UserUpdateOne) RemovePublishedVersionIDs(ids ...int) *UserUpdateOne {
+	_u.mutation.RemovePublishedVersionIDs(ids...)
+	return _u
+}
+
+// RemovePublishedVersions removes "published_versions" edges to ConfigVersion entities.
+func (_u *UserUpdateOne) RemovePublishedVersions(v ...*ConfigVersion) *UserUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemovePublishedVersionIDs(ids...)
 }
 
 // Where appends a list predicates to the UserUpdate builder.
@@ -881,6 +1117,96 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(invitation.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.AuditEventsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.AuditEventsTable,
+			Columns: []string{user.AuditEventsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(auditevent.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedAuditEventsIDs(); len(nodes) > 0 && !_u.mutation.AuditEventsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.AuditEventsTable,
+			Columns: []string{user.AuditEventsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(auditevent.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.AuditEventsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.AuditEventsTable,
+			Columns: []string{user.AuditEventsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(auditevent.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.PublishedVersionsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.PublishedVersionsTable,
+			Columns: []string{user.PublishedVersionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(configversion.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedPublishedVersionsIDs(); len(nodes) > 0 && !_u.mutation.PublishedVersionsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.PublishedVersionsTable,
+			Columns: []string{user.PublishedVersionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(configversion.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.PublishedVersionsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.PublishedVersionsTable,
+			Columns: []string{user.PublishedVersionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(configversion.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

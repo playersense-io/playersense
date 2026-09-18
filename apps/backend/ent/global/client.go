@@ -16,16 +16,26 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"playersense.dev/backend/ent/global/apikey"
+	"playersense.dev/backend/ent/global/auditevent"
+	"playersense.dev/backend/ent/global/billingaccount"
+	"playersense.dev/backend/ent/global/billingperiod"
 	"playersense.dev/backend/ent/global/cell"
 	"playersense.dev/backend/ent/global/configversion"
 	"playersense.dev/backend/ent/global/environment"
 	"playersense.dev/backend/ent/global/featureflag"
 	"playersense.dev/backend/ent/global/invitation"
+	"playersense.dev/backend/ent/global/ledgerentry"
 	"playersense.dev/backend/ent/global/liveopsevent"
+	"playersense.dev/backend/ent/global/memberproject"
 	"playersense.dev/backend/ent/global/organization"
 	"playersense.dev/backend/ent/global/organizationmember"
+	"playersense.dev/backend/ent/global/plan"
 	"playersense.dev/backend/ent/global/project"
+	"playersense.dev/backend/ent/global/role"
 	"playersense.dev/backend/ent/global/segment"
+	"playersense.dev/backend/ent/global/staffaccess"
+	"playersense.dev/backend/ent/global/stripeevent"
+	"playersense.dev/backend/ent/global/usagedaily"
 	"playersense.dev/backend/ent/global/user"
 )
 
@@ -36,6 +46,12 @@ type Client struct {
 	Schema *migrate.Schema
 	// APIKey is the client for interacting with the APIKey builders.
 	APIKey *APIKeyClient
+	// AuditEvent is the client for interacting with the AuditEvent builders.
+	AuditEvent *AuditEventClient
+	// BillingAccount is the client for interacting with the BillingAccount builders.
+	BillingAccount *BillingAccountClient
+	// BillingPeriod is the client for interacting with the BillingPeriod builders.
+	BillingPeriod *BillingPeriodClient
 	// Cell is the client for interacting with the Cell builders.
 	Cell *CellClient
 	// ConfigVersion is the client for interacting with the ConfigVersion builders.
@@ -46,16 +62,30 @@ type Client struct {
 	FeatureFlag *FeatureFlagClient
 	// Invitation is the client for interacting with the Invitation builders.
 	Invitation *InvitationClient
+	// LedgerEntry is the client for interacting with the LedgerEntry builders.
+	LedgerEntry *LedgerEntryClient
 	// LiveOpsEvent is the client for interacting with the LiveOpsEvent builders.
 	LiveOpsEvent *LiveOpsEventClient
+	// MemberProject is the client for interacting with the MemberProject builders.
+	MemberProject *MemberProjectClient
 	// Organization is the client for interacting with the Organization builders.
 	Organization *OrganizationClient
 	// OrganizationMember is the client for interacting with the OrganizationMember builders.
 	OrganizationMember *OrganizationMemberClient
+	// Plan is the client for interacting with the Plan builders.
+	Plan *PlanClient
 	// Project is the client for interacting with the Project builders.
 	Project *ProjectClient
+	// Role is the client for interacting with the Role builders.
+	Role *RoleClient
 	// Segment is the client for interacting with the Segment builders.
 	Segment *SegmentClient
+	// StaffAccess is the client for interacting with the StaffAccess builders.
+	StaffAccess *StaffAccessClient
+	// StripeEvent is the client for interacting with the StripeEvent builders.
+	StripeEvent *StripeEventClient
+	// UsageDaily is the client for interacting with the UsageDaily builders.
+	UsageDaily *UsageDailyClient
 	// User is the client for interacting with the User builders.
 	User *UserClient
 }
@@ -70,16 +100,26 @@ func NewClient(opts ...Option) *Client {
 func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
 	c.APIKey = NewAPIKeyClient(c.config)
+	c.AuditEvent = NewAuditEventClient(c.config)
+	c.BillingAccount = NewBillingAccountClient(c.config)
+	c.BillingPeriod = NewBillingPeriodClient(c.config)
 	c.Cell = NewCellClient(c.config)
 	c.ConfigVersion = NewConfigVersionClient(c.config)
 	c.Environment = NewEnvironmentClient(c.config)
 	c.FeatureFlag = NewFeatureFlagClient(c.config)
 	c.Invitation = NewInvitationClient(c.config)
+	c.LedgerEntry = NewLedgerEntryClient(c.config)
 	c.LiveOpsEvent = NewLiveOpsEventClient(c.config)
+	c.MemberProject = NewMemberProjectClient(c.config)
 	c.Organization = NewOrganizationClient(c.config)
 	c.OrganizationMember = NewOrganizationMemberClient(c.config)
+	c.Plan = NewPlanClient(c.config)
 	c.Project = NewProjectClient(c.config)
+	c.Role = NewRoleClient(c.config)
 	c.Segment = NewSegmentClient(c.config)
+	c.StaffAccess = NewStaffAccessClient(c.config)
+	c.StripeEvent = NewStripeEventClient(c.config)
+	c.UsageDaily = NewUsageDailyClient(c.config)
 	c.User = NewUserClient(c.config)
 }
 
@@ -174,16 +214,26 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		ctx:                ctx,
 		config:             cfg,
 		APIKey:             NewAPIKeyClient(cfg),
+		AuditEvent:         NewAuditEventClient(cfg),
+		BillingAccount:     NewBillingAccountClient(cfg),
+		BillingPeriod:      NewBillingPeriodClient(cfg),
 		Cell:               NewCellClient(cfg),
 		ConfigVersion:      NewConfigVersionClient(cfg),
 		Environment:        NewEnvironmentClient(cfg),
 		FeatureFlag:        NewFeatureFlagClient(cfg),
 		Invitation:         NewInvitationClient(cfg),
+		LedgerEntry:        NewLedgerEntryClient(cfg),
 		LiveOpsEvent:       NewLiveOpsEventClient(cfg),
+		MemberProject:      NewMemberProjectClient(cfg),
 		Organization:       NewOrganizationClient(cfg),
 		OrganizationMember: NewOrganizationMemberClient(cfg),
+		Plan:               NewPlanClient(cfg),
 		Project:            NewProjectClient(cfg),
+		Role:               NewRoleClient(cfg),
 		Segment:            NewSegmentClient(cfg),
+		StaffAccess:        NewStaffAccessClient(cfg),
+		StripeEvent:        NewStripeEventClient(cfg),
+		UsageDaily:         NewUsageDailyClient(cfg),
 		User:               NewUserClient(cfg),
 	}, nil
 }
@@ -205,16 +255,26 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		ctx:                ctx,
 		config:             cfg,
 		APIKey:             NewAPIKeyClient(cfg),
+		AuditEvent:         NewAuditEventClient(cfg),
+		BillingAccount:     NewBillingAccountClient(cfg),
+		BillingPeriod:      NewBillingPeriodClient(cfg),
 		Cell:               NewCellClient(cfg),
 		ConfigVersion:      NewConfigVersionClient(cfg),
 		Environment:        NewEnvironmentClient(cfg),
 		FeatureFlag:        NewFeatureFlagClient(cfg),
 		Invitation:         NewInvitationClient(cfg),
+		LedgerEntry:        NewLedgerEntryClient(cfg),
 		LiveOpsEvent:       NewLiveOpsEventClient(cfg),
+		MemberProject:      NewMemberProjectClient(cfg),
 		Organization:       NewOrganizationClient(cfg),
 		OrganizationMember: NewOrganizationMemberClient(cfg),
+		Plan:               NewPlanClient(cfg),
 		Project:            NewProjectClient(cfg),
+		Role:               NewRoleClient(cfg),
 		Segment:            NewSegmentClient(cfg),
+		StaffAccess:        NewStaffAccessClient(cfg),
+		StripeEvent:        NewStripeEventClient(cfg),
+		UsageDaily:         NewUsageDailyClient(cfg),
 		User:               NewUserClient(cfg),
 	}, nil
 }
@@ -245,8 +305,10 @@ func (c *Client) Close() error {
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
-		c.APIKey, c.Cell, c.ConfigVersion, c.Environment, c.FeatureFlag, c.Invitation,
-		c.LiveOpsEvent, c.Organization, c.OrganizationMember, c.Project, c.Segment,
+		c.APIKey, c.AuditEvent, c.BillingAccount, c.BillingPeriod, c.Cell,
+		c.ConfigVersion, c.Environment, c.FeatureFlag, c.Invitation, c.LedgerEntry,
+		c.LiveOpsEvent, c.MemberProject, c.Organization, c.OrganizationMember, c.Plan,
+		c.Project, c.Role, c.Segment, c.StaffAccess, c.StripeEvent, c.UsageDaily,
 		c.User,
 	} {
 		n.Use(hooks...)
@@ -257,8 +319,10 @@ func (c *Client) Use(hooks ...Hook) {
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
-		c.APIKey, c.Cell, c.ConfigVersion, c.Environment, c.FeatureFlag, c.Invitation,
-		c.LiveOpsEvent, c.Organization, c.OrganizationMember, c.Project, c.Segment,
+		c.APIKey, c.AuditEvent, c.BillingAccount, c.BillingPeriod, c.Cell,
+		c.ConfigVersion, c.Environment, c.FeatureFlag, c.Invitation, c.LedgerEntry,
+		c.LiveOpsEvent, c.MemberProject, c.Organization, c.OrganizationMember, c.Plan,
+		c.Project, c.Role, c.Segment, c.StaffAccess, c.StripeEvent, c.UsageDaily,
 		c.User,
 	} {
 		n.Intercept(interceptors...)
@@ -270,6 +334,12 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 	switch m := m.(type) {
 	case *APIKeyMutation:
 		return c.APIKey.mutate(ctx, m)
+	case *AuditEventMutation:
+		return c.AuditEvent.mutate(ctx, m)
+	case *BillingAccountMutation:
+		return c.BillingAccount.mutate(ctx, m)
+	case *BillingPeriodMutation:
+		return c.BillingPeriod.mutate(ctx, m)
 	case *CellMutation:
 		return c.Cell.mutate(ctx, m)
 	case *ConfigVersionMutation:
@@ -280,16 +350,30 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.FeatureFlag.mutate(ctx, m)
 	case *InvitationMutation:
 		return c.Invitation.mutate(ctx, m)
+	case *LedgerEntryMutation:
+		return c.LedgerEntry.mutate(ctx, m)
 	case *LiveOpsEventMutation:
 		return c.LiveOpsEvent.mutate(ctx, m)
+	case *MemberProjectMutation:
+		return c.MemberProject.mutate(ctx, m)
 	case *OrganizationMutation:
 		return c.Organization.mutate(ctx, m)
 	case *OrganizationMemberMutation:
 		return c.OrganizationMember.mutate(ctx, m)
+	case *PlanMutation:
+		return c.Plan.mutate(ctx, m)
 	case *ProjectMutation:
 		return c.Project.mutate(ctx, m)
+	case *RoleMutation:
+		return c.Role.mutate(ctx, m)
 	case *SegmentMutation:
 		return c.Segment.mutate(ctx, m)
+	case *StaffAccessMutation:
+		return c.StaffAccess.mutate(ctx, m)
+	case *StripeEventMutation:
+		return c.StripeEvent.mutate(ctx, m)
+	case *UsageDailyMutation:
+		return c.UsageDaily.mutate(ctx, m)
 	case *UserMutation:
 		return c.User.mutate(ctx, m)
 	default:
@@ -421,6 +505,38 @@ func (c *APIKeyClient) QueryEnvironment(_m *APIKey) *EnvironmentQuery {
 	return query
 }
 
+// QueryAuditEvents queries the audit_events edge of a APIKey.
+func (c *APIKeyClient) QueryAuditEvents(_m *APIKey) *AuditEventQuery {
+	query := (&AuditEventClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(apikey.Table, apikey.FieldID, id),
+			sqlgraph.To(auditevent.Table, auditevent.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, apikey.AuditEventsTable, apikey.AuditEventsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryPublishedVersions queries the published_versions edge of a APIKey.
+func (c *APIKeyClient) QueryPublishedVersions(_m *APIKey) *ConfigVersionQuery {
+	query := (&ConfigVersionClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(apikey.Table, apikey.FieldID, id),
+			sqlgraph.To(configversion.Table, configversion.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, apikey.PublishedVersionsTable, apikey.PublishedVersionsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *APIKeyClient) Hooks() []Hook {
 	return c.hooks.APIKey
@@ -443,6 +559,566 @@ func (c *APIKeyClient) mutate(ctx context.Context, m *APIKeyMutation) (Value, er
 		return (&APIKeyDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("global: unknown APIKey mutation op: %q", m.Op())
+	}
+}
+
+// AuditEventClient is a client for the AuditEvent schema.
+type AuditEventClient struct {
+	config
+}
+
+// NewAuditEventClient returns a client for the AuditEvent from the given config.
+func NewAuditEventClient(c config) *AuditEventClient {
+	return &AuditEventClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `auditevent.Hooks(f(g(h())))`.
+func (c *AuditEventClient) Use(hooks ...Hook) {
+	c.hooks.AuditEvent = append(c.hooks.AuditEvent, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `auditevent.Intercept(f(g(h())))`.
+func (c *AuditEventClient) Intercept(interceptors ...Interceptor) {
+	c.inters.AuditEvent = append(c.inters.AuditEvent, interceptors...)
+}
+
+// Create returns a builder for creating a AuditEvent entity.
+func (c *AuditEventClient) Create() *AuditEventCreate {
+	mutation := newAuditEventMutation(c.config, OpCreate)
+	return &AuditEventCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of AuditEvent entities.
+func (c *AuditEventClient) CreateBulk(builders ...*AuditEventCreate) *AuditEventCreateBulk {
+	return &AuditEventCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *AuditEventClient) MapCreateBulk(slice any, setFunc func(*AuditEventCreate, int)) *AuditEventCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &AuditEventCreateBulk{err: fmt.Errorf("calling to AuditEventClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*AuditEventCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &AuditEventCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for AuditEvent.
+func (c *AuditEventClient) Update() *AuditEventUpdate {
+	mutation := newAuditEventMutation(c.config, OpUpdate)
+	return &AuditEventUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *AuditEventClient) UpdateOne(_m *AuditEvent) *AuditEventUpdateOne {
+	mutation := newAuditEventMutation(c.config, OpUpdateOne, withAuditEvent(_m))
+	return &AuditEventUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *AuditEventClient) UpdateOneID(id int) *AuditEventUpdateOne {
+	mutation := newAuditEventMutation(c.config, OpUpdateOne, withAuditEventID(id))
+	return &AuditEventUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for AuditEvent.
+func (c *AuditEventClient) Delete() *AuditEventDelete {
+	mutation := newAuditEventMutation(c.config, OpDelete)
+	return &AuditEventDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *AuditEventClient) DeleteOne(_m *AuditEvent) *AuditEventDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *AuditEventClient) DeleteOneID(id int) *AuditEventDeleteOne {
+	builder := c.Delete().Where(auditevent.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &AuditEventDeleteOne{builder}
+}
+
+// Query returns a query builder for AuditEvent.
+func (c *AuditEventClient) Query() *AuditEventQuery {
+	return &AuditEventQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeAuditEvent},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a AuditEvent entity by its id.
+func (c *AuditEventClient) Get(ctx context.Context, id int) (*AuditEvent, error) {
+	return c.Query().Where(auditevent.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *AuditEventClient) GetX(ctx context.Context, id int) *AuditEvent {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryOrganization queries the organization edge of a AuditEvent.
+func (c *AuditEventClient) QueryOrganization(_m *AuditEvent) *OrganizationQuery {
+	query := (&OrganizationClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(auditevent.Table, auditevent.FieldID, id),
+			sqlgraph.To(organization.Table, organization.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, auditevent.OrganizationTable, auditevent.OrganizationColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryActorUser queries the actor_user edge of a AuditEvent.
+func (c *AuditEventClient) QueryActorUser(_m *AuditEvent) *UserQuery {
+	query := (&UserClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(auditevent.Table, auditevent.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, auditevent.ActorUserTable, auditevent.ActorUserColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryActorKey queries the actor_key edge of a AuditEvent.
+func (c *AuditEventClient) QueryActorKey(_m *AuditEvent) *APIKeyQuery {
+	query := (&APIKeyClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(auditevent.Table, auditevent.FieldID, id),
+			sqlgraph.To(apikey.Table, apikey.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, auditevent.ActorKeyTable, auditevent.ActorKeyColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *AuditEventClient) Hooks() []Hook {
+	return c.hooks.AuditEvent
+}
+
+// Interceptors returns the client interceptors.
+func (c *AuditEventClient) Interceptors() []Interceptor {
+	return c.inters.AuditEvent
+}
+
+func (c *AuditEventClient) mutate(ctx context.Context, m *AuditEventMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&AuditEventCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&AuditEventUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&AuditEventUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&AuditEventDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("global: unknown AuditEvent mutation op: %q", m.Op())
+	}
+}
+
+// BillingAccountClient is a client for the BillingAccount schema.
+type BillingAccountClient struct {
+	config
+}
+
+// NewBillingAccountClient returns a client for the BillingAccount from the given config.
+func NewBillingAccountClient(c config) *BillingAccountClient {
+	return &BillingAccountClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `billingaccount.Hooks(f(g(h())))`.
+func (c *BillingAccountClient) Use(hooks ...Hook) {
+	c.hooks.BillingAccount = append(c.hooks.BillingAccount, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `billingaccount.Intercept(f(g(h())))`.
+func (c *BillingAccountClient) Intercept(interceptors ...Interceptor) {
+	c.inters.BillingAccount = append(c.inters.BillingAccount, interceptors...)
+}
+
+// Create returns a builder for creating a BillingAccount entity.
+func (c *BillingAccountClient) Create() *BillingAccountCreate {
+	mutation := newBillingAccountMutation(c.config, OpCreate)
+	return &BillingAccountCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of BillingAccount entities.
+func (c *BillingAccountClient) CreateBulk(builders ...*BillingAccountCreate) *BillingAccountCreateBulk {
+	return &BillingAccountCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *BillingAccountClient) MapCreateBulk(slice any, setFunc func(*BillingAccountCreate, int)) *BillingAccountCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &BillingAccountCreateBulk{err: fmt.Errorf("calling to BillingAccountClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*BillingAccountCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &BillingAccountCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for BillingAccount.
+func (c *BillingAccountClient) Update() *BillingAccountUpdate {
+	mutation := newBillingAccountMutation(c.config, OpUpdate)
+	return &BillingAccountUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *BillingAccountClient) UpdateOne(_m *BillingAccount) *BillingAccountUpdateOne {
+	mutation := newBillingAccountMutation(c.config, OpUpdateOne, withBillingAccount(_m))
+	return &BillingAccountUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *BillingAccountClient) UpdateOneID(id int) *BillingAccountUpdateOne {
+	mutation := newBillingAccountMutation(c.config, OpUpdateOne, withBillingAccountID(id))
+	return &BillingAccountUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for BillingAccount.
+func (c *BillingAccountClient) Delete() *BillingAccountDelete {
+	mutation := newBillingAccountMutation(c.config, OpDelete)
+	return &BillingAccountDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *BillingAccountClient) DeleteOne(_m *BillingAccount) *BillingAccountDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *BillingAccountClient) DeleteOneID(id int) *BillingAccountDeleteOne {
+	builder := c.Delete().Where(billingaccount.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &BillingAccountDeleteOne{builder}
+}
+
+// Query returns a query builder for BillingAccount.
+func (c *BillingAccountClient) Query() *BillingAccountQuery {
+	return &BillingAccountQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeBillingAccount},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a BillingAccount entity by its id.
+func (c *BillingAccountClient) Get(ctx context.Context, id int) (*BillingAccount, error) {
+	return c.Query().Where(billingaccount.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *BillingAccountClient) GetX(ctx context.Context, id int) *BillingAccount {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryOrganization queries the organization edge of a BillingAccount.
+func (c *BillingAccountClient) QueryOrganization(_m *BillingAccount) *OrganizationQuery {
+	query := (&OrganizationClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(billingaccount.Table, billingaccount.FieldID, id),
+			sqlgraph.To(organization.Table, organization.FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, true, billingaccount.OrganizationTable, billingaccount.OrganizationColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryPlan queries the plan edge of a BillingAccount.
+func (c *BillingAccountClient) QueryPlan(_m *BillingAccount) *PlanQuery {
+	query := (&PlanClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(billingaccount.Table, billingaccount.FieldID, id),
+			sqlgraph.To(plan.Table, plan.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, billingaccount.PlanTable, billingaccount.PlanColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryLedgerEntries queries the ledger_entries edge of a BillingAccount.
+func (c *BillingAccountClient) QueryLedgerEntries(_m *BillingAccount) *LedgerEntryQuery {
+	query := (&LedgerEntryClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(billingaccount.Table, billingaccount.FieldID, id),
+			sqlgraph.To(ledgerentry.Table, ledgerentry.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, billingaccount.LedgerEntriesTable, billingaccount.LedgerEntriesColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryPeriods queries the periods edge of a BillingAccount.
+func (c *BillingAccountClient) QueryPeriods(_m *BillingAccount) *BillingPeriodQuery {
+	query := (&BillingPeriodClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(billingaccount.Table, billingaccount.FieldID, id),
+			sqlgraph.To(billingperiod.Table, billingperiod.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, billingaccount.PeriodsTable, billingaccount.PeriodsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryStripeEvents queries the stripe_events edge of a BillingAccount.
+func (c *BillingAccountClient) QueryStripeEvents(_m *BillingAccount) *StripeEventQuery {
+	query := (&StripeEventClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(billingaccount.Table, billingaccount.FieldID, id),
+			sqlgraph.To(stripeevent.Table, stripeevent.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, billingaccount.StripeEventsTable, billingaccount.StripeEventsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *BillingAccountClient) Hooks() []Hook {
+	hooks := c.hooks.BillingAccount
+	return append(hooks[:len(hooks):len(hooks)], billingaccount.Hooks[:]...)
+}
+
+// Interceptors returns the client interceptors.
+func (c *BillingAccountClient) Interceptors() []Interceptor {
+	return c.inters.BillingAccount
+}
+
+func (c *BillingAccountClient) mutate(ctx context.Context, m *BillingAccountMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&BillingAccountCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&BillingAccountUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&BillingAccountUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&BillingAccountDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("global: unknown BillingAccount mutation op: %q", m.Op())
+	}
+}
+
+// BillingPeriodClient is a client for the BillingPeriod schema.
+type BillingPeriodClient struct {
+	config
+}
+
+// NewBillingPeriodClient returns a client for the BillingPeriod from the given config.
+func NewBillingPeriodClient(c config) *BillingPeriodClient {
+	return &BillingPeriodClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `billingperiod.Hooks(f(g(h())))`.
+func (c *BillingPeriodClient) Use(hooks ...Hook) {
+	c.hooks.BillingPeriod = append(c.hooks.BillingPeriod, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `billingperiod.Intercept(f(g(h())))`.
+func (c *BillingPeriodClient) Intercept(interceptors ...Interceptor) {
+	c.inters.BillingPeriod = append(c.inters.BillingPeriod, interceptors...)
+}
+
+// Create returns a builder for creating a BillingPeriod entity.
+func (c *BillingPeriodClient) Create() *BillingPeriodCreate {
+	mutation := newBillingPeriodMutation(c.config, OpCreate)
+	return &BillingPeriodCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of BillingPeriod entities.
+func (c *BillingPeriodClient) CreateBulk(builders ...*BillingPeriodCreate) *BillingPeriodCreateBulk {
+	return &BillingPeriodCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *BillingPeriodClient) MapCreateBulk(slice any, setFunc func(*BillingPeriodCreate, int)) *BillingPeriodCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &BillingPeriodCreateBulk{err: fmt.Errorf("calling to BillingPeriodClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*BillingPeriodCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &BillingPeriodCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for BillingPeriod.
+func (c *BillingPeriodClient) Update() *BillingPeriodUpdate {
+	mutation := newBillingPeriodMutation(c.config, OpUpdate)
+	return &BillingPeriodUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *BillingPeriodClient) UpdateOne(_m *BillingPeriod) *BillingPeriodUpdateOne {
+	mutation := newBillingPeriodMutation(c.config, OpUpdateOne, withBillingPeriod(_m))
+	return &BillingPeriodUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *BillingPeriodClient) UpdateOneID(id int) *BillingPeriodUpdateOne {
+	mutation := newBillingPeriodMutation(c.config, OpUpdateOne, withBillingPeriodID(id))
+	return &BillingPeriodUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for BillingPeriod.
+func (c *BillingPeriodClient) Delete() *BillingPeriodDelete {
+	mutation := newBillingPeriodMutation(c.config, OpDelete)
+	return &BillingPeriodDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *BillingPeriodClient) DeleteOne(_m *BillingPeriod) *BillingPeriodDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *BillingPeriodClient) DeleteOneID(id int) *BillingPeriodDeleteOne {
+	builder := c.Delete().Where(billingperiod.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &BillingPeriodDeleteOne{builder}
+}
+
+// Query returns a query builder for BillingPeriod.
+func (c *BillingPeriodClient) Query() *BillingPeriodQuery {
+	return &BillingPeriodQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeBillingPeriod},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a BillingPeriod entity by its id.
+func (c *BillingPeriodClient) Get(ctx context.Context, id int) (*BillingPeriod, error) {
+	return c.Query().Where(billingperiod.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *BillingPeriodClient) GetX(ctx context.Context, id int) *BillingPeriod {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryAccount queries the account edge of a BillingPeriod.
+func (c *BillingPeriodClient) QueryAccount(_m *BillingPeriod) *BillingAccountQuery {
+	query := (&BillingAccountClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(billingperiod.Table, billingperiod.FieldID, id),
+			sqlgraph.To(billingaccount.Table, billingaccount.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, billingperiod.AccountTable, billingperiod.AccountColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryCharges queries the charges edge of a BillingPeriod.
+func (c *BillingPeriodClient) QueryCharges(_m *BillingPeriod) *LedgerEntryQuery {
+	query := (&LedgerEntryClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(billingperiod.Table, billingperiod.FieldID, id),
+			sqlgraph.To(ledgerentry.Table, ledgerentry.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, billingperiod.ChargesTable, billingperiod.ChargesColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *BillingPeriodClient) Hooks() []Hook {
+	return c.hooks.BillingPeriod
+}
+
+// Interceptors returns the client interceptors.
+func (c *BillingPeriodClient) Interceptors() []Interceptor {
+	return c.inters.BillingPeriod
+}
+
+func (c *BillingPeriodClient) mutate(ctx context.Context, m *BillingPeriodMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&BillingPeriodCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&BillingPeriodUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&BillingPeriodUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&BillingPeriodDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("global: unknown BillingPeriod mutation op: %q", m.Op())
 	}
 }
 
@@ -728,6 +1404,38 @@ func (c *ConfigVersionClient) QueryEnvironment(_m *ConfigVersion) *EnvironmentQu
 			sqlgraph.From(configversion.Table, configversion.FieldID, id),
 			sqlgraph.To(environment.Table, environment.FieldID),
 			sqlgraph.Edge(sqlgraph.M2O, true, configversion.EnvironmentTable, configversion.EnvironmentColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryPublishedByUser queries the published_by_user edge of a ConfigVersion.
+func (c *ConfigVersionClient) QueryPublishedByUser(_m *ConfigVersion) *UserQuery {
+	query := (&UserClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(configversion.Table, configversion.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, configversion.PublishedByUserTable, configversion.PublishedByUserColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryPublishedByKey queries the published_by_key edge of a ConfigVersion.
+func (c *ConfigVersionClient) QueryPublishedByKey(_m *ConfigVersion) *APIKeyQuery {
+	query := (&APIKeyClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(configversion.Table, configversion.FieldID, id),
+			sqlgraph.To(apikey.Table, apikey.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, configversion.PublishedByKeyTable, configversion.PublishedByKeyColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -1230,6 +1938,22 @@ func (c *InvitationClient) QueryInvitedBy(_m *Invitation) *UserQuery {
 	return query
 }
 
+// QueryRole queries the role edge of a Invitation.
+func (c *InvitationClient) QueryRole(_m *Invitation) *RoleQuery {
+	query := (&RoleClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(invitation.Table, invitation.FieldID, id),
+			sqlgraph.To(role.Table, role.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, invitation.RoleTable, invitation.RoleColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *InvitationClient) Hooks() []Hook {
 	return c.hooks.Invitation
@@ -1252,6 +1976,171 @@ func (c *InvitationClient) mutate(ctx context.Context, m *InvitationMutation) (V
 		return (&InvitationDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("global: unknown Invitation mutation op: %q", m.Op())
+	}
+}
+
+// LedgerEntryClient is a client for the LedgerEntry schema.
+type LedgerEntryClient struct {
+	config
+}
+
+// NewLedgerEntryClient returns a client for the LedgerEntry from the given config.
+func NewLedgerEntryClient(c config) *LedgerEntryClient {
+	return &LedgerEntryClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `ledgerentry.Hooks(f(g(h())))`.
+func (c *LedgerEntryClient) Use(hooks ...Hook) {
+	c.hooks.LedgerEntry = append(c.hooks.LedgerEntry, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `ledgerentry.Intercept(f(g(h())))`.
+func (c *LedgerEntryClient) Intercept(interceptors ...Interceptor) {
+	c.inters.LedgerEntry = append(c.inters.LedgerEntry, interceptors...)
+}
+
+// Create returns a builder for creating a LedgerEntry entity.
+func (c *LedgerEntryClient) Create() *LedgerEntryCreate {
+	mutation := newLedgerEntryMutation(c.config, OpCreate)
+	return &LedgerEntryCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of LedgerEntry entities.
+func (c *LedgerEntryClient) CreateBulk(builders ...*LedgerEntryCreate) *LedgerEntryCreateBulk {
+	return &LedgerEntryCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *LedgerEntryClient) MapCreateBulk(slice any, setFunc func(*LedgerEntryCreate, int)) *LedgerEntryCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &LedgerEntryCreateBulk{err: fmt.Errorf("calling to LedgerEntryClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*LedgerEntryCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &LedgerEntryCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for LedgerEntry.
+func (c *LedgerEntryClient) Update() *LedgerEntryUpdate {
+	mutation := newLedgerEntryMutation(c.config, OpUpdate)
+	return &LedgerEntryUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *LedgerEntryClient) UpdateOne(_m *LedgerEntry) *LedgerEntryUpdateOne {
+	mutation := newLedgerEntryMutation(c.config, OpUpdateOne, withLedgerEntry(_m))
+	return &LedgerEntryUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *LedgerEntryClient) UpdateOneID(id int) *LedgerEntryUpdateOne {
+	mutation := newLedgerEntryMutation(c.config, OpUpdateOne, withLedgerEntryID(id))
+	return &LedgerEntryUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for LedgerEntry.
+func (c *LedgerEntryClient) Delete() *LedgerEntryDelete {
+	mutation := newLedgerEntryMutation(c.config, OpDelete)
+	return &LedgerEntryDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *LedgerEntryClient) DeleteOne(_m *LedgerEntry) *LedgerEntryDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *LedgerEntryClient) DeleteOneID(id int) *LedgerEntryDeleteOne {
+	builder := c.Delete().Where(ledgerentry.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &LedgerEntryDeleteOne{builder}
+}
+
+// Query returns a query builder for LedgerEntry.
+func (c *LedgerEntryClient) Query() *LedgerEntryQuery {
+	return &LedgerEntryQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeLedgerEntry},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a LedgerEntry entity by its id.
+func (c *LedgerEntryClient) Get(ctx context.Context, id int) (*LedgerEntry, error) {
+	return c.Query().Where(ledgerentry.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *LedgerEntryClient) GetX(ctx context.Context, id int) *LedgerEntry {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryAccount queries the account edge of a LedgerEntry.
+func (c *LedgerEntryClient) QueryAccount(_m *LedgerEntry) *BillingAccountQuery {
+	query := (&BillingAccountClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(ledgerentry.Table, ledgerentry.FieldID, id),
+			sqlgraph.To(billingaccount.Table, billingaccount.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, ledgerentry.AccountTable, ledgerentry.AccountColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryPeriod queries the period edge of a LedgerEntry.
+func (c *LedgerEntryClient) QueryPeriod(_m *LedgerEntry) *BillingPeriodQuery {
+	query := (&BillingPeriodClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(ledgerentry.Table, ledgerentry.FieldID, id),
+			sqlgraph.To(billingperiod.Table, billingperiod.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, ledgerentry.PeriodTable, ledgerentry.PeriodColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *LedgerEntryClient) Hooks() []Hook {
+	return c.hooks.LedgerEntry
+}
+
+// Interceptors returns the client interceptors.
+func (c *LedgerEntryClient) Interceptors() []Interceptor {
+	return c.inters.LedgerEntry
+}
+
+func (c *LedgerEntryClient) mutate(ctx context.Context, m *LedgerEntryMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&LedgerEntryCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&LedgerEntryUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&LedgerEntryUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&LedgerEntryDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("global: unknown LedgerEntry mutation op: %q", m.Op())
 	}
 }
 
@@ -1404,6 +2293,171 @@ func (c *LiveOpsEventClient) mutate(ctx context.Context, m *LiveOpsEventMutation
 	}
 }
 
+// MemberProjectClient is a client for the MemberProject schema.
+type MemberProjectClient struct {
+	config
+}
+
+// NewMemberProjectClient returns a client for the MemberProject from the given config.
+func NewMemberProjectClient(c config) *MemberProjectClient {
+	return &MemberProjectClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `memberproject.Hooks(f(g(h())))`.
+func (c *MemberProjectClient) Use(hooks ...Hook) {
+	c.hooks.MemberProject = append(c.hooks.MemberProject, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `memberproject.Intercept(f(g(h())))`.
+func (c *MemberProjectClient) Intercept(interceptors ...Interceptor) {
+	c.inters.MemberProject = append(c.inters.MemberProject, interceptors...)
+}
+
+// Create returns a builder for creating a MemberProject entity.
+func (c *MemberProjectClient) Create() *MemberProjectCreate {
+	mutation := newMemberProjectMutation(c.config, OpCreate)
+	return &MemberProjectCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of MemberProject entities.
+func (c *MemberProjectClient) CreateBulk(builders ...*MemberProjectCreate) *MemberProjectCreateBulk {
+	return &MemberProjectCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *MemberProjectClient) MapCreateBulk(slice any, setFunc func(*MemberProjectCreate, int)) *MemberProjectCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &MemberProjectCreateBulk{err: fmt.Errorf("calling to MemberProjectClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*MemberProjectCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &MemberProjectCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for MemberProject.
+func (c *MemberProjectClient) Update() *MemberProjectUpdate {
+	mutation := newMemberProjectMutation(c.config, OpUpdate)
+	return &MemberProjectUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *MemberProjectClient) UpdateOne(_m *MemberProject) *MemberProjectUpdateOne {
+	mutation := newMemberProjectMutation(c.config, OpUpdateOne, withMemberProject(_m))
+	return &MemberProjectUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *MemberProjectClient) UpdateOneID(id int) *MemberProjectUpdateOne {
+	mutation := newMemberProjectMutation(c.config, OpUpdateOne, withMemberProjectID(id))
+	return &MemberProjectUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for MemberProject.
+func (c *MemberProjectClient) Delete() *MemberProjectDelete {
+	mutation := newMemberProjectMutation(c.config, OpDelete)
+	return &MemberProjectDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *MemberProjectClient) DeleteOne(_m *MemberProject) *MemberProjectDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *MemberProjectClient) DeleteOneID(id int) *MemberProjectDeleteOne {
+	builder := c.Delete().Where(memberproject.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &MemberProjectDeleteOne{builder}
+}
+
+// Query returns a query builder for MemberProject.
+func (c *MemberProjectClient) Query() *MemberProjectQuery {
+	return &MemberProjectQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeMemberProject},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a MemberProject entity by its id.
+func (c *MemberProjectClient) Get(ctx context.Context, id int) (*MemberProject, error) {
+	return c.Query().Where(memberproject.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *MemberProjectClient) GetX(ctx context.Context, id int) *MemberProject {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryMember queries the member edge of a MemberProject.
+func (c *MemberProjectClient) QueryMember(_m *MemberProject) *OrganizationMemberQuery {
+	query := (&OrganizationMemberClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(memberproject.Table, memberproject.FieldID, id),
+			sqlgraph.To(organizationmember.Table, organizationmember.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, memberproject.MemberTable, memberproject.MemberColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryProject queries the project edge of a MemberProject.
+func (c *MemberProjectClient) QueryProject(_m *MemberProject) *ProjectQuery {
+	query := (&ProjectClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(memberproject.Table, memberproject.FieldID, id),
+			sqlgraph.To(project.Table, project.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, memberproject.ProjectTable, memberproject.ProjectColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *MemberProjectClient) Hooks() []Hook {
+	return c.hooks.MemberProject
+}
+
+// Interceptors returns the client interceptors.
+func (c *MemberProjectClient) Interceptors() []Interceptor {
+	return c.inters.MemberProject
+}
+
+func (c *MemberProjectClient) mutate(ctx context.Context, m *MemberProjectMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&MemberProjectCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&MemberProjectUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&MemberProjectUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&MemberProjectDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("global: unknown MemberProject mutation op: %q", m.Op())
+	}
+}
+
 // OrganizationClient is a client for the Organization schema.
 type OrganizationClient struct {
 	config
@@ -1553,6 +2607,54 @@ func (c *OrganizationClient) QueryInvitations(_m *Organization) *InvitationQuery
 			sqlgraph.From(organization.Table, organization.FieldID, id),
 			sqlgraph.To(invitation.Table, invitation.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, organization.InvitationsTable, organization.InvitationsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryRoles queries the roles edge of a Organization.
+func (c *OrganizationClient) QueryRoles(_m *Organization) *RoleQuery {
+	query := (&RoleClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(organization.Table, organization.FieldID, id),
+			sqlgraph.To(role.Table, role.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, organization.RolesTable, organization.RolesColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryAuditEvents queries the audit_events edge of a Organization.
+func (c *OrganizationClient) QueryAuditEvents(_m *Organization) *AuditEventQuery {
+	query := (&AuditEventClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(organization.Table, organization.FieldID, id),
+			sqlgraph.To(auditevent.Table, auditevent.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, organization.AuditEventsTable, organization.AuditEventsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryBillingAccount queries the billing_account edge of a Organization.
+func (c *OrganizationClient) QueryBillingAccount(_m *Organization) *BillingAccountQuery {
+	query := (&BillingAccountClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(organization.Table, organization.FieldID, id),
+			sqlgraph.To(billingaccount.Table, billingaccount.FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, false, organization.BillingAccountTable, organization.BillingAccountColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -1725,6 +2827,38 @@ func (c *OrganizationMemberClient) QueryUser(_m *OrganizationMember) *UserQuery 
 	return query
 }
 
+// QueryRole queries the role edge of a OrganizationMember.
+func (c *OrganizationMemberClient) QueryRole(_m *OrganizationMember) *RoleQuery {
+	query := (&RoleClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(organizationmember.Table, organizationmember.FieldID, id),
+			sqlgraph.To(role.Table, role.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, organizationmember.RoleTable, organizationmember.RoleColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryProjectAccess queries the project_access edge of a OrganizationMember.
+func (c *OrganizationMemberClient) QueryProjectAccess(_m *OrganizationMember) *MemberProjectQuery {
+	query := (&MemberProjectClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(organizationmember.Table, organizationmember.FieldID, id),
+			sqlgraph.To(memberproject.Table, memberproject.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, organizationmember.ProjectAccessTable, organizationmember.ProjectAccessColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *OrganizationMemberClient) Hooks() []Hook {
 	return c.hooks.OrganizationMember
@@ -1747,6 +2881,156 @@ func (c *OrganizationMemberClient) mutate(ctx context.Context, m *OrganizationMe
 		return (&OrganizationMemberDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("global: unknown OrganizationMember mutation op: %q", m.Op())
+	}
+}
+
+// PlanClient is a client for the Plan schema.
+type PlanClient struct {
+	config
+}
+
+// NewPlanClient returns a client for the Plan from the given config.
+func NewPlanClient(c config) *PlanClient {
+	return &PlanClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `plan.Hooks(f(g(h())))`.
+func (c *PlanClient) Use(hooks ...Hook) {
+	c.hooks.Plan = append(c.hooks.Plan, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `plan.Intercept(f(g(h())))`.
+func (c *PlanClient) Intercept(interceptors ...Interceptor) {
+	c.inters.Plan = append(c.inters.Plan, interceptors...)
+}
+
+// Create returns a builder for creating a Plan entity.
+func (c *PlanClient) Create() *PlanCreate {
+	mutation := newPlanMutation(c.config, OpCreate)
+	return &PlanCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Plan entities.
+func (c *PlanClient) CreateBulk(builders ...*PlanCreate) *PlanCreateBulk {
+	return &PlanCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *PlanClient) MapCreateBulk(slice any, setFunc func(*PlanCreate, int)) *PlanCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &PlanCreateBulk{err: fmt.Errorf("calling to PlanClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*PlanCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &PlanCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Plan.
+func (c *PlanClient) Update() *PlanUpdate {
+	mutation := newPlanMutation(c.config, OpUpdate)
+	return &PlanUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *PlanClient) UpdateOne(_m *Plan) *PlanUpdateOne {
+	mutation := newPlanMutation(c.config, OpUpdateOne, withPlan(_m))
+	return &PlanUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *PlanClient) UpdateOneID(id int) *PlanUpdateOne {
+	mutation := newPlanMutation(c.config, OpUpdateOne, withPlanID(id))
+	return &PlanUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Plan.
+func (c *PlanClient) Delete() *PlanDelete {
+	mutation := newPlanMutation(c.config, OpDelete)
+	return &PlanDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *PlanClient) DeleteOne(_m *Plan) *PlanDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *PlanClient) DeleteOneID(id int) *PlanDeleteOne {
+	builder := c.Delete().Where(plan.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &PlanDeleteOne{builder}
+}
+
+// Query returns a query builder for Plan.
+func (c *PlanClient) Query() *PlanQuery {
+	return &PlanQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypePlan},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a Plan entity by its id.
+func (c *PlanClient) Get(ctx context.Context, id int) (*Plan, error) {
+	return c.Query().Where(plan.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *PlanClient) GetX(ctx context.Context, id int) *Plan {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryAccounts queries the accounts edge of a Plan.
+func (c *PlanClient) QueryAccounts(_m *Plan) *BillingAccountQuery {
+	query := (&BillingAccountClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(plan.Table, plan.FieldID, id),
+			sqlgraph.To(billingaccount.Table, billingaccount.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, plan.AccountsTable, plan.AccountsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *PlanClient) Hooks() []Hook {
+	hooks := c.hooks.Plan
+	return append(hooks[:len(hooks):len(hooks)], plan.Hooks[:]...)
+}
+
+// Interceptors returns the client interceptors.
+func (c *PlanClient) Interceptors() []Interceptor {
+	return c.inters.Plan
+}
+
+func (c *PlanClient) mutate(ctx context.Context, m *PlanMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&PlanCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&PlanUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&PlanUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&PlanDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("global: unknown Plan mutation op: %q", m.Op())
 	}
 }
 
@@ -1970,6 +3254,38 @@ func (c *ProjectClient) QueryConfigVersions(_m *Project) *ConfigVersionQuery {
 	return query
 }
 
+// QueryMemberAccess queries the member_access edge of a Project.
+func (c *ProjectClient) QueryMemberAccess(_m *Project) *MemberProjectQuery {
+	query := (&MemberProjectClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(project.Table, project.FieldID, id),
+			sqlgraph.To(memberproject.Table, memberproject.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, project.MemberAccessTable, project.MemberAccessColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryUsageDaily queries the usage_daily edge of a Project.
+func (c *ProjectClient) QueryUsageDaily(_m *Project) *UsageDailyQuery {
+	query := (&UsageDailyClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(project.Table, project.FieldID, id),
+			sqlgraph.To(usagedaily.Table, usagedaily.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, project.UsageDailyTable, project.UsageDailyColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *ProjectClient) Hooks() []Hook {
 	return c.hooks.Project
@@ -1992,6 +3308,188 @@ func (c *ProjectClient) mutate(ctx context.Context, m *ProjectMutation) (Value, 
 		return (&ProjectDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("global: unknown Project mutation op: %q", m.Op())
+	}
+}
+
+// RoleClient is a client for the Role schema.
+type RoleClient struct {
+	config
+}
+
+// NewRoleClient returns a client for the Role from the given config.
+func NewRoleClient(c config) *RoleClient {
+	return &RoleClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `role.Hooks(f(g(h())))`.
+func (c *RoleClient) Use(hooks ...Hook) {
+	c.hooks.Role = append(c.hooks.Role, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `role.Intercept(f(g(h())))`.
+func (c *RoleClient) Intercept(interceptors ...Interceptor) {
+	c.inters.Role = append(c.inters.Role, interceptors...)
+}
+
+// Create returns a builder for creating a Role entity.
+func (c *RoleClient) Create() *RoleCreate {
+	mutation := newRoleMutation(c.config, OpCreate)
+	return &RoleCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Role entities.
+func (c *RoleClient) CreateBulk(builders ...*RoleCreate) *RoleCreateBulk {
+	return &RoleCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *RoleClient) MapCreateBulk(slice any, setFunc func(*RoleCreate, int)) *RoleCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &RoleCreateBulk{err: fmt.Errorf("calling to RoleClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*RoleCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &RoleCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Role.
+func (c *RoleClient) Update() *RoleUpdate {
+	mutation := newRoleMutation(c.config, OpUpdate)
+	return &RoleUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *RoleClient) UpdateOne(_m *Role) *RoleUpdateOne {
+	mutation := newRoleMutation(c.config, OpUpdateOne, withRole(_m))
+	return &RoleUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *RoleClient) UpdateOneID(id int) *RoleUpdateOne {
+	mutation := newRoleMutation(c.config, OpUpdateOne, withRoleID(id))
+	return &RoleUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Role.
+func (c *RoleClient) Delete() *RoleDelete {
+	mutation := newRoleMutation(c.config, OpDelete)
+	return &RoleDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *RoleClient) DeleteOne(_m *Role) *RoleDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *RoleClient) DeleteOneID(id int) *RoleDeleteOne {
+	builder := c.Delete().Where(role.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &RoleDeleteOne{builder}
+}
+
+// Query returns a query builder for Role.
+func (c *RoleClient) Query() *RoleQuery {
+	return &RoleQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeRole},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a Role entity by its id.
+func (c *RoleClient) Get(ctx context.Context, id int) (*Role, error) {
+	return c.Query().Where(role.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *RoleClient) GetX(ctx context.Context, id int) *Role {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryOrganization queries the organization edge of a Role.
+func (c *RoleClient) QueryOrganization(_m *Role) *OrganizationQuery {
+	query := (&OrganizationClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(role.Table, role.FieldID, id),
+			sqlgraph.To(organization.Table, organization.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, role.OrganizationTable, role.OrganizationColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryMembers queries the members edge of a Role.
+func (c *RoleClient) QueryMembers(_m *Role) *OrganizationMemberQuery {
+	query := (&OrganizationMemberClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(role.Table, role.FieldID, id),
+			sqlgraph.To(organizationmember.Table, organizationmember.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, role.MembersTable, role.MembersColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryInvitations queries the invitations edge of a Role.
+func (c *RoleClient) QueryInvitations(_m *Role) *InvitationQuery {
+	query := (&InvitationClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(role.Table, role.FieldID, id),
+			sqlgraph.To(invitation.Table, invitation.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, role.InvitationsTable, role.InvitationsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *RoleClient) Hooks() []Hook {
+	hooks := c.hooks.Role
+	return append(hooks[:len(hooks):len(hooks)], role.Hooks[:]...)
+}
+
+// Interceptors returns the client interceptors.
+func (c *RoleClient) Interceptors() []Interceptor {
+	return c.inters.Role
+}
+
+func (c *RoleClient) mutate(ctx context.Context, m *RoleMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&RoleCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&RoleUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&RoleUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&RoleDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("global: unknown Role mutation op: %q", m.Op())
 	}
 }
 
@@ -2144,6 +3642,437 @@ func (c *SegmentClient) mutate(ctx context.Context, m *SegmentMutation) (Value, 
 	}
 }
 
+// StaffAccessClient is a client for the StaffAccess schema.
+type StaffAccessClient struct {
+	config
+}
+
+// NewStaffAccessClient returns a client for the StaffAccess from the given config.
+func NewStaffAccessClient(c config) *StaffAccessClient {
+	return &StaffAccessClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `staffaccess.Hooks(f(g(h())))`.
+func (c *StaffAccessClient) Use(hooks ...Hook) {
+	c.hooks.StaffAccess = append(c.hooks.StaffAccess, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `staffaccess.Intercept(f(g(h())))`.
+func (c *StaffAccessClient) Intercept(interceptors ...Interceptor) {
+	c.inters.StaffAccess = append(c.inters.StaffAccess, interceptors...)
+}
+
+// Create returns a builder for creating a StaffAccess entity.
+func (c *StaffAccessClient) Create() *StaffAccessCreate {
+	mutation := newStaffAccessMutation(c.config, OpCreate)
+	return &StaffAccessCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of StaffAccess entities.
+func (c *StaffAccessClient) CreateBulk(builders ...*StaffAccessCreate) *StaffAccessCreateBulk {
+	return &StaffAccessCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *StaffAccessClient) MapCreateBulk(slice any, setFunc func(*StaffAccessCreate, int)) *StaffAccessCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &StaffAccessCreateBulk{err: fmt.Errorf("calling to StaffAccessClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*StaffAccessCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &StaffAccessCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for StaffAccess.
+func (c *StaffAccessClient) Update() *StaffAccessUpdate {
+	mutation := newStaffAccessMutation(c.config, OpUpdate)
+	return &StaffAccessUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *StaffAccessClient) UpdateOne(_m *StaffAccess) *StaffAccessUpdateOne {
+	mutation := newStaffAccessMutation(c.config, OpUpdateOne, withStaffAccess(_m))
+	return &StaffAccessUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *StaffAccessClient) UpdateOneID(id int) *StaffAccessUpdateOne {
+	mutation := newStaffAccessMutation(c.config, OpUpdateOne, withStaffAccessID(id))
+	return &StaffAccessUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for StaffAccess.
+func (c *StaffAccessClient) Delete() *StaffAccessDelete {
+	mutation := newStaffAccessMutation(c.config, OpDelete)
+	return &StaffAccessDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *StaffAccessClient) DeleteOne(_m *StaffAccess) *StaffAccessDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *StaffAccessClient) DeleteOneID(id int) *StaffAccessDeleteOne {
+	builder := c.Delete().Where(staffaccess.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &StaffAccessDeleteOne{builder}
+}
+
+// Query returns a query builder for StaffAccess.
+func (c *StaffAccessClient) Query() *StaffAccessQuery {
+	return &StaffAccessQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeStaffAccess},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a StaffAccess entity by its id.
+func (c *StaffAccessClient) Get(ctx context.Context, id int) (*StaffAccess, error) {
+	return c.Query().Where(staffaccess.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *StaffAccessClient) GetX(ctx context.Context, id int) *StaffAccess {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *StaffAccessClient) Hooks() []Hook {
+	return c.hooks.StaffAccess
+}
+
+// Interceptors returns the client interceptors.
+func (c *StaffAccessClient) Interceptors() []Interceptor {
+	return c.inters.StaffAccess
+}
+
+func (c *StaffAccessClient) mutate(ctx context.Context, m *StaffAccessMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&StaffAccessCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&StaffAccessUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&StaffAccessUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&StaffAccessDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("global: unknown StaffAccess mutation op: %q", m.Op())
+	}
+}
+
+// StripeEventClient is a client for the StripeEvent schema.
+type StripeEventClient struct {
+	config
+}
+
+// NewStripeEventClient returns a client for the StripeEvent from the given config.
+func NewStripeEventClient(c config) *StripeEventClient {
+	return &StripeEventClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `stripeevent.Hooks(f(g(h())))`.
+func (c *StripeEventClient) Use(hooks ...Hook) {
+	c.hooks.StripeEvent = append(c.hooks.StripeEvent, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `stripeevent.Intercept(f(g(h())))`.
+func (c *StripeEventClient) Intercept(interceptors ...Interceptor) {
+	c.inters.StripeEvent = append(c.inters.StripeEvent, interceptors...)
+}
+
+// Create returns a builder for creating a StripeEvent entity.
+func (c *StripeEventClient) Create() *StripeEventCreate {
+	mutation := newStripeEventMutation(c.config, OpCreate)
+	return &StripeEventCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of StripeEvent entities.
+func (c *StripeEventClient) CreateBulk(builders ...*StripeEventCreate) *StripeEventCreateBulk {
+	return &StripeEventCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *StripeEventClient) MapCreateBulk(slice any, setFunc func(*StripeEventCreate, int)) *StripeEventCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &StripeEventCreateBulk{err: fmt.Errorf("calling to StripeEventClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*StripeEventCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &StripeEventCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for StripeEvent.
+func (c *StripeEventClient) Update() *StripeEventUpdate {
+	mutation := newStripeEventMutation(c.config, OpUpdate)
+	return &StripeEventUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *StripeEventClient) UpdateOne(_m *StripeEvent) *StripeEventUpdateOne {
+	mutation := newStripeEventMutation(c.config, OpUpdateOne, withStripeEvent(_m))
+	return &StripeEventUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *StripeEventClient) UpdateOneID(id int) *StripeEventUpdateOne {
+	mutation := newStripeEventMutation(c.config, OpUpdateOne, withStripeEventID(id))
+	return &StripeEventUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for StripeEvent.
+func (c *StripeEventClient) Delete() *StripeEventDelete {
+	mutation := newStripeEventMutation(c.config, OpDelete)
+	return &StripeEventDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *StripeEventClient) DeleteOne(_m *StripeEvent) *StripeEventDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *StripeEventClient) DeleteOneID(id int) *StripeEventDeleteOne {
+	builder := c.Delete().Where(stripeevent.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &StripeEventDeleteOne{builder}
+}
+
+// Query returns a query builder for StripeEvent.
+func (c *StripeEventClient) Query() *StripeEventQuery {
+	return &StripeEventQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeStripeEvent},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a StripeEvent entity by its id.
+func (c *StripeEventClient) Get(ctx context.Context, id int) (*StripeEvent, error) {
+	return c.Query().Where(stripeevent.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *StripeEventClient) GetX(ctx context.Context, id int) *StripeEvent {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryAccount queries the account edge of a StripeEvent.
+func (c *StripeEventClient) QueryAccount(_m *StripeEvent) *BillingAccountQuery {
+	query := (&BillingAccountClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(stripeevent.Table, stripeevent.FieldID, id),
+			sqlgraph.To(billingaccount.Table, billingaccount.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, stripeevent.AccountTable, stripeevent.AccountColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *StripeEventClient) Hooks() []Hook {
+	return c.hooks.StripeEvent
+}
+
+// Interceptors returns the client interceptors.
+func (c *StripeEventClient) Interceptors() []Interceptor {
+	return c.inters.StripeEvent
+}
+
+func (c *StripeEventClient) mutate(ctx context.Context, m *StripeEventMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&StripeEventCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&StripeEventUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&StripeEventUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&StripeEventDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("global: unknown StripeEvent mutation op: %q", m.Op())
+	}
+}
+
+// UsageDailyClient is a client for the UsageDaily schema.
+type UsageDailyClient struct {
+	config
+}
+
+// NewUsageDailyClient returns a client for the UsageDaily from the given config.
+func NewUsageDailyClient(c config) *UsageDailyClient {
+	return &UsageDailyClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `usagedaily.Hooks(f(g(h())))`.
+func (c *UsageDailyClient) Use(hooks ...Hook) {
+	c.hooks.UsageDaily = append(c.hooks.UsageDaily, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `usagedaily.Intercept(f(g(h())))`.
+func (c *UsageDailyClient) Intercept(interceptors ...Interceptor) {
+	c.inters.UsageDaily = append(c.inters.UsageDaily, interceptors...)
+}
+
+// Create returns a builder for creating a UsageDaily entity.
+func (c *UsageDailyClient) Create() *UsageDailyCreate {
+	mutation := newUsageDailyMutation(c.config, OpCreate)
+	return &UsageDailyCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of UsageDaily entities.
+func (c *UsageDailyClient) CreateBulk(builders ...*UsageDailyCreate) *UsageDailyCreateBulk {
+	return &UsageDailyCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *UsageDailyClient) MapCreateBulk(slice any, setFunc func(*UsageDailyCreate, int)) *UsageDailyCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &UsageDailyCreateBulk{err: fmt.Errorf("calling to UsageDailyClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*UsageDailyCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &UsageDailyCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for UsageDaily.
+func (c *UsageDailyClient) Update() *UsageDailyUpdate {
+	mutation := newUsageDailyMutation(c.config, OpUpdate)
+	return &UsageDailyUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *UsageDailyClient) UpdateOne(_m *UsageDaily) *UsageDailyUpdateOne {
+	mutation := newUsageDailyMutation(c.config, OpUpdateOne, withUsageDaily(_m))
+	return &UsageDailyUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *UsageDailyClient) UpdateOneID(id int) *UsageDailyUpdateOne {
+	mutation := newUsageDailyMutation(c.config, OpUpdateOne, withUsageDailyID(id))
+	return &UsageDailyUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for UsageDaily.
+func (c *UsageDailyClient) Delete() *UsageDailyDelete {
+	mutation := newUsageDailyMutation(c.config, OpDelete)
+	return &UsageDailyDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *UsageDailyClient) DeleteOne(_m *UsageDaily) *UsageDailyDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *UsageDailyClient) DeleteOneID(id int) *UsageDailyDeleteOne {
+	builder := c.Delete().Where(usagedaily.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &UsageDailyDeleteOne{builder}
+}
+
+// Query returns a query builder for UsageDaily.
+func (c *UsageDailyClient) Query() *UsageDailyQuery {
+	return &UsageDailyQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeUsageDaily},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a UsageDaily entity by its id.
+func (c *UsageDailyClient) Get(ctx context.Context, id int) (*UsageDaily, error) {
+	return c.Query().Where(usagedaily.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *UsageDailyClient) GetX(ctx context.Context, id int) *UsageDaily {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryProject queries the project edge of a UsageDaily.
+func (c *UsageDailyClient) QueryProject(_m *UsageDaily) *ProjectQuery {
+	query := (&ProjectClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(usagedaily.Table, usagedaily.FieldID, id),
+			sqlgraph.To(project.Table, project.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, usagedaily.ProjectTable, usagedaily.ProjectColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *UsageDailyClient) Hooks() []Hook {
+	return c.hooks.UsageDaily
+}
+
+// Interceptors returns the client interceptors.
+func (c *UsageDailyClient) Interceptors() []Interceptor {
+	return c.inters.UsageDaily
+}
+
+func (c *UsageDailyClient) mutate(ctx context.Context, m *UsageDailyMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&UsageDailyCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&UsageDailyUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&UsageDailyUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&UsageDailyDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("global: unknown UsageDaily mutation op: %q", m.Op())
+	}
+}
+
 // UserClient is a client for the User schema.
 type UserClient struct {
 	config
@@ -2284,6 +4213,38 @@ func (c *UserClient) QuerySentInvitations(_m *User) *InvitationQuery {
 	return query
 }
 
+// QueryAuditEvents queries the audit_events edge of a User.
+func (c *UserClient) QueryAuditEvents(_m *User) *AuditEventQuery {
+	query := (&AuditEventClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(auditevent.Table, auditevent.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.AuditEventsTable, user.AuditEventsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryPublishedVersions queries the published_versions edge of a User.
+func (c *UserClient) QueryPublishedVersions(_m *User) *ConfigVersionQuery {
+	query := (&ConfigVersionClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(configversion.Table, configversion.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.PublishedVersionsTable, user.PublishedVersionsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *UserClient) Hooks() []Hook {
 	return c.hooks.User
@@ -2312,11 +4273,15 @@ func (c *UserClient) mutate(ctx context.Context, m *UserMutation) (Value, error)
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		APIKey, Cell, ConfigVersion, Environment, FeatureFlag, Invitation, LiveOpsEvent,
-		Organization, OrganizationMember, Project, Segment, User []ent.Hook
+		APIKey, AuditEvent, BillingAccount, BillingPeriod, Cell, ConfigVersion,
+		Environment, FeatureFlag, Invitation, LedgerEntry, LiveOpsEvent, MemberProject,
+		Organization, OrganizationMember, Plan, Project, Role, Segment, StaffAccess,
+		StripeEvent, UsageDaily, User []ent.Hook
 	}
 	inters struct {
-		APIKey, Cell, ConfigVersion, Environment, FeatureFlag, Invitation, LiveOpsEvent,
-		Organization, OrganizationMember, Project, Segment, User []ent.Interceptor
+		APIKey, AuditEvent, BillingAccount, BillingPeriod, Cell, ConfigVersion,
+		Environment, FeatureFlag, Invitation, LedgerEntry, LiveOpsEvent, MemberProject,
+		Organization, OrganizationMember, Plan, Project, Role, Segment, StaffAccess,
+		StripeEvent, UsageDaily, User []ent.Interceptor
 	}
 )

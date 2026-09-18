@@ -44,6 +44,148 @@ var (
 			},
 		},
 	}
+	// AuditEventsColumns holds the columns for the "audit_events" table.
+	AuditEventsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
+		{Name: "uid", Type: field.TypeUUID, Unique: true, Comment: "class=none"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "actor_label", Type: field.TypeString, Size: 254, Comment: "class=none", Default: ""},
+		{Name: "action", Type: field.TypeString, Size: 64, Comment: "class=none"},
+		{Name: "target_type", Type: field.TypeString, Size: 64, Comment: "class=none", Default: ""},
+		{Name: "target_id", Type: field.TypeString, Size: 128, Comment: "class=none", Default: ""},
+		{Name: "metadata", Type: field.TypeJSON, Comment: "class=none"},
+		{Name: "ip", Type: field.TypeString, Size: 45, Comment: "class=none", Default: ""},
+		{Name: "actor_key_id", Type: field.TypeInt, Nullable: true, Comment: "class=none"},
+		{Name: "organization_id", Type: field.TypeInt, Comment: "class=none"},
+		{Name: "actor_user_id", Type: field.TypeInt, Nullable: true, Comment: "class=none"},
+	}
+	// AuditEventsTable holds the schema information for the "audit_events" table.
+	AuditEventsTable = &schema.Table{
+		Name:       "audit_events",
+		Columns:    AuditEventsColumns,
+		PrimaryKey: []*schema.Column{AuditEventsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "audit_events_api_keys_audit_events",
+				Columns:    []*schema.Column{AuditEventsColumns[9]},
+				RefColumns: []*schema.Column{APIKeysColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+			{
+				Symbol:     "audit_events_organizations_audit_events",
+				Columns:    []*schema.Column{AuditEventsColumns[10]},
+				RefColumns: []*schema.Column{OrganizationsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "audit_events_users_audit_events",
+				Columns:    []*schema.Column{AuditEventsColumns[11]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "auditevent_organization_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{AuditEventsColumns[10], AuditEventsColumns[2]},
+			},
+			{
+				Name:    "auditevent_organization_id_action_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{AuditEventsColumns[10], AuditEventsColumns[4], AuditEventsColumns[2]},
+			},
+		},
+	}
+	// BillingAccountsColumns holds the columns for the "billing_accounts" table.
+	BillingAccountsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
+		{Name: "uid", Type: field.TypeUUID, Unique: true, Comment: "class=none"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "updated_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "stripe_customer_id", Type: field.TypeString, Unique: true, Nullable: true, Size: 255, Comment: "class=none"},
+		{Name: "stripe_subscription_id", Type: field.TypeString, Nullable: true, Size: 255, Comment: "class=none"},
+		{Name: "state", Type: field.TypeEnum, Comment: "class=none", Enums: []string{"active", "grace_period", "restricted", "suspended", "canceled"}, Default: "active"},
+		{Name: "state_changed_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "currency", Type: field.TypeString, Size: 3, Comment: "class=financial", Default: "usd"},
+		{Name: "balance_micros", Type: field.TypeInt64, Comment: "class=financial", Default: 0},
+		{Name: "auto_topup_enabled", Type: field.TypeBool, Comment: "class=none", Default: false},
+		{Name: "auto_topup_threshold_micros", Type: field.TypeInt64, Comment: "class=financial", Default: 0},
+		{Name: "auto_topup_amount_micros", Type: field.TypeInt64, Comment: "class=financial", Default: 0},
+		{Name: "default_payment_method", Type: field.TypeString, Nullable: true, Size: 255, Comment: "class=none"},
+		{Name: "billing_email", Type: field.TypeString, Nullable: true, Size: 254, Comment: "class=none"},
+		{Name: "entitlement_overrides", Type: field.TypeJSON, Comment: "class=none"},
+		{Name: "organization_id", Type: field.TypeInt, Unique: true, Comment: "class=none"},
+		{Name: "plan_id", Type: field.TypeInt, Comment: "class=none"},
+	}
+	// BillingAccountsTable holds the schema information for the "billing_accounts" table.
+	BillingAccountsTable = &schema.Table{
+		Name:       "billing_accounts",
+		Columns:    BillingAccountsColumns,
+		PrimaryKey: []*schema.Column{BillingAccountsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "billing_accounts_organizations_billing_account",
+				Columns:    []*schema.Column{BillingAccountsColumns[16]},
+				RefColumns: []*schema.Column{OrganizationsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "billing_accounts_plans_accounts",
+				Columns:    []*schema.Column{BillingAccountsColumns[17]},
+				RefColumns: []*schema.Column{PlansColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+	}
+	// BillingPeriodsColumns holds the columns for the "billing_periods" table.
+	BillingPeriodsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
+		{Name: "uid", Type: field.TypeUUID, Unique: true, Comment: "class=none"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "updated_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "period_start", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "period_end", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "plan_key", Type: field.TypeString, Size: 64, Comment: "class=none"},
+		{Name: "plan_price_micros", Type: field.TypeInt64, Comment: "class=financial", Default: 0},
+		{Name: "tracked_players", Type: field.TypeUint64, Comment: "class=none", Default: 0},
+		{Name: "events_accepted", Type: field.TypeUint64, Comment: "class=none", Default: 0},
+		{Name: "retained_byte_days", Type: field.TypeUint64, Comment: "class=none", Default: 0},
+		{Name: "included", Type: field.TypeJSON, Comment: "class=none"},
+		{Name: "amount_micros", Type: field.TypeInt64, Comment: "class=financial", Default: 0},
+		{Name: "currency", Type: field.TypeString, Size: 3, Comment: "class=financial", Default: "usd"},
+		{Name: "status", Type: field.TypeEnum, Comment: "class=none", Enums: []string{"open", "closed", "reported", "invoiced", "void"}, Default: "open"},
+		{Name: "closed_at", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
+		{Name: "reported_at", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
+		{Name: "stripe_invoice_id", Type: field.TypeString, Nullable: true, Size: 255, Comment: "class=none"},
+		{Name: "account_id", Type: field.TypeInt, Comment: "class=none"},
+	}
+	// BillingPeriodsTable holds the schema information for the "billing_periods" table.
+	BillingPeriodsTable = &schema.Table{
+		Name:       "billing_periods",
+		Columns:    BillingPeriodsColumns,
+		PrimaryKey: []*schema.Column{BillingPeriodsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "billing_periods_billing_accounts_periods",
+				Columns:    []*schema.Column{BillingPeriodsColumns[18]},
+				RefColumns: []*schema.Column{BillingAccountsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "billingperiod_period_start_account_id",
+				Unique:  true,
+				Columns: []*schema.Column{BillingPeriodsColumns[4], BillingPeriodsColumns[18]},
+			},
+			{
+				Name:    "billingperiod_status_period_end",
+				Unique:  false,
+				Columns: []*schema.Column{BillingPeriodsColumns[14], BillingPeriodsColumns[5]},
+			},
+		},
+	}
 	// CellsColumns holds the columns for the "cells" table.
 	CellsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
@@ -83,10 +225,12 @@ var (
 		{Name: "updated_at", Type: field.TypeTime, Comment: "class=none"},
 		{Name: "version", Type: field.TypeInt, Comment: "class=none"},
 		{Name: "document", Type: field.TypeJSON, Comment: "class=none"},
-		{Name: "published_by", Type: field.TypeString, Size: 120, Comment: "class=none", Default: ""},
+		{Name: "published_by_label", Type: field.TypeString, Size: 254, Comment: "class=none", Default: ""},
 		{Name: "note", Type: field.TypeString, Size: 500, Comment: "class=none", Default: ""},
+		{Name: "published_by_key_id", Type: field.TypeInt, Nullable: true, Comment: "class=none"},
 		{Name: "environment_id", Type: field.TypeInt, Comment: "class=none"},
 		{Name: "project_id", Type: field.TypeInt, Comment: "class=none"},
+		{Name: "published_by_user_id", Type: field.TypeInt, Nullable: true, Comment: "class=none"},
 	}
 	// ConfigVersionsTable holds the schema information for the "config_versions" table.
 	ConfigVersionsTable = &schema.Table{
@@ -95,23 +239,35 @@ var (
 		PrimaryKey: []*schema.Column{ConfigVersionsColumns[0]},
 		ForeignKeys: []*schema.ForeignKey{
 			{
-				Symbol:     "config_versions_environments_config_versions",
+				Symbol:     "config_versions_api_keys_published_versions",
 				Columns:    []*schema.Column{ConfigVersionsColumns[8]},
+				RefColumns: []*schema.Column{APIKeysColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+			{
+				Symbol:     "config_versions_environments_config_versions",
+				Columns:    []*schema.Column{ConfigVersionsColumns[9]},
 				RefColumns: []*schema.Column{EnvironmentsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "config_versions_projects_config_versions",
-				Columns:    []*schema.Column{ConfigVersionsColumns[9]},
+				Columns:    []*schema.Column{ConfigVersionsColumns[10]},
 				RefColumns: []*schema.Column{ProjectsColumns[0]},
 				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "config_versions_users_published_versions",
+				Columns:    []*schema.Column{ConfigVersionsColumns[11]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.SetNull,
 			},
 		},
 		Indexes: []*schema.Index{
 			{
 				Name:    "configversion_version_environment_id",
 				Unique:  true,
-				Columns: []*schema.Column{ConfigVersionsColumns[4], ConfigVersionsColumns[8]},
+				Columns: []*schema.Column{ConfigVersionsColumns[4], ConfigVersionsColumns[9]},
 			},
 		},
 	}
@@ -191,10 +347,13 @@ var (
 		{Name: "updated_at", Type: field.TypeTime, Comment: "class=none"},
 		{Name: "email", Type: field.TypeString, Size: 254, Comment: "class=none"},
 		{Name: "token_digest", Type: field.TypeString, Size: 64, Comment: "class=none"},
+		{Name: "all_projects", Type: field.TypeBool, Comment: "class=none", Default: true},
+		{Name: "project_ids", Type: field.TypeJSON, Comment: "class=none"},
 		{Name: "status", Type: field.TypeEnum, Comment: "class=none", Enums: []string{"pending", "accepted", "revoked", "expired"}, Default: "pending"},
 		{Name: "expires_at", Type: field.TypeTime, Comment: "class=none"},
 		{Name: "accepted_at", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
 		{Name: "organization_id", Type: field.TypeInt, Comment: "class=none"},
+		{Name: "role_id", Type: field.TypeInt, Comment: "class=none"},
 		{Name: "invited_by_id", Type: field.TypeInt, Nullable: true, Comment: "class=none"},
 	}
 	// InvitationsTable holds the schema information for the "invitations" table.
@@ -205,13 +364,19 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "invitations_organizations_invitations",
-				Columns:    []*schema.Column{InvitationsColumns[9]},
+				Columns:    []*schema.Column{InvitationsColumns[11]},
 				RefColumns: []*schema.Column{OrganizationsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
+				Symbol:     "invitations_roles_invitations",
+				Columns:    []*schema.Column{InvitationsColumns[12]},
+				RefColumns: []*schema.Column{RolesColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
 				Symbol:     "invitations_users_sent_invitations",
-				Columns:    []*schema.Column{InvitationsColumns[10]},
+				Columns:    []*schema.Column{InvitationsColumns[13]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
@@ -225,7 +390,49 @@ var (
 			{
 				Name:    "invitation_organization_id_status",
 				Unique:  false,
-				Columns: []*schema.Column{InvitationsColumns[9], InvitationsColumns[6]},
+				Columns: []*schema.Column{InvitationsColumns[11], InvitationsColumns[8]},
+			},
+		},
+	}
+	// LedgerEntriesColumns holds the columns for the "ledger_entries" table.
+	LedgerEntriesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
+		{Name: "uid", Type: field.TypeUUID, Unique: true, Comment: "class=none"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "kind", Type: field.TypeEnum, Comment: "class=none", Enums: []string{"topup", "usage", "subscription", "adjustment", "refund"}},
+		{Name: "amount_micros", Type: field.TypeInt64, Comment: "class=financial"},
+		{Name: "balance_after_micros", Type: field.TypeInt64, Comment: "class=financial"},
+		{Name: "currency", Type: field.TypeString, Size: 3, Comment: "class=financial"},
+		{Name: "description", Type: field.TypeString, Size: 255, Comment: "class=none", Default: ""},
+		{Name: "stripe_reference", Type: field.TypeString, Nullable: true, Size: 255, Comment: "class=none"},
+		{Name: "idempotency_key", Type: field.TypeString, Unique: true, Size: 255, Comment: "class=none"},
+		{Name: "account_id", Type: field.TypeInt, Comment: "class=none"},
+		{Name: "period_id", Type: field.TypeInt, Nullable: true, Comment: "class=none"},
+	}
+	// LedgerEntriesTable holds the schema information for the "ledger_entries" table.
+	LedgerEntriesTable = &schema.Table{
+		Name:       "ledger_entries",
+		Columns:    LedgerEntriesColumns,
+		PrimaryKey: []*schema.Column{LedgerEntriesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "ledger_entries_billing_accounts_ledger_entries",
+				Columns:    []*schema.Column{LedgerEntriesColumns[10]},
+				RefColumns: []*schema.Column{BillingAccountsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "ledger_entries_billing_periods_charges",
+				Columns:    []*schema.Column{LedgerEntriesColumns[11]},
+				RefColumns: []*schema.Column{BillingPeriodsColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "ledgerentry_account_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{LedgerEntriesColumns[10], LedgerEntriesColumns[2]},
 			},
 		},
 	}
@@ -268,6 +475,43 @@ var (
 			},
 		},
 	}
+	// MemberProjectsColumns holds the columns for the "member_projects" table.
+	MemberProjectsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
+		{Name: "uid", Type: field.TypeUUID, Unique: true, Comment: "class=none"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "updated_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "granted_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "member_id", Type: field.TypeInt, Comment: "class=none"},
+		{Name: "project_id", Type: field.TypeInt, Comment: "class=none"},
+	}
+	// MemberProjectsTable holds the schema information for the "member_projects" table.
+	MemberProjectsTable = &schema.Table{
+		Name:       "member_projects",
+		Columns:    MemberProjectsColumns,
+		PrimaryKey: []*schema.Column{MemberProjectsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "member_projects_organization_members_project_access",
+				Columns:    []*schema.Column{MemberProjectsColumns[5]},
+				RefColumns: []*schema.Column{OrganizationMembersColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "member_projects_projects_member_access",
+				Columns:    []*schema.Column{MemberProjectsColumns[6]},
+				RefColumns: []*schema.Column{ProjectsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "memberproject_member_id_project_id",
+				Unique:  true,
+				Columns: []*schema.Column{MemberProjectsColumns[5], MemberProjectsColumns[6]},
+			},
+		},
+	}
 	// OrganizationsColumns holds the columns for the "organizations" table.
 	OrganizationsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
@@ -290,9 +534,10 @@ var (
 		{Name: "uid", Type: field.TypeUUID, Unique: true, Comment: "class=none"},
 		{Name: "created_at", Type: field.TypeTime, Comment: "class=none"},
 		{Name: "updated_at", Type: field.TypeTime, Comment: "class=none"},
-		{Name: "role", Type: field.TypeEnum, Comment: "class=none", Enums: []string{"owner", "admin", "member", "viewer"}},
+		{Name: "all_projects", Type: field.TypeBool, Comment: "class=none", Default: true},
 		{Name: "joined_at", Type: field.TypeTime, Comment: "class=none"},
 		{Name: "organization_id", Type: field.TypeInt, Comment: "class=none"},
+		{Name: "role_id", Type: field.TypeInt, Comment: "class=none"},
 		{Name: "user_id", Type: field.TypeInt, Comment: "class=none"},
 	}
 	// OrganizationMembersTable holds the schema information for the "organization_members" table.
@@ -308,8 +553,14 @@ var (
 				OnDelete:   schema.NoAction,
 			},
 			{
-				Symbol:     "organization_members_users_memberships",
+				Symbol:     "organization_members_roles_members",
 				Columns:    []*schema.Column{OrganizationMembersColumns[7]},
+				RefColumns: []*schema.Column{RolesColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "organization_members_users_memberships",
+				Columns:    []*schema.Column{OrganizationMembersColumns[8]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -318,9 +569,30 @@ var (
 			{
 				Name:    "organizationmember_organization_id_user_id",
 				Unique:  true,
-				Columns: []*schema.Column{OrganizationMembersColumns[6], OrganizationMembersColumns[7]},
+				Columns: []*schema.Column{OrganizationMembersColumns[6], OrganizationMembersColumns[8]},
 			},
 		},
+	}
+	// PlansColumns holds the columns for the "plans" table.
+	PlansColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
+		{Name: "uid", Type: field.TypeUUID, Unique: true, Comment: "class=none"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "updated_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "key", Type: field.TypeString, Unique: true, Size: 64, Comment: "class=none"},
+		{Name: "name", Type: field.TypeString, Size: 120, Comment: "class=none"},
+		{Name: "description", Type: field.TypeString, Size: 500, Comment: "class=none", Default: ""},
+		{Name: "monthly_price_micros", Type: field.TypeInt64, Comment: "class=financial", Default: 0},
+		{Name: "currency", Type: field.TypeString, Size: 3, Comment: "class=financial", Default: "usd"},
+		{Name: "stripe_price_id", Type: field.TypeString, Nullable: true, Size: 255, Comment: "class=none"},
+		{Name: "entitlements", Type: field.TypeJSON, Comment: "class=none"},
+		{Name: "active", Type: field.TypeBool, Comment: "class=none", Default: true},
+	}
+	// PlansTable holds the schema information for the "plans" table.
+	PlansTable = &schema.Table{
+		Name:       "plans",
+		Columns:    PlansColumns,
+		PrimaryKey: []*schema.Column{PlansColumns[0]},
 	}
 	// ProjectsColumns holds the columns for the "projects" table.
 	ProjectsColumns = []*schema.Column{
@@ -362,6 +634,40 @@ var (
 			},
 		},
 	}
+	// RolesColumns holds the columns for the "roles" table.
+	RolesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
+		{Name: "uid", Type: field.TypeUUID, Unique: true, Comment: "class=none"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "updated_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "key", Type: field.TypeString, Size: 64, Comment: "class=none"},
+		{Name: "name", Type: field.TypeString, Size: 120, Comment: "class=none"},
+		{Name: "description", Type: field.TypeString, Size: 500, Comment: "class=none", Default: ""},
+		{Name: "permissions", Type: field.TypeJSON, Comment: "class=none"},
+		{Name: "system", Type: field.TypeBool, Comment: "class=none", Default: false},
+		{Name: "organization_id", Type: field.TypeInt, Comment: "class=none"},
+	}
+	// RolesTable holds the schema information for the "roles" table.
+	RolesTable = &schema.Table{
+		Name:       "roles",
+		Columns:    RolesColumns,
+		PrimaryKey: []*schema.Column{RolesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "roles_organizations_roles",
+				Columns:    []*schema.Column{RolesColumns[9]},
+				RefColumns: []*schema.Column{OrganizationsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "role_key_organization_id",
+				Unique:  true,
+				Columns: []*schema.Column{RolesColumns[4], RolesColumns[9]},
+			},
+		},
+	}
 	// SegmentsColumns holds the columns for the "segments" table.
 	SegmentsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
@@ -396,6 +702,121 @@ var (
 			},
 		},
 	}
+	// StaffAccessColumns holds the columns for the "staff_access" table.
+	StaffAccessColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
+		{Name: "uid", Type: field.TypeUUID, Unique: true, Comment: "class=none"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "staff_email", Type: field.TypeString, Size: 254, Comment: "class=none"},
+		{Name: "organization_id", Type: field.TypeInt, Nullable: true, Comment: "class=none"},
+		{Name: "project_id", Type: field.TypeInt, Nullable: true, Comment: "class=none"},
+		{Name: "cell", Type: field.TypeString, Size: 64, Comment: "class=none", Default: ""},
+		{Name: "action", Type: field.TypeString, Size: 64, Comment: "class=none"},
+		{Name: "ticket", Type: field.TypeString, Size: 128, Comment: "class=none"},
+		{Name: "note", Type: field.TypeString, Size: 500, Comment: "class=none", Default: ""},
+		{Name: "ip", Type: field.TypeString, Size: 45, Comment: "class=none", Default: ""},
+	}
+	// StaffAccessTable holds the schema information for the "staff_access" table.
+	StaffAccessTable = &schema.Table{
+		Name:       "staff_access",
+		Columns:    StaffAccessColumns,
+		PrimaryKey: []*schema.Column{StaffAccessColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "staffaccess_organization_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{StaffAccessColumns[4], StaffAccessColumns[2]},
+			},
+			{
+				Name:    "staffaccess_staff_email_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{StaffAccessColumns[3], StaffAccessColumns[2]},
+			},
+		},
+	}
+	// StripeEventsColumns holds the columns for the "stripe_events" table.
+	StripeEventsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
+		{Name: "uid", Type: field.TypeUUID, Unique: true, Comment: "class=none"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "updated_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "stripe_event_id", Type: field.TypeString, Unique: true, Size: 255, Comment: "class=none"},
+		{Name: "type", Type: field.TypeString, Size: 128, Comment: "class=none"},
+		{Name: "api_version", Type: field.TypeString, Size: 64, Comment: "class=none", Default: ""},
+		{Name: "stripe_created_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "payload", Type: field.TypeJSON, Comment: "class=none"},
+		{Name: "status", Type: field.TypeEnum, Comment: "class=none", Enums: []string{"received", "processed", "ignored", "failed"}, Default: "received"},
+		{Name: "processed_at", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
+		{Name: "error", Type: field.TypeString, Size: 500, Comment: "class=none", Default: ""},
+		{Name: "attempts", Type: field.TypeInt, Comment: "class=none", Default: 0},
+		{Name: "account_id", Type: field.TypeInt, Nullable: true, Comment: "class=none"},
+	}
+	// StripeEventsTable holds the schema information for the "stripe_events" table.
+	StripeEventsTable = &schema.Table{
+		Name:       "stripe_events",
+		Columns:    StripeEventsColumns,
+		PrimaryKey: []*schema.Column{StripeEventsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "stripe_events_billing_accounts_stripe_events",
+				Columns:    []*schema.Column{StripeEventsColumns[13]},
+				RefColumns: []*schema.Column{BillingAccountsColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "stripeevent_status_stripe_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{StripeEventsColumns[9], StripeEventsColumns[7]},
+			},
+			{
+				Name:    "stripeevent_account_id_stripe_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{StripeEventsColumns[13], StripeEventsColumns[7]},
+			},
+		},
+	}
+	// UsageDailyColumns holds the columns for the "usage_daily" table.
+	UsageDailyColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
+		{Name: "uid", Type: field.TypeUUID, Unique: true, Comment: "class=none"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "updated_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "organization_id", Type: field.TypeInt, Comment: "class=none"},
+		{Name: "day", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "tracked_players", Type: field.TypeUint64, Comment: "class=none", Default: 0},
+		{Name: "events_accepted", Type: field.TypeUint64, Comment: "class=none", Default: 0},
+		{Name: "retained_bytes", Type: field.TypeUint64, Comment: "class=none", Default: 0},
+		{Name: "final", Type: field.TypeBool, Comment: "class=none", Default: false},
+		{Name: "project_id", Type: field.TypeInt, Comment: "class=none"},
+	}
+	// UsageDailyTable holds the schema information for the "usage_daily" table.
+	UsageDailyTable = &schema.Table{
+		Name:       "usage_daily",
+		Columns:    UsageDailyColumns,
+		PrimaryKey: []*schema.Column{UsageDailyColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "usage_daily_projects_usage_daily",
+				Columns:    []*schema.Column{UsageDailyColumns[10]},
+				RefColumns: []*schema.Column{ProjectsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "usagedaily_day_project_id",
+				Unique:  true,
+				Columns: []*schema.Column{UsageDailyColumns[5], UsageDailyColumns[10]},
+			},
+			{
+				Name:    "usagedaily_organization_id_day",
+				Unique:  false,
+				Columns: []*schema.Column{UsageDailyColumns[4], UsageDailyColumns[5]},
+			},
+		},
+	}
 	// UsersColumns holds the columns for the "users" table.
 	UsersColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
@@ -420,35 +841,68 @@ var (
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
 		APIKeysTable,
+		AuditEventsTable,
+		BillingAccountsTable,
+		BillingPeriodsTable,
 		CellsTable,
 		ConfigVersionsTable,
 		EnvironmentsTable,
 		FeatureFlagsTable,
 		InvitationsTable,
+		LedgerEntriesTable,
 		LiveopsEventsTable,
+		MemberProjectsTable,
 		OrganizationsTable,
 		OrganizationMembersTable,
+		PlansTable,
 		ProjectsTable,
+		RolesTable,
 		SegmentsTable,
+		StaffAccessTable,
+		StripeEventsTable,
+		UsageDailyTable,
 		UsersTable,
 	}
 )
 
 func init() {
 	APIKeysTable.ForeignKeys[0].RefTable = EnvironmentsTable
-	ConfigVersionsTable.ForeignKeys[0].RefTable = EnvironmentsTable
-	ConfigVersionsTable.ForeignKeys[1].RefTable = ProjectsTable
+	AuditEventsTable.ForeignKeys[0].RefTable = APIKeysTable
+	AuditEventsTable.ForeignKeys[1].RefTable = OrganizationsTable
+	AuditEventsTable.ForeignKeys[2].RefTable = UsersTable
+	BillingAccountsTable.ForeignKeys[0].RefTable = OrganizationsTable
+	BillingAccountsTable.ForeignKeys[1].RefTable = PlansTable
+	BillingPeriodsTable.ForeignKeys[0].RefTable = BillingAccountsTable
+	ConfigVersionsTable.ForeignKeys[0].RefTable = APIKeysTable
+	ConfigVersionsTable.ForeignKeys[1].RefTable = EnvironmentsTable
+	ConfigVersionsTable.ForeignKeys[2].RefTable = ProjectsTable
+	ConfigVersionsTable.ForeignKeys[3].RefTable = UsersTable
 	EnvironmentsTable.ForeignKeys[0].RefTable = ProjectsTable
 	FeatureFlagsTable.ForeignKeys[0].RefTable = ProjectsTable
 	InvitationsTable.ForeignKeys[0].RefTable = OrganizationsTable
-	InvitationsTable.ForeignKeys[1].RefTable = UsersTable
+	InvitationsTable.ForeignKeys[1].RefTable = RolesTable
+	InvitationsTable.ForeignKeys[2].RefTable = UsersTable
+	LedgerEntriesTable.ForeignKeys[0].RefTable = BillingAccountsTable
+	LedgerEntriesTable.ForeignKeys[1].RefTable = BillingPeriodsTable
 	LiveopsEventsTable.ForeignKeys[0].RefTable = ProjectsTable
 	LiveopsEventsTable.Annotation = &entsql.Annotation{
 		Table: "liveops_events",
 	}
+	MemberProjectsTable.ForeignKeys[0].RefTable = OrganizationMembersTable
+	MemberProjectsTable.ForeignKeys[1].RefTable = ProjectsTable
 	OrganizationMembersTable.ForeignKeys[0].RefTable = OrganizationsTable
-	OrganizationMembersTable.ForeignKeys[1].RefTable = UsersTable
+	OrganizationMembersTable.ForeignKeys[1].RefTable = RolesTable
+	OrganizationMembersTable.ForeignKeys[2].RefTable = UsersTable
 	ProjectsTable.ForeignKeys[0].RefTable = CellsTable
 	ProjectsTable.ForeignKeys[1].RefTable = OrganizationsTable
+	RolesTable.ForeignKeys[0].RefTable = OrganizationsTable
 	SegmentsTable.ForeignKeys[0].RefTable = ProjectsTable
+	StaffAccessTable.Annotation = &entsql.Annotation{
+		Table: "staff_access",
+	}
+	StripeEventsTable.ForeignKeys[0].RefTable = BillingAccountsTable
+	UsageDailyTable.ForeignKeys[0].RefTable = ProjectsTable
+	UsageDailyTable.Annotation = &entsql.Annotation{
+		Table: "usage_daily",
+	}
 }

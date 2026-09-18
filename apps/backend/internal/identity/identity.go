@@ -9,8 +9,10 @@
 // been established, not a request it has to interrogate, so every rule below is testable
 // without a network.
 //
-// It also does not decide what anybody may *do*. Roles, permissions and per-project access are
-// a separate design; this package places a person in an organization and stops there.
+// It does not decide what a permission *means*, either — internal/authz owns that vocabulary.
+// What this package does own is placing a person in an organization with a role, and the two
+// rules about roles that the schema cannot express: an organization is created with the six
+// seeded roles, and its last owner cannot be removed or demoted.
 package identity
 
 import (
@@ -27,7 +29,9 @@ import (
 	"playersense.dev/backend/ent/global"
 	"playersense.dev/backend/ent/global/organization"
 	"playersense.dev/backend/ent/global/organizationmember"
+	"playersense.dev/backend/ent/global/role"
 	"playersense.dev/backend/ent/global/user"
+	"playersense.dev/backend/internal/authz"
 )
 
 // Claims is a Firebase ID token that somebody has already verified.
@@ -138,18 +142,143 @@ func createPersonalOrganization(ctx context.Context, db *global.Client, owner *g
 		return nil, fmt.Errorf("create personal organization: %w", err)
 	}
 
-	// The role here is the placeholder enum the schema already had, not an authorization
-	// decision: the person who created an organization is its owner, which is true under
-	// any permission model that will replace it.
+	roles, err := SeedRoles(ctx, db, org.ID)
+	if err != nil {
+		return nil, err
+	}
+
 	if _, err := db.OrganizationMember.Create().
 		SetOrganizationID(org.ID).
 		SetUserID(owner.ID).
-		SetRole(organizationmember.RoleOwner).
+		SetRoleID(roles[authz.RoleOwner].ID).
+		SetAllProjects(true).
 		SetJoinedAt(now).
 		Save(ctx); err != nil {
 		return nil, fmt.Errorf("add owner to personal organization: %w", err)
 	}
 	return org, nil
+}
+
+// SeedRoles writes the six roles a new organization starts with, keyed by role key.
+//
+// Rows rather than constants, so the four non-system ones are a starting point rather than a
+// ruling: a studio that does not run experiments deletes GROWTH MANAGER and one that splits
+// LiveOps differently edits it. The two system roles are written too, even though their
+// permissions are computed rather than read back — a table where OWNER is absent is a table
+// that does not explain itself to the person reading it.
+func SeedRoles(ctx context.Context, db *global.Client, orgID int) (map[string]*global.Role, error) {
+	out := make(map[string]*global.Role, len(authz.Templates()))
+	for _, template := range authz.Templates() {
+		permissions := template.Seed()
+		names := make([]string, len(permissions))
+		for i, permission := range permissions {
+			names[i] = string(permission)
+		}
+
+		created, err := db.Role.Create().
+			SetOrganizationID(orgID).
+			SetKey(template.Key).
+			SetName(template.Name).
+			SetSystem(template.System).
+			SetPermissions(names).
+			Save(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("seed role %q: %w", template.Key, err)
+		}
+		out[template.Key] = created
+	}
+	return out, nil
+}
+
+// ErrLastOwner is returned when the only owner would stop being one.
+var ErrLastOwner = errors.New("an organization must keep at least one owner")
+
+// RemoveMember takes a person out of an organization, refusing to remove its last owner.
+//
+// The rule lives here beside the member cap, which is the other invariant the schema cannot
+// express. Both are "how many are there now" questions, and SQL can state neither as a column
+// constraint — a trigger could, and would put the rule somewhere nobody reading this package
+// would find it.
+//
+// Several owners are allowed and removing one of them is fine. It is the *last* one that is
+// refused, because an organization with no owner is unreachable: nobody can grant a role,
+// nobody can delete it, and support has to edit the database by hand.
+func RemoveMember(ctx context.Context, db *global.Client, orgID, memberID int) error {
+	member, err := db.OrganizationMember.Query().
+		Where(
+			organizationmember.ID(memberID),
+			organizationmember.OrganizationID(orgID),
+		).
+		WithRole().
+		Only(ctx)
+	if err != nil {
+		return fmt.Errorf("look up member: %w", err)
+	}
+
+	if member.Edges.Role != nil && member.Edges.Role.Key == authz.RoleOwner {
+		owners, err := countOwners(ctx, db, orgID)
+		if err != nil {
+			return err
+		}
+		if owners <= 1 {
+			return ErrLastOwner
+		}
+	}
+	return db.OrganizationMember.DeleteOneID(memberID).Exec(ctx)
+}
+
+// SetMemberRole changes what one person may do, refusing to demote the last owner.
+//
+// The same rule as RemoveMember and for the same reason: demoting the last owner leaves an
+// organization nobody owns, which is the identical dead end reached by a different door. A
+// check in only one of the two is a check that holds until somebody uses the other.
+func SetMemberRole(ctx context.Context, db *global.Client, orgID, memberID, roleID int) (*global.OrganizationMember, error) {
+	member, err := db.OrganizationMember.Query().
+		Where(
+			organizationmember.ID(memberID),
+			organizationmember.OrganizationID(orgID),
+		).
+		WithRole().
+		Only(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("look up member: %w", err)
+	}
+
+	target, err := db.Role.Query().
+		Where(role.ID(roleID), role.OrganizationID(orgID)).
+		Only(ctx)
+	if err != nil {
+		// Scoped to the organization on purpose: a role id from another organization
+		// must not be assignable, and looking it up unscoped would make that a bug in
+		// whichever caller forgot to check.
+		return nil, fmt.Errorf("look up role: %w", err)
+	}
+
+	wasOwner := member.Edges.Role != nil && member.Edges.Role.Key == authz.RoleOwner
+	if wasOwner && target.Key != authz.RoleOwner {
+		owners, err := countOwners(ctx, db, orgID)
+		if err != nil {
+			return nil, err
+		}
+		if owners <= 1 {
+			return nil, ErrLastOwner
+		}
+	}
+
+	return db.OrganizationMember.UpdateOneID(memberID).SetRoleID(target.ID).Save(ctx)
+}
+
+func countOwners(ctx context.Context, db *global.Client, orgID int) (int, error) {
+	owners, err := db.OrganizationMember.Query().
+		Where(
+			organizationmember.OrganizationID(orgID),
+			organizationmember.HasRoleWith(role.Key(authz.RoleOwner)),
+		).
+		Count(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("count owners: %w", err)
+	}
+	return owners, nil
 }
 
 // AddMember places a user in an organization, refusing to exceed its ceiling.
@@ -161,7 +290,7 @@ func createPersonalOrganization(ctx context.Context, db *global.Client, owner *g
 // The race is real and bounded: two concurrent adds can both see 49. An organization of 51 is
 // not a security failure and the next add is refused, so this is a ceiling rather than a lock —
 // and taking one would serialise every invitation accept in the product.
-func AddMember(ctx context.Context, db *global.Client, orgID, userID int, role organizationmember.Role, now time.Time) (*global.OrganizationMember, error) {
+func AddMember(ctx context.Context, db *global.Client, orgID, userID, roleID int, now time.Time) (*global.OrganizationMember, error) {
 	org, err := db.Organization.Get(ctx, orgID)
 	if err != nil {
 		return nil, fmt.Errorf("look up organization: %w", err)
@@ -179,7 +308,7 @@ func AddMember(ctx context.Context, db *global.Client, orgID, userID int, role o
 	return db.OrganizationMember.Create().
 		SetOrganizationID(orgID).
 		SetUserID(userID).
-		SetRole(role).
+		SetRoleID(roleID).
 		SetJoinedAt(now).
 		Save(ctx)
 }

@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	"playersense.dev/backend/ent/global/invitation"
 	"playersense.dev/backend/ent/global/organization"
+	"playersense.dev/backend/ent/global/role"
 	"playersense.dev/backend/ent/global/user"
 )
 
@@ -97,6 +98,32 @@ func (_c *InvitationCreate) SetNillableInvitedByID(v *int) *InvitationCreate {
 	return _c
 }
 
+// SetRoleID sets the "role_id" field.
+func (_c *InvitationCreate) SetRoleID(v int) *InvitationCreate {
+	_c.mutation.SetRoleID(v)
+	return _c
+}
+
+// SetAllProjects sets the "all_projects" field.
+func (_c *InvitationCreate) SetAllProjects(v bool) *InvitationCreate {
+	_c.mutation.SetAllProjects(v)
+	return _c
+}
+
+// SetNillableAllProjects sets the "all_projects" field if the given value is not nil.
+func (_c *InvitationCreate) SetNillableAllProjects(v *bool) *InvitationCreate {
+	if v != nil {
+		_c.SetAllProjects(*v)
+	}
+	return _c
+}
+
+// SetProjectIds sets the "project_ids" field.
+func (_c *InvitationCreate) SetProjectIds(v []int) *InvitationCreate {
+	_c.mutation.SetProjectIds(v)
+	return _c
+}
+
 // SetStatus sets the "status" field.
 func (_c *InvitationCreate) SetStatus(v invitation.Status) *InvitationCreate {
 	_c.mutation.SetStatus(v)
@@ -147,6 +174,11 @@ func (_c *InvitationCreate) SetInvitedBy(v *User) *InvitationCreate {
 	return _c.SetInvitedByID(v.ID)
 }
 
+// SetRole sets the "role" edge to the Role entity.
+func (_c *InvitationCreate) SetRole(v *Role) *InvitationCreate {
+	return _c.SetRoleID(v.ID)
+}
+
 // Mutation returns the InvitationMutation object of the builder.
 func (_c *InvitationCreate) Mutation() *InvitationMutation {
 	return _c.mutation
@@ -194,6 +226,14 @@ func (_c *InvitationCreate) defaults() {
 		v := invitation.DefaultUpdatedAt()
 		_c.mutation.SetUpdatedAt(v)
 	}
+	if _, ok := _c.mutation.AllProjects(); !ok {
+		v := invitation.DefaultAllProjects
+		_c.mutation.SetAllProjects(v)
+	}
+	if _, ok := _c.mutation.ProjectIds(); !ok {
+		v := invitation.DefaultProjectIds
+		_c.mutation.SetProjectIds(v)
+	}
 	if _, ok := _c.mutation.Status(); !ok {
 		v := invitation.DefaultStatus
 		_c.mutation.SetStatus(v)
@@ -230,6 +270,15 @@ func (_c *InvitationCreate) check() error {
 			return &ValidationError{Name: "token_digest", err: fmt.Errorf(`global: validator failed for field "Invitation.token_digest": %w`, err)}
 		}
 	}
+	if _, ok := _c.mutation.RoleID(); !ok {
+		return &ValidationError{Name: "role_id", err: errors.New(`global: missing required field "Invitation.role_id"`)}
+	}
+	if _, ok := _c.mutation.AllProjects(); !ok {
+		return &ValidationError{Name: "all_projects", err: errors.New(`global: missing required field "Invitation.all_projects"`)}
+	}
+	if _, ok := _c.mutation.ProjectIds(); !ok {
+		return &ValidationError{Name: "project_ids", err: errors.New(`global: missing required field "Invitation.project_ids"`)}
+	}
 	if _, ok := _c.mutation.Status(); !ok {
 		return &ValidationError{Name: "status", err: errors.New(`global: missing required field "Invitation.status"`)}
 	}
@@ -243,6 +292,9 @@ func (_c *InvitationCreate) check() error {
 	}
 	if len(_c.mutation.OrganizationIDs()) == 0 {
 		return &ValidationError{Name: "organization", err: errors.New(`global: missing required edge "Invitation.organization"`)}
+	}
+	if len(_c.mutation.RoleIDs()) == 0 {
+		return &ValidationError{Name: "role", err: errors.New(`global: missing required edge "Invitation.role"`)}
 	}
 	return nil
 }
@@ -296,6 +348,14 @@ func (_c *InvitationCreate) createSpec() (*Invitation, *sqlgraph.CreateSpec) {
 		_spec.SetField(invitation.FieldTokenDigest, field.TypeString, value)
 		_node.TokenDigest = value
 	}
+	if value, ok := _c.mutation.AllProjects(); ok {
+		_spec.SetField(invitation.FieldAllProjects, field.TypeBool, value)
+		_node.AllProjects = value
+	}
+	if value, ok := _c.mutation.ProjectIds(); ok {
+		_spec.SetField(invitation.FieldProjectIds, field.TypeJSON, value)
+		_node.ProjectIds = value
+	}
 	if value, ok := _c.mutation.Status(); ok {
 		_spec.SetField(invitation.FieldStatus, field.TypeEnum, value)
 		_node.Status = value
@@ -340,6 +400,23 @@ func (_c *InvitationCreate) createSpec() (*Invitation, *sqlgraph.CreateSpec) {
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_node.InvitedByID = &nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.RoleIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   invitation.RoleTable,
+			Columns: []string{invitation.RoleColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(role.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_node.RoleID = nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec

@@ -15,10 +15,12 @@ import (
 	"playersense.dev/backend/ent/global/environment"
 	"playersense.dev/backend/ent/global/featureflag"
 	"playersense.dev/backend/ent/global/liveopsevent"
+	"playersense.dev/backend/ent/global/memberproject"
 	"playersense.dev/backend/ent/global/organization"
 	"playersense.dev/backend/ent/global/predicate"
 	"playersense.dev/backend/ent/global/project"
 	"playersense.dev/backend/ent/global/segment"
+	"playersense.dev/backend/ent/global/usagedaily"
 )
 
 // ProjectUpdate is the builder for updating Project entities.
@@ -183,6 +185,36 @@ func (_u *ProjectUpdate) AddConfigVersions(v ...*ConfigVersion) *ProjectUpdate {
 	return _u.AddConfigVersionIDs(ids...)
 }
 
+// AddMemberAccesIDs adds the "member_access" edge to the MemberProject entity by IDs.
+func (_u *ProjectUpdate) AddMemberAccesIDs(ids ...int) *ProjectUpdate {
+	_u.mutation.AddMemberAccesIDs(ids...)
+	return _u
+}
+
+// AddMemberAccess adds the "member_access" edges to the MemberProject entity.
+func (_u *ProjectUpdate) AddMemberAccess(v ...*MemberProject) *ProjectUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddMemberAccesIDs(ids...)
+}
+
+// AddUsageDailyIDs adds the "usage_daily" edge to the UsageDaily entity by IDs.
+func (_u *ProjectUpdate) AddUsageDailyIDs(ids ...int) *ProjectUpdate {
+	_u.mutation.AddUsageDailyIDs(ids...)
+	return _u
+}
+
+// AddUsageDaily adds the "usage_daily" edges to the UsageDaily entity.
+func (_u *ProjectUpdate) AddUsageDaily(v ...*UsageDaily) *ProjectUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddUsageDailyIDs(ids...)
+}
+
 // Mutation returns the ProjectMutation object of the builder.
 func (_u *ProjectUpdate) Mutation() *ProjectMutation {
 	return _u.mutation
@@ -297,6 +329,48 @@ func (_u *ProjectUpdate) RemoveConfigVersions(v ...*ConfigVersion) *ProjectUpdat
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveConfigVersionIDs(ids...)
+}
+
+// ClearMemberAccess clears all "member_access" edges to the MemberProject entity.
+func (_u *ProjectUpdate) ClearMemberAccess() *ProjectUpdate {
+	_u.mutation.ClearMemberAccess()
+	return _u
+}
+
+// RemoveMemberAccesIDs removes the "member_access" edge to MemberProject entities by IDs.
+func (_u *ProjectUpdate) RemoveMemberAccesIDs(ids ...int) *ProjectUpdate {
+	_u.mutation.RemoveMemberAccesIDs(ids...)
+	return _u
+}
+
+// RemoveMemberAccess removes "member_access" edges to MemberProject entities.
+func (_u *ProjectUpdate) RemoveMemberAccess(v ...*MemberProject) *ProjectUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveMemberAccesIDs(ids...)
+}
+
+// ClearUsageDaily clears all "usage_daily" edges to the UsageDaily entity.
+func (_u *ProjectUpdate) ClearUsageDaily() *ProjectUpdate {
+	_u.mutation.ClearUsageDaily()
+	return _u
+}
+
+// RemoveUsageDailyIDs removes the "usage_daily" edge to UsageDaily entities by IDs.
+func (_u *ProjectUpdate) RemoveUsageDailyIDs(ids ...int) *ProjectUpdate {
+	_u.mutation.RemoveUsageDailyIDs(ids...)
+	return _u
+}
+
+// RemoveUsageDaily removes "usage_daily" edges to UsageDaily entities.
+func (_u *ProjectUpdate) RemoveUsageDaily(v ...*UsageDaily) *ProjectUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveUsageDailyIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -637,6 +711,96 @@ func (_u *ProjectUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.MemberAccessCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.MemberAccessTable,
+			Columns: []string{project.MemberAccessColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(memberproject.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedMemberAccessIDs(); len(nodes) > 0 && !_u.mutation.MemberAccessCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.MemberAccessTable,
+			Columns: []string{project.MemberAccessColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(memberproject.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.MemberAccessIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.MemberAccessTable,
+			Columns: []string{project.MemberAccessColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(memberproject.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.UsageDailyCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.UsageDailyTable,
+			Columns: []string{project.UsageDailyColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(usagedaily.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedUsageDailyIDs(); len(nodes) > 0 && !_u.mutation.UsageDailyCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.UsageDailyTable,
+			Columns: []string{project.UsageDailyColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(usagedaily.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.UsageDailyIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.UsageDailyTable,
+			Columns: []string{project.UsageDailyColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(usagedaily.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{project.Label}
@@ -806,6 +970,36 @@ func (_u *ProjectUpdateOne) AddConfigVersions(v ...*ConfigVersion) *ProjectUpdat
 	return _u.AddConfigVersionIDs(ids...)
 }
 
+// AddMemberAccesIDs adds the "member_access" edge to the MemberProject entity by IDs.
+func (_u *ProjectUpdateOne) AddMemberAccesIDs(ids ...int) *ProjectUpdateOne {
+	_u.mutation.AddMemberAccesIDs(ids...)
+	return _u
+}
+
+// AddMemberAccess adds the "member_access" edges to the MemberProject entity.
+func (_u *ProjectUpdateOne) AddMemberAccess(v ...*MemberProject) *ProjectUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddMemberAccesIDs(ids...)
+}
+
+// AddUsageDailyIDs adds the "usage_daily" edge to the UsageDaily entity by IDs.
+func (_u *ProjectUpdateOne) AddUsageDailyIDs(ids ...int) *ProjectUpdateOne {
+	_u.mutation.AddUsageDailyIDs(ids...)
+	return _u
+}
+
+// AddUsageDaily adds the "usage_daily" edges to the UsageDaily entity.
+func (_u *ProjectUpdateOne) AddUsageDaily(v ...*UsageDaily) *ProjectUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddUsageDailyIDs(ids...)
+}
+
 // Mutation returns the ProjectMutation object of the builder.
 func (_u *ProjectUpdateOne) Mutation() *ProjectMutation {
 	return _u.mutation
@@ -920,6 +1114,48 @@ func (_u *ProjectUpdateOne) RemoveConfigVersions(v ...*ConfigVersion) *ProjectUp
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveConfigVersionIDs(ids...)
+}
+
+// ClearMemberAccess clears all "member_access" edges to the MemberProject entity.
+func (_u *ProjectUpdateOne) ClearMemberAccess() *ProjectUpdateOne {
+	_u.mutation.ClearMemberAccess()
+	return _u
+}
+
+// RemoveMemberAccesIDs removes the "member_access" edge to MemberProject entities by IDs.
+func (_u *ProjectUpdateOne) RemoveMemberAccesIDs(ids ...int) *ProjectUpdateOne {
+	_u.mutation.RemoveMemberAccesIDs(ids...)
+	return _u
+}
+
+// RemoveMemberAccess removes "member_access" edges to MemberProject entities.
+func (_u *ProjectUpdateOne) RemoveMemberAccess(v ...*MemberProject) *ProjectUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveMemberAccesIDs(ids...)
+}
+
+// ClearUsageDaily clears all "usage_daily" edges to the UsageDaily entity.
+func (_u *ProjectUpdateOne) ClearUsageDaily() *ProjectUpdateOne {
+	_u.mutation.ClearUsageDaily()
+	return _u
+}
+
+// RemoveUsageDailyIDs removes the "usage_daily" edge to UsageDaily entities by IDs.
+func (_u *ProjectUpdateOne) RemoveUsageDailyIDs(ids ...int) *ProjectUpdateOne {
+	_u.mutation.RemoveUsageDailyIDs(ids...)
+	return _u
+}
+
+// RemoveUsageDaily removes "usage_daily" edges to UsageDaily entities.
+func (_u *ProjectUpdateOne) RemoveUsageDaily(v ...*UsageDaily) *ProjectUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveUsageDailyIDs(ids...)
 }
 
 // Where appends a list predicates to the ProjectUpdate builder.
@@ -1283,6 +1519,96 @@ func (_u *ProjectUpdateOne) sqlSave(ctx context.Context) (_node *Project, err er
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(configversion.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.MemberAccessCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.MemberAccessTable,
+			Columns: []string{project.MemberAccessColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(memberproject.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedMemberAccessIDs(); len(nodes) > 0 && !_u.mutation.MemberAccessCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.MemberAccessTable,
+			Columns: []string{project.MemberAccessColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(memberproject.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.MemberAccessIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.MemberAccessTable,
+			Columns: []string{project.MemberAccessColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(memberproject.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.UsageDailyCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.UsageDailyTable,
+			Columns: []string{project.UsageDailyColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(usagedaily.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedUsageDailyIDs(); len(nodes) > 0 && !_u.mutation.UsageDailyCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.UsageDailyTable,
+			Columns: []string{project.UsageDailyColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(usagedaily.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.UsageDailyIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.UsageDailyTable,
+			Columns: []string{project.UsageDailyColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(usagedaily.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

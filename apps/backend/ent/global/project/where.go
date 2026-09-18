@@ -607,6 +607,52 @@ func HasConfigVersionsWith(preds ...predicate.ConfigVersion) predicate.Project {
 	})
 }
 
+// HasMemberAccess applies the HasEdge predicate on the "member_access" edge.
+func HasMemberAccess() predicate.Project {
+	return predicate.Project(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, MemberAccessTable, MemberAccessColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasMemberAccessWith applies the HasEdge predicate on the "member_access" edge with a given conditions (other predicates).
+func HasMemberAccessWith(preds ...predicate.MemberProject) predicate.Project {
+	return predicate.Project(func(s *sql.Selector) {
+		step := newMemberAccessStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasUsageDaily applies the HasEdge predicate on the "usage_daily" edge.
+func HasUsageDaily() predicate.Project {
+	return predicate.Project(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, UsageDailyTable, UsageDailyColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasUsageDailyWith applies the HasEdge predicate on the "usage_daily" edge with a given conditions (other predicates).
+func HasUsageDailyWith(preds ...predicate.UsageDaily) predicate.Project {
+	return predicate.Project(func(s *sql.Selector) {
+		step := newUsageDailyStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // And groups predicates with the AND operator between them.
 func And(predicates ...predicate.Project) predicate.Project {
 	return predicate.Project(sql.AndPredicates(predicates...))

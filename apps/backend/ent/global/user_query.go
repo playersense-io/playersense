@@ -12,6 +12,8 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"playersense.dev/backend/ent/global/auditevent"
+	"playersense.dev/backend/ent/global/configversion"
 	"playersense.dev/backend/ent/global/invitation"
 	"playersense.dev/backend/ent/global/organizationmember"
 	"playersense.dev/backend/ent/global/predicate"
@@ -21,12 +23,14 @@ import (
 // UserQuery is the builder for querying User entities.
 type UserQuery struct {
 	config
-	ctx                 *QueryContext
-	order               []user.OrderOption
-	inters              []Interceptor
-	predicates          []predicate.User
-	withMemberships     *OrganizationMemberQuery
-	withSentInvitations *InvitationQuery
+	ctx                   *QueryContext
+	order                 []user.OrderOption
+	inters                []Interceptor
+	predicates            []predicate.User
+	withMemberships       *OrganizationMemberQuery
+	withSentInvitations   *InvitationQuery
+	withAuditEvents       *AuditEventQuery
+	withPublishedVersions *ConfigVersionQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -100,6 +104,50 @@ func (_q *UserQuery) QuerySentInvitations() *InvitationQuery {
 			sqlgraph.From(user.Table, user.FieldID, selector),
 			sqlgraph.To(invitation.Table, invitation.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, user.SentInvitationsTable, user.SentInvitationsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryAuditEvents chains the current query on the "audit_events" edge.
+func (_q *UserQuery) QueryAuditEvents() *AuditEventQuery {
+	query := (&AuditEventClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, selector),
+			sqlgraph.To(auditevent.Table, auditevent.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.AuditEventsTable, user.AuditEventsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryPublishedVersions chains the current query on the "published_versions" edge.
+func (_q *UserQuery) QueryPublishedVersions() *ConfigVersionQuery {
+	query := (&ConfigVersionClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, selector),
+			sqlgraph.To(configversion.Table, configversion.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.PublishedVersionsTable, user.PublishedVersionsColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -294,13 +342,15 @@ func (_q *UserQuery) Clone() *UserQuery {
 		return nil
 	}
 	return &UserQuery{
-		config:              _q.config,
-		ctx:                 _q.ctx.Clone(),
-		order:               append([]user.OrderOption{}, _q.order...),
-		inters:              append([]Interceptor{}, _q.inters...),
-		predicates:          append([]predicate.User{}, _q.predicates...),
-		withMemberships:     _q.withMemberships.Clone(),
-		withSentInvitations: _q.withSentInvitations.Clone(),
+		config:                _q.config,
+		ctx:                   _q.ctx.Clone(),
+		order:                 append([]user.OrderOption{}, _q.order...),
+		inters:                append([]Interceptor{}, _q.inters...),
+		predicates:            append([]predicate.User{}, _q.predicates...),
+		withMemberships:       _q.withMemberships.Clone(),
+		withSentInvitations:   _q.withSentInvitations.Clone(),
+		withAuditEvents:       _q.withAuditEvents.Clone(),
+		withPublishedVersions: _q.withPublishedVersions.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -326,6 +376,28 @@ func (_q *UserQuery) WithSentInvitations(opts ...func(*InvitationQuery)) *UserQu
 		opt(query)
 	}
 	_q.withSentInvitations = query
+	return _q
+}
+
+// WithAuditEvents tells the query-builder to eager-load the nodes that are connected to
+// the "audit_events" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *UserQuery) WithAuditEvents(opts ...func(*AuditEventQuery)) *UserQuery {
+	query := (&AuditEventClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withAuditEvents = query
+	return _q
+}
+
+// WithPublishedVersions tells the query-builder to eager-load the nodes that are connected to
+// the "published_versions" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *UserQuery) WithPublishedVersions(opts ...func(*ConfigVersionQuery)) *UserQuery {
+	query := (&ConfigVersionClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withPublishedVersions = query
 	return _q
 }
 
@@ -407,9 +479,11 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 	var (
 		nodes       = []*User{}
 		_spec       = _q.querySpec()
-		loadedTypes = [2]bool{
+		loadedTypes = [4]bool{
 			_q.withMemberships != nil,
 			_q.withSentInvitations != nil,
+			_q.withAuditEvents != nil,
+			_q.withPublishedVersions != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -441,6 +515,20 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 		if err := _q.loadSentInvitations(ctx, query, nodes,
 			func(n *User) { n.Edges.SentInvitations = []*Invitation{} },
 			func(n *User, e *Invitation) { n.Edges.SentInvitations = append(n.Edges.SentInvitations, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withAuditEvents; query != nil {
+		if err := _q.loadAuditEvents(ctx, query, nodes,
+			func(n *User) { n.Edges.AuditEvents = []*AuditEvent{} },
+			func(n *User, e *AuditEvent) { n.Edges.AuditEvents = append(n.Edges.AuditEvents, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withPublishedVersions; query != nil {
+		if err := _q.loadPublishedVersions(ctx, query, nodes,
+			func(n *User) { n.Edges.PublishedVersions = []*ConfigVersion{} },
+			func(n *User, e *ConfigVersion) { n.Edges.PublishedVersions = append(n.Edges.PublishedVersions, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -505,6 +593,72 @@ func (_q *UserQuery) loadSentInvitations(ctx context.Context, query *InvitationQ
 		node, ok := nodeids[*fk]
 		if !ok {
 			return fmt.Errorf(`unexpected referenced foreign-key "invited_by_id" returned %v for node %v`, *fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *UserQuery) loadAuditEvents(ctx context.Context, query *AuditEventQuery, nodes []*User, init func(*User), assign func(*User, *AuditEvent)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*User)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(auditevent.FieldActorUserID)
+	}
+	query.Where(predicate.AuditEvent(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(user.AuditEventsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.ActorUserID
+		if fk == nil {
+			return fmt.Errorf(`foreign-key "actor_user_id" is nil for node %v`, n.ID)
+		}
+		node, ok := nodeids[*fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "actor_user_id" returned %v for node %v`, *fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *UserQuery) loadPublishedVersions(ctx context.Context, query *ConfigVersionQuery, nodes []*User, init func(*User), assign func(*User, *ConfigVersion)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*User)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(configversion.FieldPublishedByUserID)
+	}
+	query.Where(predicate.ConfigVersion(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(user.PublishedVersionsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.PublishedByUserID
+		if fk == nil {
+			return fmt.Errorf(`foreign-key "published_by_user_id" is nil for node %v`, n.ID)
+		}
+		node, ok := nodeids[*fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "published_by_user_id" returned %v for node %v`, *fk, n.ID)
 		}
 		assign(node, n)
 	}

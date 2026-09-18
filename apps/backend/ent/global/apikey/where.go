@@ -589,6 +589,52 @@ func HasEnvironmentWith(preds ...predicate.Environment) predicate.APIKey {
 	})
 }
 
+// HasAuditEvents applies the HasEdge predicate on the "audit_events" edge.
+func HasAuditEvents() predicate.APIKey {
+	return predicate.APIKey(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, AuditEventsTable, AuditEventsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasAuditEventsWith applies the HasEdge predicate on the "audit_events" edge with a given conditions (other predicates).
+func HasAuditEventsWith(preds ...predicate.AuditEvent) predicate.APIKey {
+	return predicate.APIKey(func(s *sql.Selector) {
+		step := newAuditEventsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasPublishedVersions applies the HasEdge predicate on the "published_versions" edge.
+func HasPublishedVersions() predicate.APIKey {
+	return predicate.APIKey(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, PublishedVersionsTable, PublishedVersionsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasPublishedVersionsWith applies the HasEdge predicate on the "published_versions" edge with a given conditions (other predicates).
+func HasPublishedVersionsWith(preds ...predicate.ConfigVersion) predicate.APIKey {
+	return predicate.APIKey(func(s *sql.Selector) {
+		step := newPublishedVersionsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // And groups predicates with the AND operator between them.
 func And(predicates ...predicate.APIKey) predicate.APIKey {
 	return predicate.APIKey(sql.AndPredicates(predicates...))

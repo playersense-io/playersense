@@ -41,6 +41,10 @@ const (
 	EdgeMemberships = "memberships"
 	// EdgeSentInvitations holds the string denoting the sent_invitations edge name in mutations.
 	EdgeSentInvitations = "sent_invitations"
+	// EdgeAuditEvents holds the string denoting the audit_events edge name in mutations.
+	EdgeAuditEvents = "audit_events"
+	// EdgePublishedVersions holds the string denoting the published_versions edge name in mutations.
+	EdgePublishedVersions = "published_versions"
 	// Table holds the table name of the user in the database.
 	Table = "users"
 	// MembershipsTable is the table that holds the memberships relation/edge.
@@ -57,6 +61,20 @@ const (
 	SentInvitationsInverseTable = "invitations"
 	// SentInvitationsColumn is the table column denoting the sent_invitations relation/edge.
 	SentInvitationsColumn = "invited_by_id"
+	// AuditEventsTable is the table that holds the audit_events relation/edge.
+	AuditEventsTable = "audit_events"
+	// AuditEventsInverseTable is the table name for the AuditEvent entity.
+	// It exists in this package in order to avoid circular dependency with the "auditevent" package.
+	AuditEventsInverseTable = "audit_events"
+	// AuditEventsColumn is the table column denoting the audit_events relation/edge.
+	AuditEventsColumn = "actor_user_id"
+	// PublishedVersionsTable is the table that holds the published_versions relation/edge.
+	PublishedVersionsTable = "config_versions"
+	// PublishedVersionsInverseTable is the table name for the ConfigVersion entity.
+	// It exists in this package in order to avoid circular dependency with the "configversion" package.
+	PublishedVersionsInverseTable = "config_versions"
+	// PublishedVersionsColumn is the table column denoting the published_versions relation/edge.
+	PublishedVersionsColumn = "published_by_user_id"
 )
 
 // Columns holds all SQL columns for user fields.
@@ -200,6 +218,34 @@ func BySentInvitations(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newSentInvitationsStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
+
+// ByAuditEventsCount orders the results by audit_events count.
+func ByAuditEventsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newAuditEventsStep(), opts...)
+	}
+}
+
+// ByAuditEvents orders the results by audit_events terms.
+func ByAuditEvents(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newAuditEventsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByPublishedVersionsCount orders the results by published_versions count.
+func ByPublishedVersionsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newPublishedVersionsStep(), opts...)
+	}
+}
+
+// ByPublishedVersions orders the results by published_versions terms.
+func ByPublishedVersions(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newPublishedVersionsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newMembershipsStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -212,5 +258,19 @@ func newSentInvitationsStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(SentInvitationsInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, SentInvitationsTable, SentInvitationsColumn),
+	)
+}
+func newAuditEventsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(AuditEventsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, AuditEventsTable, AuditEventsColumn),
+	)
+}
+func newPublishedVersionsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(PublishedVersionsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, PublishedVersionsTable, PublishedVersionsColumn),
 	)
 }

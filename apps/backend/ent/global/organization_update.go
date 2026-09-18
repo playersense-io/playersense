@@ -11,11 +11,14 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"playersense.dev/backend/ent/global/auditevent"
+	"playersense.dev/backend/ent/global/billingaccount"
 	"playersense.dev/backend/ent/global/invitation"
 	"playersense.dev/backend/ent/global/organization"
 	"playersense.dev/backend/ent/global/organizationmember"
 	"playersense.dev/backend/ent/global/predicate"
 	"playersense.dev/backend/ent/global/project"
+	"playersense.dev/backend/ent/global/role"
 )
 
 // OrganizationUpdate is the builder for updating Organization entities.
@@ -131,6 +134,55 @@ func (_u *OrganizationUpdate) AddInvitations(v ...*Invitation) *OrganizationUpda
 	return _u.AddInvitationIDs(ids...)
 }
 
+// AddRoleIDs adds the "roles" edge to the Role entity by IDs.
+func (_u *OrganizationUpdate) AddRoleIDs(ids ...int) *OrganizationUpdate {
+	_u.mutation.AddRoleIDs(ids...)
+	return _u
+}
+
+// AddRoles adds the "roles" edges to the Role entity.
+func (_u *OrganizationUpdate) AddRoles(v ...*Role) *OrganizationUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddRoleIDs(ids...)
+}
+
+// AddAuditEventIDs adds the "audit_events" edge to the AuditEvent entity by IDs.
+func (_u *OrganizationUpdate) AddAuditEventIDs(ids ...int) *OrganizationUpdate {
+	_u.mutation.AddAuditEventIDs(ids...)
+	return _u
+}
+
+// AddAuditEvents adds the "audit_events" edges to the AuditEvent entity.
+func (_u *OrganizationUpdate) AddAuditEvents(v ...*AuditEvent) *OrganizationUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddAuditEventIDs(ids...)
+}
+
+// SetBillingAccountID sets the "billing_account" edge to the BillingAccount entity by ID.
+func (_u *OrganizationUpdate) SetBillingAccountID(id int) *OrganizationUpdate {
+	_u.mutation.SetBillingAccountID(id)
+	return _u
+}
+
+// SetNillableBillingAccountID sets the "billing_account" edge to the BillingAccount entity by ID if the given value is not nil.
+func (_u *OrganizationUpdate) SetNillableBillingAccountID(id *int) *OrganizationUpdate {
+	if id != nil {
+		_u = _u.SetBillingAccountID(*id)
+	}
+	return _u
+}
+
+// SetBillingAccount sets the "billing_account" edge to the BillingAccount entity.
+func (_u *OrganizationUpdate) SetBillingAccount(v *BillingAccount) *OrganizationUpdate {
+	return _u.SetBillingAccountID(v.ID)
+}
+
 // Mutation returns the OrganizationMutation object of the builder.
 func (_u *OrganizationUpdate) Mutation() *OrganizationMutation {
 	return _u.mutation
@@ -197,6 +249,54 @@ func (_u *OrganizationUpdate) RemoveInvitations(v ...*Invitation) *OrganizationU
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveInvitationIDs(ids...)
+}
+
+// ClearRoles clears all "roles" edges to the Role entity.
+func (_u *OrganizationUpdate) ClearRoles() *OrganizationUpdate {
+	_u.mutation.ClearRoles()
+	return _u
+}
+
+// RemoveRoleIDs removes the "roles" edge to Role entities by IDs.
+func (_u *OrganizationUpdate) RemoveRoleIDs(ids ...int) *OrganizationUpdate {
+	_u.mutation.RemoveRoleIDs(ids...)
+	return _u
+}
+
+// RemoveRoles removes "roles" edges to Role entities.
+func (_u *OrganizationUpdate) RemoveRoles(v ...*Role) *OrganizationUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveRoleIDs(ids...)
+}
+
+// ClearAuditEvents clears all "audit_events" edges to the AuditEvent entity.
+func (_u *OrganizationUpdate) ClearAuditEvents() *OrganizationUpdate {
+	_u.mutation.ClearAuditEvents()
+	return _u
+}
+
+// RemoveAuditEventIDs removes the "audit_events" edge to AuditEvent entities by IDs.
+func (_u *OrganizationUpdate) RemoveAuditEventIDs(ids ...int) *OrganizationUpdate {
+	_u.mutation.RemoveAuditEventIDs(ids...)
+	return _u
+}
+
+// RemoveAuditEvents removes "audit_events" edges to AuditEvent entities.
+func (_u *OrganizationUpdate) RemoveAuditEvents(v ...*AuditEvent) *OrganizationUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveAuditEventIDs(ids...)
+}
+
+// ClearBillingAccount clears the "billing_account" edge to the BillingAccount entity.
+func (_u *OrganizationUpdate) ClearBillingAccount() *OrganizationUpdate {
+	_u.mutation.ClearBillingAccount()
+	return _u
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -417,6 +517,125 @@ func (_u *OrganizationUpdate) sqlSave(ctx context.Context) (_node int, err error
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.RolesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   organization.RolesTable,
+			Columns: []string{organization.RolesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(role.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedRolesIDs(); len(nodes) > 0 && !_u.mutation.RolesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   organization.RolesTable,
+			Columns: []string{organization.RolesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(role.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RolesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   organization.RolesTable,
+			Columns: []string{organization.RolesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(role.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.AuditEventsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   organization.AuditEventsTable,
+			Columns: []string{organization.AuditEventsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(auditevent.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedAuditEventsIDs(); len(nodes) > 0 && !_u.mutation.AuditEventsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   organization.AuditEventsTable,
+			Columns: []string{organization.AuditEventsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(auditevent.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.AuditEventsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   organization.AuditEventsTable,
+			Columns: []string{organization.AuditEventsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(auditevent.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.BillingAccountCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   organization.BillingAccountTable,
+			Columns: []string{organization.BillingAccountColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(billingaccount.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.BillingAccountIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   organization.BillingAccountTable,
+			Columns: []string{organization.BillingAccountColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(billingaccount.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{organization.Label}
@@ -537,6 +756,55 @@ func (_u *OrganizationUpdateOne) AddInvitations(v ...*Invitation) *OrganizationU
 	return _u.AddInvitationIDs(ids...)
 }
 
+// AddRoleIDs adds the "roles" edge to the Role entity by IDs.
+func (_u *OrganizationUpdateOne) AddRoleIDs(ids ...int) *OrganizationUpdateOne {
+	_u.mutation.AddRoleIDs(ids...)
+	return _u
+}
+
+// AddRoles adds the "roles" edges to the Role entity.
+func (_u *OrganizationUpdateOne) AddRoles(v ...*Role) *OrganizationUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddRoleIDs(ids...)
+}
+
+// AddAuditEventIDs adds the "audit_events" edge to the AuditEvent entity by IDs.
+func (_u *OrganizationUpdateOne) AddAuditEventIDs(ids ...int) *OrganizationUpdateOne {
+	_u.mutation.AddAuditEventIDs(ids...)
+	return _u
+}
+
+// AddAuditEvents adds the "audit_events" edges to the AuditEvent entity.
+func (_u *OrganizationUpdateOne) AddAuditEvents(v ...*AuditEvent) *OrganizationUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddAuditEventIDs(ids...)
+}
+
+// SetBillingAccountID sets the "billing_account" edge to the BillingAccount entity by ID.
+func (_u *OrganizationUpdateOne) SetBillingAccountID(id int) *OrganizationUpdateOne {
+	_u.mutation.SetBillingAccountID(id)
+	return _u
+}
+
+// SetNillableBillingAccountID sets the "billing_account" edge to the BillingAccount entity by ID if the given value is not nil.
+func (_u *OrganizationUpdateOne) SetNillableBillingAccountID(id *int) *OrganizationUpdateOne {
+	if id != nil {
+		_u = _u.SetBillingAccountID(*id)
+	}
+	return _u
+}
+
+// SetBillingAccount sets the "billing_account" edge to the BillingAccount entity.
+func (_u *OrganizationUpdateOne) SetBillingAccount(v *BillingAccount) *OrganizationUpdateOne {
+	return _u.SetBillingAccountID(v.ID)
+}
+
 // Mutation returns the OrganizationMutation object of the builder.
 func (_u *OrganizationUpdateOne) Mutation() *OrganizationMutation {
 	return _u.mutation
@@ -603,6 +871,54 @@ func (_u *OrganizationUpdateOne) RemoveInvitations(v ...*Invitation) *Organizati
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveInvitationIDs(ids...)
+}
+
+// ClearRoles clears all "roles" edges to the Role entity.
+func (_u *OrganizationUpdateOne) ClearRoles() *OrganizationUpdateOne {
+	_u.mutation.ClearRoles()
+	return _u
+}
+
+// RemoveRoleIDs removes the "roles" edge to Role entities by IDs.
+func (_u *OrganizationUpdateOne) RemoveRoleIDs(ids ...int) *OrganizationUpdateOne {
+	_u.mutation.RemoveRoleIDs(ids...)
+	return _u
+}
+
+// RemoveRoles removes "roles" edges to Role entities.
+func (_u *OrganizationUpdateOne) RemoveRoles(v ...*Role) *OrganizationUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveRoleIDs(ids...)
+}
+
+// ClearAuditEvents clears all "audit_events" edges to the AuditEvent entity.
+func (_u *OrganizationUpdateOne) ClearAuditEvents() *OrganizationUpdateOne {
+	_u.mutation.ClearAuditEvents()
+	return _u
+}
+
+// RemoveAuditEventIDs removes the "audit_events" edge to AuditEvent entities by IDs.
+func (_u *OrganizationUpdateOne) RemoveAuditEventIDs(ids ...int) *OrganizationUpdateOne {
+	_u.mutation.RemoveAuditEventIDs(ids...)
+	return _u
+}
+
+// RemoveAuditEvents removes "audit_events" edges to AuditEvent entities.
+func (_u *OrganizationUpdateOne) RemoveAuditEvents(v ...*AuditEvent) *OrganizationUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveAuditEventIDs(ids...)
+}
+
+// ClearBillingAccount clears the "billing_account" edge to the BillingAccount entity.
+func (_u *OrganizationUpdateOne) ClearBillingAccount() *OrganizationUpdateOne {
+	_u.mutation.ClearBillingAccount()
+	return _u
 }
 
 // Where appends a list predicates to the OrganizationUpdate builder.
@@ -846,6 +1162,125 @@ func (_u *OrganizationUpdateOne) sqlSave(ctx context.Context) (_node *Organizati
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(invitation.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.RolesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   organization.RolesTable,
+			Columns: []string{organization.RolesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(role.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedRolesIDs(); len(nodes) > 0 && !_u.mutation.RolesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   organization.RolesTable,
+			Columns: []string{organization.RolesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(role.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RolesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   organization.RolesTable,
+			Columns: []string{organization.RolesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(role.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.AuditEventsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   organization.AuditEventsTable,
+			Columns: []string{organization.AuditEventsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(auditevent.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedAuditEventsIDs(); len(nodes) > 0 && !_u.mutation.AuditEventsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   organization.AuditEventsTable,
+			Columns: []string{organization.AuditEventsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(auditevent.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.AuditEventsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   organization.AuditEventsTable,
+			Columns: []string{organization.AuditEventsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(auditevent.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.BillingAccountCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   organization.BillingAccountTable,
+			Columns: []string{organization.BillingAccountColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(billingaccount.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.BillingAccountIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   organization.BillingAccountTable,
+			Columns: []string{organization.BillingAccountColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(billingaccount.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

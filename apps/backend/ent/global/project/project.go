@@ -48,6 +48,10 @@ const (
 	EdgeLiveopsEvents = "liveops_events"
 	// EdgeConfigVersions holds the string denoting the config_versions edge name in mutations.
 	EdgeConfigVersions = "config_versions"
+	// EdgeMemberAccess holds the string denoting the member_access edge name in mutations.
+	EdgeMemberAccess = "member_access"
+	// EdgeUsageDaily holds the string denoting the usage_daily edge name in mutations.
+	EdgeUsageDaily = "usage_daily"
 	// Table holds the table name of the project in the database.
 	Table = "projects"
 	// OrganizationTable is the table that holds the organization relation/edge.
@@ -99,6 +103,20 @@ const (
 	ConfigVersionsInverseTable = "config_versions"
 	// ConfigVersionsColumn is the table column denoting the config_versions relation/edge.
 	ConfigVersionsColumn = "project_id"
+	// MemberAccessTable is the table that holds the member_access relation/edge.
+	MemberAccessTable = "member_projects"
+	// MemberAccessInverseTable is the table name for the MemberProject entity.
+	// It exists in this package in order to avoid circular dependency with the "memberproject" package.
+	MemberAccessInverseTable = "member_projects"
+	// MemberAccessColumn is the table column denoting the member_access relation/edge.
+	MemberAccessColumn = "project_id"
+	// UsageDailyTable is the table that holds the usage_daily relation/edge.
+	UsageDailyTable = "usage_daily"
+	// UsageDailyInverseTable is the table name for the UsageDaily entity.
+	// It exists in this package in order to avoid circular dependency with the "usagedaily" package.
+	UsageDailyInverseTable = "usage_daily"
+	// UsageDailyColumn is the table column denoting the usage_daily relation/edge.
+	UsageDailyColumn = "project_id"
 )
 
 // Columns holds all SQL columns for project fields.
@@ -305,6 +323,34 @@ func ByConfigVersions(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newConfigVersionsStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
+
+// ByMemberAccessCount orders the results by member_access count.
+func ByMemberAccessCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newMemberAccessStep(), opts...)
+	}
+}
+
+// ByMemberAccess orders the results by member_access terms.
+func ByMemberAccess(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newMemberAccessStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByUsageDailyCount orders the results by usage_daily count.
+func ByUsageDailyCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newUsageDailyStep(), opts...)
+	}
+}
+
+// ByUsageDaily orders the results by usage_daily terms.
+func ByUsageDaily(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newUsageDailyStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newOrganizationStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -352,5 +398,19 @@ func newConfigVersionsStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(ConfigVersionsInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, ConfigVersionsTable, ConfigVersionsColumn),
+	)
+}
+func newMemberAccessStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(MemberAccessInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, MemberAccessTable, MemberAccessColumn),
+	)
+}
+func newUsageDailyStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(UsageDailyInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, UsageDailyTable, UsageDailyColumn),
 	)
 }

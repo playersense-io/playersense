@@ -14,6 +14,7 @@ import (
 	"playersense.dev/backend/ent/global/invitation"
 	"playersense.dev/backend/ent/global/organization"
 	"playersense.dev/backend/ent/global/predicate"
+	"playersense.dev/backend/ent/global/role"
 	"playersense.dev/backend/ent/global/user"
 )
 
@@ -26,6 +27,7 @@ type InvitationQuery struct {
 	predicates       []predicate.Invitation
 	withOrganization *OrganizationQuery
 	withInvitedBy    *UserQuery
+	withRole         *RoleQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -99,6 +101,28 @@ func (_q *InvitationQuery) QueryInvitedBy() *UserQuery {
 			sqlgraph.From(invitation.Table, invitation.FieldID, selector),
 			sqlgraph.To(user.Table, user.FieldID),
 			sqlgraph.Edge(sqlgraph.M2O, true, invitation.InvitedByTable, invitation.InvitedByColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryRole chains the current query on the "role" edge.
+func (_q *InvitationQuery) QueryRole() *RoleQuery {
+	query := (&RoleClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(invitation.Table, invitation.FieldID, selector),
+			sqlgraph.To(role.Table, role.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, invitation.RoleTable, invitation.RoleColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -300,6 +324,7 @@ func (_q *InvitationQuery) Clone() *InvitationQuery {
 		predicates:       append([]predicate.Invitation{}, _q.predicates...),
 		withOrganization: _q.withOrganization.Clone(),
 		withInvitedBy:    _q.withInvitedBy.Clone(),
+		withRole:         _q.withRole.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -325,6 +350,17 @@ func (_q *InvitationQuery) WithInvitedBy(opts ...func(*UserQuery)) *InvitationQu
 		opt(query)
 	}
 	_q.withInvitedBy = query
+	return _q
+}
+
+// WithRole tells the query-builder to eager-load the nodes that are connected to
+// the "role" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *InvitationQuery) WithRole(opts ...func(*RoleQuery)) *InvitationQuery {
+	query := (&RoleClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withRole = query
 	return _q
 }
 
@@ -406,9 +442,10 @@ func (_q *InvitationQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*I
 	var (
 		nodes       = []*Invitation{}
 		_spec       = _q.querySpec()
-		loadedTypes = [2]bool{
+		loadedTypes = [3]bool{
 			_q.withOrganization != nil,
 			_q.withInvitedBy != nil,
+			_q.withRole != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -438,6 +475,12 @@ func (_q *InvitationQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*I
 	if query := _q.withInvitedBy; query != nil {
 		if err := _q.loadInvitedBy(ctx, query, nodes, nil,
 			func(n *Invitation, e *User) { n.Edges.InvitedBy = e }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withRole; query != nil {
+		if err := _q.loadRole(ctx, query, nodes, nil,
+			func(n *Invitation, e *Role) { n.Edges.Role = e }); err != nil {
 			return nil, err
 		}
 	}
@@ -505,6 +548,35 @@ func (_q *InvitationQuery) loadInvitedBy(ctx context.Context, query *UserQuery, 
 	}
 	return nil
 }
+func (_q *InvitationQuery) loadRole(ctx context.Context, query *RoleQuery, nodes []*Invitation, init func(*Invitation), assign func(*Invitation, *Role)) error {
+	ids := make([]int, 0, len(nodes))
+	nodeids := make(map[int][]*Invitation)
+	for i := range nodes {
+		fk := nodes[i].RoleID
+		if _, ok := nodeids[fk]; !ok {
+			ids = append(ids, fk)
+		}
+		nodeids[fk] = append(nodeids[fk], nodes[i])
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	query.Where(role.IDIn(ids...))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		nodes, ok := nodeids[n.ID]
+		if !ok {
+			return fmt.Errorf(`unexpected foreign-key "role_id" returned %v`, n.ID)
+		}
+		for i := range nodes {
+			assign(nodes[i], n)
+		}
+	}
+	return nil
+}
 
 func (_q *InvitationQuery) sqlCount(ctx context.Context) (int, error) {
 	_spec := _q.querySpec()
@@ -536,6 +608,9 @@ func (_q *InvitationQuery) querySpec() *sqlgraph.QuerySpec {
 		}
 		if _q.withInvitedBy != nil {
 			_spec.Node.AddColumnOnce(invitation.FieldInvitedByID)
+		}
+		if _q.withRole != nil {
+			_spec.Node.AddColumnOnce(invitation.FieldRoleID)
 		}
 	}
 	if ps := _q.predicates; len(ps) > 0 {

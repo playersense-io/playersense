@@ -30,6 +30,12 @@ const (
 	FieldTokenDigest = "token_digest"
 	// FieldInvitedByID holds the string denoting the invited_by_id field in the database.
 	FieldInvitedByID = "invited_by_id"
+	// FieldRoleID holds the string denoting the role_id field in the database.
+	FieldRoleID = "role_id"
+	// FieldAllProjects holds the string denoting the all_projects field in the database.
+	FieldAllProjects = "all_projects"
+	// FieldProjectIds holds the string denoting the project_ids field in the database.
+	FieldProjectIds = "project_ids"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
 	// FieldExpiresAt holds the string denoting the expires_at field in the database.
@@ -40,6 +46,8 @@ const (
 	EdgeOrganization = "organization"
 	// EdgeInvitedBy holds the string denoting the invited_by edge name in mutations.
 	EdgeInvitedBy = "invited_by"
+	// EdgeRole holds the string denoting the role edge name in mutations.
+	EdgeRole = "role"
 	// Table holds the table name of the invitation in the database.
 	Table = "invitations"
 	// OrganizationTable is the table that holds the organization relation/edge.
@@ -56,6 +64,13 @@ const (
 	InvitedByInverseTable = "users"
 	// InvitedByColumn is the table column denoting the invited_by relation/edge.
 	InvitedByColumn = "invited_by_id"
+	// RoleTable is the table that holds the role relation/edge.
+	RoleTable = "invitations"
+	// RoleInverseTable is the table name for the Role entity.
+	// It exists in this package in order to avoid circular dependency with the "role" package.
+	RoleInverseTable = "roles"
+	// RoleColumn is the table column denoting the role relation/edge.
+	RoleColumn = "role_id"
 )
 
 // Columns holds all SQL columns for invitation fields.
@@ -68,6 +83,9 @@ var Columns = []string{
 	FieldEmail,
 	FieldTokenDigest,
 	FieldInvitedByID,
+	FieldRoleID,
+	FieldAllProjects,
+	FieldProjectIds,
 	FieldStatus,
 	FieldExpiresAt,
 	FieldAcceptedAt,
@@ -96,6 +114,10 @@ var (
 	EmailValidator func(string) error
 	// TokenDigestValidator is a validator for the "token_digest" field. It is called by the builders before save.
 	TokenDigestValidator func(string) error
+	// DefaultAllProjects holds the default value on creation for the "all_projects" field.
+	DefaultAllProjects bool
+	// DefaultProjectIds holds the default value on creation for the "project_ids" field.
+	DefaultProjectIds []int
 )
 
 // Status defines the type for the "status" enum field.
@@ -169,6 +191,16 @@ func ByInvitedByID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldInvitedByID, opts...).ToFunc()
 }
 
+// ByRoleID orders the results by the role_id field.
+func ByRoleID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRoleID, opts...).ToFunc()
+}
+
+// ByAllProjects orders the results by the all_projects field.
+func ByAllProjects(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAllProjects, opts...).ToFunc()
+}
+
 // ByStatus orders the results by the status field.
 func ByStatus(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldStatus, opts...).ToFunc()
@@ -197,6 +229,13 @@ func ByInvitedByField(field string, opts ...sql.OrderTermOption) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newInvitedByStep(), sql.OrderByField(field, opts...))
 	}
 }
+
+// ByRoleField orders the results by role field.
+func ByRoleField(field string, opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newRoleStep(), sql.OrderByField(field, opts...))
+	}
+}
 func newOrganizationStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -209,5 +248,12 @@ func newInvitedByStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(InvitedByInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.M2O, true, InvitedByTable, InvitedByColumn),
+	)
+}
+func newRoleStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(RoleInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.M2O, true, RoleTable, RoleColumn),
 	)
 }

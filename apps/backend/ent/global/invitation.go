@@ -3,6 +3,7 @@
 package global
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -12,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	"playersense.dev/backend/ent/global/invitation"
 	"playersense.dev/backend/ent/global/organization"
+	"playersense.dev/backend/ent/global/role"
 	"playersense.dev/backend/ent/global/user"
 )
 
@@ -36,6 +38,12 @@ type Invitation struct {
 	// class=none
 	InvitedByID *int `json:"invited_by_id,omitempty"`
 	// class=none
+	RoleID int `json:"role_id,omitempty"`
+	// class=none
+	AllProjects bool `json:"all_projects,omitempty"`
+	// class=none
+	ProjectIds []int `json:"project_ids,omitempty"`
+	// class=none
 	Status invitation.Status `json:"status,omitempty"`
 	// class=none
 	ExpiresAt time.Time `json:"expires_at,omitempty"`
@@ -53,9 +61,11 @@ type InvitationEdges struct {
 	Organization *Organization `json:"organization,omitempty"`
 	// InvitedBy holds the value of the invited_by edge.
 	InvitedBy *User `json:"invited_by,omitempty"`
+	// Role holds the value of the role edge.
+	Role *Role `json:"role,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [2]bool
+	loadedTypes [3]bool
 }
 
 // OrganizationOrErr returns the Organization value or an error if the edge
@@ -80,12 +90,27 @@ func (e InvitationEdges) InvitedByOrErr() (*User, error) {
 	return nil, &NotLoadedError{edge: "invited_by"}
 }
 
+// RoleOrErr returns the Role value or an error if the edge
+// was not loaded in eager-loading, or loaded but was not found.
+func (e InvitationEdges) RoleOrErr() (*Role, error) {
+	if e.Role != nil {
+		return e.Role, nil
+	} else if e.loadedTypes[2] {
+		return nil, &NotFoundError{label: role.Label}
+	}
+	return nil, &NotLoadedError{edge: "role"}
+}
+
 // scanValues returns the types for scanning values from sql.Rows.
 func (*Invitation) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case invitation.FieldID, invitation.FieldOrganizationID, invitation.FieldInvitedByID:
+		case invitation.FieldProjectIds:
+			values[i] = new([]byte)
+		case invitation.FieldAllProjects:
+			values[i] = new(sql.NullBool)
+		case invitation.FieldID, invitation.FieldOrganizationID, invitation.FieldInvitedByID, invitation.FieldRoleID:
 			values[i] = new(sql.NullInt64)
 		case invitation.FieldEmail, invitation.FieldTokenDigest, invitation.FieldStatus:
 			values[i] = new(sql.NullString)
@@ -157,6 +182,26 @@ func (_m *Invitation) assignValues(columns []string, values []any) error {
 				_m.InvitedByID = new(int)
 				*_m.InvitedByID = int(value.Int64)
 			}
+		case invitation.FieldRoleID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field role_id", values[i])
+			} else if value.Valid {
+				_m.RoleID = int(value.Int64)
+			}
+		case invitation.FieldAllProjects:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field all_projects", values[i])
+			} else if value.Valid {
+				_m.AllProjects = value.Bool
+			}
+		case invitation.FieldProjectIds:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field project_ids", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.ProjectIds); err != nil {
+					return fmt.Errorf("unmarshal field project_ids: %w", err)
+				}
+			}
 		case invitation.FieldStatus:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field status", values[i])
@@ -197,6 +242,11 @@ func (_m *Invitation) QueryOrganization() *OrganizationQuery {
 // QueryInvitedBy queries the "invited_by" edge of the Invitation entity.
 func (_m *Invitation) QueryInvitedBy() *UserQuery {
 	return NewInvitationClient(_m.config).QueryInvitedBy(_m)
+}
+
+// QueryRole queries the "role" edge of the Invitation entity.
+func (_m *Invitation) QueryRole() *RoleQuery {
+	return NewInvitationClient(_m.config).QueryRole(_m)
 }
 
 // Update returns a builder for updating this Invitation.
@@ -243,6 +293,15 @@ func (_m *Invitation) String() string {
 		builder.WriteString("invited_by_id=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
+	builder.WriteString(", ")
+	builder.WriteString("role_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.RoleID))
+	builder.WriteString(", ")
+	builder.WriteString("all_projects=")
+	builder.WriteString(fmt.Sprintf("%v", _m.AllProjects))
+	builder.WriteString(", ")
+	builder.WriteString("project_ids=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ProjectIds))
 	builder.WriteString(", ")
 	builder.WriteString("status=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Status))

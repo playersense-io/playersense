@@ -7,10 +7,23 @@ import (
 	"testing"
 	"time"
 
-	"playersense.dev/backend/ent/global/organizationmember"
+	"playersense.dev/backend/ent/global"
+	"playersense.dev/backend/ent/global/role"
+	"playersense.dev/backend/internal/authz"
 	"playersense.dev/backend/internal/identity"
 	"playersense.dev/backend/internal/testsupport"
 )
+
+// roleID finds one of an organization's seeded roles by key.
+func roleID(t *testing.T, db *global.Client, orgID int, key string) int {
+	t.Helper()
+	found, err := db.Role.Query().
+		Where(role.OrganizationID(orgID), role.Key(key)).Only(t.Context())
+	if err != nil {
+		t.Fatalf("look up the %s role: %v", key, err)
+	}
+	return found.ID
+}
 
 func claims(t *testing.T) identity.Claims {
 	t.Helper()
@@ -148,7 +161,7 @@ func TestAnOrganizationRefusesToExceedItsCeiling(t *testing.T) {
 			t.Fatalf("create joiner %d: %v", i, err)
 		}
 		if _, err := identity.AddMember(t.Context(), db.Client, org.ID, joiner.ID,
-			organizationmember.RoleMember, now); err != nil {
+			roleID(t, db.Client, org.ID, authz.RoleDeveloper), now); err != nil {
 			t.Fatalf("add member %d: %v", i, err)
 		}
 	}
@@ -158,7 +171,7 @@ func TestAnOrganizationRefusesToExceedItsCeiling(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, err = identity.AddMember(t.Context(), db.Client, org.ID, overflow.ID,
-		organizationmember.RoleMember, now)
+		roleID(t, db.Client, org.ID, authz.RoleDeveloper), now)
 	if err == nil {
 		t.Fatal("a fourth member joined an organization limited to three")
 	}

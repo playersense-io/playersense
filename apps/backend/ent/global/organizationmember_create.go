@@ -11,8 +11,10 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
+	"playersense.dev/backend/ent/global/memberproject"
 	"playersense.dev/backend/ent/global/organization"
 	"playersense.dev/backend/ent/global/organizationmember"
+	"playersense.dev/backend/ent/global/role"
 	"playersense.dev/backend/ent/global/user"
 )
 
@@ -65,12 +67,6 @@ func (_c *OrganizationMemberCreate) SetNillableUpdatedAt(v *time.Time) *Organiza
 	return _c
 }
 
-// SetRole sets the "role" field.
-func (_c *OrganizationMemberCreate) SetRole(v organizationmember.Role) *OrganizationMemberCreate {
-	_c.mutation.SetRole(v)
-	return _c
-}
-
 // SetOrganizationID sets the "organization_id" field.
 func (_c *OrganizationMemberCreate) SetOrganizationID(v int) *OrganizationMemberCreate {
 	_c.mutation.SetOrganizationID(v)
@@ -80,6 +76,26 @@ func (_c *OrganizationMemberCreate) SetOrganizationID(v int) *OrganizationMember
 // SetUserID sets the "user_id" field.
 func (_c *OrganizationMemberCreate) SetUserID(v int) *OrganizationMemberCreate {
 	_c.mutation.SetUserID(v)
+	return _c
+}
+
+// SetRoleID sets the "role_id" field.
+func (_c *OrganizationMemberCreate) SetRoleID(v int) *OrganizationMemberCreate {
+	_c.mutation.SetRoleID(v)
+	return _c
+}
+
+// SetAllProjects sets the "all_projects" field.
+func (_c *OrganizationMemberCreate) SetAllProjects(v bool) *OrganizationMemberCreate {
+	_c.mutation.SetAllProjects(v)
+	return _c
+}
+
+// SetNillableAllProjects sets the "all_projects" field if the given value is not nil.
+func (_c *OrganizationMemberCreate) SetNillableAllProjects(v *bool) *OrganizationMemberCreate {
+	if v != nil {
+		_c.SetAllProjects(*v)
+	}
 	return _c
 }
 
@@ -111,6 +127,26 @@ func (_c *OrganizationMemberCreate) SetOrganization(v *Organization) *Organizati
 // SetUser sets the "user" edge to the User entity.
 func (_c *OrganizationMemberCreate) SetUser(v *User) *OrganizationMemberCreate {
 	return _c.SetUserID(v.ID)
+}
+
+// SetRole sets the "role" edge to the Role entity.
+func (_c *OrganizationMemberCreate) SetRole(v *Role) *OrganizationMemberCreate {
+	return _c.SetRoleID(v.ID)
+}
+
+// AddProjectAccesIDs adds the "project_access" edge to the MemberProject entity by IDs.
+func (_c *OrganizationMemberCreate) AddProjectAccesIDs(ids ...int) *OrganizationMemberCreate {
+	_c.mutation.AddProjectAccesIDs(ids...)
+	return _c
+}
+
+// AddProjectAccess adds the "project_access" edges to the MemberProject entity.
+func (_c *OrganizationMemberCreate) AddProjectAccess(v ...*MemberProject) *OrganizationMemberCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddProjectAccesIDs(ids...)
 }
 
 // Mutation returns the OrganizationMemberMutation object of the builder.
@@ -160,6 +196,10 @@ func (_c *OrganizationMemberCreate) defaults() {
 		v := organizationmember.DefaultUpdatedAt()
 		_c.mutation.SetUpdatedAt(v)
 	}
+	if _, ok := _c.mutation.AllProjects(); !ok {
+		v := organizationmember.DefaultAllProjects
+		_c.mutation.SetAllProjects(v)
+	}
 	if _, ok := _c.mutation.JoinedAt(); !ok {
 		v := organizationmember.DefaultJoinedAt()
 		_c.mutation.SetJoinedAt(v)
@@ -177,19 +217,17 @@ func (_c *OrganizationMemberCreate) check() error {
 	if _, ok := _c.mutation.UpdatedAt(); !ok {
 		return &ValidationError{Name: "updated_at", err: errors.New(`global: missing required field "OrganizationMember.updated_at"`)}
 	}
-	if _, ok := _c.mutation.Role(); !ok {
-		return &ValidationError{Name: "role", err: errors.New(`global: missing required field "OrganizationMember.role"`)}
-	}
-	if v, ok := _c.mutation.Role(); ok {
-		if err := organizationmember.RoleValidator(v); err != nil {
-			return &ValidationError{Name: "role", err: fmt.Errorf(`global: validator failed for field "OrganizationMember.role": %w`, err)}
-		}
-	}
 	if _, ok := _c.mutation.OrganizationID(); !ok {
 		return &ValidationError{Name: "organization_id", err: errors.New(`global: missing required field "OrganizationMember.organization_id"`)}
 	}
 	if _, ok := _c.mutation.UserID(); !ok {
 		return &ValidationError{Name: "user_id", err: errors.New(`global: missing required field "OrganizationMember.user_id"`)}
+	}
+	if _, ok := _c.mutation.RoleID(); !ok {
+		return &ValidationError{Name: "role_id", err: errors.New(`global: missing required field "OrganizationMember.role_id"`)}
+	}
+	if _, ok := _c.mutation.AllProjects(); !ok {
+		return &ValidationError{Name: "all_projects", err: errors.New(`global: missing required field "OrganizationMember.all_projects"`)}
 	}
 	if _, ok := _c.mutation.JoinedAt(); !ok {
 		return &ValidationError{Name: "joined_at", err: errors.New(`global: missing required field "OrganizationMember.joined_at"`)}
@@ -199,6 +237,9 @@ func (_c *OrganizationMemberCreate) check() error {
 	}
 	if len(_c.mutation.UserIDs()) == 0 {
 		return &ValidationError{Name: "user", err: errors.New(`global: missing required edge "OrganizationMember.user"`)}
+	}
+	if len(_c.mutation.RoleIDs()) == 0 {
+		return &ValidationError{Name: "role", err: errors.New(`global: missing required edge "OrganizationMember.role"`)}
 	}
 	return nil
 }
@@ -244,9 +285,9 @@ func (_c *OrganizationMemberCreate) createSpec() (*OrganizationMember, *sqlgraph
 		_spec.SetField(organizationmember.FieldUpdatedAt, field.TypeTime, value)
 		_node.UpdatedAt = value
 	}
-	if value, ok := _c.mutation.Role(); ok {
-		_spec.SetField(organizationmember.FieldRole, field.TypeEnum, value)
-		_node.Role = value
+	if value, ok := _c.mutation.AllProjects(); ok {
+		_spec.SetField(organizationmember.FieldAllProjects, field.TypeBool, value)
+		_node.AllProjects = value
 	}
 	if value, ok := _c.mutation.JoinedAt(); ok {
 		_spec.SetField(organizationmember.FieldJoinedAt, field.TypeTime, value)
@@ -284,6 +325,39 @@ func (_c *OrganizationMemberCreate) createSpec() (*OrganizationMember, *sqlgraph
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_node.UserID = nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.RoleIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   organizationmember.RoleTable,
+			Columns: []string{organizationmember.RoleColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(role.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_node.RoleID = nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.ProjectAccessIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   organizationmember.ProjectAccessTable,
+			Columns: []string{organizationmember.ProjectAccessColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(memberproject.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec

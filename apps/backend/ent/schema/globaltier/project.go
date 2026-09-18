@@ -62,6 +62,13 @@ func (Project) Edges() []ent.Edge {
 		edge.To("feature_flags", FeatureFlag.Type),
 		edge.To("liveops_events", LiveOpsEvent.Type),
 		edge.To("config_versions", ConfigVersion.Type),
+
+		// Who can see this project, when a membership is not "all projects".
+		edge.To("member_access", MemberProject.Type),
+
+		// The meter (§40). Per project rather than per organisation, because a studio
+		// with five games needs to know which one costs what.
+		edge.To("usage_daily", UsageDaily.Type),
 	}
 }
 

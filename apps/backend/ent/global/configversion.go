@@ -11,9 +11,11 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
+	"playersense.dev/backend/ent/global/apikey"
 	"playersense.dev/backend/ent/global/configversion"
 	"playersense.dev/backend/ent/global/environment"
 	"playersense.dev/backend/ent/global/project"
+	"playersense.dev/backend/ent/global/user"
 )
 
 // ConfigVersion is the model entity for the ConfigVersion schema.
@@ -37,7 +39,11 @@ type ConfigVersion struct {
 	// class=none
 	Document map[string]interface{} `json:"document,omitempty"`
 	// class=none
-	PublishedBy string `json:"published_by,omitempty"`
+	PublishedByUserID *int `json:"published_by_user_id,omitempty"`
+	// class=none
+	PublishedByKeyID *int `json:"published_by_key_id,omitempty"`
+	// class=none
+	PublishedByLabel string `json:"published_by_label,omitempty"`
 	// class=none
 	Note string `json:"note,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
@@ -52,9 +58,13 @@ type ConfigVersionEdges struct {
 	Project *Project `json:"project,omitempty"`
 	// Environment holds the value of the environment edge.
 	Environment *Environment `json:"environment,omitempty"`
+	// PublishedByUser holds the value of the published_by_user edge.
+	PublishedByUser *User `json:"published_by_user,omitempty"`
+	// PublishedByKey holds the value of the published_by_key edge.
+	PublishedByKey *APIKey `json:"published_by_key,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [2]bool
+	loadedTypes [4]bool
 }
 
 // ProjectOrErr returns the Project value or an error if the edge
@@ -79,6 +89,28 @@ func (e ConfigVersionEdges) EnvironmentOrErr() (*Environment, error) {
 	return nil, &NotLoadedError{edge: "environment"}
 }
 
+// PublishedByUserOrErr returns the PublishedByUser value or an error if the edge
+// was not loaded in eager-loading, or loaded but was not found.
+func (e ConfigVersionEdges) PublishedByUserOrErr() (*User, error) {
+	if e.PublishedByUser != nil {
+		return e.PublishedByUser, nil
+	} else if e.loadedTypes[2] {
+		return nil, &NotFoundError{label: user.Label}
+	}
+	return nil, &NotLoadedError{edge: "published_by_user"}
+}
+
+// PublishedByKeyOrErr returns the PublishedByKey value or an error if the edge
+// was not loaded in eager-loading, or loaded but was not found.
+func (e ConfigVersionEdges) PublishedByKeyOrErr() (*APIKey, error) {
+	if e.PublishedByKey != nil {
+		return e.PublishedByKey, nil
+	} else if e.loadedTypes[3] {
+		return nil, &NotFoundError{label: apikey.Label}
+	}
+	return nil, &NotLoadedError{edge: "published_by_key"}
+}
+
 // scanValues returns the types for scanning values from sql.Rows.
 func (*ConfigVersion) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
@@ -86,9 +118,9 @@ func (*ConfigVersion) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case configversion.FieldDocument:
 			values[i] = new([]byte)
-		case configversion.FieldID, configversion.FieldProjectID, configversion.FieldEnvironmentID, configversion.FieldVersion:
+		case configversion.FieldID, configversion.FieldProjectID, configversion.FieldEnvironmentID, configversion.FieldVersion, configversion.FieldPublishedByUserID, configversion.FieldPublishedByKeyID:
 			values[i] = new(sql.NullInt64)
-		case configversion.FieldPublishedBy, configversion.FieldNote:
+		case configversion.FieldPublishedByLabel, configversion.FieldNote:
 			values[i] = new(sql.NullString)
 		case configversion.FieldCreatedAt, configversion.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -159,11 +191,25 @@ func (_m *ConfigVersion) assignValues(columns []string, values []any) error {
 					return fmt.Errorf("unmarshal field document: %w", err)
 				}
 			}
-		case configversion.FieldPublishedBy:
-			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field published_by", values[i])
+		case configversion.FieldPublishedByUserID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field published_by_user_id", values[i])
 			} else if value.Valid {
-				_m.PublishedBy = value.String
+				_m.PublishedByUserID = new(int)
+				*_m.PublishedByUserID = int(value.Int64)
+			}
+		case configversion.FieldPublishedByKeyID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field published_by_key_id", values[i])
+			} else if value.Valid {
+				_m.PublishedByKeyID = new(int)
+				*_m.PublishedByKeyID = int(value.Int64)
+			}
+		case configversion.FieldPublishedByLabel:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field published_by_label", values[i])
+			} else if value.Valid {
+				_m.PublishedByLabel = value.String
 			}
 		case configversion.FieldNote:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -192,6 +238,16 @@ func (_m *ConfigVersion) QueryProject() *ProjectQuery {
 // QueryEnvironment queries the "environment" edge of the ConfigVersion entity.
 func (_m *ConfigVersion) QueryEnvironment() *EnvironmentQuery {
 	return NewConfigVersionClient(_m.config).QueryEnvironment(_m)
+}
+
+// QueryPublishedByUser queries the "published_by_user" edge of the ConfigVersion entity.
+func (_m *ConfigVersion) QueryPublishedByUser() *UserQuery {
+	return NewConfigVersionClient(_m.config).QueryPublishedByUser(_m)
+}
+
+// QueryPublishedByKey queries the "published_by_key" edge of the ConfigVersion entity.
+func (_m *ConfigVersion) QueryPublishedByKey() *APIKeyQuery {
+	return NewConfigVersionClient(_m.config).QueryPublishedByKey(_m)
 }
 
 // Update returns a builder for updating this ConfigVersion.
@@ -238,8 +294,18 @@ func (_m *ConfigVersion) String() string {
 	builder.WriteString("document=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Document))
 	builder.WriteString(", ")
-	builder.WriteString("published_by=")
-	builder.WriteString(_m.PublishedBy)
+	if v := _m.PublishedByUserID; v != nil {
+		builder.WriteString("published_by_user_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.PublishedByKeyID; v != nil {
+		builder.WriteString("published_by_key_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("published_by_label=")
+	builder.WriteString(_m.PublishedByLabel)
 	builder.WriteString(", ")
 	builder.WriteString("note=")
 	builder.WriteString(_m.Note)

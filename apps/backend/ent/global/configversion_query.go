@@ -11,21 +11,25 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"playersense.dev/backend/ent/global/apikey"
 	"playersense.dev/backend/ent/global/configversion"
 	"playersense.dev/backend/ent/global/environment"
 	"playersense.dev/backend/ent/global/predicate"
 	"playersense.dev/backend/ent/global/project"
+	"playersense.dev/backend/ent/global/user"
 )
 
 // ConfigVersionQuery is the builder for querying ConfigVersion entities.
 type ConfigVersionQuery struct {
 	config
-	ctx             *QueryContext
-	order           []configversion.OrderOption
-	inters          []Interceptor
-	predicates      []predicate.ConfigVersion
-	withProject     *ProjectQuery
-	withEnvironment *EnvironmentQuery
+	ctx                 *QueryContext
+	order               []configversion.OrderOption
+	inters              []Interceptor
+	predicates          []predicate.ConfigVersion
+	withProject         *ProjectQuery
+	withEnvironment     *EnvironmentQuery
+	withPublishedByUser *UserQuery
+	withPublishedByKey  *APIKeyQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -99,6 +103,50 @@ func (_q *ConfigVersionQuery) QueryEnvironment() *EnvironmentQuery {
 			sqlgraph.From(configversion.Table, configversion.FieldID, selector),
 			sqlgraph.To(environment.Table, environment.FieldID),
 			sqlgraph.Edge(sqlgraph.M2O, true, configversion.EnvironmentTable, configversion.EnvironmentColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryPublishedByUser chains the current query on the "published_by_user" edge.
+func (_q *ConfigVersionQuery) QueryPublishedByUser() *UserQuery {
+	query := (&UserClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(configversion.Table, configversion.FieldID, selector),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, configversion.PublishedByUserTable, configversion.PublishedByUserColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryPublishedByKey chains the current query on the "published_by_key" edge.
+func (_q *ConfigVersionQuery) QueryPublishedByKey() *APIKeyQuery {
+	query := (&APIKeyClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(configversion.Table, configversion.FieldID, selector),
+			sqlgraph.To(apikey.Table, apikey.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, configversion.PublishedByKeyTable, configversion.PublishedByKeyColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -293,13 +341,15 @@ func (_q *ConfigVersionQuery) Clone() *ConfigVersionQuery {
 		return nil
 	}
 	return &ConfigVersionQuery{
-		config:          _q.config,
-		ctx:             _q.ctx.Clone(),
-		order:           append([]configversion.OrderOption{}, _q.order...),
-		inters:          append([]Interceptor{}, _q.inters...),
-		predicates:      append([]predicate.ConfigVersion{}, _q.predicates...),
-		withProject:     _q.withProject.Clone(),
-		withEnvironment: _q.withEnvironment.Clone(),
+		config:              _q.config,
+		ctx:                 _q.ctx.Clone(),
+		order:               append([]configversion.OrderOption{}, _q.order...),
+		inters:              append([]Interceptor{}, _q.inters...),
+		predicates:          append([]predicate.ConfigVersion{}, _q.predicates...),
+		withProject:         _q.withProject.Clone(),
+		withEnvironment:     _q.withEnvironment.Clone(),
+		withPublishedByUser: _q.withPublishedByUser.Clone(),
+		withPublishedByKey:  _q.withPublishedByKey.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -325,6 +375,28 @@ func (_q *ConfigVersionQuery) WithEnvironment(opts ...func(*EnvironmentQuery)) *
 		opt(query)
 	}
 	_q.withEnvironment = query
+	return _q
+}
+
+// WithPublishedByUser tells the query-builder to eager-load the nodes that are connected to
+// the "published_by_user" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *ConfigVersionQuery) WithPublishedByUser(opts ...func(*UserQuery)) *ConfigVersionQuery {
+	query := (&UserClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withPublishedByUser = query
+	return _q
+}
+
+// WithPublishedByKey tells the query-builder to eager-load the nodes that are connected to
+// the "published_by_key" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *ConfigVersionQuery) WithPublishedByKey(opts ...func(*APIKeyQuery)) *ConfigVersionQuery {
+	query := (&APIKeyClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withPublishedByKey = query
 	return _q
 }
 
@@ -406,9 +478,11 @@ func (_q *ConfigVersionQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([
 	var (
 		nodes       = []*ConfigVersion{}
 		_spec       = _q.querySpec()
-		loadedTypes = [2]bool{
+		loadedTypes = [4]bool{
 			_q.withProject != nil,
 			_q.withEnvironment != nil,
+			_q.withPublishedByUser != nil,
+			_q.withPublishedByKey != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -438,6 +512,18 @@ func (_q *ConfigVersionQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([
 	if query := _q.withEnvironment; query != nil {
 		if err := _q.loadEnvironment(ctx, query, nodes, nil,
 			func(n *ConfigVersion, e *Environment) { n.Edges.Environment = e }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withPublishedByUser; query != nil {
+		if err := _q.loadPublishedByUser(ctx, query, nodes, nil,
+			func(n *ConfigVersion, e *User) { n.Edges.PublishedByUser = e }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withPublishedByKey; query != nil {
+		if err := _q.loadPublishedByKey(ctx, query, nodes, nil,
+			func(n *ConfigVersion, e *APIKey) { n.Edges.PublishedByKey = e }); err != nil {
 			return nil, err
 		}
 	}
@@ -502,6 +588,70 @@ func (_q *ConfigVersionQuery) loadEnvironment(ctx context.Context, query *Enviro
 	}
 	return nil
 }
+func (_q *ConfigVersionQuery) loadPublishedByUser(ctx context.Context, query *UserQuery, nodes []*ConfigVersion, init func(*ConfigVersion), assign func(*ConfigVersion, *User)) error {
+	ids := make([]int, 0, len(nodes))
+	nodeids := make(map[int][]*ConfigVersion)
+	for i := range nodes {
+		if nodes[i].PublishedByUserID == nil {
+			continue
+		}
+		fk := *nodes[i].PublishedByUserID
+		if _, ok := nodeids[fk]; !ok {
+			ids = append(ids, fk)
+		}
+		nodeids[fk] = append(nodeids[fk], nodes[i])
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	query.Where(user.IDIn(ids...))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		nodes, ok := nodeids[n.ID]
+		if !ok {
+			return fmt.Errorf(`unexpected foreign-key "published_by_user_id" returned %v`, n.ID)
+		}
+		for i := range nodes {
+			assign(nodes[i], n)
+		}
+	}
+	return nil
+}
+func (_q *ConfigVersionQuery) loadPublishedByKey(ctx context.Context, query *APIKeyQuery, nodes []*ConfigVersion, init func(*ConfigVersion), assign func(*ConfigVersion, *APIKey)) error {
+	ids := make([]int, 0, len(nodes))
+	nodeids := make(map[int][]*ConfigVersion)
+	for i := range nodes {
+		if nodes[i].PublishedByKeyID == nil {
+			continue
+		}
+		fk := *nodes[i].PublishedByKeyID
+		if _, ok := nodeids[fk]; !ok {
+			ids = append(ids, fk)
+		}
+		nodeids[fk] = append(nodeids[fk], nodes[i])
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	query.Where(apikey.IDIn(ids...))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		nodes, ok := nodeids[n.ID]
+		if !ok {
+			return fmt.Errorf(`unexpected foreign-key "published_by_key_id" returned %v`, n.ID)
+		}
+		for i := range nodes {
+			assign(nodes[i], n)
+		}
+	}
+	return nil
+}
 
 func (_q *ConfigVersionQuery) sqlCount(ctx context.Context) (int, error) {
 	_spec := _q.querySpec()
@@ -533,6 +683,12 @@ func (_q *ConfigVersionQuery) querySpec() *sqlgraph.QuerySpec {
 		}
 		if _q.withEnvironment != nil {
 			_spec.Node.AddColumnOnce(configversion.FieldEnvironmentID)
+		}
+		if _q.withPublishedByUser != nil {
+			_spec.Node.AddColumnOnce(configversion.FieldPublishedByUserID)
+		}
+		if _q.withPublishedByKey != nil {
+			_spec.Node.AddColumnOnce(configversion.FieldPublishedByKeyID)
 		}
 	}
 	if ps := _q.predicates; len(ps) > 0 {

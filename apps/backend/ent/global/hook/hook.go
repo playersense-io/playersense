@@ -21,6 +21,42 @@ func (f APIKeyFunc) Mutate(ctx context.Context, m global.Mutation) (global.Value
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *global.APIKeyMutation", m)
 }
 
+// The AuditEventFunc type is an adapter to allow the use of ordinary
+// function as AuditEvent mutator.
+type AuditEventFunc func(context.Context, *global.AuditEventMutation) (global.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f AuditEventFunc) Mutate(ctx context.Context, m global.Mutation) (global.Value, error) {
+	if mv, ok := m.(*global.AuditEventMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *global.AuditEventMutation", m)
+}
+
+// The BillingAccountFunc type is an adapter to allow the use of ordinary
+// function as BillingAccount mutator.
+type BillingAccountFunc func(context.Context, *global.BillingAccountMutation) (global.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f BillingAccountFunc) Mutate(ctx context.Context, m global.Mutation) (global.Value, error) {
+	if mv, ok := m.(*global.BillingAccountMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *global.BillingAccountMutation", m)
+}
+
+// The BillingPeriodFunc type is an adapter to allow the use of ordinary
+// function as BillingPeriod mutator.
+type BillingPeriodFunc func(context.Context, *global.BillingPeriodMutation) (global.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f BillingPeriodFunc) Mutate(ctx context.Context, m global.Mutation) (global.Value, error) {
+	if mv, ok := m.(*global.BillingPeriodMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *global.BillingPeriodMutation", m)
+}
+
 // The CellFunc type is an adapter to allow the use of ordinary
 // function as Cell mutator.
 type CellFunc func(context.Context, *global.CellMutation) (global.Value, error)
@@ -81,6 +117,18 @@ func (f InvitationFunc) Mutate(ctx context.Context, m global.Mutation) (global.V
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *global.InvitationMutation", m)
 }
 
+// The LedgerEntryFunc type is an adapter to allow the use of ordinary
+// function as LedgerEntry mutator.
+type LedgerEntryFunc func(context.Context, *global.LedgerEntryMutation) (global.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f LedgerEntryFunc) Mutate(ctx context.Context, m global.Mutation) (global.Value, error) {
+	if mv, ok := m.(*global.LedgerEntryMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *global.LedgerEntryMutation", m)
+}
+
 // The LiveOpsEventFunc type is an adapter to allow the use of ordinary
 // function as LiveOpsEvent mutator.
 type LiveOpsEventFunc func(context.Context, *global.LiveOpsEventMutation) (global.Value, error)
@@ -91,6 +139,18 @@ func (f LiveOpsEventFunc) Mutate(ctx context.Context, m global.Mutation) (global
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *global.LiveOpsEventMutation", m)
+}
+
+// The MemberProjectFunc type is an adapter to allow the use of ordinary
+// function as MemberProject mutator.
+type MemberProjectFunc func(context.Context, *global.MemberProjectMutation) (global.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f MemberProjectFunc) Mutate(ctx context.Context, m global.Mutation) (global.Value, error) {
+	if mv, ok := m.(*global.MemberProjectMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *global.MemberProjectMutation", m)
 }
 
 // The OrganizationFunc type is an adapter to allow the use of ordinary
@@ -117,6 +177,18 @@ func (f OrganizationMemberFunc) Mutate(ctx context.Context, m global.Mutation) (
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *global.OrganizationMemberMutation", m)
 }
 
+// The PlanFunc type is an adapter to allow the use of ordinary
+// function as Plan mutator.
+type PlanFunc func(context.Context, *global.PlanMutation) (global.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f PlanFunc) Mutate(ctx context.Context, m global.Mutation) (global.Value, error) {
+	if mv, ok := m.(*global.PlanMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *global.PlanMutation", m)
+}
+
 // The ProjectFunc type is an adapter to allow the use of ordinary
 // function as Project mutator.
 type ProjectFunc func(context.Context, *global.ProjectMutation) (global.Value, error)
@@ -129,6 +201,18 @@ func (f ProjectFunc) Mutate(ctx context.Context, m global.Mutation) (global.Valu
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *global.ProjectMutation", m)
 }
 
+// The RoleFunc type is an adapter to allow the use of ordinary
+// function as Role mutator.
+type RoleFunc func(context.Context, *global.RoleMutation) (global.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f RoleFunc) Mutate(ctx context.Context, m global.Mutation) (global.Value, error) {
+	if mv, ok := m.(*global.RoleMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *global.RoleMutation", m)
+}
+
 // The SegmentFunc type is an adapter to allow the use of ordinary
 // function as Segment mutator.
 type SegmentFunc func(context.Context, *global.SegmentMutation) (global.Value, error)
@@ -139,6 +223,42 @@ func (f SegmentFunc) Mutate(ctx context.Context, m global.Mutation) (global.Valu
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *global.SegmentMutation", m)
+}
+
+// The StaffAccessFunc type is an adapter to allow the use of ordinary
+// function as StaffAccess mutator.
+type StaffAccessFunc func(context.Context, *global.StaffAccessMutation) (global.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f StaffAccessFunc) Mutate(ctx context.Context, m global.Mutation) (global.Value, error) {
+	if mv, ok := m.(*global.StaffAccessMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *global.StaffAccessMutation", m)
+}
+
+// The StripeEventFunc type is an adapter to allow the use of ordinary
+// function as StripeEvent mutator.
+type StripeEventFunc func(context.Context, *global.StripeEventMutation) (global.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f StripeEventFunc) Mutate(ctx context.Context, m global.Mutation) (global.Value, error) {
+	if mv, ok := m.(*global.StripeEventMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *global.StripeEventMutation", m)
+}
+
+// The UsageDailyFunc type is an adapter to allow the use of ordinary
+// function as UsageDaily mutator.
+type UsageDailyFunc func(context.Context, *global.UsageDailyMutation) (global.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f UsageDailyFunc) Mutate(ctx context.Context, m global.Mutation) (global.Value, error) {
+	if mv, ok := m.(*global.UsageDailyMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *global.UsageDailyMutation", m)
 }
 
 // The UserFunc type is an adapter to allow the use of ordinary
