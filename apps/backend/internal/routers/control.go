@@ -10,6 +10,8 @@ import (
 
 	"muzak.dev/framework"
 
+	"playersense.dev/backend/internal/authz"
+	"playersense.dev/backend/internal/core"
 	"playersense.dev/backend/internal/handlers"
 )
 
@@ -32,17 +34,24 @@ func Meta() *muzak.Router {
 func Organizations() *muzak.Router {
 	r := muzak.NewRouter(muzak.WithTags("organizations"))
 
+	// No permission on either of these two, and that is the design rather than an
+	// omission. Neither path names an organisation, so there is no membership to check
+	// against: anybody signed in may create one, and listing returns only what the caller
+	// belongs to.
 	r.Post("/organizations", handlers.CreateOrganization,
 		muzak.Summary("Create an organization"),
+		muzak.Description("The caller becomes its owner, and its six roles are seeded."),
 		muzak.Status(http.StatusCreated),
 		muzak.WithResponseDoc(http.StatusConflict, "An organization with that slug already exists"))
 
 	r.Get("/organizations", handlers.ListOrganizations,
-		muzak.Summary("List organizations"))
+		muzak.Summary("List the organizations you belong to"))
 
 	r.Get("/organizations/{org}", handlers.ReadOrganization,
 		muzak.Summary("Read an organization"),
-		muzak.WithResponseDoc(http.StatusNotFound, "No organization has that slug"))
+		core.Require(authz.OrgRead),
+		muzak.WithResponseDoc(http.StatusNotFound,
+			"No organization has that slug, or you are not a member of it"))
 
 	return r
 }
@@ -58,13 +67,27 @@ func Projects() *muzak.Router {
 			"environments. `home_region` and `policy_tier` are fixed at creation: a tier "+
 			"change applies forward and never retroactively, so changing one is a new project."),
 		muzak.Status(http.StatusCreated),
+		// project.create is organisation-scoped: there is no project to be inside yet.
+		core.Require(authz.ProjectCreate),
 		muzak.WithResponseDoc(http.StatusConflict, "A project with that slug already exists in the organization"))
 
 	r.Get("/organizations/{org}/projects", handlers.ListProjects,
-		muzak.Summary("List an organization's projects"))
+		muzak.Summary("List the projects you can see"),
+		muzak.Description("An organization's projects, filtered to the ones this member has "+
+			"been given access to."),
+		// No permission, for the same reason ReadProject has none: whether you can see a
+		// project is the access list, not a privilege. Requiring one here would mean a
+		// role that grants nothing about projects could still hide the list, which is two
+		// mechanisms answering one question.
+		muzak.Needs(core.ResolveUser))
 
 	r.Get("/organizations/{org}/projects/{project}", handlers.ReadProject,
-		muzak.Summary("Read a project"))
+		muzak.Summary("Read a project"),
+		// Deliberately no permission of its own: whether you can see a project is the
+		// access list, not a privilege, and two mechanisms for one question is how a
+		// permission system becomes incomprehensible. ResolveUser answers 404 for a
+		// project outside the member's access.
+		muzak.Needs(core.ResolveUser))
 
 	return r
 }
@@ -78,14 +101,17 @@ func Keys() *muzak.Router {
 		muzak.Summary("Mint an API key"),
 		muzak.Description("Returns the key once. Only a SHA-256 digest is stored, so it "+
 			"cannot be shown again."),
+		core.Require(authz.KeyCreate),
 		muzak.Status(http.StatusCreated))
 
 	r.Get("/organizations/{org}/projects/{project}/keys", handlers.ListAPIKeys,
-		muzak.Summary("List a project's API keys"))
+		muzak.Summary("List a project's API keys"),
+		core.Require(authz.KeyRead))
 
 	r.Delete("/organizations/{org}/projects/{project}/keys/{key_id}", handlers.RevokeAPIKey,
 		muzak.Summary("Revoke an API key"),
 		muzak.Description("The row is kept and marked revoked rather than deleted."),
+		core.Require(authz.KeyRevoke),
 		muzak.WithResponseDoc(http.StatusConflict, "That key is already revoked"))
 
 	return r

@@ -12,6 +12,7 @@ import (
 	"muzak.dev/framework/testclient"
 
 	"playersense.dev/backend/internal/config"
+	"playersense.dev/backend/internal/firebase/fbtest"
 )
 
 // testSettings loads the developer's .env and quiets the application.
@@ -34,19 +35,53 @@ func testSettings(t *testing.T) config.Settings {
 	return settings
 }
 
-// newClient returns a client that carries the credential on every request, which is what
-// a client option is for: the token is not the thing under test in most of these.
-func newClient(t *testing.T) *testclient.Client {
+// signedIn returns a client carrying a freshly minted Firebase ID token for a new person.
+//
+// A real token: a real RSA key, a real RS256 signature, verified by the same code a browser's
+// token goes through. The endpoint it is checked against is a local one, which is the only
+// thing about the sign-in that is not real — the suite would otherwise need the internet and
+// a Firebase project to run at all.
+//
+// Every call is a different person, which is what keeps runs independent: each gets their own
+// personal organization, seeded with its own six roles.
+func signedIn(t *testing.T) (*testclient.Client, *fbtest.Google) {
 	t.Helper()
 	settings := testSettings(t)
-	return testclient.New(t, build(settings),
-		testclient.WithHeader("Authorization", "Bearer "+settings.AdminToken))
+	google := fbtest.New(t, settings.FirebaseProjectID)
+	settings.FirebaseCertificateURL = google.URL
+
+	app := build(settings)
+	token := google.Token(person(t))
+	return testclient.New(t, app, testclient.WithHeader("Authorization", "Bearer "+token)), google
+}
+
+// newClient is the common case: signed in, and the sign-in is not what is being tested.
+func newClient(t *testing.T) *testclient.Client {
+	t.Helper()
+	client, _ := signedIn(t)
+	return client
 }
 
 // newAnonClient carries no credential, for the tests where that is the point.
 func newAnonClient(t *testing.T) *testclient.Client {
 	t.Helper()
-	return testclient.New(t, build(testSettings(t)))
+	settings := testSettings(t)
+	google := fbtest.New(t, settings.FirebaseProjectID)
+	settings.FirebaseCertificateURL = google.URL
+	return testclient.New(t, build(settings))
+}
+
+// person invents a distinct, verified Firebase identity.
+func person(t *testing.T) fbtest.Person {
+	t.Helper()
+	id := unique("uid")
+	return fbtest.Person{
+		UID:           id,
+		Email:         id + "@studio.example",
+		Name:          "Ada Lovelace",
+		EmailVerified: true,
+		Provider:      "google.com",
+	}
 }
 
 // unique keeps runs independent without a teardown step.
@@ -76,7 +111,14 @@ func TestControlPlaneIsGuarded(t *testing.T) {
 		AssertStatus(http.StatusUnauthorized).
 		AssertErrorCode(muzak.CodeUnauthorized)
 
+	// Not a token at all.
 	anon.Get("/v1/organizations", testclient.Header("Authorization", "Bearer hailhydra")).
+		AssertStatus(http.StatusUnauthorized)
+
+	// And the one that used to work. A shared secret cannot say who is asking, so it
+	// cannot be the credential on an API where the answer depends on who that is.
+	anon.Get("/v1/organizations",
+		testclient.Header("Authorization", "Bearer "+testSettings(t).AdminToken)).
 		AssertStatus(http.StatusUnauthorized)
 
 	newClient(t).Get("/v1/organizations").AssertStatus(http.StatusOK)

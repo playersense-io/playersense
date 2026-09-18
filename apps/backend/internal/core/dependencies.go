@@ -11,13 +11,17 @@ import (
 	"playersense.dev/backend/internal/pgdb"
 )
 
-// RequireAdminToken guards the whole control API with a shared secret.
+// RequireAdminToken guards a surface with one shared secret.
 //
-// This is the shared-secret case the framework's own guard is meant for: an internal
-// console talking to its own backend. Per-user credentials want a provider that resolves
-// the user instead, and that arrives with the dashboard's own sign-in — §52 already
-// distinguishes dashboard tokens from the key classes minted here, so this guard is the
-// placeholder for that surface rather than the design for it.
+// It no longer guards the control API. That was the placeholder while there was no sign-in,
+// and a shared secret cannot answer "who is asking" — so on an API where the answer decides
+// what comes back, the credential was also deciding that every caller was the same person and
+// saw everything. [ResolveUser] replaced it.
+//
+// What it is still for is the shared-secret case the framework's own guard names: an internal
+// console or a webhook receiver, where there is genuinely one caller and no user to resolve.
+// It has no caller today, which is worth saying plainly rather than leaving somebody to find
+// out by grepping.
 //
 // The comparison is constant time, so response timing does not reveal how much of the
 // supplied token was correct.

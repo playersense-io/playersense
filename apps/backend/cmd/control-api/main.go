@@ -16,6 +16,7 @@ import (
 
 	"playersense.dev/backend/internal/config"
 	"playersense.dev/backend/internal/core"
+	"playersense.dev/backend/internal/firebase"
 	"playersense.dev/backend/internal/pgdb"
 	"playersense.dev/backend/internal/routers"
 	"playersense.dev/backend/internal/valkey"
@@ -53,6 +54,13 @@ func build(settings config.Settings) *muzak.App {
 	// this service needs a client per cell and must evict from all of them. Stage 1 runs
 	// one cell (§6), so one client is the whole fleet.
 	cache := valkey.New(settings.Cell, settings.ValkeyDSN)
+
+	// Firebase Auth owns authentication; this is the other end of it. PlayerSense holds
+	// no credential, so there is no password column to leak and no session store to
+	// compromise — and the price is that signing in depends on Google being reachable,
+	// which is why the key cache serves what it already has when it is not.
+	verifier := firebase.NewVerifier(settings.FirebaseProjectID)
+	verifier.Keys.URL = settings.FirebaseCertificateURL
 	resolver := core.NewKeyResolver(ctrl, cache, core.KeyResolverOptions{
 		TTL:         settings.KeyCacheTTL,
 		NegativeTTL: settings.KeyCacheNegativeTTL,
@@ -98,6 +106,12 @@ func build(settings config.Settings) *muzak.App {
 		muzak.WithSingleton(core.CellFrom(settings)),
 		muzak.WithSingleton(resolver),
 		muzak.WithSingleton(settings),
+
+		// Verifies the ID token on every request and caches Google's signing
+		// certificates. Started with the application so that a deployment which cannot
+		// reach Google fails while it is starting rather than on somebody's first
+		// sign-in.
+		muzak.WithSingleton(verifier, muzak.LifecycleFunc("firebase keys", verifier.Start, nil)),
 	)
 
 	// Counted before the guards, so a request a guard rejects still costs the caller its
@@ -107,9 +121,9 @@ func build(settings config.Settings) *muzak.App {
 		app.Options(muzak.WithRateLimit(core.RateLimitPolicy(valkey.NewRateLimitStorage(cache))))
 	}
 
-	// Operational routes answer without a credential; everything else sits behind the
-	// guard. Both decisions are made here rather than inside the routers, which keeps the
-	// routers reusable and puts the security decision where a reviewer will look.
+	// Operational routes answer without a credential; everything else sits behind a
+	// signed-in person. Both decisions are made here rather than inside the routers, which
+	// keeps the routers reusable and puts the security decision where a reviewer will look.
 	app.Include(routers.Meta())
 
 	api := muzak.NewRouter()
@@ -117,10 +131,22 @@ func build(settings config.Settings) *muzak.App {
 	api.Include(routers.Projects())
 	api.Include(routers.Keys())
 
+	// A provider, not a guard, and the framework's own documentation says why twice over:
+	// per-user credentials want a provider rather than a shared-secret guard, and every
+	// guard runs before every provider — so a guard could not read the verifier or the
+	// database, both of which are published above as singletons.
+	//
+	// Declared here, once, so that the permission each route names has a principal to
+	// check against. A route inside this subtree that forgets its core.Require still
+	// requires a valid sign-in; it simply checks nothing further, which is the right
+	// failure direction for the two routes that deliberately need no permission.
 	app.Include(api,
 		muzak.WithPrefix("/v1"),
-		muzak.WithDependencies(core.RequireAdminToken(settings)),
-		muzak.WithResponseDoc(http.StatusUnauthorized, "No usable credential was presented"),
+		muzak.Needs(core.ResolveUser),
+		muzak.WithResponseDoc(http.StatusUnauthorized, "No usable sign-in was presented"),
+		muzak.WithResponseDoc(http.StatusForbidden, "This account may not do that"),
+		muzak.WithResponseDoc(http.StatusServiceUnavailable,
+			"A sign-in could not be verified right now; the credential is not necessarily bad"),
 	)
 
 	return app

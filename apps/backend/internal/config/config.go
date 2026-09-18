@@ -61,9 +61,30 @@ type Settings struct {
 	// PublicURL is the address clients actually reach, for the OpenAPI servers list.
 	PublicURL string `env:"CONTROL_API_PUBLIC_URL" default:"http://localhost:21080"`
 
-	// AdminToken guards the control API. Marked secret so a malformed value never
-	// appears in a start-up error.
+	// AdminToken guards the control API's operator surface. Marked secret so a malformed
+	// value never appears in a start-up error.
+	//
+	// It is no longer what guards the customer-facing routes: those resolve a signed-in
+	// person through Firebase and check that person's permissions. A shared secret cannot
+	// answer "who is asking", so it cannot be the credential on an API where the answer
+	// decides what comes back.
 	AdminToken string `env:"CONTROL_API_ADMIN_TOKEN" secret:"true" required:"true"`
+
+	// FirebaseProjectID is the Firebase project whose ID tokens this deployment accepts.
+	//
+	// Both the audience an ID token must name and, with the issuer prefix, where it must
+	// have come from. Getting it wrong does not fail open — every token is refused —
+	// which is the right direction for a value nothing else can check.
+	FirebaseProjectID string `env:"FIREBASE_PROJECT_ID" required:"true"`
+
+	// FirebaseCertificateURL is where Google's signing certificates are fetched from.
+	//
+	// Defaulted, and overridden in two places only: a test, which stands up its own
+	// endpoint and its own key so that the whole sign-in path runs without the internet,
+	// and a deployment that mirrors the document internally. Both are the same need — the
+	// URL is data, and the alternative is a verifier with a seam cut into it purely so
+	// that tests can reach inside.
+	FirebaseCertificateURL string `env:"FIREBASE_CERTIFICATE_URL" default:"https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com"`
 
 	// TrustedProxies lists the proxies whose forwarding header is believed, as a
 	// comma-separated list of addresses or CIDR prefixes. Empty by default: a

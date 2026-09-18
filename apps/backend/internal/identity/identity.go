@@ -133,28 +133,49 @@ func createPersonalOrganization(ctx context.Context, db *global.Client, owner *g
 	if name == "" {
 		name = strings.SplitN(owner.Email, "@", 2)[0]
 	}
+	return CreateOrganization(ctx, db, name, uniqueSlug(ctx, db, name), owner.ID, now)
+}
 
-	org, err := db.Organization.Create().
+// CreateOrganization creates one, seeds its roles, and makes the caller its owner.
+//
+// All three or none of them. An organization that exists with no owner cannot be administered
+// by anybody — nobody can grant a role, nobody can delete it — and one with no roles cannot
+// have a member added. Either is a repair somebody does by hand against the database, which is
+// why this is a transaction rather than three statements that usually all succeed.
+func CreateOrganization(ctx context.Context, db *global.Client, name, slug string, ownerID int, now time.Time) (*global.Organization, error) {
+	tx, err := db.Tx(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("begin: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	org, err := tx.Organization.Create().
 		SetName(name).
-		SetSlug(uniqueSlug(ctx, db, name)).
+		SetSlug(slug).
 		Save(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("create personal organization: %w", err)
+		// Returned unwrapped so that a duplicate slug still reads as a constraint
+		// violation to core.AsHTTPError, which turns it into a 409 rather than a 500.
+		return nil, err
 	}
 
-	roles, err := SeedRoles(ctx, db, org.ID)
+	roles, err := SeedRoles(ctx, tx.Client(), org.ID)
 	if err != nil {
 		return nil, err
 	}
 
-	if _, err := db.OrganizationMember.Create().
+	if _, err := tx.OrganizationMember.Create().
 		SetOrganizationID(org.ID).
-		SetUserID(owner.ID).
+		SetUserID(ownerID).
 		SetRoleID(roles[authz.RoleOwner].ID).
 		SetAllProjects(true).
 		SetJoinedAt(now).
 		Save(ctx); err != nil {
-		return nil, fmt.Errorf("add owner to personal organization: %w", err)
+		return nil, fmt.Errorf("make the creator its owner: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit: %w", err)
 	}
 	return org, nil
 }

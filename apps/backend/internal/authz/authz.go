@@ -76,17 +76,21 @@ func (a Actor) Can(permission Permission, projectID int) bool {
 		if projectID == 0 {
 			return false
 		}
-		return a.Permissions[permission] && a.reaches(projectID)
+		return a.Permissions[permission] && a.Reaches(projectID)
 	}
 	return false
 }
 
-// reaches reports whether a project is inside the actor's access list.
+// Reaches reports whether a project is inside the actor's access list.
 //
 // The separate axis. A LiveOps manager with `liveops.publish` and no access to a project
 // cannot publish to it, and that is the whole of "hide some projects from some people" —
 // there is no `project.read` permission to get out of step with it.
-func (a Actor) reaches(projectID int) bool {
+//
+// Exported because visibility is asked on its own, before any permission: a project somebody
+// cannot see has to be answered as "no such project", not as "you may not do that there", or
+// the refusal leaks the names of the games they were not shown.
+func (a Actor) Reaches(projectID int) bool {
 	if a.AllProjects {
 		return true
 	}
