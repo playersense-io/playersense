@@ -4,6 +4,7 @@ package global
 
 import (
 	"encoding/json"
+	"encoding/json/jsontext"
 	"fmt"
 	"strings"
 	"time"
@@ -38,7 +39,7 @@ type FeatureFlag struct {
 	// class=none
 	Kind featureflag.Kind `json:"kind,omitempty"`
 	// class=none
-	Fallback map[string]interface{} `json:"fallback,omitempty"`
+	Fallback jsontext.Value `json:"fallback,omitempty"`
 	// class=none
 	Rules []interface{} `json:"rules,omitempty"`
 	// class=none

@@ -78,8 +78,41 @@ Requires Go 1.27 (Muzak uses generic methods and `encoding/json/v2`).
 go run ./apps/backend/cmd/control-api
 ```
 
-`GET /openapi.json` describes it. Everything under `/v1` needs
-`Authorization: Bearer $CONTROL_API_ADMIN_TOKEN`; `/healthz` does not.
+`GET /openapi.json` describes it. Everything under `/v1` needs a Firebase ID token as
+`Authorization: Bearer <token>`; `/healthz` does not. A shared admin secret used to work and
+deliberately no longer does — a secret cannot say who is asking, and every answer here depends
+on who that is. Each route then names the permission it needs, and the refusal names the one
+that was missing.
+
+Organizations, projects, API keys — and **the three tables a studio edits**:
+
+```
+GET    POST                 /v1/organizations/{org}/projects/{project}/segments
+GET    PUT    DELETE        /v1/organizations/{org}/projects/{project}/segments/{key}
+GET    POST                 /v1/organizations/{org}/projects/{project}/flags
+GET    PUT    DELETE        /v1/organizations/{org}/projects/{project}/flags/{key}
+GET    POST                 /v1/organizations/{org}/projects/{project}/liveops-events
+GET    PUT    DELETE        /v1/organizations/{org}/projects/{project}/liveops-events/{key}
+GET                         /v1/organizations/{org}/projects/{project}/config/{environment}/draft
+       POST                 /v1/organizations/{org}/projects/{project}/config/{environment}/publish
+```
+
+Reads need `liveops.read`, writes `liveops.write`, and the last line alone needs
+`liveops.publish` — which is what lets a DEVELOPER draft a rollout and hold no power to ship it.
+
+**A write is checked as thoroughly as a publish.** The rule is parsed, every segment reference is
+resolved against the project, a cycle is refused, and every flag value is checked against the
+flag's declared kind — so "segment `whales` does not exist" reaches the person who typed it
+rather than whoever presses publish three days later
+([ADR 0034](docs/adr/0034-a-rule-is-validated-when-it-is-written.md)).
+
+**DELETE archives; it never deletes.** A published version holds each rule inlined, so the row is
+what still explains version 7. The next publish stops carrying it.
+
+**The draft is the read the publish needs.** It compiles what the next version would be and
+throws it away, reporting whether it compiles, what it would carry, whether serving it costs a
+history lookup per request, and what is being left out and why — because an archived flag and a
+paused event are both absent on purpose.
 
 ### ingest-api — `:21081`
 

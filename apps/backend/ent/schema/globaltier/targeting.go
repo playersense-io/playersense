@@ -1,6 +1,8 @@
 package globaltier
 
 import (
+	"encoding/json"
+
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/entsql"
 	"entgo.io/ent/schema"
@@ -88,7 +90,17 @@ func (FeatureFlag) Fields() []ent.Field {
 		// What every player gets when no rule matches, and what the SDK falls back to when
 		// it cannot reach the server at all. Required: a flag with no answer is a flag
 		// that makes a game's behaviour depend on the network.
-		field.JSON("fallback", map[string]any{}).Comment(dataclass.None),
+		//
+		// `json.RawMessage` and not `map[string]any`, which is what this was until the
+		// authoring API tried to write the first flag. A bool flag's fallback is `false`,
+		// and `false` does not unmarshal into a map — so the commonest kind of flag, the
+		// one every test in liveconfig uses, could not be stored. The column was jsonb
+		// either way; only Go's idea of it was wrong, and nothing had ever written a row
+		// to find out.
+		//
+		// Raw rather than `any` because it is carried, not inspected: the kind says what
+		// shape it must be and [liveconfig.Kind.Accepts] checks that once, at the write.
+		field.JSON("fallback", json.RawMessage{}).Comment(dataclass.None),
 
 		// Ordered rules, each with its own audience and value. The first whose audience
 		// matches wins, which is why this is a list rather than a set.
@@ -174,7 +186,11 @@ func (LiveOpsEvent) Fields() []ent.Field {
 
 		// Arbitrary, and deliberately opaque. This is what makes the same backend serve a
 		// holiday event, an economy multiplier and a shop layout.
-		field.JSON("payload", map[string]any{}).Comment(dataclass.None),
+		//
+		// Raw for the same reason `fallback` is: a map could only hold an object, so the
+		// economy multiplier in that sentence — `2.0` — was the one payload this field
+		// could not carry. "Arbitrary" has to include the scalars.
+		field.JSON("payload", json.RawMessage{}).Comment(dataclass.None),
 
 		field.Int("rollout").Default(10000).Min(0).Max(10000).Comment(dataclass.None),
 		field.String("salt").MaxLen(64).Default("").Comment(dataclass.None),

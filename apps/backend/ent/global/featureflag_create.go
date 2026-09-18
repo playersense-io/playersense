@@ -4,6 +4,7 @@ package global
 
 import (
 	"context"
+	"encoding/json/jsontext"
 	"errors"
 	"fmt"
 	"time"
@@ -103,7 +104,7 @@ func (_c *FeatureFlagCreate) SetKind(v featureflag.Kind) *FeatureFlagCreate {
 }
 
 // SetFallback sets the "fallback" field.
-func (_c *FeatureFlagCreate) SetFallback(v map[string]interface{}) *FeatureFlagCreate {
+func (_c *FeatureFlagCreate) SetFallback(v jsontext.Value) *FeatureFlagCreate {
 	_c.mutation.SetFallback(v)
 	return _c
 }

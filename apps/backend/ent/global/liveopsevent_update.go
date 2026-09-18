@@ -4,12 +4,14 @@ package global
 
 import (
 	"context"
+	"encoding/json/jsontext"
 	"errors"
 	"fmt"
 	"time"
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"entgo.io/ent/dialect/sql/sqljson"
 	"entgo.io/ent/schema/field"
 	"playersense.dev/backend/ent/global/liveopsevent"
 	"playersense.dev/backend/ent/global/predicate"
@@ -134,8 +136,14 @@ func (_u *LiveOpsEventUpdate) SetAudience(v map[string]interface{}) *LiveOpsEven
 }
 
 // SetPayload sets the "payload" field.
-func (_u *LiveOpsEventUpdate) SetPayload(v map[string]interface{}) *LiveOpsEventUpdate {
+func (_u *LiveOpsEventUpdate) SetPayload(v jsontext.Value) *LiveOpsEventUpdate {
 	_u.mutation.SetPayload(v)
+	return _u
+}
+
+// AppendPayload appends value to the "payload" field.
+func (_u *LiveOpsEventUpdate) AppendPayload(v jsontext.Value) *LiveOpsEventUpdate {
+	_u.mutation.AppendPayload(v)
 	return _u
 }
 
@@ -303,6 +311,11 @@ func (_u *LiveOpsEventUpdate) sqlSave(ctx context.Context) (_node int, err error
 	if value, ok := _u.mutation.Payload(); ok {
 		_spec.SetField(liveopsevent.FieldPayload, field.TypeJSON, value)
 	}
+	if value, ok := _u.mutation.AppendedPayload(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, liveopsevent.FieldPayload, value)
+		})
+	}
 	if value, ok := _u.mutation.Rollout(); ok {
 		_spec.SetField(liveopsevent.FieldRollout, field.TypeInt, value)
 	}
@@ -465,8 +478,14 @@ func (_u *LiveOpsEventUpdateOne) SetAudience(v map[string]interface{}) *LiveOpsE
 }
 
 // SetPayload sets the "payload" field.
-func (_u *LiveOpsEventUpdateOne) SetPayload(v map[string]interface{}) *LiveOpsEventUpdateOne {
+func (_u *LiveOpsEventUpdateOne) SetPayload(v jsontext.Value) *LiveOpsEventUpdateOne {
 	_u.mutation.SetPayload(v)
+	return _u
+}
+
+// AppendPayload appends value to the "payload" field.
+func (_u *LiveOpsEventUpdateOne) AppendPayload(v jsontext.Value) *LiveOpsEventUpdateOne {
+	_u.mutation.AppendPayload(v)
 	return _u
 }
 
@@ -663,6 +682,11 @@ func (_u *LiveOpsEventUpdateOne) sqlSave(ctx context.Context) (_node *LiveOpsEve
 	}
 	if value, ok := _u.mutation.Payload(); ok {
 		_spec.SetField(liveopsevent.FieldPayload, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedPayload(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, liveopsevent.FieldPayload, value)
+		})
 	}
 	if value, ok := _u.mutation.Rollout(); ok {
 		_spec.SetField(liveopsevent.FieldRollout, field.TypeInt, value)

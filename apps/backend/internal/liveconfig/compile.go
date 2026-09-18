@@ -29,6 +29,26 @@ func (s Segments) Inline(rule targeting.Rule) (targeting.Rule, error) {
 	return s.inline(rule, nil)
 }
 
+// Check is [Segments.Inline] run for its error, when a rule is written rather than published.
+//
+// The same walk answers both questions, and running it at the write is what moves "segment
+// 'whales' does not exist" from the publish — where it is a 422 in front of somebody who did
+// not write the mistake, often days later — to the request that made it, where the rule is
+// still on screen.
+//
+// A cycle is the case that argues for this most strongly. A -> B -> A cannot exist until the
+// write that closes the loop, so that write is the only moment at which one person, one rule
+// and one error coincide. Afterwards the project simply does not publish, and nothing points at
+// which of the two rules to change.
+//
+// The inlined rule is discarded on purpose: what is stored is what the studio wrote, references
+// and all, because a segment edited tomorrow has to reach every rule that names it. Inlining is
+// the publish's job, and this is only the rehearsal.
+func (s Segments) Check(rule targeting.Rule) error {
+	_, err := s.Inline(rule)
+	return err
+}
+
 func (s Segments) inline(rule targeting.Rule, path []string) (targeting.Rule, error) {
 	if len(path) > MaxSegmentDepth {
 		return targeting.Rule{}, fmt.Errorf(

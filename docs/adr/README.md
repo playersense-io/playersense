@@ -60,6 +60,7 @@ a record is never updated to match a drifting document, it is superseded by a ne
 | [0031](0031-absence-is-null-not-the-empty-string.md) | Absence is NULL, not the empty string | Accepted |
 | [0032](0032-a-liveops-event-carries-a-schedule.md) | A LiveOps event carries a schedule, and the server evaluates it | Accepted |
 | [0033](0033-there-is-no-attribution-dimension.md) | There is no attribution dimension | Accepted |
+| [0034](0034-a-rule-is-validated-when-it-is-written.md) | A rule is validated when it is written, not only when it is published | Accepted |
 
 ## Template
 

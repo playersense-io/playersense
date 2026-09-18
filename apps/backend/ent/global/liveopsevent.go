@@ -4,6 +4,7 @@ package global
 
 import (
 	"encoding/json"
+	"encoding/json/jsontext"
 	"fmt"
 	"strings"
 	"time"
@@ -45,7 +46,7 @@ type LiveOpsEvent struct {
 	// class=none
 	Audience map[string]interface{} `json:"audience,omitempty"`
 	// class=none
-	Payload map[string]interface{} `json:"payload,omitempty"`
+	Payload jsontext.Value `json:"payload,omitempty"`
 	// class=none
 	Rollout int `json:"rollout,omitempty"`
 	// class=none

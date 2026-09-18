@@ -2762,6 +2762,39 @@ config_versions
 
 A publish operation compiles active flags into a compact project/environment snapshot.
 
+### 41.1 The authoring surface
+
+The three tables a studio edits — segments, flags and LiveOps events — are written through
+`control-api` under `liveops.read` and `liveops.write`, with `liveops.publish` reserved to the
+one irreversible route beside them. That separation is the point: a junior drafts a rollout and
+a senior ships it.
+
+**A write is validated as thoroughly as a publish**, and for a reason about people rather than
+correctness: the publish already refused a bad rule, but it refused it to whoever holds
+`liveops.publish`, about a rule somebody else wrote, days later. So a write parses the rule,
+resolves every segment reference against the project, refuses a cycle, and checks every flag
+value against the flag's declared kind. The publish then re-validates all of it, because a
+segment archived after a flag referenced it breaks a rule nobody touched
+([ADR 0034](docs/adr/0034-a-rule-is-validated-when-it-is-written.md)).
+
+**A cycle is refused by the write that closes it.** `A -> B -> A` cannot exist until that write,
+which is the only moment at which one person, one rule and one error coincide. Afterwards the
+project simply does not publish and nothing points at which of the two rules to change.
+
+**Nothing is deleted.** A published version holds each rule *inlined*, so a deleted row would
+leave a running configuration nobody can explain — and a flag key that vanishes from the next
+document is a key whose SDK falls back to a value the studio chose for an offline device rather
+than for this. `DELETE` archives, as it revokes rather than deletes an API key.
+
+**`key` and `kind` are fixed at creation.** A game calls a typed reader on the key, so a kind
+that changed would be a document an installed build cannot read — and a build is the one thing a
+backend cannot migrate. Changing either is a new flag.
+
+A **draft** read compiles what the next publish would produce and discards it, which is what the
+person holding `liveops.publish` reads before pressing it: whether it compiles, what it would
+carry, whether serving it costs a history lookup per request, and what is being left out and
+why.
+
 ---
 
 ## 42. Published config path

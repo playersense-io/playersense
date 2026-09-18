@@ -134,6 +134,7 @@ func build(settings config.Settings) *muzak.App {
 	api.Include(routers.Organizations())
 	api.Include(routers.Projects())
 	api.Include(routers.Keys())
+	api.Include(routers.Authoring())
 	api.Include(routers.LiveConfig())
 
 	// A provider, not a guard, and the framework's own documentation says why twice over:

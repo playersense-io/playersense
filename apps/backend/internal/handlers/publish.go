@@ -3,6 +3,8 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"encoding/json/jsontext"
+	"fmt"
 	"net/http"
 
 	"muzak.dev/framework"
@@ -146,8 +148,12 @@ func gatherConfig(ctx context.Context, ctrl *core.Global, projectID int) (liveco
 		return liveconfig.Input{}, err
 	}
 	for _, row := range flags {
+		fallback, err := valueFrom(row.Fallback)
+		if err != nil {
+			return liveconfig.Input{}, fmt.Errorf("flag %q fallback: %w", row.Key, err)
+		}
 		flag := liveconfig.Flag{
-			Key: row.Key, Kind: string(row.Kind), Fallback: row.Fallback,
+			Key: row.Key, Kind: string(row.Kind), Fallback: fallback,
 			Rollout: row.Rollout, Salt: row.Salt,
 		}
 		for _, raw := range row.Rules {
@@ -171,9 +177,13 @@ func gatherConfig(ctx context.Context, ctrl *core.Global, projectID int) (liveco
 		if err != nil {
 			return liveconfig.Input{}, err
 		}
+		payload, err := valueFrom(row.Payload)
+		if err != nil {
+			return liveconfig.Input{}, fmt.Errorf("liveops event %q payload: %w", row.Key, err)
+		}
 		input.Events = append(input.Events, liveconfig.LiveOpsEvent{
 			Key: row.Key, Kind: row.Kind, Priority: row.Priority,
-			Schedule: row.Schedule, Audience: audience, Payload: row.Payload,
+			Schedule: row.Schedule, Audience: audience, Payload: payload,
 			Rollout: row.Rollout, Salt: row.Salt,
 		})
 	}
@@ -197,6 +207,26 @@ func nextVersion(ctx context.Context, ctrl *core.Global, environmentID int) (int
 	default:
 		return 0, err
 	}
+}
+
+// valueFrom decodes a raw JSON column into the value it holds.
+//
+// A flag's fallback and a LiveOps payload are stored raw because the database has no opinion
+// about their shape, and they are decoded here because [liveconfig.Input] does: its fields are
+// `any`, meaning the value, and handing them the undecoded bytes would put the SDK's answer at
+// the mercy of how a byte slice happens to marshal.
+//
+// An absent column is a nil value rather than an error. `null` is a legitimate fallback for a
+// json flag, and a row written before a column existed must not fail a publish.
+func valueFrom(raw jsontext.Value) (any, error) {
+	if len(raw) == 0 {
+		return nil, nil
+	}
+	var value any
+	if err := json.Unmarshal(raw, &value); err != nil {
+		return nil, err
+	}
+	return value, nil
 }
 
 // ruleFrom re-reads a rule out of the JSON column ent hands back as a map.

@@ -4,6 +4,7 @@ package global
 
 import (
 	"context"
+	"encoding/json/jsontext"
 	"errors"
 	"fmt"
 	"time"
@@ -79,8 +80,14 @@ func (_u *FeatureFlagUpdate) SetNillableDescription(v *string) *FeatureFlagUpdat
 }
 
 // SetFallback sets the "fallback" field.
-func (_u *FeatureFlagUpdate) SetFallback(v map[string]interface{}) *FeatureFlagUpdate {
+func (_u *FeatureFlagUpdate) SetFallback(v jsontext.Value) *FeatureFlagUpdate {
 	_u.mutation.SetFallback(v)
+	return _u
+}
+
+// AppendFallback appends value to the "fallback" field.
+func (_u *FeatureFlagUpdate) AppendFallback(v jsontext.Value) *FeatureFlagUpdate {
+	_u.mutation.AppendFallback(v)
 	return _u
 }
 
@@ -249,6 +256,11 @@ func (_u *FeatureFlagUpdate) sqlSave(ctx context.Context) (_node int, err error)
 	if value, ok := _u.mutation.Fallback(); ok {
 		_spec.SetField(featureflag.FieldFallback, field.TypeJSON, value)
 	}
+	if value, ok := _u.mutation.AppendedFallback(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, featureflag.FieldFallback, value)
+		})
+	}
 	if value, ok := _u.mutation.Rules(); ok {
 		_spec.SetField(featureflag.FieldRules, field.TypeJSON, value)
 	}
@@ -367,8 +379,14 @@ func (_u *FeatureFlagUpdateOne) SetNillableDescription(v *string) *FeatureFlagUp
 }
 
 // SetFallback sets the "fallback" field.
-func (_u *FeatureFlagUpdateOne) SetFallback(v map[string]interface{}) *FeatureFlagUpdateOne {
+func (_u *FeatureFlagUpdateOne) SetFallback(v jsontext.Value) *FeatureFlagUpdateOne {
 	_u.mutation.SetFallback(v)
+	return _u
+}
+
+// AppendFallback appends value to the "fallback" field.
+func (_u *FeatureFlagUpdateOne) AppendFallback(v jsontext.Value) *FeatureFlagUpdateOne {
+	_u.mutation.AppendFallback(v)
 	return _u
 }
 
@@ -566,6 +584,11 @@ func (_u *FeatureFlagUpdateOne) sqlSave(ctx context.Context) (_node *FeatureFlag
 	}
 	if value, ok := _u.mutation.Fallback(); ok {
 		_spec.SetField(featureflag.FieldFallback, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedFallback(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, featureflag.FieldFallback, value)
+		})
 	}
 	if value, ok := _u.mutation.Rules(); ok {
 		_spec.SetField(featureflag.FieldRules, field.TypeJSON, value)

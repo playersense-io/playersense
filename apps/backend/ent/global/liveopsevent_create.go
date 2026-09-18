@@ -4,6 +4,7 @@ package global
 
 import (
 	"context"
+	"encoding/json/jsontext"
 	"errors"
 	"fmt"
 	"time"
@@ -130,7 +131,7 @@ func (_c *LiveOpsEventCreate) SetAudience(v map[string]interface{}) *LiveOpsEven
 }
 
 // SetPayload sets the "payload" field.
-func (_c *LiveOpsEventCreate) SetPayload(v map[string]interface{}) *LiveOpsEventCreate {
+func (_c *LiveOpsEventCreate) SetPayload(v jsontext.Value) *LiveOpsEventCreate {
 	_c.mutation.SetPayload(v)
 	return _c
 }

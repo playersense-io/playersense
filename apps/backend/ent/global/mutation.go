@@ -4,6 +4,7 @@ package global
 
 import (
 	"context"
+	"encoding/json/jsontext"
 	"errors"
 	"fmt"
 	"sync"
@@ -8479,7 +8480,8 @@ type FeatureFlagMutation struct {
 	name           *string
 	description    *string
 	kind           *featureflag.Kind
-	fallback       *map[string]interface{}
+	fallback       *jsontext.Value
+	appendfallback jsontext.Value
 	rules          *[]interface{}
 	appendrules    []interface{}
 	rollout        *int
@@ -8887,12 +8889,13 @@ func (m *FeatureFlagMutation) ResetKind() {
 }
 
 // SetFallback sets the "fallback" field.
-func (m *FeatureFlagMutation) SetFallback(value map[string]interface{}) {
-	m.fallback = &value
+func (m *FeatureFlagMutation) SetFallback(j jsontext.Value) {
+	m.fallback = &j
+	m.appendfallback = nil
 }
 
 // Fallback returns the value of the "fallback" field in the mutation.
-func (m *FeatureFlagMutation) Fallback() (r map[string]interface{}, exists bool) {
+func (m *FeatureFlagMutation) Fallback() (r jsontext.Value, exists bool) {
 	v := m.fallback
 	if v == nil {
 		return
@@ -8903,7 +8906,7 @@ func (m *FeatureFlagMutation) Fallback() (r map[string]interface{}, exists bool)
 // OldFallback returns the old "fallback" field's value of the FeatureFlag entity.
 // If the FeatureFlag object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *FeatureFlagMutation) OldFallback(ctx context.Context) (v map[string]interface{}, err error) {
+func (m *FeatureFlagMutation) OldFallback(ctx context.Context) (v jsontext.Value, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldFallback is only allowed on UpdateOne operations")
 	}
@@ -8917,9 +8920,23 @@ func (m *FeatureFlagMutation) OldFallback(ctx context.Context) (v map[string]int
 	return oldValue.Fallback, nil
 }
 
+// AppendFallback adds j to the "fallback" field.
+func (m *FeatureFlagMutation) AppendFallback(j jsontext.Value) {
+	m.appendfallback = append(m.appendfallback, j...)
+}
+
+// AppendedFallback returns the list of values that were appended to the "fallback" field in this mutation.
+func (m *FeatureFlagMutation) AppendedFallback() (jsontext.Value, bool) {
+	if len(m.appendfallback) == 0 {
+		return nil, false
+	}
+	return m.appendfallback, true
+}
+
 // ResetFallback resets all changes to the "fallback" field.
 func (m *FeatureFlagMutation) ResetFallback() {
 	m.fallback = nil
+	m.appendfallback = nil
 }
 
 // SetRules sets the "rules" field.
@@ -9337,7 +9354,7 @@ func (m *FeatureFlagMutation) SetField(name string, value ent.Value) error {
 		m.SetKind(v)
 		return nil
 	case featureflag.FieldFallback:
-		v, ok := value.(map[string]interface{})
+		v, ok := value.(jsontext.Value)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
@@ -11837,7 +11854,8 @@ type LiveOpsEventMutation struct {
 	priority       *int
 	addpriority    *int
 	audience       *map[string]interface{}
-	payload        *map[string]interface{}
+	payload        *jsontext.Value
+	appendpayload  jsontext.Value
 	rollout        *int
 	addrollout     *int
 	salt           *string
@@ -12370,12 +12388,13 @@ func (m *LiveOpsEventMutation) ResetAudience() {
 }
 
 // SetPayload sets the "payload" field.
-func (m *LiveOpsEventMutation) SetPayload(value map[string]interface{}) {
-	m.payload = &value
+func (m *LiveOpsEventMutation) SetPayload(j jsontext.Value) {
+	m.payload = &j
+	m.appendpayload = nil
 }
 
 // Payload returns the value of the "payload" field in the mutation.
-func (m *LiveOpsEventMutation) Payload() (r map[string]interface{}, exists bool) {
+func (m *LiveOpsEventMutation) Payload() (r jsontext.Value, exists bool) {
 	v := m.payload
 	if v == nil {
 		return
@@ -12386,7 +12405,7 @@ func (m *LiveOpsEventMutation) Payload() (r map[string]interface{}, exists bool)
 // OldPayload returns the old "payload" field's value of the LiveOpsEvent entity.
 // If the LiveOpsEvent object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *LiveOpsEventMutation) OldPayload(ctx context.Context) (v map[string]interface{}, err error) {
+func (m *LiveOpsEventMutation) OldPayload(ctx context.Context) (v jsontext.Value, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldPayload is only allowed on UpdateOne operations")
 	}
@@ -12400,9 +12419,23 @@ func (m *LiveOpsEventMutation) OldPayload(ctx context.Context) (v map[string]int
 	return oldValue.Payload, nil
 }
 
+// AppendPayload adds j to the "payload" field.
+func (m *LiveOpsEventMutation) AppendPayload(j jsontext.Value) {
+	m.appendpayload = append(m.appendpayload, j...)
+}
+
+// AppendedPayload returns the list of values that were appended to the "payload" field in this mutation.
+func (m *LiveOpsEventMutation) AppendedPayload() (jsontext.Value, bool) {
+	if len(m.appendpayload) == 0 {
+		return nil, false
+	}
+	return m.appendpayload, true
+}
+
 // ResetPayload resets all changes to the "payload" field.
 func (m *LiveOpsEventMutation) ResetPayload() {
 	m.payload = nil
+	m.appendpayload = nil
 }
 
 // SetRollout sets the "rollout" field.
@@ -12761,7 +12794,7 @@ func (m *LiveOpsEventMutation) SetField(name string, value ent.Value) error {
 		m.SetAudience(v)
 		return nil
 	case liveopsevent.FieldPayload:
-		v, ok := value.(map[string]interface{})
+		v, ok := value.(jsontext.Value)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
