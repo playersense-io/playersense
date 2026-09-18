@@ -40,7 +40,7 @@ type Budget struct {
 	Quota string
 
 	// Subject is who the budget belongs to: a project, a device, an address inside a
-	// project, an email address. Derived from client-supplied data and therefore **never
+	// project. Derived from client-supplied data and therefore **never
 	// logged** — it routinely carries an installation identifier.
 	Subject string
 
@@ -57,11 +57,9 @@ type Limiter struct {
 
 	// FailOpen decides what happens when Valkey cannot be reached.
 	//
-	// **True on the ingestion path, false everywhere else**, and the asymmetry is the whole
-	// point. Refusing every batch in the product because the limiter is down converts a
-	// degraded cache into a total outage of the thing customers pay for, and §65's rule is
-	// that losing Valkey costs speed rather than data. An email, by contrast, reaches a real
-	// person's inbox and cannot be taken back — so when we cannot count, we do not send.
+	// True on both SDK paths: ingestion and configuration. §65's rule is that losing
+	// Valkey costs speed rather than data. False reports a storage error as a 503; no
+	// service currently registers a limiter with that policy.
 	FailOpen bool
 }
 

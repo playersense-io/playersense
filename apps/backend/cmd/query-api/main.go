@@ -135,8 +135,8 @@ func build(settings config.Settings) (*muzak.App, error) {
 	// of them cannot be catastrophic. A request limit on top of that would only ever
 	// inconvenience a real dashboard, which is the one caller this service has.
 	//
-	// The exception is the data-subject surface below, which takes a server key and is
-	// limited where it touches email or a bucket rather than here. See docs/rate-limits.md.
+	// The data-subject surface below takes a server key and has no request rate limit
+	// either. See docs/rate-limits.md.
 
 	app.Include(routers.Meta())
 	app.Include(routers.Cohorts())

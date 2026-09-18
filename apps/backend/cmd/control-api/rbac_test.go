@@ -36,13 +36,6 @@ func newStack(t *testing.T) *stack {
 	google := fbtest.New(t, settings.FirebaseProjectID)
 	settings.FirebaseCertificateURL = google.URL
 
-	// Firebase's authentication API too, not only its certificates. Without this an
-	// unverified sign-in in a test would ask the real Firebase to email a real link, using
-	// the developer's real API key and a token it has never seen — a live call from a unit
-	// test, for an address that does not exist.
-	settings.FirebaseIdentityURL = newFirebaseMail(t).server.URL
-	settings.FirebaseAPIKey = "AIzaTestKey"
-
 	db := pgdb.NewGlobal(settings.GlobalPostgresDSN)
 	if err := db.Start(t.Context()); err != nil {
 		t.Skipf("no control plane: %v", err)

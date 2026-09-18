@@ -28,9 +28,6 @@ func testSettings(t *testing.T) config.Settings {
 	settings.Addr = ":0"
 	// A passing run should print nothing.
 	settings.LogFormat = "none"
-	// Counters are shared through Valkey now, so one suite would spend the next one's
-	// budget. The limiter has a test of its own.
-	settings.RateLimitDisabled = true
 	return settings
 }
 
@@ -48,8 +45,6 @@ func signedIn(t *testing.T) (*testclient.Client, *fbtest.Google) {
 	settings := testSettings(t)
 	google := fbtest.New(t, settings.FirebaseProjectID)
 	settings.FirebaseCertificateURL = google.URL
-	settings.FirebaseIdentityURL = newFirebaseMail(t).server.URL
-	settings.FirebaseAPIKey = "AIzaTestKey"
 
 	app := build(settings)
 	token := google.Token(person(t))
@@ -69,8 +64,6 @@ func newAnonClient(t *testing.T) *testclient.Client {
 	settings := testSettings(t)
 	google := fbtest.New(t, settings.FirebaseProjectID)
 	settings.FirebaseCertificateURL = google.URL
-	settings.FirebaseIdentityURL = newFirebaseMail(t).server.URL
-	settings.FirebaseAPIKey = "AIzaTestKey"
 	return testclient.New(t, build(settings))
 }
 

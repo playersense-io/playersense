@@ -14,7 +14,6 @@ import (
 	"playersense.dev/backend/internal/authz"
 	"playersense.dev/backend/internal/firebase"
 	"playersense.dev/backend/internal/identity"
-	"playersense.dev/backend/internal/ratelimit"
 )
 
 // Principal is a signed-in person, the organisation they are acting inside, and what they may
@@ -110,9 +109,8 @@ func ResolveUser(ctx *muzak.Context) (*Principal, error) {
 	// the actor rather than checked at each call site. The invitation case is why it has
 	// to stop *anything*: accepting an invitation sent to an address is how somebody joins
 	// an organisation they were never invited to, and accepting is a write.
-	if !claims.EmailVerified {
-		sendVerification(ctx, claims, presented)
-	}
+	// The dashboard requests verification emails directly from Firebase. Resolving a
+	// principal does not send mail; the verified claim controls write access below.
 
 	person, err := identity.EnsureUser(ctx.Context(), ctrl.Client, claims, time.Now())
 	if err != nil {
@@ -134,47 +132,6 @@ func ResolveUser(ctx *muzak.Context) (*Principal, error) {
 		return nil, err
 	}
 	return principal, nil
-}
-
-// sendVerification emails a link to an unverified account, at most once an interval.
-//
-// Best effort, and deliberately returns nothing. The sign-in succeeds either way — the
-// account is read-only because Firebase has not confirmed the address, not because we did or
-// did not manage to send a message about it. Failing the request on a mail problem would
-// convert a degraded convenience into an outage.
-//
-// Sent synchronously rather than behind a goroutine, because the throttle below only means
-// something if the send it guards has already happened by the time the next request arrives.
-func sendVerification(ctx *muzak.Context, claims identity.Claims, idToken string) {
-	sender, found := muzak.TryFrom[*firebase.Sender](ctx)
-	if !found || sender.APIKey == "" {
-		// TryFrom rather than From: a service that resolves users without ever sending
-		// mail is a legitimate arrangement, not a wiring bug.
-		return
-	}
-
-	// The same limiter every outbound message goes through, so there is one place that
-	// decides how often a person may be written to rather than one rule per kind of mail.
-	//
-	// Fails **closed**: an email reaches a real person's inbox and cannot be taken back, so
-	// when the limiter cannot count, nothing is sent. That is the opposite of the ingestion
-	// path's choice and for the opposite reason — see docs/rate-limits.md.
-	limiter, found := muzak.TryFrom[*ratelimit.Limiter](ctx)
-	if !found {
-		return
-	}
-	// The address rather than the Firebase uid: the budget protects whoever is being
-	// written to, and a person who changes their address has not earned a fresh allowance
-	// for the old one.
-	if err := limiter.Allow(ctx, EmailBudgets("verification", claims.Email, 0)...); err != nil {
-		return
-	}
-
-	if err := sender.SendVerification(ctx.Context(), idToken); err != nil &&
-		!errors.Is(err, firebase.ErrSentRecently) {
-		ctx.Logger().Warn("could not send a verification email",
-			"firebase_uid", claims.UID, "error", err)
-	}
 }
 
 // VerifyEmailFirst is what a read-only account is told, and why.
