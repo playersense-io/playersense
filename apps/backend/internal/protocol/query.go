@@ -66,7 +66,7 @@ type CohortRange struct {
 
 // Breakdown names the one dimension to split by.
 type Breakdown struct {
-	Dimension string `json:"dimension" doc:"install_platform, install_country, first_app_version or acquisition_source"`
+	Dimension string `json:"dimension" doc:"install_platform, install_country or first_app_version"`
 }
 
 // Filter is one equality or membership test on a sticky dimension.

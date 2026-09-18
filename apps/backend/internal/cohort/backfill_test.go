@@ -68,9 +68,9 @@ func seedUnstamped(t *testing.T, db *sql.DB, project uint32, arrival time.Time) 
 		if _, err := db.ExecContext(ctx, `
 			INSERT INTO player_activity_daily
 			(project_seq, environment_seq, activity_date, device_id, cohort_date,
-			 install_platform, install_country, first_app_version, acquisition_source,
+			 install_platform, install_country, first_app_version,
 			 sessions, playtime_ms, events, revenue_micros, purchases)
-			VALUES (?, 1, ?, 42, toDate(0), '', '', '', '', 1, 1000, 5, 0, 0)`,
+			VALUES (?, 1, ?, 42, toDate(0), '', '', '', 1, 1000, 5, 0, 0)`,
 			project, day); err != nil {
 			t.Fatalf("seed activity: %v", err)
 		}
@@ -81,14 +81,12 @@ func seedUnstamped(t *testing.T, db *sql.DB, project uint32, arrival time.Time) 
 	if _, err := db.ExecContext(ctx, `
 		INSERT INTO player_lifetime
 		(project_seq, environment_seq, device_id, device_key, first_seen, last_seen,
-		 first_attrs, first_source, playtime_ms, revenue_micros, purchases, active_days)
+		 first_attrs, playtime_ms, revenue_micros, purchases, active_days)
 		SELECT ?, 1, 42, 'device-42', ?, ?,
 		       argMinState(tuple('ios','TR','1.0'),
 		                   (toDateTime64(?, 3, 'UTC'), generateUUIDv4())),
-		       argMinIfState('organic',
-		                     (toDateTime64(?, 3, 'UTC'), generateUUIDv4()), 1),
 		       3000, 0, 0, uniqState(toDate(?))`,
-		project, arrival, arrival.AddDate(0, 0, 3), arrival, arrival, arrival); err != nil {
+		project, arrival, arrival.AddDate(0, 0, 3), arrival, arrival); err != nil {
 		t.Fatalf("seed lifetime: %v", err)
 	}
 }
@@ -207,9 +205,9 @@ func TestAnUnresolvableDeviceIsCountedRatherThanHidden(t *testing.T) {
 	if _, err := db.ExecContext(ctx, `
 		INSERT INTO player_activity_daily
 		(project_seq, environment_seq, activity_date, device_id, cohort_date,
-		 install_platform, install_country, first_app_version, acquisition_source,
+		 install_platform, install_country, first_app_version,
 		 sessions, playtime_ms, events, revenue_micros, purchases)
-		VALUES (?, 1, ?, 77, toDate(0), '', '', '', '', 1, 1000, 5, 0, 0)`,
+		VALUES (?, 1, ?, 77, toDate(0), '', '', '', 1, 1000, 5, 0, 0)`,
 		project, arrival); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
@@ -301,12 +299,11 @@ func seedLifetime(t *testing.T, db *sql.DB, project uint32, device uint64, first
 	if _, err := db.ExecContext(context.Background(), `
 		INSERT INTO player_lifetime
 		(project_seq, environment_seq, device_id, device_key, first_seen, last_seen,
-		 first_attrs, first_source, playtime_ms, revenue_micros, purchases, active_days)
+		 first_attrs, playtime_ms, revenue_micros, purchases, active_days)
 		SELECT ?, 1, ?, 'd', ?, ?,
 		       argMinState(tuple('ios','TR','1.0'), (toDateTime64(?, 3, 'UTC'), generateUUIDv4())),
-		       argMinIfState('organic', (toDateTime64(?, 3, 'UTC'), generateUUIDv4()), 1),
 		       1000, 0, 0, uniqState(toDate(?))`,
-		project, device, first, last, first, first, first); err != nil {
+		project, device, first, last, first, first); err != nil {
 		t.Fatalf("seed lifetime: %v", err)
 	}
 }

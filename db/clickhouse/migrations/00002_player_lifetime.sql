@@ -33,12 +33,6 @@ CREATE TABLE IF NOT EXISTS player_lifetime
                         Tuple(String, String, String),
                         Tuple(DateTime64(3, 'UTC'), UUID))      COMMENT 'class=derived',
 
-    -- Conditional: attribution does not arrive on the first event (§29.3).
-    first_source    AggregateFunction(argMinIf,
-                        String,
-                        Tuple(DateTime64(3, 'UTC'), UUID),
-                        UInt8)                                  COMMENT 'class=derived',
-
     playtime_ms     SimpleAggregateFunction(sum, UInt64)        COMMENT 'class=derived',
     revenue_micros  SimpleAggregateFunction(sum, Int64)         COMMENT 'class=financial',
     purchases       SimpleAggregateFunction(sum, UInt64)        COMMENT 'class=financial',
@@ -70,8 +64,6 @@ SELECT
     max(ingest_time)                                                AS last_seen,
     argMinState(tuple(platform, country_code, app_version),
                 (ingest_time, event_id))                            AS first_attrs,
-    argMinIfState(acquisition_source, (ingest_time, event_id),
-                  acquisition_source != '')                         AS first_source,
     sum(playtime_ms)                                                AS playtime_ms,
     sum(revenue_micros)                                             AS revenue_micros,
     countIf(event_type = 'purchase')                                AS purchases,
@@ -101,7 +93,6 @@ SELECT
     max(pl.last_seen)                   AS last_seen,
     toDate(min(pl.first_seen))          AS cohort_date,
     argMinMerge(pl.first_attrs)         AS first_attrs,
-    argMinIfMerge(pl.first_source)      AS acquisition_source,
     sum(pl.playtime_ms)                 AS playtime_ms,
     sum(pl.revenue_micros)              AS revenue_micros,
     sum(pl.purchases)                   AS purchases,

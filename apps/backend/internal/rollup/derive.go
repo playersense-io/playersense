@@ -39,7 +39,6 @@ const collapsed = `
 	    any(install_platform)   AS install_platform,
 	    any(install_country)    AS install_country,
 	    any(first_app_version)  AS first_app_version,
-	    any(acquisition_source) AS acquisition_source,
 	    sum(sessions)           AS d_sessions,
 	    sum(playtime_ms)        AS d_playtime_ms,
 	    sum(events)             AS d_events,
@@ -143,8 +142,6 @@ func (d *Deriver) DeriveMonth(ctx context.Context, m cohort.Month) error {
 				    SELECT *, 'install_country'    AS dim_name, install_country    AS dim_value FROM days
 				    UNION ALL
 				    SELECT *, 'first_app_version'  AS dim_name, first_app_version  AS dim_value FROM days
-				    UNION ALL
-				    SELECT *, 'acquisition_source' AS dim_name, acquisition_source AS dim_value FROM days
 				)
 				GROUP BY project_seq, environment_seq, activity_date, dim_name, dim_value`,
 			args: []any{part},

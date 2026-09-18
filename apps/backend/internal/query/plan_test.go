@@ -219,22 +219,34 @@ func TestKidsStrictCannotAskForCrossDayRetention(t *testing.T) {
 	}
 }
 
-// TestChildDirectedHasNoAcquisitionCohorts is the other half of §29.15.
-func TestChildDirectedHasNoAcquisitionCohorts(t *testing.T) {
-	child := Scope{ProjectSeq: 7, EnvironmentSeq: 3, PolicyTier: "child_directed"}
-	_, err := Compile(child, protocol.CohortQuery{
+// A cohort is broken down by a property of the player's arrival, and the list of those is
+// closed. The name this asks for is the one that used to be on it: PlayerSense ingests no
+// MMP feed, so an install's source is not a thing it can know, and the honest answer is a
+// refusal rather than a chart split by a column of empty strings.
+//
+// The request schema refuses it at the edge too. This is the planner's own check, because a
+// planner that mapped an unrecognised name to some column would answer with the wrong axis,
+// which is the one failure a chart cannot show.
+func TestAnUnknownCohortDimensionIsRefused(t *testing.T) {
+	scope := Scope{ProjectSeq: 7, EnvironmentSeq: 3, PolicyTier: "standard"}
+	_, err := Compile(scope, protocol.CohortQuery{
 		Metric: schemas.MetricRetention, RetentionBasis: schemas.RetentionClassic,
 		Cohort: window(), Breakdown: &protocol.Breakdown{Dimension: "acquisition_source"},
 	}, limits())
-	if err == nil || !strings.Contains(err.Error(), "child_directed") {
-		t.Fatalf("want a refusal naming the tier, got %v", err)
+	if err == nil {
+		t.Fatal("a dimension that is not a cohort dimension compiled")
 	}
-	// A different dimension is fine: the tier removes attribution, not cohorts.
-	if _, err := Compile(child, protocol.CohortQuery{
-		Metric: schemas.MetricRetention, RetentionBasis: schemas.RetentionClassic,
-		Cohort: window(), Breakdown: &protocol.Breakdown{Dimension: "install_country"},
-	}, limits()); err != nil {
-		t.Fatalf("install_country should still be answerable: %v", err)
+	if !strings.Contains(err.Error(), "acquisition_source") ||
+		!strings.Contains(err.Error(), "install_country") {
+		t.Errorf("the refusal names neither what was asked nor what is available: %v", err)
+	}
+	for _, dim := range schemas.CohortDimensions {
+		if _, err := Compile(scope, protocol.CohortQuery{
+			Metric: schemas.MetricRetention, RetentionBasis: schemas.RetentionClassic,
+			Cohort: window(), Breakdown: &protocol.Breakdown{Dimension: dim},
+		}, limits()); err != nil {
+			t.Errorf("%s should be answerable: %v", dim, err)
+		}
 	}
 }
 

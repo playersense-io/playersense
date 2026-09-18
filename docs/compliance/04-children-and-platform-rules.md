@@ -32,9 +32,12 @@ identifier exists to serve it and nothing else.
 
 What is removed is everything pointing at advertising:
 
-- acquisition source and campaign attribution;
 - any onward sharing;
 - any use of the data outside the studio's own measurement.
+
+There is no acquisition source or campaign attribution to remove. PlayerSense ingests no MMP
+feed in any tier, so no project of any kind carries attribution data — see
+[ADR 0033](../adr/0033-there-is-no-attribution-dimension.md).
 
 Retention is capped below the plan's normal maximum.
 

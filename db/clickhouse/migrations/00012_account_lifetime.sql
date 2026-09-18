@@ -20,8 +20,8 @@
 --
 -- ## What is deliberately not here
 --
--- `first_attrs` and `first_source`. Acquisition attribution is a cohort dimension and cohorts
--- are device-keyed (§29.3), so duplicating it per account would be a second answer to a
+-- `first_attrs`. The sticky arrival dimensions are a cohort concern and cohorts are
+-- device-keyed (§29.3), so duplicating them per account would be a second answer to a
 -- question that already has one.
 --
 -- ## Erasure

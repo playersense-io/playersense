@@ -161,12 +161,6 @@ func checkSeriesTier(scope Scope, q protocol.MetricQuery, plan *SeriesPlan) erro
 					"identifier, so a month's active players would be the sum of its days rather "+
 					"than a count of people; use a day grain")
 		}
-	case "child_directed":
-		if plan.Dimension == "acquisition_source" {
-			return refuse("group_by",
-				"this project is on the child_directed collection tier, which collects no "+
-					"attribution, so there is no acquisition data to group by")
-		}
 	}
 	return nil
 }

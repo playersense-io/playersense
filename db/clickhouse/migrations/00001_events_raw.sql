@@ -61,7 +61,6 @@ CREATE TABLE IF NOT EXISTS events_raw
     install_platform        LowCardinality(String)      COMMENT 'class=derived',
     install_country         LowCardinality(String)      COMMENT 'class=derived',
     first_app_version       LowCardinality(String)      COMMENT 'class=derived',
-    acquisition_source      LowCardinality(String)      COMMENT 'class=derived',
 
     -- Collection basis, per row, so it survives into the archive (§97).
     consent_analytics       UInt8                       COMMENT 'class=behavioural',

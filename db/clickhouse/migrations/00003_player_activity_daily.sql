@@ -27,7 +27,6 @@ CREATE TABLE IF NOT EXISTS player_activity_daily
     install_platform   LowCardinality(String) COMMENT 'class=derived',
     install_country    LowCardinality(String) COMMENT 'class=derived',
     first_app_version  LowCardinality(String) COMMENT 'class=derived',
-    acquisition_source LowCardinality(String) COMMENT 'class=derived',
 
     sessions        UInt64  COMMENT 'class=behavioural',
     playtime_ms     UInt64  COMMENT 'class=behavioural',
@@ -60,7 +59,6 @@ SELECT
     any(install_platform)                   AS install_platform,
     any(install_country)                    AS install_country,
     any(first_app_version)                  AS first_app_version,
-    any(acquisition_source)                 AS acquisition_source,
     countIf(event_name = 'session_start')   AS sessions,
     sum(playtime_ms)                        AS playtime_ms,
     count()                                 AS events,

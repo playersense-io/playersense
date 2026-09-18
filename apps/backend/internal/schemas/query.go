@@ -56,11 +56,14 @@ var CohortMetrics = []string{
 	MetricLTV, MetricPayerConversion, MetricBucket,
 }
 
-// CohortDimensions is the four sticky dimensions (§29.3). A dimension is sticky because it
+// CohortDimensions is the three sticky dimensions (§29.3). A dimension is sticky because it
 // is a property of the player's arrival, which is what lets it be stamped at write time and
 // never joined at read time.
+//
+// There is deliberately no acquisition dimension. PlayerSense measures a game, not an ad
+// spend: it ingests no MMP feed, so an install's source is not something it can know.
 var CohortDimensions = []string{
-	"install_platform", "install_country", "first_app_version", "acquisition_source",
+	"install_platform", "install_country", "first_app_version",
 }
 
 // MaxCohortDays bounds the cohort range a single query may span.

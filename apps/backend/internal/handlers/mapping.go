@@ -49,12 +49,11 @@ func policyNotes(tier string) []string {
 			"kids_strict uses a session-scoped identifier only, so cross-day retention " +
 				"and all cohort metrics are unavailable for this project. Same-day " +
 				"aggregates — sessions, events, revenue, playtime — are unaffected.",
-			"Acquisition attribution is disabled.",
 		}
 	case "child_directed":
 		return []string{
-			"child_directed disables acquisition attribution and caps raw retention. " +
-				"Retention and cohort metrics are unaffected.",
+			"child_directed caps raw retention. Retention and cohort metrics are " +
+				"unaffected.",
 		}
 	default:
 		return nil

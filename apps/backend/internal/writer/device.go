@@ -19,11 +19,10 @@ import (
 // Stamping them at write time is the whole trick. Deriving them at read time is the join
 // this design exists to avoid.
 type DeviceState struct {
-	CohortDate        string `json:"cohort_date"` // YYYY-MM-DD
-	InstallPlatform   string `json:"install_platform"`
-	InstallCountry    string `json:"install_country"`
-	FirstAppVersion   string `json:"first_app_version"`
-	AcquisitionSource string `json:"acquisition_source"`
+	CohortDate      string `json:"cohort_date"` // YYYY-MM-DD
+	InstallPlatform string `json:"install_platform"`
+	InstallCountry  string `json:"install_country"`
+	FirstAppVersion string `json:"first_app_version"`
 }
 
 // deviceKey matches events_raw's MATERIALIZED device_key exactly.
@@ -60,10 +59,6 @@ func (w *Writer) deviceState(ctx context.Context, msg *eventbus.Message, batch *
 		InstallPlatform: batch.Platform,
 		InstallCountry:  batch.CountryCode,
 		FirstAppVersion: batch.AppVersion,
-		// Acquisition source is empty under child_directed and kids_strict (§98), and is
-		// not yet collected for anyone — the field exists so the cohort key's shape does
-		// not change when it is.
-		AcquisitionSource: "",
 	}
 
 	// §98: a kids_strict project has no persistent identifier, because ingest-api already

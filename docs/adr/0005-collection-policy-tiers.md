@@ -27,7 +27,12 @@ constraint travels with the data rather than being re-derived from a mutable fla
 
 `child_directed` keeps a persistent identifier because COPPA's support-for-internal-
 operations basis permits one for analytics. What it removes is everything pointing at
-advertising: acquisition source, campaign attribution, and any onward sharing.
+advertising: any onward sharing, and any use outside the studio's own measurement.
+
+> **Amended 2026-09-18.** This paragraph originally also named acquisition source and
+> campaign attribution. Neither exists any more: PlayerSense measures a game and ingests no
+> MMP feed, so there is no attribution data in any tier to remove from this one. See
+> [ADR 0033](0033-there-is-no-attribution-dimension.md).
 
 `kids_strict` has no persistent identifier at all. The gateway replaces the installation
 identifier with a value scoped to that single batch, **regardless of what the SDK sent**.

@@ -159,7 +159,7 @@ PlayerSense should answer common product queries from pre-aggregated tables:
 - ARPDAU/ARPU;
 - platform/country/version breakdowns;
 - retention curves, classic and rolling;
-- install cohorts and the sticky acquisition dimensions that slice them;
+- install cohorts and the sticky dimensions that slice them;
 - playtime along the cohort curve, and lifetime-playtime segments;
 - cumulative revenue per cohort day, payer conversion and spend segments;
 - progression and experiment-variant cohorts;
@@ -1534,7 +1534,6 @@ CREATE TABLE events_raw
     install_platform LowCardinality(String),
     install_country LowCardinality(String),
     first_app_version LowCardinality(String),
-    acquisition_source LowCardinality(String),
 
     -- Collection basis, carried per row so it survives into the archive.
     consent_analytics UInt8,
@@ -1916,7 +1915,6 @@ A cohort dimension is assigned **once, at first-seen**, and never varies per eve
 | `install_platform` | platform of the first event |
 | `install_country` | country of the first event |
 | `first_app_version` | app version of the first event |
-| `acquisition_source` | the reserved acquisition property, first non-empty value |
 
 The `install_`/`first_` prefixes are load-bearing. A dimension that varies per event — the
 platform of *this* session, for a player on two devices — is a filter, not a cohort, and
@@ -2050,8 +2048,6 @@ SELECT
     max(ingest_time)                                               AS last_seen,
     argMinState(tuple(platform, country_code, app_version),
                 (ingest_time, event_id))                           AS first_attrs,
-    argMinIfState(acquisition_source, (ingest_time, event_id),
-                  acquisition_source != '')                        AS first_source,
     sum(playtime_ms)                                               AS playtime_ms,
     sum(revenue_micros)                                            AS revenue_micros,
     countIf(event_type = 'purchase')                               AS purchases,
@@ -2076,7 +2072,6 @@ SELECT
     max(last_seen)               AS last_seen,
     toDate(min(first_seen))      AS cohort_date,
     argMinMerge(first_attrs)     AS first_attrs,
-    argMinIfMerge(first_source)  AS acquisition_source,
     sum(playtime_ms)             AS playtime_ms,
     sum(revenue_micros)          AS revenue_micros,
     sum(purchases)               AS purchases,
@@ -2196,8 +2191,7 @@ CREATE TABLE cohort_metrics_breakdown_daily
 
     dim_name         Enum8('install_platform'   = 1,
                            'install_country'    = 2,
-                           'first_app_version'  = 3,
-                           'acquisition_source' = 4),
+                           'first_app_version'  = 3),
     dim_value        LowCardinality(String),
 
     cohort_date      Date,
@@ -2233,8 +2227,7 @@ CREATE TABLE cohort_sizes
     dim_name             Enum8('__total__'          = 0,
                                'install_platform'   = 1,
                                'install_country'    = 2,
-                               'first_app_version'  = 3,
-                               'acquisition_source' = 4),
+                               'first_app_version'  = 3),
     dim_value            LowCardinality(String),
 
     cohort_size          UInt64,
@@ -2412,10 +2405,9 @@ than at derivation, because the full cells are needed to roll up correctly into 
 ones, and the response flags what was suppressed so the dashboard can say so rather than
 render a misleading zero.
 
-**The collection policy tier decides which cohorts exist at all** (§98). A
-`child_directed` project has no acquisition data, so acquisition cohorts do not exist for
-it. A `kids_strict` project has no persistent identifier at all, so **cross-day retention
-is not computable** — only same-day aggregates. The product states this when the tier is
+**The collection policy tier decides which cohorts exist at all** (§98). A `kids_strict`
+project has no persistent identifier at all, so **cross-day retention is not computable** —
+only same-day aggregates. The product states this when the tier is
 selected. A studio in Apple's Kids Category must not discover it by opening an empty
 retention page.
 
@@ -4286,7 +4278,7 @@ Add:
 - purchase verification;
 - admin operational console;
 - revenue and LTV cohorts;
-- acquisition cohorts and their sticky dimensions;
+- install cohorts and their sticky dimensions;
 - cohort breakdowns, one dimension at a time;
 - data subject access and erasure workflows;
 - stronger rate limits;

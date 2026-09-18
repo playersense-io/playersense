@@ -174,7 +174,7 @@ const insertColumns = `INSERT INTO events_raw (
 	retention_tier, policy_tier, event_time, ingest_time, received_at,
 	event_id, batch_id, session_id, player_id, install_id,
 	event_name, event_type, platform, country_code, app_version, sdk_name, sdk_version,
-	cohort_date, install_platform, install_country, first_app_version, acquisition_source,
+	cohort_date, install_platform, install_country, first_app_version,
 	consent_analytics, consent_policy_version, att_status,
 	revenue_micros, currency, playtime_ms, payload_bytes)`
 
@@ -197,7 +197,7 @@ func appendEvent(batch driver.Batch, idx int, day, cohortDay time.Time, playerID
 		uint16(30), "standard", ts, ts, ts,
 		uuid.New(), uuid.New(), fmt.Sprintf("s-%d-%s", idx, day.Format("0102")), playerID, deviceUUID(idx),
 		name, typ, platform, country, "2.7.1", "unity", "1.4.0",
-		cohortDay, platform, country, "2.7.1", "organic",
+		cohortDay, platform, country, "2.7.1",
 		uint8(1), "2026-01-15", "not_determined",
 		revenue, "USD", uint64(60000), uint32(512),
 	)
@@ -748,9 +748,9 @@ func checkPartialRow(ctx context.Context, conn driver.Conn, d *rollup.Deriver, m
 	if err := conn.Exec(ctx, `
 		INSERT INTO player_activity_daily
 		    (project_seq, environment_seq, activity_date, device_id, cohort_date,
-		     install_platform, install_country, first_app_version, acquisition_source,
+		     install_platform, install_country, first_app_version,
 		     sessions, playtime_ms, events, revenue_micros, purchases)
-		VALUES (?, ?, ?, ?, ?, '', '', '', '', ?, 0, 0, 0, 0)`,
+		VALUES (?, ?, ?, ?, ?, '', '', '', ?, 0, 0, 0, 0)`,
 		projectSeq, environmentSeq, day, deviceID, day, uint64(extraSessions)); err != nil {
 		return fmt.Errorf("write a partial row: %w", err)
 	}

@@ -184,6 +184,17 @@ func resolveDimension(q protocol.CohortQuery) (string, error) {
 				dimension, f.Field)
 		}
 	}
+
+	// The list is closed, and this is the second place that is true — the request schema
+	// says OneOf(CohortDimensions) and refuses it at the edge. Checked again because a
+	// planner that silently mapped an unrecognised name to some column would answer the
+	// question with the wrong axis, which is the one failure a chart cannot show.
+	if dimension != "" && !slices.Contains(schemas.CohortDimensions, dimension) {
+		return "", refuse("breakdown.dimension",
+			"%q is not a cohort dimension; a cohort is broken down by a property of the "+
+				"player's arrival, which is one of %s",
+			dimension, strings.Join(schemas.CohortDimensions, ", "))
+	}
 	return dimension, nil
 }
 
@@ -204,19 +215,6 @@ func checkPolicyTier(scope Scope, q protocol.CohortQuery) error {
 				"this project is on the kids_strict collection tier, which stores no persistent "+
 					"identifier, so a device cannot be recognised across days and cross-day "+
 					"retention is not computable; same-day aggregates are available")
-		}
-	case "child_directed":
-		if q.Breakdown != nil && q.Breakdown.Dimension == "acquisition_source" {
-			return refuse("breakdown.dimension",
-				"this project is on the child_directed collection tier, which collects no "+
-					"attribution, so there is no acquisition data to break down by")
-		}
-		for _, f := range q.Filters {
-			if f.Field == "acquisition_source" {
-				return refuse("filters",
-					"this project is on the child_directed collection tier, which collects no "+
-						"attribution, so there is nothing to filter on")
-			}
 		}
 	}
 	return nil
@@ -397,10 +395,12 @@ func lifetimeDimension(dimension string) string {
 		return "first_attrs.1"
 	case "install_country":
 		return "first_attrs.2"
-	case "first_app_version":
-		return "first_attrs.3"
 	default:
-		return "acquisition_source"
+		// first_app_version, the last of the three. A default rather than a case and an
+		// unreachable panic: the dimension was checked against schemas.CohortDimensions
+		// before planning, and a query path that crashes is worse than one that could in
+		// principle chart the wrong axis.
+		return "first_attrs.3"
 	}
 }
 

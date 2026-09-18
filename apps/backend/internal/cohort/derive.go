@@ -167,7 +167,6 @@ func (d *Deriver) DeriveMonth(ctx context.Context, m Month) error {
 				        any(install_platform) AS install_platform,
 				        any(install_country)  AS install_country,
 				        any(first_app_version) AS first_app_version,
-				        any(acquisition_source) AS acquisition_source,
 				        sum(playtime_ms)      AS d_playtime_ms,
 				        sum(revenue_micros)   AS d_revenue_micros,
 				        sum(purchases)        AS d_purchases
@@ -191,8 +190,6 @@ func (d *Deriver) DeriveMonth(ctx context.Context, m Month) error {
 				    SELECT *, 'install_country'    AS dim_name, install_country    AS dim_value FROM collapsed
 				    UNION ALL
 				    SELECT *, 'first_app_version'  AS dim_name, first_app_version  AS dim_value FROM collapsed
-				    UNION ALL
-				    SELECT *, 'acquisition_source' AS dim_name, acquisition_source AS dim_value FROM collapsed
 				)
 				GROUP BY project_seq, environment_seq, dim_name, dim_value, cohort_date, day_offset`,
 			args: []any{part},
@@ -284,8 +281,7 @@ func (d *Deriver) DeriveSizes(ctx context.Context, cohortMonth Month, asOf time.
 		        cohort_date,
 		        first_attrs.1      AS install_platform,
 		        first_attrs.2      AS install_country,
-		        first_attrs.3      AS first_app_version,
-		        acquisition_source AS acquisition_source
+		        first_attrs.3      AS first_app_version
 		    FROM player_lifetime_v
 		    WHERE toYYYYMM(cohort_date) = ?
 		)
@@ -305,8 +301,6 @@ func (d *Deriver) DeriveSizes(ctx context.Context, cohortMonth Month, asOf time.
 		    SELECT *, 'install_country'    AS dim_name, install_country    AS dim_value FROM arrivals
 		    UNION ALL
 		    SELECT *, 'first_app_version'  AS dim_name, first_app_version  AS dim_value FROM arrivals
-		    UNION ALL
-		    SELECT *, 'acquisition_source' AS dim_name, acquisition_source AS dim_value FROM arrivals
 		)
 		GROUP BY project_seq, environment_seq, cohort_date, dim_name, dim_value`,
 		part, asOf); err != nil {

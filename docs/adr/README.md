@@ -59,6 +59,7 @@ a record is never updated to match a drifting document, it is superseded by a ne
 | [0030](0030-the-unity-surface-is-types-in-a-namespace.md) | The Unity binding: types in a namespace, no_backup, and importer settings in code | Accepted |
 | [0031](0031-absence-is-null-not-the-empty-string.md) | Absence is NULL, not the empty string | Accepted |
 | [0032](0032-a-liveops-event-carries-a-schedule.md) | A LiveOps event carries a schedule, and the server evaluates it | Accepted |
+| [0033](0033-there-is-no-attribution-dimension.md) | There is no attribution dimension | Accepted |
 
 ## Template
 

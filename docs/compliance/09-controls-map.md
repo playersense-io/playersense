@@ -34,7 +34,7 @@ Paths are relative to the repository root.
 | A kids_strict project has no persistent identifier | Gateway replaces `install_id` per batch, whatever the SDK sent | `apps/backend/internal/handlers/ingest.go` | `TestKidsStrictHasNoPersistentIdentifier` | **Built** |
 | …and is told so rather than shown an empty chart | Cross-day retention is refused, naming the tier and pointing at same-day aggregates | `apps/backend/internal/query/plan.go` | `TestKidsStrictIsToldWhyRatherThanShownNothing` | **Built** |
 | …including on the time series | New/returning and MAU are refused: every player would look new every day | `apps/backend/internal/query/metrics.go` | `TestKidsStrictHasNoNewReturningSplit` | **Built** |
-| A child_directed project has no acquisition cohorts | The breakdown and the filter are both refused, naming the tier | `internal/query/plan.go` | `TestChildDirectedHasNoAcquisitionCohorts` | **Built** |
+| No project of any tier has acquisition cohorts | There is no acquisition dimension to ask for; the planner refuses any name outside the closed list | `internal/query/plan.go` | `TestAnUnknownCohortDimensionIsRefused` | **Built** |
 | The tier is immutable after creation | Ent field marked immutable | `apps/backend/ent/schema/globaltier/project.go` | — | **Built** |
 | The kids_strict limitation is stated at signup | The API announces it when a project is created on that tier | `apps/backend/internal/handlers/control.go` | `TestKidsStrictAnnouncesItsLimit` | **Built** |
 | Apple privacy manifest, signed | Generated from the column classification | — | — | *Designed* |

@@ -49,8 +49,7 @@ CREATE TABLE IF NOT EXISTS cohort_metrics_breakdown_daily
 
     dim_name         Enum8('install_platform'   = 1,
                            'install_country'    = 2,
-                           'first_app_version'  = 3,
-                           'acquisition_source' = 4) COMMENT 'class=none',
+                           'first_app_version'  = 3) COMMENT 'class=none',
     dim_value        LowCardinality(String)          COMMENT 'class=derived',
 
     cohort_date      Date     COMMENT 'class=derived',
@@ -83,8 +82,7 @@ CREATE TABLE IF NOT EXISTS cohort_sizes
     dim_name             Enum8('__total__'          = 0,
                                'install_platform'   = 1,
                                'install_country'    = 2,
-                               'first_app_version'  = 3,
-                               'acquisition_source' = 4) COMMENT 'class=none',
+                               'first_app_version'  = 3) COMMENT 'class=none',
     dim_value            LowCardinality(String)          COMMENT 'class=derived',
 
     cohort_size          UInt64   COMMENT 'class=derived',

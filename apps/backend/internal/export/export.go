@@ -428,7 +428,7 @@ func (e *Exporter) writeDevices(ctx context.Context, db *sql.DB, req *regional.D
 		SELECT
 			device_id, device_key, first_seen, last_seen, cohort_date,
 			tupleElement(first_attrs, 1), tupleElement(first_attrs, 2),
-			tupleElement(first_attrs, 3), acquisition_source,
+			tupleElement(first_attrs, 3),
 			playtime_ms, revenue_micros, purchases, active_days
 		FROM player_lifetime_v
 		WHERE project_seq = ? AND device_id IN (`+subject.Placeholders(len(who.Devices))+`)`,
@@ -443,7 +443,7 @@ func (e *Exporter) writeDevices(ctx context.Context, db *sql.DB, req *regional.D
 		var cohortDate time.Time
 		if err := rows.Scan(
 			&d.DeviceID, &d.InstallID, &d.FirstSeen, &d.LastSeen, &cohortDate,
-			&d.InstallPlatform, &d.InstallCountry, &d.FirstAppVersion, &d.AcquisitionSource,
+			&d.InstallPlatform, &d.InstallCountry, &d.FirstAppVersion,
 			&d.PlaytimeMS, &d.RevenueMicros, &d.Purchases, &d.ActiveDays,
 		); err != nil {
 			return fmt.Errorf("read the subject's devices: %w", err)

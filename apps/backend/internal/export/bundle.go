@@ -100,11 +100,10 @@ type DeviceRow struct {
 	FirstSeen time.Time `json:"first_seen"`
 	LastSeen  time.Time `json:"last_seen"`
 
-	CohortDate        string `json:"cohort_date"`
-	InstallPlatform   string `json:"install_platform,omitempty"`
-	InstallCountry    string `json:"install_country,omitempty"`
-	FirstAppVersion   string `json:"first_app_version,omitempty"`
-	AcquisitionSource string `json:"acquisition_source,omitempty"`
+	CohortDate      string `json:"cohort_date"`
+	InstallPlatform string `json:"install_platform,omitempty"`
+	InstallCountry  string `json:"install_country,omitempty"`
+	FirstAppVersion string `json:"first_app_version,omitempty"`
 
 	PlaytimeMS    uint64 `json:"playtime_ms"`
 	RevenueMicros int64  `json:"revenue_micros"`

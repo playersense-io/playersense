@@ -205,7 +205,7 @@ func (r *reporting) seedCurve(t *testing.T) {
 		retention_tier, policy_tier, event_time, ingest_time, received_at,
 		event_id, batch_id, session_id, player_id, install_id,
 		event_name, event_type, platform, country_code, app_version, sdk_name, sdk_version,
-		cohort_date, install_platform, install_country, first_app_version, acquisition_source,
+		cohort_date, install_platform, install_country, first_app_version,
 		consent_analytics, consent_policy_version, att_status,
 		revenue_micros, currency, playtime_ms, payload_bytes)`)
 	if err != nil {
@@ -222,7 +222,7 @@ func (r *reporting) seedCurve(t *testing.T) {
 			uint16(30), "standard", at, at, at,
 			uuid.New(), uuid.New(), "", "", uuid.MustParse(e.install),
 			"session_start", "standard", e.platform, "", "2.7.1", "unity", "1.4.0",
-			day, e.platform, "", "2.7.1", "",
+			day, e.platform, "", "2.7.1",
 			uint8(1), "2026-01-15", "not_determined",
 			int64(0), "", uint64(5*60*1000), uint32(256),
 		); err != nil {

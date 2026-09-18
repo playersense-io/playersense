@@ -33,11 +33,10 @@ cohort_date          the day this device was first seen
 install_platform     sticky: the value as of the install, never the current value
 install_country
 first_app_version
-acquisition_source
 ```
 
 Because the values are fixed at install, cohorts are disjoint: a device belongs to exactly
-one `(cohort_date, platform, country, version, source)` bucket for its whole life. Counting
+one `(cohort_date, platform, country, version)` bucket for its whole life. Counting
 disjoint sets needs no `uniqExact` and no join — plain counters sum correctly.
 
 The denominator is the cohort size, which is a bounded table: one row per cohort per

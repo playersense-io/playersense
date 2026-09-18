@@ -45,8 +45,8 @@ That line matters, because the two look alike and are not:
   event has no player; a non-revenue event has no currency. There is no such thing as a player
   whose identifier is the empty string, so `''` was encoding "absent" in a slot that should not
   have had one.
-- `install_country`, `install_platform`, `first_app_version`, `acquisition_source`,
-  `country_code` → **unchanged**. These are reporting *dimensions*, and "unknown" is a bucket a
+- `install_country`, `install_platform`, `first_app_version`, `country_code` →
+  **unchanged**. These are reporting *dimensions*, and "unknown" is a bucket a
   chart displays beside "TR" and "DE". Making them Nullable would change the GROUP BY key of
   five tables to say something the product does not mean.
 

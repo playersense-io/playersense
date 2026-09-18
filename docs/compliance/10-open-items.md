@@ -72,7 +72,7 @@ What it does not yet cover:
 | **Progression buckets** | The enum member exists and nothing writes it. Progression is a game-specific milestone the SDK does not report, and deriving it would mean inventing a definition of progress on the studio's behalf |
 | **Asynchronous cold queries** | §34. §101's data-subject export no longer waits on it: [ADR 0024](../adr/0024-the-hot-window-is-a-cache-not-a-retention-limit.md) put the whole retention tier back inside `events_raw`, so the export reads the table rather than the objects — see [05](05-data-subject-rights.md) for the residue that leaves |
 | **Per-organisation concurrency quotas** | §32 asks for these alongside the per-caller rate limit, which is built |
-| **§29.13's first two caps** | `first_app_version` is not capped to the top 20 values per project, and `acquisition_source` is not split from campaign. The third cap — only materializing pairs that exist — falls out of the GROUP BY. Alarm at 27M rows per project, per §29.13 |
+| **§29.13's first cap** | `first_app_version` is not capped to the top 20 values per project. The second cap no longer applies — there is no acquisition dimension to split from campaign ([ADR 0033](../adr/0033-there-is-no-attribution-dimension.md)) — and the third, only materializing pairs that exist, falls out of the GROUP BY. Alarm at 27M rows per project, per §29.13 |
 
 ## Engineering — audit and access
 
