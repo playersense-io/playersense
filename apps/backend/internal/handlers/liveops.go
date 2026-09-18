@@ -16,6 +16,7 @@ import (
 	"playersense.dev/backend/ent/global/featureflag"
 	"playersense.dev/backend/ent/global/liveopsevent"
 	"playersense.dev/backend/ent/global/segment"
+	"playersense.dev/backend/internal/audit"
 	"playersense.dev/backend/internal/core"
 	"playersense.dev/backend/internal/liveconfig"
 	"playersense.dev/backend/internal/liveops"
@@ -90,15 +91,22 @@ func CreateSegment(ctx *muzak.Context, in schemas.CreateSegmentIn) (schemas.Segm
 		return schemas.SegmentOut{}, err
 	}
 
-	row, err := ctrl.Client.Segment.Create().
-		SetProjectID(proj.ID).
-		SetKey(in.Key).
-		SetName(in.Name).
-		SetDescription(in.Description).
-		SetRule(stored).
-		Save(ctx.Context())
+	row, err := inTx(ctx, func(tx *global.Tx) (*global.Segment, error) {
+		row, err := tx.Segment.Create().
+			SetProjectID(proj.ID).
+			SetKey(in.Key).
+			SetName(in.Name).
+			SetDescription(in.Description).
+			SetRule(stored).
+			Save(ctx.Context())
+		if err != nil {
+			return nil, asConflict(err, "a segment", in.Key)
+		}
+		return row, auditFor(ctx).record(ctx.Context(), tx, audit.SegmentWritten,
+			"segment", row.Key, map[string]any{"project": proj.Slug, "created": true})
+	})
 	if err != nil {
-		return schemas.SegmentOut{}, asConflict(err, "a segment", in.Key)
+		return schemas.SegmentOut{}, err
 	}
 	ctx.SetStatus(http.StatusCreated)
 	return segmentOut(row), nil
@@ -122,14 +130,21 @@ func UpdateSegment(ctx *muzak.Context, in schemas.UpdateSegmentIn) (schemas.Segm
 		return schemas.SegmentOut{}, err
 	}
 
-	updated, err := row.Update().
-		SetName(in.Name).
-		SetDescription(in.Description).
-		SetRule(stored).
-		SetArchived(archivedOr(in.Archived, row.Archived)).
-		Save(ctx.Context())
+	updated, err := inTx(ctx, func(tx *global.Tx) (*global.Segment, error) {
+		updated, err := tx.Segment.UpdateOneID(row.ID).
+			SetName(in.Name).
+			SetDescription(in.Description).
+			SetRule(stored).
+			SetArchived(archivedOr(in.Archived, row.Archived)).
+			Save(ctx.Context())
+		if err != nil {
+			return nil, core.AsHTTPError(err)
+		}
+		return updated, auditFor(ctx).record(ctx.Context(), tx, audit.SegmentWritten,
+			"segment", row.Key, map[string]any{"project": proj.Slug, "created": false})
+	})
 	if err != nil {
-		return schemas.SegmentOut{}, core.AsHTTPError(err)
+		return schemas.SegmentOut{}, err
 	}
 	return segmentOut(updated), nil
 }
@@ -147,9 +162,16 @@ func ArchiveSegment(ctx *muzak.Context, in schemas.TargetParams) (schemas.Segmen
 	if row.Archived {
 		return schemas.SegmentOut{}, muzak.Conflict("that segment is already archived")
 	}
-	updated, err := row.Update().SetArchived(true).Save(ctx.Context())
+	updated, err := inTx(ctx, func(tx *global.Tx) (*global.Segment, error) {
+		updated, err := tx.Segment.UpdateOneID(row.ID).SetArchived(true).Save(ctx.Context())
+		if err != nil {
+			return nil, core.AsHTTPError(err)
+		}
+		return updated, auditFor(ctx).record(ctx.Context(), tx, audit.SegmentArchived,
+			"segment", row.Key, map[string]any{"name": row.Name})
+	})
 	if err != nil {
-		return schemas.SegmentOut{}, core.AsHTTPError(err)
+		return schemas.SegmentOut{}, err
 	}
 	return segmentOut(updated), nil
 }
@@ -218,19 +240,29 @@ func CreateFlag(ctx *muzak.Context, in schemas.CreateFlagIn) (schemas.FlagOut, e
 		return schemas.FlagOut{}, err
 	}
 
-	row, err := ctrl.Client.FeatureFlag.Create().
-		SetProjectID(proj.ID).
-		SetKey(in.Key).
-		SetName(in.Name).
-		SetDescription(in.Description).
-		SetKind(featureflag.Kind(kind)).
-		SetFallback(stored).
-		SetRules(rules).
-		SetRollout(rolloutOrFull(in.Rollout)).
-		SetSalt(in.Salt).
-		Save(ctx.Context())
+	row, err := inTx(ctx, func(tx *global.Tx) (*global.FeatureFlag, error) {
+		row, err := tx.FeatureFlag.Create().
+			SetProjectID(proj.ID).
+			SetKey(in.Key).
+			SetName(in.Name).
+			SetDescription(in.Description).
+			SetKind(featureflag.Kind(kind)).
+			SetFallback(stored).
+			SetRules(rules).
+			SetRollout(rolloutOrFull(in.Rollout)).
+			SetSalt(in.Salt).
+			Save(ctx.Context())
+		if err != nil {
+			return nil, asConflict(err, "a flag", in.Key)
+		}
+		return row, auditFor(ctx).record(ctx.Context(), tx, audit.FlagWritten,
+			"flag", row.Key, map[string]any{
+				"project": proj.Slug, "created": true,
+				"kind": string(kind), "rollout": row.Rollout, "rules": len(rules),
+			})
+	})
 	if err != nil {
-		return schemas.FlagOut{}, asConflict(err, "a flag", in.Key)
+		return schemas.FlagOut{}, err
 	}
 	ctx.SetStatus(http.StatusCreated)
 	return flagOut(row)
@@ -267,17 +299,30 @@ func UpdateFlag(ctx *muzak.Context, in schemas.UpdateFlagIn) (schemas.FlagOut, e
 		return schemas.FlagOut{}, err
 	}
 
-	updated, err := row.Update().
-		SetName(in.Name).
-		SetDescription(in.Description).
-		SetFallback(stored).
-		SetRules(rules).
-		SetRollout(rolloutOrFull(in.Rollout)).
-		SetSalt(in.Salt).
-		SetArchived(archivedOr(in.Archived, row.Archived)).
-		Save(ctx.Context())
+	updated, err := inTx(ctx, func(tx *global.Tx) (*global.FeatureFlag, error) {
+		updated, err := tx.FeatureFlag.UpdateOneID(row.ID).
+			SetName(in.Name).
+			SetDescription(in.Description).
+			SetFallback(stored).
+			SetRules(rules).
+			SetRollout(rolloutOrFull(in.Rollout)).
+			SetSalt(in.Salt).
+			SetArchived(archivedOr(in.Archived, row.Archived)).
+			Save(ctx.Context())
+		if err != nil {
+			return nil, core.AsHTTPError(err)
+		}
+		// The rollout before and after, because moving one is how a flag reaches more
+		// players and "who changed it to 100%" is the question an incident asks.
+		return updated, auditFor(ctx).record(ctx.Context(), tx, audit.FlagWritten,
+			"flag", row.Key, map[string]any{
+				"project": proj.Slug, "created": false,
+				"rollout": updated.Rollout, "was_rollout": row.Rollout,
+				"rules": len(rules),
+			})
+	})
 	if err != nil {
-		return schemas.FlagOut{}, core.AsHTTPError(err)
+		return schemas.FlagOut{}, err
 	}
 	return flagOut(updated)
 }
@@ -296,9 +341,16 @@ func ArchiveFlag(ctx *muzak.Context, in schemas.TargetParams) (schemas.FlagOut, 
 	if row.Archived {
 		return schemas.FlagOut{}, muzak.Conflict("that flag is already archived")
 	}
-	updated, err := row.Update().SetArchived(true).Save(ctx.Context())
+	updated, err := inTx(ctx, func(tx *global.Tx) (*global.FeatureFlag, error) {
+		updated, err := tx.FeatureFlag.UpdateOneID(row.ID).SetArchived(true).Save(ctx.Context())
+		if err != nil {
+			return nil, core.AsHTTPError(err)
+		}
+		return updated, auditFor(ctx).record(ctx.Context(), tx, audit.FlagArchived,
+			"flag", row.Key, map[string]any{"name": row.Name, "kind": string(row.Kind)})
+	})
 	if err != nil {
-		return schemas.FlagOut{}, core.AsHTTPError(err)
+		return schemas.FlagOut{}, err
 	}
 	return flagOut(updated)
 }
@@ -357,21 +409,31 @@ func CreateLiveOpsEvent(ctx *muzak.Context, in schemas.CreateLiveOpsEventIn) (sc
 			"payload is not valid JSON: " + err.Error()).WithCode("invalid_payload")
 	}
 
-	row, err := ctrl.Client.LiveOpsEvent.Create().
-		SetProjectID(proj.ID).
-		SetKey(in.Key).
-		SetKind(in.Kind).
-		SetName(in.Name).
-		SetStatus(liveopsevent.Status(orDefault(in.Status, "draft"))).
-		SetSchedule(schedule).
-		SetPriority(in.Priority).
-		SetAudience(stored).
-		SetPayload(payload).
-		SetRollout(rolloutOrFull(in.Rollout)).
-		SetSalt(in.Salt).
-		Save(ctx.Context())
+	row, err := inTx(ctx, func(tx *global.Tx) (*global.LiveOpsEvent, error) {
+		row, err := tx.LiveOpsEvent.Create().
+			SetProjectID(proj.ID).
+			SetKey(in.Key).
+			SetKind(in.Kind).
+			SetName(in.Name).
+			SetStatus(liveopsevent.Status(orDefault(in.Status, "draft"))).
+			SetSchedule(schedule).
+			SetPriority(in.Priority).
+			SetAudience(stored).
+			SetPayload(payload).
+			SetRollout(rolloutOrFull(in.Rollout)).
+			SetSalt(in.Salt).
+			Save(ctx.Context())
+		if err != nil {
+			return nil, asConflict(err, "a LiveOps event", in.Key)
+		}
+		return row, auditFor(ctx).record(ctx.Context(), tx, audit.EventWritten,
+			"liveops_event", row.Key, map[string]any{
+				"project": proj.Slug, "created": true,
+				"kind": in.Kind, "status": string(row.Status), "rollout": row.Rollout,
+			})
+	})
 	if err != nil {
-		return schemas.LiveOpsEventOut{}, asConflict(err, "a LiveOps event", in.Key)
+		return schemas.LiveOpsEventOut{}, err
 	}
 	ctx.SetStatus(http.StatusCreated)
 	return liveOpsEventOut(row, nowUTC())
@@ -406,19 +468,33 @@ func UpdateLiveOpsEvent(ctx *muzak.Context, in schemas.UpdateLiveOpsEventIn) (sc
 			"payload is not valid JSON: " + err.Error()).WithCode("invalid_payload")
 	}
 
-	updated, err := row.Update().
-		SetKind(in.Kind).
-		SetName(in.Name).
-		SetStatus(liveopsevent.Status(orDefault(in.Status, string(row.Status)))).
-		SetSchedule(schedule).
-		SetPriority(in.Priority).
-		SetAudience(stored).
-		SetPayload(payload).
-		SetRollout(rolloutOrFull(in.Rollout)).
-		SetSalt(in.Salt).
-		Save(ctx.Context())
+	updated, err := inTx(ctx, func(tx *global.Tx) (*global.LiveOpsEvent, error) {
+		updated, err := tx.LiveOpsEvent.UpdateOneID(row.ID).
+			SetKind(in.Kind).
+			SetName(in.Name).
+			SetStatus(liveopsevent.Status(orDefault(in.Status, string(row.Status)))).
+			SetSchedule(schedule).
+			SetPriority(in.Priority).
+			SetAudience(stored).
+			SetPayload(payload).
+			SetRollout(rolloutOrFull(in.Rollout)).
+			SetSalt(in.Salt).
+			Save(ctx.Context())
+		if err != nil {
+			return nil, core.AsHTTPError(err)
+		}
+		// The status before and after. A draft becoming active is the moment an event
+		// starts reaching players on the next publish, and it is the single most
+		// consequential edit this route makes.
+		return updated, auditFor(ctx).record(ctx.Context(), tx, audit.EventWritten,
+			"liveops_event", row.Key, map[string]any{
+				"project": proj.Slug, "created": false,
+				"status": string(updated.Status), "was_status": string(row.Status),
+				"rollout": updated.Rollout, "was_rollout": row.Rollout,
+			})
+	})
 	if err != nil {
-		return schemas.LiveOpsEventOut{}, core.AsHTTPError(err)
+		return schemas.LiveOpsEventOut{}, err
 	}
 	return liveOpsEventOut(updated, nowUTC())
 }
@@ -432,9 +508,19 @@ func ArchiveLiveOpsEvent(ctx *muzak.Context, in schemas.TargetParams) (schemas.L
 	if row.Status == liveopsevent.StatusArchived {
 		return schemas.LiveOpsEventOut{}, muzak.Conflict("that LiveOps event is already archived")
 	}
-	updated, err := row.Update().SetStatus(liveopsevent.StatusArchived).Save(ctx.Context())
+	updated, err := inTx(ctx, func(tx *global.Tx) (*global.LiveOpsEvent, error) {
+		updated, err := tx.LiveOpsEvent.UpdateOneID(row.ID).
+			SetStatus(liveopsevent.StatusArchived).Save(ctx.Context())
+		if err != nil {
+			return nil, core.AsHTTPError(err)
+		}
+		return updated, auditFor(ctx).record(ctx.Context(), tx, audit.EventArchived,
+			"liveops_event", row.Key, map[string]any{
+				"name": row.Name, "was_status": string(row.Status),
+			})
+	})
 	if err != nil {
-		return schemas.LiveOpsEventOut{}, core.AsHTTPError(err)
+		return schemas.LiveOpsEventOut{}, err
 	}
 	return liveOpsEventOut(updated, nowUTC())
 }

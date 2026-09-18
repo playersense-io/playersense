@@ -1,0 +1,216 @@
+// Package audit records what people did, for the customer whose account they did it to.
+//
+// This is a studio's own log, shown in their dashboard, and it answers one question: **this looks
+// wrong, who did this.** `StaffAccess` is the other table and a different thing — PlayerSense staff
+// reading customer data, with a ticket per read (§08). Neither substitutes for the other, and mixing
+// them would produce one log where a customer's own administrator and one of our engineers appear as
+// the same kind of event.
+//
+// # Why entries are written by hand and not by middleware
+//
+// Middleware records **requests**; an audit log has to record **decisions**. "Ada's role changed from
+// developer to owner" is not recoverable from a request log: the previous value was never in the
+// request. Neither is "version 7 published, three flags, no history lookups" or "$100 of promotional
+// credit, expiring 17 December" — every one of those is known only to the handler that did the work.
+//
+// The cost of writing them by hand is that one can be forgotten. That cost is paid down by a test
+// rather than by discipline: `TestEveryMutatingRouteDecidesAboutAudit` reads the OpenAPI document,
+// finds every POST, PUT, PATCH and DELETE, and fails unless each is either recorded here or listed
+// as deliberately exempt with a reason. Adding a route that changes something and saying nothing
+// about it does not compile past the suite.
+//
+// # Append-only is a compile error, not a policy
+//
+// §08: "a log the operator can edit proves nothing." Every field on the entity is immutable and the
+// mixin omits `updated_at`, so ent generates an update builder with no setter on it at all. There is
+// nothing to call that would change what a row says.
+//
+// # Atomicity, and where it is not
+//
+// [Record] takes a transaction, so the entry and the thing it describes commit together: an action
+// that happened is an action that was logged. Handlers whose domain call owns its own transaction use
+// [RecordAfter] instead, which writes separately and can therefore fail on its own — the action is
+// already committed at that point, so the only honest options are a logged gap or telling the caller
+// their change did not happen when it did. The gap is logged at error level and named in
+// docs/compliance/10-open-items.md.
+package audit
+
+import (
+	"context"
+	"fmt"
+	"log/slog"
+
+	"playersense.dev/backend/ent/global"
+)
+
+// Action is what happened.
+//
+// Dotted names from the same family as the permissions, and on purpose: `member.invite` in the log is
+// the thing `member.invite` the permission allows, so a reader comparing a role against a log is
+// comparing two spellings of one word. The column is a string rather than an enum because logging a
+// new kind of action must not be a migration — the day that friction exists is the day something
+// stops being logged.
+type Action string
+
+// The vocabulary. Every mutating route on the control plane appears here or in the exempt list the
+// coverage test carries.
+const (
+	OrganizationCreated Action = "organization.create"
+
+	ProjectCreated Action = "project.create"
+
+	KeyCreated Action = "key.create"
+	KeyRevoked Action = "key.revoke"
+
+	MemberInvited       Action = "member.invite"
+	MemberJoined        Action = "member.join"
+	MemberRemoved       Action = "member.remove"
+	MemberRoleChanged   Action = "member.role"
+	MemberAccessChanged Action = "member.access"
+	InvitationRevoked   Action = "invitation.revoke"
+
+	SegmentWritten  Action = "segment.write"
+	SegmentArchived Action = "segment.archive"
+	FlagWritten     Action = "flag.write"
+	FlagArchived    Action = "flag.archive"
+	EventWritten    Action = "liveops_event.write"
+	EventArchived   Action = "liveops_event.archive"
+	ConfigPublished Action = "liveops.publish"
+
+	CreditGranted  Action = "credit.grant"
+	CreditCharged  Action = "credit.charge"
+	AutoTopUpSet   Action = "billing.auto_topup"
+	PrivacyErasure Action = "privacy.erase"
+	PrivacyExport  Action = "privacy.export"
+)
+
+// Actor is who did it, as one of three things.
+//
+// A user and a key are edges so a dashboard can show a name; the label is what the row says when
+// neither resolves. Written at the time rather than resolved at read time, because an entry that
+// becomes "unknown" when somebody leaves the company has lost the thing it was for.
+type Actor struct {
+	UserID int
+	KeyID  int
+
+	// Label is the fallback, and the only thing an operator action has. It carries its own
+	// caveat where one applies — see [OperatorActor].
+	Label string
+}
+
+// OperatorActor names a PlayerSense operator who asserted their own identity.
+//
+// The shared operator token cannot say who is holding it, so the name comes from the request and is
+// **not verified**. The label says so, in the row, because an audit entry that read
+// `ada@playersense.dev` would be read as proof that Ada did it — and the only thing actually proved
+// is that somebody with the deployment's operator token typed Ada's address.
+//
+// What replaces this is a verified staff identity and §56's console. Until then the entry exists,
+// says what it is, and is better than the nothing it replaced.
+func OperatorActor(asserted string) Actor {
+	if asserted == "" {
+		return Actor{Label: "operator (unidentified)"}
+	}
+	return Actor{Label: "operator " + asserted + " (self-asserted)"}
+}
+
+// Entry is one thing that happened.
+type Entry struct {
+	OrganizationID int
+	Action         Action
+	Actor          Actor
+
+	// Target is what it happened to, as a type and an id rather than an edge per kind: a log that
+	// needed a foreign key per target type could not record the deletion of the thing it points
+	// at.
+	TargetType string
+	TargetID   string
+
+	// Metadata is whatever makes the action explicable a year later — the role granted, the
+	// previous value, the version published. Deliberately shapeless: an entry that could not say
+	// what changed would be a timestamp.
+	Metadata map[string]any
+
+	IP string
+}
+
+func (e Entry) validate() error {
+	switch {
+	case e.OrganizationID == 0:
+		// Refused rather than written against nothing. An entry with no organisation is an
+		// entry no dashboard shows and no retention removes, which is the worst of both.
+		return fmt.Errorf("an audit entry needs the organization it happened to")
+	case e.Action == "":
+		return fmt.Errorf("an audit entry needs an action")
+	}
+	return nil
+}
+
+// Record appends one entry inside the caller's transaction.
+//
+// The entry and the thing it describes commit together, which is what makes "every action that
+// happened was logged" a property rather than an intention.
+func Record(ctx context.Context, tx *global.Tx, entry Entry) (*global.AuditEvent, error) {
+	if err := entry.validate(); err != nil {
+		return nil, err
+	}
+	return write(ctx, tx.AuditEvent.Create(), entry)
+}
+
+// RecordAfter appends one entry outside any transaction, for an action already committed.
+//
+// Used where the domain call owns its own transaction and has returned. It can fail on its own, and
+// when it does the caller's change has already happened — so a failure is logged at error level and
+// the request still succeeds. Telling somebody their change did not happen when it did would be a
+// worse lie than a missing log line.
+func RecordAfter(ctx context.Context, db *global.Client, log *slog.Logger, entry Entry) {
+	if err := entry.validate(); err != nil {
+		logAuditFailure(log, entry, err)
+		return
+	}
+	if _, err := write(ctx, db.AuditEvent.Create(), entry); err != nil {
+		logAuditFailure(log, entry, err)
+	}
+}
+
+func write(ctx context.Context, create *global.AuditEventCreate, entry Entry) (*global.AuditEvent, error) {
+	create = create.
+		SetOrganizationID(entry.OrganizationID).
+		SetAction(string(entry.Action)).
+		SetTargetType(entry.TargetType).
+		SetTargetID(entry.TargetID).
+		SetActorLabel(entry.Actor.Label).
+		SetIP(entry.IP)
+	if entry.Metadata != nil {
+		create = create.SetMetadata(entry.Metadata)
+	}
+	if entry.Actor.UserID != 0 {
+		create = create.SetActorUserID(entry.Actor.UserID)
+	}
+	if entry.Actor.KeyID != 0 {
+		create = create.SetActorKeyID(entry.Actor.KeyID)
+	}
+
+	row, err := create.Save(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("append to the audit log: %w", err)
+	}
+	return row, nil
+}
+
+// logAuditFailure is what a missing entry looks like from the outside.
+//
+// At error level with the action and the target, so the gap is visible to whatever watches logs
+// rather than only to somebody reading the table and noticing an absence. An absence is the one thing
+// a log cannot report about itself.
+func logAuditFailure(log *slog.Logger, entry Entry, err error) {
+	if log == nil {
+		log = slog.Default()
+	}
+	log.Error("an action happened and was not written to the audit log",
+		"action", string(entry.Action),
+		"organization_id", entry.OrganizationID,
+		"target_type", entry.TargetType,
+		"target_id", entry.TargetID,
+		"error", err.Error())
+}

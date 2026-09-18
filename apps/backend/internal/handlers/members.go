@@ -16,6 +16,7 @@ import (
 	"playersense.dev/backend/ent/global/project"
 	"playersense.dev/backend/ent/global/role"
 	"playersense.dev/backend/ent/global/user"
+	"playersense.dev/backend/internal/audit"
 	"playersense.dev/backend/internal/authz"
 	"playersense.dev/backend/internal/config"
 	"playersense.dev/backend/internal/core"
@@ -151,13 +152,35 @@ func SetMemberRole(ctx *muzak.Context, in schemas.SetMemberRoleIn) (schemas.Memb
 		return schemas.MemberOut{}, err
 	}
 
-	updated, err := identity.SetMemberRole(ctx.Context(), ctrl.Client, org.ID, member.ID, wanted.ID)
+	// What it was, read before the change: "who made Ada an owner" is half the question and
+	// "what was she before" is the other half, and nothing else in the product can answer it.
+	was := ""
+	if member.Edges.Role != nil {
+		was = member.Edges.Role.Key
+	}
+
+	tx, err := ctrl.Client.Tx(ctx.Context())
 	if err != nil {
+		return schemas.MemberOut{}, core.AsHTTPError(err)
+	}
+	updated, err := identity.SetMemberRole(ctx.Context(), tx.Client(), org.ID, member.ID, wanted.ID)
+	if err != nil {
+		_ = tx.Rollback()
 		if errors.Is(err, identity.ErrLastOwner) {
 			return schemas.MemberOut{}, muzak.Conflict(
 				"this is the organization's only owner; make somebody else an owner first").
 				WithCode("last_owner")
 		}
+		return schemas.MemberOut{}, core.AsHTTPError(err)
+	}
+	if err := auditFor(ctx).record(ctx.Context(), tx, audit.MemberRoleChanged,
+		"member", member.UID.String(), map[string]any{
+			"email": memberEmail(member), "role": wanted.Key, "was": was,
+		}); err != nil {
+		_ = tx.Rollback()
+		return schemas.MemberOut{}, core.AsHTTPError(err)
+	}
+	if err := tx.Commit(); err != nil {
 		return schemas.MemberOut{}, core.AsHTTPError(err)
 	}
 	return memberOut(ctx.Context(), ctrl, withEdges(ctx.Context(), ctrl, updated), principal.User.ID)
@@ -196,7 +219,8 @@ func SetMemberAccess(ctx *muzak.Context, in schemas.SetMemberAccessIn) (schemas.
 			WithCode("unknown_project")
 	}
 
-	updated, _, err := identity.SetMemberAccess(ctx.Context(), ctrl.Client,
+	wasAll := member.AllProjects
+	updated, granted, err := identity.SetMemberAccess(ctx.Context(), ctrl.Client,
 		org.ID, member.ID, all, ids, nowUTC())
 	if err != nil {
 		if errors.Is(err, identity.ErrUnknownProject) {
@@ -205,6 +229,14 @@ func SetMemberAccess(ctx *muzak.Context, in schemas.SetMemberAccessIn) (schemas.
 		}
 		return schemas.MemberOut{}, core.AsHTTPError(err)
 	}
+
+	// After, not inside: SetMemberAccess replaces the grants in its own transaction, so by here
+	// the change has happened and a failed entry must not report otherwise.
+	auditFor(ctx).after(ctx, ctrl.Client, audit.MemberAccessChanged,
+		"member", member.UID.String(), map[string]any{
+			"email": memberEmail(member), "all_projects": all, "was_all_projects": wasAll,
+			"projects": slugsOf(granted),
+		})
 	return memberOut(ctx.Context(), ctrl, withEdges(ctx.Context(), ctrl, updated), principal.User.ID)
 }
 
@@ -227,13 +259,34 @@ func RemoveMember(ctx *muzak.Context, in schemas.MemberParams) (muzak.Empty, err
 		return muzak.Empty{}, err
 	}
 
-	if err := identity.RemoveMember(ctx.Context(), ctrl.Client,
+	// The row is about to stop existing, so everything worth recording is read first — and this
+	// is the entry that matters most in the whole log: a removed membership leaves nothing else
+	// behind, so without it "who ended Ada's access, and when" has no answer anywhere.
+	removed := map[string]any{"email": memberEmail(member), "all_projects": member.AllProjects}
+	if member.Edges.Role != nil {
+		removed["role"] = member.Edges.Role.Key
+	}
+
+	tx, err := ctrl.Client.Tx(ctx.Context())
+	if err != nil {
+		return muzak.Empty{}, core.AsHTTPError(err)
+	}
+	if err := identity.RemoveMember(ctx.Context(), tx.Client(),
 		principal.Organization.ID, member.ID); err != nil {
+		_ = tx.Rollback()
 		if errors.Is(err, identity.ErrLastOwner) {
 			return muzak.Empty{}, muzak.Conflict(
 				"this is the organization's only owner; an organization must keep one").
 				WithCode("last_owner")
 		}
+		return muzak.Empty{}, core.AsHTTPError(err)
+	}
+	if err := auditFor(ctx).record(ctx.Context(), tx, audit.MemberRemoved,
+		"member", member.UID.String(), removed); err != nil {
+		_ = tx.Rollback()
+		return muzak.Empty{}, core.AsHTTPError(err)
+	}
+	if err := tx.Commit(); err != nil {
 		return muzak.Empty{}, core.AsHTTPError(err)
 	}
 	ctx.SetStatus(http.StatusNoContent)
@@ -384,6 +437,12 @@ func CreateInvitation(ctx *muzak.Context, in schemas.CreateInvitationIn) (schema
 			"could not send the invitation email; nothing was changed").Wrap(err)
 	}
 
+	auditFor(ctx).after(ctx, ctrl.Client, audit.MemberInvited,
+		"invitation", row.UID.String(), map[string]any{
+			"email": in.Email, "role": wanted.Key, "all_projects": all,
+			"expires_at": row.ExpiresAt.Format(time.RFC3339),
+		})
+
 	out, err := invitationOut(ctx.Context(), ctrl, withInvitationEdges(row, wanted, principal.User), nowUTC())
 	if err != nil {
 		return schemas.InvitationCreatedOut{}, err
@@ -424,8 +483,22 @@ func RevokeInvitation(ctx *muzak.Context, in schemas.InvitationParams) (schemas.
 			"that invitation is already " + string(row.Status)).WithCode("not_pending")
 	}
 
-	updated, err := row.Update().SetStatus(invitation.StatusRevoked).Save(ctx.Context())
+	tx, err := ctrl.Client.Tx(ctx.Context())
 	if err != nil {
+		return schemas.InvitationOut{}, core.AsHTTPError(err)
+	}
+	updated, err := tx.Invitation.UpdateOneID(row.ID).
+		SetStatus(invitation.StatusRevoked).Save(ctx.Context())
+	if err != nil {
+		_ = tx.Rollback()
+		return schemas.InvitationOut{}, core.AsHTTPError(err)
+	}
+	if err := auditFor(ctx).record(ctx.Context(), tx, audit.InvitationRevoked,
+		"invitation", row.UID.String(), map[string]any{"email": row.Email}); err != nil {
+		_ = tx.Rollback()
+		return schemas.InvitationOut{}, core.AsHTTPError(err)
+	}
+	if err := tx.Commit(); err != nil {
 		return schemas.InvitationOut{}, core.AsHTTPError(err)
 	}
 	updated.Edges = row.Edges
@@ -517,6 +590,18 @@ func AcceptInvitation(ctx *muzak.Context, in schemas.AcceptInvitationIn) (schema
 		return schemas.AcceptedOut{}, core.AsHTTPError(err)
 	}
 
+	// Recorded against the organisation that gained a member, not against the person joining:
+	// this log is the customer's, and "somebody joined" is their event rather than the joiner's.
+	// After the fact, because identity.AcceptInvitation owns the transaction that made it true.
+	if !already {
+		auditFor(ctx).forOrganization(accepted.Organization.ID).
+			after(ctx, ctrl.Client, audit.MemberJoined,
+				"member", accepted.Member.UID.String(), map[string]any{
+					"email": principal.Claims.Email,
+					"role":  roleKeyOf(accepted.Role),
+				})
+	}
+
 	out := schemas.AcceptedOut{
 		Organization:  organizationOut(accepted.Organization),
 		AllProjects:   accepted.Member.AllProjects,
@@ -579,6 +664,32 @@ func inviteWithinBudget(ctx *muzak.Context, orgSlug, email string) error {
 		return nil
 	}
 	return limiter.Allow(ctx, core.InvitationBudgets(orgSlug, email)...)
+}
+
+// memberEmail names a membership in a log line, falling back to its id.
+//
+// The address rather than the row id, because the person reading the entry a year from now knows who
+// `ada@studio.example` was and has no way to look up member 41.
+func memberEmail(member *global.OrganizationMember) string {
+	if member.Edges.User != nil {
+		return member.Edges.User.Email
+	}
+	return member.UID.String()
+}
+
+func roleKeyOf(role *global.Role) string {
+	if role == nil {
+		return ""
+	}
+	return role.Key
+}
+
+func slugsOf(projects []*global.Project) []string {
+	out := make([]string, 0, len(projects))
+	for _, proj := range projects {
+		out = append(out, proj.Slug)
+	}
+	return out
 }
 
 // ---- lookups and mapping ----------------------------------------------------

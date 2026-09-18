@@ -124,6 +124,28 @@ The last owner of an organization cannot be removed or demoted, by either door.
 Removing a member **deletes** the row, unlike a revoked key or an archived flag: a membership is
 not a record of what happened, it is a live grant of access to player data.
 
+**The audit log** — `audit.read`, which only OWNER and ADMIN hold among the seeded six:
+
+```
+GET                         /v1/organizations/{org}/audit
+```
+
+Every route on the control plane that changes something writes an entry: memberships, roles, project
+access, keys, invitations, segments, flags, LiveOps events, publishes, credit and billing settings.
+**Append-only by construction** — every field on the row is immutable and the mixin omits
+`updated_at`, so ent generates an update builder with no setter at all, and §08's "a log the operator
+can edit proves nothing" is a compile error rather than a policy.
+
+Entries are written **by hand, at the decision**, not by middleware. Middleware records requests; an
+audit log has to record what something *was*: "Ada's role changed from developer to owner" and "the
+rollout moved from 10% to 100%" were never in the request. Forgetting one fails the suite —
+`TestEveryMutatingRouteDecidesAboutAudit` reads the OpenAPI document and demands that every mutating
+route is either recorded or exempt with a reason
+([ADR 0037](docs/adr/0037-an-audit-log-records-decisions-not-requests.md)).
+
+Operator actions carry a **self-asserted** name, labelled as such: the shared token cannot say who is
+holding it, so the entry is evidence of what happened and not of who did it.
+
 **Usage, the wallet and the plan** — `billing.read`, except the last, which needs `billing.manage`:
 
 ```
@@ -153,9 +175,9 @@ customer permission — an owner holding everything still cannot grant themselve
        POST                 /v1/operator/organizations/{org}/charges
 ```
 
-`reference` on both is the idempotency key: the same one twice grants or charges once. A shared
-secret cannot say *who* acted, which is a real gap recorded in
-[docs/compliance/10-open-items.md](docs/compliance/10-open-items.md) beside the audit log it needs.
+`reference` on both is the idempotency key: the same one twice grants or charges once. `operator` is
+required and is the name that reaches the customer's audit log — self-asserted, and the entry says so,
+because a shared token cannot prove who was holding it.
 
 The **usage meter** runs on the worker, deriving each day from `metrics_daily` — the same fact the
 dashboard's DAU comes from, so an invoice and a chart are two readings of one number. A day is

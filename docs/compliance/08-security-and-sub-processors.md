@@ -89,5 +89,12 @@ residency claim that will not survive its first customer questionnaire.
 ## Status
 
 Encryption at rest and in transit are provider defaults in the deployment. The archive
-manifests breach scoping depends on are built; the audit log and the admin console are not —
-[10-open-items.md](10-open-items.md).
+manifests breach scoping depends on are built, and so is the **customer-facing audit log**: every
+route that changes something records who did it, and the records are append-only by construction
+rather than by policy.
+
+Two of the three requirements above are therefore met and one is not. `audit_events` lives in the
+same database as the organizations and memberships it describes, so "held separately from the data
+they describe" holds for `staff_access` — our reads of a cell, recorded in the global tier — and not
+for a customer's own log. The **admin console** and the staff-access records it would write do not
+exist. Both are in [10-open-items.md](10-open-items.md).

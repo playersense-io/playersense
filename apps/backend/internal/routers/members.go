@@ -117,6 +117,21 @@ func Members() *muzak.Router {
 		core.Require(authz.MemberInvite),
 		muzak.WithResponseDoc(http.StatusConflict, "That invitation is not outstanding"))
 
+	// ---- the log -----------------------------------------------------------
+
+	// Under `audit.read`, which only the two system roles hold among the seeded six. The log
+	// names what every member has been doing, so showing it to all of them is a different
+	// decision from showing them the members list — a contractor can see who their colleagues
+	// are without seeing what each of them changed last Tuesday.
+	r.Get("/organizations/{org}/audit", handlers.ReadAudit,
+		muzak.Summary("Who did what"),
+		muzak.Description("The organization's own log, newest first: memberships, roles, keys, "+
+			"publishes, credit and configuration. Append-only — every field on the row is "+
+			"immutable, so there is no code path that could change what an entry says. "+
+			"Filterable to one action, because \"who published\" and \"who changed a role\" "+
+			"are different questions."),
+		core.Require(authz.AuditRead))
+
 	return r
 }
 

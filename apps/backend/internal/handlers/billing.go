@@ -15,6 +15,7 @@ import (
 	"playersense.dev/backend/ent/global/organization"
 	"playersense.dev/backend/ent/global/project"
 	"playersense.dev/backend/ent/global/usagedaily"
+	"playersense.dev/backend/internal/audit"
 	"playersense.dev/backend/internal/billing"
 	"playersense.dev/backend/internal/core"
 	"playersense.dev/backend/internal/schemas"
@@ -274,18 +275,51 @@ func SetAutoTopUp(ctx *muzak.Context, in schemas.SetAutoTopUpIn) (schemas.Billin
 			WithCode("auto_topup_not_workable")
 	}
 
-	update := account.Update().
+	tx, err := ctrl.Client.Tx(ctx.Context())
+	if err != nil {
+		return schemas.BillingOut{}, core.AsHTTPError(err)
+	}
+
+	// Built from the transaction rather than from the account row. `account.Update()` carries the
+	// application's client, so it would have committed on its own — leaving a configuration change
+	// that happened and an audit entry that was rolled back, which is the one combination this
+	// whole design exists to rule out.
+	update := tx.BillingAccount.UpdateOneID(account.ID).
 		SetAutoTopupEnabled(wanted.Enabled).
 		SetAutoTopupThresholdMicros(wanted.Threshold).
 		SetAutoTopupAmountMicros(wanted.Amount)
 	if method != "" {
 		update = update.SetDefaultPaymentMethod(method)
 	}
-	updated, err := update.Save(ctx.Context())
-	if err != nil {
+	if _, err := update.Save(ctx.Context()); err != nil {
+		_ = tx.Rollback()
 		return schemas.BillingOut{}, core.AsHTTPError(err)
 	}
-	return billingOut(ctx.Context(), ctrl, updated, nowUTC())
+	// The previous values too, because "who turned this on" is half the question and "what was it
+	// before" is the other half — and nothing else in the product can answer the second.
+	if err := auditFor(ctx).record(ctx.Context(), tx, audit.AutoTopUpSet,
+		"billing_account", org.Slug, map[string]any{
+			"enabled":          wanted.Enabled,
+			"threshold_micros": wanted.Threshold,
+			"amount_micros":    wanted.Amount,
+			"was_enabled":      account.AutoTopupEnabled,
+			"was_threshold":    account.AutoTopupThresholdMicros,
+			"was_amount":       account.AutoTopupAmountMicros,
+		}); err != nil {
+		_ = tx.Rollback()
+		return schemas.BillingOut{}, core.AsHTTPError(err)
+	}
+	if err := tx.Commit(); err != nil {
+		return schemas.BillingOut{}, core.AsHTTPError(err)
+	}
+	// Re-read through the application's client rather than returning the row the transaction
+	// produced: that row belongs to a connection which is now closed, and billingOut reads its
+	// plan edge.
+	fresh, err := accountOf(ctx.Context(), ctrl, org.ID)
+	if err != nil {
+		return schemas.BillingOut{}, err
+	}
+	return billingOut(ctx.Context(), ctrl, fresh, nowUTC())
 }
 
 // ---- the operator surface ---------------------------------------------------
@@ -330,6 +364,26 @@ func GrantCredit(ctx *muzak.Context, in schemas.GrantCreditIn) (schemas.CreditGr
 		_ = tx.Rollback()
 		return schemas.CreditGrantedOut{}, walletError(err)
 	}
+
+	// Only when something happened. A replayed reference wrote no lot, and an entry for it would
+	// make the log say credit was granted twice — which is the opposite of what the idempotency
+	// key is for.
+	if granted {
+		if err := auditFor(ctx).forOrganization(account.OrganizationID).
+			byOperator(in.Operator).
+			record(ctx.Context(), tx, audit.CreditGranted, "credit_lot", lot.UID.String(),
+				map[string]any{
+					"kind":          in.Kind,
+					"amount_micros": in.AmountMicros,
+					"expires_at":    expiryFor(lot),
+					"description":   in.Description,
+					"reference":     in.Reference,
+				}); err != nil {
+			_ = tx.Rollback()
+			return schemas.CreditGrantedOut{}, core.AsHTTPError(err)
+		}
+	}
+
 	if err := tx.Commit(); err != nil {
 		return schemas.CreditGrantedOut{}, core.AsHTTPError(err)
 	}
@@ -384,6 +438,25 @@ func ChargeCredit(ctx *muzak.Context, in schemas.ChargeCreditIn) (schemas.Credit
 		_ = tx.Rollback()
 		return schemas.CreditChargedOut{}, walletError(err)
 	}
+
+	if result.Applied {
+		if err := auditFor(ctx).forOrganization(account.OrganizationID).
+			byOperator(in.Operator).
+			record(ctx.Context(), tx, audit.CreditCharged, "billing_account", in.OrgSlug,
+				map[string]any{
+					"amount_micros": in.AmountMicros,
+					"kind":          orDefault(in.Kind, "adjustment"),
+					"description":   in.Description,
+					"reference":     in.Reference,
+					// Which grants paid for it, because that is the part a statement's
+					// single line deliberately does not say.
+					"lots": len(result.Draws),
+				}); err != nil {
+			_ = tx.Rollback()
+			return schemas.CreditChargedOut{}, core.AsHTTPError(err)
+		}
+	}
+
 	if err := tx.Commit(); err != nil {
 		return schemas.CreditChargedOut{}, core.AsHTTPError(err)
 	}
@@ -419,6 +492,17 @@ func ChargeCredit(ctx *muzak.Context, in schemas.ChargeCreditIn) (schemas.Credit
 		})
 	}
 	return out, nil
+}
+
+// expiryFor renders a lot's expiry for an audit entry, or nothing when it has none.
+//
+// A string rather than a time, because the metadata is read by a person looking at a log and an RFC
+// 3339 date is what they can compare against the one they were told.
+func expiryFor(lot *global.CreditLot) any {
+	if lot.ExpiresAt == nil {
+		return nil
+	}
+	return lot.ExpiresAt.Format(time.RFC3339)
 }
 
 // ---- lookups and mapping ----------------------------------------------------

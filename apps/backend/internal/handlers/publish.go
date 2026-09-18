@@ -15,6 +15,7 @@ import (
 	"playersense.dev/backend/ent/global/featureflag"
 	"playersense.dev/backend/ent/global/liveopsevent"
 	"playersense.dev/backend/ent/global/segment"
+	"playersense.dev/backend/internal/audit"
 	"playersense.dev/backend/internal/core"
 	"playersense.dev/backend/internal/liveconfig"
 	"playersense.dev/backend/internal/schemas"
@@ -87,7 +88,12 @@ func PublishConfig(ctx *muzak.Context, in schemas.PublishConfigIn) (schemas.Conf
 		return schemas.ConfigVersionOut{}, core.AsHTTPError(err)
 	}
 
-	created, err := ctrl.Client.ConfigVersion.Create().
+	tx, err := ctrl.Client.Tx(ctx.Context())
+	if err != nil {
+		return schemas.ConfigVersionOut{}, core.AsHTTPError(err)
+	}
+
+	created, err := tx.ConfigVersion.Create().
 		SetProjectID(project.ID).
 		SetEnvironmentID(env.ID).
 		SetVersion(next).
@@ -97,9 +103,26 @@ func PublishConfig(ctx *muzak.Context, in schemas.PublishConfigIn) (schemas.Conf
 		SetNote(in.Note).
 		Save(ctx.Context())
 	if err != nil {
+		_ = tx.Rollback()
 		// The unique index on (version, environment) is what makes two people pressing
 		// publish at the same moment produce two versions or one conflict, never one
 		// version holding somebody else's document.
+		return schemas.ConfigVersionOut{}, core.AsHTTPError(err)
+	}
+
+	// The version already records who published it, so this entry is not that — it is the line
+	// that puts a publish in the same list as the role change and the key revocation, which is
+	// where somebody reading "what happened on Tuesday" is looking.
+	if err := auditFor(ctx).record(ctx.Context(), tx, audit.ConfigPublished,
+		"config_version", created.UID.String(), map[string]any{
+			"environment": in.Environment, "version": created.Version,
+			"flags": len(document.Flags), "liveops_events": len(document.Events),
+			"needs_player_facts": document.NeedsPlayerFacts, "note": in.Note,
+		}); err != nil {
+		_ = tx.Rollback()
+		return schemas.ConfigVersionOut{}, core.AsHTTPError(err)
+	}
+	if err := tx.Commit(); err != nil {
 		return schemas.ConfigVersionOut{}, core.AsHTTPError(err)
 	}
 

@@ -3263,9 +3263,9 @@ not a record of what happened; it is a live grant of access to a studio's player
 a disabled one would make "who can reach this" depend on a boolean somebody has to remember to
 read. §08's access review asks who *can* reach the data, which is exactly the rows that remain.
 
-What this leaves open, and it is open: the removal itself is not recorded anywhere. `audit_events`
-exists as a table and nothing writes it yet, so there is no record of who ended a membership or
-when — see [docs/compliance/10-open-items.md](docs/compliance/10-open-items.md).
+The removal is recorded, and it is the entry that matters most in the whole log: a membership leaves
+nothing else behind, so §55.4's audit trail is the only thing that can answer who ended somebody's
+access and when.
 
 Sending an invitation is **the only rate-limited route on the dashboard** and the only budget in
 the product that protects somebody who is not making the request. It fails closed, because a
@@ -3345,8 +3345,38 @@ writes off each lapsed grant as its own statement line, because a customer askin
 went is asking about a specific grant.
 
 **Granting credit is not a customer's privilege at any permission.** It is an operator action, behind
-the shared operator token until §56's console and the staff-access model exist — which means today
-the product cannot record *who* granted credit. That is an open item rather than a detail.
+the shared operator token until §56's console and the staff-access model exist. The operator names
+themselves on the request and the customer's audit log records it — **self-asserted**, and labelled so,
+because a shared token cannot prove who was holding it (§55.4).
+
+---
+
+### 55.4 The audit log
+
+A studio's own log, in their dashboard, answering one question: **this looks wrong, who did this.**
+Every route on the control plane that changes something writes an entry — memberships, roles, project
+access, keys, invitations, the three authored tables, publishes, credit and billing settings — under
+`audit.read`, which only the two system roles hold among the seeded six. The log names what every
+member has been doing, and a contractor seeing who their colleagues are is a different decision from
+their seeing what each changed last Tuesday.
+
+**Append-only by construction.** Every field is immutable and the mixin omits `updated_at`, so ent
+emits an update builder with no setter on it: §08's "a log the operator can edit proves nothing" is a
+compile error rather than a rule somebody remembers.
+
+**Entries record decisions, not requests**, which is why middleware could not have written them: the
+previous role, the previous rollout and the derived expiry were never in the request, and they are
+most of what an entry is for. The cost — that one can be forgotten — is paid by a test that reads the
+routes and refuses a mutating one that says nothing about audit
+([ADR 0037](docs/adr/0037-an-audit-log-records-decisions-not-requests.md)).
+
+The entry commits in the transaction that made the change wherever the handler owns it, so a refused
+request leaves nothing behind. Four routes whose domain call owns its own transaction write
+afterwards and can therefore fail alone; that gap is logged and listed.
+
+`staff_access` is the other table and a different thing: PlayerSense staff reading a customer's data,
+with a ticket per read (§08, §56). One log holding both would be a screen where a studio's
+administrator and one of our engineers appear as the same kind of event.
 
 ---
 

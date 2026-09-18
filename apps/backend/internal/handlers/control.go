@@ -12,6 +12,7 @@ import (
 	"playersense.dev/backend/ent/global/cell"
 	"playersense.dev/backend/ent/global/environment"
 	"playersense.dev/backend/ent/global/project"
+	"playersense.dev/backend/internal/audit"
 	"playersense.dev/backend/internal/core"
 	"playersense.dev/backend/internal/identity"
 	"playersense.dev/backend/internal/schemas"
@@ -38,6 +39,12 @@ func CreateOrganization(ctx *muzak.Context, in schemas.CreateOrganizationIn) (sc
 	if err != nil {
 		return schemas.OrganizationOut{}, core.AsHTTPError(err)
 	}
+
+	// The log's first line, and the only one written against an organisation the principal was
+	// not inside when the request began — so the id comes from what was just created.
+	auditFor(ctx).forOrganization(org.ID).after(ctx, ctrl.Client, audit.OrganizationCreated,
+		"organization", org.UID.String(), map[string]any{"slug": org.Slug, "name": org.Name})
+
 	return organizationOut(org), nil
 }
 
@@ -121,6 +128,14 @@ func CreateProject(ctx *muzak.Context, in schemas.CreateProjectIn) (schemas.Proj
 			return schemas.ProjectOut{}, core.AsHTTPError(err)
 		}
 	}
+	if err := auditFor(ctx).record(ctx.Context(), tx, audit.ProjectCreated,
+		"project", proj.UID.String(), map[string]any{
+			"slug": proj.Slug, "name": proj.Name, "cell": home.Slug,
+			"policy_tier": string(proj.PolicyTier), "retention_days": proj.RetentionDays,
+		}); err != nil {
+		_ = tx.Rollback()
+		return schemas.ProjectOut{}, core.AsHTTPError(err)
+	}
 	if err := tx.Commit(); err != nil {
 		return schemas.ProjectOut{}, core.AsHTTPError(err)
 	}
@@ -200,7 +215,11 @@ func CreateAPIKey(ctx *muzak.Context, in schemas.CreateAPIKeyIn) (schemas.APIKey
 		return schemas.APIKeyCreatedOut{}, muzak.BadRequest(err.Error())
 	}
 
-	key, err := ctrl.Client.APIKey.Create().
+	tx, err := ctrl.Client.Tx(ctx.Context())
+	if err != nil {
+		return schemas.APIKeyCreatedOut{}, core.AsHTTPError(err)
+	}
+	key, err := tx.APIKey.Create().
 		SetKind(apikey.Kind(in.Kind)).
 		SetPublicID(generated.PublicID).
 		SetSecretHash(generated.Hash).
@@ -208,6 +227,21 @@ func CreateAPIKey(ctx *muzak.Context, in schemas.CreateAPIKeyIn) (schemas.APIKey
 		SetEnvironmentID(env.ID).
 		Save(ctx.Context())
 	if err != nil {
+		_ = tx.Rollback()
+		return schemas.APIKeyCreatedOut{}, core.AsHTTPError(err)
+	}
+	// The public half only. The secret is shown once to the caller and never stored, so an audit
+	// entry carrying it would be the one place in the product it could be read twice.
+	if err := auditFor(ctx).record(ctx.Context(), tx, audit.KeyCreated,
+		"api_key", key.UID.String(), map[string]any{
+			"kind": in.Kind, "environment": string(env.Kind),
+			"name": in.Name, "public_id": key.PublicID,
+			"project": proj.Slug,
+		}); err != nil {
+		_ = tx.Rollback()
+		return schemas.APIKeyCreatedOut{}, core.AsHTTPError(err)
+	}
+	if err := tx.Commit(); err != nil {
 		return schemas.APIKeyCreatedOut{}, core.AsHTTPError(err)
 	}
 
@@ -268,8 +302,24 @@ func RevokeAPIKey(ctx *muzak.Context, in schemas.RevokeAPIKeyIn) (schemas.APIKey
 	if key.RevokedAt != nil {
 		return schemas.APIKeyOut{}, muzak.Conflict("that key is already revoked")
 	}
-	updated, err := key.Update().SetRevokedAt(nowUTC()).Save(ctx.Context())
+	tx, err := ctrl.Client.Tx(ctx.Context())
 	if err != nil {
+		return schemas.APIKeyOut{}, core.AsHTTPError(err)
+	}
+	updated, err := tx.APIKey.UpdateOneID(key.ID).SetRevokedAt(nowUTC()).Save(ctx.Context())
+	if err != nil {
+		_ = tx.Rollback()
+		return schemas.APIKeyOut{}, core.AsHTTPError(err)
+	}
+	if err := auditFor(ctx).record(ctx.Context(), tx, audit.KeyRevoked,
+		"api_key", key.UID.String(), map[string]any{
+			"kind": string(key.Kind), "name": key.Name, "public_id": key.PublicID,
+			"project": proj.Slug,
+		}); err != nil {
+		_ = tx.Rollback()
+		return schemas.APIKeyOut{}, core.AsHTTPError(err)
+	}
+	if err := tx.Commit(); err != nil {
 		return schemas.APIKeyOut{}, core.AsHTTPError(err)
 	}
 
@@ -287,7 +337,10 @@ func RevokeAPIKey(ctx *muzak.Context, in schemas.RevokeAPIKeyIn) (schemas.APIKey
 				"public_id", updated.PublicID, "error", err.Error())
 		}
 	}
-	env, err := updated.QueryEnvironment().Only(ctx.Context())
+	// Through the application's client, not the row's. `updated` was returned by the transaction
+	// above, so its client is that transaction — and querying an edge off it after the commit is
+	// a use of a closed connection, which is what made revoking a key a 500.
+	env, err := ctrl.Client.Environment.Get(ctx.Context(), updated.EnvironmentID)
 	if err != nil {
 		return schemas.APIKeyOut{}, core.AsHTTPError(err)
 	}

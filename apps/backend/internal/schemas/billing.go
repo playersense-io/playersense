@@ -255,9 +255,22 @@ type GrantCreditIn struct {
 	Reference string `json:"reference" doc:"An idempotency key derived from what happened: a payment intent, a ticket id"`
 
 	StripeReference string `json:"stripe_reference,omitzero"`
+
+	// Operator is who is doing this, and it is **required and unverified**.
+	//
+	// The shared operator token cannot say who is holding it, so this is the only name the audit
+	// entry will carry — and the entry says it is self-asserted, because a log reading
+	// `ada@playersense.dev` would be read as proof that Ada did it when all it proves is that
+	// somebody with the token typed her address.
+	//
+	// Required anyway. A field somebody has to fill in is a field they have to think about, and
+	// the alternative was an entry reading "operator (unidentified)" on every credit grant in the
+	// product.
+	Operator string `json:"operator" doc:"Your own address. Recorded in the customer's audit log as self-asserted"`
 }
 
 func (in *GrantCreditIn) Validate(v *muzak.Validation) {
+	v.String(&in.Operator).Trim().Lower().Required().Email().MaxLen(254)
 	v.String(&in.OrgSlug).Trim().Lower().Required().MaxLen(64)
 	v.String(&in.Kind).Trim().Lower().Required().OneOf(wallet.Purchase, wallet.Promo)
 	// Positive, and bounded well above MaxTopUp: an automatic charge is capped because nobody is
@@ -280,9 +293,13 @@ type ChargeCreditIn struct {
 	Kind         string `json:"kind,omitzero" default:"adjustment" doc:"usage, subscription or adjustment"`
 	Description  string `json:"description"`
 	Reference    string `json:"reference" doc:"An idempotency key derived from what happened"`
+
+	// Operator, for the reason [GrantCreditIn.Operator] gives.
+	Operator string `json:"operator" doc:"Your own address. Recorded in the customer's audit log as self-asserted"`
 }
 
 func (in *ChargeCreditIn) Validate(v *muzak.Validation) {
+	v.String(&in.Operator).Trim().Lower().Required().Email().MaxLen(254)
 	v.String(&in.OrgSlug).Trim().Lower().Required().MaxLen(64)
 	v.Number(&in.AmountMicros).Min(1).Max(float64(MaxGrant))
 	v.String(&in.Kind).Trim().Lower().OneOf("usage", "subscription", "adjustment")
