@@ -50,6 +50,15 @@ type Connection struct {
 	Tor     bool
 	Relay   bool
 	Hosting bool
+
+	// PrivacyKnown records that the privacy database answered, which is what makes the
+	// five booleans above mean something.
+	//
+	// Without it, "not a VPN" and "we did not look" are both `false`, and a rule written as
+	// `network.vpn is false` silently reaches nobody — the failure this codebase keeps
+	// finding, where a rule is accepted and then never matches and gives no reason. A
+	// clean connection has to be a *fact*, not an absence.
+	PrivacyKnown bool
 }
 
 // Empty reports whether nothing at all was resolved.
@@ -173,6 +182,7 @@ func (r *Resolver) Resolve(addr netip.Addr) Connection {
 	if r.privacy != nil {
 		var found privacy
 		if err := r.privacy.Lookup(addr).Decode(&found); err == nil {
+			out.PrivacyKnown = true
 			out.VPN = found.VPN
 			out.Proxy = found.Proxy
 			out.Tor = found.Tor
@@ -201,9 +211,11 @@ func (c Connection) Context() map[string]any {
 	set("geo.continent", c.Continent)
 	set("geo.timezone", c.Timezone)
 
-	// The booleans are always present when the privacy database answered, because "not a
-	// VPN" is a fact a rule needs and is not the same as "we did not look".
-	if c.VPN || c.Proxy || c.Tor || c.Relay || c.Hosting {
+	// All five, or none. Present whenever the privacy database answered, because "not a
+	// VPN" is a fact a rule needs and is not the same as "we did not look" — and absent
+	// entirely when it did not, so a rule that asks falls through to NotExists rather than
+	// being told a confident false nobody established.
+	if c.PrivacyKnown {
 		out["network.vpn"] = c.VPN
 		out["network.proxy"] = c.Proxy
 		out["network.tor"] = c.Tor

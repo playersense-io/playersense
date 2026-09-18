@@ -32,6 +32,8 @@ const (
 	FieldIngestURL = "ingest_url"
 	// FieldQueryURL holds the string denoting the query_url field in the database.
 	FieldQueryURL = "query_url"
+	// FieldConfigURL holds the string denoting the config_url field in the database.
+	FieldConfigURL = "config_url"
 	// FieldLocation holds the string denoting the location field in the database.
 	FieldLocation = "location"
 	// EdgeProjects holds the string denoting the projects edge name in mutations.
@@ -58,6 +60,7 @@ var Columns = []string{
 	FieldStatus,
 	FieldIngestURL,
 	FieldQueryURL,
+	FieldConfigURL,
 	FieldLocation,
 }
 
@@ -88,6 +91,8 @@ var (
 	IngestURLValidator func(string) error
 	// QueryURLValidator is a validator for the "query_url" field. It is called by the builders before save.
 	QueryURLValidator func(string) error
+	// ConfigURLValidator is a validator for the "config_url" field. It is called by the builders before save.
+	ConfigURLValidator func(string) error
 	// LocationValidator is a validator for the "location" field. It is called by the builders before save.
 	LocationValidator func(string) error
 )
@@ -165,6 +170,11 @@ func ByIngestURL(opts ...sql.OrderTermOption) OrderOption {
 // ByQueryURL orders the results by the query_url field.
 func ByQueryURL(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldQueryURL, opts...).ToFunc()
+}
+
+// ByConfigURL orders the results by the config_url field.
+func ByConfigURL(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldConfigURL, opts...).ToFunc()
 }
 
 // ByLocation orders the results by the location field.

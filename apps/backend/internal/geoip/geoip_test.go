@@ -109,11 +109,24 @@ func TestUnknownValuesAreAbsentRatherThanEmpty(t *testing.T) {
 
 	// But a resolved false is a fact, and has to be there: "not a VPN" is what a rule
 	// needs, and it is not the same as "we did not look".
-	known := Connection{Country: "TR", Hosting: true}.Context()
+	known := Connection{Country: "TR", PrivacyKnown: true, Hosting: true}.Context()
 	if known["network.vpn"] != false {
 		t.Errorf("network.vpn = %v, want an explicit false", known["network.vpn"])
 	}
 	if known["network.hosting"] != true {
 		t.Errorf("network.hosting = %v", known["network.hosting"])
+	}
+
+	// The case that matters most and is easiest to get wrong: the database answered and
+	// every answer was false. An ordinary player on an ordinary connection is exactly this,
+	// so a rule saying "not through a VPN" reaches nobody unless a clean connection is a
+	// fact rather than an absence.
+	clean := Connection{Country: "TR", PrivacyKnown: true}.Context()
+	for _, key := range []string{
+		"network.vpn", "network.proxy", "network.tor", "network.relay", "network.hosting",
+	} {
+		if value, present := clean[key]; !present || value != false {
+			t.Errorf("%s = %v (present=%v), want an explicit false", key, value, present)
+		}
 	}
 }

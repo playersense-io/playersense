@@ -66,6 +66,15 @@ func (Cell) Fields() []ent.Field {
 		// the safe half of the behaviour.
 		field.String("query_url").MaxLen(255).Optional().Comment(dataclass.None),
 
+		// The public address a game asks for its configuration. A third, for the same
+		// reason there is a second: a 421 can only direct a caller if it knows the address
+		// of the surface they were using, and sending an SDK that wanted flags to the
+		// reporting API is not help — it is a 404 in a different building.
+		//
+		// Optional on the same terms. A cell without one refuses a foreign project key
+		// rather than redirecting it, which is the safe half.
+		field.String("config_url").MaxLen(255).Optional().Comment(dataclass.None),
+
 		// Human-readable placement, for the dashboard and for a customer's privacy
 		// review. Not used for routing.
 		field.String("location").MaxLen(64).Optional().Comment(dataclass.None),

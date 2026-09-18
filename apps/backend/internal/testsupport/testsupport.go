@@ -131,6 +131,7 @@ func SeedCell(t *testing.T, db *pgdb.Global, identity core.CellIdentity) *global
 		SetRegion(identity.Region).
 		SetIngestURL(identity.IngestURL).
 		SetQueryURL(identity.QueryURL).
+		SetConfigURL(identity.ConfigURL).
 		Save(ctx)
 	if err != nil {
 		if found, qerr := db.Client.Cell.Query().Where(cell.Slug(identity.Slug)).Only(ctx); qerr == nil {

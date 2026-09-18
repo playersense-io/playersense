@@ -29,10 +29,20 @@ type Source interface {
 // inside out: the cache now holds only players who actually requested something, which is
 // daily-active rather than monthly-active and about a tenth of the memory.
 type ClickHouse struct {
-	db *sql.DB
+	pool Pool
 }
 
-func NewClickHouse(db *sql.DB) *ClickHouse { return &ClickHouse{db: db} }
+// Pool is however the caller gets a connection, asked for per query rather than held.
+//
+// An interface rather than a *sql.DB because a service builds its dependency graph before it
+// dials anything: the pool does not exist until the application starts, and a source
+// constructed with a nil one would be a nil dereference on the first player who asked for a
+// config. Asking per lookup costs a method call and removes the ordering problem entirely.
+type Pool interface {
+	DB() (*sql.DB, error)
+}
+
+func NewClickHouse(pool Pool) *ClickHouse { return &ClickHouse{pool: pool} }
 
 // Lookup reads one subject's record.
 //
@@ -91,7 +101,12 @@ func (c *ClickHouse) Lookup(ctx context.Context, projectSeq uint32, environmentS
 		firstPurchase sql.NullInt64
 		lastPurchase  sql.NullInt64
 	)
-	err := c.db.QueryRowContext(ctx, query,
+	db, err := c.pool.DB()
+	if err != nil {
+		return Record{}, false, err
+	}
+
+	err = db.QueryRowContext(ctx, query,
 		projectSeq, environmentSeq, projectSeq, environmentSeq, identifier).
 		Scan(
 			&record.SpendMicros, &record.Purchases,

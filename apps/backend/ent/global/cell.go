@@ -36,6 +36,8 @@ type Cell struct {
 	// class=none
 	QueryURL string `json:"query_url,omitempty"`
 	// class=none
+	ConfigURL string `json:"config_url,omitempty"`
+	// class=none
 	Location string `json:"location,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the CellQuery when eager-loading is set.
@@ -68,7 +70,7 @@ func (*Cell) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case cell.FieldID:
 			values[i] = new(sql.NullInt64)
-		case cell.FieldSlug, cell.FieldRegion, cell.FieldStatus, cell.FieldIngestURL, cell.FieldQueryURL, cell.FieldLocation:
+		case cell.FieldSlug, cell.FieldRegion, cell.FieldStatus, cell.FieldIngestURL, cell.FieldQueryURL, cell.FieldConfigURL, cell.FieldLocation:
 			values[i] = new(sql.NullString)
 		case cell.FieldCreatedAt, cell.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -143,6 +145,12 @@ func (_m *Cell) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.QueryURL = value.String
 			}
+		case cell.FieldConfigURL:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field config_url", values[i])
+			} else if value.Valid {
+				_m.ConfigURL = value.String
+			}
 		case cell.FieldLocation:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field location", values[i])
@@ -213,6 +221,9 @@ func (_m *Cell) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("query_url=")
 	builder.WriteString(_m.QueryURL)
+	builder.WriteString(", ")
+	builder.WriteString("config_url=")
+	builder.WriteString(_m.ConfigURL)
 	builder.WriteString(", ")
 	builder.WriteString("location=")
 	builder.WriteString(_m.Location)

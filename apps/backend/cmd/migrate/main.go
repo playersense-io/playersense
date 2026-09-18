@@ -236,6 +236,7 @@ func registerCell(ctx context.Context, g *pgdb.Global, settings config.Settings)
 		if _, err := existing.Update().
 			SetIngestURL(settings.CellIngestURL).
 			SetQueryURL(settings.CellQueryURL).
+			SetConfigURL(settings.ConfigAPIPublicURL).
 			Save(ctx); err != nil {
 			return fmt.Errorf("update cell %s: %w", settings.Cell, err)
 		}
@@ -249,6 +250,7 @@ func registerCell(ctx context.Context, g *pgdb.Global, settings config.Settings)
 			SetRegion(settings.CellRegion).
 			SetIngestURL(settings.CellIngestURL).
 			SetQueryURL(settings.CellQueryURL).
+			SetConfigURL(settings.ConfigAPIPublicURL).
 			Save(ctx); err != nil {
 			return fmt.Errorf("register cell %s: %w", settings.Cell, err)
 		}

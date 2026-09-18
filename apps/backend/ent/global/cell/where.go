@@ -91,6 +91,11 @@ func QueryURL(v string) predicate.Cell {
 	return predicate.Cell(sql.FieldEQ(FieldQueryURL, v))
 }
 
+// ConfigURL applies equality check predicate on the "config_url" field. It's identical to ConfigURLEQ.
+func ConfigURL(v string) predicate.Cell {
+	return predicate.Cell(sql.FieldEQ(FieldConfigURL, v))
+}
+
 // Location applies equality check predicate on the "location" field. It's identical to LocationEQ.
 func Location(v string) predicate.Cell {
 	return predicate.Cell(sql.FieldEQ(FieldLocation, v))
@@ -504,6 +509,81 @@ func QueryURLEqualFold(v string) predicate.Cell {
 // QueryURLContainsFold applies the ContainsFold predicate on the "query_url" field.
 func QueryURLContainsFold(v string) predicate.Cell {
 	return predicate.Cell(sql.FieldContainsFold(FieldQueryURL, v))
+}
+
+// ConfigURLEQ applies the EQ predicate on the "config_url" field.
+func ConfigURLEQ(v string) predicate.Cell {
+	return predicate.Cell(sql.FieldEQ(FieldConfigURL, v))
+}
+
+// ConfigURLNEQ applies the NEQ predicate on the "config_url" field.
+func ConfigURLNEQ(v string) predicate.Cell {
+	return predicate.Cell(sql.FieldNEQ(FieldConfigURL, v))
+}
+
+// ConfigURLIn applies the In predicate on the "config_url" field.
+func ConfigURLIn(vs ...string) predicate.Cell {
+	return predicate.Cell(sql.FieldIn(FieldConfigURL, vs...))
+}
+
+// ConfigURLNotIn applies the NotIn predicate on the "config_url" field.
+func ConfigURLNotIn(vs ...string) predicate.Cell {
+	return predicate.Cell(sql.FieldNotIn(FieldConfigURL, vs...))
+}
+
+// ConfigURLGT applies the GT predicate on the "config_url" field.
+func ConfigURLGT(v string) predicate.Cell {
+	return predicate.Cell(sql.FieldGT(FieldConfigURL, v))
+}
+
+// ConfigURLGTE applies the GTE predicate on the "config_url" field.
+func ConfigURLGTE(v string) predicate.Cell {
+	return predicate.Cell(sql.FieldGTE(FieldConfigURL, v))
+}
+
+// ConfigURLLT applies the LT predicate on the "config_url" field.
+func ConfigURLLT(v string) predicate.Cell {
+	return predicate.Cell(sql.FieldLT(FieldConfigURL, v))
+}
+
+// ConfigURLLTE applies the LTE predicate on the "config_url" field.
+func ConfigURLLTE(v string) predicate.Cell {
+	return predicate.Cell(sql.FieldLTE(FieldConfigURL, v))
+}
+
+// ConfigURLContains applies the Contains predicate on the "config_url" field.
+func ConfigURLContains(v string) predicate.Cell {
+	return predicate.Cell(sql.FieldContains(FieldConfigURL, v))
+}
+
+// ConfigURLHasPrefix applies the HasPrefix predicate on the "config_url" field.
+func ConfigURLHasPrefix(v string) predicate.Cell {
+	return predicate.Cell(sql.FieldHasPrefix(FieldConfigURL, v))
+}
+
+// ConfigURLHasSuffix applies the HasSuffix predicate on the "config_url" field.
+func ConfigURLHasSuffix(v string) predicate.Cell {
+	return predicate.Cell(sql.FieldHasSuffix(FieldConfigURL, v))
+}
+
+// ConfigURLIsNil applies the IsNil predicate on the "config_url" field.
+func ConfigURLIsNil() predicate.Cell {
+	return predicate.Cell(sql.FieldIsNull(FieldConfigURL))
+}
+
+// ConfigURLNotNil applies the NotNil predicate on the "config_url" field.
+func ConfigURLNotNil() predicate.Cell {
+	return predicate.Cell(sql.FieldNotNull(FieldConfigURL))
+}
+
+// ConfigURLEqualFold applies the EqualFold predicate on the "config_url" field.
+func ConfigURLEqualFold(v string) predicate.Cell {
+	return predicate.Cell(sql.FieldEqualFold(FieldConfigURL, v))
+}
+
+// ConfigURLContainsFold applies the ContainsFold predicate on the "config_url" field.
+func ConfigURLContainsFold(v string) predicate.Cell {
+	return predicate.Cell(sql.FieldContainsFold(FieldConfigURL, v))
 }
 
 // LocationEQ applies the EQ predicate on the "location" field.

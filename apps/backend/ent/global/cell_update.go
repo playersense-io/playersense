@@ -83,6 +83,26 @@ func (_u *CellUpdate) ClearQueryURL() *CellUpdate {
 	return _u
 }
 
+// SetConfigURL sets the "config_url" field.
+func (_u *CellUpdate) SetConfigURL(v string) *CellUpdate {
+	_u.mutation.SetConfigURL(v)
+	return _u
+}
+
+// SetNillableConfigURL sets the "config_url" field if the given value is not nil.
+func (_u *CellUpdate) SetNillableConfigURL(v *string) *CellUpdate {
+	if v != nil {
+		_u.SetConfigURL(*v)
+	}
+	return _u
+}
+
+// ClearConfigURL clears the value of the "config_url" field.
+func (_u *CellUpdate) ClearConfigURL() *CellUpdate {
+	_u.mutation.ClearConfigURL()
+	return _u
+}
+
 // SetLocation sets the "location" field.
 func (_u *CellUpdate) SetLocation(v string) *CellUpdate {
 	_u.mutation.SetLocation(v)
@@ -197,6 +217,11 @@ func (_u *CellUpdate) check() error {
 			return &ValidationError{Name: "query_url", err: fmt.Errorf(`global: validator failed for field "Cell.query_url": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.ConfigURL(); ok {
+		if err := cell.ConfigURLValidator(v); err != nil {
+			return &ValidationError{Name: "config_url", err: fmt.Errorf(`global: validator failed for field "Cell.config_url": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Location(); ok {
 		if err := cell.LocationValidator(v); err != nil {
 			return &ValidationError{Name: "location", err: fmt.Errorf(`global: validator failed for field "Cell.location": %w`, err)}
@@ -231,6 +256,12 @@ func (_u *CellUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.QueryURLCleared() {
 		_spec.ClearField(cell.FieldQueryURL, field.TypeString)
+	}
+	if value, ok := _u.mutation.ConfigURL(); ok {
+		_spec.SetField(cell.FieldConfigURL, field.TypeString, value)
+	}
+	if _u.mutation.ConfigURLCleared() {
+		_spec.ClearField(cell.FieldConfigURL, field.TypeString)
 	}
 	if value, ok := _u.mutation.Location(); ok {
 		_spec.SetField(cell.FieldLocation, field.TypeString, value)
@@ -354,6 +385,26 @@ func (_u *CellUpdateOne) SetNillableQueryURL(v *string) *CellUpdateOne {
 // ClearQueryURL clears the value of the "query_url" field.
 func (_u *CellUpdateOne) ClearQueryURL() *CellUpdateOne {
 	_u.mutation.ClearQueryURL()
+	return _u
+}
+
+// SetConfigURL sets the "config_url" field.
+func (_u *CellUpdateOne) SetConfigURL(v string) *CellUpdateOne {
+	_u.mutation.SetConfigURL(v)
+	return _u
+}
+
+// SetNillableConfigURL sets the "config_url" field if the given value is not nil.
+func (_u *CellUpdateOne) SetNillableConfigURL(v *string) *CellUpdateOne {
+	if v != nil {
+		_u.SetConfigURL(*v)
+	}
+	return _u
+}
+
+// ClearConfigURL clears the value of the "config_url" field.
+func (_u *CellUpdateOne) ClearConfigURL() *CellUpdateOne {
+	_u.mutation.ClearConfigURL()
 	return _u
 }
 
@@ -484,6 +535,11 @@ func (_u *CellUpdateOne) check() error {
 			return &ValidationError{Name: "query_url", err: fmt.Errorf(`global: validator failed for field "Cell.query_url": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.ConfigURL(); ok {
+		if err := cell.ConfigURLValidator(v); err != nil {
+			return &ValidationError{Name: "config_url", err: fmt.Errorf(`global: validator failed for field "Cell.config_url": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Location(); ok {
 		if err := cell.LocationValidator(v); err != nil {
 			return &ValidationError{Name: "location", err: fmt.Errorf(`global: validator failed for field "Cell.location": %w`, err)}
@@ -535,6 +591,12 @@ func (_u *CellUpdateOne) sqlSave(ctx context.Context) (_node *Cell, err error) {
 	}
 	if _u.mutation.QueryURLCleared() {
 		_spec.ClearField(cell.FieldQueryURL, field.TypeString)
+	}
+	if value, ok := _u.mutation.ConfigURL(); ok {
+		_spec.SetField(cell.FieldConfigURL, field.TypeString, value)
+	}
+	if _u.mutation.ConfigURLCleared() {
+		_spec.ClearField(cell.FieldConfigURL, field.TypeString)
 	}
 	if value, ok := _u.mutation.Location(); ok {
 		_spec.SetField(cell.FieldLocation, field.TypeString, value)

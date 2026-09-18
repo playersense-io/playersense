@@ -400,8 +400,12 @@ func init() {
 	cellDescQueryURL := cellFields[4].Descriptor()
 	// cell.QueryURLValidator is a validator for the "query_url" field. It is called by the builders before save.
 	cell.QueryURLValidator = cellDescQueryURL.Validators[0].(func(string) error)
+	// cellDescConfigURL is the schema descriptor for config_url field.
+	cellDescConfigURL := cellFields[5].Descriptor()
+	// cell.ConfigURLValidator is a validator for the "config_url" field. It is called by the builders before save.
+	cell.ConfigURLValidator = cellDescConfigURL.Validators[0].(func(string) error)
 	// cellDescLocation is the schema descriptor for location field.
-	cellDescLocation := cellFields[5].Descriptor()
+	cellDescLocation := cellFields[6].Descriptor()
 	// cell.LocationValidator is a validator for the "location" field. It is called by the builders before save.
 	cell.LocationValidator = cellDescLocation.Validators[0].(func(string) error)
 	configversionMixin := globaltier.ConfigVersion{}.Mixin()

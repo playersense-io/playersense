@@ -97,6 +97,29 @@ func Projects() *muzak.Router {
 	return r
 }
 
+// LiveConfig returns the publish route (§41).
+//
+// One route, and it is the irreversible one. Drafting a flag or a LiveOps event is a change
+// nobody has seen; publishing is a change every player has, which is why `liveops.publish` is
+// a permission of its own and why DEVELOPER holds `liveops.write` without it.
+func LiveConfig() *muzak.Router {
+	r := muzak.NewRouter(muzak.WithTags("liveops"),
+		muzak.WithResponseDoc(http.StatusNotFound, "The organization or project does not exist"))
+
+	r.Post("/organizations/{org}/projects/{project}/config/{environment}/publish",
+		handlers.PublishConfig,
+		muzak.Summary("Publish this project's configuration"),
+		muzak.Description("Compiles every active flag and LiveOps event into one immutable "+
+			"version for the named environment, with each segment reference replaced by "+
+			"the segment's own rule. A version that compiles is a version that evaluates."),
+		core.Require(authz.LiveOpsPublish),
+		muzak.Status(http.StatusCreated),
+		muzak.WithResponseDoc(http.StatusUnprocessableEntity,
+			"The configuration does not compile; the message names the flag or event and why"))
+
+	return r
+}
+
 // Keys returns the API key routes.
 func Keys() *muzak.Router {
 	r := muzak.NewRouter(muzak.WithTags("api-keys"),

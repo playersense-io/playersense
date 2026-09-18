@@ -183,6 +183,16 @@ type Settings struct {
 	GeoIPLocationDB string `env:"GEOIP_LOCATION_DB" default:""`
 	GeoIPPrivacyDB  string `env:"GEOIP_PRIVACY_DB" default:""`
 
+	// ConfigAPIAddr and ConfigAPIPublicURL are where the SDK's configuration endpoint
+	// listens and how it describes itself (§42).
+	ConfigAPIAddr      string `env:"CONFIG_API_ADDR" default:":21087"`
+	ConfigAPIPublicURL string `env:"CONFIG_API_PUBLIC_URL" default:"http://localhost:21087"`
+
+	// ConfigCacheTTL is how long a published document is served before it is looked up
+	// again. A publish is a deliberate act somebody is watching the result of, so this is
+	// also the longest anybody waits to see one.
+	ConfigCacheTTL time.Duration `env:"CONFIG_CACHE_TTL" default:"1m"`
+
 	// FactsTTL bounds how stale a player's history may be (§41).
 	//
 	// A staleness bound rather than an idle timeout: the entry is never renewed on read,
