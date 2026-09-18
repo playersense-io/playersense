@@ -5,6 +5,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -13,12 +14,19 @@ import (
 	"muzak.dev/framework"
 	"muzak.dev/framework/testclient"
 
+	"playersense.dev/backend/ent/global"
+	"playersense.dev/backend/ent/global/organizationmember"
+	"playersense.dev/backend/internal/authz"
 	"playersense.dev/backend/internal/chdb"
 	"playersense.dev/backend/internal/cohort"
 	"playersense.dev/backend/internal/config"
 	"playersense.dev/backend/internal/core"
 	"playersense.dev/backend/internal/eventbus"
+	"playersense.dev/backend/internal/firebase"
+	"playersense.dev/backend/internal/firebase/fbtest"
+	"playersense.dev/backend/internal/identity"
 	"playersense.dev/backend/internal/ingest"
+	"playersense.dev/backend/internal/pgdb"
 	"playersense.dev/backend/internal/protocol"
 	"playersense.dev/backend/internal/query"
 	"playersense.dev/backend/internal/rollup"
@@ -39,11 +47,19 @@ type reporting struct {
 	ingest    *testclient.Client
 	reader    *testclient.Client
 	projectCl *testclient.Client
-	writer    *writer.Writer
-	deriver   *cohort.Deriver
-	rollups   *rollup.Deriver
-	project   testsupport.Project
-	ch        *chdb.Conn
+	// The dashboard's own client: a signed-in growth manager rather than a reporting key.
+	// GROWTH MANAGER because it is the narrowest role holding analytics.read, so a test using
+	// it proves the permission rather than the fact that owners can do everything.
+	member  *testclient.Client
+	google  *fbtest.Google
+	readerA *muzak.App
+	db      *pgdb.Global
+
+	writer  *writer.Writer
+	deriver *cohort.Deriver
+	rollups *rollup.Deriver
+	project testsupport.Project
+	ch      *chdb.Conn
 }
 
 func newReporting(t *testing.T, tier string) *reporting {
@@ -84,6 +100,21 @@ func newReporting(t *testing.T, tier string) *reporting {
 	)
 	gateway.Include(routers.Ingest())
 
+	// One Firebase identity, in the seeded organization, holding the narrowest role that may
+	// read analytics. The verifier is the real one against a local certificate endpoint, which
+	// is the only part of the sign-in that is not production's.
+	google := fbtest.New(t, settings.FirebaseProjectID)
+	verifier := firebase.NewVerifier(settings.FirebaseProjectID)
+	verifier.Keys.URL = google.URL
+	reader_person := fbtest.Person{
+		UID: "uid-" + uuid.NewString()[:12], Email: "growth-" + uuid.NewString()[:8] + "@studio.example",
+		Name: "Grace Hopper", EmailVerified: true, Provider: "google.com",
+	}
+	testsupport.SeedMember(t, db, seeded.OrgSeq, identity.Claims{
+		UID: reader_person.UID, Email: reader_person.Email,
+		EmailVerified: true, Name: reader_person.Name,
+	}, authz.RoleGrowthManager)
+
 	reader := muzak.New(muzak.AppOptions{
 		Title: "reporting", Addr: ":0",
 		LoggerOptions: muzak.LoggerOptions{Format: muzak.LogFormatNone},
@@ -94,8 +125,12 @@ func newReporting(t *testing.T, tier string) *reporting {
 		muzak.WithSingleton(query.NewEngine(ch, query.DefaultLimits(), settings.QuerySuppressionK).
 			WithCache(query.NewCache(cache, settings.QueryCacheTTL, settings.QueryCacheSettledTTL))),
 		muzak.WithSingleton(home),
+		muzak.WithSingleton(verifier),
 	)
 	reader.Include(routers.Cohorts())
+	reader.Include(routers.Analytics(),
+		muzak.WithPrefix("/v1"),
+		muzak.Needs(core.ResolveKnownUser))
 
 	consumer := writer.New(bus, cache, ch, quiet(), writer.Options{
 		Cell:             settings.Cell,
@@ -114,6 +149,11 @@ func newReporting(t *testing.T, tier string) *reporting {
 			testclient.WithHeader("Authorization", "Bearer "+reportingSecret)),
 		projectCl: testclient.New(t, reader,
 			testclient.WithHeader("Authorization", "Bearer "+seeded.Secret)),
+		member: testclient.New(t, reader,
+			testclient.WithHeader("Authorization", "Bearer "+google.Token(reader_person))),
+		google:  google,
+		readerA: reader,
+		db:      db,
 		writer:  consumer,
 		deriver: &cohort.Deriver{DB: sqlDB},
 		rollups: &rollup.Deriver{DB: sqlDB},
@@ -361,6 +401,102 @@ func (r *reporting) ask(t *testing.T, body map[string]any) protocol.CohortResult
 func (r *reporting) series(t *testing.T, body map[string]any) protocol.MetricResult {
 	t.Helper()
 	res := r.reader.Post("/v1/metrics/query", testclient.JSON(body))
+	res.AssertStatus(http.StatusOK)
+	var out protocol.MetricResult
+	res.JSON(&out)
+	return out
+}
+
+// join adds a person to the seeded organization with one of its roles and returns their client.
+//
+// Each call is a different identity, so a test that gives "two people" different roles is asserting
+// about two people rather than about whichever write won.
+func (r *reporting) join(t *testing.T, roleKey string) *testclient.Client {
+	t.Helper()
+	who := fbtest.Person{
+		UID:           "uid-" + uuid.NewString()[:12],
+		Email:         roleKey + "-" + uuid.NewString()[:8] + "@studio.example",
+		Name:          "Ada Lovelace",
+		EmailVerified: true,
+		Provider:      "google.com",
+	}
+	testsupport.SeedMember(t, r.db, r.project.OrgSeq, identity.Claims{
+		UID: who.UID, Email: who.Email, EmailVerified: true, Name: who.Name,
+	}, roleKey)
+	return testclient.New(t, r.readerA,
+		testclient.WithHeader("Authorization", "Bearer "+r.google.Token(who)))
+}
+
+// outsider is signed in, real, and a member of nothing here.
+func (r *reporting) outsider(t *testing.T) *testclient.Client {
+	t.Helper()
+	who := fbtest.Person{
+		UID: "uid-" + uuid.NewString()[:12], Email: uuid.NewString()[:8] + "@elsewhere.example",
+		Name: "Stranger", EmailVerified: true, Provider: "google.com",
+	}
+	// Given an account — in an organization of their own — so that the refusal below is about
+	// the access list rather than about the account not existing.
+	if _, err := identity.EnsureUser(context.Background(), r.db.Client, identity.Claims{
+		UID: who.UID, Email: who.Email, EmailVerified: true, Name: who.Name,
+	}, time.Now()); err != nil {
+		t.Fatalf("seed the outsider: %v", err)
+	}
+	return testclient.New(t, r.readerA,
+		testclient.WithHeader("Authorization", "Bearer "+r.google.Token(who)))
+}
+
+// restrict takes every project away from the most recently joined member.
+//
+// `all_projects` false with no grants is the narrowest possible access list, which is what makes it
+// the right shape for the test: the member is in the organization and holds the permission, and the
+// only thing missing is this project.
+func (r *reporting) restrict(t *testing.T, client *testclient.Client) {
+	t.Helper()
+	// The client carries the token; the membership is found by the most recent join, which is
+	// the one the caller just made.
+	members, err := r.db.Client.OrganizationMember.Query().
+		Where(organizationmember.OrganizationID(r.project.OrgSeq)).
+		Order(global.Desc(organizationmember.FieldID)).
+		All(context.Background())
+	if err != nil || len(members) == 0 {
+		t.Fatalf("read members: %v", err)
+	}
+	if _, err := r.db.Client.OrganizationMember.UpdateOneID(members[0].ID).
+		SetAllProjects(false).Save(context.Background()); err != nil {
+		t.Fatalf("restrict the member: %v", err)
+	}
+}
+
+// countUsers is how many accounts exist in the global tier.
+func (r *reporting) countUsers(t *testing.T) int {
+	t.Helper()
+	n, err := r.db.Client.User.Query().Count(context.Background())
+	if err != nil {
+		t.Fatalf("count users: %v", err)
+	}
+	return n
+}
+
+// analytics is the dashboard's base path for this project's production environment.
+func (r *reporting) analytics() string {
+	return "/v1/organizations/" + r.project.OrgSlug +
+		"/projects/" + r.project.ProjectSlug + "/analytics/production"
+}
+
+// askAsMember is [reporting.ask] with the dashboard's credential instead of a key.
+func (r *reporting) askAsMember(t *testing.T, body map[string]any) protocol.CohortResult {
+	t.Helper()
+	res := r.member.Post(r.analytics()+"/cohorts/query", testclient.JSON(body))
+	res.AssertStatus(http.StatusOK)
+	var out protocol.CohortResult
+	res.JSON(&out)
+	return out
+}
+
+// seriesAsMember is [reporting.series] with the dashboard's credential.
+func (r *reporting) seriesAsMember(t *testing.T, body map[string]any) protocol.MetricResult {
+	t.Helper()
+	res := r.member.Post(r.analytics()+"/metrics/query", testclient.JSON(body))
 	res.AssertStatus(http.StatusOK)
 	var out protocol.MetricResult
 	res.JSON(&out)
@@ -865,4 +1001,239 @@ func TestTwoDimensionsInASeriesAreRefused(t *testing.T) {
 		},
 	})))
 	res.AssertStatus(http.StatusUnprocessableEntity)
+}
+
+// The dashboard's own reporting path: the same questions, the credential a browser can hold.
+//
+// §52 makes a reporting key a secret. A browser cannot hold one — shipping it to the page publishes
+// every studio's analytics to anybody who opens the network tab — so until these routes existed the
+// dashboard had no way to read the numbers the product exists to produce, and `analytics.read` was a
+// permission guarding nothing.
+
+// TestAPersonAndAKeyGetTheSameAnswer is the whole claim of this surface.
+//
+// Not "it returns something plausible": the *same* numbers, from one seeding, through one planner.
+// Two reporting paths that could disagree would be two products, and the one a studio checks
+// against the other is the one they stop trusting.
+func TestAPersonAndAKeyGetTheSameAnswer(t *testing.T) {
+	r := newReporting(t, "standard")
+	r.seedCurve(t)
+
+	byKey := r.ask(t, r.retentionQuery(nil))
+	byPerson := r.askAsMember(t, r.retentionQuery(nil))
+
+	if len(byKey.Rows) == 0 {
+		t.Fatal("the key path returned no rows, so there is nothing to compare")
+	}
+	if len(byPerson.Rows) != len(byKey.Rows) {
+		t.Fatalf("person saw %d rows, key saw %d", len(byPerson.Rows), len(byKey.Rows))
+	}
+	for i := range byKey.Rows {
+		k, p := byKey.Rows[i], byPerson.Rows[i]
+		if k.DayOffset != p.DayOffset || k.CohortSize != p.CohortSize || k.Players != p.Players {
+			t.Errorf("offset %d: key %+v, person %+v", k.DayOffset, k, p)
+		}
+	}
+	// And the provenance, which is what a dashboard puts beside the chart: a person must not be
+	// told an answer is fresher or less censored than the same answer given to a key.
+	if byPerson.ComputedAt != byKey.ComputedAt ||
+		byPerson.SuppressedCells != byKey.SuppressedCells ||
+		byPerson.SuppressionThreshold != byKey.SuppressionThreshold {
+		t.Errorf("provenance differs:\nkey    %+v\nperson %+v", byKey, byPerson)
+	}
+
+	// And the time series, which reads a different family of tables through the same route shape.
+	seriesByKey := r.series(t, r.seriesQuery(nil))
+	seriesByPerson := r.seriesAsMember(t, r.seriesQuery(nil))
+	if len(seriesByPerson.Rows) != len(seriesByKey.Rows) {
+		t.Fatalf("person saw %d series rows, key saw %d",
+			len(seriesByPerson.Rows), len(seriesByKey.Rows))
+	}
+	for i := range seriesByKey.Rows {
+		if seriesByKey.Rows[i].Value != seriesByPerson.Rows[i].Value {
+			t.Errorf("row %d: key %v, person %v", i,
+				seriesByKey.Rows[i].Value, seriesByPerson.Rows[i].Value)
+		}
+	}
+	// The planner's own report, because §57's point is that it chooses the table and the client
+	// does not have to know — which only holds if both callers are told the same choice.
+	if seriesByPerson.Source != seriesByKey.Source ||
+		seriesByPerson.Interval != seriesByKey.Interval {
+		t.Errorf("the planner chose differently: key %s/%s, person %s/%s",
+			seriesByKey.Source, seriesByKey.Interval,
+			seriesByPerson.Source, seriesByPerson.Interval)
+	}
+}
+
+// TestAnalyticsReadIsWhatDecides is the permission, observed.
+//
+// A DEVELOPER holds analytics.read and a LIVEOPS MANAGER deliberately does not: reading what every
+// player did is a different privilege from scheduling what they will see, and a role whose name says
+// LiveOps must not quietly also read revenue. That pair is the whole point of the permission
+// existing, and until this route it decided nothing.
+func TestAnalyticsReadIsWhatDecides(t *testing.T) {
+	r := newReporting(t, "standard")
+	r.seedCurve(t)
+
+	developer := r.join(t, authz.RoleDeveloper)
+	if got := developer.Post(r.analytics()+"/cohorts/query",
+		testclient.JSON(r.retentionQuery(nil))); got.Status != http.StatusOK {
+		t.Errorf("a developer holding analytics.read got %d: %s", got.Status, got)
+	}
+
+	manager := r.join(t, authz.RoleLiveOpsManager)
+	refused := manager.Post(r.analytics()+"/cohorts/query",
+		testclient.JSON(r.retentionQuery(nil)))
+	refused.AssertStatus(http.StatusForbidden)
+	if !strings.Contains(refused.String(), string(authz.AnalyticsRead)) {
+		t.Errorf("the refusal does not name the missing permission: %s", refused)
+	}
+}
+
+// TestSomebodyElsesProjectIsAbsentRatherThanForbidden is the tenancy check, and it is the reason the
+// access list is consulted before the permission.
+//
+// A 403 would confirm the project exists, which turns this endpoint into a way to enumerate a
+// competitor's games by guessing names. A stranger and a colleague who was not given the project get
+// the same answer.
+func TestSomebodyElsesProjectIsAbsentRatherThanForbidden(t *testing.T) {
+	r := newReporting(t, "standard")
+	r.seedCurve(t)
+
+	stranger := r.outsider(t)
+	stranger.Post(r.analytics()+"/cohorts/query", testclient.JSON(r.retentionQuery(nil))).
+		AssertStatus(http.StatusNotFound)
+
+	// A member of the organization whose access list does not include this project. Same answer:
+	// "the owner chooses which people see which apps" has to be indistinguishable from the
+	// project not existing, or the names of the games they were not shown leak.
+	restricted := r.join(t, authz.RoleDeveloper)
+	r.restrict(t, restricted)
+	restricted.Post(r.analytics()+"/cohorts/query", testclient.JSON(r.retentionQuery(nil))).
+		AssertStatus(http.StatusNotFound)
+}
+
+// TestAnUnknownEnvironmentIsRefusedRatherThanEmpty keeps the one caller-named part of the scope
+// honest.
+//
+// A person names an environment because a dashboard switches between them, unlike a key, which is
+// minted for one. Naming one the project does not have has to be an error: answering with no rows
+// would read as "nothing happened in staging" rather than "there is no staging".
+func TestAnUnknownEnvironmentIsRefusedRatherThanEmpty(t *testing.T) {
+	r := newReporting(t, "standard")
+	r.seedCurve(t)
+
+	// The fixture seeds production only.
+	base := "/v1/organizations/" + r.project.OrgSlug +
+		"/projects/" + r.project.ProjectSlug + "/analytics/staging"
+	r.member.Post(base+"/cohorts/query", testclient.JSON(r.retentionQuery(nil))).
+		AssertStatus(http.StatusNotFound)
+
+	// And one that is not an environment at all is refused by validation, so the set of names
+	// is stated once rather than discovered.
+	bad := "/v1/organizations/" + r.project.OrgSlug +
+		"/projects/" + r.project.ProjectSlug + "/analytics/prod"
+	r.member.Post(bad+"/cohorts/query", testclient.JSON(r.retentionQuery(nil))).
+		AssertStatus(http.StatusUnprocessableEntity)
+}
+
+// TestScopeInTheBodyIsRefusedForAPersonToo is Appendix C #3 on the new path.
+//
+// The scope moved from the credential to the path, and the decoys have to survive that move: a
+// client sending project_id believes it selected a project, and silently answering about a different
+// one is worse than any error.
+func TestScopeInTheBodyIsRefusedForAPersonToo(t *testing.T) {
+	r := newReporting(t, "standard")
+	r.member.Post(r.analytics()+"/cohorts/query", testclient.JSON(
+		r.retentionQuery(map[string]any{"project_id": uuid.NewString()}))).
+		AssertStatus(http.StatusUnprocessableEntity)
+}
+
+// TestTheDashboardStillNeedsToBeSignedIn is the door itself.
+func TestTheDashboardStillNeedsToBeSignedIn(t *testing.T) {
+	r := newReporting(t, "standard")
+	anon := testclient.New(t, r.readerA)
+
+	anon.Post(r.analytics()+"/cohorts/query", testclient.JSON(r.retentionQuery(nil))).
+		AssertStatus(http.StatusUnauthorized)
+
+	// A reporting key is not a sign-in. It works on its own endpoint and not on this one: the
+	// two credentials are not interchangeable, which is what keeps "who is asking" answerable.
+	r.reader.Post(r.analytics()+"/cohorts/query", testclient.JSON(r.retentionQuery(nil))).
+		AssertStatus(http.StatusUnauthorized)
+}
+
+// TestACellDoesNotCreateAccounts is the boundary [core.ResolveKnownUser] exists for.
+//
+// `identity.EnsureUser` writes a user row *and a personal organization* into the US-hosted global
+// tier on a first sign-in. A cell calling it would mean an EU service creating organizations in the
+// American control plane on the strength of a token, as a side effect of somebody opening a chart.
+func TestACellDoesNotCreateAccounts(t *testing.T) {
+	r := newReporting(t, "standard")
+
+	before := r.countUsers(t)
+	newcomer := fbtest.Person{
+		UID: "uid-" + uuid.NewString()[:12], Email: uuid.NewString()[:8] + "@studio.example",
+		Name: "Nobody", EmailVerified: true, Provider: "google.com",
+	}
+	client := testclient.New(t, r.readerA,
+		testclient.WithHeader("Authorization", "Bearer "+r.google.Token(newcomer)))
+
+	// Refused as "no such organization", which is also what a real member of no organization
+	// would be told — so this leaks nothing about whether the slug is real.
+	client.Post(r.analytics()+"/cohorts/query", testclient.JSON(r.retentionQuery(nil))).
+		AssertStatus(http.StatusNotFound)
+
+	if after := r.countUsers(t); after != before {
+		t.Errorf("the cell created %d account row(s) in the global tier", after-before)
+	}
+}
+
+// TestAProjectInAnotherCellIsRedirectedRatherThanAnsweredEmpty is the residency boundary, which is
+// the most important property this service has.
+//
+// A cell holds only its own projects' data (§6, §99). Answering a foreign project would return no
+// rows, and "no rows" is the worst possible answer: it reads as "no players" rather than "wrong
+// server", and a studio would conclude their game is dead. The key path already refused this; a
+// person has to be refused identically, and by the *project's* cell rather than by a credential,
+// because a signed-in person's credential names no cell at all.
+func TestAProjectInAnotherCellIsRedirectedRatherThanAnsweredEmpty(t *testing.T) {
+	r := newReporting(t, "standard")
+
+	// A second cell in the registry, with a query endpoint of its own, and a project in it.
+	elsewhere := testsupport.SeedCell(t, r.db, core.CellIdentity{
+		Slug:      "us-1",
+		Region:    "us",
+		IngestURL: "https://ingest.us-1.example",
+		QueryURL:  "https://query.us-1.example",
+		ConfigURL: "https://config.us-1.example",
+	})
+	foreign := testsupport.SeedProject(t, r.db, "standard", elsewhere.ID)
+
+	// The same person, in that organization, holding the permission. Everything about the
+	// request is right except where it arrived.
+	who := fbtest.Person{
+		UID: "uid-" + uuid.NewString()[:12], Email: uuid.NewString()[:8] + "@studio.example",
+		Name: "Ada Lovelace", EmailVerified: true, Provider: "google.com",
+	}
+	testsupport.SeedMember(t, r.db, foreign.OrgSeq, identity.Claims{
+		UID: who.UID, Email: who.Email, EmailVerified: true, Name: who.Name,
+	}, authz.RoleGrowthManager)
+	client := testclient.New(t, r.readerA,
+		testclient.WithHeader("Authorization", "Bearer "+r.google.Token(who)))
+
+	path := "/v1/organizations/" + foreign.OrgSlug +
+		"/projects/" + foreign.ProjectSlug + "/analytics/production/cohorts/query"
+	refused := client.Post(path, testclient.JSON(r.retentionQuery(nil))).
+		AssertStatus(http.StatusMisdirectedRequest)
+
+	// 421 rather than 403: the request is well-formed and the person is authorised, it simply
+	// arrived somewhere that cannot serve it — and the answer says where it can be.
+	refused.AssertErrorCode("wrong_cell")
+	if !strings.Contains(refused.String(), "us-1") {
+		t.Errorf("the refusal does not name the cell: %s", refused)
+	}
+	if !strings.Contains(refused.String(), elsewhere.QueryURL) {
+		t.Errorf("the refusal does not say where to send the query: %s", refused)
+	}
 }

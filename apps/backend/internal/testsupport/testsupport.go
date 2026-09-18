@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -22,9 +23,11 @@ import (
 	"playersense.dev/backend/ent/global/cell"
 	"playersense.dev/backend/ent/global/environment"
 	"playersense.dev/backend/ent/global/project"
+	"playersense.dev/backend/ent/global/role"
 	"playersense.dev/backend/internal/chdb"
 	"playersense.dev/backend/internal/config"
 	"playersense.dev/backend/internal/core"
+	"playersense.dev/backend/internal/identity"
 	"playersense.dev/backend/internal/pgdb"
 	"playersense.dev/backend/internal/valkey"
 )
@@ -150,6 +153,12 @@ type Project struct {
 
 	ProjectUID string
 	Secret     string
+
+	// The slugs, because a route that names a project in its path needs them. A reporting key
+	// carries its scope, so the tests that predate the dashboard's own analytics routes never
+	// had to know what the project was called.
+	OrgSlug     string
+	ProjectSlug string
 }
 
 // SeedProject creates an organization, a project in the given cell and a project key.
@@ -187,8 +196,65 @@ func SeedProject(t *testing.T, db *pgdb.Global, tier string, cellID int) Project
 		ProjectSeq:    proj.ID,
 		EnvironmentID: env.ID,
 		ProjectUID:    proj.UID.String(),
+		OrgSlug:       org.Slug,
+		ProjectSlug:   proj.Slug,
 		Secret:        SeedKey(t, db, core.KindProject, env.ID),
 	}
+}
+
+// SeedMember puts a person in a seeded organization with one of its roles.
+//
+// The roles are seeded here rather than by [SeedProject], because a project created directly in the
+// database has none: `identity.CreateOrganization` is what normally writes them, and a fixture that
+// bypasses the control plane bypasses that too. Idempotent, so two members cost one seeding.
+//
+// It exists for the routes that authenticate a *person* rather than a key. A reporting key carries
+// its own scope, so every test before those had no reason for an organization to contain anybody.
+func SeedMember(t *testing.T, db *pgdb.Global, orgID int, claims identity.Claims, roleKey string) *global.OrganizationMember {
+	t.Helper()
+	ctx := context.Background()
+
+	roles, err := organizationRoles(ctx, db, orgID)
+	if err != nil {
+		t.Fatalf("read roles: %v", err)
+	}
+	if len(roles) == 0 {
+		if roles, err = identity.SeedRoles(ctx, db.Client, orgID); err != nil {
+			t.Fatalf("seed roles: %v", err)
+		}
+	}
+	wanted, found := roles[roleKey]
+	if !found {
+		t.Fatalf("no seeded role called %q", roleKey)
+	}
+
+	person, err := identity.EnsureUser(ctx, db.Client, claims, time.Now())
+	if err != nil {
+		t.Fatalf("seed user %s: %v", claims.Email, err)
+	}
+	member, err := identity.AddMember(ctx, db.Client, orgID, person.ID, wanted.ID, time.Now())
+	if err != nil {
+		t.Fatalf("add %s to the organization: %v", claims.Email, err)
+	}
+	return member
+}
+
+// organizationRoles reads what an organization already has, keyed the way SeedRoles returns them.
+//
+// Read before seeding because `identity.SeedRoles` is not idempotent — it inserts, and the unique
+// index on (key, organization) refuses the second call. That is right for the control plane, where
+// seeding happens once inside the transaction that creates an organization, and it means a fixture
+// adding a second member has to check rather than retry.
+func organizationRoles(ctx context.Context, db *pgdb.Global, orgID int) (map[string]*global.Role, error) {
+	rows, err := db.Client.Role.Query().Where(role.OrganizationID(orgID)).All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string]*global.Role, len(rows))
+	for _, row := range rows {
+		out[row.Key] = row
+	}
+	return out, nil
 }
 
 // SeedKey mints one key of the given class for an existing environment and returns the

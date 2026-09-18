@@ -11,6 +11,7 @@ import (
 	"playersense.dev/backend/ent/global/organization"
 	"playersense.dev/backend/ent/global/organizationmember"
 	"playersense.dev/backend/ent/global/project"
+	"playersense.dev/backend/ent/global/user"
 	"playersense.dev/backend/internal/authz"
 	"playersense.dev/backend/internal/firebase"
 	"playersense.dev/backend/internal/identity"
@@ -62,7 +63,40 @@ const (
 // verifier or the database, both of which are published as singletons.
 //
 //	api.Include(routers.Projects(), muzak.Needs(core.ResolveUser))
+//
+// It **creates** the account on first sign-in, which is why there is a second entry point below:
+// see [ResolveKnownUser].
 func ResolveUser(ctx *muzak.Context) (*Principal, error) {
+	return resolve(ctx, true)
+}
+
+// ResolveKnownUser is the provider a route in a *cell* declares.
+//
+// Identical to [ResolveUser] with one thing withheld: it does not create anything. A person who has
+// never signed in to the control plane is refused rather than projected onto a new row.
+//
+// # Why a cell must not create an account
+//
+// [identity.EnsureUser] is not only a lookup. On a first sign-in it writes a user row **and a
+// personal organization** into the global tier — the US-hosted one (ADR 0010). A cell calling it
+// would mean an EU service creating organizations in the American control plane, on the strength of
+// a token, as a side effect of somebody opening a chart. That is a boundary worth keeping even
+// though the row it would write holds no player data: a compromised cell should be able to read
+// what it needs from the global tier and write nothing to it.
+//
+// The practical difference is nil, which is the point. Reaching an analytics route means naming an
+// organization and a project, so a person with no account has no membership either and would be
+// refused a line later — this refuses them without the write.
+func ResolveKnownUser(ctx *muzak.Context) (*Principal, error) {
+	return resolve(ctx, false)
+}
+
+// resolve is the whole of both, with one decision passed in.
+//
+// One body rather than two, because the verification, the claims check, the deactivation check and
+// the organization entry are the *same* rules, and two copies of them is how a cell ends up
+// enforcing last month's version of one.
+func resolve(ctx *muzak.Context, mayCreate bool) (*Principal, error) {
 	verifier := muzak.From[*firebase.Verifier](ctx)
 	ctrl := muzak.From[*Global](ctx)
 
@@ -112,9 +146,9 @@ func ResolveUser(ctx *muzak.Context) (*Principal, error) {
 	// The dashboard requests verification emails directly from Firebase. Resolving a
 	// principal does not send mail; the verified claim controls write access below.
 
-	person, err := identity.EnsureUser(ctx.Context(), ctrl.Client, claims, time.Now())
+	person, err := findOrCreate(ctx, ctrl, claims, mayCreate)
 	if err != nil {
-		return nil, muzak.ServiceUnavailable("cannot read your account right now").Wrap(err)
+		return nil, err
 	}
 	if !person.Active {
 		return nil, muzak.Forbidden("this account has been deactivated")
@@ -132,6 +166,32 @@ func ResolveUser(ctx *muzak.Context) (*Principal, error) {
 		return nil, err
 	}
 	return principal, nil
+}
+
+// findOrCreate projects the claims onto a row, or refuses to.
+//
+// The refusal is deliberately the same 404 an unknown organization gets, for the same reason: this
+// is reached from a cell, where the caller has named an organization, and "you have no account"
+// versus "no such organization" is a distinction that tells somebody whether the slug they guessed
+// is real.
+func findOrCreate(ctx *muzak.Context, ctrl *Global, claims identity.Claims, mayCreate bool) (*global.User, error) {
+	if mayCreate {
+		person, err := identity.EnsureUser(ctx.Context(), ctrl.Client, claims, time.Now())
+		if err != nil {
+			return nil, muzak.ServiceUnavailable("cannot read your account right now").Wrap(err)
+		}
+		return person, nil
+	}
+
+	person, err := ctrl.Client.User.Query().
+		Where(user.FirebaseUID(claims.UID)).Only(ctx.Context())
+	if err != nil {
+		if global.IsNotFound(err) {
+			return nil, muzak.NotFound("no such organization")
+		}
+		return nil, muzak.ServiceUnavailable("cannot read your account right now").Wrap(err)
+	}
+	return person, nil
 }
 
 // VerifyEmailFirst is what a read-only account is told, and why.
@@ -215,8 +275,13 @@ func (p *Principal) enterProject(ctx *muzak.Context, ctrl *Global) error {
 		return nil
 	}
 
+	// WithCell, because a project's cell is where its data physically lives (§6) and two
+	// callers need it: a customer reading their own project has to be told which region and
+	// which ingestion address to use, and an analytics route in a cell has to refuse a project
+	// belonging to another one rather than answer it with no rows.
 	proj, err := ctrl.Client.Project.Query().
 		Where(project.Slug(slug), project.OrganizationID(p.Organization.ID)).
+		WithCell().
 		Only(ctx.Context())
 	if err != nil {
 		if global.IsNotFound(err) {

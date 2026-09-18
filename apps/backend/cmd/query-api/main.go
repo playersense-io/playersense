@@ -5,10 +5,20 @@
 // tenant scope taken from the credential. The browser never receives ClickHouse credentials
 // and never submits SQL.
 //
-// Cell-local, like the writer. It reads its own cell's ClickHouse and holds a global-tier
-// connection for one purpose only: filling the key cache. A reporting key belonging to
-// another cell is refused with 421 and the address that can serve it, because this cell
-// holds none of that project's data and "no rows" would read as "no players".
+// Cell-local, like the writer: it reads its own cell's ClickHouse, and a project belonging to
+// another cell is refused with 421 and the address that can serve it, because this cell holds none
+// of that project's data and "no rows" would read as "no players".
+//
+// It holds a global-tier connection for two things. One is the key cache. The other is the
+// dashboard's own credential: §52 makes a reporting key a secret, so a browser cannot hold one, and
+// the analytics a studio looks at has to be reachable with the Firebase sign-in they already have.
+// That means this service resolves a person, their membership and their project access list out of
+// the control plane — and deliberately cannot create any of them, because [core.ResolveKnownUser]
+// withholds the account creation its control-plane sibling performs.
+//
+// Both credentials answer the same two questions through the same planner. What differs is only
+// where the scope comes from: a key carries one, and a person names a project the access list has
+// already granted them.
 //
 // It also carries §101's data-subject surface — erasure and export — and that is not a
 // second responsibility bolted on. Those requests name a player, so §99 forbids them
@@ -21,6 +31,7 @@ import (
 	"fmt"
 	"log"
 	"log/slog"
+	"net/http"
 	"os"
 	"path/filepath"
 
@@ -30,6 +41,7 @@ import (
 	"playersense.dev/backend/internal/chdb"
 	"playersense.dev/backend/internal/config"
 	"playersense.dev/backend/internal/core"
+	"playersense.dev/backend/internal/firebase"
 	"playersense.dev/backend/internal/pgdb"
 	"playersense.dev/backend/internal/query"
 	"playersense.dev/backend/internal/routers"
@@ -54,6 +66,13 @@ func build(settings config.Settings) (*muzak.App, error) {
 	// request — it does not, because the three-tier resolver already exists and because a
 	// control-plane outage should degrade one thing rather than two (§64).
 	ctrl := pgdb.NewGlobal(settings.GlobalPostgresDSN)
+
+	// Firebase Auth owns authentication here exactly as it does on the control plane, so the
+	// dashboard presents one kind of credential wherever it goes. Started with the application,
+	// so a deployment that cannot reach Google fails while it is starting rather than on
+	// somebody's first chart.
+	verifier := firebase.NewVerifier(settings.FirebaseProjectID)
+	verifier.Keys.URL = settings.FirebaseCertificateURL
 
 	cache := valkey.New(settings.Cell, settings.ValkeyDSN)
 	resolver := core.NewKeyResolver(ctrl, cache, core.KeyResolverOptions{
@@ -88,7 +107,7 @@ func build(settings config.Settings) (*muzak.App, error) {
 			"player key, and carries this cell's data-subject requests.",
 		Servers: []muzak.Server{{URL: settings.QueryAPIPublicURL, Description: "this deployment"}},
 		Tags: []muzak.Tag{
-			{Name: "reporting", Description: "Reading analytics."},
+			{Name: "reporting", Description: "Reading analytics, with a key or as a person."},
 			{Name: "privacy", Description: "Erasing and exporting one player's data."},
 		},
 
@@ -117,6 +136,7 @@ func build(settings config.Settings) (*muzak.App, error) {
 		// not own its connection, and the application opens it before traffic and closes
 		// it after draining.
 		muzak.WithSingleton(ch),
+		muzak.WithSingleton(verifier, muzak.LifecycleFunc("firebase keys", verifier.Start, nil)),
 
 		// Which cell this process serves. The handler compares it with the cell the key
 		// belongs to and refuses the mismatch (§6, §99).
@@ -141,6 +161,21 @@ func build(settings config.Settings) (*muzak.App, error) {
 	app.Include(routers.Meta())
 	app.Include(routers.Cohorts())
 	app.Include(routers.Privacy())
+
+	// The dashboard's own reporting routes, behind a signed-in person rather than a key.
+	//
+	// A subtree of its own because the provider differs: everything above resolves an API key,
+	// and these resolve a person out of the global tier. Declared here rather than inside the
+	// router for the same reason control-api does it — the security decision belongs where a
+	// reviewer will look for it.
+	app.Include(routers.Analytics(),
+		muzak.WithPrefix("/v1"),
+		muzak.Needs(core.ResolveKnownUser),
+		muzak.WithResponseDoc(http.StatusUnauthorized, "No usable sign-in was presented"),
+		muzak.WithResponseDoc(http.StatusForbidden, "This account may not read this project's analytics"),
+		muzak.WithResponseDoc(http.StatusServiceUnavailable,
+			"A sign-in could not be verified right now; the credential is not necessarily bad"),
+	)
 
 	return app, nil
 }

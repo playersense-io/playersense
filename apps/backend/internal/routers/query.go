@@ -5,6 +5,7 @@ import (
 
 	"muzak.dev/framework"
 
+	"playersense.dev/backend/internal/authz"
 	"playersense.dev/backend/internal/core"
 	"playersense.dev/backend/internal/handlers"
 )
@@ -61,6 +62,67 @@ func Cohorts() *muzak.Router {
 			"The summaries cannot answer this question, and the body explains why"),
 		muzak.WithResponseDoc(http.StatusServiceUnavailable, "The summaries could not be read"),
 	)
+
+	return r
+}
+
+// Analytics returns the reporting routes a signed-in person uses (§55.1).
+//
+// The same two questions [Cohorts] answers, reached with the credential a browser can actually
+// hold. §52 makes a reporting key a secret, so shipping one to a page would publish every studio's
+// analytics to anybody who opened the network tab — which left the dashboard with no way to read
+// the numbers the whole product exists to produce, and `analytics.read` defined and guarding
+// nothing.
+//
+// # Why these live here and not on control-api
+//
+// Because the data does. `query-api` is cell-local: it holds this cell's ClickHouse, and a chart
+// has to be answered by the cell that stores the rows. The alternative — proxying through the
+// US-hosted control plane — would mean every EU query passing through American infrastructure,
+// which is the thing the cell design exists to avoid (ADR 0009, ADR 0010).
+//
+// The cost is that a cell now verifies Firebase tokens and reads the global tier for memberships.
+// It does not *write* there: [core.ResolveKnownUser] withholds the account creation
+// [core.ResolveUser] performs, so a cell cannot bring a user row or a personal organization into
+// existence in the control plane.
+//
+// # The scope is still not the caller's to choose
+//
+// Appendix C #3 holds. The project comes from the path and is checked against the caller's project
+// access list before any permission is considered — a project they were not given is "no such
+// project", not a refusal — and the environment is looked up inside that project. The body's
+// `project_id`, `environment_id` and `org_id` members remain decoys that refuse the request.
+func Analytics() *muzak.Router {
+	r := muzak.NewRouter(muzak.WithTags("reporting"),
+		muzak.WithResponseDoc(http.StatusNotFound,
+			"The organization, project or environment does not exist, or you cannot see it"))
+
+	const base = "/organizations/{org}/projects/{project}/analytics/{environment}"
+
+	r.Post(base+"/cohorts/query", handlers.QueryCohortsForMember,
+		muzak.Summary("Answer a cohort question for a signed-in person"),
+		muzak.Description("The same planner, facts and suppression threshold the reporting-key "+
+			"endpoint uses. The scope is the project in the path, checked against your access "+
+			"list, and the environment named beside it."),
+		core.Require(authz.AnalyticsRead),
+		muzak.MaxBodySize(64<<10),
+		muzak.WithResponseDoc(http.StatusMisdirectedRequest,
+			"This project's data lives in another cell; the body names where to send the query"),
+		muzak.WithResponseDoc(http.StatusUnprocessableEntity,
+			"The cohort facts cannot answer this question, and the body explains why"),
+		muzak.WithResponseDoc(http.StatusServiceUnavailable, "The cohort facts could not be read"))
+
+	r.Post(base+"/metrics/query", handlers.QueryMetricsForMember,
+		muzak.Summary("Answer a time-series question for a signed-in person"),
+		muzak.Description("Active players, sessions, events and revenue over time, for one "+
+			"environment of one project."),
+		core.Require(authz.AnalyticsRead),
+		muzak.MaxBodySize(64<<10),
+		muzak.WithResponseDoc(http.StatusMisdirectedRequest,
+			"This project's data lives in another cell; the body names where to send the query"),
+		muzak.WithResponseDoc(http.StatusUnprocessableEntity,
+			"The summaries cannot answer this question, and the body explains why"),
+		muzak.WithResponseDoc(http.StatusServiceUnavailable, "The summaries could not be read"))
 
 	return r
 }

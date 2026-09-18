@@ -69,6 +69,11 @@ and §32.2's minimum cell size. Those are the limits that matter — **a query t
 expensive cannot be made catastrophic by repetition.** A request limit on top would only
 ever slow down a real dashboard, which is the one caller this service has.
 
+That holds for both of its credentials. A reporting key and a signed-in person reach the same
+planner under the same bounds (§55.2), so the reasoning does not change when the caller is a
+browser rather than a studio's BI job — a person cannot ask a cheaper query than a key can, and
+neither can ask an unbounded one.
+
 ---
 
 ## 2. What the SDK paths count

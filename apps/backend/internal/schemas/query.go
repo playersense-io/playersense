@@ -335,3 +335,65 @@ func (in *MetricQueryIn) rejectScopeInBody(v *muzak.Validation) {
 		v.Reject(&in.OrgID, why)
 	}
 }
+
+// ---- the dashboard's own queries --------------------------------------------
+
+// A reporting key answers for a machine; these two answer for a person.
+//
+// # Why the dashboard cannot use the key
+//
+// §52 makes a reporting key a secret, and a browser cannot hold one: shipping it to the page means
+// publishing every studio's analytics to anyone who opens the network tab. So the dashboard
+// authenticates the way it authenticates everywhere else — a Firebase ID token — and the scope comes
+// from the **path**, checked against the caller's membership and their project access list.
+//
+// Appendix C #3 still holds. "No customer query can execute without tenant scope" is a rule about
+// where the scope comes from, not about which credential carries it: the project is resolved from
+// the path by [core.ResolveUser] against the access list, the environment is looked up inside that
+// project, and the body still cannot name any of the three. The decoy members below are inherited
+// for exactly that reason.
+//
+// # Why the environment is in the path and not the body
+//
+// A reporting key is minted for one environment, so a machine's scope is fixed when the credential
+// is. A person switches between development and production in a dashboard, so theirs has to be part
+// of the request — and the path is where it belongs, because it identifies *which* data is being
+// asked about rather than what is being asked. It is not a widening: all three environments belong
+// to the project the access list already granted.
+
+// MemberCohortQueryIn is a cohort question asked by a signed-in person.
+type MemberCohortQueryIn struct {
+	CohortQueryIn
+
+	OrgSlug     string `path:"org" doc:"The organization's slug"`
+	ProjectSlug string `path:"project" doc:"The project's slug"`
+	Environment string `path:"environment" doc:"development, staging or production"`
+}
+
+func (in *MemberCohortQueryIn) Validate(v *muzak.Validation) {
+	v.String(&in.OrgSlug).Trim().Lower().Required().MaxLen(64)
+	v.String(&in.ProjectSlug).Trim().Lower().Required().MaxLen(64)
+	v.String(&in.Environment).Trim().Lower().Required().
+		OneOf("development", "staging", "production")
+	// The question's own rules, unchanged. Declared once so a query asked by a person and one
+	// asked by a key cannot be bounded differently — which would make "it works with the key"
+	// a real sentence somebody has to debug.
+	v.Nested(&in.CohortQueryIn)
+}
+
+// MemberMetricQueryIn is a time-series question asked by a signed-in person.
+type MemberMetricQueryIn struct {
+	MetricQueryIn
+
+	OrgSlug     string `path:"org"`
+	ProjectSlug string `path:"project"`
+	Environment string `path:"environment" doc:"development, staging or production"`
+}
+
+func (in *MemberMetricQueryIn) Validate(v *muzak.Validation) {
+	v.String(&in.OrgSlug).Trim().Lower().Required().MaxLen(64)
+	v.String(&in.ProjectSlug).Trim().Lower().Required().MaxLen(64)
+	v.String(&in.Environment).Trim().Lower().Required().
+		OneOf("development", "staging", "production")
+	v.Nested(&in.MetricQueryIn)
+}

@@ -238,17 +238,44 @@ holding a timer.
 go run ./apps/backend/cmd/query-api
 ```
 
-Two shapes, both with `Authorization: Bearer ps_reporting_live_...`:
+Two questions, and **two credentials that can ask them**.
+
+For a machine, with `Authorization: Bearer ps_reporting_live_...`:
 
 - `POST /v1/cohorts/query` — retention, playtime, revenue, LTV, payer conversion and
   behavioural segments, keyed on when a player arrived (§29).
 - `POST /v1/metrics/query` — active players, sessions, events and revenue over time, keyed
   on when something happened (§26, §27).
 
-Both read pre-aggregated facts and never join on a player key. Cells describing too few
-players are suppressed rather than returned as zero, and every answer says how many were
-withheld. A time series also says which summary tier answered it and whether its player
-count is exact or a sketch.
+For a person, with a Firebase ID token and `analytics.read`:
+
+```
+POST /v1/organizations/{org}/projects/{project}/analytics/{environment}/cohorts/query
+POST /v1/organizations/{org}/projects/{project}/analytics/{environment}/metrics/query
+```
+
+The dashboard needs these because §52 makes a reporting key a secret and a browser cannot hold
+one — shipping it to the page would publish every studio's analytics to anyone who opened the
+network tab. They live on this service rather than on `control-api` because the data does: a
+chart has to be answered by the cell that stores the rows, and proxying through the US-hosted
+control plane would send every European query through American infrastructure.
+
+**The scope is still not the caller's to choose** (Appendix C #3). The project comes from the
+path and is checked against that person's project access list *before* any permission — one they
+were not given is "no such project", never a refusal — and the environment is looked up inside
+it. The body's `project_id`, `environment_id` and `org_id` remain decoys that refuse the request.
+The environment is in the path rather than pinned to the credential because a person switches
+between development and production, where a key is minted for one.
+
+**A cell resolves accounts and cannot create them.** `core.ResolveKnownUser` withholds the
+account creation its control-plane sibling performs, so opening a chart cannot bring a user row
+or a personal organization into existence in the US-hosted tier.
+
+Both credentials read pre-aggregated facts and never join on a player key. Cells describing too
+few players are suppressed rather than returned as zero, and every answer says how many were
+withheld. A time series also says which summary tier answered it and whether its player count is
+exact or a sketch. A person and a key asking the same question get the same numbers and the same
+provenance — there is one planner, and a test compares the two answers row by row.
 
 It also carries this cell's **data-subject requests** (§101), with
 `Authorization: Bearer ps_server_live_...` — a server key, not a reporting one, because

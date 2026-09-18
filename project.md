@@ -3211,7 +3211,12 @@ Organization / Team
 API Keys
 ```
 
-Analytics pages call `query-api`; configuration pages call `control-api`.
+Analytics pages call `query-api`; configuration pages call `control-api`. **Both with the
+person's own Firebase sign-in** — §52's reporting key is a secret and a browser cannot hold one,
+so `query-api` carries a second set of reporting routes scoped by path and guarded by
+`analytics.read` (§55.2). They are on the cell rather than proxied through the control plane
+because the data is on the cell, and proxying would route every European query through American
+infrastructure.
 
 The dashboard application is not implemented yet. Authentication email actions will call
 Firebase directly, disable duplicate submissions while pending, and use a 60-second button
@@ -3269,6 +3274,47 @@ message cannot be taken back. See [docs/rate-limits.md](docs/rate-limits.md).
 An invitation is also the one email PlayerSense sends itself; every authentication message is
 Firebase's. No provider is configured, so the message is composed and not delivered, and the
 response says so rather than sending somebody to an inbox for mail that was only logged.
+
+---
+
+### 55.2 Reading analytics as a person
+
+A reporting key answers for a machine — a studio's own BI pulling numbers server to server. The
+dashboard cannot use one: §52 makes it a secret, and shipping it to a page publishes every
+studio's analytics to anyone who opens the network tab.
+
+So the same two questions are reachable a second way, on `query-api`, with the Firebase token the
+dashboard already holds:
+
+```text
+POST /organizations/{org}/projects/{project}/analytics/{environment}/cohorts/query
+POST /organizations/{org}/projects/{project}/analytics/{environment}/metrics/query
+```
+
+One planner, one set of facts, one suppression threshold. What differs is only where the scope
+comes from, and **Appendix C #3 still holds**: that rule is about the scope being established
+before the query rather than about which credential carries it. The project is resolved from the
+path against the caller's project access list — one they were not given is "no such project",
+never a refusal, so the names of the games they were not shown do not leak — and the policy tier
+is read off that row, so §29.15's constraints apply to a person exactly as to a key. The body's
+scope members remain decoys that refuse the request.
+
+**The environment is in the path.** A key is minted for one environment, so a machine's scope is
+fixed when its credential is; a person switches between development and production in a
+dashboard. It is not a widening — all three belong to the project the access list already granted.
+
+**The cell refuses a project it does not hold** (§6, §99), with 421 and the address that can serve
+it, decided by the *project's* cell because a person's credential names none. Answering would
+return no rows, and "no rows" reads as "no players" rather than "wrong server".
+
+**A cell resolves accounts and does not create them.** `EnsureUser` writes a user row and a
+personal organization into the global tier on a first sign-in, and an EU service creating
+organizations in the US-hosted control plane as a side effect of somebody opening a chart is a
+boundary worth keeping even though the rows hold no player data.
+
+There is no rate limit here, for the reason §32 gives about queries generally: the protections are
+per *query* — MaxRows, MaxExecutionTime, MaxBytesToRead, the structural refusal to join on an
+actor key — and a query that cannot be expensive cannot be made catastrophic by repetition.
 
 ---
 
