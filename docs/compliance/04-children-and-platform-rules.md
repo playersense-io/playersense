@@ -110,7 +110,13 @@ a release blocker rather than a compliance task.
 It is generated from the column classification ([01](01-data-inventory.md)) for the reason
 ADR 0007 gives: a manifest maintained by hand describes a schema that has moved on.
 
-**Status: the SDKs are not built.** See [10-open-items.md](10-open-items.md).
+**Status: not built, and no longer waiting on anything.** The Unity package builds for iOS
+today ([platforms.md](../sdk/platforms.md)), so this is the artifact standing between a customer
+and App Store review rather than a task behind an unwritten SDK. Nothing in the repository
+declares a manifest. See [10-open-items.md](10-open-items.md).
+
+`NSPrivacyTracking: false` above is what the manifest **will** declare, and is a consequence of
+the identifier design rather than a claim that a file says so today.
 
 ## Google Play Data Safety
 
@@ -118,7 +124,7 @@ A published reference itemising what the SDK collects, whether it is linked to i
 whether it is shared, so a customer can complete their own declaration without guessing.
 Generated from the same classification.
 
-**Status: not built**, for the same reason.
+**Status: not built**, and now blocking for the same reason: the Android targets ship.
 
 ## Age assurance
 

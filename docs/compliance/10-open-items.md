@@ -84,17 +84,26 @@ What it does not yet cover:
 
 ## SDKs
 
-None of the SDKs is built. The **protocol specification** §15 asks for is — sessions,
-identity, consent transitions, the disk spool, retries and the conformance suite, in
-[docs/sdk/protocol.md](../sdk/protocol.md) — so the first implementation has something to
-conform to rather than something to invent.
+The **shared core, the C ABI over it and the Unity package are built.** The protocol
+[§13 asks for](../sdk/protocol.md) sessions, identity, consent transitions, the disk spool,
+retries and a 35-case conformance suite, and every case is covered. Most are proved once in
+`sdk/core` against a fake host; the three §13 says cannot be are where it says they belong —
+case 3 (the identifier is outside a platform backup) and the language-boundary half of case 31
+in `sdk/unity/Tests/Runtime/BoundaryTests.cs`, and case 8, one set of rows from two 202s, in the
+writer's own deduplication tests. The Unity package is at `0.1.0`, **unreleased**.
 
-Two of their artifacts are release blockers for **customers** rather than for PlayerSense,
-which makes them more urgent than their position in a roadmap suggests:
+Platform coverage is the live constraint and is recorded where it can be kept current, in
+[docs/sdk/platforms.md](../sdk/platforms.md): iOS, Android and Apple-silicon macOS ship; Windows
+x64, Linux x64 and Intel macOS do not, which is a Steam release rather than a compliance
+question. **Unreal and Godot are not built.**
+
+What this changes for the two store artifacts below is their urgency, not their status. They
+were previously waiting on there being an SDK at all. There is one, and it builds for iOS today
+— so each is now a release blocker for **a customer** with nothing in front of it:
 
 | Item | Consequence of omission |
 |---|---|
-| **`PrivacyInfo.xcprivacy`, signed**, in the iOS and Unity SDKs | App Store review rejects *the customer's app* |
+| **`PrivacyInfo.xcprivacy`, signed**, in the Unity package | App Store review rejects *the customer's app*. Nothing in the repository declares one |
 | **Play Data Safety reference**, published | The customer cannot complete their own declaration without guessing |
 
 Both are generated from the column classification, which exists — see
