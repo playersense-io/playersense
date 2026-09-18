@@ -44,8 +44,8 @@ const (
 	EdgeSegments = "segments"
 	// EdgeFeatureFlags holds the string denoting the feature_flags edge name in mutations.
 	EdgeFeatureFlags = "feature_flags"
-	// EdgeCampaigns holds the string denoting the campaigns edge name in mutations.
-	EdgeCampaigns = "campaigns"
+	// EdgeLiveopsEvents holds the string denoting the liveops_events edge name in mutations.
+	EdgeLiveopsEvents = "liveops_events"
 	// EdgeConfigVersions holds the string denoting the config_versions edge name in mutations.
 	EdgeConfigVersions = "config_versions"
 	// Table holds the table name of the project in the database.
@@ -85,13 +85,13 @@ const (
 	FeatureFlagsInverseTable = "feature_flags"
 	// FeatureFlagsColumn is the table column denoting the feature_flags relation/edge.
 	FeatureFlagsColumn = "project_id"
-	// CampaignsTable is the table that holds the campaigns relation/edge.
-	CampaignsTable = "campaigns"
-	// CampaignsInverseTable is the table name for the Campaign entity.
-	// It exists in this package in order to avoid circular dependency with the "campaign" package.
-	CampaignsInverseTable = "campaigns"
-	// CampaignsColumn is the table column denoting the campaigns relation/edge.
-	CampaignsColumn = "project_id"
+	// LiveopsEventsTable is the table that holds the liveops_events relation/edge.
+	LiveopsEventsTable = "liveops_events"
+	// LiveopsEventsInverseTable is the table name for the LiveOpsEvent entity.
+	// It exists in this package in order to avoid circular dependency with the "liveopsevent" package.
+	LiveopsEventsInverseTable = "liveops_events"
+	// LiveopsEventsColumn is the table column denoting the liveops_events relation/edge.
+	LiveopsEventsColumn = "project_id"
 	// ConfigVersionsTable is the table that holds the config_versions relation/edge.
 	ConfigVersionsTable = "config_versions"
 	// ConfigVersionsInverseTable is the table name for the ConfigVersion entity.
@@ -278,17 +278,17 @@ func ByFeatureFlags(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	}
 }
 
-// ByCampaignsCount orders the results by campaigns count.
-func ByCampaignsCount(opts ...sql.OrderTermOption) OrderOption {
+// ByLiveopsEventsCount orders the results by liveops_events count.
+func ByLiveopsEventsCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newCampaignsStep(), opts...)
+		sqlgraph.OrderByNeighborsCount(s, newLiveopsEventsStep(), opts...)
 	}
 }
 
-// ByCampaigns orders the results by campaigns terms.
-func ByCampaigns(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+// ByLiveopsEvents orders the results by liveops_events terms.
+func ByLiveopsEvents(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newCampaignsStep(), append([]sql.OrderTerm{term}, terms...)...)
+		sqlgraph.OrderByNeighborTerms(s, newLiveopsEventsStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
 
@@ -340,11 +340,11 @@ func newFeatureFlagsStep() *sqlgraph.Step {
 		sqlgraph.Edge(sqlgraph.O2M, false, FeatureFlagsTable, FeatureFlagsColumn),
 	)
 }
-func newCampaignsStep() *sqlgraph.Step {
+func newLiveopsEventsStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
-		sqlgraph.To(CampaignsInverseTable, FieldID),
-		sqlgraph.Edge(sqlgraph.O2M, false, CampaignsTable, CampaignsColumn),
+		sqlgraph.To(LiveopsEventsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, LiveopsEventsTable, LiveopsEventsColumn),
 	)
 }
 func newConfigVersionsStep() *sqlgraph.Step {

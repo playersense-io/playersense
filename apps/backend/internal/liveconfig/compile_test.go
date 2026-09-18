@@ -4,11 +4,23 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+	"time"
 
 	"playersense.dev/backend/internal/facts"
 	"playersense.dev/backend/internal/liveconfig"
+	"playersense.dev/backend/internal/liveops"
 	"playersense.dev/backend/internal/targeting"
 )
+
+// everyDay is a schedule that is simply valid, for tests about something other than the
+// calendar. Written once so that a test about segments reads as a test about segments.
+func everyDay() liveops.Schedule {
+	return liveops.Schedule{
+		Mode:     liveops.Daily,
+		Anchor:   time.Date(2026, time.January, 1, 18, 0, 0, 0, time.UTC),
+		Duration: 2 * time.Hour,
+	}
+}
 
 func rule(t *testing.T, raw string) targeting.Rule {
 	t.Helper()
@@ -120,23 +132,94 @@ func TestACycleIsRefusedWithThePathThatCausedIt(t *testing.T) {
 	}
 }
 
-// A missing segment is refused rather than treated as "matches nobody". A campaign whose
+// A missing segment is refused rather than treated as "matches nobody". An event whose
 // audience silently became empty is the failure this design keeps guarding against, and a
 // publish is exactly the moment somebody can fix it.
 func TestAMissingSegmentIsRefused(t *testing.T) {
 	_, err := liveconfig.Compile(liveconfig.Input{
 		Version: 1,
-		Campaigns: []liveconfig.Campaign{{
+		Events: []liveconfig.LiveOpsEvent{{
 			Key: "halloween", Kind: "seasonal_event",
+			Schedule: everyDay(),
 			Audience: rule(t, `{"segment":"ghosts"}`),
 			Payload:  map[string]any{"xp": 2},
 		}},
 	})
 	if err == nil {
-		t.Fatal("a campaign naming a segment that does not exist compiled")
+		t.Fatal("an event naming a segment that does not exist compiled")
 	}
 	if !strings.Contains(err.Error(), "halloween") || !strings.Contains(err.Error(), "ghosts") {
-		t.Errorf("the error names neither the campaign nor the segment: %v", err)
+		t.Errorf("the error names neither the event nor the segment: %v", err)
+	}
+}
+
+// Publishing is the last moment a person is looking at the event, so a schedule that could
+// never run has to be refused here rather than becoming an event that is silently never on.
+func TestAnImpossibleScheduleIsRefused(t *testing.T) {
+	_, err := liveconfig.Compile(liveconfig.Input{
+		Version: 1,
+		Events: []liveconfig.LiveOpsEvent{{
+			Key: "double_xp", Kind: "seasonal_event",
+			// Every day, lasting three: on twice at once, which no player can observe.
+			Schedule: liveops.Schedule{
+				Mode:     liveops.Daily,
+				Anchor:   time.Date(2026, time.March, 1, 0, 0, 0, 0, time.UTC),
+				Duration: 72 * time.Hour,
+			},
+			Payload: map[string]any{"xp": 2},
+		}},
+	})
+	if err == nil {
+		t.Fatal("an event that overlaps itself compiled")
+	}
+	if !strings.Contains(err.Error(), "double_xp") {
+		t.Errorf("the error does not name the event: %v", err)
+	}
+}
+
+// The case Hasan described: an offer on the first five days of every month, targeted at a
+// segment, created once rather than twelve times a year. The document must carry the
+// recurrence rather than a single window, because a single window is exactly what a studio
+// would otherwise be retyping every month.
+func TestAMonthlyEventSurvivesPublishing(t *testing.T) {
+	doc, err := liveconfig.Compile(liveconfig.Input{
+		Version:  7,
+		Segments: liveconfig.Segments{"engaged_tr": rule(t, `{"all":[{"key":"geo.country","op":"eq","value":"TR"},{"key":"activity.install.playtime_seconds","op":"gt","value":600}]}`)},
+		Events: []liveconfig.LiveOpsEvent{{
+			Key: "month_start_offer", Kind: "offer",
+			Schedule: liveops.Schedule{
+				Mode:     liveops.Monthly,
+				Anchor:   time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC),
+				Duration: 5 * 24 * time.Hour,
+			},
+			Audience: rule(t, `{"segment":"engaged_tr"}`),
+			Payload:  map[string]any{"discount": 20},
+			Rollout:  targeting.Buckets,
+		}},
+	})
+	if err != nil {
+		t.Fatalf("compile: %v", err)
+	}
+	if len(doc.Events) != 1 {
+		t.Fatalf("got %d events, want 1", len(doc.Events))
+	}
+
+	published := doc.Events[0]
+	if published.Audience.Segment != "" || len(published.Audience.All) != 2 {
+		t.Errorf("the audience was published as a reference rather than inlined: %+v", published.Audience)
+	}
+
+	// March, June, and the second of March — one instant inside a window, one outside.
+	for _, at := range []time.Time{
+		time.Date(2026, time.March, 2, 12, 0, 0, 0, time.UTC),
+		time.Date(2026, time.June, 1, 0, 0, 0, 0, time.UTC),
+	} {
+		if _, on := published.Schedule.ActiveAt(at); !on {
+			t.Errorf("the event was off at %s, which is inside the first five days", at)
+		}
+	}
+	if _, on := published.Schedule.ActiveAt(time.Date(2026, time.March, 9, 12, 0, 0, 0, time.UTC)); on {
+		t.Error("the event was on nine days into the month")
 	}
 }
 
@@ -163,8 +246,9 @@ func TestADocumentKnowsWhetherItNeedsALookup(t *testing.T) {
 	costly, err := liveconfig.Compile(liveconfig.Input{
 		Version:  1,
 		Segments: liveconfig.Segments{"whales": rule(t, `{"key":"commerce.player.purchases","op":"gt","value":5}`)},
-		Campaigns: []liveconfig.Campaign{{
+		Events: []liveconfig.LiveOpsEvent{{
 			Key: "vip", Kind: "offer",
+			Schedule: everyDay(),
 			Audience: rule(t, `{"segment":"whales"}`),
 			Payload:  map[string]any{},
 		}},
@@ -178,7 +262,7 @@ func TestADocumentKnowsWhetherItNeedsALookup(t *testing.T) {
 }
 
 // A reference that somehow reached evaluation must not match, and must not panic. Analytics
-// never crashes a game; a campaign reaching nobody is findable, a crash in a config handler is
+// never crashes a game; an event reaching nobody is findable, a crash in a config handler is
 // an outage.
 func TestAnUninlinedReferenceMatchesNothing(t *testing.T) {
 	raw := rule(t, `{"segment":"whales"}`)

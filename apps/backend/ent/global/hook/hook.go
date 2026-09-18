@@ -21,18 +21,6 @@ func (f APIKeyFunc) Mutate(ctx context.Context, m global.Mutation) (global.Value
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *global.APIKeyMutation", m)
 }
 
-// The CampaignFunc type is an adapter to allow the use of ordinary
-// function as Campaign mutator.
-type CampaignFunc func(context.Context, *global.CampaignMutation) (global.Value, error)
-
-// Mutate calls f(ctx, m).
-func (f CampaignFunc) Mutate(ctx context.Context, m global.Mutation) (global.Value, error) {
-	if mv, ok := m.(*global.CampaignMutation); ok {
-		return f(ctx, mv)
-	}
-	return nil, fmt.Errorf("unexpected mutation type %T. expect *global.CampaignMutation", m)
-}
-
 // The CellFunc type is an adapter to allow the use of ordinary
 // function as Cell mutator.
 type CellFunc func(context.Context, *global.CellMutation) (global.Value, error)
@@ -91,6 +79,18 @@ func (f InvitationFunc) Mutate(ctx context.Context, m global.Mutation) (global.V
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *global.InvitationMutation", m)
+}
+
+// The LiveOpsEventFunc type is an adapter to allow the use of ordinary
+// function as LiveOpsEvent mutator.
+type LiveOpsEventFunc func(context.Context, *global.LiveOpsEventMutation) (global.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f LiveOpsEventFunc) Mutate(ctx context.Context, m global.Mutation) (global.Value, error) {
+	if mv, ok := m.(*global.LiveOpsEventMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *global.LiveOpsEventMutation", m)
 }
 
 // The OrganizationFunc type is an adapter to allow the use of ordinary

@@ -16,12 +16,12 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"playersense.dev/backend/ent/global/apikey"
-	"playersense.dev/backend/ent/global/campaign"
 	"playersense.dev/backend/ent/global/cell"
 	"playersense.dev/backend/ent/global/configversion"
 	"playersense.dev/backend/ent/global/environment"
 	"playersense.dev/backend/ent/global/featureflag"
 	"playersense.dev/backend/ent/global/invitation"
+	"playersense.dev/backend/ent/global/liveopsevent"
 	"playersense.dev/backend/ent/global/organization"
 	"playersense.dev/backend/ent/global/organizationmember"
 	"playersense.dev/backend/ent/global/project"
@@ -36,8 +36,6 @@ type Client struct {
 	Schema *migrate.Schema
 	// APIKey is the client for interacting with the APIKey builders.
 	APIKey *APIKeyClient
-	// Campaign is the client for interacting with the Campaign builders.
-	Campaign *CampaignClient
 	// Cell is the client for interacting with the Cell builders.
 	Cell *CellClient
 	// ConfigVersion is the client for interacting with the ConfigVersion builders.
@@ -48,6 +46,8 @@ type Client struct {
 	FeatureFlag *FeatureFlagClient
 	// Invitation is the client for interacting with the Invitation builders.
 	Invitation *InvitationClient
+	// LiveOpsEvent is the client for interacting with the LiveOpsEvent builders.
+	LiveOpsEvent *LiveOpsEventClient
 	// Organization is the client for interacting with the Organization builders.
 	Organization *OrganizationClient
 	// OrganizationMember is the client for interacting with the OrganizationMember builders.
@@ -70,12 +70,12 @@ func NewClient(opts ...Option) *Client {
 func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
 	c.APIKey = NewAPIKeyClient(c.config)
-	c.Campaign = NewCampaignClient(c.config)
 	c.Cell = NewCellClient(c.config)
 	c.ConfigVersion = NewConfigVersionClient(c.config)
 	c.Environment = NewEnvironmentClient(c.config)
 	c.FeatureFlag = NewFeatureFlagClient(c.config)
 	c.Invitation = NewInvitationClient(c.config)
+	c.LiveOpsEvent = NewLiveOpsEventClient(c.config)
 	c.Organization = NewOrganizationClient(c.config)
 	c.OrganizationMember = NewOrganizationMemberClient(c.config)
 	c.Project = NewProjectClient(c.config)
@@ -174,12 +174,12 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		ctx:                ctx,
 		config:             cfg,
 		APIKey:             NewAPIKeyClient(cfg),
-		Campaign:           NewCampaignClient(cfg),
 		Cell:               NewCellClient(cfg),
 		ConfigVersion:      NewConfigVersionClient(cfg),
 		Environment:        NewEnvironmentClient(cfg),
 		FeatureFlag:        NewFeatureFlagClient(cfg),
 		Invitation:         NewInvitationClient(cfg),
+		LiveOpsEvent:       NewLiveOpsEventClient(cfg),
 		Organization:       NewOrganizationClient(cfg),
 		OrganizationMember: NewOrganizationMemberClient(cfg),
 		Project:            NewProjectClient(cfg),
@@ -205,12 +205,12 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		ctx:                ctx,
 		config:             cfg,
 		APIKey:             NewAPIKeyClient(cfg),
-		Campaign:           NewCampaignClient(cfg),
 		Cell:               NewCellClient(cfg),
 		ConfigVersion:      NewConfigVersionClient(cfg),
 		Environment:        NewEnvironmentClient(cfg),
 		FeatureFlag:        NewFeatureFlagClient(cfg),
 		Invitation:         NewInvitationClient(cfg),
+		LiveOpsEvent:       NewLiveOpsEventClient(cfg),
 		Organization:       NewOrganizationClient(cfg),
 		OrganizationMember: NewOrganizationMemberClient(cfg),
 		Project:            NewProjectClient(cfg),
@@ -245,8 +245,8 @@ func (c *Client) Close() error {
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
-		c.APIKey, c.Campaign, c.Cell, c.ConfigVersion, c.Environment, c.FeatureFlag,
-		c.Invitation, c.Organization, c.OrganizationMember, c.Project, c.Segment,
+		c.APIKey, c.Cell, c.ConfigVersion, c.Environment, c.FeatureFlag, c.Invitation,
+		c.LiveOpsEvent, c.Organization, c.OrganizationMember, c.Project, c.Segment,
 		c.User,
 	} {
 		n.Use(hooks...)
@@ -257,8 +257,8 @@ func (c *Client) Use(hooks ...Hook) {
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
-		c.APIKey, c.Campaign, c.Cell, c.ConfigVersion, c.Environment, c.FeatureFlag,
-		c.Invitation, c.Organization, c.OrganizationMember, c.Project, c.Segment,
+		c.APIKey, c.Cell, c.ConfigVersion, c.Environment, c.FeatureFlag, c.Invitation,
+		c.LiveOpsEvent, c.Organization, c.OrganizationMember, c.Project, c.Segment,
 		c.User,
 	} {
 		n.Intercept(interceptors...)
@@ -270,8 +270,6 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 	switch m := m.(type) {
 	case *APIKeyMutation:
 		return c.APIKey.mutate(ctx, m)
-	case *CampaignMutation:
-		return c.Campaign.mutate(ctx, m)
 	case *CellMutation:
 		return c.Cell.mutate(ctx, m)
 	case *ConfigVersionMutation:
@@ -282,6 +280,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.FeatureFlag.mutate(ctx, m)
 	case *InvitationMutation:
 		return c.Invitation.mutate(ctx, m)
+	case *LiveOpsEventMutation:
+		return c.LiveOpsEvent.mutate(ctx, m)
 	case *OrganizationMutation:
 		return c.Organization.mutate(ctx, m)
 	case *OrganizationMemberMutation:
@@ -443,155 +443,6 @@ func (c *APIKeyClient) mutate(ctx context.Context, m *APIKeyMutation) (Value, er
 		return (&APIKeyDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("global: unknown APIKey mutation op: %q", m.Op())
-	}
-}
-
-// CampaignClient is a client for the Campaign schema.
-type CampaignClient struct {
-	config
-}
-
-// NewCampaignClient returns a client for the Campaign from the given config.
-func NewCampaignClient(c config) *CampaignClient {
-	return &CampaignClient{config: c}
-}
-
-// Use adds a list of mutation hooks to the hooks stack.
-// A call to `Use(f, g, h)` equals to `campaign.Hooks(f(g(h())))`.
-func (c *CampaignClient) Use(hooks ...Hook) {
-	c.hooks.Campaign = append(c.hooks.Campaign, hooks...)
-}
-
-// Intercept adds a list of query interceptors to the interceptors stack.
-// A call to `Intercept(f, g, h)` equals to `campaign.Intercept(f(g(h())))`.
-func (c *CampaignClient) Intercept(interceptors ...Interceptor) {
-	c.inters.Campaign = append(c.inters.Campaign, interceptors...)
-}
-
-// Create returns a builder for creating a Campaign entity.
-func (c *CampaignClient) Create() *CampaignCreate {
-	mutation := newCampaignMutation(c.config, OpCreate)
-	return &CampaignCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// CreateBulk returns a builder for creating a bulk of Campaign entities.
-func (c *CampaignClient) CreateBulk(builders ...*CampaignCreate) *CampaignCreateBulk {
-	return &CampaignCreateBulk{config: c.config, builders: builders}
-}
-
-// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
-// a builder and applies setFunc on it.
-func (c *CampaignClient) MapCreateBulk(slice any, setFunc func(*CampaignCreate, int)) *CampaignCreateBulk {
-	rv := reflect.ValueOf(slice)
-	if rv.Kind() != reflect.Slice {
-		return &CampaignCreateBulk{err: fmt.Errorf("calling to CampaignClient.MapCreateBulk with wrong type %T, need slice", slice)}
-	}
-	builders := make([]*CampaignCreate, rv.Len())
-	for i := 0; i < rv.Len(); i++ {
-		builders[i] = c.Create()
-		setFunc(builders[i], i)
-	}
-	return &CampaignCreateBulk{config: c.config, builders: builders}
-}
-
-// Update returns an update builder for Campaign.
-func (c *CampaignClient) Update() *CampaignUpdate {
-	mutation := newCampaignMutation(c.config, OpUpdate)
-	return &CampaignUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// UpdateOne returns an update builder for the given entity.
-func (c *CampaignClient) UpdateOne(_m *Campaign) *CampaignUpdateOne {
-	mutation := newCampaignMutation(c.config, OpUpdateOne, withCampaign(_m))
-	return &CampaignUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// UpdateOneID returns an update builder for the given id.
-func (c *CampaignClient) UpdateOneID(id int) *CampaignUpdateOne {
-	mutation := newCampaignMutation(c.config, OpUpdateOne, withCampaignID(id))
-	return &CampaignUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// Delete returns a delete builder for Campaign.
-func (c *CampaignClient) Delete() *CampaignDelete {
-	mutation := newCampaignMutation(c.config, OpDelete)
-	return &CampaignDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// DeleteOne returns a builder for deleting the given entity.
-func (c *CampaignClient) DeleteOne(_m *Campaign) *CampaignDeleteOne {
-	return c.DeleteOneID(_m.ID)
-}
-
-// DeleteOneID returns a builder for deleting the given entity by its id.
-func (c *CampaignClient) DeleteOneID(id int) *CampaignDeleteOne {
-	builder := c.Delete().Where(campaign.ID(id))
-	builder.mutation.id = &id
-	builder.mutation.op = OpDeleteOne
-	return &CampaignDeleteOne{builder}
-}
-
-// Query returns a query builder for Campaign.
-func (c *CampaignClient) Query() *CampaignQuery {
-	return &CampaignQuery{
-		config: c.config,
-		ctx:    &QueryContext{Type: TypeCampaign},
-		inters: c.Interceptors(),
-	}
-}
-
-// Get returns a Campaign entity by its id.
-func (c *CampaignClient) Get(ctx context.Context, id int) (*Campaign, error) {
-	return c.Query().Where(campaign.ID(id)).Only(ctx)
-}
-
-// GetX is like Get, but panics if an error occurs.
-func (c *CampaignClient) GetX(ctx context.Context, id int) *Campaign {
-	obj, err := c.Get(ctx, id)
-	if err != nil {
-		panic(err)
-	}
-	return obj
-}
-
-// QueryProject queries the project edge of a Campaign.
-func (c *CampaignClient) QueryProject(_m *Campaign) *ProjectQuery {
-	query := (&ProjectClient{config: c.config}).Query()
-	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
-		id := _m.ID
-		step := sqlgraph.NewStep(
-			sqlgraph.From(campaign.Table, campaign.FieldID, id),
-			sqlgraph.To(project.Table, project.FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, true, campaign.ProjectTable, campaign.ProjectColumn),
-		)
-		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
-		return fromV, nil
-	}
-	return query
-}
-
-// Hooks returns the client hooks.
-func (c *CampaignClient) Hooks() []Hook {
-	return c.hooks.Campaign
-}
-
-// Interceptors returns the client interceptors.
-func (c *CampaignClient) Interceptors() []Interceptor {
-	return c.inters.Campaign
-}
-
-func (c *CampaignClient) mutate(ctx context.Context, m *CampaignMutation) (Value, error) {
-	switch m.Op() {
-	case OpCreate:
-		return (&CampaignCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
-	case OpUpdate:
-		return (&CampaignUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
-	case OpUpdateOne:
-		return (&CampaignUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
-	case OpDelete, OpDeleteOne:
-		return (&CampaignDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
-	default:
-		return nil, fmt.Errorf("global: unknown Campaign mutation op: %q", m.Op())
 	}
 }
 
@@ -1404,6 +1255,155 @@ func (c *InvitationClient) mutate(ctx context.Context, m *InvitationMutation) (V
 	}
 }
 
+// LiveOpsEventClient is a client for the LiveOpsEvent schema.
+type LiveOpsEventClient struct {
+	config
+}
+
+// NewLiveOpsEventClient returns a client for the LiveOpsEvent from the given config.
+func NewLiveOpsEventClient(c config) *LiveOpsEventClient {
+	return &LiveOpsEventClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `liveopsevent.Hooks(f(g(h())))`.
+func (c *LiveOpsEventClient) Use(hooks ...Hook) {
+	c.hooks.LiveOpsEvent = append(c.hooks.LiveOpsEvent, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `liveopsevent.Intercept(f(g(h())))`.
+func (c *LiveOpsEventClient) Intercept(interceptors ...Interceptor) {
+	c.inters.LiveOpsEvent = append(c.inters.LiveOpsEvent, interceptors...)
+}
+
+// Create returns a builder for creating a LiveOpsEvent entity.
+func (c *LiveOpsEventClient) Create() *LiveOpsEventCreate {
+	mutation := newLiveOpsEventMutation(c.config, OpCreate)
+	return &LiveOpsEventCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of LiveOpsEvent entities.
+func (c *LiveOpsEventClient) CreateBulk(builders ...*LiveOpsEventCreate) *LiveOpsEventCreateBulk {
+	return &LiveOpsEventCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *LiveOpsEventClient) MapCreateBulk(slice any, setFunc func(*LiveOpsEventCreate, int)) *LiveOpsEventCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &LiveOpsEventCreateBulk{err: fmt.Errorf("calling to LiveOpsEventClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*LiveOpsEventCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &LiveOpsEventCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for LiveOpsEvent.
+func (c *LiveOpsEventClient) Update() *LiveOpsEventUpdate {
+	mutation := newLiveOpsEventMutation(c.config, OpUpdate)
+	return &LiveOpsEventUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *LiveOpsEventClient) UpdateOne(_m *LiveOpsEvent) *LiveOpsEventUpdateOne {
+	mutation := newLiveOpsEventMutation(c.config, OpUpdateOne, withLiveOpsEvent(_m))
+	return &LiveOpsEventUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *LiveOpsEventClient) UpdateOneID(id int) *LiveOpsEventUpdateOne {
+	mutation := newLiveOpsEventMutation(c.config, OpUpdateOne, withLiveOpsEventID(id))
+	return &LiveOpsEventUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for LiveOpsEvent.
+func (c *LiveOpsEventClient) Delete() *LiveOpsEventDelete {
+	mutation := newLiveOpsEventMutation(c.config, OpDelete)
+	return &LiveOpsEventDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *LiveOpsEventClient) DeleteOne(_m *LiveOpsEvent) *LiveOpsEventDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *LiveOpsEventClient) DeleteOneID(id int) *LiveOpsEventDeleteOne {
+	builder := c.Delete().Where(liveopsevent.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &LiveOpsEventDeleteOne{builder}
+}
+
+// Query returns a query builder for LiveOpsEvent.
+func (c *LiveOpsEventClient) Query() *LiveOpsEventQuery {
+	return &LiveOpsEventQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeLiveOpsEvent},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a LiveOpsEvent entity by its id.
+func (c *LiveOpsEventClient) Get(ctx context.Context, id int) (*LiveOpsEvent, error) {
+	return c.Query().Where(liveopsevent.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *LiveOpsEventClient) GetX(ctx context.Context, id int) *LiveOpsEvent {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryProject queries the project edge of a LiveOpsEvent.
+func (c *LiveOpsEventClient) QueryProject(_m *LiveOpsEvent) *ProjectQuery {
+	query := (&ProjectClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(liveopsevent.Table, liveopsevent.FieldID, id),
+			sqlgraph.To(project.Table, project.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, liveopsevent.ProjectTable, liveopsevent.ProjectColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *LiveOpsEventClient) Hooks() []Hook {
+	return c.hooks.LiveOpsEvent
+}
+
+// Interceptors returns the client interceptors.
+func (c *LiveOpsEventClient) Interceptors() []Interceptor {
+	return c.inters.LiveOpsEvent
+}
+
+func (c *LiveOpsEventClient) mutate(ctx context.Context, m *LiveOpsEventMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&LiveOpsEventCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&LiveOpsEventUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&LiveOpsEventUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&LiveOpsEventDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("global: unknown LiveOpsEvent mutation op: %q", m.Op())
+	}
+}
+
 // OrganizationClient is a client for the Organization schema.
 type OrganizationClient struct {
 	config
@@ -1938,15 +1938,15 @@ func (c *ProjectClient) QueryFeatureFlags(_m *Project) *FeatureFlagQuery {
 	return query
 }
 
-// QueryCampaigns queries the campaigns edge of a Project.
-func (c *ProjectClient) QueryCampaigns(_m *Project) *CampaignQuery {
-	query := (&CampaignClient{config: c.config}).Query()
+// QueryLiveopsEvents queries the liveops_events edge of a Project.
+func (c *ProjectClient) QueryLiveopsEvents(_m *Project) *LiveOpsEventQuery {
+	query := (&LiveOpsEventClient{config: c.config}).Query()
 	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
 		id := _m.ID
 		step := sqlgraph.NewStep(
 			sqlgraph.From(project.Table, project.FieldID, id),
-			sqlgraph.To(campaign.Table, campaign.FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, project.CampaignsTable, project.CampaignsColumn),
+			sqlgraph.To(liveopsevent.Table, liveopsevent.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, project.LiveopsEventsTable, project.LiveopsEventsColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -2312,11 +2312,11 @@ func (c *UserClient) mutate(ctx context.Context, m *UserMutation) (Value, error)
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		APIKey, Campaign, Cell, ConfigVersion, Environment, FeatureFlag, Invitation,
+		APIKey, Cell, ConfigVersion, Environment, FeatureFlag, Invitation, LiveOpsEvent,
 		Organization, OrganizationMember, Project, Segment, User []ent.Hook
 	}
 	inters struct {
-		APIKey, Campaign, Cell, ConfigVersion, Environment, FeatureFlag, Invitation,
+		APIKey, Cell, ConfigVersion, Environment, FeatureFlag, Invitation, LiveOpsEvent,
 		Organization, OrganizationMember, Project, Segment, User []ent.Interceptor
 	}
 )

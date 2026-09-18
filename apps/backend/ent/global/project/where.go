@@ -561,21 +561,21 @@ func HasFeatureFlagsWith(preds ...predicate.FeatureFlag) predicate.Project {
 	})
 }
 
-// HasCampaigns applies the HasEdge predicate on the "campaigns" edge.
-func HasCampaigns() predicate.Project {
+// HasLiveopsEvents applies the HasEdge predicate on the "liveops_events" edge.
+func HasLiveopsEvents() predicate.Project {
 	return predicate.Project(func(s *sql.Selector) {
 		step := sqlgraph.NewStep(
 			sqlgraph.From(Table, FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, CampaignsTable, CampaignsColumn),
+			sqlgraph.Edge(sqlgraph.O2M, false, LiveopsEventsTable, LiveopsEventsColumn),
 		)
 		sqlgraph.HasNeighbors(s, step)
 	})
 }
 
-// HasCampaignsWith applies the HasEdge predicate on the "campaigns" edge with a given conditions (other predicates).
-func HasCampaignsWith(preds ...predicate.Campaign) predicate.Project {
+// HasLiveopsEventsWith applies the HasEdge predicate on the "liveops_events" edge with a given conditions (other predicates).
+func HasLiveopsEventsWith(preds ...predicate.LiveOpsEvent) predicate.Project {
 	return predicate.Project(func(s *sql.Selector) {
-		step := newCampaignsStep()
+		step := newLiveopsEventsStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

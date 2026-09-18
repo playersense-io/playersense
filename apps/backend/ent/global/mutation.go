@@ -13,18 +13,19 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
 	"playersense.dev/backend/ent/global/apikey"
-	"playersense.dev/backend/ent/global/campaign"
 	"playersense.dev/backend/ent/global/cell"
 	"playersense.dev/backend/ent/global/configversion"
 	"playersense.dev/backend/ent/global/environment"
 	"playersense.dev/backend/ent/global/featureflag"
 	"playersense.dev/backend/ent/global/invitation"
+	"playersense.dev/backend/ent/global/liveopsevent"
 	"playersense.dev/backend/ent/global/organization"
 	"playersense.dev/backend/ent/global/organizationmember"
 	"playersense.dev/backend/ent/global/predicate"
 	"playersense.dev/backend/ent/global/project"
 	"playersense.dev/backend/ent/global/segment"
 	"playersense.dev/backend/ent/global/user"
+	"playersense.dev/backend/internal/liveops"
 )
 
 const (
@@ -37,12 +38,12 @@ const (
 
 	// Node types.
 	TypeAPIKey             = "APIKey"
-	TypeCampaign           = "Campaign"
 	TypeCell               = "Cell"
 	TypeConfigVersion      = "ConfigVersion"
 	TypeEnvironment        = "Environment"
 	TypeFeatureFlag        = "FeatureFlag"
 	TypeInvitation         = "Invitation"
+	TypeLiveOpsEvent       = "LiveOpsEvent"
 	TypeOrganization       = "Organization"
 	TypeOrganizationMember = "OrganizationMember"
 	TypeProject            = "Project"
@@ -983,1258 +984,6 @@ func (m *APIKeyMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown APIKey edge %s", name)
-}
-
-// CampaignMutation represents an operation that mutates the Campaign nodes in the graph.
-type CampaignMutation struct {
-	config
-	op             Op
-	typ            string
-	id             *int
-	uid            *uuid.UUID
-	created_at     *time.Time
-	updated_at     *time.Time
-	key            *string
-	kind           *string
-	name           *string
-	status         *campaign.Status
-	starts_at      *time.Time
-	ends_at        *time.Time
-	priority       *int
-	addpriority    *int
-	audience       *map[string]interface{}
-	payload        *map[string]interface{}
-	rollout        *int
-	addrollout     *int
-	salt           *string
-	clearedFields  map[string]struct{}
-	project        *int
-	clearedproject bool
-	done           bool
-	oldValue       func(context.Context) (*Campaign, error)
-	predicates     []predicate.Campaign
-}
-
-var _ ent.Mutation = (*CampaignMutation)(nil)
-
-// campaignOption allows management of the mutation configuration using functional options.
-type campaignOption func(*CampaignMutation)
-
-// newCampaignMutation creates new mutation for the Campaign entity.
-func newCampaignMutation(c config, op Op, opts ...campaignOption) *CampaignMutation {
-	m := &CampaignMutation{
-		config:        c,
-		op:            op,
-		typ:           TypeCampaign,
-		clearedFields: make(map[string]struct{}),
-	}
-	for _, opt := range opts {
-		opt(m)
-	}
-	return m
-}
-
-// withCampaignID sets the ID field of the mutation.
-func withCampaignID(id int) campaignOption {
-	return func(m *CampaignMutation) {
-		var (
-			err   error
-			once  sync.Once
-			value *Campaign
-		)
-		m.oldValue = func(ctx context.Context) (*Campaign, error) {
-			once.Do(func() {
-				if m.done {
-					err = errors.New("querying old values post mutation is not allowed")
-				} else {
-					value, err = m.Client().Campaign.Get(ctx, id)
-				}
-			})
-			return value, err
-		}
-		m.id = &id
-	}
-}
-
-// withCampaign sets the old Campaign of the mutation.
-func withCampaign(node *Campaign) campaignOption {
-	return func(m *CampaignMutation) {
-		m.oldValue = func(context.Context) (*Campaign, error) {
-			return node, nil
-		}
-		m.id = &node.ID
-	}
-}
-
-// Client returns a new `ent.Client` from the mutation. If the mutation was
-// executed in a transaction (ent.Tx), a transactional client is returned.
-func (m CampaignMutation) Client() *Client {
-	client := &Client{config: m.config}
-	client.init()
-	return client
-}
-
-// Tx returns an `ent.Tx` for mutations that were executed in transactions;
-// it returns an error otherwise.
-func (m CampaignMutation) Tx() (*Tx, error) {
-	if _, ok := m.driver.(*txDriver); !ok {
-		return nil, errors.New("global: mutation is not running in a transaction")
-	}
-	tx := &Tx{config: m.config}
-	tx.init()
-	return tx, nil
-}
-
-// SetID sets the value of the id field. Note that this
-// operation is only accepted on creation of Campaign entities.
-func (m *CampaignMutation) SetID(id int) {
-	m.id = &id
-}
-
-// ID returns the ID value in the mutation. Note that the ID is only available
-// if it was provided to the builder or after it was returned from the database.
-func (m *CampaignMutation) ID() (id int, exists bool) {
-	if m.id == nil {
-		return
-	}
-	return *m.id, true
-}
-
-// IDs queries the database and returns the entity ids that match the mutation's predicate.
-// That means, if the mutation is applied within a transaction with an isolation level such
-// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
-// or updated by the mutation.
-func (m *CampaignMutation) IDs(ctx context.Context) ([]int, error) {
-	switch {
-	case m.op.Is(OpUpdateOne | OpDeleteOne):
-		id, exists := m.ID()
-		if exists {
-			return []int{id}, nil
-		}
-		fallthrough
-	case m.op.Is(OpUpdate | OpDelete):
-		return m.Client().Campaign.Query().Where(m.predicates...).IDs(ctx)
-	default:
-		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
-	}
-}
-
-// SetUID sets the "uid" field.
-func (m *CampaignMutation) SetUID(u uuid.UUID) {
-	m.uid = &u
-}
-
-// UID returns the value of the "uid" field in the mutation.
-func (m *CampaignMutation) UID() (r uuid.UUID, exists bool) {
-	v := m.uid
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldUID returns the old "uid" field's value of the Campaign entity.
-// If the Campaign object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *CampaignMutation) OldUID(ctx context.Context) (v uuid.UUID, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldUID is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldUID requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldUID: %w", err)
-	}
-	return oldValue.UID, nil
-}
-
-// ResetUID resets all changes to the "uid" field.
-func (m *CampaignMutation) ResetUID() {
-	m.uid = nil
-}
-
-// SetCreatedAt sets the "created_at" field.
-func (m *CampaignMutation) SetCreatedAt(t time.Time) {
-	m.created_at = &t
-}
-
-// CreatedAt returns the value of the "created_at" field in the mutation.
-func (m *CampaignMutation) CreatedAt() (r time.Time, exists bool) {
-	v := m.created_at
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldCreatedAt returns the old "created_at" field's value of the Campaign entity.
-// If the Campaign object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *CampaignMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
-	}
-	return oldValue.CreatedAt, nil
-}
-
-// ResetCreatedAt resets all changes to the "created_at" field.
-func (m *CampaignMutation) ResetCreatedAt() {
-	m.created_at = nil
-}
-
-// SetUpdatedAt sets the "updated_at" field.
-func (m *CampaignMutation) SetUpdatedAt(t time.Time) {
-	m.updated_at = &t
-}
-
-// UpdatedAt returns the value of the "updated_at" field in the mutation.
-func (m *CampaignMutation) UpdatedAt() (r time.Time, exists bool) {
-	v := m.updated_at
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldUpdatedAt returns the old "updated_at" field's value of the Campaign entity.
-// If the Campaign object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *CampaignMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
-	}
-	return oldValue.UpdatedAt, nil
-}
-
-// ResetUpdatedAt resets all changes to the "updated_at" field.
-func (m *CampaignMutation) ResetUpdatedAt() {
-	m.updated_at = nil
-}
-
-// SetProjectID sets the "project_id" field.
-func (m *CampaignMutation) SetProjectID(i int) {
-	m.project = &i
-}
-
-// ProjectID returns the value of the "project_id" field in the mutation.
-func (m *CampaignMutation) ProjectID() (r int, exists bool) {
-	v := m.project
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldProjectID returns the old "project_id" field's value of the Campaign entity.
-// If the Campaign object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *CampaignMutation) OldProjectID(ctx context.Context) (v int, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldProjectID is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldProjectID requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldProjectID: %w", err)
-	}
-	return oldValue.ProjectID, nil
-}
-
-// ResetProjectID resets all changes to the "project_id" field.
-func (m *CampaignMutation) ResetProjectID() {
-	m.project = nil
-}
-
-// SetKey sets the "key" field.
-func (m *CampaignMutation) SetKey(s string) {
-	m.key = &s
-}
-
-// Key returns the value of the "key" field in the mutation.
-func (m *CampaignMutation) Key() (r string, exists bool) {
-	v := m.key
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldKey returns the old "key" field's value of the Campaign entity.
-// If the Campaign object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *CampaignMutation) OldKey(ctx context.Context) (v string, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldKey is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldKey requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldKey: %w", err)
-	}
-	return oldValue.Key, nil
-}
-
-// ResetKey resets all changes to the "key" field.
-func (m *CampaignMutation) ResetKey() {
-	m.key = nil
-}
-
-// SetKind sets the "kind" field.
-func (m *CampaignMutation) SetKind(s string) {
-	m.kind = &s
-}
-
-// Kind returns the value of the "kind" field in the mutation.
-func (m *CampaignMutation) Kind() (r string, exists bool) {
-	v := m.kind
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldKind returns the old "kind" field's value of the Campaign entity.
-// If the Campaign object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *CampaignMutation) OldKind(ctx context.Context) (v string, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldKind is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldKind requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldKind: %w", err)
-	}
-	return oldValue.Kind, nil
-}
-
-// ResetKind resets all changes to the "kind" field.
-func (m *CampaignMutation) ResetKind() {
-	m.kind = nil
-}
-
-// SetName sets the "name" field.
-func (m *CampaignMutation) SetName(s string) {
-	m.name = &s
-}
-
-// Name returns the value of the "name" field in the mutation.
-func (m *CampaignMutation) Name() (r string, exists bool) {
-	v := m.name
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldName returns the old "name" field's value of the Campaign entity.
-// If the Campaign object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *CampaignMutation) OldName(ctx context.Context) (v string, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldName is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldName requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldName: %w", err)
-	}
-	return oldValue.Name, nil
-}
-
-// ResetName resets all changes to the "name" field.
-func (m *CampaignMutation) ResetName() {
-	m.name = nil
-}
-
-// SetStatus sets the "status" field.
-func (m *CampaignMutation) SetStatus(c campaign.Status) {
-	m.status = &c
-}
-
-// Status returns the value of the "status" field in the mutation.
-func (m *CampaignMutation) Status() (r campaign.Status, exists bool) {
-	v := m.status
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldStatus returns the old "status" field's value of the Campaign entity.
-// If the Campaign object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *CampaignMutation) OldStatus(ctx context.Context) (v campaign.Status, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldStatus requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
-	}
-	return oldValue.Status, nil
-}
-
-// ResetStatus resets all changes to the "status" field.
-func (m *CampaignMutation) ResetStatus() {
-	m.status = nil
-}
-
-// SetStartsAt sets the "starts_at" field.
-func (m *CampaignMutation) SetStartsAt(t time.Time) {
-	m.starts_at = &t
-}
-
-// StartsAt returns the value of the "starts_at" field in the mutation.
-func (m *CampaignMutation) StartsAt() (r time.Time, exists bool) {
-	v := m.starts_at
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldStartsAt returns the old "starts_at" field's value of the Campaign entity.
-// If the Campaign object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *CampaignMutation) OldStartsAt(ctx context.Context) (v *time.Time, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldStartsAt is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldStartsAt requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldStartsAt: %w", err)
-	}
-	return oldValue.StartsAt, nil
-}
-
-// ClearStartsAt clears the value of the "starts_at" field.
-func (m *CampaignMutation) ClearStartsAt() {
-	m.starts_at = nil
-	m.clearedFields[campaign.FieldStartsAt] = struct{}{}
-}
-
-// StartsAtCleared returns if the "starts_at" field was cleared in this mutation.
-func (m *CampaignMutation) StartsAtCleared() bool {
-	_, ok := m.clearedFields[campaign.FieldStartsAt]
-	return ok
-}
-
-// ResetStartsAt resets all changes to the "starts_at" field.
-func (m *CampaignMutation) ResetStartsAt() {
-	m.starts_at = nil
-	delete(m.clearedFields, campaign.FieldStartsAt)
-}
-
-// SetEndsAt sets the "ends_at" field.
-func (m *CampaignMutation) SetEndsAt(t time.Time) {
-	m.ends_at = &t
-}
-
-// EndsAt returns the value of the "ends_at" field in the mutation.
-func (m *CampaignMutation) EndsAt() (r time.Time, exists bool) {
-	v := m.ends_at
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldEndsAt returns the old "ends_at" field's value of the Campaign entity.
-// If the Campaign object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *CampaignMutation) OldEndsAt(ctx context.Context) (v *time.Time, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldEndsAt is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldEndsAt requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldEndsAt: %w", err)
-	}
-	return oldValue.EndsAt, nil
-}
-
-// ClearEndsAt clears the value of the "ends_at" field.
-func (m *CampaignMutation) ClearEndsAt() {
-	m.ends_at = nil
-	m.clearedFields[campaign.FieldEndsAt] = struct{}{}
-}
-
-// EndsAtCleared returns if the "ends_at" field was cleared in this mutation.
-func (m *CampaignMutation) EndsAtCleared() bool {
-	_, ok := m.clearedFields[campaign.FieldEndsAt]
-	return ok
-}
-
-// ResetEndsAt resets all changes to the "ends_at" field.
-func (m *CampaignMutation) ResetEndsAt() {
-	m.ends_at = nil
-	delete(m.clearedFields, campaign.FieldEndsAt)
-}
-
-// SetPriority sets the "priority" field.
-func (m *CampaignMutation) SetPriority(i int) {
-	m.priority = &i
-	m.addpriority = nil
-}
-
-// Priority returns the value of the "priority" field in the mutation.
-func (m *CampaignMutation) Priority() (r int, exists bool) {
-	v := m.priority
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldPriority returns the old "priority" field's value of the Campaign entity.
-// If the Campaign object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *CampaignMutation) OldPriority(ctx context.Context) (v int, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldPriority is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldPriority requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldPriority: %w", err)
-	}
-	return oldValue.Priority, nil
-}
-
-// AddPriority adds i to the "priority" field.
-func (m *CampaignMutation) AddPriority(i int) {
-	if m.addpriority != nil {
-		*m.addpriority += i
-	} else {
-		m.addpriority = &i
-	}
-}
-
-// AddedPriority returns the value that was added to the "priority" field in this mutation.
-func (m *CampaignMutation) AddedPriority() (r int, exists bool) {
-	v := m.addpriority
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// ResetPriority resets all changes to the "priority" field.
-func (m *CampaignMutation) ResetPriority() {
-	m.priority = nil
-	m.addpriority = nil
-}
-
-// SetAudience sets the "audience" field.
-func (m *CampaignMutation) SetAudience(value map[string]interface{}) {
-	m.audience = &value
-}
-
-// Audience returns the value of the "audience" field in the mutation.
-func (m *CampaignMutation) Audience() (r map[string]interface{}, exists bool) {
-	v := m.audience
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldAudience returns the old "audience" field's value of the Campaign entity.
-// If the Campaign object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *CampaignMutation) OldAudience(ctx context.Context) (v map[string]interface{}, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldAudience is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldAudience requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldAudience: %w", err)
-	}
-	return oldValue.Audience, nil
-}
-
-// ResetAudience resets all changes to the "audience" field.
-func (m *CampaignMutation) ResetAudience() {
-	m.audience = nil
-}
-
-// SetPayload sets the "payload" field.
-func (m *CampaignMutation) SetPayload(value map[string]interface{}) {
-	m.payload = &value
-}
-
-// Payload returns the value of the "payload" field in the mutation.
-func (m *CampaignMutation) Payload() (r map[string]interface{}, exists bool) {
-	v := m.payload
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldPayload returns the old "payload" field's value of the Campaign entity.
-// If the Campaign object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *CampaignMutation) OldPayload(ctx context.Context) (v map[string]interface{}, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldPayload is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldPayload requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldPayload: %w", err)
-	}
-	return oldValue.Payload, nil
-}
-
-// ResetPayload resets all changes to the "payload" field.
-func (m *CampaignMutation) ResetPayload() {
-	m.payload = nil
-}
-
-// SetRollout sets the "rollout" field.
-func (m *CampaignMutation) SetRollout(i int) {
-	m.rollout = &i
-	m.addrollout = nil
-}
-
-// Rollout returns the value of the "rollout" field in the mutation.
-func (m *CampaignMutation) Rollout() (r int, exists bool) {
-	v := m.rollout
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldRollout returns the old "rollout" field's value of the Campaign entity.
-// If the Campaign object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *CampaignMutation) OldRollout(ctx context.Context) (v int, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldRollout is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldRollout requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldRollout: %w", err)
-	}
-	return oldValue.Rollout, nil
-}
-
-// AddRollout adds i to the "rollout" field.
-func (m *CampaignMutation) AddRollout(i int) {
-	if m.addrollout != nil {
-		*m.addrollout += i
-	} else {
-		m.addrollout = &i
-	}
-}
-
-// AddedRollout returns the value that was added to the "rollout" field in this mutation.
-func (m *CampaignMutation) AddedRollout() (r int, exists bool) {
-	v := m.addrollout
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// ResetRollout resets all changes to the "rollout" field.
-func (m *CampaignMutation) ResetRollout() {
-	m.rollout = nil
-	m.addrollout = nil
-}
-
-// SetSalt sets the "salt" field.
-func (m *CampaignMutation) SetSalt(s string) {
-	m.salt = &s
-}
-
-// Salt returns the value of the "salt" field in the mutation.
-func (m *CampaignMutation) Salt() (r string, exists bool) {
-	v := m.salt
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldSalt returns the old "salt" field's value of the Campaign entity.
-// If the Campaign object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *CampaignMutation) OldSalt(ctx context.Context) (v string, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldSalt is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldSalt requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldSalt: %w", err)
-	}
-	return oldValue.Salt, nil
-}
-
-// ResetSalt resets all changes to the "salt" field.
-func (m *CampaignMutation) ResetSalt() {
-	m.salt = nil
-}
-
-// ClearProject clears the "project" edge to the Project entity.
-func (m *CampaignMutation) ClearProject() {
-	m.clearedproject = true
-	m.clearedFields[campaign.FieldProjectID] = struct{}{}
-}
-
-// ProjectCleared reports if the "project" edge to the Project entity was cleared.
-func (m *CampaignMutation) ProjectCleared() bool {
-	return m.clearedproject
-}
-
-// ProjectIDs returns the "project" edge IDs in the mutation.
-// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
-// ProjectID instead. It exists only for internal usage by the builders.
-func (m *CampaignMutation) ProjectIDs() (ids []int) {
-	if id := m.project; id != nil {
-		ids = append(ids, *id)
-	}
-	return
-}
-
-// ResetProject resets all changes to the "project" edge.
-func (m *CampaignMutation) ResetProject() {
-	m.project = nil
-	m.clearedproject = false
-}
-
-// Where appends a list predicates to the CampaignMutation builder.
-func (m *CampaignMutation) Where(ps ...predicate.Campaign) {
-	m.predicates = append(m.predicates, ps...)
-}
-
-// WhereP appends storage-level predicates to the CampaignMutation builder. Using this method,
-// users can use type-assertion to append predicates that do not depend on any generated package.
-func (m *CampaignMutation) WhereP(ps ...func(*sql.Selector)) {
-	p := make([]predicate.Campaign, len(ps))
-	for i := range ps {
-		p[i] = ps[i]
-	}
-	m.Where(p...)
-}
-
-// Op returns the operation name.
-func (m *CampaignMutation) Op() Op {
-	return m.op
-}
-
-// SetOp allows setting the mutation operation.
-func (m *CampaignMutation) SetOp(op Op) {
-	m.op = op
-}
-
-// Type returns the node type of this mutation (Campaign).
-func (m *CampaignMutation) Type() string {
-	return m.typ
-}
-
-// Fields returns all fields that were changed during this mutation. Note that in
-// order to get all numeric fields that were incremented/decremented, call
-// AddedFields().
-func (m *CampaignMutation) Fields() []string {
-	fields := make([]string, 0, 15)
-	if m.uid != nil {
-		fields = append(fields, campaign.FieldUID)
-	}
-	if m.created_at != nil {
-		fields = append(fields, campaign.FieldCreatedAt)
-	}
-	if m.updated_at != nil {
-		fields = append(fields, campaign.FieldUpdatedAt)
-	}
-	if m.project != nil {
-		fields = append(fields, campaign.FieldProjectID)
-	}
-	if m.key != nil {
-		fields = append(fields, campaign.FieldKey)
-	}
-	if m.kind != nil {
-		fields = append(fields, campaign.FieldKind)
-	}
-	if m.name != nil {
-		fields = append(fields, campaign.FieldName)
-	}
-	if m.status != nil {
-		fields = append(fields, campaign.FieldStatus)
-	}
-	if m.starts_at != nil {
-		fields = append(fields, campaign.FieldStartsAt)
-	}
-	if m.ends_at != nil {
-		fields = append(fields, campaign.FieldEndsAt)
-	}
-	if m.priority != nil {
-		fields = append(fields, campaign.FieldPriority)
-	}
-	if m.audience != nil {
-		fields = append(fields, campaign.FieldAudience)
-	}
-	if m.payload != nil {
-		fields = append(fields, campaign.FieldPayload)
-	}
-	if m.rollout != nil {
-		fields = append(fields, campaign.FieldRollout)
-	}
-	if m.salt != nil {
-		fields = append(fields, campaign.FieldSalt)
-	}
-	return fields
-}
-
-// Field returns the value of a field with the given name. The second boolean
-// return value indicates that this field was not set, or was not defined in the
-// schema.
-func (m *CampaignMutation) Field(name string) (ent.Value, bool) {
-	switch name {
-	case campaign.FieldUID:
-		return m.UID()
-	case campaign.FieldCreatedAt:
-		return m.CreatedAt()
-	case campaign.FieldUpdatedAt:
-		return m.UpdatedAt()
-	case campaign.FieldProjectID:
-		return m.ProjectID()
-	case campaign.FieldKey:
-		return m.Key()
-	case campaign.FieldKind:
-		return m.Kind()
-	case campaign.FieldName:
-		return m.Name()
-	case campaign.FieldStatus:
-		return m.Status()
-	case campaign.FieldStartsAt:
-		return m.StartsAt()
-	case campaign.FieldEndsAt:
-		return m.EndsAt()
-	case campaign.FieldPriority:
-		return m.Priority()
-	case campaign.FieldAudience:
-		return m.Audience()
-	case campaign.FieldPayload:
-		return m.Payload()
-	case campaign.FieldRollout:
-		return m.Rollout()
-	case campaign.FieldSalt:
-		return m.Salt()
-	}
-	return nil, false
-}
-
-// OldField returns the old value of the field from the database. An error is
-// returned if the mutation operation is not UpdateOne, or the query to the
-// database failed.
-func (m *CampaignMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
-	switch name {
-	case campaign.FieldUID:
-		return m.OldUID(ctx)
-	case campaign.FieldCreatedAt:
-		return m.OldCreatedAt(ctx)
-	case campaign.FieldUpdatedAt:
-		return m.OldUpdatedAt(ctx)
-	case campaign.FieldProjectID:
-		return m.OldProjectID(ctx)
-	case campaign.FieldKey:
-		return m.OldKey(ctx)
-	case campaign.FieldKind:
-		return m.OldKind(ctx)
-	case campaign.FieldName:
-		return m.OldName(ctx)
-	case campaign.FieldStatus:
-		return m.OldStatus(ctx)
-	case campaign.FieldStartsAt:
-		return m.OldStartsAt(ctx)
-	case campaign.FieldEndsAt:
-		return m.OldEndsAt(ctx)
-	case campaign.FieldPriority:
-		return m.OldPriority(ctx)
-	case campaign.FieldAudience:
-		return m.OldAudience(ctx)
-	case campaign.FieldPayload:
-		return m.OldPayload(ctx)
-	case campaign.FieldRollout:
-		return m.OldRollout(ctx)
-	case campaign.FieldSalt:
-		return m.OldSalt(ctx)
-	}
-	return nil, fmt.Errorf("unknown Campaign field %s", name)
-}
-
-// SetField sets the value of a field with the given name. It returns an error if
-// the field is not defined in the schema, or if the type mismatched the field
-// type.
-func (m *CampaignMutation) SetField(name string, value ent.Value) error {
-	switch name {
-	case campaign.FieldUID:
-		v, ok := value.(uuid.UUID)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetUID(v)
-		return nil
-	case campaign.FieldCreatedAt:
-		v, ok := value.(time.Time)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetCreatedAt(v)
-		return nil
-	case campaign.FieldUpdatedAt:
-		v, ok := value.(time.Time)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetUpdatedAt(v)
-		return nil
-	case campaign.FieldProjectID:
-		v, ok := value.(int)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetProjectID(v)
-		return nil
-	case campaign.FieldKey:
-		v, ok := value.(string)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetKey(v)
-		return nil
-	case campaign.FieldKind:
-		v, ok := value.(string)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetKind(v)
-		return nil
-	case campaign.FieldName:
-		v, ok := value.(string)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetName(v)
-		return nil
-	case campaign.FieldStatus:
-		v, ok := value.(campaign.Status)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetStatus(v)
-		return nil
-	case campaign.FieldStartsAt:
-		v, ok := value.(time.Time)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetStartsAt(v)
-		return nil
-	case campaign.FieldEndsAt:
-		v, ok := value.(time.Time)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetEndsAt(v)
-		return nil
-	case campaign.FieldPriority:
-		v, ok := value.(int)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetPriority(v)
-		return nil
-	case campaign.FieldAudience:
-		v, ok := value.(map[string]interface{})
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetAudience(v)
-		return nil
-	case campaign.FieldPayload:
-		v, ok := value.(map[string]interface{})
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetPayload(v)
-		return nil
-	case campaign.FieldRollout:
-		v, ok := value.(int)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetRollout(v)
-		return nil
-	case campaign.FieldSalt:
-		v, ok := value.(string)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetSalt(v)
-		return nil
-	}
-	return fmt.Errorf("unknown Campaign field %s", name)
-}
-
-// AddedFields returns all numeric fields that were incremented/decremented during
-// this mutation.
-func (m *CampaignMutation) AddedFields() []string {
-	var fields []string
-	if m.addpriority != nil {
-		fields = append(fields, campaign.FieldPriority)
-	}
-	if m.addrollout != nil {
-		fields = append(fields, campaign.FieldRollout)
-	}
-	return fields
-}
-
-// AddedField returns the numeric value that was incremented/decremented on a field
-// with the given name. The second boolean return value indicates that this field
-// was not set, or was not defined in the schema.
-func (m *CampaignMutation) AddedField(name string) (ent.Value, bool) {
-	switch name {
-	case campaign.FieldPriority:
-		return m.AddedPriority()
-	case campaign.FieldRollout:
-		return m.AddedRollout()
-	}
-	return nil, false
-}
-
-// AddField adds the value to the field with the given name. It returns an error if
-// the field is not defined in the schema, or if the type mismatched the field
-// type.
-func (m *CampaignMutation) AddField(name string, value ent.Value) error {
-	switch name {
-	case campaign.FieldPriority:
-		v, ok := value.(int)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.AddPriority(v)
-		return nil
-	case campaign.FieldRollout:
-		v, ok := value.(int)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.AddRollout(v)
-		return nil
-	}
-	return fmt.Errorf("unknown Campaign numeric field %s", name)
-}
-
-// ClearedFields returns all nullable fields that were cleared during this
-// mutation.
-func (m *CampaignMutation) ClearedFields() []string {
-	var fields []string
-	if m.FieldCleared(campaign.FieldStartsAt) {
-		fields = append(fields, campaign.FieldStartsAt)
-	}
-	if m.FieldCleared(campaign.FieldEndsAt) {
-		fields = append(fields, campaign.FieldEndsAt)
-	}
-	return fields
-}
-
-// FieldCleared returns a boolean indicating if a field with the given name was
-// cleared in this mutation.
-func (m *CampaignMutation) FieldCleared(name string) bool {
-	_, ok := m.clearedFields[name]
-	return ok
-}
-
-// ClearField clears the value of the field with the given name. It returns an
-// error if the field is not defined in the schema.
-func (m *CampaignMutation) ClearField(name string) error {
-	switch name {
-	case campaign.FieldStartsAt:
-		m.ClearStartsAt()
-		return nil
-	case campaign.FieldEndsAt:
-		m.ClearEndsAt()
-		return nil
-	}
-	return fmt.Errorf("unknown Campaign nullable field %s", name)
-}
-
-// ResetField resets all changes in the mutation for the field with the given name.
-// It returns an error if the field is not defined in the schema.
-func (m *CampaignMutation) ResetField(name string) error {
-	switch name {
-	case campaign.FieldUID:
-		m.ResetUID()
-		return nil
-	case campaign.FieldCreatedAt:
-		m.ResetCreatedAt()
-		return nil
-	case campaign.FieldUpdatedAt:
-		m.ResetUpdatedAt()
-		return nil
-	case campaign.FieldProjectID:
-		m.ResetProjectID()
-		return nil
-	case campaign.FieldKey:
-		m.ResetKey()
-		return nil
-	case campaign.FieldKind:
-		m.ResetKind()
-		return nil
-	case campaign.FieldName:
-		m.ResetName()
-		return nil
-	case campaign.FieldStatus:
-		m.ResetStatus()
-		return nil
-	case campaign.FieldStartsAt:
-		m.ResetStartsAt()
-		return nil
-	case campaign.FieldEndsAt:
-		m.ResetEndsAt()
-		return nil
-	case campaign.FieldPriority:
-		m.ResetPriority()
-		return nil
-	case campaign.FieldAudience:
-		m.ResetAudience()
-		return nil
-	case campaign.FieldPayload:
-		m.ResetPayload()
-		return nil
-	case campaign.FieldRollout:
-		m.ResetRollout()
-		return nil
-	case campaign.FieldSalt:
-		m.ResetSalt()
-		return nil
-	}
-	return fmt.Errorf("unknown Campaign field %s", name)
-}
-
-// AddedEdges returns all edge names that were set/added in this mutation.
-func (m *CampaignMutation) AddedEdges() []string {
-	edges := make([]string, 0, 1)
-	if m.project != nil {
-		edges = append(edges, campaign.EdgeProject)
-	}
-	return edges
-}
-
-// AddedIDs returns all IDs (to other nodes) that were added for the given edge
-// name in this mutation.
-func (m *CampaignMutation) AddedIDs(name string) []ent.Value {
-	switch name {
-	case campaign.EdgeProject:
-		if id := m.project; id != nil {
-			return []ent.Value{*id}
-		}
-	}
-	return nil
-}
-
-// RemovedEdges returns all edge names that were removed in this mutation.
-func (m *CampaignMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 1)
-	return edges
-}
-
-// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
-// the given name in this mutation.
-func (m *CampaignMutation) RemovedIDs(name string) []ent.Value {
-	return nil
-}
-
-// ClearedEdges returns all edge names that were cleared in this mutation.
-func (m *CampaignMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 1)
-	if m.clearedproject {
-		edges = append(edges, campaign.EdgeProject)
-	}
-	return edges
-}
-
-// EdgeCleared returns a boolean which indicates if the edge with the given name
-// was cleared in this mutation.
-func (m *CampaignMutation) EdgeCleared(name string) bool {
-	switch name {
-	case campaign.EdgeProject:
-		return m.clearedproject
-	}
-	return false
-}
-
-// ClearEdge clears the value of the edge with the given name. It returns an error
-// if that edge is not defined in the schema.
-func (m *CampaignMutation) ClearEdge(name string) error {
-	switch name {
-	case campaign.EdgeProject:
-		m.ClearProject()
-		return nil
-	}
-	return fmt.Errorf("unknown Campaign unique edge %s", name)
-}
-
-// ResetEdge resets all changes to the edge with the given name in this mutation.
-// It returns an error if the edge is not defined in the schema.
-func (m *CampaignMutation) ResetEdge(name string) error {
-	switch name {
-	case campaign.EdgeProject:
-		m.ResetProject()
-		return nil
-	}
-	return fmt.Errorf("unknown Campaign edge %s", name)
 }
 
 // CellMutation represents an operation that mutates the Cell nodes in the graph.
@@ -6856,6 +5605,1163 @@ func (m *InvitationMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown Invitation edge %s", name)
 }
 
+// LiveOpsEventMutation represents an operation that mutates the LiveOpsEvent nodes in the graph.
+type LiveOpsEventMutation struct {
+	config
+	op             Op
+	typ            string
+	id             *int
+	uid            *uuid.UUID
+	created_at     *time.Time
+	updated_at     *time.Time
+	key            *string
+	kind           *string
+	name           *string
+	status         *liveopsevent.Status
+	schedule       *liveops.Schedule
+	priority       *int
+	addpriority    *int
+	audience       *map[string]interface{}
+	payload        *map[string]interface{}
+	rollout        *int
+	addrollout     *int
+	salt           *string
+	clearedFields  map[string]struct{}
+	project        *int
+	clearedproject bool
+	done           bool
+	oldValue       func(context.Context) (*LiveOpsEvent, error)
+	predicates     []predicate.LiveOpsEvent
+}
+
+var _ ent.Mutation = (*LiveOpsEventMutation)(nil)
+
+// liveopseventOption allows management of the mutation configuration using functional options.
+type liveopseventOption func(*LiveOpsEventMutation)
+
+// newLiveOpsEventMutation creates new mutation for the LiveOpsEvent entity.
+func newLiveOpsEventMutation(c config, op Op, opts ...liveopseventOption) *LiveOpsEventMutation {
+	m := &LiveOpsEventMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeLiveOpsEvent,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withLiveOpsEventID sets the ID field of the mutation.
+func withLiveOpsEventID(id int) liveopseventOption {
+	return func(m *LiveOpsEventMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *LiveOpsEvent
+		)
+		m.oldValue = func(ctx context.Context) (*LiveOpsEvent, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().LiveOpsEvent.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withLiveOpsEvent sets the old LiveOpsEvent of the mutation.
+func withLiveOpsEvent(node *LiveOpsEvent) liveopseventOption {
+	return func(m *LiveOpsEventMutation) {
+		m.oldValue = func(context.Context) (*LiveOpsEvent, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m LiveOpsEventMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m LiveOpsEventMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("global: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of LiveOpsEvent entities.
+func (m *LiveOpsEventMutation) SetID(id int) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *LiveOpsEventMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *LiveOpsEventMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().LiveOpsEvent.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetUID sets the "uid" field.
+func (m *LiveOpsEventMutation) SetUID(u uuid.UUID) {
+	m.uid = &u
+}
+
+// UID returns the value of the "uid" field in the mutation.
+func (m *LiveOpsEventMutation) UID() (r uuid.UUID, exists bool) {
+	v := m.uid
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUID returns the old "uid" field's value of the LiveOpsEvent entity.
+// If the LiveOpsEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LiveOpsEventMutation) OldUID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUID: %w", err)
+	}
+	return oldValue.UID, nil
+}
+
+// ResetUID resets all changes to the "uid" field.
+func (m *LiveOpsEventMutation) ResetUID() {
+	m.uid = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *LiveOpsEventMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *LiveOpsEventMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the LiveOpsEvent entity.
+// If the LiveOpsEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LiveOpsEventMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *LiveOpsEventMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *LiveOpsEventMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *LiveOpsEventMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the LiveOpsEvent entity.
+// If the LiveOpsEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LiveOpsEventMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *LiveOpsEventMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetProjectID sets the "project_id" field.
+func (m *LiveOpsEventMutation) SetProjectID(i int) {
+	m.project = &i
+}
+
+// ProjectID returns the value of the "project_id" field in the mutation.
+func (m *LiveOpsEventMutation) ProjectID() (r int, exists bool) {
+	v := m.project
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProjectID returns the old "project_id" field's value of the LiveOpsEvent entity.
+// If the LiveOpsEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LiveOpsEventMutation) OldProjectID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProjectID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProjectID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProjectID: %w", err)
+	}
+	return oldValue.ProjectID, nil
+}
+
+// ResetProjectID resets all changes to the "project_id" field.
+func (m *LiveOpsEventMutation) ResetProjectID() {
+	m.project = nil
+}
+
+// SetKey sets the "key" field.
+func (m *LiveOpsEventMutation) SetKey(s string) {
+	m.key = &s
+}
+
+// Key returns the value of the "key" field in the mutation.
+func (m *LiveOpsEventMutation) Key() (r string, exists bool) {
+	v := m.key
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldKey returns the old "key" field's value of the LiveOpsEvent entity.
+// If the LiveOpsEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LiveOpsEventMutation) OldKey(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldKey is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldKey requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldKey: %w", err)
+	}
+	return oldValue.Key, nil
+}
+
+// ResetKey resets all changes to the "key" field.
+func (m *LiveOpsEventMutation) ResetKey() {
+	m.key = nil
+}
+
+// SetKind sets the "kind" field.
+func (m *LiveOpsEventMutation) SetKind(s string) {
+	m.kind = &s
+}
+
+// Kind returns the value of the "kind" field in the mutation.
+func (m *LiveOpsEventMutation) Kind() (r string, exists bool) {
+	v := m.kind
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldKind returns the old "kind" field's value of the LiveOpsEvent entity.
+// If the LiveOpsEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LiveOpsEventMutation) OldKind(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldKind is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldKind requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldKind: %w", err)
+	}
+	return oldValue.Kind, nil
+}
+
+// ResetKind resets all changes to the "kind" field.
+func (m *LiveOpsEventMutation) ResetKind() {
+	m.kind = nil
+}
+
+// SetName sets the "name" field.
+func (m *LiveOpsEventMutation) SetName(s string) {
+	m.name = &s
+}
+
+// Name returns the value of the "name" field in the mutation.
+func (m *LiveOpsEventMutation) Name() (r string, exists bool) {
+	v := m.name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldName returns the old "name" field's value of the LiveOpsEvent entity.
+// If the LiveOpsEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LiveOpsEventMutation) OldName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldName: %w", err)
+	}
+	return oldValue.Name, nil
+}
+
+// ResetName resets all changes to the "name" field.
+func (m *LiveOpsEventMutation) ResetName() {
+	m.name = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *LiveOpsEventMutation) SetStatus(l liveopsevent.Status) {
+	m.status = &l
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *LiveOpsEventMutation) Status() (r liveopsevent.Status, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the LiveOpsEvent entity.
+// If the LiveOpsEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LiveOpsEventMutation) OldStatus(ctx context.Context) (v liveopsevent.Status, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *LiveOpsEventMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetSchedule sets the "schedule" field.
+func (m *LiveOpsEventMutation) SetSchedule(l liveops.Schedule) {
+	m.schedule = &l
+}
+
+// Schedule returns the value of the "schedule" field in the mutation.
+func (m *LiveOpsEventMutation) Schedule() (r liveops.Schedule, exists bool) {
+	v := m.schedule
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSchedule returns the old "schedule" field's value of the LiveOpsEvent entity.
+// If the LiveOpsEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LiveOpsEventMutation) OldSchedule(ctx context.Context) (v liveops.Schedule, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSchedule is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSchedule requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSchedule: %w", err)
+	}
+	return oldValue.Schedule, nil
+}
+
+// ResetSchedule resets all changes to the "schedule" field.
+func (m *LiveOpsEventMutation) ResetSchedule() {
+	m.schedule = nil
+}
+
+// SetPriority sets the "priority" field.
+func (m *LiveOpsEventMutation) SetPriority(i int) {
+	m.priority = &i
+	m.addpriority = nil
+}
+
+// Priority returns the value of the "priority" field in the mutation.
+func (m *LiveOpsEventMutation) Priority() (r int, exists bool) {
+	v := m.priority
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPriority returns the old "priority" field's value of the LiveOpsEvent entity.
+// If the LiveOpsEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LiveOpsEventMutation) OldPriority(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPriority is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPriority requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPriority: %w", err)
+	}
+	return oldValue.Priority, nil
+}
+
+// AddPriority adds i to the "priority" field.
+func (m *LiveOpsEventMutation) AddPriority(i int) {
+	if m.addpriority != nil {
+		*m.addpriority += i
+	} else {
+		m.addpriority = &i
+	}
+}
+
+// AddedPriority returns the value that was added to the "priority" field in this mutation.
+func (m *LiveOpsEventMutation) AddedPriority() (r int, exists bool) {
+	v := m.addpriority
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetPriority resets all changes to the "priority" field.
+func (m *LiveOpsEventMutation) ResetPriority() {
+	m.priority = nil
+	m.addpriority = nil
+}
+
+// SetAudience sets the "audience" field.
+func (m *LiveOpsEventMutation) SetAudience(value map[string]interface{}) {
+	m.audience = &value
+}
+
+// Audience returns the value of the "audience" field in the mutation.
+func (m *LiveOpsEventMutation) Audience() (r map[string]interface{}, exists bool) {
+	v := m.audience
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAudience returns the old "audience" field's value of the LiveOpsEvent entity.
+// If the LiveOpsEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LiveOpsEventMutation) OldAudience(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAudience is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAudience requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAudience: %w", err)
+	}
+	return oldValue.Audience, nil
+}
+
+// ResetAudience resets all changes to the "audience" field.
+func (m *LiveOpsEventMutation) ResetAudience() {
+	m.audience = nil
+}
+
+// SetPayload sets the "payload" field.
+func (m *LiveOpsEventMutation) SetPayload(value map[string]interface{}) {
+	m.payload = &value
+}
+
+// Payload returns the value of the "payload" field in the mutation.
+func (m *LiveOpsEventMutation) Payload() (r map[string]interface{}, exists bool) {
+	v := m.payload
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPayload returns the old "payload" field's value of the LiveOpsEvent entity.
+// If the LiveOpsEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LiveOpsEventMutation) OldPayload(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPayload is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPayload requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPayload: %w", err)
+	}
+	return oldValue.Payload, nil
+}
+
+// ResetPayload resets all changes to the "payload" field.
+func (m *LiveOpsEventMutation) ResetPayload() {
+	m.payload = nil
+}
+
+// SetRollout sets the "rollout" field.
+func (m *LiveOpsEventMutation) SetRollout(i int) {
+	m.rollout = &i
+	m.addrollout = nil
+}
+
+// Rollout returns the value of the "rollout" field in the mutation.
+func (m *LiveOpsEventMutation) Rollout() (r int, exists bool) {
+	v := m.rollout
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRollout returns the old "rollout" field's value of the LiveOpsEvent entity.
+// If the LiveOpsEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LiveOpsEventMutation) OldRollout(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRollout is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRollout requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRollout: %w", err)
+	}
+	return oldValue.Rollout, nil
+}
+
+// AddRollout adds i to the "rollout" field.
+func (m *LiveOpsEventMutation) AddRollout(i int) {
+	if m.addrollout != nil {
+		*m.addrollout += i
+	} else {
+		m.addrollout = &i
+	}
+}
+
+// AddedRollout returns the value that was added to the "rollout" field in this mutation.
+func (m *LiveOpsEventMutation) AddedRollout() (r int, exists bool) {
+	v := m.addrollout
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetRollout resets all changes to the "rollout" field.
+func (m *LiveOpsEventMutation) ResetRollout() {
+	m.rollout = nil
+	m.addrollout = nil
+}
+
+// SetSalt sets the "salt" field.
+func (m *LiveOpsEventMutation) SetSalt(s string) {
+	m.salt = &s
+}
+
+// Salt returns the value of the "salt" field in the mutation.
+func (m *LiveOpsEventMutation) Salt() (r string, exists bool) {
+	v := m.salt
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSalt returns the old "salt" field's value of the LiveOpsEvent entity.
+// If the LiveOpsEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LiveOpsEventMutation) OldSalt(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSalt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSalt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSalt: %w", err)
+	}
+	return oldValue.Salt, nil
+}
+
+// ResetSalt resets all changes to the "salt" field.
+func (m *LiveOpsEventMutation) ResetSalt() {
+	m.salt = nil
+}
+
+// ClearProject clears the "project" edge to the Project entity.
+func (m *LiveOpsEventMutation) ClearProject() {
+	m.clearedproject = true
+	m.clearedFields[liveopsevent.FieldProjectID] = struct{}{}
+}
+
+// ProjectCleared reports if the "project" edge to the Project entity was cleared.
+func (m *LiveOpsEventMutation) ProjectCleared() bool {
+	return m.clearedproject
+}
+
+// ProjectIDs returns the "project" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// ProjectID instead. It exists only for internal usage by the builders.
+func (m *LiveOpsEventMutation) ProjectIDs() (ids []int) {
+	if id := m.project; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetProject resets all changes to the "project" edge.
+func (m *LiveOpsEventMutation) ResetProject() {
+	m.project = nil
+	m.clearedproject = false
+}
+
+// Where appends a list predicates to the LiveOpsEventMutation builder.
+func (m *LiveOpsEventMutation) Where(ps ...predicate.LiveOpsEvent) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the LiveOpsEventMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *LiveOpsEventMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.LiveOpsEvent, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *LiveOpsEventMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *LiveOpsEventMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (LiveOpsEvent).
+func (m *LiveOpsEventMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *LiveOpsEventMutation) Fields() []string {
+	fields := make([]string, 0, 14)
+	if m.uid != nil {
+		fields = append(fields, liveopsevent.FieldUID)
+	}
+	if m.created_at != nil {
+		fields = append(fields, liveopsevent.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, liveopsevent.FieldUpdatedAt)
+	}
+	if m.project != nil {
+		fields = append(fields, liveopsevent.FieldProjectID)
+	}
+	if m.key != nil {
+		fields = append(fields, liveopsevent.FieldKey)
+	}
+	if m.kind != nil {
+		fields = append(fields, liveopsevent.FieldKind)
+	}
+	if m.name != nil {
+		fields = append(fields, liveopsevent.FieldName)
+	}
+	if m.status != nil {
+		fields = append(fields, liveopsevent.FieldStatus)
+	}
+	if m.schedule != nil {
+		fields = append(fields, liveopsevent.FieldSchedule)
+	}
+	if m.priority != nil {
+		fields = append(fields, liveopsevent.FieldPriority)
+	}
+	if m.audience != nil {
+		fields = append(fields, liveopsevent.FieldAudience)
+	}
+	if m.payload != nil {
+		fields = append(fields, liveopsevent.FieldPayload)
+	}
+	if m.rollout != nil {
+		fields = append(fields, liveopsevent.FieldRollout)
+	}
+	if m.salt != nil {
+		fields = append(fields, liveopsevent.FieldSalt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *LiveOpsEventMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case liveopsevent.FieldUID:
+		return m.UID()
+	case liveopsevent.FieldCreatedAt:
+		return m.CreatedAt()
+	case liveopsevent.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case liveopsevent.FieldProjectID:
+		return m.ProjectID()
+	case liveopsevent.FieldKey:
+		return m.Key()
+	case liveopsevent.FieldKind:
+		return m.Kind()
+	case liveopsevent.FieldName:
+		return m.Name()
+	case liveopsevent.FieldStatus:
+		return m.Status()
+	case liveopsevent.FieldSchedule:
+		return m.Schedule()
+	case liveopsevent.FieldPriority:
+		return m.Priority()
+	case liveopsevent.FieldAudience:
+		return m.Audience()
+	case liveopsevent.FieldPayload:
+		return m.Payload()
+	case liveopsevent.FieldRollout:
+		return m.Rollout()
+	case liveopsevent.FieldSalt:
+		return m.Salt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *LiveOpsEventMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case liveopsevent.FieldUID:
+		return m.OldUID(ctx)
+	case liveopsevent.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case liveopsevent.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case liveopsevent.FieldProjectID:
+		return m.OldProjectID(ctx)
+	case liveopsevent.FieldKey:
+		return m.OldKey(ctx)
+	case liveopsevent.FieldKind:
+		return m.OldKind(ctx)
+	case liveopsevent.FieldName:
+		return m.OldName(ctx)
+	case liveopsevent.FieldStatus:
+		return m.OldStatus(ctx)
+	case liveopsevent.FieldSchedule:
+		return m.OldSchedule(ctx)
+	case liveopsevent.FieldPriority:
+		return m.OldPriority(ctx)
+	case liveopsevent.FieldAudience:
+		return m.OldAudience(ctx)
+	case liveopsevent.FieldPayload:
+		return m.OldPayload(ctx)
+	case liveopsevent.FieldRollout:
+		return m.OldRollout(ctx)
+	case liveopsevent.FieldSalt:
+		return m.OldSalt(ctx)
+	}
+	return nil, fmt.Errorf("unknown LiveOpsEvent field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *LiveOpsEventMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case liveopsevent.FieldUID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUID(v)
+		return nil
+	case liveopsevent.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case liveopsevent.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case liveopsevent.FieldProjectID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProjectID(v)
+		return nil
+	case liveopsevent.FieldKey:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetKey(v)
+		return nil
+	case liveopsevent.FieldKind:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetKind(v)
+		return nil
+	case liveopsevent.FieldName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetName(v)
+		return nil
+	case liveopsevent.FieldStatus:
+		v, ok := value.(liveopsevent.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case liveopsevent.FieldSchedule:
+		v, ok := value.(liveops.Schedule)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSchedule(v)
+		return nil
+	case liveopsevent.FieldPriority:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPriority(v)
+		return nil
+	case liveopsevent.FieldAudience:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAudience(v)
+		return nil
+	case liveopsevent.FieldPayload:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPayload(v)
+		return nil
+	case liveopsevent.FieldRollout:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRollout(v)
+		return nil
+	case liveopsevent.FieldSalt:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSalt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown LiveOpsEvent field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *LiveOpsEventMutation) AddedFields() []string {
+	var fields []string
+	if m.addpriority != nil {
+		fields = append(fields, liveopsevent.FieldPriority)
+	}
+	if m.addrollout != nil {
+		fields = append(fields, liveopsevent.FieldRollout)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *LiveOpsEventMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case liveopsevent.FieldPriority:
+		return m.AddedPriority()
+	case liveopsevent.FieldRollout:
+		return m.AddedRollout()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *LiveOpsEventMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case liveopsevent.FieldPriority:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddPriority(v)
+		return nil
+	case liveopsevent.FieldRollout:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRollout(v)
+		return nil
+	}
+	return fmt.Errorf("unknown LiveOpsEvent numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *LiveOpsEventMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *LiveOpsEventMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *LiveOpsEventMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown LiveOpsEvent nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *LiveOpsEventMutation) ResetField(name string) error {
+	switch name {
+	case liveopsevent.FieldUID:
+		m.ResetUID()
+		return nil
+	case liveopsevent.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case liveopsevent.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case liveopsevent.FieldProjectID:
+		m.ResetProjectID()
+		return nil
+	case liveopsevent.FieldKey:
+		m.ResetKey()
+		return nil
+	case liveopsevent.FieldKind:
+		m.ResetKind()
+		return nil
+	case liveopsevent.FieldName:
+		m.ResetName()
+		return nil
+	case liveopsevent.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case liveopsevent.FieldSchedule:
+		m.ResetSchedule()
+		return nil
+	case liveopsevent.FieldPriority:
+		m.ResetPriority()
+		return nil
+	case liveopsevent.FieldAudience:
+		m.ResetAudience()
+		return nil
+	case liveopsevent.FieldPayload:
+		m.ResetPayload()
+		return nil
+	case liveopsevent.FieldRollout:
+		m.ResetRollout()
+		return nil
+	case liveopsevent.FieldSalt:
+		m.ResetSalt()
+		return nil
+	}
+	return fmt.Errorf("unknown LiveOpsEvent field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *LiveOpsEventMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.project != nil {
+		edges = append(edges, liveopsevent.EdgeProject)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *LiveOpsEventMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case liveopsevent.EdgeProject:
+		if id := m.project; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *LiveOpsEventMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *LiveOpsEventMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *LiveOpsEventMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.clearedproject {
+		edges = append(edges, liveopsevent.EdgeProject)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *LiveOpsEventMutation) EdgeCleared(name string) bool {
+	switch name {
+	case liveopsevent.EdgeProject:
+		return m.clearedproject
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *LiveOpsEventMutation) ClearEdge(name string) error {
+	switch name {
+	case liveopsevent.EdgeProject:
+		m.ClearProject()
+		return nil
+	}
+	return fmt.Errorf("unknown LiveOpsEvent unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *LiveOpsEventMutation) ResetEdge(name string) error {
+	switch name {
+	case liveopsevent.EdgeProject:
+		m.ResetProject()
+		return nil
+	}
+	return fmt.Errorf("unknown LiveOpsEvent edge %s", name)
+}
+
 // OrganizationMutation represents an operation that mutates the Organization nodes in the graph.
 type OrganizationMutation struct {
 	config
@@ -8540,9 +8446,9 @@ type ProjectMutation struct {
 	feature_flags          map[int]struct{}
 	removedfeature_flags   map[int]struct{}
 	clearedfeature_flags   bool
-	campaigns              map[int]struct{}
-	removedcampaigns       map[int]struct{}
-	clearedcampaigns       bool
+	liveops_events         map[int]struct{}
+	removedliveops_events  map[int]struct{}
+	clearedliveops_events  bool
 	config_versions        map[int]struct{}
 	removedconfig_versions map[int]struct{}
 	clearedconfig_versions bool
@@ -9215,58 +9121,58 @@ func (m *ProjectMutation) ResetFeatureFlags() {
 	m.removedfeature_flags = nil
 }
 
-// AddCampaignIDs adds the "campaigns" edge to the Campaign entity by ids.
-func (m *ProjectMutation) AddCampaignIDs(ids ...int) {
-	if m.campaigns == nil {
-		m.campaigns = make(map[int]struct{})
+// AddLiveopsEventIDs adds the "liveops_events" edge to the LiveOpsEvent entity by ids.
+func (m *ProjectMutation) AddLiveopsEventIDs(ids ...int) {
+	if m.liveops_events == nil {
+		m.liveops_events = make(map[int]struct{})
 	}
 	for i := range ids {
-		m.campaigns[ids[i]] = struct{}{}
+		m.liveops_events[ids[i]] = struct{}{}
 	}
 }
 
-// ClearCampaigns clears the "campaigns" edge to the Campaign entity.
-func (m *ProjectMutation) ClearCampaigns() {
-	m.clearedcampaigns = true
+// ClearLiveopsEvents clears the "liveops_events" edge to the LiveOpsEvent entity.
+func (m *ProjectMutation) ClearLiveopsEvents() {
+	m.clearedliveops_events = true
 }
 
-// CampaignsCleared reports if the "campaigns" edge to the Campaign entity was cleared.
-func (m *ProjectMutation) CampaignsCleared() bool {
-	return m.clearedcampaigns
+// LiveopsEventsCleared reports if the "liveops_events" edge to the LiveOpsEvent entity was cleared.
+func (m *ProjectMutation) LiveopsEventsCleared() bool {
+	return m.clearedliveops_events
 }
 
-// RemoveCampaignIDs removes the "campaigns" edge to the Campaign entity by IDs.
-func (m *ProjectMutation) RemoveCampaignIDs(ids ...int) {
-	if m.removedcampaigns == nil {
-		m.removedcampaigns = make(map[int]struct{})
+// RemoveLiveopsEventIDs removes the "liveops_events" edge to the LiveOpsEvent entity by IDs.
+func (m *ProjectMutation) RemoveLiveopsEventIDs(ids ...int) {
+	if m.removedliveops_events == nil {
+		m.removedliveops_events = make(map[int]struct{})
 	}
 	for i := range ids {
-		delete(m.campaigns, ids[i])
-		m.removedcampaigns[ids[i]] = struct{}{}
+		delete(m.liveops_events, ids[i])
+		m.removedliveops_events[ids[i]] = struct{}{}
 	}
 }
 
-// RemovedCampaigns returns the removed IDs of the "campaigns" edge to the Campaign entity.
-func (m *ProjectMutation) RemovedCampaignsIDs() (ids []int) {
-	for id := range m.removedcampaigns {
+// RemovedLiveopsEvents returns the removed IDs of the "liveops_events" edge to the LiveOpsEvent entity.
+func (m *ProjectMutation) RemovedLiveopsEventsIDs() (ids []int) {
+	for id := range m.removedliveops_events {
 		ids = append(ids, id)
 	}
 	return
 }
 
-// CampaignsIDs returns the "campaigns" edge IDs in the mutation.
-func (m *ProjectMutation) CampaignsIDs() (ids []int) {
-	for id := range m.campaigns {
+// LiveopsEventsIDs returns the "liveops_events" edge IDs in the mutation.
+func (m *ProjectMutation) LiveopsEventsIDs() (ids []int) {
+	for id := range m.liveops_events {
 		ids = append(ids, id)
 	}
 	return
 }
 
-// ResetCampaigns resets all changes to the "campaigns" edge.
-func (m *ProjectMutation) ResetCampaigns() {
-	m.campaigns = nil
-	m.clearedcampaigns = false
-	m.removedcampaigns = nil
+// ResetLiveopsEvents resets all changes to the "liveops_events" edge.
+func (m *ProjectMutation) ResetLiveopsEvents() {
+	m.liveops_events = nil
+	m.clearedliveops_events = false
+	m.removedliveops_events = nil
 }
 
 // AddConfigVersionIDs adds the "config_versions" edge to the ConfigVersion entity by ids.
@@ -9623,8 +9529,8 @@ func (m *ProjectMutation) AddedEdges() []string {
 	if m.feature_flags != nil {
 		edges = append(edges, project.EdgeFeatureFlags)
 	}
-	if m.campaigns != nil {
-		edges = append(edges, project.EdgeCampaigns)
+	if m.liveops_events != nil {
+		edges = append(edges, project.EdgeLiveopsEvents)
 	}
 	if m.config_versions != nil {
 		edges = append(edges, project.EdgeConfigVersions)
@@ -9662,9 +9568,9 @@ func (m *ProjectMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
-	case project.EdgeCampaigns:
-		ids := make([]ent.Value, 0, len(m.campaigns))
-		for id := range m.campaigns {
+	case project.EdgeLiveopsEvents:
+		ids := make([]ent.Value, 0, len(m.liveops_events))
+		for id := range m.liveops_events {
 			ids = append(ids, id)
 		}
 		return ids
@@ -9690,8 +9596,8 @@ func (m *ProjectMutation) RemovedEdges() []string {
 	if m.removedfeature_flags != nil {
 		edges = append(edges, project.EdgeFeatureFlags)
 	}
-	if m.removedcampaigns != nil {
-		edges = append(edges, project.EdgeCampaigns)
+	if m.removedliveops_events != nil {
+		edges = append(edges, project.EdgeLiveopsEvents)
 	}
 	if m.removedconfig_versions != nil {
 		edges = append(edges, project.EdgeConfigVersions)
@@ -9721,9 +9627,9 @@ func (m *ProjectMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
-	case project.EdgeCampaigns:
-		ids := make([]ent.Value, 0, len(m.removedcampaigns))
-		for id := range m.removedcampaigns {
+	case project.EdgeLiveopsEvents:
+		ids := make([]ent.Value, 0, len(m.removedliveops_events))
+		for id := range m.removedliveops_events {
 			ids = append(ids, id)
 		}
 		return ids
@@ -9755,8 +9661,8 @@ func (m *ProjectMutation) ClearedEdges() []string {
 	if m.clearedfeature_flags {
 		edges = append(edges, project.EdgeFeatureFlags)
 	}
-	if m.clearedcampaigns {
-		edges = append(edges, project.EdgeCampaigns)
+	if m.clearedliveops_events {
+		edges = append(edges, project.EdgeLiveopsEvents)
 	}
 	if m.clearedconfig_versions {
 		edges = append(edges, project.EdgeConfigVersions)
@@ -9778,8 +9684,8 @@ func (m *ProjectMutation) EdgeCleared(name string) bool {
 		return m.clearedsegments
 	case project.EdgeFeatureFlags:
 		return m.clearedfeature_flags
-	case project.EdgeCampaigns:
-		return m.clearedcampaigns
+	case project.EdgeLiveopsEvents:
+		return m.clearedliveops_events
 	case project.EdgeConfigVersions:
 		return m.clearedconfig_versions
 	}
@@ -9819,8 +9725,8 @@ func (m *ProjectMutation) ResetEdge(name string) error {
 	case project.EdgeFeatureFlags:
 		m.ResetFeatureFlags()
 		return nil
-	case project.EdgeCampaigns:
-		m.ResetCampaigns()
+	case project.EdgeLiveopsEvents:
+		m.ResetLiveopsEvents()
 		return nil
 	case project.EdgeConfigVersions:
 		m.ResetConfigVersions()

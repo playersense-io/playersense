@@ -68,7 +68,7 @@ const (
 
 	AnalyticsRead Permission = "analytics.read"
 
-	// Writing a campaign is reversible. Publishing one is not — players have already seen
+	// Writing an event is reversible. Publishing one is not — players have already seen
 	// it — so the two are separate permissions, and that separation is what replaces the
 	// per-environment split: a junior drafts, a senior publishes.
 	LiveOpsRead    Permission = "liveops.read"

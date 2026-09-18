@@ -16,7 +16,7 @@ type Context map[string]any
 
 // Matches reports whether a player is in a rule's audience.
 //
-// An empty rule matches everyone: a campaign with no audience is a campaign for the whole
+// An empty rule matches everyone: an event with no audience is an event for the whole
 // game, which is the common case and should not require writing `{"all": []}`.
 func (r Rule) Matches(ctx Context) bool {
 	if r.Empty() {
@@ -45,7 +45,7 @@ func (r Rule) Matches(ctx Context) bool {
 
 	case r.Segment != "":
 		// A reference that survived publishing is a compiler bug, not a runtime case.
-		// False rather than a panic: analytics must never crash a game, and a campaign
+		// False rather than a panic: analytics must never crash a game, and an event
 		// that reaches nobody is findable while a crash in a config handler is an
 		// outage. `liveconfig.Compile` is what should have replaced this.
 		return false
@@ -57,8 +57,8 @@ func (r Rule) Matches(ctx Context) bool {
 // match evaluates one condition.
 //
 // The rule for a key that is not there is the important one, and it is "false" for every
-// operator but NotExists. A studio that renames `progress.level` should see the campaign
-// stop reaching people — not an error, and not a campaign that suddenly reaches everyone
+// operator but NotExists. A studio that renames `progress.level` should see the event stop
+// reaching people — not an error, and not an event that suddenly reaches everyone
 // because a missing value compared equal to zero.
 func (r Rule) match(ctx Context) bool {
 	value, present := ctx[r.Key]

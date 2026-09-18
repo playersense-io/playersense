@@ -88,7 +88,7 @@ const (
 // Empty, and kept rather than deleted: it is the mechanism, and the next fact somebody
 // declares ahead of its migration belongs here. A key in this map is refused when a rule is
 // written, because the failure this repository keeps finding is a vocabulary that accepts a
-// key and then silently never matches — a campaign that reaches nobody and gives no reason.
+// key and then silently never matches — an event that reaches nobody and gives no reason.
 var Unavailable = map[string]string{}
 
 // Needs reports which namespaces a rule reads.

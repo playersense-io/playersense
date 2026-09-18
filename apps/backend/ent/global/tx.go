@@ -14,8 +14,6 @@ type Tx struct {
 	config
 	// APIKey is the client for interacting with the APIKey builders.
 	APIKey *APIKeyClient
-	// Campaign is the client for interacting with the Campaign builders.
-	Campaign *CampaignClient
 	// Cell is the client for interacting with the Cell builders.
 	Cell *CellClient
 	// ConfigVersion is the client for interacting with the ConfigVersion builders.
@@ -26,6 +24,8 @@ type Tx struct {
 	FeatureFlag *FeatureFlagClient
 	// Invitation is the client for interacting with the Invitation builders.
 	Invitation *InvitationClient
+	// LiveOpsEvent is the client for interacting with the LiveOpsEvent builders.
+	LiveOpsEvent *LiveOpsEventClient
 	// Organization is the client for interacting with the Organization builders.
 	Organization *OrganizationClient
 	// OrganizationMember is the client for interacting with the OrganizationMember builders.
@@ -168,12 +168,12 @@ func (tx *Tx) Client() *Client {
 
 func (tx *Tx) init() {
 	tx.APIKey = NewAPIKeyClient(tx.config)
-	tx.Campaign = NewCampaignClient(tx.config)
 	tx.Cell = NewCellClient(tx.config)
 	tx.ConfigVersion = NewConfigVersionClient(tx.config)
 	tx.Environment = NewEnvironmentClient(tx.config)
 	tx.FeatureFlag = NewFeatureFlagClient(tx.config)
 	tx.Invitation = NewInvitationClient(tx.config)
+	tx.LiveOpsEvent = NewLiveOpsEventClient(tx.config)
 	tx.Organization = NewOrganizationClient(tx.config)
 	tx.OrganizationMember = NewOrganizationMemberClient(tx.config)
 	tx.Project = NewProjectClient(tx.config)

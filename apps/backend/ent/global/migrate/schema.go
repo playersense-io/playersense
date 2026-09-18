@@ -3,6 +3,7 @@
 package migrate
 
 import (
+	"entgo.io/ent/dialect/entsql"
 	"entgo.io/ent/dialect/sql/schema"
 	"entgo.io/ent/schema/field"
 )
@@ -40,51 +41,6 @@ var (
 				Name:    "apikey_public_id",
 				Unique:  true,
 				Columns: []*schema.Column{APIKeysColumns[5]},
-			},
-		},
-	}
-	// CampaignsColumns holds the columns for the "campaigns" table.
-	CampaignsColumns = []*schema.Column{
-		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
-		{Name: "uid", Type: field.TypeUUID, Unique: true, Comment: "class=none"},
-		{Name: "created_at", Type: field.TypeTime, Comment: "class=none"},
-		{Name: "updated_at", Type: field.TypeTime, Comment: "class=none"},
-		{Name: "key", Type: field.TypeString, Size: 64, Comment: "class=none"},
-		{Name: "kind", Type: field.TypeString, Size: 64, Comment: "class=none"},
-		{Name: "name", Type: field.TypeString, Size: 120, Comment: "class=none"},
-		{Name: "status", Type: field.TypeEnum, Comment: "class=none", Enums: []string{"draft", "scheduled", "live", "paused", "ended"}, Default: "draft"},
-		{Name: "starts_at", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
-		{Name: "ends_at", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
-		{Name: "priority", Type: field.TypeInt, Comment: "class=none", Default: 0},
-		{Name: "audience", Type: field.TypeJSON, Comment: "class=none"},
-		{Name: "payload", Type: field.TypeJSON, Comment: "class=none"},
-		{Name: "rollout", Type: field.TypeInt, Comment: "class=none", Default: 10000},
-		{Name: "salt", Type: field.TypeString, Size: 64, Comment: "class=none", Default: ""},
-		{Name: "project_id", Type: field.TypeInt, Comment: "class=none"},
-	}
-	// CampaignsTable holds the schema information for the "campaigns" table.
-	CampaignsTable = &schema.Table{
-		Name:       "campaigns",
-		Columns:    CampaignsColumns,
-		PrimaryKey: []*schema.Column{CampaignsColumns[0]},
-		ForeignKeys: []*schema.ForeignKey{
-			{
-				Symbol:     "campaigns_projects_campaigns",
-				Columns:    []*schema.Column{CampaignsColumns[15]},
-				RefColumns: []*schema.Column{ProjectsColumns[0]},
-				OnDelete:   schema.NoAction,
-			},
-		},
-		Indexes: []*schema.Index{
-			{
-				Name:    "campaign_key_project_id",
-				Unique:  true,
-				Columns: []*schema.Column{CampaignsColumns[4], CampaignsColumns[15]},
-			},
-			{
-				Name:    "campaign_status_starts_at",
-				Unique:  false,
-				Columns: []*schema.Column{CampaignsColumns[7], CampaignsColumns[8]},
 			},
 		},
 	}
@@ -273,6 +229,45 @@ var (
 			},
 		},
 	}
+	// LiveopsEventsColumns holds the columns for the "liveops_events" table.
+	LiveopsEventsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
+		{Name: "uid", Type: field.TypeUUID, Unique: true, Comment: "class=none"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "updated_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "key", Type: field.TypeString, Size: 64, Comment: "class=none"},
+		{Name: "kind", Type: field.TypeString, Size: 64, Comment: "class=none"},
+		{Name: "name", Type: field.TypeString, Size: 120, Comment: "class=none"},
+		{Name: "status", Type: field.TypeEnum, Comment: "class=none", Enums: []string{"draft", "active", "paused", "archived"}, Default: "draft"},
+		{Name: "schedule", Type: field.TypeJSON, Comment: "class=none"},
+		{Name: "priority", Type: field.TypeInt, Comment: "class=none", Default: 0},
+		{Name: "audience", Type: field.TypeJSON, Comment: "class=none"},
+		{Name: "payload", Type: field.TypeJSON, Comment: "class=none"},
+		{Name: "rollout", Type: field.TypeInt, Comment: "class=none", Default: 10000},
+		{Name: "salt", Type: field.TypeString, Size: 64, Comment: "class=none", Default: ""},
+		{Name: "project_id", Type: field.TypeInt, Comment: "class=none"},
+	}
+	// LiveopsEventsTable holds the schema information for the "liveops_events" table.
+	LiveopsEventsTable = &schema.Table{
+		Name:       "liveops_events",
+		Columns:    LiveopsEventsColumns,
+		PrimaryKey: []*schema.Column{LiveopsEventsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "liveops_events_projects_liveops_events",
+				Columns:    []*schema.Column{LiveopsEventsColumns[14]},
+				RefColumns: []*schema.Column{ProjectsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "liveopsevent_key_project_id",
+				Unique:  true,
+				Columns: []*schema.Column{LiveopsEventsColumns[4], LiveopsEventsColumns[14]},
+			},
+		},
+	}
 	// OrganizationsColumns holds the columns for the "organizations" table.
 	OrganizationsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
@@ -425,12 +420,12 @@ var (
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
 		APIKeysTable,
-		CampaignsTable,
 		CellsTable,
 		ConfigVersionsTable,
 		EnvironmentsTable,
 		FeatureFlagsTable,
 		InvitationsTable,
+		LiveopsEventsTable,
 		OrganizationsTable,
 		OrganizationMembersTable,
 		ProjectsTable,
@@ -441,13 +436,16 @@ var (
 
 func init() {
 	APIKeysTable.ForeignKeys[0].RefTable = EnvironmentsTable
-	CampaignsTable.ForeignKeys[0].RefTable = ProjectsTable
 	ConfigVersionsTable.ForeignKeys[0].RefTable = EnvironmentsTable
 	ConfigVersionsTable.ForeignKeys[1].RefTable = ProjectsTable
 	EnvironmentsTable.ForeignKeys[0].RefTable = ProjectsTable
 	FeatureFlagsTable.ForeignKeys[0].RefTable = ProjectsTable
 	InvitationsTable.ForeignKeys[0].RefTable = OrganizationsTable
 	InvitationsTable.ForeignKeys[1].RefTable = UsersTable
+	LiveopsEventsTable.ForeignKeys[0].RefTable = ProjectsTable
+	LiveopsEventsTable.Annotation = &entsql.Annotation{
+		Table: "liveops_events",
+	}
 	OrganizationMembersTable.ForeignKeys[0].RefTable = OrganizationsTable
 	OrganizationMembersTable.ForeignKeys[1].RefTable = UsersTable
 	ProjectsTable.ForeignKeys[0].RefTable = CellsTable

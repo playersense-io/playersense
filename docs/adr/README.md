@@ -58,6 +58,7 @@ a record is never updated to match a drifting document, it is superseded by a ne
 | [0029](0029-a-c-abi-over-an-opaque-handle.md) | A C ABI over an opaque handle, and unwinding panics | Accepted |
 | [0030](0030-the-unity-surface-is-types-in-a-namespace.md) | The Unity binding: types in a namespace, no_backup, and importer settings in code | Accepted |
 | [0031](0031-absence-is-null-not-the-empty-string.md) | Absence is NULL, not the empty string | Accepted |
+| [0032](0032-a-liveops-event-carries-a-schedule.md) | A LiveOps event carries a schedule, and the server evaluates it | Accepted |
 
 ## Template
 

@@ -57,10 +57,10 @@ func (Project) Edges() []ent.Edge {
 		edge.To("environments", Environment.Type),
 
 		// Targeting definitions (§41, §45). They name no player, so they live here rather
-		// than in a cell: a studio writes a campaign once instead of once per region.
+		// than in a cell: a studio writes an event once instead of once per region.
 		edge.To("segments", Segment.Type),
 		edge.To("feature_flags", FeatureFlag.Type),
-		edge.To("campaigns", Campaign.Type),
+		edge.To("liveops_events", LiveOpsEvent.Type),
 		edge.To("config_versions", ConfigVersion.Type),
 	}
 }

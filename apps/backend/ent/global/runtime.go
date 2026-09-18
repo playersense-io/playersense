@@ -7,12 +7,12 @@ import (
 
 	"github.com/google/uuid"
 	"playersense.dev/backend/ent/global/apikey"
-	"playersense.dev/backend/ent/global/campaign"
 	"playersense.dev/backend/ent/global/cell"
 	"playersense.dev/backend/ent/global/configversion"
 	"playersense.dev/backend/ent/global/environment"
 	"playersense.dev/backend/ent/global/featureflag"
 	"playersense.dev/backend/ent/global/invitation"
+	"playersense.dev/backend/ent/global/liveopsevent"
 	"playersense.dev/backend/ent/global/organization"
 	"playersense.dev/backend/ent/global/organizationmember"
 	"playersense.dev/backend/ent/global/project"
@@ -84,113 +84,6 @@ func init() {
 	apikeyDescName := apikeyFields[3].Descriptor()
 	// apikey.NameValidator is a validator for the "name" field. It is called by the builders before save.
 	apikey.NameValidator = apikeyDescName.Validators[0].(func(string) error)
-	campaignMixin := globaltier.Campaign{}.Mixin()
-	campaignMixinFields0 := campaignMixin[0].Fields()
-	_ = campaignMixinFields0
-	campaignFields := globaltier.Campaign{}.Fields()
-	_ = campaignFields
-	// campaignDescUID is the schema descriptor for uid field.
-	campaignDescUID := campaignMixinFields0[1].Descriptor()
-	// campaign.DefaultUID holds the default value on creation for the uid field.
-	campaign.DefaultUID = campaignDescUID.Default.(func() uuid.UUID)
-	// campaignDescCreatedAt is the schema descriptor for created_at field.
-	campaignDescCreatedAt := campaignMixinFields0[2].Descriptor()
-	// campaign.DefaultCreatedAt holds the default value on creation for the created_at field.
-	campaign.DefaultCreatedAt = campaignDescCreatedAt.Default.(func() time.Time)
-	// campaignDescUpdatedAt is the schema descriptor for updated_at field.
-	campaignDescUpdatedAt := campaignMixinFields0[3].Descriptor()
-	// campaign.DefaultUpdatedAt holds the default value on creation for the updated_at field.
-	campaign.DefaultUpdatedAt = campaignDescUpdatedAt.Default.(func() time.Time)
-	// campaign.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
-	campaign.UpdateDefaultUpdatedAt = campaignDescUpdatedAt.UpdateDefault.(func() time.Time)
-	// campaignDescKey is the schema descriptor for key field.
-	campaignDescKey := campaignFields[1].Descriptor()
-	// campaign.KeyValidator is a validator for the "key" field. It is called by the builders before save.
-	campaign.KeyValidator = func() func(string) error {
-		validators := campaignDescKey.Validators
-		fns := [...]func(string) error{
-			validators[0].(func(string) error),
-			validators[1].(func(string) error),
-		}
-		return func(key string) error {
-			for _, fn := range fns {
-				if err := fn(key); err != nil {
-					return err
-				}
-			}
-			return nil
-		}
-	}()
-	// campaignDescKind is the schema descriptor for kind field.
-	campaignDescKind := campaignFields[2].Descriptor()
-	// campaign.KindValidator is a validator for the "kind" field. It is called by the builders before save.
-	campaign.KindValidator = func() func(string) error {
-		validators := campaignDescKind.Validators
-		fns := [...]func(string) error{
-			validators[0].(func(string) error),
-			validators[1].(func(string) error),
-		}
-		return func(kind string) error {
-			for _, fn := range fns {
-				if err := fn(kind); err != nil {
-					return err
-				}
-			}
-			return nil
-		}
-	}()
-	// campaignDescName is the schema descriptor for name field.
-	campaignDescName := campaignFields[3].Descriptor()
-	// campaign.NameValidator is a validator for the "name" field. It is called by the builders before save.
-	campaign.NameValidator = func() func(string) error {
-		validators := campaignDescName.Validators
-		fns := [...]func(string) error{
-			validators[0].(func(string) error),
-			validators[1].(func(string) error),
-		}
-		return func(name string) error {
-			for _, fn := range fns {
-				if err := fn(name); err != nil {
-					return err
-				}
-			}
-			return nil
-		}
-	}()
-	// campaignDescPriority is the schema descriptor for priority field.
-	campaignDescPriority := campaignFields[7].Descriptor()
-	// campaign.DefaultPriority holds the default value on creation for the priority field.
-	campaign.DefaultPriority = campaignDescPriority.Default.(int)
-	// campaignDescAudience is the schema descriptor for audience field.
-	campaignDescAudience := campaignFields[8].Descriptor()
-	// campaign.DefaultAudience holds the default value on creation for the audience field.
-	campaign.DefaultAudience = campaignDescAudience.Default.(map[string]interface{})
-	// campaignDescRollout is the schema descriptor for rollout field.
-	campaignDescRollout := campaignFields[10].Descriptor()
-	// campaign.DefaultRollout holds the default value on creation for the rollout field.
-	campaign.DefaultRollout = campaignDescRollout.Default.(int)
-	// campaign.RolloutValidator is a validator for the "rollout" field. It is called by the builders before save.
-	campaign.RolloutValidator = func() func(int) error {
-		validators := campaignDescRollout.Validators
-		fns := [...]func(int) error{
-			validators[0].(func(int) error),
-			validators[1].(func(int) error),
-		}
-		return func(rollout int) error {
-			for _, fn := range fns {
-				if err := fn(rollout); err != nil {
-					return err
-				}
-			}
-			return nil
-		}
-	}()
-	// campaignDescSalt is the schema descriptor for salt field.
-	campaignDescSalt := campaignFields[11].Descriptor()
-	// campaign.DefaultSalt holds the default value on creation for the salt field.
-	campaign.DefaultSalt = campaignDescSalt.Default.(string)
-	// campaign.SaltValidator is a validator for the "salt" field. It is called by the builders before save.
-	campaign.SaltValidator = campaignDescSalt.Validators[0].(func(string) error)
 	cellMixin := globaltier.Cell{}.Mixin()
 	cellMixinFields0 := cellMixin[0].Fields()
 	_ = cellMixinFields0
@@ -476,6 +369,113 @@ func init() {
 			return nil
 		}
 	}()
+	liveopseventMixin := globaltier.LiveOpsEvent{}.Mixin()
+	liveopseventMixinFields0 := liveopseventMixin[0].Fields()
+	_ = liveopseventMixinFields0
+	liveopseventFields := globaltier.LiveOpsEvent{}.Fields()
+	_ = liveopseventFields
+	// liveopseventDescUID is the schema descriptor for uid field.
+	liveopseventDescUID := liveopseventMixinFields0[1].Descriptor()
+	// liveopsevent.DefaultUID holds the default value on creation for the uid field.
+	liveopsevent.DefaultUID = liveopseventDescUID.Default.(func() uuid.UUID)
+	// liveopseventDescCreatedAt is the schema descriptor for created_at field.
+	liveopseventDescCreatedAt := liveopseventMixinFields0[2].Descriptor()
+	// liveopsevent.DefaultCreatedAt holds the default value on creation for the created_at field.
+	liveopsevent.DefaultCreatedAt = liveopseventDescCreatedAt.Default.(func() time.Time)
+	// liveopseventDescUpdatedAt is the schema descriptor for updated_at field.
+	liveopseventDescUpdatedAt := liveopseventMixinFields0[3].Descriptor()
+	// liveopsevent.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	liveopsevent.DefaultUpdatedAt = liveopseventDescUpdatedAt.Default.(func() time.Time)
+	// liveopsevent.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	liveopsevent.UpdateDefaultUpdatedAt = liveopseventDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// liveopseventDescKey is the schema descriptor for key field.
+	liveopseventDescKey := liveopseventFields[1].Descriptor()
+	// liveopsevent.KeyValidator is a validator for the "key" field. It is called by the builders before save.
+	liveopsevent.KeyValidator = func() func(string) error {
+		validators := liveopseventDescKey.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(key string) error {
+			for _, fn := range fns {
+				if err := fn(key); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// liveopseventDescKind is the schema descriptor for kind field.
+	liveopseventDescKind := liveopseventFields[2].Descriptor()
+	// liveopsevent.KindValidator is a validator for the "kind" field. It is called by the builders before save.
+	liveopsevent.KindValidator = func() func(string) error {
+		validators := liveopseventDescKind.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(kind string) error {
+			for _, fn := range fns {
+				if err := fn(kind); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// liveopseventDescName is the schema descriptor for name field.
+	liveopseventDescName := liveopseventFields[3].Descriptor()
+	// liveopsevent.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	liveopsevent.NameValidator = func() func(string) error {
+		validators := liveopseventDescName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(name string) error {
+			for _, fn := range fns {
+				if err := fn(name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// liveopseventDescPriority is the schema descriptor for priority field.
+	liveopseventDescPriority := liveopseventFields[6].Descriptor()
+	// liveopsevent.DefaultPriority holds the default value on creation for the priority field.
+	liveopsevent.DefaultPriority = liveopseventDescPriority.Default.(int)
+	// liveopseventDescAudience is the schema descriptor for audience field.
+	liveopseventDescAudience := liveopseventFields[7].Descriptor()
+	// liveopsevent.DefaultAudience holds the default value on creation for the audience field.
+	liveopsevent.DefaultAudience = liveopseventDescAudience.Default.(map[string]interface{})
+	// liveopseventDescRollout is the schema descriptor for rollout field.
+	liveopseventDescRollout := liveopseventFields[9].Descriptor()
+	// liveopsevent.DefaultRollout holds the default value on creation for the rollout field.
+	liveopsevent.DefaultRollout = liveopseventDescRollout.Default.(int)
+	// liveopsevent.RolloutValidator is a validator for the "rollout" field. It is called by the builders before save.
+	liveopsevent.RolloutValidator = func() func(int) error {
+		validators := liveopseventDescRollout.Validators
+		fns := [...]func(int) error{
+			validators[0].(func(int) error),
+			validators[1].(func(int) error),
+		}
+		return func(rollout int) error {
+			for _, fn := range fns {
+				if err := fn(rollout); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// liveopseventDescSalt is the schema descriptor for salt field.
+	liveopseventDescSalt := liveopseventFields[10].Descriptor()
+	// liveopsevent.DefaultSalt holds the default value on creation for the salt field.
+	liveopsevent.DefaultSalt = liveopseventDescSalt.Default.(string)
+	// liveopsevent.SaltValidator is a validator for the "salt" field. It is called by the builders before save.
+	liveopsevent.SaltValidator = liveopseventDescSalt.Validators[0].(func(string) error)
 	organizationMixin := globaltier.Organization{}.Mixin()
 	organizationMixinFields0 := organizationMixin[0].Fields()
 	_ = organizationMixinFields0

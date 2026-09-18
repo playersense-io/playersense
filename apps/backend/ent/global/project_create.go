@@ -11,11 +11,11 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
-	"playersense.dev/backend/ent/global/campaign"
 	"playersense.dev/backend/ent/global/cell"
 	"playersense.dev/backend/ent/global/configversion"
 	"playersense.dev/backend/ent/global/environment"
 	"playersense.dev/backend/ent/global/featureflag"
+	"playersense.dev/backend/ent/global/liveopsevent"
 	"playersense.dev/backend/ent/global/organization"
 	"playersense.dev/backend/ent/global/project"
 	"playersense.dev/backend/ent/global/segment"
@@ -183,19 +183,19 @@ func (_c *ProjectCreate) AddFeatureFlags(v ...*FeatureFlag) *ProjectCreate {
 	return _c.AddFeatureFlagIDs(ids...)
 }
 
-// AddCampaignIDs adds the "campaigns" edge to the Campaign entity by IDs.
-func (_c *ProjectCreate) AddCampaignIDs(ids ...int) *ProjectCreate {
-	_c.mutation.AddCampaignIDs(ids...)
+// AddLiveopsEventIDs adds the "liveops_events" edge to the LiveOpsEvent entity by IDs.
+func (_c *ProjectCreate) AddLiveopsEventIDs(ids ...int) *ProjectCreate {
+	_c.mutation.AddLiveopsEventIDs(ids...)
 	return _c
 }
 
-// AddCampaigns adds the "campaigns" edges to the Campaign entity.
-func (_c *ProjectCreate) AddCampaigns(v ...*Campaign) *ProjectCreate {
+// AddLiveopsEvents adds the "liveops_events" edges to the LiveOpsEvent entity.
+func (_c *ProjectCreate) AddLiveopsEvents(v ...*LiveOpsEvent) *ProjectCreate {
 	ids := make([]int, len(v))
 	for i := range v {
 		ids[i] = v[i].ID
 	}
-	return _c.AddCampaignIDs(ids...)
+	return _c.AddLiveopsEventIDs(ids...)
 }
 
 // AddConfigVersionIDs adds the "config_versions" edge to the ConfigVersion entity by IDs.
@@ -462,15 +462,15 @@ func (_c *ProjectCreate) createSpec() (*Project, *sqlgraph.CreateSpec) {
 		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	if nodes := _c.mutation.CampaignsIDs(); len(nodes) > 0 {
+	if nodes := _c.mutation.LiveopsEventsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
-			Table:   project.CampaignsTable,
-			Columns: []string{project.CampaignsColumn},
+			Table:   project.LiveopsEventsTable,
+			Columns: []string{project.LiveopsEventsColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(campaign.FieldID, field.TypeInt),
+				IDSpec: sqlgraph.NewFieldSpec(liveopsevent.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

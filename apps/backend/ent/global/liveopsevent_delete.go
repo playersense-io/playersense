@@ -8,30 +8,30 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"playersense.dev/backend/ent/global/campaign"
+	"playersense.dev/backend/ent/global/liveopsevent"
 	"playersense.dev/backend/ent/global/predicate"
 )
 
-// CampaignDelete is the builder for deleting a Campaign entity.
-type CampaignDelete struct {
+// LiveOpsEventDelete is the builder for deleting a LiveOpsEvent entity.
+type LiveOpsEventDelete struct {
 	config
 	hooks    []Hook
-	mutation *CampaignMutation
+	mutation *LiveOpsEventMutation
 }
 
-// Where appends a list predicates to the CampaignDelete builder.
-func (_d *CampaignDelete) Where(ps ...predicate.Campaign) *CampaignDelete {
+// Where appends a list predicates to the LiveOpsEventDelete builder.
+func (_d *LiveOpsEventDelete) Where(ps ...predicate.LiveOpsEvent) *LiveOpsEventDelete {
 	_d.mutation.Where(ps...)
 	return _d
 }
 
 // Exec executes the deletion query and returns how many vertices were deleted.
-func (_d *CampaignDelete) Exec(ctx context.Context) (int, error) {
+func (_d *LiveOpsEventDelete) Exec(ctx context.Context) (int, error) {
 	return withHooks(ctx, _d.sqlExec, _d.mutation, _d.hooks)
 }
 
 // ExecX is like Exec, but panics if an error occurs.
-func (_d *CampaignDelete) ExecX(ctx context.Context) int {
+func (_d *LiveOpsEventDelete) ExecX(ctx context.Context) int {
 	n, err := _d.Exec(ctx)
 	if err != nil {
 		panic(err)
@@ -39,8 +39,8 @@ func (_d *CampaignDelete) ExecX(ctx context.Context) int {
 	return n
 }
 
-func (_d *CampaignDelete) sqlExec(ctx context.Context) (int, error) {
-	_spec := sqlgraph.NewDeleteSpec(campaign.Table, sqlgraph.NewFieldSpec(campaign.FieldID, field.TypeInt))
+func (_d *LiveOpsEventDelete) sqlExec(ctx context.Context) (int, error) {
+	_spec := sqlgraph.NewDeleteSpec(liveopsevent.Table, sqlgraph.NewFieldSpec(liveopsevent.FieldID, field.TypeInt))
 	if ps := _d.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
 			for i := range ps {
@@ -56,32 +56,32 @@ func (_d *CampaignDelete) sqlExec(ctx context.Context) (int, error) {
 	return affected, err
 }
 
-// CampaignDeleteOne is the builder for deleting a single Campaign entity.
-type CampaignDeleteOne struct {
-	_d *CampaignDelete
+// LiveOpsEventDeleteOne is the builder for deleting a single LiveOpsEvent entity.
+type LiveOpsEventDeleteOne struct {
+	_d *LiveOpsEventDelete
 }
 
-// Where appends a list predicates to the CampaignDelete builder.
-func (_d *CampaignDeleteOne) Where(ps ...predicate.Campaign) *CampaignDeleteOne {
+// Where appends a list predicates to the LiveOpsEventDelete builder.
+func (_d *LiveOpsEventDeleteOne) Where(ps ...predicate.LiveOpsEvent) *LiveOpsEventDeleteOne {
 	_d._d.mutation.Where(ps...)
 	return _d
 }
 
 // Exec executes the deletion query.
-func (_d *CampaignDeleteOne) Exec(ctx context.Context) error {
+func (_d *LiveOpsEventDeleteOne) Exec(ctx context.Context) error {
 	n, err := _d._d.Exec(ctx)
 	switch {
 	case err != nil:
 		return err
 	case n == 0:
-		return &NotFoundError{campaign.Label}
+		return &NotFoundError{liveopsevent.Label}
 	default:
 		return nil
 	}
 }
 
 // ExecX is like Exec, but panics if an error occurs.
-func (_d *CampaignDeleteOne) ExecX(ctx context.Context) {
+func (_d *LiveOpsEventDeleteOne) ExecX(ctx context.Context) {
 	if err := _d.Exec(ctx); err != nil {
 		panic(err)
 	}

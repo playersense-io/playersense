@@ -11,10 +11,10 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"playersense.dev/backend/ent/global/campaign"
 	"playersense.dev/backend/ent/global/configversion"
 	"playersense.dev/backend/ent/global/environment"
 	"playersense.dev/backend/ent/global/featureflag"
+	"playersense.dev/backend/ent/global/liveopsevent"
 	"playersense.dev/backend/ent/global/organization"
 	"playersense.dev/backend/ent/global/predicate"
 	"playersense.dev/backend/ent/global/project"
@@ -153,19 +153,19 @@ func (_u *ProjectUpdate) AddFeatureFlags(v ...*FeatureFlag) *ProjectUpdate {
 	return _u.AddFeatureFlagIDs(ids...)
 }
 
-// AddCampaignIDs adds the "campaigns" edge to the Campaign entity by IDs.
-func (_u *ProjectUpdate) AddCampaignIDs(ids ...int) *ProjectUpdate {
-	_u.mutation.AddCampaignIDs(ids...)
+// AddLiveopsEventIDs adds the "liveops_events" edge to the LiveOpsEvent entity by IDs.
+func (_u *ProjectUpdate) AddLiveopsEventIDs(ids ...int) *ProjectUpdate {
+	_u.mutation.AddLiveopsEventIDs(ids...)
 	return _u
 }
 
-// AddCampaigns adds the "campaigns" edges to the Campaign entity.
-func (_u *ProjectUpdate) AddCampaigns(v ...*Campaign) *ProjectUpdate {
+// AddLiveopsEvents adds the "liveops_events" edges to the LiveOpsEvent entity.
+func (_u *ProjectUpdate) AddLiveopsEvents(v ...*LiveOpsEvent) *ProjectUpdate {
 	ids := make([]int, len(v))
 	for i := range v {
 		ids[i] = v[i].ID
 	}
-	return _u.AddCampaignIDs(ids...)
+	return _u.AddLiveopsEventIDs(ids...)
 }
 
 // AddConfigVersionIDs adds the "config_versions" edge to the ConfigVersion entity by IDs.
@@ -257,25 +257,25 @@ func (_u *ProjectUpdate) RemoveFeatureFlags(v ...*FeatureFlag) *ProjectUpdate {
 	return _u.RemoveFeatureFlagIDs(ids...)
 }
 
-// ClearCampaigns clears all "campaigns" edges to the Campaign entity.
-func (_u *ProjectUpdate) ClearCampaigns() *ProjectUpdate {
-	_u.mutation.ClearCampaigns()
+// ClearLiveopsEvents clears all "liveops_events" edges to the LiveOpsEvent entity.
+func (_u *ProjectUpdate) ClearLiveopsEvents() *ProjectUpdate {
+	_u.mutation.ClearLiveopsEvents()
 	return _u
 }
 
-// RemoveCampaignIDs removes the "campaigns" edge to Campaign entities by IDs.
-func (_u *ProjectUpdate) RemoveCampaignIDs(ids ...int) *ProjectUpdate {
-	_u.mutation.RemoveCampaignIDs(ids...)
+// RemoveLiveopsEventIDs removes the "liveops_events" edge to LiveOpsEvent entities by IDs.
+func (_u *ProjectUpdate) RemoveLiveopsEventIDs(ids ...int) *ProjectUpdate {
+	_u.mutation.RemoveLiveopsEventIDs(ids...)
 	return _u
 }
 
-// RemoveCampaigns removes "campaigns" edges to Campaign entities.
-func (_u *ProjectUpdate) RemoveCampaigns(v ...*Campaign) *ProjectUpdate {
+// RemoveLiveopsEvents removes "liveops_events" edges to LiveOpsEvent entities.
+func (_u *ProjectUpdate) RemoveLiveopsEvents(v ...*LiveOpsEvent) *ProjectUpdate {
 	ids := make([]int, len(v))
 	for i := range v {
 		ids[i] = v[i].ID
 	}
-	return _u.RemoveCampaignIDs(ids...)
+	return _u.RemoveLiveopsEventIDs(ids...)
 }
 
 // ClearConfigVersions clears all "config_versions" edges to the ConfigVersion entity.
@@ -547,28 +547,28 @@ func (_u *ProjectUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
-	if _u.mutation.CampaignsCleared() {
+	if _u.mutation.LiveopsEventsCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
-			Table:   project.CampaignsTable,
-			Columns: []string{project.CampaignsColumn},
+			Table:   project.LiveopsEventsTable,
+			Columns: []string{project.LiveopsEventsColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(campaign.FieldID, field.TypeInt),
+				IDSpec: sqlgraph.NewFieldSpec(liveopsevent.FieldID, field.TypeInt),
 			},
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.RemovedCampaignsIDs(); len(nodes) > 0 && !_u.mutation.CampaignsCleared() {
+	if nodes := _u.mutation.RemovedLiveopsEventsIDs(); len(nodes) > 0 && !_u.mutation.LiveopsEventsCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
-			Table:   project.CampaignsTable,
-			Columns: []string{project.CampaignsColumn},
+			Table:   project.LiveopsEventsTable,
+			Columns: []string{project.LiveopsEventsColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(campaign.FieldID, field.TypeInt),
+				IDSpec: sqlgraph.NewFieldSpec(liveopsevent.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {
@@ -576,15 +576,15 @@ func (_u *ProjectUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.CampaignsIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.LiveopsEventsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
-			Table:   project.CampaignsTable,
-			Columns: []string{project.CampaignsColumn},
+			Table:   project.LiveopsEventsTable,
+			Columns: []string{project.LiveopsEventsColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(campaign.FieldID, field.TypeInt),
+				IDSpec: sqlgraph.NewFieldSpec(liveopsevent.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {
@@ -776,19 +776,19 @@ func (_u *ProjectUpdateOne) AddFeatureFlags(v ...*FeatureFlag) *ProjectUpdateOne
 	return _u.AddFeatureFlagIDs(ids...)
 }
 
-// AddCampaignIDs adds the "campaigns" edge to the Campaign entity by IDs.
-func (_u *ProjectUpdateOne) AddCampaignIDs(ids ...int) *ProjectUpdateOne {
-	_u.mutation.AddCampaignIDs(ids...)
+// AddLiveopsEventIDs adds the "liveops_events" edge to the LiveOpsEvent entity by IDs.
+func (_u *ProjectUpdateOne) AddLiveopsEventIDs(ids ...int) *ProjectUpdateOne {
+	_u.mutation.AddLiveopsEventIDs(ids...)
 	return _u
 }
 
-// AddCampaigns adds the "campaigns" edges to the Campaign entity.
-func (_u *ProjectUpdateOne) AddCampaigns(v ...*Campaign) *ProjectUpdateOne {
+// AddLiveopsEvents adds the "liveops_events" edges to the LiveOpsEvent entity.
+func (_u *ProjectUpdateOne) AddLiveopsEvents(v ...*LiveOpsEvent) *ProjectUpdateOne {
 	ids := make([]int, len(v))
 	for i := range v {
 		ids[i] = v[i].ID
 	}
-	return _u.AddCampaignIDs(ids...)
+	return _u.AddLiveopsEventIDs(ids...)
 }
 
 // AddConfigVersionIDs adds the "config_versions" edge to the ConfigVersion entity by IDs.
@@ -880,25 +880,25 @@ func (_u *ProjectUpdateOne) RemoveFeatureFlags(v ...*FeatureFlag) *ProjectUpdate
 	return _u.RemoveFeatureFlagIDs(ids...)
 }
 
-// ClearCampaigns clears all "campaigns" edges to the Campaign entity.
-func (_u *ProjectUpdateOne) ClearCampaigns() *ProjectUpdateOne {
-	_u.mutation.ClearCampaigns()
+// ClearLiveopsEvents clears all "liveops_events" edges to the LiveOpsEvent entity.
+func (_u *ProjectUpdateOne) ClearLiveopsEvents() *ProjectUpdateOne {
+	_u.mutation.ClearLiveopsEvents()
 	return _u
 }
 
-// RemoveCampaignIDs removes the "campaigns" edge to Campaign entities by IDs.
-func (_u *ProjectUpdateOne) RemoveCampaignIDs(ids ...int) *ProjectUpdateOne {
-	_u.mutation.RemoveCampaignIDs(ids...)
+// RemoveLiveopsEventIDs removes the "liveops_events" edge to LiveOpsEvent entities by IDs.
+func (_u *ProjectUpdateOne) RemoveLiveopsEventIDs(ids ...int) *ProjectUpdateOne {
+	_u.mutation.RemoveLiveopsEventIDs(ids...)
 	return _u
 }
 
-// RemoveCampaigns removes "campaigns" edges to Campaign entities.
-func (_u *ProjectUpdateOne) RemoveCampaigns(v ...*Campaign) *ProjectUpdateOne {
+// RemoveLiveopsEvents removes "liveops_events" edges to LiveOpsEvent entities.
+func (_u *ProjectUpdateOne) RemoveLiveopsEvents(v ...*LiveOpsEvent) *ProjectUpdateOne {
 	ids := make([]int, len(v))
 	for i := range v {
 		ids[i] = v[i].ID
 	}
-	return _u.RemoveCampaignIDs(ids...)
+	return _u.RemoveLiveopsEventIDs(ids...)
 }
 
 // ClearConfigVersions clears all "config_versions" edges to the ConfigVersion entity.
@@ -1200,28 +1200,28 @@ func (_u *ProjectUpdateOne) sqlSave(ctx context.Context) (_node *Project, err er
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
-	if _u.mutation.CampaignsCleared() {
+	if _u.mutation.LiveopsEventsCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
-			Table:   project.CampaignsTable,
-			Columns: []string{project.CampaignsColumn},
+			Table:   project.LiveopsEventsTable,
+			Columns: []string{project.LiveopsEventsColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(campaign.FieldID, field.TypeInt),
+				IDSpec: sqlgraph.NewFieldSpec(liveopsevent.FieldID, field.TypeInt),
 			},
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.RemovedCampaignsIDs(); len(nodes) > 0 && !_u.mutation.CampaignsCleared() {
+	if nodes := _u.mutation.RemovedLiveopsEventsIDs(); len(nodes) > 0 && !_u.mutation.LiveopsEventsCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
-			Table:   project.CampaignsTable,
-			Columns: []string{project.CampaignsColumn},
+			Table:   project.LiveopsEventsTable,
+			Columns: []string{project.LiveopsEventsColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(campaign.FieldID, field.TypeInt),
+				IDSpec: sqlgraph.NewFieldSpec(liveopsevent.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {
@@ -1229,15 +1229,15 @@ func (_u *ProjectUpdateOne) sqlSave(ctx context.Context) (_node *Project, err er
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.CampaignsIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.LiveopsEventsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
-			Table:   project.CampaignsTable,
-			Columns: []string{project.CampaignsColumn},
+			Table:   project.LiveopsEventsTable,
+			Columns: []string{project.LiveopsEventsColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(campaign.FieldID, field.TypeInt),
+				IDSpec: sqlgraph.NewFieldSpec(liveopsevent.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

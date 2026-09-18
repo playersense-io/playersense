@@ -17,7 +17,7 @@ func rule(t *testing.T, raw string) Rule {
 }
 
 // The rule from §41's own example, which is the shape a studio actually writes.
-func TestACampaignAudience(t *testing.T) {
+func TestALiveOpsEventAudience(t *testing.T) {
 	audience := rule(t, `{"all":[
 		{"key":"geo.country","op":"in","values":["TR","DE","FR"]},
 		{"key":"context.progress.level","op":"gte","value":10},
@@ -94,7 +94,7 @@ func TestVersionShapesAStudioActuallyTypes(t *testing.T) {
 	}
 }
 
-// A studio renames a context key. The campaign must stop reaching people — not error, and
+// A studio renames a context key. The event must stop reaching people — not error, and
 // not suddenly reach everyone because a missing value compared equal to zero.
 func TestAMissingKeyIsFalseRatherThanAnError(t *testing.T) {
 	empty := Context{}
@@ -163,7 +163,7 @@ func TestGroupsCompose(t *testing.T) {
 		t.Error("not did not invert")
 	}
 
-	// No audience means everyone, which is the common case for a campaign.
+	// No audience means everyone, which is the common case for an event.
 	if !(Rule{}).Matches(ctx) {
 		t.Error("an empty rule excluded somebody")
 	}

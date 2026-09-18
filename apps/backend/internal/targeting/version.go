@@ -8,9 +8,9 @@ import (
 // compareVersions orders two app versions the way a person means them.
 //
 // This exists because the obvious thing is wrong in a way that looks right. As strings,
-// "1.9.0" sorts *after* "1.12.0", so a campaign targeting "1.12.0 and later" silently
+// "1.9.0" sorts *after* "1.12.0", so a rule targeting "1.12.0 and later" silently
 // excludes everyone who upgraded to 1.12 — and reaches the players still on 1.9. The
-// symptom is a campaign with a strange audience, not an error, so nobody looks for a bug.
+// symptom is an event with a strange audience, not an error, so nobody looks for a bug.
 //
 // Deliberately not a full semver implementation. A game's version is whatever the studio
 // typed into the build settings: "1.12", "1.12.0", "2.0.1-rc3", "1.12.0.4881". So this

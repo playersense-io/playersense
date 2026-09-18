@@ -22,7 +22,7 @@ The platform should become a shared operating layer for a game studio. A studio 
 - custom events and custom event properties;
 - player timelines and debugging;
 - feature flags and remote configuration;
-- LiveOps campaigns and scheduled configuration changes;
+- LiveOps events and scheduled configuration changes;
 - experiments and percentage rollouts;
 - purchase verification and normalized purchase events;
 - outbound webhooks;
@@ -229,7 +229,7 @@ The system should be designed around these envelopes.
 | Large | 100M | ~1,157 | Serious studio traffic |
 | Target ceiling | 1B | ~11,574 | Platform-scale ingestion |
 
-The average is not enough for sizing. Games have launch spikes, daily resets, campaign events and regional peaks. The data plane should be tested for at least **5–10× the average event rate** for short periods.
+The average is not enough for sizing. Games have launch spikes, daily resets, in-game events and regional peaks. The data plane should be tested for at least **5–10× the average event rate** for short periods.
 
 ### 4.1 Why batching changes the HTTP problem
 
@@ -813,7 +813,7 @@ feature_flags
 feature_flag_versions
 segments
 experiments
-liveops_campaigns
+liveops_events
 config_versions
 
 purchase_providers
@@ -2364,8 +2364,10 @@ rivalling a week of raw data across a large tenant base. Three caps hold it down
 
 - `first_app_version` is capped to the top 20 values per project plus `other`, because
   versions accumulate forever;
-- `acquisition_source` carries the **source only**. Campaign and ad-set are a separate,
-  opt-in dimension, not part of the default breakdown;
+- `acquisition_source` carries the **source only** — and that is the whole of it. There is no
+  campaign or ad-set dimension and there will not be one: PlayerSense ingests no MMP feed
+  (AppsFlyer, Adjust and the rest), so there is no attribution data to break down by. The
+  dimension that would have grown without bound is simply absent;
 - only `(cohort_date, dim_value)` pairs with a non-zero cohort size are materialized. On
   any given day only a handful of versions and perhaps eighty countries actually produce
   installs.
@@ -2830,19 +2832,28 @@ Avoid sending a high-volume exposure event every frame/evaluation. SDKs should d
 
 LiveOps initially should be built as versioned/scheduled remote configuration, not as a giant separate backend.
 
-A campaign can include:
+A LiveOps **event** can include:
 
 ```text
 name
 status
-start_at
-end_at
+schedule          anchor + duration + how it repeats
 timezone policy
 audience rules
 priority
 payload
 fallback
 ```
+
+Called an event, not a campaign. A studio thinks in events — a double-XP weekend, a holiday
+shop — and "campaign" is marketing vocabulary for something PlayerSense does not do (§29.13:
+no MMP feed, no ad-campaign dimension), so the word would arrive carrying a meaning nothing
+here implements. In code the type is `LiveOpsEvent` and never `Event`, because `events_raw`
+and `event_name` mean analytics events everywhere else.
+
+`start_at`/`end_at` became one schedule because two timestamps cannot express "the first five
+days of every month", and a studio that has to type twelve events a year will eventually miss
+one. See `internal/liveops`.
 
 Examples:
 
@@ -2853,7 +2864,10 @@ Examples:
 - show an announcement;
 - modify remote values.
 
-Workers publish a new compiled config version at campaign boundaries.
+No worker publishes at event boundaries. A published document carries the schedule and the
+server answers "is it on for this player now" on the request it is already serving, so there
+is no cron job keeping a frozen answer true and a recurring event needs no republishing at
+all.
 
 ---
 
@@ -4470,9 +4484,9 @@ constraints travel with the data rather than being re-derived from a mutable fla
 
 **`child_directed`** covers COPPA and Google Play's Families requirements. A persistent
 identifier is retained, because COPPA's support-for-internal-operations basis permits one
-for analytics; what is removed is everything pointing at advertising — acquisition source,
-campaign attribution, and any onward sharing. Retention is capped below the plan's normal
-maximum.
+for analytics; what is removed is everything pointing at advertising — acquisition source and
+any onward sharing. (There is no campaign attribution to remove: §29.13, PlayerSense takes no
+MMP data at all.) Retention is capped below the plan's normal maximum.
 
 **`kids_strict`** exists because Apple's Kids Category rule is stricter than COPPA. It
 restricts sending device information to third parties, and in this arrangement PlayerSense
@@ -4515,7 +4529,7 @@ project_environments     billing_period_snapshots
 project_api_keys         feature_flags
 project_settings         feature_flag_versions
 retention_policies       segments / experiments
-cells                    liveops_campaigns / config_versions
+cells                    liveops_events / config_versions
 webhook_endpoints
 ```
 

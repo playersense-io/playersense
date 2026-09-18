@@ -11,25 +11,26 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
-	"playersense.dev/backend/ent/global/campaign"
+	"playersense.dev/backend/ent/global/liveopsevent"
 	"playersense.dev/backend/ent/global/project"
+	"playersense.dev/backend/internal/liveops"
 )
 
-// CampaignCreate is the builder for creating a Campaign entity.
-type CampaignCreate struct {
+// LiveOpsEventCreate is the builder for creating a LiveOpsEvent entity.
+type LiveOpsEventCreate struct {
 	config
-	mutation *CampaignMutation
+	mutation *LiveOpsEventMutation
 	hooks    []Hook
 }
 
 // SetUID sets the "uid" field.
-func (_c *CampaignCreate) SetUID(v uuid.UUID) *CampaignCreate {
+func (_c *LiveOpsEventCreate) SetUID(v uuid.UUID) *LiveOpsEventCreate {
 	_c.mutation.SetUID(v)
 	return _c
 }
 
 // SetNillableUID sets the "uid" field if the given value is not nil.
-func (_c *CampaignCreate) SetNillableUID(v *uuid.UUID) *CampaignCreate {
+func (_c *LiveOpsEventCreate) SetNillableUID(v *uuid.UUID) *LiveOpsEventCreate {
 	if v != nil {
 		_c.SetUID(*v)
 	}
@@ -37,13 +38,13 @@ func (_c *CampaignCreate) SetNillableUID(v *uuid.UUID) *CampaignCreate {
 }
 
 // SetCreatedAt sets the "created_at" field.
-func (_c *CampaignCreate) SetCreatedAt(v time.Time) *CampaignCreate {
+func (_c *LiveOpsEventCreate) SetCreatedAt(v time.Time) *LiveOpsEventCreate {
 	_c.mutation.SetCreatedAt(v)
 	return _c
 }
 
 // SetNillableCreatedAt sets the "created_at" field if the given value is not nil.
-func (_c *CampaignCreate) SetNillableCreatedAt(v *time.Time) *CampaignCreate {
+func (_c *LiveOpsEventCreate) SetNillableCreatedAt(v *time.Time) *LiveOpsEventCreate {
 	if v != nil {
 		_c.SetCreatedAt(*v)
 	}
@@ -51,13 +52,13 @@ func (_c *CampaignCreate) SetNillableCreatedAt(v *time.Time) *CampaignCreate {
 }
 
 // SetUpdatedAt sets the "updated_at" field.
-func (_c *CampaignCreate) SetUpdatedAt(v time.Time) *CampaignCreate {
+func (_c *LiveOpsEventCreate) SetUpdatedAt(v time.Time) *LiveOpsEventCreate {
 	_c.mutation.SetUpdatedAt(v)
 	return _c
 }
 
 // SetNillableUpdatedAt sets the "updated_at" field if the given value is not nil.
-func (_c *CampaignCreate) SetNillableUpdatedAt(v *time.Time) *CampaignCreate {
+func (_c *LiveOpsEventCreate) SetNillableUpdatedAt(v *time.Time) *LiveOpsEventCreate {
 	if v != nil {
 		_c.SetUpdatedAt(*v)
 	}
@@ -65,79 +66,57 @@ func (_c *CampaignCreate) SetNillableUpdatedAt(v *time.Time) *CampaignCreate {
 }
 
 // SetProjectID sets the "project_id" field.
-func (_c *CampaignCreate) SetProjectID(v int) *CampaignCreate {
+func (_c *LiveOpsEventCreate) SetProjectID(v int) *LiveOpsEventCreate {
 	_c.mutation.SetProjectID(v)
 	return _c
 }
 
 // SetKey sets the "key" field.
-func (_c *CampaignCreate) SetKey(v string) *CampaignCreate {
+func (_c *LiveOpsEventCreate) SetKey(v string) *LiveOpsEventCreate {
 	_c.mutation.SetKey(v)
 	return _c
 }
 
 // SetKind sets the "kind" field.
-func (_c *CampaignCreate) SetKind(v string) *CampaignCreate {
+func (_c *LiveOpsEventCreate) SetKind(v string) *LiveOpsEventCreate {
 	_c.mutation.SetKind(v)
 	return _c
 }
 
 // SetName sets the "name" field.
-func (_c *CampaignCreate) SetName(v string) *CampaignCreate {
+func (_c *LiveOpsEventCreate) SetName(v string) *LiveOpsEventCreate {
 	_c.mutation.SetName(v)
 	return _c
 }
 
 // SetStatus sets the "status" field.
-func (_c *CampaignCreate) SetStatus(v campaign.Status) *CampaignCreate {
+func (_c *LiveOpsEventCreate) SetStatus(v liveopsevent.Status) *LiveOpsEventCreate {
 	_c.mutation.SetStatus(v)
 	return _c
 }
 
 // SetNillableStatus sets the "status" field if the given value is not nil.
-func (_c *CampaignCreate) SetNillableStatus(v *campaign.Status) *CampaignCreate {
+func (_c *LiveOpsEventCreate) SetNillableStatus(v *liveopsevent.Status) *LiveOpsEventCreate {
 	if v != nil {
 		_c.SetStatus(*v)
 	}
 	return _c
 }
 
-// SetStartsAt sets the "starts_at" field.
-func (_c *CampaignCreate) SetStartsAt(v time.Time) *CampaignCreate {
-	_c.mutation.SetStartsAt(v)
-	return _c
-}
-
-// SetNillableStartsAt sets the "starts_at" field if the given value is not nil.
-func (_c *CampaignCreate) SetNillableStartsAt(v *time.Time) *CampaignCreate {
-	if v != nil {
-		_c.SetStartsAt(*v)
-	}
-	return _c
-}
-
-// SetEndsAt sets the "ends_at" field.
-func (_c *CampaignCreate) SetEndsAt(v time.Time) *CampaignCreate {
-	_c.mutation.SetEndsAt(v)
-	return _c
-}
-
-// SetNillableEndsAt sets the "ends_at" field if the given value is not nil.
-func (_c *CampaignCreate) SetNillableEndsAt(v *time.Time) *CampaignCreate {
-	if v != nil {
-		_c.SetEndsAt(*v)
-	}
+// SetSchedule sets the "schedule" field.
+func (_c *LiveOpsEventCreate) SetSchedule(v liveops.Schedule) *LiveOpsEventCreate {
+	_c.mutation.SetSchedule(v)
 	return _c
 }
 
 // SetPriority sets the "priority" field.
-func (_c *CampaignCreate) SetPriority(v int) *CampaignCreate {
+func (_c *LiveOpsEventCreate) SetPriority(v int) *LiveOpsEventCreate {
 	_c.mutation.SetPriority(v)
 	return _c
 }
 
 // SetNillablePriority sets the "priority" field if the given value is not nil.
-func (_c *CampaignCreate) SetNillablePriority(v *int) *CampaignCreate {
+func (_c *LiveOpsEventCreate) SetNillablePriority(v *int) *LiveOpsEventCreate {
 	if v != nil {
 		_c.SetPriority(*v)
 	}
@@ -145,25 +124,25 @@ func (_c *CampaignCreate) SetNillablePriority(v *int) *CampaignCreate {
 }
 
 // SetAudience sets the "audience" field.
-func (_c *CampaignCreate) SetAudience(v map[string]interface{}) *CampaignCreate {
+func (_c *LiveOpsEventCreate) SetAudience(v map[string]interface{}) *LiveOpsEventCreate {
 	_c.mutation.SetAudience(v)
 	return _c
 }
 
 // SetPayload sets the "payload" field.
-func (_c *CampaignCreate) SetPayload(v map[string]interface{}) *CampaignCreate {
+func (_c *LiveOpsEventCreate) SetPayload(v map[string]interface{}) *LiveOpsEventCreate {
 	_c.mutation.SetPayload(v)
 	return _c
 }
 
 // SetRollout sets the "rollout" field.
-func (_c *CampaignCreate) SetRollout(v int) *CampaignCreate {
+func (_c *LiveOpsEventCreate) SetRollout(v int) *LiveOpsEventCreate {
 	_c.mutation.SetRollout(v)
 	return _c
 }
 
 // SetNillableRollout sets the "rollout" field if the given value is not nil.
-func (_c *CampaignCreate) SetNillableRollout(v *int) *CampaignCreate {
+func (_c *LiveOpsEventCreate) SetNillableRollout(v *int) *LiveOpsEventCreate {
 	if v != nil {
 		_c.SetRollout(*v)
 	}
@@ -171,13 +150,13 @@ func (_c *CampaignCreate) SetNillableRollout(v *int) *CampaignCreate {
 }
 
 // SetSalt sets the "salt" field.
-func (_c *CampaignCreate) SetSalt(v string) *CampaignCreate {
+func (_c *LiveOpsEventCreate) SetSalt(v string) *LiveOpsEventCreate {
 	_c.mutation.SetSalt(v)
 	return _c
 }
 
 // SetNillableSalt sets the "salt" field if the given value is not nil.
-func (_c *CampaignCreate) SetNillableSalt(v *string) *CampaignCreate {
+func (_c *LiveOpsEventCreate) SetNillableSalt(v *string) *LiveOpsEventCreate {
 	if v != nil {
 		_c.SetSalt(*v)
 	}
@@ -185,29 +164,29 @@ func (_c *CampaignCreate) SetNillableSalt(v *string) *CampaignCreate {
 }
 
 // SetID sets the "id" field.
-func (_c *CampaignCreate) SetID(v int) *CampaignCreate {
+func (_c *LiveOpsEventCreate) SetID(v int) *LiveOpsEventCreate {
 	_c.mutation.SetID(v)
 	return _c
 }
 
 // SetProject sets the "project" edge to the Project entity.
-func (_c *CampaignCreate) SetProject(v *Project) *CampaignCreate {
+func (_c *LiveOpsEventCreate) SetProject(v *Project) *LiveOpsEventCreate {
 	return _c.SetProjectID(v.ID)
 }
 
-// Mutation returns the CampaignMutation object of the builder.
-func (_c *CampaignCreate) Mutation() *CampaignMutation {
+// Mutation returns the LiveOpsEventMutation object of the builder.
+func (_c *LiveOpsEventCreate) Mutation() *LiveOpsEventMutation {
 	return _c.mutation
 }
 
-// Save creates the Campaign in the database.
-func (_c *CampaignCreate) Save(ctx context.Context) (*Campaign, error) {
+// Save creates the LiveOpsEvent in the database.
+func (_c *LiveOpsEventCreate) Save(ctx context.Context) (*LiveOpsEvent, error) {
 	_c.defaults()
 	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
 }
 
 // SaveX calls Save and panics if Save returns an error.
-func (_c *CampaignCreate) SaveX(ctx context.Context) *Campaign {
+func (_c *LiveOpsEventCreate) SaveX(ctx context.Context) *LiveOpsEvent {
 	v, err := _c.Save(ctx)
 	if err != nil {
 		panic(err)
@@ -216,132 +195,140 @@ func (_c *CampaignCreate) SaveX(ctx context.Context) *Campaign {
 }
 
 // Exec executes the query.
-func (_c *CampaignCreate) Exec(ctx context.Context) error {
+func (_c *LiveOpsEventCreate) Exec(ctx context.Context) error {
 	_, err := _c.Save(ctx)
 	return err
 }
 
 // ExecX is like Exec, but panics if an error occurs.
-func (_c *CampaignCreate) ExecX(ctx context.Context) {
+func (_c *LiveOpsEventCreate) ExecX(ctx context.Context) {
 	if err := _c.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
 // defaults sets the default values of the builder before save.
-func (_c *CampaignCreate) defaults() {
+func (_c *LiveOpsEventCreate) defaults() {
 	if _, ok := _c.mutation.UID(); !ok {
-		v := campaign.DefaultUID()
+		v := liveopsevent.DefaultUID()
 		_c.mutation.SetUID(v)
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
-		v := campaign.DefaultCreatedAt()
+		v := liveopsevent.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
 	}
 	if _, ok := _c.mutation.UpdatedAt(); !ok {
-		v := campaign.DefaultUpdatedAt()
+		v := liveopsevent.DefaultUpdatedAt()
 		_c.mutation.SetUpdatedAt(v)
 	}
 	if _, ok := _c.mutation.Status(); !ok {
-		v := campaign.DefaultStatus
+		v := liveopsevent.DefaultStatus
 		_c.mutation.SetStatus(v)
 	}
 	if _, ok := _c.mutation.Priority(); !ok {
-		v := campaign.DefaultPriority
+		v := liveopsevent.DefaultPriority
 		_c.mutation.SetPriority(v)
 	}
 	if _, ok := _c.mutation.Audience(); !ok {
-		v := campaign.DefaultAudience
+		v := liveopsevent.DefaultAudience
 		_c.mutation.SetAudience(v)
 	}
 	if _, ok := _c.mutation.Rollout(); !ok {
-		v := campaign.DefaultRollout
+		v := liveopsevent.DefaultRollout
 		_c.mutation.SetRollout(v)
 	}
 	if _, ok := _c.mutation.Salt(); !ok {
-		v := campaign.DefaultSalt
+		v := liveopsevent.DefaultSalt
 		_c.mutation.SetSalt(v)
 	}
 }
 
 // check runs all checks and user-defined validators on the builder.
-func (_c *CampaignCreate) check() error {
+func (_c *LiveOpsEventCreate) check() error {
 	if _, ok := _c.mutation.UID(); !ok {
-		return &ValidationError{Name: "uid", err: errors.New(`global: missing required field "Campaign.uid"`)}
+		return &ValidationError{Name: "uid", err: errors.New(`global: missing required field "LiveOpsEvent.uid"`)}
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
-		return &ValidationError{Name: "created_at", err: errors.New(`global: missing required field "Campaign.created_at"`)}
+		return &ValidationError{Name: "created_at", err: errors.New(`global: missing required field "LiveOpsEvent.created_at"`)}
 	}
 	if _, ok := _c.mutation.UpdatedAt(); !ok {
-		return &ValidationError{Name: "updated_at", err: errors.New(`global: missing required field "Campaign.updated_at"`)}
+		return &ValidationError{Name: "updated_at", err: errors.New(`global: missing required field "LiveOpsEvent.updated_at"`)}
 	}
 	if _, ok := _c.mutation.ProjectID(); !ok {
-		return &ValidationError{Name: "project_id", err: errors.New(`global: missing required field "Campaign.project_id"`)}
+		return &ValidationError{Name: "project_id", err: errors.New(`global: missing required field "LiveOpsEvent.project_id"`)}
 	}
 	if _, ok := _c.mutation.Key(); !ok {
-		return &ValidationError{Name: "key", err: errors.New(`global: missing required field "Campaign.key"`)}
+		return &ValidationError{Name: "key", err: errors.New(`global: missing required field "LiveOpsEvent.key"`)}
 	}
 	if v, ok := _c.mutation.Key(); ok {
-		if err := campaign.KeyValidator(v); err != nil {
-			return &ValidationError{Name: "key", err: fmt.Errorf(`global: validator failed for field "Campaign.key": %w`, err)}
+		if err := liveopsevent.KeyValidator(v); err != nil {
+			return &ValidationError{Name: "key", err: fmt.Errorf(`global: validator failed for field "LiveOpsEvent.key": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.Kind(); !ok {
-		return &ValidationError{Name: "kind", err: errors.New(`global: missing required field "Campaign.kind"`)}
+		return &ValidationError{Name: "kind", err: errors.New(`global: missing required field "LiveOpsEvent.kind"`)}
 	}
 	if v, ok := _c.mutation.Kind(); ok {
-		if err := campaign.KindValidator(v); err != nil {
-			return &ValidationError{Name: "kind", err: fmt.Errorf(`global: validator failed for field "Campaign.kind": %w`, err)}
+		if err := liveopsevent.KindValidator(v); err != nil {
+			return &ValidationError{Name: "kind", err: fmt.Errorf(`global: validator failed for field "LiveOpsEvent.kind": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.Name(); !ok {
-		return &ValidationError{Name: "name", err: errors.New(`global: missing required field "Campaign.name"`)}
+		return &ValidationError{Name: "name", err: errors.New(`global: missing required field "LiveOpsEvent.name"`)}
 	}
 	if v, ok := _c.mutation.Name(); ok {
-		if err := campaign.NameValidator(v); err != nil {
-			return &ValidationError{Name: "name", err: fmt.Errorf(`global: validator failed for field "Campaign.name": %w`, err)}
+		if err := liveopsevent.NameValidator(v); err != nil {
+			return &ValidationError{Name: "name", err: fmt.Errorf(`global: validator failed for field "LiveOpsEvent.name": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.Status(); !ok {
-		return &ValidationError{Name: "status", err: errors.New(`global: missing required field "Campaign.status"`)}
+		return &ValidationError{Name: "status", err: errors.New(`global: missing required field "LiveOpsEvent.status"`)}
 	}
 	if v, ok := _c.mutation.Status(); ok {
-		if err := campaign.StatusValidator(v); err != nil {
-			return &ValidationError{Name: "status", err: fmt.Errorf(`global: validator failed for field "Campaign.status": %w`, err)}
+		if err := liveopsevent.StatusValidator(v); err != nil {
+			return &ValidationError{Name: "status", err: fmt.Errorf(`global: validator failed for field "LiveOpsEvent.status": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.Schedule(); !ok {
+		return &ValidationError{Name: "schedule", err: errors.New(`global: missing required field "LiveOpsEvent.schedule"`)}
+	}
+	if v, ok := _c.mutation.Schedule(); ok {
+		if err := v.Validate(); err != nil {
+			return &ValidationError{Name: "schedule", err: fmt.Errorf(`global: validator failed for field "LiveOpsEvent.schedule": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.Priority(); !ok {
-		return &ValidationError{Name: "priority", err: errors.New(`global: missing required field "Campaign.priority"`)}
+		return &ValidationError{Name: "priority", err: errors.New(`global: missing required field "LiveOpsEvent.priority"`)}
 	}
 	if _, ok := _c.mutation.Audience(); !ok {
-		return &ValidationError{Name: "audience", err: errors.New(`global: missing required field "Campaign.audience"`)}
+		return &ValidationError{Name: "audience", err: errors.New(`global: missing required field "LiveOpsEvent.audience"`)}
 	}
 	if _, ok := _c.mutation.Payload(); !ok {
-		return &ValidationError{Name: "payload", err: errors.New(`global: missing required field "Campaign.payload"`)}
+		return &ValidationError{Name: "payload", err: errors.New(`global: missing required field "LiveOpsEvent.payload"`)}
 	}
 	if _, ok := _c.mutation.Rollout(); !ok {
-		return &ValidationError{Name: "rollout", err: errors.New(`global: missing required field "Campaign.rollout"`)}
+		return &ValidationError{Name: "rollout", err: errors.New(`global: missing required field "LiveOpsEvent.rollout"`)}
 	}
 	if v, ok := _c.mutation.Rollout(); ok {
-		if err := campaign.RolloutValidator(v); err != nil {
-			return &ValidationError{Name: "rollout", err: fmt.Errorf(`global: validator failed for field "Campaign.rollout": %w`, err)}
+		if err := liveopsevent.RolloutValidator(v); err != nil {
+			return &ValidationError{Name: "rollout", err: fmt.Errorf(`global: validator failed for field "LiveOpsEvent.rollout": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.Salt(); !ok {
-		return &ValidationError{Name: "salt", err: errors.New(`global: missing required field "Campaign.salt"`)}
+		return &ValidationError{Name: "salt", err: errors.New(`global: missing required field "LiveOpsEvent.salt"`)}
 	}
 	if v, ok := _c.mutation.Salt(); ok {
-		if err := campaign.SaltValidator(v); err != nil {
-			return &ValidationError{Name: "salt", err: fmt.Errorf(`global: validator failed for field "Campaign.salt": %w`, err)}
+		if err := liveopsevent.SaltValidator(v); err != nil {
+			return &ValidationError{Name: "salt", err: fmt.Errorf(`global: validator failed for field "LiveOpsEvent.salt": %w`, err)}
 		}
 	}
 	if len(_c.mutation.ProjectIDs()) == 0 {
-		return &ValidationError{Name: "project", err: errors.New(`global: missing required edge "Campaign.project"`)}
+		return &ValidationError{Name: "project", err: errors.New(`global: missing required edge "LiveOpsEvent.project"`)}
 	}
 	return nil
 }
 
-func (_c *CampaignCreate) sqlSave(ctx context.Context) (*Campaign, error) {
+func (_c *LiveOpsEventCreate) sqlSave(ctx context.Context) (*LiveOpsEvent, error) {
 	if err := _c.check(); err != nil {
 		return nil, err
 	}
@@ -361,77 +348,73 @@ func (_c *CampaignCreate) sqlSave(ctx context.Context) (*Campaign, error) {
 	return _node, nil
 }
 
-func (_c *CampaignCreate) createSpec() (*Campaign, *sqlgraph.CreateSpec) {
+func (_c *LiveOpsEventCreate) createSpec() (*LiveOpsEvent, *sqlgraph.CreateSpec) {
 	var (
-		_node = &Campaign{config: _c.config}
-		_spec = sqlgraph.NewCreateSpec(campaign.Table, sqlgraph.NewFieldSpec(campaign.FieldID, field.TypeInt))
+		_node = &LiveOpsEvent{config: _c.config}
+		_spec = sqlgraph.NewCreateSpec(liveopsevent.Table, sqlgraph.NewFieldSpec(liveopsevent.FieldID, field.TypeInt))
 	)
 	if id, ok := _c.mutation.ID(); ok {
 		_node.ID = id
 		_spec.ID.Value = id
 	}
 	if value, ok := _c.mutation.UID(); ok {
-		_spec.SetField(campaign.FieldUID, field.TypeUUID, value)
+		_spec.SetField(liveopsevent.FieldUID, field.TypeUUID, value)
 		_node.UID = value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
-		_spec.SetField(campaign.FieldCreatedAt, field.TypeTime, value)
+		_spec.SetField(liveopsevent.FieldCreatedAt, field.TypeTime, value)
 		_node.CreatedAt = value
 	}
 	if value, ok := _c.mutation.UpdatedAt(); ok {
-		_spec.SetField(campaign.FieldUpdatedAt, field.TypeTime, value)
+		_spec.SetField(liveopsevent.FieldUpdatedAt, field.TypeTime, value)
 		_node.UpdatedAt = value
 	}
 	if value, ok := _c.mutation.Key(); ok {
-		_spec.SetField(campaign.FieldKey, field.TypeString, value)
+		_spec.SetField(liveopsevent.FieldKey, field.TypeString, value)
 		_node.Key = value
 	}
 	if value, ok := _c.mutation.Kind(); ok {
-		_spec.SetField(campaign.FieldKind, field.TypeString, value)
+		_spec.SetField(liveopsevent.FieldKind, field.TypeString, value)
 		_node.Kind = value
 	}
 	if value, ok := _c.mutation.Name(); ok {
-		_spec.SetField(campaign.FieldName, field.TypeString, value)
+		_spec.SetField(liveopsevent.FieldName, field.TypeString, value)
 		_node.Name = value
 	}
 	if value, ok := _c.mutation.Status(); ok {
-		_spec.SetField(campaign.FieldStatus, field.TypeEnum, value)
+		_spec.SetField(liveopsevent.FieldStatus, field.TypeEnum, value)
 		_node.Status = value
 	}
-	if value, ok := _c.mutation.StartsAt(); ok {
-		_spec.SetField(campaign.FieldStartsAt, field.TypeTime, value)
-		_node.StartsAt = &value
-	}
-	if value, ok := _c.mutation.EndsAt(); ok {
-		_spec.SetField(campaign.FieldEndsAt, field.TypeTime, value)
-		_node.EndsAt = &value
+	if value, ok := _c.mutation.Schedule(); ok {
+		_spec.SetField(liveopsevent.FieldSchedule, field.TypeJSON, value)
+		_node.Schedule = value
 	}
 	if value, ok := _c.mutation.Priority(); ok {
-		_spec.SetField(campaign.FieldPriority, field.TypeInt, value)
+		_spec.SetField(liveopsevent.FieldPriority, field.TypeInt, value)
 		_node.Priority = value
 	}
 	if value, ok := _c.mutation.Audience(); ok {
-		_spec.SetField(campaign.FieldAudience, field.TypeJSON, value)
+		_spec.SetField(liveopsevent.FieldAudience, field.TypeJSON, value)
 		_node.Audience = value
 	}
 	if value, ok := _c.mutation.Payload(); ok {
-		_spec.SetField(campaign.FieldPayload, field.TypeJSON, value)
+		_spec.SetField(liveopsevent.FieldPayload, field.TypeJSON, value)
 		_node.Payload = value
 	}
 	if value, ok := _c.mutation.Rollout(); ok {
-		_spec.SetField(campaign.FieldRollout, field.TypeInt, value)
+		_spec.SetField(liveopsevent.FieldRollout, field.TypeInt, value)
 		_node.Rollout = value
 	}
 	if value, ok := _c.mutation.Salt(); ok {
-		_spec.SetField(campaign.FieldSalt, field.TypeString, value)
+		_spec.SetField(liveopsevent.FieldSalt, field.TypeString, value)
 		_node.Salt = value
 	}
 	if nodes := _c.mutation.ProjectIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: true,
-			Table:   campaign.ProjectTable,
-			Columns: []string{campaign.ProjectColumn},
+			Table:   liveopsevent.ProjectTable,
+			Columns: []string{liveopsevent.ProjectColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(project.FieldID, field.TypeInt),
@@ -446,27 +429,27 @@ func (_c *CampaignCreate) createSpec() (*Campaign, *sqlgraph.CreateSpec) {
 	return _node, _spec
 }
 
-// CampaignCreateBulk is the builder for creating many Campaign entities in bulk.
-type CampaignCreateBulk struct {
+// LiveOpsEventCreateBulk is the builder for creating many LiveOpsEvent entities in bulk.
+type LiveOpsEventCreateBulk struct {
 	config
 	err      error
-	builders []*CampaignCreate
+	builders []*LiveOpsEventCreate
 }
 
-// Save creates the Campaign entities in the database.
-func (_c *CampaignCreateBulk) Save(ctx context.Context) ([]*Campaign, error) {
+// Save creates the LiveOpsEvent entities in the database.
+func (_c *LiveOpsEventCreateBulk) Save(ctx context.Context) ([]*LiveOpsEvent, error) {
 	if _c.err != nil {
 		return nil, _c.err
 	}
 	specs := make([]*sqlgraph.CreateSpec, len(_c.builders))
-	nodes := make([]*Campaign, len(_c.builders))
+	nodes := make([]*LiveOpsEvent, len(_c.builders))
 	mutators := make([]Mutator, len(_c.builders))
 	for i := range _c.builders {
 		func(i int, root context.Context) {
 			builder := _c.builders[i]
 			builder.defaults()
 			var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-				mutation, ok := m.(*CampaignMutation)
+				mutation, ok := m.(*LiveOpsEventMutation)
 				if !ok {
 					return nil, fmt.Errorf("unexpected mutation type %T", m)
 				}
@@ -513,7 +496,7 @@ func (_c *CampaignCreateBulk) Save(ctx context.Context) ([]*Campaign, error) {
 }
 
 // SaveX is like Save, but panics if an error occurs.
-func (_c *CampaignCreateBulk) SaveX(ctx context.Context) []*Campaign {
+func (_c *LiveOpsEventCreateBulk) SaveX(ctx context.Context) []*LiveOpsEvent {
 	v, err := _c.Save(ctx)
 	if err != nil {
 		panic(err)
@@ -522,13 +505,13 @@ func (_c *CampaignCreateBulk) SaveX(ctx context.Context) []*Campaign {
 }
 
 // Exec executes the query.
-func (_c *CampaignCreateBulk) Exec(ctx context.Context) error {
+func (_c *LiveOpsEventCreateBulk) Exec(ctx context.Context) error {
 	_, err := _c.Save(ctx)
 	return err
 }
 
 // ExecX is like Exec, but panics if an error occurs.
-func (_c *CampaignCreateBulk) ExecX(ctx context.Context) {
+func (_c *LiveOpsEventCreateBulk) ExecX(ctx context.Context) {
 	if err := _c.Exec(ctx); err != nil {
 		panic(err)
 	}

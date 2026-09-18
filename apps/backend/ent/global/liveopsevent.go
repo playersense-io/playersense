@@ -11,12 +11,13 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
-	"playersense.dev/backend/ent/global/campaign"
+	"playersense.dev/backend/ent/global/liveopsevent"
 	"playersense.dev/backend/ent/global/project"
+	"playersense.dev/backend/internal/liveops"
 )
 
-// Campaign is the model entity for the Campaign schema.
-type Campaign struct {
+// LiveOpsEvent is the model entity for the LiveOpsEvent schema.
+type LiveOpsEvent struct {
 	config `json:"-"`
 	// ID of the ent.
 	// class=none
@@ -36,11 +37,9 @@ type Campaign struct {
 	// class=none
 	Name string `json:"name,omitempty"`
 	// class=none
-	Status campaign.Status `json:"status,omitempty"`
+	Status liveopsevent.Status `json:"status,omitempty"`
 	// class=none
-	StartsAt *time.Time `json:"starts_at,omitempty"`
-	// class=none
-	EndsAt *time.Time `json:"ends_at,omitempty"`
+	Schedule liveops.Schedule `json:"schedule,omitempty"`
 	// class=none
 	Priority int `json:"priority,omitempty"`
 	// class=none
@@ -52,13 +51,13 @@ type Campaign struct {
 	// class=none
 	Salt string `json:"salt,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
-	// The values are being populated by the CampaignQuery when eager-loading is set.
-	Edges        CampaignEdges `json:"edges"`
+	// The values are being populated by the LiveOpsEventQuery when eager-loading is set.
+	Edges        LiveOpsEventEdges `json:"edges"`
 	selectValues sql.SelectValues
 }
 
-// CampaignEdges holds the relations/edges for other nodes in the graph.
-type CampaignEdges struct {
+// LiveOpsEventEdges holds the relations/edges for other nodes in the graph.
+type LiveOpsEventEdges struct {
 	// Project holds the value of the project edge.
 	Project *Project `json:"project,omitempty"`
 	// loadedTypes holds the information for reporting if a
@@ -68,7 +67,7 @@ type CampaignEdges struct {
 
 // ProjectOrErr returns the Project value or an error if the edge
 // was not loaded in eager-loading, or loaded but was not found.
-func (e CampaignEdges) ProjectOrErr() (*Project, error) {
+func (e LiveOpsEventEdges) ProjectOrErr() (*Project, error) {
 	if e.Project != nil {
 		return e.Project, nil
 	} else if e.loadedTypes[0] {
@@ -78,19 +77,19 @@ func (e CampaignEdges) ProjectOrErr() (*Project, error) {
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
-func (*Campaign) scanValues(columns []string) ([]any, error) {
+func (*LiveOpsEvent) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case campaign.FieldAudience, campaign.FieldPayload:
+		case liveopsevent.FieldSchedule, liveopsevent.FieldAudience, liveopsevent.FieldPayload:
 			values[i] = new([]byte)
-		case campaign.FieldID, campaign.FieldProjectID, campaign.FieldPriority, campaign.FieldRollout:
+		case liveopsevent.FieldID, liveopsevent.FieldProjectID, liveopsevent.FieldPriority, liveopsevent.FieldRollout:
 			values[i] = new(sql.NullInt64)
-		case campaign.FieldKey, campaign.FieldKind, campaign.FieldName, campaign.FieldStatus, campaign.FieldSalt:
+		case liveopsevent.FieldKey, liveopsevent.FieldKind, liveopsevent.FieldName, liveopsevent.FieldStatus, liveopsevent.FieldSalt:
 			values[i] = new(sql.NullString)
-		case campaign.FieldCreatedAt, campaign.FieldUpdatedAt, campaign.FieldStartsAt, campaign.FieldEndsAt:
+		case liveopsevent.FieldCreatedAt, liveopsevent.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
-		case campaign.FieldUID:
+		case liveopsevent.FieldUID:
 			values[i] = new(uuid.UUID)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -100,88 +99,82 @@ func (*Campaign) scanValues(columns []string) ([]any, error) {
 }
 
 // assignValues assigns the values that were returned from sql.Rows (after scanning)
-// to the Campaign fields.
-func (_m *Campaign) assignValues(columns []string, values []any) error {
+// to the LiveOpsEvent fields.
+func (_m *LiveOpsEvent) assignValues(columns []string, values []any) error {
 	if m, n := len(values), len(columns); m < n {
 		return fmt.Errorf("mismatch number of scan values: %d != %d", m, n)
 	}
 	for i := range columns {
 		switch columns[i] {
-		case campaign.FieldID:
+		case liveopsevent.FieldID:
 			value, ok := values[i].(*sql.NullInt64)
 			if !ok {
 				return fmt.Errorf("unexpected type %T for field id", value)
 			}
 			_m.ID = int(value.Int64)
-		case campaign.FieldUID:
+		case liveopsevent.FieldUID:
 			if value, ok := values[i].(*uuid.UUID); !ok {
 				return fmt.Errorf("unexpected type %T for field uid", values[i])
 			} else if value != nil {
 				_m.UID = *value
 			}
-		case campaign.FieldCreatedAt:
+		case liveopsevent.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field created_at", values[i])
 			} else if value.Valid {
 				_m.CreatedAt = value.Time
 			}
-		case campaign.FieldUpdatedAt:
+		case liveopsevent.FieldUpdatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field updated_at", values[i])
 			} else if value.Valid {
 				_m.UpdatedAt = value.Time
 			}
-		case campaign.FieldProjectID:
+		case liveopsevent.FieldProjectID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
 				return fmt.Errorf("unexpected type %T for field project_id", values[i])
 			} else if value.Valid {
 				_m.ProjectID = int(value.Int64)
 			}
-		case campaign.FieldKey:
+		case liveopsevent.FieldKey:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field key", values[i])
 			} else if value.Valid {
 				_m.Key = value.String
 			}
-		case campaign.FieldKind:
+		case liveopsevent.FieldKind:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field kind", values[i])
 			} else if value.Valid {
 				_m.Kind = value.String
 			}
-		case campaign.FieldName:
+		case liveopsevent.FieldName:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field name", values[i])
 			} else if value.Valid {
 				_m.Name = value.String
 			}
-		case campaign.FieldStatus:
+		case liveopsevent.FieldStatus:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field status", values[i])
 			} else if value.Valid {
-				_m.Status = campaign.Status(value.String)
+				_m.Status = liveopsevent.Status(value.String)
 			}
-		case campaign.FieldStartsAt:
-			if value, ok := values[i].(*sql.NullTime); !ok {
-				return fmt.Errorf("unexpected type %T for field starts_at", values[i])
-			} else if value.Valid {
-				_m.StartsAt = new(time.Time)
-				*_m.StartsAt = value.Time
+		case liveopsevent.FieldSchedule:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field schedule", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.Schedule); err != nil {
+					return fmt.Errorf("unmarshal field schedule: %w", err)
+				}
 			}
-		case campaign.FieldEndsAt:
-			if value, ok := values[i].(*sql.NullTime); !ok {
-				return fmt.Errorf("unexpected type %T for field ends_at", values[i])
-			} else if value.Valid {
-				_m.EndsAt = new(time.Time)
-				*_m.EndsAt = value.Time
-			}
-		case campaign.FieldPriority:
+		case liveopsevent.FieldPriority:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
 				return fmt.Errorf("unexpected type %T for field priority", values[i])
 			} else if value.Valid {
 				_m.Priority = int(value.Int64)
 			}
-		case campaign.FieldAudience:
+		case liveopsevent.FieldAudience:
 			if value, ok := values[i].(*[]byte); !ok {
 				return fmt.Errorf("unexpected type %T for field audience", values[i])
 			} else if value != nil && len(*value) > 0 {
@@ -189,7 +182,7 @@ func (_m *Campaign) assignValues(columns []string, values []any) error {
 					return fmt.Errorf("unmarshal field audience: %w", err)
 				}
 			}
-		case campaign.FieldPayload:
+		case liveopsevent.FieldPayload:
 			if value, ok := values[i].(*[]byte); !ok {
 				return fmt.Errorf("unexpected type %T for field payload", values[i])
 			} else if value != nil && len(*value) > 0 {
@@ -197,13 +190,13 @@ func (_m *Campaign) assignValues(columns []string, values []any) error {
 					return fmt.Errorf("unmarshal field payload: %w", err)
 				}
 			}
-		case campaign.FieldRollout:
+		case liveopsevent.FieldRollout:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
 				return fmt.Errorf("unexpected type %T for field rollout", values[i])
 			} else if value.Valid {
 				_m.Rollout = int(value.Int64)
 			}
-		case campaign.FieldSalt:
+		case liveopsevent.FieldSalt:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field salt", values[i])
 			} else if value.Valid {
@@ -216,39 +209,39 @@ func (_m *Campaign) assignValues(columns []string, values []any) error {
 	return nil
 }
 
-// Value returns the ent.Value that was dynamically selected and assigned to the Campaign.
+// Value returns the ent.Value that was dynamically selected and assigned to the LiveOpsEvent.
 // This includes values selected through modifiers, order, etc.
-func (_m *Campaign) Value(name string) (ent.Value, error) {
+func (_m *LiveOpsEvent) Value(name string) (ent.Value, error) {
 	return _m.selectValues.Get(name)
 }
 
-// QueryProject queries the "project" edge of the Campaign entity.
-func (_m *Campaign) QueryProject() *ProjectQuery {
-	return NewCampaignClient(_m.config).QueryProject(_m)
+// QueryProject queries the "project" edge of the LiveOpsEvent entity.
+func (_m *LiveOpsEvent) QueryProject() *ProjectQuery {
+	return NewLiveOpsEventClient(_m.config).QueryProject(_m)
 }
 
-// Update returns a builder for updating this Campaign.
-// Note that you need to call Campaign.Unwrap() before calling this method if this Campaign
+// Update returns a builder for updating this LiveOpsEvent.
+// Note that you need to call LiveOpsEvent.Unwrap() before calling this method if this LiveOpsEvent
 // was returned from a transaction, and the transaction was committed or rolled back.
-func (_m *Campaign) Update() *CampaignUpdateOne {
-	return NewCampaignClient(_m.config).UpdateOne(_m)
+func (_m *LiveOpsEvent) Update() *LiveOpsEventUpdateOne {
+	return NewLiveOpsEventClient(_m.config).UpdateOne(_m)
 }
 
-// Unwrap unwraps the Campaign entity that was returned from a transaction after it was closed,
+// Unwrap unwraps the LiveOpsEvent entity that was returned from a transaction after it was closed,
 // so that all future queries will be executed through the driver which created the transaction.
-func (_m *Campaign) Unwrap() *Campaign {
+func (_m *LiveOpsEvent) Unwrap() *LiveOpsEvent {
 	_tx, ok := _m.config.driver.(*txDriver)
 	if !ok {
-		panic("global: Campaign is not a transactional entity")
+		panic("global: LiveOpsEvent is not a transactional entity")
 	}
 	_m.config.driver = _tx.drv
 	return _m
 }
 
 // String implements the fmt.Stringer.
-func (_m *Campaign) String() string {
+func (_m *LiveOpsEvent) String() string {
 	var builder strings.Builder
-	builder.WriteString("Campaign(")
+	builder.WriteString("LiveOpsEvent(")
 	builder.WriteString(fmt.Sprintf("id=%v, ", _m.ID))
 	builder.WriteString("uid=")
 	builder.WriteString(fmt.Sprintf("%v", _m.UID))
@@ -274,15 +267,8 @@ func (_m *Campaign) String() string {
 	builder.WriteString("status=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Status))
 	builder.WriteString(", ")
-	if v := _m.StartsAt; v != nil {
-		builder.WriteString("starts_at=")
-		builder.WriteString(v.Format(time.ANSIC))
-	}
-	builder.WriteString(", ")
-	if v := _m.EndsAt; v != nil {
-		builder.WriteString("ends_at=")
-		builder.WriteString(v.Format(time.ANSIC))
-	}
+	builder.WriteString("schedule=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Schedule))
 	builder.WriteString(", ")
 	builder.WriteString("priority=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Priority))
@@ -302,5 +288,5 @@ func (_m *Campaign) String() string {
 	return builder.String()
 }
 
-// Campaigns is a parsable slice of Campaign.
-type Campaigns []*Campaign
+// LiveOpsEvents is a parsable slice of LiveOpsEvent.
+type LiveOpsEvents []*LiveOpsEvent

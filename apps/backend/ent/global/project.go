@@ -57,8 +57,8 @@ type ProjectEdges struct {
 	Segments []*Segment `json:"segments,omitempty"`
 	// FeatureFlags holds the value of the feature_flags edge.
 	FeatureFlags []*FeatureFlag `json:"feature_flags,omitempty"`
-	// Campaigns holds the value of the campaigns edge.
-	Campaigns []*Campaign `json:"campaigns,omitempty"`
+	// LiveopsEvents holds the value of the liveops_events edge.
+	LiveopsEvents []*LiveOpsEvent `json:"liveops_events,omitempty"`
 	// ConfigVersions holds the value of the config_versions edge.
 	ConfigVersions []*ConfigVersion `json:"config_versions,omitempty"`
 	// loadedTypes holds the information for reporting if a
@@ -115,13 +115,13 @@ func (e ProjectEdges) FeatureFlagsOrErr() ([]*FeatureFlag, error) {
 	return nil, &NotLoadedError{edge: "feature_flags"}
 }
 
-// CampaignsOrErr returns the Campaigns value or an error if the edge
+// LiveopsEventsOrErr returns the LiveopsEvents value or an error if the edge
 // was not loaded in eager-loading.
-func (e ProjectEdges) CampaignsOrErr() ([]*Campaign, error) {
+func (e ProjectEdges) LiveopsEventsOrErr() ([]*LiveOpsEvent, error) {
 	if e.loadedTypes[5] {
-		return e.Campaigns, nil
+		return e.LiveopsEvents, nil
 	}
-	return nil, &NotLoadedError{edge: "campaigns"}
+	return nil, &NotLoadedError{edge: "liveops_events"}
 }
 
 // ConfigVersionsOrErr returns the ConfigVersions value or an error if the edge
@@ -259,9 +259,9 @@ func (_m *Project) QueryFeatureFlags() *FeatureFlagQuery {
 	return NewProjectClient(_m.config).QueryFeatureFlags(_m)
 }
 
-// QueryCampaigns queries the "campaigns" edge of the Project entity.
-func (_m *Project) QueryCampaigns() *CampaignQuery {
-	return NewProjectClient(_m.config).QueryCampaigns(_m)
+// QueryLiveopsEvents queries the "liveops_events" edge of the Project entity.
+func (_m *Project) QueryLiveopsEvents() *LiveOpsEventQuery {
+	return NewProjectClient(_m.config).QueryLiveopsEvents(_m)
 }
 
 // QueryConfigVersions queries the "config_versions" edge of the Project entity.

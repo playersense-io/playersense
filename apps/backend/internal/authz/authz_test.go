@@ -152,7 +152,7 @@ func TestOnlyTheSystemRolesManageRoles(t *testing.T) {
 }
 
 // The vocabulary is closed. A typo is refused when the role is saved, so somebody sees it
-// while looking at the role that caused it — not as a campaign that reaches nobody.
+// while looking at the role that caused it — not as an event that reaches nobody.
 func TestAnUnknownPermissionIsRefusedWhenSaved(t *testing.T) {
 	err := authz.Validate([]authz.Permission{authz.LiveOpsRead, "liveops.publsh"})
 	if err == nil {

@@ -1,4 +1,4 @@
-// Package targeting decides which players a flag or a campaign applies to.
+// Package targeting decides which players a flag or a LiveOps event applies to.
 //
 // A rule is a boolean expression over the context a player arrives with (§41, §45). It is
 // data, not code: there is no expression language to parse, no user-supplied function to
@@ -11,10 +11,10 @@
 //     eligible, never how to become eligible (ADR 0027). A rule that reached a modified
 //     build would be a rule that build could satisfy.
 //   - **An unknown key is false, not an error.** A studio that renames a context key should
-//     see a campaign stop matching, not a 500 for every player in the game.
+//     see an event stop matching, not a 500 for every player in the game.
 //   - **Nothing here panics.** A malformed rule is refused when it is written, and an
 //     unexpected type at evaluation time is a false rather than a crash — a bad rule must
-//     cost one campaign, not the config endpoint.
+//     cost one event, not the config endpoint.
 package targeting
 
 import (
@@ -65,7 +65,7 @@ const (
 // Rule is one node: a group (All/Any/Not) or a leaf condition.
 //
 // Exactly one shape is populated. A node with none is an empty rule, which matches
-// everybody — that is what "no audience" means for a campaign, and it is deliberate rather
+// everybody — that is what "no audience" means for an event, and it is deliberate rather
 // than a degenerate case to reject.
 type Rule struct {
 	All []Rule `json:"all,omitempty"`
@@ -94,7 +94,7 @@ type Rule struct {
 // Empty reports whether this rule constrains nothing, and therefore matches everyone.
 //
 // Every field, not just the key: `{"op":"eq","value":1}` has no key but is plainly a
-// condition somebody meant to write, and calling it empty would turn a typo into a campaign
+// condition somebody meant to write, and calling it empty would turn a typo into an event
 // for the entire game. The only empty rule is the one with nothing in it at all.
 func (r Rule) Empty() bool {
 	return len(r.All) == 0 && len(r.Any) == 0 && r.Not == nil && r.Segment == "" &&
@@ -104,7 +104,7 @@ func (r Rule) Empty() bool {
 // Validate checks a rule when it is written.
 //
 // The whole point of validating at write time is that a studio sees "unknown operator
-// 'greater'" in the dashboard while they are looking at the rule, rather than a campaign
+// 'greater'" in the dashboard while they are looking at the rule, rather than an event
 // that reaches nobody and gives no reason.
 func (r Rule) Validate() error {
 	conditions := 0
@@ -171,7 +171,7 @@ func (r Rule) validateCondition() error {
 		return fmt.Errorf("a condition needs a key")
 	}
 	// Refused rather than accepted-and-never-matched. A key with no column behind it would
-	// make a campaign reach nobody and give no reason, which is the failure mode this
+	// make an event reach nobody and give no reason, which is the failure mode this
 	// repository keeps finding in its own work.
 	if why, missing := Unavailable[r.Key]; missing {
 		return fmt.Errorf("%q is not available yet: %s", r.Key, why)

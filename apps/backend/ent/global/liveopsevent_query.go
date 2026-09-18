@@ -11,57 +11,57 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"playersense.dev/backend/ent/global/campaign"
+	"playersense.dev/backend/ent/global/liveopsevent"
 	"playersense.dev/backend/ent/global/predicate"
 	"playersense.dev/backend/ent/global/project"
 )
 
-// CampaignQuery is the builder for querying Campaign entities.
-type CampaignQuery struct {
+// LiveOpsEventQuery is the builder for querying LiveOpsEvent entities.
+type LiveOpsEventQuery struct {
 	config
 	ctx         *QueryContext
-	order       []campaign.OrderOption
+	order       []liveopsevent.OrderOption
 	inters      []Interceptor
-	predicates  []predicate.Campaign
+	predicates  []predicate.LiveOpsEvent
 	withProject *ProjectQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
 }
 
-// Where adds a new predicate for the CampaignQuery builder.
-func (_q *CampaignQuery) Where(ps ...predicate.Campaign) *CampaignQuery {
+// Where adds a new predicate for the LiveOpsEventQuery builder.
+func (_q *LiveOpsEventQuery) Where(ps ...predicate.LiveOpsEvent) *LiveOpsEventQuery {
 	_q.predicates = append(_q.predicates, ps...)
 	return _q
 }
 
 // Limit the number of records to be returned by this query.
-func (_q *CampaignQuery) Limit(limit int) *CampaignQuery {
+func (_q *LiveOpsEventQuery) Limit(limit int) *LiveOpsEventQuery {
 	_q.ctx.Limit = &limit
 	return _q
 }
 
 // Offset to start from.
-func (_q *CampaignQuery) Offset(offset int) *CampaignQuery {
+func (_q *LiveOpsEventQuery) Offset(offset int) *LiveOpsEventQuery {
 	_q.ctx.Offset = &offset
 	return _q
 }
 
 // Unique configures the query builder to filter duplicate records on query.
 // By default, unique is set to true, and can be disabled using this method.
-func (_q *CampaignQuery) Unique(unique bool) *CampaignQuery {
+func (_q *LiveOpsEventQuery) Unique(unique bool) *LiveOpsEventQuery {
 	_q.ctx.Unique = &unique
 	return _q
 }
 
 // Order specifies how the records should be ordered.
-func (_q *CampaignQuery) Order(o ...campaign.OrderOption) *CampaignQuery {
+func (_q *LiveOpsEventQuery) Order(o ...liveopsevent.OrderOption) *LiveOpsEventQuery {
 	_q.order = append(_q.order, o...)
 	return _q
 }
 
 // QueryProject chains the current query on the "project" edge.
-func (_q *CampaignQuery) QueryProject() *ProjectQuery {
+func (_q *LiveOpsEventQuery) QueryProject() *ProjectQuery {
 	query := (&ProjectClient{config: _q.config}).Query()
 	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
 		if err := _q.prepareQuery(ctx); err != nil {
@@ -72,9 +72,9 @@ func (_q *CampaignQuery) QueryProject() *ProjectQuery {
 			return nil, err
 		}
 		step := sqlgraph.NewStep(
-			sqlgraph.From(campaign.Table, campaign.FieldID, selector),
+			sqlgraph.From(liveopsevent.Table, liveopsevent.FieldID, selector),
 			sqlgraph.To(project.Table, project.FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, true, campaign.ProjectTable, campaign.ProjectColumn),
+			sqlgraph.Edge(sqlgraph.M2O, true, liveopsevent.ProjectTable, liveopsevent.ProjectColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -82,21 +82,21 @@ func (_q *CampaignQuery) QueryProject() *ProjectQuery {
 	return query
 }
 
-// First returns the first Campaign entity from the query.
-// Returns a *NotFoundError when no Campaign was found.
-func (_q *CampaignQuery) First(ctx context.Context) (*Campaign, error) {
+// First returns the first LiveOpsEvent entity from the query.
+// Returns a *NotFoundError when no LiveOpsEvent was found.
+func (_q *LiveOpsEventQuery) First(ctx context.Context) (*LiveOpsEvent, error) {
 	nodes, err := _q.Limit(1).All(setContextOp(ctx, _q.ctx, ent.OpQueryFirst))
 	if err != nil {
 		return nil, err
 	}
 	if len(nodes) == 0 {
-		return nil, &NotFoundError{campaign.Label}
+		return nil, &NotFoundError{liveopsevent.Label}
 	}
 	return nodes[0], nil
 }
 
 // FirstX is like First, but panics if an error occurs.
-func (_q *CampaignQuery) FirstX(ctx context.Context) *Campaign {
+func (_q *LiveOpsEventQuery) FirstX(ctx context.Context) *LiveOpsEvent {
 	node, err := _q.First(ctx)
 	if err != nil && !IsNotFound(err) {
 		panic(err)
@@ -104,22 +104,22 @@ func (_q *CampaignQuery) FirstX(ctx context.Context) *Campaign {
 	return node
 }
 
-// FirstID returns the first Campaign ID from the query.
-// Returns a *NotFoundError when no Campaign ID was found.
-func (_q *CampaignQuery) FirstID(ctx context.Context) (id int, err error) {
+// FirstID returns the first LiveOpsEvent ID from the query.
+// Returns a *NotFoundError when no LiveOpsEvent ID was found.
+func (_q *LiveOpsEventQuery) FirstID(ctx context.Context) (id int, err error) {
 	var ids []int
 	if ids, err = _q.Limit(1).IDs(setContextOp(ctx, _q.ctx, ent.OpQueryFirstID)); err != nil {
 		return
 	}
 	if len(ids) == 0 {
-		err = &NotFoundError{campaign.Label}
+		err = &NotFoundError{liveopsevent.Label}
 		return
 	}
 	return ids[0], nil
 }
 
 // FirstIDX is like FirstID, but panics if an error occurs.
-func (_q *CampaignQuery) FirstIDX(ctx context.Context) int {
+func (_q *LiveOpsEventQuery) FirstIDX(ctx context.Context) int {
 	id, err := _q.FirstID(ctx)
 	if err != nil && !IsNotFound(err) {
 		panic(err)
@@ -127,10 +127,10 @@ func (_q *CampaignQuery) FirstIDX(ctx context.Context) int {
 	return id
 }
 
-// Only returns a single Campaign entity found by the query, ensuring it only returns one.
-// Returns a *NotSingularError when more than one Campaign entity is found.
-// Returns a *NotFoundError when no Campaign entities are found.
-func (_q *CampaignQuery) Only(ctx context.Context) (*Campaign, error) {
+// Only returns a single LiveOpsEvent entity found by the query, ensuring it only returns one.
+// Returns a *NotSingularError when more than one LiveOpsEvent entity is found.
+// Returns a *NotFoundError when no LiveOpsEvent entities are found.
+func (_q *LiveOpsEventQuery) Only(ctx context.Context) (*LiveOpsEvent, error) {
 	nodes, err := _q.Limit(2).All(setContextOp(ctx, _q.ctx, ent.OpQueryOnly))
 	if err != nil {
 		return nil, err
@@ -139,14 +139,14 @@ func (_q *CampaignQuery) Only(ctx context.Context) (*Campaign, error) {
 	case 1:
 		return nodes[0], nil
 	case 0:
-		return nil, &NotFoundError{campaign.Label}
+		return nil, &NotFoundError{liveopsevent.Label}
 	default:
-		return nil, &NotSingularError{campaign.Label}
+		return nil, &NotSingularError{liveopsevent.Label}
 	}
 }
 
 // OnlyX is like Only, but panics if an error occurs.
-func (_q *CampaignQuery) OnlyX(ctx context.Context) *Campaign {
+func (_q *LiveOpsEventQuery) OnlyX(ctx context.Context) *LiveOpsEvent {
 	node, err := _q.Only(ctx)
 	if err != nil {
 		panic(err)
@@ -154,10 +154,10 @@ func (_q *CampaignQuery) OnlyX(ctx context.Context) *Campaign {
 	return node
 }
 
-// OnlyID is like Only, but returns the only Campaign ID in the query.
-// Returns a *NotSingularError when more than one Campaign ID is found.
+// OnlyID is like Only, but returns the only LiveOpsEvent ID in the query.
+// Returns a *NotSingularError when more than one LiveOpsEvent ID is found.
 // Returns a *NotFoundError when no entities are found.
-func (_q *CampaignQuery) OnlyID(ctx context.Context) (id int, err error) {
+func (_q *LiveOpsEventQuery) OnlyID(ctx context.Context) (id int, err error) {
 	var ids []int
 	if ids, err = _q.Limit(2).IDs(setContextOp(ctx, _q.ctx, ent.OpQueryOnlyID)); err != nil {
 		return
@@ -166,15 +166,15 @@ func (_q *CampaignQuery) OnlyID(ctx context.Context) (id int, err error) {
 	case 1:
 		id = ids[0]
 	case 0:
-		err = &NotFoundError{campaign.Label}
+		err = &NotFoundError{liveopsevent.Label}
 	default:
-		err = &NotSingularError{campaign.Label}
+		err = &NotSingularError{liveopsevent.Label}
 	}
 	return
 }
 
 // OnlyIDX is like OnlyID, but panics if an error occurs.
-func (_q *CampaignQuery) OnlyIDX(ctx context.Context) int {
+func (_q *LiveOpsEventQuery) OnlyIDX(ctx context.Context) int {
 	id, err := _q.OnlyID(ctx)
 	if err != nil {
 		panic(err)
@@ -182,18 +182,18 @@ func (_q *CampaignQuery) OnlyIDX(ctx context.Context) int {
 	return id
 }
 
-// All executes the query and returns a list of Campaigns.
-func (_q *CampaignQuery) All(ctx context.Context) ([]*Campaign, error) {
+// All executes the query and returns a list of LiveOpsEvents.
+func (_q *LiveOpsEventQuery) All(ctx context.Context) ([]*LiveOpsEvent, error) {
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryAll)
 	if err := _q.prepareQuery(ctx); err != nil {
 		return nil, err
 	}
-	qr := querierAll[[]*Campaign, *CampaignQuery]()
-	return withInterceptors[[]*Campaign](ctx, _q, qr, _q.inters)
+	qr := querierAll[[]*LiveOpsEvent, *LiveOpsEventQuery]()
+	return withInterceptors[[]*LiveOpsEvent](ctx, _q, qr, _q.inters)
 }
 
 // AllX is like All, but panics if an error occurs.
-func (_q *CampaignQuery) AllX(ctx context.Context) []*Campaign {
+func (_q *LiveOpsEventQuery) AllX(ctx context.Context) []*LiveOpsEvent {
 	nodes, err := _q.All(ctx)
 	if err != nil {
 		panic(err)
@@ -201,20 +201,20 @@ func (_q *CampaignQuery) AllX(ctx context.Context) []*Campaign {
 	return nodes
 }
 
-// IDs executes the query and returns a list of Campaign IDs.
-func (_q *CampaignQuery) IDs(ctx context.Context) (ids []int, err error) {
+// IDs executes the query and returns a list of LiveOpsEvent IDs.
+func (_q *LiveOpsEventQuery) IDs(ctx context.Context) (ids []int, err error) {
 	if _q.ctx.Unique == nil && _q.path != nil {
 		_q.Unique(true)
 	}
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryIDs)
-	if err = _q.Select(campaign.FieldID).Scan(ctx, &ids); err != nil {
+	if err = _q.Select(liveopsevent.FieldID).Scan(ctx, &ids); err != nil {
 		return nil, err
 	}
 	return ids, nil
 }
 
 // IDsX is like IDs, but panics if an error occurs.
-func (_q *CampaignQuery) IDsX(ctx context.Context) []int {
+func (_q *LiveOpsEventQuery) IDsX(ctx context.Context) []int {
 	ids, err := _q.IDs(ctx)
 	if err != nil {
 		panic(err)
@@ -223,16 +223,16 @@ func (_q *CampaignQuery) IDsX(ctx context.Context) []int {
 }
 
 // Count returns the count of the given query.
-func (_q *CampaignQuery) Count(ctx context.Context) (int, error) {
+func (_q *LiveOpsEventQuery) Count(ctx context.Context) (int, error) {
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryCount)
 	if err := _q.prepareQuery(ctx); err != nil {
 		return 0, err
 	}
-	return withInterceptors[int](ctx, _q, querierCount[*CampaignQuery](), _q.inters)
+	return withInterceptors[int](ctx, _q, querierCount[*LiveOpsEventQuery](), _q.inters)
 }
 
 // CountX is like Count, but panics if an error occurs.
-func (_q *CampaignQuery) CountX(ctx context.Context) int {
+func (_q *LiveOpsEventQuery) CountX(ctx context.Context) int {
 	count, err := _q.Count(ctx)
 	if err != nil {
 		panic(err)
@@ -241,7 +241,7 @@ func (_q *CampaignQuery) CountX(ctx context.Context) int {
 }
 
 // Exist returns true if the query has elements in the graph.
-func (_q *CampaignQuery) Exist(ctx context.Context) (bool, error) {
+func (_q *LiveOpsEventQuery) Exist(ctx context.Context) (bool, error) {
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryExist)
 	switch _, err := _q.FirstID(ctx); {
 	case IsNotFound(err):
@@ -254,7 +254,7 @@ func (_q *CampaignQuery) Exist(ctx context.Context) (bool, error) {
 }
 
 // ExistX is like Exist, but panics if an error occurs.
-func (_q *CampaignQuery) ExistX(ctx context.Context) bool {
+func (_q *LiveOpsEventQuery) ExistX(ctx context.Context) bool {
 	exist, err := _q.Exist(ctx)
 	if err != nil {
 		panic(err)
@@ -262,18 +262,18 @@ func (_q *CampaignQuery) ExistX(ctx context.Context) bool {
 	return exist
 }
 
-// Clone returns a duplicate of the CampaignQuery builder, including all associated steps. It can be
+// Clone returns a duplicate of the LiveOpsEventQuery builder, including all associated steps. It can be
 // used to prepare common query builders and use them differently after the clone is made.
-func (_q *CampaignQuery) Clone() *CampaignQuery {
+func (_q *LiveOpsEventQuery) Clone() *LiveOpsEventQuery {
 	if _q == nil {
 		return nil
 	}
-	return &CampaignQuery{
+	return &LiveOpsEventQuery{
 		config:      _q.config,
 		ctx:         _q.ctx.Clone(),
-		order:       append([]campaign.OrderOption{}, _q.order...),
+		order:       append([]liveopsevent.OrderOption{}, _q.order...),
 		inters:      append([]Interceptor{}, _q.inters...),
-		predicates:  append([]predicate.Campaign{}, _q.predicates...),
+		predicates:  append([]predicate.LiveOpsEvent{}, _q.predicates...),
 		withProject: _q.withProject.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
@@ -283,7 +283,7 @@ func (_q *CampaignQuery) Clone() *CampaignQuery {
 
 // WithProject tells the query-builder to eager-load the nodes that are connected to
 // the "project" edge. The optional arguments are used to configure the query builder of the edge.
-func (_q *CampaignQuery) WithProject(opts ...func(*ProjectQuery)) *CampaignQuery {
+func (_q *LiveOpsEventQuery) WithProject(opts ...func(*ProjectQuery)) *LiveOpsEventQuery {
 	query := (&ProjectClient{config: _q.config}).Query()
 	for _, opt := range opts {
 		opt(query)
@@ -302,15 +302,15 @@ func (_q *CampaignQuery) WithProject(opts ...func(*ProjectQuery)) *CampaignQuery
 //		Count int `json:"count,omitempty"`
 //	}
 //
-//	client.Campaign.Query().
-//		GroupBy(campaign.FieldUID).
+//	client.LiveOpsEvent.Query().
+//		GroupBy(liveopsevent.FieldUID).
 //		Aggregate(global.Count()).
 //		Scan(ctx, &v)
-func (_q *CampaignQuery) GroupBy(field string, fields ...string) *CampaignGroupBy {
+func (_q *LiveOpsEventQuery) GroupBy(field string, fields ...string) *LiveOpsEventGroupBy {
 	_q.ctx.Fields = append([]string{field}, fields...)
-	grbuild := &CampaignGroupBy{build: _q}
+	grbuild := &LiveOpsEventGroupBy{build: _q}
 	grbuild.flds = &_q.ctx.Fields
-	grbuild.label = campaign.Label
+	grbuild.label = liveopsevent.Label
 	grbuild.scan = grbuild.Scan
 	return grbuild
 }
@@ -324,23 +324,23 @@ func (_q *CampaignQuery) GroupBy(field string, fields ...string) *CampaignGroupB
 //		UID uuid.UUID `json:"uid,omitempty"`
 //	}
 //
-//	client.Campaign.Query().
-//		Select(campaign.FieldUID).
+//	client.LiveOpsEvent.Query().
+//		Select(liveopsevent.FieldUID).
 //		Scan(ctx, &v)
-func (_q *CampaignQuery) Select(fields ...string) *CampaignSelect {
+func (_q *LiveOpsEventQuery) Select(fields ...string) *LiveOpsEventSelect {
 	_q.ctx.Fields = append(_q.ctx.Fields, fields...)
-	sbuild := &CampaignSelect{CampaignQuery: _q}
-	sbuild.label = campaign.Label
+	sbuild := &LiveOpsEventSelect{LiveOpsEventQuery: _q}
+	sbuild.label = liveopsevent.Label
 	sbuild.flds, sbuild.scan = &_q.ctx.Fields, sbuild.Scan
 	return sbuild
 }
 
-// Aggregate returns a CampaignSelect configured with the given aggregations.
-func (_q *CampaignQuery) Aggregate(fns ...AggregateFunc) *CampaignSelect {
+// Aggregate returns a LiveOpsEventSelect configured with the given aggregations.
+func (_q *LiveOpsEventQuery) Aggregate(fns ...AggregateFunc) *LiveOpsEventSelect {
 	return _q.Select().Aggregate(fns...)
 }
 
-func (_q *CampaignQuery) prepareQuery(ctx context.Context) error {
+func (_q *LiveOpsEventQuery) prepareQuery(ctx context.Context) error {
 	for _, inter := range _q.inters {
 		if inter == nil {
 			return fmt.Errorf("global: uninitialized interceptor (forgotten import global/runtime?)")
@@ -352,7 +352,7 @@ func (_q *CampaignQuery) prepareQuery(ctx context.Context) error {
 		}
 	}
 	for _, f := range _q.ctx.Fields {
-		if !campaign.ValidColumn(f) {
+		if !liveopsevent.ValidColumn(f) {
 			return &ValidationError{Name: f, err: fmt.Errorf("global: invalid field %q for query", f)}
 		}
 	}
@@ -366,19 +366,19 @@ func (_q *CampaignQuery) prepareQuery(ctx context.Context) error {
 	return nil
 }
 
-func (_q *CampaignQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Campaign, error) {
+func (_q *LiveOpsEventQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*LiveOpsEvent, error) {
 	var (
-		nodes       = []*Campaign{}
+		nodes       = []*LiveOpsEvent{}
 		_spec       = _q.querySpec()
 		loadedTypes = [1]bool{
 			_q.withProject != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
-		return (*Campaign).scanValues(nil, columns)
+		return (*LiveOpsEvent).scanValues(nil, columns)
 	}
 	_spec.Assign = func(columns []string, values []any) error {
-		node := &Campaign{config: _q.config}
+		node := &LiveOpsEvent{config: _q.config}
 		nodes = append(nodes, node)
 		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
@@ -394,16 +394,16 @@ func (_q *CampaignQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Cam
 	}
 	if query := _q.withProject; query != nil {
 		if err := _q.loadProject(ctx, query, nodes, nil,
-			func(n *Campaign, e *Project) { n.Edges.Project = e }); err != nil {
+			func(n *LiveOpsEvent, e *Project) { n.Edges.Project = e }); err != nil {
 			return nil, err
 		}
 	}
 	return nodes, nil
 }
 
-func (_q *CampaignQuery) loadProject(ctx context.Context, query *ProjectQuery, nodes []*Campaign, init func(*Campaign), assign func(*Campaign, *Project)) error {
+func (_q *LiveOpsEventQuery) loadProject(ctx context.Context, query *ProjectQuery, nodes []*LiveOpsEvent, init func(*LiveOpsEvent), assign func(*LiveOpsEvent, *Project)) error {
 	ids := make([]int, 0, len(nodes))
-	nodeids := make(map[int][]*Campaign)
+	nodeids := make(map[int][]*LiveOpsEvent)
 	for i := range nodes {
 		fk := nodes[i].ProjectID
 		if _, ok := nodeids[fk]; !ok {
@@ -431,7 +431,7 @@ func (_q *CampaignQuery) loadProject(ctx context.Context, query *ProjectQuery, n
 	return nil
 }
 
-func (_q *CampaignQuery) sqlCount(ctx context.Context) (int, error) {
+func (_q *LiveOpsEventQuery) sqlCount(ctx context.Context) (int, error) {
 	_spec := _q.querySpec()
 	_spec.Node.Columns = _q.ctx.Fields
 	if len(_q.ctx.Fields) > 0 {
@@ -440,8 +440,8 @@ func (_q *CampaignQuery) sqlCount(ctx context.Context) (int, error) {
 	return sqlgraph.CountNodes(ctx, _q.driver, _spec)
 }
 
-func (_q *CampaignQuery) querySpec() *sqlgraph.QuerySpec {
-	_spec := sqlgraph.NewQuerySpec(campaign.Table, campaign.Columns, sqlgraph.NewFieldSpec(campaign.FieldID, field.TypeInt))
+func (_q *LiveOpsEventQuery) querySpec() *sqlgraph.QuerySpec {
+	_spec := sqlgraph.NewQuerySpec(liveopsevent.Table, liveopsevent.Columns, sqlgraph.NewFieldSpec(liveopsevent.FieldID, field.TypeInt))
 	_spec.From = _q.sql
 	if unique := _q.ctx.Unique; unique != nil {
 		_spec.Unique = *unique
@@ -450,14 +450,14 @@ func (_q *CampaignQuery) querySpec() *sqlgraph.QuerySpec {
 	}
 	if fields := _q.ctx.Fields; len(fields) > 0 {
 		_spec.Node.Columns = make([]string, 0, len(fields))
-		_spec.Node.Columns = append(_spec.Node.Columns, campaign.FieldID)
+		_spec.Node.Columns = append(_spec.Node.Columns, liveopsevent.FieldID)
 		for i := range fields {
-			if fields[i] != campaign.FieldID {
+			if fields[i] != liveopsevent.FieldID {
 				_spec.Node.Columns = append(_spec.Node.Columns, fields[i])
 			}
 		}
 		if _q.withProject != nil {
-			_spec.Node.AddColumnOnce(campaign.FieldProjectID)
+			_spec.Node.AddColumnOnce(liveopsevent.FieldProjectID)
 		}
 	}
 	if ps := _q.predicates; len(ps) > 0 {
@@ -483,12 +483,12 @@ func (_q *CampaignQuery) querySpec() *sqlgraph.QuerySpec {
 	return _spec
 }
 
-func (_q *CampaignQuery) sqlQuery(ctx context.Context) *sql.Selector {
+func (_q *LiveOpsEventQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	builder := sql.Dialect(_q.driver.Dialect())
-	t1 := builder.Table(campaign.Table)
+	t1 := builder.Table(liveopsevent.Table)
 	columns := _q.ctx.Fields
 	if len(columns) == 0 {
-		columns = campaign.Columns
+		columns = liveopsevent.Columns
 	}
 	selector := builder.Select(t1.Columns(columns...)...).From(t1)
 	if _q.sql != nil {
@@ -515,28 +515,28 @@ func (_q *CampaignQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	return selector
 }
 
-// CampaignGroupBy is the group-by builder for Campaign entities.
-type CampaignGroupBy struct {
+// LiveOpsEventGroupBy is the group-by builder for LiveOpsEvent entities.
+type LiveOpsEventGroupBy struct {
 	selector
-	build *CampaignQuery
+	build *LiveOpsEventQuery
 }
 
 // Aggregate adds the given aggregation functions to the group-by query.
-func (_g *CampaignGroupBy) Aggregate(fns ...AggregateFunc) *CampaignGroupBy {
+func (_g *LiveOpsEventGroupBy) Aggregate(fns ...AggregateFunc) *LiveOpsEventGroupBy {
 	_g.fns = append(_g.fns, fns...)
 	return _g
 }
 
 // Scan applies the selector query and scans the result into the given value.
-func (_g *CampaignGroupBy) Scan(ctx context.Context, v any) error {
+func (_g *LiveOpsEventGroupBy) Scan(ctx context.Context, v any) error {
 	ctx = setContextOp(ctx, _g.build.ctx, ent.OpQueryGroupBy)
 	if err := _g.build.prepareQuery(ctx); err != nil {
 		return err
 	}
-	return scanWithInterceptors[*CampaignQuery, *CampaignGroupBy](ctx, _g.build, _g, _g.build.inters, v)
+	return scanWithInterceptors[*LiveOpsEventQuery, *LiveOpsEventGroupBy](ctx, _g.build, _g, _g.build.inters, v)
 }
 
-func (_g *CampaignGroupBy) sqlScan(ctx context.Context, root *CampaignQuery, v any) error {
+func (_g *LiveOpsEventGroupBy) sqlScan(ctx context.Context, root *LiveOpsEventQuery, v any) error {
 	selector := root.sqlQuery(ctx).Select()
 	aggregation := make([]string, 0, len(_g.fns))
 	for _, fn := range _g.fns {
@@ -563,28 +563,28 @@ func (_g *CampaignGroupBy) sqlScan(ctx context.Context, root *CampaignQuery, v a
 	return sql.ScanSlice(rows, v)
 }
 
-// CampaignSelect is the builder for selecting fields of Campaign entities.
-type CampaignSelect struct {
-	*CampaignQuery
+// LiveOpsEventSelect is the builder for selecting fields of LiveOpsEvent entities.
+type LiveOpsEventSelect struct {
+	*LiveOpsEventQuery
 	selector
 }
 
 // Aggregate adds the given aggregation functions to the selector query.
-func (_s *CampaignSelect) Aggregate(fns ...AggregateFunc) *CampaignSelect {
+func (_s *LiveOpsEventSelect) Aggregate(fns ...AggregateFunc) *LiveOpsEventSelect {
 	_s.fns = append(_s.fns, fns...)
 	return _s
 }
 
 // Scan applies the selector query and scans the result into the given value.
-func (_s *CampaignSelect) Scan(ctx context.Context, v any) error {
+func (_s *LiveOpsEventSelect) Scan(ctx context.Context, v any) error {
 	ctx = setContextOp(ctx, _s.ctx, ent.OpQuerySelect)
 	if err := _s.prepareQuery(ctx); err != nil {
 		return err
 	}
-	return scanWithInterceptors[*CampaignQuery, *CampaignSelect](ctx, _s.CampaignQuery, _s, _s.inters, v)
+	return scanWithInterceptors[*LiveOpsEventQuery, *LiveOpsEventSelect](ctx, _s.LiveOpsEventQuery, _s, _s.inters, v)
 }
 
-func (_s *CampaignSelect) sqlScan(ctx context.Context, root *CampaignQuery, v any) error {
+func (_s *LiveOpsEventSelect) sqlScan(ctx context.Context, root *LiveOpsEventQuery, v any) error {
 	selector := root.sqlQuery(ctx)
 	aggregation := make([]string, 0, len(_s.fns))
 	for _, fn := range _s.fns {

@@ -2,28 +2,29 @@ package globaltier
 
 import (
 	"entgo.io/ent"
+	"entgo.io/ent/dialect/entsql"
 	"entgo.io/ent/schema"
 	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
 	"entgo.io/ent/schema/index"
 
 	"playersense.dev/backend/internal/dataclass"
+	"playersense.dev/backend/internal/liveops"
 )
 
 // Segment is an audience a studio named, so it can be reused (§41).
 //
 // "Whales", "paid users" and "returning users" are not features PlayerSense ships. Each is a
 // rule one organisation wrote over a vocabulary it did not write — one calls $100 a whale and
-// the next calls it $1000 — and naming it is what lets the same audience appear in a flag, a
-// campaign and next month's campaign without being retyped.
+// the next calls it $1000 — and naming it is what lets the same audience appear in a flag, in
+// this month's LiveOps event and in next month's without being retyped.
 //
 // # Why this lives in the global tier
 //
 // It names no player. A rule is a *definition*, like a project or an API key, so §99's
 // residency boundary does not apply to it: what stays in the cell is the player's context and
-// the answer, never the question. A studio therefore writes a campaign once rather than once
-// per region, and a rule that exists in Europe and not in America stops being a way to lose a
-// campaign.
+// the answer, never the question. A studio therefore writes an event once rather than once per
+// region, and a rule that exists in Europe and not in America stops being a way to lose one.
 type Segment struct{ ent.Schema }
 
 func (Segment) Mixin() []ent.Mixin               { return []ent.Mixin{mixin{}} }
@@ -35,7 +36,7 @@ func (Segment) Fields() []ent.Field {
 
 		// The stable name a rule refers to. Immutable, because a published config holds
 		// the segment's *inlined* rule and its key is how an editor finds what to
-		// republish — renaming one would orphan every campaign that named it.
+		// republish — renaming one would orphan every event that named it.
 		field.String("key").NotEmpty().MaxLen(64).Immutable().Comment(dataclass.None),
 
 		field.String("name").NotEmpty().MaxLen(120).Comment(dataclass.None),
@@ -47,7 +48,7 @@ func (Segment) Fields() []ent.Field {
 		field.JSON("rule", map[string]any{}).Comment(dataclass.None),
 
 		// Archived rather than deleted. A published config version holds this rule
-		// inlined, so deleting the row would leave a live campaign whose audience nobody
+		// inlined, so deleting the row would leave a running event whose audience nobody
 		// can explain — and §41's versions are immutable precisely so that history stays
 		// answerable.
 		field.Bool("archived").Default(false).Comment(dataclass.None),
@@ -116,19 +117,30 @@ func (FeatureFlag) Indexes() []ent.Index {
 	return []ent.Index{index.Fields("key").Edges("project").Unique()}
 }
 
-// Campaign is §45's LiveOps envelope: a schedule, an audience, and a payload PlayerSense does
-// not understand.
+// LiveOpsEvent is §45's LiveOps envelope: a schedule, an audience, and a payload PlayerSense
+// does not understand.
 //
-// The split is the whole design. PlayerSense owns `key`, `kind`, `version`, `starts_at`,
-// `ends_at` and eligibility; the studio owns everything inside `payload`. A backend that
-// understood the payload would be a backend that had to be changed every time a studio
-// invented an event type.
-type Campaign struct{ ent.Schema }
+// Named `LiveOpsEvent` and never `Event`. A studio calls these events — a double-XP weekend,
+// a holiday shop — but `events_raw`, `event_name` and `event_time` mean analytics events
+// everywhere else in this codebase, and two things called Event in one product is how a
+// dashboard ends up with a screen nobody can name.
+//
+// The split is the whole design. PlayerSense owns `key`, `kind`, `version`, the schedule and
+// eligibility; the studio owns everything inside `payload`. A backend that understood the
+// payload would be a backend that had to be changed every time a studio invented an event
+// type.
+type LiveOpsEvent struct{ ent.Schema }
 
-func (Campaign) Mixin() []ent.Mixin               { return []ent.Mixin{mixin{}} }
-func (Campaign) Annotations() []schema.Annotation { return []schema.Annotation{withComments()} }
+func (LiveOpsEvent) Mixin() []ent.Mixin { return []ent.Mixin{mixin{}} }
 
-func (Campaign) Fields() []ent.Field {
+// Annotations names the table, because ent would derive `live_ops_events` from the Go type
+// and the product spells it one word everywhere else — the package, the permissions, the
+// dashboard section.
+func (LiveOpsEvent) Annotations() []schema.Annotation {
+	return []schema.Annotation{withComments(), entsql.Annotation{Table: "liveops_events"}}
+}
+
+func (LiveOpsEvent) Fields() []ent.Field {
 	return []ent.Field{
 		field.Int("project_id").Comment(dataclass.None),
 		field.String("key").NotEmpty().MaxLen(64).Immutable().Comment(dataclass.None),
@@ -139,17 +151,23 @@ func (Campaign) Fields() []ent.Field {
 		field.String("kind").NotEmpty().MaxLen(64).Comment(dataclass.None),
 
 		field.String("name").NotEmpty().MaxLen(120).Comment(dataclass.None),
-		field.Enum("status").Values("draft", "scheduled", "live", "paused", "ended").
+
+		// What a *person* decided, which is all that is stored. "Live", "scheduled" and
+		// "ended" used to be values here and every one of them was a lie waiting to
+		// happen: an event is live when its calendar says so, so keeping the word in a
+		// column means a cron job writing rows at midnight to keep it true — and a
+		// recurring event is never ended at all.
+		field.Enum("status").Values("draft", "active", "paused", "archived").
 			Default("draft").Comment(dataclass.None),
 
-		// UTC, and nullable because a campaign with no end runs until it is stopped.
-		// Timezone policy is the studio's: a payload can carry a local hour, and the
-		// server decides eligibility on an instant.
-		field.Time("starts_at").Optional().Nillable().Comment(dataclass.None),
-		field.Time("ends_at").Optional().Nillable().Comment(dataclass.None),
+		// When it is on, as internal/liveops evaluates it: an anchor, a duration and how
+		// it repeats. One field rather than the `starts_at`/`ends_at` pair it replaces,
+		// because "the first five days of every month" is not expressible as two
+		// timestamps and a studio would otherwise create twelve events a year by hand.
+		field.JSON("schedule", liveops.Schedule{}).Comment(dataclass.None),
 
-		// Higher wins when two campaigns of the same kind are both eligible, so a studio
-		// can put a limited offer in front of an evergreen one without ending it.
+		// Higher wins when two events of the same kind are both on, so a studio can put a
+		// limited offer in front of an evergreen one without ending it.
 		field.Int("priority").Default(0).Comment(dataclass.None),
 
 		field.JSON("audience", map[string]any{}).Default(map[string]any{}).Comment(dataclass.None),
@@ -163,24 +181,29 @@ func (Campaign) Fields() []ent.Field {
 	}
 }
 
-func (Campaign) Edges() []ent.Edge {
+func (LiveOpsEvent) Edges() []ent.Edge {
 	return []ent.Edge{
-		edge.From("project", Project.Type).Ref("campaigns").
+		edge.From("project", Project.Type).Ref("liveops_events").
 			Field("project_id").Unique().Required(),
 	}
 }
 
-func (Campaign) Indexes() []ent.Index {
+// Indexes is only the uniqueness constraint.
+//
+// There used to be a second, on `(status, starts_at)`, for the scheduler that woke at every
+// campaign boundary to republish. Recurrence removed that job rather than complicated it: a
+// published document carries the schedule and the server answers "is it on now" per request,
+// so there is no boundary row to find and nothing to wake up for. The listing the dashboard
+// does run is one project's events, which is tens of rows.
+func (LiveOpsEvent) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("key").Edges("project").Unique(),
-		// The scheduler's query: which campaigns in this project are due to start or end.
-		index.Fields("status", "starts_at"),
 	}
 }
 
 // ConfigVersion is one immutable published snapshot (§41, §42).
 //
-// Publishing compiles every active flag and campaign into a single document, with each
+// Publishing compiles every active flag and LiveOps event into a single document, with each
 // segment reference replaced by the segment's own rule. That inlining is why the document is
 // immutable and why it is worth storing rather than recomputing: it is the only record of what
 // a rule *meant* on the day it ran, and editing a segment afterwards cannot rewrite history.
@@ -209,7 +232,7 @@ func (ConfigVersion) Fields() []ent.Field {
 		field.JSON("document", map[string]any{}).Immutable().Comment(dataclass.None),
 
 		// Who published it, as an opaque actor string rather than an edge: it may be a
-		// person, an API token or the scheduler publishing a campaign boundary, and an
+		// person or an API token, and an
 		// edge would force all three to be the same kind of thing.
 		field.String("published_by").MaxLen(120).Default("").Immutable().Comment(dataclass.None),
 		field.String("note").MaxLen(500).Default("").Immutable().Comment(dataclass.None),

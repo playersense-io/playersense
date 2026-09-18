@@ -12,11 +12,11 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"playersense.dev/backend/ent/global/campaign"
 	"playersense.dev/backend/ent/global/cell"
 	"playersense.dev/backend/ent/global/configversion"
 	"playersense.dev/backend/ent/global/environment"
 	"playersense.dev/backend/ent/global/featureflag"
+	"playersense.dev/backend/ent/global/liveopsevent"
 	"playersense.dev/backend/ent/global/organization"
 	"playersense.dev/backend/ent/global/predicate"
 	"playersense.dev/backend/ent/global/project"
@@ -35,7 +35,7 @@ type ProjectQuery struct {
 	withEnvironments   *EnvironmentQuery
 	withSegments       *SegmentQuery
 	withFeatureFlags   *FeatureFlagQuery
-	withCampaigns      *CampaignQuery
+	withLiveopsEvents  *LiveOpsEventQuery
 	withConfigVersions *ConfigVersionQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
@@ -183,9 +183,9 @@ func (_q *ProjectQuery) QueryFeatureFlags() *FeatureFlagQuery {
 	return query
 }
 
-// QueryCampaigns chains the current query on the "campaigns" edge.
-func (_q *ProjectQuery) QueryCampaigns() *CampaignQuery {
-	query := (&CampaignClient{config: _q.config}).Query()
+// QueryLiveopsEvents chains the current query on the "liveops_events" edge.
+func (_q *ProjectQuery) QueryLiveopsEvents() *LiveOpsEventQuery {
+	query := (&LiveOpsEventClient{config: _q.config}).Query()
 	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
 		if err := _q.prepareQuery(ctx); err != nil {
 			return nil, err
@@ -196,8 +196,8 @@ func (_q *ProjectQuery) QueryCampaigns() *CampaignQuery {
 		}
 		step := sqlgraph.NewStep(
 			sqlgraph.From(project.Table, project.FieldID, selector),
-			sqlgraph.To(campaign.Table, campaign.FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, project.CampaignsTable, project.CampaignsColumn),
+			sqlgraph.To(liveopsevent.Table, liveopsevent.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, project.LiveopsEventsTable, project.LiveopsEventsColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -424,7 +424,7 @@ func (_q *ProjectQuery) Clone() *ProjectQuery {
 		withEnvironments:   _q.withEnvironments.Clone(),
 		withSegments:       _q.withSegments.Clone(),
 		withFeatureFlags:   _q.withFeatureFlags.Clone(),
-		withCampaigns:      _q.withCampaigns.Clone(),
+		withLiveopsEvents:  _q.withLiveopsEvents.Clone(),
 		withConfigVersions: _q.withConfigVersions.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
@@ -487,14 +487,14 @@ func (_q *ProjectQuery) WithFeatureFlags(opts ...func(*FeatureFlagQuery)) *Proje
 	return _q
 }
 
-// WithCampaigns tells the query-builder to eager-load the nodes that are connected to
-// the "campaigns" edge. The optional arguments are used to configure the query builder of the edge.
-func (_q *ProjectQuery) WithCampaigns(opts ...func(*CampaignQuery)) *ProjectQuery {
-	query := (&CampaignClient{config: _q.config}).Query()
+// WithLiveopsEvents tells the query-builder to eager-load the nodes that are connected to
+// the "liveops_events" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *ProjectQuery) WithLiveopsEvents(opts ...func(*LiveOpsEventQuery)) *ProjectQuery {
+	query := (&LiveOpsEventClient{config: _q.config}).Query()
 	for _, opt := range opts {
 		opt(query)
 	}
-	_q.withCampaigns = query
+	_q.withLiveopsEvents = query
 	return _q
 }
 
@@ -593,7 +593,7 @@ func (_q *ProjectQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Proj
 			_q.withEnvironments != nil,
 			_q.withSegments != nil,
 			_q.withFeatureFlags != nil,
-			_q.withCampaigns != nil,
+			_q.withLiveopsEvents != nil,
 			_q.withConfigVersions != nil,
 		}
 	)
@@ -648,10 +648,10 @@ func (_q *ProjectQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Proj
 			return nil, err
 		}
 	}
-	if query := _q.withCampaigns; query != nil {
-		if err := _q.loadCampaigns(ctx, query, nodes,
-			func(n *Project) { n.Edges.Campaigns = []*Campaign{} },
-			func(n *Project, e *Campaign) { n.Edges.Campaigns = append(n.Edges.Campaigns, e) }); err != nil {
+	if query := _q.withLiveopsEvents; query != nil {
+		if err := _q.loadLiveopsEvents(ctx, query, nodes,
+			func(n *Project) { n.Edges.LiveopsEvents = []*LiveOpsEvent{} },
+			func(n *Project, e *LiveOpsEvent) { n.Edges.LiveopsEvents = append(n.Edges.LiveopsEvents, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -813,7 +813,7 @@ func (_q *ProjectQuery) loadFeatureFlags(ctx context.Context, query *FeatureFlag
 	}
 	return nil
 }
-func (_q *ProjectQuery) loadCampaigns(ctx context.Context, query *CampaignQuery, nodes []*Project, init func(*Project), assign func(*Project, *Campaign)) error {
+func (_q *ProjectQuery) loadLiveopsEvents(ctx context.Context, query *LiveOpsEventQuery, nodes []*Project, init func(*Project), assign func(*Project, *LiveOpsEvent)) error {
 	fks := make([]driver.Value, 0, len(nodes))
 	nodeids := make(map[int]*Project)
 	for i := range nodes {
@@ -824,10 +824,10 @@ func (_q *ProjectQuery) loadCampaigns(ctx context.Context, query *CampaignQuery,
 		}
 	}
 	if len(query.ctx.Fields) > 0 {
-		query.ctx.AppendFieldOnce(campaign.FieldProjectID)
+		query.ctx.AppendFieldOnce(liveopsevent.FieldProjectID)
 	}
-	query.Where(predicate.Campaign(func(s *sql.Selector) {
-		s.Where(sql.InValues(s.C(project.CampaignsColumn), fks...))
+	query.Where(predicate.LiveOpsEvent(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(project.LiveopsEventsColumn), fks...))
 	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {

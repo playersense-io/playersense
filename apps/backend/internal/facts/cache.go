@@ -36,7 +36,7 @@ type Cache struct {
 // The entry is never renewed on read. That is deliberate: a record cached at the start of a
 // long session would otherwise keep being extended and never re-read, so a player who bought
 // something would stay a non-payer for as long as they kept playing — which is precisely the
-// audience a "buy the starter pack" campaign must stop targeting the moment they buy.
+// audience a "buy the starter pack" offer must stop targeting the moment they buy.
 //
 // An hour costs one 2 ms lookup per player per hour of play. At 5M daily actives that is
 // roughly 230 lookups a second against a query measured at 2–3 ms: about half of one
@@ -85,7 +85,7 @@ func (c *Cache) key(projectSeq uint32, environmentSeq uint16, subject, identifie
 //
 // Every failure resolves to "no facts", and the caller treats that the same as a player with
 // no history: a rule naming `commerce.*` does not match. That fails **closed** — an unknown
-// player is not a whale — which is the only safe direction for a campaign that grants
+// player is not a whale — which is the only safe direction for an event that grants
 // something of value. A cache outage costs reach, never a wrong grant.
 func (c *Cache) Get(ctx context.Context, projectSeq uint32, environmentSeq uint16, subject, identifier string) (Record, bool) {
 	if identifier == "" {
@@ -102,7 +102,7 @@ func (c *Cache) Get(ctx context.Context, projectSeq uint32, environmentSeq uint1
 	case err != nil:
 		c.Failures.Add(1)
 		// Straight to the source. A Valkey outage should cost latency, not reach — the
-		// alternative is every campaign in the product quietly stopping.
+		// alternative is every LiveOps event in the product quietly stopping.
 		return c.fromSource(ctx, projectSeq, environmentSeq, subject, identifier, key, false)
 
 	case len(raw) == 1 && raw[0] == absentMarker[0]:

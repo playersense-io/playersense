@@ -45,7 +45,7 @@ func (s Segments) inline(rule targeting.Rule, path []string) (targeting.Rule, er
 		}
 		referenced, found := s[key]
 		if !found {
-			// Refused rather than treated as "matches nobody". A campaign whose audience
+			// Refused rather than treated as "matches nobody". An event whose audience
 			// silently became empty is the failure this whole design keeps guarding
 			// against, and a publish is exactly the moment a person can fix it.
 			return targeting.Rule{}, fmt.Errorf("segment %q does not exist", key)
@@ -100,10 +100,10 @@ func join(path []string) string {
 
 // Input is everything a publish reads.
 type Input struct {
-	Version   int
-	Segments  Segments
-	Flags     []Flag
-	Campaigns []Campaign
+	Version  int
+	Segments Segments
+	Flags    []Flag
+	Events   []LiveOpsEvent
 }
 
 // Compile turns what a studio edited into what a player is served.
@@ -136,18 +136,26 @@ func Compile(in Input) (Document, error) {
 		doc.Flags = append(doc.Flags, compiled)
 	}
 
-	for _, campaign := range in.Campaigns {
-		audience, err := in.Segments.Inline(campaign.Audience)
+	for _, event := range in.Events {
+		audience, err := in.Segments.Inline(event.Audience)
 		if err != nil {
-			return Document{}, fmt.Errorf("campaign %q: %w", campaign.Key, err)
+			return Document{}, fmt.Errorf("liveops event %q: %w", event.Key, err)
 		}
 		if err := audience.Validate(); err != nil {
-			return Document{}, fmt.Errorf("campaign %q: %w", campaign.Key, err)
+			return Document{}, fmt.Errorf("liveops event %q: %w", event.Key, err)
 		}
-		compiled := campaign
+		// The schedule is re-checked here for the same reason the audience is: a document
+		// that compiles has to be a document that evaluates. A schedule saved by an older
+		// dashboard, or edited in the database by hand, otherwise becomes an event that is
+		// never on and gives no reason — and publishing is the last moment a person is
+		// looking at it.
+		if err := event.Schedule.Validate(); err != nil {
+			return Document{}, fmt.Errorf("liveops event %q: %w", event.Key, err)
+		}
+		compiled := event
 		compiled.Audience = audience
-		compiled.Rollout = clampRollout(campaign.Rollout)
-		doc.Campaigns = append(doc.Campaigns, compiled)
+		compiled.Rollout = clampRollout(event.Rollout)
+		doc.Events = append(doc.Events, compiled)
 		doc.NeedsPlayerFacts = doc.NeedsPlayerFacts || audience.NeedsPlayerFacts()
 	}
 

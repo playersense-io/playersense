@@ -13,12 +13,12 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"playersense.dev/backend/ent/global/apikey"
-	"playersense.dev/backend/ent/global/campaign"
 	"playersense.dev/backend/ent/global/cell"
 	"playersense.dev/backend/ent/global/configversion"
 	"playersense.dev/backend/ent/global/environment"
 	"playersense.dev/backend/ent/global/featureflag"
 	"playersense.dev/backend/ent/global/invitation"
+	"playersense.dev/backend/ent/global/liveopsevent"
 	"playersense.dev/backend/ent/global/organization"
 	"playersense.dev/backend/ent/global/organizationmember"
 	"playersense.dev/backend/ent/global/project"
@@ -85,12 +85,12 @@ func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
 			apikey.Table:             apikey.ValidColumn,
-			campaign.Table:           campaign.ValidColumn,
 			cell.Table:               cell.ValidColumn,
 			configversion.Table:      configversion.ValidColumn,
 			environment.Table:        environment.ValidColumn,
 			featureflag.Table:        featureflag.ValidColumn,
 			invitation.Table:         invitation.ValidColumn,
+			liveopsevent.Table:       liveopsevent.ValidColumn,
 			organization.Table:       organization.ValidColumn,
 			organizationmember.Table: organizationmember.ValidColumn,
 			project.Table:            project.ValidColumn,
