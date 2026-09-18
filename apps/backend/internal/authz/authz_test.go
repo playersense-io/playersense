@@ -214,3 +214,58 @@ func TestARefusalNamesThePermission(t *testing.T) {
 		t.Errorf("a growth manager cannot read analytics: %v", err)
 	}
 }
+
+// An account whose email address Firebase has not confirmed signs in, reads everything its
+// role allows, and changes nothing. Checked on the actor rather than at each call site, so a
+// route that forgets is a route that is still safe.
+func TestAReadOnlyActorKeepsItsReadsAndLosesItsWrites(t *testing.T) {
+	const orgID = 7
+
+	owner := authz.UserActor(orgID, someUser, authz.RoleOwner,
+		authz.SystemPermissions(authz.RoleOwner), true, nil)
+	owner.ReadOnly = true
+	owner.ReadOnlyReason = "this account has not verified its email address"
+
+	// An owner holds the entire vocabulary, which makes it the actor worth testing: if
+	// read-only cannot stop an owner, it cannot stop anybody.
+	for _, permission := range authz.All() {
+		projectID := 0
+		if permission.Scope() == authz.ScopeProject {
+			projectID = 3
+		}
+		can := owner.Can(permission, projectID)
+		switch {
+		case permission.Mutates() && can:
+			t.Errorf("a read-only owner may still %s", permission)
+		case !permission.Mutates() && !can:
+			t.Errorf("a read-only owner may not even %s", permission)
+		}
+	}
+
+	// And the refusal says which of the two reasons it is, because "forbidden" when the
+	// role plainly grants it is a support ticket rather than a banner.
+	err := owner.Require(authz.LiveOpsPublish, 3)
+	if err == nil {
+		t.Fatal("a read-only owner was allowed to publish")
+	}
+	if !strings.Contains(err.Error(), "verified") {
+		t.Errorf("the refusal blames the role rather than the account: %v", err)
+	}
+}
+
+// Every permission has to be classified. A new one that nobody remembered to put in the read
+// table defaults to mutating, which is the safe direction — this is here so that the choice is
+// deliberate rather than an oversight nobody sees.
+func TestEveryPermissionIsClassified(t *testing.T) {
+	reads := 0
+	for _, permission := range authz.All() {
+		if !permission.Mutates() {
+			reads++
+		}
+	}
+	// org, member, billing, audit, key, analytics, liveops, privacy.
+	if reads != 8 {
+		t.Errorf("%d permissions are reads, want 8 — a namespace has gained or lost one "+
+			"and the read/write split needs a look", reads)
+	}
+}

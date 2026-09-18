@@ -61,6 +61,13 @@ func build(settings config.Settings) *muzak.App {
 	// which is why the key cache serves what it already has when it is not.
 	verifier := firebase.NewVerifier(settings.FirebaseProjectID)
 	verifier.Keys.URL = settings.FirebaseCertificateURL
+
+	// Asks Firebase to email a verification link when somebody signs in with an address
+	// they have not confirmed. Firebase sends the mail, from the templates configured in
+	// the same console as the rest of the sign-in, so this owns no mail infrastructure and
+	// no new secret.
+	sender := firebase.NewSender(settings.FirebaseAPIKey)
+	sender.URL = settings.FirebaseIdentityURL
 	resolver := core.NewKeyResolver(ctrl, cache, core.KeyResolverOptions{
 		TTL:         settings.KeyCacheTTL,
 		NegativeTTL: settings.KeyCacheNegativeTTL,
@@ -112,6 +119,7 @@ func build(settings config.Settings) *muzak.App {
 		// reach Google fails while it is starting rather than on somebody's first
 		// sign-in.
 		muzak.WithSingleton(verifier, muzak.LifecycleFunc("firebase keys", verifier.Start, nil)),
+		muzak.WithSingleton(sender),
 	)
 
 	// Counted before the guards, so a request a guard rejects still costs the caller its

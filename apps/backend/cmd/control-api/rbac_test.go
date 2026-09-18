@@ -36,6 +36,13 @@ func newStack(t *testing.T) *stack {
 	google := fbtest.New(t, settings.FirebaseProjectID)
 	settings.FirebaseCertificateURL = google.URL
 
+	// Firebase's authentication API too, not only its certificates. Without this an
+	// unverified sign-in in a test would ask the real Firebase to email a real link, using
+	// the developer's real API key and a token it has never seen — a live call from a unit
+	// test, for an address that does not exist.
+	settings.FirebaseIdentityURL = newFirebaseMail(t).server.URL
+	settings.FirebaseAPIKey = "AIzaTestKey"
+
 	db := pgdb.NewGlobal(settings.GlobalPostgresDSN)
 	if err := db.Start(t.Context()); err != nil {
 		t.Skipf("no control plane: %v", err)
@@ -299,13 +306,60 @@ func TestAProjectOutsideTheAccessListIsInvisible(t *testing.T) {
 	}
 }
 
-// An invitation is sent to an address, and accepting one with an address Firebase has not
-// verified is how somebody joins an organization they were never invited to.
-func TestAnUnverifiedAddressCannotUseTheAPI(t *testing.T) {
+// An unverified account signs in, sees the dashboard, and changes nothing.
+//
+// Both halves matter. A wall at the door teaches nobody what to do about it, and the banner
+// the dashboard shows has to sit on top of something they can actually look at. But an
+// invitation is sent to an address, and accepting one for an address Firebase has not
+// confirmed is how somebody joins an organization they were never invited to — so every
+// write is withheld until the link is clicked.
+func TestAnUnverifiedAccountIsReadOnly(t *testing.T) {
 	s := newStack(t)
-	unverified := person(t)
-	unverified.EmailVerified = false
 
-	s.as(t, unverified).Get("/v1/organizations").
+	// Their organization is created while verified, then they lose the verified claim —
+	// which is what somebody who has just changed their email address looks like.
+	owner := person(t)
+	orgSlug := s.createOrg(t, owner)
+	projectSlug := s.createProject(t, owner, orgSlug)
+
+	unverified := owner
+	unverified.EmailVerified = false
+	client := s.as(t, unverified)
+
+	// Reads: the whole dashboard.
+	client.Get("/v1/organizations").AssertStatus(http.StatusOK)
+	client.Get("/v1/organizations/" + orgSlug).AssertStatus(http.StatusOK)
+	client.Get("/v1/organizations/" + orgSlug + "/projects").AssertStatus(http.StatusOK)
+	client.Get("/v1/organizations/" + orgSlug + "/projects/" + projectSlug).AssertStatus(http.StatusOK)
+	client.Get("/v1/organizations/" + orgSlug + "/projects/" + projectSlug + "/keys").
+		AssertStatus(http.StatusOK)
+
+	// Writes: none, even though this is the organization's owner.
+	refusal := client.Post("/v1/organizations/"+orgSlug+"/projects/"+projectSlug+"/keys",
+		testclient.JSON(map[string]string{
+			"environment": "development", "kind": "project", "name": "ci"})).
 		AssertStatus(http.StatusForbidden)
+	if !strings.Contains(refusal.String(), "verified") {
+		t.Errorf("the refusal does not say it is about verification: %s", refusal)
+	}
+
+	client.Post("/v1/organizations/"+orgSlug+"/projects",
+		testclient.JSON(map[string]string{"name": "Second", "slug": unique("game")})).
+		AssertStatus(http.StatusForbidden)
+
+	// And the one write with no permission behind it, which Actor.ReadOnly cannot reach
+	// because there is no organization yet to hold a role.
+	client.Post("/v1/organizations",
+		testclient.JSON(map[string]string{"name": "Another", "slug": unique("org")})).
+		AssertStatus(http.StatusForbidden)
+
+	// The same person, verified, can do all three.
+	verified := s.as(t, owner)
+	verified.Post("/v1/organizations/"+orgSlug+"/projects/"+projectSlug+"/keys",
+		testclient.JSON(map[string]string{
+			"environment": "development", "kind": "project", "name": "ci"})).
+		AssertStatus(http.StatusCreated)
+	verified.Post("/v1/organizations",
+		testclient.JSON(map[string]string{"name": "Another", "slug": unique("org")})).
+		AssertStatus(http.StatusCreated)
 }

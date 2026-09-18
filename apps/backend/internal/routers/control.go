@@ -34,13 +34,18 @@ func Meta() *muzak.Router {
 func Organizations() *muzak.Router {
 	r := muzak.NewRouter(muzak.WithTags("organizations"))
 
-	// No permission on either of these two, and that is the design rather than an
-	// omission. Neither path names an organisation, so there is no membership to check
+	// Neither path names an organisation, so there is no membership and no role to check
 	// against: anybody signed in may create one, and listing returns only what the caller
 	// belongs to.
+	//
+	// Creating one still changes something, which is why it carries RequireVerified. It is
+	// the one write in the product that cannot be expressed as a permission — there is no
+	// organisation yet to hold the role that would grant it — so it is also the one place a
+	// read-only account could otherwise act.
 	r.Post("/organizations", handlers.CreateOrganization,
 		muzak.Summary("Create an organization"),
 		muzak.Description("The caller becomes its owner, and its six roles are seeded."),
+		core.RequireVerified(),
 		muzak.Status(http.StatusCreated),
 		muzak.WithResponseDoc(http.StatusConflict, "An organization with that slug already exists"))
 

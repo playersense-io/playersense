@@ -111,6 +111,31 @@ func (c *Client) Set(ctx context.Context, key string, value []byte, ttl time.Dur
 			PxMilliseconds(ttl.Milliseconds()).Build()).Error()
 }
 
+// SetNX writes a key only if it is not already there, and reports whether it won.
+//
+// The atomic half of a "do this at most once per interval" rule. Reading and then writing
+// would let two concurrent requests both see nothing and both proceed — which for the caller
+// that wants this means two of whatever was supposed to happen once, sent to a real person.
+//
+// A false with no error is the ordinary outcome, not a failure: somebody else holds the slot.
+func (c *Client) SetNX(ctx context.Context, key string, value []byte, ttl time.Duration) (bool, error) {
+	if !c.Ready() {
+		return false, ErrUnavailable
+	}
+	err := c.client.Do(ctx,
+		c.client.B().Set().Key(key).Value(vk.BinaryString(value)).
+			Nx().PxMilliseconds(ttl.Milliseconds()).Build()).Error()
+	switch {
+	case err == nil:
+		return true, nil
+	case vk.IsValkeyNil(err):
+		// The key was already there. SET NX answers a nil reply rather than an error.
+		return false, nil
+	default:
+		return false, err
+	}
+}
+
 // Del removes keys. Used to evict a revoked credential immediately rather than waiting
 // out its TTL (§53).
 func (c *Client) Del(ctx context.Context, keys ...string) error {

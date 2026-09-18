@@ -86,6 +86,23 @@ type Settings struct {
 	// that tests can reach inside.
 	FirebaseCertificateURL string `env:"FIREBASE_CERTIFICATE_URL" default:"https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com"`
 
+	// FirebaseAPIKey is the Web API key, used to ask Firebase to email a verification
+	// link to an account that has not confirmed its address.
+	//
+	// Deliberately **not** marked secret, because it is not one: it ships in every browser
+	// bundle that uses Firebase and authorises nothing on its own — a caller still has to
+	// present a valid ID token for the account being acted on. Marking it secret would
+	// imply a handling discipline it does not need and does not have anywhere else.
+	//
+	// Required. A deployment that cannot send verification emails is one where a new
+	// password sign-up can never reach the API, and failing at start-up is a better way to
+	// learn that than a support ticket a week later.
+	FirebaseAPIKey string `env:"FIREBASE_API_KEY" required:"true"`
+
+	// FirebaseIdentityURL is Firebase's authentication API. Overridden by a test standing
+	// up its own, or a deployment behind a proxy that must see the request.
+	FirebaseIdentityURL string `env:"FIREBASE_IDENTITY_URL" default:"https://identitytoolkit.googleapis.com/v1"`
+
 	// TrustedProxies lists the proxies whose forwarding header is believed, as a
 	// comma-separated list of addresses or CIDR prefixes. Empty by default: a
 	// forwarding header is written by whatever sent the request, and believing one from

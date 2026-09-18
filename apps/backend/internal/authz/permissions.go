@@ -116,6 +116,35 @@ var scopes = map[Permission]Scope{
 	PrivacyExport: ScopeProject,
 }
 
+// reads is the half of the vocabulary that only looks.
+//
+// Derived from the name would be tempting — everything ending in `.read` — and wrong twice
+// over: `privacy.export` does not end in read and writes a bundle of somebody's personal data,
+// while a permission named `analytics.read_raw` would have to be remembered. A table is a
+// table, and adding a permission without classifying it is a compile-time hole this file's
+// own test closes.
+//
+// The distinction earns its place because an account can be **read-only**: somebody whose
+// email address Firebase has not confirmed can sign in, open the dashboard and see their
+// organisation, and change nothing until they click the link. A banner explaining that is a
+// better first experience than a wall.
+var reads = map[Permission]bool{
+	OrgRead:       true,
+	MemberRead:    true,
+	BillingRead:   true,
+	AuditRead:     true,
+	KeyRead:       true,
+	AnalyticsRead: true,
+	LiveOpsRead:   true,
+	PrivacyRead:   true,
+}
+
+// Mutates reports whether exercising a permission changes something.
+//
+// Unknown permissions answer true. Anything outside the vocabulary is refused before this is
+// reached, and "I do not recognise it, so it is safe" is the wrong direction to be wrong in.
+func (p Permission) Mutates() bool { return !reads[p] }
+
 // Known reports whether a permission is in the vocabulary.
 func (p Permission) Known() bool {
 	_, found := scopes[p]

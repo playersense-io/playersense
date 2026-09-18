@@ -14,6 +14,7 @@ import (
 	"playersense.dev/backend/internal/authz"
 	"playersense.dev/backend/internal/firebase"
 	"playersense.dev/backend/internal/identity"
+	"playersense.dev/backend/internal/valkey"
 )
 
 // Principal is a signed-in person, the organisation they are acting inside, and what they may
@@ -100,8 +101,17 @@ func ResolveUser(ctx *muzak.Context) (*Principal, error) {
 	// is the only claim that separates them: clicking the link is what proves control of
 	// the address, so a passwordless sign-in arrives true and a fresh password sign-up
 	// arrives false. See internal/firebase for the measurement.
+	// An address Firebase has not confirmed does not stop somebody signing in. They open
+	// the dashboard, see their organisation and their projects, and change nothing — with
+	// a banner saying which link to click. A wall at the door is a worse first experience
+	// and teaches nobody what to do about it.
+	//
+	// What it does stop is every permission that changes something, which is set below on
+	// the actor rather than checked at each call site. The invitation case is why it has
+	// to stop *anything*: accepting an invitation sent to an address is how somebody joins
+	// an organisation they were never invited to, and accepting is a write.
 	if !claims.EmailVerified {
-		return nil, muzak.Forbidden("verify your email address before using the API")
+		sendVerification(ctx, claims, presented)
 	}
 
 	person, err := identity.EnsureUser(ctx.Context(), ctrl.Client, claims, time.Now())
@@ -125,6 +135,59 @@ func ResolveUser(ctx *muzak.Context) (*Principal, error) {
 	}
 	return principal, nil
 }
+
+// VerificationInterval is how often one account is emailed a verification link.
+//
+// Firebase has a limit of its own and it is much tighter than this: measured against a real
+// project, the request immediately after a successful send is refused with
+// TOO_MANY_ATTEMPTS_TRY_LATER. Without a throttle here, a dashboard that retries — or simply
+// a person reloading the page — would spend that allowance in seconds and then be told the
+// send failed, for the one thing that had already worked.
+const VerificationInterval = 15 * time.Minute
+
+// sendVerification emails a link to an unverified account, at most once an interval.
+//
+// Best effort, and deliberately returns nothing. The sign-in succeeds either way — the
+// account is read-only because Firebase has not confirmed the address, not because we did or
+// did not manage to send a message about it. Failing the request on a mail problem would
+// convert a degraded convenience into an outage.
+//
+// Sent synchronously rather than behind a goroutine, because the throttle below only means
+// something if the send it guards has already happened by the time the next request arrives.
+func sendVerification(ctx *muzak.Context, claims identity.Claims, idToken string) {
+	sender, found := muzak.TryFrom[*firebase.Sender](ctx)
+	if !found || sender.APIKey == "" {
+		// TryFrom rather than From: a service that resolves users without ever sending
+		// mail is a legitimate arrangement, not a wiring bug.
+		return
+	}
+
+	// One send per account per interval, claimed atomically. Two tabs opening at once must
+	// not produce two emails, and a read followed by a write would let them.
+	cache, found := muzak.TryFrom[*valkey.Client](ctx)
+	if !found {
+		return
+	}
+	key := cache.Key("verify-email", claims.UID)
+	won, err := cache.SetNX(ctx.Context(), key, []byte("1"), VerificationInterval)
+	if err != nil || !won {
+		// Valkey being unavailable lands here too, and deliberately does not send: the
+		// failure mode of a lost throttle is a person emailed once per page load.
+		return
+	}
+
+	if err := sender.SendVerification(ctx.Context(), idToken); err != nil &&
+		!errors.Is(err, firebase.ErrSentRecently) {
+		// Release the slot so the next request can try again, rather than waiting out an
+		// interval for a send that never happened.
+		_ = cache.Del(ctx.Context(), key)
+		ctx.Logger().Warn("could not send a verification email",
+			"firebase_uid", claims.UID, "error", err)
+	}
+}
+
+// VerifyEmailFirst is what a read-only account is told, and why.
+const VerifyEmailFirst = "this account has not verified its email address"
 
 // enterOrganization resolves the organisation in the path and the person's standing in it.
 func (p *Principal) enterOrganization(ctx *muzak.Context, ctrl *Global, slug string) error {
@@ -185,6 +248,14 @@ func (p *Principal) enterOrganization(ctx *muzak.Context, ctrl *Global, slug str
 	p.Organization = org
 	p.Member = member
 	p.Actor = authz.UserActor(org.ID, p.User.ID, systemRole, permissions, member.AllProjects, reachable)
+
+	// Set on the actor rather than checked at each call site, so a route that forgets is
+	// a route that is still safe: every permission that changes something is withheld,
+	// including from an owner.
+	if !p.Claims.EmailVerified {
+		p.Actor.ReadOnly = true
+		p.Actor.ReadOnlyReason = VerifyEmailFirst
+	}
 
 	return p.enterProject(ctx, ctrl)
 }
@@ -261,6 +332,27 @@ func Require(permissions ...authz.Permission) muzak.SharedOption {
 				// exists, and "forbidden" with no reason is a support ticket.
 				return Authorized{}, muzak.Forbidden(err.Error())
 			}
+		}
+		return Authorized{Principal: principal}, nil
+	})
+}
+
+// RequireVerified declares that a route changes something but has no permission to hang that
+// on.
+//
+// There is exactly one today — creating an organisation, which happens *before* there is an
+// organisation to hold a role — and it is the hole a read-only account would otherwise walk
+// through, because [Actor.ReadOnly] can only withhold permissions that are checked.
+//
+// Not a general-purpose "must be verified" guard. Anything with a permission gets this for
+// free and should use [Require] instead; adding it beside one would also collide, since muzak
+// keeps one provider per produced type.
+func RequireVerified() muzak.SharedOption {
+	return muzak.Needs(func(ctx *muzak.Context) (Authorized, error) {
+		principal := muzak.From[*Principal](ctx)
+		if !principal.Claims.EmailVerified {
+			return Authorized{}, muzak.Forbidden(VerifyEmailFirst +
+				", so it cannot create anything yet; check your inbox for a link")
 		}
 		return Authorized{Principal: principal}, nil
 	})

@@ -49,6 +49,8 @@ func signedIn(t *testing.T) (*testclient.Client, *fbtest.Google) {
 	settings := testSettings(t)
 	google := fbtest.New(t, settings.FirebaseProjectID)
 	settings.FirebaseCertificateURL = google.URL
+	settings.FirebaseIdentityURL = newFirebaseMail(t).server.URL
+	settings.FirebaseAPIKey = "AIzaTestKey"
 
 	app := build(settings)
 	token := google.Token(person(t))
@@ -68,6 +70,8 @@ func newAnonClient(t *testing.T) *testclient.Client {
 	settings := testSettings(t)
 	google := fbtest.New(t, settings.FirebaseProjectID)
 	settings.FirebaseCertificateURL = google.URL
+	settings.FirebaseIdentityURL = newFirebaseMail(t).server.URL
+	settings.FirebaseAPIKey = "AIzaTestKey"
 	return testclient.New(t, build(settings))
 }
 

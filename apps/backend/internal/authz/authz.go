@@ -32,6 +32,18 @@ type Actor struct {
 
 	// KeyKind is set for an API key: project, reporting or server.
 	KeyKind string
+
+	// ReadOnly withholds every permission that changes something, whatever the role says.
+	//
+	// It is an account-level state rather than a role, because it is not about what this
+	// person was hired to do: today it is set for somebody whose email address Firebase
+	// has not confirmed, and it is the shape a suspended bill would want too. They can
+	// sign in, open the dashboard and see their organisation; they simply cannot act.
+	ReadOnly bool
+
+	// ReadOnlyReason is what to tell them, because "forbidden" when the role plainly
+	// grants it is a support ticket. Set beside ReadOnly and shown in the refusal.
+	ReadOnlyReason string
 }
 
 // UserActor builds an actor from a person's membership.
@@ -60,6 +72,11 @@ func UserActor(organizationID, userID int, systemRole string, permissions []Perm
 // answer, so it is refused rather than guessed.
 func (a Actor) Can(permission Permission, projectID int) bool {
 	if a.OrganizationID == 0 || !permission.Known() {
+		return false
+	}
+	// Checked before the role, not after. A read-only account holding OWNER must be
+	// refused by this and not reach a line that says "owner may do everything".
+	if a.ReadOnly && permission.Mutates() {
 		return false
 	}
 
@@ -115,6 +132,16 @@ func (a Actor) Require(permission Permission, projectID int) error {
 	}
 	if !permission.Known() {
 		return fmt.Errorf("unknown permission %q", permission)
+	}
+	// Two very different refusals, and telling them apart is the difference between a
+	// banner somebody can act on and a support ticket. The role is wrong here; there is
+	// nothing this person can do about it but ask an owner.
+	if a.ReadOnly && permission.Mutates() {
+		reason := a.ReadOnlyReason
+		if reason == "" {
+			reason = "this account is read-only"
+		}
+		return fmt.Errorf("%s, so it cannot %s", reason, permission)
 	}
 	return fmt.Errorf("this account does not have %s", permission)
 }
