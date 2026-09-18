@@ -14,7 +14,7 @@ import (
 	"playersense.dev/backend/internal/authz"
 	"playersense.dev/backend/internal/firebase"
 	"playersense.dev/backend/internal/identity"
-	"playersense.dev/backend/internal/valkey"
+	"playersense.dev/backend/internal/ratelimit"
 )
 
 // Principal is a signed-in person, the organisation they are acting inside, and what they may
@@ -136,15 +136,6 @@ func ResolveUser(ctx *muzak.Context) (*Principal, error) {
 	return principal, nil
 }
 
-// VerificationInterval is how often one account is emailed a verification link.
-//
-// Firebase has a limit of its own and it is much tighter than this: measured against a real
-// project, the request immediately after a successful send is refused with
-// TOO_MANY_ATTEMPTS_TRY_LATER. Without a throttle here, a dashboard that retries — or simply
-// a person reloading the page — would spend that allowance in seconds and then be told the
-// send failed, for the one thing that had already worked.
-const VerificationInterval = 15 * time.Minute
-
 // sendVerification emails a link to an unverified account, at most once an interval.
 //
 // Best effort, and deliberately returns nothing. The sign-in succeeds either way — the
@@ -162,25 +153,25 @@ func sendVerification(ctx *muzak.Context, claims identity.Claims, idToken string
 		return
 	}
 
-	// One send per account per interval, claimed atomically. Two tabs opening at once must
-	// not produce two emails, and a read followed by a write would let them.
-	cache, found := muzak.TryFrom[*valkey.Client](ctx)
+	// The same limiter every outbound message goes through, so there is one place that
+	// decides how often a person may be written to rather than one rule per kind of mail.
+	//
+	// Fails **closed**: an email reaches a real person's inbox and cannot be taken back, so
+	// when the limiter cannot count, nothing is sent. That is the opposite of the ingestion
+	// path's choice and for the opposite reason — see docs/rate-limits.md.
+	limiter, found := muzak.TryFrom[*ratelimit.Limiter](ctx)
 	if !found {
 		return
 	}
-	key := cache.Key("verify-email", claims.UID)
-	won, err := cache.SetNX(ctx.Context(), key, []byte("1"), VerificationInterval)
-	if err != nil || !won {
-		// Valkey being unavailable lands here too, and deliberately does not send: the
-		// failure mode of a lost throttle is a person emailed once per page load.
+	// The address rather than the Firebase uid: the budget protects whoever is being
+	// written to, and a person who changes their address has not earned a fresh allowance
+	// for the old one.
+	if err := limiter.Allow(ctx, EmailBudgets("verification", claims.Email, 0)...); err != nil {
 		return
 	}
 
 	if err := sender.SendVerification(ctx.Context(), idToken); err != nil &&
 		!errors.Is(err, firebase.ErrSentRecently) {
-		// Release the slot so the next request can try again, rather than waiting out an
-		// interval for a send that never happened.
-		_ = cache.Del(ctx.Context(), key)
 		ctx.Logger().Warn("could not send a verification email",
 			"firebase_uid", claims.UID, "error", err)
 	}

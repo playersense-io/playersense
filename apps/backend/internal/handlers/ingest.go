@@ -14,6 +14,7 @@ import (
 	"playersense.dev/backend/internal/eventbus"
 	"playersense.dev/backend/internal/ingest"
 	"playersense.dev/backend/internal/protocol"
+	"playersense.dev/backend/internal/ratelimit"
 	"playersense.dev/backend/internal/schemas"
 )
 
@@ -30,6 +31,21 @@ func AcceptBatch(ctx *muzak.Context, in schemas.IngestBatchIn) (protocol.Accepte
 	bus := muzak.From[eventbus.Bus](ctx)
 	limits := muzak.From[ingest.Limits](ctx)
 	home := muzak.From[core.CellIdentity](ctx)
+
+	// Counted here rather than by the framework, because this is the first point at which
+	// the caller is known by name: the project from the credential, the installation from
+	// the body. Before binding there is only an address, and an address behind carrier NAT
+	// is tens of thousands of players (docs/rate-limits.md).
+	//
+	// After the residency check below would be wrong: a batch aimed at the wrong cell is
+	// still a request this cell served, and not counting it would make the 421 path the
+	// cheapest way to send unlimited traffic.
+	if limiter, found := muzak.TryFrom[*ratelimit.Limiter](ctx); found {
+		if err := limiter.Allow(ctx,
+			core.IngestBudgets(tenant, in.InstallID, core.ClientAddressOf(ctx))...); err != nil {
+			return protocol.Accepted{}, err
+		}
+	}
 
 	// Residency, enforced here rather than assumed (§6, §99).
 	//

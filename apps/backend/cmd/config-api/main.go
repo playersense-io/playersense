@@ -25,7 +25,6 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"time"
 
 	"muzak.dev/framework"
 
@@ -37,6 +36,7 @@ import (
 	"playersense.dev/backend/internal/geoip"
 	"playersense.dev/backend/internal/liveconfig"
 	"playersense.dev/backend/internal/pgdb"
+	"playersense.dev/backend/internal/ratelimit"
 	"playersense.dev/backend/internal/routers"
 	"playersense.dev/backend/internal/valkey"
 )
@@ -115,6 +115,19 @@ func build(settings config.Settings) (*muzak.App, error) {
 		muzak.WithSingleton(ch),
 		muzak.WithSingleton(resolver),
 		muzak.WithSingleton(settings),
+
+		// Counted in the handler rather than by the framework, for the reason
+		// docs/rate-limits.md gives: the framework's limiter runs before any dependency
+		// resolves and can only key on the address, which behind carrier NAT is tens of
+		// thousands of players sharing one budget.
+		//
+		// Fails open. A game that cannot read its configuration falls back to the values it
+		// already has; a game refused because Valkey was unreachable falls back for no
+		// reason at all.
+		//
+		// Nil when limits are disabled, for the reason ingest-api gives.
+		muzak.WithSingleton(ratelimit.New(
+			valkey.NewRateLimitStorage(cache), true, !settings.RateLimitDisabled)),
 		muzak.WithSingleton(store),
 		muzak.WithSingleton(playerFacts),
 		muzak.WithSingleton(geo, muzak.LifecycleFunc("geoip", nil,
@@ -125,21 +138,6 @@ func build(settings config.Settings) (*muzak.App, error) {
 		muzak.WithSingleton(core.CellFrom(settings)),
 		muzak.WithLifecycle(core.NewCellCheck(settings)),
 	)
-
-	if !settings.RateLimitDisabled {
-		// Far more generous than reporting's, because the caller is a game rather than a
-		// dashboard: every device on a launch spike asks once, and the answer is cheap.
-		// The budget still exists, because a device in a retry loop is the one caller
-		// that never gets bored.
-		app.Options(muzak.WithRateLimit(muzak.RateLimitOptions{
-			Storage: valkey.NewRateLimitStorage(cache),
-			Tracker: muzak.IPPrefixTracker(32, 64),
-			Quotas: []muzak.Quota{
-				{Name: "config-burst", Window: time.Second, Limit: 20},
-				{Name: "config-sustained", Window: time.Minute, Limit: 600},
-			},
-		}))
-	}
 
 	app.Include(routers.Meta())
 	app.Include(routers.Config())

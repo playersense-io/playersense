@@ -18,6 +18,7 @@ import (
 	"playersense.dev/backend/internal/core"
 	"playersense.dev/backend/internal/firebase"
 	"playersense.dev/backend/internal/pgdb"
+	"playersense.dev/backend/internal/ratelimit"
 	"playersense.dev/backend/internal/routers"
 	"playersense.dev/backend/internal/valkey"
 )
@@ -114,6 +115,11 @@ func build(settings config.Settings) *muzak.App {
 		muzak.WithSingleton(resolver),
 		muzak.WithSingleton(settings),
 
+		// Only the email actions are limited, and this is what counts them. Fails **closed**:
+		// a message reaches a real person's inbox and cannot be taken back, so when the
+		// limiter cannot count, nothing is sent.
+		muzak.WithSingleton(ratelimit.New(valkey.NewRateLimitStorage(cache), false, true)),
+
 		// Verifies the ID token on every request and caches Google's signing
 		// certificates. Started with the application so that a deployment which cannot
 		// reach Google fails while it is starting rather than on somebody's first
@@ -125,9 +131,16 @@ func build(settings config.Settings) *muzak.App {
 	// Counted before the guards, so a request a guard rejects still costs the caller its
 	// budget. Behind a flag only because the counters are now shared through Valkey: one
 	// test suite would otherwise spend the next one's budget.
-	if !settings.RateLimitDisabled {
-		app.Options(muzak.WithRateLimit(core.RateLimitPolicy(valkey.NewRateLimitStorage(cache))))
-	}
+	// No rate limit on the dashboard, deliberately.
+	//
+	// A rate limit here can only ever inconvenience a customer: the surface is authenticated,
+	// low-volume and used by people rather than programs, and nothing expensive happens before
+	// the sign-in is verified — a request with a bad token costs one RSA verification against
+	// a cached key and no database work at all.
+	//
+	// What is limited is the handful of actions that send **email**: those cost money, cost
+	// sender reputation, and arrive in somebody else's inbox whether or not they asked. See
+	// core.EmailBudget and docs/rate-limits.md.
 
 	// Operational routes answer without a credential; everything else sits behind a
 	// signed-in person. Both decisions are made here rather than inside the routers, which

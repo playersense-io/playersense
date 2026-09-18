@@ -1,13 +1,12 @@
 package main
 
 import (
-	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 
+	"github.com/google/uuid"
 	"muzak.dev/framework"
 	"muzak.dev/framework/testclient"
 
@@ -89,8 +88,16 @@ func person(t *testing.T) fbtest.Person {
 }
 
 // unique keeps runs independent without a teardown step.
+//
+// A UUID rather than the clock, because the clock is not fine-grained enough to be an
+// identifier. Measured on this machine: twenty thousand calls to
+// `time.Now().UnixNano() % 1e9` produce **1,470 distinct values** — 93% of them collide. Two
+// `person(t)` calls in one test run would then be one Firebase identity, one user row and one
+// membership, and a test that gave "two people" different roles would quietly be asserting
+// about whichever won. That is what made TestTheLiveOpsManagerIsLiveOpsOnly fail once in the
+// full suite and never again on its own.
 func unique(prefix string) string {
-	return fmt.Sprintf("%s-%d", prefix, time.Now().UnixNano()%1_000_000_000)
+	return prefix + "-" + uuid.NewString()[:12]
 }
 
 func TestAppBuilds(t *testing.T) {

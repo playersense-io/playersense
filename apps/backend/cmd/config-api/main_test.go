@@ -75,9 +75,24 @@ func (f *fixture) publish(t *testing.T, in liveconfig.Input) liveconfig.Document
 	return document
 }
 
+// newFixtureWithLimits is newFixture with the rate limiter switched on.
+//
+// Every other test here leaves it off, so that one run's counters do not spend the next one's
+// budget — the counters live in Valkey and outlive the process.
+func newFixtureWithLimits(t *testing.T) *fixture {
+	t.Helper()
+	return buildFixture(t, false)
+}
+
 func newFixture(t *testing.T) *fixture {
 	t.Helper()
+	return buildFixture(t, true)
+}
+
+func buildFixture(t *testing.T, limitsDisabled bool) *fixture {
+	t.Helper()
 	settings := testSettings(t)
+	settings.RateLimitDisabled = limitsDisabled
 	db := testsupport.Global(t, settings)
 	home := core.CellFrom(settings)
 	project := testsupport.SeedProject(t, db, "standard", testsupport.SeedCell(t, db, home).ID)
@@ -377,4 +392,10 @@ func indexOf(haystack, needle string) int {
 		}
 	}
 	return -1
+}
+
+// emptyInput is a document with nothing in it, for tests about something other than its
+// contents.
+func emptyInput(version int) liveconfig.Input {
+	return liveconfig.Input{Version: version}
 }

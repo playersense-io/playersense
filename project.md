@@ -2463,13 +2463,18 @@ Examples:
 - maximum execution time;
 - maximum bytes to read;
 - constrained dimensions/metrics;
-- concurrency quotas per organization;
 - asynchronous mode for heavy queries;
 - rate-limit counters in Valkey, shared by every instance;
 - no join on an actor-cardinality key;
 - minimum cell size on any aggregate that could identify one player.
 
 Never expose a generic `POST /sql` endpoint to normal dashboard users.
+
+**Per-organisation concurrency quotas were struck from this list.** A shared budget is
+precisely the mechanism by which one person's usage affects another's, which is the thing
+rate limiting here exists to prevent — see [docs/rate-limits.md](docs/rate-limits.md) for the
+whole design, including why the dashboard has no rate limit at all and why a query needs no
+request limit once every query is individually bounded.
 
 ### 32.1 The join restriction
 

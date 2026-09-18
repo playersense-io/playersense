@@ -14,6 +14,7 @@ import (
 	"playersense.dev/backend/internal/geoip"
 	"playersense.dev/backend/internal/liveconfig"
 	"playersense.dev/backend/internal/protocol"
+	"playersense.dev/backend/internal/ratelimit"
 	"playersense.dev/backend/internal/schemas"
 	"playersense.dev/backend/internal/targeting"
 )
@@ -50,6 +51,15 @@ func ServeConfig(ctx *muzak.Context, in schemas.ConfigIn) (protocol.ConfigRespon
 	tenant := muzak.From[*core.Tenant](ctx)
 	store := muzak.From[*liveconfig.Store](ctx)
 	home := muzak.From[core.CellIdentity](ctx)
+
+	// Counted first, for the reason ingestion gives: this is the first point at which the
+	// device is known, and a device is what "one player" means here.
+	if limiter, found := muzak.TryFrom[*ratelimit.Limiter](ctx); found {
+		if err := limiter.Allow(ctx,
+			core.ConfigBudgets(tenant, in.InstallID, core.ClientAddressOf(ctx))...); err != nil {
+			return protocol.ConfigResponse{}, err
+		}
+	}
 
 	// Residency, for the same reason ingestion enforces it (§6, §99): this project's
 	// players belong to another cell, and answering here would mean reading their history

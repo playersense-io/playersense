@@ -2,6 +2,7 @@ package valkey
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	vk "github.com/valkey-io/valkey-go"
@@ -105,4 +106,88 @@ func itoa(n int64) string {
 		n /= 10
 	}
 	return string(buf[i:])
+}
+
+// incrementManyScript counts one request against several budgets in one round trip.
+//
+// The ingestion path checks three — the project, the address inside it, and the device —
+// and three round trips per request would make the limiter more expensive than the work it
+// protects. One script, N keys, N windows, and the same two rules as above hold for each:
+// the count includes this request, and an existing counter's life is never extended.
+//
+// Every budget is counted even when an earlier one is already over. Stopping at the first
+// would make the later counters depend on the order keys happened to be passed in, so a
+// device over its own limit would stop contributing to its project's — and the project's
+// number would quietly become a number about something else.
+var incrementManyScript = vk.NewLuaScript(`
+local out = {}
+for i = 1, #KEYS do
+  local count = redis.call('INCR', KEYS[i])
+  if count == 1 then
+    redis.call('PEXPIRE', KEYS[i], ARGV[i])
+  end
+  out[#out + 1] = count
+  out[#out + 1] = redis.call('PTTL', KEYS[i])
+end
+return out
+`)
+
+// Counted is what one budget's counter said.
+type Counted struct {
+	Count int
+	Reset time.Duration
+}
+
+// IncrementMany counts one request against several budgets at once.
+//
+// `quota` and `keys` are paired with `windows` by position; all three must be the same
+// length. The result is in the same order, so a caller reads budget i from element i rather
+// than matching on a key it must never log.
+func (s *RateLimitStorage) IncrementMany(ctx context.Context, quotas, keys []string, windows []time.Duration) ([]Counted, error) {
+	if len(quotas) != len(keys) || len(keys) != len(windows) {
+		return nil, fmt.Errorf("valkey: %d quotas, %d keys and %d windows", len(quotas), len(keys), len(windows))
+	}
+	if len(keys) == 0 {
+		return nil, nil
+	}
+	if !s.client.Ready() {
+		return nil, ErrUnavailable
+	}
+
+	full := make([]string, len(keys))
+	args := make([]string, len(windows))
+	for i := range keys {
+		full[i] = s.client.Key("ratelimit", quotas[i], keys[i])
+		args[i] = formatMillis(windows[i])
+	}
+
+	res := incrementManyScript.Exec(ctx, s.client.client, full, args)
+	if err := res.Error(); err != nil {
+		return nil, err
+	}
+	values, err := res.ToArray()
+	if err != nil {
+		return nil, err
+	}
+	if len(values) != 2*len(keys) {
+		return nil, fmt.Errorf("valkey: the limiter answered %d values for %d budgets",
+			len(values), len(keys))
+	}
+
+	out := make([]Counted, len(keys))
+	for i := range keys {
+		count, err := values[2*i].AsInt64()
+		if err != nil {
+			return nil, err
+		}
+		ttl, err := values[2*i+1].AsInt64()
+		if err != nil {
+			return nil, err
+		}
+		if ttl < 0 {
+			ttl = windows[i].Milliseconds()
+		}
+		out[i] = Counted{Count: int(count), Reset: time.Duration(ttl) * time.Millisecond}
+	}
+	return out, nil
 }

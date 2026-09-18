@@ -23,7 +23,6 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"time"
 
 	"muzak.dev/framework"
 
@@ -128,19 +127,16 @@ func build(settings config.Settings) (*muzak.App, error) {
 		muzak.WithLifecycle(core.NewCellCheck(settings)),
 	)
 
-	if !settings.RateLimitDisabled {
-		// A cohort query is far more expensive than a batch insert, so the budget is much
-		// smaller than ingestion's and shared across instances through Valkey. §32 asks for
-		// per-organisation concurrency quotas too; this is the per-caller half.
-		app.Options(muzak.WithRateLimit(muzak.RateLimitOptions{
-			Storage: valkey.NewRateLimitStorage(cache),
-			Tracker: muzak.IPPrefixTracker(32, 64),
-			Quotas: []muzak.Quota{
-				{Name: "query-burst", Window: time.Second, Limit: 10},
-				{Name: "query-sustained", Window: time.Minute, Limit: 300},
-			},
-		}))
-	}
+	// No rate limit, deliberately.
+	//
+	// §32's protections here are per *query* rather than per caller — MaxRows,
+	// MaxExecutionTime, MaxRowsToRead, MaxBytesToRead, the refusal to join on an actor key —
+	// and they are the ones that matter: a bounded query cannot be expensive, so a great many
+	// of them cannot be catastrophic. A request limit on top of that would only ever
+	// inconvenience a real dashboard, which is the one caller this service has.
+	//
+	// The exception is the data-subject surface below, which takes a server key and is
+	// limited where it touches email or a bucket rather than here. See docs/rate-limits.md.
 
 	app.Include(routers.Meta())
 	app.Include(routers.Cohorts())

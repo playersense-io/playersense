@@ -12,7 +12,6 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"time"
 
 	"muzak.dev/framework"
 
@@ -21,6 +20,7 @@ import (
 	"playersense.dev/backend/internal/eventbus"
 	"playersense.dev/backend/internal/ingest"
 	"playersense.dev/backend/internal/pgdb"
+	"playersense.dev/backend/internal/ratelimit"
 	"playersense.dev/backend/internal/routers"
 	"playersense.dev/backend/internal/transport"
 	"playersense.dev/backend/internal/valkey"
@@ -85,6 +85,27 @@ func build(settings config.Settings) (*muzak.App, error) {
 		muzak.WithSingleton(cache),
 		muzak.WithSingleton(resolver),
 		muzak.WithSingleton(settings),
+
+		// The rate limiter, counted in the handler rather than by the framework.
+		//
+		// The framework's own limiter runs before any dependency resolves, so it can only
+		// key on the client's address — and an address is not a player. Carrier-grade NAT
+		// puts tens of thousands of subscribers behind one IPv4, so a budget keyed on that
+		// throttles a country for one bad actor; and because its key carries no project, it
+		// let one studio's hit game throttle another studio's players. Both were true of
+		// this service until this commit.
+		//
+		// Fails **open**: §65's rule is that losing Valkey costs speed rather than data, and
+		// refusing every batch in the product because the limiter is unreachable would turn
+		// a degraded cache into an outage of the thing customers pay for. See
+		// docs/rate-limits.md.
+		//
+		// Nil when limits are disabled, which is how one test run's counters stop spending
+		// the next one's budget. The handler resolves it with TryFrom and counts nothing
+		// when it is absent.
+		muzak.WithSingleton(ratelimit.New(
+			valkey.NewRateLimitStorage(cache), true, !settings.RateLimitDisabled)),
+
 		muzak.WithSingleton(ingest.DefaultLimits()),
 
 		// Which cell this gateway is. The handler compares it with the cell the key
@@ -106,21 +127,6 @@ func build(settings config.Settings) (*muzak.App, error) {
 		// An IPv6 /64 is the block most providers hand out, so keying on the exact
 		// address would give one client a fresh budget on every request.
 	)
-
-	if !settings.RateLimitDisabled {
-		app.Options(muzak.WithRateLimit(muzak.RateLimitOptions{
-			// Counters live in Valkey so every instance shares one budget. The
-			// in-process default the framework ships is right for a single process and
-			// wrong for several: a limit of six thousand a minute silently becomes six
-			// thousand a minute per instance.
-			Storage: valkey.NewRateLimitStorage(cache),
-			Tracker: muzak.IPPrefixTracker(32, 64),
-			Quotas: []muzak.Quota{
-				{Name: "ingest-burst", Window: time.Second, Limit: 200},
-				{Name: "ingest-sustained", Window: time.Minute, Limit: 6000},
-			},
-		}))
-	}
 
 	// Before anything binds a body, because §19.1's "maximum decompressed bytes" is the
 	// route's own body limit and a limit applied after decoding is not a limit (§17, §19).
