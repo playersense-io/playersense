@@ -14,6 +14,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"playersense.dev/backend/ent/global/billingaccount"
 	"playersense.dev/backend/ent/global/billingperiod"
+	"playersense.dev/backend/ent/global/creditlot"
 	"playersense.dev/backend/ent/global/ledgerentry"
 	"playersense.dev/backend/ent/global/organization"
 	"playersense.dev/backend/ent/global/plan"
@@ -31,6 +32,7 @@ type BillingAccountQuery struct {
 	withOrganization  *OrganizationQuery
 	withPlan          *PlanQuery
 	withLedgerEntries *LedgerEntryQuery
+	withCreditLots    *CreditLotQuery
 	withPeriods       *BillingPeriodQuery
 	withStripeEvents  *StripeEventQuery
 	// intermediate query (i.e. traversal path).
@@ -128,6 +130,28 @@ func (_q *BillingAccountQuery) QueryLedgerEntries() *LedgerEntryQuery {
 			sqlgraph.From(billingaccount.Table, billingaccount.FieldID, selector),
 			sqlgraph.To(ledgerentry.Table, ledgerentry.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, billingaccount.LedgerEntriesTable, billingaccount.LedgerEntriesColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryCreditLots chains the current query on the "credit_lots" edge.
+func (_q *BillingAccountQuery) QueryCreditLots() *CreditLotQuery {
+	query := (&CreditLotClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(billingaccount.Table, billingaccount.FieldID, selector),
+			sqlgraph.To(creditlot.Table, creditlot.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, billingaccount.CreditLotsTable, billingaccount.CreditLotsColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -374,6 +398,7 @@ func (_q *BillingAccountQuery) Clone() *BillingAccountQuery {
 		withOrganization:  _q.withOrganization.Clone(),
 		withPlan:          _q.withPlan.Clone(),
 		withLedgerEntries: _q.withLedgerEntries.Clone(),
+		withCreditLots:    _q.withCreditLots.Clone(),
 		withPeriods:       _q.withPeriods.Clone(),
 		withStripeEvents:  _q.withStripeEvents.Clone(),
 		// clone intermediate query.
@@ -412,6 +437,17 @@ func (_q *BillingAccountQuery) WithLedgerEntries(opts ...func(*LedgerEntryQuery)
 		opt(query)
 	}
 	_q.withLedgerEntries = query
+	return _q
+}
+
+// WithCreditLots tells the query-builder to eager-load the nodes that are connected to
+// the "credit_lots" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *BillingAccountQuery) WithCreditLots(opts ...func(*CreditLotQuery)) *BillingAccountQuery {
+	query := (&CreditLotClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withCreditLots = query
 	return _q
 }
 
@@ -515,10 +551,11 @@ func (_q *BillingAccountQuery) sqlAll(ctx context.Context, hooks ...queryHook) (
 	var (
 		nodes       = []*BillingAccount{}
 		_spec       = _q.querySpec()
-		loadedTypes = [5]bool{
+		loadedTypes = [6]bool{
 			_q.withOrganization != nil,
 			_q.withPlan != nil,
 			_q.withLedgerEntries != nil,
+			_q.withCreditLots != nil,
 			_q.withPeriods != nil,
 			_q.withStripeEvents != nil,
 		}
@@ -557,6 +594,13 @@ func (_q *BillingAccountQuery) sqlAll(ctx context.Context, hooks ...queryHook) (
 		if err := _q.loadLedgerEntries(ctx, query, nodes,
 			func(n *BillingAccount) { n.Edges.LedgerEntries = []*LedgerEntry{} },
 			func(n *BillingAccount, e *LedgerEntry) { n.Edges.LedgerEntries = append(n.Edges.LedgerEntries, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withCreditLots; query != nil {
+		if err := _q.loadCreditLots(ctx, query, nodes,
+			func(n *BillingAccount) { n.Edges.CreditLots = []*CreditLot{} },
+			func(n *BillingAccount, e *CreditLot) { n.Edges.CreditLots = append(n.Edges.CreditLots, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -650,6 +694,36 @@ func (_q *BillingAccountQuery) loadLedgerEntries(ctx context.Context, query *Led
 	}
 	query.Where(predicate.LedgerEntry(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(billingaccount.LedgerEntriesColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.AccountID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "account_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *BillingAccountQuery) loadCreditLots(ctx context.Context, query *CreditLotQuery, nodes []*BillingAccount, init func(*BillingAccount), assign func(*BillingAccount, *CreditLot)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*BillingAccount)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(creditlot.FieldAccountID)
+	}
+	query.Where(predicate.CreditLot(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(billingaccount.CreditLotsColumn), fks...))
 	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {

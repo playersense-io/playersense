@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"time"
 
+	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
@@ -23,6 +24,7 @@ type ConfigVersionCreate struct {
 	config
 	mutation *ConfigVersionMutation
 	hooks    []Hook
+	conflict []sql.ConflictOption
 }
 
 // SetUID sets the "uid" field.
@@ -308,6 +310,7 @@ func (_c *ConfigVersionCreate) createSpec() (*ConfigVersion, *sqlgraph.CreateSpe
 		_node = &ConfigVersion{config: _c.config}
 		_spec = sqlgraph.NewCreateSpec(configversion.Table, sqlgraph.NewFieldSpec(configversion.FieldID, field.TypeInt))
 	)
+	_spec.OnConflict = _c.conflict
 	if id, ok := _c.mutation.ID(); ok {
 		_node.ID = id
 		_spec.ID.Value = id
@@ -411,11 +414,198 @@ func (_c *ConfigVersionCreate) createSpec() (*ConfigVersion, *sqlgraph.CreateSpe
 	return _node, _spec
 }
 
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.ConfigVersion.Create().
+//		SetUID(v).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.ConfigVersionUpsert) {
+//			SetUID(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *ConfigVersionCreate) OnConflict(opts ...sql.ConflictOption) *ConfigVersionUpsertOne {
+	_c.conflict = opts
+	return &ConfigVersionUpsertOne{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.ConfigVersion.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *ConfigVersionCreate) OnConflictColumns(columns ...string) *ConfigVersionUpsertOne {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &ConfigVersionUpsertOne{
+		create: _c,
+	}
+}
+
+type (
+	// ConfigVersionUpsertOne is the builder for "upsert"-ing
+	//  one ConfigVersion node.
+	ConfigVersionUpsertOne struct {
+		create *ConfigVersionCreate
+	}
+
+	// ConfigVersionUpsert is the "OnConflict" setter.
+	ConfigVersionUpsert struct {
+		*sql.UpdateSet
+	}
+)
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *ConfigVersionUpsert) SetUpdatedAt(v time.Time) *ConfigVersionUpsert {
+	u.Set(configversion.FieldUpdatedAt, v)
+	return u
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *ConfigVersionUpsert) UpdateUpdatedAt() *ConfigVersionUpsert {
+	u.SetExcluded(configversion.FieldUpdatedAt)
+	return u
+}
+
+// UpdateNewValues updates the mutable fields using the new values that were set on create except the ID field.
+// Using this option is equivalent to using:
+//
+//	client.ConfigVersion.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//			sql.ResolveWith(func(u *sql.UpdateSet) {
+//				u.SetIgnore(configversion.FieldID)
+//			}),
+//		).
+//		Exec(ctx)
+func (u *ConfigVersionUpsertOne) UpdateNewValues() *ConfigVersionUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		if _, exists := u.create.mutation.ID(); exists {
+			s.SetIgnore(configversion.FieldID)
+		}
+		if _, exists := u.create.mutation.UID(); exists {
+			s.SetIgnore(configversion.FieldUID)
+		}
+		if _, exists := u.create.mutation.CreatedAt(); exists {
+			s.SetIgnore(configversion.FieldCreatedAt)
+		}
+		if _, exists := u.create.mutation.ProjectID(); exists {
+			s.SetIgnore(configversion.FieldProjectID)
+		}
+		if _, exists := u.create.mutation.EnvironmentID(); exists {
+			s.SetIgnore(configversion.FieldEnvironmentID)
+		}
+		if _, exists := u.create.mutation.Version(); exists {
+			s.SetIgnore(configversion.FieldVersion)
+		}
+		if _, exists := u.create.mutation.Document(); exists {
+			s.SetIgnore(configversion.FieldDocument)
+		}
+		if _, exists := u.create.mutation.PublishedByUserID(); exists {
+			s.SetIgnore(configversion.FieldPublishedByUserID)
+		}
+		if _, exists := u.create.mutation.PublishedByKeyID(); exists {
+			s.SetIgnore(configversion.FieldPublishedByKeyID)
+		}
+		if _, exists := u.create.mutation.PublishedByLabel(); exists {
+			s.SetIgnore(configversion.FieldPublishedByLabel)
+		}
+		if _, exists := u.create.mutation.Note(); exists {
+			s.SetIgnore(configversion.FieldNote)
+		}
+	}))
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.ConfigVersion.Create().
+//	    OnConflict(sql.ResolveWithIgnore()).
+//	    Exec(ctx)
+func (u *ConfigVersionUpsertOne) Ignore() *ConfigVersionUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *ConfigVersionUpsertOne) DoNothing() *ConfigVersionUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the ConfigVersionCreate.OnConflict
+// documentation for more info.
+func (u *ConfigVersionUpsertOne) Update(set func(*ConfigVersionUpsert)) *ConfigVersionUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&ConfigVersionUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *ConfigVersionUpsertOne) SetUpdatedAt(v time.Time) *ConfigVersionUpsertOne {
+	return u.Update(func(s *ConfigVersionUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *ConfigVersionUpsertOne) UpdateUpdatedAt() *ConfigVersionUpsertOne {
+	return u.Update(func(s *ConfigVersionUpsert) {
+		s.UpdateUpdatedAt()
+	})
+}
+
+// Exec executes the query.
+func (u *ConfigVersionUpsertOne) Exec(ctx context.Context) error {
+	if len(u.create.conflict) == 0 {
+		return errors.New("global: missing options for ConfigVersionCreate.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *ConfigVersionUpsertOne) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// Exec executes the UPSERT query and returns the inserted/updated ID.
+func (u *ConfigVersionUpsertOne) ID(ctx context.Context) (id int, err error) {
+	node, err := u.create.Save(ctx)
+	if err != nil {
+		return id, err
+	}
+	return node.ID, nil
+}
+
+// IDX is like ID, but panics if an error occurs.
+func (u *ConfigVersionUpsertOne) IDX(ctx context.Context) int {
+	id, err := u.ID(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
 // ConfigVersionCreateBulk is the builder for creating many ConfigVersion entities in bulk.
 type ConfigVersionCreateBulk struct {
 	config
 	err      error
 	builders []*ConfigVersionCreate
+	conflict []sql.ConflictOption
 }
 
 // Save creates the ConfigVersion entities in the database.
@@ -445,6 +635,7 @@ func (_c *ConfigVersionCreateBulk) Save(ctx context.Context) ([]*ConfigVersion, 
 					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
 				} else {
 					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+					spec.OnConflict = _c.conflict
 					// Invoke the actual operation on the latest mutation in the chain.
 					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
 						if sqlgraph.IsConstraintError(err) {
@@ -495,6 +686,164 @@ func (_c *ConfigVersionCreateBulk) Exec(ctx context.Context) error {
 // ExecX is like Exec, but panics if an error occurs.
 func (_c *ConfigVersionCreateBulk) ExecX(ctx context.Context) {
 	if err := _c.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.ConfigVersion.CreateBulk(builders...).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.ConfigVersionUpsert) {
+//			SetUID(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *ConfigVersionCreateBulk) OnConflict(opts ...sql.ConflictOption) *ConfigVersionUpsertBulk {
+	_c.conflict = opts
+	return &ConfigVersionUpsertBulk{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.ConfigVersion.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *ConfigVersionCreateBulk) OnConflictColumns(columns ...string) *ConfigVersionUpsertBulk {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &ConfigVersionUpsertBulk{
+		create: _c,
+	}
+}
+
+// ConfigVersionUpsertBulk is the builder for "upsert"-ing
+// a bulk of ConfigVersion nodes.
+type ConfigVersionUpsertBulk struct {
+	create *ConfigVersionCreateBulk
+}
+
+// UpdateNewValues updates the mutable fields using the new values that
+// were set on create. Using this option is equivalent to using:
+//
+//	client.ConfigVersion.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//			sql.ResolveWith(func(u *sql.UpdateSet) {
+//				u.SetIgnore(configversion.FieldID)
+//			}),
+//		).
+//		Exec(ctx)
+func (u *ConfigVersionUpsertBulk) UpdateNewValues() *ConfigVersionUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		for _, b := range u.create.builders {
+			if _, exists := b.mutation.ID(); exists {
+				s.SetIgnore(configversion.FieldID)
+			}
+			if _, exists := b.mutation.UID(); exists {
+				s.SetIgnore(configversion.FieldUID)
+			}
+			if _, exists := b.mutation.CreatedAt(); exists {
+				s.SetIgnore(configversion.FieldCreatedAt)
+			}
+			if _, exists := b.mutation.ProjectID(); exists {
+				s.SetIgnore(configversion.FieldProjectID)
+			}
+			if _, exists := b.mutation.EnvironmentID(); exists {
+				s.SetIgnore(configversion.FieldEnvironmentID)
+			}
+			if _, exists := b.mutation.Version(); exists {
+				s.SetIgnore(configversion.FieldVersion)
+			}
+			if _, exists := b.mutation.Document(); exists {
+				s.SetIgnore(configversion.FieldDocument)
+			}
+			if _, exists := b.mutation.PublishedByUserID(); exists {
+				s.SetIgnore(configversion.FieldPublishedByUserID)
+			}
+			if _, exists := b.mutation.PublishedByKeyID(); exists {
+				s.SetIgnore(configversion.FieldPublishedByKeyID)
+			}
+			if _, exists := b.mutation.PublishedByLabel(); exists {
+				s.SetIgnore(configversion.FieldPublishedByLabel)
+			}
+			if _, exists := b.mutation.Note(); exists {
+				s.SetIgnore(configversion.FieldNote)
+			}
+		}
+	}))
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.ConfigVersion.Create().
+//		OnConflict(sql.ResolveWithIgnore()).
+//		Exec(ctx)
+func (u *ConfigVersionUpsertBulk) Ignore() *ConfigVersionUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *ConfigVersionUpsertBulk) DoNothing() *ConfigVersionUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the ConfigVersionCreateBulk.OnConflict
+// documentation for more info.
+func (u *ConfigVersionUpsertBulk) Update(set func(*ConfigVersionUpsert)) *ConfigVersionUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&ConfigVersionUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *ConfigVersionUpsertBulk) SetUpdatedAt(v time.Time) *ConfigVersionUpsertBulk {
+	return u.Update(func(s *ConfigVersionUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *ConfigVersionUpsertBulk) UpdateUpdatedAt() *ConfigVersionUpsertBulk {
+	return u.Update(func(s *ConfigVersionUpsert) {
+		s.UpdateUpdatedAt()
+	})
+}
+
+// Exec executes the query.
+func (u *ConfigVersionUpsertBulk) Exec(ctx context.Context) error {
+	if u.create.err != nil {
+		return u.create.err
+	}
+	for i, b := range u.create.builders {
+		if len(b.conflict) != 0 {
+			return fmt.Errorf("global: OnConflict was set for builder %d. Set it on the ConfigVersionCreateBulk instead", i)
+		}
+	}
+	if len(u.create.conflict) == 0 {
+		return errors.New("global: missing options for ConfigVersionCreateBulk.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *ConfigVersionUpsertBulk) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

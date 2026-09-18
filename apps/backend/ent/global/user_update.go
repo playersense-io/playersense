@@ -13,6 +13,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"playersense.dev/backend/ent/global/auditevent"
 	"playersense.dev/backend/ent/global/configversion"
+	"playersense.dev/backend/ent/global/creditlot"
 	"playersense.dev/backend/ent/global/invitation"
 	"playersense.dev/backend/ent/global/organizationmember"
 	"playersense.dev/backend/ent/global/predicate"
@@ -190,6 +191,21 @@ func (_u *UserUpdate) AddSentInvitations(v ...*Invitation) *UserUpdate {
 	return _u.AddSentInvitationIDs(ids...)
 }
 
+// AddGrantedCreditIDs adds the "granted_credits" edge to the CreditLot entity by IDs.
+func (_u *UserUpdate) AddGrantedCreditIDs(ids ...int) *UserUpdate {
+	_u.mutation.AddGrantedCreditIDs(ids...)
+	return _u
+}
+
+// AddGrantedCredits adds the "granted_credits" edges to the CreditLot entity.
+func (_u *UserUpdate) AddGrantedCredits(v ...*CreditLot) *UserUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddGrantedCreditIDs(ids...)
+}
+
 // AddAuditEventIDs adds the "audit_events" edge to the AuditEvent entity by IDs.
 func (_u *UserUpdate) AddAuditEventIDs(ids ...int) *UserUpdate {
 	_u.mutation.AddAuditEventIDs(ids...)
@@ -265,6 +281,27 @@ func (_u *UserUpdate) RemoveSentInvitations(v ...*Invitation) *UserUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveSentInvitationIDs(ids...)
+}
+
+// ClearGrantedCredits clears all "granted_credits" edges to the CreditLot entity.
+func (_u *UserUpdate) ClearGrantedCredits() *UserUpdate {
+	_u.mutation.ClearGrantedCredits()
+	return _u
+}
+
+// RemoveGrantedCreditIDs removes the "granted_credits" edge to CreditLot entities by IDs.
+func (_u *UserUpdate) RemoveGrantedCreditIDs(ids ...int) *UserUpdate {
+	_u.mutation.RemoveGrantedCreditIDs(ids...)
+	return _u
+}
+
+// RemoveGrantedCredits removes "granted_credits" edges to CreditLot entities.
+func (_u *UserUpdate) RemoveGrantedCredits(v ...*CreditLot) *UserUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveGrantedCreditIDs(ids...)
 }
 
 // ClearAuditEvents clears all "audit_events" edges to the AuditEvent entity.
@@ -501,6 +538,51 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(invitation.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.GrantedCreditsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.GrantedCreditsTable,
+			Columns: []string{user.GrantedCreditsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(creditlot.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedGrantedCreditsIDs(); len(nodes) > 0 && !_u.mutation.GrantedCreditsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.GrantedCreditsTable,
+			Columns: []string{user.GrantedCreditsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(creditlot.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.GrantedCreditsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.GrantedCreditsTable,
+			Columns: []string{user.GrantedCreditsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(creditlot.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {
@@ -776,6 +858,21 @@ func (_u *UserUpdateOne) AddSentInvitations(v ...*Invitation) *UserUpdateOne {
 	return _u.AddSentInvitationIDs(ids...)
 }
 
+// AddGrantedCreditIDs adds the "granted_credits" edge to the CreditLot entity by IDs.
+func (_u *UserUpdateOne) AddGrantedCreditIDs(ids ...int) *UserUpdateOne {
+	_u.mutation.AddGrantedCreditIDs(ids...)
+	return _u
+}
+
+// AddGrantedCredits adds the "granted_credits" edges to the CreditLot entity.
+func (_u *UserUpdateOne) AddGrantedCredits(v ...*CreditLot) *UserUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddGrantedCreditIDs(ids...)
+}
+
 // AddAuditEventIDs adds the "audit_events" edge to the AuditEvent entity by IDs.
 func (_u *UserUpdateOne) AddAuditEventIDs(ids ...int) *UserUpdateOne {
 	_u.mutation.AddAuditEventIDs(ids...)
@@ -851,6 +948,27 @@ func (_u *UserUpdateOne) RemoveSentInvitations(v ...*Invitation) *UserUpdateOne 
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveSentInvitationIDs(ids...)
+}
+
+// ClearGrantedCredits clears all "granted_credits" edges to the CreditLot entity.
+func (_u *UserUpdateOne) ClearGrantedCredits() *UserUpdateOne {
+	_u.mutation.ClearGrantedCredits()
+	return _u
+}
+
+// RemoveGrantedCreditIDs removes the "granted_credits" edge to CreditLot entities by IDs.
+func (_u *UserUpdateOne) RemoveGrantedCreditIDs(ids ...int) *UserUpdateOne {
+	_u.mutation.RemoveGrantedCreditIDs(ids...)
+	return _u
+}
+
+// RemoveGrantedCredits removes "granted_credits" edges to CreditLot entities.
+func (_u *UserUpdateOne) RemoveGrantedCredits(v ...*CreditLot) *UserUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveGrantedCreditIDs(ids...)
 }
 
 // ClearAuditEvents clears all "audit_events" edges to the AuditEvent entity.
@@ -1117,6 +1235,51 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(invitation.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.GrantedCreditsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.GrantedCreditsTable,
+			Columns: []string{user.GrantedCreditsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(creditlot.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedGrantedCreditsIDs(); len(nodes) > 0 && !_u.mutation.GrantedCreditsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.GrantedCreditsTable,
+			Columns: []string{user.GrantedCreditsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(creditlot.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.GrantedCreditsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.GrantedCreditsTable,
+			Columns: []string{user.GrantedCreditsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(creditlot.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

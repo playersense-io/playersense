@@ -70,13 +70,15 @@ type BillingAccountEdges struct {
 	Plan *Plan `json:"plan,omitempty"`
 	// LedgerEntries holds the value of the ledger_entries edge.
 	LedgerEntries []*LedgerEntry `json:"ledger_entries,omitempty"`
+	// CreditLots holds the value of the credit_lots edge.
+	CreditLots []*CreditLot `json:"credit_lots,omitempty"`
 	// Periods holds the value of the periods edge.
 	Periods []*BillingPeriod `json:"periods,omitempty"`
 	// StripeEvents holds the value of the stripe_events edge.
 	StripeEvents []*StripeEvent `json:"stripe_events,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [5]bool
+	loadedTypes [6]bool
 }
 
 // OrganizationOrErr returns the Organization value or an error if the edge
@@ -110,10 +112,19 @@ func (e BillingAccountEdges) LedgerEntriesOrErr() ([]*LedgerEntry, error) {
 	return nil, &NotLoadedError{edge: "ledger_entries"}
 }
 
+// CreditLotsOrErr returns the CreditLots value or an error if the edge
+// was not loaded in eager-loading.
+func (e BillingAccountEdges) CreditLotsOrErr() ([]*CreditLot, error) {
+	if e.loadedTypes[3] {
+		return e.CreditLots, nil
+	}
+	return nil, &NotLoadedError{edge: "credit_lots"}
+}
+
 // PeriodsOrErr returns the Periods value or an error if the edge
 // was not loaded in eager-loading.
 func (e BillingAccountEdges) PeriodsOrErr() ([]*BillingPeriod, error) {
-	if e.loadedTypes[3] {
+	if e.loadedTypes[4] {
 		return e.Periods, nil
 	}
 	return nil, &NotLoadedError{edge: "periods"}
@@ -122,7 +133,7 @@ func (e BillingAccountEdges) PeriodsOrErr() ([]*BillingPeriod, error) {
 // StripeEventsOrErr returns the StripeEvents value or an error if the edge
 // was not loaded in eager-loading.
 func (e BillingAccountEdges) StripeEventsOrErr() ([]*StripeEvent, error) {
-	if e.loadedTypes[4] {
+	if e.loadedTypes[5] {
 		return e.StripeEvents, nil
 	}
 	return nil, &NotLoadedError{edge: "stripe_events"}
@@ -300,6 +311,11 @@ func (_m *BillingAccount) QueryPlan() *PlanQuery {
 // QueryLedgerEntries queries the "ledger_entries" edge of the BillingAccount entity.
 func (_m *BillingAccount) QueryLedgerEntries() *LedgerEntryQuery {
 	return NewBillingAccountClient(_m.config).QueryLedgerEntries(_m)
+}
+
+// QueryCreditLots queries the "credit_lots" edge of the BillingAccount entity.
+func (_m *BillingAccount) QueryCreditLots() *CreditLotQuery {
+	return NewBillingAccountClient(_m.config).QueryCreditLots(_m)
 }
 
 // QueryPeriods queries the "periods" edge of the BillingAccount entity.

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"time"
 
+	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
@@ -22,6 +23,7 @@ type APIKeyCreate struct {
 	config
 	mutation *APIKeyMutation
 	hooks    []Hook
+	conflict []sql.ConflictOption
 }
 
 // SetUID sets the "uid" field.
@@ -296,6 +298,7 @@ func (_c *APIKeyCreate) createSpec() (*APIKey, *sqlgraph.CreateSpec) {
 		_node = &APIKey{config: _c.config}
 		_spec = sqlgraph.NewCreateSpec(apikey.Table, sqlgraph.NewFieldSpec(apikey.FieldID, field.TypeInt))
 	)
+	_spec.OnConflict = _c.conflict
 	if id, ok := _c.mutation.ID(); ok {
 		_node.ID = id
 		_spec.ID.Value = id
@@ -388,11 +391,349 @@ func (_c *APIKeyCreate) createSpec() (*APIKey, *sqlgraph.CreateSpec) {
 	return _node, _spec
 }
 
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.APIKey.Create().
+//		SetUID(v).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.APIKeyUpsert) {
+//			SetUID(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *APIKeyCreate) OnConflict(opts ...sql.ConflictOption) *APIKeyUpsertOne {
+	_c.conflict = opts
+	return &APIKeyUpsertOne{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.APIKey.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *APIKeyCreate) OnConflictColumns(columns ...string) *APIKeyUpsertOne {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &APIKeyUpsertOne{
+		create: _c,
+	}
+}
+
+type (
+	// APIKeyUpsertOne is the builder for "upsert"-ing
+	//  one APIKey node.
+	APIKeyUpsertOne struct {
+		create *APIKeyCreate
+	}
+
+	// APIKeyUpsert is the "OnConflict" setter.
+	APIKeyUpsert struct {
+		*sql.UpdateSet
+	}
+)
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *APIKeyUpsert) SetUpdatedAt(v time.Time) *APIKeyUpsert {
+	u.Set(apikey.FieldUpdatedAt, v)
+	return u
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *APIKeyUpsert) UpdateUpdatedAt() *APIKeyUpsert {
+	u.SetExcluded(apikey.FieldUpdatedAt)
+	return u
+}
+
+// SetSecretHash sets the "secret_hash" field.
+func (u *APIKeyUpsert) SetSecretHash(v string) *APIKeyUpsert {
+	u.Set(apikey.FieldSecretHash, v)
+	return u
+}
+
+// UpdateSecretHash sets the "secret_hash" field to the value that was provided on create.
+func (u *APIKeyUpsert) UpdateSecretHash() *APIKeyUpsert {
+	u.SetExcluded(apikey.FieldSecretHash)
+	return u
+}
+
+// SetName sets the "name" field.
+func (u *APIKeyUpsert) SetName(v string) *APIKeyUpsert {
+	u.Set(apikey.FieldName, v)
+	return u
+}
+
+// UpdateName sets the "name" field to the value that was provided on create.
+func (u *APIKeyUpsert) UpdateName() *APIKeyUpsert {
+	u.SetExcluded(apikey.FieldName)
+	return u
+}
+
+// ClearName clears the value of the "name" field.
+func (u *APIKeyUpsert) ClearName() *APIKeyUpsert {
+	u.SetNull(apikey.FieldName)
+	return u
+}
+
+// SetLastUsedAt sets the "last_used_at" field.
+func (u *APIKeyUpsert) SetLastUsedAt(v time.Time) *APIKeyUpsert {
+	u.Set(apikey.FieldLastUsedAt, v)
+	return u
+}
+
+// UpdateLastUsedAt sets the "last_used_at" field to the value that was provided on create.
+func (u *APIKeyUpsert) UpdateLastUsedAt() *APIKeyUpsert {
+	u.SetExcluded(apikey.FieldLastUsedAt)
+	return u
+}
+
+// ClearLastUsedAt clears the value of the "last_used_at" field.
+func (u *APIKeyUpsert) ClearLastUsedAt() *APIKeyUpsert {
+	u.SetNull(apikey.FieldLastUsedAt)
+	return u
+}
+
+// SetRevokedAt sets the "revoked_at" field.
+func (u *APIKeyUpsert) SetRevokedAt(v time.Time) *APIKeyUpsert {
+	u.Set(apikey.FieldRevokedAt, v)
+	return u
+}
+
+// UpdateRevokedAt sets the "revoked_at" field to the value that was provided on create.
+func (u *APIKeyUpsert) UpdateRevokedAt() *APIKeyUpsert {
+	u.SetExcluded(apikey.FieldRevokedAt)
+	return u
+}
+
+// ClearRevokedAt clears the value of the "revoked_at" field.
+func (u *APIKeyUpsert) ClearRevokedAt() *APIKeyUpsert {
+	u.SetNull(apikey.FieldRevokedAt)
+	return u
+}
+
+// SetEnvironmentID sets the "environment_id" field.
+func (u *APIKeyUpsert) SetEnvironmentID(v int) *APIKeyUpsert {
+	u.Set(apikey.FieldEnvironmentID, v)
+	return u
+}
+
+// UpdateEnvironmentID sets the "environment_id" field to the value that was provided on create.
+func (u *APIKeyUpsert) UpdateEnvironmentID() *APIKeyUpsert {
+	u.SetExcluded(apikey.FieldEnvironmentID)
+	return u
+}
+
+// UpdateNewValues updates the mutable fields using the new values that were set on create except the ID field.
+// Using this option is equivalent to using:
+//
+//	client.APIKey.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//			sql.ResolveWith(func(u *sql.UpdateSet) {
+//				u.SetIgnore(apikey.FieldID)
+//			}),
+//		).
+//		Exec(ctx)
+func (u *APIKeyUpsertOne) UpdateNewValues() *APIKeyUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		if _, exists := u.create.mutation.ID(); exists {
+			s.SetIgnore(apikey.FieldID)
+		}
+		if _, exists := u.create.mutation.UID(); exists {
+			s.SetIgnore(apikey.FieldUID)
+		}
+		if _, exists := u.create.mutation.CreatedAt(); exists {
+			s.SetIgnore(apikey.FieldCreatedAt)
+		}
+		if _, exists := u.create.mutation.Kind(); exists {
+			s.SetIgnore(apikey.FieldKind)
+		}
+		if _, exists := u.create.mutation.PublicID(); exists {
+			s.SetIgnore(apikey.FieldPublicID)
+		}
+	}))
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.APIKey.Create().
+//	    OnConflict(sql.ResolveWithIgnore()).
+//	    Exec(ctx)
+func (u *APIKeyUpsertOne) Ignore() *APIKeyUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *APIKeyUpsertOne) DoNothing() *APIKeyUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the APIKeyCreate.OnConflict
+// documentation for more info.
+func (u *APIKeyUpsertOne) Update(set func(*APIKeyUpsert)) *APIKeyUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&APIKeyUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *APIKeyUpsertOne) SetUpdatedAt(v time.Time) *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *APIKeyUpsertOne) UpdateUpdatedAt() *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.UpdateUpdatedAt()
+	})
+}
+
+// SetSecretHash sets the "secret_hash" field.
+func (u *APIKeyUpsertOne) SetSecretHash(v string) *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.SetSecretHash(v)
+	})
+}
+
+// UpdateSecretHash sets the "secret_hash" field to the value that was provided on create.
+func (u *APIKeyUpsertOne) UpdateSecretHash() *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.UpdateSecretHash()
+	})
+}
+
+// SetName sets the "name" field.
+func (u *APIKeyUpsertOne) SetName(v string) *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.SetName(v)
+	})
+}
+
+// UpdateName sets the "name" field to the value that was provided on create.
+func (u *APIKeyUpsertOne) UpdateName() *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.UpdateName()
+	})
+}
+
+// ClearName clears the value of the "name" field.
+func (u *APIKeyUpsertOne) ClearName() *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.ClearName()
+	})
+}
+
+// SetLastUsedAt sets the "last_used_at" field.
+func (u *APIKeyUpsertOne) SetLastUsedAt(v time.Time) *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.SetLastUsedAt(v)
+	})
+}
+
+// UpdateLastUsedAt sets the "last_used_at" field to the value that was provided on create.
+func (u *APIKeyUpsertOne) UpdateLastUsedAt() *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.UpdateLastUsedAt()
+	})
+}
+
+// ClearLastUsedAt clears the value of the "last_used_at" field.
+func (u *APIKeyUpsertOne) ClearLastUsedAt() *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.ClearLastUsedAt()
+	})
+}
+
+// SetRevokedAt sets the "revoked_at" field.
+func (u *APIKeyUpsertOne) SetRevokedAt(v time.Time) *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.SetRevokedAt(v)
+	})
+}
+
+// UpdateRevokedAt sets the "revoked_at" field to the value that was provided on create.
+func (u *APIKeyUpsertOne) UpdateRevokedAt() *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.UpdateRevokedAt()
+	})
+}
+
+// ClearRevokedAt clears the value of the "revoked_at" field.
+func (u *APIKeyUpsertOne) ClearRevokedAt() *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.ClearRevokedAt()
+	})
+}
+
+// SetEnvironmentID sets the "environment_id" field.
+func (u *APIKeyUpsertOne) SetEnvironmentID(v int) *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.SetEnvironmentID(v)
+	})
+}
+
+// UpdateEnvironmentID sets the "environment_id" field to the value that was provided on create.
+func (u *APIKeyUpsertOne) UpdateEnvironmentID() *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.UpdateEnvironmentID()
+	})
+}
+
+// Exec executes the query.
+func (u *APIKeyUpsertOne) Exec(ctx context.Context) error {
+	if len(u.create.conflict) == 0 {
+		return errors.New("global: missing options for APIKeyCreate.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *APIKeyUpsertOne) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// Exec executes the UPSERT query and returns the inserted/updated ID.
+func (u *APIKeyUpsertOne) ID(ctx context.Context) (id int, err error) {
+	node, err := u.create.Save(ctx)
+	if err != nil {
+		return id, err
+	}
+	return node.ID, nil
+}
+
+// IDX is like ID, but panics if an error occurs.
+func (u *APIKeyUpsertOne) IDX(ctx context.Context) int {
+	id, err := u.ID(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
 // APIKeyCreateBulk is the builder for creating many APIKey entities in bulk.
 type APIKeyCreateBulk struct {
 	config
 	err      error
 	builders []*APIKeyCreate
+	conflict []sql.ConflictOption
 }
 
 // Save creates the APIKey entities in the database.
@@ -422,6 +763,7 @@ func (_c *APIKeyCreateBulk) Save(ctx context.Context) ([]*APIKey, error) {
 					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
 				} else {
 					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+					spec.OnConflict = _c.conflict
 					// Invoke the actual operation on the latest mutation in the chain.
 					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
 						if sqlgraph.IsConstraintError(err) {
@@ -472,6 +814,237 @@ func (_c *APIKeyCreateBulk) Exec(ctx context.Context) error {
 // ExecX is like Exec, but panics if an error occurs.
 func (_c *APIKeyCreateBulk) ExecX(ctx context.Context) {
 	if err := _c.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.APIKey.CreateBulk(builders...).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.APIKeyUpsert) {
+//			SetUID(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *APIKeyCreateBulk) OnConflict(opts ...sql.ConflictOption) *APIKeyUpsertBulk {
+	_c.conflict = opts
+	return &APIKeyUpsertBulk{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.APIKey.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *APIKeyCreateBulk) OnConflictColumns(columns ...string) *APIKeyUpsertBulk {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &APIKeyUpsertBulk{
+		create: _c,
+	}
+}
+
+// APIKeyUpsertBulk is the builder for "upsert"-ing
+// a bulk of APIKey nodes.
+type APIKeyUpsertBulk struct {
+	create *APIKeyCreateBulk
+}
+
+// UpdateNewValues updates the mutable fields using the new values that
+// were set on create. Using this option is equivalent to using:
+//
+//	client.APIKey.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//			sql.ResolveWith(func(u *sql.UpdateSet) {
+//				u.SetIgnore(apikey.FieldID)
+//			}),
+//		).
+//		Exec(ctx)
+func (u *APIKeyUpsertBulk) UpdateNewValues() *APIKeyUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		for _, b := range u.create.builders {
+			if _, exists := b.mutation.ID(); exists {
+				s.SetIgnore(apikey.FieldID)
+			}
+			if _, exists := b.mutation.UID(); exists {
+				s.SetIgnore(apikey.FieldUID)
+			}
+			if _, exists := b.mutation.CreatedAt(); exists {
+				s.SetIgnore(apikey.FieldCreatedAt)
+			}
+			if _, exists := b.mutation.Kind(); exists {
+				s.SetIgnore(apikey.FieldKind)
+			}
+			if _, exists := b.mutation.PublicID(); exists {
+				s.SetIgnore(apikey.FieldPublicID)
+			}
+		}
+	}))
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.APIKey.Create().
+//		OnConflict(sql.ResolveWithIgnore()).
+//		Exec(ctx)
+func (u *APIKeyUpsertBulk) Ignore() *APIKeyUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *APIKeyUpsertBulk) DoNothing() *APIKeyUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the APIKeyCreateBulk.OnConflict
+// documentation for more info.
+func (u *APIKeyUpsertBulk) Update(set func(*APIKeyUpsert)) *APIKeyUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&APIKeyUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *APIKeyUpsertBulk) SetUpdatedAt(v time.Time) *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *APIKeyUpsertBulk) UpdateUpdatedAt() *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.UpdateUpdatedAt()
+	})
+}
+
+// SetSecretHash sets the "secret_hash" field.
+func (u *APIKeyUpsertBulk) SetSecretHash(v string) *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.SetSecretHash(v)
+	})
+}
+
+// UpdateSecretHash sets the "secret_hash" field to the value that was provided on create.
+func (u *APIKeyUpsertBulk) UpdateSecretHash() *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.UpdateSecretHash()
+	})
+}
+
+// SetName sets the "name" field.
+func (u *APIKeyUpsertBulk) SetName(v string) *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.SetName(v)
+	})
+}
+
+// UpdateName sets the "name" field to the value that was provided on create.
+func (u *APIKeyUpsertBulk) UpdateName() *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.UpdateName()
+	})
+}
+
+// ClearName clears the value of the "name" field.
+func (u *APIKeyUpsertBulk) ClearName() *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.ClearName()
+	})
+}
+
+// SetLastUsedAt sets the "last_used_at" field.
+func (u *APIKeyUpsertBulk) SetLastUsedAt(v time.Time) *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.SetLastUsedAt(v)
+	})
+}
+
+// UpdateLastUsedAt sets the "last_used_at" field to the value that was provided on create.
+func (u *APIKeyUpsertBulk) UpdateLastUsedAt() *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.UpdateLastUsedAt()
+	})
+}
+
+// ClearLastUsedAt clears the value of the "last_used_at" field.
+func (u *APIKeyUpsertBulk) ClearLastUsedAt() *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.ClearLastUsedAt()
+	})
+}
+
+// SetRevokedAt sets the "revoked_at" field.
+func (u *APIKeyUpsertBulk) SetRevokedAt(v time.Time) *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.SetRevokedAt(v)
+	})
+}
+
+// UpdateRevokedAt sets the "revoked_at" field to the value that was provided on create.
+func (u *APIKeyUpsertBulk) UpdateRevokedAt() *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.UpdateRevokedAt()
+	})
+}
+
+// ClearRevokedAt clears the value of the "revoked_at" field.
+func (u *APIKeyUpsertBulk) ClearRevokedAt() *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.ClearRevokedAt()
+	})
+}
+
+// SetEnvironmentID sets the "environment_id" field.
+func (u *APIKeyUpsertBulk) SetEnvironmentID(v int) *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.SetEnvironmentID(v)
+	})
+}
+
+// UpdateEnvironmentID sets the "environment_id" field to the value that was provided on create.
+func (u *APIKeyUpsertBulk) UpdateEnvironmentID() *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.UpdateEnvironmentID()
+	})
+}
+
+// Exec executes the query.
+func (u *APIKeyUpsertBulk) Exec(ctx context.Context) error {
+	if u.create.err != nil {
+		return u.create.err
+	}
+	for i, b := range u.create.builders {
+		if len(b.conflict) != 0 {
+			return fmt.Errorf("global: OnConflict was set for builder %d. Set it on the APIKeyCreateBulk instead", i)
+		}
+	}
+	if len(u.create.conflict) == 0 {
+		return errors.New("global: missing options for APIKeyCreateBulk.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *APIKeyUpsertBulk) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

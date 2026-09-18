@@ -74,6 +74,24 @@ What it does not yet cover:
 | **Per-caller concurrency limits** | Rate limits are built and documented in [rate-limits.md](../rate-limits.md) — per device, per address-in-project and per project on the SDK paths, and on the dashboard exactly one: sending an invitation, per address and per organization, failing closed because a message cannot be taken back. Authentication emails go directly to Firebase, which enforces sending protections. What is not built is a *concurrency* limit as distinct from a rate one: a request in flight is not counted. `query-api`'s per-query resource bounds are what stops a slow query holding a connection |
 | **§29.13's first cap** | `first_app_version` is not capped to the top 20 values per project. The second cap no longer applies — there is no acquisition dimension to split from campaign ([ADR 0033](../adr/0033-there-is-no-attribution-dimension.md)) — and the third, only materializing pairs that exist, falls out of the GROUP BY. Alarm at 27M rows per project, per §29.13 |
 
+## Engineering — billing
+
+The **usage meter**, the **wallet** and its **expiry sweep** are built. A day is derived from
+`metrics_daily` — the same fact the dashboard reads, which is what §38 asks for — rewritten until it
+settles and marked final at eight days. Credit is held as lots, spent promotional-first and
+oldest-purchase-next, and lapsed credit is written off one statement line at a time
+([ADR 0036](../adr/0036-a-wallet-is-lots-because-credit-expires.md)).
+
+What it does not yet cover:
+
+| Item | Notes |
+|---|---|
+| **The month close, and Stripe** | `wallet.Spend` is called by an operator rather than by a scheduled job, because a job needs overage *rates* and §37 forbids hardcoding commercial values. Nothing reports a meter to Stripe yet either, so §40's seam exists on our side only |
+| **Who granted credit** | The operator surface is guarded by the shared operator token, so `granted_by_user_id` is null on that path and "who gave this account $100" has no answer inside the product. It needs the audit log below and §56's console. Every grant does carry a caller-supplied reference, and no customer credential can reach the route at any permission |
+| **Whether non-production traffic is billable** | `usage_daily` is keyed by project and has no environment column, so development and staging count toward the meter. A commercial decision the schema made before the meter existed; changing it is a WHERE clause in `internal/metering` |
+| **Monthly tracked players, exactly** | The usage page reports the busiest day rather than a sum, because adding daily figures counts one player once per day. §36's meter is the distinct monthly figure, which `metrics_monthly` holds and the month close will read |
+| **Subscription fees and refunds** | `subscription` and `refund` are ledger kinds nothing writes. The plan's `monthly_price_micros` is stored and never charged |
+
 ## Engineering — audit and access
 
 Who is in an organization and what they may do **is** built: roles, the project access list,

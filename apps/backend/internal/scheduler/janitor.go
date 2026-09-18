@@ -10,7 +10,10 @@ import (
 
 	"playersense.dev/backend/internal/erasure"
 	"playersense.dev/backend/internal/export"
+	"playersense.dev/backend/internal/metering"
+	"playersense.dev/backend/internal/pgdb"
 	"playersense.dev/backend/internal/retention"
+	"playersense.dev/backend/internal/wallet"
 )
 
 // Janitor runs the data-lifecycle half of §79's list, on an interval.
@@ -63,6 +66,62 @@ type JanitorOptions struct {
 	Sweeper  *retention.Sweeper
 	Purger   *erasure.Purger
 	Exporter *export.Exporter
+
+	// Meter derives §40's usage days, and Credit writes off promotional credit whose date has
+	// passed. Both are billing rather than data lifecycle, and both belong on this loop for the
+	// same reason the other three do: each is waiting on the calendar rather than on the night.
+	//
+	// A day's usage that is hours late is a usage page that is hours behind; credit that lapsed
+	// at midnight and is written off at ten past is a balance that was briefly overstated and
+	// never overspent, because the spend path refuses a lapsed lot on its own.
+	Meter  *metering.Meter
+	Credit *creditExpiry
+}
+
+// creditExpiry writes off lapsed promotional credit.
+//
+// A small type rather than a function so the janitor's fields all read the same way, and so the
+// transaction boundary lives beside the thing that needs one: every movement of credit is a lot
+// change and a ledger entry together, and a job that took a client could not promise that.
+type creditExpiry struct {
+	DB    *pgdb.Global
+	Log   *slog.Logger
+	Limit int
+}
+
+// CreditExpiry returns the job, or nil when there is no control-plane connection to run it against.
+func CreditExpiry(db *pgdb.Global, log *slog.Logger, limit int) *creditExpiry {
+	if db == nil {
+		return nil
+	}
+	if limit <= 0 {
+		limit = DefaultCreditExpiryLimit
+	}
+	return &creditExpiry{DB: db, Log: log, Limit: limit}
+}
+
+// DefaultCreditExpiryLimit bounds one pass.
+//
+// A pass writes two rows per lapsed lot inside one transaction, so the bound is about how long that
+// transaction holds rather than about how much work there is: whatever is left is swept on the next
+// pass, minutes later, and the spend path was already refusing the credit.
+const DefaultCreditExpiryLimit = 500
+
+// Run writes off everything that has lapsed, up to the pass limit.
+func (c *creditExpiry) Run(ctx context.Context, at time.Time) (int, error) {
+	tx, err := c.DB.Client.Tx(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("begin: %w", err)
+	}
+	written, err := wallet.ExpireLapsed(ctx, tx, at, c.Limit)
+	if err != nil {
+		_ = tx.Rollback()
+		return 0, err
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("commit: %w", err)
+	}
+	return len(written), nil
 }
 
 type janitorStats struct {
@@ -74,6 +133,8 @@ type janitorStats struct {
 	erased    atomic.Int64
 	exported  atomic.Int64
 	collected atomic.Int64 // export bundles removed at the end of their term
+	metered   atomic.Int64 // usage days written
+	lapsed    atomic.Int64 // promotional credit written off
 }
 
 // DefaultJanitorEvery is the pass interval when none is configured.
@@ -89,7 +150,8 @@ func NewJanitor(log *slog.Logger, opts JanitorOptions) (*Janitor, error) {
 	if opts.Every <= 0 {
 		opts.Every = DefaultJanitorEvery
 	}
-	if opts.Sweeper == nil && opts.Purger == nil && opts.Exporter == nil {
+	if opts.Sweeper == nil && opts.Purger == nil && opts.Exporter == nil &&
+		opts.Meter == nil && opts.Credit == nil {
 		return nil, errors.New("the janitor has no jobs configured")
 	}
 	if log == nil {
@@ -125,7 +187,9 @@ func (j *Janitor) Start(context.Context) error {
 		"every", j.opts.Every.String(),
 		"expiry", j.opts.Sweeper != nil,
 		"erasure", j.opts.Purger != nil,
-		"export", j.opts.Exporter != nil)
+		"export", j.opts.Exporter != nil,
+		"meter", j.opts.Meter != nil,
+		"credit_expiry", j.opts.Credit != nil)
 	return nil
 }
 
@@ -161,6 +225,8 @@ func (j *Janitor) Stats() map[string]int64 {
 		"erasures_completed":      j.stats.erased.Load(),
 		"exports_completed":       j.stats.exported.Load(),
 		"export_bundles_expired":  j.stats.collected.Load(),
+		"usage_days_metered":      j.stats.metered.Load(),
+		"credit_lots_expired":     j.stats.lapsed.Load(),
 	}
 }
 
@@ -244,6 +310,35 @@ func (j *Janitor) Run(ctx context.Context) error {
 				"deleted", done.Deleted,
 				"failed", done.Failed,
 				"bytes_reclaimed", done.Bytes)
+		}
+	}
+
+	// Then the meter, which nobody is waiting on within the minute but which every usage page
+	// and every month close reads.
+	if j.opts.Meter != nil {
+		done, err := j.opts.Meter.Run(ctx)
+		j.stats.metered.Add(int64(done.Rows))
+		if err != nil {
+			problems = append(problems, fmt.Errorf("usage meter: %w", err))
+		}
+		if done.Rows > 0 || done.Finalled > 0 {
+			j.log.Info("usage meter pass",
+				"days", done.Days,
+				"rows", done.Rows,
+				"days_finalized", done.Finalled)
+		}
+	}
+
+	// And credit expiry last, because it is the one job whose lateness costs nothing: a spend
+	// already refuses a lapsed lot, so all this pass moves is the number on a statement.
+	if j.opts.Credit != nil {
+		done, err := j.opts.Credit.Run(ctx, j.now())
+		j.stats.lapsed.Add(int64(done))
+		if err != nil {
+			problems = append(problems, fmt.Errorf("credit expiry: %w", err))
+		}
+		if done > 0 {
+			j.log.Info("credit expiry pass", "lots_written_off", done)
 		}
 	}
 

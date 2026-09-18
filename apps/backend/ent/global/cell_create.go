@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"time"
 
+	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
@@ -20,6 +21,7 @@ type CellCreate struct {
 	config
 	mutation *CellMutation
 	hooks    []Hook
+	conflict []sql.ConflictOption
 }
 
 // SetUID sets the "uid" field.
@@ -298,6 +300,7 @@ func (_c *CellCreate) createSpec() (*Cell, *sqlgraph.CreateSpec) {
 		_node = &Cell{config: _c.config}
 		_spec = sqlgraph.NewCreateSpec(cell.Table, sqlgraph.NewFieldSpec(cell.FieldID, field.TypeInt))
 	)
+	_spec.OnConflict = _c.conflict
 	if id, ok := _c.mutation.ID(); ok {
 		_node.ID = id
 		_spec.ID.Value = id
@@ -361,11 +364,349 @@ func (_c *CellCreate) createSpec() (*Cell, *sqlgraph.CreateSpec) {
 	return _node, _spec
 }
 
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.Cell.Create().
+//		SetUID(v).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.CellUpsert) {
+//			SetUID(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *CellCreate) OnConflict(opts ...sql.ConflictOption) *CellUpsertOne {
+	_c.conflict = opts
+	return &CellUpsertOne{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.Cell.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *CellCreate) OnConflictColumns(columns ...string) *CellUpsertOne {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &CellUpsertOne{
+		create: _c,
+	}
+}
+
+type (
+	// CellUpsertOne is the builder for "upsert"-ing
+	//  one Cell node.
+	CellUpsertOne struct {
+		create *CellCreate
+	}
+
+	// CellUpsert is the "OnConflict" setter.
+	CellUpsert struct {
+		*sql.UpdateSet
+	}
+)
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *CellUpsert) SetUpdatedAt(v time.Time) *CellUpsert {
+	u.Set(cell.FieldUpdatedAt, v)
+	return u
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *CellUpsert) UpdateUpdatedAt() *CellUpsert {
+	u.SetExcluded(cell.FieldUpdatedAt)
+	return u
+}
+
+// SetStatus sets the "status" field.
+func (u *CellUpsert) SetStatus(v cell.Status) *CellUpsert {
+	u.Set(cell.FieldStatus, v)
+	return u
+}
+
+// UpdateStatus sets the "status" field to the value that was provided on create.
+func (u *CellUpsert) UpdateStatus() *CellUpsert {
+	u.SetExcluded(cell.FieldStatus)
+	return u
+}
+
+// SetIngestURL sets the "ingest_url" field.
+func (u *CellUpsert) SetIngestURL(v string) *CellUpsert {
+	u.Set(cell.FieldIngestURL, v)
+	return u
+}
+
+// UpdateIngestURL sets the "ingest_url" field to the value that was provided on create.
+func (u *CellUpsert) UpdateIngestURL() *CellUpsert {
+	u.SetExcluded(cell.FieldIngestURL)
+	return u
+}
+
+// SetQueryURL sets the "query_url" field.
+func (u *CellUpsert) SetQueryURL(v string) *CellUpsert {
+	u.Set(cell.FieldQueryURL, v)
+	return u
+}
+
+// UpdateQueryURL sets the "query_url" field to the value that was provided on create.
+func (u *CellUpsert) UpdateQueryURL() *CellUpsert {
+	u.SetExcluded(cell.FieldQueryURL)
+	return u
+}
+
+// ClearQueryURL clears the value of the "query_url" field.
+func (u *CellUpsert) ClearQueryURL() *CellUpsert {
+	u.SetNull(cell.FieldQueryURL)
+	return u
+}
+
+// SetConfigURL sets the "config_url" field.
+func (u *CellUpsert) SetConfigURL(v string) *CellUpsert {
+	u.Set(cell.FieldConfigURL, v)
+	return u
+}
+
+// UpdateConfigURL sets the "config_url" field to the value that was provided on create.
+func (u *CellUpsert) UpdateConfigURL() *CellUpsert {
+	u.SetExcluded(cell.FieldConfigURL)
+	return u
+}
+
+// ClearConfigURL clears the value of the "config_url" field.
+func (u *CellUpsert) ClearConfigURL() *CellUpsert {
+	u.SetNull(cell.FieldConfigURL)
+	return u
+}
+
+// SetLocation sets the "location" field.
+func (u *CellUpsert) SetLocation(v string) *CellUpsert {
+	u.Set(cell.FieldLocation, v)
+	return u
+}
+
+// UpdateLocation sets the "location" field to the value that was provided on create.
+func (u *CellUpsert) UpdateLocation() *CellUpsert {
+	u.SetExcluded(cell.FieldLocation)
+	return u
+}
+
+// ClearLocation clears the value of the "location" field.
+func (u *CellUpsert) ClearLocation() *CellUpsert {
+	u.SetNull(cell.FieldLocation)
+	return u
+}
+
+// UpdateNewValues updates the mutable fields using the new values that were set on create except the ID field.
+// Using this option is equivalent to using:
+//
+//	client.Cell.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//			sql.ResolveWith(func(u *sql.UpdateSet) {
+//				u.SetIgnore(cell.FieldID)
+//			}),
+//		).
+//		Exec(ctx)
+func (u *CellUpsertOne) UpdateNewValues() *CellUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		if _, exists := u.create.mutation.ID(); exists {
+			s.SetIgnore(cell.FieldID)
+		}
+		if _, exists := u.create.mutation.UID(); exists {
+			s.SetIgnore(cell.FieldUID)
+		}
+		if _, exists := u.create.mutation.CreatedAt(); exists {
+			s.SetIgnore(cell.FieldCreatedAt)
+		}
+		if _, exists := u.create.mutation.Slug(); exists {
+			s.SetIgnore(cell.FieldSlug)
+		}
+		if _, exists := u.create.mutation.Region(); exists {
+			s.SetIgnore(cell.FieldRegion)
+		}
+	}))
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.Cell.Create().
+//	    OnConflict(sql.ResolveWithIgnore()).
+//	    Exec(ctx)
+func (u *CellUpsertOne) Ignore() *CellUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *CellUpsertOne) DoNothing() *CellUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the CellCreate.OnConflict
+// documentation for more info.
+func (u *CellUpsertOne) Update(set func(*CellUpsert)) *CellUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&CellUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *CellUpsertOne) SetUpdatedAt(v time.Time) *CellUpsertOne {
+	return u.Update(func(s *CellUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *CellUpsertOne) UpdateUpdatedAt() *CellUpsertOne {
+	return u.Update(func(s *CellUpsert) {
+		s.UpdateUpdatedAt()
+	})
+}
+
+// SetStatus sets the "status" field.
+func (u *CellUpsertOne) SetStatus(v cell.Status) *CellUpsertOne {
+	return u.Update(func(s *CellUpsert) {
+		s.SetStatus(v)
+	})
+}
+
+// UpdateStatus sets the "status" field to the value that was provided on create.
+func (u *CellUpsertOne) UpdateStatus() *CellUpsertOne {
+	return u.Update(func(s *CellUpsert) {
+		s.UpdateStatus()
+	})
+}
+
+// SetIngestURL sets the "ingest_url" field.
+func (u *CellUpsertOne) SetIngestURL(v string) *CellUpsertOne {
+	return u.Update(func(s *CellUpsert) {
+		s.SetIngestURL(v)
+	})
+}
+
+// UpdateIngestURL sets the "ingest_url" field to the value that was provided on create.
+func (u *CellUpsertOne) UpdateIngestURL() *CellUpsertOne {
+	return u.Update(func(s *CellUpsert) {
+		s.UpdateIngestURL()
+	})
+}
+
+// SetQueryURL sets the "query_url" field.
+func (u *CellUpsertOne) SetQueryURL(v string) *CellUpsertOne {
+	return u.Update(func(s *CellUpsert) {
+		s.SetQueryURL(v)
+	})
+}
+
+// UpdateQueryURL sets the "query_url" field to the value that was provided on create.
+func (u *CellUpsertOne) UpdateQueryURL() *CellUpsertOne {
+	return u.Update(func(s *CellUpsert) {
+		s.UpdateQueryURL()
+	})
+}
+
+// ClearQueryURL clears the value of the "query_url" field.
+func (u *CellUpsertOne) ClearQueryURL() *CellUpsertOne {
+	return u.Update(func(s *CellUpsert) {
+		s.ClearQueryURL()
+	})
+}
+
+// SetConfigURL sets the "config_url" field.
+func (u *CellUpsertOne) SetConfigURL(v string) *CellUpsertOne {
+	return u.Update(func(s *CellUpsert) {
+		s.SetConfigURL(v)
+	})
+}
+
+// UpdateConfigURL sets the "config_url" field to the value that was provided on create.
+func (u *CellUpsertOne) UpdateConfigURL() *CellUpsertOne {
+	return u.Update(func(s *CellUpsert) {
+		s.UpdateConfigURL()
+	})
+}
+
+// ClearConfigURL clears the value of the "config_url" field.
+func (u *CellUpsertOne) ClearConfigURL() *CellUpsertOne {
+	return u.Update(func(s *CellUpsert) {
+		s.ClearConfigURL()
+	})
+}
+
+// SetLocation sets the "location" field.
+func (u *CellUpsertOne) SetLocation(v string) *CellUpsertOne {
+	return u.Update(func(s *CellUpsert) {
+		s.SetLocation(v)
+	})
+}
+
+// UpdateLocation sets the "location" field to the value that was provided on create.
+func (u *CellUpsertOne) UpdateLocation() *CellUpsertOne {
+	return u.Update(func(s *CellUpsert) {
+		s.UpdateLocation()
+	})
+}
+
+// ClearLocation clears the value of the "location" field.
+func (u *CellUpsertOne) ClearLocation() *CellUpsertOne {
+	return u.Update(func(s *CellUpsert) {
+		s.ClearLocation()
+	})
+}
+
+// Exec executes the query.
+func (u *CellUpsertOne) Exec(ctx context.Context) error {
+	if len(u.create.conflict) == 0 {
+		return errors.New("global: missing options for CellCreate.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *CellUpsertOne) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// Exec executes the UPSERT query and returns the inserted/updated ID.
+func (u *CellUpsertOne) ID(ctx context.Context) (id int, err error) {
+	node, err := u.create.Save(ctx)
+	if err != nil {
+		return id, err
+	}
+	return node.ID, nil
+}
+
+// IDX is like ID, but panics if an error occurs.
+func (u *CellUpsertOne) IDX(ctx context.Context) int {
+	id, err := u.ID(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
 // CellCreateBulk is the builder for creating many Cell entities in bulk.
 type CellCreateBulk struct {
 	config
 	err      error
 	builders []*CellCreate
+	conflict []sql.ConflictOption
 }
 
 // Save creates the Cell entities in the database.
@@ -395,6 +736,7 @@ func (_c *CellCreateBulk) Save(ctx context.Context) ([]*Cell, error) {
 					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
 				} else {
 					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+					spec.OnConflict = _c.conflict
 					// Invoke the actual operation on the latest mutation in the chain.
 					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
 						if sqlgraph.IsConstraintError(err) {
@@ -445,6 +787,237 @@ func (_c *CellCreateBulk) Exec(ctx context.Context) error {
 // ExecX is like Exec, but panics if an error occurs.
 func (_c *CellCreateBulk) ExecX(ctx context.Context) {
 	if err := _c.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.Cell.CreateBulk(builders...).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.CellUpsert) {
+//			SetUID(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *CellCreateBulk) OnConflict(opts ...sql.ConflictOption) *CellUpsertBulk {
+	_c.conflict = opts
+	return &CellUpsertBulk{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.Cell.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *CellCreateBulk) OnConflictColumns(columns ...string) *CellUpsertBulk {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &CellUpsertBulk{
+		create: _c,
+	}
+}
+
+// CellUpsertBulk is the builder for "upsert"-ing
+// a bulk of Cell nodes.
+type CellUpsertBulk struct {
+	create *CellCreateBulk
+}
+
+// UpdateNewValues updates the mutable fields using the new values that
+// were set on create. Using this option is equivalent to using:
+//
+//	client.Cell.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//			sql.ResolveWith(func(u *sql.UpdateSet) {
+//				u.SetIgnore(cell.FieldID)
+//			}),
+//		).
+//		Exec(ctx)
+func (u *CellUpsertBulk) UpdateNewValues() *CellUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		for _, b := range u.create.builders {
+			if _, exists := b.mutation.ID(); exists {
+				s.SetIgnore(cell.FieldID)
+			}
+			if _, exists := b.mutation.UID(); exists {
+				s.SetIgnore(cell.FieldUID)
+			}
+			if _, exists := b.mutation.CreatedAt(); exists {
+				s.SetIgnore(cell.FieldCreatedAt)
+			}
+			if _, exists := b.mutation.Slug(); exists {
+				s.SetIgnore(cell.FieldSlug)
+			}
+			if _, exists := b.mutation.Region(); exists {
+				s.SetIgnore(cell.FieldRegion)
+			}
+		}
+	}))
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.Cell.Create().
+//		OnConflict(sql.ResolveWithIgnore()).
+//		Exec(ctx)
+func (u *CellUpsertBulk) Ignore() *CellUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *CellUpsertBulk) DoNothing() *CellUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the CellCreateBulk.OnConflict
+// documentation for more info.
+func (u *CellUpsertBulk) Update(set func(*CellUpsert)) *CellUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&CellUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *CellUpsertBulk) SetUpdatedAt(v time.Time) *CellUpsertBulk {
+	return u.Update(func(s *CellUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *CellUpsertBulk) UpdateUpdatedAt() *CellUpsertBulk {
+	return u.Update(func(s *CellUpsert) {
+		s.UpdateUpdatedAt()
+	})
+}
+
+// SetStatus sets the "status" field.
+func (u *CellUpsertBulk) SetStatus(v cell.Status) *CellUpsertBulk {
+	return u.Update(func(s *CellUpsert) {
+		s.SetStatus(v)
+	})
+}
+
+// UpdateStatus sets the "status" field to the value that was provided on create.
+func (u *CellUpsertBulk) UpdateStatus() *CellUpsertBulk {
+	return u.Update(func(s *CellUpsert) {
+		s.UpdateStatus()
+	})
+}
+
+// SetIngestURL sets the "ingest_url" field.
+func (u *CellUpsertBulk) SetIngestURL(v string) *CellUpsertBulk {
+	return u.Update(func(s *CellUpsert) {
+		s.SetIngestURL(v)
+	})
+}
+
+// UpdateIngestURL sets the "ingest_url" field to the value that was provided on create.
+func (u *CellUpsertBulk) UpdateIngestURL() *CellUpsertBulk {
+	return u.Update(func(s *CellUpsert) {
+		s.UpdateIngestURL()
+	})
+}
+
+// SetQueryURL sets the "query_url" field.
+func (u *CellUpsertBulk) SetQueryURL(v string) *CellUpsertBulk {
+	return u.Update(func(s *CellUpsert) {
+		s.SetQueryURL(v)
+	})
+}
+
+// UpdateQueryURL sets the "query_url" field to the value that was provided on create.
+func (u *CellUpsertBulk) UpdateQueryURL() *CellUpsertBulk {
+	return u.Update(func(s *CellUpsert) {
+		s.UpdateQueryURL()
+	})
+}
+
+// ClearQueryURL clears the value of the "query_url" field.
+func (u *CellUpsertBulk) ClearQueryURL() *CellUpsertBulk {
+	return u.Update(func(s *CellUpsert) {
+		s.ClearQueryURL()
+	})
+}
+
+// SetConfigURL sets the "config_url" field.
+func (u *CellUpsertBulk) SetConfigURL(v string) *CellUpsertBulk {
+	return u.Update(func(s *CellUpsert) {
+		s.SetConfigURL(v)
+	})
+}
+
+// UpdateConfigURL sets the "config_url" field to the value that was provided on create.
+func (u *CellUpsertBulk) UpdateConfigURL() *CellUpsertBulk {
+	return u.Update(func(s *CellUpsert) {
+		s.UpdateConfigURL()
+	})
+}
+
+// ClearConfigURL clears the value of the "config_url" field.
+func (u *CellUpsertBulk) ClearConfigURL() *CellUpsertBulk {
+	return u.Update(func(s *CellUpsert) {
+		s.ClearConfigURL()
+	})
+}
+
+// SetLocation sets the "location" field.
+func (u *CellUpsertBulk) SetLocation(v string) *CellUpsertBulk {
+	return u.Update(func(s *CellUpsert) {
+		s.SetLocation(v)
+	})
+}
+
+// UpdateLocation sets the "location" field to the value that was provided on create.
+func (u *CellUpsertBulk) UpdateLocation() *CellUpsertBulk {
+	return u.Update(func(s *CellUpsert) {
+		s.UpdateLocation()
+	})
+}
+
+// ClearLocation clears the value of the "location" field.
+func (u *CellUpsertBulk) ClearLocation() *CellUpsertBulk {
+	return u.Update(func(s *CellUpsert) {
+		s.ClearLocation()
+	})
+}
+
+// Exec executes the query.
+func (u *CellUpsertBulk) Exec(ctx context.Context) error {
+	if u.create.err != nil {
+		return u.create.err
+	}
+	for i, b := range u.create.builders {
+		if len(b.conflict) != 0 {
+			return fmt.Errorf("global: OnConflict was set for builder %d. Set it on the CellCreateBulk instead", i)
+		}
+	}
+	if len(u.create.conflict) == 0 {
+		return errors.New("global: missing options for CellCreateBulk.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *CellUpsertBulk) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

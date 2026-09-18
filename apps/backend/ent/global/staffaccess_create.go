@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"time"
 
+	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
@@ -19,6 +20,7 @@ type StaffAccessCreate struct {
 	config
 	mutation *StaffAccessMutation
 	hooks    []Hook
+	conflict []sql.ConflictOption
 }
 
 // SetUID sets the "uid" field.
@@ -284,6 +286,7 @@ func (_c *StaffAccessCreate) createSpec() (*StaffAccess, *sqlgraph.CreateSpec) {
 		_node = &StaffAccess{config: _c.config}
 		_spec = sqlgraph.NewCreateSpec(staffaccess.Table, sqlgraph.NewFieldSpec(staffaccess.FieldID, field.TypeInt))
 	)
+	_spec.OnConflict = _c.conflict
 	if id, ok := _c.mutation.ID(); ok {
 		_node.ID = id
 		_spec.ID.Value = id
@@ -331,11 +334,172 @@ func (_c *StaffAccessCreate) createSpec() (*StaffAccess, *sqlgraph.CreateSpec) {
 	return _node, _spec
 }
 
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.StaffAccess.Create().
+//		SetUID(v).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.StaffAccessUpsert) {
+//			SetUID(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *StaffAccessCreate) OnConflict(opts ...sql.ConflictOption) *StaffAccessUpsertOne {
+	_c.conflict = opts
+	return &StaffAccessUpsertOne{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.StaffAccess.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *StaffAccessCreate) OnConflictColumns(columns ...string) *StaffAccessUpsertOne {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &StaffAccessUpsertOne{
+		create: _c,
+	}
+}
+
+type (
+	// StaffAccessUpsertOne is the builder for "upsert"-ing
+	//  one StaffAccess node.
+	StaffAccessUpsertOne struct {
+		create *StaffAccessCreate
+	}
+
+	// StaffAccessUpsert is the "OnConflict" setter.
+	StaffAccessUpsert struct {
+		*sql.UpdateSet
+	}
+)
+
+// UpdateNewValues updates the mutable fields using the new values that were set on create except the ID field.
+// Using this option is equivalent to using:
+//
+//	client.StaffAccess.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//			sql.ResolveWith(func(u *sql.UpdateSet) {
+//				u.SetIgnore(staffaccess.FieldID)
+//			}),
+//		).
+//		Exec(ctx)
+func (u *StaffAccessUpsertOne) UpdateNewValues() *StaffAccessUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		if _, exists := u.create.mutation.ID(); exists {
+			s.SetIgnore(staffaccess.FieldID)
+		}
+		if _, exists := u.create.mutation.UID(); exists {
+			s.SetIgnore(staffaccess.FieldUID)
+		}
+		if _, exists := u.create.mutation.CreatedAt(); exists {
+			s.SetIgnore(staffaccess.FieldCreatedAt)
+		}
+		if _, exists := u.create.mutation.StaffEmail(); exists {
+			s.SetIgnore(staffaccess.FieldStaffEmail)
+		}
+		if _, exists := u.create.mutation.OrganizationID(); exists {
+			s.SetIgnore(staffaccess.FieldOrganizationID)
+		}
+		if _, exists := u.create.mutation.ProjectID(); exists {
+			s.SetIgnore(staffaccess.FieldProjectID)
+		}
+		if _, exists := u.create.mutation.Cell(); exists {
+			s.SetIgnore(staffaccess.FieldCell)
+		}
+		if _, exists := u.create.mutation.Action(); exists {
+			s.SetIgnore(staffaccess.FieldAction)
+		}
+		if _, exists := u.create.mutation.Ticket(); exists {
+			s.SetIgnore(staffaccess.FieldTicket)
+		}
+		if _, exists := u.create.mutation.Note(); exists {
+			s.SetIgnore(staffaccess.FieldNote)
+		}
+		if _, exists := u.create.mutation.IP(); exists {
+			s.SetIgnore(staffaccess.FieldIP)
+		}
+	}))
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.StaffAccess.Create().
+//	    OnConflict(sql.ResolveWithIgnore()).
+//	    Exec(ctx)
+func (u *StaffAccessUpsertOne) Ignore() *StaffAccessUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *StaffAccessUpsertOne) DoNothing() *StaffAccessUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the StaffAccessCreate.OnConflict
+// documentation for more info.
+func (u *StaffAccessUpsertOne) Update(set func(*StaffAccessUpsert)) *StaffAccessUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&StaffAccessUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// Exec executes the query.
+func (u *StaffAccessUpsertOne) Exec(ctx context.Context) error {
+	if len(u.create.conflict) == 0 {
+		return errors.New("global: missing options for StaffAccessCreate.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *StaffAccessUpsertOne) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// Exec executes the UPSERT query and returns the inserted/updated ID.
+func (u *StaffAccessUpsertOne) ID(ctx context.Context) (id int, err error) {
+	node, err := u.create.Save(ctx)
+	if err != nil {
+		return id, err
+	}
+	return node.ID, nil
+}
+
+// IDX is like ID, but panics if an error occurs.
+func (u *StaffAccessUpsertOne) IDX(ctx context.Context) int {
+	id, err := u.ID(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
 // StaffAccessCreateBulk is the builder for creating many StaffAccess entities in bulk.
 type StaffAccessCreateBulk struct {
 	config
 	err      error
 	builders []*StaffAccessCreate
+	conflict []sql.ConflictOption
 }
 
 // Save creates the StaffAccess entities in the database.
@@ -365,6 +529,7 @@ func (_c *StaffAccessCreateBulk) Save(ctx context.Context) ([]*StaffAccess, erro
 					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
 				} else {
 					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+					spec.OnConflict = _c.conflict
 					// Invoke the actual operation on the latest mutation in the chain.
 					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
 						if sqlgraph.IsConstraintError(err) {
@@ -415,6 +580,150 @@ func (_c *StaffAccessCreateBulk) Exec(ctx context.Context) error {
 // ExecX is like Exec, but panics if an error occurs.
 func (_c *StaffAccessCreateBulk) ExecX(ctx context.Context) {
 	if err := _c.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.StaffAccess.CreateBulk(builders...).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.StaffAccessUpsert) {
+//			SetUID(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *StaffAccessCreateBulk) OnConflict(opts ...sql.ConflictOption) *StaffAccessUpsertBulk {
+	_c.conflict = opts
+	return &StaffAccessUpsertBulk{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.StaffAccess.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *StaffAccessCreateBulk) OnConflictColumns(columns ...string) *StaffAccessUpsertBulk {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &StaffAccessUpsertBulk{
+		create: _c,
+	}
+}
+
+// StaffAccessUpsertBulk is the builder for "upsert"-ing
+// a bulk of StaffAccess nodes.
+type StaffAccessUpsertBulk struct {
+	create *StaffAccessCreateBulk
+}
+
+// UpdateNewValues updates the mutable fields using the new values that
+// were set on create. Using this option is equivalent to using:
+//
+//	client.StaffAccess.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//			sql.ResolveWith(func(u *sql.UpdateSet) {
+//				u.SetIgnore(staffaccess.FieldID)
+//			}),
+//		).
+//		Exec(ctx)
+func (u *StaffAccessUpsertBulk) UpdateNewValues() *StaffAccessUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		for _, b := range u.create.builders {
+			if _, exists := b.mutation.ID(); exists {
+				s.SetIgnore(staffaccess.FieldID)
+			}
+			if _, exists := b.mutation.UID(); exists {
+				s.SetIgnore(staffaccess.FieldUID)
+			}
+			if _, exists := b.mutation.CreatedAt(); exists {
+				s.SetIgnore(staffaccess.FieldCreatedAt)
+			}
+			if _, exists := b.mutation.StaffEmail(); exists {
+				s.SetIgnore(staffaccess.FieldStaffEmail)
+			}
+			if _, exists := b.mutation.OrganizationID(); exists {
+				s.SetIgnore(staffaccess.FieldOrganizationID)
+			}
+			if _, exists := b.mutation.ProjectID(); exists {
+				s.SetIgnore(staffaccess.FieldProjectID)
+			}
+			if _, exists := b.mutation.Cell(); exists {
+				s.SetIgnore(staffaccess.FieldCell)
+			}
+			if _, exists := b.mutation.Action(); exists {
+				s.SetIgnore(staffaccess.FieldAction)
+			}
+			if _, exists := b.mutation.Ticket(); exists {
+				s.SetIgnore(staffaccess.FieldTicket)
+			}
+			if _, exists := b.mutation.Note(); exists {
+				s.SetIgnore(staffaccess.FieldNote)
+			}
+			if _, exists := b.mutation.IP(); exists {
+				s.SetIgnore(staffaccess.FieldIP)
+			}
+		}
+	}))
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.StaffAccess.Create().
+//		OnConflict(sql.ResolveWithIgnore()).
+//		Exec(ctx)
+func (u *StaffAccessUpsertBulk) Ignore() *StaffAccessUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *StaffAccessUpsertBulk) DoNothing() *StaffAccessUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the StaffAccessCreateBulk.OnConflict
+// documentation for more info.
+func (u *StaffAccessUpsertBulk) Update(set func(*StaffAccessUpsert)) *StaffAccessUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&StaffAccessUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// Exec executes the query.
+func (u *StaffAccessUpsertBulk) Exec(ctx context.Context) error {
+	if u.create.err != nil {
+		return u.create.err
+	}
+	for i, b := range u.create.builders {
+		if len(b.conflict) != 0 {
+			return fmt.Errorf("global: OnConflict was set for builder %d. Set it on the StaffAccessCreateBulk instead", i)
+		}
+	}
+	if len(u.create.conflict) == 0 {
+		return errors.New("global: missing options for StaffAccessCreateBulk.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *StaffAccessUpsertBulk) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

@@ -22,8 +22,10 @@ import (
 	"playersense.dev/backend/ent/global/apikey"
 	"playersense.dev/backend/ent/global/cell"
 	"playersense.dev/backend/ent/global/environment"
+	"playersense.dev/backend/ent/global/plan"
 	"playersense.dev/backend/ent/global/project"
 	"playersense.dev/backend/ent/global/role"
+	"playersense.dev/backend/internal/billing"
 	"playersense.dev/backend/internal/chdb"
 	"playersense.dev/backend/internal/config"
 	"playersense.dev/backend/internal/core"
@@ -278,4 +280,45 @@ func SeedKey(t *testing.T, db *pgdb.Global, kind string, envID int) string {
 		t.Fatalf("store %s key: %v", kind, err)
 	}
 	return generated.Secret
+}
+
+// SeedBillingAccount gives an organization a plan and a billing account.
+//
+// Both, because an account without a plan is not a state the product has: `plan_id` is required, and
+// every organization gets the free plan the moment it exists. The plan is an upsert on its key, so
+// whichever test runs first provisions it and the rest find it — the same reasoning [SeedCell] uses
+// for the registry.
+func SeedBillingAccount(t *testing.T, db *pgdb.Global, orgID int) *global.BillingAccount {
+	t.Helper()
+	ctx := context.Background()
+
+	free, err := db.Client.Plan.Query().Where(plan.Key("free")).Only(ctx)
+	if err != nil {
+		if !global.IsNotFound(err) {
+			t.Fatalf("read the plan table: %v", err)
+		}
+		free, err = db.Client.Plan.Create().
+			SetKey("free").SetName("Free").
+			SetEntitlements(map[string]int64{
+				string(billing.IncludedMAU):            10_000,
+				string(billing.IncludedEvents):         5_000_000,
+				string(billing.IncludedStorageGBMonth): 1,
+			}).
+			Save(ctx)
+		if err != nil {
+			// Another test created it between the read and the write.
+			if found, qerr := db.Client.Plan.Query().Where(plan.Key("free")).Only(ctx); qerr == nil {
+				free = found
+			} else {
+				t.Fatalf("seed the free plan: %v", err)
+			}
+		}
+	}
+
+	account, err := db.Client.BillingAccount.Create().
+		SetOrganizationID(orgID).SetPlanID(free.ID).Save(ctx)
+	if err != nil {
+		t.Fatalf("seed billing account: %v", err)
+	}
+	return account
 }

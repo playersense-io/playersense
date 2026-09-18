@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"time"
 
+	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
@@ -22,6 +23,7 @@ type InvitationCreate struct {
 	config
 	mutation *InvitationMutation
 	hooks    []Hook
+	conflict []sql.ConflictOption
 }
 
 // SetUID sets the "uid" field.
@@ -324,6 +326,7 @@ func (_c *InvitationCreate) createSpec() (*Invitation, *sqlgraph.CreateSpec) {
 		_node = &Invitation{config: _c.config}
 		_spec = sqlgraph.NewCreateSpec(invitation.Table, sqlgraph.NewFieldSpec(invitation.FieldID, field.TypeInt))
 	)
+	_spec.OnConflict = _c.conflict
 	if id, ok := _c.mutation.ID(); ok {
 		_node.ID = id
 		_spec.ID.Value = id
@@ -422,11 +425,263 @@ func (_c *InvitationCreate) createSpec() (*Invitation, *sqlgraph.CreateSpec) {
 	return _node, _spec
 }
 
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.Invitation.Create().
+//		SetUID(v).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.InvitationUpsert) {
+//			SetUID(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *InvitationCreate) OnConflict(opts ...sql.ConflictOption) *InvitationUpsertOne {
+	_c.conflict = opts
+	return &InvitationUpsertOne{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.Invitation.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *InvitationCreate) OnConflictColumns(columns ...string) *InvitationUpsertOne {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &InvitationUpsertOne{
+		create: _c,
+	}
+}
+
+type (
+	// InvitationUpsertOne is the builder for "upsert"-ing
+	//  one Invitation node.
+	InvitationUpsertOne struct {
+		create *InvitationCreate
+	}
+
+	// InvitationUpsert is the "OnConflict" setter.
+	InvitationUpsert struct {
+		*sql.UpdateSet
+	}
+)
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *InvitationUpsert) SetUpdatedAt(v time.Time) *InvitationUpsert {
+	u.Set(invitation.FieldUpdatedAt, v)
+	return u
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *InvitationUpsert) UpdateUpdatedAt() *InvitationUpsert {
+	u.SetExcluded(invitation.FieldUpdatedAt)
+	return u
+}
+
+// SetStatus sets the "status" field.
+func (u *InvitationUpsert) SetStatus(v invitation.Status) *InvitationUpsert {
+	u.Set(invitation.FieldStatus, v)
+	return u
+}
+
+// UpdateStatus sets the "status" field to the value that was provided on create.
+func (u *InvitationUpsert) UpdateStatus() *InvitationUpsert {
+	u.SetExcluded(invitation.FieldStatus)
+	return u
+}
+
+// SetAcceptedAt sets the "accepted_at" field.
+func (u *InvitationUpsert) SetAcceptedAt(v time.Time) *InvitationUpsert {
+	u.Set(invitation.FieldAcceptedAt, v)
+	return u
+}
+
+// UpdateAcceptedAt sets the "accepted_at" field to the value that was provided on create.
+func (u *InvitationUpsert) UpdateAcceptedAt() *InvitationUpsert {
+	u.SetExcluded(invitation.FieldAcceptedAt)
+	return u
+}
+
+// ClearAcceptedAt clears the value of the "accepted_at" field.
+func (u *InvitationUpsert) ClearAcceptedAt() *InvitationUpsert {
+	u.SetNull(invitation.FieldAcceptedAt)
+	return u
+}
+
+// UpdateNewValues updates the mutable fields using the new values that were set on create except the ID field.
+// Using this option is equivalent to using:
+//
+//	client.Invitation.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//			sql.ResolveWith(func(u *sql.UpdateSet) {
+//				u.SetIgnore(invitation.FieldID)
+//			}),
+//		).
+//		Exec(ctx)
+func (u *InvitationUpsertOne) UpdateNewValues() *InvitationUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		if _, exists := u.create.mutation.ID(); exists {
+			s.SetIgnore(invitation.FieldID)
+		}
+		if _, exists := u.create.mutation.UID(); exists {
+			s.SetIgnore(invitation.FieldUID)
+		}
+		if _, exists := u.create.mutation.CreatedAt(); exists {
+			s.SetIgnore(invitation.FieldCreatedAt)
+		}
+		if _, exists := u.create.mutation.OrganizationID(); exists {
+			s.SetIgnore(invitation.FieldOrganizationID)
+		}
+		if _, exists := u.create.mutation.Email(); exists {
+			s.SetIgnore(invitation.FieldEmail)
+		}
+		if _, exists := u.create.mutation.TokenDigest(); exists {
+			s.SetIgnore(invitation.FieldTokenDigest)
+		}
+		if _, exists := u.create.mutation.InvitedByID(); exists {
+			s.SetIgnore(invitation.FieldInvitedByID)
+		}
+		if _, exists := u.create.mutation.RoleID(); exists {
+			s.SetIgnore(invitation.FieldRoleID)
+		}
+		if _, exists := u.create.mutation.AllProjects(); exists {
+			s.SetIgnore(invitation.FieldAllProjects)
+		}
+		if _, exists := u.create.mutation.ProjectIds(); exists {
+			s.SetIgnore(invitation.FieldProjectIds)
+		}
+		if _, exists := u.create.mutation.ExpiresAt(); exists {
+			s.SetIgnore(invitation.FieldExpiresAt)
+		}
+	}))
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.Invitation.Create().
+//	    OnConflict(sql.ResolveWithIgnore()).
+//	    Exec(ctx)
+func (u *InvitationUpsertOne) Ignore() *InvitationUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *InvitationUpsertOne) DoNothing() *InvitationUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the InvitationCreate.OnConflict
+// documentation for more info.
+func (u *InvitationUpsertOne) Update(set func(*InvitationUpsert)) *InvitationUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&InvitationUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *InvitationUpsertOne) SetUpdatedAt(v time.Time) *InvitationUpsertOne {
+	return u.Update(func(s *InvitationUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *InvitationUpsertOne) UpdateUpdatedAt() *InvitationUpsertOne {
+	return u.Update(func(s *InvitationUpsert) {
+		s.UpdateUpdatedAt()
+	})
+}
+
+// SetStatus sets the "status" field.
+func (u *InvitationUpsertOne) SetStatus(v invitation.Status) *InvitationUpsertOne {
+	return u.Update(func(s *InvitationUpsert) {
+		s.SetStatus(v)
+	})
+}
+
+// UpdateStatus sets the "status" field to the value that was provided on create.
+func (u *InvitationUpsertOne) UpdateStatus() *InvitationUpsertOne {
+	return u.Update(func(s *InvitationUpsert) {
+		s.UpdateStatus()
+	})
+}
+
+// SetAcceptedAt sets the "accepted_at" field.
+func (u *InvitationUpsertOne) SetAcceptedAt(v time.Time) *InvitationUpsertOne {
+	return u.Update(func(s *InvitationUpsert) {
+		s.SetAcceptedAt(v)
+	})
+}
+
+// UpdateAcceptedAt sets the "accepted_at" field to the value that was provided on create.
+func (u *InvitationUpsertOne) UpdateAcceptedAt() *InvitationUpsertOne {
+	return u.Update(func(s *InvitationUpsert) {
+		s.UpdateAcceptedAt()
+	})
+}
+
+// ClearAcceptedAt clears the value of the "accepted_at" field.
+func (u *InvitationUpsertOne) ClearAcceptedAt() *InvitationUpsertOne {
+	return u.Update(func(s *InvitationUpsert) {
+		s.ClearAcceptedAt()
+	})
+}
+
+// Exec executes the query.
+func (u *InvitationUpsertOne) Exec(ctx context.Context) error {
+	if len(u.create.conflict) == 0 {
+		return errors.New("global: missing options for InvitationCreate.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *InvitationUpsertOne) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// Exec executes the UPSERT query and returns the inserted/updated ID.
+func (u *InvitationUpsertOne) ID(ctx context.Context) (id int, err error) {
+	node, err := u.create.Save(ctx)
+	if err != nil {
+		return id, err
+	}
+	return node.ID, nil
+}
+
+// IDX is like ID, but panics if an error occurs.
+func (u *InvitationUpsertOne) IDX(ctx context.Context) int {
+	id, err := u.ID(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
 // InvitationCreateBulk is the builder for creating many Invitation entities in bulk.
 type InvitationCreateBulk struct {
 	config
 	err      error
 	builders []*InvitationCreate
+	conflict []sql.ConflictOption
 }
 
 // Save creates the Invitation entities in the database.
@@ -456,6 +711,7 @@ func (_c *InvitationCreateBulk) Save(ctx context.Context) ([]*Invitation, error)
 					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
 				} else {
 					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+					spec.OnConflict = _c.conflict
 					// Invoke the actual operation on the latest mutation in the chain.
 					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
 						if sqlgraph.IsConstraintError(err) {
@@ -506,6 +762,199 @@ func (_c *InvitationCreateBulk) Exec(ctx context.Context) error {
 // ExecX is like Exec, but panics if an error occurs.
 func (_c *InvitationCreateBulk) ExecX(ctx context.Context) {
 	if err := _c.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.Invitation.CreateBulk(builders...).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.InvitationUpsert) {
+//			SetUID(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *InvitationCreateBulk) OnConflict(opts ...sql.ConflictOption) *InvitationUpsertBulk {
+	_c.conflict = opts
+	return &InvitationUpsertBulk{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.Invitation.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *InvitationCreateBulk) OnConflictColumns(columns ...string) *InvitationUpsertBulk {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &InvitationUpsertBulk{
+		create: _c,
+	}
+}
+
+// InvitationUpsertBulk is the builder for "upsert"-ing
+// a bulk of Invitation nodes.
+type InvitationUpsertBulk struct {
+	create *InvitationCreateBulk
+}
+
+// UpdateNewValues updates the mutable fields using the new values that
+// were set on create. Using this option is equivalent to using:
+//
+//	client.Invitation.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//			sql.ResolveWith(func(u *sql.UpdateSet) {
+//				u.SetIgnore(invitation.FieldID)
+//			}),
+//		).
+//		Exec(ctx)
+func (u *InvitationUpsertBulk) UpdateNewValues() *InvitationUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		for _, b := range u.create.builders {
+			if _, exists := b.mutation.ID(); exists {
+				s.SetIgnore(invitation.FieldID)
+			}
+			if _, exists := b.mutation.UID(); exists {
+				s.SetIgnore(invitation.FieldUID)
+			}
+			if _, exists := b.mutation.CreatedAt(); exists {
+				s.SetIgnore(invitation.FieldCreatedAt)
+			}
+			if _, exists := b.mutation.OrganizationID(); exists {
+				s.SetIgnore(invitation.FieldOrganizationID)
+			}
+			if _, exists := b.mutation.Email(); exists {
+				s.SetIgnore(invitation.FieldEmail)
+			}
+			if _, exists := b.mutation.TokenDigest(); exists {
+				s.SetIgnore(invitation.FieldTokenDigest)
+			}
+			if _, exists := b.mutation.InvitedByID(); exists {
+				s.SetIgnore(invitation.FieldInvitedByID)
+			}
+			if _, exists := b.mutation.RoleID(); exists {
+				s.SetIgnore(invitation.FieldRoleID)
+			}
+			if _, exists := b.mutation.AllProjects(); exists {
+				s.SetIgnore(invitation.FieldAllProjects)
+			}
+			if _, exists := b.mutation.ProjectIds(); exists {
+				s.SetIgnore(invitation.FieldProjectIds)
+			}
+			if _, exists := b.mutation.ExpiresAt(); exists {
+				s.SetIgnore(invitation.FieldExpiresAt)
+			}
+		}
+	}))
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.Invitation.Create().
+//		OnConflict(sql.ResolveWithIgnore()).
+//		Exec(ctx)
+func (u *InvitationUpsertBulk) Ignore() *InvitationUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *InvitationUpsertBulk) DoNothing() *InvitationUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the InvitationCreateBulk.OnConflict
+// documentation for more info.
+func (u *InvitationUpsertBulk) Update(set func(*InvitationUpsert)) *InvitationUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&InvitationUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *InvitationUpsertBulk) SetUpdatedAt(v time.Time) *InvitationUpsertBulk {
+	return u.Update(func(s *InvitationUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *InvitationUpsertBulk) UpdateUpdatedAt() *InvitationUpsertBulk {
+	return u.Update(func(s *InvitationUpsert) {
+		s.UpdateUpdatedAt()
+	})
+}
+
+// SetStatus sets the "status" field.
+func (u *InvitationUpsertBulk) SetStatus(v invitation.Status) *InvitationUpsertBulk {
+	return u.Update(func(s *InvitationUpsert) {
+		s.SetStatus(v)
+	})
+}
+
+// UpdateStatus sets the "status" field to the value that was provided on create.
+func (u *InvitationUpsertBulk) UpdateStatus() *InvitationUpsertBulk {
+	return u.Update(func(s *InvitationUpsert) {
+		s.UpdateStatus()
+	})
+}
+
+// SetAcceptedAt sets the "accepted_at" field.
+func (u *InvitationUpsertBulk) SetAcceptedAt(v time.Time) *InvitationUpsertBulk {
+	return u.Update(func(s *InvitationUpsert) {
+		s.SetAcceptedAt(v)
+	})
+}
+
+// UpdateAcceptedAt sets the "accepted_at" field to the value that was provided on create.
+func (u *InvitationUpsertBulk) UpdateAcceptedAt() *InvitationUpsertBulk {
+	return u.Update(func(s *InvitationUpsert) {
+		s.UpdateAcceptedAt()
+	})
+}
+
+// ClearAcceptedAt clears the value of the "accepted_at" field.
+func (u *InvitationUpsertBulk) ClearAcceptedAt() *InvitationUpsertBulk {
+	return u.Update(func(s *InvitationUpsert) {
+		s.ClearAcceptedAt()
+	})
+}
+
+// Exec executes the query.
+func (u *InvitationUpsertBulk) Exec(ctx context.Context) error {
+	if u.create.err != nil {
+		return u.create.err
+	}
+	for i, b := range u.create.builders {
+		if len(b.conflict) != 0 {
+			return fmt.Errorf("global: OnConflict was set for builder %d. Set it on the InvitationCreateBulk instead", i)
+		}
+	}
+	if len(u.create.conflict) == 0 {
+		return errors.New("global: missing options for InvitationCreateBulk.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *InvitationUpsertBulk) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

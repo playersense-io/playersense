@@ -213,6 +213,7 @@ func (BillingAccount) Edges() []ent.Edge {
 		edge.From("plan", Plan.Type).Ref("accounts").
 			Field("plan_id").Unique().Required(),
 		edge.To("ledger_entries", LedgerEntry.Type),
+		edge.To("credit_lots", CreditLot.Type),
 		edge.To("periods", BillingPeriod.Type),
 		edge.To("stripe_events", StripeEvent.Type),
 	}
@@ -241,12 +242,22 @@ func (LedgerEntry) Fields() []ent.Field {
 		field.Int("account_id").Immutable().Comment(dataclass.None),
 
 		//	topup         money in, from a card
+		//	promo         credit granted rather than bought, and therefore expiring
 		//	usage         a closed period's charge
 		//	subscription  the monthly plan fee
 		//	adjustment    a human decision: a credit, a correction, a goodwill refund
 		//	refund        money back out to the card
+		//	expiry        promotional credit that lapsed unspent
+		//
+		// `promo` is not a `topup` and `expiry` is not an `adjustment`, and neither
+		// distinction is cosmetic. A topup is money that arrived — it appears in revenue and
+		// it is refundable; a promo is a discount, and a month where the two are added
+		// together is a month whose revenue figure is wrong. An adjustment is a human
+		// decision somebody can be asked about; an expiry is the calendar, and a customer
+		// reading "adjustment -$40" on the day their trial credit lapsed would reasonably
+		// ask who did that to them.
 		field.Enum("kind").
-			Values("topup", "usage", "subscription", "adjustment", "refund").
+			Values("topup", "promo", "usage", "subscription", "adjustment", "refund", "expiry").
 			Immutable().Comment(dataclass.None),
 
 		// Signed: positive adds to the balance, negative spends it. One column rather than
@@ -295,6 +306,120 @@ func (LedgerEntry) Indexes() []ent.Index {
 	return []ent.Index{
 		// A statement: one account, newest first.
 		index.Fields("account_id", "created_at"),
+	}
+}
+
+// CreditLot is one grant of credit, with its own remaining balance and its own expiry.
+//
+// The wallet is lots rather than a number, and the reason is that **promotional credit expires**.
+// A single `balance_micros` cannot expire part of itself: told that $140 is $100 of trial credit
+// lapsing on Friday and $40 the customer paid for, a scalar has nowhere to keep the distinction and
+// no way to take the right half away. So the balance becomes the sum of what is left in each lot,
+// and `BillingAccount.balance_micros` becomes what it always was underneath — the ledger's running
+// total, reconciled by the expiry sweep.
+//
+// # What is spent first, and why that order
+//
+// **Promotional credit, then purchased credit oldest first.**
+//
+// Promos before purchases because a promo is the only credit that can be *lost*. Spending a
+// customer's own money while a trial credit ticks down to nothing is taking payment for something
+// they had already been given, and they find out by reading a statement.
+//
+// Within promos, **soonest expiry first**. The alternative wastes credit by construction: spend a
+// year-long promo while a week-long one is open and the week-long one lapses having paid for
+// nothing. Nobody would choose that if asked, which is why it is not left to insertion order.
+//
+// Within purchases, **oldest grant first**. Money that has been on the account longest is spent
+// first, which is what a customer assumes and what makes a refund of the most recent top-up
+// possible for longest.
+//
+// # Nothing here is edited
+//
+// `amount_micros`, `kind` and `expires_at` are immutable. Changing what a grant *was* is how a
+// balance stops being reconcilable, and an expiry date in particular: a lot whose date moved is a
+// lot whose lapse cannot be predicted from the row. Extending a promo is therefore revoking it and
+// granting another, which the ledger records as two movements rather than as a column that used to
+// say something else.
+//
+// `remaining_micros` is the one mutable field, because it is not a fact about the grant — it is
+// what is left of it. Every change to it is accompanied by a ledger entry in the same transaction.
+type CreditLot struct{ ent.Schema }
+
+func (CreditLot) Mixin() []ent.Mixin               { return []ent.Mixin{mixin{}} }
+func (CreditLot) Annotations() []schema.Annotation { return []schema.Annotation{withComments()} }
+
+func (CreditLot) Fields() []ent.Field {
+	return []ent.Field{
+		field.Int("account_id").Immutable().Comment(dataclass.None),
+
+		//	purchase  money the customer paid, by card or by invoice. Does not expire
+		//	promo     credit granted: a trial, a goodwill gesture, a launch deal
+		//
+		// The kinds differ in two ways and both follow from that sentence: a promo expires
+		// and is spent first, and a promo is not revenue.
+		field.Enum("kind").Values("purchase", "promo").Immutable().Comment(dataclass.None),
+
+		// What was granted, and what is left of it. Both non-negative: a lot cannot be
+		// granted for a negative amount and cannot be overspent, so a debt is the account's
+		// signed balance rather than a lot with a hole in it.
+		field.Int64("amount_micros").Immutable().Positive().Comment(dataclass.Financial),
+		field.Int64("remaining_micros").Min(0).Comment(dataclass.Financial),
+
+		field.String("currency").MaxLen(3).Default("usd").Immutable().Comment(dataclass.Financial),
+
+		// When this lot becomes unspendable. Null never expires, which is what purchased
+		// credit is: a customer's own money does not evaporate.
+		//
+		// Immutable, so a lapse is predictable from the row. A promo's default is
+		// wallet.PromoTerm from the grant, and an operator may name any date instead —
+		// that is the whole of "90 days unless we agreed otherwise".
+		field.Time("expires_at").Optional().Nillable().Immutable().Comment(dataclass.None),
+
+		// When the credit became available, which is the order purchased credit is spent in.
+		// Distinct from created_at on purpose: a lot backdated to when an invoice was paid
+		// takes its rightful place in the queue rather than the place the data entry did.
+		field.Time("granted_at").Immutable().Default(now).Comment(dataclass.None),
+
+		// What a person reads on a statement, written at the time.
+		field.String("description").MaxLen(255).Default("").Immutable().Comment(dataclass.None),
+
+		// The Stripe object behind a purchase. Null for a promo, which has no counterpart
+		// anywhere outside this table.
+		field.String("stripe_reference").MaxLen(255).Optional().Nillable().Immutable().
+			Comment(dataclass.None),
+
+		// Who granted it. Null for one created by a payment rather than by a person.
+		field.Int("granted_by_user_id").Optional().Nillable().Immutable().Comment(dataclass.None),
+
+		// The same protection the ledger has, for the same reason: a grant retried after a
+		// timeout must not become two lots. Derived from what happened — the payment intent,
+		// or the operator's own request id — never from the clock.
+		field.String("idempotency_key").NotEmpty().MaxLen(255).Unique().Immutable().
+			Comment(dataclass.None),
+	}
+}
+
+func (CreditLot) Edges() []ent.Edge {
+	return []ent.Edge{
+		edge.From("account", BillingAccount.Type).Ref("credit_lots").
+			Field("account_id").Unique().Required().Immutable(),
+		edge.From("granted_by", User.Type).Ref("granted_credits").
+			Field("granted_by_user_id").Unique().Immutable(),
+	}
+}
+
+func (CreditLot) Indexes() []ent.Index {
+	return []ent.Index{
+		// The spend query: one account's lots that still have something in them. The order
+		// within that set is decided in Go, because "promos by expiry, then purchases by
+		// grant" is two orderings over one set and no single index expresses it.
+		index.Fields("account_id", "remaining_micros"),
+
+		// The expiry sweep: every account's lots that have lapsed and still hold credit.
+		// Across accounts, because the sweep is one pass over the table rather than one pass
+		// per customer.
+		index.Fields("expires_at", "remaining_micros"),
 	}
 }
 

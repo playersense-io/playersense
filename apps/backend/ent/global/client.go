@@ -21,6 +21,7 @@ import (
 	"playersense.dev/backend/ent/global/billingperiod"
 	"playersense.dev/backend/ent/global/cell"
 	"playersense.dev/backend/ent/global/configversion"
+	"playersense.dev/backend/ent/global/creditlot"
 	"playersense.dev/backend/ent/global/environment"
 	"playersense.dev/backend/ent/global/featureflag"
 	"playersense.dev/backend/ent/global/invitation"
@@ -56,6 +57,8 @@ type Client struct {
 	Cell *CellClient
 	// ConfigVersion is the client for interacting with the ConfigVersion builders.
 	ConfigVersion *ConfigVersionClient
+	// CreditLot is the client for interacting with the CreditLot builders.
+	CreditLot *CreditLotClient
 	// Environment is the client for interacting with the Environment builders.
 	Environment *EnvironmentClient
 	// FeatureFlag is the client for interacting with the FeatureFlag builders.
@@ -105,6 +108,7 @@ func (c *Client) init() {
 	c.BillingPeriod = NewBillingPeriodClient(c.config)
 	c.Cell = NewCellClient(c.config)
 	c.ConfigVersion = NewConfigVersionClient(c.config)
+	c.CreditLot = NewCreditLotClient(c.config)
 	c.Environment = NewEnvironmentClient(c.config)
 	c.FeatureFlag = NewFeatureFlagClient(c.config)
 	c.Invitation = NewInvitationClient(c.config)
@@ -219,6 +223,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		BillingPeriod:      NewBillingPeriodClient(cfg),
 		Cell:               NewCellClient(cfg),
 		ConfigVersion:      NewConfigVersionClient(cfg),
+		CreditLot:          NewCreditLotClient(cfg),
 		Environment:        NewEnvironmentClient(cfg),
 		FeatureFlag:        NewFeatureFlagClient(cfg),
 		Invitation:         NewInvitationClient(cfg),
@@ -260,6 +265,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		BillingPeriod:      NewBillingPeriodClient(cfg),
 		Cell:               NewCellClient(cfg),
 		ConfigVersion:      NewConfigVersionClient(cfg),
+		CreditLot:          NewCreditLotClient(cfg),
 		Environment:        NewEnvironmentClient(cfg),
 		FeatureFlag:        NewFeatureFlagClient(cfg),
 		Invitation:         NewInvitationClient(cfg),
@@ -306,10 +312,10 @@ func (c *Client) Close() error {
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.APIKey, c.AuditEvent, c.BillingAccount, c.BillingPeriod, c.Cell,
-		c.ConfigVersion, c.Environment, c.FeatureFlag, c.Invitation, c.LedgerEntry,
-		c.LiveOpsEvent, c.MemberProject, c.Organization, c.OrganizationMember, c.Plan,
-		c.Project, c.Role, c.Segment, c.StaffAccess, c.StripeEvent, c.UsageDaily,
-		c.User,
+		c.ConfigVersion, c.CreditLot, c.Environment, c.FeatureFlag, c.Invitation,
+		c.LedgerEntry, c.LiveOpsEvent, c.MemberProject, c.Organization,
+		c.OrganizationMember, c.Plan, c.Project, c.Role, c.Segment, c.StaffAccess,
+		c.StripeEvent, c.UsageDaily, c.User,
 	} {
 		n.Use(hooks...)
 	}
@@ -320,10 +326,10 @@ func (c *Client) Use(hooks ...Hook) {
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.APIKey, c.AuditEvent, c.BillingAccount, c.BillingPeriod, c.Cell,
-		c.ConfigVersion, c.Environment, c.FeatureFlag, c.Invitation, c.LedgerEntry,
-		c.LiveOpsEvent, c.MemberProject, c.Organization, c.OrganizationMember, c.Plan,
-		c.Project, c.Role, c.Segment, c.StaffAccess, c.StripeEvent, c.UsageDaily,
-		c.User,
+		c.ConfigVersion, c.CreditLot, c.Environment, c.FeatureFlag, c.Invitation,
+		c.LedgerEntry, c.LiveOpsEvent, c.MemberProject, c.Organization,
+		c.OrganizationMember, c.Plan, c.Project, c.Role, c.Segment, c.StaffAccess,
+		c.StripeEvent, c.UsageDaily, c.User,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -344,6 +350,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Cell.mutate(ctx, m)
 	case *ConfigVersionMutation:
 		return c.ConfigVersion.mutate(ctx, m)
+	case *CreditLotMutation:
+		return c.CreditLot.mutate(ctx, m)
 	case *EnvironmentMutation:
 		return c.Environment.mutate(ctx, m)
 	case *FeatureFlagMutation:
@@ -892,6 +900,22 @@ func (c *BillingAccountClient) QueryLedgerEntries(_m *BillingAccount) *LedgerEnt
 			sqlgraph.From(billingaccount.Table, billingaccount.FieldID, id),
 			sqlgraph.To(ledgerentry.Table, ledgerentry.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, billingaccount.LedgerEntriesTable, billingaccount.LedgerEntriesColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryCreditLots queries the credit_lots edge of a BillingAccount.
+func (c *BillingAccountClient) QueryCreditLots(_m *BillingAccount) *CreditLotQuery {
+	query := (&CreditLotClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(billingaccount.Table, billingaccount.FieldID, id),
+			sqlgraph.To(creditlot.Table, creditlot.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, billingaccount.CreditLotsTable, billingaccount.CreditLotsColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -1465,6 +1489,171 @@ func (c *ConfigVersionClient) mutate(ctx context.Context, m *ConfigVersionMutati
 		return (&ConfigVersionDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("global: unknown ConfigVersion mutation op: %q", m.Op())
+	}
+}
+
+// CreditLotClient is a client for the CreditLot schema.
+type CreditLotClient struct {
+	config
+}
+
+// NewCreditLotClient returns a client for the CreditLot from the given config.
+func NewCreditLotClient(c config) *CreditLotClient {
+	return &CreditLotClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `creditlot.Hooks(f(g(h())))`.
+func (c *CreditLotClient) Use(hooks ...Hook) {
+	c.hooks.CreditLot = append(c.hooks.CreditLot, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `creditlot.Intercept(f(g(h())))`.
+func (c *CreditLotClient) Intercept(interceptors ...Interceptor) {
+	c.inters.CreditLot = append(c.inters.CreditLot, interceptors...)
+}
+
+// Create returns a builder for creating a CreditLot entity.
+func (c *CreditLotClient) Create() *CreditLotCreate {
+	mutation := newCreditLotMutation(c.config, OpCreate)
+	return &CreditLotCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of CreditLot entities.
+func (c *CreditLotClient) CreateBulk(builders ...*CreditLotCreate) *CreditLotCreateBulk {
+	return &CreditLotCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *CreditLotClient) MapCreateBulk(slice any, setFunc func(*CreditLotCreate, int)) *CreditLotCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &CreditLotCreateBulk{err: fmt.Errorf("calling to CreditLotClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*CreditLotCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &CreditLotCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for CreditLot.
+func (c *CreditLotClient) Update() *CreditLotUpdate {
+	mutation := newCreditLotMutation(c.config, OpUpdate)
+	return &CreditLotUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *CreditLotClient) UpdateOne(_m *CreditLot) *CreditLotUpdateOne {
+	mutation := newCreditLotMutation(c.config, OpUpdateOne, withCreditLot(_m))
+	return &CreditLotUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *CreditLotClient) UpdateOneID(id int) *CreditLotUpdateOne {
+	mutation := newCreditLotMutation(c.config, OpUpdateOne, withCreditLotID(id))
+	return &CreditLotUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for CreditLot.
+func (c *CreditLotClient) Delete() *CreditLotDelete {
+	mutation := newCreditLotMutation(c.config, OpDelete)
+	return &CreditLotDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *CreditLotClient) DeleteOne(_m *CreditLot) *CreditLotDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *CreditLotClient) DeleteOneID(id int) *CreditLotDeleteOne {
+	builder := c.Delete().Where(creditlot.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &CreditLotDeleteOne{builder}
+}
+
+// Query returns a query builder for CreditLot.
+func (c *CreditLotClient) Query() *CreditLotQuery {
+	return &CreditLotQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeCreditLot},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a CreditLot entity by its id.
+func (c *CreditLotClient) Get(ctx context.Context, id int) (*CreditLot, error) {
+	return c.Query().Where(creditlot.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *CreditLotClient) GetX(ctx context.Context, id int) *CreditLot {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryAccount queries the account edge of a CreditLot.
+func (c *CreditLotClient) QueryAccount(_m *CreditLot) *BillingAccountQuery {
+	query := (&BillingAccountClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(creditlot.Table, creditlot.FieldID, id),
+			sqlgraph.To(billingaccount.Table, billingaccount.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, creditlot.AccountTable, creditlot.AccountColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryGrantedBy queries the granted_by edge of a CreditLot.
+func (c *CreditLotClient) QueryGrantedBy(_m *CreditLot) *UserQuery {
+	query := (&UserClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(creditlot.Table, creditlot.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, creditlot.GrantedByTable, creditlot.GrantedByColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *CreditLotClient) Hooks() []Hook {
+	return c.hooks.CreditLot
+}
+
+// Interceptors returns the client interceptors.
+func (c *CreditLotClient) Interceptors() []Interceptor {
+	return c.inters.CreditLot
+}
+
+func (c *CreditLotClient) mutate(ctx context.Context, m *CreditLotMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&CreditLotCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&CreditLotUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&CreditLotUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&CreditLotDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("global: unknown CreditLot mutation op: %q", m.Op())
 	}
 }
 
@@ -4213,6 +4402,22 @@ func (c *UserClient) QuerySentInvitations(_m *User) *InvitationQuery {
 	return query
 }
 
+// QueryGrantedCredits queries the granted_credits edge of a User.
+func (c *UserClient) QueryGrantedCredits(_m *User) *CreditLotQuery {
+	query := (&CreditLotClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(creditlot.Table, creditlot.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.GrantedCreditsTable, user.GrantedCreditsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // QueryAuditEvents queries the audit_events edge of a User.
 func (c *UserClient) QueryAuditEvents(_m *User) *AuditEventQuery {
 	query := (&AuditEventClient{config: c.config}).Query()
@@ -4274,14 +4479,14 @@ func (c *UserClient) mutate(ctx context.Context, m *UserMutation) (Value, error)
 type (
 	hooks struct {
 		APIKey, AuditEvent, BillingAccount, BillingPeriod, Cell, ConfigVersion,
-		Environment, FeatureFlag, Invitation, LedgerEntry, LiveOpsEvent, MemberProject,
-		Organization, OrganizationMember, Plan, Project, Role, Segment, StaffAccess,
-		StripeEvent, UsageDaily, User []ent.Hook
+		CreditLot, Environment, FeatureFlag, Invitation, LedgerEntry, LiveOpsEvent,
+		MemberProject, Organization, OrganizationMember, Plan, Project, Role, Segment,
+		StaffAccess, StripeEvent, UsageDaily, User []ent.Hook
 	}
 	inters struct {
 		APIKey, AuditEvent, BillingAccount, BillingPeriod, Cell, ConfigVersion,
-		Environment, FeatureFlag, Invitation, LedgerEntry, LiveOpsEvent, MemberProject,
-		Organization, OrganizationMember, Plan, Project, Role, Segment, StaffAccess,
-		StripeEvent, UsageDaily, User []ent.Interceptor
+		CreditLot, Environment, FeatureFlag, Invitation, LedgerEntry, LiveOpsEvent,
+		MemberProject, Organization, OrganizationMember, Plan, Project, Role, Segment,
+		StaffAccess, StripeEvent, UsageDaily, User []ent.Interceptor
 	}
 )

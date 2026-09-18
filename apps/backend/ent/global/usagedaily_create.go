@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"time"
 
+	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
@@ -20,6 +21,7 @@ type UsageDailyCreate struct {
 	config
 	mutation *UsageDailyMutation
 	hooks    []Hook
+	conflict []sql.ConflictOption
 }
 
 // SetUID sets the "uid" field.
@@ -277,6 +279,7 @@ func (_c *UsageDailyCreate) createSpec() (*UsageDaily, *sqlgraph.CreateSpec) {
 		_node = &UsageDaily{config: _c.config}
 		_spec = sqlgraph.NewCreateSpec(usagedaily.Table, sqlgraph.NewFieldSpec(usagedaily.FieldID, field.TypeInt))
 	)
+	_spec.OnConflict = _c.conflict
 	if id, ok := _c.mutation.ID(); ok {
 		_node.ID = id
 		_spec.ID.Value = id
@@ -337,11 +340,326 @@ func (_c *UsageDailyCreate) createSpec() (*UsageDaily, *sqlgraph.CreateSpec) {
 	return _node, _spec
 }
 
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.UsageDaily.Create().
+//		SetUID(v).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.UsageDailyUpsert) {
+//			SetUID(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *UsageDailyCreate) OnConflict(opts ...sql.ConflictOption) *UsageDailyUpsertOne {
+	_c.conflict = opts
+	return &UsageDailyUpsertOne{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.UsageDaily.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *UsageDailyCreate) OnConflictColumns(columns ...string) *UsageDailyUpsertOne {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &UsageDailyUpsertOne{
+		create: _c,
+	}
+}
+
+type (
+	// UsageDailyUpsertOne is the builder for "upsert"-ing
+	//  one UsageDaily node.
+	UsageDailyUpsertOne struct {
+		create *UsageDailyCreate
+	}
+
+	// UsageDailyUpsert is the "OnConflict" setter.
+	UsageDailyUpsert struct {
+		*sql.UpdateSet
+	}
+)
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *UsageDailyUpsert) SetUpdatedAt(v time.Time) *UsageDailyUpsert {
+	u.Set(usagedaily.FieldUpdatedAt, v)
+	return u
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *UsageDailyUpsert) UpdateUpdatedAt() *UsageDailyUpsert {
+	u.SetExcluded(usagedaily.FieldUpdatedAt)
+	return u
+}
+
+// SetTrackedPlayers sets the "tracked_players" field.
+func (u *UsageDailyUpsert) SetTrackedPlayers(v uint64) *UsageDailyUpsert {
+	u.Set(usagedaily.FieldTrackedPlayers, v)
+	return u
+}
+
+// UpdateTrackedPlayers sets the "tracked_players" field to the value that was provided on create.
+func (u *UsageDailyUpsert) UpdateTrackedPlayers() *UsageDailyUpsert {
+	u.SetExcluded(usagedaily.FieldTrackedPlayers)
+	return u
+}
+
+// AddTrackedPlayers adds v to the "tracked_players" field.
+func (u *UsageDailyUpsert) AddTrackedPlayers(v uint64) *UsageDailyUpsert {
+	u.Add(usagedaily.FieldTrackedPlayers, v)
+	return u
+}
+
+// SetEventsAccepted sets the "events_accepted" field.
+func (u *UsageDailyUpsert) SetEventsAccepted(v uint64) *UsageDailyUpsert {
+	u.Set(usagedaily.FieldEventsAccepted, v)
+	return u
+}
+
+// UpdateEventsAccepted sets the "events_accepted" field to the value that was provided on create.
+func (u *UsageDailyUpsert) UpdateEventsAccepted() *UsageDailyUpsert {
+	u.SetExcluded(usagedaily.FieldEventsAccepted)
+	return u
+}
+
+// AddEventsAccepted adds v to the "events_accepted" field.
+func (u *UsageDailyUpsert) AddEventsAccepted(v uint64) *UsageDailyUpsert {
+	u.Add(usagedaily.FieldEventsAccepted, v)
+	return u
+}
+
+// SetRetainedBytes sets the "retained_bytes" field.
+func (u *UsageDailyUpsert) SetRetainedBytes(v uint64) *UsageDailyUpsert {
+	u.Set(usagedaily.FieldRetainedBytes, v)
+	return u
+}
+
+// UpdateRetainedBytes sets the "retained_bytes" field to the value that was provided on create.
+func (u *UsageDailyUpsert) UpdateRetainedBytes() *UsageDailyUpsert {
+	u.SetExcluded(usagedaily.FieldRetainedBytes)
+	return u
+}
+
+// AddRetainedBytes adds v to the "retained_bytes" field.
+func (u *UsageDailyUpsert) AddRetainedBytes(v uint64) *UsageDailyUpsert {
+	u.Add(usagedaily.FieldRetainedBytes, v)
+	return u
+}
+
+// SetFinal sets the "final" field.
+func (u *UsageDailyUpsert) SetFinal(v bool) *UsageDailyUpsert {
+	u.Set(usagedaily.FieldFinal, v)
+	return u
+}
+
+// UpdateFinal sets the "final" field to the value that was provided on create.
+func (u *UsageDailyUpsert) UpdateFinal() *UsageDailyUpsert {
+	u.SetExcluded(usagedaily.FieldFinal)
+	return u
+}
+
+// UpdateNewValues updates the mutable fields using the new values that were set on create except the ID field.
+// Using this option is equivalent to using:
+//
+//	client.UsageDaily.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//			sql.ResolveWith(func(u *sql.UpdateSet) {
+//				u.SetIgnore(usagedaily.FieldID)
+//			}),
+//		).
+//		Exec(ctx)
+func (u *UsageDailyUpsertOne) UpdateNewValues() *UsageDailyUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		if _, exists := u.create.mutation.ID(); exists {
+			s.SetIgnore(usagedaily.FieldID)
+		}
+		if _, exists := u.create.mutation.UID(); exists {
+			s.SetIgnore(usagedaily.FieldUID)
+		}
+		if _, exists := u.create.mutation.CreatedAt(); exists {
+			s.SetIgnore(usagedaily.FieldCreatedAt)
+		}
+		if _, exists := u.create.mutation.ProjectID(); exists {
+			s.SetIgnore(usagedaily.FieldProjectID)
+		}
+		if _, exists := u.create.mutation.OrganizationID(); exists {
+			s.SetIgnore(usagedaily.FieldOrganizationID)
+		}
+		if _, exists := u.create.mutation.Day(); exists {
+			s.SetIgnore(usagedaily.FieldDay)
+		}
+	}))
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.UsageDaily.Create().
+//	    OnConflict(sql.ResolveWithIgnore()).
+//	    Exec(ctx)
+func (u *UsageDailyUpsertOne) Ignore() *UsageDailyUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *UsageDailyUpsertOne) DoNothing() *UsageDailyUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the UsageDailyCreate.OnConflict
+// documentation for more info.
+func (u *UsageDailyUpsertOne) Update(set func(*UsageDailyUpsert)) *UsageDailyUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&UsageDailyUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *UsageDailyUpsertOne) SetUpdatedAt(v time.Time) *UsageDailyUpsertOne {
+	return u.Update(func(s *UsageDailyUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *UsageDailyUpsertOne) UpdateUpdatedAt() *UsageDailyUpsertOne {
+	return u.Update(func(s *UsageDailyUpsert) {
+		s.UpdateUpdatedAt()
+	})
+}
+
+// SetTrackedPlayers sets the "tracked_players" field.
+func (u *UsageDailyUpsertOne) SetTrackedPlayers(v uint64) *UsageDailyUpsertOne {
+	return u.Update(func(s *UsageDailyUpsert) {
+		s.SetTrackedPlayers(v)
+	})
+}
+
+// AddTrackedPlayers adds v to the "tracked_players" field.
+func (u *UsageDailyUpsertOne) AddTrackedPlayers(v uint64) *UsageDailyUpsertOne {
+	return u.Update(func(s *UsageDailyUpsert) {
+		s.AddTrackedPlayers(v)
+	})
+}
+
+// UpdateTrackedPlayers sets the "tracked_players" field to the value that was provided on create.
+func (u *UsageDailyUpsertOne) UpdateTrackedPlayers() *UsageDailyUpsertOne {
+	return u.Update(func(s *UsageDailyUpsert) {
+		s.UpdateTrackedPlayers()
+	})
+}
+
+// SetEventsAccepted sets the "events_accepted" field.
+func (u *UsageDailyUpsertOne) SetEventsAccepted(v uint64) *UsageDailyUpsertOne {
+	return u.Update(func(s *UsageDailyUpsert) {
+		s.SetEventsAccepted(v)
+	})
+}
+
+// AddEventsAccepted adds v to the "events_accepted" field.
+func (u *UsageDailyUpsertOne) AddEventsAccepted(v uint64) *UsageDailyUpsertOne {
+	return u.Update(func(s *UsageDailyUpsert) {
+		s.AddEventsAccepted(v)
+	})
+}
+
+// UpdateEventsAccepted sets the "events_accepted" field to the value that was provided on create.
+func (u *UsageDailyUpsertOne) UpdateEventsAccepted() *UsageDailyUpsertOne {
+	return u.Update(func(s *UsageDailyUpsert) {
+		s.UpdateEventsAccepted()
+	})
+}
+
+// SetRetainedBytes sets the "retained_bytes" field.
+func (u *UsageDailyUpsertOne) SetRetainedBytes(v uint64) *UsageDailyUpsertOne {
+	return u.Update(func(s *UsageDailyUpsert) {
+		s.SetRetainedBytes(v)
+	})
+}
+
+// AddRetainedBytes adds v to the "retained_bytes" field.
+func (u *UsageDailyUpsertOne) AddRetainedBytes(v uint64) *UsageDailyUpsertOne {
+	return u.Update(func(s *UsageDailyUpsert) {
+		s.AddRetainedBytes(v)
+	})
+}
+
+// UpdateRetainedBytes sets the "retained_bytes" field to the value that was provided on create.
+func (u *UsageDailyUpsertOne) UpdateRetainedBytes() *UsageDailyUpsertOne {
+	return u.Update(func(s *UsageDailyUpsert) {
+		s.UpdateRetainedBytes()
+	})
+}
+
+// SetFinal sets the "final" field.
+func (u *UsageDailyUpsertOne) SetFinal(v bool) *UsageDailyUpsertOne {
+	return u.Update(func(s *UsageDailyUpsert) {
+		s.SetFinal(v)
+	})
+}
+
+// UpdateFinal sets the "final" field to the value that was provided on create.
+func (u *UsageDailyUpsertOne) UpdateFinal() *UsageDailyUpsertOne {
+	return u.Update(func(s *UsageDailyUpsert) {
+		s.UpdateFinal()
+	})
+}
+
+// Exec executes the query.
+func (u *UsageDailyUpsertOne) Exec(ctx context.Context) error {
+	if len(u.create.conflict) == 0 {
+		return errors.New("global: missing options for UsageDailyCreate.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *UsageDailyUpsertOne) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// Exec executes the UPSERT query and returns the inserted/updated ID.
+func (u *UsageDailyUpsertOne) ID(ctx context.Context) (id int, err error) {
+	node, err := u.create.Save(ctx)
+	if err != nil {
+		return id, err
+	}
+	return node.ID, nil
+}
+
+// IDX is like ID, but panics if an error occurs.
+func (u *UsageDailyUpsertOne) IDX(ctx context.Context) int {
+	id, err := u.ID(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
 // UsageDailyCreateBulk is the builder for creating many UsageDaily entities in bulk.
 type UsageDailyCreateBulk struct {
 	config
 	err      error
 	builders []*UsageDailyCreate
+	conflict []sql.ConflictOption
 }
 
 // Save creates the UsageDaily entities in the database.
@@ -371,6 +689,7 @@ func (_c *UsageDailyCreateBulk) Save(ctx context.Context) ([]*UsageDaily, error)
 					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
 				} else {
 					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+					spec.OnConflict = _c.conflict
 					// Invoke the actual operation on the latest mutation in the chain.
 					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
 						if sqlgraph.IsConstraintError(err) {
@@ -421,6 +740,226 @@ func (_c *UsageDailyCreateBulk) Exec(ctx context.Context) error {
 // ExecX is like Exec, but panics if an error occurs.
 func (_c *UsageDailyCreateBulk) ExecX(ctx context.Context) {
 	if err := _c.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.UsageDaily.CreateBulk(builders...).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.UsageDailyUpsert) {
+//			SetUID(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *UsageDailyCreateBulk) OnConflict(opts ...sql.ConflictOption) *UsageDailyUpsertBulk {
+	_c.conflict = opts
+	return &UsageDailyUpsertBulk{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.UsageDaily.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *UsageDailyCreateBulk) OnConflictColumns(columns ...string) *UsageDailyUpsertBulk {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &UsageDailyUpsertBulk{
+		create: _c,
+	}
+}
+
+// UsageDailyUpsertBulk is the builder for "upsert"-ing
+// a bulk of UsageDaily nodes.
+type UsageDailyUpsertBulk struct {
+	create *UsageDailyCreateBulk
+}
+
+// UpdateNewValues updates the mutable fields using the new values that
+// were set on create. Using this option is equivalent to using:
+//
+//	client.UsageDaily.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//			sql.ResolveWith(func(u *sql.UpdateSet) {
+//				u.SetIgnore(usagedaily.FieldID)
+//			}),
+//		).
+//		Exec(ctx)
+func (u *UsageDailyUpsertBulk) UpdateNewValues() *UsageDailyUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		for _, b := range u.create.builders {
+			if _, exists := b.mutation.ID(); exists {
+				s.SetIgnore(usagedaily.FieldID)
+			}
+			if _, exists := b.mutation.UID(); exists {
+				s.SetIgnore(usagedaily.FieldUID)
+			}
+			if _, exists := b.mutation.CreatedAt(); exists {
+				s.SetIgnore(usagedaily.FieldCreatedAt)
+			}
+			if _, exists := b.mutation.ProjectID(); exists {
+				s.SetIgnore(usagedaily.FieldProjectID)
+			}
+			if _, exists := b.mutation.OrganizationID(); exists {
+				s.SetIgnore(usagedaily.FieldOrganizationID)
+			}
+			if _, exists := b.mutation.Day(); exists {
+				s.SetIgnore(usagedaily.FieldDay)
+			}
+		}
+	}))
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.UsageDaily.Create().
+//		OnConflict(sql.ResolveWithIgnore()).
+//		Exec(ctx)
+func (u *UsageDailyUpsertBulk) Ignore() *UsageDailyUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *UsageDailyUpsertBulk) DoNothing() *UsageDailyUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the UsageDailyCreateBulk.OnConflict
+// documentation for more info.
+func (u *UsageDailyUpsertBulk) Update(set func(*UsageDailyUpsert)) *UsageDailyUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&UsageDailyUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *UsageDailyUpsertBulk) SetUpdatedAt(v time.Time) *UsageDailyUpsertBulk {
+	return u.Update(func(s *UsageDailyUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *UsageDailyUpsertBulk) UpdateUpdatedAt() *UsageDailyUpsertBulk {
+	return u.Update(func(s *UsageDailyUpsert) {
+		s.UpdateUpdatedAt()
+	})
+}
+
+// SetTrackedPlayers sets the "tracked_players" field.
+func (u *UsageDailyUpsertBulk) SetTrackedPlayers(v uint64) *UsageDailyUpsertBulk {
+	return u.Update(func(s *UsageDailyUpsert) {
+		s.SetTrackedPlayers(v)
+	})
+}
+
+// AddTrackedPlayers adds v to the "tracked_players" field.
+func (u *UsageDailyUpsertBulk) AddTrackedPlayers(v uint64) *UsageDailyUpsertBulk {
+	return u.Update(func(s *UsageDailyUpsert) {
+		s.AddTrackedPlayers(v)
+	})
+}
+
+// UpdateTrackedPlayers sets the "tracked_players" field to the value that was provided on create.
+func (u *UsageDailyUpsertBulk) UpdateTrackedPlayers() *UsageDailyUpsertBulk {
+	return u.Update(func(s *UsageDailyUpsert) {
+		s.UpdateTrackedPlayers()
+	})
+}
+
+// SetEventsAccepted sets the "events_accepted" field.
+func (u *UsageDailyUpsertBulk) SetEventsAccepted(v uint64) *UsageDailyUpsertBulk {
+	return u.Update(func(s *UsageDailyUpsert) {
+		s.SetEventsAccepted(v)
+	})
+}
+
+// AddEventsAccepted adds v to the "events_accepted" field.
+func (u *UsageDailyUpsertBulk) AddEventsAccepted(v uint64) *UsageDailyUpsertBulk {
+	return u.Update(func(s *UsageDailyUpsert) {
+		s.AddEventsAccepted(v)
+	})
+}
+
+// UpdateEventsAccepted sets the "events_accepted" field to the value that was provided on create.
+func (u *UsageDailyUpsertBulk) UpdateEventsAccepted() *UsageDailyUpsertBulk {
+	return u.Update(func(s *UsageDailyUpsert) {
+		s.UpdateEventsAccepted()
+	})
+}
+
+// SetRetainedBytes sets the "retained_bytes" field.
+func (u *UsageDailyUpsertBulk) SetRetainedBytes(v uint64) *UsageDailyUpsertBulk {
+	return u.Update(func(s *UsageDailyUpsert) {
+		s.SetRetainedBytes(v)
+	})
+}
+
+// AddRetainedBytes adds v to the "retained_bytes" field.
+func (u *UsageDailyUpsertBulk) AddRetainedBytes(v uint64) *UsageDailyUpsertBulk {
+	return u.Update(func(s *UsageDailyUpsert) {
+		s.AddRetainedBytes(v)
+	})
+}
+
+// UpdateRetainedBytes sets the "retained_bytes" field to the value that was provided on create.
+func (u *UsageDailyUpsertBulk) UpdateRetainedBytes() *UsageDailyUpsertBulk {
+	return u.Update(func(s *UsageDailyUpsert) {
+		s.UpdateRetainedBytes()
+	})
+}
+
+// SetFinal sets the "final" field.
+func (u *UsageDailyUpsertBulk) SetFinal(v bool) *UsageDailyUpsertBulk {
+	return u.Update(func(s *UsageDailyUpsert) {
+		s.SetFinal(v)
+	})
+}
+
+// UpdateFinal sets the "final" field to the value that was provided on create.
+func (u *UsageDailyUpsertBulk) UpdateFinal() *UsageDailyUpsertBulk {
+	return u.Update(func(s *UsageDailyUpsert) {
+		s.UpdateFinal()
+	})
+}
+
+// Exec executes the query.
+func (u *UsageDailyUpsertBulk) Exec(ctx context.Context) error {
+	if u.create.err != nil {
+		return u.create.err
+	}
+	for i, b := range u.create.builders {
+		if len(b.conflict) != 0 {
+			return fmt.Errorf("global: OnConflict was set for builder %d. Set it on the UsageDailyCreateBulk instead", i)
+		}
+	}
+	if len(u.create.conflict) == 0 {
+		return errors.New("global: missing options for UsageDailyCreateBulk.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *UsageDailyUpsertBulk) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

@@ -115,6 +115,17 @@ func (s *stack) grant(t *testing.T, orgSlug, projectSlug string, who fbtest.Pers
 	}
 }
 
+// organization finds a seeded organization row, for the fixtures that need its id.
+func (s *stack) organization(t *testing.T, slug string) *global.Organization {
+	t.Helper()
+	org, err := s.db.Client.Organization.Query().
+		Where(organization.Slug(slug)).Only(t.Context())
+	if err != nil {
+		t.Fatalf("find %s: %v", slug, err)
+	}
+	return org
+}
+
 func (s *stack) member(t *testing.T, orgSlug string, who fbtest.Person) *global.OrganizationMember {
 	t.Helper()
 	org, err := s.db.Client.Organization.Query().

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"time"
 
+	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
@@ -21,6 +22,7 @@ type LedgerEntryCreate struct {
 	config
 	mutation *LedgerEntryMutation
 	hooks    []Hook
+	conflict []sql.ConflictOption
 }
 
 // SetUID sets the "uid" field.
@@ -279,6 +281,7 @@ func (_c *LedgerEntryCreate) createSpec() (*LedgerEntry, *sqlgraph.CreateSpec) {
 		_node = &LedgerEntry{config: _c.config}
 		_spec = sqlgraph.NewCreateSpec(ledgerentry.Table, sqlgraph.NewFieldSpec(ledgerentry.FieldID, field.TypeInt))
 	)
+	_spec.OnConflict = _c.conflict
 	if id, ok := _c.mutation.ID(); ok {
 		_node.ID = id
 		_spec.ID.Value = id
@@ -356,11 +359,175 @@ func (_c *LedgerEntryCreate) createSpec() (*LedgerEntry, *sqlgraph.CreateSpec) {
 	return _node, _spec
 }
 
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.LedgerEntry.Create().
+//		SetUID(v).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.LedgerEntryUpsert) {
+//			SetUID(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *LedgerEntryCreate) OnConflict(opts ...sql.ConflictOption) *LedgerEntryUpsertOne {
+	_c.conflict = opts
+	return &LedgerEntryUpsertOne{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.LedgerEntry.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *LedgerEntryCreate) OnConflictColumns(columns ...string) *LedgerEntryUpsertOne {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &LedgerEntryUpsertOne{
+		create: _c,
+	}
+}
+
+type (
+	// LedgerEntryUpsertOne is the builder for "upsert"-ing
+	//  one LedgerEntry node.
+	LedgerEntryUpsertOne struct {
+		create *LedgerEntryCreate
+	}
+
+	// LedgerEntryUpsert is the "OnConflict" setter.
+	LedgerEntryUpsert struct {
+		*sql.UpdateSet
+	}
+)
+
+// UpdateNewValues updates the mutable fields using the new values that were set on create except the ID field.
+// Using this option is equivalent to using:
+//
+//	client.LedgerEntry.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//			sql.ResolveWith(func(u *sql.UpdateSet) {
+//				u.SetIgnore(ledgerentry.FieldID)
+//			}),
+//		).
+//		Exec(ctx)
+func (u *LedgerEntryUpsertOne) UpdateNewValues() *LedgerEntryUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		if _, exists := u.create.mutation.ID(); exists {
+			s.SetIgnore(ledgerentry.FieldID)
+		}
+		if _, exists := u.create.mutation.UID(); exists {
+			s.SetIgnore(ledgerentry.FieldUID)
+		}
+		if _, exists := u.create.mutation.CreatedAt(); exists {
+			s.SetIgnore(ledgerentry.FieldCreatedAt)
+		}
+		if _, exists := u.create.mutation.AccountID(); exists {
+			s.SetIgnore(ledgerentry.FieldAccountID)
+		}
+		if _, exists := u.create.mutation.Kind(); exists {
+			s.SetIgnore(ledgerentry.FieldKind)
+		}
+		if _, exists := u.create.mutation.AmountMicros(); exists {
+			s.SetIgnore(ledgerentry.FieldAmountMicros)
+		}
+		if _, exists := u.create.mutation.BalanceAfterMicros(); exists {
+			s.SetIgnore(ledgerentry.FieldBalanceAfterMicros)
+		}
+		if _, exists := u.create.mutation.Currency(); exists {
+			s.SetIgnore(ledgerentry.FieldCurrency)
+		}
+		if _, exists := u.create.mutation.Description(); exists {
+			s.SetIgnore(ledgerentry.FieldDescription)
+		}
+		if _, exists := u.create.mutation.StripeReference(); exists {
+			s.SetIgnore(ledgerentry.FieldStripeReference)
+		}
+		if _, exists := u.create.mutation.PeriodID(); exists {
+			s.SetIgnore(ledgerentry.FieldPeriodID)
+		}
+		if _, exists := u.create.mutation.IdempotencyKey(); exists {
+			s.SetIgnore(ledgerentry.FieldIdempotencyKey)
+		}
+	}))
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.LedgerEntry.Create().
+//	    OnConflict(sql.ResolveWithIgnore()).
+//	    Exec(ctx)
+func (u *LedgerEntryUpsertOne) Ignore() *LedgerEntryUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *LedgerEntryUpsertOne) DoNothing() *LedgerEntryUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the LedgerEntryCreate.OnConflict
+// documentation for more info.
+func (u *LedgerEntryUpsertOne) Update(set func(*LedgerEntryUpsert)) *LedgerEntryUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&LedgerEntryUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// Exec executes the query.
+func (u *LedgerEntryUpsertOne) Exec(ctx context.Context) error {
+	if len(u.create.conflict) == 0 {
+		return errors.New("global: missing options for LedgerEntryCreate.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *LedgerEntryUpsertOne) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// Exec executes the UPSERT query and returns the inserted/updated ID.
+func (u *LedgerEntryUpsertOne) ID(ctx context.Context) (id int, err error) {
+	node, err := u.create.Save(ctx)
+	if err != nil {
+		return id, err
+	}
+	return node.ID, nil
+}
+
+// IDX is like ID, but panics if an error occurs.
+func (u *LedgerEntryUpsertOne) IDX(ctx context.Context) int {
+	id, err := u.ID(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
 // LedgerEntryCreateBulk is the builder for creating many LedgerEntry entities in bulk.
 type LedgerEntryCreateBulk struct {
 	config
 	err      error
 	builders []*LedgerEntryCreate
+	conflict []sql.ConflictOption
 }
 
 // Save creates the LedgerEntry entities in the database.
@@ -390,6 +557,7 @@ func (_c *LedgerEntryCreateBulk) Save(ctx context.Context) ([]*LedgerEntry, erro
 					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
 				} else {
 					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+					spec.OnConflict = _c.conflict
 					// Invoke the actual operation on the latest mutation in the chain.
 					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
 						if sqlgraph.IsConstraintError(err) {
@@ -440,6 +608,153 @@ func (_c *LedgerEntryCreateBulk) Exec(ctx context.Context) error {
 // ExecX is like Exec, but panics if an error occurs.
 func (_c *LedgerEntryCreateBulk) ExecX(ctx context.Context) {
 	if err := _c.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.LedgerEntry.CreateBulk(builders...).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.LedgerEntryUpsert) {
+//			SetUID(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *LedgerEntryCreateBulk) OnConflict(opts ...sql.ConflictOption) *LedgerEntryUpsertBulk {
+	_c.conflict = opts
+	return &LedgerEntryUpsertBulk{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.LedgerEntry.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *LedgerEntryCreateBulk) OnConflictColumns(columns ...string) *LedgerEntryUpsertBulk {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &LedgerEntryUpsertBulk{
+		create: _c,
+	}
+}
+
+// LedgerEntryUpsertBulk is the builder for "upsert"-ing
+// a bulk of LedgerEntry nodes.
+type LedgerEntryUpsertBulk struct {
+	create *LedgerEntryCreateBulk
+}
+
+// UpdateNewValues updates the mutable fields using the new values that
+// were set on create. Using this option is equivalent to using:
+//
+//	client.LedgerEntry.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//			sql.ResolveWith(func(u *sql.UpdateSet) {
+//				u.SetIgnore(ledgerentry.FieldID)
+//			}),
+//		).
+//		Exec(ctx)
+func (u *LedgerEntryUpsertBulk) UpdateNewValues() *LedgerEntryUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		for _, b := range u.create.builders {
+			if _, exists := b.mutation.ID(); exists {
+				s.SetIgnore(ledgerentry.FieldID)
+			}
+			if _, exists := b.mutation.UID(); exists {
+				s.SetIgnore(ledgerentry.FieldUID)
+			}
+			if _, exists := b.mutation.CreatedAt(); exists {
+				s.SetIgnore(ledgerentry.FieldCreatedAt)
+			}
+			if _, exists := b.mutation.AccountID(); exists {
+				s.SetIgnore(ledgerentry.FieldAccountID)
+			}
+			if _, exists := b.mutation.Kind(); exists {
+				s.SetIgnore(ledgerentry.FieldKind)
+			}
+			if _, exists := b.mutation.AmountMicros(); exists {
+				s.SetIgnore(ledgerentry.FieldAmountMicros)
+			}
+			if _, exists := b.mutation.BalanceAfterMicros(); exists {
+				s.SetIgnore(ledgerentry.FieldBalanceAfterMicros)
+			}
+			if _, exists := b.mutation.Currency(); exists {
+				s.SetIgnore(ledgerentry.FieldCurrency)
+			}
+			if _, exists := b.mutation.Description(); exists {
+				s.SetIgnore(ledgerentry.FieldDescription)
+			}
+			if _, exists := b.mutation.StripeReference(); exists {
+				s.SetIgnore(ledgerentry.FieldStripeReference)
+			}
+			if _, exists := b.mutation.PeriodID(); exists {
+				s.SetIgnore(ledgerentry.FieldPeriodID)
+			}
+			if _, exists := b.mutation.IdempotencyKey(); exists {
+				s.SetIgnore(ledgerentry.FieldIdempotencyKey)
+			}
+		}
+	}))
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.LedgerEntry.Create().
+//		OnConflict(sql.ResolveWithIgnore()).
+//		Exec(ctx)
+func (u *LedgerEntryUpsertBulk) Ignore() *LedgerEntryUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *LedgerEntryUpsertBulk) DoNothing() *LedgerEntryUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the LedgerEntryCreateBulk.OnConflict
+// documentation for more info.
+func (u *LedgerEntryUpsertBulk) Update(set func(*LedgerEntryUpsert)) *LedgerEntryUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&LedgerEntryUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// Exec executes the query.
+func (u *LedgerEntryUpsertBulk) Exec(ctx context.Context) error {
+	if u.create.err != nil {
+		return u.create.err
+	}
+	for i, b := range u.create.builders {
+		if len(b.conflict) != 0 {
+			return fmt.Errorf("global: OnConflict was set for builder %d. Set it on the LedgerEntryCreateBulk instead", i)
+		}
+	}
+	if len(u.create.conflict) == 0 {
+		return errors.New("global: missing options for LedgerEntryCreateBulk.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *LedgerEntryUpsertBulk) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

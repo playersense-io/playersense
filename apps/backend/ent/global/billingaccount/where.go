@@ -915,6 +915,29 @@ func HasLedgerEntriesWith(preds ...predicate.LedgerEntry) predicate.BillingAccou
 	})
 }
 
+// HasCreditLots applies the HasEdge predicate on the "credit_lots" edge.
+func HasCreditLots() predicate.BillingAccount {
+	return predicate.BillingAccount(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, CreditLotsTable, CreditLotsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasCreditLotsWith applies the HasEdge predicate on the "credit_lots" edge with a given conditions (other predicates).
+func HasCreditLotsWith(preds ...predicate.CreditLot) predicate.BillingAccount {
+	return predicate.BillingAccount(func(s *sql.Selector) {
+		step := newCreditLotsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // HasPeriods applies the HasEdge predicate on the "periods" edge.
 func HasPeriods() predicate.BillingAccount {
 	return predicate.BillingAccount(func(s *sql.Selector) {

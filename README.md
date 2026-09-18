@@ -124,6 +124,44 @@ The last owner of an organization cannot be removed or demoted, by either door.
 Removing a member **deletes** the row, unlike a revoked key or an archived flag: a membership is
 not a record of what happened, it is a live grant of access to player data.
 
+**Usage, the wallet and the plan** — `billing.read`, except the last, which needs `billing.manage`:
+
+```
+GET                         /v1/organizations/{org}/usage
+GET                         /v1/organizations/{org}/billing
+GET                         /v1/organizations/{org}/billing/ledger
+       PUT                  /v1/organizations/{org}/billing/auto-topup
+```
+
+**The balance is not a column.** Credit is held as *lots* — one per grant, each with its own
+remaining amount and its own expiry — because promotional credit expires and a single number cannot
+expire part of itself. `available_micros` is the sum of what is left in every lot that has not
+lapsed; `ledger_balance_micros` is the ledger's running total, which is briefly higher between credit
+lapsing and the sweep writing it off. Both are returned, because a number that looks wrong should be
+explainable ([ADR 0036](docs/adr/0036-a-wallet-is-lots-because-credit-expires.md)).
+
+**Credit is spent promos first — soonest to expire first — then purchased credit oldest first.** A
+promo is the only credit that can be lost, so spending a customer's own money while a trial credit
+ticks down is charging them for something they were already given. A promo lasts ninety days unless
+somebody names another date; purchased credit never expires and cannot be given a date.
+
+**Putting credit in a wallet is an operator action**, behind the shared operator token rather than any
+customer permission — an owner holding everything still cannot grant themselves credit:
+
+```
+       POST                 /v1/operator/organizations/{org}/credits
+       POST                 /v1/operator/organizations/{org}/charges
+```
+
+`reference` on both is the idempotency key: the same one twice grants or charges once. A shared
+secret cannot say *who* acted, which is a real gap recorded in
+[docs/compliance/10-open-items.md](docs/compliance/10-open-items.md) beside the audit log it needs.
+
+The **usage meter** runs on the worker, deriving each day from `metrics_daily` — the same fact the
+dashboard's DAU comes from, so an invoice and a chart are two readings of one number. A day is
+rewritten until it settles and final at eight days. Tracked players is reported as the busiest day
+rather than a sum: adding daily figures counts one player once per day they played.
+
 And **the three tables a studio edits**:
 
 ```

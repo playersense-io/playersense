@@ -423,6 +423,13 @@ type Settings struct {
 	// logs, and is readable by people who were never invited.
 	MailLogBody bool `env:"MAIL_LOG_BODY" default:"false"`
 
+	// CreditExpiryMaxLots bounds one pass of the wallet's expiry sweep.
+	//
+	// A pass writes two rows per lapsed lot inside one transaction, so the bound is about how
+	// long that transaction holds rather than about how much work there is. Whatever is left is
+	// swept minutes later, and the spend path was already refusing the credit.
+	CreditExpiryMaxLots int `env:"CREDIT_EXPIRY_MAX_LOTS" default:"500"`
+
 	// LogFormat is auto, console, json or none.
 	//
 	// Auto picks JSON when the output is not a terminal, which is right for a production

@@ -12,6 +12,7 @@ import (
 	"playersense.dev/backend/ent/global/billingperiod"
 	"playersense.dev/backend/ent/global/cell"
 	"playersense.dev/backend/ent/global/configversion"
+	"playersense.dev/backend/ent/global/creditlot"
 	"playersense.dev/backend/ent/global/environment"
 	"playersense.dev/backend/ent/global/featureflag"
 	"playersense.dev/backend/ent/global/invitation"
@@ -443,6 +444,71 @@ func init() {
 	configversion.DefaultNote = configversionDescNote.Default.(string)
 	// configversion.NoteValidator is a validator for the "note" field. It is called by the builders before save.
 	configversion.NoteValidator = configversionDescNote.Validators[0].(func(string) error)
+	creditlotMixin := globaltier.CreditLot{}.Mixin()
+	creditlotMixinFields0 := creditlotMixin[0].Fields()
+	_ = creditlotMixinFields0
+	creditlotFields := globaltier.CreditLot{}.Fields()
+	_ = creditlotFields
+	// creditlotDescUID is the schema descriptor for uid field.
+	creditlotDescUID := creditlotMixinFields0[1].Descriptor()
+	// creditlot.DefaultUID holds the default value on creation for the uid field.
+	creditlot.DefaultUID = creditlotDescUID.Default.(func() uuid.UUID)
+	// creditlotDescCreatedAt is the schema descriptor for created_at field.
+	creditlotDescCreatedAt := creditlotMixinFields0[2].Descriptor()
+	// creditlot.DefaultCreatedAt holds the default value on creation for the created_at field.
+	creditlot.DefaultCreatedAt = creditlotDescCreatedAt.Default.(func() time.Time)
+	// creditlotDescUpdatedAt is the schema descriptor for updated_at field.
+	creditlotDescUpdatedAt := creditlotMixinFields0[3].Descriptor()
+	// creditlot.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	creditlot.DefaultUpdatedAt = creditlotDescUpdatedAt.Default.(func() time.Time)
+	// creditlot.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	creditlot.UpdateDefaultUpdatedAt = creditlotDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// creditlotDescAmountMicros is the schema descriptor for amount_micros field.
+	creditlotDescAmountMicros := creditlotFields[2].Descriptor()
+	// creditlot.AmountMicrosValidator is a validator for the "amount_micros" field. It is called by the builders before save.
+	creditlot.AmountMicrosValidator = creditlotDescAmountMicros.Validators[0].(func(int64) error)
+	// creditlotDescRemainingMicros is the schema descriptor for remaining_micros field.
+	creditlotDescRemainingMicros := creditlotFields[3].Descriptor()
+	// creditlot.RemainingMicrosValidator is a validator for the "remaining_micros" field. It is called by the builders before save.
+	creditlot.RemainingMicrosValidator = creditlotDescRemainingMicros.Validators[0].(func(int64) error)
+	// creditlotDescCurrency is the schema descriptor for currency field.
+	creditlotDescCurrency := creditlotFields[4].Descriptor()
+	// creditlot.DefaultCurrency holds the default value on creation for the currency field.
+	creditlot.DefaultCurrency = creditlotDescCurrency.Default.(string)
+	// creditlot.CurrencyValidator is a validator for the "currency" field. It is called by the builders before save.
+	creditlot.CurrencyValidator = creditlotDescCurrency.Validators[0].(func(string) error)
+	// creditlotDescGrantedAt is the schema descriptor for granted_at field.
+	creditlotDescGrantedAt := creditlotFields[6].Descriptor()
+	// creditlot.DefaultGrantedAt holds the default value on creation for the granted_at field.
+	creditlot.DefaultGrantedAt = creditlotDescGrantedAt.Default.(func() time.Time)
+	// creditlotDescDescription is the schema descriptor for description field.
+	creditlotDescDescription := creditlotFields[7].Descriptor()
+	// creditlot.DefaultDescription holds the default value on creation for the description field.
+	creditlot.DefaultDescription = creditlotDescDescription.Default.(string)
+	// creditlot.DescriptionValidator is a validator for the "description" field. It is called by the builders before save.
+	creditlot.DescriptionValidator = creditlotDescDescription.Validators[0].(func(string) error)
+	// creditlotDescStripeReference is the schema descriptor for stripe_reference field.
+	creditlotDescStripeReference := creditlotFields[8].Descriptor()
+	// creditlot.StripeReferenceValidator is a validator for the "stripe_reference" field. It is called by the builders before save.
+	creditlot.StripeReferenceValidator = creditlotDescStripeReference.Validators[0].(func(string) error)
+	// creditlotDescIdempotencyKey is the schema descriptor for idempotency_key field.
+	creditlotDescIdempotencyKey := creditlotFields[10].Descriptor()
+	// creditlot.IdempotencyKeyValidator is a validator for the "idempotency_key" field. It is called by the builders before save.
+	creditlot.IdempotencyKeyValidator = func() func(string) error {
+		validators := creditlotDescIdempotencyKey.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(idempotency_key string) error {
+			for _, fn := range fns {
+				if err := fn(idempotency_key); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
 	environmentMixin := globaltier.Environment{}.Mixin()
 	environmentMixinFields0 := environmentMixin[0].Fields()
 	_ = environmentMixinFields0

@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"time"
 
+	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
@@ -21,6 +22,7 @@ type FeatureFlagCreate struct {
 	config
 	mutation *FeatureFlagMutation
 	hooks    []Hook
+	conflict []sql.ConflictOption
 }
 
 // SetUID sets the "uid" field.
@@ -339,6 +341,7 @@ func (_c *FeatureFlagCreate) createSpec() (*FeatureFlag, *sqlgraph.CreateSpec) {
 		_node = &FeatureFlag{config: _c.config}
 		_spec = sqlgraph.NewCreateSpec(featureflag.Table, sqlgraph.NewFieldSpec(featureflag.FieldID, field.TypeInt))
 	)
+	_spec.OnConflict = _c.conflict
 	if id, ok := _c.mutation.ID(); ok {
 		_node.ID = id
 		_spec.ID.Value = id
@@ -411,11 +414,401 @@ func (_c *FeatureFlagCreate) createSpec() (*FeatureFlag, *sqlgraph.CreateSpec) {
 	return _node, _spec
 }
 
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.FeatureFlag.Create().
+//		SetUID(v).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.FeatureFlagUpsert) {
+//			SetUID(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *FeatureFlagCreate) OnConflict(opts ...sql.ConflictOption) *FeatureFlagUpsertOne {
+	_c.conflict = opts
+	return &FeatureFlagUpsertOne{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.FeatureFlag.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *FeatureFlagCreate) OnConflictColumns(columns ...string) *FeatureFlagUpsertOne {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &FeatureFlagUpsertOne{
+		create: _c,
+	}
+}
+
+type (
+	// FeatureFlagUpsertOne is the builder for "upsert"-ing
+	//  one FeatureFlag node.
+	FeatureFlagUpsertOne struct {
+		create *FeatureFlagCreate
+	}
+
+	// FeatureFlagUpsert is the "OnConflict" setter.
+	FeatureFlagUpsert struct {
+		*sql.UpdateSet
+	}
+)
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *FeatureFlagUpsert) SetUpdatedAt(v time.Time) *FeatureFlagUpsert {
+	u.Set(featureflag.FieldUpdatedAt, v)
+	return u
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *FeatureFlagUpsert) UpdateUpdatedAt() *FeatureFlagUpsert {
+	u.SetExcluded(featureflag.FieldUpdatedAt)
+	return u
+}
+
+// SetProjectID sets the "project_id" field.
+func (u *FeatureFlagUpsert) SetProjectID(v int) *FeatureFlagUpsert {
+	u.Set(featureflag.FieldProjectID, v)
+	return u
+}
+
+// UpdateProjectID sets the "project_id" field to the value that was provided on create.
+func (u *FeatureFlagUpsert) UpdateProjectID() *FeatureFlagUpsert {
+	u.SetExcluded(featureflag.FieldProjectID)
+	return u
+}
+
+// SetName sets the "name" field.
+func (u *FeatureFlagUpsert) SetName(v string) *FeatureFlagUpsert {
+	u.Set(featureflag.FieldName, v)
+	return u
+}
+
+// UpdateName sets the "name" field to the value that was provided on create.
+func (u *FeatureFlagUpsert) UpdateName() *FeatureFlagUpsert {
+	u.SetExcluded(featureflag.FieldName)
+	return u
+}
+
+// SetDescription sets the "description" field.
+func (u *FeatureFlagUpsert) SetDescription(v string) *FeatureFlagUpsert {
+	u.Set(featureflag.FieldDescription, v)
+	return u
+}
+
+// UpdateDescription sets the "description" field to the value that was provided on create.
+func (u *FeatureFlagUpsert) UpdateDescription() *FeatureFlagUpsert {
+	u.SetExcluded(featureflag.FieldDescription)
+	return u
+}
+
+// SetFallback sets the "fallback" field.
+func (u *FeatureFlagUpsert) SetFallback(v jsontext.Value) *FeatureFlagUpsert {
+	u.Set(featureflag.FieldFallback, v)
+	return u
+}
+
+// UpdateFallback sets the "fallback" field to the value that was provided on create.
+func (u *FeatureFlagUpsert) UpdateFallback() *FeatureFlagUpsert {
+	u.SetExcluded(featureflag.FieldFallback)
+	return u
+}
+
+// SetRules sets the "rules" field.
+func (u *FeatureFlagUpsert) SetRules(v []interface{}) *FeatureFlagUpsert {
+	u.Set(featureflag.FieldRules, v)
+	return u
+}
+
+// UpdateRules sets the "rules" field to the value that was provided on create.
+func (u *FeatureFlagUpsert) UpdateRules() *FeatureFlagUpsert {
+	u.SetExcluded(featureflag.FieldRules)
+	return u
+}
+
+// SetRollout sets the "rollout" field.
+func (u *FeatureFlagUpsert) SetRollout(v int) *FeatureFlagUpsert {
+	u.Set(featureflag.FieldRollout, v)
+	return u
+}
+
+// UpdateRollout sets the "rollout" field to the value that was provided on create.
+func (u *FeatureFlagUpsert) UpdateRollout() *FeatureFlagUpsert {
+	u.SetExcluded(featureflag.FieldRollout)
+	return u
+}
+
+// AddRollout adds v to the "rollout" field.
+func (u *FeatureFlagUpsert) AddRollout(v int) *FeatureFlagUpsert {
+	u.Add(featureflag.FieldRollout, v)
+	return u
+}
+
+// SetSalt sets the "salt" field.
+func (u *FeatureFlagUpsert) SetSalt(v string) *FeatureFlagUpsert {
+	u.Set(featureflag.FieldSalt, v)
+	return u
+}
+
+// UpdateSalt sets the "salt" field to the value that was provided on create.
+func (u *FeatureFlagUpsert) UpdateSalt() *FeatureFlagUpsert {
+	u.SetExcluded(featureflag.FieldSalt)
+	return u
+}
+
+// SetArchived sets the "archived" field.
+func (u *FeatureFlagUpsert) SetArchived(v bool) *FeatureFlagUpsert {
+	u.Set(featureflag.FieldArchived, v)
+	return u
+}
+
+// UpdateArchived sets the "archived" field to the value that was provided on create.
+func (u *FeatureFlagUpsert) UpdateArchived() *FeatureFlagUpsert {
+	u.SetExcluded(featureflag.FieldArchived)
+	return u
+}
+
+// UpdateNewValues updates the mutable fields using the new values that were set on create except the ID field.
+// Using this option is equivalent to using:
+//
+//	client.FeatureFlag.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//			sql.ResolveWith(func(u *sql.UpdateSet) {
+//				u.SetIgnore(featureflag.FieldID)
+//			}),
+//		).
+//		Exec(ctx)
+func (u *FeatureFlagUpsertOne) UpdateNewValues() *FeatureFlagUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		if _, exists := u.create.mutation.ID(); exists {
+			s.SetIgnore(featureflag.FieldID)
+		}
+		if _, exists := u.create.mutation.UID(); exists {
+			s.SetIgnore(featureflag.FieldUID)
+		}
+		if _, exists := u.create.mutation.CreatedAt(); exists {
+			s.SetIgnore(featureflag.FieldCreatedAt)
+		}
+		if _, exists := u.create.mutation.Key(); exists {
+			s.SetIgnore(featureflag.FieldKey)
+		}
+		if _, exists := u.create.mutation.Kind(); exists {
+			s.SetIgnore(featureflag.FieldKind)
+		}
+	}))
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.FeatureFlag.Create().
+//	    OnConflict(sql.ResolveWithIgnore()).
+//	    Exec(ctx)
+func (u *FeatureFlagUpsertOne) Ignore() *FeatureFlagUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *FeatureFlagUpsertOne) DoNothing() *FeatureFlagUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the FeatureFlagCreate.OnConflict
+// documentation for more info.
+func (u *FeatureFlagUpsertOne) Update(set func(*FeatureFlagUpsert)) *FeatureFlagUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&FeatureFlagUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *FeatureFlagUpsertOne) SetUpdatedAt(v time.Time) *FeatureFlagUpsertOne {
+	return u.Update(func(s *FeatureFlagUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *FeatureFlagUpsertOne) UpdateUpdatedAt() *FeatureFlagUpsertOne {
+	return u.Update(func(s *FeatureFlagUpsert) {
+		s.UpdateUpdatedAt()
+	})
+}
+
+// SetProjectID sets the "project_id" field.
+func (u *FeatureFlagUpsertOne) SetProjectID(v int) *FeatureFlagUpsertOne {
+	return u.Update(func(s *FeatureFlagUpsert) {
+		s.SetProjectID(v)
+	})
+}
+
+// UpdateProjectID sets the "project_id" field to the value that was provided on create.
+func (u *FeatureFlagUpsertOne) UpdateProjectID() *FeatureFlagUpsertOne {
+	return u.Update(func(s *FeatureFlagUpsert) {
+		s.UpdateProjectID()
+	})
+}
+
+// SetName sets the "name" field.
+func (u *FeatureFlagUpsertOne) SetName(v string) *FeatureFlagUpsertOne {
+	return u.Update(func(s *FeatureFlagUpsert) {
+		s.SetName(v)
+	})
+}
+
+// UpdateName sets the "name" field to the value that was provided on create.
+func (u *FeatureFlagUpsertOne) UpdateName() *FeatureFlagUpsertOne {
+	return u.Update(func(s *FeatureFlagUpsert) {
+		s.UpdateName()
+	})
+}
+
+// SetDescription sets the "description" field.
+func (u *FeatureFlagUpsertOne) SetDescription(v string) *FeatureFlagUpsertOne {
+	return u.Update(func(s *FeatureFlagUpsert) {
+		s.SetDescription(v)
+	})
+}
+
+// UpdateDescription sets the "description" field to the value that was provided on create.
+func (u *FeatureFlagUpsertOne) UpdateDescription() *FeatureFlagUpsertOne {
+	return u.Update(func(s *FeatureFlagUpsert) {
+		s.UpdateDescription()
+	})
+}
+
+// SetFallback sets the "fallback" field.
+func (u *FeatureFlagUpsertOne) SetFallback(v jsontext.Value) *FeatureFlagUpsertOne {
+	return u.Update(func(s *FeatureFlagUpsert) {
+		s.SetFallback(v)
+	})
+}
+
+// UpdateFallback sets the "fallback" field to the value that was provided on create.
+func (u *FeatureFlagUpsertOne) UpdateFallback() *FeatureFlagUpsertOne {
+	return u.Update(func(s *FeatureFlagUpsert) {
+		s.UpdateFallback()
+	})
+}
+
+// SetRules sets the "rules" field.
+func (u *FeatureFlagUpsertOne) SetRules(v []interface{}) *FeatureFlagUpsertOne {
+	return u.Update(func(s *FeatureFlagUpsert) {
+		s.SetRules(v)
+	})
+}
+
+// UpdateRules sets the "rules" field to the value that was provided on create.
+func (u *FeatureFlagUpsertOne) UpdateRules() *FeatureFlagUpsertOne {
+	return u.Update(func(s *FeatureFlagUpsert) {
+		s.UpdateRules()
+	})
+}
+
+// SetRollout sets the "rollout" field.
+func (u *FeatureFlagUpsertOne) SetRollout(v int) *FeatureFlagUpsertOne {
+	return u.Update(func(s *FeatureFlagUpsert) {
+		s.SetRollout(v)
+	})
+}
+
+// AddRollout adds v to the "rollout" field.
+func (u *FeatureFlagUpsertOne) AddRollout(v int) *FeatureFlagUpsertOne {
+	return u.Update(func(s *FeatureFlagUpsert) {
+		s.AddRollout(v)
+	})
+}
+
+// UpdateRollout sets the "rollout" field to the value that was provided on create.
+func (u *FeatureFlagUpsertOne) UpdateRollout() *FeatureFlagUpsertOne {
+	return u.Update(func(s *FeatureFlagUpsert) {
+		s.UpdateRollout()
+	})
+}
+
+// SetSalt sets the "salt" field.
+func (u *FeatureFlagUpsertOne) SetSalt(v string) *FeatureFlagUpsertOne {
+	return u.Update(func(s *FeatureFlagUpsert) {
+		s.SetSalt(v)
+	})
+}
+
+// UpdateSalt sets the "salt" field to the value that was provided on create.
+func (u *FeatureFlagUpsertOne) UpdateSalt() *FeatureFlagUpsertOne {
+	return u.Update(func(s *FeatureFlagUpsert) {
+		s.UpdateSalt()
+	})
+}
+
+// SetArchived sets the "archived" field.
+func (u *FeatureFlagUpsertOne) SetArchived(v bool) *FeatureFlagUpsertOne {
+	return u.Update(func(s *FeatureFlagUpsert) {
+		s.SetArchived(v)
+	})
+}
+
+// UpdateArchived sets the "archived" field to the value that was provided on create.
+func (u *FeatureFlagUpsertOne) UpdateArchived() *FeatureFlagUpsertOne {
+	return u.Update(func(s *FeatureFlagUpsert) {
+		s.UpdateArchived()
+	})
+}
+
+// Exec executes the query.
+func (u *FeatureFlagUpsertOne) Exec(ctx context.Context) error {
+	if len(u.create.conflict) == 0 {
+		return errors.New("global: missing options for FeatureFlagCreate.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *FeatureFlagUpsertOne) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// Exec executes the UPSERT query and returns the inserted/updated ID.
+func (u *FeatureFlagUpsertOne) ID(ctx context.Context) (id int, err error) {
+	node, err := u.create.Save(ctx)
+	if err != nil {
+		return id, err
+	}
+	return node.ID, nil
+}
+
+// IDX is like ID, but panics if an error occurs.
+func (u *FeatureFlagUpsertOne) IDX(ctx context.Context) int {
+	id, err := u.ID(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
 // FeatureFlagCreateBulk is the builder for creating many FeatureFlag entities in bulk.
 type FeatureFlagCreateBulk struct {
 	config
 	err      error
 	builders []*FeatureFlagCreate
+	conflict []sql.ConflictOption
 }
 
 // Save creates the FeatureFlag entities in the database.
@@ -445,6 +838,7 @@ func (_c *FeatureFlagCreateBulk) Save(ctx context.Context) ([]*FeatureFlag, erro
 					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
 				} else {
 					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+					spec.OnConflict = _c.conflict
 					// Invoke the actual operation on the latest mutation in the chain.
 					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
 						if sqlgraph.IsConstraintError(err) {
@@ -495,6 +889,265 @@ func (_c *FeatureFlagCreateBulk) Exec(ctx context.Context) error {
 // ExecX is like Exec, but panics if an error occurs.
 func (_c *FeatureFlagCreateBulk) ExecX(ctx context.Context) {
 	if err := _c.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.FeatureFlag.CreateBulk(builders...).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.FeatureFlagUpsert) {
+//			SetUID(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *FeatureFlagCreateBulk) OnConflict(opts ...sql.ConflictOption) *FeatureFlagUpsertBulk {
+	_c.conflict = opts
+	return &FeatureFlagUpsertBulk{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.FeatureFlag.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *FeatureFlagCreateBulk) OnConflictColumns(columns ...string) *FeatureFlagUpsertBulk {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &FeatureFlagUpsertBulk{
+		create: _c,
+	}
+}
+
+// FeatureFlagUpsertBulk is the builder for "upsert"-ing
+// a bulk of FeatureFlag nodes.
+type FeatureFlagUpsertBulk struct {
+	create *FeatureFlagCreateBulk
+}
+
+// UpdateNewValues updates the mutable fields using the new values that
+// were set on create. Using this option is equivalent to using:
+//
+//	client.FeatureFlag.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//			sql.ResolveWith(func(u *sql.UpdateSet) {
+//				u.SetIgnore(featureflag.FieldID)
+//			}),
+//		).
+//		Exec(ctx)
+func (u *FeatureFlagUpsertBulk) UpdateNewValues() *FeatureFlagUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		for _, b := range u.create.builders {
+			if _, exists := b.mutation.ID(); exists {
+				s.SetIgnore(featureflag.FieldID)
+			}
+			if _, exists := b.mutation.UID(); exists {
+				s.SetIgnore(featureflag.FieldUID)
+			}
+			if _, exists := b.mutation.CreatedAt(); exists {
+				s.SetIgnore(featureflag.FieldCreatedAt)
+			}
+			if _, exists := b.mutation.Key(); exists {
+				s.SetIgnore(featureflag.FieldKey)
+			}
+			if _, exists := b.mutation.Kind(); exists {
+				s.SetIgnore(featureflag.FieldKind)
+			}
+		}
+	}))
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.FeatureFlag.Create().
+//		OnConflict(sql.ResolveWithIgnore()).
+//		Exec(ctx)
+func (u *FeatureFlagUpsertBulk) Ignore() *FeatureFlagUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *FeatureFlagUpsertBulk) DoNothing() *FeatureFlagUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the FeatureFlagCreateBulk.OnConflict
+// documentation for more info.
+func (u *FeatureFlagUpsertBulk) Update(set func(*FeatureFlagUpsert)) *FeatureFlagUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&FeatureFlagUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *FeatureFlagUpsertBulk) SetUpdatedAt(v time.Time) *FeatureFlagUpsertBulk {
+	return u.Update(func(s *FeatureFlagUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *FeatureFlagUpsertBulk) UpdateUpdatedAt() *FeatureFlagUpsertBulk {
+	return u.Update(func(s *FeatureFlagUpsert) {
+		s.UpdateUpdatedAt()
+	})
+}
+
+// SetProjectID sets the "project_id" field.
+func (u *FeatureFlagUpsertBulk) SetProjectID(v int) *FeatureFlagUpsertBulk {
+	return u.Update(func(s *FeatureFlagUpsert) {
+		s.SetProjectID(v)
+	})
+}
+
+// UpdateProjectID sets the "project_id" field to the value that was provided on create.
+func (u *FeatureFlagUpsertBulk) UpdateProjectID() *FeatureFlagUpsertBulk {
+	return u.Update(func(s *FeatureFlagUpsert) {
+		s.UpdateProjectID()
+	})
+}
+
+// SetName sets the "name" field.
+func (u *FeatureFlagUpsertBulk) SetName(v string) *FeatureFlagUpsertBulk {
+	return u.Update(func(s *FeatureFlagUpsert) {
+		s.SetName(v)
+	})
+}
+
+// UpdateName sets the "name" field to the value that was provided on create.
+func (u *FeatureFlagUpsertBulk) UpdateName() *FeatureFlagUpsertBulk {
+	return u.Update(func(s *FeatureFlagUpsert) {
+		s.UpdateName()
+	})
+}
+
+// SetDescription sets the "description" field.
+func (u *FeatureFlagUpsertBulk) SetDescription(v string) *FeatureFlagUpsertBulk {
+	return u.Update(func(s *FeatureFlagUpsert) {
+		s.SetDescription(v)
+	})
+}
+
+// UpdateDescription sets the "description" field to the value that was provided on create.
+func (u *FeatureFlagUpsertBulk) UpdateDescription() *FeatureFlagUpsertBulk {
+	return u.Update(func(s *FeatureFlagUpsert) {
+		s.UpdateDescription()
+	})
+}
+
+// SetFallback sets the "fallback" field.
+func (u *FeatureFlagUpsertBulk) SetFallback(v jsontext.Value) *FeatureFlagUpsertBulk {
+	return u.Update(func(s *FeatureFlagUpsert) {
+		s.SetFallback(v)
+	})
+}
+
+// UpdateFallback sets the "fallback" field to the value that was provided on create.
+func (u *FeatureFlagUpsertBulk) UpdateFallback() *FeatureFlagUpsertBulk {
+	return u.Update(func(s *FeatureFlagUpsert) {
+		s.UpdateFallback()
+	})
+}
+
+// SetRules sets the "rules" field.
+func (u *FeatureFlagUpsertBulk) SetRules(v []interface{}) *FeatureFlagUpsertBulk {
+	return u.Update(func(s *FeatureFlagUpsert) {
+		s.SetRules(v)
+	})
+}
+
+// UpdateRules sets the "rules" field to the value that was provided on create.
+func (u *FeatureFlagUpsertBulk) UpdateRules() *FeatureFlagUpsertBulk {
+	return u.Update(func(s *FeatureFlagUpsert) {
+		s.UpdateRules()
+	})
+}
+
+// SetRollout sets the "rollout" field.
+func (u *FeatureFlagUpsertBulk) SetRollout(v int) *FeatureFlagUpsertBulk {
+	return u.Update(func(s *FeatureFlagUpsert) {
+		s.SetRollout(v)
+	})
+}
+
+// AddRollout adds v to the "rollout" field.
+func (u *FeatureFlagUpsertBulk) AddRollout(v int) *FeatureFlagUpsertBulk {
+	return u.Update(func(s *FeatureFlagUpsert) {
+		s.AddRollout(v)
+	})
+}
+
+// UpdateRollout sets the "rollout" field to the value that was provided on create.
+func (u *FeatureFlagUpsertBulk) UpdateRollout() *FeatureFlagUpsertBulk {
+	return u.Update(func(s *FeatureFlagUpsert) {
+		s.UpdateRollout()
+	})
+}
+
+// SetSalt sets the "salt" field.
+func (u *FeatureFlagUpsertBulk) SetSalt(v string) *FeatureFlagUpsertBulk {
+	return u.Update(func(s *FeatureFlagUpsert) {
+		s.SetSalt(v)
+	})
+}
+
+// UpdateSalt sets the "salt" field to the value that was provided on create.
+func (u *FeatureFlagUpsertBulk) UpdateSalt() *FeatureFlagUpsertBulk {
+	return u.Update(func(s *FeatureFlagUpsert) {
+		s.UpdateSalt()
+	})
+}
+
+// SetArchived sets the "archived" field.
+func (u *FeatureFlagUpsertBulk) SetArchived(v bool) *FeatureFlagUpsertBulk {
+	return u.Update(func(s *FeatureFlagUpsert) {
+		s.SetArchived(v)
+	})
+}
+
+// UpdateArchived sets the "archived" field to the value that was provided on create.
+func (u *FeatureFlagUpsertBulk) UpdateArchived() *FeatureFlagUpsertBulk {
+	return u.Update(func(s *FeatureFlagUpsert) {
+		s.UpdateArchived()
+	})
+}
+
+// Exec executes the query.
+func (u *FeatureFlagUpsertBulk) Exec(ctx context.Context) error {
+	if u.create.err != nil {
+		return u.create.err
+	}
+	for i, b := range u.create.builders {
+		if len(b.conflict) != 0 {
+			return fmt.Errorf("global: OnConflict was set for builder %d. Set it on the FeatureFlagCreateBulk instead", i)
+		}
+	}
+	if len(u.create.conflict) == 0 {
+		return errors.New("global: missing options for FeatureFlagCreateBulk.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *FeatureFlagUpsertBulk) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

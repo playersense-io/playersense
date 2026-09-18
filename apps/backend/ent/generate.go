@@ -9,10 +9,15 @@
 // target package names, which ent references by directory.
 package ent
 
-//go:generate go run entgo.io/ent/cmd/ent generate --target ./global ./schema/globaltier
-// The regional client is generated with upsert support because the archive manifest needs
-// insert-or-do-nothing: delivery is at-least-once (§21), so a redelivered flush produces the
-// same object path and must leave one manifest row rather than fail. The global client has
-// no such need and stays minimal — a feature enabled everywhere "for consistency" is a
-// feature nobody can later argue against.
+// Both clients are generated with upsert support, and each has its own reason for needing it —
+// which is the test a feature has to pass here rather than "for consistency".
+//
+// The **global** client needs it for the usage meter. A day is written as it goes and rewritten
+// when late events land (§40), so the job that produces it is re-run against days it has already
+// written; the unique index on (project, day) is what makes that an update rather than a second row,
+// and read-then-write would race two workers against each other.
+//go:generate go run entgo.io/ent/cmd/ent generate --feature sql/upsert --target ./global ./schema/globaltier
+// The **regional** client needs it because the archive manifest needs insert-or-do-nothing:
+// delivery is at-least-once (§21), so a redelivered flush produces the same object path and must
+// leave one manifest row rather than fail.
 //go:generate go run entgo.io/ent/cmd/ent generate --feature sql/upsert --target ./regional ./schema/regionaltier

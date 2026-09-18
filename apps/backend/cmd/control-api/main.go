@@ -100,6 +100,8 @@ func build(settings config.Settings, overrides ...muzak.RouterOption) *muzak.App
 			{Name: "projects", Description: "One game, with its environments."},
 			{Name: "api-keys", Description: "Credentials scoped to one environment."},
 			{Name: "members", Description: "Who is in an organization, and what they may do."},
+			{Name: "billing", Description: "Usage, the wallet and the plan."},
+			{Name: "operator", Description: "PlayerSense staff only: putting credit in a wallet."},
 			{Name: "liveops", Description: "What a studio edits, and publishing it."},
 		},
 
@@ -184,6 +186,7 @@ func build(settings config.Settings, overrides ...muzak.RouterOption) *muzak.App
 	api.Include(routers.Projects())
 	api.Include(routers.Keys())
 	api.Include(routers.Members())
+	api.Include(routers.Billing())
 	api.Include(routers.Authoring())
 	api.Include(routers.LiveConfig())
 
@@ -196,6 +199,20 @@ func build(settings config.Settings, overrides ...muzak.RouterOption) *muzak.App
 	// check against. A route inside this subtree that forgets its core.Require still
 	// requires a valid sign-in; it simply checks nothing further, which is the right
 	// failure direction for the two routes that deliberately need no permission.
+	// The operator surface, behind the shared token rather than a person.
+	//
+	// Its own subtree because its credential is different in kind: everything above resolves a
+	// signed-in person and checks that person's permissions, and this is one secret that says
+	// "PlayerSense staff" and nothing more. §56's console and the staff-access model are what
+	// replace it; until then the router's own comment carries the cost of the difference.
+	operator := muzak.NewRouter()
+	operator.Include(routers.OperatorBilling())
+	app.Include(operator,
+		muzak.WithPrefix("/v1/operator"),
+		muzak.WithDependencies(core.RequireAdminToken(settings)),
+		muzak.WithResponseDoc(http.StatusUnauthorized, "The operator token is missing or wrong"),
+	)
+
 	// The invitation routes the *invited* person uses, which name no organization: there is no
 	// membership yet, which is the whole point. Mounted in the same subtree so they resolve a
 	// signed-in person, and guarded individually rather than by a permission — see the router.

@@ -24,6 +24,8 @@ type Tx struct {
 	Cell *CellClient
 	// ConfigVersion is the client for interacting with the ConfigVersion builders.
 	ConfigVersion *ConfigVersionClient
+	// CreditLot is the client for interacting with the CreditLot builders.
+	CreditLot *CreditLotClient
 	// Environment is the client for interacting with the Environment builders.
 	Environment *EnvironmentClient
 	// FeatureFlag is the client for interacting with the FeatureFlag builders.
@@ -193,6 +195,7 @@ func (tx *Tx) init() {
 	tx.BillingPeriod = NewBillingPeriodClient(tx.config)
 	tx.Cell = NewCellClient(tx.config)
 	tx.ConfigVersion = NewConfigVersionClient(tx.config)
+	tx.CreditLot = NewCreditLotClient(tx.config)
 	tx.Environment = NewEnvironmentClient(tx.config)
 	tx.FeatureFlag = NewFeatureFlagClient(tx.config)
 	tx.Invitation = NewInvitationClient(tx.config)

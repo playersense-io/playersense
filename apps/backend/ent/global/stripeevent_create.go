@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"time"
 
+	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
@@ -20,6 +21,7 @@ type StripeEventCreate struct {
 	config
 	mutation *StripeEventMutation
 	hooks    []Hook
+	conflict []sql.ConflictOption
 }
 
 // SetUID sets the "uid" field.
@@ -341,6 +343,7 @@ func (_c *StripeEventCreate) createSpec() (*StripeEvent, *sqlgraph.CreateSpec) {
 		_node = &StripeEvent{config: _c.config}
 		_spec = sqlgraph.NewCreateSpec(stripeevent.Table, sqlgraph.NewFieldSpec(stripeevent.FieldID, field.TypeInt))
 	)
+	_spec.OnConflict = _c.conflict
 	if id, ok := _c.mutation.ID(); ok {
 		_node.ID = id
 		_spec.ID.Value = id
@@ -413,11 +416,358 @@ func (_c *StripeEventCreate) createSpec() (*StripeEvent, *sqlgraph.CreateSpec) {
 	return _node, _spec
 }
 
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.StripeEvent.Create().
+//		SetUID(v).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.StripeEventUpsert) {
+//			SetUID(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *StripeEventCreate) OnConflict(opts ...sql.ConflictOption) *StripeEventUpsertOne {
+	_c.conflict = opts
+	return &StripeEventUpsertOne{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.StripeEvent.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *StripeEventCreate) OnConflictColumns(columns ...string) *StripeEventUpsertOne {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &StripeEventUpsertOne{
+		create: _c,
+	}
+}
+
+type (
+	// StripeEventUpsertOne is the builder for "upsert"-ing
+	//  one StripeEvent node.
+	StripeEventUpsertOne struct {
+		create *StripeEventCreate
+	}
+
+	// StripeEventUpsert is the "OnConflict" setter.
+	StripeEventUpsert struct {
+		*sql.UpdateSet
+	}
+)
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *StripeEventUpsert) SetUpdatedAt(v time.Time) *StripeEventUpsert {
+	u.Set(stripeevent.FieldUpdatedAt, v)
+	return u
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *StripeEventUpsert) UpdateUpdatedAt() *StripeEventUpsert {
+	u.SetExcluded(stripeevent.FieldUpdatedAt)
+	return u
+}
+
+// SetAccountID sets the "account_id" field.
+func (u *StripeEventUpsert) SetAccountID(v int) *StripeEventUpsert {
+	u.Set(stripeevent.FieldAccountID, v)
+	return u
+}
+
+// UpdateAccountID sets the "account_id" field to the value that was provided on create.
+func (u *StripeEventUpsert) UpdateAccountID() *StripeEventUpsert {
+	u.SetExcluded(stripeevent.FieldAccountID)
+	return u
+}
+
+// ClearAccountID clears the value of the "account_id" field.
+func (u *StripeEventUpsert) ClearAccountID() *StripeEventUpsert {
+	u.SetNull(stripeevent.FieldAccountID)
+	return u
+}
+
+// SetStatus sets the "status" field.
+func (u *StripeEventUpsert) SetStatus(v stripeevent.Status) *StripeEventUpsert {
+	u.Set(stripeevent.FieldStatus, v)
+	return u
+}
+
+// UpdateStatus sets the "status" field to the value that was provided on create.
+func (u *StripeEventUpsert) UpdateStatus() *StripeEventUpsert {
+	u.SetExcluded(stripeevent.FieldStatus)
+	return u
+}
+
+// SetProcessedAt sets the "processed_at" field.
+func (u *StripeEventUpsert) SetProcessedAt(v time.Time) *StripeEventUpsert {
+	u.Set(stripeevent.FieldProcessedAt, v)
+	return u
+}
+
+// UpdateProcessedAt sets the "processed_at" field to the value that was provided on create.
+func (u *StripeEventUpsert) UpdateProcessedAt() *StripeEventUpsert {
+	u.SetExcluded(stripeevent.FieldProcessedAt)
+	return u
+}
+
+// ClearProcessedAt clears the value of the "processed_at" field.
+func (u *StripeEventUpsert) ClearProcessedAt() *StripeEventUpsert {
+	u.SetNull(stripeevent.FieldProcessedAt)
+	return u
+}
+
+// SetError sets the "error" field.
+func (u *StripeEventUpsert) SetError(v string) *StripeEventUpsert {
+	u.Set(stripeevent.FieldError, v)
+	return u
+}
+
+// UpdateError sets the "error" field to the value that was provided on create.
+func (u *StripeEventUpsert) UpdateError() *StripeEventUpsert {
+	u.SetExcluded(stripeevent.FieldError)
+	return u
+}
+
+// SetAttempts sets the "attempts" field.
+func (u *StripeEventUpsert) SetAttempts(v int) *StripeEventUpsert {
+	u.Set(stripeevent.FieldAttempts, v)
+	return u
+}
+
+// UpdateAttempts sets the "attempts" field to the value that was provided on create.
+func (u *StripeEventUpsert) UpdateAttempts() *StripeEventUpsert {
+	u.SetExcluded(stripeevent.FieldAttempts)
+	return u
+}
+
+// AddAttempts adds v to the "attempts" field.
+func (u *StripeEventUpsert) AddAttempts(v int) *StripeEventUpsert {
+	u.Add(stripeevent.FieldAttempts, v)
+	return u
+}
+
+// UpdateNewValues updates the mutable fields using the new values that were set on create except the ID field.
+// Using this option is equivalent to using:
+//
+//	client.StripeEvent.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//			sql.ResolveWith(func(u *sql.UpdateSet) {
+//				u.SetIgnore(stripeevent.FieldID)
+//			}),
+//		).
+//		Exec(ctx)
+func (u *StripeEventUpsertOne) UpdateNewValues() *StripeEventUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		if _, exists := u.create.mutation.ID(); exists {
+			s.SetIgnore(stripeevent.FieldID)
+		}
+		if _, exists := u.create.mutation.UID(); exists {
+			s.SetIgnore(stripeevent.FieldUID)
+		}
+		if _, exists := u.create.mutation.CreatedAt(); exists {
+			s.SetIgnore(stripeevent.FieldCreatedAt)
+		}
+		if _, exists := u.create.mutation.StripeEventID(); exists {
+			s.SetIgnore(stripeevent.FieldStripeEventID)
+		}
+		if _, exists := u.create.mutation.GetType(); exists {
+			s.SetIgnore(stripeevent.FieldType)
+		}
+		if _, exists := u.create.mutation.APIVersion(); exists {
+			s.SetIgnore(stripeevent.FieldAPIVersion)
+		}
+		if _, exists := u.create.mutation.StripeCreatedAt(); exists {
+			s.SetIgnore(stripeevent.FieldStripeCreatedAt)
+		}
+		if _, exists := u.create.mutation.Payload(); exists {
+			s.SetIgnore(stripeevent.FieldPayload)
+		}
+	}))
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.StripeEvent.Create().
+//	    OnConflict(sql.ResolveWithIgnore()).
+//	    Exec(ctx)
+func (u *StripeEventUpsertOne) Ignore() *StripeEventUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *StripeEventUpsertOne) DoNothing() *StripeEventUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the StripeEventCreate.OnConflict
+// documentation for more info.
+func (u *StripeEventUpsertOne) Update(set func(*StripeEventUpsert)) *StripeEventUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&StripeEventUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *StripeEventUpsertOne) SetUpdatedAt(v time.Time) *StripeEventUpsertOne {
+	return u.Update(func(s *StripeEventUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *StripeEventUpsertOne) UpdateUpdatedAt() *StripeEventUpsertOne {
+	return u.Update(func(s *StripeEventUpsert) {
+		s.UpdateUpdatedAt()
+	})
+}
+
+// SetAccountID sets the "account_id" field.
+func (u *StripeEventUpsertOne) SetAccountID(v int) *StripeEventUpsertOne {
+	return u.Update(func(s *StripeEventUpsert) {
+		s.SetAccountID(v)
+	})
+}
+
+// UpdateAccountID sets the "account_id" field to the value that was provided on create.
+func (u *StripeEventUpsertOne) UpdateAccountID() *StripeEventUpsertOne {
+	return u.Update(func(s *StripeEventUpsert) {
+		s.UpdateAccountID()
+	})
+}
+
+// ClearAccountID clears the value of the "account_id" field.
+func (u *StripeEventUpsertOne) ClearAccountID() *StripeEventUpsertOne {
+	return u.Update(func(s *StripeEventUpsert) {
+		s.ClearAccountID()
+	})
+}
+
+// SetStatus sets the "status" field.
+func (u *StripeEventUpsertOne) SetStatus(v stripeevent.Status) *StripeEventUpsertOne {
+	return u.Update(func(s *StripeEventUpsert) {
+		s.SetStatus(v)
+	})
+}
+
+// UpdateStatus sets the "status" field to the value that was provided on create.
+func (u *StripeEventUpsertOne) UpdateStatus() *StripeEventUpsertOne {
+	return u.Update(func(s *StripeEventUpsert) {
+		s.UpdateStatus()
+	})
+}
+
+// SetProcessedAt sets the "processed_at" field.
+func (u *StripeEventUpsertOne) SetProcessedAt(v time.Time) *StripeEventUpsertOne {
+	return u.Update(func(s *StripeEventUpsert) {
+		s.SetProcessedAt(v)
+	})
+}
+
+// UpdateProcessedAt sets the "processed_at" field to the value that was provided on create.
+func (u *StripeEventUpsertOne) UpdateProcessedAt() *StripeEventUpsertOne {
+	return u.Update(func(s *StripeEventUpsert) {
+		s.UpdateProcessedAt()
+	})
+}
+
+// ClearProcessedAt clears the value of the "processed_at" field.
+func (u *StripeEventUpsertOne) ClearProcessedAt() *StripeEventUpsertOne {
+	return u.Update(func(s *StripeEventUpsert) {
+		s.ClearProcessedAt()
+	})
+}
+
+// SetError sets the "error" field.
+func (u *StripeEventUpsertOne) SetError(v string) *StripeEventUpsertOne {
+	return u.Update(func(s *StripeEventUpsert) {
+		s.SetError(v)
+	})
+}
+
+// UpdateError sets the "error" field to the value that was provided on create.
+func (u *StripeEventUpsertOne) UpdateError() *StripeEventUpsertOne {
+	return u.Update(func(s *StripeEventUpsert) {
+		s.UpdateError()
+	})
+}
+
+// SetAttempts sets the "attempts" field.
+func (u *StripeEventUpsertOne) SetAttempts(v int) *StripeEventUpsertOne {
+	return u.Update(func(s *StripeEventUpsert) {
+		s.SetAttempts(v)
+	})
+}
+
+// AddAttempts adds v to the "attempts" field.
+func (u *StripeEventUpsertOne) AddAttempts(v int) *StripeEventUpsertOne {
+	return u.Update(func(s *StripeEventUpsert) {
+		s.AddAttempts(v)
+	})
+}
+
+// UpdateAttempts sets the "attempts" field to the value that was provided on create.
+func (u *StripeEventUpsertOne) UpdateAttempts() *StripeEventUpsertOne {
+	return u.Update(func(s *StripeEventUpsert) {
+		s.UpdateAttempts()
+	})
+}
+
+// Exec executes the query.
+func (u *StripeEventUpsertOne) Exec(ctx context.Context) error {
+	if len(u.create.conflict) == 0 {
+		return errors.New("global: missing options for StripeEventCreate.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *StripeEventUpsertOne) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// Exec executes the UPSERT query and returns the inserted/updated ID.
+func (u *StripeEventUpsertOne) ID(ctx context.Context) (id int, err error) {
+	node, err := u.create.Save(ctx)
+	if err != nil {
+		return id, err
+	}
+	return node.ID, nil
+}
+
+// IDX is like ID, but panics if an error occurs.
+func (u *StripeEventUpsertOne) IDX(ctx context.Context) int {
+	id, err := u.ID(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
 // StripeEventCreateBulk is the builder for creating many StripeEvent entities in bulk.
 type StripeEventCreateBulk struct {
 	config
 	err      error
 	builders []*StripeEventCreate
+	conflict []sql.ConflictOption
 }
 
 // Save creates the StripeEvent entities in the database.
@@ -447,6 +797,7 @@ func (_c *StripeEventCreateBulk) Save(ctx context.Context) ([]*StripeEvent, erro
 					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
 				} else {
 					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+					spec.OnConflict = _c.conflict
 					// Invoke the actual operation on the latest mutation in the chain.
 					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
 						if sqlgraph.IsConstraintError(err) {
@@ -497,6 +848,246 @@ func (_c *StripeEventCreateBulk) Exec(ctx context.Context) error {
 // ExecX is like Exec, but panics if an error occurs.
 func (_c *StripeEventCreateBulk) ExecX(ctx context.Context) {
 	if err := _c.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.StripeEvent.CreateBulk(builders...).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.StripeEventUpsert) {
+//			SetUID(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *StripeEventCreateBulk) OnConflict(opts ...sql.ConflictOption) *StripeEventUpsertBulk {
+	_c.conflict = opts
+	return &StripeEventUpsertBulk{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.StripeEvent.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *StripeEventCreateBulk) OnConflictColumns(columns ...string) *StripeEventUpsertBulk {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &StripeEventUpsertBulk{
+		create: _c,
+	}
+}
+
+// StripeEventUpsertBulk is the builder for "upsert"-ing
+// a bulk of StripeEvent nodes.
+type StripeEventUpsertBulk struct {
+	create *StripeEventCreateBulk
+}
+
+// UpdateNewValues updates the mutable fields using the new values that
+// were set on create. Using this option is equivalent to using:
+//
+//	client.StripeEvent.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//			sql.ResolveWith(func(u *sql.UpdateSet) {
+//				u.SetIgnore(stripeevent.FieldID)
+//			}),
+//		).
+//		Exec(ctx)
+func (u *StripeEventUpsertBulk) UpdateNewValues() *StripeEventUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		for _, b := range u.create.builders {
+			if _, exists := b.mutation.ID(); exists {
+				s.SetIgnore(stripeevent.FieldID)
+			}
+			if _, exists := b.mutation.UID(); exists {
+				s.SetIgnore(stripeevent.FieldUID)
+			}
+			if _, exists := b.mutation.CreatedAt(); exists {
+				s.SetIgnore(stripeevent.FieldCreatedAt)
+			}
+			if _, exists := b.mutation.StripeEventID(); exists {
+				s.SetIgnore(stripeevent.FieldStripeEventID)
+			}
+			if _, exists := b.mutation.GetType(); exists {
+				s.SetIgnore(stripeevent.FieldType)
+			}
+			if _, exists := b.mutation.APIVersion(); exists {
+				s.SetIgnore(stripeevent.FieldAPIVersion)
+			}
+			if _, exists := b.mutation.StripeCreatedAt(); exists {
+				s.SetIgnore(stripeevent.FieldStripeCreatedAt)
+			}
+			if _, exists := b.mutation.Payload(); exists {
+				s.SetIgnore(stripeevent.FieldPayload)
+			}
+		}
+	}))
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.StripeEvent.Create().
+//		OnConflict(sql.ResolveWithIgnore()).
+//		Exec(ctx)
+func (u *StripeEventUpsertBulk) Ignore() *StripeEventUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *StripeEventUpsertBulk) DoNothing() *StripeEventUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the StripeEventCreateBulk.OnConflict
+// documentation for more info.
+func (u *StripeEventUpsertBulk) Update(set func(*StripeEventUpsert)) *StripeEventUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&StripeEventUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *StripeEventUpsertBulk) SetUpdatedAt(v time.Time) *StripeEventUpsertBulk {
+	return u.Update(func(s *StripeEventUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *StripeEventUpsertBulk) UpdateUpdatedAt() *StripeEventUpsertBulk {
+	return u.Update(func(s *StripeEventUpsert) {
+		s.UpdateUpdatedAt()
+	})
+}
+
+// SetAccountID sets the "account_id" field.
+func (u *StripeEventUpsertBulk) SetAccountID(v int) *StripeEventUpsertBulk {
+	return u.Update(func(s *StripeEventUpsert) {
+		s.SetAccountID(v)
+	})
+}
+
+// UpdateAccountID sets the "account_id" field to the value that was provided on create.
+func (u *StripeEventUpsertBulk) UpdateAccountID() *StripeEventUpsertBulk {
+	return u.Update(func(s *StripeEventUpsert) {
+		s.UpdateAccountID()
+	})
+}
+
+// ClearAccountID clears the value of the "account_id" field.
+func (u *StripeEventUpsertBulk) ClearAccountID() *StripeEventUpsertBulk {
+	return u.Update(func(s *StripeEventUpsert) {
+		s.ClearAccountID()
+	})
+}
+
+// SetStatus sets the "status" field.
+func (u *StripeEventUpsertBulk) SetStatus(v stripeevent.Status) *StripeEventUpsertBulk {
+	return u.Update(func(s *StripeEventUpsert) {
+		s.SetStatus(v)
+	})
+}
+
+// UpdateStatus sets the "status" field to the value that was provided on create.
+func (u *StripeEventUpsertBulk) UpdateStatus() *StripeEventUpsertBulk {
+	return u.Update(func(s *StripeEventUpsert) {
+		s.UpdateStatus()
+	})
+}
+
+// SetProcessedAt sets the "processed_at" field.
+func (u *StripeEventUpsertBulk) SetProcessedAt(v time.Time) *StripeEventUpsertBulk {
+	return u.Update(func(s *StripeEventUpsert) {
+		s.SetProcessedAt(v)
+	})
+}
+
+// UpdateProcessedAt sets the "processed_at" field to the value that was provided on create.
+func (u *StripeEventUpsertBulk) UpdateProcessedAt() *StripeEventUpsertBulk {
+	return u.Update(func(s *StripeEventUpsert) {
+		s.UpdateProcessedAt()
+	})
+}
+
+// ClearProcessedAt clears the value of the "processed_at" field.
+func (u *StripeEventUpsertBulk) ClearProcessedAt() *StripeEventUpsertBulk {
+	return u.Update(func(s *StripeEventUpsert) {
+		s.ClearProcessedAt()
+	})
+}
+
+// SetError sets the "error" field.
+func (u *StripeEventUpsertBulk) SetError(v string) *StripeEventUpsertBulk {
+	return u.Update(func(s *StripeEventUpsert) {
+		s.SetError(v)
+	})
+}
+
+// UpdateError sets the "error" field to the value that was provided on create.
+func (u *StripeEventUpsertBulk) UpdateError() *StripeEventUpsertBulk {
+	return u.Update(func(s *StripeEventUpsert) {
+		s.UpdateError()
+	})
+}
+
+// SetAttempts sets the "attempts" field.
+func (u *StripeEventUpsertBulk) SetAttempts(v int) *StripeEventUpsertBulk {
+	return u.Update(func(s *StripeEventUpsert) {
+		s.SetAttempts(v)
+	})
+}
+
+// AddAttempts adds v to the "attempts" field.
+func (u *StripeEventUpsertBulk) AddAttempts(v int) *StripeEventUpsertBulk {
+	return u.Update(func(s *StripeEventUpsert) {
+		s.AddAttempts(v)
+	})
+}
+
+// UpdateAttempts sets the "attempts" field to the value that was provided on create.
+func (u *StripeEventUpsertBulk) UpdateAttempts() *StripeEventUpsertBulk {
+	return u.Update(func(s *StripeEventUpsert) {
+		s.UpdateAttempts()
+	})
+}
+
+// Exec executes the query.
+func (u *StripeEventUpsertBulk) Exec(ctx context.Context) error {
+	if u.create.err != nil {
+		return u.create.err
+	}
+	for i, b := range u.create.builders {
+		if len(b.conflict) != 0 {
+			return fmt.Errorf("global: OnConflict was set for builder %d. Set it on the StripeEventCreateBulk instead", i)
+		}
+	}
+	if len(u.create.conflict) == 0 {
+		return errors.New("global: missing options for StripeEventCreateBulk.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *StripeEventUpsertBulk) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

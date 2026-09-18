@@ -109,10 +109,12 @@ type Kind string
 // Kind values.
 const (
 	KindTopup        Kind = "topup"
+	KindPromo        Kind = "promo"
 	KindUsage        Kind = "usage"
 	KindSubscription Kind = "subscription"
 	KindAdjustment   Kind = "adjustment"
 	KindRefund       Kind = "refund"
+	KindExpiry       Kind = "expiry"
 )
 
 func (k Kind) String() string {
@@ -122,7 +124,7 @@ func (k Kind) String() string {
 // KindValidator is a validator for the "kind" field enum values. It is called by the builders before save.
 func KindValidator(k Kind) error {
 	switch k {
-	case KindTopup, KindUsage, KindSubscription, KindAdjustment, KindRefund:
+	case KindTopup, KindPromo, KindUsage, KindSubscription, KindAdjustment, KindRefund, KindExpiry:
 		return nil
 	default:
 		return fmt.Errorf("ledgerentry: invalid enum value for kind field: %q", k)

@@ -19,6 +19,7 @@ import (
 	"playersense.dev/backend/ent/global/billingperiod"
 	"playersense.dev/backend/ent/global/cell"
 	"playersense.dev/backend/ent/global/configversion"
+	"playersense.dev/backend/ent/global/creditlot"
 	"playersense.dev/backend/ent/global/environment"
 	"playersense.dev/backend/ent/global/featureflag"
 	"playersense.dev/backend/ent/global/invitation"
@@ -54,6 +55,7 @@ const (
 	TypeBillingPeriod      = "BillingPeriod"
 	TypeCell               = "Cell"
 	TypeConfigVersion      = "ConfigVersion"
+	TypeCreditLot          = "CreditLot"
 	TypeEnvironment        = "Environment"
 	TypeFeatureFlag        = "FeatureFlag"
 	TypeInvitation         = "Invitation"
@@ -2269,6 +2271,9 @@ type BillingAccountMutation struct {
 	ledger_entries                 map[int]struct{}
 	removedledger_entries          map[int]struct{}
 	clearedledger_entries          bool
+	credit_lots                    map[int]struct{}
+	removedcredit_lots             map[int]struct{}
+	clearedcredit_lots             bool
 	periods                        map[int]struct{}
 	removedperiods                 map[int]struct{}
 	clearedperiods                 bool
@@ -3216,6 +3221,60 @@ func (m *BillingAccountMutation) ResetLedgerEntries() {
 	m.removedledger_entries = nil
 }
 
+// AddCreditLotIDs adds the "credit_lots" edge to the CreditLot entity by ids.
+func (m *BillingAccountMutation) AddCreditLotIDs(ids ...int) {
+	if m.credit_lots == nil {
+		m.credit_lots = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.credit_lots[ids[i]] = struct{}{}
+	}
+}
+
+// ClearCreditLots clears the "credit_lots" edge to the CreditLot entity.
+func (m *BillingAccountMutation) ClearCreditLots() {
+	m.clearedcredit_lots = true
+}
+
+// CreditLotsCleared reports if the "credit_lots" edge to the CreditLot entity was cleared.
+func (m *BillingAccountMutation) CreditLotsCleared() bool {
+	return m.clearedcredit_lots
+}
+
+// RemoveCreditLotIDs removes the "credit_lots" edge to the CreditLot entity by IDs.
+func (m *BillingAccountMutation) RemoveCreditLotIDs(ids ...int) {
+	if m.removedcredit_lots == nil {
+		m.removedcredit_lots = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.credit_lots, ids[i])
+		m.removedcredit_lots[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedCreditLots returns the removed IDs of the "credit_lots" edge to the CreditLot entity.
+func (m *BillingAccountMutation) RemovedCreditLotsIDs() (ids []int) {
+	for id := range m.removedcredit_lots {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// CreditLotsIDs returns the "credit_lots" edge IDs in the mutation.
+func (m *BillingAccountMutation) CreditLotsIDs() (ids []int) {
+	for id := range m.credit_lots {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetCreditLots resets all changes to the "credit_lots" edge.
+func (m *BillingAccountMutation) ResetCreditLots() {
+	m.credit_lots = nil
+	m.clearedcredit_lots = false
+	m.removedcredit_lots = nil
+}
+
 // AddPeriodIDs adds the "periods" edge to the BillingPeriod entity by ids.
 func (m *BillingAccountMutation) AddPeriodIDs(ids ...int) {
 	if m.periods == nil {
@@ -3795,7 +3854,7 @@ func (m *BillingAccountMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *BillingAccountMutation) AddedEdges() []string {
-	edges := make([]string, 0, 5)
+	edges := make([]string, 0, 6)
 	if m.organization != nil {
 		edges = append(edges, billingaccount.EdgeOrganization)
 	}
@@ -3804,6 +3863,9 @@ func (m *BillingAccountMutation) AddedEdges() []string {
 	}
 	if m.ledger_entries != nil {
 		edges = append(edges, billingaccount.EdgeLedgerEntries)
+	}
+	if m.credit_lots != nil {
+		edges = append(edges, billingaccount.EdgeCreditLots)
 	}
 	if m.periods != nil {
 		edges = append(edges, billingaccount.EdgePeriods)
@@ -3832,6 +3894,12 @@ func (m *BillingAccountMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case billingaccount.EdgeCreditLots:
+		ids := make([]ent.Value, 0, len(m.credit_lots))
+		for id := range m.credit_lots {
+			ids = append(ids, id)
+		}
+		return ids
 	case billingaccount.EdgePeriods:
 		ids := make([]ent.Value, 0, len(m.periods))
 		for id := range m.periods {
@@ -3850,9 +3918,12 @@ func (m *BillingAccountMutation) AddedIDs(name string) []ent.Value {
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *BillingAccountMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 5)
+	edges := make([]string, 0, 6)
 	if m.removedledger_entries != nil {
 		edges = append(edges, billingaccount.EdgeLedgerEntries)
+	}
+	if m.removedcredit_lots != nil {
+		edges = append(edges, billingaccount.EdgeCreditLots)
 	}
 	if m.removedperiods != nil {
 		edges = append(edges, billingaccount.EdgePeriods)
@@ -3870,6 +3941,12 @@ func (m *BillingAccountMutation) RemovedIDs(name string) []ent.Value {
 	case billingaccount.EdgeLedgerEntries:
 		ids := make([]ent.Value, 0, len(m.removedledger_entries))
 		for id := range m.removedledger_entries {
+			ids = append(ids, id)
+		}
+		return ids
+	case billingaccount.EdgeCreditLots:
+		ids := make([]ent.Value, 0, len(m.removedcredit_lots))
+		for id := range m.removedcredit_lots {
 			ids = append(ids, id)
 		}
 		return ids
@@ -3891,7 +3968,7 @@ func (m *BillingAccountMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *BillingAccountMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 5)
+	edges := make([]string, 0, 6)
 	if m.clearedorganization {
 		edges = append(edges, billingaccount.EdgeOrganization)
 	}
@@ -3900,6 +3977,9 @@ func (m *BillingAccountMutation) ClearedEdges() []string {
 	}
 	if m.clearedledger_entries {
 		edges = append(edges, billingaccount.EdgeLedgerEntries)
+	}
+	if m.clearedcredit_lots {
+		edges = append(edges, billingaccount.EdgeCreditLots)
 	}
 	if m.clearedperiods {
 		edges = append(edges, billingaccount.EdgePeriods)
@@ -3920,6 +4000,8 @@ func (m *BillingAccountMutation) EdgeCleared(name string) bool {
 		return m.clearedplan
 	case billingaccount.EdgeLedgerEntries:
 		return m.clearedledger_entries
+	case billingaccount.EdgeCreditLots:
+		return m.clearedcredit_lots
 	case billingaccount.EdgePeriods:
 		return m.clearedperiods
 	case billingaccount.EdgeStripeEvents:
@@ -3954,6 +4036,9 @@ func (m *BillingAccountMutation) ResetEdge(name string) error {
 		return nil
 	case billingaccount.EdgeLedgerEntries:
 		m.ResetLedgerEntries()
+		return nil
+	case billingaccount.EdgeCreditLots:
+		m.ResetCreditLots()
 		return nil
 	case billingaccount.EdgePeriods:
 		m.ResetPeriods()
@@ -7692,6 +7777,1282 @@ func (m *ConfigVersionMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown ConfigVersion edge %s", name)
+}
+
+// CreditLotMutation represents an operation that mutates the CreditLot nodes in the graph.
+type CreditLotMutation struct {
+	config
+	op                  Op
+	typ                 string
+	id                  *int
+	uid                 *uuid.UUID
+	created_at          *time.Time
+	updated_at          *time.Time
+	kind                *creditlot.Kind
+	amount_micros       *int64
+	addamount_micros    *int64
+	remaining_micros    *int64
+	addremaining_micros *int64
+	currency            *string
+	expires_at          *time.Time
+	granted_at          *time.Time
+	description         *string
+	stripe_reference    *string
+	idempotency_key     *string
+	clearedFields       map[string]struct{}
+	account             *int
+	clearedaccount      bool
+	granted_by          *int
+	clearedgranted_by   bool
+	done                bool
+	oldValue            func(context.Context) (*CreditLot, error)
+	predicates          []predicate.CreditLot
+}
+
+var _ ent.Mutation = (*CreditLotMutation)(nil)
+
+// creditlotOption allows management of the mutation configuration using functional options.
+type creditlotOption func(*CreditLotMutation)
+
+// newCreditLotMutation creates new mutation for the CreditLot entity.
+func newCreditLotMutation(c config, op Op, opts ...creditlotOption) *CreditLotMutation {
+	m := &CreditLotMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeCreditLot,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withCreditLotID sets the ID field of the mutation.
+func withCreditLotID(id int) creditlotOption {
+	return func(m *CreditLotMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *CreditLot
+		)
+		m.oldValue = func(ctx context.Context) (*CreditLot, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().CreditLot.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withCreditLot sets the old CreditLot of the mutation.
+func withCreditLot(node *CreditLot) creditlotOption {
+	return func(m *CreditLotMutation) {
+		m.oldValue = func(context.Context) (*CreditLot, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m CreditLotMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m CreditLotMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("global: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of CreditLot entities.
+func (m *CreditLotMutation) SetID(id int) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *CreditLotMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *CreditLotMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().CreditLot.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetUID sets the "uid" field.
+func (m *CreditLotMutation) SetUID(u uuid.UUID) {
+	m.uid = &u
+}
+
+// UID returns the value of the "uid" field in the mutation.
+func (m *CreditLotMutation) UID() (r uuid.UUID, exists bool) {
+	v := m.uid
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUID returns the old "uid" field's value of the CreditLot entity.
+// If the CreditLot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreditLotMutation) OldUID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUID: %w", err)
+	}
+	return oldValue.UID, nil
+}
+
+// ResetUID resets all changes to the "uid" field.
+func (m *CreditLotMutation) ResetUID() {
+	m.uid = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *CreditLotMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *CreditLotMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the CreditLot entity.
+// If the CreditLot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreditLotMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *CreditLotMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *CreditLotMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *CreditLotMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the CreditLot entity.
+// If the CreditLot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreditLotMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *CreditLotMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetAccountID sets the "account_id" field.
+func (m *CreditLotMutation) SetAccountID(i int) {
+	m.account = &i
+}
+
+// AccountID returns the value of the "account_id" field in the mutation.
+func (m *CreditLotMutation) AccountID() (r int, exists bool) {
+	v := m.account
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAccountID returns the old "account_id" field's value of the CreditLot entity.
+// If the CreditLot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreditLotMutation) OldAccountID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAccountID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAccountID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAccountID: %w", err)
+	}
+	return oldValue.AccountID, nil
+}
+
+// ResetAccountID resets all changes to the "account_id" field.
+func (m *CreditLotMutation) ResetAccountID() {
+	m.account = nil
+}
+
+// SetKind sets the "kind" field.
+func (m *CreditLotMutation) SetKind(c creditlot.Kind) {
+	m.kind = &c
+}
+
+// Kind returns the value of the "kind" field in the mutation.
+func (m *CreditLotMutation) Kind() (r creditlot.Kind, exists bool) {
+	v := m.kind
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldKind returns the old "kind" field's value of the CreditLot entity.
+// If the CreditLot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreditLotMutation) OldKind(ctx context.Context) (v creditlot.Kind, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldKind is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldKind requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldKind: %w", err)
+	}
+	return oldValue.Kind, nil
+}
+
+// ResetKind resets all changes to the "kind" field.
+func (m *CreditLotMutation) ResetKind() {
+	m.kind = nil
+}
+
+// SetAmountMicros sets the "amount_micros" field.
+func (m *CreditLotMutation) SetAmountMicros(i int64) {
+	m.amount_micros = &i
+	m.addamount_micros = nil
+}
+
+// AmountMicros returns the value of the "amount_micros" field in the mutation.
+func (m *CreditLotMutation) AmountMicros() (r int64, exists bool) {
+	v := m.amount_micros
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAmountMicros returns the old "amount_micros" field's value of the CreditLot entity.
+// If the CreditLot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreditLotMutation) OldAmountMicros(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAmountMicros is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAmountMicros requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAmountMicros: %w", err)
+	}
+	return oldValue.AmountMicros, nil
+}
+
+// AddAmountMicros adds i to the "amount_micros" field.
+func (m *CreditLotMutation) AddAmountMicros(i int64) {
+	if m.addamount_micros != nil {
+		*m.addamount_micros += i
+	} else {
+		m.addamount_micros = &i
+	}
+}
+
+// AddedAmountMicros returns the value that was added to the "amount_micros" field in this mutation.
+func (m *CreditLotMutation) AddedAmountMicros() (r int64, exists bool) {
+	v := m.addamount_micros
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAmountMicros resets all changes to the "amount_micros" field.
+func (m *CreditLotMutation) ResetAmountMicros() {
+	m.amount_micros = nil
+	m.addamount_micros = nil
+}
+
+// SetRemainingMicros sets the "remaining_micros" field.
+func (m *CreditLotMutation) SetRemainingMicros(i int64) {
+	m.remaining_micros = &i
+	m.addremaining_micros = nil
+}
+
+// RemainingMicros returns the value of the "remaining_micros" field in the mutation.
+func (m *CreditLotMutation) RemainingMicros() (r int64, exists bool) {
+	v := m.remaining_micros
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRemainingMicros returns the old "remaining_micros" field's value of the CreditLot entity.
+// If the CreditLot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreditLotMutation) OldRemainingMicros(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRemainingMicros is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRemainingMicros requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRemainingMicros: %w", err)
+	}
+	return oldValue.RemainingMicros, nil
+}
+
+// AddRemainingMicros adds i to the "remaining_micros" field.
+func (m *CreditLotMutation) AddRemainingMicros(i int64) {
+	if m.addremaining_micros != nil {
+		*m.addremaining_micros += i
+	} else {
+		m.addremaining_micros = &i
+	}
+}
+
+// AddedRemainingMicros returns the value that was added to the "remaining_micros" field in this mutation.
+func (m *CreditLotMutation) AddedRemainingMicros() (r int64, exists bool) {
+	v := m.addremaining_micros
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetRemainingMicros resets all changes to the "remaining_micros" field.
+func (m *CreditLotMutation) ResetRemainingMicros() {
+	m.remaining_micros = nil
+	m.addremaining_micros = nil
+}
+
+// SetCurrency sets the "currency" field.
+func (m *CreditLotMutation) SetCurrency(s string) {
+	m.currency = &s
+}
+
+// Currency returns the value of the "currency" field in the mutation.
+func (m *CreditLotMutation) Currency() (r string, exists bool) {
+	v := m.currency
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCurrency returns the old "currency" field's value of the CreditLot entity.
+// If the CreditLot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreditLotMutation) OldCurrency(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCurrency is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCurrency requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCurrency: %w", err)
+	}
+	return oldValue.Currency, nil
+}
+
+// ResetCurrency resets all changes to the "currency" field.
+func (m *CreditLotMutation) ResetCurrency() {
+	m.currency = nil
+}
+
+// SetExpiresAt sets the "expires_at" field.
+func (m *CreditLotMutation) SetExpiresAt(t time.Time) {
+	m.expires_at = &t
+}
+
+// ExpiresAt returns the value of the "expires_at" field in the mutation.
+func (m *CreditLotMutation) ExpiresAt() (r time.Time, exists bool) {
+	v := m.expires_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExpiresAt returns the old "expires_at" field's value of the CreditLot entity.
+// If the CreditLot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreditLotMutation) OldExpiresAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExpiresAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExpiresAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExpiresAt: %w", err)
+	}
+	return oldValue.ExpiresAt, nil
+}
+
+// ClearExpiresAt clears the value of the "expires_at" field.
+func (m *CreditLotMutation) ClearExpiresAt() {
+	m.expires_at = nil
+	m.clearedFields[creditlot.FieldExpiresAt] = struct{}{}
+}
+
+// ExpiresAtCleared returns if the "expires_at" field was cleared in this mutation.
+func (m *CreditLotMutation) ExpiresAtCleared() bool {
+	_, ok := m.clearedFields[creditlot.FieldExpiresAt]
+	return ok
+}
+
+// ResetExpiresAt resets all changes to the "expires_at" field.
+func (m *CreditLotMutation) ResetExpiresAt() {
+	m.expires_at = nil
+	delete(m.clearedFields, creditlot.FieldExpiresAt)
+}
+
+// SetGrantedAt sets the "granted_at" field.
+func (m *CreditLotMutation) SetGrantedAt(t time.Time) {
+	m.granted_at = &t
+}
+
+// GrantedAt returns the value of the "granted_at" field in the mutation.
+func (m *CreditLotMutation) GrantedAt() (r time.Time, exists bool) {
+	v := m.granted_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGrantedAt returns the old "granted_at" field's value of the CreditLot entity.
+// If the CreditLot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreditLotMutation) OldGrantedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGrantedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGrantedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGrantedAt: %w", err)
+	}
+	return oldValue.GrantedAt, nil
+}
+
+// ResetGrantedAt resets all changes to the "granted_at" field.
+func (m *CreditLotMutation) ResetGrantedAt() {
+	m.granted_at = nil
+}
+
+// SetDescription sets the "description" field.
+func (m *CreditLotMutation) SetDescription(s string) {
+	m.description = &s
+}
+
+// Description returns the value of the "description" field in the mutation.
+func (m *CreditLotMutation) Description() (r string, exists bool) {
+	v := m.description
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDescription returns the old "description" field's value of the CreditLot entity.
+// If the CreditLot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreditLotMutation) OldDescription(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDescription is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDescription requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDescription: %w", err)
+	}
+	return oldValue.Description, nil
+}
+
+// ResetDescription resets all changes to the "description" field.
+func (m *CreditLotMutation) ResetDescription() {
+	m.description = nil
+}
+
+// SetStripeReference sets the "stripe_reference" field.
+func (m *CreditLotMutation) SetStripeReference(s string) {
+	m.stripe_reference = &s
+}
+
+// StripeReference returns the value of the "stripe_reference" field in the mutation.
+func (m *CreditLotMutation) StripeReference() (r string, exists bool) {
+	v := m.stripe_reference
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStripeReference returns the old "stripe_reference" field's value of the CreditLot entity.
+// If the CreditLot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreditLotMutation) OldStripeReference(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStripeReference is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStripeReference requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStripeReference: %w", err)
+	}
+	return oldValue.StripeReference, nil
+}
+
+// ClearStripeReference clears the value of the "stripe_reference" field.
+func (m *CreditLotMutation) ClearStripeReference() {
+	m.stripe_reference = nil
+	m.clearedFields[creditlot.FieldStripeReference] = struct{}{}
+}
+
+// StripeReferenceCleared returns if the "stripe_reference" field was cleared in this mutation.
+func (m *CreditLotMutation) StripeReferenceCleared() bool {
+	_, ok := m.clearedFields[creditlot.FieldStripeReference]
+	return ok
+}
+
+// ResetStripeReference resets all changes to the "stripe_reference" field.
+func (m *CreditLotMutation) ResetStripeReference() {
+	m.stripe_reference = nil
+	delete(m.clearedFields, creditlot.FieldStripeReference)
+}
+
+// SetGrantedByUserID sets the "granted_by_user_id" field.
+func (m *CreditLotMutation) SetGrantedByUserID(i int) {
+	m.granted_by = &i
+}
+
+// GrantedByUserID returns the value of the "granted_by_user_id" field in the mutation.
+func (m *CreditLotMutation) GrantedByUserID() (r int, exists bool) {
+	v := m.granted_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGrantedByUserID returns the old "granted_by_user_id" field's value of the CreditLot entity.
+// If the CreditLot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreditLotMutation) OldGrantedByUserID(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGrantedByUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGrantedByUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGrantedByUserID: %w", err)
+	}
+	return oldValue.GrantedByUserID, nil
+}
+
+// ClearGrantedByUserID clears the value of the "granted_by_user_id" field.
+func (m *CreditLotMutation) ClearGrantedByUserID() {
+	m.granted_by = nil
+	m.clearedFields[creditlot.FieldGrantedByUserID] = struct{}{}
+}
+
+// GrantedByUserIDCleared returns if the "granted_by_user_id" field was cleared in this mutation.
+func (m *CreditLotMutation) GrantedByUserIDCleared() bool {
+	_, ok := m.clearedFields[creditlot.FieldGrantedByUserID]
+	return ok
+}
+
+// ResetGrantedByUserID resets all changes to the "granted_by_user_id" field.
+func (m *CreditLotMutation) ResetGrantedByUserID() {
+	m.granted_by = nil
+	delete(m.clearedFields, creditlot.FieldGrantedByUserID)
+}
+
+// SetIdempotencyKey sets the "idempotency_key" field.
+func (m *CreditLotMutation) SetIdempotencyKey(s string) {
+	m.idempotency_key = &s
+}
+
+// IdempotencyKey returns the value of the "idempotency_key" field in the mutation.
+func (m *CreditLotMutation) IdempotencyKey() (r string, exists bool) {
+	v := m.idempotency_key
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIdempotencyKey returns the old "idempotency_key" field's value of the CreditLot entity.
+// If the CreditLot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreditLotMutation) OldIdempotencyKey(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIdempotencyKey is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIdempotencyKey requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIdempotencyKey: %w", err)
+	}
+	return oldValue.IdempotencyKey, nil
+}
+
+// ResetIdempotencyKey resets all changes to the "idempotency_key" field.
+func (m *CreditLotMutation) ResetIdempotencyKey() {
+	m.idempotency_key = nil
+}
+
+// ClearAccount clears the "account" edge to the BillingAccount entity.
+func (m *CreditLotMutation) ClearAccount() {
+	m.clearedaccount = true
+	m.clearedFields[creditlot.FieldAccountID] = struct{}{}
+}
+
+// AccountCleared reports if the "account" edge to the BillingAccount entity was cleared.
+func (m *CreditLotMutation) AccountCleared() bool {
+	return m.clearedaccount
+}
+
+// AccountIDs returns the "account" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// AccountID instead. It exists only for internal usage by the builders.
+func (m *CreditLotMutation) AccountIDs() (ids []int) {
+	if id := m.account; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetAccount resets all changes to the "account" edge.
+func (m *CreditLotMutation) ResetAccount() {
+	m.account = nil
+	m.clearedaccount = false
+}
+
+// SetGrantedByID sets the "granted_by" edge to the User entity by id.
+func (m *CreditLotMutation) SetGrantedByID(id int) {
+	m.granted_by = &id
+}
+
+// ClearGrantedBy clears the "granted_by" edge to the User entity.
+func (m *CreditLotMutation) ClearGrantedBy() {
+	m.clearedgranted_by = true
+	m.clearedFields[creditlot.FieldGrantedByUserID] = struct{}{}
+}
+
+// GrantedByCleared reports if the "granted_by" edge to the User entity was cleared.
+func (m *CreditLotMutation) GrantedByCleared() bool {
+	return m.GrantedByUserIDCleared() || m.clearedgranted_by
+}
+
+// GrantedByID returns the "granted_by" edge ID in the mutation.
+func (m *CreditLotMutation) GrantedByID() (id int, exists bool) {
+	if m.granted_by != nil {
+		return *m.granted_by, true
+	}
+	return
+}
+
+// GrantedByIDs returns the "granted_by" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// GrantedByID instead. It exists only for internal usage by the builders.
+func (m *CreditLotMutation) GrantedByIDs() (ids []int) {
+	if id := m.granted_by; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetGrantedBy resets all changes to the "granted_by" edge.
+func (m *CreditLotMutation) ResetGrantedBy() {
+	m.granted_by = nil
+	m.clearedgranted_by = false
+}
+
+// Where appends a list predicates to the CreditLotMutation builder.
+func (m *CreditLotMutation) Where(ps ...predicate.CreditLot) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the CreditLotMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *CreditLotMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.CreditLot, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *CreditLotMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *CreditLotMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (CreditLot).
+func (m *CreditLotMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *CreditLotMutation) Fields() []string {
+	fields := make([]string, 0, 14)
+	if m.uid != nil {
+		fields = append(fields, creditlot.FieldUID)
+	}
+	if m.created_at != nil {
+		fields = append(fields, creditlot.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, creditlot.FieldUpdatedAt)
+	}
+	if m.account != nil {
+		fields = append(fields, creditlot.FieldAccountID)
+	}
+	if m.kind != nil {
+		fields = append(fields, creditlot.FieldKind)
+	}
+	if m.amount_micros != nil {
+		fields = append(fields, creditlot.FieldAmountMicros)
+	}
+	if m.remaining_micros != nil {
+		fields = append(fields, creditlot.FieldRemainingMicros)
+	}
+	if m.currency != nil {
+		fields = append(fields, creditlot.FieldCurrency)
+	}
+	if m.expires_at != nil {
+		fields = append(fields, creditlot.FieldExpiresAt)
+	}
+	if m.granted_at != nil {
+		fields = append(fields, creditlot.FieldGrantedAt)
+	}
+	if m.description != nil {
+		fields = append(fields, creditlot.FieldDescription)
+	}
+	if m.stripe_reference != nil {
+		fields = append(fields, creditlot.FieldStripeReference)
+	}
+	if m.granted_by != nil {
+		fields = append(fields, creditlot.FieldGrantedByUserID)
+	}
+	if m.idempotency_key != nil {
+		fields = append(fields, creditlot.FieldIdempotencyKey)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *CreditLotMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case creditlot.FieldUID:
+		return m.UID()
+	case creditlot.FieldCreatedAt:
+		return m.CreatedAt()
+	case creditlot.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case creditlot.FieldAccountID:
+		return m.AccountID()
+	case creditlot.FieldKind:
+		return m.Kind()
+	case creditlot.FieldAmountMicros:
+		return m.AmountMicros()
+	case creditlot.FieldRemainingMicros:
+		return m.RemainingMicros()
+	case creditlot.FieldCurrency:
+		return m.Currency()
+	case creditlot.FieldExpiresAt:
+		return m.ExpiresAt()
+	case creditlot.FieldGrantedAt:
+		return m.GrantedAt()
+	case creditlot.FieldDescription:
+		return m.Description()
+	case creditlot.FieldStripeReference:
+		return m.StripeReference()
+	case creditlot.FieldGrantedByUserID:
+		return m.GrantedByUserID()
+	case creditlot.FieldIdempotencyKey:
+		return m.IdempotencyKey()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *CreditLotMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case creditlot.FieldUID:
+		return m.OldUID(ctx)
+	case creditlot.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case creditlot.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case creditlot.FieldAccountID:
+		return m.OldAccountID(ctx)
+	case creditlot.FieldKind:
+		return m.OldKind(ctx)
+	case creditlot.FieldAmountMicros:
+		return m.OldAmountMicros(ctx)
+	case creditlot.FieldRemainingMicros:
+		return m.OldRemainingMicros(ctx)
+	case creditlot.FieldCurrency:
+		return m.OldCurrency(ctx)
+	case creditlot.FieldExpiresAt:
+		return m.OldExpiresAt(ctx)
+	case creditlot.FieldGrantedAt:
+		return m.OldGrantedAt(ctx)
+	case creditlot.FieldDescription:
+		return m.OldDescription(ctx)
+	case creditlot.FieldStripeReference:
+		return m.OldStripeReference(ctx)
+	case creditlot.FieldGrantedByUserID:
+		return m.OldGrantedByUserID(ctx)
+	case creditlot.FieldIdempotencyKey:
+		return m.OldIdempotencyKey(ctx)
+	}
+	return nil, fmt.Errorf("unknown CreditLot field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *CreditLotMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case creditlot.FieldUID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUID(v)
+		return nil
+	case creditlot.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case creditlot.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case creditlot.FieldAccountID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAccountID(v)
+		return nil
+	case creditlot.FieldKind:
+		v, ok := value.(creditlot.Kind)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetKind(v)
+		return nil
+	case creditlot.FieldAmountMicros:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAmountMicros(v)
+		return nil
+	case creditlot.FieldRemainingMicros:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRemainingMicros(v)
+		return nil
+	case creditlot.FieldCurrency:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCurrency(v)
+		return nil
+	case creditlot.FieldExpiresAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExpiresAt(v)
+		return nil
+	case creditlot.FieldGrantedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGrantedAt(v)
+		return nil
+	case creditlot.FieldDescription:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDescription(v)
+		return nil
+	case creditlot.FieldStripeReference:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStripeReference(v)
+		return nil
+	case creditlot.FieldGrantedByUserID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGrantedByUserID(v)
+		return nil
+	case creditlot.FieldIdempotencyKey:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIdempotencyKey(v)
+		return nil
+	}
+	return fmt.Errorf("unknown CreditLot field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *CreditLotMutation) AddedFields() []string {
+	var fields []string
+	if m.addamount_micros != nil {
+		fields = append(fields, creditlot.FieldAmountMicros)
+	}
+	if m.addremaining_micros != nil {
+		fields = append(fields, creditlot.FieldRemainingMicros)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *CreditLotMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case creditlot.FieldAmountMicros:
+		return m.AddedAmountMicros()
+	case creditlot.FieldRemainingMicros:
+		return m.AddedRemainingMicros()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *CreditLotMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case creditlot.FieldAmountMicros:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAmountMicros(v)
+		return nil
+	case creditlot.FieldRemainingMicros:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRemainingMicros(v)
+		return nil
+	}
+	return fmt.Errorf("unknown CreditLot numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *CreditLotMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(creditlot.FieldExpiresAt) {
+		fields = append(fields, creditlot.FieldExpiresAt)
+	}
+	if m.FieldCleared(creditlot.FieldStripeReference) {
+		fields = append(fields, creditlot.FieldStripeReference)
+	}
+	if m.FieldCleared(creditlot.FieldGrantedByUserID) {
+		fields = append(fields, creditlot.FieldGrantedByUserID)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *CreditLotMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *CreditLotMutation) ClearField(name string) error {
+	switch name {
+	case creditlot.FieldExpiresAt:
+		m.ClearExpiresAt()
+		return nil
+	case creditlot.FieldStripeReference:
+		m.ClearStripeReference()
+		return nil
+	case creditlot.FieldGrantedByUserID:
+		m.ClearGrantedByUserID()
+		return nil
+	}
+	return fmt.Errorf("unknown CreditLot nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *CreditLotMutation) ResetField(name string) error {
+	switch name {
+	case creditlot.FieldUID:
+		m.ResetUID()
+		return nil
+	case creditlot.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case creditlot.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case creditlot.FieldAccountID:
+		m.ResetAccountID()
+		return nil
+	case creditlot.FieldKind:
+		m.ResetKind()
+		return nil
+	case creditlot.FieldAmountMicros:
+		m.ResetAmountMicros()
+		return nil
+	case creditlot.FieldRemainingMicros:
+		m.ResetRemainingMicros()
+		return nil
+	case creditlot.FieldCurrency:
+		m.ResetCurrency()
+		return nil
+	case creditlot.FieldExpiresAt:
+		m.ResetExpiresAt()
+		return nil
+	case creditlot.FieldGrantedAt:
+		m.ResetGrantedAt()
+		return nil
+	case creditlot.FieldDescription:
+		m.ResetDescription()
+		return nil
+	case creditlot.FieldStripeReference:
+		m.ResetStripeReference()
+		return nil
+	case creditlot.FieldGrantedByUserID:
+		m.ResetGrantedByUserID()
+		return nil
+	case creditlot.FieldIdempotencyKey:
+		m.ResetIdempotencyKey()
+		return nil
+	}
+	return fmt.Errorf("unknown CreditLot field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *CreditLotMutation) AddedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.account != nil {
+		edges = append(edges, creditlot.EdgeAccount)
+	}
+	if m.granted_by != nil {
+		edges = append(edges, creditlot.EdgeGrantedBy)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *CreditLotMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case creditlot.EdgeAccount:
+		if id := m.account; id != nil {
+			return []ent.Value{*id}
+		}
+	case creditlot.EdgeGrantedBy:
+		if id := m.granted_by; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *CreditLotMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 2)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *CreditLotMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *CreditLotMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.clearedaccount {
+		edges = append(edges, creditlot.EdgeAccount)
+	}
+	if m.clearedgranted_by {
+		edges = append(edges, creditlot.EdgeGrantedBy)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *CreditLotMutation) EdgeCleared(name string) bool {
+	switch name {
+	case creditlot.EdgeAccount:
+		return m.clearedaccount
+	case creditlot.EdgeGrantedBy:
+		return m.clearedgranted_by
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *CreditLotMutation) ClearEdge(name string) error {
+	switch name {
+	case creditlot.EdgeAccount:
+		m.ClearAccount()
+		return nil
+	case creditlot.EdgeGrantedBy:
+		m.ClearGrantedBy()
+		return nil
+	}
+	return fmt.Errorf("unknown CreditLot unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *CreditLotMutation) ResetEdge(name string) error {
+	switch name {
+	case creditlot.EdgeAccount:
+		m.ResetAccount()
+		return nil
+	case creditlot.EdgeGrantedBy:
+		m.ResetGrantedBy()
+		return nil
+	}
+	return fmt.Errorf("unknown CreditLot edge %s", name)
 }
 
 // EnvironmentMutation represents an operation that mutates the Environment nodes in the graph.
@@ -23185,6 +24546,9 @@ type UserMutation struct {
 	sent_invitations          map[int]struct{}
 	removedsent_invitations   map[int]struct{}
 	clearedsent_invitations   bool
+	granted_credits           map[int]struct{}
+	removedgranted_credits    map[int]struct{}
+	clearedgranted_credits    bool
 	audit_events              map[int]struct{}
 	removedaudit_events       map[int]struct{}
 	clearedaudit_events       bool
@@ -23856,6 +25220,60 @@ func (m *UserMutation) ResetSentInvitations() {
 	m.removedsent_invitations = nil
 }
 
+// AddGrantedCreditIDs adds the "granted_credits" edge to the CreditLot entity by ids.
+func (m *UserMutation) AddGrantedCreditIDs(ids ...int) {
+	if m.granted_credits == nil {
+		m.granted_credits = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.granted_credits[ids[i]] = struct{}{}
+	}
+}
+
+// ClearGrantedCredits clears the "granted_credits" edge to the CreditLot entity.
+func (m *UserMutation) ClearGrantedCredits() {
+	m.clearedgranted_credits = true
+}
+
+// GrantedCreditsCleared reports if the "granted_credits" edge to the CreditLot entity was cleared.
+func (m *UserMutation) GrantedCreditsCleared() bool {
+	return m.clearedgranted_credits
+}
+
+// RemoveGrantedCreditIDs removes the "granted_credits" edge to the CreditLot entity by IDs.
+func (m *UserMutation) RemoveGrantedCreditIDs(ids ...int) {
+	if m.removedgranted_credits == nil {
+		m.removedgranted_credits = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.granted_credits, ids[i])
+		m.removedgranted_credits[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedGrantedCredits returns the removed IDs of the "granted_credits" edge to the CreditLot entity.
+func (m *UserMutation) RemovedGrantedCreditsIDs() (ids []int) {
+	for id := range m.removedgranted_credits {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// GrantedCreditsIDs returns the "granted_credits" edge IDs in the mutation.
+func (m *UserMutation) GrantedCreditsIDs() (ids []int) {
+	for id := range m.granted_credits {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetGrantedCredits resets all changes to the "granted_credits" edge.
+func (m *UserMutation) ResetGrantedCredits() {
+	m.granted_credits = nil
+	m.clearedgranted_credits = false
+	m.removedgranted_credits = nil
+}
+
 // AddAuditEventIDs adds the "audit_events" edge to the AuditEvent entity by ids.
 func (m *UserMutation) AddAuditEventIDs(ids ...int) {
 	if m.audit_events == nil {
@@ -24294,12 +25712,15 @@ func (m *UserMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *UserMutation) AddedEdges() []string {
-	edges := make([]string, 0, 4)
+	edges := make([]string, 0, 5)
 	if m.memberships != nil {
 		edges = append(edges, user.EdgeMemberships)
 	}
 	if m.sent_invitations != nil {
 		edges = append(edges, user.EdgeSentInvitations)
+	}
+	if m.granted_credits != nil {
+		edges = append(edges, user.EdgeGrantedCredits)
 	}
 	if m.audit_events != nil {
 		edges = append(edges, user.EdgeAuditEvents)
@@ -24326,6 +25747,12 @@ func (m *UserMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case user.EdgeGrantedCredits:
+		ids := make([]ent.Value, 0, len(m.granted_credits))
+		for id := range m.granted_credits {
+			ids = append(ids, id)
+		}
+		return ids
 	case user.EdgeAuditEvents:
 		ids := make([]ent.Value, 0, len(m.audit_events))
 		for id := range m.audit_events {
@@ -24344,12 +25771,15 @@ func (m *UserMutation) AddedIDs(name string) []ent.Value {
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *UserMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 4)
+	edges := make([]string, 0, 5)
 	if m.removedmemberships != nil {
 		edges = append(edges, user.EdgeMemberships)
 	}
 	if m.removedsent_invitations != nil {
 		edges = append(edges, user.EdgeSentInvitations)
+	}
+	if m.removedgranted_credits != nil {
+		edges = append(edges, user.EdgeGrantedCredits)
 	}
 	if m.removedaudit_events != nil {
 		edges = append(edges, user.EdgeAuditEvents)
@@ -24376,6 +25806,12 @@ func (m *UserMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case user.EdgeGrantedCredits:
+		ids := make([]ent.Value, 0, len(m.removedgranted_credits))
+		for id := range m.removedgranted_credits {
+			ids = append(ids, id)
+		}
+		return ids
 	case user.EdgeAuditEvents:
 		ids := make([]ent.Value, 0, len(m.removedaudit_events))
 		for id := range m.removedaudit_events {
@@ -24394,12 +25830,15 @@ func (m *UserMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *UserMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 4)
+	edges := make([]string, 0, 5)
 	if m.clearedmemberships {
 		edges = append(edges, user.EdgeMemberships)
 	}
 	if m.clearedsent_invitations {
 		edges = append(edges, user.EdgeSentInvitations)
+	}
+	if m.clearedgranted_credits {
+		edges = append(edges, user.EdgeGrantedCredits)
 	}
 	if m.clearedaudit_events {
 		edges = append(edges, user.EdgeAuditEvents)
@@ -24418,6 +25857,8 @@ func (m *UserMutation) EdgeCleared(name string) bool {
 		return m.clearedmemberships
 	case user.EdgeSentInvitations:
 		return m.clearedsent_invitations
+	case user.EdgeGrantedCredits:
+		return m.clearedgranted_credits
 	case user.EdgeAuditEvents:
 		return m.clearedaudit_events
 	case user.EdgePublishedVersions:
@@ -24443,6 +25884,9 @@ func (m *UserMutation) ResetEdge(name string) error {
 		return nil
 	case user.EdgeSentInvitations:
 		m.ResetSentInvitations()
+		return nil
+	case user.EdgeGrantedCredits:
+		m.ResetGrantedCredits()
 		return nil
 	case user.EdgeAuditEvents:
 		m.ResetAuditEvents()

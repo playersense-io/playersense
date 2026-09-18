@@ -81,6 +81,18 @@ func (f ConfigVersionFunc) Mutate(ctx context.Context, m global.Mutation) (globa
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *global.ConfigVersionMutation", m)
 }
 
+// The CreditLotFunc type is an adapter to allow the use of ordinary
+// function as CreditLot mutator.
+type CreditLotFunc func(context.Context, *global.CreditLotMutation) (global.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f CreditLotFunc) Mutate(ctx context.Context, m global.Mutation) (global.Value, error) {
+	if mv, ok := m.(*global.CreditLotMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *global.CreditLotMutation", m)
+}
+
 // The EnvironmentFunc type is an adapter to allow the use of ordinary
 // function as Environment mutator.
 type EnvironmentFunc func(context.Context, *global.EnvironmentMutation) (global.Value, error)

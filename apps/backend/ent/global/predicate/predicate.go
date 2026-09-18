@@ -24,6 +24,9 @@ type Cell func(*sql.Selector)
 // ConfigVersion is the predicate function for configversion builders.
 type ConfigVersion func(*sql.Selector)
 
+// CreditLot is the predicate function for creditlot builders.
+type CreditLot func(*sql.Selector)
+
 // Environment is the predicate function for environment builders.
 type Environment func(*sql.Selector)
 

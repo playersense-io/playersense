@@ -8,11 +8,13 @@ import (
 	"fmt"
 	"time"
 
+	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
 	"playersense.dev/backend/ent/global/billingaccount"
 	"playersense.dev/backend/ent/global/billingperiod"
+	"playersense.dev/backend/ent/global/creditlot"
 	"playersense.dev/backend/ent/global/ledgerentry"
 	"playersense.dev/backend/ent/global/organization"
 	"playersense.dev/backend/ent/global/plan"
@@ -24,6 +26,7 @@ type BillingAccountCreate struct {
 	config
 	mutation *BillingAccountMutation
 	hooks    []Hook
+	conflict []sql.ConflictOption
 }
 
 // SetUID sets the "uid" field.
@@ -271,6 +274,21 @@ func (_c *BillingAccountCreate) AddLedgerEntries(v ...*LedgerEntry) *BillingAcco
 	return _c.AddLedgerEntryIDs(ids...)
 }
 
+// AddCreditLotIDs adds the "credit_lots" edge to the CreditLot entity by IDs.
+func (_c *BillingAccountCreate) AddCreditLotIDs(ids ...int) *BillingAccountCreate {
+	_c.mutation.AddCreditLotIDs(ids...)
+	return _c
+}
+
+// AddCreditLots adds the "credit_lots" edges to the CreditLot entity.
+func (_c *BillingAccountCreate) AddCreditLots(v ...*CreditLot) *BillingAccountCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddCreditLotIDs(ids...)
+}
+
 // AddPeriodIDs adds the "periods" edge to the BillingPeriod entity by IDs.
 func (_c *BillingAccountCreate) AddPeriodIDs(ids ...int) *BillingAccountCreate {
 	_c.mutation.AddPeriodIDs(ids...)
@@ -512,6 +530,7 @@ func (_c *BillingAccountCreate) createSpec() (*BillingAccount, *sqlgraph.CreateS
 		_node = &BillingAccount{config: _c.config}
 		_spec = sqlgraph.NewCreateSpec(billingaccount.Table, sqlgraph.NewFieldSpec(billingaccount.FieldID, field.TypeInt))
 	)
+	_spec.OnConflict = _c.conflict
 	if id, ok := _c.mutation.ID(); ok {
 		_node.ID = id
 		_spec.ID.Value = id
@@ -626,6 +645,22 @@ func (_c *BillingAccountCreate) createSpec() (*BillingAccount, *sqlgraph.CreateS
 		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
+	if nodes := _c.mutation.CreditLotsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   billingaccount.CreditLotsTable,
+			Columns: []string{billingaccount.CreditLotsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(creditlot.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
 	if nodes := _c.mutation.PeriodsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
@@ -661,11 +696,606 @@ func (_c *BillingAccountCreate) createSpec() (*BillingAccount, *sqlgraph.CreateS
 	return _node, _spec
 }
 
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.BillingAccount.Create().
+//		SetUID(v).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.BillingAccountUpsert) {
+//			SetUID(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *BillingAccountCreate) OnConflict(opts ...sql.ConflictOption) *BillingAccountUpsertOne {
+	_c.conflict = opts
+	return &BillingAccountUpsertOne{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.BillingAccount.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *BillingAccountCreate) OnConflictColumns(columns ...string) *BillingAccountUpsertOne {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &BillingAccountUpsertOne{
+		create: _c,
+	}
+}
+
+type (
+	// BillingAccountUpsertOne is the builder for "upsert"-ing
+	//  one BillingAccount node.
+	BillingAccountUpsertOne struct {
+		create *BillingAccountCreate
+	}
+
+	// BillingAccountUpsert is the "OnConflict" setter.
+	BillingAccountUpsert struct {
+		*sql.UpdateSet
+	}
+)
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *BillingAccountUpsert) SetUpdatedAt(v time.Time) *BillingAccountUpsert {
+	u.Set(billingaccount.FieldUpdatedAt, v)
+	return u
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *BillingAccountUpsert) UpdateUpdatedAt() *BillingAccountUpsert {
+	u.SetExcluded(billingaccount.FieldUpdatedAt)
+	return u
+}
+
+// SetPlanID sets the "plan_id" field.
+func (u *BillingAccountUpsert) SetPlanID(v int) *BillingAccountUpsert {
+	u.Set(billingaccount.FieldPlanID, v)
+	return u
+}
+
+// UpdatePlanID sets the "plan_id" field to the value that was provided on create.
+func (u *BillingAccountUpsert) UpdatePlanID() *BillingAccountUpsert {
+	u.SetExcluded(billingaccount.FieldPlanID)
+	return u
+}
+
+// SetStripeCustomerID sets the "stripe_customer_id" field.
+func (u *BillingAccountUpsert) SetStripeCustomerID(v string) *BillingAccountUpsert {
+	u.Set(billingaccount.FieldStripeCustomerID, v)
+	return u
+}
+
+// UpdateStripeCustomerID sets the "stripe_customer_id" field to the value that was provided on create.
+func (u *BillingAccountUpsert) UpdateStripeCustomerID() *BillingAccountUpsert {
+	u.SetExcluded(billingaccount.FieldStripeCustomerID)
+	return u
+}
+
+// ClearStripeCustomerID clears the value of the "stripe_customer_id" field.
+func (u *BillingAccountUpsert) ClearStripeCustomerID() *BillingAccountUpsert {
+	u.SetNull(billingaccount.FieldStripeCustomerID)
+	return u
+}
+
+// SetStripeSubscriptionID sets the "stripe_subscription_id" field.
+func (u *BillingAccountUpsert) SetStripeSubscriptionID(v string) *BillingAccountUpsert {
+	u.Set(billingaccount.FieldStripeSubscriptionID, v)
+	return u
+}
+
+// UpdateStripeSubscriptionID sets the "stripe_subscription_id" field to the value that was provided on create.
+func (u *BillingAccountUpsert) UpdateStripeSubscriptionID() *BillingAccountUpsert {
+	u.SetExcluded(billingaccount.FieldStripeSubscriptionID)
+	return u
+}
+
+// ClearStripeSubscriptionID clears the value of the "stripe_subscription_id" field.
+func (u *BillingAccountUpsert) ClearStripeSubscriptionID() *BillingAccountUpsert {
+	u.SetNull(billingaccount.FieldStripeSubscriptionID)
+	return u
+}
+
+// SetState sets the "state" field.
+func (u *BillingAccountUpsert) SetState(v billingaccount.State) *BillingAccountUpsert {
+	u.Set(billingaccount.FieldState, v)
+	return u
+}
+
+// UpdateState sets the "state" field to the value that was provided on create.
+func (u *BillingAccountUpsert) UpdateState() *BillingAccountUpsert {
+	u.SetExcluded(billingaccount.FieldState)
+	return u
+}
+
+// SetStateChangedAt sets the "state_changed_at" field.
+func (u *BillingAccountUpsert) SetStateChangedAt(v time.Time) *BillingAccountUpsert {
+	u.Set(billingaccount.FieldStateChangedAt, v)
+	return u
+}
+
+// UpdateStateChangedAt sets the "state_changed_at" field to the value that was provided on create.
+func (u *BillingAccountUpsert) UpdateStateChangedAt() *BillingAccountUpsert {
+	u.SetExcluded(billingaccount.FieldStateChangedAt)
+	return u
+}
+
+// SetCurrency sets the "currency" field.
+func (u *BillingAccountUpsert) SetCurrency(v string) *BillingAccountUpsert {
+	u.Set(billingaccount.FieldCurrency, v)
+	return u
+}
+
+// UpdateCurrency sets the "currency" field to the value that was provided on create.
+func (u *BillingAccountUpsert) UpdateCurrency() *BillingAccountUpsert {
+	u.SetExcluded(billingaccount.FieldCurrency)
+	return u
+}
+
+// SetBalanceMicros sets the "balance_micros" field.
+func (u *BillingAccountUpsert) SetBalanceMicros(v int64) *BillingAccountUpsert {
+	u.Set(billingaccount.FieldBalanceMicros, v)
+	return u
+}
+
+// UpdateBalanceMicros sets the "balance_micros" field to the value that was provided on create.
+func (u *BillingAccountUpsert) UpdateBalanceMicros() *BillingAccountUpsert {
+	u.SetExcluded(billingaccount.FieldBalanceMicros)
+	return u
+}
+
+// AddBalanceMicros adds v to the "balance_micros" field.
+func (u *BillingAccountUpsert) AddBalanceMicros(v int64) *BillingAccountUpsert {
+	u.Add(billingaccount.FieldBalanceMicros, v)
+	return u
+}
+
+// SetAutoTopupEnabled sets the "auto_topup_enabled" field.
+func (u *BillingAccountUpsert) SetAutoTopupEnabled(v bool) *BillingAccountUpsert {
+	u.Set(billingaccount.FieldAutoTopupEnabled, v)
+	return u
+}
+
+// UpdateAutoTopupEnabled sets the "auto_topup_enabled" field to the value that was provided on create.
+func (u *BillingAccountUpsert) UpdateAutoTopupEnabled() *BillingAccountUpsert {
+	u.SetExcluded(billingaccount.FieldAutoTopupEnabled)
+	return u
+}
+
+// SetAutoTopupThresholdMicros sets the "auto_topup_threshold_micros" field.
+func (u *BillingAccountUpsert) SetAutoTopupThresholdMicros(v int64) *BillingAccountUpsert {
+	u.Set(billingaccount.FieldAutoTopupThresholdMicros, v)
+	return u
+}
+
+// UpdateAutoTopupThresholdMicros sets the "auto_topup_threshold_micros" field to the value that was provided on create.
+func (u *BillingAccountUpsert) UpdateAutoTopupThresholdMicros() *BillingAccountUpsert {
+	u.SetExcluded(billingaccount.FieldAutoTopupThresholdMicros)
+	return u
+}
+
+// AddAutoTopupThresholdMicros adds v to the "auto_topup_threshold_micros" field.
+func (u *BillingAccountUpsert) AddAutoTopupThresholdMicros(v int64) *BillingAccountUpsert {
+	u.Add(billingaccount.FieldAutoTopupThresholdMicros, v)
+	return u
+}
+
+// SetAutoTopupAmountMicros sets the "auto_topup_amount_micros" field.
+func (u *BillingAccountUpsert) SetAutoTopupAmountMicros(v int64) *BillingAccountUpsert {
+	u.Set(billingaccount.FieldAutoTopupAmountMicros, v)
+	return u
+}
+
+// UpdateAutoTopupAmountMicros sets the "auto_topup_amount_micros" field to the value that was provided on create.
+func (u *BillingAccountUpsert) UpdateAutoTopupAmountMicros() *BillingAccountUpsert {
+	u.SetExcluded(billingaccount.FieldAutoTopupAmountMicros)
+	return u
+}
+
+// AddAutoTopupAmountMicros adds v to the "auto_topup_amount_micros" field.
+func (u *BillingAccountUpsert) AddAutoTopupAmountMicros(v int64) *BillingAccountUpsert {
+	u.Add(billingaccount.FieldAutoTopupAmountMicros, v)
+	return u
+}
+
+// SetDefaultPaymentMethod sets the "default_payment_method" field.
+func (u *BillingAccountUpsert) SetDefaultPaymentMethod(v string) *BillingAccountUpsert {
+	u.Set(billingaccount.FieldDefaultPaymentMethod, v)
+	return u
+}
+
+// UpdateDefaultPaymentMethod sets the "default_payment_method" field to the value that was provided on create.
+func (u *BillingAccountUpsert) UpdateDefaultPaymentMethod() *BillingAccountUpsert {
+	u.SetExcluded(billingaccount.FieldDefaultPaymentMethod)
+	return u
+}
+
+// ClearDefaultPaymentMethod clears the value of the "default_payment_method" field.
+func (u *BillingAccountUpsert) ClearDefaultPaymentMethod() *BillingAccountUpsert {
+	u.SetNull(billingaccount.FieldDefaultPaymentMethod)
+	return u
+}
+
+// SetBillingEmail sets the "billing_email" field.
+func (u *BillingAccountUpsert) SetBillingEmail(v string) *BillingAccountUpsert {
+	u.Set(billingaccount.FieldBillingEmail, v)
+	return u
+}
+
+// UpdateBillingEmail sets the "billing_email" field to the value that was provided on create.
+func (u *BillingAccountUpsert) UpdateBillingEmail() *BillingAccountUpsert {
+	u.SetExcluded(billingaccount.FieldBillingEmail)
+	return u
+}
+
+// ClearBillingEmail clears the value of the "billing_email" field.
+func (u *BillingAccountUpsert) ClearBillingEmail() *BillingAccountUpsert {
+	u.SetNull(billingaccount.FieldBillingEmail)
+	return u
+}
+
+// SetEntitlementOverrides sets the "entitlement_overrides" field.
+func (u *BillingAccountUpsert) SetEntitlementOverrides(v map[string]int64) *BillingAccountUpsert {
+	u.Set(billingaccount.FieldEntitlementOverrides, v)
+	return u
+}
+
+// UpdateEntitlementOverrides sets the "entitlement_overrides" field to the value that was provided on create.
+func (u *BillingAccountUpsert) UpdateEntitlementOverrides() *BillingAccountUpsert {
+	u.SetExcluded(billingaccount.FieldEntitlementOverrides)
+	return u
+}
+
+// UpdateNewValues updates the mutable fields using the new values that were set on create except the ID field.
+// Using this option is equivalent to using:
+//
+//	client.BillingAccount.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//			sql.ResolveWith(func(u *sql.UpdateSet) {
+//				u.SetIgnore(billingaccount.FieldID)
+//			}),
+//		).
+//		Exec(ctx)
+func (u *BillingAccountUpsertOne) UpdateNewValues() *BillingAccountUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		if _, exists := u.create.mutation.ID(); exists {
+			s.SetIgnore(billingaccount.FieldID)
+		}
+		if _, exists := u.create.mutation.UID(); exists {
+			s.SetIgnore(billingaccount.FieldUID)
+		}
+		if _, exists := u.create.mutation.CreatedAt(); exists {
+			s.SetIgnore(billingaccount.FieldCreatedAt)
+		}
+		if _, exists := u.create.mutation.OrganizationID(); exists {
+			s.SetIgnore(billingaccount.FieldOrganizationID)
+		}
+	}))
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.BillingAccount.Create().
+//	    OnConflict(sql.ResolveWithIgnore()).
+//	    Exec(ctx)
+func (u *BillingAccountUpsertOne) Ignore() *BillingAccountUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *BillingAccountUpsertOne) DoNothing() *BillingAccountUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the BillingAccountCreate.OnConflict
+// documentation for more info.
+func (u *BillingAccountUpsertOne) Update(set func(*BillingAccountUpsert)) *BillingAccountUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&BillingAccountUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *BillingAccountUpsertOne) SetUpdatedAt(v time.Time) *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *BillingAccountUpsertOne) UpdateUpdatedAt() *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateUpdatedAt()
+	})
+}
+
+// SetPlanID sets the "plan_id" field.
+func (u *BillingAccountUpsertOne) SetPlanID(v int) *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetPlanID(v)
+	})
+}
+
+// UpdatePlanID sets the "plan_id" field to the value that was provided on create.
+func (u *BillingAccountUpsertOne) UpdatePlanID() *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdatePlanID()
+	})
+}
+
+// SetStripeCustomerID sets the "stripe_customer_id" field.
+func (u *BillingAccountUpsertOne) SetStripeCustomerID(v string) *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetStripeCustomerID(v)
+	})
+}
+
+// UpdateStripeCustomerID sets the "stripe_customer_id" field to the value that was provided on create.
+func (u *BillingAccountUpsertOne) UpdateStripeCustomerID() *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateStripeCustomerID()
+	})
+}
+
+// ClearStripeCustomerID clears the value of the "stripe_customer_id" field.
+func (u *BillingAccountUpsertOne) ClearStripeCustomerID() *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.ClearStripeCustomerID()
+	})
+}
+
+// SetStripeSubscriptionID sets the "stripe_subscription_id" field.
+func (u *BillingAccountUpsertOne) SetStripeSubscriptionID(v string) *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetStripeSubscriptionID(v)
+	})
+}
+
+// UpdateStripeSubscriptionID sets the "stripe_subscription_id" field to the value that was provided on create.
+func (u *BillingAccountUpsertOne) UpdateStripeSubscriptionID() *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateStripeSubscriptionID()
+	})
+}
+
+// ClearStripeSubscriptionID clears the value of the "stripe_subscription_id" field.
+func (u *BillingAccountUpsertOne) ClearStripeSubscriptionID() *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.ClearStripeSubscriptionID()
+	})
+}
+
+// SetState sets the "state" field.
+func (u *BillingAccountUpsertOne) SetState(v billingaccount.State) *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetState(v)
+	})
+}
+
+// UpdateState sets the "state" field to the value that was provided on create.
+func (u *BillingAccountUpsertOne) UpdateState() *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateState()
+	})
+}
+
+// SetStateChangedAt sets the "state_changed_at" field.
+func (u *BillingAccountUpsertOne) SetStateChangedAt(v time.Time) *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetStateChangedAt(v)
+	})
+}
+
+// UpdateStateChangedAt sets the "state_changed_at" field to the value that was provided on create.
+func (u *BillingAccountUpsertOne) UpdateStateChangedAt() *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateStateChangedAt()
+	})
+}
+
+// SetCurrency sets the "currency" field.
+func (u *BillingAccountUpsertOne) SetCurrency(v string) *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetCurrency(v)
+	})
+}
+
+// UpdateCurrency sets the "currency" field to the value that was provided on create.
+func (u *BillingAccountUpsertOne) UpdateCurrency() *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateCurrency()
+	})
+}
+
+// SetBalanceMicros sets the "balance_micros" field.
+func (u *BillingAccountUpsertOne) SetBalanceMicros(v int64) *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetBalanceMicros(v)
+	})
+}
+
+// AddBalanceMicros adds v to the "balance_micros" field.
+func (u *BillingAccountUpsertOne) AddBalanceMicros(v int64) *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.AddBalanceMicros(v)
+	})
+}
+
+// UpdateBalanceMicros sets the "balance_micros" field to the value that was provided on create.
+func (u *BillingAccountUpsertOne) UpdateBalanceMicros() *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateBalanceMicros()
+	})
+}
+
+// SetAutoTopupEnabled sets the "auto_topup_enabled" field.
+func (u *BillingAccountUpsertOne) SetAutoTopupEnabled(v bool) *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetAutoTopupEnabled(v)
+	})
+}
+
+// UpdateAutoTopupEnabled sets the "auto_topup_enabled" field to the value that was provided on create.
+func (u *BillingAccountUpsertOne) UpdateAutoTopupEnabled() *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateAutoTopupEnabled()
+	})
+}
+
+// SetAutoTopupThresholdMicros sets the "auto_topup_threshold_micros" field.
+func (u *BillingAccountUpsertOne) SetAutoTopupThresholdMicros(v int64) *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetAutoTopupThresholdMicros(v)
+	})
+}
+
+// AddAutoTopupThresholdMicros adds v to the "auto_topup_threshold_micros" field.
+func (u *BillingAccountUpsertOne) AddAutoTopupThresholdMicros(v int64) *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.AddAutoTopupThresholdMicros(v)
+	})
+}
+
+// UpdateAutoTopupThresholdMicros sets the "auto_topup_threshold_micros" field to the value that was provided on create.
+func (u *BillingAccountUpsertOne) UpdateAutoTopupThresholdMicros() *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateAutoTopupThresholdMicros()
+	})
+}
+
+// SetAutoTopupAmountMicros sets the "auto_topup_amount_micros" field.
+func (u *BillingAccountUpsertOne) SetAutoTopupAmountMicros(v int64) *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetAutoTopupAmountMicros(v)
+	})
+}
+
+// AddAutoTopupAmountMicros adds v to the "auto_topup_amount_micros" field.
+func (u *BillingAccountUpsertOne) AddAutoTopupAmountMicros(v int64) *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.AddAutoTopupAmountMicros(v)
+	})
+}
+
+// UpdateAutoTopupAmountMicros sets the "auto_topup_amount_micros" field to the value that was provided on create.
+func (u *BillingAccountUpsertOne) UpdateAutoTopupAmountMicros() *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateAutoTopupAmountMicros()
+	})
+}
+
+// SetDefaultPaymentMethod sets the "default_payment_method" field.
+func (u *BillingAccountUpsertOne) SetDefaultPaymentMethod(v string) *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetDefaultPaymentMethod(v)
+	})
+}
+
+// UpdateDefaultPaymentMethod sets the "default_payment_method" field to the value that was provided on create.
+func (u *BillingAccountUpsertOne) UpdateDefaultPaymentMethod() *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateDefaultPaymentMethod()
+	})
+}
+
+// ClearDefaultPaymentMethod clears the value of the "default_payment_method" field.
+func (u *BillingAccountUpsertOne) ClearDefaultPaymentMethod() *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.ClearDefaultPaymentMethod()
+	})
+}
+
+// SetBillingEmail sets the "billing_email" field.
+func (u *BillingAccountUpsertOne) SetBillingEmail(v string) *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetBillingEmail(v)
+	})
+}
+
+// UpdateBillingEmail sets the "billing_email" field to the value that was provided on create.
+func (u *BillingAccountUpsertOne) UpdateBillingEmail() *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateBillingEmail()
+	})
+}
+
+// ClearBillingEmail clears the value of the "billing_email" field.
+func (u *BillingAccountUpsertOne) ClearBillingEmail() *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.ClearBillingEmail()
+	})
+}
+
+// SetEntitlementOverrides sets the "entitlement_overrides" field.
+func (u *BillingAccountUpsertOne) SetEntitlementOverrides(v map[string]int64) *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetEntitlementOverrides(v)
+	})
+}
+
+// UpdateEntitlementOverrides sets the "entitlement_overrides" field to the value that was provided on create.
+func (u *BillingAccountUpsertOne) UpdateEntitlementOverrides() *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateEntitlementOverrides()
+	})
+}
+
+// Exec executes the query.
+func (u *BillingAccountUpsertOne) Exec(ctx context.Context) error {
+	if len(u.create.conflict) == 0 {
+		return errors.New("global: missing options for BillingAccountCreate.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *BillingAccountUpsertOne) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// Exec executes the UPSERT query and returns the inserted/updated ID.
+func (u *BillingAccountUpsertOne) ID(ctx context.Context) (id int, err error) {
+	node, err := u.create.Save(ctx)
+	if err != nil {
+		return id, err
+	}
+	return node.ID, nil
+}
+
+// IDX is like ID, but panics if an error occurs.
+func (u *BillingAccountUpsertOne) IDX(ctx context.Context) int {
+	id, err := u.ID(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
 // BillingAccountCreateBulk is the builder for creating many BillingAccount entities in bulk.
 type BillingAccountCreateBulk struct {
 	config
 	err      error
 	builders []*BillingAccountCreate
+	conflict []sql.ConflictOption
 }
 
 // Save creates the BillingAccount entities in the database.
@@ -695,6 +1325,7 @@ func (_c *BillingAccountCreateBulk) Save(ctx context.Context) ([]*BillingAccount
 					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
 				} else {
 					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+					spec.OnConflict = _c.conflict
 					// Invoke the actual operation on the latest mutation in the chain.
 					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
 						if sqlgraph.IsConstraintError(err) {
@@ -745,6 +1376,374 @@ func (_c *BillingAccountCreateBulk) Exec(ctx context.Context) error {
 // ExecX is like Exec, but panics if an error occurs.
 func (_c *BillingAccountCreateBulk) ExecX(ctx context.Context) {
 	if err := _c.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.BillingAccount.CreateBulk(builders...).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.BillingAccountUpsert) {
+//			SetUID(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *BillingAccountCreateBulk) OnConflict(opts ...sql.ConflictOption) *BillingAccountUpsertBulk {
+	_c.conflict = opts
+	return &BillingAccountUpsertBulk{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.BillingAccount.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *BillingAccountCreateBulk) OnConflictColumns(columns ...string) *BillingAccountUpsertBulk {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &BillingAccountUpsertBulk{
+		create: _c,
+	}
+}
+
+// BillingAccountUpsertBulk is the builder for "upsert"-ing
+// a bulk of BillingAccount nodes.
+type BillingAccountUpsertBulk struct {
+	create *BillingAccountCreateBulk
+}
+
+// UpdateNewValues updates the mutable fields using the new values that
+// were set on create. Using this option is equivalent to using:
+//
+//	client.BillingAccount.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//			sql.ResolveWith(func(u *sql.UpdateSet) {
+//				u.SetIgnore(billingaccount.FieldID)
+//			}),
+//		).
+//		Exec(ctx)
+func (u *BillingAccountUpsertBulk) UpdateNewValues() *BillingAccountUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		for _, b := range u.create.builders {
+			if _, exists := b.mutation.ID(); exists {
+				s.SetIgnore(billingaccount.FieldID)
+			}
+			if _, exists := b.mutation.UID(); exists {
+				s.SetIgnore(billingaccount.FieldUID)
+			}
+			if _, exists := b.mutation.CreatedAt(); exists {
+				s.SetIgnore(billingaccount.FieldCreatedAt)
+			}
+			if _, exists := b.mutation.OrganizationID(); exists {
+				s.SetIgnore(billingaccount.FieldOrganizationID)
+			}
+		}
+	}))
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.BillingAccount.Create().
+//		OnConflict(sql.ResolveWithIgnore()).
+//		Exec(ctx)
+func (u *BillingAccountUpsertBulk) Ignore() *BillingAccountUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *BillingAccountUpsertBulk) DoNothing() *BillingAccountUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the BillingAccountCreateBulk.OnConflict
+// documentation for more info.
+func (u *BillingAccountUpsertBulk) Update(set func(*BillingAccountUpsert)) *BillingAccountUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&BillingAccountUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *BillingAccountUpsertBulk) SetUpdatedAt(v time.Time) *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *BillingAccountUpsertBulk) UpdateUpdatedAt() *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateUpdatedAt()
+	})
+}
+
+// SetPlanID sets the "plan_id" field.
+func (u *BillingAccountUpsertBulk) SetPlanID(v int) *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetPlanID(v)
+	})
+}
+
+// UpdatePlanID sets the "plan_id" field to the value that was provided on create.
+func (u *BillingAccountUpsertBulk) UpdatePlanID() *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdatePlanID()
+	})
+}
+
+// SetStripeCustomerID sets the "stripe_customer_id" field.
+func (u *BillingAccountUpsertBulk) SetStripeCustomerID(v string) *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetStripeCustomerID(v)
+	})
+}
+
+// UpdateStripeCustomerID sets the "stripe_customer_id" field to the value that was provided on create.
+func (u *BillingAccountUpsertBulk) UpdateStripeCustomerID() *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateStripeCustomerID()
+	})
+}
+
+// ClearStripeCustomerID clears the value of the "stripe_customer_id" field.
+func (u *BillingAccountUpsertBulk) ClearStripeCustomerID() *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.ClearStripeCustomerID()
+	})
+}
+
+// SetStripeSubscriptionID sets the "stripe_subscription_id" field.
+func (u *BillingAccountUpsertBulk) SetStripeSubscriptionID(v string) *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetStripeSubscriptionID(v)
+	})
+}
+
+// UpdateStripeSubscriptionID sets the "stripe_subscription_id" field to the value that was provided on create.
+func (u *BillingAccountUpsertBulk) UpdateStripeSubscriptionID() *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateStripeSubscriptionID()
+	})
+}
+
+// ClearStripeSubscriptionID clears the value of the "stripe_subscription_id" field.
+func (u *BillingAccountUpsertBulk) ClearStripeSubscriptionID() *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.ClearStripeSubscriptionID()
+	})
+}
+
+// SetState sets the "state" field.
+func (u *BillingAccountUpsertBulk) SetState(v billingaccount.State) *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetState(v)
+	})
+}
+
+// UpdateState sets the "state" field to the value that was provided on create.
+func (u *BillingAccountUpsertBulk) UpdateState() *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateState()
+	})
+}
+
+// SetStateChangedAt sets the "state_changed_at" field.
+func (u *BillingAccountUpsertBulk) SetStateChangedAt(v time.Time) *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetStateChangedAt(v)
+	})
+}
+
+// UpdateStateChangedAt sets the "state_changed_at" field to the value that was provided on create.
+func (u *BillingAccountUpsertBulk) UpdateStateChangedAt() *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateStateChangedAt()
+	})
+}
+
+// SetCurrency sets the "currency" field.
+func (u *BillingAccountUpsertBulk) SetCurrency(v string) *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetCurrency(v)
+	})
+}
+
+// UpdateCurrency sets the "currency" field to the value that was provided on create.
+func (u *BillingAccountUpsertBulk) UpdateCurrency() *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateCurrency()
+	})
+}
+
+// SetBalanceMicros sets the "balance_micros" field.
+func (u *BillingAccountUpsertBulk) SetBalanceMicros(v int64) *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetBalanceMicros(v)
+	})
+}
+
+// AddBalanceMicros adds v to the "balance_micros" field.
+func (u *BillingAccountUpsertBulk) AddBalanceMicros(v int64) *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.AddBalanceMicros(v)
+	})
+}
+
+// UpdateBalanceMicros sets the "balance_micros" field to the value that was provided on create.
+func (u *BillingAccountUpsertBulk) UpdateBalanceMicros() *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateBalanceMicros()
+	})
+}
+
+// SetAutoTopupEnabled sets the "auto_topup_enabled" field.
+func (u *BillingAccountUpsertBulk) SetAutoTopupEnabled(v bool) *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetAutoTopupEnabled(v)
+	})
+}
+
+// UpdateAutoTopupEnabled sets the "auto_topup_enabled" field to the value that was provided on create.
+func (u *BillingAccountUpsertBulk) UpdateAutoTopupEnabled() *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateAutoTopupEnabled()
+	})
+}
+
+// SetAutoTopupThresholdMicros sets the "auto_topup_threshold_micros" field.
+func (u *BillingAccountUpsertBulk) SetAutoTopupThresholdMicros(v int64) *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetAutoTopupThresholdMicros(v)
+	})
+}
+
+// AddAutoTopupThresholdMicros adds v to the "auto_topup_threshold_micros" field.
+func (u *BillingAccountUpsertBulk) AddAutoTopupThresholdMicros(v int64) *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.AddAutoTopupThresholdMicros(v)
+	})
+}
+
+// UpdateAutoTopupThresholdMicros sets the "auto_topup_threshold_micros" field to the value that was provided on create.
+func (u *BillingAccountUpsertBulk) UpdateAutoTopupThresholdMicros() *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateAutoTopupThresholdMicros()
+	})
+}
+
+// SetAutoTopupAmountMicros sets the "auto_topup_amount_micros" field.
+func (u *BillingAccountUpsertBulk) SetAutoTopupAmountMicros(v int64) *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetAutoTopupAmountMicros(v)
+	})
+}
+
+// AddAutoTopupAmountMicros adds v to the "auto_topup_amount_micros" field.
+func (u *BillingAccountUpsertBulk) AddAutoTopupAmountMicros(v int64) *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.AddAutoTopupAmountMicros(v)
+	})
+}
+
+// UpdateAutoTopupAmountMicros sets the "auto_topup_amount_micros" field to the value that was provided on create.
+func (u *BillingAccountUpsertBulk) UpdateAutoTopupAmountMicros() *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateAutoTopupAmountMicros()
+	})
+}
+
+// SetDefaultPaymentMethod sets the "default_payment_method" field.
+func (u *BillingAccountUpsertBulk) SetDefaultPaymentMethod(v string) *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetDefaultPaymentMethod(v)
+	})
+}
+
+// UpdateDefaultPaymentMethod sets the "default_payment_method" field to the value that was provided on create.
+func (u *BillingAccountUpsertBulk) UpdateDefaultPaymentMethod() *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateDefaultPaymentMethod()
+	})
+}
+
+// ClearDefaultPaymentMethod clears the value of the "default_payment_method" field.
+func (u *BillingAccountUpsertBulk) ClearDefaultPaymentMethod() *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.ClearDefaultPaymentMethod()
+	})
+}
+
+// SetBillingEmail sets the "billing_email" field.
+func (u *BillingAccountUpsertBulk) SetBillingEmail(v string) *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetBillingEmail(v)
+	})
+}
+
+// UpdateBillingEmail sets the "billing_email" field to the value that was provided on create.
+func (u *BillingAccountUpsertBulk) UpdateBillingEmail() *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateBillingEmail()
+	})
+}
+
+// ClearBillingEmail clears the value of the "billing_email" field.
+func (u *BillingAccountUpsertBulk) ClearBillingEmail() *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.ClearBillingEmail()
+	})
+}
+
+// SetEntitlementOverrides sets the "entitlement_overrides" field.
+func (u *BillingAccountUpsertBulk) SetEntitlementOverrides(v map[string]int64) *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetEntitlementOverrides(v)
+	})
+}
+
+// UpdateEntitlementOverrides sets the "entitlement_overrides" field to the value that was provided on create.
+func (u *BillingAccountUpsertBulk) UpdateEntitlementOverrides() *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateEntitlementOverrides()
+	})
+}
+
+// Exec executes the query.
+func (u *BillingAccountUpsertBulk) Exec(ctx context.Context) error {
+	if u.create.err != nil {
+		return u.create.err
+	}
+	for i, b := range u.create.builders {
+		if len(b.conflict) != 0 {
+			return fmt.Errorf("global: OnConflict was set for builder %d. Set it on the BillingAccountCreateBulk instead", i)
+		}
+	}
+	if len(u.create.conflict) == 0 {
+		return errors.New("global: missing options for BillingAccountCreateBulk.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *BillingAccountUpsertBulk) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

@@ -13,6 +13,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"playersense.dev/backend/ent/global/billingaccount"
 	"playersense.dev/backend/ent/global/billingperiod"
+	"playersense.dev/backend/ent/global/creditlot"
 	"playersense.dev/backend/ent/global/ledgerentry"
 	"playersense.dev/backend/ent/global/plan"
 	"playersense.dev/backend/ent/global/predicate"
@@ -277,6 +278,21 @@ func (_u *BillingAccountUpdate) AddLedgerEntries(v ...*LedgerEntry) *BillingAcco
 	return _u.AddLedgerEntryIDs(ids...)
 }
 
+// AddCreditLotIDs adds the "credit_lots" edge to the CreditLot entity by IDs.
+func (_u *BillingAccountUpdate) AddCreditLotIDs(ids ...int) *BillingAccountUpdate {
+	_u.mutation.AddCreditLotIDs(ids...)
+	return _u
+}
+
+// AddCreditLots adds the "credit_lots" edges to the CreditLot entity.
+func (_u *BillingAccountUpdate) AddCreditLots(v ...*CreditLot) *BillingAccountUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddCreditLotIDs(ids...)
+}
+
 // AddPeriodIDs adds the "periods" edge to the BillingPeriod entity by IDs.
 func (_u *BillingAccountUpdate) AddPeriodIDs(ids ...int) *BillingAccountUpdate {
 	_u.mutation.AddPeriodIDs(ids...)
@@ -337,6 +353,27 @@ func (_u *BillingAccountUpdate) RemoveLedgerEntries(v ...*LedgerEntry) *BillingA
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveLedgerEntryIDs(ids...)
+}
+
+// ClearCreditLots clears all "credit_lots" edges to the CreditLot entity.
+func (_u *BillingAccountUpdate) ClearCreditLots() *BillingAccountUpdate {
+	_u.mutation.ClearCreditLots()
+	return _u
+}
+
+// RemoveCreditLotIDs removes the "credit_lots" edge to CreditLot entities by IDs.
+func (_u *BillingAccountUpdate) RemoveCreditLotIDs(ids ...int) *BillingAccountUpdate {
+	_u.mutation.RemoveCreditLotIDs(ids...)
+	return _u
+}
+
+// RemoveCreditLots removes "credit_lots" edges to CreditLot entities.
+func (_u *BillingAccountUpdate) RemoveCreditLots(v ...*CreditLot) *BillingAccountUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveCreditLotIDs(ids...)
 }
 
 // ClearPeriods clears all "periods" edges to the BillingPeriod entity.
@@ -613,6 +650,51 @@ func (_u *BillingAccountUpdate) sqlSave(ctx context.Context) (_node int, err err
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(ledgerentry.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.CreditLotsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   billingaccount.CreditLotsTable,
+			Columns: []string{billingaccount.CreditLotsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(creditlot.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedCreditLotsIDs(); len(nodes) > 0 && !_u.mutation.CreditLotsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   billingaccount.CreditLotsTable,
+			Columns: []string{billingaccount.CreditLotsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(creditlot.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.CreditLotsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   billingaccount.CreditLotsTable,
+			Columns: []string{billingaccount.CreditLotsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(creditlot.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {
@@ -975,6 +1057,21 @@ func (_u *BillingAccountUpdateOne) AddLedgerEntries(v ...*LedgerEntry) *BillingA
 	return _u.AddLedgerEntryIDs(ids...)
 }
 
+// AddCreditLotIDs adds the "credit_lots" edge to the CreditLot entity by IDs.
+func (_u *BillingAccountUpdateOne) AddCreditLotIDs(ids ...int) *BillingAccountUpdateOne {
+	_u.mutation.AddCreditLotIDs(ids...)
+	return _u
+}
+
+// AddCreditLots adds the "credit_lots" edges to the CreditLot entity.
+func (_u *BillingAccountUpdateOne) AddCreditLots(v ...*CreditLot) *BillingAccountUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddCreditLotIDs(ids...)
+}
+
 // AddPeriodIDs adds the "periods" edge to the BillingPeriod entity by IDs.
 func (_u *BillingAccountUpdateOne) AddPeriodIDs(ids ...int) *BillingAccountUpdateOne {
 	_u.mutation.AddPeriodIDs(ids...)
@@ -1035,6 +1132,27 @@ func (_u *BillingAccountUpdateOne) RemoveLedgerEntries(v ...*LedgerEntry) *Billi
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveLedgerEntryIDs(ids...)
+}
+
+// ClearCreditLots clears all "credit_lots" edges to the CreditLot entity.
+func (_u *BillingAccountUpdateOne) ClearCreditLots() *BillingAccountUpdateOne {
+	_u.mutation.ClearCreditLots()
+	return _u
+}
+
+// RemoveCreditLotIDs removes the "credit_lots" edge to CreditLot entities by IDs.
+func (_u *BillingAccountUpdateOne) RemoveCreditLotIDs(ids ...int) *BillingAccountUpdateOne {
+	_u.mutation.RemoveCreditLotIDs(ids...)
+	return _u
+}
+
+// RemoveCreditLots removes "credit_lots" edges to CreditLot entities.
+func (_u *BillingAccountUpdateOne) RemoveCreditLots(v ...*CreditLot) *BillingAccountUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveCreditLotIDs(ids...)
 }
 
 // ClearPeriods clears all "periods" edges to the BillingPeriod entity.
@@ -1341,6 +1459,51 @@ func (_u *BillingAccountUpdateOne) sqlSave(ctx context.Context) (_node *BillingA
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(ledgerentry.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.CreditLotsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   billingaccount.CreditLotsTable,
+			Columns: []string{billingaccount.CreditLotsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(creditlot.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedCreditLotsIDs(); len(nodes) > 0 && !_u.mutation.CreditLotsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   billingaccount.CreditLotsTable,
+			Columns: []string{billingaccount.CreditLotsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(creditlot.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.CreditLotsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   billingaccount.CreditLotsTable,
+			Columns: []string{billingaccount.CreditLotsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(creditlot.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

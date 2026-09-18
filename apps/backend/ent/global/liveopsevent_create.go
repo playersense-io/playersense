@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"time"
 
+	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
@@ -22,6 +23,7 @@ type LiveOpsEventCreate struct {
 	config
 	mutation *LiveOpsEventMutation
 	hooks    []Hook
+	conflict []sql.ConflictOption
 }
 
 // SetUID sets the "uid" field.
@@ -354,6 +356,7 @@ func (_c *LiveOpsEventCreate) createSpec() (*LiveOpsEvent, *sqlgraph.CreateSpec)
 		_node = &LiveOpsEvent{config: _c.config}
 		_spec = sqlgraph.NewCreateSpec(liveopsevent.Table, sqlgraph.NewFieldSpec(liveopsevent.FieldID, field.TypeInt))
 	)
+	_spec.OnConflict = _c.conflict
 	if id, ok := _c.mutation.ID(); ok {
 		_node.ID = id
 		_spec.ID.Value = id
@@ -430,11 +433,463 @@ func (_c *LiveOpsEventCreate) createSpec() (*LiveOpsEvent, *sqlgraph.CreateSpec)
 	return _node, _spec
 }
 
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.LiveOpsEvent.Create().
+//		SetUID(v).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.LiveOpsEventUpsert) {
+//			SetUID(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *LiveOpsEventCreate) OnConflict(opts ...sql.ConflictOption) *LiveOpsEventUpsertOne {
+	_c.conflict = opts
+	return &LiveOpsEventUpsertOne{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.LiveOpsEvent.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *LiveOpsEventCreate) OnConflictColumns(columns ...string) *LiveOpsEventUpsertOne {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &LiveOpsEventUpsertOne{
+		create: _c,
+	}
+}
+
+type (
+	// LiveOpsEventUpsertOne is the builder for "upsert"-ing
+	//  one LiveOpsEvent node.
+	LiveOpsEventUpsertOne struct {
+		create *LiveOpsEventCreate
+	}
+
+	// LiveOpsEventUpsert is the "OnConflict" setter.
+	LiveOpsEventUpsert struct {
+		*sql.UpdateSet
+	}
+)
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *LiveOpsEventUpsert) SetUpdatedAt(v time.Time) *LiveOpsEventUpsert {
+	u.Set(liveopsevent.FieldUpdatedAt, v)
+	return u
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *LiveOpsEventUpsert) UpdateUpdatedAt() *LiveOpsEventUpsert {
+	u.SetExcluded(liveopsevent.FieldUpdatedAt)
+	return u
+}
+
+// SetProjectID sets the "project_id" field.
+func (u *LiveOpsEventUpsert) SetProjectID(v int) *LiveOpsEventUpsert {
+	u.Set(liveopsevent.FieldProjectID, v)
+	return u
+}
+
+// UpdateProjectID sets the "project_id" field to the value that was provided on create.
+func (u *LiveOpsEventUpsert) UpdateProjectID() *LiveOpsEventUpsert {
+	u.SetExcluded(liveopsevent.FieldProjectID)
+	return u
+}
+
+// SetKind sets the "kind" field.
+func (u *LiveOpsEventUpsert) SetKind(v string) *LiveOpsEventUpsert {
+	u.Set(liveopsevent.FieldKind, v)
+	return u
+}
+
+// UpdateKind sets the "kind" field to the value that was provided on create.
+func (u *LiveOpsEventUpsert) UpdateKind() *LiveOpsEventUpsert {
+	u.SetExcluded(liveopsevent.FieldKind)
+	return u
+}
+
+// SetName sets the "name" field.
+func (u *LiveOpsEventUpsert) SetName(v string) *LiveOpsEventUpsert {
+	u.Set(liveopsevent.FieldName, v)
+	return u
+}
+
+// UpdateName sets the "name" field to the value that was provided on create.
+func (u *LiveOpsEventUpsert) UpdateName() *LiveOpsEventUpsert {
+	u.SetExcluded(liveopsevent.FieldName)
+	return u
+}
+
+// SetStatus sets the "status" field.
+func (u *LiveOpsEventUpsert) SetStatus(v liveopsevent.Status) *LiveOpsEventUpsert {
+	u.Set(liveopsevent.FieldStatus, v)
+	return u
+}
+
+// UpdateStatus sets the "status" field to the value that was provided on create.
+func (u *LiveOpsEventUpsert) UpdateStatus() *LiveOpsEventUpsert {
+	u.SetExcluded(liveopsevent.FieldStatus)
+	return u
+}
+
+// SetSchedule sets the "schedule" field.
+func (u *LiveOpsEventUpsert) SetSchedule(v liveops.Schedule) *LiveOpsEventUpsert {
+	u.Set(liveopsevent.FieldSchedule, v)
+	return u
+}
+
+// UpdateSchedule sets the "schedule" field to the value that was provided on create.
+func (u *LiveOpsEventUpsert) UpdateSchedule() *LiveOpsEventUpsert {
+	u.SetExcluded(liveopsevent.FieldSchedule)
+	return u
+}
+
+// SetPriority sets the "priority" field.
+func (u *LiveOpsEventUpsert) SetPriority(v int) *LiveOpsEventUpsert {
+	u.Set(liveopsevent.FieldPriority, v)
+	return u
+}
+
+// UpdatePriority sets the "priority" field to the value that was provided on create.
+func (u *LiveOpsEventUpsert) UpdatePriority() *LiveOpsEventUpsert {
+	u.SetExcluded(liveopsevent.FieldPriority)
+	return u
+}
+
+// AddPriority adds v to the "priority" field.
+func (u *LiveOpsEventUpsert) AddPriority(v int) *LiveOpsEventUpsert {
+	u.Add(liveopsevent.FieldPriority, v)
+	return u
+}
+
+// SetAudience sets the "audience" field.
+func (u *LiveOpsEventUpsert) SetAudience(v map[string]interface{}) *LiveOpsEventUpsert {
+	u.Set(liveopsevent.FieldAudience, v)
+	return u
+}
+
+// UpdateAudience sets the "audience" field to the value that was provided on create.
+func (u *LiveOpsEventUpsert) UpdateAudience() *LiveOpsEventUpsert {
+	u.SetExcluded(liveopsevent.FieldAudience)
+	return u
+}
+
+// SetPayload sets the "payload" field.
+func (u *LiveOpsEventUpsert) SetPayload(v jsontext.Value) *LiveOpsEventUpsert {
+	u.Set(liveopsevent.FieldPayload, v)
+	return u
+}
+
+// UpdatePayload sets the "payload" field to the value that was provided on create.
+func (u *LiveOpsEventUpsert) UpdatePayload() *LiveOpsEventUpsert {
+	u.SetExcluded(liveopsevent.FieldPayload)
+	return u
+}
+
+// SetRollout sets the "rollout" field.
+func (u *LiveOpsEventUpsert) SetRollout(v int) *LiveOpsEventUpsert {
+	u.Set(liveopsevent.FieldRollout, v)
+	return u
+}
+
+// UpdateRollout sets the "rollout" field to the value that was provided on create.
+func (u *LiveOpsEventUpsert) UpdateRollout() *LiveOpsEventUpsert {
+	u.SetExcluded(liveopsevent.FieldRollout)
+	return u
+}
+
+// AddRollout adds v to the "rollout" field.
+func (u *LiveOpsEventUpsert) AddRollout(v int) *LiveOpsEventUpsert {
+	u.Add(liveopsevent.FieldRollout, v)
+	return u
+}
+
+// SetSalt sets the "salt" field.
+func (u *LiveOpsEventUpsert) SetSalt(v string) *LiveOpsEventUpsert {
+	u.Set(liveopsevent.FieldSalt, v)
+	return u
+}
+
+// UpdateSalt sets the "salt" field to the value that was provided on create.
+func (u *LiveOpsEventUpsert) UpdateSalt() *LiveOpsEventUpsert {
+	u.SetExcluded(liveopsevent.FieldSalt)
+	return u
+}
+
+// UpdateNewValues updates the mutable fields using the new values that were set on create except the ID field.
+// Using this option is equivalent to using:
+//
+//	client.LiveOpsEvent.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//			sql.ResolveWith(func(u *sql.UpdateSet) {
+//				u.SetIgnore(liveopsevent.FieldID)
+//			}),
+//		).
+//		Exec(ctx)
+func (u *LiveOpsEventUpsertOne) UpdateNewValues() *LiveOpsEventUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		if _, exists := u.create.mutation.ID(); exists {
+			s.SetIgnore(liveopsevent.FieldID)
+		}
+		if _, exists := u.create.mutation.UID(); exists {
+			s.SetIgnore(liveopsevent.FieldUID)
+		}
+		if _, exists := u.create.mutation.CreatedAt(); exists {
+			s.SetIgnore(liveopsevent.FieldCreatedAt)
+		}
+		if _, exists := u.create.mutation.Key(); exists {
+			s.SetIgnore(liveopsevent.FieldKey)
+		}
+	}))
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.LiveOpsEvent.Create().
+//	    OnConflict(sql.ResolveWithIgnore()).
+//	    Exec(ctx)
+func (u *LiveOpsEventUpsertOne) Ignore() *LiveOpsEventUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *LiveOpsEventUpsertOne) DoNothing() *LiveOpsEventUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the LiveOpsEventCreate.OnConflict
+// documentation for more info.
+func (u *LiveOpsEventUpsertOne) Update(set func(*LiveOpsEventUpsert)) *LiveOpsEventUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&LiveOpsEventUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *LiveOpsEventUpsertOne) SetUpdatedAt(v time.Time) *LiveOpsEventUpsertOne {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *LiveOpsEventUpsertOne) UpdateUpdatedAt() *LiveOpsEventUpsertOne {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.UpdateUpdatedAt()
+	})
+}
+
+// SetProjectID sets the "project_id" field.
+func (u *LiveOpsEventUpsertOne) SetProjectID(v int) *LiveOpsEventUpsertOne {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.SetProjectID(v)
+	})
+}
+
+// UpdateProjectID sets the "project_id" field to the value that was provided on create.
+func (u *LiveOpsEventUpsertOne) UpdateProjectID() *LiveOpsEventUpsertOne {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.UpdateProjectID()
+	})
+}
+
+// SetKind sets the "kind" field.
+func (u *LiveOpsEventUpsertOne) SetKind(v string) *LiveOpsEventUpsertOne {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.SetKind(v)
+	})
+}
+
+// UpdateKind sets the "kind" field to the value that was provided on create.
+func (u *LiveOpsEventUpsertOne) UpdateKind() *LiveOpsEventUpsertOne {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.UpdateKind()
+	})
+}
+
+// SetName sets the "name" field.
+func (u *LiveOpsEventUpsertOne) SetName(v string) *LiveOpsEventUpsertOne {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.SetName(v)
+	})
+}
+
+// UpdateName sets the "name" field to the value that was provided on create.
+func (u *LiveOpsEventUpsertOne) UpdateName() *LiveOpsEventUpsertOne {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.UpdateName()
+	})
+}
+
+// SetStatus sets the "status" field.
+func (u *LiveOpsEventUpsertOne) SetStatus(v liveopsevent.Status) *LiveOpsEventUpsertOne {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.SetStatus(v)
+	})
+}
+
+// UpdateStatus sets the "status" field to the value that was provided on create.
+func (u *LiveOpsEventUpsertOne) UpdateStatus() *LiveOpsEventUpsertOne {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.UpdateStatus()
+	})
+}
+
+// SetSchedule sets the "schedule" field.
+func (u *LiveOpsEventUpsertOne) SetSchedule(v liveops.Schedule) *LiveOpsEventUpsertOne {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.SetSchedule(v)
+	})
+}
+
+// UpdateSchedule sets the "schedule" field to the value that was provided on create.
+func (u *LiveOpsEventUpsertOne) UpdateSchedule() *LiveOpsEventUpsertOne {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.UpdateSchedule()
+	})
+}
+
+// SetPriority sets the "priority" field.
+func (u *LiveOpsEventUpsertOne) SetPriority(v int) *LiveOpsEventUpsertOne {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.SetPriority(v)
+	})
+}
+
+// AddPriority adds v to the "priority" field.
+func (u *LiveOpsEventUpsertOne) AddPriority(v int) *LiveOpsEventUpsertOne {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.AddPriority(v)
+	})
+}
+
+// UpdatePriority sets the "priority" field to the value that was provided on create.
+func (u *LiveOpsEventUpsertOne) UpdatePriority() *LiveOpsEventUpsertOne {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.UpdatePriority()
+	})
+}
+
+// SetAudience sets the "audience" field.
+func (u *LiveOpsEventUpsertOne) SetAudience(v map[string]interface{}) *LiveOpsEventUpsertOne {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.SetAudience(v)
+	})
+}
+
+// UpdateAudience sets the "audience" field to the value that was provided on create.
+func (u *LiveOpsEventUpsertOne) UpdateAudience() *LiveOpsEventUpsertOne {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.UpdateAudience()
+	})
+}
+
+// SetPayload sets the "payload" field.
+func (u *LiveOpsEventUpsertOne) SetPayload(v jsontext.Value) *LiveOpsEventUpsertOne {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.SetPayload(v)
+	})
+}
+
+// UpdatePayload sets the "payload" field to the value that was provided on create.
+func (u *LiveOpsEventUpsertOne) UpdatePayload() *LiveOpsEventUpsertOne {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.UpdatePayload()
+	})
+}
+
+// SetRollout sets the "rollout" field.
+func (u *LiveOpsEventUpsertOne) SetRollout(v int) *LiveOpsEventUpsertOne {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.SetRollout(v)
+	})
+}
+
+// AddRollout adds v to the "rollout" field.
+func (u *LiveOpsEventUpsertOne) AddRollout(v int) *LiveOpsEventUpsertOne {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.AddRollout(v)
+	})
+}
+
+// UpdateRollout sets the "rollout" field to the value that was provided on create.
+func (u *LiveOpsEventUpsertOne) UpdateRollout() *LiveOpsEventUpsertOne {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.UpdateRollout()
+	})
+}
+
+// SetSalt sets the "salt" field.
+func (u *LiveOpsEventUpsertOne) SetSalt(v string) *LiveOpsEventUpsertOne {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.SetSalt(v)
+	})
+}
+
+// UpdateSalt sets the "salt" field to the value that was provided on create.
+func (u *LiveOpsEventUpsertOne) UpdateSalt() *LiveOpsEventUpsertOne {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.UpdateSalt()
+	})
+}
+
+// Exec executes the query.
+func (u *LiveOpsEventUpsertOne) Exec(ctx context.Context) error {
+	if len(u.create.conflict) == 0 {
+		return errors.New("global: missing options for LiveOpsEventCreate.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *LiveOpsEventUpsertOne) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// Exec executes the UPSERT query and returns the inserted/updated ID.
+func (u *LiveOpsEventUpsertOne) ID(ctx context.Context) (id int, err error) {
+	node, err := u.create.Save(ctx)
+	if err != nil {
+		return id, err
+	}
+	return node.ID, nil
+}
+
+// IDX is like ID, but panics if an error occurs.
+func (u *LiveOpsEventUpsertOne) IDX(ctx context.Context) int {
+	id, err := u.ID(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
 // LiveOpsEventCreateBulk is the builder for creating many LiveOpsEvent entities in bulk.
 type LiveOpsEventCreateBulk struct {
 	config
 	err      error
 	builders []*LiveOpsEventCreate
+	conflict []sql.ConflictOption
 }
 
 // Save creates the LiveOpsEvent entities in the database.
@@ -464,6 +919,7 @@ func (_c *LiveOpsEventCreateBulk) Save(ctx context.Context) ([]*LiveOpsEvent, er
 					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
 				} else {
 					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+					spec.OnConflict = _c.conflict
 					// Invoke the actual operation on the latest mutation in the chain.
 					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
 						if sqlgraph.IsConstraintError(err) {
@@ -514,6 +970,297 @@ func (_c *LiveOpsEventCreateBulk) Exec(ctx context.Context) error {
 // ExecX is like Exec, but panics if an error occurs.
 func (_c *LiveOpsEventCreateBulk) ExecX(ctx context.Context) {
 	if err := _c.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.LiveOpsEvent.CreateBulk(builders...).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.LiveOpsEventUpsert) {
+//			SetUID(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *LiveOpsEventCreateBulk) OnConflict(opts ...sql.ConflictOption) *LiveOpsEventUpsertBulk {
+	_c.conflict = opts
+	return &LiveOpsEventUpsertBulk{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.LiveOpsEvent.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *LiveOpsEventCreateBulk) OnConflictColumns(columns ...string) *LiveOpsEventUpsertBulk {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &LiveOpsEventUpsertBulk{
+		create: _c,
+	}
+}
+
+// LiveOpsEventUpsertBulk is the builder for "upsert"-ing
+// a bulk of LiveOpsEvent nodes.
+type LiveOpsEventUpsertBulk struct {
+	create *LiveOpsEventCreateBulk
+}
+
+// UpdateNewValues updates the mutable fields using the new values that
+// were set on create. Using this option is equivalent to using:
+//
+//	client.LiveOpsEvent.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//			sql.ResolveWith(func(u *sql.UpdateSet) {
+//				u.SetIgnore(liveopsevent.FieldID)
+//			}),
+//		).
+//		Exec(ctx)
+func (u *LiveOpsEventUpsertBulk) UpdateNewValues() *LiveOpsEventUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		for _, b := range u.create.builders {
+			if _, exists := b.mutation.ID(); exists {
+				s.SetIgnore(liveopsevent.FieldID)
+			}
+			if _, exists := b.mutation.UID(); exists {
+				s.SetIgnore(liveopsevent.FieldUID)
+			}
+			if _, exists := b.mutation.CreatedAt(); exists {
+				s.SetIgnore(liveopsevent.FieldCreatedAt)
+			}
+			if _, exists := b.mutation.Key(); exists {
+				s.SetIgnore(liveopsevent.FieldKey)
+			}
+		}
+	}))
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.LiveOpsEvent.Create().
+//		OnConflict(sql.ResolveWithIgnore()).
+//		Exec(ctx)
+func (u *LiveOpsEventUpsertBulk) Ignore() *LiveOpsEventUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *LiveOpsEventUpsertBulk) DoNothing() *LiveOpsEventUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the LiveOpsEventCreateBulk.OnConflict
+// documentation for more info.
+func (u *LiveOpsEventUpsertBulk) Update(set func(*LiveOpsEventUpsert)) *LiveOpsEventUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&LiveOpsEventUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *LiveOpsEventUpsertBulk) SetUpdatedAt(v time.Time) *LiveOpsEventUpsertBulk {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *LiveOpsEventUpsertBulk) UpdateUpdatedAt() *LiveOpsEventUpsertBulk {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.UpdateUpdatedAt()
+	})
+}
+
+// SetProjectID sets the "project_id" field.
+func (u *LiveOpsEventUpsertBulk) SetProjectID(v int) *LiveOpsEventUpsertBulk {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.SetProjectID(v)
+	})
+}
+
+// UpdateProjectID sets the "project_id" field to the value that was provided on create.
+func (u *LiveOpsEventUpsertBulk) UpdateProjectID() *LiveOpsEventUpsertBulk {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.UpdateProjectID()
+	})
+}
+
+// SetKind sets the "kind" field.
+func (u *LiveOpsEventUpsertBulk) SetKind(v string) *LiveOpsEventUpsertBulk {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.SetKind(v)
+	})
+}
+
+// UpdateKind sets the "kind" field to the value that was provided on create.
+func (u *LiveOpsEventUpsertBulk) UpdateKind() *LiveOpsEventUpsertBulk {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.UpdateKind()
+	})
+}
+
+// SetName sets the "name" field.
+func (u *LiveOpsEventUpsertBulk) SetName(v string) *LiveOpsEventUpsertBulk {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.SetName(v)
+	})
+}
+
+// UpdateName sets the "name" field to the value that was provided on create.
+func (u *LiveOpsEventUpsertBulk) UpdateName() *LiveOpsEventUpsertBulk {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.UpdateName()
+	})
+}
+
+// SetStatus sets the "status" field.
+func (u *LiveOpsEventUpsertBulk) SetStatus(v liveopsevent.Status) *LiveOpsEventUpsertBulk {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.SetStatus(v)
+	})
+}
+
+// UpdateStatus sets the "status" field to the value that was provided on create.
+func (u *LiveOpsEventUpsertBulk) UpdateStatus() *LiveOpsEventUpsertBulk {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.UpdateStatus()
+	})
+}
+
+// SetSchedule sets the "schedule" field.
+func (u *LiveOpsEventUpsertBulk) SetSchedule(v liveops.Schedule) *LiveOpsEventUpsertBulk {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.SetSchedule(v)
+	})
+}
+
+// UpdateSchedule sets the "schedule" field to the value that was provided on create.
+func (u *LiveOpsEventUpsertBulk) UpdateSchedule() *LiveOpsEventUpsertBulk {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.UpdateSchedule()
+	})
+}
+
+// SetPriority sets the "priority" field.
+func (u *LiveOpsEventUpsertBulk) SetPriority(v int) *LiveOpsEventUpsertBulk {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.SetPriority(v)
+	})
+}
+
+// AddPriority adds v to the "priority" field.
+func (u *LiveOpsEventUpsertBulk) AddPriority(v int) *LiveOpsEventUpsertBulk {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.AddPriority(v)
+	})
+}
+
+// UpdatePriority sets the "priority" field to the value that was provided on create.
+func (u *LiveOpsEventUpsertBulk) UpdatePriority() *LiveOpsEventUpsertBulk {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.UpdatePriority()
+	})
+}
+
+// SetAudience sets the "audience" field.
+func (u *LiveOpsEventUpsertBulk) SetAudience(v map[string]interface{}) *LiveOpsEventUpsertBulk {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.SetAudience(v)
+	})
+}
+
+// UpdateAudience sets the "audience" field to the value that was provided on create.
+func (u *LiveOpsEventUpsertBulk) UpdateAudience() *LiveOpsEventUpsertBulk {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.UpdateAudience()
+	})
+}
+
+// SetPayload sets the "payload" field.
+func (u *LiveOpsEventUpsertBulk) SetPayload(v jsontext.Value) *LiveOpsEventUpsertBulk {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.SetPayload(v)
+	})
+}
+
+// UpdatePayload sets the "payload" field to the value that was provided on create.
+func (u *LiveOpsEventUpsertBulk) UpdatePayload() *LiveOpsEventUpsertBulk {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.UpdatePayload()
+	})
+}
+
+// SetRollout sets the "rollout" field.
+func (u *LiveOpsEventUpsertBulk) SetRollout(v int) *LiveOpsEventUpsertBulk {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.SetRollout(v)
+	})
+}
+
+// AddRollout adds v to the "rollout" field.
+func (u *LiveOpsEventUpsertBulk) AddRollout(v int) *LiveOpsEventUpsertBulk {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.AddRollout(v)
+	})
+}
+
+// UpdateRollout sets the "rollout" field to the value that was provided on create.
+func (u *LiveOpsEventUpsertBulk) UpdateRollout() *LiveOpsEventUpsertBulk {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.UpdateRollout()
+	})
+}
+
+// SetSalt sets the "salt" field.
+func (u *LiveOpsEventUpsertBulk) SetSalt(v string) *LiveOpsEventUpsertBulk {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.SetSalt(v)
+	})
+}
+
+// UpdateSalt sets the "salt" field to the value that was provided on create.
+func (u *LiveOpsEventUpsertBulk) UpdateSalt() *LiveOpsEventUpsertBulk {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.UpdateSalt()
+	})
+}
+
+// Exec executes the query.
+func (u *LiveOpsEventUpsertBulk) Exec(ctx context.Context) error {
+	if u.create.err != nil {
+		return u.create.err
+	}
+	for i, b := range u.create.builders {
+		if len(b.conflict) != 0 {
+			return fmt.Errorf("global: OnConflict was set for builder %d. Set it on the LiveOpsEventCreateBulk instead", i)
+		}
+	}
+	if len(u.create.conflict) == 0 {
+		return errors.New("global: missing options for LiveOpsEventCreateBulk.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *LiveOpsEventUpsertBulk) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

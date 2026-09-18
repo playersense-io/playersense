@@ -3318,6 +3318,38 @@ actor key — and a query that cannot be expensive cannot be made catastrophic b
 
 ---
 
+### 55.3 Usage and the wallet
+
+The usage page reads `usage_daily`, which the worker derives from `metrics_daily` — §38's rule that
+the billing meter and the cohort tier read the same fact, so an invoice and a chart cannot disagree.
+A day is rewritten while late events can still land (§19.2) and final at eight days, which is what
+makes a closed month reproducible. **Tracked players is reported as the busiest day rather than a
+sum**: adding daily figures counts one player once per day they played.
+
+**The balance is lots, not a number.** §36 sells prepaid credit and promotional credit, and only one
+of them expires — so a single `balance_micros` has nowhere to keep the distinction and no way to
+remove the right half when a promo lapses. Each grant is a row with its own remaining amount and its
+own expiry, and what an account can spend is the sum over the ones that have not lapsed.
+
+Credit is spent **promotional first, soonest to expire first, then purchased oldest first**. A promo
+is the only credit that can be lost; spending a customer's own money while a trial credit ticks down
+to nothing is charging them for something they had already been given
+([ADR 0036](docs/adr/0036-a-wallet-is-lots-because-credit-expires.md)).
+
+A promo lasts **ninety days unless somebody names another date**. Purchased credit never expires and
+cannot be given a date — money a customer paid for is not ours to put a clock on.
+
+The spend path refuses a lapsed lot on its own rather than trusting the stored total, so the running
+total is briefly overstated between midnight and the janitor's sweep and never overspent. The sweep
+writes off each lapsed grant as its own statement line, because a customer asking where their $100
+went is asking about a specific grant.
+
+**Granting credit is not a customer's privilege at any permission.** It is an operator action, behind
+the shared operator token until §56's console and the staff-access model exist — which means today
+the product cannot record *who* granted credit. That is an open item rather than a detail.
+
+---
+
 ## 56. `admin`
 
 Internal PlayerSense operations console.

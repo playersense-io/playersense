@@ -53,13 +53,15 @@ type UserEdges struct {
 	Memberships []*OrganizationMember `json:"memberships,omitempty"`
 	// SentInvitations holds the value of the sent_invitations edge.
 	SentInvitations []*Invitation `json:"sent_invitations,omitempty"`
+	// GrantedCredits holds the value of the granted_credits edge.
+	GrantedCredits []*CreditLot `json:"granted_credits,omitempty"`
 	// AuditEvents holds the value of the audit_events edge.
 	AuditEvents []*AuditEvent `json:"audit_events,omitempty"`
 	// PublishedVersions holds the value of the published_versions edge.
 	PublishedVersions []*ConfigVersion `json:"published_versions,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [4]bool
+	loadedTypes [5]bool
 }
 
 // MembershipsOrErr returns the Memberships value or an error if the edge
@@ -80,10 +82,19 @@ func (e UserEdges) SentInvitationsOrErr() ([]*Invitation, error) {
 	return nil, &NotLoadedError{edge: "sent_invitations"}
 }
 
+// GrantedCreditsOrErr returns the GrantedCredits value or an error if the edge
+// was not loaded in eager-loading.
+func (e UserEdges) GrantedCreditsOrErr() ([]*CreditLot, error) {
+	if e.loadedTypes[2] {
+		return e.GrantedCredits, nil
+	}
+	return nil, &NotLoadedError{edge: "granted_credits"}
+}
+
 // AuditEventsOrErr returns the AuditEvents value or an error if the edge
 // was not loaded in eager-loading.
 func (e UserEdges) AuditEventsOrErr() ([]*AuditEvent, error) {
-	if e.loadedTypes[2] {
+	if e.loadedTypes[3] {
 		return e.AuditEvents, nil
 	}
 	return nil, &NotLoadedError{edge: "audit_events"}
@@ -92,7 +103,7 @@ func (e UserEdges) AuditEventsOrErr() ([]*AuditEvent, error) {
 // PublishedVersionsOrErr returns the PublishedVersions value or an error if the edge
 // was not loaded in eager-loading.
 func (e UserEdges) PublishedVersionsOrErr() ([]*ConfigVersion, error) {
-	if e.loadedTypes[3] {
+	if e.loadedTypes[4] {
 		return e.PublishedVersions, nil
 	}
 	return nil, &NotLoadedError{edge: "published_versions"}
@@ -222,6 +233,11 @@ func (_m *User) QueryMemberships() *OrganizationMemberQuery {
 // QuerySentInvitations queries the "sent_invitations" edge of the User entity.
 func (_m *User) QuerySentInvitations() *InvitationQuery {
 	return NewUserClient(_m.config).QuerySentInvitations(_m)
+}
+
+// QueryGrantedCredits queries the "granted_credits" edge of the User entity.
+func (_m *User) QueryGrantedCredits() *CreditLotQuery {
+	return NewUserClient(_m.config).QueryGrantedCredits(_m)
 }
 
 // QueryAuditEvents queries the "audit_events" edge of the User entity.

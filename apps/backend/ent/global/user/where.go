@@ -702,6 +702,29 @@ func HasSentInvitationsWith(preds ...predicate.Invitation) predicate.User {
 	})
 }
 
+// HasGrantedCredits applies the HasEdge predicate on the "granted_credits" edge.
+func HasGrantedCredits() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, GrantedCreditsTable, GrantedCreditsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasGrantedCreditsWith applies the HasEdge predicate on the "granted_credits" edge with a given conditions (other predicates).
+func HasGrantedCreditsWith(preds ...predicate.CreditLot) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := newGrantedCreditsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // HasAuditEvents applies the HasEdge predicate on the "audit_events" edge.
 func HasAuditEvents() predicate.User {
 	return predicate.User(func(s *sql.Selector) {

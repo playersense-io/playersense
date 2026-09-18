@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"time"
 
+	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
@@ -21,6 +22,7 @@ type BillingPeriodCreate struct {
 	config
 	mutation *BillingPeriodMutation
 	hooks    []Hook
+	conflict []sql.ConflictOption
 }
 
 // SetUID sets the "uid" field.
@@ -440,6 +442,7 @@ func (_c *BillingPeriodCreate) createSpec() (*BillingPeriod, *sqlgraph.CreateSpe
 		_node = &BillingPeriod{config: _c.config}
 		_spec = sqlgraph.NewCreateSpec(billingperiod.Table, sqlgraph.NewFieldSpec(billingperiod.FieldID, field.TypeInt))
 	)
+	_spec.OnConflict = _c.conflict
 	if id, ok := _c.mutation.ID(); ok {
 		_node.ID = id
 		_spec.ID.Value = id
@@ -548,11 +551,350 @@ func (_c *BillingPeriodCreate) createSpec() (*BillingPeriod, *sqlgraph.CreateSpe
 	return _node, _spec
 }
 
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.BillingPeriod.Create().
+//		SetUID(v).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.BillingPeriodUpsert) {
+//			SetUID(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *BillingPeriodCreate) OnConflict(opts ...sql.ConflictOption) *BillingPeriodUpsertOne {
+	_c.conflict = opts
+	return &BillingPeriodUpsertOne{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.BillingPeriod.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *BillingPeriodCreate) OnConflictColumns(columns ...string) *BillingPeriodUpsertOne {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &BillingPeriodUpsertOne{
+		create: _c,
+	}
+}
+
+type (
+	// BillingPeriodUpsertOne is the builder for "upsert"-ing
+	//  one BillingPeriod node.
+	BillingPeriodUpsertOne struct {
+		create *BillingPeriodCreate
+	}
+
+	// BillingPeriodUpsert is the "OnConflict" setter.
+	BillingPeriodUpsert struct {
+		*sql.UpdateSet
+	}
+)
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *BillingPeriodUpsert) SetUpdatedAt(v time.Time) *BillingPeriodUpsert {
+	u.Set(billingperiod.FieldUpdatedAt, v)
+	return u
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *BillingPeriodUpsert) UpdateUpdatedAt() *BillingPeriodUpsert {
+	u.SetExcluded(billingperiod.FieldUpdatedAt)
+	return u
+}
+
+// SetStatus sets the "status" field.
+func (u *BillingPeriodUpsert) SetStatus(v billingperiod.Status) *BillingPeriodUpsert {
+	u.Set(billingperiod.FieldStatus, v)
+	return u
+}
+
+// UpdateStatus sets the "status" field to the value that was provided on create.
+func (u *BillingPeriodUpsert) UpdateStatus() *BillingPeriodUpsert {
+	u.SetExcluded(billingperiod.FieldStatus)
+	return u
+}
+
+// SetClosedAt sets the "closed_at" field.
+func (u *BillingPeriodUpsert) SetClosedAt(v time.Time) *BillingPeriodUpsert {
+	u.Set(billingperiod.FieldClosedAt, v)
+	return u
+}
+
+// UpdateClosedAt sets the "closed_at" field to the value that was provided on create.
+func (u *BillingPeriodUpsert) UpdateClosedAt() *BillingPeriodUpsert {
+	u.SetExcluded(billingperiod.FieldClosedAt)
+	return u
+}
+
+// ClearClosedAt clears the value of the "closed_at" field.
+func (u *BillingPeriodUpsert) ClearClosedAt() *BillingPeriodUpsert {
+	u.SetNull(billingperiod.FieldClosedAt)
+	return u
+}
+
+// SetReportedAt sets the "reported_at" field.
+func (u *BillingPeriodUpsert) SetReportedAt(v time.Time) *BillingPeriodUpsert {
+	u.Set(billingperiod.FieldReportedAt, v)
+	return u
+}
+
+// UpdateReportedAt sets the "reported_at" field to the value that was provided on create.
+func (u *BillingPeriodUpsert) UpdateReportedAt() *BillingPeriodUpsert {
+	u.SetExcluded(billingperiod.FieldReportedAt)
+	return u
+}
+
+// ClearReportedAt clears the value of the "reported_at" field.
+func (u *BillingPeriodUpsert) ClearReportedAt() *BillingPeriodUpsert {
+	u.SetNull(billingperiod.FieldReportedAt)
+	return u
+}
+
+// SetStripeInvoiceID sets the "stripe_invoice_id" field.
+func (u *BillingPeriodUpsert) SetStripeInvoiceID(v string) *BillingPeriodUpsert {
+	u.Set(billingperiod.FieldStripeInvoiceID, v)
+	return u
+}
+
+// UpdateStripeInvoiceID sets the "stripe_invoice_id" field to the value that was provided on create.
+func (u *BillingPeriodUpsert) UpdateStripeInvoiceID() *BillingPeriodUpsert {
+	u.SetExcluded(billingperiod.FieldStripeInvoiceID)
+	return u
+}
+
+// ClearStripeInvoiceID clears the value of the "stripe_invoice_id" field.
+func (u *BillingPeriodUpsert) ClearStripeInvoiceID() *BillingPeriodUpsert {
+	u.SetNull(billingperiod.FieldStripeInvoiceID)
+	return u
+}
+
+// UpdateNewValues updates the mutable fields using the new values that were set on create except the ID field.
+// Using this option is equivalent to using:
+//
+//	client.BillingPeriod.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//			sql.ResolveWith(func(u *sql.UpdateSet) {
+//				u.SetIgnore(billingperiod.FieldID)
+//			}),
+//		).
+//		Exec(ctx)
+func (u *BillingPeriodUpsertOne) UpdateNewValues() *BillingPeriodUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		if _, exists := u.create.mutation.ID(); exists {
+			s.SetIgnore(billingperiod.FieldID)
+		}
+		if _, exists := u.create.mutation.UID(); exists {
+			s.SetIgnore(billingperiod.FieldUID)
+		}
+		if _, exists := u.create.mutation.CreatedAt(); exists {
+			s.SetIgnore(billingperiod.FieldCreatedAt)
+		}
+		if _, exists := u.create.mutation.AccountID(); exists {
+			s.SetIgnore(billingperiod.FieldAccountID)
+		}
+		if _, exists := u.create.mutation.PeriodStart(); exists {
+			s.SetIgnore(billingperiod.FieldPeriodStart)
+		}
+		if _, exists := u.create.mutation.PeriodEnd(); exists {
+			s.SetIgnore(billingperiod.FieldPeriodEnd)
+		}
+		if _, exists := u.create.mutation.PlanKey(); exists {
+			s.SetIgnore(billingperiod.FieldPlanKey)
+		}
+		if _, exists := u.create.mutation.PlanPriceMicros(); exists {
+			s.SetIgnore(billingperiod.FieldPlanPriceMicros)
+		}
+		if _, exists := u.create.mutation.TrackedPlayers(); exists {
+			s.SetIgnore(billingperiod.FieldTrackedPlayers)
+		}
+		if _, exists := u.create.mutation.EventsAccepted(); exists {
+			s.SetIgnore(billingperiod.FieldEventsAccepted)
+		}
+		if _, exists := u.create.mutation.RetainedByteDays(); exists {
+			s.SetIgnore(billingperiod.FieldRetainedByteDays)
+		}
+		if _, exists := u.create.mutation.Included(); exists {
+			s.SetIgnore(billingperiod.FieldIncluded)
+		}
+		if _, exists := u.create.mutation.AmountMicros(); exists {
+			s.SetIgnore(billingperiod.FieldAmountMicros)
+		}
+		if _, exists := u.create.mutation.Currency(); exists {
+			s.SetIgnore(billingperiod.FieldCurrency)
+		}
+	}))
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.BillingPeriod.Create().
+//	    OnConflict(sql.ResolveWithIgnore()).
+//	    Exec(ctx)
+func (u *BillingPeriodUpsertOne) Ignore() *BillingPeriodUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *BillingPeriodUpsertOne) DoNothing() *BillingPeriodUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the BillingPeriodCreate.OnConflict
+// documentation for more info.
+func (u *BillingPeriodUpsertOne) Update(set func(*BillingPeriodUpsert)) *BillingPeriodUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&BillingPeriodUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *BillingPeriodUpsertOne) SetUpdatedAt(v time.Time) *BillingPeriodUpsertOne {
+	return u.Update(func(s *BillingPeriodUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *BillingPeriodUpsertOne) UpdateUpdatedAt() *BillingPeriodUpsertOne {
+	return u.Update(func(s *BillingPeriodUpsert) {
+		s.UpdateUpdatedAt()
+	})
+}
+
+// SetStatus sets the "status" field.
+func (u *BillingPeriodUpsertOne) SetStatus(v billingperiod.Status) *BillingPeriodUpsertOne {
+	return u.Update(func(s *BillingPeriodUpsert) {
+		s.SetStatus(v)
+	})
+}
+
+// UpdateStatus sets the "status" field to the value that was provided on create.
+func (u *BillingPeriodUpsertOne) UpdateStatus() *BillingPeriodUpsertOne {
+	return u.Update(func(s *BillingPeriodUpsert) {
+		s.UpdateStatus()
+	})
+}
+
+// SetClosedAt sets the "closed_at" field.
+func (u *BillingPeriodUpsertOne) SetClosedAt(v time.Time) *BillingPeriodUpsertOne {
+	return u.Update(func(s *BillingPeriodUpsert) {
+		s.SetClosedAt(v)
+	})
+}
+
+// UpdateClosedAt sets the "closed_at" field to the value that was provided on create.
+func (u *BillingPeriodUpsertOne) UpdateClosedAt() *BillingPeriodUpsertOne {
+	return u.Update(func(s *BillingPeriodUpsert) {
+		s.UpdateClosedAt()
+	})
+}
+
+// ClearClosedAt clears the value of the "closed_at" field.
+func (u *BillingPeriodUpsertOne) ClearClosedAt() *BillingPeriodUpsertOne {
+	return u.Update(func(s *BillingPeriodUpsert) {
+		s.ClearClosedAt()
+	})
+}
+
+// SetReportedAt sets the "reported_at" field.
+func (u *BillingPeriodUpsertOne) SetReportedAt(v time.Time) *BillingPeriodUpsertOne {
+	return u.Update(func(s *BillingPeriodUpsert) {
+		s.SetReportedAt(v)
+	})
+}
+
+// UpdateReportedAt sets the "reported_at" field to the value that was provided on create.
+func (u *BillingPeriodUpsertOne) UpdateReportedAt() *BillingPeriodUpsertOne {
+	return u.Update(func(s *BillingPeriodUpsert) {
+		s.UpdateReportedAt()
+	})
+}
+
+// ClearReportedAt clears the value of the "reported_at" field.
+func (u *BillingPeriodUpsertOne) ClearReportedAt() *BillingPeriodUpsertOne {
+	return u.Update(func(s *BillingPeriodUpsert) {
+		s.ClearReportedAt()
+	})
+}
+
+// SetStripeInvoiceID sets the "stripe_invoice_id" field.
+func (u *BillingPeriodUpsertOne) SetStripeInvoiceID(v string) *BillingPeriodUpsertOne {
+	return u.Update(func(s *BillingPeriodUpsert) {
+		s.SetStripeInvoiceID(v)
+	})
+}
+
+// UpdateStripeInvoiceID sets the "stripe_invoice_id" field to the value that was provided on create.
+func (u *BillingPeriodUpsertOne) UpdateStripeInvoiceID() *BillingPeriodUpsertOne {
+	return u.Update(func(s *BillingPeriodUpsert) {
+		s.UpdateStripeInvoiceID()
+	})
+}
+
+// ClearStripeInvoiceID clears the value of the "stripe_invoice_id" field.
+func (u *BillingPeriodUpsertOne) ClearStripeInvoiceID() *BillingPeriodUpsertOne {
+	return u.Update(func(s *BillingPeriodUpsert) {
+		s.ClearStripeInvoiceID()
+	})
+}
+
+// Exec executes the query.
+func (u *BillingPeriodUpsertOne) Exec(ctx context.Context) error {
+	if len(u.create.conflict) == 0 {
+		return errors.New("global: missing options for BillingPeriodCreate.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *BillingPeriodUpsertOne) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// Exec executes the UPSERT query and returns the inserted/updated ID.
+func (u *BillingPeriodUpsertOne) ID(ctx context.Context) (id int, err error) {
+	node, err := u.create.Save(ctx)
+	if err != nil {
+		return id, err
+	}
+	return node.ID, nil
+}
+
+// IDX is like ID, but panics if an error occurs.
+func (u *BillingPeriodUpsertOne) IDX(ctx context.Context) int {
+	id, err := u.ID(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
 // BillingPeriodCreateBulk is the builder for creating many BillingPeriod entities in bulk.
 type BillingPeriodCreateBulk struct {
 	config
 	err      error
 	builders []*BillingPeriodCreate
+	conflict []sql.ConflictOption
 }
 
 // Save creates the BillingPeriod entities in the database.
@@ -582,6 +924,7 @@ func (_c *BillingPeriodCreateBulk) Save(ctx context.Context) ([]*BillingPeriod, 
 					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
 				} else {
 					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+					spec.OnConflict = _c.conflict
 					// Invoke the actual operation on the latest mutation in the chain.
 					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
 						if sqlgraph.IsConstraintError(err) {
@@ -632,6 +975,250 @@ func (_c *BillingPeriodCreateBulk) Exec(ctx context.Context) error {
 // ExecX is like Exec, but panics if an error occurs.
 func (_c *BillingPeriodCreateBulk) ExecX(ctx context.Context) {
 	if err := _c.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.BillingPeriod.CreateBulk(builders...).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.BillingPeriodUpsert) {
+//			SetUID(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *BillingPeriodCreateBulk) OnConflict(opts ...sql.ConflictOption) *BillingPeriodUpsertBulk {
+	_c.conflict = opts
+	return &BillingPeriodUpsertBulk{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.BillingPeriod.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *BillingPeriodCreateBulk) OnConflictColumns(columns ...string) *BillingPeriodUpsertBulk {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &BillingPeriodUpsertBulk{
+		create: _c,
+	}
+}
+
+// BillingPeriodUpsertBulk is the builder for "upsert"-ing
+// a bulk of BillingPeriod nodes.
+type BillingPeriodUpsertBulk struct {
+	create *BillingPeriodCreateBulk
+}
+
+// UpdateNewValues updates the mutable fields using the new values that
+// were set on create. Using this option is equivalent to using:
+//
+//	client.BillingPeriod.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//			sql.ResolveWith(func(u *sql.UpdateSet) {
+//				u.SetIgnore(billingperiod.FieldID)
+//			}),
+//		).
+//		Exec(ctx)
+func (u *BillingPeriodUpsertBulk) UpdateNewValues() *BillingPeriodUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		for _, b := range u.create.builders {
+			if _, exists := b.mutation.ID(); exists {
+				s.SetIgnore(billingperiod.FieldID)
+			}
+			if _, exists := b.mutation.UID(); exists {
+				s.SetIgnore(billingperiod.FieldUID)
+			}
+			if _, exists := b.mutation.CreatedAt(); exists {
+				s.SetIgnore(billingperiod.FieldCreatedAt)
+			}
+			if _, exists := b.mutation.AccountID(); exists {
+				s.SetIgnore(billingperiod.FieldAccountID)
+			}
+			if _, exists := b.mutation.PeriodStart(); exists {
+				s.SetIgnore(billingperiod.FieldPeriodStart)
+			}
+			if _, exists := b.mutation.PeriodEnd(); exists {
+				s.SetIgnore(billingperiod.FieldPeriodEnd)
+			}
+			if _, exists := b.mutation.PlanKey(); exists {
+				s.SetIgnore(billingperiod.FieldPlanKey)
+			}
+			if _, exists := b.mutation.PlanPriceMicros(); exists {
+				s.SetIgnore(billingperiod.FieldPlanPriceMicros)
+			}
+			if _, exists := b.mutation.TrackedPlayers(); exists {
+				s.SetIgnore(billingperiod.FieldTrackedPlayers)
+			}
+			if _, exists := b.mutation.EventsAccepted(); exists {
+				s.SetIgnore(billingperiod.FieldEventsAccepted)
+			}
+			if _, exists := b.mutation.RetainedByteDays(); exists {
+				s.SetIgnore(billingperiod.FieldRetainedByteDays)
+			}
+			if _, exists := b.mutation.Included(); exists {
+				s.SetIgnore(billingperiod.FieldIncluded)
+			}
+			if _, exists := b.mutation.AmountMicros(); exists {
+				s.SetIgnore(billingperiod.FieldAmountMicros)
+			}
+			if _, exists := b.mutation.Currency(); exists {
+				s.SetIgnore(billingperiod.FieldCurrency)
+			}
+		}
+	}))
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.BillingPeriod.Create().
+//		OnConflict(sql.ResolveWithIgnore()).
+//		Exec(ctx)
+func (u *BillingPeriodUpsertBulk) Ignore() *BillingPeriodUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *BillingPeriodUpsertBulk) DoNothing() *BillingPeriodUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the BillingPeriodCreateBulk.OnConflict
+// documentation for more info.
+func (u *BillingPeriodUpsertBulk) Update(set func(*BillingPeriodUpsert)) *BillingPeriodUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&BillingPeriodUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *BillingPeriodUpsertBulk) SetUpdatedAt(v time.Time) *BillingPeriodUpsertBulk {
+	return u.Update(func(s *BillingPeriodUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *BillingPeriodUpsertBulk) UpdateUpdatedAt() *BillingPeriodUpsertBulk {
+	return u.Update(func(s *BillingPeriodUpsert) {
+		s.UpdateUpdatedAt()
+	})
+}
+
+// SetStatus sets the "status" field.
+func (u *BillingPeriodUpsertBulk) SetStatus(v billingperiod.Status) *BillingPeriodUpsertBulk {
+	return u.Update(func(s *BillingPeriodUpsert) {
+		s.SetStatus(v)
+	})
+}
+
+// UpdateStatus sets the "status" field to the value that was provided on create.
+func (u *BillingPeriodUpsertBulk) UpdateStatus() *BillingPeriodUpsertBulk {
+	return u.Update(func(s *BillingPeriodUpsert) {
+		s.UpdateStatus()
+	})
+}
+
+// SetClosedAt sets the "closed_at" field.
+func (u *BillingPeriodUpsertBulk) SetClosedAt(v time.Time) *BillingPeriodUpsertBulk {
+	return u.Update(func(s *BillingPeriodUpsert) {
+		s.SetClosedAt(v)
+	})
+}
+
+// UpdateClosedAt sets the "closed_at" field to the value that was provided on create.
+func (u *BillingPeriodUpsertBulk) UpdateClosedAt() *BillingPeriodUpsertBulk {
+	return u.Update(func(s *BillingPeriodUpsert) {
+		s.UpdateClosedAt()
+	})
+}
+
+// ClearClosedAt clears the value of the "closed_at" field.
+func (u *BillingPeriodUpsertBulk) ClearClosedAt() *BillingPeriodUpsertBulk {
+	return u.Update(func(s *BillingPeriodUpsert) {
+		s.ClearClosedAt()
+	})
+}
+
+// SetReportedAt sets the "reported_at" field.
+func (u *BillingPeriodUpsertBulk) SetReportedAt(v time.Time) *BillingPeriodUpsertBulk {
+	return u.Update(func(s *BillingPeriodUpsert) {
+		s.SetReportedAt(v)
+	})
+}
+
+// UpdateReportedAt sets the "reported_at" field to the value that was provided on create.
+func (u *BillingPeriodUpsertBulk) UpdateReportedAt() *BillingPeriodUpsertBulk {
+	return u.Update(func(s *BillingPeriodUpsert) {
+		s.UpdateReportedAt()
+	})
+}
+
+// ClearReportedAt clears the value of the "reported_at" field.
+func (u *BillingPeriodUpsertBulk) ClearReportedAt() *BillingPeriodUpsertBulk {
+	return u.Update(func(s *BillingPeriodUpsert) {
+		s.ClearReportedAt()
+	})
+}
+
+// SetStripeInvoiceID sets the "stripe_invoice_id" field.
+func (u *BillingPeriodUpsertBulk) SetStripeInvoiceID(v string) *BillingPeriodUpsertBulk {
+	return u.Update(func(s *BillingPeriodUpsert) {
+		s.SetStripeInvoiceID(v)
+	})
+}
+
+// UpdateStripeInvoiceID sets the "stripe_invoice_id" field to the value that was provided on create.
+func (u *BillingPeriodUpsertBulk) UpdateStripeInvoiceID() *BillingPeriodUpsertBulk {
+	return u.Update(func(s *BillingPeriodUpsert) {
+		s.UpdateStripeInvoiceID()
+	})
+}
+
+// ClearStripeInvoiceID clears the value of the "stripe_invoice_id" field.
+func (u *BillingPeriodUpsertBulk) ClearStripeInvoiceID() *BillingPeriodUpsertBulk {
+	return u.Update(func(s *BillingPeriodUpsert) {
+		s.ClearStripeInvoiceID()
+	})
+}
+
+// Exec executes the query.
+func (u *BillingPeriodUpsertBulk) Exec(ctx context.Context) error {
+	if u.create.err != nil {
+		return u.create.err
+	}
+	for i, b := range u.create.builders {
+		if len(b.conflict) != 0 {
+			return fmt.Errorf("global: OnConflict was set for builder %d. Set it on the BillingPeriodCreateBulk instead", i)
+		}
+	}
+	if len(u.create.conflict) == 0 {
+		return errors.New("global: missing options for BillingPeriodCreateBulk.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *BillingPeriodUpsertBulk) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

@@ -59,6 +59,7 @@ import (
 	"playersense.dev/backend/internal/core"
 	"playersense.dev/backend/internal/erasure"
 	"playersense.dev/backend/internal/export"
+	"playersense.dev/backend/internal/metering"
 	"playersense.dev/backend/internal/pgdb"
 	"playersense.dev/backend/internal/retention"
 	"playersense.dev/backend/internal/routers"
@@ -212,6 +213,12 @@ type dependencies struct {
 	cell  *pgdb.Cell
 	store blobstore.Store
 	cache *valkey.Client
+
+	// global is the control plane, for the two billing jobs: §40's usage meter writes a day
+	// there and the wallet's expiry sweep writes off lapsed credit. The other three jobs have no
+	// business in it, which is why it arrived last and why it is named rather than folded into
+	// one "database" field.
+	global *pgdb.Global
 }
 
 // lifecycle is the part of muzak.Lifecycle `worker once` drives by hand.
@@ -225,7 +232,7 @@ type lifecycle interface {
 // Only used by `worker once`, which has no application to run the lifecycle for it. The
 // long-running form registers them as singletons and the framework does this.
 func (d dependencies) starters() []lifecycle {
-	out := []lifecycle{d.cell, d.cache}
+	out := []lifecycle{d.cell, d.global, d.cache}
 	if l, ok := d.store.(lifecycle); ok {
 		out = append(out, l)
 	}
@@ -238,9 +245,10 @@ func newDependencies(settings config.Settings) (dependencies, error) {
 		return dependencies{}, err
 	}
 	return dependencies{
-		cell:  pgdb.NewCell(settings.Cell, settings.CellPostgresDSN),
-		store: store,
-		cache: valkey.New(settings.Cell, settings.ValkeyDSN),
+		cell:   pgdb.NewCell(settings.Cell, settings.CellPostgresDSN),
+		global: pgdb.NewGlobal(settings.GlobalPostgresDSN),
+		store:  store,
+		cache:  valkey.New(settings.Cell, settings.ValkeyDSN),
 	}, nil
 }
 
@@ -291,6 +299,20 @@ func newJanitor(settings config.Settings, db *chdb.SQL, deps dependencies, log *
 			TTL:     settings.ExportTTL,
 			MaxRows: settings.ExportMaxRows,
 		},
+
+		// §40's usage meter and the wallet's expiry sweep, both against the global tier.
+		//
+		// A cell worker writing to the US-hosted control plane, which §99 permits and the
+		// classification check proves: a usage row is counts and nothing else — "41,207
+		// players were active" is attributable to nobody — and a credit lot is money. Neither
+		// carries a player identifier, which is the rule the two tiers are split under.
+		Meter: &metering.Meter{
+			Global: deps.global,
+			Cell:   deps.cell,
+			CH:     db,
+			Log:    log,
+		},
+		Credit: scheduler.CreditExpiry(deps.global, log, settings.CreditExpiryMaxLots),
 	})
 }
 

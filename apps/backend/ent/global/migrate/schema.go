@@ -272,6 +272,56 @@ var (
 			},
 		},
 	}
+	// CreditLotsColumns holds the columns for the "credit_lots" table.
+	CreditLotsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
+		{Name: "uid", Type: field.TypeUUID, Unique: true, Comment: "class=none"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "updated_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "kind", Type: field.TypeEnum, Comment: "class=none", Enums: []string{"purchase", "promo"}},
+		{Name: "amount_micros", Type: field.TypeInt64, Comment: "class=financial"},
+		{Name: "remaining_micros", Type: field.TypeInt64, Comment: "class=financial"},
+		{Name: "currency", Type: field.TypeString, Size: 3, Comment: "class=financial", Default: "usd"},
+		{Name: "expires_at", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
+		{Name: "granted_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "description", Type: field.TypeString, Size: 255, Comment: "class=none", Default: ""},
+		{Name: "stripe_reference", Type: field.TypeString, Nullable: true, Size: 255, Comment: "class=none"},
+		{Name: "idempotency_key", Type: field.TypeString, Unique: true, Size: 255, Comment: "class=none"},
+		{Name: "account_id", Type: field.TypeInt, Comment: "class=none"},
+		{Name: "granted_by_user_id", Type: field.TypeInt, Nullable: true, Comment: "class=none"},
+	}
+	// CreditLotsTable holds the schema information for the "credit_lots" table.
+	CreditLotsTable = &schema.Table{
+		Name:       "credit_lots",
+		Columns:    CreditLotsColumns,
+		PrimaryKey: []*schema.Column{CreditLotsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "credit_lots_billing_accounts_credit_lots",
+				Columns:    []*schema.Column{CreditLotsColumns[13]},
+				RefColumns: []*schema.Column{BillingAccountsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "credit_lots_users_granted_credits",
+				Columns:    []*schema.Column{CreditLotsColumns[14]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "creditlot_account_id_remaining_micros",
+				Unique:  false,
+				Columns: []*schema.Column{CreditLotsColumns[13], CreditLotsColumns[6]},
+			},
+			{
+				Name:    "creditlot_expires_at_remaining_micros",
+				Unique:  false,
+				Columns: []*schema.Column{CreditLotsColumns[8], CreditLotsColumns[6]},
+			},
+		},
+	}
 	// EnvironmentsColumns holds the columns for the "environments" table.
 	EnvironmentsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
@@ -400,7 +450,7 @@ var (
 		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
 		{Name: "uid", Type: field.TypeUUID, Unique: true, Comment: "class=none"},
 		{Name: "created_at", Type: field.TypeTime, Comment: "class=none"},
-		{Name: "kind", Type: field.TypeEnum, Comment: "class=none", Enums: []string{"topup", "usage", "subscription", "adjustment", "refund"}},
+		{Name: "kind", Type: field.TypeEnum, Comment: "class=none", Enums: []string{"topup", "promo", "usage", "subscription", "adjustment", "refund", "expiry"}},
 		{Name: "amount_micros", Type: field.TypeInt64, Comment: "class=financial"},
 		{Name: "balance_after_micros", Type: field.TypeInt64, Comment: "class=financial"},
 		{Name: "currency", Type: field.TypeString, Size: 3, Comment: "class=financial"},
@@ -847,6 +897,7 @@ var (
 		BillingPeriodsTable,
 		CellsTable,
 		ConfigVersionsTable,
+		CreditLotsTable,
 		EnvironmentsTable,
 		FeatureFlagsTable,
 		InvitationsTable,
@@ -878,6 +929,8 @@ func init() {
 	ConfigVersionsTable.ForeignKeys[1].RefTable = EnvironmentsTable
 	ConfigVersionsTable.ForeignKeys[2].RefTable = ProjectsTable
 	ConfigVersionsTable.ForeignKeys[3].RefTable = UsersTable
+	CreditLotsTable.ForeignKeys[0].RefTable = BillingAccountsTable
+	CreditLotsTable.ForeignKeys[1].RefTable = UsersTable
 	EnvironmentsTable.ForeignKeys[0].RefTable = ProjectsTable
 	FeatureFlagsTable.ForeignKeys[0].RefTable = ProjectsTable
 	InvitationsTable.ForeignKeys[0].RefTable = OrganizationsTable

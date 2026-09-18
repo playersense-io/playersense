@@ -57,6 +57,8 @@ const (
 	EdgePlan = "plan"
 	// EdgeLedgerEntries holds the string denoting the ledger_entries edge name in mutations.
 	EdgeLedgerEntries = "ledger_entries"
+	// EdgeCreditLots holds the string denoting the credit_lots edge name in mutations.
+	EdgeCreditLots = "credit_lots"
 	// EdgePeriods holds the string denoting the periods edge name in mutations.
 	EdgePeriods = "periods"
 	// EdgeStripeEvents holds the string denoting the stripe_events edge name in mutations.
@@ -84,6 +86,13 @@ const (
 	LedgerEntriesInverseTable = "ledger_entries"
 	// LedgerEntriesColumn is the table column denoting the ledger_entries relation/edge.
 	LedgerEntriesColumn = "account_id"
+	// CreditLotsTable is the table that holds the credit_lots relation/edge.
+	CreditLotsTable = "credit_lots"
+	// CreditLotsInverseTable is the table name for the CreditLot entity.
+	// It exists in this package in order to avoid circular dependency with the "creditlot" package.
+	CreditLotsInverseTable = "credit_lots"
+	// CreditLotsColumn is the table column denoting the credit_lots relation/edge.
+	CreditLotsColumn = "account_id"
 	// PeriodsTable is the table that holds the periods relation/edge.
 	PeriodsTable = "billing_periods"
 	// PeriodsInverseTable is the table name for the BillingPeriod entity.
@@ -322,6 +331,20 @@ func ByLedgerEntries(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	}
 }
 
+// ByCreditLotsCount orders the results by credit_lots count.
+func ByCreditLotsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newCreditLotsStep(), opts...)
+	}
+}
+
+// ByCreditLots orders the results by credit_lots terms.
+func ByCreditLots(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newCreditLotsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
 // ByPeriodsCount orders the results by periods count.
 func ByPeriodsCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -368,6 +391,13 @@ func newLedgerEntriesStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(LedgerEntriesInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, LedgerEntriesTable, LedgerEntriesColumn),
+	)
+}
+func newCreditLotsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(CreditLotsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, CreditLotsTable, CreditLotsColumn),
 	)
 }
 func newPeriodsStep() *sqlgraph.Step {

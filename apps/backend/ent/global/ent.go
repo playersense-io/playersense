@@ -18,6 +18,7 @@ import (
 	"playersense.dev/backend/ent/global/billingperiod"
 	"playersense.dev/backend/ent/global/cell"
 	"playersense.dev/backend/ent/global/configversion"
+	"playersense.dev/backend/ent/global/creditlot"
 	"playersense.dev/backend/ent/global/environment"
 	"playersense.dev/backend/ent/global/featureflag"
 	"playersense.dev/backend/ent/global/invitation"
@@ -100,6 +101,7 @@ func checkColumn(t, c string) error {
 			billingperiod.Table:      billingperiod.ValidColumn,
 			cell.Table:               cell.ValidColumn,
 			configversion.Table:      configversion.ValidColumn,
+			creditlot.Table:          creditlot.ValidColumn,
 			environment.Table:        environment.ValidColumn,
 			featureflag.Table:        featureflag.ValidColumn,
 			invitation.Table:         invitation.ValidColumn,
