@@ -77,6 +77,25 @@ pub struct Config {
     /// most likely to have moved.
     pub config_refresh_interval_ms: i64,
 
+    /// Whether reading a flag records that this player saw it (§44).
+    ///
+    /// On, because a flag nobody can measure is a flag nobody can learn from: this is what
+    /// connects a rollout to retention and revenue. Deduplicated to one event per flag per
+    /// config version per session, so the cost is proportional to how many flags a game has
+    /// rather than to how often it reads them.
+    ///
+    /// It is still a cost — those events count against a studio's allowance like any other —
+    /// which is why it can be turned off. A studio using flags as plain remote configuration
+    /// and running no experiments gets nothing from them.
+    pub exposure_events: bool,
+
+    /// The most exposures one session will record.
+    ///
+    /// A ceiling on the surprise rather than a limit anybody should reach: a hundred distinct
+    /// flags read in one session is a game whose exposure stream rivals its analytics, and a
+    /// studio should find that out from a log line rather than from an invoice.
+    pub max_exposures_per_session: usize,
+
     /// Events that force a batch. Below the gateway's hard cap of 1000 so a burst arriving
     /// mid-batch still fits.
     pub max_events_per_batch: usize,
@@ -139,6 +158,8 @@ impl Config {
 
             flush_interval_ms: 30_000,
             config_refresh_interval_ms: 15 * 60 * 1_000,
+            exposure_events: true,
+            max_exposures_per_session: 100,
             max_events_per_batch: 250,
             max_batch_bytes: 128 * 1024,
             session_timeout_ms: 30_000,
@@ -175,6 +196,7 @@ impl Config {
         // One second is the floor, because the endpoint answers per player and a game
         // polling faster than that is a game asking the same question of the same server
         // several times a frame.
+        self.max_exposures_per_session = self.max_exposures_per_session.clamp(1, 10_000);
         self.config_refresh_interval_ms = self
             .config_refresh_interval_ms
             .clamp(1_000, 24 * 60 * 60 * 1_000);

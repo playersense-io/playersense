@@ -13,6 +13,7 @@ use crate::context::{self, Context, Frame, Scope};
 use crate::event::{
     Event, Priority, Recorded, Rejected, Value, envelope, sanitize_properties, valid_name,
 };
+use crate::exposure::{self, Exposures};
 use crate::host::{Host, Level, Request, Response};
 use crate::ids::uuid_v4;
 use crate::liveconfig::{Event as LiveOpsEvent, Flag, LiveConfig};
@@ -105,6 +106,9 @@ pub struct Client<H: Host> {
     /// running on stale flags for an hour, and a config fetch would take the one slot a
     /// session-start event is waiting for.
     liveconfig: LiveConfig,
+
+    /// Which flags this session has already been recorded as having seen (§44).
+    exposures: Exposures,
     consecutive_failures: u32,
     next_attempt_mono_ms: i64,
     /// Stopped attempting until the app is next brought to the foreground (§10).
@@ -178,6 +182,7 @@ impl<H: Host> Client<H> {
             in_flight: None,
             next_request_id: 1,
             liveconfig: LiveConfig::default(),
+            exposures: Exposures::default(),
             consecutive_failures: 0,
             next_attempt_mono_ms: monotonic,
             cold: false,
@@ -536,6 +541,18 @@ impl<H: Host> Client<H> {
         self.send_config_request(monotonic);
     }
 
+    /// Applies a configuration document directly, for tests.
+    ///
+    /// The network path goes through [`Client::on_response`]; this is the same absorption
+    /// without a request, so a test about exposure is a test about exposure rather than three
+    /// lines of request plumbing repeated eight times.
+    #[cfg(test)]
+    pub(crate) fn set_config_for_test(&mut self, document: &str) {
+        let monotonic = self.host.monotonic_ms();
+        self.liveconfig
+            .apply(&self.host, 200, document.as_bytes(), None, monotonic);
+    }
+
     /// Restores the document persisted by a previous run.
     ///
     /// Flags only, in effect: no clock anchor comes off disk, so nothing is reported active
@@ -564,9 +581,114 @@ impl<H: Host> Client<H> {
         self.liveconfig.flag(key)
     }
 
-    /// Every published flag.
+    /// Every published flag. Peeks: reading them all is an inspection rather than a hundred
+    /// decisions, so it records nothing.
     pub fn flags(&self) -> impl Iterator<Item = (&String, &Flag)> {
         self.liveconfig.flags()
+    }
+
+    /// Reads a boolean flag **and records that this player saw it** (§44).
+    ///
+    /// The three typed readers below are what a binding calls; [`Client::flag`] is the peek
+    /// that does not record, for anything inspecting rather than deciding.
+    ///
+    /// `None` means the project published no boolean under that key, and the binding
+    /// substitutes the game's own default — which is still an exposure, recorded with
+    /// `published: false`, because a player running on a default is in neither arm and an
+    /// analysis that could not see that would count the control group as smaller than it was.
+    pub fn read_flag_bool(&mut self, key: &str) -> Option<bool> {
+        let value = match self.liveconfig.flag(key) {
+            Some(Flag::Bool(value)) => Some(*value),
+            _ => None,
+        };
+        self.record_exposure(key, value.map(Value::Bool));
+        value
+    }
+
+    /// Reads a numeric flag and records the exposure. See [`Client::read_flag_bool`].
+    pub fn read_flag_number(&mut self, key: &str) -> Option<f64> {
+        let value = match self.liveconfig.flag(key) {
+            Some(Flag::Number(value)) => Some(*value),
+            _ => None,
+        };
+        self.record_exposure(key, value.map(Value::Float));
+        value
+    }
+
+    /// Reads a string or JSON flag and records the exposure. See [`Client::read_flag_bool`].
+    pub fn read_flag_text(&mut self, key: &str) -> Option<String> {
+        let value = match self.liveconfig.flag(key) {
+            Some(Flag::Text(value)) => Some(value.clone()),
+            Some(Flag::Json(value)) => Some(value.clone()),
+            _ => None,
+        };
+        // A JSON flag's whole document would be a property on every exposure, which for a
+        // shop layout is kilobytes per player per session. The key and the version identify
+        // which variant this was; the document itself is already in the published version.
+        let recorded = match self.liveconfig.flag(key) {
+            Some(Flag::Text(value)) => Some(Value::Str(value.clone())),
+            Some(Flag::Json(_)) => None,
+            _ => None,
+        };
+        self.record_exposure(key, recorded);
+        value
+    }
+
+    /// Records that this player read a flag, at most once per flag per version per session.
+    fn record_exposure(&mut self, key: &str, value: Option<Value>) {
+        if !self.config.exposure_events || key.is_empty() {
+            return;
+        }
+
+        // Before the set is consulted, not after. Starting a session clears the exposures —
+        // a new visit is counted separately — so recording first and letting `track` start the
+        // session would clear the entry just written and the very first flag read of every
+        // session would be recorded twice. It was, until a test counted them.
+        //
+        // A player who has declined is left alone: `track` would refuse the event anyway, and
+        // starting a session for them would be collection nobody consented to.
+        if matches!(self.consent, State::Denied) {
+            return;
+        }
+        self.ensure_session();
+
+        let version = self.liveconfig.version();
+        let max = self.config.max_exposures_per_session;
+        if !self.exposures.first_time(key, version, max) {
+            if self.exposures.newly_capped(max) {
+                self.host.log(
+                    Level::Warn,
+                    &format!(
+                        "this session has recorded {max} feature exposures and will record no                          more; a game reading that many distinct flags produces an exposure                          stream larger than its analytics"
+                    ),
+                );
+            }
+            return;
+        }
+
+        let published = value.is_some() || self.liveconfig.flag(key).is_some();
+        let mut properties = BTreeMap::new();
+        properties.insert(
+            exposure::property::FLAG.to_owned(),
+            Value::Str(key.to_owned()),
+        );
+        properties.insert(
+            exposure::property::VERSION.to_owned(),
+            Value::Int(i64::from(version)),
+        );
+        properties.insert(
+            exposure::property::PUBLISHED.to_owned(),
+            Value::Bool(published),
+        );
+        if let Some(value) = value {
+            properties.insert(exposure::property::VALUE.to_owned(), value);
+        }
+
+        // Ordinary priority: an exposure is a fact about a decision already made, and holding
+        // a batch open for it would flush more often for no one's benefit. The result is
+        // dropped rather than returned — a binding reading a flag is asking about the flag,
+        // and `Rejected` here would be a bug in this function rather than in their call.
+        let _ = self.track(exposure::EVENT_NAME, properties);
     }
 
     /// The LiveOps events on right now, highest priority first.
@@ -923,6 +1045,10 @@ impl<H: Host> Client<H> {
         }
 
         self.session = Some(Session::start(&self.host));
+        // A new session is a new visit, and retention is counted in visits: a player who came
+        // back has to be recorded as having seen the flag again, or the second session looks
+        // like one nobody was in the experiment for.
+        self.exposures.clear();
         let before_context = self.context.revision();
         self.context.session_started();
         if self.context.revision() != before_context {

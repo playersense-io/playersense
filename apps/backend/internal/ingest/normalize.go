@@ -453,12 +453,26 @@ func resolveEventID(supplied, batchID string, index int) (string, error) {
 	return supplied, nil
 }
 
+// ExposureEventName is what an SDK records when a player reads a feature flag (§44).
+//
+// Matched exactly rather than by prefix: the other two rules here are prefix and amount, both
+// of which a studio can trip by accident, and an event named `feature_exposure_v2` is a
+// studio's own event rather than one of ours.
+const ExposureEventName = "feature_exposure"
+
 func eventType(ev *protocol.Event) string {
 	switch {
 	case ev.RevenueMicros > 0:
 		return "purchase"
 	case strings.HasPrefix(ev.EventName, "session_"):
 		return "session"
+	case ev.EventName == ExposureEventName:
+		// Its own type rather than "custom", and the column is LowCardinality(String) so it
+		// costs nothing to add. It earns the place by how it is read: "which players saw
+		// variant B, and what did they do next" scans a type rather than filtering a name
+		// out of every custom event a game sends, which at §4.2's volumes is the difference
+		// between a dashboard and a warehouse job.
+		return "exposure"
 	default:
 		return "custom"
 	}

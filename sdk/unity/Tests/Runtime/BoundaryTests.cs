@@ -229,6 +229,17 @@ namespace PlayerSense.Tests
             Assert.IsTrue(Flags.Bool("", true));
             Assert.IsTrue(Flags.Bool(null, true));
 
+            // Reading a flag records that this player saw it (§44), deduplicated to one per
+            // flag per session — so seven distinct flags read many times each is seven
+            // exposures plus the session start, not one per read.
+            //
+            // Counted through Stats because that is the only thing an editor test can see:
+            // nothing is delivered here, the endpoint is a discard port.
+            ulong tracked = SDK.Stats.EventsTracked;
+            for (int i = 0; i < 50; i++) Flags.Bool("never_published", true);
+            Assert.AreEqual(tracked, SDK.Stats.EventsTracked,
+                "fifty reads of one flag recorded more than the first exposure");
+
             // Nothing was fetched, so nothing claims to be ready and no window is open.
             Assert.IsFalse(Flags.Ready);
             Assert.AreEqual(0u, Flags.Version);

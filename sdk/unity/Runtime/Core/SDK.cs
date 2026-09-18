@@ -243,6 +243,8 @@ namespace PlayerSense
 
                 config.FlushIntervalMs = options.FlushIntervalMs;
                 config.ConfigRefreshIntervalMs = options.ConfigRefreshIntervalMs;
+                config.ExposureEvents = options.ExposureEvents ? 1 : 0;
+                config.MaxExposuresPerSession = options.MaxExposuresPerSession;
                 config.SessionTimeoutMs = options.SessionTimeoutMs;
                 config.Compression = options.Compression ? 1 : 0;
                 config.Debug = options.DebugLogging ? 1 : 0;

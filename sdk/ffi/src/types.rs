@@ -211,6 +211,15 @@ pub struct PsConfig {
     pub backoff_base_ms: i64,
     pub backoff_cap_ms: i64,
 
+    /// Whether reading a flag records that this player saw it (§44). 0 off, 1 on, -1 default.
+    ///
+    /// Three states rather than two, because a zeroed struct is the shape a binding that
+    /// forgot this field sends — and defaulting that to "off" would silently disable the
+    /// thing that makes an experiment measurable.
+    pub exposure_events: i32,
+    /// The most exposures one session records. 0 takes the default.
+    pub max_exposures_per_session: i32,
+
     pub cold_after_failures: i32,
     /// 0 or 1.
     pub compression: i32,

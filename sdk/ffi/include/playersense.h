@@ -278,6 +278,18 @@ typedef struct PsConfig {
     int64_t preconsent_max_events;
     int64_t backoff_base_ms;
     int64_t backoff_cap_ms;
+    /**
+     * Whether reading a flag records that this player saw it (§44). 0 off, 1 on, -1 default.
+     *
+     * Three states rather than two, because a zeroed struct is the shape a binding that
+     * forgot this field sends — and defaulting that to "off" would silently disable the
+     * thing that makes an experiment measurable.
+     */
+    int32_t exposure_events;
+    /**
+     * The most exposures one session records. 0 takes the default.
+     */
+    int32_t max_exposures_per_session;
     int32_t cold_after_failures;
     /**
      * 0 or 1.
@@ -716,6 +728,12 @@ int32_t ps_client_config_anchored(uint64_t client, int32_t *out);
  *
  * The value is untouched on anything but `PS_OK`, so a binding can initialise `out` with the
  * game's own fallback and read it back regardless of the result.
+ *
+ * **Records an exposure** (§44), at most once per flag per config version per session. That
+ * is why this takes a client rather than being a pure lookup: reading a flag is the moment a
+ * player is in an experiment, and a flag nobody can measure is a flag nobody can learn from.
+ * A binding inspecting flags rather than deciding with them — a debug overlay — should not
+ * use these.
  *
  * # Safety
  * `key` must be valid UTF-8 of its stated length; `out` must be a writable `int32_t`.

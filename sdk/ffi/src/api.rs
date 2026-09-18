@@ -11,7 +11,6 @@ use std::sync::atomic::Ordering;
 use playersense_core::consent::State;
 use playersense_core::context::{self, Scope};
 use playersense_core::event;
-use playersense_core::liveconfig::Flag;
 use playersense_core::{Client, Config, Recorded, granted};
 
 use crate::convert::*;
@@ -155,6 +154,8 @@ pub unsafe extern "C" fn ps_config_default(out: *mut PsConfig) {
             preconsent_max_events: defaults.preconsent_max_events as i64,
             backoff_base_ms: defaults.backoff_base_ms,
             backoff_cap_ms: defaults.backoff_cap_ms,
+            exposure_events: i32::from(defaults.exposure_events),
+            max_exposures_per_session: defaults.max_exposures_per_session as i32,
             cold_after_failures: defaults.cold_after_failures as i32,
             compression: i32::from(defaults.compression),
             debug: i32::from(defaults.debug),
@@ -707,6 +708,12 @@ pub unsafe extern "C" fn ps_client_config_anchored(client: u64, out: *mut i32) -
 /// The value is untouched on anything but `PS_OK`, so a binding can initialise `out` with the
 /// game's own fallback and read it back regardless of the result.
 ///
+/// **Records an exposure** (§44), at most once per flag per config version per session. That
+/// is why this takes a client rather than being a pure lookup: reading a flag is the moment a
+/// player is in an experiment, and a flag nobody can measure is a flag nobody can learn from.
+/// A binding inspecting flags rather than deciding with them — a debug overlay — should not
+/// use these.
+///
 /// # Safety
 /// `key` must be valid UTF-8 of its stated length; `out` must be a writable `int32_t`.
 #[unsafe(no_mangle)]
@@ -717,14 +724,14 @@ pub unsafe extern "C" fn ps_client_flag_bool(client: u64, key: PsStr, out: *mut 
     let Ok(key) = (unsafe { str_strict(key) }) else {
         return PS_ERR_INVALID_ARGUMENT;
     };
-    with_client(client, |c| match c.flag(key) {
-        Some(Flag::Bool(value)) => {
-            unsafe { *out = i32::from(*value) };
+    with_client(client, |c| match c.read_flag_bool(key) {
+        Some(value) => {
+            unsafe { *out = i32::from(value) };
             PS_OK
         }
         // A flag of another kind is not this flag. Coercing "0" or 0.0 into false would let a
         // studio's typo change what a game does rather than show up as a fallback.
-        _ => PS_NOT_FOUND,
+        None => PS_NOT_FOUND,
     })
 }
 
@@ -740,12 +747,12 @@ pub unsafe extern "C" fn ps_client_flag_number(client: u64, key: PsStr, out: *mu
     let Ok(key) = (unsafe { str_strict(key) }) else {
         return PS_ERR_INVALID_ARGUMENT;
     };
-    with_client(client, |c| match c.flag(key) {
-        Some(Flag::Number(value)) => {
-            unsafe { *out = *value };
+    with_client(client, |c| match c.read_flag_number(key) {
+        Some(value) => {
+            unsafe { *out = value };
             PS_OK
         }
-        _ => PS_NOT_FOUND,
+        None => PS_NOT_FOUND,
     })
 }
 
@@ -771,10 +778,9 @@ pub unsafe extern "C" fn ps_client_flag_text(
     let Ok(key) = (unsafe { str_strict(key) }) else {
         return PS_ERR_INVALID_ARGUMENT;
     };
-    with_client(client, |c| match c.flag(key) {
-        Some(Flag::Text(value)) => unsafe { fill(value.as_bytes(), out, cap, out_len) },
-        Some(Flag::Json(value)) => unsafe { fill(value.as_bytes(), out, cap, out_len) },
-        _ => {
+    with_client(client, |c| match c.read_flag_text(key) {
+        Some(value) => unsafe { fill(value.as_bytes(), out, cap, out_len) },
+        None => {
             if !out_len.is_null() {
                 unsafe { *out_len = 0 };
             }

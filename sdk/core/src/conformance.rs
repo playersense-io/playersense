@@ -1512,3 +1512,185 @@ fn coming_to_the_foreground_asks_again() {
         "coming to the foreground did not ask for a fresh configuration"
     );
 }
+
+// ---- feature exposure (§44) --------------------------------------------------
+
+/// Flushes, answers every request, and returns the exposure events that went out.
+///
+/// The loop is the point. One request is in flight at a time, so a session start that goes
+/// immediately holds the slot and the batch behind it waits — which is the SDK working, not a
+/// test problem. Answering each request until nothing more is sent is what a device does over
+/// the following second.
+fn exposures_of(client: &mut Client<TestHost>) -> Vec<Json> {
+    let mut found = Vec::new();
+
+    for _ in 0..16 {
+        client.flush();
+        let sent = client.host().take_sent();
+        if sent.is_empty() {
+            break;
+        }
+        for request in sent {
+            // Bodies are gzipped by default, which is the whole point of the setting — and
+            // silently parsing a compressed body as JSON is how this helper found nothing at
+            // all and looked like a missing feature.
+            let body = match request.content_encoding {
+                Some("gzip") => gunzip(&request.body),
+                _ => request.body.clone(),
+            };
+            let envelope: Json = serde_json::from_slice(&body).expect("the body is JSON");
+            if let Some(events) = envelope.get("events").and_then(|e| e.as_array()) {
+                for event in events {
+                    if event.get("event_name").and_then(Json::as_str) == Some("feature_exposure") {
+                        found.push(event.clone());
+                    }
+                }
+            }
+            client.on_response(accepted(request.id, 1));
+        }
+    }
+    found
+}
+
+/// A game reading a flag every frame must produce one exposure, not sixty a second (§44).
+#[test]
+fn a_flag_read_repeatedly_is_one_exposure() {
+    let mut client = consenting(TestHost::new());
+    client.set_config_for_test(r#"{"version":4,"flags":{"hud_v2":true},"server_time_ms":1}"#);
+
+    for _ in 0..600 {
+        assert_eq!(client.read_flag_bool("hud_v2"), Some(true));
+    }
+    let exposures = exposures_of(&mut client);
+    assert_eq!(
+        exposures.len(),
+        1,
+        "six hundred reads produced {} exposures",
+        exposures.len()
+    );
+
+    let properties = &exposures[0]["properties"];
+    assert_eq!(properties["flag"], "hud_v2");
+    assert_eq!(properties["value"], true);
+    assert_eq!(properties["config_version"], 4);
+    assert_eq!(properties["published"], true);
+}
+
+/// A publish can move a player between arms mid-session, and an analysis that could not see
+/// that would attribute the second arm's behaviour to the first.
+#[test]
+fn a_new_config_version_is_a_new_exposure() {
+    let mut client = consenting(TestHost::new());
+    client.set_config_for_test(r#"{"version":1,"flags":{"arm":"control"},"server_time_ms":1}"#);
+    client.read_flag_text("arm");
+    client.read_flag_text("arm");
+
+    client.set_config_for_test(r#"{"version":2,"flags":{"arm":"treatment"},"server_time_ms":1}"#);
+    client.read_flag_text("arm");
+
+    let exposures = exposures_of(&mut client);
+    assert_eq!(
+        exposures.len(),
+        2,
+        "a republish did not re-expose the player"
+    );
+    assert_eq!(exposures[0]["properties"]["value"], "control");
+    assert_eq!(exposures[1]["properties"]["value"], "treatment");
+    assert_eq!(exposures[1]["properties"]["config_version"], 2);
+}
+
+/// Retention is counted in visits, so a player who came back has to be recorded as having
+/// seen the flag again — otherwise the second session looks like one nobody was enrolled in.
+#[test]
+fn a_new_session_is_a_new_exposure() {
+    let mut client = consenting(TestHost::new());
+    client.set_config_for_test(r#"{"version":1,"flags":{"hud_v2":true},"server_time_ms":1}"#);
+
+    client.read_flag_bool("hud_v2");
+    client.read_flag_bool("hud_v2");
+    assert_eq!(exposures_of(&mut client).len(), 1);
+
+    // Away for long enough that the session is over, then back.
+    client.background();
+    client.host().advance_ms(10 * 60 * 1_000);
+    client.foreground();
+    client.host().take_sent();
+
+    client.read_flag_bool("hud_v2");
+    assert_eq!(
+        exposures_of(&mut client).len(),
+        1,
+        "the second visit recorded no exposure, so it looks like a session nobody was in"
+    );
+}
+
+/// A player running on the game's own default is in neither arm, and an analysis that could
+/// not see that would count the control group as smaller than it was.
+#[test]
+fn an_unpublished_flag_is_still_an_exposure() {
+    let mut client = consenting(TestHost::new());
+    client.set_config_for_test(r#"{"version":3,"flags":{},"server_time_ms":1}"#);
+
+    assert_eq!(client.read_flag_bool("never_published"), None);
+
+    let exposures = exposures_of(&mut client);
+    assert_eq!(exposures.len(), 1);
+    let properties = &exposures[0]["properties"];
+    assert_eq!(properties["published"], false);
+    assert_eq!(properties["flag"], "never_published");
+    // Deliberately absent: the core does not know what the game's own default was, and
+    // inventing one would be worse than saying nothing.
+    assert!(
+        properties.get("value").is_none(),
+        "a value was recorded for a flag nobody published"
+    );
+}
+
+/// A studio running no experiments gets nothing from exposures and should not pay for them.
+#[test]
+fn exposures_can_be_turned_off() {
+    let mut config = config();
+    config.exposure_events = false;
+    let mut client = Client::new(TestHost::new(), config);
+    client.set_consent(granted("2026-01-15", "authorized", true, 1_789_560_000_000));
+    client.set_config_for_test(r#"{"version":1,"flags":{"hud_v2":true},"server_time_ms":1}"#);
+
+    for _ in 0..10 {
+        client.read_flag_bool("hud_v2");
+    }
+    assert!(exposures_of(&mut client).is_empty());
+}
+
+/// Peeking is not deciding: a binding listing every flag for a debug overlay must not enrol
+/// the player in every experiment at once.
+#[test]
+fn peeking_at_a_flag_records_nothing() {
+    let mut client = consenting(TestHost::new());
+    client.set_config_for_test(r#"{"version":1,"flags":{"a":true,"b":false},"server_time_ms":1}"#);
+
+    assert!(client.flag("a").is_some());
+    let _: Vec<_> = client.flags().collect();
+
+    assert!(
+        exposures_of(&mut client).is_empty(),
+        "inspecting the flags enrolled the player in all of them"
+    );
+}
+
+/// A game reading hundreds of distinct flags produces an exposure stream larger than its
+/// analytics. The cap is a ceiling on the surprise, and it says so once.
+#[test]
+fn a_session_stops_recording_after_the_cap() {
+    let mut config = config();
+    config.max_exposures_per_session = 5;
+    let mut client = Client::new(TestHost::new(), config);
+    client.set_consent(granted("2026-01-15", "authorized", true, 1_789_560_000_000));
+    client.set_config_for_test(r#"{"version":1,"flags":{},"server_time_ms":1}"#);
+
+    for i in 0..20 {
+        client.read_flag_bool(&format!("flag_{i}"));
+    }
+
+    assert_eq!(exposures_of(&mut client).len(), 5);
+    assert!(client.host().logged("feature exposures"));
+}

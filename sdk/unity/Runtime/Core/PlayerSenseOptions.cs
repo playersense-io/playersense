@@ -46,6 +46,30 @@ namespace PlayerSense
         /// </remarks>
         public int ConfigRefreshIntervalMs = 15 * 60 * 1000;
 
+        /// <summary>
+        /// Records which players saw which flag values, so a rollout can be measured.
+        /// </summary>
+        /// <remarks>
+        /// On, because this is what connects a feature flag to retention, conversion and
+        /// revenue — a flag nobody can measure is a flag nobody can learn from.
+        ///
+        /// One event per flag per config version per session, however often your game reads
+        /// it: reading a flag in <c>Update</c> costs one event, not sixty a second. They are
+        /// still events and count against your allowance like any other, which is why this
+        /// can be turned off — if you use flags as plain remote configuration and run no
+        /// experiments, you get nothing from them.
+        /// </remarks>
+        public bool ExposureEvents = true;
+
+        /// <summary>The most exposures one session records.</summary>
+        /// <remarks>
+        /// A ceiling on the surprise rather than a limit anybody should reach. A hundred
+        /// distinct flags read in one session is a game whose exposure stream rivals its
+        /// analytics, and the SDK says so in the log once rather than letting you find out
+        /// from an invoice.
+        /// </remarks>
+        public int MaxExposuresPerSession = 100;
+
         /// <summary>Logs every dropped event and every refusal, rather than only the serious ones.</summary>
         public bool DebugLogging;
 
@@ -62,6 +86,7 @@ namespace PlayerSense
                 ? "https://ingest.eu-1.playersense.dev"
                 : settings.endpoint,
             ConfigEndpoint = settings.configEndpoint ?? "",
+            ExposureEvents = settings.exposureEvents,
             Environment = settings.environment,
             DebugLogging = settings.debugLogging,
         };
@@ -87,6 +112,10 @@ namespace PlayerSense
 
         [Tooltip("Start the SDK before the first scene loads, using the key above.")]
         public bool autoInitialize = true;
+
+        [Tooltip("Record which players saw which flag values, so a rollout can be measured. " +
+                 "One event per flag per config version per session.")]
+        public bool exposureEvents = true;
 
         [Tooltip("Log every dropped event and every refusal, not only the serious ones.")]
         public bool debugLogging;

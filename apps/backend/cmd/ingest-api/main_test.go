@@ -569,3 +569,52 @@ func TestTheAcceptedMessageCarriesItsCell(t *testing.T) {
 		t.Errorf("message cell = %q, want %q", msgs[0].Cell, f.home.Slug)
 	}
 }
+
+// An exposure is its own kind of event (§44).
+//
+// Not "custom", because of how it is read: "which players saw variant B, and what did they do
+// next" scans a type rather than filtering one name out of every custom event a game sends.
+// Matched exactly rather than by prefix — an event named `feature_exposure_v2` is the studio's
+// own, and stealing their namespace is how a product decides what a customer's data means.
+func TestAnExposureIsItsOwnEventType(t *testing.T) {
+	f := newFixture(t, "standard")
+
+	b := batch(
+		event("feature_exposure", map[string]any{
+			"properties": map[string]any{
+				"flag": "hud_v2", "value": true, "config_version": 7, "published": true,
+			},
+		}),
+		event("feature_exposure_v2", nil),
+		event("level_completed", nil),
+	)
+	f.client.Post("/v1/batches", testclient.JSON(b)).AssertStatus(http.StatusAccepted)
+
+	msgs := f.published(t)
+	if len(msgs) != 1 {
+		t.Fatalf("want one message on the bus, got %d", len(msgs))
+	}
+	var payload ingest.NormalizedBatch
+	if err := json.Unmarshal(msgs[0].Payload, &payload); err != nil {
+		t.Fatalf("decode payload: %v", err)
+	}
+
+	for i, want := range []string{"exposure", "custom", "custom"} {
+		if got := payload.Events[i].EventType; got != want {
+			t.Errorf("events[%d] (%s) is %q, want %q",
+				i, payload.Events[i].EventName, got, want)
+		}
+	}
+
+	// The properties a study reads, split by type as §22 requires.
+	exposure := payload.Events[0]
+	if exposure.PropsString["flag"] != "hud_v2" {
+		t.Errorf("flag = %q", exposure.PropsString["flag"])
+	}
+	if exposure.PropsInt["config_version"] != 7 {
+		t.Errorf("config_version = %d", exposure.PropsInt["config_version"])
+	}
+	if exposure.PropsBool["published"] != 1 || exposure.PropsBool["value"] != 1 {
+		t.Errorf("booleans were not split by type: %+v", exposure)
+	}
+}

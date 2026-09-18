@@ -151,6 +151,13 @@ pub unsafe fn config(raw: &PsConfig) -> Result<Config, i32> {
         config.config_refresh_interval_ms = raw.config_refresh_interval_ms;
     }
 
+    if raw.exposure_events >= 0 {
+        config.exposure_events = raw.exposure_events != 0;
+    }
+    if raw.max_exposures_per_session > 0 {
+        config.max_exposures_per_session = raw.max_exposures_per_session as usize;
+    }
+
     if raw.flush_interval_ms > 0 {
         config.flush_interval_ms = raw.flush_interval_ms;
     }

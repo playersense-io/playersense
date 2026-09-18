@@ -25,6 +25,7 @@ pub mod config;
 pub mod consent;
 pub mod context;
 pub mod event;
+pub mod exposure;
 pub mod host;
 pub mod ids;
 pub mod liveconfig;

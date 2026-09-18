@@ -149,6 +149,12 @@ namespace PlayerSense.Core
             public long BackoffBaseMs;
             public long BackoffCapMs;
 
+            // 0 off, 1 on, -1 default. Three states because a zeroed struct is what a binding
+            // that forgot this field sends, and defaulting that to "off" would silently
+            // disable the thing that makes an experiment measurable.
+            public int ExposureEvents;
+            public int MaxExposuresPerSession;
+
             public int ColdAfterFailures;
             public int Compression;
             public int Debug;
