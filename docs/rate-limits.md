@@ -13,7 +13,7 @@ that breaks it is wrong however sensible it looks on its own.
 |---|---|---|
 | `ingest-api` | device, address-in-project, project | a runaway device must not spend the game's budget |
 | `config-api` | device, address-in-project, project | the same, at a tenth of the volume |
-| `control-api` | **nothing**, except email | a limit here can only inconvenience a customer |
+| `control-api` | **nothing** | authentication email actions go directly to Firebase |
 | `query-api` | **nothing** | every query is already bounded individually |
 
 Two of those are absences, and both are deliberate.
@@ -144,43 +144,60 @@ quietly become a number about something else.
 
 ---
 
-## 5. Failing open, and failing closed
+## 5. When Valkey cannot count
 
-When Valkey cannot be reached, the limiter cannot count. What happens next differs by
-surface, and the asymmetry is deliberate.
+Both ingestion and configuration **allow** requests when rate-limit storage fails. §65's
+rule is that losing Valkey costs speed rather than data: refusing every batch or configuration
+request because a cache is unreachable would turn a degraded dependency into a product outage.
 
-| surface | on failure | why |
-|---|---|---|
-| ingestion, configuration | **allow** | §65: losing Valkey costs speed, not data. Refusing every batch in the product because a cache is unreachable turns a degraded dependency into an outage of the thing customers pay for. |
-| email | **refuse** | An email reaches a real person's inbox and cannot be taken back. When we cannot count, we do not send. |
+The storage reports an error, and the SDK limiter's `FailOpen` policy allows the request.
+The limiter also supports reporting that error as a 503 when `FailOpen` is false, but no
+service currently registers that policy. Authentication still requires a valid credential.
 
 ---
 
-## 6. Email is limited, and not because of load
+## 6. Firebase owns authentication email sending
 
-A verification link, an invitation and a password reset each cost money, cost sender
-reputation, and arrive in **somebody else's inbox** whether or not they asked. The person
-being protected is not the one making the request, which is a different argument from every
-other limit in this document — and it is why these survive on a dashboard that is otherwise
-unlimited.
+The dashboard calls Firebase's browser SDK directly for authentication emails. The Go
+backend verifies ID tokens and enforces permissions; resolving a user or reading a dashboard
+does not send email. There is no duplicate email budget in Valkey and no backend Web API key
+or Identity Toolkit URL setting.
 
-| budget | window | limit |
+The dashboard is not implemented yet. Its authentication email behavior is specified here:
+
+| action | Firebase browser SDK method | trigger |
 |---|---|---|
-| per address | 15 minutes | 1 |
-| per organisation | 1 hour | 60 |
+| Send confirmation | `sendEmailVerification(user)` | after email/password signup |
+| Resend confirmation | `sendEmailVerification(user)` | an explicit resend action |
+| Forgot password / request password reset | `sendPasswordResetEmail(auth, email)` | an explicit recovery action |
+| Passwordless sign-in | `sendSignInLinkToEmail(auth, email, settings)` | an explicit sign-in action |
 
-**Per address** is the one that matters, because the address belongs to whoever is being
-written to. Nobody needs the same link twice in a quarter of an hour, and a person who did
-not receive the first will not receive the second — the problem is somewhere else.
+These are Firebase's documented [user-management](https://firebase.google.com/docs/auth/web/manage-users)
+and [email-link authentication](https://firebase.google.com/docs/auth/web/email-link-auth) flows.
+An email-link sign-in already verifies the address; it needs no additional confirmation email.
 
-**Per organisation** stops a studio inviting a thousand strangers in an afternoon. A mailbox
-provider does not distinguish an enthusiastic onboarding from a spam run, and the consequence
-— a domain on a blocklist — lands on every customer at once.
+Disable the sending button while its request is pending. After Firebase accepts a request,
+apply a **60-second button cooldown** before another send. This is PlayerSense's interface
+default, not a Firebase-prescribed interval or a security limit. A browser control can be
+bypassed; Firebase's servers enforce [sending quotas and abuse protections](https://firebase.google.com/docs/auth/limits).
+Firebase acceptance confirms the request, not delivery to the inbox.
 
-Firebase applies a limit of its own, much tighter: measured against a real project, the
-request immediately after a successful send is refused with `TOO_MANY_ATTEMPTS_TRY_LATER`.
-Without our own throttle in front, a person reloading the dashboard would spend that
-allowance in seconds and then be told the send failed — for the one thing that had worked.
+Show provider throttling as a temporary refusal and ask the person to try again later. Do not
+interpret `auth/too-many-requests` as evidence that a previous email was delivered. Other
+failures should offer a retry without imposing the cooldown for a successful send.
+
+Enable Firebase's [email enumeration protection](https://firebase.google.com/support/guides/security-checklist)
+for password recovery and use a generic response such as "If an account exists for this
+address, a password reset email has been requested." Do not disclose account existence.
+
+After confirmation, reload the Firebase user and force an ID-token refresh with
+`getIdToken(user, true)` before sending further backend requests. The backend uses the
+verified claim in that token to permit protected writes. Unverified accounts can still read
+the resources they have access to.
+
+Organisation invitations are a separate, future server-owned email flow. Sending and abuse
+limits belong on the backend when that flow is implemented; no invitation quota is enforced
+or specified today.
 
 ---
 

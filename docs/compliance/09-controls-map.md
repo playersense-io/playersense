@@ -93,7 +93,7 @@ migrate: 1 invariant violation(s)
 | Revocation is immediate | Tombstone on the public half, checked on every cache hit | `internal/core/keyresolver.go` | `TestRevocationTakesEffectImmediately` | **Built** |
 | Digests upgrade as cost parameters rise | `NeedsRehash` on successful verification | `internal/core/apikey.go` | `TestNeedsRehash` | **Built** |
 | Authentication fails closed | 503 when no tier can answer; never a success | `internal/core/keyresolver.go` | `TestAnUncachedKeyFailsClosedDuringAnOutage` | **Built** |
-| Rate limiting fails closed | Storage error is returned, not swallowed | `apps/backend/internal/valkey/ratelimit.go` | `TestUnavailableStorageReportsAnError` | **Built** |
+| Rate-limit storage failures are distinguishable from counts | Storage reports errors; ingestion and configuration allow requests under §65's fail-open policy | `apps/backend/internal/valkey/ratelimit.go`, `internal/ratelimit/ratelimit.go` | `TestUnavailableStorageReportsAnError` (storage error reporting) | **Built** |
 | Limits are shared across instances | Counters in Valkey | `internal/valkey/ratelimit.go` | `TestCountersAreSharedAcrossInstances` | **Built** |
 | A limit window actually resets | `PEXPIRE` only on counter creation | `internal/valkey/ratelimit.go` | `TestWindowIsNotExtended` | **Built** |
 | Nothing unauthenticated reaches the control plane | Guard on every non-operational route | `apps/backend/cmd/control-api/main.go` | `TestControlPlaneIsGuarded`, `TestIngestionIsGuarded` | **Built** |

@@ -1,7 +1,8 @@
-# 0015. Rate-limit counters live in Valkey, and the limiter fails closed
+# 0015. Rate-limit counters live in Valkey
 
 **Status:** Accepted
 **Date:** 2026-09-13
+**Updated:** 2026-09-18
 **Relates to:** project.md §12, §70, §71
 
 ## Context
@@ -31,22 +32,28 @@ return {count, redis.call('PTTL', KEYS[1])}
 every request is the classic mistake here: a window that restarts on each request never
 resets, and a client that keeps knocking is never let back in.
 
-Counting happens **before** the guards, so a request a guard rejects still costs the caller
-its budget — otherwise an unauthenticated flood is free.
+Counting happens in the SDK handlers, after authentication and binding establish the project
+and installation. Device, address-in-project and project budgets are counted together with
+`IncrementMany`, before the cell residency check. Requests rejected before reaching the
+handler do not spend these budgets. See [rate-limits.md](../rate-limits.md) for the current
+policy, which replaces the original framework-wide address limiter.
 
-The tracker keys on an IPv6 `/64` rather than the exact address, because a `/64` is the
+The address budget keys on an IPv6 `/64` rather than the exact address, because a `/64` is the
 block most providers hand out and keying on the address gives such a client a fresh budget
 per request.
 
-**When the storage cannot answer, the limiter reports an error rather than a count**, so
-the framework fails closed. An attacker who can reach the storage should not also get to
-choose the moment limits stop applying.
+**When the storage cannot answer, it reports an error rather than a count.** Ingestion and
+configuration register the limiter with `FailOpen: true`, following §65: a Valkey outage
+should degrade service rather than refuse every SDK request. This replaces the original
+fail-closed policy. Authentication continues to require a valid credential.
+
+Control and query APIs register no request limiter. Authentication emails are requested by
+the dashboard directly from Firebase, which owns their sending quotas and abuse protections.
 
 ## Consequences
 
-- Every request costs a Valkey round trip. This is the one place Valkey is on the hot path
-  in a way §65 does not fully excuse, and the mitigation is that it fails *closed* rather
-  than opening the gate.
+- Every SDK request reaching a handler costs one Valkey round trip for all its budgets.
+  A counting failure allows the request; the storage remains ephemeral acceleration under §65.
 - Shared counters mean one test suite spends the next one's budget. A `RATE_LIMIT_DISABLED`
   setting exists for tests, and the limiter itself is exercised by tests written for it —
   which is a better arrangement than every suite fighting for the same allowance.
@@ -59,7 +66,8 @@ choose the moment limits stop applying.
 several round trips. Two fixed windows — burst and sustained — distinguish a person
 clicking from a script that never stops, which is the distinction that matters here.
 
-**Fail open when Valkey is down.** Hands the attacker a switch.
+**Fail closed when Valkey is down.** The original policy refused requests on storage errors.
+The SDK paths now fail open to preserve service during a cache outage under §65.
 
 ## Enforcement
 

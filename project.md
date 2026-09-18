@@ -3050,6 +3050,12 @@ Never ship this inside a game binary.
 Used by studio users and the Nuxt client/admin applications. A per-user credential, not a
 key of the classes above, and it resolves to a user rather than to a project.
 
+Firebase Authentication owns sign-in and authentication email delivery. The dashboard uses
+Firebase's browser SDK for confirmation, confirmation resends, password recovery and
+passwordless sign-in emails. The backend verifies Firebase ID tokens and enforces permissions;
+an unverified address permits authorised reads but withholds protected writes. It does not
+send emails while resolving the user and needs no Firebase Web API key.
+
 ### Webhook signing secret
 
 Dedicated secret for outbound signature validation (§51).
@@ -3173,6 +3179,14 @@ API Keys
 ```
 
 Analytics pages call `query-api`; configuration pages call `control-api`.
+
+The dashboard application is not implemented yet. Authentication email actions will call
+Firebase directly, disable duplicate submissions while pending, and use a 60-second button
+cooldown after Firebase accepts a send. Firebase enforces the server-side sending protections;
+the cooldown is an interface default. After confirmation, refresh the Firebase user and ID
+token so the backend receives the updated verified claim. Recovery responses must not disclose
+whether an account exists. The full behavior and Firebase references are in
+[docs/rate-limits.md §6](docs/rate-limits.md#6-firebase-owns-authentication-email-sending).
 
 ---
 
