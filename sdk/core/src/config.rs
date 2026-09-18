@@ -40,6 +40,15 @@ pub struct Config {
     /// this is a starting point rather than a fixed address (§9).
     pub endpoint: String,
 
+    /// The cell's configuration endpoint, where flags and LiveOps events come from (§42).
+    ///
+    /// A second address rather than a path on the first, because they are different services
+    /// with very different traffic: one takes a million writes a minute and the other answers
+    /// a question once a session. Empty turns the whole feature off — every flag falls back
+    /// and no event is ever active — which is what a studio using only analytics wants and
+    /// should not have to pay a request for.
+    pub config_endpoint: String,
+
     /// development, staging or production. Informational: the key is the authority, and a
     /// batch claiming another environment is refused (§76).
     pub environment: String,
@@ -55,6 +64,18 @@ pub struct Config {
     /// How long a batch of ordinary events waits before it is sent. Critical events — a
     /// session start, anything carrying revenue — do not wait for it (§7).
     pub flush_interval_ms: i64,
+
+    /// How often the configuration is asked for again.
+    ///
+    /// Fifteen minutes because that is the granularity a studio can reason about: a LiveOps
+    /// event published now reaches a session already in progress within a quarter of an hour,
+    /// and a session shorter than that got its answer when it started. Polling harder would
+    /// buy a finer number nobody can act on, per device, forever.
+    ///
+    /// It is a floor rather than a schedule: bringing the app to the foreground asks
+    /// immediately, because a game resumed after three hours is the case where the answer is
+    /// most likely to have moved.
+    pub config_refresh_interval_ms: i64,
 
     /// Events that force a batch. Below the gateway's hard cap of 1000 so a burst arriving
     /// mid-batch still fits.
@@ -105,6 +126,7 @@ impl Config {
         Self {
             api_key: api_key.into(),
             endpoint: endpoint.into(),
+            config_endpoint: String::new(),
             environment: "production".into(),
 
             sdk_name: "unknown".into(),
@@ -116,6 +138,7 @@ impl Config {
             locale: String::new(),
 
             flush_interval_ms: 30_000,
+            config_refresh_interval_ms: 15 * 60 * 1_000,
             max_events_per_batch: 250,
             max_batch_bytes: 128 * 1024,
             session_timeout_ms: 30_000,
@@ -149,6 +172,12 @@ impl Config {
             .clamp(1, limits::MAX_EVENTS_PER_BATCH);
         self.max_batch_bytes = self.max_batch_bytes.clamp(1024, limits::MAX_BODY_BYTES);
         self.flush_interval_ms = self.flush_interval_ms.clamp(100, 600_000);
+        // One second is the floor, because the endpoint answers per player and a game
+        // polling faster than that is a game asking the same question of the same server
+        // several times a frame.
+        self.config_refresh_interval_ms = self
+            .config_refresh_interval_ms
+            .clamp(1_000, 24 * 60 * 60 * 1_000);
         self.session_timeout_ms = self.session_timeout_ms.clamp(1_000, 24 * 3_600_000);
         // Never longer than the server's skew window: past it, every event is rewritten.
         self.spool_max_age_ms = self.spool_max_age_ms.clamp(60_000, limits::SKEW_PAST_MS);

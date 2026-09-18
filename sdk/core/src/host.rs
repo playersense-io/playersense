@@ -57,6 +57,16 @@ pub struct Request {
     pub api_key: String,
     /// `Some("gzip")`, or `None` for an uncompressed body.
     pub content_encoding: Option<&'static str>,
+
+    /// Sent as `If-None-Match` when present, so a server with nothing new to say can answer
+    /// 304 and no body.
+    ///
+    /// A field rather than a general header map, because one conditional request is the whole
+    /// of what the protocol needs and a map would invite a binding to add headers the server
+    /// does not read. A host that ignores this is still correct — it receives 200s where it
+    /// could have had 304s, and nothing else changes.
+    pub if_none_match: Option<String>,
+
     pub body: Vec<u8>,
 }
 
@@ -70,6 +80,11 @@ pub struct Response {
     pub status: u16,
     /// `Retry-After`, in milliseconds, when the server sent one.
     pub retry_after_ms: Option<i64>,
+
+    /// The response's `ETag`, when it sent one. Kept and returned on the next conditional
+    /// request; a host that does not pass it through costs bandwidth and nothing else.
+    pub etag: Option<String>,
+
     pub body: Vec<u8>,
 }
 

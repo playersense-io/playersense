@@ -212,6 +212,7 @@ namespace PlayerSense
             var scratch = new Utf8Scratch();
             var key = scratch.Write(options.ProjectKey);
             var endpoint = scratch.Write(options.Endpoint);
+            var configEndpoint = scratch.Write(options.ConfigEndpoint);
             var environment = scratch.Write(options.Environment);
             var sdkName = scratch.Write("unity");
             var sdkVersion = scratch.Write(PackageVersion);
@@ -235,8 +236,13 @@ namespace PlayerSense
                 config.Platform = platform.Resolve(origin);
                 config.OsVersion = osVersion.Resolve(origin);
                 config.Locale = locale.Resolve(origin);
+                // Absent rather than empty when the studio uses analytics alone, so the SDK
+                // never asks for an answer nobody reads.
+                if (!string.IsNullOrEmpty(options.ConfigEndpoint))
+                    config.ConfigEndpoint = configEndpoint.Resolve(origin);
 
                 config.FlushIntervalMs = options.FlushIntervalMs;
+                config.ConfigRefreshIntervalMs = options.ConfigRefreshIntervalMs;
                 config.SessionTimeoutMs = options.SessionTimeoutMs;
                 config.Compression = options.Compression ? 1 : 0;
                 config.Debug = options.DebugLogging ? 1 : 0;

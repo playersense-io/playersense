@@ -68,6 +68,18 @@ pub const PS_ERR_POISONED: i32 = -6;
 /// The binding and the binary disagree about the ABI.
 pub const PS_ERR_ABI_MISMATCH: i32 = -7;
 
+/// The project has not published a flag with that key.
+///
+/// Distinct from every other result on purpose, and distinct from a value: a binding folds it
+/// into the game's own fallback, and cannot do that if "not published" and "published as
+/// false" arrive as the same answer. Not an error a caller should log — most games ask about
+/// flags that only some environments have.
+///
+/// **3, not 1.** Every non-negative code in this ABI means something different, and 1 already
+/// means [`PS_HELD_FOR_CONSENT`]. Two meanings for one number is how a binding that checks
+/// `status > 0` generically ends up treating a missing flag as a held event.
+pub const PS_NOT_FOUND: i32 = 3;
+
 /// The event name is empty, too long, or outside `[a-zA-Z0-9_.:-]`.
 pub const PS_REJECTED_EVENT_NAME: i32 = -20;
 /// More properties than one event may carry.
@@ -181,7 +193,14 @@ pub struct PsConfig {
     pub os_version: PsStr,
     pub locale: PsStr,
 
+    /// Where flags and LiveOps events come from (§42). `{ NULL, 0 }` turns the feature off:
+    /// every flag answers with its fallback and no event is ever running, which is what a
+    /// studio using only analytics wants and should not pay a request for.
+    pub config_endpoint: PsStr,
+
     pub flush_interval_ms: i64,
+    /// How often the configuration is asked for again. 0 takes the default.
+    pub config_refresh_interval_ms: i64,
     pub max_events_per_batch: i64,
     pub max_batch_bytes: i64,
     pub session_timeout_ms: i64,
@@ -214,6 +233,11 @@ pub struct PsRequest {
     pub api_key: PsStr,
     /// `{ NULL, 0 }` when the body is not compressed.
     pub content_encoding: PsStr,
+    /// Sent as `If-None-Match`, or `{ NULL, 0 }` when the request is not conditional.
+    ///
+    /// A host that ignores it is still correct: it receives a body where it could have had a
+    /// 304, and the configuration it gets is the same either way. Only bandwidth is lost.
+    pub if_none_match: PsStr,
     pub body: *const u8,
     pub body_len: i64,
 }

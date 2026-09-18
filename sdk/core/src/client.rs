@@ -15,6 +15,7 @@ use crate::event::{
 };
 use crate::host::{Host, Level, Request, Response};
 use crate::ids::uuid_v4;
+use crate::liveconfig::{Event as LiveOpsEvent, Flag, LiveConfig};
 use crate::session::Session;
 use crate::spool;
 use crate::transport::{self, Disposition};
@@ -96,6 +97,14 @@ pub struct Client<H: Host> {
 
     in_flight: Option<InFlight>,
     next_request_id: u64,
+
+    /// Flags and LiveOps events, and the state of asking for them (§41, §42).
+    ///
+    /// Its own in-flight slot rather than sharing the batch path's, because the two must not
+    /// block each other: a spool that cannot upload for an hour would otherwise mean a game
+    /// running on stale flags for an hour, and a config fetch would take the one slot a
+    /// session-start event is waiting for.
+    liveconfig: LiveConfig,
     consecutive_failures: u32,
     next_attempt_mono_ms: i64,
     /// Stopped attempting until the app is next brought to the foreground (§10).
@@ -168,6 +177,7 @@ impl<H: Host> Client<H> {
             last_batch_mono_ms: monotonic,
             in_flight: None,
             next_request_id: 1,
+            liveconfig: LiveConfig::default(),
             consecutive_failures: 0,
             next_attempt_mono_ms: monotonic,
             cold: false,
@@ -472,6 +482,10 @@ impl<H: Host> Client<H> {
         self.cold = false;
         self.next_attempt_mono_ms = monotonic;
         self.pump();
+
+        // A game resumed after three hours is the case where the answer is most likely to
+        // have moved, so the interval is brought forward rather than waited out.
+        self.refresh_config();
     }
 
     /// The app went away. **Spool first, then attempt the network.**
@@ -498,6 +512,161 @@ impl<H: Host> Client<H> {
             self.seal_batch();
         }
         self.pump();
+
+        if self
+            .liveconfig
+            .due(monotonic, self.config.config_refresh_interval_ms)
+        {
+            self.send_config_request(monotonic);
+        }
+    }
+
+    // ---- configuration ------------------------------------------------------
+
+    /// Asks for this player's configuration now, if one is not already in flight.
+    ///
+    /// Called on foreground and on the refresh interval, and safe to call directly: a studio
+    /// that has just changed what it segments on — the player finished the tutorial, joined a
+    /// guild — wants the answer that follows from it rather than the one from before.
+    pub fn refresh_config(&mut self) {
+        let monotonic = self.host.monotonic_ms();
+        if self.liveconfig.in_flight() {
+            return;
+        }
+        self.send_config_request(monotonic);
+    }
+
+    /// Restores the document persisted by a previous run.
+    ///
+    /// Flags only, in effect: no clock anchor comes off disk, so nothing is reported active
+    /// until the server has been heard from. See the module comment in `liveconfig`.
+    pub fn restore_config(&mut self) {
+        self.liveconfig.restore(&self.host);
+    }
+
+    /// The published version behind the current answers. Zero when none has been fetched.
+    pub fn config_version(&self) -> u32 {
+        self.liveconfig.version()
+    }
+
+    /// Whether the server has been heard from in this process, which is what makes a window
+    /// meaningful.
+    pub fn config_anchored(&self) -> bool {
+        self.liveconfig.anchored()
+    }
+
+    /// One flag's published value, or None when the project has no such flag.
+    ///
+    /// None rather than a default, so a caller can tell "not published" from "published as
+    /// false". The bindings fold it into the game's own fallback at the call site, which is
+    /// where the fallback belongs — a default chosen here would be a default nobody chose.
+    pub fn flag(&self, key: &str) -> Option<&Flag> {
+        self.liveconfig.flag(key)
+    }
+
+    /// Every published flag.
+    pub fn flags(&self) -> impl Iterator<Item = (&String, &Flag)> {
+        self.liveconfig.flags()
+    }
+
+    /// The LiveOps events on right now, highest priority first.
+    pub fn liveops_active(&self) -> Vec<&LiveOpsEvent> {
+        self.liveconfig.active(self.host.monotonic_ms())
+    }
+
+    /// The ones starting soon, soonest first.
+    pub fn liveops_upcoming(&self) -> &[LiveOpsEvent] {
+        self.liveconfig.upcoming()
+    }
+
+    /// One event by key, on or not, so a game can say "starts Friday" as easily as "on now".
+    pub fn liveops_event(&self, key: &str) -> Option<&LiveOpsEvent> {
+        self.liveconfig.event(key)
+    }
+
+    /// The events on now, as the JSON document a binding parses. See
+    /// [`crate::liveconfig::render_events`].
+    pub fn liveops_active_json(&self) -> String {
+        crate::liveconfig::render_events(
+            self.config_anchored(),
+            self.config_version(),
+            self.server_now_ms().unwrap_or(0),
+            self.liveops_active().into_iter(),
+        )
+    }
+
+    /// The events starting soon, in the same shape.
+    pub fn liveops_upcoming_json(&self) -> String {
+        crate::liveconfig::render_events(
+            self.config_anchored(),
+            self.config_version(),
+            self.server_now_ms().unwrap_or(0),
+            self.liveops_upcoming().iter(),
+        )
+    }
+
+    /// Now in the server's clock, which is what every window is measured against.
+    pub fn server_now_ms(&self) -> Option<i64> {
+        self.liveconfig.server_now_ms(self.host.monotonic_ms())
+    }
+
+    fn send_config_request(&mut self, now_mono_ms: i64) {
+        // No endpoint means a studio using analytics alone, and asking would be a request
+        // per interval for an answer nobody reads.
+        if self.config.config_endpoint.is_empty() || self.stopped.is_some() {
+            return;
+        }
+
+        let body = match serde_json::to_vec(&self.config_request()) {
+            Ok(body) => body,
+            Err(_) => return,
+        };
+
+        let request_id = self.next_request_id;
+        self.next_request_id += 1;
+        self.liveconfig.begin(request_id, now_mono_ms);
+
+        self.host.send(Request {
+            id: request_id,
+            url: format!(
+                "{}/v1/config",
+                self.config.config_endpoint.trim_end_matches('/')
+            ),
+            api_key: self.config.api_key.clone(),
+            // Uncompressed: the body is a few hundred bytes and gzip's header alone is
+            // eighteen of them.
+            content_encoding: None,
+            if_none_match: self.liveconfig.etag().map(str::to_owned),
+            body,
+        });
+    }
+
+    /// The request body, which carries nothing the server would refuse to believe.
+    ///
+    /// No country, no network, no purchase history: all three are derived server-side from
+    /// the request's own connection and PlayerSense's own record, because a value the client
+    /// sends is a value a modified build can choose (ADR 0027).
+    fn config_request(&self) -> serde_json::Value {
+        serde_json::json!({
+            "schema_version": crate::config::SCHEMA_VERSION,
+            "install_id": self.install_id,
+            "player_id": self.player_id.clone().unwrap_or_default(),
+            "environment": self.config.environment,
+            "app": {
+                "version": self.config.app_version,
+                "build": self.config.app_build,
+            },
+            "device": {
+                "platform": self.config.platform,
+                "os_version": self.config.os_version,
+                "locale": self.config.locale,
+            },
+            "sdk": {
+                "name": self.config.sdk_name,
+                "version": self.config.sdk_version,
+            },
+            "context": crate::liveconfig::context_member(&self.context.merged()),
+        })
     }
 
     /// One last bounded attempt. Whatever does not go stays for the next launch (§10).
@@ -511,6 +680,21 @@ impl<H: Host> Client<H> {
     /// The answer to a [`Request`]. Must be called exactly once per request, including for
     /// requests that never reached a server.
     pub fn on_response(&mut self, response: Response) {
+        // Configuration first, and by identifier rather than by guessing from the shape of
+        // the body. Two request kinds share one callback, and a batch completion applied to
+        // the config path would delete a spooled batch nobody uploaded.
+        if self.liveconfig.owns(response.id) {
+            let monotonic = self.host.monotonic_ms();
+            self.liveconfig.apply(
+                &self.host,
+                response.status,
+                &response.body,
+                response.etag,
+                monotonic,
+            );
+            return;
+        }
+
         let Some(in_flight) = self.in_flight.take() else {
             // Nothing outstanding: a duplicate completion, or one from before a reset. Late
             // answers are ignored rather than acted on, because acting on one would delete a
@@ -909,6 +1093,7 @@ impl<H: Host> Client<H> {
             url: format!("{}/v1/batches", self.endpoint.trim_end_matches('/')),
             api_key: self.config.api_key.clone(),
             content_encoding,
+            if_none_match: None,
             body,
         });
     }

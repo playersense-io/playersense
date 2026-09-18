@@ -157,6 +157,7 @@ pub fn accepted(id: u64, count: u32) -> Response {
         id,
         status: 202,
         retry_after_ms: None,
+        etag: None,
         body: format!(r#"{{"batch_id":"b","accepted":{count}}}"#).into_bytes(),
     }
 }
@@ -167,6 +168,7 @@ pub fn status(id: u64, status: u16) -> Response {
         id,
         status,
         retry_after_ms: None,
+        etag: None,
         body: Vec::new(),
     }
 }

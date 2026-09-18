@@ -308,6 +308,9 @@ namespace PlayerSense
                     ContentEncoding = request->ContentEncoding.Ptr == null
                         ? null
                         : Decode(request->ContentEncoding),
+                    IfNoneMatch = request->IfNoneMatch.Ptr == null
+                        ? null
+                        : Decode(request->IfNoneMatch),
                     Body = body,
                 };
 
@@ -330,6 +333,7 @@ namespace PlayerSense
             internal string Url;
             internal string ApiKey;
             internal string ContentEncoding;
+            internal string IfNoneMatch;
             internal byte[] Body;
         }
 
@@ -342,6 +346,11 @@ namespace PlayerSense
             www.SetRequestHeader("Content-Type", "application/json");
             if (pending.ContentEncoding != null)
                 www.SetRequestHeader("Content-Encoding", pending.ContentEncoding);
+            // Turns a configuration poll that would return the same answer into a 304 with no
+            // body. UnityWebRequest does not do this for us: it has no cache, and a POST is
+            // not a request it would cache anyway.
+            if (pending.IfNoneMatch != null)
+                www.SetRequestHeader("If-None-Match", pending.IfNoneMatch);
 
             yield return www.SendWebRequest();
 

@@ -27,6 +27,7 @@ pub mod context;
 pub mod event;
 pub mod host;
 pub mod ids;
+pub mod liveconfig;
 pub mod session;
 pub mod spool;
 pub mod time;

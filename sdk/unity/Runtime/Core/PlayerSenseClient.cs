@@ -22,6 +22,8 @@ namespace PlayerSense
         public IdentityModule Identity { get; }
         public PrivacyModule Privacy { get; }
         public ContextModule Context { get; }
+        public FlagsModule Flags { get; }
+        public LiveOpsModule LiveOps { get; }
 
         internal ulong Handle => _handle;
         internal Utf8Scratch Scratch => _scratch;
@@ -36,6 +38,13 @@ namespace PlayerSense
             Identity = new IdentityModule(this);
             Privacy = new PrivacyModule(this);
             Context = new ContextModule(this);
+            Flags = new FlagsModule(this);
+            LiveOps = new LiveOpsModule(this);
+
+            // The last document this installation fetched, so a launch with no network answers
+            // from it rather than from every fallback (§42). Flags only in effect: no clock
+            // anchor comes off disk, so nothing is reported running until the server answers.
+            Native.ps_client_restore_config(_handle);
         }
 
         /// <summary>The installation identifier this device is known by.</summary>

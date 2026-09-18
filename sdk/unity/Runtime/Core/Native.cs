@@ -31,6 +31,14 @@ namespace PlayerSense.Core
         internal const int HeldForConsent = 1;
         internal const int DeclinedByConsent = 2;
 
+        /// <summary>The project has not published a flag with that key.</summary>
+        /// <remarks>
+        /// Not an error, and not a value: a caller folds it into the game's own default.
+        /// "Not published" and "published as false" are different answers, and a flag API that
+        /// could not tell them apart would make a studio's typo look like a decision.
+        /// </remarks>
+        internal const int NotFound = 3;
+
         internal const int ErrBadHandle = -1;
         internal const int ErrBadHost = -2;
         internal const int ErrInvalidArgument = -3;
@@ -58,7 +66,7 @@ namespace PlayerSense.Core
         internal const int LevelWarn = 2;
         internal const int LevelError = 3;
 
-        internal const uint AbiVersion = 1;
+        internal const uint AbiVersion = 2;
 
         // ---- layouts --------------------------------------------------------
         //
@@ -126,8 +134,11 @@ namespace PlayerSense.Core
             public PsStr Platform;
             public PsStr OsVersion;
             public PsStr Locale;
+            // Where flags and LiveOps events come from. { null, 0 } turns the feature off.
+            public PsStr ConfigEndpoint;
 
             public long FlushIntervalMs;
+            public long ConfigRefreshIntervalMs;
             public long MaxEventsPerBatch;
             public long MaxBatchBytes;
             public long SessionTimeoutMs;
@@ -151,6 +162,10 @@ namespace PlayerSense.Core
             public PsStr Url;
             public PsStr ApiKey;
             public PsStr ContentEncoding;
+            // Sent as If-None-Match, or { null, 0 } when the request is not conditional.
+            // A host that ignores it still works: it receives a body where it could have had
+            // a 304, and the configuration it gets is the same either way.
+            public PsStr IfNoneMatch;
             public byte* Body;
             public long BodyLen;
         }
@@ -237,6 +252,31 @@ namespace PlayerSense.Core
         [DllImport(Library)] internal static extern int ps_client_background(ulong client);
         [DllImport(Library)] internal static extern int ps_client_tick(ulong client);
         [DllImport(Library)] internal static extern int ps_client_shutdown(ulong client);
+
+        // ---- live configuration (§41, §42, §45) -----------------------------
+
+        [DllImport(Library)] internal static extern int ps_client_refresh_config(ulong client);
+        [DllImport(Library)] internal static extern int ps_client_restore_config(ulong client);
+        [DllImport(Library)] internal static extern int ps_client_config_version(ulong client, out uint version);
+        [DllImport(Library)] internal static extern int ps_client_config_anchored(ulong client, out int anchored);
+
+        [DllImport(Library)]
+        internal static extern int ps_client_flag_bool(ulong client, PsStr key, out int value);
+
+        [DllImport(Library)]
+        internal static extern int ps_client_flag_number(ulong client, PsStr key, out double value);
+
+        [DllImport(Library)]
+        internal static extern unsafe int ps_client_flag_text(
+            ulong client, PsStr key, byte* buffer, long cap, out long len);
+
+        [DllImport(Library)]
+        internal static extern unsafe int ps_client_liveops_active(
+            ulong client, byte* buffer, long cap, out long len);
+
+        [DllImport(Library)]
+        internal static extern unsafe int ps_client_liveops_upcoming(
+            ulong client, byte* buffer, long cap, out long len);
 
         [DllImport(Library)]
         internal static extern unsafe int ps_client_on_response(

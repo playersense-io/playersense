@@ -154,6 +154,8 @@ namespace PlayerSense.Tests
                 Context.Player.Set("rank", "gold");
                 Context.Session.Set("mode", "ranked");
                 Context.Session.Remove("mode");
+                Flags.Refresh();
+                LiveOps.Refresh();
                 SDK.Flush();
                 SDK.Shutdown();
             });
@@ -161,6 +163,111 @@ namespace PlayerSense.Tests
             Assert.IsNull(Identity.InstallId);
             Assert.AreEqual(0UL, Context.Revision);
             Assert.AreEqual(0UL, SDK.Stats.EventsTracked);
+        }
+
+        /// <summary>
+        /// Before the SDK starts, every flag is the default the caller passed.
+        /// </summary>
+        /// <remarks>
+        /// The whole reason each read takes a default: a game must behave the same whether the
+        /// SDK came up, the network is down, or nobody has published that flag yet. A game that
+        /// has to check <c>Flags.Ready</c> first is a game that behaves differently on a slow
+        /// connection, which is the bug this shape exists to make impossible.
+        /// </remarks>
+        [Test]
+        public void EveryFlagAnswersWithTheCallersDefault()
+        {
+            Assert.IsFalse(SDK.IsInitialized);
+
+            Assert.IsTrue(Flags.Bool("anything", true));
+            Assert.IsFalse(Flags.Bool("anything", false));
+            Assert.AreEqual(42.5, Flags.Number("anything", 42.5));
+            Assert.AreEqual(7, Flags.Int("anything", 7));
+            Assert.AreEqual("fallback", Flags.Text("anything", "fallback"));
+            Assert.IsNull(Flags.Text("anything"));
+
+            Assert.IsFalse(Flags.Ready);
+            Assert.AreEqual(0u, Flags.Version);
+        }
+
+        /// <summary>
+        /// A flag the project never published answers with the caller's default, with the SDK
+        /// running.
+        /// </summary>
+        /// <remarks>
+        /// The previous test passes before the SDK starts, where the facade short-circuits and
+        /// the module is never reached — so it proves the facade and nothing about the module.
+        /// This one runs the whole path: the native lookup returns "not published", and the
+        /// default the caller passed comes back rather than a zero the SDK invented.
+        ///
+        /// That distinction is the reason `PS_NOT_FOUND` exists at all. A studio's typo in a
+        /// flag key must look like the game's own default, not like a decision somebody made.
+        /// </remarks>
+        [Test]
+        public void AnUnpublishedFlagAnswersWithTheCallersDefault()
+        {
+            SDK.Initialize(new PlayerSenseOptions
+            {
+                ProjectKey = TestKey,
+                Endpoint = DeadEndpoint,
+                // Deliberately none: nothing is fetched, so every flag is unpublished and the
+                // fallback path is the only path.
+                ConfigEndpoint = "",
+            });
+            Assert.IsTrue(SDK.IsInitialized, "the SDK did not start; see the Console");
+
+            Assert.IsTrue(Flags.Bool("never_published", true));
+            Assert.IsFalse(Flags.Bool("never_published", false));
+            Assert.AreEqual(42.5, Flags.Number("never_published", 42.5));
+            Assert.AreEqual(7, Flags.Int("never_published", 7));
+            Assert.AreEqual("fallback", Flags.Text("never_published", "fallback"));
+
+            // A null key is a caller's bug and must answer like any other miss rather than
+            // throwing out of a property read. The guard in FlagsModule short-circuits it; a
+            // build without that guard would reach the ABI and get the same answer, which is
+            // why this asserts the behaviour and not the path.
+            Assert.IsTrue(Flags.Bool("", true));
+            Assert.IsTrue(Flags.Bool(null, true));
+
+            // Nothing was fetched, so nothing claims to be ready and no window is open.
+            Assert.IsFalse(Flags.Ready);
+            Assert.AreEqual(0u, Flags.Version);
+            Assert.AreEqual(0, LiveOps.Active.Count);
+            Assert.IsFalse(LiveOps.Ready);
+        }
+
+        /// <summary>
+        /// Before the SDK starts, nothing is running and nothing is coming.
+        /// </summary>
+        /// <remarks>
+        /// Empty lists rather than null, because a game iterating them should not have to
+        /// null-check first — and a NullReferenceException in a UI loop is exactly the crash
+        /// this package promises never to cause.
+        /// </remarks>
+        [Test]
+        public void LiveOpsIsEmptyRatherThanNullBeforeTheSdkStarts()
+        {
+            Assert.IsFalse(SDK.IsInitialized);
+
+            Assert.IsNotNull(LiveOps.Active);
+            Assert.AreEqual(0, LiveOps.Active.Count);
+            Assert.IsNotNull(LiveOps.Upcoming);
+            Assert.AreEqual(0, LiveOps.Upcoming.Count);
+
+            Assert.IsFalse(LiveOps.IsActive("winter_sale"));
+            Assert.IsFalse(LiveOps.TryGet("winter_sale", out var found));
+            Assert.AreEqual(default(LiveOpsEvent), found);
+
+            Assert.AreEqual(0L, LiveOps.ServerTimeMs);
+            Assert.IsFalse(LiveOps.Ready);
+            Assert.AreEqual(System.TimeSpan.Zero, LiveOps.Remaining(default));
+            Assert.AreEqual(System.TimeSpan.Zero, LiveOps.StartsIn(default));
+
+            // Iterating is the thing a game actually does, and it must not throw.
+            Assert.DoesNotThrow(() =>
+            {
+                foreach (var running in LiveOps.Active) { _ = running.Key; }
+            });
         }
     }
 }

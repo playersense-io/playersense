@@ -11,6 +11,7 @@ use std::sync::atomic::Ordering;
 use playersense_core::consent::State;
 use playersense_core::context::{self, Scope};
 use playersense_core::event;
+use playersense_core::liveconfig::Flag;
 use playersense_core::{Client, Config, Recorded, granted};
 
 use crate::convert::*;
@@ -142,7 +143,9 @@ pub unsafe extern "C" fn ps_config_default(out: *mut PsConfig) {
             platform: empty,
             os_version: empty,
             locale: empty,
+            config_endpoint: empty,
             flush_interval_ms: defaults.flush_interval_ms,
+            config_refresh_interval_ms: defaults.config_refresh_interval_ms,
             max_events_per_batch: defaults.max_events_per_batch as i64,
             max_batch_bytes: defaults.max_batch_bytes as i64,
             session_timeout_ms: defaults.session_timeout_ms,
@@ -634,5 +637,202 @@ pub unsafe extern "C" fn ps_client_on_response(
     with_client(client, |c| {
         c.on_response(unsafe { response(request_id, status, retry_after_ms, body, body_len) });
         PS_OK
+    })
+}
+
+// ---- live configuration (§41, §42, §45) -------------------------------------
+
+/// Asks the server what this player gets, now.
+///
+/// A no-op when a request is already outstanding or no configuration endpoint was set. The
+/// core also asks on its own — on the refresh interval and when the app comes to the front —
+/// so a binding only needs this when the game has just changed something it segments on.
+#[unsafe(no_mangle)]
+pub extern "C" fn ps_client_refresh_config(client: u64) -> i32 {
+    with_client(client, |c| {
+        c.refresh_config();
+        PS_OK
+    })
+}
+
+/// Restores the document a previous run persisted.
+///
+/// Flags only, in effect: no clock anchor comes off disk, so nothing is reported active until
+/// the server has been heard from this run. Called once at start-up, before the first frame
+/// asks about a flag, so that a launch with no network answers from the last good document
+/// rather than from every fallback.
+#[unsafe(no_mangle)]
+pub extern "C" fn ps_client_restore_config(client: u64) -> i32 {
+    with_client(client, |c| {
+        c.restore_config();
+        PS_OK
+    })
+}
+
+/// The published version behind the current answers, or 0 when none has been fetched.
+///
+/// # Safety
+/// `out` must be a writable `uint32_t`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ps_client_config_version(client: u64, out: *mut u32) -> i32 {
+    if out.is_null() {
+        return PS_ERR_INVALID_ARGUMENT;
+    }
+    with_client(client, |c| {
+        unsafe { *out = c.config_version() };
+        PS_OK
+    })
+}
+
+/// Whether the server has been heard from in this process.
+///
+/// What makes a window meaningful: until this is 1, every event list is empty, because a
+/// window measured against a clock nobody has checked is a window a player can open early.
+///
+/// # Safety
+/// `out` must be a writable `int32_t`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ps_client_config_anchored(client: u64, out: *mut i32) -> i32 {
+    if out.is_null() {
+        return PS_ERR_INVALID_ARGUMENT;
+    }
+    with_client(client, |c| {
+        unsafe { *out = i32::from(c.config_anchored()) };
+        PS_OK
+    })
+}
+
+/// A boolean flag. `PS_NOT_FOUND` when the project has no flag with that key.
+///
+/// The value is untouched on anything but `PS_OK`, so a binding can initialise `out` with the
+/// game's own fallback and read it back regardless of the result.
+///
+/// # Safety
+/// `key` must be valid UTF-8 of its stated length; `out` must be a writable `int32_t`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ps_client_flag_bool(client: u64, key: PsStr, out: *mut i32) -> i32 {
+    if out.is_null() {
+        return PS_ERR_INVALID_ARGUMENT;
+    }
+    let Ok(key) = (unsafe { str_strict(key) }) else {
+        return PS_ERR_INVALID_ARGUMENT;
+    };
+    with_client(client, |c| match c.flag(key) {
+        Some(Flag::Bool(value)) => {
+            unsafe { *out = i32::from(*value) };
+            PS_OK
+        }
+        // A flag of another kind is not this flag. Coercing "0" or 0.0 into false would let a
+        // studio's typo change what a game does rather than show up as a fallback.
+        _ => PS_NOT_FOUND,
+    })
+}
+
+/// A numeric flag. `PS_NOT_FOUND` when the project has no number with that key.
+///
+/// # Safety
+/// `key` must be valid UTF-8 of its stated length; `out` must be a writable `double`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ps_client_flag_number(client: u64, key: PsStr, out: *mut f64) -> i32 {
+    if out.is_null() {
+        return PS_ERR_INVALID_ARGUMENT;
+    }
+    let Ok(key) = (unsafe { str_strict(key) }) else {
+        return PS_ERR_INVALID_ARGUMENT;
+    };
+    with_client(client, |c| match c.flag(key) {
+        Some(Flag::Number(value)) => {
+            unsafe { *out = *value };
+            PS_OK
+        }
+        _ => PS_NOT_FOUND,
+    })
+}
+
+/// A string flag, or a JSON one as the text it was published as.
+///
+/// Both kinds answer here because both are text to a caller: a game reading a `json` flag
+/// wants the document to parse, and giving it a second function to remember would buy nothing.
+///
+/// Follows the usual out-buffer contract: `out_len` is always the length, and a buffer too
+/// small returns `PS_ERR_BUFFER_TOO_SMALL` having written nothing, so a caller sizes once and
+/// calls again.
+///
+/// # Safety
+/// `key` must be valid UTF-8; `out` must be writable for `cap` bytes; `out_len` writable.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ps_client_flag_text(
+    client: u64,
+    key: PsStr,
+    out: *mut u8,
+    cap: i64,
+    out_len: *mut i64,
+) -> i32 {
+    let Ok(key) = (unsafe { str_strict(key) }) else {
+        return PS_ERR_INVALID_ARGUMENT;
+    };
+    with_client(client, |c| match c.flag(key) {
+        Some(Flag::Text(value)) => unsafe { fill(value.as_bytes(), out, cap, out_len) },
+        Some(Flag::Json(value)) => unsafe { fill(value.as_bytes(), out, cap, out_len) },
+        _ => {
+            if !out_len.is_null() {
+                unsafe { *out_len = 0 };
+            }
+            PS_NOT_FOUND
+        }
+    })
+}
+
+/// The LiveOps events on right now, as a JSON document.
+///
+/// One call rather than a count and an accessor per field, because a binding then parses once
+/// with whatever its platform already has instead of making four calls per event across the
+/// ABI. LiveOps is read when a screen opens, not per frame, so the parse is not on a hot path.
+///
+/// The shape, which is stable and is what a binding's model declares:
+///
+/// ```json
+/// {"anchored":true,"version":7,"server_time_ms":1789560000000,"events":[
+///   {"key":"happy_hour","kind":"offer","priority":10,
+///    "starts_at_ms":…,"ends_at_ms":…,"next_starts_at_ms":…,
+///    "payload":"{\"multiplier\":2}"}]}
+/// ```
+///
+/// `payload` is a **string** holding the studio's own JSON, not a nested object. A binding's
+/// JSON model cannot declare a type for something PlayerSense does not understand, and the
+/// game parses it with whatever it already uses for its own data.
+///
+/// `events` is empty until the server has been heard from this run — see
+/// [`ps_client_config_anchored`].
+///
+/// # Safety
+/// `out` must be writable for `cap` bytes; `out_len` writable.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ps_client_liveops_active(
+    client: u64,
+    out: *mut u8,
+    cap: i64,
+    out_len: *mut i64,
+) -> i32 {
+    with_client(client, |c| {
+        let rendered = c.liveops_active_json();
+        unsafe { fill(rendered.as_bytes(), out, cap, out_len) }
+    })
+}
+
+/// The events starting soon, soonest first. Same shape as [`ps_client_liveops_active`].
+///
+/// # Safety
+/// `out` must be writable for `cap` bytes; `out_len` writable.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ps_client_liveops_upcoming(
+    client: u64,
+    out: *mut u8,
+    cap: i64,
+    out_len: *mut i64,
+) -> i32 {
+    with_client(client, |c| {
+        let rendered = c.liveops_upcoming_json();
+        unsafe { fill(rendered.as_bytes(), out, cap, out_len) }
     })
 }

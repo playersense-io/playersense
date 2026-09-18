@@ -141,6 +141,16 @@ pub unsafe fn config(raw: &PsConfig) -> Result<Config, i32> {
         set_if_given(&mut config.locale, raw.locale)?;
     }
 
+    // Absent rather than empty: a host that leaves it { NULL, 0 } is a host whose studio
+    // does not use flags, and asking every quarter of an hour for an answer nobody reads is a
+    // request a player pays for.
+    if !is_absent(raw.config_endpoint) {
+        config.config_endpoint = unsafe { str_strict(raw.config_endpoint)? }.to_owned();
+    }
+    if raw.config_refresh_interval_ms > 0 {
+        config.config_refresh_interval_ms = raw.config_refresh_interval_ms;
+    }
+
     if raw.flush_interval_ms > 0 {
         config.flush_interval_ms = raw.flush_interval_ms;
     }

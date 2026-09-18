@@ -18,6 +18,7 @@ use crate::consent::State;
 use crate::context::Scope;
 use crate::event::{Recorded, Rejected, Value};
 use crate::host::Host;
+use crate::liveconfig::Flag;
 use crate::spool;
 use crate::testhost::{TestHost, accepted, status, unreachable};
 
@@ -670,6 +671,7 @@ fn a_misdirected_batch_is_retried_against_the_cell_that_owns_the_project() {
         id: request.id,
         status: 421,
         retry_after_ms: None,
+        etag: None,
         body: br#"{"error":{"code":"wrong_cell","message":"this project belongs to cell us-1",
             "details":[{"field":"ingest_url","issue":"https://ingest.us-1.example"}]}}"#
             .to_vec(),
@@ -724,6 +726,7 @@ fn events_the_gateway_dropped_are_reported_rather_than_swallowed() {
         id: request.id,
         status: 202,
         retry_after_ms: None,
+        etag: None,
         body: br#"{"batch_id":"b","accepted":1,"dropped":1,
             "reasons":["event 1: event_name \"Level Completed\" is not an accepted name"]}"#
             .to_vec(),
@@ -1196,5 +1199,316 @@ fn clearing_a_session_scope_is_recorded_as_a_removal() {
     assert!(
         frames[1].get("set").is_none(),
         "nothing was set: {frames:?}"
+    );
+}
+
+// ---- live configuration (§41, §42, §45) -------------------------------------
+
+fn configuring() -> Config {
+    let mut config = config();
+    config.config_endpoint = "https://config.eu-1.example".into();
+    config
+}
+
+/// A response from the configuration endpoint.
+fn served(id: u64, body: &str, etag: Option<&str>) -> crate::host::Response {
+    crate::host::Response {
+        id,
+        status: 200,
+        retry_after_ms: None,
+        etag: etag.map(str::to_owned),
+        body: body.as_bytes().to_vec(),
+    }
+}
+
+/// One document with a flag of each kind and one event, on at the server's `now`.
+fn document(version: u32, server_now_ms: i64) -> String {
+    format!(
+        r#"{{
+          "version": {version},
+          "flags": {{
+            "hud_v2": true,
+            "max_level": 80,
+            "greeting": "merhaba",
+            "shop_layout": {{"rows": 3}}
+          }},
+          "liveops_events": [{{
+            "key": "happy_hour", "kind": "offer", "priority": 10,
+            "starts_at_ms": {start}, "ends_at_ms": {end},
+            "next_starts_at_ms": {next},
+            "payload": {{"multiplier": 2}}
+          }}],
+          "upcoming": [{{
+            "key": "weekend", "kind": "seasonal_event", "priority": 5,
+            "starts_at_ms": {next}, "ends_at_ms": {far},
+            "payload": {{"xp": 2}}
+          }}],
+          "server_time_ms": {server_now_ms}
+        }}"#,
+        start = server_now_ms - 60_000,
+        end = server_now_ms + 3_600_000,
+        next = server_now_ms + 86_400_000,
+        far = server_now_ms + 90_000_000,
+    )
+}
+
+/// Asks once, and the answer is what the game reads. The four flag kinds survive the wire
+/// and a JSON flag stays text, because what is inside it is the studio's business.
+#[test]
+fn a_configuration_is_fetched_and_read() {
+    let mut client = Client::new(TestHost::new(), configuring());
+    client.refresh_config();
+
+    let sent = client.host().take_sent();
+    assert_eq!(sent.len(), 1, "one request, to the configuration endpoint");
+    assert_eq!(sent[0].url, "https://config.eu-1.example/v1/config");
+    assert!(
+        sent[0].if_none_match.is_none(),
+        "nothing to be conditional about on the first ask"
+    );
+
+    let body: Json = serde_json::from_slice(&sent[0].body).unwrap();
+    assert_eq!(body["install_id"], client.install_id());
+    assert_eq!(body["sdk"]["name"], "unity");
+    for forgeable in ["geo", "network", "commerce", "activity"] {
+        assert!(
+            body.get(forgeable).is_none(),
+            "the request carries {forgeable}, which the server must derive rather than believe"
+        );
+    }
+
+    let now = client.host().now_ms();
+    client.on_response(served(sent[0].id, &document(7, now), Some("\"abc\"")));
+
+    assert_eq!(client.config_version(), 7);
+    assert_eq!(client.flag("hud_v2"), Some(&Flag::Bool(true)));
+    assert_eq!(client.flag("max_level"), Some(&Flag::Number(80.0)));
+    assert_eq!(client.flag("greeting"), Some(&Flag::Text("merhaba".into())));
+    assert_eq!(
+        client.flag("shop_layout"),
+        Some(&Flag::Json(r#"{"rows":3}"#.into()))
+    );
+    // Not published is not the same as published false: a binding folds this into the
+    // game's own default, and cannot do that if it cannot tell them apart.
+    assert_eq!(client.flag("never_published"), None);
+}
+
+/// The whole point of `server_time_ms`: a player who changes their device clock does not
+/// change which events are running.
+#[test]
+fn a_window_is_measured_against_the_server_clock() {
+    let mut client = Client::new(TestHost::new(), configuring());
+    client.refresh_config();
+    let sent = client.host().take_sent();
+
+    let server_now = 1_700_000_000_000;
+    client.on_response(served(sent[0].id, &document(1, server_now), None));
+
+    let active = client.liveops_active();
+    assert_eq!(active.len(), 1, "one event is on");
+    assert_eq!(active[0].key, "happy_hour");
+    assert_eq!(
+        active[0].remaining_ms(client.server_now_ms().unwrap()),
+        3_600_000,
+        "an hour left, from the server's clock and not the device's"
+    );
+
+    // The player sets their phone forward a year. The device clock is now wildly ahead of
+    // the server's, and nothing about the event changes.
+    client
+        .host()
+        .set_wall_ms(client.host().now_ms() + 365 * 86_400_000);
+    assert_eq!(
+        client.liveops_active().len(),
+        1,
+        "moving the device clock forward ended an event that is still running"
+    );
+
+    // Time actually passing does end it, because that moves the monotonic clock.
+    client.host().advance_ms(3_600_001);
+    assert!(
+        client.liveops_active().is_empty(),
+        "the event outlived its window"
+    );
+}
+
+/// §42: "local SDK fallback to last-known-good config". A launch with no network keeps the
+/// flags — and reports no active events, because a window needs a clock somebody trusts.
+#[test]
+fn a_persisted_document_restores_flags_but_not_windows() {
+    let mut client = Client::new(TestHost::new(), configuring());
+    client.refresh_config();
+    let sent = client.host().take_sent();
+    let server_now = client.host().now_ms();
+    client.on_response(served(sent[0].id, &document(4, server_now), None));
+    assert_eq!(client.liveops_active().len(), 1);
+
+    // The process ends. A new one starts from the same disk, with no network.
+    let disk = client.host().surviving_store();
+    let mut relaunched = Client::new(TestHost::with_store(disk), configuring());
+    relaunched.restore_config();
+
+    assert_eq!(
+        relaunched.config_version(),
+        4,
+        "the last document did not survive the restart"
+    );
+    assert_eq!(relaunched.flag("hud_v2"), Some(&Flag::Bool(true)));
+    assert!(
+        !relaunched.config_anchored(),
+        "a document off disk must not claim to know what time the server thinks it is"
+    );
+    assert!(
+        relaunched.liveops_active().is_empty(),
+        "an event was reported active with no trustworthy clock; a player who moved their \
+         phone forward could open it early"
+    );
+    assert!(
+        relaunched.liveops_upcoming().is_empty(),
+        "an unanchored document reported what is coming, which it cannot know"
+    );
+}
+
+/// An SDK polls, and most polls would receive what it already has. The tag it was given goes
+/// back, and a 304 keeps everything while moving the clock forward.
+#[test]
+fn an_unchanged_configuration_costs_no_body() {
+    let mut client = Client::new(TestHost::new(), configuring());
+    client.refresh_config();
+    let first = client.host().take_sent();
+    let server_now = client.host().now_ms();
+    client.on_response(served(
+        first[0].id,
+        &document(2, server_now),
+        Some("\"v2\""),
+    ));
+
+    client.host().advance_ms(20 * 60 * 1_000);
+    client.tick();
+
+    let second = client.host().take_sent();
+    assert_eq!(
+        second.len(),
+        1,
+        "the interval elapsed and nothing was asked"
+    );
+    assert_eq!(
+        second[0].if_none_match.as_deref(),
+        Some("\"v2\""),
+        "the tag was not sent back, so the server has to answer with a body every time"
+    );
+
+    client.on_response(status(second[0].id, 304));
+
+    assert_eq!(client.config_version(), 2, "a 304 discarded the document");
+    assert_eq!(client.flag("hud_v2"), Some(&Flag::Bool(true)));
+    assert_eq!(
+        client.liveops_active().len(),
+        1,
+        "the event stopped being reported after a 304"
+    );
+    // And the countdown is honest: twenty minutes passed, so twenty fewer minutes remain.
+    assert_eq!(
+        client.liveops_active()[0].remaining_ms(client.server_now_ms().unwrap()),
+        3_600_000 - 20 * 60 * 1_000,
+    );
+}
+
+/// A configuration request must not be able to block a batch, or an upload a fetch. They
+/// share one callback and must not share one slot.
+#[test]
+fn configuration_and_batches_do_not_block_each_other() {
+    let mut client = Client::new(TestHost::new(), configuring());
+    client.set_consent(granted("2026-01-15", "authorized", true, 1_789_560_000_000));
+
+    client.track("level_completed", Default::default()).ok();
+    client.flush();
+    client.refresh_config();
+
+    let sent = client.host().take_sent();
+    assert_eq!(
+        sent.len(),
+        2,
+        "a batch and a configuration request should both be in flight, got {}",
+        sent.len()
+    );
+
+    let batch = sent.iter().find(|r| r.url.contains("/v1/batches")).unwrap();
+    let config_request = sent.iter().find(|r| r.url.contains("/v1/config")).unwrap();
+
+    // The configuration answers first. The batch must still be outstanding.
+    let server_now = client.host().now_ms();
+    client.on_response(served(config_request.id, &document(1, server_now), None));
+    assert_eq!(client.config_version(), 1);
+    assert_eq!(
+        client.stats().batches_delivered,
+        0,
+        "a configuration response was applied to the batch path"
+    );
+
+    client.on_response(accepted(batch.id, 1));
+    assert_eq!(client.stats().batches_delivered, 1);
+}
+
+/// A studio that only sends analytics must not pay a request for an answer nobody reads.
+#[test]
+fn no_configuration_endpoint_means_no_requests() {
+    let mut client = Client::new(TestHost::new(), config());
+    client.refresh_config();
+    client.host().advance_ms(60 * 60 * 1_000);
+    client.tick();
+
+    assert_eq!(
+        client.host().sent_count(),
+        0,
+        "a client with no configuration endpoint asked for one anyway"
+    );
+    assert_eq!(client.flag("anything"), None);
+}
+
+/// A malformed answer keeps what is held. Replacing a working document with nothing because
+/// one response was garbled turns a server bug into a game that lost its configuration.
+#[test]
+fn a_malformed_response_keeps_the_last_good_document() {
+    let mut client = Client::new(TestHost::new(), configuring());
+    client.refresh_config();
+    let first = client.host().take_sent();
+    let server_now = client.host().now_ms();
+    client.on_response(served(first[0].id, &document(3, server_now), None));
+
+    client.host().advance_ms(20 * 60 * 1_000);
+    client.tick();
+    let second = client.host().take_sent();
+    client.on_response(served(second[0].id, "<html>a proxy said no</html>", None));
+
+    assert_eq!(
+        client.config_version(),
+        3,
+        "the good document was discarded"
+    );
+    assert_eq!(client.flag("hud_v2"), Some(&Flag::Bool(true)));
+    assert!(client.host().logged("could not be read"));
+}
+
+/// A game resumed after hours is where the answer is most likely to have moved, so the
+/// interval is brought forward rather than waited out.
+#[test]
+fn coming_to_the_foreground_asks_again() {
+    let mut client = Client::new(TestHost::new(), configuring());
+    client.refresh_config();
+    let first = client.host().take_sent();
+    let server_now = client.host().now_ms();
+    client.on_response(served(first[0].id, &document(1, server_now), None));
+
+    // Well inside the refresh interval, so a tick would do nothing.
+    client.host().advance_ms(60_000);
+    client.tick();
+    assert_eq!(client.host().sent_count(), 0, "a tick asked too early");
+
+    client.foreground();
+    assert_eq!(
+        client.host().take_sent().len(),
+        1,
+        "coming to the foreground did not ask for a fresh configuration"
     );
 }

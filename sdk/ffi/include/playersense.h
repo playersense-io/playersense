@@ -106,7 +106,7 @@
  * refuses to continue on a mismatch, which turns a silently corrupt struct layout into one
  * log line.
  */
-#define PS_ABI_VERSION 1
+#define PS_ABI_VERSION 2
 
 #define PS_OK 0
 
@@ -163,6 +163,20 @@
  * The binding and the binary disagree about the ABI.
  */
 #define PS_ERR_ABI_MISMATCH -7
+
+/**
+ * The project has not published a flag with that key.
+ *
+ * Distinct from every other result on purpose, and distinct from a value: a binding folds it
+ * into the game's own fallback, and cannot do that if "not published" and "published as
+ * false" arrive as the same answer. Not an error a caller should log — most games ask about
+ * flags that only some environments have.
+ *
+ * **3, not 1.** Every non-negative code in this ABI means something different, and 1 already
+ * means [`PS_HELD_FOR_CONSENT`]. Two meanings for one number is how a binding that checks
+ * `status > 0` generically ends up treating a missing flag as a held event.
+ */
+#define PS_NOT_FOUND 3
 
 /**
  * The event name is empty, too long, or outside `[a-zA-Z0-9_.:-]`.
@@ -244,7 +258,17 @@ typedef struct PsConfig {
     struct PsStr platform;
     struct PsStr os_version;
     struct PsStr locale;
+    /**
+     * Where flags and LiveOps events come from (§42). `{ NULL, 0 }` turns the feature off:
+     * every flag answers with its fallback and no event is ever running, which is what a
+     * studio using only analytics wants and should not pay a request for.
+     */
+    struct PsStr config_endpoint;
     int64_t flush_interval_ms;
+    /**
+     * How often the configuration is asked for again. 0 takes the default.
+     */
+    int64_t config_refresh_interval_ms;
     int64_t max_events_per_batch;
     int64_t max_batch_bytes;
     int64_t session_timeout_ms;
@@ -311,6 +335,13 @@ typedef struct PsRequest {
      * `{ NULL, 0 }` when the body is not compressed.
      */
     struct PsStr content_encoding;
+    /**
+     * Sent as `If-None-Match`, or `{ NULL, 0 }` when the request is not conditional.
+     *
+     * A host that ignores it is still correct: it receives a body where it could have had a
+     * 304, and the configuration it gets is the same either way. Only bandwidth is lost.
+     */
+    struct PsStr if_none_match;
     const uint8_t *body;
     int64_t body_len;
 } PsRequest;
@@ -641,6 +672,118 @@ int32_t ps_client_on_response(uint64_t client,
                               int64_t retry_after_ms,
                               const uint8_t *body,
                               int64_t body_len);
+
+/**
+ * Asks the server what this player gets, now.
+ *
+ * A no-op when a request is already outstanding or no configuration endpoint was set. The
+ * core also asks on its own — on the refresh interval and when the app comes to the front —
+ * so a binding only needs this when the game has just changed something it segments on.
+ */
+int32_t ps_client_refresh_config(uint64_t client);
+
+/**
+ * Restores the document a previous run persisted.
+ *
+ * Flags only, in effect: no clock anchor comes off disk, so nothing is reported active until
+ * the server has been heard from this run. Called once at start-up, before the first frame
+ * asks about a flag, so that a launch with no network answers from the last good document
+ * rather than from every fallback.
+ */
+int32_t ps_client_restore_config(uint64_t client);
+
+/**
+ * The published version behind the current answers, or 0 when none has been fetched.
+ *
+ * # Safety
+ * `out` must be a writable `uint32_t`.
+ */
+int32_t ps_client_config_version(uint64_t client, uint32_t *out);
+
+/**
+ * Whether the server has been heard from in this process.
+ *
+ * What makes a window meaningful: until this is 1, every event list is empty, because a
+ * window measured against a clock nobody has checked is a window a player can open early.
+ *
+ * # Safety
+ * `out` must be a writable `int32_t`.
+ */
+int32_t ps_client_config_anchored(uint64_t client, int32_t *out);
+
+/**
+ * A boolean flag. `PS_NOT_FOUND` when the project has no flag with that key.
+ *
+ * The value is untouched on anything but `PS_OK`, so a binding can initialise `out` with the
+ * game's own fallback and read it back regardless of the result.
+ *
+ * # Safety
+ * `key` must be valid UTF-8 of its stated length; `out` must be a writable `int32_t`.
+ */
+int32_t ps_client_flag_bool(uint64_t client, struct PsStr key, int32_t *out);
+
+/**
+ * A numeric flag. `PS_NOT_FOUND` when the project has no number with that key.
+ *
+ * # Safety
+ * `key` must be valid UTF-8 of its stated length; `out` must be a writable `double`.
+ */
+int32_t ps_client_flag_number(uint64_t client, struct PsStr key, double *out);
+
+/**
+ * A string flag, or a JSON one as the text it was published as.
+ *
+ * Both kinds answer here because both are text to a caller: a game reading a `json` flag
+ * wants the document to parse, and giving it a second function to remember would buy nothing.
+ *
+ * Follows the usual out-buffer contract: `out_len` is always the length, and a buffer too
+ * small returns `PS_ERR_BUFFER_TOO_SMALL` having written nothing, so a caller sizes once and
+ * calls again.
+ *
+ * # Safety
+ * `key` must be valid UTF-8; `out` must be writable for `cap` bytes; `out_len` writable.
+ */
+int32_t ps_client_flag_text(uint64_t client,
+                            struct PsStr key,
+                            uint8_t *out,
+                            int64_t cap,
+                            int64_t *out_len);
+
+/**
+ * The LiveOps events on right now, as a JSON document.
+ *
+ * One call rather than a count and an accessor per field, because a binding then parses once
+ * with whatever its platform already has instead of making four calls per event across the
+ * ABI. LiveOps is read when a screen opens, not per frame, so the parse is not on a hot path.
+ *
+ * The shape, which is stable and is what a binding's model declares:
+ *
+ * ```json
+ * {"anchored":true,"version":7,"server_time_ms":1789560000000,"events":[
+ *   {"key":"happy_hour","kind":"offer","priority":10,
+ *    "starts_at_ms":…,"ends_at_ms":…,"next_starts_at_ms":…,
+ *    "payload":"{\"multiplier\":2}"}]}
+ * ```
+ *
+ * `payload` is a **string** holding the studio's own JSON, not a nested object. A binding's
+ * JSON model cannot declare a type for something PlayerSense does not understand, and the
+ * game parses it with whatever it already uses for its own data.
+ *
+ * `events` is empty until the server has been heard from this run — see
+ * [`ps_client_config_anchored`].
+ *
+ * # Safety
+ * `out` must be writable for `cap` bytes; `out_len` writable.
+ */
+int32_t ps_client_liveops_active(uint64_t client, uint8_t *out, int64_t cap, int64_t *out_len);
+
+/**
+ * The events starting soon, soonest first. Same shape as [`ps_client_liveops_active`].
+ *
+ * # Safety
+ * `out` must be writable for `cap` bytes; `out_len` writable.
+ */
+int32_t ps_client_liveops_upcoming(uint64_t client, uint8_t *out, int64_t cap, int64_t *out_len);
 
 #ifdef __cplusplus
 }  // extern "C"

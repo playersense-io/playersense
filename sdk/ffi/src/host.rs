@@ -226,11 +226,20 @@ impl Host for FfiHost {
             ptr: std::ptr::null(),
             len: 0,
         });
+        let conditional = request
+            .if_none_match
+            .as_deref()
+            .map(out_str)
+            .unwrap_or(PsStr {
+                ptr: std::ptr::null(),
+                len: 0,
+            });
         let raw = PsRequest {
             id: request.id,
             url: out_str(&request.url),
             api_key: out_str(&request.api_key),
             content_encoding: encoding,
+            if_none_match: conditional,
             body: request.body.as_ptr(),
             body_len: request.body.len() as i64,
         };
@@ -275,6 +284,10 @@ pub unsafe fn response(
         status,
         // R4: negative means absent, rather than a companion flag that can disagree.
         retry_after_ms: (retry_after_ms >= 0).then_some(retry_after_ms),
+        // Not yet carried across the ABI. A host that cannot pass the tag through costs
+        // bandwidth — every conditional request comes back 200 with a body instead of 304 —
+        // and nothing else: the document it receives is correct either way.
+        etag: None,
         body: bytes,
     }
 }
