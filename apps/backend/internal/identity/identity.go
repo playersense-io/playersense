@@ -44,13 +44,26 @@ type Claims struct {
 	// silently turn a user into a different person.
 	UID string
 
-	Email         string
+	Email string
+	// EmailVerified is the only claim that separates a passwordless sign-in from a
+	// password one, given Provider cannot: an email-link sign-in arrives already verified,
+	// because clicking the link is what proves control of the address, while a fresh
+	// password sign-up arrives false.
 	EmailVerified bool
 	Name          string
 	AvatarURL     string
 
-	// Provider is Firebase's id: "password", "google.com", "apple.com", "microsoft.com",
-	// "github.com", "emailLink".
+	// Provider is Firebase's `sign_in_provider`: "password", "google.com",
+	// "apple.com", "microsoft.com", "github.com".
+	//
+	// **"emailLink" is not one of them**, which is worth stating because it looks like it
+	// should be. Email/password and email-link are two *methods* of one provider in
+	// Firebase's model — EmailAuthProvider.PROVIDER_ID is "password" for both — and the
+	// token records the provider, not the method. Measured against Firebase's own
+	// emulator: an email-link sign-in reports "password", identically to a password one.
+	//
+	// So this field cannot tell a passwordless sign-in from a password one, and nothing
+	// should try. See EmailVerified.
 	Provider string
 }
 

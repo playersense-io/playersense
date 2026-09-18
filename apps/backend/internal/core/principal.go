@@ -93,6 +93,13 @@ func ResolveUser(ctx *muzak.Context) (*Principal, error) {
 	// A token whose address Firebase has not verified must not be able to accept an
 	// invitation sent to that address, which is how somebody joins an organisation they
 	// were never invited to.
+	//
+	// It carries more weight than it looks. The product is passwordless, and an email-link
+	// sign-in is indistinguishable from a password one by `sign_in_provider` — both report
+	// "password", because they are two methods of one Firebase provider. `email_verified`
+	// is the only claim that separates them: clicking the link is what proves control of
+	// the address, so a passwordless sign-in arrives true and a fresh password sign-up
+	// arrives false. See internal/firebase for the measurement.
 	if !claims.EmailVerified {
 		return nil, muzak.Forbidden("verify your email address before using the API")
 	}

@@ -70,7 +70,7 @@ func (Organization) Edges() []ent.Edge {
 //
 // # PlayerSense never holds a credential
 //
-// Firebase Auth owns authentication: passwords, social providers and email magic links. This
+// Firebase Auth owns authentication: email links and social providers. This
 // row is the local projection of an identity Firebase already verified, joined by
 // `firebase_uid`, and there is deliberately no password column to leak, no reset flow to get
 // wrong and no session store to compromise. A credential PlayerSense does not have is a
@@ -107,9 +107,13 @@ func (User) Fields() []ent.Field {
 		field.String("avatar_url").MaxLen(500).Optional().Comment(dataclass.None),
 
 		// How they last signed in: "password", "google.com", "apple.com",
-		// "microsoft.com", "github.com", "emailLink". Firebase's own provider ids, not a
-		// translation of them, so a value here can be compared with a token without a
+		// "microsoft.com", "github.com". Firebase's own `sign_in_provider`, not a
+		// translation of it, so a value here can be compared with a token without a
 		// mapping table that will drift.
+		//
+		// "password" covers email-link too, which is a method of the same provider rather
+		// than a provider of its own — so this column says how somebody signed in only as
+		// coarsely as Firebase does.
 		//
 		// A plain string rather than an enum: Firebase adds providers and an enum would
 		// make adding one a migration.

@@ -1,7 +1,7 @@
 // Package firebase verifies a Firebase ID token without the Admin SDK.
 //
-// Firebase Auth owns authentication — passwords, social providers, magic links — and hands the
-// browser an ID token. This package is the other end: it establishes that the token in an
+// Firebase Auth owns authentication — email links and social providers — and hands the browser
+// an ID token. This package is the other end: it establishes that the token in an
 // Authorization header really was issued by Firebase for this project, and turns it into the
 // [identity.Claims] the rest of the backend already takes as "somebody has already proved
 // this".
@@ -21,6 +21,25 @@
 //
 // The cost is that this file has to be right, which is why the signature is verified before
 // the payload is parsed and every claim in Google's table is checked below.
+//
+// # There is deliberately no allow-list of sign-in providers
+//
+// It looks like there should be one — the product accepts email links and social sign-in and
+// not passwords, so refusing a `sign_in_provider` outside that set reads like cheap
+// defence-in-depth. **It cannot be built**, and finding that out was worth the detour.
+//
+// Email/password and email-link are two *methods* of one Firebase provider:
+// `EmailAuthProvider.PROVIDER_ID` is `"password"` for both, and the ID token records the
+// provider rather than the method. Run against Firebase's own emulator:
+//
+//	email-link sign-in    sign_in_provider "password"   email_verified true
+//	password sign-up      sign_in_provider "password"   email_verified false
+//
+// A list that refused `"password"` would lock out every passwordless user; one that allowed
+// it would refuse nobody. The two are distinguishable only by `email_verified`, which
+// core.ResolveUser already requires — and *which sign-in methods exist at all* is settled in
+// the Firebase console. There is no server-side substitute for that toggle, because the token
+// does not carry the distinction.
 //
 // # What is deliberately not here
 //
