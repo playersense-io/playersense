@@ -100,26 +100,25 @@ two system roles rather than made grantable
 ([ADR 0035](../adr/0035-an-invitation-is-addressed-not-merely-held.md)). §08's access review reads
 the memberships and their grants, which is the question "who can reach this data".
 
-What it does not yet cover:
-
 The **audit log** is built. Every route on the control plane that changes something writes an entry:
 memberships, roles, project access, keys, invitations, configuration, publishes, credit and the
 billing settings. Entries are append-only by construction — every field on the row is immutable and
 the mixin omits `updated_at`, so ent generates an update builder with no setter on it at all, and
 §08's "a log the operator can edit proves nothing" is a compile error rather than a policy.
 
-The entry commits in the same transaction as the change it describes wherever the handler owns that
-transaction, which is everywhere except four routes whose domain call owns its own — so a refused
-request leaves nothing behind, and an action that happened was logged. It is readable at
-`GET /organizations/{org}/audit` under `audit.read`, which only the two system roles hold
-([ADR 0037](../adr/0037-an-audit-log-records-decisions-not-requests.md)).
+**Every entry commits in the same transaction as the change it describes.** The four routes whose
+domain call opened its own transaction — accepting an invitation, changing project access, sending
+one, and creating an organization — were refactored to accept a hook that runs inside that
+transaction instead, right before commit, rather than writing separately afterwards. There is no
+longer a route in the control plane that writes an audit entry outside the transaction it describes.
+It is readable at `GET /organizations/{org}/audit` under `audit.read`, which only the two system
+roles hold ([ADR 0037](../adr/0037-an-audit-log-records-decisions-not-requests.md)).
 
 What it does not yet cover:
 
 | Item | Notes |
 |---|---|
 | **Held apart from the data it describes** | §08 asks for this and it is satisfied for `staff_access` — records of *our* reads of a cell's data live in the global tier, a different database under a different jurisdiction. It is **not** satisfied for `audit_events`, which sits in the same PostgreSQL database as the organizations and memberships it describes. Append-only removes the edit; it does not remove the delete, and an operator with that database can still drop rows |
-| **Four routes log after the fact, not inside the transaction** | Accepting an invitation, changing project access, sending an invitation and creating an organization each call a domain function that owns its own transaction. The entry is written immediately afterwards and can fail on its own — the action is already committed by then, so the failure is logged at error level rather than reported to a caller whose change did happen. The fix is threading the transaction through those four functions |
 | **Who granted credit, verifiably** | The operator surface is guarded by the shared token, so the actor is a **self-asserted** name the entry labels as such. Required, so every grant carries one, and no customer credential can reach the route — but a name somebody typed is not proof, and what replaces it is a verified staff identity |
 | **Admin console** with per-read reason capture | The highest-risk surface in the system; the rules it must be built under are in [08](08-security-and-sub-processors.md). `staff_access` is the table it will write, and nothing writes it yet |
 | **Staff access review** | Who can reach a cell, and the record of when they did. Distinct from a customer's own member list, which is built: this is PlayerSense's staff, not a studio's |

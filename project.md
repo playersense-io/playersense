@@ -3370,9 +3370,12 @@ most of what an entry is for. The cost — that one can be forgotten — is paid
 routes and refuses a mutating one that says nothing about audit
 ([ADR 0037](docs/adr/0037-an-audit-log-records-decisions-not-requests.md)).
 
-The entry commits in the transaction that made the change wherever the handler owns it, so a refused
-request leaves nothing behind. Four routes whose domain call owns its own transaction write
-afterwards and can therefore fail alone; that gap is logged and listed.
+**Every entry commits in the transaction that made the change**, so a refused request leaves nothing
+behind. Four routes whose domain call opened its own transaction — accepting an invitation, changing
+project access, sending one, and creating an organization — take a hook that runs inside that
+transaction instead of writing afterwards; `CreateInvitation` sends its email before writing anything,
+so a failed send has nothing to clean up either. There is no route left that writes an audit entry
+outside the transaction it describes.
 
 `staff_access` is the other table and a different thing: PlayerSense staff reading a customer's data,
 with a ticket per read (§08, §56). One log holding both would be a screen where a studio's

@@ -51,12 +51,25 @@ than argued in a review.
 refused request leaves nothing behind — a log where "who did this" and "who tried this" are the same
 line is a log nobody can act on.
 
-Four routes cannot do this yet, and they are named rather than glossed: accepting an invitation,
-changing project access, sending an invitation and creating an organization each call a domain
-function that owns its own transaction. Those use `audit.RecordAfter`, which writes separately and can
-fail on its own. By then the action is committed, so the only honest choices are a logged gap or
-telling a caller their change did not happen when it did. The gap is logged at error level and named
-in [10-open-items.md](../compliance/10-open-items.md).
+Four routes could not do this at first, and they were named rather than glossed: accepting an
+invitation, changing project access, sending an invitation and creating an organization each call a
+domain function that owns its own transaction. Those used `audit.RecordAfter`, which wrote separately
+and could fail on its own — by then the action was committed, so the only honest choices were a
+logged gap or telling a caller their change did not happen when it did.
+
+**That gap is now closed.** Each of the three affected `internal/identity` functions —
+`CreateOrganization`, `SetMemberAccess`, and the shared `accept` behind `AcceptInvitation` and
+`AcceptPendingInvitationFor` — takes an optional hook, `func(tx *global.Tx, ...) error`, called inside
+its own transaction immediately before commit. The caller's audit entry runs through that hook, so it
+either commits with the write or rolls it back with it. `CreateInvitation`, the fourth, needed a
+different fix: it wrote its row *before* attempting the email send, so the row and the entry were
+never going to be atomic with each other no matter how the write was wrapped. Reordered to send first
+— nothing in the message depends on the row's identity — the row and the entry now commit together,
+and a failed send leaves nothing behind rather than a row to clean up.
+
+`audit.RecordAfter` and its logging helper are deleted rather than kept as an escape hatch: there is no
+remaining call site, and code whose only purpose was to describe an unclosed gap has no purpose once
+the gap is closed.
 
 Achieving this required wrapping nine handlers in transactions they did not have, which surfaced two
 real bugs — see Consequences.
@@ -139,9 +152,10 @@ engineers appear as the same kind of event is a screen that answers neither ques
 
 ## Enforcement
 
-`internal/audit` holds the vocabulary and the two write paths; `internal/handlers/audit.go` the
+`internal/audit` holds the vocabulary and the write path; `internal/handlers/audit.go` the
 per-request helpers, the `inTx` wrapper and the read; `internal/routers/members.go` mounts the read
-under `core.Require(authz.AuditRead)`.
+under `core.Require(authz.AuditRead)`. The hook parameter lives on `identity.CreateOrganization`,
+`identity.SetMemberAccess` and the shared `identity.accept`.
 
 In `apps/backend/cmd/control-api/audit_test.go`:
 
@@ -156,5 +170,12 @@ In `apps/backend/cmd/control-api/audit_test.go`:
 | `TestTheLogNeedsAuditRead` | any seeded role other than owner and admin can read the log, or another studio's log is visible |
 | `TestTheLogIsFilterableAndNewestFirst` | the order or the action filter breaks |
 
-`internal/identity`'s `TestAnAppendOnlyRowHasNoSetter` is what makes the immutability a compile-time
-fact rather than a runtime observation.
+In `apps/backend/cmd/control-api/members_test.go`, `TestAFailedSendLeavesNothingBehind` fails if a
+provider refusal leaves a row, an outstanding-invitation conflict on retry, or a `member.invite`
+entry for a message that never went out.
+
+In `apps/backend/internal/identity`, at the seam that can actually prove atomicity — a hook the
+caller controls, made to fail on purpose: `TestCreateOrganizationIsAllOrNothing`,
+`TestSetMemberAccessIsAllOrNothing` and `TestAcceptInvitationIsAllOrNothing` each fail if the write
+they wrap survives a refusing hook. `TestAnAppendOnlyRowHasNoSetter` is what makes the immutability
+a compile-time fact rather than a runtime observation.
