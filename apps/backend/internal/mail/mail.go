@@ -133,12 +133,20 @@ func (*Recorder) Placeholder() bool { return true }
 // Concurrent by construction. The control plane's suite runs in parallel and one refused
 // invitation must not be explained by a data race in the thing observing it.
 type Recorder struct {
+	// Fail, when set, is returned by Send instead of recording anything — for the one test
+	// that needs a provider to refuse, which is the case a real deployment will eventually
+	// hit and the reason the caller has to handle this error at all.
+	Fail error
+
 	mu   sync.Mutex
 	sent []Message
 }
 
-// Send records a message.
+// Send records a message, or returns Fail without recording it.
 func (r *Recorder) Send(_ context.Context, message Message) error {
+	if r.Fail != nil {
+		return r.Fail
+	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.sent = append(r.sent, message)

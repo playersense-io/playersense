@@ -25,20 +25,21 @@
 // mixin omits `updated_at`, so ent generates an update builder with no setter on it at all. There is
 // nothing to call that would change what a row says.
 //
-// # Atomicity, and where it is not
+// # Every entry is atomic with the change it describes
 //
 // [Record] takes a transaction, so the entry and the thing it describes commit together: an action
-// that happened is an action that was logged. Handlers whose domain call owns its own transaction use
-// [RecordAfter] instead, which writes separately and can therefore fail on its own — the action is
-// already committed at that point, so the only honest options are a logged gap or telling the caller
-// their change did not happen when it did. The gap is logged at error level and named in
-// docs/compliance/10-open-items.md.
+// that happened is an action that was logged, and a refused request leaves nothing behind. That held
+// for most routes from the start and not for four of them, whose domain call opened its own
+// transaction — accepting an invitation, changing project access, sending one, and creating an
+// organization. Each was refactored to accept a hook that runs inside that transaction instead, right
+// before commit (see [identity.CreateOrganization] for the shape of it), which is what closes the gap
+// rather than working around it. There is no remaining path in this codebase that writes an audit
+// entry outside the transaction it describes.
 package audit
 
 import (
 	"context"
 	"fmt"
-	"log/slog"
 
 	"playersense.dev/backend/ent/global"
 )
@@ -157,22 +158,6 @@ func Record(ctx context.Context, tx *global.Tx, entry Entry) (*global.AuditEvent
 	return write(ctx, tx.AuditEvent.Create(), entry)
 }
 
-// RecordAfter appends one entry outside any transaction, for an action already committed.
-//
-// Used where the domain call owns its own transaction and has returned. It can fail on its own, and
-// when it does the caller's change has already happened — so a failure is logged at error level and
-// the request still succeeds. Telling somebody their change did not happen when it did would be a
-// worse lie than a missing log line.
-func RecordAfter(ctx context.Context, db *global.Client, log *slog.Logger, entry Entry) {
-	if err := entry.validate(); err != nil {
-		logAuditFailure(log, entry, err)
-		return
-	}
-	if _, err := write(ctx, db.AuditEvent.Create(), entry); err != nil {
-		logAuditFailure(log, entry, err)
-	}
-}
-
 func write(ctx context.Context, create *global.AuditEventCreate, entry Entry) (*global.AuditEvent, error) {
 	create = create.
 		SetOrganizationID(entry.OrganizationID).
@@ -196,21 +181,4 @@ func write(ctx context.Context, create *global.AuditEventCreate, entry Entry) (*
 		return nil, fmt.Errorf("append to the audit log: %w", err)
 	}
 	return row, nil
-}
-
-// logAuditFailure is what a missing entry looks like from the outside.
-//
-// At error level with the action and the target, so the gap is visible to whatever watches logs
-// rather than only to somebody reading the table and noticing an absence. An absence is the one thing
-// a log cannot report about itself.
-func logAuditFailure(log *slog.Logger, entry Entry, err error) {
-	if log == nil {
-		log = slog.Default()
-	}
-	log.Error("an action happened and was not written to the audit log",
-		"action", string(entry.Action),
-		"organization_id", entry.OrganizationID,
-		"target_type", entry.TargetType,
-		"target_id", entry.TargetID,
-		"error", err.Error())
 }

@@ -34,16 +34,20 @@ func CreateOrganization(ctx *muzak.Context, in schemas.CreateOrganizationIn) (sc
 	ctrl := muzak.From[*core.Global](ctx)
 	principal := muzak.From[*core.Principal](ctx)
 
+	// The log's first line, written inside the same transaction that creates the organization and
+	// seeds its roles — so a crash between the two can never leave an organization that exists
+	// with no record of who made it. The id comes from what the hook is handed, because the
+	// principal was not inside this organisation when the request began.
 	org, err := identity.CreateOrganization(ctx.Context(), ctrl.Client,
-		in.Name, in.Slug, principal.User.ID, time.Now())
+		in.Name, in.Slug, principal.User.ID, time.Now(),
+		func(tx *global.Tx, org *global.Organization) error {
+			return auditFor(ctx).forOrganization(org.ID).record(ctx.Context(), tx,
+				audit.OrganizationCreated, "organization", org.UID.String(),
+				map[string]any{"slug": org.Slug, "name": org.Name})
+		})
 	if err != nil {
 		return schemas.OrganizationOut{}, core.AsHTTPError(err)
 	}
-
-	// The log's first line, and the only one written against an organisation the principal was
-	// not inside when the request began — so the id comes from what was just created.
-	auditFor(ctx).forOrganization(org.ID).after(ctx, ctrl.Client, audit.OrganizationCreated,
-		"organization", org.UID.String(), map[string]any{"slug": org.Slug, "name": org.Name})
 
 	return organizationOut(org), nil
 }

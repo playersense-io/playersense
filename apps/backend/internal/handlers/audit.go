@@ -146,17 +146,6 @@ func (a auditing) record(ctx context.Context, tx *global.Tx, action audit.Action
 	return err
 }
 
-// after appends outside one, for an action whose domain call already committed.
-//
-// A failure here is logged and does not fail the request: the change has happened, and reporting
-// failure would tell somebody their change did not when it did.
-func (a auditing) after(ctx *muzak.Context, db *global.Client, action audit.Action,
-	targetType, targetID string, metadata map[string]any,
-) {
-	audit.RecordAfter(ctx.Context(), db, ctx.Logger(),
-		a.entry(action, targetType, targetID, metadata))
-}
-
 // forOrganization overrides the organisation, for a route that resolved one without a principal.
 //
 // The operator surface names an organisation by slug and has no membership behind it, so the common

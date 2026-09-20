@@ -219,9 +219,18 @@ func SetMemberAccess(ctx *muzak.Context, in schemas.SetMemberAccessIn) (schemas.
 			WithCode("unknown_project")
 	}
 
+	// Written inside the same transaction as the grants themselves, so a failure between the two
+	// cannot happen: either the access changed and the entry says so, or neither did.
 	wasAll := member.AllProjects
-	updated, granted, err := identity.SetMemberAccess(ctx.Context(), ctrl.Client,
-		org.ID, member.ID, all, ids, nowUTC())
+	updated, _, err := identity.SetMemberAccess(ctx.Context(), ctrl.Client,
+		org.ID, member.ID, all, ids, nowUTC(),
+		func(tx *global.Tx, _ *global.OrganizationMember, granted []*global.Project) error {
+			return auditFor(ctx).record(ctx.Context(), tx, audit.MemberAccessChanged,
+				"member", member.UID.String(), map[string]any{
+					"email": memberEmail(member), "all_projects": all, "was_all_projects": wasAll,
+					"projects": slugsOf(granted),
+				})
+		})
 	if err != nil {
 		if errors.Is(err, identity.ErrUnknownProject) {
 			return schemas.MemberOut{}, muzak.UnprocessableEntity(err.Error()).
@@ -229,14 +238,6 @@ func SetMemberAccess(ctx *muzak.Context, in schemas.SetMemberAccessIn) (schemas.
 		}
 		return schemas.MemberOut{}, core.AsHTTPError(err)
 	}
-
-	// After, not inside: SetMemberAccess replaces the grants in its own transaction, so by here
-	// the change has happened and a failed entry must not report otherwise.
-	auditFor(ctx).after(ctx, ctrl.Client, audit.MemberAccessChanged,
-		"member", member.UID.String(), map[string]any{
-			"email": memberEmail(member), "all_projects": all, "was_all_projects": wasAll,
-			"projects": slugsOf(granted),
-		})
 	return memberOut(ctx.Context(), ctrl, withEdges(ctx.Context(), ctrl, updated), principal.User.ID)
 }
 
@@ -409,39 +410,44 @@ func CreateInvitation(ctx *muzak.Context, in schemas.CreateInvitationIn) (schema
 		return schemas.InvitationCreatedOut{}, core.AsHTTPError(err)
 	}
 
-	row, err := ctrl.Client.Invitation.Create().
-		SetOrganizationID(org.ID).
-		SetEmail(in.Email).
-		SetTokenDigest(digest).
-		SetInvitedByID(principal.User.ID).
-		SetRoleID(wanted.ID).
-		SetAllProjects(all).
-		SetProjectIds(ids).
-		SetExpiresAt(nowUTC().Add(settings.InvitationTTL)).
-		Save(ctx.Context())
-	if err != nil {
-		return schemas.InvitationCreatedOut{}, core.AsHTTPError(err)
-	}
-
+	// Sent before anything is written. `invitationMessage` needs the token and the fields already
+	// resolved above — nothing about the row itself — so the send can happen first, and a failure
+	// here leaves nothing to clean up: no row, no audit entry, no compensating delete to get
+	// wrong. The row this used to create-then-delete never existed in the first place.
 	sender := muzak.From[mail.Sender](ctx)
 	message := invitationMessage(settings, in.Email, org, principal.User, wanted, token)
 	if err := sender.Send(ctx.Context(), message); err != nil {
-		// The row goes with the message. A 201 carrying an invitation that was never sent is
-		// a row on the members screen that never arrives and cannot be re-sent, because the
-		// address is now already invited.
-		if deleteErr := ctrl.Client.Invitation.DeleteOne(row).Exec(ctx.Context()); deleteErr != nil {
-			ctx.Logger().Error("could not withdraw an invitation whose email failed",
-				"invitation", row.UID.String(), "error", deleteErr.Error())
-		}
 		return schemas.InvitationCreatedOut{}, muzak.ServiceUnavailable(
 			"could not send the invitation email; nothing was changed").Wrap(err)
 	}
 
-	auditFor(ctx).after(ctx, ctrl.Client, audit.MemberInvited,
-		"invitation", row.UID.String(), map[string]any{
-			"email": in.Email, "role": wanted.Key, "all_projects": all,
-			"expires_at": row.ExpiresAt.Format(time.RFC3339),
-		})
+	// The row and its audit entry commit together, so a persisted invitation always has a matching
+	// entry — the property the old create-then-send-then-audit ordering could not promise, because
+	// the row was already durable before the send was even attempted.
+	expiresAt := nowUTC().Add(settings.InvitationTTL)
+	row, err := inTx(ctx, func(tx *global.Tx) (*global.Invitation, error) {
+		row, err := tx.Invitation.Create().
+			SetOrganizationID(org.ID).
+			SetEmail(in.Email).
+			SetTokenDigest(digest).
+			SetInvitedByID(principal.User.ID).
+			SetRoleID(wanted.ID).
+			SetAllProjects(all).
+			SetProjectIds(ids).
+			SetExpiresAt(expiresAt).
+			Save(ctx.Context())
+		if err != nil {
+			return nil, core.AsHTTPError(err)
+		}
+		return row, auditFor(ctx).record(ctx.Context(), tx, audit.MemberInvited,
+			"invitation", row.UID.String(), map[string]any{
+				"email": in.Email, "role": wanted.Key, "all_projects": all,
+				"expires_at": row.ExpiresAt.Format(time.RFC3339),
+			})
+	})
+	if err != nil {
+		return schemas.InvitationCreatedOut{}, err
+	}
 
 	out, err := invitationOut(ctx.Context(), ctrl, withInvitationEdges(row, wanted, principal.User), nowUTC())
 	if err != nil {
@@ -558,16 +564,30 @@ func AcceptInvitation(ctx *muzak.Context, in schemas.AcceptInvitationIn) (schema
 	ctrl := muzak.From[*core.Global](ctx)
 	principal := muzak.From[*core.Principal](ctx)
 
+	// Recorded against the organisation that gained a member, not against the person joining:
+	// this log is the customer's, and "somebody joined" is their event rather than the joiner's.
+	// Inside the same transaction as the membership itself — identity.accept calls this only on
+	// the path that wrote one, never on the already-a-member branch, which committed nothing for
+	// an entry to attach to.
+	hook := func(tx *global.Tx, accepted *identity.Accepted) error {
+		return auditFor(ctx).forOrganization(accepted.Organization.ID).
+			record(ctx.Context(), tx, audit.MemberJoined,
+				"member", accepted.Member.UID.String(), map[string]any{
+					"email": principal.Claims.Email,
+					"role":  roleKeyOf(accepted.Role),
+				})
+	}
+
 	var (
 		accepted *identity.Accepted
 		err      error
 	)
 	if in.Token != "" {
 		accepted, err = identity.AcceptInvitation(ctx.Context(), ctrl.Client,
-			in.Token, principal.User, principal.Claims.Email, nowUTC())
+			in.Token, principal.User, principal.Claims.Email, nowUTC(), hook)
 	} else {
 		accepted, err = identity.AcceptPendingInvitationFor(ctx.Context(), ctrl.Client,
-			in.OrgSlug, principal.User, principal.Claims.Email, nowUTC())
+			in.OrgSlug, principal.User, principal.Claims.Email, nowUTC(), hook)
 	}
 
 	already := errors.Is(err, identity.ErrAlreadyMember)
@@ -588,18 +608,6 @@ func AcceptInvitation(ctx *muzak.Context, in schemas.AcceptInvitationIn) (schema
 			"that organization has as many members as its plan allows").WithCode("member_limit")
 	case err != nil:
 		return schemas.AcceptedOut{}, core.AsHTTPError(err)
-	}
-
-	// Recorded against the organisation that gained a member, not against the person joining:
-	// this log is the customer's, and "somebody joined" is their event rather than the joiner's.
-	// After the fact, because identity.AcceptInvitation owns the transaction that made it true.
-	if !already {
-		auditFor(ctx).forOrganization(accepted.Organization.ID).
-			after(ctx, ctrl.Client, audit.MemberJoined,
-				"member", accepted.Member.UID.String(), map[string]any{
-					"email": principal.Claims.Email,
-					"role":  roleKeyOf(accepted.Role),
-				})
 	}
 
 	out := schemas.AcceptedOut{

@@ -79,8 +79,13 @@ type Accepted struct {
 // membership that already exists. The caller decides: the HTTP layer answers 200 with the
 // organization, because the person's intent — "be in this organization" — is satisfied, and a
 // 409 would send them to support about a button that worked.
+//
+// `also`, when given, runs inside the same transaction as the membership it just created, right
+// before commit — see [CreateOrganization] for why. It is not called on the already-a-member
+// path, because nothing was written there for it to attach to.
 func AcceptInvitation(ctx context.Context, db *global.Client, token string,
 	person *global.User, verifiedEmail string, now time.Time,
+	also func(tx *global.Tx, accepted *Accepted) error,
 ) (*Accepted, error) {
 	found, err := db.Invitation.Query().
 		Where(invitation.TokenDigest(Digest(token))).
@@ -93,7 +98,7 @@ func AcceptInvitation(ctx context.Context, db *global.Client, token string,
 		}
 		return nil, fmt.Errorf("look up invitation: %w", err)
 	}
-	return accept(ctx, db, found, person, verifiedEmail, now)
+	return accept(ctx, db, found, person, verifiedEmail, now, also)
 }
 
 // AcceptPendingInvitationFor accepts the invitation waiting for this person at one organization,
@@ -117,6 +122,7 @@ func AcceptInvitation(ctx context.Context, db *global.Client, token string,
 // is needed.
 func AcceptPendingInvitationFor(ctx context.Context, db *global.Client, orgSlug string,
 	person *global.User, verifiedEmail string, now time.Time,
+	also func(tx *global.Tx, accepted *Accepted) error,
 ) (*Accepted, error) {
 	found, err := db.Invitation.Query().
 		Where(
@@ -134,7 +140,7 @@ func AcceptPendingInvitationFor(ctx context.Context, db *global.Client, orgSlug 
 		}
 		return nil, fmt.Errorf("look up invitation: %w", err)
 	}
-	return accept(ctx, db, found, person, verifiedEmail, now)
+	return accept(ctx, db, found, person, verifiedEmail, now, also)
 }
 
 // PendingInvitationsFor lists what is waiting for one verified address.
@@ -161,6 +167,7 @@ func PendingInvitationsFor(ctx context.Context, db *global.Client, verifiedEmail
 // accept is the half both entry points share: the checks, then the transaction.
 func accept(ctx context.Context, db *global.Client, found *global.Invitation,
 	person *global.User, verifiedEmail string, now time.Time,
+	also func(tx *global.Tx, accepted *Accepted) error,
 ) (*Accepted, error) {
 	switch {
 	case found.Status != invitation.StatusPending:
@@ -273,16 +280,26 @@ func accept(ctx context.Context, db *global.Client, found *global.Invitation,
 		return nil, fmt.Errorf("mark the invitation accepted: %w", err)
 	}
 
-	if err := tx.Commit(); err != nil {
-		return nil, fmt.Errorf("commit: %w", err)
-	}
-
-	return &Accepted{
+	accepted := &Accepted{
 		Organization: found.Edges.Organization,
 		Member:       member,
 		Role:         found.Edges.Role,
 		Projects:     granted,
-	}, nil
+	}
+
+	// Only on this path — never for the already-a-member branch above, which committed nothing
+	// of its own for an entry to attach to.
+	if also != nil {
+		if err := also(tx, accepted); err != nil {
+			_ = tx.Rollback()
+			return nil, err
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit: %w", err)
+	}
+	return accepted, nil
 }
 
 // SetMemberAccess replaces which projects one member can reach.
@@ -294,8 +311,12 @@ func accept(ctx context.Context, db *global.Client, found *global.Invitation,
 // Granting everything deletes the rows rather than keeping them, because `all_projects` means
 // "every project, including ones created tomorrow" — which stale rows would contradict the first
 // time somebody read them instead of the boolean.
+//
+// `also`, when given, runs inside the same transaction as the grants it just wrote, right before
+// commit — see [CreateOrganization] for why.
 func SetMemberAccess(ctx context.Context, db *global.Client, orgID, memberID int,
 	allProjects bool, projectIDs []int, now time.Time,
+	also func(tx *global.Tx, updated *global.OrganizationMember, granted []*global.Project) error,
 ) (*global.OrganizationMember, []*global.Project, error) {
 	member, err := db.OrganizationMember.Query().
 		Where(
@@ -353,6 +374,14 @@ func SetMemberAccess(ctx context.Context, db *global.Client, orgID, memberID int
 		_ = tx.Rollback()
 		return nil, nil, fmt.Errorf("set all_projects: %w", err)
 	}
+
+	if also != nil {
+		if err := also(tx, updated, wanted); err != nil {
+			_ = tx.Rollback()
+			return nil, nil, err
+		}
+	}
+
 	if err := tx.Commit(); err != nil {
 		return nil, nil, fmt.Errorf("commit: %w", err)
 	}

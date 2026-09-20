@@ -146,7 +146,9 @@ func createPersonalOrganization(ctx context.Context, db *global.Client, owner *g
 	if name == "" {
 		name = strings.SplitN(owner.Email, "@", 2)[0]
 	}
-	return CreateOrganization(ctx, db, name, uniqueSlug(ctx, db, name), owner.ID, now)
+	// nil: nobody will ever read this organization's log but the person who just created it by
+	// signing up, and they already know. Left unaudited on purpose rather than by omission.
+	return CreateOrganization(ctx, db, name, uniqueSlug(ctx, db, name), owner.ID, now, nil)
 }
 
 // CreateOrganization creates one, seeds its roles, and makes the caller its owner.
@@ -155,7 +157,14 @@ func createPersonalOrganization(ctx context.Context, db *global.Client, owner *g
 // by anybody — nobody can grant a role, nobody can delete it — and one with no roles cannot
 // have a member added. Either is a repair somebody does by hand against the database, which is
 // why this is a transaction rather than three statements that usually all succeed.
-func CreateOrganization(ctx context.Context, db *global.Client, name, slug string, ownerID int, now time.Time) (*global.Organization, error) {
+//
+// `also`, when given, runs inside that same transaction, right before commit, with the
+// organization this call just created. It exists for the audit entry: "an organization was
+// created" has to be true exactly when the row is, and a caller writing it afterwards, against a
+// different connection, cannot promise that. Pass nil when there is nothing to add.
+func CreateOrganization(ctx context.Context, db *global.Client, name, slug string, ownerID int,
+	now time.Time, also func(tx *global.Tx, org *global.Organization) error,
+) (*global.Organization, error) {
 	tx, err := db.Tx(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("begin: %w", err)
@@ -185,6 +194,12 @@ func CreateOrganization(ctx context.Context, db *global.Client, name, slug strin
 		SetJoinedAt(now).
 		Save(ctx); err != nil {
 		return nil, fmt.Errorf("make the creator its owner: %w", err)
+	}
+
+	if also != nil {
+		if err := also(tx, org); err != nil {
+			return nil, err
+		}
 	}
 
 	if err := tx.Commit(); err != nil {
