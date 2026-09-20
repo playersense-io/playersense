@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"net/http"
 	"net/url"
 	"strings"
@@ -11,6 +12,7 @@ import (
 	"muzak.dev/framework/testclient"
 
 	"playersense.dev/backend/ent/global/invitation"
+	"playersense.dev/backend/internal/audit"
 	"playersense.dev/backend/internal/authz"
 	"playersense.dev/backend/internal/core"
 	"playersense.dev/backend/internal/firebase/fbtest"
@@ -616,6 +618,54 @@ func TestAnInboxCannotBeFlooded(t *testing.T) {
 	client.Post("/v1/organizations/"+slug+"/invitations",
 		testclient.JSON(map[string]string{"email": person(t).Email, "role": authz.RoleDeveloper})).
 		AssertStatus(http.StatusCreated)
+}
+
+// TestAFailedSendLeavesNothingBehind is why the send happens before any write now.
+//
+// The old order was create-then-send-then-delete-on-failure: a row existed, briefly, before the
+// email was confirmed sent, and the compensating delete on failure was itself untested. Sending
+// first means a refusal from the provider has nothing to clean up — no row, no audit entry, no
+// token that could ever have been matched against one.
+func TestAFailedSendLeavesNothingBehind(t *testing.T) {
+	settings := testSettings(t)
+	google := fbtest.New(t, settings.FirebaseProjectID)
+	settings.FirebaseCertificateURL = google.URL
+	mailbox := &mail.Recorder{Fail: errors.New("provider refused the message")}
+
+	s := &stack{
+		settings: settings,
+		app:      build(settings, muzak.WithSingleton[mail.Sender](mailbox)),
+		google:   google,
+		db:       globalTier(t, settings),
+	}
+	owner := person(t)
+	slug := s.createOrg(t, owner)
+	client := s.as(t, owner)
+	invited := person(t)
+
+	refused := client.Post("/v1/organizations/"+slug+"/invitations",
+		testclient.JSON(map[string]string{"email": invited.Email, "role": authz.RoleDeveloper})).
+		AssertStatus(http.StatusServiceUnavailable)
+	if !strings.Contains(refused.String(), "nothing was changed") {
+		t.Errorf("the refusal does not say nothing changed: %s", refused)
+	}
+
+	// No invitation left outstanding, so the address is free to be invited again — a stray row
+	// would otherwise trip "one outstanding invitation per address" on the very next attempt.
+	listed := testclient.Decoded[invitationListOut](
+		client.Get("/v1/organizations/" + slug + "/invitations").AssertStatus(http.StatusOK))
+	if len(listed.Invitations) != 0 {
+		t.Errorf("invitations = %+v, want none after a failed send", listed.Invitations)
+	}
+
+	// And no audit entry for an invitation that never actually went out.
+	audited := testclient.Decoded[auditListOut](
+		client.Get("/v1/organizations/" + slug + "/audit").AssertStatus(http.StatusOK))
+	for _, entry := range audited.Events {
+		if entry.Action == string(audit.MemberInvited) {
+			t.Errorf("a member.invite entry exists for a send that failed: %+v", entry)
+		}
+	}
 }
 
 // TestRemovingAMemberDeletesTheGrant is the one place this codebase deletes rather than archives.

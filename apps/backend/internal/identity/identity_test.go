@@ -1,6 +1,7 @@
 package identity_test
 
 import (
+	"errors"
 	"fmt"
 	"math/rand"
 	"strings"
@@ -8,6 +9,7 @@ import (
 	"time"
 
 	"playersense.dev/backend/ent/global"
+	"playersense.dev/backend/ent/global/organization"
 	"playersense.dev/backend/ent/global/role"
 	"playersense.dev/backend/internal/authz"
 	"playersense.dev/backend/internal/identity"
@@ -222,5 +224,37 @@ func TestATokenlessOrEmaillessSignInIsRefused(t *testing.T) {
 		if _, err := identity.EnsureUser(t.Context(), db.Client, broken, time.Now()); err == nil {
 			t.Errorf("%s: accepted", name)
 		}
+	}
+}
+
+// TestCreateOrganizationIsAllOrNothing is the property the transaction exists for, exercised at the
+// one point it can be — the hook that runs inside it and can still refuse the whole thing.
+//
+// A hook that fails after the organization, its roles and its owner membership are all written must
+// roll every one of them back. Otherwise "all three or none" — this function's own claim — is a
+// claim nothing checks.
+func TestCreateOrganizationIsAllOrNothing(t *testing.T) {
+	settings := testsupport.Settings(t)
+	db := testsupport.Global(t, settings)
+
+	owner, err := identity.EnsureUser(t.Context(), db.Client, claims(t), time.Now())
+	if err != nil {
+		t.Fatalf("ensure the owner: %v", err)
+	}
+
+	slug := fmt.Sprintf("org-%d", rand.Int63())
+	refusal := errors.New("the hook refused")
+	_, err = identity.CreateOrganization(t.Context(), db.Client, "Doomed Studio", slug,
+		owner.ID, time.Now(),
+		func(tx *global.Tx, org *global.Organization) error { return refusal })
+	if !errors.Is(err, refusal) {
+		t.Fatalf("CreateOrganization = %v, want the hook's own error", err)
+	}
+
+	if exists, err := db.Client.Organization.Query().
+		Where(organization.Slug(slug)).Exist(t.Context()); err != nil {
+		t.Fatal(err)
+	} else if exists {
+		t.Error("the organization exists despite the hook refusing")
 	}
 }
