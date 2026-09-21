@@ -4,6 +4,11 @@
 **Date:** 2026-09-13
 **Relates to:** project.md §3.2, §64, §65
 
+> **Amended by [0038](0038-one-api-one-database.md).** The cached tenant no longer carries
+> a cell. The three tiers, their TTLs and the fail-closed rule are unchanged, and the
+> reason the local tier exists — ingestion must not query PostgreSQL per request — is now
+> the main thing keeping §64's promise, since ingestion is no longer separately deployable.
+
 ## Context
 
 Three sentences in the architecture constrain this, and each rules out an otherwise

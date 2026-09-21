@@ -4,6 +4,10 @@
 **Date:** 2026-09-12
 **Relates to:** project.md §3.6, §19, §20, §21, Appendix C.1, C.2
 
+> **Amended by [0038](0038-one-api-one-database.md).** The message no longer carries a
+> cell, the dedup key is derived from project, environment and batch id, and the local
+> spool is no longer namespaced by cell. Everything else here stands.
+
 ## Context
 
 The gateway's job is to accept a batch and answer quickly. If it wrote to ClickHouse

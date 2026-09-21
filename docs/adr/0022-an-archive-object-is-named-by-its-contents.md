@@ -4,6 +4,10 @@
 **Date:** 2026-09-15
 **Relates to:** project.md §10.4, §14.1, §20, §21, §66, Appendix C.2, C.6
 
+> **Amended by [0038](0038-one-api-one-database.md).** The path no longer opens with a
+> `cell=` segment; `org=` is the first. The digest, the determinism and the
+> insert-or-do-nothing manifest are unchanged, which is what this record is actually about.
+
 ## Context
 
 The archive consumes an at-least-once stream (§21). The same batch will be delivered twice —

@@ -4,6 +4,11 @@
 **Date:** 2026-09-11
 **Relates to:** project.md §11, §13, §25, §29
 
+> **Amended by [0038](0038-one-api-one-database.md).** There is one PostgreSQL database
+> and one generated client, so the commands are `migrate postgres` and `migrate up ch`.
+> The two-tool split this record is about — Ent for PostgreSQL, goose for ClickHouse — is
+> unchanged.
+
 ## Context
 
 The instruction was to pick an ORM and stop writing raw SQL. That is right for one of the

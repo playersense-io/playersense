@@ -4,6 +4,10 @@
 **Date:** 2026-09-16
 **Relates to:** project.md §3.4, §14, §24, §33, §34, §35, §59, Appendix A, Appendix C.6
 
+> **Amended by [0038](0038-one-api-one-database.md).** One bucket, not one per cell. The
+> hot/cold policy, the separation from the archive bucket and the reason the window is a
+> cache rather than a limit are unchanged.
+
 ## Context
 
 §4.2 does the arithmetic and then the document lives with it: a billion events a day is

@@ -4,6 +4,11 @@
 **Date:** 2026-09-19
 **Relates to:** project.md §08, §55.1, §56; [ADR 0035](0035-an-invitation-is-addressed-not-merely-held.md), [ADR 0036](0036-a-wallet-is-lots-because-credit-expires.md)
 
+> **Amended by [0038](0038-one-api-one-database.md).** Staff access and the customer audit
+> log now live in the same database, so the separation this record relies on is between
+> two tables rather than two jurisdictions. `staff_access` is still append-only and still
+> requires a ticket.
+
 ## Context
 
 Three commits shipped pointing at the same hole.

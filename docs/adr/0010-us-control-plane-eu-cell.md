@@ -1,8 +1,12 @@
 # 0010. The control plane is US-hosted; the first cell is European
 
-**Status:** Accepted
-**Date:** 2026-09-14
+**Status:** Superseded by [0038](0038-one-api-one-database.md)
+**Date:** 2026-09-14 (superseded 2026-09-21)
 **Relates to:** project.md §95, §99
+
+> **Superseded.** The split this record describes was built and then removed: there is one
+> API and one database (see [0038](0038-one-api-one-database.md)). The reasoning below is
+> kept because it is the argument to re-read when residency stops being hypothetical.
 
 ## Context
 

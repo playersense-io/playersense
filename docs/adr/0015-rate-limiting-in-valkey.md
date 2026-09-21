@@ -5,6 +5,11 @@
 **Updated:** 2026-09-18
 **Relates to:** project.md §12, §70, §71
 
+> **Amended by [0038](0038-one-api-one-database.md).** There is no cell residency check to
+> count in front of, and no cell prefix on a counter key, so the cell-isolation tests are
+> gone. One limiter is published fail-open; the invitation route takes the fail-closed
+> policy per call through `Limiter.Strict`.
+
 ## Context
 
 The framework ships an in-process rate limiter. It is correct for one process and silently

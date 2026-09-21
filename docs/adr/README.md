@@ -34,9 +34,9 @@ a record is never updated to match a drifting document, it is superseded by a ne
 | [0005](0005-collection-policy-tiers.md) | A project declares a collection tier at creation, stamped onto every row | Accepted |
 | [0006](0006-consent-carried-per-row.md) | Consent is stored on every event, not looked up at query time | Accepted |
 | [0007](0007-data-classification-in-the-schema.md) | Every column carries a data class, and the build checks it | Accepted |
-| [0008](0008-two-tier-control-plane.md) | The control plane is two databases under one rule | Accepted |
-| [0009](0009-cells-region-and-residency.md) | Region is a legal boundary, a cell is a stack inside it | Accepted |
-| [0010](0010-us-control-plane-eu-cell.md) | The control plane is US-hosted; the first cell is European | Accepted |
+| [0008](0008-two-tier-control-plane.md) | The control plane is two databases under one rule | Superseded by 0038 |
+| [0009](0009-cells-region-and-residency.md) | Region is a legal boundary, a cell is a stack inside it | Superseded by 0038 |
+| [0010](0010-us-control-plane-eu-cell.md) | The control plane is US-hosted; the first cell is European | Superseded by 0038 |
 | [0011](0011-api-key-format-and-storage.md) | A key is `public:private`, and only an Argon2id digest is stored | Accepted |
 | [0012](0012-three-tier-key-resolution.md) | Keys resolve through three tiers and fail closed | Accepted |
 | [0013](0013-an-event-bus-between-ingestion-and-storage.md) | Ingestion writes to a queue, never to ClickHouse | Accepted |
@@ -64,6 +64,7 @@ a record is never updated to match a drifting document, it is superseded by a ne
 | [0035](0035-an-invitation-is-addressed-not-merely-held.md) | An invitation is addressed, not merely held | Accepted |
 | [0036](0036-a-wallet-is-lots-because-credit-expires.md) | A wallet is lots, because credit expires | Accepted |
 | [0037](0037-an-audit-log-records-decisions-not-requests.md) | An audit log records decisions, not requests | Accepted |
+| [0038](0038-one-api-one-database.md) | One API and one database, until revenue says otherwise | Accepted |
 
 ## Template
 

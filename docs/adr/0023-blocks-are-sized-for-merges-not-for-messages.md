@@ -5,6 +5,10 @@
 **Supersedes part of:** [0018](0018-writer-acknowledgement-and-deduplication.md)
 **Relates to:** project.md §4, §20, §21, §25, §29.14, §86, Appendix C.2
 
+> **Amended by [0038](0038-one-api-one-database.md).** The block token no longer includes
+> a cell. It is still the partition, the chunk index and the sorted dedup keys, which is
+> what makes it stable across redeliveries.
+
 ## Context
 
 ADR 0018 gave every message its own `insert_deduplication_token` and inserted it under
