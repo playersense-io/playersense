@@ -53,12 +53,20 @@ check it before assuming an endpoint exists).
 - [ ] Firebase Web SDK config (public config only — project ID, API key — never the service
       account already in `.env`'s `FIREBASE_PROJECT_ID`/`FIREBASE_CERTIFICATE_URL`) for the
       three environments, shared across `landing`/`client`/`admin`.
-- [ ] **CORS is unconfigured today** — `grep -n CORS apps/backend/cmd/*/main.go` returns
-      nothing. Muzak denies all cross-origin requests until a policy is set (`muzak.md`
-      "CORS"). Add `CORSOptions` to `api` for
-      `https://app.playersense.io`, `https://admin.playersense.io`, `https://playersense.io`,
-      plus local dev origins, with `AllowCredentials` as needed for the Firebase bearer token
-      flow.
+- [x] **CORS** — `cmd/api` now carries a policy, origins from `CORS_ALLOWED_ORIGINS`
+      (comma-separated, exact match including scheme and port), defaulted to the three local
+      dev servers and overridden per deployment. `apps/backend/cmd/api/cors_test.go` proves
+      the allow, the refusal, and both preflight directions.
+
+      Two things came out differently from how this item assumed:
+      **`AllowCredentials` is off.** It governs cookies and TLS client certs, not the
+      `Authorization` header — that one is an ordinary request header already in Muzak's
+      default `AllowedHeaders`. Both apps hold the Firebase token in client state and attach
+      it themselves, so turning it on would buy nothing and widen what an origin-list mistake
+      costs. **`ExposedHeaders` was the missing piece nobody had written down:** browsers hide
+      every non-safelisted response header, so without it a 429's `Retry-After` is invisible
+      to the dashboard and a rate limit becomes a retry storm. `Retry-After`, `X-Request-Id`,
+      `ETag` and `Content-Disposition` are exposed.
 - [ ] Settle hostnames against Appendix B (`playersense.io`, `app.playersense.io`,
       `admin.playersense.io`, `api.playersense.io`, etc.) — none are registered/deployed yet.
       Deployment *model* is decided in §6 (independent Nitro servers on Cloud Run, not
@@ -291,7 +299,7 @@ frontend-only, and do the staff-identity item first — everything else depends 
 Track alongside the frontend work above; none of it blocks `landing`, but most of `client`'s
 "blocked" section and nearly all of `admin` depend on these.
 
-- [ ] CORS configuration on `api` (§0).
+- [x] ~~CORS configuration on `api`~~ (§0) — done; see §0 for what differed from the plan.
 - [ ] `staff_access` table + staff authentication — blocks all of `admin`.
 - [ ] Verified staff identity for the operator credit/charge routes (currently shared-token
       only).

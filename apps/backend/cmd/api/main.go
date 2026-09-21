@@ -188,6 +188,46 @@ func build(settings config.Settings, overrides ...muzak.RouterOption) (*muzak.Ap
 		// balancer and the whole world shares one rate-limit budget.
 		ClientIP: muzak.ClientIPOptions{TrustedProxies: settings.TrustedProxies},
 
+		// The dashboard and the admin console are separate origins from this API, so
+		// without a policy here the browser refuses to expose a single response and
+		// every page is blocked. The framework's zero value denies everything, which is
+		// why this is configured rather than defaulted (§70).
+		CORS: muzak.CORSOptions{
+			AllowedOrigins: settings.CORSAllowedOrigins,
+
+			// **Off**, and the reason is worth stating because the obvious reading of
+			// the field name is wrong. `AllowCredentials` controls one response header
+			// and one browser behaviour: whether a request made with `credentials:
+			// "include"` — cookies, TLS client certificates — is allowed. It does not
+			// gate the `Authorization` header, which is an ordinary request header
+			// permitted by `AllowedHeaders` and included in the framework's default.
+			//
+			// Both browser apps hold a Firebase ID token in client-side state and
+			// attach it themselves; neither sends a cookie. Turning this on would
+			// therefore buy nothing and widen what a mistake in the origin list costs.
+			AllowCredentials: false,
+
+			// Browsers expose only a small safelist of response headers to script —
+			// Cache-Control, Content-Language, Content-Type, Expires, Last-Modified,
+			// Pragma — and silently hide the rest. Each of these is read by a client:
+			//
+			//   Retry-After          the limiter's own answer to "when may I come
+			//                        back". Unexposed, a refused dashboard request
+			//                        can only guess, which is how a 429 becomes a
+			//                        retry storm (docs/rate-limits.md).
+			//   X-Request-Id         what a support conversation is about.
+			//   ETag                 §42's configuration endpoint answers conditional
+			//                        requests, and a client that cannot read the tag
+			//                        cannot send it back.
+			//   Content-Disposition  the filename on a §101 export download.
+			ExposedHeaders: []string{
+				muzak.HeaderRetryAfter,
+				muzak.HeaderRequestID,
+				"ETag",
+				"Content-Disposition",
+			},
+		},
+
 		LoggerOptions: muzak.LoggerOptions{Format: logFormat(settings.LogFormat)},
 
 		// A health check polled every second should not drown out real traffic.

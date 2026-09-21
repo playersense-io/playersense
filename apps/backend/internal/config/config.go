@@ -75,6 +75,22 @@ type Settings struct {
 	// budget it spends (§70).
 	TrustedProxies []string `env:"TRUSTED_PROXIES"`
 
+	// CORSAllowedOrigins lists the browser origins allowed to read a response, as a
+	// comma-separated list. An origin is matched exactly, scheme and port included, so
+	// `https://app.playersense.io` and `http://app.playersense.io` are two origins and
+	// neither implies the other.
+	//
+	// Defaulted to the three local development servers — landing on 3000, client on 3001,
+	// admin on 3002 — for the same reason every DSN here defaults to the local stack: a
+	// checkout should run. **A deployment must set this**, and the failure if it forgets
+	// is the safe one: the framework's zero value denies every cross-origin request, so a
+	// production dashboard that was never named here cannot read a single response.
+	//
+	// It deliberately does not include an SDK origin. Ingestion is called from a game
+	// rather than a browser, and a `*` here would hand every page on the internet the
+	// ability to read authenticated responses out of a signed-in customer's browser.
+	CORSAllowedOrigins []string `env:"CORS_ALLOWED_ORIGINS" default:"http://localhost:3000,http://localhost:3001,http://localhost:3002"`
+
 	// --- ingestion ----------------------------------------------------------
 
 	// EventBus selects the queue implementation: local or pubsub (§3.6).

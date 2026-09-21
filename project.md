@@ -4947,13 +4947,19 @@ Do not attempt to reproduce a hyperscaler distributed storage system inside one 
 playersense.io                    marketing
 app.playersense.io                client dashboard
 admin.playersense.io              internal admin
-api.playersense.io                control/public API
-ingest.playersense.io             analytics ingestion
-query.playersense.io              reporting API
-config.playersense.io             flags/liveops config
+api.playersense.io                the API — dashboard, ingestion, config and reporting
 status.playersense.io             status page
 docs.playersense.io               docs
 ```
+
+`ingest.`, `query.` and `config.` were separate hosts for the four services that became one
+([ADR 0038](docs/adr/0038-one-api-one-database.md)). They are worth registering anyway and
+pointing at `api.`, because an SDK configured against `ingest.playersense.io` should keep
+working if the split ever returns — a hostname is the one thing a shipped game cannot be
+asked to change.
+
+The first three are the origins `CORS_ALLOWED_ORIGINS` names in production. `api.` is not
+among them: it is the API, not a page that calls it.
 
 Regional ingestion later:
 
