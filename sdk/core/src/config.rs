@@ -36,17 +36,17 @@ pub struct Config {
     /// (§17.1).
     pub api_key: String,
 
-    /// The cell's ingest endpoint. A 421 replaces it and the replacement is persisted, so
-    /// this is a starting point rather than a fixed address (§9).
+    /// The ingest endpoint. A value the host has stored wins over it, so this is a starting
+    /// point rather than a fixed address (§9).
     pub endpoint: String,
 
-    /// The cell's configuration endpoint, where flags and LiveOps events come from (§42).
+    /// The configuration endpoint, where flags and LiveOps events come from (§42).
     ///
-    /// A second address rather than a path on the first, because they are different services
-    /// with very different traffic: one takes a million writes a minute and the other answers
-    /// a question once a session. Empty turns the whole feature off — every flag falls back
-    /// and no event is ever active — which is what a studio using only analytics wants and
-    /// should not have to pay a request for.
+    /// Its own setting rather than a path derived from `endpoint`, because the two were
+    /// separate services and may be again: one takes a million writes a minute and the
+    /// other answers a question once a session. Empty turns the whole feature off — every
+    /// flag falls back and no event is ever active — which is what a studio using only
+    /// analytics wants and should not have to pay a request for.
     pub config_endpoint: String,
 
     /// development, staging or production. Informational: the key is the authority, and a

@@ -147,8 +147,10 @@ impl<H: Host> Client<H> {
             }
         };
 
-        // A 421 is remembered, because where a project lives is a property of the project
-        // rather than of the request that discovered it (§9).
+        // A stored endpoint still wins over the configured one, and the reason has
+        // outlived the 421 that used to write it: a build shipped against an address that
+        // later moves has no other way to be told, and a host may seed this key before the
+        // first launch.
         let endpoint = host
             .store_get(KEY_ENDPOINT)
             .map(|b| String::from_utf8_lossy(&b).into_owned())
@@ -884,19 +886,6 @@ impl<H: Host> Client<H> {
                         Spooled events are kept and will go when the credential is fixed."
                     ),
                 );
-            }
-
-            Disposition::Redirect { endpoint } => {
-                self.host.log(
-                    Level::Warn,
-                    &format!(
-                        "this project lives in another cell; sending to {endpoint} from now on"
-                    ),
-                );
-                let _ = self.host.store_put(KEY_ENDPOINT, endpoint.as_bytes());
-                self.endpoint = endpoint;
-                self.consecutive_failures = 0;
-                self.pump();
             }
 
             Disposition::DisableCompression => {

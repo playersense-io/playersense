@@ -374,7 +374,6 @@ never a namespace the studio does not own. See
 | **403** | wrong key class, or a key scoped to another environment | as 401. A configuration error, not a transient one. |
 | **413** | too large, compressed or decoded | **split the batch in half and retry each.** A single event that still fails is dropped and logged. |
 | **415** | `Content-Encoding` not supported | disable compression for this process, retry uncompressed, log. |
-| **421** | this project belongs to another cell | read `ingest_url` from the error details, **persist it**, retry immediately against it. Not transient: it is where the project lives. |
 | **422** | envelope failed validation | **drop the batch.** An SDK bug; the details name the field. |
 | **429** | rate limited | honour `Retry-After`. Do not count this toward the failure streak. |
 | **5xx**, timeout, DNS, no route | transient | keep the batch, back off (§10). |
@@ -510,11 +509,6 @@ within a session. The server clamps anything outside its skew window and preserv
 original. An SDK MUST NOT try to correct the clock itself, and MUST NOT refuse to send events
 because a clock looks wrong — the correction is the server's, and it is recorded.
 
-### The project is moved to another cell
-
-A 421 names the new `ingest_url`. Persist it and use it from then on. Do not hard-code an
-endpoint that a 421 cannot override, and do not treat a 421 as transient.
-
 ### The game ships with the wrong key
 
 401 or 403, permanently. Stop sending, keep the spool, surface it loudly in debug builds. Do
@@ -592,10 +586,8 @@ each fails silently and corrupts data rather than losing it.
 25. A gzip-compressed batch is accepted and decodes to the same events.
 26. `event_id` is not sent, and the events come back with distinct ids.
 27. A 413 causes a split-and-retry, not a drop.
-28. A 421 is followed by a retry against the address in the response, and the address is
-    persisted.
-29. A 401 stops sending without discarding the spool.
-30. `dropped` and `reasons` from a 202 reach the developer.
+28. A 401 stops sending without discarding the spool.
+29. `dropped` and `reasons` from a 202 reach the developer.
 
 **Behaviour under stress**
 31. `Track` on the main thread never blocks measurably and never throws, including with the
@@ -629,5 +621,5 @@ one per frame.
 **Purchase verification** (§46–§48) is server-to-server with a server key. A client
 `TrackRevenue` event is funnel telemetry, not the money fact.
 
-**Data-subject requests** (§61, §101) are also server-to-server, on the cell-local privacy
-surface. A game client never erases anybody.
+**Data-subject requests** (§61, §101) are also server-to-server, on the privacy surface.
+A game client never erases anybody.

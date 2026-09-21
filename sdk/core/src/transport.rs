@@ -34,10 +34,6 @@ pub enum Disposition {
     /// can be fixed from the dashboard.
     Stop { reason: String },
 
-    /// This project lives in another cell. Persist the address and retry against it
-    /// immediately. Not transient: it is where the project is (§6, §99).
-    Redirect { endpoint: String },
-
     /// The gateway did not understand the encoding. Send uncompressed for the rest of the
     /// process rather than dropping the batch.
     DisableCompression,
@@ -70,16 +66,6 @@ struct ErrorBody {
     code: String,
     #[serde(default)]
     message: String,
-    #[serde(default)]
-    details: Vec<ErrorDetail>,
-}
-
-#[derive(Deserialize, Default)]
-struct ErrorDetail {
-    #[serde(default)]
-    field: String,
-    #[serde(default)]
-    issue: String,
 }
 
 /// Decides what a response means.
@@ -111,18 +97,6 @@ pub fn classify(status: u16, retry_after_ms: Option<i64>, body: &[u8]) -> Dispos
 
         415 => Disposition::DisableCompression,
 
-        421 => match redirect(body) {
-            Some(endpoint) => Disposition::Redirect { endpoint },
-            // A cell with no registered ingest endpoint. Nothing to redirect to and nothing
-            // to retry against, so stopping is the only honest answer.
-            None => Disposition::Stop {
-                reason: explain(
-                    body,
-                    "this project belongs to another cell, which has no ingest address",
-                ),
-            },
-        },
-
         429 => Disposition::Retry {
             after_ms: retry_after_ms,
         },
@@ -130,17 +104,6 @@ pub fn classify(status: u16, retry_after_ms: Option<i64>, body: &[u8]) -> Dispos
         // Everything else: 5xx, a gateway in front of it, 0 for no answer at all.
         _ => Disposition::Retry { after_ms: None },
     }
-}
-
-/// The address a 421 names.
-fn redirect(body: &[u8]) -> Option<String> {
-    let envelope: ErrorEnvelope = serde_json::from_slice(body).ok()?;
-    envelope
-        .error
-        .details
-        .into_iter()
-        .find(|d| d.field == "ingest_url" && !d.issue.is_empty())
-        .map(|d| d.issue)
 }
 
 /// The server's own words where there are any, so a log line says something useful.
@@ -222,27 +185,6 @@ mod tests {
         assert!(matches!(classify(403, None, b""), Disposition::Stop { .. }));
         assert_eq!(classify(413, None, b""), Disposition::Split);
         assert_eq!(classify(415, None, b""), Disposition::DisableCompression);
-    }
-
-    #[test]
-    fn a_421_yields_the_address_that_can_serve_the_project() {
-        let body = br#"{"error":{"code":"wrong_cell","message":"this project belongs to cell us-1",
-            "status":421,"details":[{"field":"ingest_url","location":"header",
-            "issue":"https://ingest.us-1.playersense.dev"}]}}"#;
-        assert_eq!(
-            classify(421, None, body),
-            Disposition::Redirect {
-                endpoint: "https://ingest.us-1.playersense.dev".into()
-            }
-        );
-    }
-
-    #[test]
-    fn a_421_naming_no_address_stops_rather_than_looping() {
-        assert!(matches!(
-            classify(421, None, b"{}"),
-            Disposition::Stop { .. }
-        ));
     }
 
     #[test]

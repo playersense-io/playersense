@@ -11,8 +11,8 @@ namespace PlayerSense
         /// <summary>Your publishable project key: <c>ps_project_live_…</c>.</summary>
         public string ProjectKey;
 
-        /// <summary>The cell endpoint. A 421 replaces it and the replacement is remembered.</summary>
-        public string Endpoint = "https://ingest.eu-1.playersense.dev";
+        /// <summary>The ingest endpoint. A value stored on the device wins over this one.</summary>
+        public string Endpoint = "https://api.playersense.dev";
 
         /// <summary>
         /// Where feature flags and LiveOps events come from.

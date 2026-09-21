@@ -58,8 +58,7 @@ namespace PlayerSense.Editor
                 "Your publishable key, ps_project_live_… . It identifies the project and the " +
                 "environment; it is not a secret and is meant to ship inside the game.");
             Field("endpoint", "Endpoint",
-                "The ingest cell for this project. Leave the default unless you were given " +
-                "another one — a cell that is wrong replies 421 and the SDK corrects itself.");
+                "Where batches are sent. Leave the default unless you were given another one.");
             Field("environment", "Environment",
                 "development, staging or production. The key is the authority; this is a hint.");
 

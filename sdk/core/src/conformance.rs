@@ -658,39 +658,6 @@ fn a_batch_the_gateway_calls_too_large_is_split() {
     );
 }
 
-/// §13.23 — a 421 redirects, and the address is remembered.
-#[test]
-fn a_misdirected_batch_is_retried_against_the_cell_that_owns_the_project() {
-    let mut client = consenting(TestHost::new());
-    client.track("level_started", BTreeMap::new()).unwrap();
-
-    let request = client.host().take_sent().pop().expect("sent");
-    assert!(request.url.starts_with("https://ingest.eu-1.example"));
-
-    client.on_response(crate::host::Response {
-        id: request.id,
-        status: 421,
-        retry_after_ms: None,
-        etag: None,
-        body: br#"{"error":{"code":"wrong_cell","message":"this project belongs to cell us-1",
-            "details":[{"field":"ingest_url","issue":"https://ingest.us-1.example"}]}}"#
-            .to_vec(),
-    });
-
-    let retried = client.host().take_sent().pop().expect("retried at once");
-    assert_eq!(retried.url, "https://ingest.us-1.example/v1/batches");
-
-    // And it is a property of the project, not of that one request.
-    let disk = client.host().surviving_store();
-    let mut relaunched = consenting(TestHost::with_store(disk));
-    relaunched.track("later", BTreeMap::new()).unwrap();
-    let next = relaunched.host().take_sent().pop().expect("sent");
-    assert!(
-        next.url.starts_with("https://ingest.us-1.example"),
-        "the redirect was forgotten"
-    );
-}
-
 /// §13.24 — a refused credential stops sending and keeps the spool.
 #[test]
 fn a_bad_key_stops_the_sdk_without_discarding_the_players_events() {
