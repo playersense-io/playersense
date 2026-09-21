@@ -45,8 +45,6 @@ func Config() *muzak.Router {
 		muzak.WithResponseDoc(http.StatusUnauthorized, "The key is missing, unknown or revoked"),
 		muzak.WithResponseDoc(http.StatusForbidden,
 			"This endpoint needs a project key, and one belonging to the environment asked for"),
-		muzak.WithResponseDoc(http.StatusMisdirectedRequest,
-			"This project is served by another cell; the body names where to ask"),
 		muzak.WithResponseDoc(http.StatusServiceUnavailable,
 			"The published configuration could not be read; the SDK should keep using its last known good copy"),
 	)

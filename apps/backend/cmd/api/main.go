@@ -22,7 +22,10 @@ package main
 
 import (
 	"context"
+	"errors"
+	"flag"
 	"fmt"
+	"io"
 	"log"
 	"log/slog"
 	"net/http"
@@ -52,15 +55,54 @@ import (
 )
 
 func main() {
+	// `-openapi` prints the document and exits, so the TypeScript types in
+	// packages/contracts are generated from the application itself rather than from a
+	// running one. Nothing here dials anything — build() constructs its dependencies and
+	// opens none of them — so this works on a laptop with no stack up and in CI with no
+	// services started, which is what makes the drift check cheap enough to run on every
+	// push (packages/contracts/README.md).
+	emitDocument := flag.Bool("openapi", false,
+		"print the OpenAPI document to stdout and exit, instead of serving")
+	flag.Parse()
+
 	settings := config.MustLoad(filepath.Join(repoRoot(), ".env"))
 
 	app, err := build(settings)
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	if *emitDocument {
+		if err := writeDocument(app, os.Stdout); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
+
 	if err := app.RunSignals(); err != nil {
 		log.Fatal(err)
 	}
+}
+
+// writeDocument prints the OpenAPI description of the application.
+//
+// Marshalled through the framework's own deterministic encoder rather than encoding/json:
+// key order is stable across runs, which is the difference between a committed document
+// that diffs cleanly and one that reports drift every time somebody regenerates it.
+func writeDocument(app *muzak.App, out io.Writer) error {
+	doc, err := app.Document()
+	if err != nil {
+		return fmt.Errorf("build the OpenAPI document: %w", err)
+	}
+	if doc == nil {
+		return errors.New("this application serves no OpenAPI document")
+	}
+	body, err := doc.Marshal()
+	if err != nil {
+		return fmt.Errorf("marshal the OpenAPI document: %w", err)
+	}
+	_, err = out.Write(append(body, '\n'))
+	return err
 }
 
 // build composes the application.

@@ -16,6 +16,7 @@
     "@internationalized/date": "^3.12.4",
     "@nuxt/icon": "^2.5.1",
     "@nuxt/ui": "^4.11.1",
+    "@playersense/contracts": "workspace:*",
     "@playersense/ui": "workspace:*",
     "@tanstack/table-core": "^8.21.3",
     "@unovis/ts": "^1.7.0",

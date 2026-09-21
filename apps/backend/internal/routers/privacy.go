@@ -41,8 +41,6 @@ func Privacy() *muzak.Router {
 
 		muzak.WithResponseDoc(http.StatusUnauthorized, "The key is missing, unknown or revoked"),
 		muzak.WithResponseDoc(http.StatusForbidden, "This endpoint needs a server key"),
-		muzak.WithResponseDoc(http.StatusMisdirectedRequest,
-			"This project's data lives in another cell; the body names where to send the request"),
 		muzak.WithResponseDoc(http.StatusServiceUnavailable,
 			"The request could not be recorded, so nothing was started; send it again"),
 	)
@@ -72,8 +70,6 @@ func Privacy() *muzak.Router {
 		muzak.WithResponseDoc(http.StatusForbidden, "This endpoint needs a server key"),
 		muzak.WithResponseDoc(http.StatusConflict,
 			"This actor is being erased, so there is nothing left to export"),
-		muzak.WithResponseDoc(http.StatusMisdirectedRequest,
-			"This project's data lives in another cell; the body names where to send the request"),
 	)
 
 	r.Get("/v1/privacy/exports/{request_id}", handlers.ReadExport,

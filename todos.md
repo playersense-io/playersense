@@ -35,11 +35,29 @@ check it before assuming an endpoint exists).
 - [ ] `packages/eslint-config` — shared lint/format config for the three apps. Each app
       currently has its own `eslint.config.mjs` (identical, from the Nuxt UI template);
       not yet deduplicated into a shared package.
-- [ ] `packages/contracts` — generate TypeScript types from each service's `GET /openapi.json`
-      (confirmed: all four binaries — `api`,
-      `analytics-writer`, `archive-writer`, `worker` — construct `muzak.New(muzak.AppOptions{...})`,
-      which serves this by default). Script the regeneration so contract drift is a CI failure,
-      not a runtime surprise.
+- [x] `packages/contracts` — TypeScript types generated from the API's own OpenAPI
+      document, with `openapi.json` and `src/schema.d.ts` both committed so the apps need no
+      build step and a reviewer sees a contract change in the diff that caused it.
+
+      The document comes from `go run ./apps/backend/cmd/api -openapi`, a flag added for
+      this, rather than from a running server — the application builds and prints its
+      description without opening a connection, so the drift check needs no stack and runs
+      on every push. `pnpm contracts:check` regenerates in memory and fails on any
+      difference; it was verified to fail by adding a response to a route and passing again
+      once reverted.
+
+      Helpers are keyed on path and method (`ResponseOf<'/v1/batches', 'post'>`), not on
+      operation ids, because Muzak derives ids from the route
+      (`post_v1_organizations_by_org_projects`) and naming one in a page means a route
+      rename fails with a message about a missing id. `MethodsOf` narrows the method to the
+      verbs a path serves; without it `ResponseOf<'/v1/batches', 'get'>` resolved to a
+      quietly useless type instead of an error. `src/assertions.test-d.ts` pins all of this
+      at `tsc --noEmit`.
+
+      Added as a `workspace:*` dependency of `client` and `admin`, and verified to resolve
+      and typecheck from a page. **No client is generated** — auth, retries and error
+      handling are one decision the apps should make together in a fetch wrapper, which is
+      the next item below.
 - [ ] `packages/analytics-query-dsl` — typed builders/validators for the §57 query DSL
       (metric queries and the distinct §57.1 cohort-query shape), shared by `client` and any
       future internal BI tooling.
@@ -71,9 +89,11 @@ check it before assuming an endpoint exists).
       `admin.playersense.io`, `api.playersense.io`, etc.) — none are registered/deployed yet.
       Deployment *model* is decided in §6 (independent Nitro servers on Cloud Run, not
       Muzak's `Router.Frontend`).
-- [ ] Extend `.github/workflows/ci.yml` with a Node/pnpm job (lint, typecheck, build, test)
-      for the three new apps — CI today only covers the Rust SDK, the Go backend, and the
-      native library matrix.
+- [x] Extend `.github/workflows/ci.yml` with a Node/pnpm job — added as `node`, running
+      the contract drift check first (a stale contract is the likeliest reason the apps stop
+      typechecking, and the clearer message to fail with), then lint, typecheck and build.
+      It starts no services: the only Go it runs is `cmd/api -openapi`, which dials nothing.
+      There is no `test` step yet because the apps have no tests.
 - [ ] Decide token plumbing: Firebase ID token as `Authorization: Bearer` on every
       `api` calls from `client`/`admin`; refresh-on-expiry. `client` and
       `admin` are already set `ssr: false` (both `nuxt.config.ts`) so the token lives in
