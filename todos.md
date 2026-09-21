@@ -215,15 +215,15 @@ Tracked as ground truth in `docs/compliance/10-open-items.md` and cross-checked 
       Deterministic percentage rollout and audience bucketing exist (`internal/targeting`,
       `internal/liveconfig`) and are the primitive an experiment would sit on; variant-assignment
       tracking and exposure analytics (§44, §91) do not exist.
-- [ ] **Purchases** — the `verifiedpurchase` ent entity exists (schema only, regional tier,
-      `apps/backend/ent/regional/verifiedpurchase.go`); confirmed by grep that zero handler or
+- [ ] **Purchases** — the `verifiedpurchase` ent entity exists (schema only,
+      `apps/backend/ent/schema/regional.go`); confirmed by grep that zero handler or
       router code touches `VerifiedPurchase`/`VerifyPurchase` anywhere. No receipt-verification
       logic against Apple/Google, no normalized-purchase-event ingestion path. Nothing for this
       page to call yet.
 - [ ] **Webhooks** — no outbound customer-webhook package, handler, router, or transactional
       outbox table exists (`grep -rli outbox apps/backend` is empty). The only webhook-adjacent
       code is (a) comments confirming the ingestion routes deliberately call none, (b) `StripeEvent`
-      (`ent/schema/globaltier/billing.go`) — an *inbound* record of Stripe's webhooks for
+      (`ent/schema/billing.go`) — an *inbound* record of Stripe's webhooks for
       billing, unrelated to §49's outbound customer webhooks, and (c) `MaxWebhookEndpoints`, an
       entitlement constant (`internal/billing/billing.go:63`) with no CRUD or delivery logic
       behind it. Phase 2, §90.
