@@ -5,6 +5,6 @@ definePageMeta({ title: 'Audit Log' })
 <template>
   <PagePlaceholder
     title="Audit Log"
-    description="Every change made in this organization's control plane: memberships, roles, flags, publishes, credit. Append-only, read-only here."
+    description="Every change made in this organization: memberships, roles, flags, publishes, credit. Append-only, read-only here."
   />
 </template>

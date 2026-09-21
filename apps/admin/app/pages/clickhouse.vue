@@ -5,6 +5,6 @@ definePageMeta({ title: 'ClickHouse Health' })
 <template>
   <PagePlaceholder
     title="ClickHouse Health"
-    description="Per-cell ClickHouse status: replication, merges, and which partitions sit on which storage tier (hot vs. cold, §33)."
+    description="ClickHouse status: replication, merges, and which partitions sit on which storage tier (hot vs. cold, §33)."
   />
 </template>

@@ -216,18 +216,18 @@ func TestProjectLifecycle(t *testing.T) {
 		t.Errorf("retention_days = %d, want 90", created.RetentionDays)
 	}
 
-	// Reading one back names its cell, which the listing already did and this did not: the
-	// principal resolved the project without its cell edge, so `cell`, `region`, `ingest_url`
-	// and `query_url` were silently absent from exactly the response a studio reads to
-	// configure their SDK. The analytics routes need the same edge to refuse another cell's
-	// project, which is how it was noticed.
+	// Reading one back agrees with what creating it returned. The two responses are built
+	// by the same mapper from different queries, which is how they drifted before: a
+	// listing named fields a single read left silently absent.
 	read := testclient.Decoded[projectOut](client.Get(
 		"/v1/organizations/" + orgSlug + "/projects/" + projSlug).AssertStatus(http.StatusOK))
-	if read.Cell == "" || read.Region == "" {
-		t.Errorf("reading a project does not say where its data lives: %+v", read)
+	if read.Slug != created.Slug || read.PolicyTier != created.PolicyTier ||
+		read.RetentionDays != created.RetentionDays {
+		t.Errorf("reading a project back disagrees with creating it:\n  read    %+v\n  created %+v",
+			read, created)
 	}
-	if read.IngestURL == "" {
-		t.Error("reading a project does not say where its SDKs should send batches")
+	if len(read.Environments) != 3 {
+		t.Errorf("reading a project names %d environments, want 3", len(read.Environments))
 	}
 
 	// A retention value outside §24's discrete tiers is refused.
@@ -307,9 +307,6 @@ func contains(haystack, needle string) bool {
 // schema package and testing it against itself.
 type projectOut struct {
 	Slug          string   `json:"slug"`
-	Cell          string   `json:"cell"`
-	Region        string   `json:"region"`
-	IngestURL     string   `json:"ingest_url"`
 	PolicyTier    string   `json:"policy_tier"`
 	RetentionDays int      `json:"retention_days"`
 	Notes         []string `json:"notes"`
