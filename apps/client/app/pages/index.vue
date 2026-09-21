@@ -7,7 +7,7 @@ definePageMeta({ title: 'Overview' })
     <template #header>
       <UDashboardNavbar title="Overview">
         <template #leading>
-          <UDashboardSidebarCollapse />
+          <SidebarCollapse />
         </template>
       </UDashboardNavbar>
     </template>

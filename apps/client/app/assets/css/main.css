@@ -1,3 +1,17 @@
+/*
+ * Vuetify 4's compiled CSS opens by declaring its own 5 named cascade
+ * layers (vuetify-core, vuetify-components, vuetify-overrides,
+ * vuetify-utilities, vuetify-final). Per the CSS Cascade Layers spec,
+ * a layer's priority is fixed by the order its name is FIRST seen —
+ * declaring these here, before Tailwind's own `@layer theme, base,
+ * components, utilities;` statement runs, pins all of Vuetify's layers
+ * below all of Tailwind's. Without this, load order between the two
+ * libraries' stylesheets is undefined, and Vuetify's component styles
+ * (e.g. `.v-list-item-title` font-size) could silently outrank a
+ * Tailwind utility like `text-xs` applied to the same element.
+ */
+@layer vuetify-core, vuetify-components, vuetify-overrides, vuetify-utilities, vuetify-final;
+
 @import "tailwindcss" theme(static);
 @import "@nuxt/ui";
 
