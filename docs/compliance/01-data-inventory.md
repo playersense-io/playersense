@@ -24,8 +24,8 @@ or omit one that does. See ADR 0007.
 Current state, from a live `migrate verify`:
 
 ```text
-postgres     100 columns / 12 tables, all classified
-clickhouse   248 columns / 19 tables, all classified
+postgres     319 columns / 26 tables, all classified
+clickhouse   261 columns / 20 tables, all classified
 ```
 
 ## What is collected about a player

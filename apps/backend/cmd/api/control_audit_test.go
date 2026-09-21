@@ -68,10 +68,31 @@ func TestEveryMutatingRouteDecidesAboutAudit(t *testing.T) {
 
 	// Exempt, each with the reason. A route is allowed to change something and write no entry —
 	// but only on purpose, and only with the reason written down where the next person finds it.
-	// Empty today, which is the point worth noticing: **every** route on the control plane that
-	// changes something writes an entry. The map stays because the next one might not deserve to,
-	// and the reason it does not should be written here rather than argued for in a review.
-	exempt := map[string]string{}
+	//
+	// Every entry here arrived at once, when the four services became one binary and this test
+	// started reading their routes too. None of them is a dashboard action, which is the thing
+	// §08's log is about: ADR 0037's rule is that an audit log records **decisions**, and a
+	// decision is something a person made about a customer's account.
+	exempt := map[string]string{
+		// POST because the query is a document, not because anything changes. A read that
+		// writes an audit entry per request is the request log ADR 0037 exists to refuse.
+		"POST /v1/cohorts/query": "a read; POST only because the query is a document",
+		"POST /v1/metrics/query": "a read; POST only because the query is a document",
+		"POST /v1/organizations/{org}/projects/{project}/analytics/{environment}/cohorts/query": "a read",
+		"POST /v1/organizations/{org}/projects/{project}/analytics/{environment}/metrics/query": "a read",
+		"POST /v1/config": "a read; POST only because the player's context is a document",
+
+		// The SDK path. A batch is player data arriving, not a decision somebody made about
+		// an account, and one entry per batch would be tens of millions of rows a day.
+		"POST /v1/batches": "ingestion; an entry per batch is a request log, at ingestion volume",
+
+		// These two genuinely change something, and they keep a **better** record than an
+		// audit line: their own tables carry a status machine through to completion, plus
+		// what was removed as counts (§61, §101). That record outlives the data it describes,
+		// which an entry keyed to an organization does not.
+		"POST /v1/privacy/erasures": "recorded in data_deletion_requests, with a status machine and counts",
+		"POST /v1/privacy/exports":  "recorded in data_export_requests, with a status machine and an expiry",
+	}
 
 	app := mustBuild(t, testSettings(t))
 	if err := app.Build(); err != nil {

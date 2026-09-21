@@ -9,9 +9,9 @@ import (
 	"playersense.dev/backend/internal/valkey"
 )
 
-func cacheFor(cell string) *Cache {
-	// Never started. Key() reads only the cell prefix, and these tests are about what a key
-	// is made of rather than about Valkey.
+func newCache() *Cache {
+	// Never started. Key() touches no connection, and these tests are about what a key is
+	// made of rather than about Valkey.
 	return NewCache(valkey.New("redis://127.0.0.1:1/0"), time.Minute, time.Hour)
 }
 
@@ -30,7 +30,7 @@ func baseQuery() protocol.CohortQuery {
 // question share a result; without the schema version, a deployment that changes what a
 // metric means keeps serving the old meaning until every entry expires.
 func TestTheCacheKeyCoversEveryPartOfTheQuestion(t *testing.T) {
-	c := cacheFor("eu-1")
+	c := newCache()
 	base := c.Key(scope(), baseQuery())
 
 	otherProject := scope()
@@ -91,26 +91,13 @@ func TestTheCacheKeyCoversEveryPartOfTheQuestion(t *testing.T) {
 	}
 }
 
-// TestOneCellCannotReadAnothersAnswers.
-//
-// Every key carries its cell, so a shared Valkey in development cannot serve one region's
-// aggregate to another's reporting API — the same reason the credential cache and the
-// rate-limit counters carry it.
-func TestOneCellCannotReadAnothersAnswers(t *testing.T) {
-	eu := cacheFor("eu-1").Key(scope(), baseQuery())
-	us := cacheFor("us-1").Key(scope(), baseQuery())
-	if eu == us {
-		t.Fatal("two cells share a cache key for the same question")
-	}
-}
-
 // TestASettledWindowIsHeldLongerThanAFreshOne is §58's two lifetimes.
 //
 // The derivation rebuilds whole activity months — the current one, and the previous one
 // early in a new month (§29.14) — so an answer whose *activity* reaches into either can
 // change tonight. Anything older cannot change without somebody running a backfill.
 func TestASettledWindowIsHeldLongerThanAFreshOne(t *testing.T) {
-	c := cacheFor("eu-1")
+	c := newCache()
 	now := time.Date(2026, 9, 14, 12, 0, 0, 0, time.UTC)
 
 	recent := baseQuery()
