@@ -6,12 +6,20 @@
 /bin/
 *.test
 *.out
-# Binaries left by `go build ./cmd/...`, which writes them beside the module.
-/apps/backend/control-api
-/apps/backend/ingest-api
+# Binaries left by `go build ./...`, which writes one per main package beside the module.
+#
+# A name per command, and the list went stale once already: it named the four API binaries
+# that merged into `api`, so the first `go build ./...` after the merge committed three
+# hundred-megabyte executables and GitHub refused the push. Adding a command means adding
+# it here, which is the cost of not ignoring a whole directory that also holds go.mod.
+/apps/backend/api
 /apps/backend/analytics-writer
-/apps/backend/migrate
+/apps/backend/archive-writer
+/apps/backend/archivecheck
 /apps/backend/cohortcheck
+/apps/backend/migrate
+/apps/backend/wiresize
+/apps/backend/worker
 
 # Rust. Anchored like the Go binaries above, so a `target/` appearing anywhere else is a
 # deliberate decision rather than a silent one. Cargo.lock IS committed: this workspace
