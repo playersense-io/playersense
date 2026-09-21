@@ -26,11 +26,11 @@ import (
 	"strings"
 	"time"
 
-	"playersense.dev/backend/ent/global"
-	"playersense.dev/backend/ent/global/organization"
-	"playersense.dev/backend/ent/global/organizationmember"
-	"playersense.dev/backend/ent/global/role"
-	"playersense.dev/backend/ent/global/user"
+	"playersense.dev/backend/ent"
+	"playersense.dev/backend/ent/organization"
+	"playersense.dev/backend/ent/organizationmember"
+	"playersense.dev/backend/ent/role"
+	"playersense.dev/backend/ent/user"
 	"playersense.dev/backend/internal/authz"
 )
 
@@ -91,7 +91,7 @@ var ErrMemberLimit = errors.New("this organization has as many members as it may
 // otherwise have to exist and be got right.
 //
 // Idempotent: the same token twice updates the profile and creates nothing.
-func EnsureUser(ctx context.Context, db *global.Client, claims Claims, now time.Time) (*global.User, error) {
+func EnsureUser(ctx context.Context, db *ent.Client, claims Claims, now time.Time) (*ent.User, error) {
 	if err := claims.Valid(); err != nil {
 		return nil, err
 	}
@@ -117,7 +117,7 @@ func EnsureUser(ctx context.Context, db *global.Client, claims Claims, now time.
 		}
 		return update.Save(ctx)
 
-	case !global.IsNotFound(err):
+	case !ent.IsNotFound(err):
 		return nil, fmt.Errorf("look up user: %w", err)
 	}
 
@@ -141,7 +141,7 @@ func EnsureUser(ctx context.Context, db *global.Client, claims Claims, now time.
 }
 
 // createPersonalOrganization gives a new user somewhere to be.
-func createPersonalOrganization(ctx context.Context, db *global.Client, owner *global.User, now time.Time) (*global.Organization, error) {
+func createPersonalOrganization(ctx context.Context, db *ent.Client, owner *ent.User, now time.Time) (*ent.Organization, error) {
 	name := owner.Name
 	if name == "" {
 		name = strings.SplitN(owner.Email, "@", 2)[0]
@@ -162,9 +162,9 @@ func createPersonalOrganization(ctx context.Context, db *global.Client, owner *g
 // organization this call just created. It exists for the audit entry: "an organization was
 // created" has to be true exactly when the row is, and a caller writing it afterwards, against a
 // different connection, cannot promise that. Pass nil when there is nothing to add.
-func CreateOrganization(ctx context.Context, db *global.Client, name, slug string, ownerID int,
-	now time.Time, also func(tx *global.Tx, org *global.Organization) error,
-) (*global.Organization, error) {
+func CreateOrganization(ctx context.Context, db *ent.Client, name, slug string, ownerID int,
+	now time.Time, also func(tx *ent.Tx, org *ent.Organization) error,
+) (*ent.Organization, error) {
 	tx, err := db.Tx(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("begin: %w", err)
@@ -215,8 +215,8 @@ func CreateOrganization(ctx context.Context, db *global.Client, name, slug strin
 // LiveOps differently edits it. The two system roles are written too, even though their
 // permissions are computed rather than read back — a table where OWNER is absent is a table
 // that does not explain itself to the person reading it.
-func SeedRoles(ctx context.Context, db *global.Client, orgID int) (map[string]*global.Role, error) {
-	out := make(map[string]*global.Role, len(authz.Templates()))
+func SeedRoles(ctx context.Context, db *ent.Client, orgID int) (map[string]*ent.Role, error) {
+	out := make(map[string]*ent.Role, len(authz.Templates()))
 	for _, template := range authz.Templates() {
 		permissions := template.Seed()
 		names := make([]string, len(permissions))
@@ -252,7 +252,7 @@ var ErrLastOwner = errors.New("an organization must keep at least one owner")
 // Several owners are allowed and removing one of them is fine. It is the *last* one that is
 // refused, because an organization with no owner is unreachable: nobody can grant a role,
 // nobody can delete it, and support has to edit the database by hand.
-func RemoveMember(ctx context.Context, db *global.Client, orgID, memberID int) error {
+func RemoveMember(ctx context.Context, db *ent.Client, orgID, memberID int) error {
 	member, err := db.OrganizationMember.Query().
 		Where(
 			organizationmember.ID(memberID),
@@ -281,7 +281,7 @@ func RemoveMember(ctx context.Context, db *global.Client, orgID, memberID int) e
 // The same rule as RemoveMember and for the same reason: demoting the last owner leaves an
 // organization nobody owns, which is the identical dead end reached by a different door. A
 // check in only one of the two is a check that holds until somebody uses the other.
-func SetMemberRole(ctx context.Context, db *global.Client, orgID, memberID, roleID int) (*global.OrganizationMember, error) {
+func SetMemberRole(ctx context.Context, db *ent.Client, orgID, memberID, roleID int) (*ent.OrganizationMember, error) {
 	member, err := db.OrganizationMember.Query().
 		Where(
 			organizationmember.ID(memberID),
@@ -317,7 +317,7 @@ func SetMemberRole(ctx context.Context, db *global.Client, orgID, memberID, role
 	return db.OrganizationMember.UpdateOneID(memberID).SetRoleID(target.ID).Save(ctx)
 }
 
-func countOwners(ctx context.Context, db *global.Client, orgID int) (int, error) {
+func countOwners(ctx context.Context, db *ent.Client, orgID int) (int, error) {
 	owners, err := db.OrganizationMember.Query().
 		Where(
 			organizationmember.OrganizationID(orgID),
@@ -339,7 +339,7 @@ func countOwners(ctx context.Context, db *global.Client, orgID int) (int, error)
 // The race is real and bounded: two concurrent adds can both see 49. An organization of 51 is
 // not a security failure and the next add is refused, so this is a ceiling rather than a lock —
 // and taking one would serialise every invitation accept in the product.
-func AddMember(ctx context.Context, db *global.Client, orgID, userID, roleID int, now time.Time) (*global.OrganizationMember, error) {
+func AddMember(ctx context.Context, db *ent.Client, orgID, userID, roleID int, now time.Time) (*ent.OrganizationMember, error) {
 	org, err := db.Organization.Get(ctx, orgID)
 	if err != nil {
 		return nil, fmt.Errorf("look up organization: %w", err)
@@ -363,10 +363,10 @@ func AddMember(ctx context.Context, db *global.Client, orgID, userID, roleID int
 }
 
 // Organizations lists what a user belongs to.
-func Organizations(ctx context.Context, db *global.Client, userID int) ([]*global.Organization, error) {
+func Organizations(ctx context.Context, db *ent.Client, userID int) ([]*ent.Organization, error) {
 	return db.Organization.Query().
 		Where(organization.HasMembersWith(organizationmember.UserID(userID))).
-		Order(global.Asc(organization.FieldName)).
+		Order(ent.Asc(organization.FieldName)).
 		All(ctx)
 }
 
@@ -409,7 +409,7 @@ func Digest(token string) string {
 // A collision after the suffix is possible and is handled by trying again rather than by
 // widening the suffix — four random characters over a namespace this small collide about once
 // in a million, and a retry costs one query in that case.
-func uniqueSlug(ctx context.Context, db *global.Client, name string) string {
+func uniqueSlug(ctx context.Context, db *ent.Client, name string) string {
 	base := slugify(name)
 	if base == "" {
 		base = "org"

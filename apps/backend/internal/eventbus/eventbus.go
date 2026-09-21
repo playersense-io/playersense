@@ -22,13 +22,6 @@ type Message struct {
 	// PublishedAt is when the gateway accepted the batch.
 	PublishedAt time.Time `json:"published_at"`
 
-	// Cell is the data plane that accepted this batch (§6).
-	//
-	// A consumer can then tell which cell produced a message, and a subscription can
-	// filter on it — neither of which is possible if the only identity a message carries
-	// is the tenant's.
-	Cell string `json:"cell"`
-
 	// DedupKey is derived from the batch identity and is stable across retries, so a
 	// redelivery is recognisable downstream (§21).
 	DedupKey string `json:"dedup_key"`

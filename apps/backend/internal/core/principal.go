@@ -4,14 +4,14 @@ import (
 	"errors"
 	"time"
 
-	"muzak.dev/framework"
+	muzak "muzak.dev/framework"
 
-	"playersense.dev/backend/ent/global"
-	"playersense.dev/backend/ent/global/memberproject"
-	"playersense.dev/backend/ent/global/organization"
-	"playersense.dev/backend/ent/global/organizationmember"
-	"playersense.dev/backend/ent/global/project"
-	"playersense.dev/backend/ent/global/user"
+	"playersense.dev/backend/ent"
+	"playersense.dev/backend/ent/memberproject"
+	"playersense.dev/backend/ent/organization"
+	"playersense.dev/backend/ent/organizationmember"
+	"playersense.dev/backend/ent/project"
+	"playersense.dev/backend/ent/user"
 	"playersense.dev/backend/internal/authz"
 	"playersense.dev/backend/internal/firebase"
 	"playersense.dev/backend/internal/identity"
@@ -30,15 +30,15 @@ import (
 // slug are two chances for those to differ.
 type Principal struct {
 	Claims identity.Claims
-	User   *global.User
+	User   *ent.User
 
 	// Organization and Member are nil on a route that names no organisation — signing in,
 	// listing what you belong to, creating a new one.
-	Organization *global.Organization
-	Member       *global.OrganizationMember
+	Organization *ent.Organization
+	Member       *ent.OrganizationMember
 
 	// Project is set when the route's path names one and the person can reach it.
-	Project *global.Project
+	Project *ent.Project
 
 	// Actor is the permission question's subject. Its OrganizationID is zero when the
 	// route names no organisation, and authz.Can answers false for everything in that
@@ -98,7 +98,7 @@ func ResolveKnownUser(ctx *muzak.Context) (*Principal, error) {
 // enforcing last month's version of one.
 func resolve(ctx *muzak.Context, mayCreate bool) (*Principal, error) {
 	verifier := muzak.From[*firebase.Verifier](ctx)
-	ctrl := muzak.From[*Global](ctx)
+	db := muzak.From[*DB](ctx)
 
 	presented, present := muzak.BearerToken(ctx)
 	if !present {
@@ -146,7 +146,7 @@ func resolve(ctx *muzak.Context, mayCreate bool) (*Principal, error) {
 	// The dashboard requests verification emails directly from Firebase. Resolving a
 	// principal does not send mail; the verified claim controls write access below.
 
-	person, err := findOrCreate(ctx, ctrl, claims, mayCreate)
+	person, err := findOrCreate(ctx, db, claims, mayCreate)
 	if err != nil {
 		return nil, err
 	}
@@ -162,7 +162,7 @@ func resolve(ctx *muzak.Context, mayCreate bool) (*Principal, error) {
 		// zero-valued, and every permission question against it answers false.
 		return principal, nil
 	}
-	if err := principal.enterOrganization(ctx, ctrl, slug); err != nil {
+	if err := principal.enterOrganization(ctx, db, slug); err != nil {
 		return nil, err
 	}
 	return principal, nil
@@ -174,19 +174,19 @@ func resolve(ctx *muzak.Context, mayCreate bool) (*Principal, error) {
 // is reached from a cell, where the caller has named an organization, and "you have no account"
 // versus "no such organization" is a distinction that tells somebody whether the slug they guessed
 // is real.
-func findOrCreate(ctx *muzak.Context, ctrl *Global, claims identity.Claims, mayCreate bool) (*global.User, error) {
+func findOrCreate(ctx *muzak.Context, db *DB, claims identity.Claims, mayCreate bool) (*ent.User, error) {
 	if mayCreate {
-		person, err := identity.EnsureUser(ctx.Context(), ctrl.Client, claims, time.Now())
+		person, err := identity.EnsureUser(ctx.Context(), db.Client, claims, time.Now())
 		if err != nil {
 			return nil, muzak.ServiceUnavailable("cannot read your account right now").Wrap(err)
 		}
 		return person, nil
 	}
 
-	person, err := ctrl.Client.User.Query().
+	person, err := db.Client.User.Query().
 		Where(user.FirebaseUID(claims.UID)).Only(ctx.Context())
 	if err != nil {
-		if global.IsNotFound(err) {
+		if ent.IsNotFound(err) {
 			return nil, muzak.NotFound("no such organization")
 		}
 		return nil, muzak.ServiceUnavailable("cannot read your account right now").Wrap(err)
@@ -198,17 +198,17 @@ func findOrCreate(ctx *muzak.Context, ctrl *Global, claims identity.Claims, mayC
 const VerifyEmailFirst = "this account has not verified its email address"
 
 // enterOrganization resolves the organisation in the path and the person's standing in it.
-func (p *Principal) enterOrganization(ctx *muzak.Context, ctrl *Global, slug string) error {
-	org, err := ctrl.Client.Organization.Query().
+func (p *Principal) enterOrganization(ctx *muzak.Context, db *DB, slug string) error {
+	org, err := db.Client.Organization.Query().
 		Where(organization.Slug(slug)).Only(ctx.Context())
 	if err != nil {
-		if global.IsNotFound(err) {
+		if ent.IsNotFound(err) {
 			return muzak.NotFound("no such organization")
 		}
 		return muzak.ServiceUnavailable("cannot read that organization right now").Wrap(err)
 	}
 
-	member, err := ctrl.Client.OrganizationMember.Query().
+	member, err := db.Client.OrganizationMember.Query().
 		Where(
 			organizationmember.OrganizationID(org.ID),
 			organizationmember.UserID(p.User.ID),
@@ -216,7 +216,7 @@ func (p *Principal) enterOrganization(ctx *muzak.Context, ctrl *Global, slug str
 		WithRole().
 		Only(ctx.Context())
 	if err != nil {
-		if global.IsNotFound(err) {
+		if ent.IsNotFound(err) {
 			// 404, not 403. A 403 confirms the organisation exists, which turns this
 			// endpoint into a way to enumerate customers by guessing slugs.
 			return muzak.NotFound("no such organization")
@@ -238,7 +238,7 @@ func (p *Principal) enterOrganization(ctx *muzak.Context, ctrl *Global, slug str
 
 	var reachable []int
 	if !member.AllProjects {
-		ids, err := ctrl.Client.MemberProject.Query().
+		ids, err := db.Client.MemberProject.Query().
 			Where(memberproject.MemberID(member.ID)).
 			Select(memberproject.FieldProjectID).
 			Ints(ctx.Context())
@@ -265,26 +265,21 @@ func (p *Principal) enterOrganization(ctx *muzak.Context, ctrl *Global, slug str
 		p.Actor.ReadOnlyReason = VerifyEmailFirst
 	}
 
-	return p.enterProject(ctx, ctrl)
+	return p.enterProject(ctx, db)
 }
 
 // enterProject resolves the project in the path, when the route names one.
-func (p *Principal) enterProject(ctx *muzak.Context, ctrl *Global) error {
+func (p *Principal) enterProject(ctx *muzak.Context, db *DB) error {
 	slug := ctx.PathValue(ProjectPathValue)
 	if slug == "" {
 		return nil
 	}
 
-	// WithCell, because a project's cell is where its data physically lives (§6) and two
-	// callers need it: a customer reading their own project has to be told which region and
-	// which ingestion address to use, and an analytics route in a cell has to refuse a project
-	// belonging to another one rather than answer it with no rows.
-	proj, err := ctrl.Client.Project.Query().
+	proj, err := db.Client.Project.Query().
 		Where(project.Slug(slug), project.OrganizationID(p.Organization.ID)).
-		WithCell().
 		Only(ctx.Context())
 	if err != nil {
-		if global.IsNotFound(err) {
+		if ent.IsNotFound(err) {
 			return muzak.NotFound("no such project")
 		}
 		return muzak.ServiceUnavailable("cannot read that project right now").Wrap(err)

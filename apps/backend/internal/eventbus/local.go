@@ -26,13 +26,8 @@ import (
 //
 // It is not a queue. There is no subscription, no acknowledgement and no redelivery, so
 // it stands in for Pub/Sub only as far as the publish side of §19 is concerned.
-//
-// Segments live under a directory named for the cell, so a writer for one cell tails one
-// directory and a developer running two cells against one spool does not get one cell's
-// batches delivered to the other's writer.
 type Local struct {
-	cell string
-	dir  string
+	dir string
 
 	// pollInterval is how often Subscribe looks for new bytes. Zero means the default.
 	pollInterval time.Duration
@@ -44,12 +39,12 @@ type Local struct {
 	day  string
 }
 
-// NewLocal returns a bus writing under dir for one cell.
-func NewLocal(cell, dir string) *Local { return &Local{cell: cell, dir: dir} }
+// NewLocal returns a bus writing under dir.
+func NewLocal(dir string) *Local { return &Local{dir: dir} }
 
-// segment is where a day's messages for this cell are spooled.
+// segment is where a day's messages are spooled.
 func (l *Local) segment(day string) string {
-	return filepath.Join(l.dir, l.cell, "analytics-events-"+day+".ndjson")
+	return filepath.Join(l.dir, "analytics-events-"+day+".ndjson")
 }
 
 // Name identifies the component in start-up and shutdown logs.
@@ -57,7 +52,7 @@ func (l *Local) Name() string { return "eventbus-local" }
 
 // Start creates the spool directory.
 func (l *Local) Start(context.Context) error {
-	dir := filepath.Join(l.dir, l.cell)
+	dir := l.dir
 	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return fmt.Errorf("create spool %s: %w", dir, err)
 	}
@@ -126,7 +121,7 @@ func (l *Local) DeadLetter(_ context.Context, msg *Message, reason DeadLetterRea
 		return fmt.Errorf("encode dead letter: %w", err)
 	}
 
-	dir := filepath.Join(l.dir, l.cell, ".dead")
+	dir := filepath.Join(l.dir, ".dead")
 	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return fmt.Errorf("create dead-letter spool: %w", err)
 	}
@@ -148,7 +143,7 @@ func (l *Local) DeadLetter(_ context.Context, msg *Message, reason DeadLetterRea
 
 // DeadLettered reads back what has been parked, for tests and for an operator's tooling.
 func (l *Local) DeadLettered(group string, day time.Time) ([]*Message, error) {
-	path := filepath.Join(l.dir, l.cell, ".dead",
+	path := filepath.Join(l.dir, ".dead",
 		group+"-"+day.UTC().Format("2006-01-02")+".ndjson")
 	raw, err := os.ReadFile(path)
 	if err != nil {
@@ -289,7 +284,7 @@ func (l *Local) poll() time.Duration {
 // offsetDir is per group, so two consumers of the same spool keep independent positions —
 // the property a shared directory silently removed.
 func (l *Local) offsetDir(group string) string {
-	return filepath.Join(l.dir, l.cell, ".offsets", group)
+	return filepath.Join(l.dir, ".offsets", group)
 }
 
 // maxReadPerPoll bounds how much of a segment is read in one pass, so a large backlog is
@@ -299,7 +294,7 @@ const maxReadPerPoll = 8 << 20
 // deliverOnce finds the oldest segment with unread bytes, delivers what is there, and
 // reports whether it delivered anything.
 func (l *Local) deliverOnce(ctx context.Context, group string, handle Handler) (bool, error) {
-	segments, err := filepath.Glob(filepath.Join(l.dir, l.cell, "analytics-events-*.ndjson"))
+	segments, err := filepath.Glob(filepath.Join(l.dir, "analytics-events-*.ndjson"))
 	if err != nil {
 		return false, err
 	}

@@ -8,14 +8,14 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"muzak.dev/framework"
+	muzak "muzak.dev/framework"
 
-	"playersense.dev/backend/ent/global"
-	"playersense.dev/backend/ent/global/invitation"
-	"playersense.dev/backend/ent/global/organizationmember"
-	"playersense.dev/backend/ent/global/project"
-	"playersense.dev/backend/ent/global/role"
-	"playersense.dev/backend/ent/global/user"
+	"playersense.dev/backend/ent"
+	"playersense.dev/backend/ent/invitation"
+	"playersense.dev/backend/ent/organizationmember"
+	"playersense.dev/backend/ent/project"
+	"playersense.dev/backend/ent/role"
+	"playersense.dev/backend/ent/user"
 	"playersense.dev/backend/internal/audit"
 	"playersense.dev/backend/internal/authz"
 	"playersense.dev/backend/internal/config"
@@ -66,12 +66,12 @@ import (
 // added tomorrow reaches every owner without a migration — which makes the response the authority
 // and the column a convenience for whoever reads the table by hand.
 func ListRoles(ctx *muzak.Context, _ schemas.OrganizationParams) (schemas.RoleListOut, error) {
-	ctrl := muzak.From[*core.Global](ctx)
+	db := muzak.From[*core.DB](ctx)
 	org := muzak.From[*core.Principal](ctx).Organization
 
-	rows, err := ctrl.Client.Role.Query().
+	rows, err := db.Client.Role.Query().
 		Where(role.OrganizationID(org.ID)).
-		Order(global.Asc(role.FieldID)).
+		Order(ent.Asc(role.FieldID)).
 		All(ctx.Context())
 	if err != nil {
 		return schemas.RoleListOut{}, core.AsHTTPError(err)
@@ -91,15 +91,15 @@ func ListRoles(ctx *muzak.Context, _ schemas.OrganizationParams) (schemas.RoleLi
 // fails at *accept* time — in front of the invited colleague rather than the person who sent it,
 // which is the worst possible place to learn an organization is full.
 func ListMembers(ctx *muzak.Context, _ schemas.OrganizationParams) (schemas.MemberListOut, error) {
-	ctrl := muzak.From[*core.Global](ctx)
+	db := muzak.From[*core.DB](ctx)
 	principal := muzak.From[*core.Principal](ctx)
 	org := principal.Organization
 
-	rows, err := ctrl.Client.OrganizationMember.Query().
+	rows, err := db.Client.OrganizationMember.Query().
 		Where(organizationmember.OrganizationID(org.ID)).
 		WithUser().
 		WithRole().
-		Order(global.Asc(organizationmember.FieldJoinedAt)).
+		Order(ent.Asc(organizationmember.FieldJoinedAt)).
 		All(ctx.Context())
 	if err != nil {
 		return schemas.MemberListOut{}, core.AsHTTPError(err)
@@ -111,7 +111,7 @@ func ListMembers(ctx *muzak.Context, _ schemas.OrganizationParams) (schemas.Memb
 		Used:    len(rows),
 	}
 	for _, row := range rows {
-		member, err := memberOut(ctx.Context(), ctrl, row, principal.User.ID)
+		member, err := memberOut(ctx.Context(), db, row, principal.User.ID)
 		if err != nil {
 			return schemas.MemberListOut{}, err
 		}
@@ -122,14 +122,14 @@ func ListMembers(ctx *muzak.Context, _ schemas.OrganizationParams) (schemas.Memb
 
 // ReadMember returns one membership.
 func ReadMember(ctx *muzak.Context, in schemas.MemberParams) (schemas.MemberOut, error) {
-	ctrl := muzak.From[*core.Global](ctx)
+	db := muzak.From[*core.DB](ctx)
 	principal := muzak.From[*core.Principal](ctx)
 
 	row, err := findMember(ctx, in.MemberID)
 	if err != nil {
 		return schemas.MemberOut{}, err
 	}
-	return memberOut(ctx.Context(), ctrl, row, principal.User.ID)
+	return memberOut(ctx.Context(), db, row, principal.User.ID)
 }
 
 // SetMemberRole changes what one person may do.
@@ -139,7 +139,7 @@ func ReadMember(ctx *muzak.Context, in schemas.MemberParams) (schemas.MemberOut,
 // leaves an organization nobody owns: nobody can grant a role, nobody can delete it, and support
 // has to edit the database by hand.
 func SetMemberRole(ctx *muzak.Context, in schemas.SetMemberRoleIn) (schemas.MemberOut, error) {
-	ctrl := muzak.From[*core.Global](ctx)
+	db := muzak.From[*core.DB](ctx)
 	principal := muzak.From[*core.Principal](ctx)
 	org := principal.Organization
 
@@ -147,7 +147,7 @@ func SetMemberRole(ctx *muzak.Context, in schemas.SetMemberRoleIn) (schemas.Memb
 	if err != nil {
 		return schemas.MemberOut{}, err
 	}
-	wanted, err := findRole(ctx.Context(), ctrl, org.ID, in.RoleKey)
+	wanted, err := findRole(ctx.Context(), db, org.ID, in.RoleKey)
 	if err != nil {
 		return schemas.MemberOut{}, err
 	}
@@ -159,7 +159,7 @@ func SetMemberRole(ctx *muzak.Context, in schemas.SetMemberRoleIn) (schemas.Memb
 		was = member.Edges.Role.Key
 	}
 
-	tx, err := ctrl.Client.Tx(ctx.Context())
+	tx, err := db.Client.Tx(ctx.Context())
 	if err != nil {
 		return schemas.MemberOut{}, core.AsHTTPError(err)
 	}
@@ -183,7 +183,7 @@ func SetMemberRole(ctx *muzak.Context, in schemas.SetMemberRoleIn) (schemas.Memb
 	if err := tx.Commit(); err != nil {
 		return schemas.MemberOut{}, core.AsHTTPError(err)
 	}
-	return memberOut(ctx.Context(), ctrl, withEdges(ctx.Context(), ctrl, updated), principal.User.ID)
+	return memberOut(ctx.Context(), db, withEdges(ctx.Context(), db, updated), principal.User.ID)
 }
 
 // SetMemberAccess replaces which projects one member can reach.
@@ -193,7 +193,7 @@ func SetMemberRole(ctx *muzak.Context, in schemas.SetMemberRoleIn) (schemas.Memb
 // given by omission. A combined member update carrying this field would widen or narrow somebody's
 // reach whenever a caller forgot to echo it back, silently, with a 200.
 func SetMemberAccess(ctx *muzak.Context, in schemas.SetMemberAccessIn) (schemas.MemberOut, error) {
-	ctrl := muzak.From[*core.Global](ctx)
+	db := muzak.From[*core.DB](ctx)
 	principal := muzak.From[*core.Principal](ctx)
 	org := principal.Organization
 
@@ -203,7 +203,7 @@ func SetMemberAccess(ctx *muzak.Context, in schemas.SetMemberAccessIn) (schemas.
 	}
 
 	all := in.AllProjects != nil && *in.AllProjects
-	ids, err := projectIDs(ctx.Context(), ctrl, org.ID, in.Projects)
+	ids, err := projectIDs(ctx.Context(), db, org.ID, in.Projects)
 	if err != nil {
 		return schemas.MemberOut{}, err
 	}
@@ -222,9 +222,9 @@ func SetMemberAccess(ctx *muzak.Context, in schemas.SetMemberAccessIn) (schemas.
 	// Written inside the same transaction as the grants themselves, so a failure between the two
 	// cannot happen: either the access changed and the entry says so, or neither did.
 	wasAll := member.AllProjects
-	updated, _, err := identity.SetMemberAccess(ctx.Context(), ctrl.Client,
+	updated, _, err := identity.SetMemberAccess(ctx.Context(), db.Client,
 		org.ID, member.ID, all, ids, nowUTC(),
-		func(tx *global.Tx, _ *global.OrganizationMember, granted []*global.Project) error {
+		func(tx *ent.Tx, _ *ent.OrganizationMember, granted []*ent.Project) error {
 			return auditFor(ctx).record(ctx.Context(), tx, audit.MemberAccessChanged,
 				"member", member.UID.String(), map[string]any{
 					"email": memberEmail(member), "all_projects": all, "was_all_projects": wasAll,
@@ -238,7 +238,7 @@ func SetMemberAccess(ctx *muzak.Context, in schemas.SetMemberAccessIn) (schemas.
 		}
 		return schemas.MemberOut{}, core.AsHTTPError(err)
 	}
-	return memberOut(ctx.Context(), ctrl, withEdges(ctx.Context(), ctrl, updated), principal.User.ID)
+	return memberOut(ctx.Context(), db, withEdges(ctx.Context(), db, updated), principal.User.ID)
 }
 
 // RemoveMember takes somebody out of an organization.
@@ -252,7 +252,7 @@ func SetMemberAccess(ctx *muzak.Context, in schemas.SetMemberAccessIn) (schemas.
 // What survives is the audit trail: `AuditEvent` records the removal, and §08's access review asks
 // who *can* reach the data, which is exactly the set of rows that remain.
 func RemoveMember(ctx *muzak.Context, in schemas.MemberParams) (muzak.Empty, error) {
-	ctrl := muzak.From[*core.Global](ctx)
+	db := muzak.From[*core.DB](ctx)
 	principal := muzak.From[*core.Principal](ctx)
 
 	member, err := findMember(ctx, in.MemberID)
@@ -268,7 +268,7 @@ func RemoveMember(ctx *muzak.Context, in schemas.MemberParams) (muzak.Empty, err
 		removed["role"] = member.Edges.Role.Key
 	}
 
-	tx, err := ctrl.Client.Tx(ctx.Context())
+	tx, err := db.Client.Tx(ctx.Context())
 	if err != nil {
 		return muzak.Empty{}, core.AsHTTPError(err)
 	}
@@ -302,21 +302,21 @@ func RemoveMember(ctx *muzak.Context, in schemas.MemberParams) (muzak.Empty, err
 // the members screen has to answer, and an accepted invitation is the record of how somebody got
 // in. The token is absent from the response type, so no listing can disclose one.
 func ListInvitations(ctx *muzak.Context, _ schemas.OrganizationParams) (schemas.InvitationListOut, error) {
-	ctrl := muzak.From[*core.Global](ctx)
+	db := muzak.From[*core.DB](ctx)
 	org := muzak.From[*core.Principal](ctx).Organization
 
-	rows, err := ctrl.Client.Invitation.Query().
+	rows, err := db.Client.Invitation.Query().
 		Where(invitation.OrganizationID(org.ID)).
 		WithRole().
 		WithInvitedBy().
-		Order(global.Desc(invitation.FieldCreatedAt)).
+		Order(ent.Desc(invitation.FieldCreatedAt)).
 		All(ctx.Context())
 	if err != nil {
 		return schemas.InvitationListOut{}, core.AsHTTPError(err)
 	}
 	out := schemas.InvitationListOut{Invitations: make([]schemas.InvitationOut, 0, len(rows))}
 	for _, row := range rows {
-		one, err := invitationOut(ctx.Context(), ctrl, row, nowUTC())
+		one, err := invitationOut(ctx.Context(), db, row, nowUTC())
 		if err != nil {
 			return schemas.InvitationListOut{}, err
 		}
@@ -345,7 +345,7 @@ func ListInvitations(ctx *muzak.Context, _ schemas.OrganizationParams) (schemas.
 // request: an invitation costs somebody else's attention and this deployment's sending reputation.
 // It **fails closed**, unlike every SDK-path limit, because a message cannot be taken back.
 func CreateInvitation(ctx *muzak.Context, in schemas.CreateInvitationIn) (schemas.InvitationCreatedOut, error) {
-	ctrl := muzak.From[*core.Global](ctx)
+	db := muzak.From[*core.DB](ctx)
 	principal := muzak.From[*core.Principal](ctx)
 	settings := muzak.From[config.Settings](ctx)
 	org := principal.Organization
@@ -354,7 +354,7 @@ func CreateInvitation(ctx *muzak.Context, in schemas.CreateInvitationIn) (schema
 		return schemas.InvitationCreatedOut{}, err
 	}
 
-	wanted, err := findRole(ctx.Context(), ctrl, org.ID, in.RoleKey)
+	wanted, err := findRole(ctx.Context(), db, org.ID, in.RoleKey)
 	if err != nil {
 		return schemas.InvitationCreatedOut{}, err
 	}
@@ -362,7 +362,7 @@ func CreateInvitation(ctx *muzak.Context, in schemas.CreateInvitationIn) (schema
 	// Somebody who is already in does not need an invitation, and sending one would produce a
 	// pending row that can never be accepted into anything — the accept finds the membership
 	// and reports it. Refused here so the sender is told rather than the invitee.
-	member, err := ctrl.Client.OrganizationMember.Query().
+	member, err := db.Client.OrganizationMember.Query().
 		Where(
 			organizationmember.OrganizationID(org.ID),
 			organizationmember.HasUserWith(user.EmailEqualFold(in.Email)),
@@ -378,7 +378,7 @@ func CreateInvitation(ctx *muzak.Context, in schemas.CreateInvitationIn) (schema
 
 	// One outstanding invitation per address. A second would mean two live tokens for one
 	// inbox, and revoking "the" invitation would leave the other working.
-	outstanding, err := ctrl.Client.Invitation.Query().
+	outstanding, err := db.Client.Invitation.Query().
 		Where(
 			invitation.OrganizationID(org.ID),
 			invitation.EmailEqualFold(in.Email),
@@ -396,7 +396,7 @@ func CreateInvitation(ctx *muzak.Context, in schemas.CreateInvitationIn) (schema
 	}
 
 	all := in.AllProjects == nil || *in.AllProjects
-	ids, err := projectIDs(ctx.Context(), ctrl, org.ID, in.Projects)
+	ids, err := projectIDs(ctx.Context(), db, org.ID, in.Projects)
 	if err != nil {
 		return schemas.InvitationCreatedOut{}, err
 	}
@@ -425,7 +425,7 @@ func CreateInvitation(ctx *muzak.Context, in schemas.CreateInvitationIn) (schema
 	// entry — the property the old create-then-send-then-audit ordering could not promise, because
 	// the row was already durable before the send was even attempted.
 	expiresAt := nowUTC().Add(settings.InvitationTTL)
-	row, err := inTx(ctx, func(tx *global.Tx) (*global.Invitation, error) {
+	row, err := inTx(ctx, func(tx *ent.Tx) (*ent.Invitation, error) {
 		row, err := tx.Invitation.Create().
 			SetOrganizationID(org.ID).
 			SetEmail(in.Email).
@@ -449,7 +449,7 @@ func CreateInvitation(ctx *muzak.Context, in schemas.CreateInvitationIn) (schema
 		return schemas.InvitationCreatedOut{}, err
 	}
 
-	out, err := invitationOut(ctx.Context(), ctrl, withInvitationEdges(row, wanted, principal.User), nowUTC())
+	out, err := invitationOut(ctx.Context(), db, withInvitationEdges(row, wanted, principal.User), nowUTC())
 	if err != nil {
 		return schemas.InvitationCreatedOut{}, err
 	}
@@ -470,16 +470,16 @@ func CreateInvitation(ctx *muzak.Context, in schemas.CreateInvitationIn) (schema
 // cannot be reused: a deleted row is a token that matches nothing, which is the same outcome by
 // luck rather than by design.
 func RevokeInvitation(ctx *muzak.Context, in schemas.InvitationParams) (schemas.InvitationOut, error) {
-	ctrl := muzak.From[*core.Global](ctx)
+	db := muzak.From[*core.DB](ctx)
 	org := muzak.From[*core.Principal](ctx).Organization
 
-	row, err := ctrl.Client.Invitation.Query().
+	row, err := db.Client.Invitation.Query().
 		Where(invitation.UID(in.InvitationID), invitation.OrganizationID(org.ID)).
 		WithRole().
 		WithInvitedBy().
 		Only(ctx.Context())
 	if err != nil {
-		if global.IsNotFound(err) {
+		if ent.IsNotFound(err) {
 			return schemas.InvitationOut{}, muzak.NotFound("no such invitation")
 		}
 		return schemas.InvitationOut{}, core.AsHTTPError(err)
@@ -489,7 +489,7 @@ func RevokeInvitation(ctx *muzak.Context, in schemas.InvitationParams) (schemas.
 			"that invitation is already " + string(row.Status)).WithCode("not_pending")
 	}
 
-	tx, err := ctrl.Client.Tx(ctx.Context())
+	tx, err := db.Client.Tx(ctx.Context())
 	if err != nil {
 		return schemas.InvitationOut{}, core.AsHTTPError(err)
 	}
@@ -508,7 +508,7 @@ func RevokeInvitation(ctx *muzak.Context, in schemas.InvitationParams) (schemas.
 		return schemas.InvitationOut{}, core.AsHTTPError(err)
 	}
 	updated.Edges = row.Edges
-	return invitationOut(ctx.Context(), ctrl, updated, nowUTC())
+	return invitationOut(ctx.Context(), db, updated, nowUTC())
 }
 
 // ListPendingInvitations returns what is waiting for the caller's own address.
@@ -516,10 +516,10 @@ func RevokeInvitation(ctx *muzak.Context, in schemas.InvitationParams) (schemas.
 // No organization in the path, because the reader is not a member of any of them yet — that is the
 // point. Matched on the verified address, so it shows only what was sent to the reader's own inbox.
 func ListPendingInvitations(ctx *muzak.Context, _ muzak.Empty) (schemas.PendingInvitationListOut, error) {
-	ctrl := muzak.From[*core.Global](ctx)
+	db := muzak.From[*core.DB](ctx)
 	principal := muzak.From[*core.Principal](ctx)
 
-	rows, err := identity.PendingInvitationsFor(ctx.Context(), ctrl.Client,
+	rows, err := identity.PendingInvitationsFor(ctx.Context(), db.Client,
 		principal.Claims.Email, nowUTC())
 	if err != nil {
 		return schemas.PendingInvitationListOut{}, core.AsHTTPError(err)
@@ -561,7 +561,7 @@ func ListPendingInvitations(ctx *muzak.Context, _ muzak.Empty) (schemas.PendingI
 // intent — be in this organization — is satisfied either way, and a 409 would send them to support
 // about a button that worked.
 func AcceptInvitation(ctx *muzak.Context, in schemas.AcceptInvitationIn) (schemas.AcceptedOut, error) {
-	ctrl := muzak.From[*core.Global](ctx)
+	db := muzak.From[*core.DB](ctx)
 	principal := muzak.From[*core.Principal](ctx)
 
 	// Recorded against the organisation that gained a member, not against the person joining:
@@ -569,7 +569,7 @@ func AcceptInvitation(ctx *muzak.Context, in schemas.AcceptInvitationIn) (schema
 	// Inside the same transaction as the membership itself — identity.accept calls this only on
 	// the path that wrote one, never on the already-a-member branch, which committed nothing for
 	// an entry to attach to.
-	hook := func(tx *global.Tx, accepted *identity.Accepted) error {
+	hook := func(tx *ent.Tx, accepted *identity.Accepted) error {
 		return auditFor(ctx).forOrganization(accepted.Organization.ID).
 			record(ctx.Context(), tx, audit.MemberJoined,
 				"member", accepted.Member.UID.String(), map[string]any{
@@ -583,10 +583,10 @@ func AcceptInvitation(ctx *muzak.Context, in schemas.AcceptInvitationIn) (schema
 		err      error
 	)
 	if in.Token != "" {
-		accepted, err = identity.AcceptInvitation(ctx.Context(), ctrl.Client,
+		accepted, err = identity.AcceptInvitation(ctx.Context(), db.Client,
 			in.Token, principal.User, principal.Claims.Email, nowUTC(), hook)
 	} else {
-		accepted, err = identity.AcceptPendingInvitationFor(ctx.Context(), ctrl.Client,
+		accepted, err = identity.AcceptPendingInvitationFor(ctx.Context(), db.Client,
 			in.OrgSlug, principal.User, principal.Claims.Email, nowUTC(), hook)
 	}
 
@@ -634,8 +634,8 @@ func AcceptInvitation(ctx *muzak.Context, in schemas.AcceptInvitationIn) (schema
 // It names who invited them and what they are being invited to. An invitation from an address
 // somebody does not recognise, to an organization they have never heard of, is indistinguishable
 // from phishing, and the recipient's correct response to that is to ignore it.
-func invitationMessage(settings config.Settings, to string, org *global.Organization,
-	inviter *global.User, wanted *global.Role, token string,
+func invitationMessage(settings config.Settings, to string, org *ent.Organization,
+	inviter *ent.User, wanted *ent.Role, token string,
 ) mail.Message {
 	who := inviter.Email
 	if inviter.Name != "" {
@@ -671,28 +671,28 @@ func inviteWithinBudget(ctx *muzak.Context, orgSlug, email string) error {
 	if !found {
 		return nil
 	}
-	return limiter.Allow(ctx, core.InvitationBudgets(orgSlug, email)...)
+	return limiter.Strict().Allow(ctx, core.InvitationBudgets(orgSlug, email)...)
 }
 
 // memberEmail names a membership in a log line, falling back to its id.
 //
 // The address rather than the row id, because the person reading the entry a year from now knows who
 // `ada@studio.example` was and has no way to look up member 41.
-func memberEmail(member *global.OrganizationMember) string {
+func memberEmail(member *ent.OrganizationMember) string {
 	if member.Edges.User != nil {
 		return member.Edges.User.Email
 	}
 	return member.UID.String()
 }
 
-func roleKeyOf(role *global.Role) string {
+func roleKeyOf(role *ent.Role) string {
 	if role == nil {
 		return ""
 	}
 	return role.Key
 }
 
-func slugsOf(projects []*global.Project) []string {
+func slugsOf(projects []*ent.Project) []string {
 	out := make([]string, 0, len(projects))
 	for _, proj := range projects {
 		out = append(out, proj.Slug)
@@ -702,17 +702,17 @@ func slugsOf(projects []*global.Project) []string {
 
 // ---- lookups and mapping ----------------------------------------------------
 
-func findMember(ctx *muzak.Context, id uuid.UUID) (*global.OrganizationMember, error) {
-	ctrl := muzak.From[*core.Global](ctx)
+func findMember(ctx *muzak.Context, id uuid.UUID) (*ent.OrganizationMember, error) {
+	db := muzak.From[*core.DB](ctx)
 	org := muzak.From[*core.Principal](ctx).Organization
 
-	row, err := ctrl.Client.OrganizationMember.Query().
+	row, err := db.Client.OrganizationMember.Query().
 		Where(organizationmember.UID(id), organizationmember.OrganizationID(org.ID)).
 		WithUser().
 		WithRole().
 		Only(ctx.Context())
 	if err != nil {
-		if global.IsNotFound(err) {
+		if ent.IsNotFound(err) {
 			return nil, muzak.NotFound("no such member of this organization")
 		}
 		return nil, core.AsHTTPError(err)
@@ -724,11 +724,11 @@ func findMember(ctx *muzak.Context, id uuid.UUID) (*global.OrganizationMember, e
 //
 // Scoped on purpose: a role id or key from another organization must not be assignable, and
 // looking one up unscoped would make that a bug in whichever caller forgot to check.
-func findRole(ctx context.Context, ctrl *core.Global, orgID int, key string) (*global.Role, error) {
-	row, err := ctrl.Client.Role.Query().
+func findRole(ctx context.Context, db *core.DB, orgID int, key string) (*ent.Role, error) {
+	row, err := db.Client.Role.Query().
 		Where(role.OrganizationID(orgID), role.Key(key)).Only(ctx)
 	if err != nil {
-		if global.IsNotFound(err) {
+		if ent.IsNotFound(err) {
 			return nil, muzak.UnprocessableEntity(
 				"this organization has no role called " + key).WithCode("unknown_role")
 		}
@@ -738,11 +738,11 @@ func findRole(ctx context.Context, ctrl *core.Global, orgID int, key string) (*g
 }
 
 // projectIDs resolves project slugs inside one organization.
-func projectIDs(ctx context.Context, ctrl *core.Global, orgID int, slugs []string) ([]int, error) {
+func projectIDs(ctx context.Context, db *core.DB, orgID int, slugs []string) ([]int, error) {
 	if len(slugs) == 0 {
 		return nil, nil
 	}
-	rows, err := ctrl.Client.Project.Query().
+	rows, err := db.Client.Project.Query().
 		Where(project.SlugIn(slugs...), project.OrganizationID(orgID)).
 		All(ctx)
 	if err != nil {
@@ -756,8 +756,8 @@ func projectIDs(ctx context.Context, ctrl *core.Global, orgID int, slugs []strin
 }
 
 // withEdges reloads the edges an update dropped, so a response is built from one row.
-func withEdges(ctx context.Context, ctrl *core.Global, member *global.OrganizationMember) *global.OrganizationMember {
-	reloaded, err := ctrl.Client.OrganizationMember.Query().
+func withEdges(ctx context.Context, db *core.DB, member *ent.OrganizationMember) *ent.OrganizationMember {
+	reloaded, err := db.Client.OrganizationMember.Query().
 		Where(organizationmember.ID(member.ID)).
 		WithUser().
 		WithRole().
@@ -768,13 +768,13 @@ func withEdges(ctx context.Context, ctrl *core.Global, member *global.Organizati
 	return reloaded
 }
 
-func withInvitationEdges(row *global.Invitation, wanted *global.Role, inviter *global.User) *global.Invitation {
+func withInvitationEdges(row *ent.Invitation, wanted *ent.Role, inviter *ent.User) *ent.Invitation {
 	row.Edges.Role = wanted
 	row.Edges.InvitedBy = inviter
 	return row
 }
 
-func roleOut(row *global.Role) schemas.RoleOut {
+func roleOut(row *ent.Role) schemas.RoleOut {
 	out := schemas.RoleOut{
 		ID:          row.UID,
 		Key:         row.Key,
@@ -799,11 +799,11 @@ func roleOut(row *global.Role) schemas.RoleOut {
 	return out
 }
 
-func projectRefOut(row *global.Project) schemas.ProjectRefOut {
+func projectRefOut(row *ent.Project) schemas.ProjectRefOut {
 	return schemas.ProjectRefOut{ID: row.UID, Slug: row.Slug, Name: row.Name}
 }
 
-func memberOut(ctx context.Context, ctrl *core.Global, row *global.OrganizationMember,
+func memberOut(ctx context.Context, db *core.DB, row *ent.OrganizationMember,
 	callerID int,
 ) (schemas.MemberOut, error) {
 	out := schemas.MemberOut{
@@ -823,7 +823,7 @@ func memberOut(ctx context.Context, ctrl *core.Global, row *global.OrganizationM
 	// created tomorrow", which is not a list — and materialising one would go stale the next
 	// time a project was created.
 	if !row.AllProjects {
-		granted, err := identity.MemberProjects(ctx, ctrl.Client, row.ID)
+		granted, err := identity.MemberProjects(ctx, db.Client, row.ID)
 		if err != nil {
 			return schemas.MemberOut{}, core.AsHTTPError(err)
 		}
@@ -839,7 +839,7 @@ func memberOut(ctx context.Context, ctrl *core.Global, row *global.OrganizationM
 // Computed rather than read, because nothing sweeps the table: the status column is only written
 // when somebody touches the row, so a pending invitation whose moment has passed would otherwise
 // be listed as outstanding forever.
-func invitationOut(ctx context.Context, ctrl *core.Global, row *global.Invitation,
+func invitationOut(ctx context.Context, db *core.DB, row *ent.Invitation,
 	now time.Time,
 ) (schemas.InvitationOut, error) {
 	out := schemas.InvitationOut{
@@ -861,9 +861,9 @@ func invitationOut(ctx context.Context, ctrl *core.Global, row *global.Invitatio
 		out.InvitedBy = row.Edges.InvitedBy.Email
 	}
 	if !row.AllProjects && len(row.ProjectIds) > 0 {
-		rows, err := ctrl.Client.Project.Query().
+		rows, err := db.Client.Project.Query().
 			Where(project.IDIn(row.ProjectIds...)).
-			Order(global.Asc(project.FieldSlug)).
+			Order(ent.Asc(project.FieldSlug)).
 			All(ctx)
 		if err != nil {
 			return schemas.InvitationOut{}, core.AsHTTPError(err)

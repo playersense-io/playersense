@@ -47,8 +47,8 @@ func NewPubSub(projectID, topicID string) *PubSub {
 // SetDelivery bounds a group by rows, by messages and by age. Whichever is reached first
 // hands the group over.
 //
-// The wait is the cost of the grouping and it is paid on a quiet cell rather than a busy
-// one: a trickle waits the full interval, and a cell near §4's ceiling reaches the row
+// The wait is the cost of the grouping and it is paid on a quiet deployment rather than a
+// busy one: a trickle waits the full interval, and a deployment near §4's ceiling reaches the row
 // target in a fraction of it.
 func (p *PubSub) SetDelivery(maxRows, maxMessages int, maxWait time.Duration) {
 	p.maxRows, p.maxMessages, p.maxWait = maxRows, maxMessages, maxWait
@@ -119,7 +119,6 @@ func (p *PubSub) Publish(ctx context.Context, msg *Message) error {
 			"environment_id":  msg.EnvironmentID,
 			"policy_tier":     msg.PolicyTier,
 			"retention_tier":  strconv.FormatUint(uint64(msg.RetentionTier), 10),
-			"cell":            msg.Cell,
 			// Both of these are read back by applyAttributes and neither was sent, so a
 			// Pub/Sub deployment wrote its archive under `env=` with a zero timestamp
 			// (§14.1). The local bus round-trips the whole struct as JSON, which is why
@@ -165,7 +164,6 @@ func (p *PubSub) DeadLetter(ctx context.Context, msg *Message, reason DeadLetter
 		Data: msg.Payload,
 		Attributes: map[string]string{
 			"dedup_key":      msg.DedupKey,
-			"cell":           msg.Cell,
 			"org_id":         msg.OrgID,
 			"project_id":     msg.ProjectID,
 			"environment_id": msg.EnvironmentID,
@@ -216,7 +214,7 @@ func (p *PubSub) Subscribe(ctx context.Context, group string, handle Handler) er
 
 	g := &grouper{handle: handle, maxRows: maxRows, maxMessages: maxMessages}
 
-	// The timer flushes a partly-filled group, which is what keeps a quiet cell from
+	// The timer flushes a partly-filled group, which is what keeps a quiet deployment from
 	// holding a handful of messages until enough arrive to fill one.
 	ticker := time.NewTicker(maxWait)
 	defer ticker.Stop()
@@ -240,7 +238,6 @@ func (p *PubSub) Subscribe(ctx context.Context, group string, handle Handler) er
 		msg := &Message{
 			Payload:  m.Data,
 			DedupKey: m.Attributes["dedup_key"],
-			Cell:     m.Attributes["cell"],
 		}
 		applyAttributes(msg, m.Attributes)
 		g.add(ctx, msg, m)
@@ -333,8 +330,8 @@ func (g *grouper) drain() {
 
 // subscriptionID names one consumer's subscription on the topic.
 //
-// One per group per topic per cell (§20): the storage writer and the archive writer read
-// the same stream independently, and a cell's consumers read only their own cell's
+// One per group per topic (§20): the storage writer and the archive writer read
+// the same stream independently, and each group's consumers read only their own
 // messages.
 func (p *PubSub) subscriptionID(group string) string { return p.topicID + "-" + group }
 

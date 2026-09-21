@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"playersense.dev/backend/ent/regional"
-	"playersense.dev/backend/ent/regional/archivemanifest"
+	"playersense.dev/backend/ent"
+	"playersense.dev/backend/ent/archivemanifest"
 	"playersense.dev/backend/internal/archive"
 	"playersense.dev/backend/internal/blobstore"
 	"playersense.dev/backend/internal/subject"
@@ -72,7 +72,7 @@ type redaction struct {
 // redaction idempotent for free.
 func (p *Purger) redactArchive(
 	ctx context.Context,
-	req *regional.DataDeletionRequest,
+	req *ent.DataDeletionRequest,
 	s subject.Subject,
 	cursor int,
 	log *slog.Logger,
@@ -84,11 +84,11 @@ func (p *Purger) redactArchive(
 		limit = DefaultMaxObjects
 	}
 
-	q := p.Cell.Client.ArchiveManifest.Query().Where(
+	q := p.DB.Client.ArchiveManifest.Query().Where(
 		archivemanifest.ProjectUID(req.ProjectUID),
-		// This cell's bucket and no other. An object path means something only inside the
-		// bucket it was written to, and a manifest naming a different one belongs to a
-		// store this process is not holding.
+		// The bucket this process holds and no other. An object path means something only
+		// inside the bucket it was written to, and a manifest naming a different one
+		// belongs to a store this process is not holding.
 		archivemanifest.Bucket(p.Store.Bucket()),
 		// Every state in which the bytes may still be there. `deleting` is a §60 pass that
 		// was interrupted, and `failed` is one whose object refused to go — in both the
@@ -125,7 +125,7 @@ func (p *Purger) redactArchive(
 	// — and a pass that always believes it was truncated is a request that never completes.
 	// The extra row answers that question and nothing else.
 	candidates, err := q.
-		Order(regional.Asc(archivemanifest.FieldID)).
+		Order(ent.Asc(archivemanifest.FieldID)).
 		Limit(limit + 1).
 		All(ctx)
 	if err != nil {
@@ -213,8 +213,8 @@ func (p *Purger) redactArchive(
 // rewrite writes the object back without the erased rows and retires the original.
 func (p *Purger) rewrite(
 	ctx context.Context,
-	req *regional.DataDeletionRequest,
-	m *regional.ArchiveManifest,
+	req *ent.DataDeletionRequest,
+	m *ent.ArchiveManifest,
 	kept []archive.Row,
 	dropped int,
 	log *slog.Logger,
@@ -246,10 +246,9 @@ func (p *Purger) rewrite(
 	// The replacement inherits `delete_after` unchanged. A redaction must not extend a
 	// customer's retention, and computing a fresh one from today would do exactly that —
 	// the object would outlive the events inside it (§59, §60).
-	err = p.Cell.Client.ArchiveManifest.Create().
+	err = p.DB.Client.ArchiveManifest.Create().
 		SetBucket(m.Bucket).
 		SetObjectPath(object.Path).
-		SetRegion(m.Region).
 		SetOrgUID(m.OrgUID).
 		SetProjectUID(m.ProjectUID).
 		SetEnvironmentUID(m.EnvironmentUID).
@@ -292,8 +291,8 @@ func (p *Purger) rewrite(
 // same absence: §60 expired that one, an erasure replaced this one. §60's sweeper looks only
 // at `durable` and `deleting`, so a redacted row is never picked back up, and §39 stops
 // billing for bytes that are gone either way.
-func (p *Purger) markRedacted(ctx context.Context, m *regional.ArchiveManifest) error {
-	err := p.Cell.Client.ArchiveManifest.UpdateOne(m).
+func (p *Purger) markRedacted(ctx context.Context, m *ent.ArchiveManifest) error {
+	err := p.DB.Client.ArchiveManifest.UpdateOne(m).
 		SetStatus(archivemanifest.StatusRedacted).
 		ClearFailureReason().
 		Exec(ctx)

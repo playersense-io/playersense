@@ -3,10 +3,10 @@ package handlers
 import (
 	"context"
 
-	"muzak.dev/framework"
+	muzak "muzak.dev/framework"
 
-	"playersense.dev/backend/ent/global"
-	"playersense.dev/backend/ent/global/auditevent"
+	"playersense.dev/backend/ent"
+	"playersense.dev/backend/ent/auditevent"
 	"playersense.dev/backend/internal/audit"
 	"playersense.dev/backend/internal/core"
 	"playersense.dev/backend/internal/schemas"
@@ -24,7 +24,7 @@ import (
 // by action, because "who published" and "who changed a role" are different questions and the second
 // is buried under the first on a busy account.
 func ReadAudit(ctx *muzak.Context, in schemas.AuditParams) (schemas.AuditListOut, error) {
-	ctrl := muzak.From[*core.Global](ctx)
+	db := muzak.From[*core.DB](ctx)
 	org := muzak.From[*core.Principal](ctx).Organization
 
 	limit := in.Limit
@@ -32,11 +32,11 @@ func ReadAudit(ctx *muzak.Context, in schemas.AuditParams) (schemas.AuditListOut
 		limit = 50
 	}
 
-	query := ctrl.Client.AuditEvent.Query().
+	query := db.Client.AuditEvent.Query().
 		Where(auditevent.OrganizationID(org.ID)).
 		WithActorUser().
 		WithActorKey().
-		Order(global.Desc(auditevent.FieldID)).
+		Order(ent.Desc(auditevent.FieldID)).
 		Limit(limit)
 	if in.Action != "" {
 		query = query.Where(auditevent.Action(in.Action))
@@ -54,7 +54,7 @@ func ReadAudit(ctx *muzak.Context, in schemas.AuditParams) (schemas.AuditListOut
 	return out, nil
 }
 
-func auditEventOut(row *global.AuditEvent) schemas.AuditEventOut {
+func auditEventOut(row *ent.AuditEvent) schemas.AuditEventOut {
 	out := schemas.AuditEventOut{
 		ID:         row.UID,
 		Action:     row.Action,
@@ -139,7 +139,7 @@ func (a auditing) entry(action audit.Action, targetType, targetID string, metada
 }
 
 // record appends inside a transaction, which is the default and the one with a guarantee.
-func (a auditing) record(ctx context.Context, tx *global.Tx, action audit.Action,
+func (a auditing) record(ctx context.Context, tx *ent.Tx, action audit.Action,
 	targetType, targetID string, metadata map[string]any,
 ) error {
 	_, err := audit.Record(ctx, tx, a.entry(action, targetType, targetID, metadata))
@@ -169,11 +169,11 @@ func (a auditing) byOperator(asserted string) auditing {
 //
 // It exists because of the rule in internal/audit: an action that happened is an action that was
 // logged, which only holds if the entry commits with the change rather than after it.
-func inTx[T any](ctx *muzak.Context, fn func(*global.Tx) (T, error)) (T, error) {
+func inTx[T any](ctx *muzak.Context, fn func(*ent.Tx) (T, error)) (T, error) {
 	var zero T
 
-	ctrl := muzak.From[*core.Global](ctx)
-	tx, err := ctrl.Client.Tx(ctx.Context())
+	db := muzak.From[*core.DB](ctx)
+	tx, err := db.Client.Tx(ctx.Context())
 	if err != nil {
 		return zero, core.AsHTTPError(err)
 	}

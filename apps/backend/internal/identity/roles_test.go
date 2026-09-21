@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"playersense.dev/backend/ent/global"
-	"playersense.dev/backend/ent/global/organizationmember"
-	"playersense.dev/backend/ent/global/role"
+	"playersense.dev/backend/ent"
+	"playersense.dev/backend/ent/organizationmember"
+	"playersense.dev/backend/ent/role"
 	"playersense.dev/backend/internal/authz"
 	"playersense.dev/backend/internal/identity"
 	"playersense.dev/backend/internal/testsupport"
@@ -18,7 +18,7 @@ import (
 // `organization_members` pointing at no role is a person who is in the organization and may do
 // nothing, and nobody would notice until they tried.
 func TestAnOrganizationIsSeededWithItsRoles(t *testing.T) {
-	db := testsupport.Global(t, testsupport.Settings(t))
+	db := testsupport.Postgres(t, testsupport.Settings(t))
 	now := time.Now().UTC()
 
 	user, err := identity.EnsureUser(t.Context(), db.Client, claims(t), now)
@@ -39,7 +39,7 @@ func TestAnOrganizationIsSeededWithItsRoles(t *testing.T) {
 		t.Fatalf("got %d roles, want %d", len(roles), len(authz.Templates()))
 	}
 
-	byKey := make(map[string]*global.Role, len(roles))
+	byKey := make(map[string]*ent.Role, len(roles))
 	for _, r := range roles {
 		byKey[r.Key] = r
 	}
@@ -81,7 +81,7 @@ func TestAnOrganizationIsSeededWithItsRoles(t *testing.T) {
 // nothing. Refused on the write, by a hook, so no path can skip it — not a handler, not a seed,
 // not whatever the admin console turns out to be.
 func TestARoleCannotNameAPermissionThatDoesNotExist(t *testing.T) {
-	db := testsupport.Global(t, testsupport.Settings(t))
+	db := testsupport.Postgres(t, testsupport.Settings(t))
 	now := time.Now().UTC()
 
 	user, err := identity.EnsureUser(t.Context(), db.Client, claims(t), now)
@@ -119,7 +119,7 @@ func TestARoleCannotNameAPermissionThatDoesNotExist(t *testing.T) {
 // and support has to edit the database by hand. Several owners are fine and removing one of
 // them is fine — it is the last one that is refused.
 func TestTheLastOwnerStays(t *testing.T) {
-	db := testsupport.Global(t, testsupport.Settings(t))
+	db := testsupport.Postgres(t, testsupport.Settings(t))
 	now := time.Now().UTC()
 
 	founder, err := identity.EnsureUser(t.Context(), db.Client, claims(t), now)
@@ -164,7 +164,7 @@ func TestTheLastOwnerStays(t *testing.T) {
 // A role id from another organization must not be assignable. The lookup is scoped, so this is
 // a property of SetMemberRole rather than of whoever calls it.
 func TestARoleFromAnotherOrganizationIsNotAssignable(t *testing.T) {
-	db := testsupport.Global(t, testsupport.Settings(t))
+	db := testsupport.Postgres(t, testsupport.Settings(t))
 	now := time.Now().UTC()
 
 	mine, err := identity.EnsureUser(t.Context(), db.Client, claims(t), now)
@@ -197,9 +197,9 @@ func TestARoleFromAnotherOrganizationIsNotAssignable(t *testing.T) {
 // field is the day the guarantee quietly stops being true, and nothing else would notice.
 func TestAnAppendOnlyRowHasNoSetter(t *testing.T) {
 	for _, builder := range []any{
-		&global.AuditEventUpdate{}, &global.AuditEventUpdateOne{},
-		&global.StaffAccessUpdate{}, &global.StaffAccessUpdateOne{},
-		&global.LedgerEntryUpdate{}, &global.LedgerEntryUpdateOne{},
+		&ent.AuditEventUpdate{}, &ent.AuditEventUpdateOne{},
+		&ent.StaffAccessUpdate{}, &ent.StaffAccessUpdateOne{},
+		&ent.LedgerEntryUpdate{}, &ent.LedgerEntryUpdateOne{},
 	} {
 		typ := reflect.TypeOf(builder)
 		for i := range typ.NumMethod() {

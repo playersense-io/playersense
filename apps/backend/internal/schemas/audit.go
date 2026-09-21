@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"muzak.dev/framework"
+	muzak "muzak.dev/framework"
 )
 
 // The customer's own log: who did what to their account.

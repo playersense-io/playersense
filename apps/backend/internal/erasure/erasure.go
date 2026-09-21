@@ -1,10 +1,10 @@
 // Package erasure carries a data-subject deletion through to completion (project.md §61,
 // §101; docs/compliance/05).
 //
-// The schema for this existed long before the machinery did: `data_deletion_requests` has
-// sat in the cell tier with a status machine and nothing to drive it, which is the shape of
-// gap a compliance document is most dangerous around — a control that is described and not
-// built is the one somebody relies on.
+// The schema for this existed long before the machinery did: `data_deletion_requests` sat
+// there with a status machine and nothing to drive it, which is the shape of gap a
+// compliance document is most dangerous around — a control that is described and not built
+// is the one somebody relies on.
 //
 // # The shape of an erasure
 //
@@ -38,7 +38,7 @@
 //  2. redact the archive, which is the slow, remote, failure-prone half;
 //  3. delete the two device-keyed tables;
 //  4. delete the events;
-//  5. delete the cell tier's purchases.
+//  5. delete the purchases.
 //
 // Resolution reads `events_raw`, so the events have to go **last**: deleting them first
 // would destroy the very mapping the aggregate deletions need, and a crash in between would
@@ -75,8 +75,8 @@ import (
 	"log/slog"
 	"time"
 
-	"playersense.dev/backend/ent/regional"
-	"playersense.dev/backend/ent/regional/datadeletionrequest"
+	"playersense.dev/backend/ent"
+	"playersense.dev/backend/ent/datadeletionrequest"
 	"playersense.dev/backend/internal/blobstore"
 	"playersense.dev/backend/internal/pgdb"
 	"playersense.dev/backend/internal/subject"
@@ -118,13 +118,10 @@ type Pool interface {
 
 // Purger drives every open deletion request one step further.
 //
-// Cell-local, like everything else that touches player data: its ClickHouse, its bucket, its
-// cell tier, its Valkey. It holds no global-tier handle at all, which is what keeps the
-// erasure path running through a control-plane outage (§64) — and, more to the point, what
-// keeps a US-hosted database out of a workflow whose every input is a player identifier
-// (§99).
+// It reads what it needs from the credential rather than looking a project up, which is
+// what keeps the erasure path running while PostgreSQL is slow or unreachable (§64).
 type Purger struct {
-	Cell  *pgdb.Cell
+	DB    *pgdb.DB
 	CH    Pool
 	Store blobstore.Store
 	Cache *valkey.Client
@@ -160,7 +157,7 @@ type Result struct {
 // removing data while the tombstone that stops more of it arriving is not up would mean
 // deleting a player's history and then writing more of it — the one ordering that turns a
 // completed erasure into a false statement.
-var ErrNoCache = errors.New("erasure needs this cell's Valkey to raise a tombstone")
+var ErrNoCache = errors.New("erasure needs Valkey to raise a tombstone")
 
 // Run advances every open request, as of now.
 //
@@ -170,7 +167,7 @@ var ErrNoCache = errors.New("erasure needs this cell's Valkey to raise a tombsto
 func (p *Purger) Run(ctx context.Context, now time.Time) (Result, error) {
 	var out Result
 
-	if !p.Cell.Ready() {
+	if !p.DB.Ready() {
 		return out, pgdb.ErrNotStarted
 	}
 	if p.Cache == nil || !p.Cache.Ready() {
@@ -193,7 +190,7 @@ func (p *Purger) Run(ctx context.Context, now time.Time) (Result, error) {
 		limit = DefaultMaxRequests
 	}
 
-	open, err := p.Cell.Client.DataDeletionRequest.Query().
+	open, err := p.DB.Client.DataDeletionRequest.Query().
 		Where(
 			datadeletionrequest.StatusNEQ(datadeletionrequest.StatusCompleted),
 			// A failed request is retryable (§05, Appendix C.13) but not on every pass:
@@ -205,7 +202,7 @@ func (p *Purger) Run(ctx context.Context, now time.Time) (Result, error) {
 			),
 		).
 		// Oldest first: the request closest to its deadline is the one that should move.
-		Order(regional.Asc(datadeletionrequest.FieldCreatedAt)).
+		Order(ent.Asc(datadeletionrequest.FieldCreatedAt)).
 		Limit(limit).
 		All(ctx)
 	if err != nil {
@@ -259,7 +256,7 @@ type pass struct {
 func (p *Purger) advance(
 	ctx context.Context,
 	db *sql.DB,
-	req *regional.DataDeletionRequest,
+	req *ent.DataDeletionRequest,
 	now time.Time,
 	drain time.Duration,
 	log *slog.Logger,
@@ -273,7 +270,7 @@ func (p *Purger) advance(
 		return out, fmt.Errorf("raise the tombstone: %w", err)
 	}
 	if req.Status == datadeletionrequest.StatusReceived {
-		update := p.Cell.Client.DataDeletionRequest.UpdateOne(req).
+		update := p.DB.Client.DataDeletionRequest.UpdateOne(req).
 			SetStatus(datadeletionrequest.StatusTombstoned)
 		if req.TombstonedAt == nil {
 			update = update.SetTombstonedAt(now)
@@ -288,7 +285,7 @@ func (p *Purger) advance(
 	}
 
 	if req.Status != datadeletionrequest.StatusPurging {
-		saved, err := p.Cell.Client.DataDeletionRequest.UpdateOne(req).
+		saved, err := p.DB.Client.DataDeletionRequest.UpdateOne(req).
 			SetStatus(datadeletionrequest.StatusPurging).
 			ClearFailureReason().
 			Save(ctx)
@@ -353,7 +350,7 @@ func (p *Purger) advance(
 
 	// Counters accumulate across passes: a late arrival removed on the third pass is part
 	// of what this erasure did.
-	update := p.Cell.Client.DataDeletionRequest.UpdateOne(req).
+	update := p.DB.Client.DataDeletionRequest.UpdateOne(req).
 		ClearFailureReason().
 		SetArchiveCursor(max(req.ArchiveCursor, redacted.Cursor)).
 		SetDevicesDeleted(req.DevicesDeleted + uint32(out.Devices)).
@@ -401,8 +398,8 @@ func (p *Purger) tombstoneTTL(drain time.Duration) time.Duration {
 }
 
 // fail records why a request could not be finished this pass.
-func (p *Purger) fail(ctx context.Context, req *regional.DataDeletionRequest, cause error) error {
-	err := p.Cell.Client.DataDeletionRequest.UpdateOne(req).
+func (p *Purger) fail(ctx context.Context, req *ent.DataDeletionRequest, cause error) error {
+	err := p.DB.Client.DataDeletionRequest.UpdateOne(req).
 		SetStatus(datadeletionrequest.StatusFailed).
 		SetFailureReason(pgdb.Reason(cause.Error())).
 		Exec(ctx)

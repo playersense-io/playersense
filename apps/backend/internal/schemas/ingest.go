@@ -1,7 +1,7 @@
 package schemas
 
 import (
-	"muzak.dev/framework"
+	muzak "muzak.dev/framework"
 
 	"playersense.dev/backend/internal/protocol"
 )

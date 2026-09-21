@@ -46,7 +46,7 @@ import (
 	"sync"
 
 	"github.com/klauspost/compress/zstd"
-	"muzak.dev/framework"
+	muzak "muzak.dev/framework"
 )
 
 // Encodings this gateway accepts, and no others.

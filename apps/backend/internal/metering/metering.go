@@ -29,10 +29,10 @@ import (
 	"log/slog"
 	"time"
 
-	"playersense.dev/backend/ent/global"
-	"playersense.dev/backend/ent/global/project"
-	"playersense.dev/backend/ent/global/usagedaily"
-	"playersense.dev/backend/ent/regional/archivemanifest"
+	"playersense.dev/backend/ent"
+	"playersense.dev/backend/ent/archivemanifest"
+	"playersense.dev/backend/ent/project"
+	"playersense.dev/backend/ent/usagedaily"
 	"playersense.dev/backend/internal/chdb"
 	"playersense.dev/backend/internal/pgdb"
 )
@@ -54,15 +54,13 @@ const Window = 8
 
 // Meter writes one project's usage for one day.
 //
-// Three stores, and each is the only one that can answer its part. ClickHouse holds the activity;
-// the cell tier holds the archive manifests §39 measures storage from; the global tier is where usage
-// is written, because a bill is not player data and an organisation's invoice must not live in one
-// region's database (§99).
+// Two stores, and each is the only one that can answer its part. ClickHouse holds the activity;
+// PostgreSQL holds the archive manifests §39 measures storage from, and is where the usage row
+// is written.
 type Meter struct {
-	Global *pgdb.Global
-	Cell   *pgdb.Cell
-	CH     *chdb.SQL
-	Log    *slog.Logger
+	DB  *pgdb.DB
+	CH  *chdb.SQL
+	Log *slog.Logger
 
 	// Now is overridable so a test can decide which days are settled.
 	Now func() time.Time
@@ -120,7 +118,7 @@ func (m *Meter) MeterDay(ctx context.Context, day time.Time) (int, error) {
 
 	// Which organisation each project belongs to, and its uid for the storage query. One read
 	// rather than one per project.
-	projects, err := m.Global.Client.Project.Query().
+	projects, err := m.DB.Client.Project.Query().
 		Where(project.IDIn(keysOf(activity)...)).
 		All(ctx)
 	if err != nil {
@@ -137,7 +135,7 @@ func (m *Meter) MeterDay(ctx context.Context, day time.Time) (int, error) {
 		counts := activity[proj.ID]
 		// A day already marked final is not rewritten. It is the promise a closed month
 		// rests on: a re-run must not move a number somebody has already been invoiced for.
-		already, err := m.Global.Client.UsageDaily.Query().
+		already, err := m.DB.Client.UsageDaily.Query().
 			Where(usagedaily.ProjectID(proj.ID), usagedaily.Day(day), usagedaily.Final(true)).
 			Exist(ctx)
 		if err != nil {
@@ -147,7 +145,7 @@ func (m *Meter) MeterDay(ctx context.Context, day time.Time) (int, error) {
 			continue
 		}
 
-		err = m.Global.Client.UsageDaily.Create().
+		err = m.DB.Client.UsageDaily.Create().
 			SetProjectID(proj.ID).
 			SetOrganizationID(proj.OrganizationID).
 			SetDay(day).
@@ -218,15 +216,15 @@ func (m *Meter) activity(ctx context.Context, day time.Time) (map[int]counts, er
 // organisations and replication overhead is our implementation detail, not the customer's. The
 // manifest's own object sizes are objective and are what a customer can be told they are paying for.
 //
-// Keyed by `project_uid` in the cell tier, because a manifest names a project by uid and never by the
-// global tier's row id: the two databases are under separate jurisdictions and a foreign key across
-// them is a foreign key across a border (§99).
-func (m *Meter) storage(ctx context.Context, projects []*global.Project, day time.Time) (map[int]uint64, error) {
+// Keyed by `project_uid`, because a manifest names a project by uid and never by its row id —
+// the writer knows the UUID the SDK sent and resolving it per object would be a lookup on the
+// flush path.
+func (m *Meter) storage(ctx context.Context, projects []*ent.Project, day time.Time) (map[int]uint64, error) {
 	out := map[int]uint64{}
-	if m.Cell == nil {
-		// A deployment without a cell connection meters activity and not storage, rather
+	if m.DB == nil {
+		// A deployment with no database handle meters activity and not storage, rather
 		// than refusing to meter at all. The column is then behind rather than wrong, and the
-		// next pass with a cell fills it.
+		// next pass fills it.
 		return out, nil
 	}
 
@@ -235,7 +233,7 @@ func (m *Meter) storage(ctx context.Context, projects []*global.Project, day tim
 		byUID[proj.UID.String()] = proj.ID
 	}
 
-	rows, err := m.Cell.Client.ArchiveManifest.Query().
+	rows, err := m.DB.Client.ArchiveManifest.Query().
 		Where(
 			// Still retained as of the day being metered: an object deleted on the
 			// twentieth was billable for the twenty days it existed (§60), so the
@@ -261,7 +259,7 @@ func (m *Meter) storage(ctx context.Context, projects []*global.Project, day tim
 // the write so that the decision — "nothing can change this now" — is made by the clock in one place
 // rather than inferred at every call site.
 func (m *Meter) finalize(ctx context.Context, day time.Time) (int, error) {
-	return m.Global.Client.UsageDaily.Update().
+	return m.DB.Client.UsageDaily.Update().
 		Where(usagedaily.Day(day), usagedaily.Final(false)).
 		SetFinal(true).
 		Save(ctx)

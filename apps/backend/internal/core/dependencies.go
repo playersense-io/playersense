@@ -4,9 +4,9 @@ import (
 	"errors"
 	"time"
 
-	"muzak.dev/framework"
+	muzak "muzak.dev/framework"
 
-	"playersense.dev/backend/ent/global"
+	"playersense.dev/backend/ent"
 	"playersense.dev/backend/internal/config"
 	"playersense.dev/backend/internal/pgdb"
 )
@@ -41,22 +41,22 @@ func AsHTTPError(err error) error {
 	switch {
 	case err == nil:
 		return nil
-	case errors.Is(err, ErrNotFound), global.IsNotFound(err):
+	case errors.Is(err, ErrNotFound), ent.IsNotFound(err):
 		return muzak.NotFound("not found").Wrap(err)
-	case global.IsConstraintError(err):
+	case ent.IsConstraintError(err):
 		return muzak.Conflict("that already exists").Wrap(err)
-	case global.IsValidationError(err):
+	case ent.IsValidationError(err):
 		return muzak.UnprocessableEntity("the request could not be stored as given").Wrap(err)
 	default:
 		return err
 	}
 }
 
-// Global is the global control-plane tier, published to handlers with WithSingleton.
+// DB is the database, published to handlers with WithSingleton.
 //
-// Handlers reach the global tier and nothing else. Anything naming a player lives in a
-// cell's own database (§99), and a handler that wants one has to say which cell it means.
-type Global = pgdb.Global
+// An alias rather than a re-export, so a handler names the thing it wants without
+// importing the package that knows how to dial it.
+type DB = pgdb.DB
 
 // RateLimitPolicy is the application-wide budget every route inherits.
 //

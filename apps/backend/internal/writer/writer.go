@@ -1,9 +1,9 @@
-// Package writer stores accepted batches in a cell's ClickHouse (§10.3).
+// Package writer stores accepted batches in ClickHouse (§10.3).
 //
-// It is cell-local and it never touches the control plane. The tenant travels on the
-// message — surrogates, UUIDs, policy tier, retention tier — which is precisely what lets
-// storage keep working through a control-plane outage rather than only ingestion (§64).
-// Its only dependencies are its cell's bus, its cell's Valkey and its cell's ClickHouse.
+// It never touches PostgreSQL. The tenant travels on the message — surrogates, UUIDs,
+// policy tier, retention tier — which is precisely what lets storage keep working through
+// a database outage rather than only ingestion (§64). Its only dependencies are the bus,
+// Valkey and ClickHouse.
 //
 // Two rules shape everything here:
 //
@@ -39,10 +39,6 @@ import (
 
 // Options configures the writer.
 type Options struct {
-	// Cell is the data plane this writer belongs to. A message from another cell is a
-	// routing mistake and is refused rather than stored (§6).
-	Cell string
-
 	// MaxRowsPerInsert bounds one insert block. A message carrying more events than this
 	// is split, and the split is deterministic so a redelivery produces the same blocks
 	// with the same deduplication tokens.
@@ -69,21 +65,19 @@ type stats struct {
 	deadLettered      atomic.Int64
 	droppedTombstoned atomic.Int64
 	droppedErased     atomic.Int64
-	droppedWrongCell  atomic.Int64
 	// Normally zero. Non-zero means a batch carried more distinct identities than one
 	// message is asked about, so the tombstone check stopped early (§61).
 	tombstoneChecksSkipped atomic.Int64
 	deviceLookupFailures   atomic.Int64
 }
 
-// Writer consumes the cell's bus and stores what it finds.
+// Writer consumes the bus and stores what it finds.
 type Writer struct {
 	bus   eventbus.Bus
 	cache *valkey.Client
 	ch    *chdb.Conn
 	log   *slog.Logger
 
-	cell             string
 	maxRowsPerInsert int
 	deviceTTL        time.Duration
 	maxAttempts      int
@@ -115,7 +109,6 @@ func New(bus eventbus.Bus, cache *valkey.Client, ch *chdb.Conn, log *slog.Logger
 	}
 	return &Writer{
 		bus: bus, cache: cache, ch: ch, log: log,
-		cell:             opts.Cell,
 		maxRowsPerInsert: opts.MaxRowsPerInsert,
 		deviceTTL:        opts.DeviceStateTTL,
 		maxAttempts:      opts.MaxAttempts,
@@ -173,8 +166,7 @@ func (w *Writer) Stop(ctx context.Context) error {
 		// not working and the node is accumulating a part per message.
 		"inserts", w.stats.inserts.Load(),
 		"dropped_tombstoned", w.stats.droppedTombstoned.Load(),
-		"dropped_erased", w.stats.droppedErased.Load(),
-		"dropped_wrong_cell", w.stats.droppedWrongCell.Load())
+		"dropped_erased", w.stats.droppedErased.Load())
 	return nil
 }
 
@@ -188,7 +180,6 @@ func (w *Writer) Stats() map[string]int64 {
 		"dead_lettered":            w.stats.deadLettered.Load(),
 		"dropped_tombstoned":       w.stats.droppedTombstoned.Load(),
 		"dropped_erased":           w.stats.droppedErased.Load(),
-		"dropped_wrong_cell":       w.stats.droppedWrongCell.Load(),
 		"tombstone_checks_skipped": w.stats.tombstoneChecksSkipped.Load(),
 		"device_lookup_failures":   w.stats.deviceLookupFailures.Load(),
 	}
@@ -249,7 +240,7 @@ func (w *Writer) write(ctx context.Context, msgs []*eventbus.Message) error {
 		b := blocks[key]
 		for start, chunk := 0, 0; start < len(b.rows); start, chunk = start+w.maxRowsPerInsert, chunk+1 {
 			end := min(start+w.maxRowsPerInsert, len(b.rows))
-			token := blockToken(w.cell, key, chunk, b.dedupKeys)
+			token := blockToken(key, chunk, b.dedupKeys)
 			if err := w.insert(ctx, b.rows[start:end], token); err != nil {
 				// The position does not move, so this delivery arrives again. Returning
 				// the error rather than logging and continuing is what makes that true.
@@ -525,17 +516,6 @@ func (w *Writer) plan(ctx context.Context, msgs []*eventbus.Message) map[blockKe
 	blocks := map[blockKey]*block{}
 
 	for _, msg := range msgs {
-		// A message from another cell is a routing mistake, and storing it would put one
-		// region's player data in another region's ClickHouse — the same failure the
-		// gateway's 421 prevents, arriving by a different road (§6, §99). Dropped rather
-		// than retried: redelivering it here would never make it belong.
-		if msg.Cell != "" && msg.Cell != w.cell {
-			w.stats.droppedWrongCell.Add(1)
-			w.log.Warn("dropped a message belonging to another cell",
-				"message_cell", msg.Cell, "this_cell", w.cell, "project_id", msg.ProjectID)
-			continue
-		}
-
 		// §61: a queue can hold messages for hours, so a batch arriving for a project that
 		// has since been deleted is ordinary rather than exceptional. Writing it would
 		// resurrect data somebody asked to have erased.
@@ -643,9 +623,9 @@ func (w *Writer) decode(ctx context.Context, msg *eventbus.Message, batch *inges
 //
 // What this does **not** cover is a delivery whose membership changes between attempts.
 // That is a real weakening of ADR 0018 and it is recorded rather than hidden: see ADR 0023.
-func blockToken(cell string, key blockKey, chunk int, dedupKeys []string) string {
+func blockToken(key blockKey, chunk int, dedupKeys []string) string {
 	sum := sha256.New()
-	fmt.Fprintf(sum, "%s|%d|%s|%d|", cell, key.retentionTier, key.eventDate, chunk)
+	fmt.Fprintf(sum, "%d|%s|%d|", key.retentionTier, key.eventDate, chunk)
 	// Sorted, so the token depends on the set of contributing batches and not on the order
 	// the queue happened to hand them over.
 	for _, k := range slices.Sorted(slices.Values(dedupKeys)) {

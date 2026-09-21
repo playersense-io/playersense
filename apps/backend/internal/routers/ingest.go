@@ -3,7 +3,7 @@ package routers
 import (
 	"net/http"
 
-	"muzak.dev/framework"
+	muzak "muzak.dev/framework"
 
 	"playersense.dev/backend/internal/core"
 	"playersense.dev/backend/internal/handlers"

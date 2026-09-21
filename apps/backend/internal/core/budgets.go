@@ -4,7 +4,7 @@ import (
 	"strings"
 	"time"
 
-	"muzak.dev/framework"
+	muzak "muzak.dev/framework"
 
 	"playersense.dev/backend/internal/ratelimit"
 )

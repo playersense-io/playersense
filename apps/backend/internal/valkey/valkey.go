@@ -17,34 +17,22 @@ import (
 )
 
 // Client is a Valkey connection with a lifecycle.
-//
-// Every key it writes is prefixed with the cell it belongs to. A cell has its own Valkey,
-// so this is belt and braces — its value is that a shared instance in development is safe,
-// and that a misrouted write shows up as a miss rather than silently merging two cells'
-// budgets or serving one cell's credential to another.
 type Client struct {
-	dsn  string
-	cell string
+	dsn string
 
 	client vk.Client
 }
 
-// New returns an unconnected client scoped to a cell.
+// New returns an unconnected client.
 //
 // Construction dials nothing, so the application opens it before serving and closes it
 // after draining, like every other managed resource.
-func New(cell, dsn string) *Client { return &Client{cell: cell, dsn: dsn} }
+func New(dsn string) *Client { return &Client{dsn: dsn} }
 
-// Cell is the cell whose keyspace this client writes into.
-func (c *Client) Cell() string { return c.cell }
-
-// Key renders a cell-scoped key. Every caller goes through it.
+// Key renders a namespaced key. Every caller goes through it, so no caller has to
+// remember the separator and a key is greppable from one place.
 func (c *Client) Key(parts ...string) string {
-	key := c.cell
-	for _, p := range parts {
-		key += ":" + p
-	}
-	return key
+	return strings.Join(parts, ":")
 }
 
 // Name identifies the component in start-up and shutdown logs.

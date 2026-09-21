@@ -14,8 +14,8 @@ import (
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/google/uuid"
 
-	"playersense.dev/backend/ent/regional"
-	"playersense.dev/backend/ent/regional/dataexportrequest"
+	"playersense.dev/backend/ent"
+	"playersense.dev/backend/ent/dataexportrequest"
 	"playersense.dev/backend/internal/blobstore"
 	"playersense.dev/backend/internal/export"
 	"playersense.dev/backend/internal/pgdb"
@@ -35,7 +35,7 @@ const (
 
 type fixture struct {
 	exporter *export.Exporter
-	cell     *pgdb.Cell
+	pg       *pgdb.DB
 	db       *sql.DB
 	store    *blobstore.Local
 
@@ -55,7 +55,7 @@ func newFixture(t *testing.T) *fixture {
 	settings := testsupport.Settings(t)
 	settings.ArchiveDir = t.TempDir()
 
-	cell := testsupport.CellDB(t, settings)
+	pg := testsupport.Postgres(t, settings)
 
 	opts, err := clickhouse.ParseDSN(settings.ClickHouseDSN)
 	if err != nil {
@@ -73,14 +73,14 @@ func newFixture(t *testing.T) *fixture {
 	}
 
 	f := &fixture{
-		cell: cell, db: db, store: store,
+		pg: pg, db: db, store: store,
 		project:    uint32(900_000_000 + time.Now().UnixNano()%50_000_000),
 		projectUID: uuid.New(),
 		orgUID:     uuid.New(),
 		envUID:     uuid.New(),
 	}
 	f.exporter = &export.Exporter{
-		Cell: cell, CH: pool{db}, Store: store, Log: quiet(),
+		DB: pg,
 	}
 	return f
 }
@@ -111,9 +111,9 @@ func (f *fixture) insertEvent(t *testing.T, player string, at time.Time, level i
 	}
 }
 
-func (f *fixture) request(t *testing.T, actorKey string) *regional.DataExportRequest {
+func (f *fixture) request(t *testing.T, actorKey string) *ent.DataExportRequest {
 	t.Helper()
-	req, err := f.cell.Client.DataExportRequest.Create().
+	req, err := f.pg.Client.DataExportRequest.Create().
 		SetProjectUID(f.projectUID).
 		SetProjectSeq(f.project).
 		SetActorKey(actorKey).
@@ -122,14 +122,14 @@ func (f *fixture) request(t *testing.T, actorKey string) *regional.DataExportReq
 		t.Fatalf("record export request: %v", err)
 	}
 	t.Cleanup(func() {
-		_ = f.cell.Client.DataExportRequest.DeleteOneID(req.ID).Exec(context.Background())
+		_ = f.pg.Client.DataExportRequest.DeleteOneID(req.ID).Exec(context.Background())
 	})
 	return req
 }
 
-func (f *fixture) reload(t *testing.T, req *regional.DataExportRequest) *regional.DataExportRequest {
+func (f *fixture) reload(t *testing.T, req *ent.DataExportRequest) *ent.DataExportRequest {
 	t.Helper()
-	got, err := f.cell.Client.DataExportRequest.Get(t.Context(), req.ID)
+	got, err := f.pg.Client.DataExportRequest.Get(t.Context(), req.ID)
 	if err != nil {
 		t.Fatalf("reload request: %v", err)
 	}

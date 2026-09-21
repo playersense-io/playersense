@@ -8,8 +8,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"playersense.dev/backend/ent/global"
-	"playersense.dev/backend/ent/global/ledgerentry"
+	"playersense.dev/backend/ent"
+	"playersense.dev/backend/ent/ledgerentry"
 	"playersense.dev/backend/internal/billing"
 	"playersense.dev/backend/internal/identity"
 	"playersense.dev/backend/internal/pgdb"
@@ -37,7 +37,7 @@ func newClaims() identity.Claims {
 
 // account is one organization with a billing account, and the database behind it.
 type account struct {
-	db *pgdb.Global
+	db *pgdb.DB
 	id int
 
 	// run distinguishes this fixture's idempotency keys from every other run's.
@@ -58,7 +58,7 @@ func (a *account) key(name string) string { return name + ":" + a.run }
 func newAccount(t *testing.T) *account {
 	t.Helper()
 	settings := testsupport.Settings(t)
-	db := testsupport.Global(t, settings)
+	db := testsupport.Postgres(t, settings)
 
 	person, err := identity.EnsureUser(context.Background(), db.Client, newClaims(), time.Now())
 	if err != nil {
@@ -76,7 +76,7 @@ func newAccount(t *testing.T) *account {
 }
 
 // grant runs one grant in its own transaction, the way a handler does.
-func (a *account) grant(t *testing.T, in wallet.GrantRequest) *global.CreditLot {
+func (a *account) grant(t *testing.T, in wallet.GrantRequest) *ent.CreditLot {
 	t.Helper()
 	in.AccountID = a.id
 	if in.GrantedAt.IsZero() {
@@ -129,7 +129,7 @@ func (a *account) spend(t *testing.T, in wallet.SpendRequest) (*wallet.SpendResu
 // in a shared test database it also writes off other runs' lapsed credit. Filtering here keeps the
 // assertions about this fixture — the alternative is a test that fails because a different test left
 // something behind.
-func (a *account) sweep(t *testing.T, at time.Time) []*global.LedgerEntry {
+func (a *account) sweep(t *testing.T, at time.Time) []*ent.LedgerEntry {
 	t.Helper()
 	tx, err := a.db.Client.Tx(context.Background())
 	if err != nil {
@@ -143,7 +143,7 @@ func (a *account) sweep(t *testing.T, at time.Time) []*global.LedgerEntry {
 	if err := tx.Commit(); err != nil {
 		t.Fatalf("commit: %v", err)
 	}
-	mine := make([]*global.LedgerEntry, 0, len(written))
+	mine := make([]*ent.LedgerEntry, 0, len(written))
 	for _, entry := range written {
 		if entry.AccountID == a.id {
 			mine = append(mine, entry)
@@ -170,11 +170,11 @@ func (a *account) available(t *testing.T, at time.Time) int64 {
 	return wallet.Available(lots, at)
 }
 
-func (a *account) statement(t *testing.T) []*global.LedgerEntry {
+func (a *account) statement(t *testing.T) []*ent.LedgerEntry {
 	t.Helper()
 	rows, err := a.db.Client.LedgerEntry.Query().
 		Where(ledgerentry.AccountID(a.id)).
-		Order(global.Asc(ledgerentry.FieldID)).
+		Order(ent.Asc(ledgerentry.FieldID)).
 		All(context.Background())
 	if err != nil {
 		t.Fatalf("read the ledger: %v", err)

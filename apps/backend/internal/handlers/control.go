@@ -2,16 +2,14 @@
 package handlers
 
 import (
-	"context"
 	"time"
 
-	"muzak.dev/framework"
+	muzak "muzak.dev/framework"
 
-	"playersense.dev/backend/ent/global"
-	"playersense.dev/backend/ent/global/apikey"
-	"playersense.dev/backend/ent/global/cell"
-	"playersense.dev/backend/ent/global/environment"
-	"playersense.dev/backend/ent/global/project"
+	"playersense.dev/backend/ent"
+	"playersense.dev/backend/ent/apikey"
+	"playersense.dev/backend/ent/environment"
+	"playersense.dev/backend/ent/project"
 	"playersense.dev/backend/internal/audit"
 	"playersense.dev/backend/internal/core"
 	"playersense.dev/backend/internal/identity"
@@ -31,16 +29,16 @@ func Health(ctx *muzak.Context, _ muzak.Empty) (schemas.HealthOut, error) {
 // organization that exists with no owner and no roles is one nobody can administer, and it
 // would have to be repaired by hand.
 func CreateOrganization(ctx *muzak.Context, in schemas.CreateOrganizationIn) (schemas.OrganizationOut, error) {
-	ctrl := muzak.From[*core.Global](ctx)
+	db := muzak.From[*core.DB](ctx)
 	principal := muzak.From[*core.Principal](ctx)
 
 	// The log's first line, written inside the same transaction that creates the organization and
 	// seeds its roles — so a crash between the two can never leave an organization that exists
 	// with no record of who made it. The id comes from what the hook is handed, because the
 	// principal was not inside this organisation when the request began.
-	org, err := identity.CreateOrganization(ctx.Context(), ctrl.Client,
+	org, err := identity.CreateOrganization(ctx.Context(), db.Client,
 		in.Name, in.Slug, principal.User.ID, time.Now(),
-		func(tx *global.Tx, org *global.Organization) error {
+		func(tx *ent.Tx, org *ent.Organization) error {
 			return auditFor(ctx).forOrganization(org.ID).record(ctx.Context(), tx,
 				audit.OrganizationCreated, "organization", org.UID.String(),
 				map[string]any{"slug": org.Slug, "name": org.Name})
@@ -59,10 +57,10 @@ func CreateOrganization(ctx *muzak.Context, in schemas.CreateOrganizationIn) (sc
 // admin token — the moment a customer holds a credential, the same query is a list of every
 // other customer.
 func ListOrganizations(ctx *muzak.Context, _ muzak.Empty) (schemas.OrganizationListOut, error) {
-	ctrl := muzak.From[*core.Global](ctx)
+	db := muzak.From[*core.DB](ctx)
 	principal := muzak.From[*core.Principal](ctx)
 
-	orgs, err := identity.Organizations(ctx.Context(), ctrl.Client, principal.User.ID)
+	orgs, err := identity.Organizations(ctx.Context(), db.Client, principal.User.ID)
 	if err != nil {
 		return schemas.OrganizationListOut{}, core.AsHTTPError(err)
 	}
@@ -91,18 +89,11 @@ func ReadOrganization(ctx *muzak.Context, _ schemas.OrganizationParams) (schemas
 // event to carry an environment resolved from its key, and a project with no environments
 // is a project nothing can send to.
 func CreateProject(ctx *muzak.Context, in schemas.CreateProjectIn) (schemas.ProjectOut, error) {
-	ctrl := muzak.From[*core.Global](ctx)
+	db := muzak.From[*core.DB](ctx)
 
 	org := muzak.From[*core.Principal](ctx).Organization
 
-	// A project is placed in a cell at creation and never moves: the data goes where the
-	// cell is, and moving it later crosses a jurisdiction boundary (§6).
-	home, err := findCell(ctx.Context(), ctrl, orDefault(in.Cell, defaultCell))
-	if err != nil {
-		return schemas.ProjectOut{}, err
-	}
-
-	tx, err := ctrl.Client.Tx(ctx.Context())
+	tx, err := db.Client.Tx(ctx.Context())
 	if err != nil {
 		return schemas.ProjectOut{}, core.AsHTTPError(err)
 	}
@@ -110,7 +101,6 @@ func CreateProject(ctx *muzak.Context, in schemas.CreateProjectIn) (schemas.Proj
 	proj, err := tx.Project.Create().
 		SetName(in.Name).
 		SetSlug(in.Slug).
-		SetCellID(home.ID).
 		SetPolicyTier(project.PolicyTier(orDefault(in.PolicyTier, "standard"))).
 		SetRetentionDays(retentionOrDefault(in.RetentionDays)).
 		SetOrganizationID(org.ID).
@@ -134,7 +124,7 @@ func CreateProject(ctx *muzak.Context, in schemas.CreateProjectIn) (schemas.Proj
 	}
 	if err := auditFor(ctx).record(ctx.Context(), tx, audit.ProjectCreated,
 		"project", proj.UID.String(), map[string]any{
-			"slug": proj.Slug, "name": proj.Name, "cell": home.Slug,
+			"slug": proj.Slug, "name": proj.Name,
 			"policy_tier": string(proj.PolicyTier), "retention_days": proj.RetentionDays,
 		}); err != nil {
 		_ = tx.Rollback()
@@ -144,14 +134,14 @@ func CreateProject(ctx *muzak.Context, in schemas.CreateProjectIn) (schemas.Proj
 		return schemas.ProjectOut{}, core.AsHTTPError(err)
 	}
 
-	envs, err := ctrl.Client.Environment.Query().
+	envs, err := db.Client.Environment.Query().
 		Where(environment.ProjectID(proj.ID)).
-		Order(global.Asc(environment.FieldKind)).
+		Order(ent.Asc(environment.FieldKind)).
 		All(ctx.Context())
 	if err != nil {
 		return schemas.ProjectOut{}, core.AsHTTPError(err)
 	}
-	return projectOut(proj, home, envs), nil
+	return projectOut(proj, envs), nil
 }
 
 // ListProjects returns the organization's projects this member can see.
@@ -160,13 +150,12 @@ func CreateProject(ctx *muzak.Context, in schemas.CreateProjectIn) (schemas.Proj
 // and this says where. A studio that hid two of its five games from a contractor has to see
 // that reflected in the list, not only in what happens when the contractor opens one.
 func ListProjects(ctx *muzak.Context, _ schemas.OrganizationParams) (schemas.ProjectListOut, error) {
-	ctrl := muzak.From[*core.Global](ctx)
+	db := muzak.From[*core.DB](ctx)
 	principal := muzak.From[*core.Principal](ctx)
 
-	projects, err := ctrl.Client.Project.Query().
+	projects, err := db.Client.Project.Query().
 		Where(project.OrganizationID(principal.Organization.ID)).
-		WithCell().
-		Order(global.Asc(project.FieldSlug)).
+		Order(ent.Asc(project.FieldSlug)).
 		All(ctx.Context())
 	if err != nil {
 		return schemas.ProjectListOut{}, core.AsHTTPError(err)
@@ -176,7 +165,7 @@ func ListProjects(ctx *muzak.Context, _ schemas.OrganizationParams) (schemas.Pro
 		if !principal.Actor.Reaches(proj.ID) {
 			continue
 		}
-		out.Projects = append(out.Projects, projectOut(proj, proj.Edges.Cell, nil))
+		out.Projects = append(out.Projects, projectOut(proj, nil))
 	}
 	return out, nil
 }
@@ -186,28 +175,28 @@ func ListProjects(ctx *muzak.Context, _ schemas.OrganizationParams) (schemas.Pro
 // The project comes from the principal, which already refused it as "no such project" if this
 // member cannot reach it.
 func ReadProject(ctx *muzak.Context, _ schemas.ProjectParams) (schemas.ProjectOut, error) {
-	ctrl := muzak.From[*core.Global](ctx)
+	db := muzak.From[*core.DB](ctx)
 	principal := muzak.From[*core.Principal](ctx)
 	proj := principal.Project
 
-	envs, err := ctrl.Client.Environment.Query().
+	envs, err := db.Client.Environment.Query().
 		Where(environment.ProjectID(proj.ID)).
-		Order(global.Asc(environment.FieldKind)).
+		Order(ent.Asc(environment.FieldKind)).
 		All(ctx.Context())
 	if err != nil {
 		return schemas.ProjectOut{}, core.AsHTTPError(err)
 	}
-	return projectOut(proj, proj.Edges.Cell, envs), nil
+	return projectOut(proj, envs), nil
 }
 
 // ---- API keys ---------------------------------------------------------------
 
 // CreateAPIKey mints a key and returns it once.
 func CreateAPIKey(ctx *muzak.Context, in schemas.CreateAPIKeyIn) (schemas.APIKeyCreatedOut, error) {
-	ctrl := muzak.From[*core.Global](ctx)
+	db := muzak.From[*core.DB](ctx)
 
 	proj := muzak.From[*core.Principal](ctx).Project
-	env, err := ctrl.Client.Environment.Query().
+	env, err := db.Client.Environment.Query().
 		Where(environment.ProjectID(proj.ID), environment.KindEQ(environment.Kind(in.Environment))).
 		Only(ctx.Context())
 	if err != nil {
@@ -219,7 +208,7 @@ func CreateAPIKey(ctx *muzak.Context, in schemas.CreateAPIKeyIn) (schemas.APIKey
 		return schemas.APIKeyCreatedOut{}, muzak.BadRequest(err.Error())
 	}
 
-	tx, err := ctrl.Client.Tx(ctx.Context())
+	tx, err := db.Client.Tx(ctx.Context())
 	if err != nil {
 		return schemas.APIKeyCreatedOut{}, core.AsHTTPError(err)
 	}
@@ -260,10 +249,10 @@ func CreateAPIKey(ctx *muzak.Context, in schemas.CreateAPIKeyIn) (schemas.APIKey
 
 // ListAPIKeys returns a project's keys, without their secrets.
 func ListAPIKeys(ctx *muzak.Context, in schemas.ProjectParams) (schemas.APIKeyListOut, error) {
-	ctrl := muzak.From[*core.Global](ctx)
+	db := muzak.From[*core.DB](ctx)
 
 	proj := muzak.From[*core.Principal](ctx).Project
-	envs, err := ctrl.Client.Environment.Query().
+	envs, err := db.Client.Environment.Query().
 		Where(environment.ProjectID(proj.ID)).All(ctx.Context())
 	if err != nil {
 		return schemas.APIKeyListOut{}, core.AsHTTPError(err)
@@ -275,9 +264,9 @@ func ListAPIKeys(ctx *muzak.Context, in schemas.ProjectParams) (schemas.APIKeyLi
 		ids = append(ids, env.ID)
 	}
 
-	keys, err := ctrl.Client.APIKey.Query().
+	keys, err := db.Client.APIKey.Query().
 		Where(apikey.EnvironmentIDIn(ids...)).
-		Order(global.Asc(apikey.FieldID)).
+		Order(ent.Asc(apikey.FieldID)).
 		All(ctx.Context())
 	if err != nil {
 		return schemas.APIKeyListOut{}, core.AsHTTPError(err)
@@ -294,10 +283,10 @@ func ListAPIKeys(ctx *muzak.Context, in schemas.ProjectParams) (schemas.APIKeyLi
 // The row is kept rather than deleted: §53 records revoked_at, and an audit that cannot
 // say a key once existed is not an audit.
 func RevokeAPIKey(ctx *muzak.Context, in schemas.RevokeAPIKeyIn) (schemas.APIKeyOut, error) {
-	ctrl := muzak.From[*core.Global](ctx)
+	db := muzak.From[*core.DB](ctx)
 
 	proj := muzak.From[*core.Principal](ctx).Project
-	key, err := ctrl.Client.APIKey.Query().
+	key, err := db.Client.APIKey.Query().
 		Where(apikey.UID(in.KeyID), apikey.HasEnvironmentWith(environment.ProjectID(proj.ID))).
 		Only(ctx.Context())
 	if err != nil {
@@ -306,7 +295,7 @@ func RevokeAPIKey(ctx *muzak.Context, in schemas.RevokeAPIKeyIn) (schemas.APIKey
 	if key.RevokedAt != nil {
 		return schemas.APIKeyOut{}, muzak.Conflict("that key is already revoked")
 	}
-	tx, err := ctrl.Client.Tx(ctx.Context())
+	tx, err := db.Client.Tx(ctx.Context())
 	if err != nil {
 		return schemas.APIKeyOut{}, core.AsHTTPError(err)
 	}
@@ -344,7 +333,7 @@ func RevokeAPIKey(ctx *muzak.Context, in schemas.RevokeAPIKeyIn) (schemas.APIKey
 	// Through the application's client, not the row's. `updated` was returned by the transaction
 	// above, so its client is that transaction — and querying an edge off it after the commit is
 	// a use of a closed connection, which is what made revoking a key a 500.
-	env, err := ctrl.Client.Environment.Get(ctx.Context(), updated.EnvironmentID)
+	env, err := db.Client.Environment.Get(ctx.Context(), updated.EnvironmentID)
 	if err != nil {
 		return schemas.APIKeyOut{}, core.AsHTTPError(err)
 	}
@@ -352,29 +341,3 @@ func RevokeAPIKey(ctx *muzak.Context, in schemas.RevokeAPIKeyIn) (schemas.APIKey
 }
 
 // ---- lookups and mapping ----------------------------------------------------
-
-// defaultCell is where a project goes when the caller names none.
-//
-// Stage 1 runs one cell (§6), so this is every project. It is a constant rather than a
-// setting because a typo in a setting would place projects in a cell that does not exist,
-// and findCell would then refuse every creation until somebody noticed.
-const defaultCell = "eu-1"
-
-// findCell resolves a cell by slug and insists it can accept new projects.
-//
-// A draining or readonly cell still serves the projects it holds, but placing a new one
-// there is how a cell that is being emptied quietly refills.
-func findCell(ctx context.Context, ctrl *core.Global, slug string) (*global.Cell, error) {
-	home, err := ctrl.Client.Cell.Query().Where(cell.Slug(slug)).Only(ctx)
-	if err != nil {
-		if global.IsNotFound(err) {
-			return nil, muzak.BadRequest("no cell named " + slug).WithCode("unknown_cell")
-		}
-		return nil, core.AsHTTPError(err)
-	}
-	if home.Status != cell.StatusActive {
-		return nil, muzak.Conflict("cell " + slug + " is not accepting new projects").
-			WithCode("cell_not_active")
-	}
-	return home, nil
-}

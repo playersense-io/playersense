@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	"muzak.dev/framework"
+	muzak "muzak.dev/framework"
 
 	"playersense.dev/backend/internal/core"
 	"playersense.dev/backend/internal/facts"
@@ -50,7 +50,6 @@ const UpcomingWithin = 7 * 24 * time.Hour
 func ServeConfig(ctx *muzak.Context, in schemas.ConfigIn) (protocol.ConfigResponse, error) {
 	tenant := muzak.From[*core.Tenant](ctx)
 	store := muzak.From[*liveconfig.Store](ctx)
-	home := muzak.From[core.CellIdentity](ctx)
 
 	// Counted first, for the reason ingestion gives: this is the first point at which the
 	// device is known, and a device is what "one player" means here.
@@ -59,20 +58,6 @@ func ServeConfig(ctx *muzak.Context, in schemas.ConfigIn) (protocol.ConfigRespon
 			core.ConfigBudgets(tenant, in.InstallID, core.ClientAddressOf(ctx))...); err != nil {
 			return protocol.ConfigResponse{}, err
 		}
-	}
-
-	// Residency, for the same reason ingestion enforces it (§6, §99): this project's
-	// players belong to another cell, and answering here would mean reading their history
-	// from a database in another jurisdiction.
-	if tenant.Cell != home.Slug {
-		return protocol.ConfigResponse{}, muzak.NewHTTPError(http.StatusMisdirectedRequest,
-			"this project belongs to cell "+tenant.Cell+"; ask "+tenant.ConfigURL+" instead").
-			WithCode("wrong_cell").
-			WithDetails(muzak.ErrorDetail{
-				Field:    "config_url",
-				Location: "header",
-				Issue:    tenant.ConfigURL,
-			})
 	}
 
 	// The environment comes from the key, never from the body. A build pointed at

@@ -10,15 +10,15 @@ import (
 
 	"github.com/google/uuid"
 
-	"playersense.dev/backend/ent/regional"
-	"playersense.dev/backend/ent/regional/archivemanifest"
+	"playersense.dev/backend/ent"
+	"playersense.dev/backend/ent/archivemanifest"
 	"playersense.dev/backend/internal/blobstore"
 	"playersense.dev/backend/internal/pgdb"
 	"playersense.dev/backend/internal/retention"
 	"playersense.dev/backend/internal/testsupport"
 )
 
-// §60's retention worker, against the real cell tier and a real object store.
+// §60's retention worker, against the real database and a real object store.
 //
 // The thing being tested is not "does Delete delete". It is the state machine around it: an
 // object is expired only when its manifest says its time is up, the manifest survives the
@@ -27,7 +27,7 @@ import (
 
 type fixture struct {
 	sweeper *retention.Sweeper
-	cell    *pgdb.Cell
+	db      *pgdb.DB
 	store   *blobstore.Local
 	bucket  string
 }
@@ -38,15 +38,15 @@ func newFixture(t *testing.T) *fixture {
 	settings := testsupport.Settings(t)
 	settings.ArchiveDir = t.TempDir()
 
-	cell := testsupport.CellDB(t, settings)
+	db := testsupport.Postgres(t, settings)
 	store := blobstore.NewLocal(settings.ArchiveDir, settings.ArchiveBucket)
 	if err := store.Start(t.Context()); err != nil {
 		t.Fatalf("start store: %v", err)
 	}
 
 	return &fixture{
-		sweeper: &retention.Sweeper{Cell: cell, Store: store, Log: quiet()},
-		cell:    cell,
+		sweeper: &retention.Sweeper{DB: db, Store: store, Log: quiet()},
+		db:      db,
 		store:   store,
 		bucket:  settings.ArchiveBucket,
 	}
@@ -59,18 +59,17 @@ func quiet() *slog.Logger { return slog.New(slog.NewTextHandler(io.Discard, nil)
 // `deleteAfter` is relative to the object's newest event, which is how the archive writer
 // computes it: the retention tier is counted from the last event in the object, not from
 // when it happened to be written.
-func (f *fixture) seed(t *testing.T, name string, lastEvent time.Time, tier time.Duration) *regional.ArchiveManifest {
+func (f *fixture) seed(t *testing.T, name string, lastEvent time.Time, tier time.Duration) *ent.ArchiveManifest {
 	t.Helper()
-	path := "cell=test/project=" + uuid.NewString() + "/part-" + name + ".parquet"
+	path := "project=" + uuid.NewString() + "/part-" + name + ".parquet"
 
 	object, err := f.store.Put(t.Context(), path, []byte("not really parquet, and nothing here reads it"))
 	if err != nil {
 		t.Fatalf("write object: %v", err)
 	}
-	m, err := f.cell.Client.ArchiveManifest.Create().
+	m, err := f.db.Client.ArchiveManifest.Create().
 		SetBucket(f.bucket).
 		SetObjectPath(object.Path).
-		SetRegion("eu").
 		SetOrgUID(uuid.New()).
 		SetProjectUID(uuid.New()).
 		SetEnvironmentUID(uuid.New()).
@@ -86,21 +85,21 @@ func (f *fixture) seed(t *testing.T, name string, lastEvent time.Time, tier time
 		t.Fatalf("record manifest: %v", err)
 	}
 	t.Cleanup(func() {
-		_ = f.cell.Client.ArchiveManifest.DeleteOneID(m.ID).Exec(context.Background())
+		_ = f.db.Client.ArchiveManifest.DeleteOneID(m.ID).Exec(context.Background())
 	})
 	return m
 }
 
-func (f *fixture) reload(t *testing.T, m *regional.ArchiveManifest) *regional.ArchiveManifest {
+func (f *fixture) reload(t *testing.T, m *ent.ArchiveManifest) *ent.ArchiveManifest {
 	t.Helper()
-	got, err := f.cell.Client.ArchiveManifest.Get(t.Context(), m.ID)
+	got, err := f.db.Client.ArchiveManifest.Get(t.Context(), m.ID)
 	if err != nil {
 		t.Fatalf("reload manifest: %v", err)
 	}
 	return got
 }
 
-func (f *fixture) exists(t *testing.T, m *regional.ArchiveManifest) bool {
+func (f *fixture) exists(t *testing.T, m *ent.ArchiveManifest) bool {
 	t.Helper()
 	_, err := f.store.Get(t.Context(), m.ObjectPath)
 	if errors.Is(err, blobstore.ErrNotFound) {
@@ -172,7 +171,7 @@ func TestAnInterruptedDeletionIsResumed(t *testing.T) {
 	now := time.Now().UTC()
 
 	stuck := f.seed(t, "stuck", now.AddDate(0, 0, -40), 30*24*time.Hour)
-	if err := f.cell.Client.ArchiveManifest.UpdateOne(stuck).
+	if err := f.db.Client.ArchiveManifest.UpdateOne(stuck).
 		SetStatus(archivemanifest.StatusDeleting).Exec(t.Context()); err != nil {
 		t.Fatalf("stage the interrupted state: %v", err)
 	}
@@ -231,7 +230,7 @@ func TestARedactedObjectIsNeverExpired(t *testing.T) {
 	now := time.Now().UTC()
 
 	replaced := f.seed(t, "replaced", now.AddDate(0, 0, -40), 30*24*time.Hour)
-	if err := f.cell.Client.ArchiveManifest.UpdateOne(replaced).
+	if err := f.db.Client.ArchiveManifest.UpdateOne(replaced).
 		SetStatus(archivemanifest.StatusRedacted).Exec(t.Context()); err != nil {
 		t.Fatalf("stage the redacted state: %v", err)
 	}

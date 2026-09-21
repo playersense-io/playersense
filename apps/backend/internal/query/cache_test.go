@@ -12,7 +12,7 @@ import (
 func cacheFor(cell string) *Cache {
 	// Never started. Key() reads only the cell prefix, and these tests are about what a key
 	// is made of rather than about Valkey.
-	return NewCache(valkey.New(cell, "redis://127.0.0.1:1/0"), time.Minute, time.Hour)
+	return NewCache(valkey.New("redis://127.0.0.1:1/0"), time.Minute, time.Hour)
 }
 
 func baseQuery() protocol.CohortQuery {

@@ -38,9 +38,9 @@ import (
 	"log/slog"
 	"time"
 
-	"playersense.dev/backend/ent/regional"
-	"playersense.dev/backend/ent/regional/dataexportrequest"
-	"playersense.dev/backend/ent/regional/verifiedpurchase"
+	"playersense.dev/backend/ent"
+	"playersense.dev/backend/ent/dataexportrequest"
+	"playersense.dev/backend/ent/verifiedpurchase"
 	"playersense.dev/backend/internal/blobstore"
 	"playersense.dev/backend/internal/pgdb"
 	"playersense.dev/backend/internal/subject"
@@ -75,11 +75,10 @@ type Pool interface {
 
 // Exporter fills every open export request and expires the bundles that are past their term.
 //
-// Cell-local: its ClickHouse, its bucket, its cell tier. An export is one project's players'
-// data and never leaves the region that produced it (§99, §03), which is why the bundle is
-// written to the cell's own bucket rather than anywhere a control plane can see.
+// An export is one project's players' data, so the bundle is written to the archive bucket
+// and expires there (§03).
 type Exporter struct {
-	Cell  *pgdb.Cell
+	DB    *pgdb.DB
 	CH    Pool
 	Store blobstore.Store
 	Log   *slog.Logger
@@ -108,7 +107,7 @@ type Result struct {
 func (e *Exporter) Run(ctx context.Context, now time.Time) (Result, error) {
 	var out Result
 
-	if !e.Cell.Ready() {
+	if !e.DB.Ready() {
 		return out, pgdb.ErrNotStarted
 	}
 	log := e.Log
@@ -133,7 +132,7 @@ func (e *Exporter) Run(ctx context.Context, now time.Time) (Result, error) {
 		return out, err
 	}
 
-	open, err := e.Cell.Client.DataExportRequest.Query().
+	open, err := e.DB.Client.DataExportRequest.Query().
 		Where(
 			dataexportrequest.StatusIn(
 				dataexportrequest.StatusReceived,
@@ -145,7 +144,7 @@ func (e *Exporter) Run(ctx context.Context, now time.Time) (Result, error) {
 				dataexportrequest.UpdatedAtLTE(now.Add(-retry)),
 			),
 		).
-		Order(regional.Asc(dataexportrequest.FieldCreatedAt)).
+		Order(ent.Asc(dataexportrequest.FieldCreatedAt)).
 		Limit(limit).
 		All(ctx)
 	if err != nil {
@@ -167,7 +166,7 @@ func (e *Exporter) Run(ctx context.Context, now time.Time) (Result, error) {
 			out.Failed++
 			log.Error("an export failed",
 				"request", req.UID, "project_uid", req.ProjectUID, "error", err)
-			if markErr := e.Cell.Client.DataExportRequest.UpdateOne(req).
+			if markErr := e.DB.Client.DataExportRequest.UpdateOne(req).
 				SetStatus(dataexportrequest.StatusFailed).
 				SetFailureReason(pgdb.Reason(err.Error())).
 				Exec(ctx); markErr != nil {
@@ -186,12 +185,12 @@ func (e *Exporter) Run(ctx context.Context, now time.Time) (Result, error) {
 func (e *Exporter) fill(
 	ctx context.Context,
 	db *sql.DB,
-	req *regional.DataExportRequest,
+	req *ent.DataExportRequest,
 	now time.Time,
 	log *slog.Logger,
 ) (uint64, uint64, error) {
 	if req.Status != dataexportrequest.StatusRunning {
-		saved, err := e.Cell.Client.DataExportRequest.UpdateOne(req).
+		saved, err := e.DB.Client.DataExportRequest.UpdateOne(req).
 			SetStatus(dataexportrequest.StatusRunning).
 			ClearFailureReason().
 			Save(ctx)
@@ -215,7 +214,6 @@ func (e *Exporter) fill(
 		Request:       req.UID.String(),
 		ProjectID:     req.ProjectUID.String(),
 		ActorKey:      req.ActorKey,
-		Cell:          e.Cell.Slug(),
 		GeneratedAt:   now.UTC(),
 		Limits:        limits,
 	}}); err != nil {
@@ -250,7 +248,7 @@ func (e *Exporter) fill(
 	}
 
 	expires := now.Add(e.ttl())
-	if err := e.Cell.Client.DataExportRequest.UpdateOne(req).
+	if err := e.DB.Client.DataExportRequest.UpdateOne(req).
 		SetStatus(dataexportrequest.StatusCompleted).
 		SetBucket(e.Store.Bucket()).
 		SetObjectPath(object.Path).
@@ -280,7 +278,7 @@ func (e *Exporter) fill(
 // — but the copy of the person's history does not need to outlive its own deadline to prove
 // it existed.
 func (e *Exporter) expire(ctx context.Context, now time.Time, log *slog.Logger) (int, error) {
-	due, err := e.Cell.Client.DataExportRequest.Query().
+	due, err := e.DB.Client.DataExportRequest.Query().
 		Where(
 			dataexportrequest.StatusEQ(dataexportrequest.StatusCompleted),
 			dataexportrequest.ExpiresAtLTE(now),
@@ -299,7 +297,7 @@ func (e *Exporter) expire(ctx context.Context, now time.Time, log *slog.Logger) 
 		if err := e.Store.Delete(ctx, req.ObjectPath); err != nil {
 			return removed, fmt.Errorf("delete expired bundle %s: %w", req.ObjectPath, err)
 		}
-		if err := e.Cell.Client.DataExportRequest.UpdateOne(req).
+		if err := e.DB.Client.DataExportRequest.UpdateOne(req).
 			SetStatus(dataexportrequest.StatusExpired).
 			Exec(ctx); err != nil {
 			return removed, fmt.Errorf("record the expiry of %s: %w", req.UID, err)
@@ -326,12 +324,12 @@ func (e *Exporter) maxRows() uint64 {
 
 // bundlePath names the object.
 //
-// Its own top-level prefix, deliberately outside the `cell=…/org=…/project=…` tree §14.1
+// Its own top-level prefix, deliberately outside the `org=…/project=…` tree §14.1
 // defines for events. Three things follow from that and all three are wanted: §34's cold
 // queries prune that tree and must never find a bundle in it, §60's expiry walks manifests
 // and a bundle has none, and a bucket lifecycle rule can be pointed at exports alone as a
 // backstop for the term this job enforces.
-func bundlePath(req *regional.DataExportRequest) string {
+func bundlePath(req *ent.DataExportRequest) string {
 	return fmt.Sprintf("export/project=%s/%s.ndjson", req.ProjectUID, req.UID)
 }
 
@@ -356,7 +354,7 @@ var limits = []string{
 // scanned as maps: `toJSONString` produces exactly the shape the bundle wants, and it keeps
 // one nested structure out of the driver's type mapping on a path where a surprise would be
 // a corrupted answer to a legal request.
-func (e *Exporter) writeEvents(ctx context.Context, db *sql.DB, req *regional.DataExportRequest, b *bundle) error {
+func (e *Exporter) writeEvents(ctx context.Context, db *sql.DB, req *ent.DataExportRequest, b *bundle) error {
 	where, args := subject.Actor.Predicate(req.ProjectSeq, req.ActorKey)
 	args = append(args, e.maxRows()+1)
 
@@ -418,7 +416,7 @@ func (e *Exporter) writeEvents(ctx context.Context, db *sql.DB, req *regional.Da
 }
 
 // writeDevices adds the lifetime record of each device (§29.6).
-func (e *Exporter) writeDevices(ctx context.Context, db *sql.DB, req *regional.DataExportRequest, who subject.Subject, b *bundle) error {
+func (e *Exporter) writeDevices(ctx context.Context, db *sql.DB, req *ent.DataExportRequest, who subject.Subject, b *bundle) error {
 	if len(who.Devices) == 0 {
 		return nil
 	}
@@ -459,7 +457,7 @@ func (e *Exporter) writeDevices(ctx context.Context, db *sql.DB, req *regional.D
 }
 
 // writeDays adds the per-device daily record (§29.7).
-func (e *Exporter) writeDays(ctx context.Context, db *sql.DB, req *regional.DataExportRequest, who subject.Subject, b *bundle) error {
+func (e *Exporter) writeDays(ctx context.Context, db *sql.DB, req *ent.DataExportRequest, who subject.Subject, b *bundle) error {
 	if len(who.Devices) == 0 {
 		return nil
 	}
@@ -499,14 +497,14 @@ func (e *Exporter) writeDays(ctx context.Context, db *sql.DB, req *regional.Data
 	return rows.Err()
 }
 
-// writePurchases adds the cell tier's verified transactions (§47).
-func (e *Exporter) writePurchases(ctx context.Context, req *regional.DataExportRequest, b *bundle) error {
-	purchases, err := e.Cell.Client.VerifiedPurchase.Query().
+// writePurchases adds the verified transactions (§47).
+func (e *Exporter) writePurchases(ctx context.Context, req *ent.DataExportRequest, b *bundle) error {
+	purchases, err := e.DB.Client.VerifiedPurchase.Query().
 		Where(
 			verifiedpurchase.ProjectUID(req.ProjectUID),
 			verifiedpurchase.PlayerID(req.ActorKey),
 		).
-		Order(regional.Asc(verifiedpurchase.FieldPurchasedAt)).
+		Order(ent.Asc(verifiedpurchase.FieldPurchasedAt)).
 		All(ctx)
 	if err != nil {
 		return fmt.Errorf("read the subject's purchases: %w", err)

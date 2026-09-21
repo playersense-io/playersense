@@ -16,7 +16,7 @@ import (
 	"github.com/parquet-go/parquet-go"
 	"github.com/parquet-go/parquet-go/compress/zstd"
 
-	"playersense.dev/backend/ent/regional/archivemanifest"
+	"playersense.dev/backend/ent/archivemanifest"
 	"playersense.dev/backend/internal/blobstore"
 	"playersense.dev/backend/internal/eventbus"
 	"playersense.dev/backend/internal/ingest"
@@ -25,11 +25,6 @@ import (
 
 // Options configure the archive writer.
 type Options struct {
-	// Cell and Region are this writer's own. Region goes on the manifest so a row can be
-	// read without knowing which cell wrote it.
-	Cell   string
-	Region string
-
 	// MaxRowsPerObject splits a very large delivery into several objects rather than
 	// building one enormous buffer in memory. A ceiling, not a target.
 	MaxRowsPerObject int
@@ -40,17 +35,16 @@ type Options struct {
 }
 
 type stats struct {
-	messages         atomic.Int64
-	rows             atomic.Int64
-	objects          atomic.Int64
-	bytes            atomic.Int64
-	retries          atomic.Int64
-	deadLettered     atomic.Int64
-	droppedWrongCell atomic.Int64
-	undecodable      atomic.Int64
+	messages     atomic.Int64
+	rows         atomic.Int64
+	objects      atomic.Int64
+	bytes        atomic.Int64
+	retries      atomic.Int64
+	deadLettered atomic.Int64
+	undecodable  atomic.Int64
 }
 
-// Writer consumes the cell's event stream and writes immutable archive objects.
+// Writer consumes the event stream and writes immutable archive objects.
 //
 // It acknowledges only after the object is durable **and** its manifest is committed
 // (Appendix C.2). Both halves matter: an object with no manifest is invisible to §60's
@@ -59,7 +53,7 @@ type stats struct {
 type Writer struct {
 	bus   eventbus.Bus
 	store blobstore.Store
-	cell  *pgdb.Cell
+	db    *pgdb.DB
 	log   *slog.Logger
 	opts  Options
 
@@ -74,7 +68,7 @@ type Writer struct {
 }
 
 // New returns an unstarted writer. Construction connects to nothing.
-func New(bus eventbus.Bus, store blobstore.Store, cell *pgdb.Cell, log *slog.Logger, opts Options) *Writer {
+func New(bus eventbus.Bus, store blobstore.Store, db *pgdb.DB, log *slog.Logger, opts Options) *Writer {
 	if opts.MaxRowsPerObject <= 0 {
 		opts.MaxRowsPerObject = 200_000
 	}
@@ -85,7 +79,7 @@ func New(bus eventbus.Bus, store blobstore.Store, cell *pgdb.Cell, log *slog.Log
 		log = slog.Default()
 	}
 	return &Writer{
-		bus: bus, store: store, cell: cell, log: log, opts: opts,
+		bus: bus, store: store, db: db, log: log, opts: opts,
 		attempts: map[string]int{},
 		done:     make(chan struct{}),
 	}
@@ -131,14 +125,13 @@ func (w *Writer) Stop(ctx context.Context) error {
 // Stats exposes the counters §67 asks for.
 func (w *Writer) Stats() map[string]int64 {
 	return map[string]int64{
-		"messages":           w.stats.messages.Load(),
-		"rows":               w.stats.rows.Load(),
-		"objects":            w.stats.objects.Load(),
-		"bytes":              w.stats.bytes.Load(),
-		"retries":            w.stats.retries.Load(),
-		"dead_lettered":      w.stats.deadLettered.Load(),
-		"dropped_wrong_cell": w.stats.droppedWrongCell.Load(),
-		"undecodable":        w.stats.undecodable.Load(),
+		"messages":      w.stats.messages.Load(),
+		"rows":          w.stats.rows.Load(),
+		"objects":       w.stats.objects.Load(),
+		"bytes":         w.stats.bytes.Load(),
+		"retries":       w.stats.retries.Load(),
+		"dead_lettered": w.stats.deadLettered.Load(),
+		"undecodable":   w.stats.undecodable.Load(),
 	}
 }
 
@@ -201,15 +194,6 @@ func (w *Writer) write(ctx context.Context, msgs []*eventbus.Message) error {
 	groups := map[groupKey]*group{}
 
 	for _, msg := range msgs {
-		// Another cell's message cannot belong here, and redelivering it would never make
-		// it belong. Dropped and counted, as the storage writer does.
-		if msg.Cell != "" && msg.Cell != w.opts.Cell {
-			w.stats.droppedWrongCell.Add(1)
-			w.log.Warn("dropped a message from another cell",
-				"cell", msg.Cell, "this_cell", w.opts.Cell)
-			continue
-		}
-
 		var batch ingest.NormalizedBatch
 		if err := json.Unmarshal(msg.Payload, &batch); err != nil {
 			// A message that cannot be decoded will never decode. Retrying it forever
@@ -262,7 +246,7 @@ func deliveryKey(msgs []*eventbus.Message) string {
 // The same shape as the storage writer's, and for the same reason: a message that will
 // never archive must not stall every message behind it, and attempt count alone cannot tell
 // it from an unreachable bucket. The archive has two dependencies rather than one — the
-// object store and the cell's database, since an object with no manifest is invisible to
+// object store and the database, since an object with no manifest is invisible to
 // §60's expiry, §39's billing and §104's breach scoping — so both are probed before
 // anything is parked.
 func (w *Writer) isolate(ctx context.Context, msgs []*eventbus.Message) error {
@@ -313,11 +297,11 @@ func (w *Writer) probe(ctx context.Context) error {
 	if err := w.store.Ping(ctx); err != nil {
 		return fmt.Errorf("object store: %w", err)
 	}
-	if !w.cell.Ready() {
-		return fmt.Errorf("cell tier: %w", pgdb.ErrNotStarted)
+	if !w.db.Ready() {
+		return fmt.Errorf("database: %w", pgdb.ErrNotStarted)
 	}
-	if err := w.cell.DB().PingContext(ctx); err != nil {
-		return fmt.Errorf("cell tier: %w", err)
+	if err := w.db.DB().PingContext(ctx); err != nil {
+		return fmt.Errorf("database: %w", err)
 	}
 	return nil
 }
@@ -369,7 +353,7 @@ func (w *Writer) flush(ctx context.Context, g *group) error {
 			return fmt.Errorf("encode parquet: %w", err)
 		}
 
-		path := objectPath(w.opts.Cell, g, digest(g.dedupKeys, len(chunk), chunk[0].EventID))
+		path := objectPath(g, digest(g.dedupKeys, len(chunk), chunk[0].EventID))
 		object, err := w.store.Put(ctx, path, body)
 		if err != nil {
 			return fmt.Errorf("write archive object: %w", err)
@@ -396,7 +380,7 @@ func (w *Writer) flush(ctx context.Context, g *group) error {
 // object and a manifest that already exists. Doing nothing is the correct outcome, and it is
 // also the only one that does not double the storage §39 bills for.
 func (w *Writer) record(ctx context.Context, g *group, object blobstore.Object, rows uint64) error {
-	if !w.cell.Ready() {
+	if !w.db.Ready() {
 		return pgdb.ErrNotStarted
 	}
 	orgUID, err := uuid.Parse(g.orgUID)
@@ -417,10 +401,9 @@ func (w *Writer) record(ctx context.Context, g *group, object blobstore.Object, 
 	// destroy an archive they already paid for (§59, §60).
 	deleteAfter := g.maxTime.UTC().AddDate(0, 0, int(g.retentionTier))
 
-	return w.cell.Client.ArchiveManifest.Create().
+	return w.db.Client.ArchiveManifest.Create().
 		SetBucket(w.store.Bucket()).
 		SetObjectPath(object.Path).
-		SetRegion(w.opts.Region).
 		SetOrgUID(orgUID).
 		SetProjectUID(projectUID).
 		SetEnvironmentUID(envUID).
@@ -480,13 +463,12 @@ func Decode(body []byte) ([]Row, error) {
 // queries select objects by walking it, §60's expiry and §61's project deletion act on it,
 // and a lifecycle rule can match it.
 //
-// The first segment is the **cell**, not the region. §14.1's own example writes
-// `region=eu-1`, but eu-1 is a cell and §6 — written later — separates the two. One bucket
-// belongs to one cell, so the cell is what actually distinguishes a prefix; the legal region
-// is recorded on the manifest, where a query can use it.
-func objectPath(cell string, g *group, digest string) string {
-	return fmt.Sprintf("cell=%s/org=%s/project=%s/env=%s/dt=%s/hour=%02d/part-%s.parquet",
-		cell, g.orgUID, g.projectUID, g.env,
+// §14.1's own example opens the prefix with `region=eu-1`. There is one bucket and one
+// deployment now, so that segment named a constant and is gone: the organisation is the
+// first thing that actually distinguishes an object.
+func objectPath(g *group, digest string) string {
+	return fmt.Sprintf("org=%s/project=%s/env=%s/dt=%s/hour=%02d/part-%s.parquet",
+		g.orgUID, g.projectUID, g.env,
 		g.hour.Format(time.DateOnly), g.hour.Hour(), digest)
 }
 

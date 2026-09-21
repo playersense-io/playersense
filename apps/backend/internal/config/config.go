@@ -4,7 +4,7 @@ package config
 import (
 	"time"
 
-	"muzak.dev/framework"
+	muzak "muzak.dev/framework"
 )
 
 // Settings is the service configuration, read once at start-up from the environment and
@@ -13,55 +13,37 @@ import (
 // Every connection string carries its own port rather than composing one from a host and
 // a port setting, so that the ports declared in .env are the only place a port appears.
 type Settings struct {
-	// Cell is which data plane this process belongs to (§6).
+	// PostgresDSN addresses the database (§99).
 	//
-	// Every stateful thing below except the global tier belongs to this cell, and the
-	// slug prefixes every Valkey key and every ClickHouse replica path. A service
-	// asserts at start-up that the cell exists in the registry and is active, so a typo
-	// fails to boot rather than writing somewhere unexpected.
-	Cell string `env:"CELL" default:"eu-1"`
+	// One database: accounts, organisations, projects, keys and aggregate counts
+	// alongside purchases, deletion requests, exports and archive manifests. It was two,
+	// split by whether a table could name a player; §96's per-column classification
+	// survives that split and `migrate verify` still enforces it.
+	PostgresDSN string `env:"POSTGRES_DSN" required:"true" secret:"true"`
 
-	// CellRegion is the jurisdiction the cell sits in — the legal boundary, as distinct
-	// from the cell, which is a stack inside it (§6).
-	CellRegion string `env:"CELL_REGION" default:"eu"`
-
-	// CellIngestURL is the address SDKs for this cell's projects must send batches to.
-	// Returned to a client that reaches the wrong cell, so a misconfigured integration
-	// is told where to go rather than merely refused.
-	CellIngestURL string `env:"CELL_INGEST_URL" default:"http://localhost:21081"`
-
-	// CellQueryURL is the address reporting clients for this cell's projects must query.
-	// A separate host from the ingest endpoint: the two are different services with very
-	// different traffic, and a 421 can only direct a caller if it names the address for
-	// the surface they were actually using.
-	CellQueryURL string `env:"CELL_QUERY_URL" default:"http://localhost:21083"`
-
-	// GlobalPostgresDSN addresses the one global control-plane tier (§99).
-	//
-	// US-hosted: it holds accounts, organisations, projects, keys and aggregate counts,
-	// and by §99's rule no player data at all.
-	GlobalPostgresDSN string `env:"GLOBAL_POSTGRES_DSN" required:"true" secret:"true"`
-
-	// CellPostgresDSN addresses this cell's own database, holding everything that names
-	// a player. It never leaves the cell's region.
-	CellPostgresDSN string `env:"CELL_POSTGRES_DSN" secret:"true"`
-
-	// ClickHouseDSN addresses this cell's analytics database (§13).
+	// ClickHouseDSN addresses the analytics database (§13).
 	ClickHouseDSN string `env:"CLICKHOUSE_DSN" required:"true" secret:"true"`
-	// ValkeyDSN addresses this cell's cache and device-state store (§12).
+	// ValkeyDSN addresses the cache and device-state store (§12).
 	ValkeyDSN string `env:"VALKEY_DSN"`
 
-	// MigrationsDir is the repository-root directory holding both migration sets.
+	// MigrationsDir is the repository-root directory holding the ClickHouse migrations.
 	MigrationsDir string `env:"MIGRATIONS_DIR" default:"db"`
 
 	// AppName titles the API in the generated documentation.
-	AppName string `env:"APP_NAME" default:"PlayerSense Control API"`
-	// Addr is the address control-api listens on.
-	Addr string `env:"CONTROL_API_ADDR" default:":21080"`
-	// PublicURL is the address clients actually reach, for the OpenAPI servers list.
-	PublicURL string `env:"CONTROL_API_PUBLIC_URL" default:"http://localhost:21080"`
+	AppName string `env:"APP_NAME" default:"PlayerSense API"`
+	// Addr is the address the API listens on.
+	//
+	// One address, because there is one API: the dashboard's surface, the SDK's ingestion
+	// and configuration endpoints and the reporting surface are routers in one binary
+	// rather than four deployables. They were split so ingestion could scale on its own
+	// axis and keep serving while the control plane was down — a real property, and one
+	// nothing at this size is paying for.
+	Addr string `env:"API_ADDR" default:":21080"`
+	// PublicURL is the address clients actually reach, for the OpenAPI servers list and
+	// for the endpoint the SDK is told to send batches to.
+	PublicURL string `env:"API_PUBLIC_URL" default:"http://localhost:21080"`
 
-	// AdminToken guards the control API's operator surface. Marked secret so a malformed
+	// AdminToken guards the API's operator surface. Marked secret so a malformed
 	// value never appears in a start-up error.
 	//
 	// It is no longer what guards the customer-facing routes: those resolve a signed-in
@@ -93,13 +75,7 @@ type Settings struct {
 	// budget it spends (§70).
 	TrustedProxies []string `env:"TRUSTED_PROXIES"`
 
-	// --- ingest-api ---------------------------------------------------------
-
-	// IngestAddr is the address ingest-api listens on. Separate from the control API
-	// because §10.2 makes it a separate deployable: it scales on a different axis and
-	// must keep serving when the control plane cannot.
-	IngestAddr      string `env:"INGEST_API_ADDR" default:":21081"`
-	IngestPublicURL string `env:"INGEST_API_PUBLIC_URL" default:"http://localhost:21081"`
+	// --- ingestion ----------------------------------------------------------
 
 	// EventBus selects the queue implementation: local or pubsub (§3.6).
 	EventBus    string `env:"EVENT_BUS" default:"local"`
@@ -166,11 +142,6 @@ type Settings struct {
 	GeoIPLocationDB string `env:"GEOIP_LOCATION_DB" default:""`
 	GeoIPPrivacyDB  string `env:"GEOIP_PRIVACY_DB" default:""`
 
-	// ConfigAPIAddr and ConfigAPIPublicURL are where the SDK's configuration endpoint
-	// listens and how it describes itself (§42).
-	ConfigAPIAddr      string `env:"CONFIG_API_ADDR" default:":21087"`
-	ConfigAPIPublicURL string `env:"CONFIG_API_PUBLIC_URL" default:"http://localhost:21087"`
-
 	// ConfigCacheTTL is how long a published document is served before it is looked up
 	// again. A publish is a deliberate act somebody is watching the result of, so this is
 	// also the longest anybody waits to see one.
@@ -211,12 +182,6 @@ type Settings struct {
 	// next suite's budget, and a test that fails because a previous test ran is a test
 	// nobody trusts. The limiter itself is exercised by a test written for it.
 	RateLimitDisabled bool `env:"RATE_LIMIT_DISABLED" default:"false"`
-
-	// QueryAPIAddr is where the reporting API listens (§10.5).
-	QueryAPIAddr string `env:"QUERY_API_ADDR" default:":21083"`
-
-	// QueryAPIPublicURL is this deployment's own address, for its OpenAPI document.
-	QueryAPIPublicURL string `env:"QUERY_API_PUBLIC_URL" default:"http://localhost:21083"`
 
 	// QuerySuppressionK is the minimum cell size (§32.2, ADR 0017).
 	//

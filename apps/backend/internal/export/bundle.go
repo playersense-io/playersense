@@ -42,7 +42,6 @@ type Meta struct {
 	Request       string    `json:"request"`
 	ProjectID     string    `json:"project_id"`
 	ActorKey      string    `json:"actor_key"`
-	Cell          string    `json:"cell"`
 	GeneratedAt   time.Time `json:"generated_at"`
 
 	// Limits travel with the data on purpose. §05 is explicit that "saying this plainly is

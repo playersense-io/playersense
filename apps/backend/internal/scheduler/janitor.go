@@ -84,13 +84,13 @@ type JanitorOptions struct {
 // transaction boundary lives beside the thing that needs one: every movement of credit is a lot
 // change and a ledger entry together, and a job that took a client could not promise that.
 type creditExpiry struct {
-	DB    *pgdb.Global
+	DB    *pgdb.DB
 	Log   *slog.Logger
 	Limit int
 }
 
 // CreditExpiry returns the job, or nil when there is no control-plane connection to run it against.
-func CreditExpiry(db *pgdb.Global, log *slog.Logger, limit int) *creditExpiry {
+func CreditExpiry(db *pgdb.DB, log *slog.Logger, limit int) *creditExpiry {
 	if db == nil {
 		return nil
 	}

@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"muzak.dev/framework"
+	muzak "muzak.dev/framework"
 )
 
 // The people in an organization, and the invitations that put them there.

@@ -8,16 +8,16 @@ import (
 	"testing"
 	"time"
 
-	"playersense.dev/backend/ent/global"
-	"playersense.dev/backend/ent/global/organization"
-	"playersense.dev/backend/ent/global/role"
+	"playersense.dev/backend/ent"
+	"playersense.dev/backend/ent/organization"
+	"playersense.dev/backend/ent/role"
 	"playersense.dev/backend/internal/authz"
 	"playersense.dev/backend/internal/identity"
 	"playersense.dev/backend/internal/testsupport"
 )
 
 // roleID finds one of an organization's seeded roles by key.
-func roleID(t *testing.T, db *global.Client, orgID int, key string) int {
+func roleID(t *testing.T, db *ent.Client, orgID int, key string) int {
 	t.Helper()
 	found, err := db.Role.Query().
 		Where(role.OrganizationID(orgID), role.Key(key)).Only(t.Context())
@@ -45,7 +45,7 @@ func claims(t *testing.T) identity.Claims {
 // organization — and the dashboard would need an empty state that has to be got right.
 func TestSigningUpCreatesSomewhereToBe(t *testing.T) {
 	settings := testsupport.Settings(t)
-	db := testsupport.Global(t, settings)
+	db := testsupport.Postgres(t, settings)
 	now := time.Now().UTC()
 
 	user, err := identity.EnsureUser(t.Context(), db.Client, claims(t), now)
@@ -69,7 +69,7 @@ func TestSigningUpCreatesSomewhereToBe(t *testing.T) {
 // creates nothing — otherwise every sign-in would leave a duplicate organization behind.
 func TestSigningInAgainUpdatesRatherThanDuplicates(t *testing.T) {
 	settings := testsupport.Settings(t)
-	db := testsupport.Global(t, settings)
+	db := testsupport.Postgres(t, settings)
 	now := time.Now().UTC()
 
 	first := claims(t)
@@ -110,7 +110,7 @@ func TestSigningInAgainUpdatesRatherThanDuplicates(t *testing.T) {
 // user matched on email would silently become a different person.
 func TestTheUidIsTheKeyAndEmailIsALabel(t *testing.T) {
 	settings := testsupport.Settings(t)
-	db := testsupport.Global(t, settings)
+	db := testsupport.Postgres(t, settings)
 	now := time.Now().UTC()
 
 	original := claims(t)
@@ -138,7 +138,7 @@ func TestTheUidIsTheKeyAndEmailIsALabel(t *testing.T) {
 // one where nobody knows who can reach the data (§08).
 func TestAnOrganizationRefusesToExceedItsCeiling(t *testing.T) {
 	settings := testsupport.Settings(t)
-	db := testsupport.Global(t, settings)
+	db := testsupport.Postgres(t, settings)
 	now := time.Now().UTC()
 
 	owner, err := identity.EnsureUser(t.Context(), db.Client, claims(t), now)
@@ -214,7 +214,7 @@ func TestAnInvitationTokenIsNotRecoverableFromWhatIsStored(t *testing.T) {
 
 func TestATokenlessOrEmaillessSignInIsRefused(t *testing.T) {
 	settings := testsupport.Settings(t)
-	db := testsupport.Global(t, settings)
+	db := testsupport.Postgres(t, settings)
 
 	for name, broken := range map[string]identity.Claims{
 		"no uid":   {Email: "someone@studio.example"},
@@ -235,7 +235,7 @@ func TestATokenlessOrEmaillessSignInIsRefused(t *testing.T) {
 // claim nothing checks.
 func TestCreateOrganizationIsAllOrNothing(t *testing.T) {
 	settings := testsupport.Settings(t)
-	db := testsupport.Global(t, settings)
+	db := testsupport.Postgres(t, settings)
 
 	owner, err := identity.EnsureUser(t.Context(), db.Client, claims(t), time.Now())
 	if err != nil {
@@ -246,7 +246,7 @@ func TestCreateOrganizationIsAllOrNothing(t *testing.T) {
 	refusal := errors.New("the hook refused")
 	_, err = identity.CreateOrganization(t.Context(), db.Client, "Doomed Studio", slug,
 		owner.ID, time.Now(),
-		func(tx *global.Tx, org *global.Organization) error { return refusal })
+		func(tx *ent.Tx, org *ent.Organization) error { return refusal })
 	if !errors.Is(err, refusal) {
 		t.Fatalf("CreateOrganization = %v, want the hook's own error", err)
 	}

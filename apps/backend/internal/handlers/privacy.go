@@ -6,13 +6,13 @@ import (
 	"strconv"
 	"time"
 
-	"muzak.dev/framework"
+	muzak "muzak.dev/framework"
 
 	"github.com/google/uuid"
 
-	"playersense.dev/backend/ent/regional"
-	"playersense.dev/backend/ent/regional/datadeletionrequest"
-	"playersense.dev/backend/ent/regional/dataexportrequest"
+	"playersense.dev/backend/ent"
+	"playersense.dev/backend/ent/datadeletionrequest"
+	"playersense.dev/backend/ent/dataexportrequest"
 	"playersense.dev/backend/internal/blobstore"
 	"playersense.dev/backend/internal/config"
 	"playersense.dev/backend/internal/core"
@@ -37,27 +37,23 @@ import (
 // is US-hosted and knows nothing about anyone's players.
 func SubmitErasure(ctx *muzak.Context, in schemas.ErasureIn) (schemas.ErasureOut, error) {
 	tenant := muzak.From[*core.Tenant](ctx)
-	home := muzak.From[core.CellIdentity](ctx)
-	cell := muzak.From[*pgdb.Cell](ctx)
+	db := muzak.From[*pgdb.DB](ctx)
 	cache := muzak.From[*valkey.Client](ctx)
 
-	if tenant.Cell != home.Slug {
-		return schemas.ErasureOut{}, misdirected(tenant)
-	}
 	projectUID, err := uuid.Parse(tenant.ProjectID)
 	if err != nil {
 		return schemas.ErasureOut{}, core.AsHTTPError(err)
 	}
-	if !cell.Ready() {
+	if !db.Ready() {
 		return schemas.ErasureOut{}, muzak.ServiceUnavailable(
-			"this cell's database is unavailable; the request was not recorded, so send it again")
+			"the database is unavailable; the request was not recorded, so send it again")
 	}
 
 	// An open request for the same person is the answer to this one. §48's reasoning about
 	// purchases applies at least as strongly here: a studio retrying after a timeout must
 	// not create a second erasure, and two requests for one person would be two audit
 	// records of one event.
-	existing, err := cell.Client.DataDeletionRequest.Query().
+	existing, err := db.Client.DataDeletionRequest.Query().
 		Where(
 			datadeletionrequest.ProjectUID(projectUID),
 			datadeletionrequest.ActorKey(in.ActorKey),
@@ -68,11 +64,11 @@ func SubmitErasure(ctx *muzak.Context, in schemas.ErasureIn) (schemas.ErasureOut
 	case err == nil:
 		ctx.SetStatus(http.StatusAccepted)
 		return erasureOut(existing), nil
-	case !regional.IsNotFound(err):
+	case !ent.IsNotFound(err):
 		return schemas.ErasureOut{}, core.AsHTTPError(err)
 	}
 
-	req, err := cell.Client.DataDeletionRequest.Create().
+	req, err := db.Client.DataDeletionRequest.Create().
 		SetProjectUID(projectUID).
 		// The surrogate, taken from the credential because it is the only place it is
 		// known: the worker that runs the purge is cell-local and the projects table is in
@@ -95,7 +91,7 @@ func SubmitErasure(ctx *muzak.Context, in schemas.ErasureIn) (schemas.ErasureOut
 			erasureTombstoneLease(ctx)); err != nil {
 			ctx.Logger().Warn("could not raise the erasure tombstone; the purge will remove the data anyway",
 				"request", req.UID, "error", err)
-		} else if updated, err := cell.Client.DataDeletionRequest.UpdateOne(req).
+		} else if updated, err := db.Client.DataDeletionRequest.UpdateOne(req).
 			SetStatus(datadeletionrequest.StatusTombstoned).
 			SetTombstonedAt(time.Now().UTC()).
 			Save(ctx.Context()); err == nil {
@@ -110,24 +106,20 @@ func SubmitErasure(ctx *muzak.Context, in schemas.ErasureIn) (schemas.ErasureOut
 // ReadErasure reports where one erasure has got to.
 func ReadErasure(ctx *muzak.Context, in schemas.PrivacyRequestParams) (schemas.ErasureOut, error) {
 	tenant := muzak.From[*core.Tenant](ctx)
-	home := muzak.From[core.CellIdentity](ctx)
-	cell := muzak.From[*pgdb.Cell](ctx)
+	db := muzak.From[*pgdb.DB](ctx)
 
-	if tenant.Cell != home.Slug {
-		return schemas.ErasureOut{}, misdirected(tenant)
-	}
 	projectUID, err := uuid.Parse(tenant.ProjectID)
 	if err != nil {
 		return schemas.ErasureOut{}, core.AsHTTPError(err)
 	}
-	if !cell.Ready() {
-		return schemas.ErasureOut{}, muzak.ServiceUnavailable("this cell's database is unavailable")
+	if !db.Ready() {
+		return schemas.ErasureOut{}, muzak.ServiceUnavailable("the database is unavailable")
 	}
 
 	// Scoped to the credential's project as well as to the identifier. A request id is a
 	// UUID and guessing one is not a plausible attack, but scoping it is free and the
 	// alternative is an endpoint whose safety rests on an argument about entropy.
-	req, err := cell.Client.DataDeletionRequest.Query().
+	req, err := db.Client.DataDeletionRequest.Query().
 		Where(
 			datadeletionrequest.UID(in.RequestID),
 			datadeletionrequest.ProjectUID(projectUID),
@@ -142,27 +134,23 @@ func ReadErasure(ctx *muzak.Context, in schemas.PrivacyRequestParams) (schemas.E
 // SubmitExport asks for everything held about one actor (§101).
 func SubmitExport(ctx *muzak.Context, in schemas.ExportIn) (schemas.ExportOut, error) {
 	tenant := muzak.From[*core.Tenant](ctx)
-	home := muzak.From[core.CellIdentity](ctx)
-	cell := muzak.From[*pgdb.Cell](ctx)
+	db := muzak.From[*pgdb.DB](ctx)
 	settings := muzak.From[config.Settings](ctx)
 
-	if tenant.Cell != home.Slug {
-		return schemas.ExportOut{}, misdirected(tenant)
-	}
 	projectUID, err := uuid.Parse(tenant.ProjectID)
 	if err != nil {
 		return schemas.ExportOut{}, core.AsHTTPError(err)
 	}
-	if !cell.Ready() {
+	if !db.Ready() {
 		return schemas.ExportOut{}, muzak.ServiceUnavailable(
-			"this cell's database is unavailable; the request was not recorded, so send it again")
+			"the database is unavailable; the request was not recorded, so send it again")
 	}
 
 	// An export for somebody who is being erased would assemble a fresh copy of exactly the
 	// data an erasure is working to remove, and park it in a bucket. The two rights are both
 	// real and the order between them is the studio's to choose — so this is refused with
 	// the reason rather than silently reordered.
-	open, err := cell.Client.DataDeletionRequest.Query().
+	open, err := db.Client.DataDeletionRequest.Query().
 		Where(
 			datadeletionrequest.ProjectUID(projectUID),
 			datadeletionrequest.ActorKey(in.ActorKey),
@@ -179,7 +167,7 @@ func SubmitExport(ctx *muzak.Context, in schemas.ExportIn) (schemas.ExportOut, e
 			WithCode("erasure_in_progress")
 	}
 
-	existing, err := cell.Client.DataExportRequest.Query().
+	existing, err := db.Client.DataExportRequest.Query().
 		Where(
 			dataexportrequest.ProjectUID(projectUID),
 			dataexportrequest.ActorKey(in.ActorKey),
@@ -193,11 +181,11 @@ func SubmitExport(ctx *muzak.Context, in schemas.ExportIn) (schemas.ExportOut, e
 	case err == nil:
 		ctx.SetStatus(http.StatusAccepted)
 		return exportOut(existing, settings), nil
-	case !regional.IsNotFound(err):
+	case !ent.IsNotFound(err):
 		return schemas.ExportOut{}, core.AsHTTPError(err)
 	}
 
-	req, err := cell.Client.DataExportRequest.Create().
+	req, err := db.Client.DataExportRequest.Create().
 		SetProjectUID(projectUID).
 		SetProjectSeq(tenant.ProjectSeq).
 		SetActorKey(in.ActorKey).
@@ -268,23 +256,19 @@ func DownloadExport(ctx *muzak.Context, in schemas.PrivacyRequestParams) (muzak.
 }
 
 // findExport loads one export, scoped to the credential's project.
-func findExport(ctx *muzak.Context, id uuid.UUID) (*regional.DataExportRequest, error) {
+func findExport(ctx *muzak.Context, id uuid.UUID) (*ent.DataExportRequest, error) {
 	tenant := muzak.From[*core.Tenant](ctx)
-	home := muzak.From[core.CellIdentity](ctx)
-	cell := muzak.From[*pgdb.Cell](ctx)
+	db := muzak.From[*pgdb.DB](ctx)
 
-	if tenant.Cell != home.Slug {
-		return nil, misdirected(tenant)
-	}
 	projectUID, err := uuid.Parse(tenant.ProjectID)
 	if err != nil {
 		return nil, core.AsHTTPError(err)
 	}
-	if !cell.Ready() {
-		return nil, muzak.ServiceUnavailable("this cell's database is unavailable")
+	if !db.Ready() {
+		return nil, muzak.ServiceUnavailable("the database is unavailable")
 	}
 
-	req, err := cell.Client.DataExportRequest.Query().
+	req, err := db.Client.DataExportRequest.Query().
 		Where(
 			dataexportrequest.UID(id),
 			dataexportrequest.ProjectUID(projectUID),
@@ -309,7 +293,7 @@ func erasureTombstoneLease(ctx *muzak.Context) time.Duration {
 	return 26 * time.Hour
 }
 
-func erasureOut(req *regional.DataDeletionRequest) schemas.ErasureOut {
+func erasureOut(req *ent.DataDeletionRequest) schemas.ErasureOut {
 	return schemas.ErasureOut{
 		RequestID:        req.UID,
 		ActorKey:         req.ActorKey,
@@ -324,7 +308,7 @@ func erasureOut(req *regional.DataDeletionRequest) schemas.ErasureOut {
 	}
 }
 
-func exportOut(req *regional.DataExportRequest, settings config.Settings) schemas.ExportOut {
+func exportOut(req *ent.DataExportRequest, settings config.Settings) schemas.ExportOut {
 	out := schemas.ExportOut{
 		RequestID:     req.UID,
 		ActorKey:      req.ActorKey,
@@ -337,7 +321,7 @@ func exportOut(req *regional.DataExportRequest, settings config.Settings) schema
 		FailureReason: req.FailureReason,
 	}
 	if req.Status == dataexportrequest.StatusCompleted {
-		out.DownloadURL = settings.QueryAPIPublicURL + "/v1/privacy/exports/" + req.UID.String() + "/download"
+		out.DownloadURL = settings.PublicURL + "/v1/privacy/exports/" + req.UID.String() + "/download"
 	}
 	return out
 }
@@ -355,7 +339,7 @@ func utc(t *time.Time) *time.Time {
 // One answer for both, for the reason ErrUnknownKey gives about credentials: telling them
 // apart tells a caller which project a request id belongs to.
 func requestNotFound(err error, kind string) error {
-	if regional.IsNotFound(err) {
+	if ent.IsNotFound(err) {
 		return muzak.NotFound("no such " + kind + " request for this project")
 	}
 	return core.AsHTTPError(err)

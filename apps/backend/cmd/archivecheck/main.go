@@ -35,7 +35,7 @@ import (
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 	"github.com/google/uuid"
 
-	"playersense.dev/backend/ent/regional/archivemanifest"
+	"playersense.dev/backend/ent/archivemanifest"
 	"playersense.dev/backend/internal/config"
 	"playersense.dev/backend/internal/pgdb"
 )
@@ -93,7 +93,7 @@ func run() error {
 	}
 	defer conn.Close()
 
-	cell := pgdb.NewCell(settings.Cell, settings.CellPostgresDSN)
+	cell := pgdb.New(settings.PostgresDSN)
 	if err := cell.Start(ctx); err != nil {
 		return fmt.Errorf("open the cell tier: %w", err)
 	}
@@ -189,7 +189,7 @@ func localDays(ctx context.Context, conn driver.Conn) ([]day, error) {
 // Coverage is by time range rather than by a date column, because an object is keyed on the
 // hour and a day is twenty-four of them: the question is whether the day's span is inside
 // some durable object's span, not whether a row happens to carry the same date string.
-func archived(ctx context.Context, cell *pgdb.Cell, d day) (bool, error) {
+func archived(ctx context.Context, cell *pgdb.DB, d day) (bool, error) {
 	n, err := cell.Client.ArchiveManifest.Query().
 		Where(
 			archivemanifest.ProjectUIDEQ(d.projectUID),

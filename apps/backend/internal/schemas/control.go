@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"muzak.dev/framework"
+	muzak "muzak.dev/framework"
 )
 
 // ---- organizations ----------------------------------------------------------

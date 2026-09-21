@@ -6,9 +6,9 @@ import (
 	"strconv"
 	"time"
 
-	"playersense.dev/backend/ent/global"
-	"playersense.dev/backend/ent/global/creditlot"
-	"playersense.dev/backend/ent/global/ledgerentry"
+	"playersense.dev/backend/ent"
+	"playersense.dev/backend/ent/creditlot"
+	"playersense.dev/backend/ent/ledgerentry"
 	"playersense.dev/backend/internal/billing"
 )
 
@@ -36,7 +36,7 @@ import (
 //
 // A repeat returns the existing lot and reports `false`, so a caller can tell "granted" from
 // "already granted" and answer 200 rather than 201 without guessing.
-func Grant(ctx context.Context, tx *global.Tx, in GrantRequest) (*global.CreditLot, bool, error) {
+func Grant(ctx context.Context, tx *ent.Tx, in GrantRequest) (*ent.CreditLot, bool, error) {
 	if err := in.validate(); err != nil {
 		return nil, false, err
 	}
@@ -46,7 +46,7 @@ func Grant(ctx context.Context, tx *global.Tx, in GrantRequest) (*global.CreditL
 	if err == nil {
 		return existing, false, nil
 	}
-	if !global.IsNotFound(err) {
+	if !ent.IsNotFound(err) {
 		return nil, false, fmt.Errorf("look up an existing grant: %w", err)
 	}
 
@@ -148,7 +148,7 @@ func (in GrantRequest) validate() error {
 //
 // Refused whole if there is not enough. A partial spend would leave a charge that did not happen, a
 // balance of zero and no record of the difference.
-func Spend(ctx context.Context, tx *global.Tx, in SpendRequest) (*SpendResult, error) {
+func Spend(ctx context.Context, tx *ent.Tx, in SpendRequest) (*SpendResult, error) {
 	if in.Key == "" {
 		return nil, fmt.Errorf("a spend needs an idempotency key derived from what happened")
 	}
@@ -160,7 +160,7 @@ func Spend(ctx context.Context, tx *global.Tx, in SpendRequest) (*SpendResult, e
 	if err == nil {
 		return &SpendResult{Entry: existing, Applied: false}, nil
 	}
-	if !global.IsNotFound(err) {
+	if !ent.IsNotFound(err) {
 		return nil, fmt.Errorf("look up an existing charge: %w", err)
 	}
 
@@ -225,7 +225,7 @@ type SpendRequest struct {
 
 // SpendResult is what a charge consumed.
 type SpendResult struct {
-	Entry *global.LedgerEntry
+	Entry *ent.LedgerEntry
 	Draws []Draw
 
 	// Applied is false when the idempotency key had already been used, so a caller can tell a
@@ -243,21 +243,21 @@ type SpendResult struct {
 // a second sweep finds nothing to do. The sweep is what reconciles `balance_micros` with what the
 // wallet can actually spend — and until it runs, a spend already refuses an expired lot, so the
 // balance is briefly overstated and never overspent.
-func ExpireLapsed(ctx context.Context, tx *global.Tx, at time.Time, limit int) ([]*global.LedgerEntry, error) {
+func ExpireLapsed(ctx context.Context, tx *ent.Tx, at time.Time, limit int) ([]*ent.LedgerEntry, error) {
 	lapsed, err := tx.CreditLot.Query().
 		Where(
 			creditlot.RemainingMicrosGT(0),
 			creditlot.ExpiresAtNotNil(),
 			creditlot.ExpiresAtLTE(at),
 		).
-		Order(global.Asc(creditlot.FieldExpiresAt)).
+		Order(ent.Asc(creditlot.FieldExpiresAt)).
 		Limit(limit).
 		All(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("find lapsed credit: %w", err)
 	}
 
-	var written []*global.LedgerEntry
+	var written []*ent.LedgerEntry
 	for _, lot := range lapsed {
 		account, err := tx.BillingAccount.Get(ctx, lot.AccountID)
 		if err != nil {
@@ -294,7 +294,7 @@ func ExpireLapsed(ctx context.Context, tx *global.Tx, at time.Time, limit int) (
 }
 
 // describeLot names a lapsed grant the way its statement line should read.
-func describeLot(lot *global.CreditLot) string {
+func describeLot(lot *ent.CreditLot) string {
 	if lot.Description != "" {
 		return lot.Description
 	}
@@ -316,7 +316,7 @@ type movement struct {
 // The two are one operation: `balance_after_micros` is written rather than recomputed, so an entry
 // whose account was not moved is an entry claiming a balance the account does not have. Both happen
 // inside the caller's transaction.
-func record(ctx context.Context, tx *global.Tx, account *global.BillingAccount, in movement) (*global.LedgerEntry, error) {
+func record(ctx context.Context, tx *ent.Tx, account *ent.BillingAccount, in movement) (*ent.LedgerEntry, error) {
 	after := account.BalanceMicros + in.Amount
 
 	create := tx.LedgerEntry.Create().

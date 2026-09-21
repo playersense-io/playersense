@@ -7,10 +7,10 @@ import (
 	"sync"
 	"time"
 
-	"muzak.dev/framework"
+	muzak "muzak.dev/framework"
 
-	"playersense.dev/backend/ent/global"
-	"playersense.dev/backend/ent/global/apikey"
+	"playersense.dev/backend/ent"
+	"playersense.dev/backend/ent/apikey"
 	"playersense.dev/backend/internal/pgdb"
 	"playersense.dev/backend/internal/valkey"
 )
@@ -32,16 +32,6 @@ type Tenant struct {
 	Environment   string `json:"environment"`
 	PolicyTier    string `json:"policy_tier"`
 	RetentionTier uint16 `json:"retention_tier"`
-
-	// Cell is where this project's data lives (§6). A gateway serving another cell must
-	// refuse the key rather than accept the batch: one wrong hostname in an SDK config
-	// would otherwise put one region's player data on another region's disks, which is
-	// the exact outcome the cell design exists to prevent.
-	Cell      string `json:"cell"`
-	Region    string `json:"region"`
-	IngestURL string `json:"ingest_url"`
-	QueryURL  string `json:"query_url"`
-	ConfigURL string `json:"config_url"`
 
 	KeyKind     string `json:"key_kind"`
 	KeyPublicID string `json:"key_public_id"`
@@ -73,7 +63,7 @@ type localEntry struct {
 // outage, and §65 requires losing Valkey to cost speed rather than data. Each tier exists
 // because one of those sentences does.
 type KeyResolver struct {
-	global *Global
+	global *DB
 	cache  *valkey.Client
 
 	ttl      time.Duration
@@ -103,7 +93,7 @@ type KeyResolverOptions struct {
 }
 
 // NewKeyResolver returns a resolver over the control plane and the cache.
-func NewKeyResolver(global *Global, cache *valkey.Client, opts KeyResolverOptions) *KeyResolver {
+func NewKeyResolver(global *DB, cache *valkey.Client, opts KeyResolverOptions) *KeyResolver {
 	return &KeyResolver{
 		global:   global,
 		cache:    cache,
@@ -247,15 +237,14 @@ func (r *KeyResolver) verify(ctx context.Context, publicID, private string) (*Te
 	}
 	key, err := r.global.Client.APIKey.Query().
 		Where(apikey.PublicID(publicID)).
-		WithEnvironment(func(q *global.EnvironmentQuery) {
-			q.WithProject(func(pq *global.ProjectQuery) {
+		WithEnvironment(func(q *ent.EnvironmentQuery) {
+			q.WithProject(func(pq *ent.ProjectQuery) {
 				pq.WithOrganization()
-				pq.WithCell()
 			})
 		}).
 		Only(ctx)
 	if err != nil {
-		if global.IsNotFound(err) {
+		if ent.IsNotFound(err) {
 			return nil, ErrUnknownKey
 		}
 		// The control plane is unreachable. This is not a rejection, and saying so is
@@ -278,13 +267,6 @@ func (r *KeyResolver) verify(ctx context.Context, publicID, private string) (*Te
 	}
 	proj := env.Edges.Project
 	org := proj.Edges.Organization
-	home := proj.Edges.Cell
-	if home == nil {
-		// Every project has a cell — the edge is required — so a missing one means the
-		// row is corrupt rather than merely unusual. Refusing is the only safe answer:
-		// accepting would mean writing player data with no idea where it belongs.
-		return nil, ErrUnknownKey
-	}
 
 	// A digest written under weaker parameters is upgraded on use, so raising the cost
 	// later does not invalidate anyone's key.
@@ -306,12 +288,6 @@ func (r *KeyResolver) verify(ctx context.Context, publicID, private string) (*Te
 		Environment:   string(env.Kind),
 		PolicyTier:    string(proj.PolicyTier),
 		RetentionTier: proj.RetentionDays,
-
-		Cell:      home.Slug,
-		Region:    home.Region,
-		IngestURL: home.IngestURL,
-		QueryURL:  home.QueryURL,
-		ConfigURL: home.ConfigURL,
 
 		KeyKind:     string(key.Kind),
 		KeyPublicID: key.PublicID,

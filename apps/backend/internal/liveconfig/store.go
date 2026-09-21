@@ -8,8 +8,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"playersense.dev/backend/ent/global"
-	"playersense.dev/backend/ent/global/configversion"
+	"playersense.dev/backend/ent"
+	"playersense.dev/backend/ent/configversion"
 )
 
 // StoreTTL is how long a loaded document is served before it is checked again.
@@ -33,7 +33,7 @@ const StoreTTL = time.Minute
 // publish. Players already see different versions during a rollout — an SDK fetches when it
 // launches — so this adds no failure mode the product does not already have.
 type Store struct {
-	client func() *global.Client
+	client func() *ent.Client
 	ttl    time.Duration
 
 	mu      sync.RWMutex
@@ -56,7 +56,7 @@ type entry struct {
 // graph before it dials anything: the pool does not exist until the application starts, and a
 // store constructed with the nil one would be a nil dereference on the first player who asked
 // for a config — which is exactly how this was found.
-func NewStore(client func() *global.Client, ttl time.Duration) *Store {
+func NewStore(client func() *ent.Client, ttl time.Duration) *Store {
 	if ttl <= 0 {
 		ttl = StoreTTL
 	}
@@ -86,12 +86,12 @@ func (s *Store) Current(ctx context.Context, environmentID int) (Document, bool,
 
 	version, err := db.ConfigVersion.Query().
 		Where(configversion.EnvironmentID(environmentID)).
-		Order(global.Desc(configversion.FieldVersion)).
+		Order(ent.Desc(configversion.FieldVersion)).
 		First(ctx)
 
 	switch {
 	case err == nil:
-	case global.IsNotFound(err):
+	case ent.IsNotFound(err):
 		s.remember(environmentID, entry{found: false, loadedAt: time.Now()})
 		s.Loads.Add(1)
 		return Document{}, false, nil

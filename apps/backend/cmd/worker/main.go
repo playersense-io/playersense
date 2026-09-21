@@ -51,12 +51,11 @@ import (
 	"os"
 	"path/filepath"
 
-	"muzak.dev/framework"
+	muzak "muzak.dev/framework"
 
 	"playersense.dev/backend/internal/blobstore"
 	"playersense.dev/backend/internal/chdb"
 	"playersense.dev/backend/internal/config"
-	"playersense.dev/backend/internal/core"
 	"playersense.dev/backend/internal/erasure"
 	"playersense.dev/backend/internal/export"
 	"playersense.dev/backend/internal/metering"
@@ -167,21 +166,13 @@ func build(settings config.Settings) (*muzak.App, error) {
 	},
 		muzak.WithSingleton(db),
 		muzak.WithSingleton(settings),
-		muzak.WithSingleton(core.CellFrom(settings)),
-
-		// The cell's own tier, its bucket and its cache — everything §61 needs and nothing
-		// the global tier can see.
-		muzak.WithSingleton(deps.cell),
+		muzak.WithSingleton(deps.db),
 		muzak.WithSingleton(deps.store),
 		muzak.WithSingleton(deps.cache),
 
 		// Registered after the pools they read through, so they are stopped before them.
 		muzak.WithSingleton(sched),
 		muzak.WithSingleton(janitor),
-
-		// A typo in CELL is otherwise silent: the derivation would rebuild a cell's facts
-		// while claiming to be a different cell.
-		muzak.WithLifecycle(core.NewCellCheck(settings)),
 	)
 
 	app.Include(routers.Meta())
@@ -193,8 +184,8 @@ func build(settings config.Settings) (*muzak.App, error) {
 // The pool is passed rather than the handle inside it, because the application opens it
 // during start-up — after this runs. The scheduler resolves it per pass.
 //
-// It holds no control-plane handle, which keeps §64's claim true of the derivation as well
-// as of storage: a control-plane outage does not stop tonight's facts being built.
+// It holds no PostgreSQL handle, which keeps §64's claim true of the derivation as well as
+// of storage: a database outage does not stop tonight's facts being built.
 func newScheduler(settings config.Settings, db *chdb.SQL, log *slog.Logger) (*scheduler.Scheduler, error) {
 	at, err := scheduler.ParseTimeOfDay(settings.WorkerDeriveAt)
 	if err != nil {
@@ -208,17 +199,11 @@ func newScheduler(settings config.Settings, db *chdb.SQL, log *slog.Logger) (*sc
 	})
 }
 
-// dependencies are the cell-local stores the janitor needs and the derivation does not.
+// dependencies are the stores the janitor needs and the derivation does not.
 type dependencies struct {
-	cell  *pgdb.Cell
+	db    *pgdb.DB
 	store blobstore.Store
 	cache *valkey.Client
-
-	// global is the control plane, for the two billing jobs: §40's usage meter writes a day
-	// there and the wallet's expiry sweep writes off lapsed credit. The other three jobs have no
-	// business in it, which is why it arrived last and why it is named rather than folded into
-	// one "database" field.
-	global *pgdb.Global
 }
 
 // lifecycle is the part of muzak.Lifecycle `worker once` drives by hand.
@@ -232,7 +217,7 @@ type lifecycle interface {
 // Only used by `worker once`, which has no application to run the lifecycle for it. The
 // long-running form registers them as singletons and the framework does this.
 func (d dependencies) starters() []lifecycle {
-	out := []lifecycle{d.cell, d.global, d.cache}
+	out := []lifecycle{d.db, d.cache}
 	if l, ok := d.store.(lifecycle); ok {
 		out = append(out, l)
 	}
@@ -245,10 +230,9 @@ func newDependencies(settings config.Settings) (dependencies, error) {
 		return dependencies{}, err
 	}
 	return dependencies{
-		cell:   pgdb.NewCell(settings.Cell, settings.CellPostgresDSN),
-		global: pgdb.NewGlobal(settings.GlobalPostgresDSN),
-		store:  store,
-		cache:  valkey.New(settings.Cell, settings.ValkeyDSN),
+		db:    pgdb.New(settings.PostgresDSN),
+		store: store,
+		cache: valkey.New(settings.ValkeyDSN),
 	}, nil
 }
 
@@ -277,13 +261,13 @@ func newJanitor(settings config.Settings, db *chdb.SQL, deps dependencies, log *
 		Every: settings.WorkerJanitorEvery,
 
 		Sweeper: &retention.Sweeper{
-			Cell:       deps.cell,
+			DB:         deps.db,
 			Store:      deps.store,
 			Log:        log,
 			MaxObjects: settings.RetentionMaxObjects,
 		},
 		Purger: &erasure.Purger{
-			Cell:        deps.cell,
+			DB:          deps.db,
 			CH:          db,
 			Store:       deps.store,
 			Cache:       deps.cache,
@@ -292,7 +276,7 @@ func newJanitor(settings config.Settings, db *chdb.SQL, deps dependencies, log *
 			MaxObjects:  settings.ErasureMaxObjects,
 		},
 		Exporter: &export.Exporter{
-			Cell:    deps.cell,
+			DB:      deps.db,
 			CH:      db,
 			Store:   deps.store,
 			Log:     log,
@@ -300,19 +284,13 @@ func newJanitor(settings config.Settings, db *chdb.SQL, deps dependencies, log *
 			MaxRows: settings.ExportMaxRows,
 		},
 
-		// §40's usage meter and the wallet's expiry sweep, both against the global tier.
-		//
-		// A cell worker writing to the US-hosted control plane, which §99 permits and the
-		// classification check proves: a usage row is counts and nothing else — "41,207
-		// players were active" is attributable to nobody — and a credit lot is money. Neither
-		// carries a player identifier, which is the rule the two tiers are split under.
+		// §40's usage meter and the wallet's expiry sweep.
 		Meter: &metering.Meter{
-			Global: deps.global,
-			Cell:   deps.cell,
-			CH:     db,
-			Log:    log,
+			DB:  deps.db,
+			CH:  db,
+			Log: log,
 		},
-		Credit: scheduler.CreditExpiry(deps.global, log, settings.CreditExpiryMaxLots),
+		Credit: scheduler.CreditExpiry(deps.db, log, settings.CreditExpiryMaxLots),
 	})
 }
 

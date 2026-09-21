@@ -22,7 +22,7 @@ func testClientFor(t *testing.T, cell string) *valkey.Client {
 	if dsn == "" {
 		t.Skip("no VALKEY_DSN")
 	}
-	c := valkey.New(cell, dsn)
+	c := valkey.New(dsn)
 	if err := c.Start(t.Context()); err != nil {
 		t.Skipf("no valkey: %v", err)
 	}
@@ -116,7 +116,7 @@ func TestCountersAreSharedAcrossInstances(t *testing.T) {
 // implementation that silently returned a count would let an attacker who can reach the
 // storage choose the moment limits stop applying.
 func TestUnavailableStorageReportsAnError(t *testing.T) {
-	storage := valkey.NewRateLimitStorage(valkey.New("test-cell", "redis://127.0.0.1:1/0"))
+	storage := valkey.NewRateLimitStorage(valkey.New("redis://127.0.0.1:1/0"))
 
 	if _, _, err := storage.Increment(t.Context(), "unit", "k", time.Minute); err == nil {
 		t.Fatal("an unavailable storage reported success")

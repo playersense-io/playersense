@@ -2,12 +2,11 @@ package handlers
 
 import (
 	"errors"
-	"net/http"
 
-	"muzak.dev/framework"
+	muzak "muzak.dev/framework"
 
-	"playersense.dev/backend/ent/global"
-	environmentpkg "playersense.dev/backend/ent/global/environment"
+	"playersense.dev/backend/ent"
+	environmentpkg "playersense.dev/backend/ent/environment"
 	"playersense.dev/backend/internal/core"
 	"playersense.dev/backend/internal/protocol"
 	"playersense.dev/backend/internal/query"
@@ -16,22 +15,11 @@ import (
 
 // QueryCohorts answers one cohort question (§10.5, §57.1).
 //
-// It reads its cell's ClickHouse and nothing else. The tenant arrives resolved from the
-// key, so the scope the compiler injects is a property of the credential rather than of
-// anything the caller sent (§69, Appendix C #3).
+// The tenant arrives resolved from the key, so the scope the compiler injects is a
+// property of the credential rather than of anything the caller sent (§69, Appendix C #3).
 func QueryCohorts(ctx *muzak.Context, in schemas.CohortQueryIn) (protocol.CohortResult, error) {
 	tenant := muzak.From[*core.Tenant](ctx)
-	home := muzak.From[core.CellIdentity](ctx)
 	engine := muzak.From[*query.Engine](ctx)
-
-	// Residency, the same rule the gateway applies to a batch (§6, §99).
-	//
-	// A cell holds only its own projects' data, so a reporting key from another cell would
-	// find nothing here — and "nothing" is the worst possible answer, because it reads as
-	// "no players" rather than "wrong server". A studio would conclude their game is dead.
-	if tenant.Cell != home.Slug {
-		return protocol.CohortResult{}, misdirected(tenant)
-	}
 
 	result, err := engine.Run(ctx.Context(), scopeOf(tenant), in.CohortQuery)
 	if err != nil {
@@ -42,18 +30,13 @@ func QueryCohorts(ctx *muzak.Context, in schemas.CohortQueryIn) (protocol.Cohort
 
 // QueryMetrics answers one time-series question (§26, §27, §57).
 //
-// The same service, the same credential and the same residency rule as the cohort endpoint;
-// a different set of tables. §27 keeps them apart because they answer different questions —
+// The same service and the same credential as the cohort endpoint; a different set of
+// tables. §27 keeps them apart because they answer different questions —
 // this one is keyed on when something happened, not on when a player arrived — and mixing
 // them in one request would mean a planner choosing between two fact families per field.
 func QueryMetrics(ctx *muzak.Context, in schemas.MetricQueryIn) (protocol.MetricResult, error) {
 	tenant := muzak.From[*core.Tenant](ctx)
-	home := muzak.From[core.CellIdentity](ctx)
 	engine := muzak.From[*query.Engine](ctx)
-
-	if tenant.Cell != home.Slug {
-		return protocol.MetricResult{}, misdirected(tenant)
-	}
 
 	result, err := engine.RunSeries(ctx.Context(), scopeOf(tenant), in.MetricQuery)
 	if err != nil {
@@ -86,31 +69,27 @@ func scopeOf(tenant *core.Tenant) query.Scope {
 // constraints apply to a person exactly as they apply to a key. The environment is looked up
 // *inside* that project, which is why naming one is not a widening: all three belong to the project
 // the access list already granted.
-//
-// The cell is returned beside the scope because the residency check needs it, and a project's cell
-// is the authority on where its data lives — not the credential's, which for a person is nothing at
-// all.
-func scopeForMember(ctx *muzak.Context, environment string) (query.Scope, *global.Cell, error) {
-	ctrl := muzak.From[*core.Global](ctx)
+func scopeForMember(ctx *muzak.Context, environment string) (query.Scope, error) {
+	db := muzak.From[*core.DB](ctx)
 	proj := muzak.From[*core.Principal](ctx).Project
 
-	env, err := ctrl.Client.Environment.Query().
+	env, err := db.Client.Environment.Query().
 		Where(environmentpkg.ProjectID(proj.ID),
 			environmentpkg.KindEQ(environmentpkg.Kind(environment))).
 		Only(ctx.Context())
 	if err != nil {
-		if global.IsNotFound(err) {
-			return query.Scope{}, nil, muzak.NotFound(
+		if ent.IsNotFound(err) {
+			return query.Scope{}, muzak.NotFound(
 				"this project has no " + environment + " environment")
 		}
-		return query.Scope{}, nil, core.AsHTTPError(err)
+		return query.Scope{}, core.AsHTTPError(err)
 	}
 
 	return query.Scope{
 		ProjectSeq:     uint32(proj.ID),
 		EnvironmentSeq: uint16(env.ID),
 		PolicyTier:     string(proj.PolicyTier),
-	}, proj.Edges.Cell, nil
+	}, nil
 }
 
 // QueryCohortsForMember answers a cohort question for a signed-in person (§55.1).
@@ -121,13 +100,9 @@ func scopeForMember(ctx *muzak.Context, environment string) (query.Scope, *globa
 // reads numbers and changes nothing.
 func QueryCohortsForMember(ctx *muzak.Context, in schemas.MemberCohortQueryIn) (protocol.CohortResult, error) {
 	engine := muzak.From[*query.Engine](ctx)
-	home := muzak.From[core.CellIdentity](ctx)
 
-	scope, cell, err := scopeForMember(ctx, in.Environment)
+	scope, err := scopeForMember(ctx, in.Environment)
 	if err != nil {
-		return protocol.CohortResult{}, err
-	}
-	if err := servedHere(cell, home); err != nil {
 		return protocol.CohortResult{}, err
 	}
 
@@ -141,13 +116,9 @@ func QueryCohortsForMember(ctx *muzak.Context, in schemas.MemberCohortQueryIn) (
 // QueryMetricsForMember answers a time-series question for a signed-in person.
 func QueryMetricsForMember(ctx *muzak.Context, in schemas.MemberMetricQueryIn) (protocol.MetricResult, error) {
 	engine := muzak.From[*query.Engine](ctx)
-	home := muzak.From[core.CellIdentity](ctx)
 
-	scope, cell, err := scopeForMember(ctx, in.Environment)
+	scope, err := scopeForMember(ctx, in.Environment)
 	if err != nil {
-		return protocol.MetricResult{}, err
-	}
-	if err := servedHere(cell, home); err != nil {
 		return protocol.MetricResult{}, err
 	}
 
@@ -156,36 +127,6 @@ func QueryMetricsForMember(ctx *muzak.Context, in schemas.MemberMetricQueryIn) (
 		return protocol.MetricResult{}, answerFailed(err, "metric")
 	}
 	return *result, nil
-}
-
-// servedHere refuses a project whose data lives in another cell, and says where to go.
-//
-// The same rule the key path applies and for the same reason: a cell holds only its own projects'
-// data, so answering would produce "no rows" — which reads as "no players" rather than "wrong
-// server", and a studio would conclude their game is dead.
-//
-// A project with no cell loaded is refused rather than served. It means the edge was not read, and
-// guessing that it is probably this one is how a residency boundary becomes a thing that usually
-// holds.
-func servedHere(cell *global.Cell, home core.CellIdentity) error {
-	if cell == nil {
-		return muzak.ServiceUnavailable("cannot tell which cell holds this project's data")
-	}
-	if cell.Slug == home.Slug {
-		return nil
-	}
-	message := "this project belongs to cell " + cell.Slug
-	detail := muzak.ErrorDetail{Field: "query_url", Location: "header"}
-	if cell.QueryURL != "" {
-		message += "; send its queries to " + cell.QueryURL
-		detail.Issue = cell.QueryURL
-	} else {
-		message += ", which has no registered query endpoint"
-		detail.Issue = "the cell registry holds no query_url for " + cell.Slug
-	}
-	return muzak.NewHTTPError(http.StatusMisdirectedRequest, message).
-		WithCode("wrong_cell").
-		WithDetails(detail)
 }
 
 // answerFailed turns a planner refusal into an explanation and anything else into a 503.
@@ -205,25 +146,4 @@ func answerFailed(err error, kind string) error {
 	}
 	return muzak.ServiceUnavailable(
 		"the " + kind + " facts could not be read; retry shortly").Wrap(err)
-}
-
-// misdirected refuses a key belonging to another cell, and says where to go.
-//
-// 421 rather than 403 for the same reason ingestion uses it: the request is well-formed and
-// the credential is good, it simply arrived somewhere that cannot serve it. A cell
-// registered without a query endpoint is refused without directions rather than pointed at
-// the wrong service.
-func misdirected(tenant *core.Tenant) error {
-	message := "this project belongs to cell " + tenant.Cell
-	detail := muzak.ErrorDetail{Field: "query_url", Location: "header"}
-	if tenant.QueryURL != "" {
-		message += "; send its queries to " + tenant.QueryURL
-		detail.Issue = tenant.QueryURL
-	} else {
-		message += ", which has no registered query endpoint"
-		detail.Issue = "the cell registry holds no query_url for " + tenant.Cell
-	}
-	return muzak.NewHTTPError(http.StatusMisdirectedRequest, message).
-		WithCode("wrong_cell").
-		WithDetails(detail)
 }

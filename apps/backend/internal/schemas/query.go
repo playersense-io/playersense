@@ -3,7 +3,7 @@ package schemas
 import (
 	"fmt"
 
-	"muzak.dev/framework"
+	muzak "muzak.dev/framework"
 
 	"playersense.dev/backend/internal/protocol"
 )

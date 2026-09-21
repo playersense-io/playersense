@@ -1,23 +1,20 @@
-// Package ent holds the two generated control-plane clients.
+// Package ent holds the generated PostgreSQL client.
 //
-// Two clients rather than one, because §99 splits the control plane into a tier that
-// holds player identifiers and a tier that must not. Generating them separately makes
-// that a compile-time boundary: nothing in the global client can reference a regional
-// entity, and each tier migrates into its own PostgreSQL schema.
-//
-// The schema directories are named *tier so they do not collide with the generated
-// target package names, which ent references by directory.
+// One client over one database. It was two — a global tier that could hold no player
+// identifier and a per-cell tier that held nothing else — and the split was a package
+// boundary so the compiler could enforce it. There is one database now, so §96's
+// classification is enforced per column instead: every field carries a class in its
+// comment, and `migrate verify` reads them back off the live database.
 package ent
 
-// Both clients are generated with upsert support, and each has its own reason for needing it —
-// which is the test a feature has to pass here rather than "for consistency".
+// Generated with upsert support, which two callers need.
 //
-// The **global** client needs it for the usage meter. A day is written as it goes and rewritten
-// when late events land (§40), so the job that produces it is re-run against days it has already
-// written; the unique index on (project, day) is what makes that an update rather than a second row,
-// and read-then-write would race two workers against each other.
-//go:generate go run entgo.io/ent/cmd/ent generate --feature sql/upsert --target ./global ./schema/globaltier
-// The **regional** client needs it because the archive manifest needs insert-or-do-nothing:
-// delivery is at-least-once (§21), so a redelivered flush produces the same object path and must
-// leave one manifest row rather than fail.
-//go:generate go run entgo.io/ent/cmd/ent generate --feature sql/upsert --target ./regional ./schema/regionaltier
+// The usage meter writes a day as it goes and rewrites it when late events land (§40), so the
+// job that produces it is re-run against days it has already written; the unique index on
+// (project, day) is what makes that an update rather than a second row, and read-then-write
+// would race two workers against each other.
+//
+// The archive manifest needs insert-or-do-nothing: delivery is at-least-once (§21), so a
+// redelivered flush produces the same object path and must leave one manifest row rather
+// than fail.
+//go:generate go run entgo.io/ent/cmd/ent generate --feature sql/upsert ./schema

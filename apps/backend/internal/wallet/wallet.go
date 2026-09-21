@@ -37,8 +37,8 @@ import (
 	"slices"
 	"time"
 
-	"playersense.dev/backend/ent/global"
-	"playersense.dev/backend/ent/global/creditlot"
+	"playersense.dev/backend/ent"
+	"playersense.dev/backend/ent/creditlot"
 	"playersense.dev/backend/internal/billing"
 )
 
@@ -228,14 +228,14 @@ func Plan(lots []Lot, amount int64, at time.Time) ([]Draw, error) {
 
 // LotsOf reads an account's lots in the shape the rules above reason about.
 //
-// Takes the generated lot client rather than a whole database handle, because both `*global.Client`
-// and `*global.Tx` expose one — so the same function serves a read for a dashboard and a read
+// Takes the generated lot client rather than a whole database handle, because both `*ent.Client`
+// and `*ent.Tx` expose one — so the same function serves a read for a dashboard and a read
 // inside the transaction that is about to spend.
 //
 // Every lot with something left in it, **expired ones included**: whether a lot has lapsed is a
 // question about `at`, and a query that filtered on the clock would answer differently depending on
 // when it ran relative to the transaction it is inside.
-func LotsOf(ctx context.Context, lots *global.CreditLotClient, accountID int) ([]Lot, error) {
+func LotsOf(ctx context.Context, lots *ent.CreditLotClient, accountID int) ([]Lot, error) {
 	rows, err := lots.Query().
 		Where(creditlot.AccountID(accountID), creditlot.RemainingMicrosGT(0)).
 		All(ctx)
@@ -250,7 +250,7 @@ func LotsOf(ctx context.Context, lots *global.CreditLotClient, accountID int) ([
 }
 
 // lotOf is the one place a row becomes a Lot, so the two cannot drift.
-func lotOf(row *global.CreditLot) Lot {
+func lotOf(row *ent.CreditLot) Lot {
 	return Lot{
 		ID:        row.ID,
 		Kind:      string(row.Kind),

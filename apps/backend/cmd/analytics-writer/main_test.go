@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"muzak.dev/framework"
+	muzak "muzak.dev/framework"
 	"muzak.dev/framework/testclient"
 
 	"playersense.dev/backend/internal/chdb"
@@ -51,14 +51,13 @@ func newPipeline(t *testing.T, tier string) *pipeline {
 	settings.EventBusDir = t.TempDir()
 	settings.WriterFlushInterval = 20 * time.Millisecond
 
-	db := testsupport.Global(t, settings)
+	db := testsupport.Postgres(t, settings)
 	cache := testsupport.Cache(t, settings)
 	ch := testsupport.ClickHouse(t, settings)
 
-	home := core.CellFrom(settings)
-	seeded := testsupport.SeedProject(t, db, tier, testsupport.SeedCell(t, db, home).ID)
+	seeded := testsupport.SeedProject(t, db, tier)
 
-	bus := eventbus.NewLocal(home.Slug, settings.EventBusDir)
+	bus := eventbus.NewLocal(settings.EventBusDir)
 	if err := bus.Start(t.Context()); err != nil {
 		t.Fatalf("start bus: %v", err)
 	}
@@ -75,12 +74,10 @@ func newPipeline(t *testing.T, tier string) *pipeline {
 		})),
 		muzak.WithSingleton(ingest.DefaultLimits()),
 		muzak.WithSingleton(eventbus.Bus(bus)),
-		muzak.WithSingleton(home),
 	)
 	gateway.Include(routers.Ingest())
 
 	consumer := writer.New(bus, cache, ch, noLogger(), writer.Options{
-		Cell:             settings.Cell,
 		MaxRowsPerInsert: settings.WriterBatchSize,
 		DeviceStateTTL:   time.Hour,
 	})
@@ -101,7 +98,7 @@ func newPipeline(t *testing.T, tier string) *pipeline {
 func (p *pipeline) offsets(t *testing.T) []string {
 	t.Helper()
 	found, err := filepath.Glob(
-		filepath.Join(p.settings.EventBusDir, p.settings.Cell, ".offsets",
+		filepath.Join(p.settings.EventBusDir, ".offsets",
 			eventbus.GroupAnalyticsWriter, "*.offset"))
 	if err != nil {
 		t.Fatalf("find offsets: %v", err)
@@ -461,7 +458,7 @@ func TestARedeliveredBatchLandsOnce(t *testing.T) {
 	// A second writer over the same spool now reads the same bytes again and hands
 	// ClickHouse the same block with the same token.
 	second := writer.New(p.bus, p.cache, p.ch, noLogger(), writer.Options{
-		Cell: p.settings.Cell, MaxRowsPerInsert: p.settings.WriterBatchSize, DeviceStateTTL: time.Hour,
+		MaxRowsPerInsert: p.settings.WriterBatchSize, DeviceStateTTL: time.Hour,
 	})
 	if err := second.Start(t.Context()); err != nil {
 		t.Fatalf("start the second writer: %v", err)
@@ -574,44 +571,6 @@ func (p *pipeline) countActor(t *testing.T, actorKey string) uint64 {
 	return n
 }
 
-// TestAMessageFromAnotherCellIsNotStored is the gateway's 421 arriving by a different road.
-//
-// A message that reached this cell's queue but belongs to another is a routing mistake, and
-// storing it would put one region's player data in another region's ClickHouse (§6, §99).
-func TestAMessageFromAnotherCellIsNotStored(t *testing.T) {
-	p := newPipeline(t, "standard")
-
-	if err := p.bus.Publish(t.Context(), &eventbus.Message{
-		PublishedAt:   time.Now().UTC(),
-		Cell:          "us-1",
-		DedupKey:      uuid.NewString(),
-		ProjectSeq:    uint32(p.project.ProjectSeq),
-		OrgID:         uuid.NewString(),
-		ProjectID:     p.project.ProjectUID,
-		EnvironmentID: uuid.NewString(),
-		RetentionTier: 30,
-		Payload:       []byte(`{"batch_id":"` + uuid.NewString() + `","install_id":"` + uuid.NewString() + `","events":[{"event_id":"` + uuid.NewString() + `","event_name":"session_start","event_time":"2026-09-14T00:00:00Z"}]}`),
-	}); err != nil {
-		t.Fatalf("publish: %v", err)
-	}
-
-	p.run(t)
-	time.Sleep(2 * time.Second)
-
-	if got := p.countRows(t); got != 0 {
-		t.Fatalf("events_raw holds %d rows from another cell, want 0", got)
-	}
-	if got := p.writer.Stats()["dropped_wrong_cell"]; got != 1 {
-		t.Errorf("dropped_wrong_cell = %d, want 1", got)
-	}
-}
-
-// TestRowsAreStoredWithValkeyDown is §65: losing the cache costs accuracy until the nightly
-// job runs, never rows.
-//
-// The cohort key is stamped from Valkey, so with Valkey gone it is null — and
-// player_activity_daily's derivation is written to backfill exactly that. What must not
-// happen is the batch being refused or lost.
 func TestRowsAreStoredWithValkeyDown(t *testing.T) {
 	p := newPipeline(t, "standard")
 
@@ -621,10 +580,10 @@ func TestRowsAreStoredWithValkeyDown(t *testing.T) {
 
 	// Now give the writer a cache that is not there. Never started, so every accessor
 	// reports ErrUnavailable — which is what the writer sees during a real outage.
-	dead := valkey.New(p.settings.Cell, "redis://127.0.0.1:1/0")
+	dead := valkey.New("redis://127.0.0.1:1/0")
 
 	blind := writer.New(p.bus, dead, p.ch, noLogger(), writer.Options{
-		Cell: p.settings.Cell, MaxRowsPerInsert: 5000, DeviceStateTTL: time.Hour,
+		MaxRowsPerInsert: 5000, DeviceStateTTL: time.Hour,
 	})
 	if err := blind.Start(t.Context()); err != nil {
 		t.Fatalf("start writer: %v", err)
@@ -831,7 +790,6 @@ func (p *pipeline) publishPoison(t *testing.T) {
 
 	if err := p.bus.Publish(t.Context(), &eventbus.Message{
 		PublishedAt:    time.Now().UTC(),
-		Cell:           p.settings.Cell,
 		DedupKey:       "poison-" + uuid.NewString(),
 		OrgSeq:         uint32(p.project.OrgSeq),
 		ProjectSeq:     uint32(p.project.ProjectSeq),

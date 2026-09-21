@@ -8,7 +8,7 @@ package routers
 import (
 	"net/http"
 
-	"muzak.dev/framework"
+	muzak "muzak.dev/framework"
 
 	"playersense.dev/backend/internal/authz"
 	"playersense.dev/backend/internal/core"

@@ -3,7 +3,7 @@ package schemas
 import (
 	"time"
 
-	"muzak.dev/framework"
+	muzak "muzak.dev/framework"
 
 	"github.com/google/uuid"
 )

@@ -14,10 +14,10 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/parquet-go/parquet-go"
-	"muzak.dev/framework"
+	muzak "muzak.dev/framework"
 	"muzak.dev/framework/testclient"
 
-	"playersense.dev/backend/ent/regional/archivemanifest"
+	"playersense.dev/backend/ent/archivemanifest"
 	"playersense.dev/backend/internal/archive"
 	"playersense.dev/backend/internal/blobstore"
 	"playersense.dev/backend/internal/config"
@@ -30,14 +30,14 @@ import (
 )
 
 // pipeline is the archive path end to end: the real gateway, the real bus, the real writer,
-// real Parquet on disk and a real manifest in the cell tier.
+// real Parquet on disk and a real manifest in PostgreSQL.
 type pipeline struct {
 	settings config.Settings
 	client   *testclient.Client
 	bus      *eventbus.Local
 	writer   *archive.Writer
 	store    *blobstore.Local
-	cell     *pgdb.Cell
+	db       *pgdb.DB
 	project  testsupport.Project
 	root     string
 }
@@ -50,14 +50,12 @@ func newPipeline(t *testing.T) *pipeline {
 	settings.ArchiveDir = t.TempDir()
 	settings.WriterFlushInterval = 20 * time.Millisecond
 
-	db := testsupport.Global(t, settings)
+	db := testsupport.Postgres(t, settings)
 	cache := testsupport.Cache(t, settings)
-	cell := testsupport.CellDB(t, settings)
 
-	home := core.CellFrom(settings)
-	seeded := testsupport.SeedProject(t, db, "standard", testsupport.SeedCell(t, db, home).ID)
+	seeded := testsupport.SeedProject(t, db, "standard")
 
-	bus := eventbus.NewLocal(home.Slug, settings.EventBusDir)
+	bus := eventbus.NewLocal(settings.EventBusDir)
 	if err := bus.Start(t.Context()); err != nil {
 		t.Fatalf("start bus: %v", err)
 	}
@@ -79,14 +77,10 @@ func newPipeline(t *testing.T) *pipeline {
 		})),
 		muzak.WithSingleton(ingest.DefaultLimits()),
 		muzak.WithSingleton(eventbus.Bus(bus)),
-		muzak.WithSingleton(home),
 	)
 	gateway.Include(routers.Ingest())
 
-	writer := archive.New(bus, store, cell, quiet(), archive.Options{
-		Cell:   settings.Cell,
-		Region: settings.CellRegion,
-	})
+	writer := archive.New(bus, store, db, quiet(), archive.Options{})
 
 	return &pipeline{
 		settings: settings,
@@ -95,7 +89,7 @@ func newPipeline(t *testing.T) *pipeline {
 		bus:     bus,
 		writer:  writer,
 		store:   store,
-		cell:    cell,
+		db:      db,
 		project: seeded,
 		root:    filepath.Join(settings.ArchiveDir, settings.ArchiveBucket),
 	}
@@ -184,7 +178,7 @@ func (p *pipeline) waitForObjects(t *testing.T, want int) []string {
 // two-core CI runner, which is the ordinary shape of this bug.
 func (p *pipeline) waitForOffsets(t *testing.T, group string) []string {
 	t.Helper()
-	pattern := filepath.Join(p.settings.EventBusDir, p.settings.Cell, ".offsets", group, "*.offset")
+	pattern := filepath.Join(p.settings.EventBusDir, ".offsets", group, "*.offset")
 	deadline := time.Now().Add(10 * time.Second)
 	for {
 		found, err := filepath.Glob(pattern)
@@ -214,7 +208,7 @@ func (p *pipeline) rowsIn(t *testing.T, object string) []archive.Row {
 
 func (p *pipeline) manifests(t *testing.T) int {
 	t.Helper()
-	n, err := p.cell.Client.ArchiveManifest.Query().
+	n, err := p.db.Client.ArchiveManifest.Query().
 		Where(archivemanifest.ProjectUIDEQ(uuid.MustParse(p.project.ProjectUID))).
 		Count(context.Background())
 	if err != nil {
@@ -254,7 +248,6 @@ func TestABatchBecomesAnArchiveObject(t *testing.T) {
 	// §14.1's prefix, which §34's cold queries prune on and §61's deletion acts on.
 	path := objects[0]
 	for _, want := range []string{
-		"cell=" + p.settings.Cell + "/",
 		"org=", "project=" + p.project.ProjectUID + "/", "env=production/",
 		"dt=" + at.Format(time.DateOnly) + "/",
 	} {
@@ -307,7 +300,7 @@ func TestTheManifestDescribesItsObject(t *testing.T) {
 		t.Fatalf("archived %d objects, want 1", len(objects))
 	}
 
-	m, err := p.cell.Client.ArchiveManifest.Query().
+	m, err := p.db.Client.ArchiveManifest.Query().
 		Where(archivemanifest.ProjectUIDEQ(uuid.MustParse(p.project.ProjectUID))).
 		Only(context.Background())
 	if err != nil {
@@ -322,9 +315,6 @@ func TestTheManifestDescribesItsObject(t *testing.T) {
 	}
 	if m.ObjectSizeBytes == 0 {
 		t.Fatal("§39 bills on object_size_bytes and it is zero")
-	}
-	if m.Region != p.settings.CellRegion {
-		t.Fatalf("the manifest records region %q, want %q", m.Region, p.settings.CellRegion)
 	}
 	if m.Status != archivemanifest.StatusDurable {
 		t.Fatalf("a manifest written after the object is %q", m.Status)
@@ -374,9 +364,7 @@ func TestARedeliveredBatchArchivesOnce(t *testing.T) {
 	p.stop(t)
 	p.rewind(t)
 
-	second := archive.New(p.bus, p.store, p.cell, quiet(), archive.Options{
-		Cell: p.settings.Cell, Region: p.settings.CellRegion,
-	})
+	second := archive.New(p.bus, p.store, p.db, quiet(), archive.Options{})
 	if err := second.Start(t.Context()); err != nil {
 		t.Fatalf("restart archive writer: %v", err)
 	}
@@ -417,7 +405,7 @@ func TestTheArchiveHasItsOwnPosition(t *testing.T) {
 	}
 
 	shared, err := filepath.Glob(filepath.Join(
-		p.settings.EventBusDir, p.settings.Cell, ".offsets", "*.offset"))
+		p.settings.EventBusDir, ".offsets", "*.offset"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -438,7 +426,7 @@ func (p *pipeline) stop(t *testing.T) {
 func (p *pipeline) rewind(t *testing.T) {
 	t.Helper()
 	offsets, err := filepath.Glob(filepath.Join(
-		p.settings.EventBusDir, p.settings.Cell, ".offsets", eventbus.GroupArchiveWriter, "*.offset"))
+		p.settings.EventBusDir, ".offsets", eventbus.GroupArchiveWriter, "*.offset"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -570,7 +558,6 @@ func (p *pipeline) publishPoison(t *testing.T, at time.Time) {
 	}
 	if err := p.bus.Publish(context.Background(), &eventbus.Message{
 		PublishedAt:   at,
-		Cell:          p.settings.Cell,
 		DedupKey:      "poison-" + uuid.NewString(),
 		OrgID:         uuid.NewString(),
 		ProjectID:     "not-a-uuid", // the manifest column is typed; this can never be written
@@ -589,7 +576,7 @@ func (p *pipeline) publishPoison(t *testing.T, at time.Time) {
 //
 // A writer that parks on attempt count alone would empty a backlog into the dead-letter
 // spool during a GCS outage and call it poison. The archive probes the object store and the
-// cell tier before parking anything, so "these bytes are unarchivable" is a question it asks
+// database before parking anything, so "these bytes are unarchivable" is a question it asks
 // rather than a conclusion it draws from a counter.
 func TestAnUnreachableBucketDoesNotDeadLetterTheBacklog(t *testing.T) {
 	p := newPipeline(t)
@@ -639,7 +626,7 @@ func TestTheArchivePathWorksAgainstRealGCS(t *testing.T) {
 	p := newPipeline(t)
 
 	// Swap the local store for the real one. Everything else in the pipeline — the
-	// gateway, the bus, the writer, the manifest in the cell tier — is unchanged.
+	// gateway, the bus, the writer, the manifest — is unchanged.
 	store := blobstore.NewGCS(bucket)
 	if err := store.Start(t.Context()); err != nil {
 		t.Fatalf("dial cloud storage: %v", err)
@@ -650,9 +637,7 @@ func TestTheArchivePathWorksAgainstRealGCS(t *testing.T) {
 		t.Fatalf("the bucket is not reachable: %v", err)
 	}
 
-	writer := archive.New(p.bus, store, p.cell, quiet(), archive.Options{
-		Cell:        p.settings.Cell,
-		Region:      p.settings.CellRegion,
+	writer := archive.New(p.bus, store, p.db, quiet(), archive.Options{
 		MaxAttempts: 3,
 	})
 	if err := writer.Start(t.Context()); err != nil {
@@ -679,10 +664,10 @@ func TestTheArchivePathWorksAgainstRealGCS(t *testing.T) {
 	// §104's breach scoping. An object without one is indistinguishable from data nobody
 	// knows about, so the manifest is the assertion, not the object.
 	if got := p.manifests(t); got != 1 {
-		t.Fatalf("the cell tier holds %d manifests, want 1", got)
+		t.Fatalf("the database holds %d manifests, want 1", got)
 	}
 
-	manifest, err := p.cell.Client.ArchiveManifest.Query().
+	manifest, err := p.db.Client.ArchiveManifest.Query().
 		Where(archivemanifest.ProjectUIDEQ(uuid.MustParse(p.project.ProjectUID))).
 		Only(context.Background())
 	if err != nil {

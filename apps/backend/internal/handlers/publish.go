@@ -7,14 +7,14 @@ import (
 	"fmt"
 	"net/http"
 
-	"muzak.dev/framework"
+	muzak "muzak.dev/framework"
 
-	"playersense.dev/backend/ent/global"
-	"playersense.dev/backend/ent/global/configversion"
-	"playersense.dev/backend/ent/global/environment"
-	"playersense.dev/backend/ent/global/featureflag"
-	"playersense.dev/backend/ent/global/liveopsevent"
-	"playersense.dev/backend/ent/global/segment"
+	"playersense.dev/backend/ent"
+	"playersense.dev/backend/ent/configversion"
+	"playersense.dev/backend/ent/environment"
+	"playersense.dev/backend/ent/featureflag"
+	"playersense.dev/backend/ent/liveopsevent"
+	"playersense.dev/backend/ent/segment"
 	"playersense.dev/backend/internal/audit"
 	"playersense.dev/backend/internal/core"
 	"playersense.dev/backend/internal/liveconfig"
@@ -44,27 +44,27 @@ import (
 // rewrite what a player was served today — and it is what makes a rollback a publish rather
 // than an archaeology exercise.
 func PublishConfig(ctx *muzak.Context, in schemas.PublishConfigIn) (schemas.ConfigVersionOut, error) {
-	ctrl := muzak.From[*core.Global](ctx)
+	db := muzak.From[*core.DB](ctx)
 	principal := muzak.From[*core.Principal](ctx)
 	project := principal.Project
 
-	env, err := ctrl.Client.Environment.Query().
+	env, err := db.Client.Environment.Query().
 		Where(environment.ProjectID(project.ID), environment.KindEQ(environment.Kind(in.Environment))).
 		Only(ctx.Context())
 	if err != nil {
-		if global.IsNotFound(err) {
+		if ent.IsNotFound(err) {
 			return schemas.ConfigVersionOut{}, muzak.NotFound(
 				"this project has no " + in.Environment + " environment")
 		}
 		return schemas.ConfigVersionOut{}, core.AsHTTPError(err)
 	}
 
-	input, err := gatherConfig(ctx.Context(), ctrl, project.ID)
+	input, err := gatherConfig(ctx.Context(), db, project.ID)
 	if err != nil {
 		return schemas.ConfigVersionOut{}, core.AsHTTPError(err)
 	}
 
-	next, err := nextVersion(ctx.Context(), ctrl, env.ID)
+	next, err := nextVersion(ctx.Context(), db, env.ID)
 	if err != nil {
 		return schemas.ConfigVersionOut{}, core.AsHTTPError(err)
 	}
@@ -88,7 +88,7 @@ func PublishConfig(ctx *muzak.Context, in schemas.PublishConfigIn) (schemas.Conf
 		return schemas.ConfigVersionOut{}, core.AsHTTPError(err)
 	}
 
-	tx, err := ctrl.Client.Tx(ctx.Context())
+	tx, err := db.Client.Tx(ctx.Context())
 	if err != nil {
 		return schemas.ConfigVersionOut{}, core.AsHTTPError(err)
 	}
@@ -150,8 +150,8 @@ func PublishConfig(ctx *muzak.Context, in schemas.PublishConfigIn) (schemas.Conf
 // Archived segments and flags are left out, which is what archiving is for: the row stays so
 // that an older published version still explains itself, and the next publish stops carrying
 // it. A LiveOps event is excluded unless somebody has set it active — a draft is a draft.
-func gatherConfig(ctx context.Context, ctrl *core.Global, projectID int) (liveconfig.Input, error) {
-	segments, err := ctrl.Client.Segment.Query().
+func gatherConfig(ctx context.Context, db *core.DB, projectID int) (liveconfig.Input, error) {
+	segments, err := db.Client.Segment.Query().
 		Where(segment.ProjectID(projectID), segment.Archived(false)).All(ctx)
 	if err != nil {
 		return liveconfig.Input{}, err
@@ -165,7 +165,7 @@ func gatherConfig(ctx context.Context, ctrl *core.Global, projectID int) (liveco
 		input.Segments[row.Key] = rule
 	}
 
-	flags, err := ctrl.Client.FeatureFlag.Query().
+	flags, err := db.Client.FeatureFlag.Query().
 		Where(featureflag.ProjectID(projectID), featureflag.Archived(false)).All(ctx)
 	if err != nil {
 		return liveconfig.Input{}, err
@@ -189,7 +189,7 @@ func gatherConfig(ctx context.Context, ctrl *core.Global, projectID int) (liveco
 		input.Flags = append(input.Flags, flag)
 	}
 
-	events, err := ctrl.Client.LiveOpsEvent.Query().
+	events, err := db.Client.LiveOpsEvent.Query().
 		Where(liveopsevent.ProjectID(projectID),
 			liveopsevent.StatusEQ(liveopsevent.StatusActive)).All(ctx)
 	if err != nil {
@@ -217,15 +217,15 @@ func gatherConfig(ctx context.Context, ctrl *core.Global, projectID int) (liveco
 //
 // Monotonic per environment rather than per project, because an SDK compares it as an ETag
 // and two environments moving each other's numbers would make "version 7" mean two things.
-func nextVersion(ctx context.Context, ctrl *core.Global, environmentID int) (int, error) {
-	latest, err := ctrl.Client.ConfigVersion.Query().
+func nextVersion(ctx context.Context, db *core.DB, environmentID int) (int, error) {
+	latest, err := db.Client.ConfigVersion.Query().
 		Where(configversion.EnvironmentID(environmentID)).
-		Order(global.Desc(configversion.FieldVersion)).
+		Order(ent.Desc(configversion.FieldVersion)).
 		First(ctx)
 	switch {
 	case err == nil:
 		return latest.Version + 1, nil
-	case global.IsNotFound(err):
+	case ent.IsNotFound(err):
 		return 1, nil
 	default:
 		return 0, err

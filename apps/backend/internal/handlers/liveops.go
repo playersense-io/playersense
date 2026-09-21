@@ -8,14 +8,14 @@ import (
 	"strconv"
 	"time"
 
-	"muzak.dev/framework"
+	muzak "muzak.dev/framework"
 
-	"playersense.dev/backend/ent/global"
-	"playersense.dev/backend/ent/global/configversion"
-	"playersense.dev/backend/ent/global/environment"
-	"playersense.dev/backend/ent/global/featureflag"
-	"playersense.dev/backend/ent/global/liveopsevent"
-	"playersense.dev/backend/ent/global/segment"
+	"playersense.dev/backend/ent"
+	"playersense.dev/backend/ent/configversion"
+	"playersense.dev/backend/ent/environment"
+	"playersense.dev/backend/ent/featureflag"
+	"playersense.dev/backend/ent/liveopsevent"
+	"playersense.dev/backend/ent/segment"
 	"playersense.dev/backend/internal/audit"
 	"playersense.dev/backend/internal/core"
 	"playersense.dev/backend/internal/liveconfig"
@@ -55,12 +55,12 @@ import (
 // published version that used it, so a dashboard explaining version 7 has to be able to name it.
 // The `archived` member is what a list view filters on.
 func ListSegments(ctx *muzak.Context, _ schemas.ProjectParams) (schemas.SegmentListOut, error) {
-	ctrl := muzak.From[*core.Global](ctx)
+	db := muzak.From[*core.DB](ctx)
 	proj := muzak.From[*core.Principal](ctx).Project
 
-	rows, err := ctrl.Client.Segment.Query().
+	rows, err := db.Client.Segment.Query().
 		Where(segment.ProjectID(proj.ID)).
-		Order(global.Asc(segment.FieldKey)).
+		Order(ent.Asc(segment.FieldKey)).
 		All(ctx.Context())
 	if err != nil {
 		return schemas.SegmentListOut{}, core.AsHTTPError(err)
@@ -83,15 +83,15 @@ func ReadSegment(ctx *muzak.Context, in schemas.TargetParams) (schemas.SegmentOu
 
 // CreateSegment names an audience.
 func CreateSegment(ctx *muzak.Context, in schemas.CreateSegmentIn) (schemas.SegmentOut, error) {
-	ctrl := muzak.From[*core.Global](ctx)
+	db := muzak.From[*core.DB](ctx)
 	proj := muzak.From[*core.Principal](ctx).Project
 
-	stored, err := authoredRule(ctx.Context(), ctrl, proj.ID, in.Key, in.Rule)
+	stored, err := authoredRule(ctx.Context(), db, proj.ID, in.Key, in.Rule)
 	if err != nil {
 		return schemas.SegmentOut{}, err
 	}
 
-	row, err := inTx(ctx, func(tx *global.Tx) (*global.Segment, error) {
+	row, err := inTx(ctx, func(tx *ent.Tx) (*ent.Segment, error) {
 		row, err := tx.Segment.Create().
 			SetProjectID(proj.ID).
 			SetKey(in.Key).
@@ -118,19 +118,19 @@ func CreateSegment(ctx *muzak.Context, in schemas.CreateSegmentIn) (schemas.Segm
 // a self-reference: A -> A is only writable by the edit that introduces it, and this is that
 // edit.
 func UpdateSegment(ctx *muzak.Context, in schemas.UpdateSegmentIn) (schemas.SegmentOut, error) {
-	ctrl := muzak.From[*core.Global](ctx)
+	db := muzak.From[*core.DB](ctx)
 	proj := muzak.From[*core.Principal](ctx).Project
 
 	row, err := findSegment(ctx, in.Key)
 	if err != nil {
 		return schemas.SegmentOut{}, err
 	}
-	stored, err := authoredRule(ctx.Context(), ctrl, proj.ID, in.Key, in.Rule)
+	stored, err := authoredRule(ctx.Context(), db, proj.ID, in.Key, in.Rule)
 	if err != nil {
 		return schemas.SegmentOut{}, err
 	}
 
-	updated, err := inTx(ctx, func(tx *global.Tx) (*global.Segment, error) {
+	updated, err := inTx(ctx, func(tx *ent.Tx) (*ent.Segment, error) {
 		updated, err := tx.Segment.UpdateOneID(row.ID).
 			SetName(in.Name).
 			SetDescription(in.Description).
@@ -162,7 +162,7 @@ func ArchiveSegment(ctx *muzak.Context, in schemas.TargetParams) (schemas.Segmen
 	if row.Archived {
 		return schemas.SegmentOut{}, muzak.Conflict("that segment is already archived")
 	}
-	updated, err := inTx(ctx, func(tx *global.Tx) (*global.Segment, error) {
+	updated, err := inTx(ctx, func(tx *ent.Tx) (*ent.Segment, error) {
 		updated, err := tx.Segment.UpdateOneID(row.ID).SetArchived(true).Save(ctx.Context())
 		if err != nil {
 			return nil, core.AsHTTPError(err)
@@ -180,12 +180,12 @@ func ArchiveSegment(ctx *muzak.Context, in schemas.TargetParams) (schemas.Segmen
 
 // ListFlags returns a project's flags.
 func ListFlags(ctx *muzak.Context, _ schemas.ProjectParams) (schemas.FlagListOut, error) {
-	ctrl := muzak.From[*core.Global](ctx)
+	db := muzak.From[*core.DB](ctx)
 	proj := muzak.From[*core.Principal](ctx).Project
 
-	rows, err := ctrl.Client.FeatureFlag.Query().
+	rows, err := db.Client.FeatureFlag.Query().
 		Where(featureflag.ProjectID(proj.ID)).
-		Order(global.Asc(featureflag.FieldKey)).
+		Order(ent.Asc(featureflag.FieldKey)).
 		All(ctx.Context())
 	if err != nil {
 		return schemas.FlagListOut{}, core.AsHTTPError(err)
@@ -216,7 +216,7 @@ func ReadFlag(ctx *muzak.Context, in schemas.TargetParams) (schemas.FlagOut, err
 // changed would be a document the installed build cannot read — and an installed build is the
 // one thing a backend cannot migrate.
 func CreateFlag(ctx *muzak.Context, in schemas.CreateFlagIn) (schemas.FlagOut, error) {
-	ctrl := muzak.From[*core.Global](ctx)
+	db := muzak.From[*core.DB](ctx)
 	proj := muzak.From[*core.Principal](ctx).Project
 
 	kind, err := liveconfig.ParseKind(in.Kind)
@@ -231,7 +231,7 @@ func CreateFlag(ctx *muzak.Context, in schemas.CreateFlagIn) (schemas.FlagOut, e
 	if err != nil {
 		return schemas.FlagOut{}, err
 	}
-	segments, err := projectSegments(ctx.Context(), ctrl, proj.ID)
+	segments, err := projectSegments(ctx.Context(), db, proj.ID)
 	if err != nil {
 		return schemas.FlagOut{}, err
 	}
@@ -240,7 +240,7 @@ func CreateFlag(ctx *muzak.Context, in schemas.CreateFlagIn) (schemas.FlagOut, e
 		return schemas.FlagOut{}, err
 	}
 
-	row, err := inTx(ctx, func(tx *global.Tx) (*global.FeatureFlag, error) {
+	row, err := inTx(ctx, func(tx *ent.Tx) (*ent.FeatureFlag, error) {
 		row, err := tx.FeatureFlag.Create().
 			SetProjectID(proj.ID).
 			SetKey(in.Key).
@@ -274,7 +274,7 @@ func CreateFlag(ctx *muzak.Context, in schemas.CreateFlagIn) (schemas.FlagOut, e
 // field a caller may send that has no effect is worse than one that does not exist, since
 // somebody will send it, see a 200, and believe the kind changed.
 func UpdateFlag(ctx *muzak.Context, in schemas.UpdateFlagIn) (schemas.FlagOut, error) {
-	ctrl := muzak.From[*core.Global](ctx)
+	db := muzak.From[*core.DB](ctx)
 	proj := muzak.From[*core.Principal](ctx).Project
 
 	row, err := findFlag(ctx, in.Key)
@@ -290,7 +290,7 @@ func UpdateFlag(ctx *muzak.Context, in schemas.UpdateFlagIn) (schemas.FlagOut, e
 	if err != nil {
 		return schemas.FlagOut{}, err
 	}
-	segments, err := projectSegments(ctx.Context(), ctrl, proj.ID)
+	segments, err := projectSegments(ctx.Context(), db, proj.ID)
 	if err != nil {
 		return schemas.FlagOut{}, err
 	}
@@ -299,7 +299,7 @@ func UpdateFlag(ctx *muzak.Context, in schemas.UpdateFlagIn) (schemas.FlagOut, e
 		return schemas.FlagOut{}, err
 	}
 
-	updated, err := inTx(ctx, func(tx *global.Tx) (*global.FeatureFlag, error) {
+	updated, err := inTx(ctx, func(tx *ent.Tx) (*ent.FeatureFlag, error) {
 		updated, err := tx.FeatureFlag.UpdateOneID(row.ID).
 			SetName(in.Name).
 			SetDescription(in.Description).
@@ -341,7 +341,7 @@ func ArchiveFlag(ctx *muzak.Context, in schemas.TargetParams) (schemas.FlagOut, 
 	if row.Archived {
 		return schemas.FlagOut{}, muzak.Conflict("that flag is already archived")
 	}
-	updated, err := inTx(ctx, func(tx *global.Tx) (*global.FeatureFlag, error) {
+	updated, err := inTx(ctx, func(tx *ent.Tx) (*ent.FeatureFlag, error) {
 		updated, err := tx.FeatureFlag.UpdateOneID(row.ID).SetArchived(true).Save(ctx.Context())
 		if err != nil {
 			return nil, core.AsHTTPError(err)
@@ -359,12 +359,12 @@ func ArchiveFlag(ctx *muzak.Context, in schemas.TargetParams) (schemas.FlagOut, 
 
 // ListLiveOpsEvents returns a project's events, in priority order.
 func ListLiveOpsEvents(ctx *muzak.Context, _ schemas.ProjectParams) (schemas.LiveOpsEventListOut, error) {
-	ctrl := muzak.From[*core.Global](ctx)
+	db := muzak.From[*core.DB](ctx)
 	proj := muzak.From[*core.Principal](ctx).Project
 
-	rows, err := ctrl.Client.LiveOpsEvent.Query().
+	rows, err := db.Client.LiveOpsEvent.Query().
 		Where(liveopsevent.ProjectID(proj.ID)).
-		Order(global.Desc(liveopsevent.FieldPriority), global.Asc(liveopsevent.FieldKey)).
+		Order(ent.Desc(liveopsevent.FieldPriority), ent.Asc(liveopsevent.FieldKey)).
 		All(ctx.Context())
 	if err != nil {
 		return schemas.LiveOpsEventListOut{}, core.AsHTTPError(err)
@@ -392,14 +392,14 @@ func ReadLiveOpsEvent(ctx *muzak.Context, in schemas.TargetParams) (schemas.Live
 
 // CreateLiveOpsEvent schedules an event.
 func CreateLiveOpsEvent(ctx *muzak.Context, in schemas.CreateLiveOpsEventIn) (schemas.LiveOpsEventOut, error) {
-	ctrl := muzak.From[*core.Global](ctx)
+	db := muzak.From[*core.DB](ctx)
 	proj := muzak.From[*core.Principal](ctx).Project
 
 	schedule, err := authoredSchedule(in.Schedule)
 	if err != nil {
 		return schemas.LiveOpsEventOut{}, err
 	}
-	stored, err := authoredRule(ctx.Context(), ctrl, proj.ID, "", in.Audience)
+	stored, err := authoredRule(ctx.Context(), db, proj.ID, "", in.Audience)
 	if err != nil {
 		return schemas.LiveOpsEventOut{}, err
 	}
@@ -409,7 +409,7 @@ func CreateLiveOpsEvent(ctx *muzak.Context, in schemas.CreateLiveOpsEventIn) (sc
 			"payload is not valid JSON: " + err.Error()).WithCode("invalid_payload")
 	}
 
-	row, err := inTx(ctx, func(tx *global.Tx) (*global.LiveOpsEvent, error) {
+	row, err := inTx(ctx, func(tx *ent.Tx) (*ent.LiveOpsEvent, error) {
 		row, err := tx.LiveOpsEvent.Create().
 			SetProjectID(proj.ID).
 			SetKey(in.Key).
@@ -447,7 +447,7 @@ func CreateLiveOpsEvent(ctx *muzak.Context, in schemas.CreateLiveOpsEventIn) (sc
 // would only forbid one of those, and the one it forbade would be the one somebody needed at
 // two in the morning.
 func UpdateLiveOpsEvent(ctx *muzak.Context, in schemas.UpdateLiveOpsEventIn) (schemas.LiveOpsEventOut, error) {
-	ctrl := muzak.From[*core.Global](ctx)
+	db := muzak.From[*core.DB](ctx)
 	proj := muzak.From[*core.Principal](ctx).Project
 
 	row, err := findLiveOpsEvent(ctx, in.Key)
@@ -458,7 +458,7 @@ func UpdateLiveOpsEvent(ctx *muzak.Context, in schemas.UpdateLiveOpsEventIn) (sc
 	if err != nil {
 		return schemas.LiveOpsEventOut{}, err
 	}
-	stored, err := authoredRule(ctx.Context(), ctrl, proj.ID, "", in.Audience)
+	stored, err := authoredRule(ctx.Context(), db, proj.ID, "", in.Audience)
 	if err != nil {
 		return schemas.LiveOpsEventOut{}, err
 	}
@@ -468,7 +468,7 @@ func UpdateLiveOpsEvent(ctx *muzak.Context, in schemas.UpdateLiveOpsEventIn) (sc
 			"payload is not valid JSON: " + err.Error()).WithCode("invalid_payload")
 	}
 
-	updated, err := inTx(ctx, func(tx *global.Tx) (*global.LiveOpsEvent, error) {
+	updated, err := inTx(ctx, func(tx *ent.Tx) (*ent.LiveOpsEvent, error) {
 		updated, err := tx.LiveOpsEvent.UpdateOneID(row.ID).
 			SetKind(in.Kind).
 			SetName(in.Name).
@@ -508,7 +508,7 @@ func ArchiveLiveOpsEvent(ctx *muzak.Context, in schemas.TargetParams) (schemas.L
 	if row.Status == liveopsevent.StatusArchived {
 		return schemas.LiveOpsEventOut{}, muzak.Conflict("that LiveOps event is already archived")
 	}
-	updated, err := inTx(ctx, func(tx *global.Tx) (*global.LiveOpsEvent, error) {
+	updated, err := inTx(ctx, func(tx *ent.Tx) (*ent.LiveOpsEvent, error) {
 		updated, err := tx.LiveOpsEvent.UpdateOneID(row.ID).
 			SetStatus(liveopsevent.StatusArchived).Save(ctx.Context())
 		if err != nil {
@@ -543,14 +543,14 @@ func ArchiveLiveOpsEvent(ctx *muzak.Context, in schemas.TargetParams) (schemas.L
 // answer: an archived flag and a paused event are both absent on purpose, and "my event is
 // missing" needs to be distinguishable from a bug.
 func ReadDraft(ctx *muzak.Context, in schemas.DraftParams) (schemas.DraftOut, error) {
-	ctrl := muzak.From[*core.Global](ctx)
+	db := muzak.From[*core.DB](ctx)
 	proj := muzak.From[*core.Principal](ctx).Project
 
-	env, err := ctrl.Client.Environment.Query().
+	env, err := db.Client.Environment.Query().
 		Where(environment.ProjectID(proj.ID), environment.KindEQ(environment.Kind(in.Environment))).
 		Only(ctx.Context())
 	if err != nil {
-		if global.IsNotFound(err) {
+		if ent.IsNotFound(err) {
 			return schemas.DraftOut{}, muzak.NotFound(
 				"this project has no " + in.Environment + " environment")
 		}
@@ -558,14 +558,14 @@ func ReadDraft(ctx *muzak.Context, in schemas.DraftParams) (schemas.DraftOut, er
 	}
 
 	published := 0
-	latest, err := ctrl.Client.ConfigVersion.Query().
+	latest, err := db.Client.ConfigVersion.Query().
 		Where(configversion.EnvironmentID(env.ID)).
-		Order(global.Desc(configversion.FieldVersion)).
+		Order(ent.Desc(configversion.FieldVersion)).
 		First(ctx.Context())
 	switch {
 	case err == nil:
 		published = latest.Version
-	case global.IsNotFound(err):
+	case ent.IsNotFound(err):
 	default:
 		return schemas.DraftOut{}, core.AsHTTPError(err)
 	}
@@ -575,11 +575,11 @@ func ReadDraft(ctx *muzak.Context, in schemas.DraftParams) (schemas.DraftOut, er
 		PublishedVersion: published,
 		NextVersion:      published + 1,
 	}
-	if out.Excluded, err = excludedFrom(ctx.Context(), ctrl, proj.ID); err != nil {
+	if out.Excluded, err = excludedFrom(ctx.Context(), db, proj.ID); err != nil {
 		return schemas.DraftOut{}, err
 	}
 
-	input, err := gatherConfig(ctx.Context(), ctrl, proj.ID)
+	input, err := gatherConfig(ctx.Context(), db, proj.ID)
 	if err != nil {
 		// A stored rule that no longer parses. Reported as a problem with the draft rather
 		// than as a 500, because that is what it is: something a person has to fix, and
@@ -602,12 +602,12 @@ func ReadDraft(ctx *muzak.Context, in schemas.DraftParams) (schemas.DraftOut, er
 }
 
 // excludedFrom lists what the next publish will leave out, and why.
-func excludedFrom(ctx context.Context, ctrl *core.Global, projectID int) ([]schemas.ExcludedOut, error) {
+func excludedFrom(ctx context.Context, db *core.DB, projectID int) ([]schemas.ExcludedOut, error) {
 	var out []schemas.ExcludedOut
 
-	segments, err := ctrl.Client.Segment.Query().
+	segments, err := db.Client.Segment.Query().
 		Where(segment.ProjectID(projectID), segment.Archived(true)).
-		Order(global.Asc(segment.FieldKey)).All(ctx)
+		Order(ent.Asc(segment.FieldKey)).All(ctx)
 	if err != nil {
 		return nil, core.AsHTTPError(err)
 	}
@@ -618,9 +618,9 @@ func excludedFrom(ctx context.Context, ctrl *core.Global, projectID int) ([]sche
 		})
 	}
 
-	flags, err := ctrl.Client.FeatureFlag.Query().
+	flags, err := db.Client.FeatureFlag.Query().
 		Where(featureflag.ProjectID(projectID), featureflag.Archived(true)).
-		Order(global.Asc(featureflag.FieldKey)).All(ctx)
+		Order(ent.Asc(featureflag.FieldKey)).All(ctx)
 	if err != nil {
 		return nil, core.AsHTTPError(err)
 	}
@@ -631,10 +631,10 @@ func excludedFrom(ctx context.Context, ctrl *core.Global, projectID int) ([]sche
 		})
 	}
 
-	events, err := ctrl.Client.LiveOpsEvent.Query().
+	events, err := db.Client.LiveOpsEvent.Query().
 		Where(liveopsevent.ProjectID(projectID),
 			liveopsevent.StatusNEQ(liveopsevent.StatusActive)).
-		Order(global.Asc(liveopsevent.FieldKey)).All(ctx)
+		Order(ent.Asc(liveopsevent.FieldKey)).All(ctx)
 	if err != nil {
 		return nil, core.AsHTTPError(err)
 	}
@@ -659,7 +659,7 @@ func excludedFrom(ctx context.Context, ctrl *core.Global, projectID int) ([]sche
 // `self` is the key of the segment being written, or empty for a flag or an event. Passing it
 // puts the candidate into the set it is checked against, which is the only way a rule that
 // refers to itself can be caught: the row does not exist yet, or still holds the old rule.
-func authoredRule(ctx context.Context, ctrl *core.Global, projectID int, self string,
+func authoredRule(ctx context.Context, db *core.DB, projectID int, self string,
 	raw jsontext.Value,
 ) (map[string]any, error) {
 	rule, err := targeting.Parse(raw)
@@ -667,7 +667,7 @@ func authoredRule(ctx context.Context, ctrl *core.Global, projectID int, self st
 		return nil, muzak.UnprocessableEntity(err.Error()).WithCode("invalid_rule")
 	}
 
-	segments, err := projectSegments(ctx, ctrl, projectID)
+	segments, err := projectSegments(ctx, db, projectID)
 	if err != nil {
 		return nil, err
 	}
@@ -783,8 +783,8 @@ func authoredSchedule(in schemas.ScheduleIn) (liveops.Schedule, error) {
 //
 // Archived segments are left out, matching [gatherConfig]: a rule naming one must fail here for
 // the same reason it fails at the publish, and failing here is the version somebody can act on.
-func projectSegments(ctx context.Context, ctrl *core.Global, projectID int) (liveconfig.Segments, error) {
-	rows, err := ctrl.Client.Segment.Query().
+func projectSegments(ctx context.Context, db *core.DB, projectID int) (liveconfig.Segments, error) {
+	rows, err := db.Client.Segment.Query().
 		Where(segment.ProjectID(projectID), segment.Archived(false)).All(ctx)
 	if err != nil {
 		return nil, core.AsHTTPError(err)
@@ -807,14 +807,14 @@ func projectSegments(ctx context.Context, ctrl *core.Global, projectID int) (liv
 
 // ---- lookups and mapping ----------------------------------------------------
 
-func findSegment(ctx *muzak.Context, key string) (*global.Segment, error) {
-	ctrl := muzak.From[*core.Global](ctx)
+func findSegment(ctx *muzak.Context, key string) (*ent.Segment, error) {
+	db := muzak.From[*core.DB](ctx)
 	proj := muzak.From[*core.Principal](ctx).Project
 
-	row, err := ctrl.Client.Segment.Query().
+	row, err := db.Client.Segment.Query().
 		Where(segment.ProjectID(proj.ID), segment.Key(key)).Only(ctx.Context())
 	if err != nil {
-		if global.IsNotFound(err) {
+		if ent.IsNotFound(err) {
 			return nil, muzak.NotFound("this project has no segment " + key)
 		}
 		return nil, core.AsHTTPError(err)
@@ -822,14 +822,14 @@ func findSegment(ctx *muzak.Context, key string) (*global.Segment, error) {
 	return row, nil
 }
 
-func findFlag(ctx *muzak.Context, key string) (*global.FeatureFlag, error) {
-	ctrl := muzak.From[*core.Global](ctx)
+func findFlag(ctx *muzak.Context, key string) (*ent.FeatureFlag, error) {
+	db := muzak.From[*core.DB](ctx)
 	proj := muzak.From[*core.Principal](ctx).Project
 
-	row, err := ctrl.Client.FeatureFlag.Query().
+	row, err := db.Client.FeatureFlag.Query().
 		Where(featureflag.ProjectID(proj.ID), featureflag.Key(key)).Only(ctx.Context())
 	if err != nil {
-		if global.IsNotFound(err) {
+		if ent.IsNotFound(err) {
 			return nil, muzak.NotFound("this project has no flag " + key)
 		}
 		return nil, core.AsHTTPError(err)
@@ -837,14 +837,14 @@ func findFlag(ctx *muzak.Context, key string) (*global.FeatureFlag, error) {
 	return row, nil
 }
 
-func findLiveOpsEvent(ctx *muzak.Context, key string) (*global.LiveOpsEvent, error) {
-	ctrl := muzak.From[*core.Global](ctx)
+func findLiveOpsEvent(ctx *muzak.Context, key string) (*ent.LiveOpsEvent, error) {
+	db := muzak.From[*core.DB](ctx)
 	proj := muzak.From[*core.Principal](ctx).Project
 
-	row, err := ctrl.Client.LiveOpsEvent.Query().
+	row, err := db.Client.LiveOpsEvent.Query().
 		Where(liveopsevent.ProjectID(proj.ID), liveopsevent.Key(key)).Only(ctx.Context())
 	if err != nil {
-		if global.IsNotFound(err) {
+		if ent.IsNotFound(err) {
 			return nil, muzak.NotFound("this project has no LiveOps event " + key)
 		}
 		return nil, core.AsHTTPError(err)
@@ -857,7 +857,7 @@ func findLiveOpsEvent(ctx *muzak.Context, key string) (*global.LiveOpsEvent, err
 // [core.AsHTTPError] would say "that already exists", which in a request carrying a key, a name
 // and a rule does not say which of them collided.
 func asConflict(err error, what, key string) error {
-	if global.IsConstraintError(err) {
+	if ent.IsConstraintError(err) {
 		return muzak.Conflict(what + " with the key " + key + " already exists in this project").
 			Wrap(err)
 	}
@@ -929,7 +929,7 @@ func rawJSON(value any) (jsontext.Value, error) {
 	return json.Marshal(value)
 }
 
-func segmentOut(row *global.Segment) schemas.SegmentOut {
+func segmentOut(row *ent.Segment) schemas.SegmentOut {
 	out := schemas.SegmentOut{
 		ID:          row.UID,
 		Key:         row.Key,
@@ -948,7 +948,7 @@ func segmentOut(row *global.Segment) schemas.SegmentOut {
 	return out
 }
 
-func flagOut(row *global.FeatureFlag) (schemas.FlagOut, error) {
+func flagOut(row *ent.FeatureFlag) (schemas.FlagOut, error) {
 	out := schemas.FlagOut{
 		ID:          row.UID,
 		Key:         row.Key,
@@ -996,7 +996,7 @@ func flagOut(row *global.FeatureFlag) (schemas.FlagOut, error) {
 // anchor and a duration, and nobody can read back from those three whether they got it right —
 // so the response carries dates, computed by the same code the config path runs, which is what
 // makes them the dates a player will see rather than a second opinion about them.
-func liveOpsEventOut(row *global.LiveOpsEvent, now time.Time) (schemas.LiveOpsEventOut, error) {
+func liveOpsEventOut(row *ent.LiveOpsEvent, now time.Time) (schemas.LiveOpsEventOut, error) {
 	out := schemas.LiveOpsEventOut{
 		ID:        row.UID,
 		Key:       row.Key,

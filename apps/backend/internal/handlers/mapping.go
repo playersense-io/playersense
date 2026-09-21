@@ -3,7 +3,7 @@ package handlers
 import (
 	"time"
 
-	"playersense.dev/backend/ent/global"
+	"playersense.dev/backend/ent"
 	"playersense.dev/backend/internal/schemas"
 )
 
@@ -27,7 +27,7 @@ func retentionOrDefault(v *uint16) uint16 {
 	return *v
 }
 
-func organizationOut(org *global.Organization) schemas.OrganizationOut {
+func organizationOut(org *ent.Organization) schemas.OrganizationOut {
 	return schemas.OrganizationOut{
 		ID:        org.UID,
 		Name:      org.Name,
@@ -60,7 +60,7 @@ func policyNotes(tier string) []string {
 	}
 }
 
-func projectOut(proj *global.Project, home *global.Cell, envs []*global.Environment) schemas.ProjectOut {
+func projectOut(proj *ent.Project, envs []*ent.Environment) schemas.ProjectOut {
 	out := schemas.ProjectOut{
 		ID:            proj.UID,
 		Name:          proj.Name,
@@ -69,14 +69,6 @@ func projectOut(proj *global.Project, home *global.Cell, envs []*global.Environm
 		RetentionDays: proj.RetentionDays,
 		CreatedAt:     proj.CreatedAt,
 		Notes:         policyNotes(string(proj.PolicyTier)),
-	}
-	// The cell is where this project's player data physically lives, so a customer's
-	// privacy review can read it straight off the API rather than asking (§6).
-	if home != nil {
-		out.Cell = home.Slug
-		out.Region = home.Region
-		out.IngestURL = home.IngestURL
-		out.QueryURL = home.QueryURL
 	}
 	for _, env := range envs {
 		out.Environments = append(out.Environments, schemas.EnvironmentOut{
@@ -87,7 +79,7 @@ func projectOut(proj *global.Project, home *global.Cell, envs []*global.Environm
 	return out
 }
 
-func apiKeyOut(key *global.APIKey, environment string) schemas.APIKeyOut {
+func apiKeyOut(key *ent.APIKey, environment string) schemas.APIKeyOut {
 	return schemas.APIKeyOut{
 		ID:          key.UID,
 		Kind:        string(key.Kind),

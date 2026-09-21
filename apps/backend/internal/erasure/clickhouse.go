@@ -5,9 +5,9 @@ import (
 	"database/sql"
 	"fmt"
 
-	"playersense.dev/backend/ent/regional"
-	"playersense.dev/backend/ent/regional/dataexportrequest"
-	"playersense.dev/backend/ent/regional/verifiedpurchase"
+	"playersense.dev/backend/ent"
+	"playersense.dev/backend/ent/dataexportrequest"
+	"playersense.dev/backend/ent/verifiedpurchase"
 	"playersense.dev/backend/internal/subject"
 )
 
@@ -25,7 +25,7 @@ import (
 // failure `cohortcheck`'s check 7 exists to catch, and the one that looks like a product bug
 // rather than an interrupted job. Both are repaired by the next derivation; one of them is
 // far easier to recognise while it lasts.
-func (p *Purger) purgeDevices(ctx context.Context, db *sql.DB, req *regional.DataDeletionRequest, s subject.Subject) error {
+func (p *Purger) purgeDevices(ctx context.Context, db *sql.DB, req *ent.DataDeletionRequest, s subject.Subject) error {
 	if len(s.Devices) == 0 {
 		return nil
 	}
@@ -61,7 +61,7 @@ func (p *Purger) purgeDevices(ctx context.Context, db *sql.DB, req *regional.Dat
 //
 // An erasure naming an install rather than a player matches nothing here, correctly: an
 // account table has no row for somebody who never signed in.
-func (p *Purger) purgeAccount(ctx context.Context, db *sql.DB, req *regional.DataDeletionRequest) error {
+func (p *Purger) purgeAccount(ctx context.Context, db *sql.DB, req *ent.DataDeletionRequest) error {
 	if req.ActorKey == "" {
 		return nil
 	}
@@ -87,7 +87,7 @@ func (p *Purger) purgeAccount(ctx context.Context, db *sql.DB, req *regional.Dat
 // `mutations_sync = 2` waits for the rewrite. That blocks the pass, which is acceptable here
 // in a way it would not be on a request path: §05 budgets this work in hours and puts a
 // tombstone in front of it precisely so that nothing is waiting on it.
-func (p *Purger) purgeEvents(ctx context.Context, db *sql.DB, req *regional.DataDeletionRequest, s subject.Subject) error {
+func (p *Purger) purgeEvents(ctx context.Context, db *sql.DB, req *ent.DataDeletionRequest, s subject.Subject) error {
 	if !s.HotRows {
 		return nil
 	}
@@ -101,18 +101,18 @@ func (p *Purger) purgeEvents(ctx context.Context, db *sql.DB, req *regional.Data
 	return nil
 }
 
-// purgePurchases removes the cell tier's record of what this person bought (§05, §48).
+// purgePurchases removes the record of what this person bought (§05, §48).
 //
 // Matched on `player_id` rather than on an actor key, because that is the column §47 writes:
 // a purchase is verified server-to-server against an account, so an install that never
 // signed in has none. The `(project_uid, player_id)` index makes this a lookup rather than a
-// scan, which §05 promises of the cell tier.
+// scan, which §05 promises.
 //
 // The invoice is not touched. §06 keeps billing records, which are aggregate counts in the
 // global tier and name no player — a receipt for one person's purchase is personal data, and
 // a count of a studio's monthly players is not.
-func (p *Purger) purgePurchases(ctx context.Context, req *regional.DataDeletionRequest) (int, error) {
-	n, err := p.Cell.Client.VerifiedPurchase.Delete().
+func (p *Purger) purgePurchases(ctx context.Context, req *ent.DataDeletionRequest) (int, error) {
+	n, err := p.DB.Client.VerifiedPurchase.Delete().
 		Where(
 			verifiedpurchase.ProjectUID(req.ProjectUID),
 			verifiedpurchase.PlayerID(req.ActorKey),
@@ -127,14 +127,14 @@ func (p *Purger) purgePurchases(ctx context.Context, req *regional.DataDeletionR
 // purgeExports removes any export bundle held for this person (§101).
 //
 // An export is a second copy of everything held about someone, assembled on request and
-// parked in the cell's bucket until it expires. An erasure that deleted the events and left
+// parked in the archive bucket until it expires. An erasure that deleted the events and left
 // the bundle would have deleted the harder copy and kept the easier one.
 //
 // The request rows survive as audit records — that an export was produced is a fact about
 // processing, like the deletion request itself (§06) — but the objects go, and the row's
 // status says so.
-func (p *Purger) purgeExports(ctx context.Context, req *regional.DataDeletionRequest) (int, error) {
-	bundles, err := p.Cell.Client.DataExportRequest.Query().
+func (p *Purger) purgeExports(ctx context.Context, req *ent.DataDeletionRequest) (int, error) {
+	bundles, err := p.DB.Client.DataExportRequest.Query().
 		Where(
 			dataexportrequest.ProjectUID(req.ProjectUID),
 			dataexportrequest.ActorKey(req.ActorKey),
@@ -156,7 +156,7 @@ func (p *Purger) purgeExports(ctx context.Context, req *regional.DataDeletionReq
 		if err := p.Store.Delete(ctx, bundle.ObjectPath); err != nil {
 			return removed, fmt.Errorf("delete export bundle %s: %w", bundle.ObjectPath, err)
 		}
-		if err := p.Cell.Client.DataExportRequest.UpdateOne(bundle).
+		if err := p.DB.Client.DataExportRequest.UpdateOne(bundle).
 			SetStatus(dataexportrequest.StatusExpired).
 			SetFailureReason("removed by the erasure of this actor").
 			Exec(ctx); err != nil {

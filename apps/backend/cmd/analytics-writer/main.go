@@ -20,11 +20,10 @@ import (
 	"os"
 	"path/filepath"
 
-	"muzak.dev/framework"
+	muzak "muzak.dev/framework"
 
 	"playersense.dev/backend/internal/chdb"
 	"playersense.dev/backend/internal/config"
-	"playersense.dev/backend/internal/core"
 	"playersense.dev/backend/internal/eventbus"
 	"playersense.dev/backend/internal/routers"
 	"playersense.dev/backend/internal/valkey"
@@ -49,14 +48,13 @@ func build(settings config.Settings) (*muzak.App, error) {
 		return nil, err
 	}
 
-	// All three are this cell's. The writer has no handle on anything global — not even
-	// read-only — which is what makes §64's claim about storage true rather than hopeful.
-	cache := valkey.New(settings.Cell, settings.ValkeyDSN)
+	// The writer has no PostgreSQL handle — not even read-only — which is what makes
+	// §64's claim about storage true rather than hopeful.
+	cache := valkey.New(settings.ValkeyDSN)
 	ch := chdb.New(settings.ClickHouseDSN)
 
 	logger := slog.Default()
 	consumer := writer.New(bus, cache, ch, logger, writer.Options{
-		Cell:             settings.Cell,
 		MaxRowsPerInsert: settings.WriterBatchSize,
 		DeviceStateTTL:   settings.WriterDeviceStateTTL,
 		MaxAttempts:      settings.WriterMaxAttempts,
@@ -65,7 +63,7 @@ func build(settings config.Settings) (*muzak.App, error) {
 	app := muzak.New(muzak.AppOptions{
 		Title:       "PlayerSense Analytics Writer",
 		Version:     "0.1.0",
-		Description: "Consumes the cell's event queue and stores batches in ClickHouse.",
+		Description: "Consumes the event queue and stores batches in ClickHouse.",
 		Servers:     []muzak.Server{{URL: "http://localhost" + settings.AnalyticsWriterAddr}},
 
 		Addr: settings.AnalyticsWriterAddr,
@@ -84,23 +82,18 @@ func build(settings config.Settings) (*muzak.App, error) {
 		muzak.WithSingleton(ch),
 		muzak.WithSingleton(settings),
 		muzak.WithSingleton(bus),
-		muzak.WithSingleton(core.CellFrom(settings)),
 
 		// Registered after its dependencies are published so it is stopped before them —
 		// components start in parallel but the writer dials nothing in Start, so there is
 		// no ordering to get wrong there.
 		muzak.WithSingleton(consumer),
-
-		// A typo in CELL is otherwise silent: batches would be consumed and written under
-		// a slug nothing else uses.
-		muzak.WithLifecycle(core.NewCellCheck(settings)),
 	)
 
 	app.Include(routers.Meta())
 	return app, nil
 }
 
-// newBus picks the queue implementation, and is the same choice ingest-api makes. The two
+// newBus picks the queue implementation, and is the same choice the API makes. The two
 // must agree or the writer subscribes to something nothing is publishing to.
 func newBus(settings config.Settings) (eventbus.Bus, error) {
 	switch settings.EventBus {
@@ -116,7 +109,7 @@ func newBus(settings config.Settings) (eventbus.Bus, error) {
 			settings.BusDeliveryMaxMessages, settings.BusDeliveryMaxWait)
 		return bus, nil
 	case "local", "":
-		bus := eventbus.NewLocal(settings.Cell, settings.EventBusDir)
+		bus := eventbus.NewLocal(settings.EventBusDir)
 		bus.SetPollInterval(settings.WriterFlushInterval)
 		bus.SetLogger(slog.Default())
 		return bus, nil

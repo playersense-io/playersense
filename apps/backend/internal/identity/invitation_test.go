@@ -6,11 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"playersense.dev/backend/ent/global"
-	"playersense.dev/backend/ent/global/memberproject"
-	"playersense.dev/backend/ent/global/organizationmember"
+	"playersense.dev/backend/ent"
+	"playersense.dev/backend/ent/memberproject"
+	"playersense.dev/backend/ent/organizationmember"
 	"playersense.dev/backend/internal/authz"
-	"playersense.dev/backend/internal/core"
 	"playersense.dev/backend/internal/identity"
 	"playersense.dev/backend/internal/testsupport"
 )
@@ -22,7 +21,7 @@ import (
 
 // fixture is one organization with a project, for the two tests below.
 type fixture struct {
-	db     *global.Client
+	db     *ent.Client
 	orgID  int
 	roleID int
 	projID int
@@ -31,7 +30,7 @@ type fixture struct {
 func newFixture(t *testing.T) *fixture {
 	t.Helper()
 	settings := testsupport.Settings(t)
-	db := testsupport.Global(t, settings)
+	db := testsupport.Postgres(t, settings)
 
 	owner, err := identity.EnsureUser(t.Context(), db.Client, claims(t), time.Now())
 	if err != nil {
@@ -43,11 +42,9 @@ func newFixture(t *testing.T) *fixture {
 	}
 	org := orgs[0]
 
-	cell := testsupport.SeedCell(t, db, core.CellFrom(settings))
 	proj, err := db.Client.Project.Create().
 		SetName("Test Game").SetSlug(fmt.Sprintf("game-%d", time.Now().UnixNano())).
 		SetOrganizationID(org.ID).
-		SetCellID(cell.ID).
 		Save(t.Context())
 	if err != nil {
 		t.Fatalf("seed a project: %v", err)
@@ -62,7 +59,7 @@ func newFixture(t *testing.T) *fixture {
 
 // addMember puts a fresh person in the organization with all_projects true, and returns the
 // membership.
-func (f *fixture) addMember(t *testing.T) *global.OrganizationMember {
+func (f *fixture) addMember(t *testing.T) *ent.OrganizationMember {
 	t.Helper()
 	person, err := identity.EnsureUser(t.Context(), f.db, claims(t), time.Now())
 	if err != nil {
@@ -84,7 +81,7 @@ func TestSetMemberAccessIsAllOrNothing(t *testing.T) {
 	refusal := errors.New("the hook refused")
 	_, _, err := identity.SetMemberAccess(t.Context(), f.db, f.orgID, member.ID,
 		false, []int{f.projID}, time.Now(),
-		func(tx *global.Tx, updated *global.OrganizationMember, granted []*global.Project) error {
+		func(tx *ent.Tx, updated *ent.OrganizationMember, granted []*ent.Project) error {
 			return refusal
 		})
 	if !errors.Is(err, refusal) {
@@ -141,7 +138,7 @@ func TestAcceptInvitationIsAllOrNothing(t *testing.T) {
 
 	refusal := errors.New("the hook refused")
 	_, err = identity.AcceptInvitation(t.Context(), f.db, token, person, invited.Email, time.Now(),
-		func(tx *global.Tx, accepted *identity.Accepted) error { return refusal })
+		func(tx *ent.Tx, accepted *identity.Accepted) error { return refusal })
 	if !errors.Is(err, refusal) {
 		t.Fatalf("AcceptInvitation = %v, want the hook's own error", err)
 	}

@@ -27,7 +27,7 @@ import (
 	"strconv"
 	"time"
 
-	"muzak.dev/framework"
+	muzak "muzak.dev/framework"
 
 	"playersense.dev/backend/internal/valkey"
 )
@@ -57,10 +57,29 @@ type Limiter struct {
 
 	// FailOpen decides what happens when Valkey cannot be reached.
 	//
-	// True on both SDK paths: ingestion and configuration. §65's rule is that losing
-	// Valkey costs speed rather than data. False reports a storage error as a 503; no
-	// service currently registers a limiter with that policy.
+	// True as published, because the routes that dominate are the SDK's: §65's rule is
+	// that losing Valkey costs speed rather than data, and refusing every batch because
+	// the limiter is unreachable turns a degraded cache into an outage of the product.
+	//
+	// The one route that wants the opposite asks for it per call — see [Limiter.Strict].
 	FailOpen bool
+}
+
+// Strict returns the same limiter, failing closed.
+//
+// One limiter is published and most callers want it fail-open, so the exception is taken
+// per call rather than per deployment. Sending an invitation is the case: an email cannot
+// be taken back, so when the counter cannot be read the answer is no.
+//
+// A copy rather than a flag flipped in place — the singleton is shared by every request in
+// the process, and mutating it would make one route's policy everybody's.
+func (l *Limiter) Strict() *Limiter {
+	if l == nil {
+		return nil
+	}
+	strict := *l
+	strict.FailOpen = false
+	return &strict
 }
 
 // New returns a limiter over the given storage, or a nil one when `enabled` is false.

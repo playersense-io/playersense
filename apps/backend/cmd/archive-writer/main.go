@@ -20,12 +20,11 @@ import (
 	"os"
 	"path/filepath"
 
-	"muzak.dev/framework"
+	muzak "muzak.dev/framework"
 
 	"playersense.dev/backend/internal/archive"
 	"playersense.dev/backend/internal/blobstore"
 	"playersense.dev/backend/internal/config"
-	"playersense.dev/backend/internal/core"
 	"playersense.dev/backend/internal/eventbus"
 	"playersense.dev/backend/internal/pgdb"
 	"playersense.dev/backend/internal/routers"
@@ -53,13 +52,9 @@ func build(settings config.Settings) (*muzak.App, error) {
 		return nil, err
 	}
 
-	// The cell's own tier, never the global one. A manifest names where a region's player
-	// data sits, so it stays in that region (§99).
-	cell := pgdb.NewCell(settings.Cell, settings.CellPostgresDSN)
+	db := pgdb.New(settings.PostgresDSN)
 
-	writer := archive.New(bus, store, cell, slog.Default(), archive.Options{
-		Cell:             settings.Cell,
-		Region:           settings.CellRegion,
+	writer := archive.New(bus, store, db, slog.Default(), archive.Options{
 		MaxRowsPerObject: settings.ArchiveMaxRowsPerObject,
 		MaxAttempts:      settings.WriterMaxAttempts,
 	})
@@ -84,23 +79,18 @@ func build(settings config.Settings) (*muzak.App, error) {
 	},
 		muzak.WithSingleton(settings),
 		muzak.WithSingleton(bus),
-		muzak.WithSingleton(cell),
+		muzak.WithSingleton(db),
 		muzak.WithSingleton(store),
-		muzak.WithSingleton(core.CellFrom(settings)),
 
 		// Registered after its dependencies so it is stopped before them.
 		muzak.WithSingleton(writer),
-
-		// A typo in CELL would otherwise be silent: objects would be written under a
-		// prefix nothing reads, with manifests in a database nothing queries.
-		muzak.WithLifecycle(core.NewCellCheck(settings)),
 	)
 
 	app.Include(routers.Meta())
 	return app, nil
 }
 
-// newBus picks the queue implementation, and must agree with ingest-api's choice.
+// newBus picks the queue implementation, and must agree with the API's choice.
 func newBus(settings config.Settings) (eventbus.Bus, error) {
 	switch settings.EventBus {
 	case "pubsub":
@@ -115,7 +105,7 @@ func newBus(settings config.Settings) (eventbus.Bus, error) {
 			settings.BusDeliveryMaxMessages, settings.BusDeliveryMaxWait)
 		return bus, nil
 	case "local", "":
-		bus := eventbus.NewLocal(settings.Cell, settings.EventBusDir)
+		bus := eventbus.NewLocal(settings.EventBusDir)
 		bus.SetPollInterval(settings.WriterFlushInterval)
 		bus.SetLogger(slog.Default())
 		return bus, nil

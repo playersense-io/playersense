@@ -7,12 +7,12 @@ import (
 	"strings"
 	"time"
 
-	"playersense.dev/backend/ent/global"
-	"playersense.dev/backend/ent/global/invitation"
-	"playersense.dev/backend/ent/global/memberproject"
-	"playersense.dev/backend/ent/global/organization"
-	"playersense.dev/backend/ent/global/organizationmember"
-	"playersense.dev/backend/ent/global/project"
+	"playersense.dev/backend/ent"
+	"playersense.dev/backend/ent/invitation"
+	"playersense.dev/backend/ent/memberproject"
+	"playersense.dev/backend/ent/organization"
+	"playersense.dev/backend/ent/organizationmember"
+	"playersense.dev/backend/ent/project"
 )
 
 // The rules about accepting an invitation, which the schema cannot express either.
@@ -41,14 +41,14 @@ var (
 
 // Accepted is what accepting produced.
 type Accepted struct {
-	Organization *global.Organization
-	Member       *global.OrganizationMember
-	Role         *global.Role
+	Organization *ent.Organization
+	Member       *ent.OrganizationMember
+	Role         *ent.Role
 
 	// Projects is what was actually granted, which can be fewer than the invitation named:
 	// a project deleted between sending and accepting drops that one grant rather than
 	// failing the accept (see the schema's note on `project_ids`).
-	Projects []*global.Project
+	Projects []*ent.Project
 }
 
 // AcceptInvitation turns a token and a verified address into a membership.
@@ -83,9 +83,9 @@ type Accepted struct {
 // `also`, when given, runs inside the same transaction as the membership it just created, right
 // before commit — see [CreateOrganization] for why. It is not called on the already-a-member
 // path, because nothing was written there for it to attach to.
-func AcceptInvitation(ctx context.Context, db *global.Client, token string,
-	person *global.User, verifiedEmail string, now time.Time,
-	also func(tx *global.Tx, accepted *Accepted) error,
+func AcceptInvitation(ctx context.Context, db *ent.Client, token string,
+	person *ent.User, verifiedEmail string, now time.Time,
+	also func(tx *ent.Tx, accepted *Accepted) error,
 ) (*Accepted, error) {
 	found, err := db.Invitation.Query().
 		Where(invitation.TokenDigest(Digest(token))).
@@ -93,7 +93,7 @@ func AcceptInvitation(ctx context.Context, db *global.Client, token string,
 		WithRole().
 		Only(ctx)
 	if err != nil {
-		if global.IsNotFound(err) {
+		if ent.IsNotFound(err) {
 			return nil, ErrNoInvitation
 		}
 		return nil, fmt.Errorf("look up invitation: %w", err)
@@ -120,9 +120,9 @@ func AcceptInvitation(ctx context.Context, db *global.Client, token string,
 //
 // [PendingInvitationsFor] is what lists these, and it deliberately carries no token, because none
 // is needed.
-func AcceptPendingInvitationFor(ctx context.Context, db *global.Client, orgSlug string,
-	person *global.User, verifiedEmail string, now time.Time,
-	also func(tx *global.Tx, accepted *Accepted) error,
+func AcceptPendingInvitationFor(ctx context.Context, db *ent.Client, orgSlug string,
+	person *ent.User, verifiedEmail string, now time.Time,
+	also func(tx *ent.Tx, accepted *Accepted) error,
 ) (*Accepted, error) {
 	found, err := db.Invitation.Query().
 		Where(
@@ -132,10 +132,10 @@ func AcceptPendingInvitationFor(ctx context.Context, db *global.Client, orgSlug 
 		).
 		WithOrganization().
 		WithRole().
-		Order(global.Desc(invitation.FieldCreatedAt)).
+		Order(ent.Desc(invitation.FieldCreatedAt)).
 		First(ctx)
 	if err != nil {
-		if global.IsNotFound(err) {
+		if ent.IsNotFound(err) {
 			return nil, ErrNoInvitation
 		}
 		return nil, fmt.Errorf("look up invitation: %w", err)
@@ -148,9 +148,9 @@ func AcceptPendingInvitationFor(ctx context.Context, db *global.Client, orgSlug 
 // Matched on the address rather than on a token, so it shows only what was sent to the reader's
 // own inbox — an address the sign-in already proved. Expired rows are left out rather than
 // returned with a status, because an invitation nobody can accept is not news.
-func PendingInvitationsFor(ctx context.Context, db *global.Client, verifiedEmail string,
+func PendingInvitationsFor(ctx context.Context, db *ent.Client, verifiedEmail string,
 	now time.Time,
-) ([]*global.Invitation, error) {
+) ([]*ent.Invitation, error) {
 	return db.Invitation.Query().
 		Where(
 			invitation.StatusEQ(invitation.StatusPending),
@@ -160,14 +160,14 @@ func PendingInvitationsFor(ctx context.Context, db *global.Client, verifiedEmail
 		WithOrganization().
 		WithRole().
 		WithInvitedBy().
-		Order(global.Asc(invitation.FieldCreatedAt)).
+		Order(ent.Asc(invitation.FieldCreatedAt)).
 		All(ctx)
 }
 
 // accept is the half both entry points share: the checks, then the transaction.
-func accept(ctx context.Context, db *global.Client, found *global.Invitation,
-	person *global.User, verifiedEmail string, now time.Time,
-	also func(tx *global.Tx, accepted *Accepted) error,
+func accept(ctx context.Context, db *ent.Client, found *ent.Invitation,
+	person *ent.User, verifiedEmail string, now time.Time,
+	also func(tx *ent.Tx, accepted *Accepted) error,
 ) (*Accepted, error) {
 	switch {
 	case found.Status != invitation.StatusPending:
@@ -207,20 +207,20 @@ func accept(ctx context.Context, db *global.Client, found *global.Invitation,
 			Role:         existing.Edges.Role,
 		}, ErrAlreadyMember
 	}
-	if !global.IsNotFound(err) {
+	if !ent.IsNotFound(err) {
 		return nil, fmt.Errorf("look up existing membership: %w", err)
 	}
 
 	// Which of the named projects still exist. Resolved before the transaction so that a
 	// deleted project costs a read rather than a rollback.
-	var granted []*global.Project
+	var granted []*ent.Project
 	if !found.AllProjects && len(found.ProjectIds) > 0 {
 		granted, err = db.Project.Query().
 			Where(
 				project.IDIn(found.ProjectIds...),
 				project.OrganizationID(found.OrganizationID),
 			).
-			Order(global.Asc(project.FieldSlug)).
+			Order(ent.Asc(project.FieldSlug)).
 			All(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("look up invited projects: %w", err)
@@ -314,10 +314,10 @@ func accept(ctx context.Context, db *global.Client, found *global.Invitation,
 //
 // `also`, when given, runs inside the same transaction as the grants it just wrote, right before
 // commit — see [CreateOrganization] for why.
-func SetMemberAccess(ctx context.Context, db *global.Client, orgID, memberID int,
+func SetMemberAccess(ctx context.Context, db *ent.Client, orgID, memberID int,
 	allProjects bool, projectIDs []int, now time.Time,
-	also func(tx *global.Tx, updated *global.OrganizationMember, granted []*global.Project) error,
-) (*global.OrganizationMember, []*global.Project, error) {
+	also func(tx *ent.Tx, updated *ent.OrganizationMember, granted []*ent.Project) error,
+) (*ent.OrganizationMember, []*ent.Project, error) {
 	member, err := db.OrganizationMember.Query().
 		Where(
 			organizationmember.ID(memberID),
@@ -328,13 +328,13 @@ func SetMemberAccess(ctx context.Context, db *global.Client, orgID, memberID int
 		return nil, nil, fmt.Errorf("look up member: %w", err)
 	}
 
-	var wanted []*global.Project
+	var wanted []*ent.Project
 	if !allProjects && len(projectIDs) > 0 {
 		// Scoped to the organization, so an id from another studio's project cannot be
 		// granted by passing it here.
 		wanted, err = db.Project.Query().
 			Where(project.IDIn(projectIDs...), project.OrganizationID(orgID)).
-			Order(global.Asc(project.FieldSlug)).
+			Order(ent.Asc(project.FieldSlug)).
 			All(ctx)
 		if err != nil {
 			return nil, nil, fmt.Errorf("look up projects: %w", err)
@@ -392,7 +392,7 @@ func SetMemberAccess(ctx context.Context, db *global.Client, orgID, memberID int
 var ErrUnknownProject = errors.New("no such project in this organization")
 
 // MemberProjects reads which projects one member has been granted.
-func MemberProjects(ctx context.Context, db *global.Client, memberID int) ([]*global.Project, error) {
+func MemberProjects(ctx context.Context, db *ent.Client, memberID int) ([]*ent.Project, error) {
 	rows, err := db.MemberProject.Query().
 		Where(memberproject.MemberID(memberID)).
 		WithProject().
@@ -400,7 +400,7 @@ func MemberProjects(ctx context.Context, db *global.Client, memberID int) ([]*gl
 	if err != nil {
 		return nil, fmt.Errorf("read project access: %w", err)
 	}
-	out := make([]*global.Project, 0, len(rows))
+	out := make([]*ent.Project, 0, len(rows))
 	for _, row := range rows {
 		if row.Edges.Project != nil {
 			out = append(out, row.Edges.Project)

@@ -41,7 +41,7 @@ import (
 	"context"
 	"fmt"
 
-	"playersense.dev/backend/ent/global"
+	"playersense.dev/backend/ent"
 )
 
 // Action is what happened.
@@ -151,14 +151,14 @@ func (e Entry) validate() error {
 //
 // The entry and the thing it describes commit together, which is what makes "every action that
 // happened was logged" a property rather than an intention.
-func Record(ctx context.Context, tx *global.Tx, entry Entry) (*global.AuditEvent, error) {
+func Record(ctx context.Context, tx *ent.Tx, entry Entry) (*ent.AuditEvent, error) {
 	if err := entry.validate(); err != nil {
 		return nil, err
 	}
 	return write(ctx, tx.AuditEvent.Create(), entry)
 }
 
-func write(ctx context.Context, create *global.AuditEventCreate, entry Entry) (*global.AuditEvent, error) {
+func write(ctx context.Context, create *ent.AuditEventCreate, entry Entry) (*ent.AuditEvent, error) {
 	create = create.
 		SetOrganizationID(entry.OrganizationID).
 		SetAction(string(entry.Action)).

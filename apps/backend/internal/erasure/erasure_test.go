@@ -11,10 +11,10 @@ import (
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/google/uuid"
 
-	"playersense.dev/backend/ent/regional"
-	"playersense.dev/backend/ent/regional/archivemanifest"
-	"playersense.dev/backend/ent/regional/datadeletionrequest"
-	"playersense.dev/backend/ent/regional/dataexportrequest"
+	"playersense.dev/backend/ent"
+	"playersense.dev/backend/ent/archivemanifest"
+	"playersense.dev/backend/ent/datadeletionrequest"
+	"playersense.dev/backend/ent/dataexportrequest"
 	"playersense.dev/backend/internal/archive"
 	"playersense.dev/backend/internal/blobstore"
 	"playersense.dev/backend/internal/config"
@@ -45,7 +45,7 @@ const (
 
 type fixture struct {
 	purger *erasure.Purger
-	cell   *pgdb.Cell
+	pg     *pgdb.DB
 	db     *sql.DB
 	store  *blobstore.Local
 	cache  *valkey.Client
@@ -71,7 +71,7 @@ func newFixture(t *testing.T, drain time.Duration) *fixture {
 	settings := testsupport.Settings(t)
 	settings.ArchiveDir = t.TempDir()
 
-	cell := testsupport.CellDB(t, settings)
+	pg := testsupport.Postgres(t, settings)
 	cache := testsupport.Cache(t, settings)
 
 	opts, err := clickhouse.ParseDSN(settings.ClickHouseDSN)
@@ -90,7 +90,7 @@ func newFixture(t *testing.T, drain time.Duration) *fixture {
 	}
 
 	f := &fixture{
-		cell:  cell,
+		pg:    pg,
 		db:    db,
 		store: store,
 		cache: cache,
@@ -108,7 +108,7 @@ func newFixture(t *testing.T, drain time.Duration) *fixture {
 		installBystander: uuid.New(),
 	}
 	f.purger = &erasure.Purger{
-		Cell:        cell,
+		DB:          pg,
 		CH:          pool{db},
 		Store:       store,
 		Cache:       cache,
@@ -170,11 +170,11 @@ func (f *fixture) deviceID(t *testing.T, install uuid.UUID) uint64 {
 }
 
 // seedArchive writes one object holding both actors' events, and the manifest for it.
-func (f *fixture) seedArchive(t *testing.T, at time.Time) *regional.ArchiveManifest {
+func (f *fixture) seedArchive(t *testing.T, at time.Time) *ent.ArchiveManifest {
 	return f.seedArchiveNamed(t, at, "seed")
 }
 
-func (f *fixture) seedArchiveNamed(t *testing.T, at time.Time, name string) *regional.ArchiveManifest {
+func (f *fixture) seedArchiveNamed(t *testing.T, at time.Time, name string) *ent.ArchiveManifest {
 	t.Helper()
 
 	rows := []archive.Row{
@@ -186,17 +186,16 @@ func (f *fixture) seedArchiveNamed(t *testing.T, at time.Time, name string) *reg
 	if err != nil {
 		t.Fatalf("encode archive object: %v", err)
 	}
-	path := "cell=test/org=" + f.orgUID.String() + "/project=" + f.projectUID.String() +
+	path := "org=" + f.orgUID.String() + "/project=" + f.projectUID.String() +
 		"/env=production/dt=" + at.Format(time.DateOnly) + "/hour=00/part-" + name + ".parquet"
 
 	object, err := f.store.Put(t.Context(), path, body)
 	if err != nil {
 		t.Fatalf("write archive object: %v", err)
 	}
-	m, err := f.cell.Client.ArchiveManifest.Create().
+	m, err := f.pg.Client.ArchiveManifest.Create().
 		SetBucket(f.settings.ArchiveBucket).
 		SetObjectPath(object.Path).
-		SetRegion("eu").
 		SetOrgUID(f.orgUID).
 		SetProjectUID(f.projectUID).
 		SetEnvironmentUID(f.envUID).
@@ -229,9 +228,9 @@ func (f *fixture) archiveRow(player string, install uuid.UUID, at time.Time) arc
 }
 
 // request records a deletion request the way the API surface does.
-func (f *fixture) request(t *testing.T, actorKey string) *regional.DataDeletionRequest {
+func (f *fixture) request(t *testing.T, actorKey string) *ent.DataDeletionRequest {
 	t.Helper()
-	req, err := f.cell.Client.DataDeletionRequest.Create().
+	req, err := f.pg.Client.DataDeletionRequest.Create().
 		SetProjectUID(f.projectUID).
 		SetProjectSeq(f.project).
 		SetActorKey(actorKey).
@@ -240,7 +239,7 @@ func (f *fixture) request(t *testing.T, actorKey string) *regional.DataDeletionR
 		t.Fatalf("record deletion request: %v", err)
 	}
 	t.Cleanup(func() {
-		_ = f.cell.Client.DataDeletionRequest.DeleteOneID(req.ID).Exec(context.Background())
+		_ = f.pg.Client.DataDeletionRequest.DeleteOneID(req.ID).Exec(context.Background())
 	})
 	return req
 }
@@ -283,9 +282,9 @@ func (f *fixture) countAccount(t *testing.T, player string) int {
 	return int(n)
 }
 
-func (f *fixture) reloadRequest(t *testing.T, req *regional.DataDeletionRequest) *regional.DataDeletionRequest {
+func (f *fixture) reloadRequest(t *testing.T, req *ent.DataDeletionRequest) *ent.DataDeletionRequest {
 	t.Helper()
-	got, err := f.cell.Client.DataDeletionRequest.Get(t.Context(), req.ID)
+	got, err := f.pg.Client.DataDeletionRequest.Get(t.Context(), req.ID)
 	if err != nil {
 		t.Fatalf("reload request: %v", err)
 	}
@@ -488,7 +487,7 @@ func TestAnErasureIsIdempotent(t *testing.T) {
 	first := f.replacement(t, manifest)
 
 	// Back to purging, as a crashed pass would leave it, and run again.
-	if err := f.cell.Client.DataDeletionRequest.UpdateOne(req).
+	if err := f.pg.Client.DataDeletionRequest.UpdateOne(req).
 		SetStatus(datadeletionrequest.StatusPurging).
 		ClearCompletedAt().Exec(t.Context()); err != nil {
 		t.Fatalf("stage the retry: %v", err)
@@ -497,7 +496,7 @@ func TestAnErasureIsIdempotent(t *testing.T) {
 		t.Fatalf("second purge: %v", err)
 	}
 
-	objects, err := f.cell.Client.ArchiveManifest.Query().
+	objects, err := f.pg.Client.ArchiveManifest.Query().
 		Where(
 			archivemanifest.ProjectUID(f.projectUID),
 			archivemanifest.StatusEQ(archivemanifest.StatusDurable),
@@ -516,9 +515,9 @@ func TestAnErasureIsIdempotent(t *testing.T) {
 }
 
 // reloadManifest re-reads one manifest.
-func (f *fixture) reloadManifest(t *testing.T, m *regional.ArchiveManifest) *regional.ArchiveManifest {
+func (f *fixture) reloadManifest(t *testing.T, m *ent.ArchiveManifest) *ent.ArchiveManifest {
 	t.Helper()
-	got, err := f.cell.Client.ArchiveManifest.Get(t.Context(), m.ID)
+	got, err := f.pg.Client.ArchiveManifest.Get(t.Context(), m.ID)
 	if err != nil {
 		t.Fatalf("reload manifest: %v", err)
 	}
@@ -526,9 +525,9 @@ func (f *fixture) reloadManifest(t *testing.T, m *regional.ArchiveManifest) *reg
 }
 
 // replacement finds the durable manifest the redaction produced.
-func (f *fixture) replacement(t *testing.T, original *regional.ArchiveManifest) *regional.ArchiveManifest {
+func (f *fixture) replacement(t *testing.T, original *ent.ArchiveManifest) *ent.ArchiveManifest {
 	t.Helper()
-	got, err := f.cell.Client.ArchiveManifest.Query().
+	got, err := f.pg.Client.ArchiveManifest.Query().
 		Where(
 			archivemanifest.ProjectUID(f.projectUID),
 			archivemanifest.StatusEQ(archivemanifest.StatusDurable),
@@ -571,7 +570,7 @@ func TestAnErasureRemovesTheExportBundleToo(t *testing.T) {
 	if _, err := f.store.Put(t.Context(), path, []byte(`{"section":"meta"}`+"\n")); err != nil {
 		t.Fatalf("write bundle: %v", err)
 	}
-	bundle, err := f.cell.Client.DataExportRequest.Create().
+	bundle, err := f.pg.Client.DataExportRequest.Create().
 		SetProjectUID(f.projectUID).
 		SetProjectSeq(f.project).
 		SetActorKey(erased).
@@ -585,7 +584,7 @@ func TestAnErasureRemovesTheExportBundleToo(t *testing.T) {
 		t.Fatalf("record export: %v", err)
 	}
 	t.Cleanup(func() {
-		_ = f.cell.Client.DataExportRequest.DeleteOneID(bundle.ID).Exec(context.Background())
+		_ = f.pg.Client.DataExportRequest.DeleteOneID(bundle.ID).Exec(context.Background())
 	})
 
 	f.request(t, erased)
@@ -596,7 +595,7 @@ func TestAnErasureRemovesTheExportBundleToo(t *testing.T) {
 	if _, err := f.store.Get(t.Context(), path); err == nil {
 		t.Error("the export bundle is still in the bucket after the erasure")
 	}
-	after, err := f.cell.Client.DataExportRequest.Get(t.Context(), bundle.ID)
+	after, err := f.pg.Client.DataExportRequest.Get(t.Context(), bundle.ID)
 	if err != nil {
 		t.Fatalf("reload export: %v", err)
 	}
@@ -661,7 +660,7 @@ func TestABoundedArchiveScanResumesRatherThanSkipping(t *testing.T) {
 	}
 
 	// And both seeded objects were actually redacted, which is the claim the status makes.
-	redacted, err := f.cell.Client.ArchiveManifest.Query().
+	redacted, err := f.pg.Client.ArchiveManifest.Query().
 		Where(
 			archivemanifest.ProjectUID(f.projectUID),
 			archivemanifest.StatusEQ(archivemanifest.StatusRedacted),

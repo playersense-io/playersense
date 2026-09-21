@@ -36,8 +36,8 @@ import (
 	"log/slog"
 	"time"
 
-	"playersense.dev/backend/ent/regional"
-	"playersense.dev/backend/ent/regional/archivemanifest"
+	"playersense.dev/backend/ent"
+	"playersense.dev/backend/ent/archivemanifest"
 	"playersense.dev/backend/internal/blobstore"
 	"playersense.dev/backend/internal/pgdb"
 )
@@ -46,19 +46,18 @@ import (
 //
 // A bound rather than a target. The first pass over a bucket that has never been swept has
 // every expired object in it at once, and an unbounded pass would hold a transaction-shaped
-// amount of work open against both the cell tier and the bucket. Several bounded passes
+// amount of work open against both the database and the bucket. Several bounded passes
 // reach the same place, and the sweeper runs on an interval rather than nightly.
 const DefaultMaxObjects = 5_000
 
 // Sweeper expires the objects whose manifests say their time is up.
 //
-// Cell-local by construction: it is handed one cell's database and that cell's bucket, and
-// it only ever considers manifests naming the bucket it holds. A manifest for some other
+// It only ever considers manifests naming the bucket it holds. A manifest for some other
 // bucket — a rename, a migration, a process pointed at the wrong store — is left alone,
 // because the object path in a manifest is meaningful only inside the bucket it was written
 // to, and deleting that path from a different bucket would remove an unrelated object.
 type Sweeper struct {
-	Cell  *pgdb.Cell
+	DB    *pgdb.DB
 	Store blobstore.Store
 	Log   *slog.Logger
 
@@ -95,7 +94,7 @@ var ErrStoreUnreachable = errors.New("the archive bucket is unreachable")
 func (s *Sweeper) Run(ctx context.Context, now time.Time) (Result, error) {
 	var out Result
 
-	if !s.Cell.Ready() {
+	if !s.DB.Ready() {
 		return out, pgdb.ErrNotStarted
 	}
 	log := s.Log
@@ -107,7 +106,7 @@ func (s *Sweeper) Run(ctx context.Context, now time.Time) (Result, error) {
 		limit = DefaultMaxObjects
 	}
 
-	due, err := s.Cell.Client.ArchiveManifest.Query().
+	due, err := s.DB.Client.ArchiveManifest.Query().
 		Where(
 			archivemanifest.Bucket(s.Store.Bucket()),
 			archivemanifest.DeleteAfterLTE(now.UTC()),
@@ -117,7 +116,7 @@ func (s *Sweeper) Run(ctx context.Context, now time.Time) (Result, error) {
 		).
 		// Oldest expiry first, so a backlog is worked off in the order it accrued and the
 		// object that has been over-retained longest is the one that goes first.
-		Order(regional.Asc(archivemanifest.FieldDeleteAfter)).
+		Order(ent.Asc(archivemanifest.FieldDeleteAfter)).
 		Limit(limit).
 		All(ctx)
 	if err != nil {
@@ -202,8 +201,8 @@ func (s *Sweeper) Run(ctx context.Context, now time.Time) (Result, error) {
 //
 // The reason is cleared on every state that is not a failure, so a row that failed once and
 // then succeeded does not keep an explanation of something that is no longer true.
-func (s *Sweeper) mark(ctx context.Context, m *regional.ArchiveManifest, status archivemanifest.Status, reason string) error {
-	update := s.Cell.Client.ArchiveManifest.UpdateOne(m).SetStatus(status)
+func (s *Sweeper) mark(ctx context.Context, m *ent.ArchiveManifest, status archivemanifest.Status, reason string) error {
+	update := s.DB.Client.ArchiveManifest.UpdateOne(m).SetStatus(status)
 	if reason == "" {
 		update = update.ClearFailureReason()
 	} else {

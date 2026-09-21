@@ -6,15 +6,15 @@ import (
 	"net/http"
 	"time"
 
-	"muzak.dev/framework"
+	muzak "muzak.dev/framework"
 
-	"playersense.dev/backend/ent/global"
-	"playersense.dev/backend/ent/global/billingaccount"
-	"playersense.dev/backend/ent/global/creditlot"
-	"playersense.dev/backend/ent/global/ledgerentry"
-	"playersense.dev/backend/ent/global/organization"
-	"playersense.dev/backend/ent/global/project"
-	"playersense.dev/backend/ent/global/usagedaily"
+	"playersense.dev/backend/ent"
+	"playersense.dev/backend/ent/billingaccount"
+	"playersense.dev/backend/ent/creditlot"
+	"playersense.dev/backend/ent/ledgerentry"
+	"playersense.dev/backend/ent/organization"
+	"playersense.dev/backend/ent/project"
+	"playersense.dev/backend/ent/usagedaily"
 	"playersense.dev/backend/internal/audit"
 	"playersense.dev/backend/internal/billing"
 	"playersense.dev/backend/internal/core"
@@ -46,7 +46,7 @@ import (
 // Both halves, because either alone is unreadable: 41,207 tracked players means nothing without the
 // 10,000 the plan allows, and the allowance means nothing without the number beside it.
 func ReadUsage(ctx *muzak.Context, in schemas.UsageParams) (schemas.UsageOut, error) {
-	ctrl := muzak.From[*core.Global](ctx)
+	db := muzak.From[*core.DB](ctx)
 	org := muzak.From[*core.Principal](ctx).Organization
 
 	from, to, err := usageRange(in.From, in.To, nowUTC())
@@ -54,13 +54,13 @@ func ReadUsage(ctx *muzak.Context, in schemas.UsageParams) (schemas.UsageOut, er
 		return schemas.UsageOut{}, err
 	}
 
-	rows, err := ctrl.Client.UsageDaily.Query().
+	rows, err := db.Client.UsageDaily.Query().
 		Where(
 			usagedaily.OrganizationID(org.ID),
 			usagedaily.DayGTE(from),
 			usagedaily.DayLTE(to),
 		).
-		Order(global.Asc(usagedaily.FieldDay)).
+		Order(ent.Asc(usagedaily.FieldDay)).
 		All(ctx.Context())
 	if err != nil {
 		return schemas.UsageOut{}, core.AsHTTPError(err)
@@ -70,18 +70,18 @@ func ReadUsage(ctx *muzak.Context, in schemas.UsageParams) (schemas.UsageOut, er
 
 	// The plan's allowances with any per-account override applied, so a client draws one bar
 	// rather than layering two documents itself.
-	if account, err := accountOf(ctx.Context(), ctrl, org.ID); err == nil {
+	if account, err := accountOf(ctx.Context(), db, org.ID); err == nil {
 		out.Included = resolvedEntitlements(account)
-	} else if !global.IsNotFound(err) {
+	} else if !ent.IsNotFound(err) {
 		return schemas.UsageOut{}, core.AsHTTPError(err)
 	}
 
-	projects, err := ctrl.Client.Project.Query().
+	projects, err := db.Client.Project.Query().
 		Where(project.OrganizationID(org.ID)).All(ctx.Context())
 	if err != nil {
 		return schemas.UsageOut{}, core.AsHTTPError(err)
 	}
-	byID := make(map[int]*global.Project, len(projects))
+	byID := make(map[int]*ent.Project, len(projects))
 	for _, proj := range projects {
 		byID[proj.ID] = proj
 	}
@@ -195,14 +195,14 @@ func usageRange(from, to string, now time.Time) (time.Time, time.Time, error) {
 
 // ReadBilling answers "what are we on, and what have we got left".
 func ReadBilling(ctx *muzak.Context, _ schemas.OrganizationParams) (schemas.BillingOut, error) {
-	ctrl := muzak.From[*core.Global](ctx)
+	db := muzak.From[*core.DB](ctx)
 	org := muzak.From[*core.Principal](ctx).Organization
 
-	account, err := accountOf(ctx.Context(), ctrl, org.ID)
+	account, err := accountOf(ctx.Context(), db, org.ID)
 	if err != nil {
 		return schemas.BillingOut{}, err
 	}
-	return billingOut(ctx.Context(), ctrl, account, nowUTC())
+	return billingOut(ctx.Context(), db, account, nowUTC())
 }
 
 // ReadLedger answers "why is my balance this".
@@ -210,10 +210,10 @@ func ReadBilling(ctx *muzak.Context, _ schemas.OrganizationParams) (schemas.Bill
 // Newest first, because the question is almost always about the most recent movement. Append-only by
 // construction, so what is read today is what was read last month.
 func ReadLedger(ctx *muzak.Context, in schemas.LedgerParams) (schemas.LedgerOut, error) {
-	ctrl := muzak.From[*core.Global](ctx)
+	db := muzak.From[*core.DB](ctx)
 	org := muzak.From[*core.Principal](ctx).Organization
 
-	account, err := accountOf(ctx.Context(), ctrl, org.ID)
+	account, err := accountOf(ctx.Context(), db, org.ID)
 	if err != nil {
 		return schemas.LedgerOut{}, err
 	}
@@ -222,9 +222,9 @@ func ReadLedger(ctx *muzak.Context, in schemas.LedgerParams) (schemas.LedgerOut,
 	if limit == 0 {
 		limit = 50
 	}
-	rows, err := ctrl.Client.LedgerEntry.Query().
+	rows, err := db.Client.LedgerEntry.Query().
 		Where(ledgerentry.AccountID(account.ID)).
-		Order(global.Desc(ledgerentry.FieldID)).
+		Order(ent.Desc(ledgerentry.FieldID)).
 		Limit(limit).
 		All(ctx.Context())
 	if err != nil {
@@ -244,10 +244,10 @@ func ReadLedger(ctx *muzak.Context, in schemas.LedgerParams) (schemas.LedgerOut,
 // route existed and had no caller. Its own comment said why: "a rule that waits for its caller is a
 // rule that gets re-remembered differently." This is the caller.
 func SetAutoTopUp(ctx *muzak.Context, in schemas.SetAutoTopUpIn) (schemas.BillingOut, error) {
-	ctrl := muzak.From[*core.Global](ctx)
+	db := muzak.From[*core.DB](ctx)
 	org := muzak.From[*core.Principal](ctx).Organization
 
-	account, err := accountOf(ctx.Context(), ctrl, org.ID)
+	account, err := accountOf(ctx.Context(), db, org.ID)
 	if err != nil {
 		return schemas.BillingOut{}, err
 	}
@@ -275,7 +275,7 @@ func SetAutoTopUp(ctx *muzak.Context, in schemas.SetAutoTopUpIn) (schemas.Billin
 			WithCode("auto_topup_not_workable")
 	}
 
-	tx, err := ctrl.Client.Tx(ctx.Context())
+	tx, err := db.Client.Tx(ctx.Context())
 	if err != nil {
 		return schemas.BillingOut{}, core.AsHTTPError(err)
 	}
@@ -315,11 +315,11 @@ func SetAutoTopUp(ctx *muzak.Context, in schemas.SetAutoTopUpIn) (schemas.Billin
 	// Re-read through the application's client rather than returning the row the transaction
 	// produced: that row belongs to a connection which is now closed, and billingOut reads its
 	// plan edge.
-	fresh, err := accountOf(ctx.Context(), ctrl, org.ID)
+	fresh, err := accountOf(ctx.Context(), db, org.ID)
 	if err != nil {
 		return schemas.BillingOut{}, err
 	}
-	return billingOut(ctx.Context(), ctrl, fresh, nowUTC())
+	return billingOut(ctx.Context(), db, fresh, nowUTC())
 }
 
 // ---- the operator surface ---------------------------------------------------
@@ -333,9 +333,9 @@ func SetAutoTopUp(ctx *muzak.Context, in schemas.SetAutoTopUpIn) (schemas.Billin
 // today the answer is in the request log or nowhere. It is recorded in
 // docs/compliance/10-open-items.md beside the audit log it needs.
 func GrantCredit(ctx *muzak.Context, in schemas.GrantCreditIn) (schemas.CreditGrantedOut, error) {
-	ctrl := muzak.From[*core.Global](ctx)
+	db := muzak.From[*core.DB](ctx)
 
-	account, err := accountBySlug(ctx.Context(), ctrl, in.OrgSlug)
+	account, err := accountBySlug(ctx.Context(), db, in.OrgSlug)
 	if err != nil {
 		return schemas.CreditGrantedOut{}, err
 	}
@@ -345,7 +345,7 @@ func GrantCredit(ctx *muzak.Context, in schemas.GrantCreditIn) (schemas.CreditGr
 		grantedAt = in.GrantedAt.UTC()
 	}
 
-	tx, err := ctrl.Client.Tx(ctx.Context())
+	tx, err := db.Client.Tx(ctx.Context())
 	if err != nil {
 		return schemas.CreditGrantedOut{}, core.AsHTTPError(err)
 	}
@@ -388,7 +388,7 @@ func GrantCredit(ctx *muzak.Context, in schemas.GrantCreditIn) (schemas.CreditGr
 		return schemas.CreditGrantedOut{}, core.AsHTTPError(err)
 	}
 
-	available, err := availableOf(ctx.Context(), ctrl, account.ID, nowUTC())
+	available, err := availableOf(ctx.Context(), db, account.ID, nowUTC())
 	if err != nil {
 		return schemas.CreditGrantedOut{}, err
 	}
@@ -413,14 +413,14 @@ func GrantCredit(ctx *muzak.Context, in schemas.GrantCreditIn) (schemas.CreditGr
 // month close exists to do it on a schedule. It is here rather than on a customer's surface for the
 // obvious reason: nobody charges their own account.
 func ChargeCredit(ctx *muzak.Context, in schemas.ChargeCreditIn) (schemas.CreditChargedOut, error) {
-	ctrl := muzak.From[*core.Global](ctx)
+	db := muzak.From[*core.DB](ctx)
 
-	account, err := accountBySlug(ctx.Context(), ctrl, in.OrgSlug)
+	account, err := accountBySlug(ctx.Context(), db, in.OrgSlug)
 	if err != nil {
 		return schemas.CreditChargedOut{}, err
 	}
 
-	tx, err := ctrl.Client.Tx(ctx.Context())
+	tx, err := db.Client.Tx(ctx.Context())
 	if err != nil {
 		return schemas.CreditChargedOut{}, core.AsHTTPError(err)
 	}
@@ -463,16 +463,16 @@ func ChargeCredit(ctx *muzak.Context, in schemas.ChargeCreditIn) (schemas.Credit
 
 	// The lots the draws name, so the response can identify them the way a client does — by uid,
 	// never by the row id a draw carries.
-	uids := map[int]*global.CreditLot{}
+	uids := map[int]*ent.CreditLot{}
 	for _, draw := range result.Draws {
-		row, err := ctrl.Client.CreditLot.Get(ctx.Context(), draw.LotID)
+		row, err := db.Client.CreditLot.Get(ctx.Context(), draw.LotID)
 		if err != nil {
 			return schemas.CreditChargedOut{}, core.AsHTTPError(err)
 		}
 		uids[draw.LotID] = row
 	}
 
-	available, err := availableOf(ctx.Context(), ctrl, account.ID, at)
+	available, err := availableOf(ctx.Context(), db, account.ID, at)
 	if err != nil {
 		return schemas.CreditChargedOut{}, err
 	}
@@ -498,7 +498,7 @@ func ChargeCredit(ctx *muzak.Context, in schemas.ChargeCreditIn) (schemas.Credit
 //
 // A string rather than a time, because the metadata is read by a person looking at a log and an RFC
 // 3339 date is what they can compare against the one they were told.
-func expiryFor(lot *global.CreditLot) any {
+func expiryFor(lot *ent.CreditLot) any {
 	if lot.ExpiresAt == nil {
 		return nil
 	}
@@ -508,13 +508,13 @@ func expiryFor(lot *global.CreditLot) any {
 // ---- lookups and mapping ----------------------------------------------------
 
 // accountOf reads the billing account for an organization the principal is already inside.
-func accountOf(ctx context.Context, ctrl *core.Global, orgID int) (*global.BillingAccount, error) {
-	account, err := ctrl.Client.BillingAccount.Query().
+func accountOf(ctx context.Context, db *core.DB, orgID int) (*ent.BillingAccount, error) {
+	account, err := db.Client.BillingAccount.Query().
 		Where(billingaccount.OrganizationID(orgID)).
 		WithPlan().
 		Only(ctx)
 	if err != nil {
-		if global.IsNotFound(err) {
+		if ent.IsNotFound(err) {
 			// An organization created before billing existed, or one whose account was never
 			// provisioned. Said plainly rather than answered with an empty wallet, because a
 			// balance of zero and no account at all are different problems.
@@ -527,20 +527,20 @@ func accountOf(ctx context.Context, ctrl *core.Global, orgID int) (*global.Billi
 }
 
 // accountBySlug is the operator path, which has no principal to read an organization from.
-func accountBySlug(ctx context.Context, ctrl *core.Global, slug string) (*global.BillingAccount, error) {
-	org, err := ctrl.Client.Organization.Query().Where(organization.Slug(slug)).Only(ctx)
+func accountBySlug(ctx context.Context, db *core.DB, slug string) (*ent.BillingAccount, error) {
+	org, err := db.Client.Organization.Query().Where(organization.Slug(slug)).Only(ctx)
 	if err != nil {
-		if global.IsNotFound(err) {
+		if ent.IsNotFound(err) {
 			return nil, muzak.NotFound("no organization has the slug " + slug)
 		}
 		return nil, core.AsHTTPError(err)
 	}
-	return accountOf(ctx, ctrl, org.ID)
+	return accountOf(ctx, db, org.ID)
 }
 
 // availableOf is what the wallet can spend right now.
-func availableOf(ctx context.Context, ctrl *core.Global, accountID int, at time.Time) (int64, error) {
-	lots, err := wallet.LotsOf(ctx, ctrl.Client.CreditLot, accountID)
+func availableOf(ctx context.Context, db *core.DB, accountID int, at time.Time) (int64, error) {
+	lots, err := wallet.LotsOf(ctx, db.Client.CreditLot, accountID)
 	if err != nil {
 		return 0, core.AsHTTPError(err)
 	}
@@ -554,10 +554,10 @@ func availableOf(ctx context.Context, ctrl *core.Global, accountID int, at time.
 // learn to ignore.
 const ExpiryWarning = 14 * 24 * time.Hour
 
-func billingOut(ctx context.Context, ctrl *core.Global, account *global.BillingAccount,
+func billingOut(ctx context.Context, db *core.DB, account *ent.BillingAccount,
 	at time.Time,
 ) (schemas.BillingOut, error) {
-	rows, err := ctrl.Client.CreditLot.Query().
+	rows, err := db.Client.CreditLot.Query().
 		Where(creditlot.AccountID(account.ID), creditlot.RemainingMicrosGT(0)).
 		All(ctx)
 	if err != nil {
@@ -565,7 +565,7 @@ func billingOut(ctx context.Context, ctrl *core.Global, account *global.BillingA
 	}
 
 	lots := make([]wallet.Lot, 0, len(rows))
-	byID := make(map[int]*global.CreditLot, len(rows))
+	byID := make(map[int]*ent.CreditLot, len(rows))
 	for _, row := range rows {
 		byID[row.ID] = row
 		lots = append(lots, wallet.Lot{
@@ -620,7 +620,7 @@ func billingOut(ctx context.Context, ctrl *core.Global, account *global.BillingA
 // One enterprise customer with ten times the included MAU is a map on their account, not a plan
 // nobody else is on and not a branch in code — which is where a discount that outlives its deal
 // comes from.
-func resolvedEntitlements(account *global.BillingAccount) map[string]int64 {
+func resolvedEntitlements(account *ent.BillingAccount) map[string]int64 {
 	plan := account.Edges.Plan
 	if plan == nil {
 		return nil
@@ -641,7 +641,7 @@ func limitsOf(raw map[string]int64) billing.Limits {
 	return out
 }
 
-func creditLotOut(row *global.CreditLot, at time.Time) schemas.CreditLotOut {
+func creditLotOut(row *ent.CreditLot, at time.Time) schemas.CreditLotOut {
 	out := schemas.CreditLotOut{
 		ID:              row.UID,
 		Kind:            string(row.Kind),
@@ -656,7 +656,7 @@ func creditLotOut(row *global.CreditLot, at time.Time) schemas.CreditLotOut {
 	return out
 }
 
-func ledgerEntryOut(row *global.LedgerEntry) schemas.LedgerEntryOut {
+func ledgerEntryOut(row *ent.LedgerEntry) schemas.LedgerEntryOut {
 	return schemas.LedgerEntryOut{
 		ID:                 row.UID,
 		Kind:               string(row.Kind),

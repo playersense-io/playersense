@@ -18,13 +18,12 @@ import (
 
 	"github.com/google/uuid"
 
-	"playersense.dev/backend/ent/global"
-	"playersense.dev/backend/ent/global/apikey"
-	"playersense.dev/backend/ent/global/cell"
-	"playersense.dev/backend/ent/global/environment"
-	"playersense.dev/backend/ent/global/plan"
-	"playersense.dev/backend/ent/global/project"
-	"playersense.dev/backend/ent/global/role"
+	"playersense.dev/backend/ent"
+	"playersense.dev/backend/ent/apikey"
+	"playersense.dev/backend/ent/environment"
+	"playersense.dev/backend/ent/plan"
+	"playersense.dev/backend/ent/project"
+	"playersense.dev/backend/ent/role"
 	"playersense.dev/backend/internal/billing"
 	"playersense.dev/backend/internal/chdb"
 	"playersense.dev/backend/internal/config"
@@ -68,36 +67,21 @@ func RepoRoot(t *testing.T) string {
 	}
 }
 
-// Global opens the global control-plane tier, skipping when it is unreachable.
-func Global(t *testing.T, settings config.Settings) *pgdb.Global {
+// Postgres opens the database, skipping when it is unreachable.
+func Postgres(t *testing.T, settings config.Settings) *pgdb.DB {
 	t.Helper()
-	db := pgdb.NewGlobal(settings.GlobalPostgresDSN)
+	db := pgdb.New(settings.PostgresDSN)
 	if err := db.Start(t.Context()); err != nil {
-		t.Skipf("no control plane: %v", err)
+		t.Skipf("no database: %v", err)
 	}
 	t.Cleanup(func() { _ = db.Close() })
 	return db
 }
 
-// CellDB opens this cell's regional tier, skipping the test if it is unreachable.
-//
-// The first fixture for the cell tier. Everything before the archive lived in the global
-// tier or in ClickHouse; a manifest is the first row a service writes to the database that
-// sits in the cell's own region (§99).
-func CellDB(t *testing.T, settings config.Settings) *pgdb.Cell {
-	t.Helper()
-	db := pgdb.NewCell(settings.Cell, settings.CellPostgresDSN)
-	if err := db.Start(context.Background()); err != nil {
-		t.Skipf("cell tier unavailable: %v", err)
-	}
-	t.Cleanup(func() { _ = db.Close() })
-	return db
-}
-
-// Cache opens this cell's Valkey, skipping when it is unreachable.
+// Cache opens Valkey, skipping when it is unreachable.
 func Cache(t *testing.T, settings config.Settings) *valkey.Client {
 	t.Helper()
-	c := valkey.New(settings.Cell, settings.ValkeyDSN)
+	c := valkey.New(settings.ValkeyDSN)
 	if err := c.Start(t.Context()); err != nil {
 		t.Skipf("no valkey: %v", err)
 	}
@@ -105,7 +89,7 @@ func Cache(t *testing.T, settings config.Settings) *valkey.Client {
 	return c
 }
 
-// ClickHouse opens this cell's analytics database, skipping when it is unreachable.
+// ClickHouse opens the analytics database, skipping when it is unreachable.
 func ClickHouse(t *testing.T, settings config.Settings) *chdb.Conn {
 	t.Helper()
 	conn := chdb.New(settings.ClickHouseDSN)
@@ -114,37 +98,6 @@ func ClickHouse(t *testing.T, settings config.Settings) *chdb.Conn {
 	}
 	t.Cleanup(func() { _ = conn.Stop(context.Background()) })
 	return conn
-}
-
-// SeedCell makes sure a cell is in the registry and returns it.
-//
-// An upsert rather than a create: the registry is shared by every test in a package, so
-// whichever runs first provisions it and the rest find it.
-func SeedCell(t *testing.T, db *pgdb.Global, identity core.CellIdentity) *global.Cell {
-	t.Helper()
-	ctx := context.Background()
-
-	found, err := db.Client.Cell.Query().Where(cell.Slug(identity.Slug)).Only(ctx)
-	if err == nil {
-		return found
-	}
-	if !global.IsNotFound(err) {
-		t.Fatalf("read the cell registry: %v", err)
-	}
-	created, err := db.Client.Cell.Create().
-		SetSlug(identity.Slug).
-		SetRegion(identity.Region).
-		SetIngestURL(identity.IngestURL).
-		SetQueryURL(identity.QueryURL).
-		SetConfigURL(identity.ConfigURL).
-		Save(ctx)
-	if err != nil {
-		if found, qerr := db.Client.Cell.Query().Where(cell.Slug(identity.Slug)).Only(ctx); qerr == nil {
-			return found
-		}
-		t.Fatalf("seed cell %s: %v", identity.Slug, err)
-	}
-	return created
 }
 
 // Project is one seeded project with a publishable key.
@@ -163,12 +116,12 @@ type Project struct {
 	ProjectSlug string
 }
 
-// SeedProject creates an organization, a project in the given cell and a project key.
+// SeedProject creates an organization, a project and a project key.
 //
 // The environment id is returned rather than looked up later: a key minted for a test has
 // to belong to *that* test's project, and "the first environment in the table" stops being
-// that as soon as a test registers a project in a second cell.
-func SeedProject(t *testing.T, db *pgdb.Global, tier string, cellID int) Project {
+// that as soon as a second test seeds one.
+func SeedProject(t *testing.T, db *pgdb.DB, tier string) Project {
 	t.Helper()
 	ctx := context.Background()
 	suffix := uuid.NewString()[:8]
@@ -180,7 +133,6 @@ func SeedProject(t *testing.T, db *pgdb.Global, tier string, cellID int) Project
 	}
 	proj, err := db.Client.Project.Create().
 		SetName("Test Game").SetSlug("p-" + suffix).
-		SetCellID(cellID).
 		SetPolicyTier(project.PolicyTier(tier)).
 		SetRetentionDays(30).
 		SetOrganizationID(org.ID).Save(ctx)
@@ -212,7 +164,7 @@ func SeedProject(t *testing.T, db *pgdb.Global, tier string, cellID int) Project
 //
 // It exists for the routes that authenticate a *person* rather than a key. A reporting key carries
 // its own scope, so every test before those had no reason for an organization to contain anybody.
-func SeedMember(t *testing.T, db *pgdb.Global, orgID int, claims identity.Claims, roleKey string) *global.OrganizationMember {
+func SeedMember(t *testing.T, db *pgdb.DB, orgID int, claims identity.Claims, roleKey string) *ent.OrganizationMember {
 	t.Helper()
 	ctx := context.Background()
 
@@ -247,12 +199,12 @@ func SeedMember(t *testing.T, db *pgdb.Global, orgID int, claims identity.Claims
 // index on (key, organization) refuses the second call. That is right for the control plane, where
 // seeding happens once inside the transaction that creates an organization, and it means a fixture
 // adding a second member has to check rather than retry.
-func organizationRoles(ctx context.Context, db *pgdb.Global, orgID int) (map[string]*global.Role, error) {
+func organizationRoles(ctx context.Context, db *pgdb.DB, orgID int) (map[string]*ent.Role, error) {
 	rows, err := db.Client.Role.Query().Where(role.OrganizationID(orgID)).All(ctx)
 	if err != nil {
 		return nil, err
 	}
-	out := make(map[string]*global.Role, len(rows))
+	out := make(map[string]*ent.Role, len(rows))
 	for _, row := range rows {
 		out[row.Key] = row
 	}
@@ -266,7 +218,7 @@ func organizationRoles(ctx context.Context, db *pgdb.Global, orgID int) (map[str
 // its own: a key that belongs to some other test's project authenticates perfectly and
 // answers questions about the wrong data, which is the kind of test failure that reads as a
 // product bug.
-func SeedKey(t *testing.T, db *pgdb.Global, kind string, envID int) string {
+func SeedKey(t *testing.T, db *pgdb.DB, kind string, envID int) string {
 	t.Helper()
 	generated, err := core.NewAPIKey(kind, "production")
 	if err != nil {
@@ -288,13 +240,13 @@ func SeedKey(t *testing.T, db *pgdb.Global, kind string, envID int) string {
 // every organization gets the free plan the moment it exists. The plan is an upsert on its key, so
 // whichever test runs first provisions it and the rest find it — the same reasoning [SeedCell] uses
 // for the registry.
-func SeedBillingAccount(t *testing.T, db *pgdb.Global, orgID int) *global.BillingAccount {
+func SeedBillingAccount(t *testing.T, db *pgdb.DB, orgID int) *ent.BillingAccount {
 	t.Helper()
 	ctx := context.Background()
 
 	free, err := db.Client.Plan.Query().Where(plan.Key("free")).Only(ctx)
 	if err != nil {
-		if !global.IsNotFound(err) {
+		if !ent.IsNotFound(err) {
 			t.Fatalf("read the plan table: %v", err)
 		}
 		free, err = db.Client.Plan.Create().
