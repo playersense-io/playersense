@@ -34,12 +34,11 @@ purchases. It opens with a line stating what the answer covers and what it does 
 closes with a summary, so a file truncated by any accident is recognisable as one rather than
 read as a shorter answer.
 
-It is written to the cell's own bucket and served back through the cell-local API on the
+It is written to the archive bucket and served back through the API on the
 credential the studio already holds — never as a signed bucket URL, which would be a second
 credential with different lifetime rules and no revocation, issued for an object holding one
-named person's entire history. The export record lives in the **cell tier** because it names
-a player ([03](03-residency-and-transfers.md)), and the bundle itself expires: it is a second
-copy of everything held about someone, so it is the last thing that should sit around.
+named person's entire history. The bundle itself expires: it is a second copy of everything
+held about someone, so it is the last thing that should sit around.
 
 Events come from ClickHouse rather than from the archive, which is a reversal of what §10.4
 originally anticipated. It was written when the hot window was a fraction of the retention
@@ -67,14 +66,14 @@ was recorded and let the studio send what it believes to be true.
 
 A tombstone, then an asynchronous purge, then confirmation.
 
-1. The request is recorded in the cell tier with status `received`.
+1. The request is recorded with status `received`.
 2. A tombstone is written so nothing further is accepted or served for that actor —
    `tombstoned`. This happens inside the submitting request, so the data stops being used in
    the same round trip the studio submitted in.
 3. The purge runs — `purging` — across `events_raw`, `player_lifetime` and
    `player_activity_daily`, which are the tables holding device identifiers, plus the
-   verified purchases in the cell tier, any export bundle held for that actor, and the
-   archived objects in the cell's bucket.
+   verified purchases, any export bundle held for that actor, and the archived objects
+   holding them.
 4. `completed`, with a timestamp. A failure is recorded with a reason and is retryable
    (Appendix C.13).
 
@@ -139,7 +138,7 @@ The position is **restore-and-redact**:
 
 GDPR allows one month, extensible to three for complex requests.
 
-The cell tier is fast: `data_deletion_requests` and `verified_purchases` are both indexed on
+PostgreSQL is fast: `data_deletion_requests` and `verified_purchases` are both indexed on
 `(project_uid, actor_key)` and `(project_uid, player_id)`, so finding what is held about one
 person there is a lookup.
 
@@ -158,9 +157,8 @@ worth knowing before it is promised to anyone.
 
 ## How a request is made
 
-Two endpoints on the cell-local reporting service, and that placement is a residency decision
-rather than a convenience: both requests name a player, so neither may reach the US-hosted
-control plane ([03](03-residency-and-transfers.md)).
+Two endpoints, taking a **server key** rather than a reporting one: erasing a studio's
+player is not the same privilege as reading its aggregates (§52).
 
 ```text
 POST /v1/privacy/erasures          {"actor_key": "..."}   → 202, a request id
@@ -182,7 +180,7 @@ is the studio's to choose, so the refusal says so rather than silently reorderin
 
 ## Status
 
-Built: the request surface, the tombstone, the purge across ClickHouse, the cell tier and the
+Built: the request surface, the tombstone, the purge across ClickHouse, PostgreSQL and the
 archive, and the export with its own expiry. [09](09-controls-map.md) maps each claim here to
 the code and the test that holds it up.
 

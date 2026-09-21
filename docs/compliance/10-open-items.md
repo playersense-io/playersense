@@ -23,8 +23,8 @@ engineering is the wrong shape.
 ## Engineering — the erasure path
 
 The actor tombstone, the purge and the export are **built** — see [09](09-controls-map.md).
-An erasure is submitted on the cell-local API, tombstoned inside that request, and removed
-asynchronously from `events_raw`, both device-keyed summaries, the cell tier's purchases, any
+An erasure is submitted on the API's privacy routes, tombstoned inside that request, and
+removed asynchronously from `events_raw`, both device-keyed summaries, the purchases, any
 export bundle, and the archive objects holding the person
 ([ADR 0025](../adr/0025-an-erasure-rewrites-the-archive.md)).
 
@@ -39,7 +39,7 @@ What it does not yet cover:
 
 ## Engineering — storage lifecycle
 
-**archive-writer**, the per-cell bucket and **§60's retention worker** are **built** — see
+**archive-writer**, the archive bucket and **§60's retention worker** are **built** — see
 [09](09-controls-map.md). Every manifest's `delete_after` is swept on the worker's lifecycle
 loop, the object is deleted and the row is kept so the days it existed remain billable.
 
@@ -100,7 +100,7 @@ two system roles rather than made grantable
 ([ADR 0035](../adr/0035-an-invitation-is-addressed-not-merely-held.md)). §08's access review reads
 the memberships and their grants, which is the question "who can reach this data".
 
-The **audit log** is built. Every route on the control plane that changes something writes an entry:
+The **audit log** is built. Every route that changes something writes an entry:
 memberships, roles, project access, keys, invitations, configuration, publishes, credit and the
 billing settings. Entries are append-only by construction — every field on the row is immutable and
 the mixin omits `updated_at`, so ent generates an update builder with no setter on it at all, and
@@ -110,7 +110,7 @@ the mixin omits `updated_at`, so ent generates an update builder with no setter 
 domain call opened its own transaction — accepting an invitation, changing project access, sending
 one, and creating an organization — were refactored to accept a hook that runs inside that
 transaction instead, right before commit, rather than writing separately afterwards. There is no
-longer a route in the control plane that writes an audit entry outside the transaction it describes.
+longer a route that writes an audit entry outside the transaction it describes.
 It is readable at `GET /organizations/{org}/audit` under `audit.read`, which only the two system
 roles hold ([ADR 0037](../adr/0037-an-audit-log-records-decisions-not-requests.md)).
 
@@ -118,10 +118,10 @@ What it does not yet cover:
 
 | Item | Notes |
 |---|---|
-| **Held apart from the data it describes** | §08 asks for this and it is satisfied for `staff_access` — records of *our* reads of a cell's data live in the global tier, a different database under a different jurisdiction. It is **not** satisfied for `audit_events`, which sits in the same PostgreSQL database as the organizations and memberships it describes. Append-only removes the edit; it does not remove the delete, and an operator with that database can still drop rows |
+| **Held apart from the data it describes** | §08 asks for this and neither log satisfies it. `audit_events` always sat in the same database as the organizations and memberships it describes; `staff_access` used to be in a separate database under a separate jurisdiction and, since [ADR 0038](../adr/0038-one-api-one-database.md), no longer is. Append-only removes the edit; it does not remove the delete, and an operator with that database can still drop rows |
 | **Who granted credit, verifiably** | The operator surface is guarded by the shared token, so the actor is a **self-asserted** name the entry labels as such. Required, so every grant carries one, and no customer credential can reach the route — but a name somebody typed is not proof, and what replaces it is a verified staff identity |
 | **Admin console** with per-read reason capture | The highest-risk surface in the system; the rules it must be built under are in [08](08-security-and-sub-processors.md). `staff_access` is the table it will write, and nothing writes it yet |
-| **Staff access review** | Who can reach a cell, and the record of when they did. Distinct from a customer's own member list, which is built: this is PlayerSense's staff, not a studio's |
+| **Staff access review** | Who can reach the deployment, and the record of when they did. Distinct from a customer's own member list, which is built: this is PlayerSense's staff, not a studio's |
 | **Retention and export of the log** | Entries go when their organization does, because of the foreign key. Nothing bounds how long they are kept while it exists, and nothing lets a customer export them |
 | **Custom roles** | The schema supports them — a role is a row with a permission set, and `system` is what separates the two seeded ones. Nothing creates or edits one yet, so an organization has the six it was seeded with, renameable but not extensible |
 

@@ -19,7 +19,7 @@ yields public identifiers and digests, neither of which is a working key. See AD
 Key classes are enforced per endpoint: a `reporting` or `server` credential presented to the
 ingestion endpoint is refused, so a leaked analytics key cannot widen into a reporting one.
 
-Revocation writes a tombstone under the **public** half, because the control plane cannot
+Revocation writes a tombstone under the **public** half, because the API cannot
 reproduce the secret it minted — revocation by somebody who cannot reproduce the credential
 is the normal case, not the exception. It takes effect immediately rather than when a cache
 entry happens to expire, which is exactly the minutes during which somebody needs it to stop
@@ -54,9 +54,14 @@ Notification deadlines are short enough that the scoping question — whose data
 much — has to be answerable before it is asked.
 
 The archive manifests are what make it a query rather than an investigation: they record
-which objects held which project, environment and time range. Combined with the cell model,
-"which customers' data was in the affected system" is bounded by construction — a cell is a
-blast radius as well as a jurisdiction.
+which objects held which project, environment and time range, so "which customers' data was
+in the affected system" is answered from a table.
+
+What used to narrow it further was the cell model, where a cell bounded the blast radius as
+well as the jurisdiction. There is one deployment now
+([ADR 0038](../adr/0038-one-api-one-database.md)), so the scope of any incident is every
+customer until the manifests say otherwise — which is what makes them load-bearing rather
+than convenient.
 
 ## Sub-processors
 
@@ -77,9 +82,9 @@ PlayerSense's own dashboard that would see customer data, any error-reporting se
 receiving payloads rather than stack traces, and any model provider processing customer data
 for training.
 
-## Remote access to a cell
+## Remote administrative access
 
-US engineers can reach an EU cell in an incident. That is a transfer
+US engineers can reach the deployment in an incident. That is a transfer
 ([03](03-residency-and-transfers.md)), it is covered by the same mechanism as the rest, and
 it is logged under the admin-console rules above.
 
@@ -93,8 +98,12 @@ manifests breach scoping depends on are built, and so is the **customer-facing a
 route that changes something records who did it, and the records are append-only by construction
 rather than by policy.
 
-Two of the three requirements above are therefore met and one is not. `audit_events` lives in the
-same database as the organizations and memberships it describes, so "held separately from the data
-they describe" holds for `staff_access` — our reads of a cell, recorded in the global tier — and not
-for a customer's own log. The **admin console** and the staff-access records it would write do not
-exist. Both are in [10-open-items.md](10-open-items.md).
+Two of the three requirements above are therefore met and one is not. "Held separately from
+the data they describe" is satisfied by neither log: `audit_events` always sat in the same
+database as the organizations and memberships it describes, and `staff_access` now does too
+— it used to be in a different database under a different jurisdiction, which stopped being
+true with [ADR 0038](../adr/0038-one-api-one-database.md). Append-only removes the edit; it
+does not remove the delete, and an operator with that database can still drop rows.
+
+The **admin console** and the staff-access records it would write do not exist. Both are in
+[10-open-items.md](10-open-items.md).

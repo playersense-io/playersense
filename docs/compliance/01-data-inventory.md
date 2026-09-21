@@ -24,8 +24,7 @@ or omit one that does. See ADR 0007.
 Current state, from a live `migrate verify`:
 
 ```text
-global tier   58 columns /  8 tables, all classified; no identifier anywhere in it
-cell eu-1     42 columns /  4 tables, all classified
+postgres     100 columns / 12 tables, all classified
 clickhouse   248 columns / 19 tables, all classified
 ```
 
@@ -90,7 +89,7 @@ intended it to hold.
 
 ## Where each thing lives
 
-### ClickHouse — one per cell
+### ClickHouse
 
 Events and everything derived from them. Never any account data.
 
@@ -112,17 +111,11 @@ metrics_monthly                  monthly actives, its own distinct count
 *_staging                        rebuild targets, published by REPLACE PARTITION
 ```
 
-### PostgreSQL global tier — exactly one, US-hosted
+### PostgreSQL — exactly one
 
 Accounts, organisations, projects, environments, API keys, settings, retention policies,
-the cells registry, billing, feature flags, aggregate usage counts.
-
-**No player identifier appears here.** That is the rule, and `migrate verify` enforces it
-([03](03-residency-and-transfers.md), ADR 0008).
-
-### PostgreSQL cell tier — one per cell, in the cell's region
-
-Everything naming a player:
+billing, feature flags and aggregate usage counts, alongside the four tables that name a
+player:
 
 ```text
 verified_purchases       player_id, store_transaction_id
@@ -132,20 +125,24 @@ archive_manifests
 ```
 
 The two request tables outlive the data they name, and deliberately. Proving an erasure
-happened needs a record that it happened ([06](06-retention-and-deletion.md)), and that record
-has to carry the identifier it was about — which is why both are here and not in the global
-tier ([03](03-residency-and-transfers.md)). Neither holds anything else about the person:
-what an erasure removed is recorded as counts, not as a copy of what was removed.
+happened needs a record that it happened ([06](06-retention-and-deletion.md)), and that
+record has to carry the identifier it was about. Neither holds anything else about the
+person: what an erasure removed is recorded as counts, not as a copy of what was removed.
 
-### Valkey — one per cell, ephemeral
+These four used to sit in a separate database, under the rule that a player identifier
+never appeared beside the account records. That split is gone
+([ADR 0038](../adr/0038-one-api-one-database.md)); the classification that made it
+checkable is not, and it is what keeps this inventory accurate
+([03](03-residency-and-transfers.md)).
+
+### Valkey — ephemeral
 
 Key cache entries, rate-limit counters, device state for cohort stamping, revocation
-tombstones. Everything in it expires and everything in it can be rebuilt. Keys are prefixed
-with the cell slug, so nothing crosses ([03](03-residency-and-transfers.md)).
+tombstones. Everything in it expires and everything in it can be rebuilt.
 
-### Google Cloud Storage — one bucket per cell
+### Google Cloud Storage
 
-Cold archive of raw events, as compressed Parquet, in the cell's region. Objects expire on
+Cold archive of raw events, as compressed Parquet. Objects expire on
 the project's retention tier, swept from the manifests rather than by a bucket lifecycle rule
 — retention is a per-project term and a lifecycle rule can only express one age for the whole
 bucket ([06](06-retention-and-deletion.md)).

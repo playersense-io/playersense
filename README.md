@@ -36,22 +36,23 @@ an S3 disk with an empty endpoint is not an absent disk, it is a server that wil
 
 ## Migrations
 
-The control plane is **two databases** (§99): one global tier holding accounts, projects and
-keys, and one tier per cell holding anything that names a player. Each refuses to be
-migrated as the other, so pointing the wrong DSN at `migrate` fails by name rather than
-growing a second control plane.
+Two databases: **PostgreSQL** for accounts, projects, keys, billing and the records that
+name a player, and **ClickHouse** for the events.
 
 ```bash
-go run ./apps/backend/cmd/migrate up          # global, then this cell
-go run ./apps/backend/cmd/migrate global up   # the global tier only
-go run ./apps/backend/cmd/migrate cell up     # this cell: its tier + its ClickHouse
-go run ./apps/backend/cmd/migrate cell status # which ClickHouse migrations are applied
-go run ./apps/backend/cmd/migrate verify      # §96 classification, §99 residency
-go run ./apps/backend/cmd/migrate cell reset  # drop everything, Keeper metadata included
+go run ./apps/backend/cmd/migrate up          # postgres, then clickhouse
+go run ./apps/backend/cmd/migrate postgres    # postgres only
+go run ./apps/backend/cmd/migrate up ch       # clickhouse only
+go run ./apps/backend/cmd/migrate status      # which ClickHouse migrations are applied
+go run ./apps/backend/cmd/migrate verify      # §96 classification, across both
+go run ./apps/backend/cmd/migrate reset       # drop everything, Keeper metadata included
 ```
 
 `verify` reads the live catalog rather than the schema files, which is what makes it proof
-rather than documentation.
+rather than documentation. It used to also enforce §99's residency rule — no column
+classified `identifier` in the global tier — and that rule is gone with the tier
+([ADR 0038](docs/adr/0038-one-api-one-database.md)); the classification it was written in
+terms of is not.
 
 ## Layout
 
@@ -61,7 +62,7 @@ sdk/core/         The SDK protocol in Rust, once, with no I/O of its own
 sdk/ffi/          The C ABI over it, for every binding
 sdk/unity/        The Unity package: a host, a P/Invoke layer and the API a game calls
 db/clickhouse/    Goose migrations for the analytics schema
-db/postgres/      Ent owns the control-plane schema
+db/postgres/      Ent owns the PostgreSQL schema
 docs/adr/         Architecture decision records
 docs/compliance/  Obligation -> mechanism -> code -> test
 docs/sdk/         The language-neutral SDK protocol every client implements
@@ -72,13 +73,20 @@ Requires Go 1.27 (Muzak uses generic methods and `encoding/json/v2`).
 
 ## Services
 
-### control-api — `:21080`
+### api — `:21080`
 
 ```bash
-go run ./apps/backend/cmd/control-api
+go run ./apps/backend/cmd/api
 ```
 
-`GET /openapi.json` describes it. Everything under `/v1` needs a Firebase ID token as
+One binary and one address: the dashboard, the SDK's ingestion and configuration endpoints,
+and the reporting and data-subject surfaces. They were four deployables so a cell could run
+three of them and so ingestion could fail independently
+([ADR 0038](docs/adr/0038-one-api-one-database.md)).
+
+#### The dashboard
+
+`GET /openapi.json` describes the whole surface. Everything under `/v1` needs a Firebase ID token as
 `Authorization: Bearer <token>`; `/healthz` does not. A shared admin secret used to work and
 deliberately no longer does — a secret cannot say who is asking, and every answer here depends
 on who that is. Each route then names the permission it needs, and the refusal names the one
@@ -130,7 +138,7 @@ not a record of what happened, it is a live grant of access to player data.
 GET                         /v1/organizations/{org}/audit
 ```
 
-Every route on the control plane that changes something writes an entry: memberships, roles, project
+Every route that changes something writes an entry: memberships, roles, project
 access, keys, invitations, segments, flags, LiveOps events, publishes, credit and billing settings.
 **Append-only by construction** — every field on the row is immutable and the mixin omits
 `updated_at`, so ent generates an update builder with no setter at all, and §08's "a log the operator
@@ -214,11 +222,7 @@ throws it away, reporting whether it compiles, what it would carry, whether serv
 history lookup per request, and what is being left out and why — because an archived flag and a
 paused event are both absent on purpose.
 
-### ingest-api — `:21081`
-
-```bash
-go run ./apps/backend/cmd/ingest-api
-```
+#### Ingestion
 
 `POST /v1/batches` with `Authorization: Bearer ps_project_live_...`. Answers 202 once the batch
 is durably queued. `EVENT_BUS=local` writes an fsynced NDJSON spool under `EVENT_BUS_DIR`;
@@ -236,67 +240,7 @@ every binding. How a studio describes its game for targeting, and why geography 
 from the connection rather than sent by the client, is
 [docs/sdk/context-and-targeting.md](docs/sdk/context-and-targeting.md).
 
-### analytics-writer — `:21082` (health probe only)
-
-```bash
-go run ./apps/backend/cmd/analytics-writer
-```
-
-Consumes the cell's queue and stores batches in ClickHouse, stamping each one's cohort key
-so no cohort query ever needs a join. It never touches the control plane.
-
-### archive-writer — `:21084` (health probe only)
-
-```bash
-go run ./apps/backend/cmd/archive-writer
-```
-
-Consumes the cell's event stream on its own subscription and writes the canonical Parquet
-archive, with a manifest per object in the cell tier. `ARCHIVE_STORE=local` writes under
-`ARCHIVE_DIR`; `ARCHIVE_STORE=gcs` writes to the bucket.
-
-### worker — `:21086` (health probe only)
-
-```bash
-go run ./apps/backend/cmd/worker        # long-running: both loops, on their schedules
-go run ./apps/backend/cmd/worker once   # one pass of each, then exit
-```
-
-Two loops on two cadences, because §79's list is two kinds of work.
-
-**The derivation**, nightly at `WORKER_DERIVE_AT`. Rebuilds the cohort facts, their
-denominators, the behavioural buckets and the daily/monthly metrics — everything `query-api`
-serves. Until it runs, every chart reads zero while ingestion is perfectly healthy.
-
-Whole months, never a trailing window: each row of a cohort fact belongs to exactly one
-activity-month partition, and `REPLACE PARTITION` swaps a partition wholesale. Denominators
-are rebuilt before numerators, so a returner can never be divided by a cohort size computed
-before they arrived. Running it twice produces the same tables.
-
-**The lifecycle pass**, every `WORKER_JANITOR_EVERY`. Three jobs that are each waiting on
-something, which is why they do not wait for the night:
-
-- **Archive expiry** (§60) sweeps `delete_after` on the manifests, deletes the object and
-  keeps the row — an object deleted on the twentieth is still billable for the twenty days it
-  existed.
-- **Erasures** (§61) purge one actor from `events_raw`, both device-keyed summaries, the cell
-  tier's purchases and the archive objects holding them. An archive object is *rewritten*
-  without the person rather than deleted, because it holds an hour of everyone else too
-  ([ADR 0025](docs/adr/0025-an-erasure-rewrites-the-archive.md)).
-- **Exports** (§101) assemble one actor's data into a bundle in the cell's own bucket, and
-  remove it when its term is up.
-
-None of the three can stop the others: a bucket outage that blocks expiry must not block an
-erasure with a legal deadline on it, so a pass reports every failure rather than the first.
-
-`once` is what a scheduled Stage 2 deployment uses — a Cloud Run Job beats a process
-holding a timer.
-
-### query-api — `:21083`
-
-```bash
-go run ./apps/backend/cmd/query-api
-```
+#### Reporting
 
 Two questions, and **two credentials that can ask them**.
 
@@ -316,9 +260,7 @@ POST /v1/organizations/{org}/projects/{project}/analytics/{environment}/metrics/
 
 The dashboard needs these because §52 makes a reporting key a secret and a browser cannot hold
 one — shipping it to the page would publish every studio's analytics to anyone who opened the
-network tab. They live on this service rather than on `control-api` because the data does: a
-chart has to be answered by the cell that stores the rows, and proxying through the US-hosted
-control plane would send every European query through American infrastructure.
+network tab.
 
 **The scope is still not the caller's to choose** (Appendix C #3). The project comes from the
 path and is checked against that person's project access list *before* any permission — one they
@@ -327,9 +269,9 @@ it. The body's `project_id`, `environment_id` and `org_id` remain decoys that re
 The environment is in the path rather than pinned to the credential because a person switches
 between development and production, where a key is minted for one.
 
-**A cell resolves accounts and cannot create them.** `core.ResolveKnownUser` withholds the
-account creation its control-plane sibling performs, so opening a chart cannot bring a user row
-or a personal organization into existence in the US-hosted tier.
+**Reading a chart cannot create an account.** `core.ResolveKnownUser` withholds the account
+creation `core.ResolveUser` performs on a first sign-in, so a valid token from a stranger
+cannot bring a user row or a personal organization into existence as a side effect.
 
 Both credentials read pre-aggregated facts and never join on a player key. Cells describing too
 few players are suppressed rather than returned as zero, and every answer says how many were
@@ -337,7 +279,9 @@ withheld. A time series also says which summary tier answered it and whether its
 exact or a sketch. A person and a key asking the same question get the same numbers and the same
 provenance — there is one planner, and a test compares the two answers row by row.
 
-It also carries this cell's **data-subject requests** (§101), with
+#### Data-subject requests
+
+§101's surface, with
 `Authorization: Bearer ps_server_live_...` — a server key, not a reporting one, because
 erasing a studio's player is not the same privilege as reading its aggregates:
 
@@ -346,8 +290,64 @@ erasing a studio's player is not the same privilege as reading its aggregates:
 - `POST /v1/privacy/exports` — everything held about one actor, collected from
   `GET /v1/privacy/exports/{id}/download` as newline-delimited JSON.
 
-They live here rather than on `control-api` for a residency reason: both name a player, and a
-player identifier never reaches the US-hosted control plane (§99).
+A server key rather than a reporting one, because erasing a studio's player is not the same
+privilege as reading its aggregates.
+
+### analytics-writer — `:21082` (health probe only)
+
+```bash
+go run ./apps/backend/cmd/analytics-writer
+```
+
+Consumes the queue and stores batches in ClickHouse, stamping each one's cohort key so no
+cohort query ever needs a join. It never touches PostgreSQL.
+
+### archive-writer — `:21084` (health probe only)
+
+```bash
+go run ./apps/backend/cmd/archive-writer
+```
+
+Consumes the event stream on its own subscription and writes the canonical Parquet
+archive, with a manifest per object in PostgreSQL. `ARCHIVE_STORE=local` writes under
+`ARCHIVE_DIR`; `ARCHIVE_STORE=gcs` writes to the bucket.
+
+### worker — `:21086` (health probe only)
+
+```bash
+go run ./apps/backend/cmd/worker        # long-running: both loops, on their schedules
+go run ./apps/backend/cmd/worker once   # one pass of each, then exit
+```
+
+Two loops on two cadences, because §79's list is two kinds of work.
+
+**The derivation**, nightly at `WORKER_DERIVE_AT`. Rebuilds the cohort facts, their
+denominators, the behavioural buckets and the daily/monthly metrics — everything the
+reporting routes serve. Until it runs, every chart reads zero while ingestion is perfectly healthy.
+
+Whole months, never a trailing window: each row of a cohort fact belongs to exactly one
+activity-month partition, and `REPLACE PARTITION` swaps a partition wholesale. Denominators
+are rebuilt before numerators, so a returner can never be divided by a cohort size computed
+before they arrived. Running it twice produces the same tables.
+
+**The lifecycle pass**, every `WORKER_JANITOR_EVERY`. Three jobs that are each waiting on
+something, which is why they do not wait for the night:
+
+- **Archive expiry** (§60) sweeps `delete_after` on the manifests, deletes the object and
+  keeps the row — an object deleted on the twentieth is still billable for the twenty days it
+  existed.
+- **Erasures** (§61) purge one actor from `events_raw`, both device-keyed summaries, their
+  purchases and the archive objects holding them. An archive object is *rewritten*
+  without the person rather than deleted, because it holds an hour of everyone else too
+  ([ADR 0025](docs/adr/0025-an-erasure-rewrites-the-archive.md)).
+- **Exports** (§101) assemble one actor's data into a bundle in the archive bucket, and
+  remove it when its term is up.
+
+None of the three can stop the others: a bucket outage that blocks expiry must not block an
+erasure with a legal deadline on it, so a pass reports every failure rather than the first.
+
+`once` is what a scheduled Stage 2 deployment uses — a Cloud Run Job beats a process
+holding a timer.
 
 ## SDK
 

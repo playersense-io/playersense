@@ -1,96 +1,92 @@
 # 03. Residency and transfers
 
+> **This chapter changed on 2026-09-21.** PlayerSense used to run a US-hosted control plane
+> and a European cell holding everything that named a player, under the rule that a player
+> identifier never appeared in the global tier. That arrangement was built and then removed
+> ([ADR 0038](../adr/0038-one-api-one-database.md)). The honest current answer is simpler
+> and weaker, and it is stated below rather than left as an out-of-date diagram.
+
 ## The shape
 
 ```text
-                 ┌──────────────────────────────────────┐
-                 │  Global control plane — UNITED STATES │
-                 │                                       │
-                 │  accounts, organisations, projects,    │
-                 │  environments, API keys, billing,      │
-                 │  feature flags, the cells registry,    │
-                 │  aggregate usage counts                │
-                 │                                       │
-                 │  NO PLAYER IDENTIFIER, EVER            │
-                 └──────────────────────────────────────┘
-                            │ (aggregate counts only)
-                            │
-   ┌────────────────────────┴───────────────────────────┐
-   │  Cell eu-1 — EUROPE                                 │
-   │                                                     │
-   │  ingest endpoint, queue, ClickHouse, Valkey,        │
-   │  archive bucket, workers, and its own PostgreSQL:   │
-   │  verified purchases, deletion requests, exports,    │
-   │  archive manifests                                  │
-   │                                                     │
-   │  EVERYTHING THAT NAMES A PLAYER                     │
+   ┌─────────────────────────────────────────────────────┐
+   │  One deployment                                      │
+   │                                                      │
+   │  api, workers, queue, ClickHouse, Valkey,            │
+   │  archive bucket, and one PostgreSQL:                 │
+   │  accounts, organisations, projects, keys, billing,   │
+   │  verified purchases, deletion requests, exports,     │
+   │  archive manifests                                   │
    └─────────────────────────────────────────────────────┘
 ```
 
-A **region** is the legal boundary — what law applies and where bytes may sit. A **cell** is
-one stack inside a region, a unit of capacity. They split for different reasons and are
-separate concepts for that reason alone (ADR 0009).
+There is one region, one API and one database. A project is not assigned anywhere, because
+there is nowhere to assign it to.
 
-A project is assigned to exactly one cell **at creation**, and the assignment is immutable.
-Its data never leaves that cell.
+## What is promised about location
 
-## The rule
+**One place, named in the DPA.** A customer asking where their players' data sits gets the
+region this deployment runs in, and that is the whole answer. There is no split between
+account data and player data, and no per-project choice.
 
-> **A player identifier never appears in the global tier.**
+This is a weaker answer than the one the previous architecture could give, and the trade was
+made deliberately: the machinery that produced the stronger answer — two databases, two ORM
+clients, tier markers, a cell registry, a `421` on every credential check — was carrying a
+residency story no customer had yet asked for. [ADR 0038](../adr/0038-one-api-one-database.md)
+records the reasoning and the cost.
 
-Everything else in this document rests on it. It is short enough to check in review and, more
-importantly, it is checked mechanically:
+**It is the first thing to revisit when a deal turns on it.** The superseded records
+([0008](../adr/0008-two-tier-control-plane.md),
+[0009](../adr/0009-cells-region-and-residency.md),
+[0010](../adr/0010-us-control-plane-eu-cell.md)) are kept for exactly that reason. They
+describe a split that was built once and can be rebuilt against the classification below,
+which is still in force.
 
-1. **Two ORM clients.** Each tier's entities are generated into their own package, so a
-   query written against the global client cannot name a cell entity — the type is not
-   there. The rule is a compile error, not a review comment.
-2. **Tier markers.** Each database carries a table naming the tier it holds, and each
-   migration refuses to run against the other. Pointing the migrator at the wrong DSN would
-   otherwise grow a second control plane inside a cell's database, silently.
-3. **`migrate verify`.** Every column carries its class ([01](01-data-inventory.md)); the
-   verifier reads them from the catalog and fails on any column classified `identifier` in
-   the global tier.
+## What survives: every column declares what it holds
 
-Verified negatively: adding `player_device_id text` with `class=identifier` to the global
-tier makes `migrate verify` exit non-zero and name the column.
+The rule "a player identifier never appears in the global tier" was written in terms of
+§96's per-column classification, not the other way round. The tier is gone; the
+classification is not.
 
-The billing meter is the pattern everything else follows: it computes its actor set **inside
-the cell** and sends the global tier a **count**. The global tier learns aggregates, never
-subjects.
+1. **Every column carries its class** ([01](01-data-inventory.md)): `identifier`,
+   `behavioural`, `financial`, `derived` or `none`. In PostgreSQL the class is emitted into
+   `pg_description` by the schema itself; in ClickHouse it is a column comment.
+2. **`migrate verify` reads them back out of the live catalog** — not out of the schema
+   files, which is the point: a column added by hand, or left behind by a migration rolled
+   forward, is exactly the one a schema-file check would miss. Any unclassified column, or
+   any class the vocabulary does not know, fails the command.
 
-## Why the two tiers are in different places
+Verified negatively: adding an uncommented column to either database makes `migrate verify`
+exit non-zero and name it.
 
-**The global tier is US-hosted** because the company is a US entity, billing sits beside
-Stripe, and — decisively — it holds no player data. Its rows describe direct customers who
-signed the terms themselves, and there are thousands of them rather than millions.
+What that buys today is the inventory in [01](01-data-inventory.md) being accurate rather
+than aspirational — which is what a data-subject request, a retention schedule and a breach
+assessment are all built on. What it bought before was the residency proof, and it can buy
+that again without being rebuilt.
 
-**A cell's tier is in the cell's region** because it holds the player data, and that is the
-part a customer's procurement asks about. "Frankfurt" is a better answer than "the United
-States, under a framework". Ingest latency does not argue against it: batches are
-fire-and-forget and answered `202`, so an extra hundred milliseconds is invisible.
+## Transfers
 
-## What this does not buy
+The company is a US entity ([00](00-roles-and-scope.md)), so staff in the United States can
+reach the deployment whatever region it runs in. That access is a transfer and needs a
+mechanism regardless of where the servers are:
 
-This is the assumption the arrangement most invites, so it is stated first and plainly:
+> **Hosting a server in Europe does not, on its own, remove GDPR transfer exposure.**
 
-> **Hosting the control plane in the United States does not reduce GDPR exposure.**
-
-GDPR attaches because EU players' data is processed and services are offered to EU studios,
-not because of where a server sits. A US entity needs a transfer mechanism for EU personal
-data it controls **wherever** that data is hosted, because US staff can reach it.
-
-What actually keeps the transfer surface small is the rule above. Because no player
-identifier reaches the global tier, the data that genuinely crosses is:
+GDPR attaches because EU players' data is processed and services are offered to EU studios.
+A US entity needs a transfer mechanism for EU personal data it controls **wherever** that
+data is hosted, because US staff can reach it. That was true under the previous arrangement
+too, and it was stated there in the same words.
 
 | What crosses | About whom | Volume |
 |---|---|---|
 | Customer account records | Studio staff who signed up | Thousands of people |
 | Aggregate usage counts | Nobody identifiable | Numbers |
-| Remote administrative access to the cell | Potentially player data, in support | Rare, logged, reasoned |
+| Administrative access to the deployment | Potentially player data, in support | Rare, logged, reasoned |
 
-The third row is the honest one. US engineers can, in an incident, reach an EU cell. That
-access is a transfer, it is covered by the same mechanism as the rest, and
-[08](08-security-and-sub-processors.md) covers how it is logged.
+The third row is the honest one, and it is larger than it used to be: the same access now
+reaches the account records and the player data together, where the split used to separate
+them. [08](08-security-and-sub-processors.md) covers how it is logged, and `staff_access`
+requires a ticket per read ([ADR 0037](../adr/0037-an-audit-log-records-decisions-not-requests.md)).
 
 ## Transfer mechanism
 
@@ -106,41 +102,12 @@ mechanism with a single point of failure.
 
 **Status: not yet registered.** See [10-open-items.md](10-open-items.md).
 
-## Namespacing within a cell
-
-Everything keyed by cell carries the cell slug: the Valkey cache keys, the revocation
-tombstone, the rate-limit counters, the event-bus spool, the ingestion deduplication key,
-and the ClickHouse Keeper replica path.
-
-A cell has its own Valkey and its own ClickHouse, so this is belt and braces. Its value is
-that a misrouted read is a **miss** rather than one cell silently serving another cell's
-credential or spending its budget — and that two cells in a development stack cannot blend.
-
-## The wrong-cell case
-
-A gateway that receives a key belonging to another cell answers **421 Misdirected Request**
-and names the `ingest_url` that can serve it.
-
-This is the single most important line in the design. Without it, one wrong hostname in an
-SDK configuration puts one region's player data on another region's disks — the exact
-outcome the whole arrangement exists to prevent, defeated by a typo.
-
-`421` rather than `403` because the request is well-formed and the credential is good; it
-simply arrived somewhere that cannot serve it, and a misconfigured integration is better
-told where to go than merely refused.
-
-Tested by registering a second cell, placing a project in it, and asserting the refusal,
-the named endpoint, and that nothing reached the local queue. The test was confirmed to have
-teeth by removing the check, which made it fail.
-
 ## Adding a region later
 
-An operational move, not a migration:
+Not an operational move any more. It is the work [ADR 0038](../adr/0038-one-api-one-database.md)
+deferred: splitting the database by classification, restoring a placement for a project, and
+giving a misdirected request somewhere to be sent. The records that describe how to do it are
+kept in the ADR directory, marked superseded.
 
-1. Provision the stack and run `migrate cell up`, which registers the cell and creates its
-   PostgreSQL and ClickHouse.
-2. Create projects with that cell.
-
-What it is **not** is moving existing projects. That crosses a jurisdiction boundary with
-live data and deserves its own design; the immutable cell edge says so rather than offering
-a field that half-works.
+Until then, a customer who needs their players' data in a specific jurisdiction is a customer
+this deployment cannot serve, and saying so is better than an arrangement that half-works.

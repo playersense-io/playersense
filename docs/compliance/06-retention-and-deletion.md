@@ -87,8 +87,8 @@ A queue can hold messages for hours, so a batch arriving for a project that has 
 deleted is ordinary rather than exceptional. Writing it would resurrect data somebody asked
 to have erased.
 
-The writer therefore consults a project tombstone in the cell's Valkey, written by the
-control plane on deletion, and drops the batch with a counter rather than a log line per
+The writer therefore consults a project tombstone in Valkey, written when the project is
+deleted, and drops the batch with a counter rather than a log line per
 event.
 
 If Valkey cannot answer, the batch is **written** and the asynchronous purge removes it. The
@@ -103,11 +103,12 @@ deletion of an individual actor, because it is not about them any more —
 [07](07-aggregate-disclosure.md) covers where that stops being true.
 
 **Billing records.** Invoices and usage counts are retained for the period tax law requires.
-They are aggregate counts in the global tier and name no player.
+They are aggregate counts and name no player.
 
 **Audit records of the deletion itself.** Proving an erasure happened requires a record that
 it happened, which necessarily outlives the data. It holds the actor key, the request, and
-the timestamps — and it lives in the cell tier, because it names a player.
+the timestamps — and it names a player, which is why it carries an `identifier`
+classification ([01](01-data-inventory.md)).
 
 ## Status
 

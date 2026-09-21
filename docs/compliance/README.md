@@ -5,9 +5,8 @@ of studios who answer to Apple, Google and several regulators. That makes compli
 **architectural** concern rather than a legal one, and the distinction is the reason these
 documents exist.
 
-A policy can be written the week before an audit. A schema with no column for consent, or a
-control plane that cannot keep European data in Europe, takes a migration — and a migration
-of live transactional data across a jurisdiction boundary is not a thing anyone does in a
+A policy can be written the week before an audit. A schema with no column for consent takes
+a migration — and a migration of live transactional data is not a thing anyone does in a
 week.
 
 ## What this is and is not
@@ -46,10 +45,10 @@ Everything else in here can arrive later. These four cannot, and they are built:
    basis can never acquire one.
 2. **The policy tier** — declared at project creation and stamped onto every event
    ([04](04-children-and-platform-rules.md), ADR 0005).
-3. **The control-plane split** — no player identifier in the global tier
-   ([03](03-residency-and-transfers.md), ADR 0008).
-4. **Column classification** — the machine-readable source for the Article 30 record, the
-   Play declaration and the Apple manifest ([01](01-data-inventory.md), ADR 0007).
+3. **Column classification** — the machine-readable source for the Article 30 record, the
+   Play declaration and the Apple manifest ([01](01-data-inventory.md), ADR 0007). It also
+   used to carry the residency rule, and can carry it again
+   ([03](03-residency-and-transfers.md), [ADR 0038](../adr/0038-one-api-one-database.md)).
 
 ## Architected for
 

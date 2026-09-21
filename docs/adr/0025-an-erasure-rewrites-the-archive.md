@@ -128,7 +128,7 @@ manifest keeps both truthful.
 - `apps/backend/internal/archive/row.go` — `Row.Names`, the single definition of which rows
   belong to a subject, shared with the ClickHouse predicate through
   `internal/subject`.
-- `apps/backend/ent/schema/regionaltier/regional.go` — the `redacted` status, and the
+- `apps/backend/ent/schema/regional.go` — the `redacted` status, and the
   unique `(bucket, object_path)` index that makes a repeated rewrite a conflict.
 - `TestAnErasureRemovesThePersonAndKeepsEveryoneElse` asserts the bystander's row survives
   in the rewritten object, that the original is gone and marked `redacted`, and that

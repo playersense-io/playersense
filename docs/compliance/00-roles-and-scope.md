@@ -29,8 +29,9 @@ The people who sign up, log into the dashboard, and are billed are PlayerSense's
 customers. For their account data — name, work email, organisation, subscription, invoices
 — **PlayerSense is the controller**.
 
-This is business contact data about a few thousand people who chose the relationship, and
-it lives entirely in the global tier ([03](03-residency-and-transfers.md)).
+This is business contact data about a few thousand people who chose the relationship. It
+sits in the same database as the player-linked records, which used to be forbidden and no
+longer is ([03](03-residency-and-transfers.md)).
 
 ## Who the data is about
 
@@ -59,8 +60,8 @@ sharing and data-broker relationships permanently.
 
 PlayerSense is operated by a United States company (Delaware, via Stripe Atlas). That is a
 fact about incorporation, not about hosting, and the two are decided separately —
-[03](03-residency-and-transfers.md) explains why the global tier is US-hosted and the first
-cell is not.
+[03](03-residency-and-transfers.md) explains where the deployment runs and what that does
+and does not buy.
 
 ## Out of scope
 

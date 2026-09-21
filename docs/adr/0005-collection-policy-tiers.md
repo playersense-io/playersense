@@ -70,7 +70,7 @@ tier makes it a supported case with a stated limitation instead.
 
 ## Enforcement
 
-- `apps/backend/ent/schema/globaltier/project.go` — `policy_tier` is immutable.
+- `apps/backend/ent/schema/project.go` — `policy_tier` is immutable.
 - `apps/backend/internal/handlers/ingest.go` — the gateway replaces `install_id` per batch
   for `kids_strict`, before normalization, so nothing downstream can link two batches.
 - `cmd/ingest-api/main_test.go:TestKidsStrictHasNoPersistentIdentifier` sends the *same*

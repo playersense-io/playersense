@@ -35,41 +35,42 @@ Paths are relative to the repository root.
 | …and is told so rather than shown an empty chart | Cross-day retention is refused, naming the tier and pointing at same-day aggregates | `apps/backend/internal/query/plan.go` | `TestKidsStrictIsToldWhyRatherThanShownNothing` | **Built** |
 | …including on the time series | New/returning and MAU are refused: every player would look new every day | `apps/backend/internal/query/metrics.go` | `TestKidsStrictHasNoNewReturningSplit` | **Built** |
 | No project of any tier has acquisition cohorts | There is no acquisition dimension to ask for; the planner refuses any name outside the closed list | `internal/query/plan.go` | `TestAnUnknownCohortDimensionIsRefused` | **Built** |
-| The tier is immutable after creation | Ent field marked immutable | `apps/backend/ent/schema/globaltier/project.go` | — | **Built** |
+| The tier is immutable after creation | Ent field marked immutable | `apps/backend/ent/schema/project.go` | — | **Built** |
 | The kids_strict limitation is stated at signup | The API announces it when a project is created on that tier | `apps/backend/internal/handlers/control.go` | `TestKidsStrictAnnouncesItsLimit` | **Built** |
 | Apple privacy manifest, signed | Generated from the column classification | — | — | *Designed* |
 | Play Data Safety reference | Generated from the same classification | — | — | *Designed* |
 
 ## Residency
 
+Every control that used to sit here was removed with the tier and cell split
+([ADR 0038](../adr/0038-one-api-one-database.md)). Listing them as **Built** would be the
+worst kind of error in this document: a control map is read to find out what is actually
+enforced, and a row naming code that no longer exists is worse than no row at all.
+
 | Obligation | Mechanism | Code | Test | Status |
 |---|---|---|---|---|
-| No player identifier in the global tier | Two generated ORM clients — the type does not exist in the global package | `apps/backend/ent/generate.go` | compile | **Built** |
-| …checked against the live database | `migrate verify` reads the catalog and fails on `class=identifier` in the global tier | `apps/backend/cmd/migrate/main.go` | manual negative test, documented below | **Built** |
-| The control plane cannot fork into a cell database | Tier marker table; each migration refuses the other | `apps/backend/internal/pgdb/pgdb.go` | manual negative test, documented below | **Built** |
-| A project's cell is real and active | Foreign key into the registry, refused at creation if unknown or not active | `apps/backend/internal/handlers/control.go` | — | **Built** |
-| A project's cell never changes | Immutable required edge | `apps/backend/ent/schema/globaltier/project.go` | — | **Built** |
-| A key from another cell is refused, with directions | 421 naming the correct `ingest_url` | `apps/backend/internal/handlers/ingest.go` | `TestAKeyFromAnotherCellIsRefused` | **Built** |
-| A service cannot boot as a cell that disagrees with the registry | Start-up check; refuses a region mismatch, warns on an unreachable registry | `apps/backend/internal/core/cell.go` | — | **Built** |
-| One cell cannot read another's cache | Every Valkey key carries the cell prefix | `apps/backend/internal/valkey/valkey.go` | `TestCellsDoNotShareACache` | **Built** |
-| One cell cannot spend another's budget | Same prefix on rate-limit counters | `apps/backend/internal/valkey/ratelimit.go` | `TestCellsDoNotShareABudget` | **Built** |
-| A message says which cell produced it | `Cell` on every bus message | `apps/backend/internal/eventbus/eventbus.go` | `TestTheAcceptedMessageCarriesItsCell` | **Built** |
+| The deployment's region is named in the DPA | Contractual | — | — | *Open* |
+| Player data separable from account data | Per-column classification, which the split was written in terms of | `apps/backend/internal/dataclass/`, every schema | `migrate verify` | **Built** |
+| …enforced as a residency boundary | Removed with the two-tier split | — | — | *Withdrawn* |
+| A project is placed in a jurisdiction | Removed with the cell registry | — | — | *Withdrawn* |
+| A misdirected request is redirected, not served | Removed with the `421` | — | — | *Withdrawn* |
 | DPF or SCCs for EU→US transfer | Contractual | — | — | *Open* |
 
-### The two negative tests, verbatim
+**Withdrawn** means built, then deliberately removed — not lapsed, and not forgotten. The
+reasoning for each is in [0008](../adr/0008-two-tier-control-plane.md),
+[0009](../adr/0009-cells-region-and-residency.md) and
+[0010](../adr/0010-us-control-plane-eu-cell.md), kept as superseded records so the argument
+is there to re-read rather than reconstruct.
 
-Neither is a Go test, because both need a second database; both are reproducible in a
-minute against the local stack.
+### The negative test, verbatim
+
+`migrate verify` reads the live catalog, so the way to prove it has teeth is to add a column
+it should reject:
 
 ```console
-$ GLOBAL_POSTGRES_DSN=…/playersense_eu_1 go run ./cmd/migrate global up
-migrate: migrate the global tier: wrong tier for this database: this database already
-holds the cell tier, and a database holds exactly one
-
-$ psql playersense_global -c "ALTER TABLE projects ADD COLUMN player_device_id text" \
-    -c "COMMENT ON COLUMN projects.player_device_id IS 'class=identifier'"
+$ psql playersense -c "ALTER TABLE projects ADD COLUMN scratch text"
 $ go run ./cmd/migrate verify
-  §99 player identifier in the global tier: public.projects.player_device_id
+  §96 unclassified column: postgres public.projects.scratch
 migrate: 1 invariant violation(s)
 ```
 
@@ -96,7 +97,7 @@ migrate: 1 invariant violation(s)
 | Rate-limit storage failures are distinguishable from counts | Storage reports errors; ingestion and configuration allow requests under §65's fail-open policy | `apps/backend/internal/valkey/ratelimit.go`, `internal/ratelimit/ratelimit.go` | `TestUnavailableStorageReportsAnError` (storage error reporting) | **Built** |
 | Limits are shared across instances | Counters in Valkey | `internal/valkey/ratelimit.go` | `TestCountersAreSharedAcrossInstances` | **Built** |
 | A limit window actually resets | `PEXPIRE` only on counter creation | `internal/valkey/ratelimit.go` | `TestWindowIsNotExtended` | **Built** |
-| Nothing unauthenticated reaches the control plane | Guard on every non-operational route | `apps/backend/cmd/control-api/main.go` | `TestControlPlaneIsGuarded`, `TestIngestionIsGuarded` | **Built** |
+| Nothing unauthenticated reaches the dashboard | Guard on every non-operational route | `apps/backend/cmd/api/main.go` | `TestControlPlaneIsGuarded`, `TestIngestionIsGuarded` | **Built** |
 
 ## Integrity of what is stored
 
@@ -115,7 +116,6 @@ migrate: 1 invariant violation(s)
 | Storage keeps up at the scale envelope | Rows from many messages are coalesced into one block per ClickHouse partition, so inserts do not become a part per SDK batch | `internal/writer/writer.go`, `internal/eventbus/pubsub.go` | `TestADeliveryBecomesOneBlockPerPartition`, `TestABlockNeverSpansTwoPartitions` | **Built** |
 | Nothing is acknowledged before it is durable | The handler returns nil only after the insert block is sent; the bus advances only on nil | `apps/backend/internal/writer/writer.go`, `internal/eventbus/local.go` | `TestABatchTravelsFromTheGatewayToClickHouse` | **Built** |
 | Losing Valkey costs accuracy, not rows | The writer stamps null cohort keys and the nightly derivation backfills | `apps/backend/internal/writer/device.go` | `TestRowsAreStoredWithValkeyDown` | **Built** |
-| One cell's data cannot reach another's ClickHouse | The writer drops a message whose cell is not its own | `apps/backend/internal/writer/writer.go` | `TestAMessageFromAnotherCellIsNotStored` | **Built** |
 | A cohort query never joins | Cohort key and sticky dimensions stamped at write time | `db/clickhouse/migrations/00003_player_activity_daily.sql` | `cmd/cohortcheck` | **Built** |
 | A cohort is assigned by the server, not the device | `cohort_date` from `ingest_time`; a wrong clock cannot make a 1970 cohort, and a late event cannot move a reported one | `apps/backend/internal/writer/device.go` | `TestABackdatedEventKeepsTodaysCohort` | **Built** |
 | A breakdown divides by its own value's cohort | `cohort_sizes` carries a row per (dimension, value), counted within the value | `apps/backend/internal/cohort/derive.go` | `cmd/cohortcheck` check 9 | **Built** |
@@ -133,24 +133,24 @@ migrate: 1 invariant violation(s)
 | Archive objects expire on the project's retention tier | The retention worker sweeps `delete_after`, deletes the object and marks the manifest | `apps/backend/internal/retention/` | `TestAnExpiredObjectIsRemovedAndItsManifestKept` | **Built** |
 | …and nothing expires early | Only a manifest past its own `delete_after` is swept, and one stamped with an impossible term is refused rather than obeyed | `internal/retention/retention.go` | `TestAnUnexpiredObjectIsLeftAlone`, `TestAManifestStampedBornExpiredIsRefused` | **Built** |
 | …and an object still has to be billable after it is gone | The manifest row survives the object it described, carrying `object_size_bytes` | `internal/retention/retention.go` | `TestAnExpiredObjectIsRemovedAndItsManifestKept` | **Built** |
-| Erasure is tracked to completion | `data_deletion_requests` with a status machine, in the cell tier | `apps/backend/ent/schema/regionaltier/regional.go` | — | **Built** |
-| Erasure is executed | Tombstone, then asynchronous purge across `events_raw`, both device-keyed summaries, the cell tier's purchases and the archive | `apps/backend/internal/erasure/` | `TestAnErasureRemovesThePersonAndKeepsEveryoneElse` | **Built** |
+| Erasure is tracked to completion | `data_deletion_requests` with a status machine | `apps/backend/ent/schema/regional.go` | — | **Built** |
+| Erasure is executed | Tombstone, then asynchronous purge across `events_raw`, both device-keyed summaries, the purchases and the archive | `apps/backend/internal/erasure/` | `TestAnErasureRemovesThePersonAndKeepsEveryoneElse` | **Built** |
 | …reaching the archive without destroying anyone else's events | The object is read, the person's rows dropped, and what remains written back under a content-derived name; the old manifest is marked `redacted` | `internal/erasure/archive.go` | same, and [ADR 0025](../adr/0025-an-erasure-rewrites-the-archive.md) | **Built** |
-| …and a request can be submitted at all | Cell-local surface on the reporting service, server key only | `apps/backend/internal/routers/privacy.go` | `TestAnErasureIsRecordedAndTombstonedInOneRoundTrip`, `TestAReportingKeyCannotEraseAnyone` | **Built** |
+| …and a request can be submitted at all | Privacy routes on the API, server key only | `apps/backend/internal/routers/privacy.go` | `TestAnErasureIsRecordedAndTombstonedInOneRoundTrip`, `TestAReportingKeyCannotEraseAnyone` | **Built** |
 | …idempotently, because a studio will retry | An open request for the same actor is returned rather than duplicated | `apps/backend/internal/handlers/privacy.go` | `TestASecondErasureForTheSamePersonIsTheFirstOne` | **Built** |
-| An erased actor's events stop being accepted | Actor tombstone in the cell's Valkey, checked per event rather than per message | `apps/backend/internal/writer/writer.go` | `TestAnErasedActorsEventsAreDropped` | **Built** |
+| An erased actor's events stop being accepted | Actor tombstone in Valkey, checked per event rather than per message | `apps/backend/internal/writer/writer.go` | `TestAnErasedActorsEventsAreDropped` | **Built** |
 | `completed` means nothing has arrived since | The purge re-runs for a drain window sized on the queue, and only then completes | `internal/erasure/erasure.go` | `TestCompletionWaitsForTheDrainWindow` | **Built** |
 | An interrupted erasure can simply be run again | Content-addressed rewrites, idempotent mutations, and an order that deletes the events it resolves from last | `internal/erasure/` | `TestAnErasureIsIdempotent` | **Built** |
 | A bounded archive pass resumes rather than skipping | The scan is bounded per pass and resumes by manifest id; a request that filled its bound cannot complete | `internal/erasure/archive.go` | `TestABoundedArchiveScanResumesRatherThanSkipping` | **Built** |
-| Export and portability | Actor-scoped bundle of events, device records, daily activity and purchases, in the cell's own region | `apps/backend/internal/export/` | `TestAnExportHoldsTheSubjectAndNobodyElse` | **Built** |
+| Export and portability | Actor-scoped bundle of events, device records, daily activity and purchases | `apps/backend/internal/export/` | `TestAnExportHoldsTheSubjectAndNobodyElse` | **Built** |
 | …without over-answering | The identifier is read narrowly for access and widely for erasure, so a bundle never carries a second person's events | `apps/backend/internal/subject/subject.go` | `TestAnExportHoldsTheSubjectAndNobodyElse` | **Built** |
 | …and a truncated answer is recognisable | The bundle opens with its caveats and closes with a summary; a subject too large for one bundle is refused with a number | `internal/export/` | `TestABundleSaysWhatItIsAndWhereItStops`, `TestASubjectLargerThanOneBundleIsRefused` | **Built** |
 | …and can be collected | Served through the API on the caller's own credential, never a signed bucket URL | `apps/backend/internal/handlers/privacy.go` | `TestAnExportCanBeCollected` | **Built** |
 | An export does not outlive its term | `expires_at` on the request; the same job that writes the bundle removes it | `internal/export/export.go` | `TestABundleIsRemovedWhenItsTermIsUp` | **Built** |
 | …and an erasure removes it sooner | The purge deletes any bundle held for the actor and marks the record | `internal/erasure/clickhouse.go` | `TestAnErasureRemovesTheExportBundleToo` | **Built** |
 | One studio cannot reach another's request | Every read is scoped by the credential's project, and a miss is a 404 either way | `apps/backend/internal/handlers/privacy.go` | `TestOneStudioCannotReadAnothersRequest` | **Built** |
-| A batch for a deleted project is not written | The writer reads a project tombstone from the cell's Valkey and drops the batch | `apps/backend/internal/writer/writer.go` | `TestABatchForADeletedProjectIsDropped` | **Built** |
-| …and the tombstone is written when a project is deleted | Control plane, on deletion | — | — | *Designed* |
+| A batch for a deleted project is not written | The writer reads a project tombstone from Valkey and drops the batch | `apps/backend/internal/writer/writer.go` | `TestABatchForADeletedProjectIsDropped` | **Built** |
+| …and the tombstone is written when a project is deleted | The API, on deletion | — | — | *Designed* |
 | A cache outage cannot resurrect deleted data | When Valkey cannot answer the batch **is** written and the purge removes it — the purge is the guarantee, the tombstone a fast path | `internal/writer/writer.go` | — | **Built** |
 | Restored backups have deletions reapplied | Operational procedure | — | — | *Designed* |
 
@@ -177,8 +177,6 @@ migrate: 1 invariant violation(s)
 | A query cannot read the node out from under everyone | `max_execution_time`, `max_rows_to_read`, `max_bytes_to_read`, `readonly` per query | `apps/backend/internal/query/execute.go` | — | **Built** |
 | An unanswerable question is refused with a reason | 422 naming the fields, never an empty chart | `apps/backend/internal/handlers/query.go` | `TestTwoDimensionsAtOnceIsRefusedWithAReason` | **Built** |
 | A cached answer cannot claim false freshness | `computed_at` is the derivation's own timestamp and is stored with the answer | `apps/backend/internal/query/cache.go` | `TestACachedAnswerKeepsTheDerivationsTimestamp` | **Built** |
-| One cell cannot read another's answers | The cache key carries the cell | `internal/query/cache.go` | `TestOneCellCannotReadAnothersAnswers` | **Built** |
-| Reporting honours residency | 421 naming the cell's `query_url` | `apps/backend/internal/handlers/query.go` | — | **Built** |
 | A time series is suppressed on the same rule | An active-player count is a count of people whatever it is keyed on | `apps/backend/internal/query/execute.go` | `TestAMetricBreakdownSuppressesAThinValue` | **Built** |
 | An approximate count says it is approximate | The realtime tiers are marked, and carry no derivation time | `apps/backend/internal/query/metrics.go` | `TestARealtimeSeriesSaysItIsApproximate`, `TestOnlyTheRealtimeTiersAreApproximate` | **Built** |
 | A grain finer than its range is refused | §26's policy enforced, not advised | `apps/backend/internal/schemas/query.go` | `TestAGrainFinerThanItsRangeIsRefused` | **Built** |
@@ -188,19 +186,18 @@ migrate: 1 invariant violation(s)
 
 | Obligation | Mechanism | Code | Test | Status |
 |---|---|---|---|---|
-| A canonical copy outlives the hot window | Compressed Parquet in the cell's own bucket, in its own region | `apps/backend/internal/archive/`, `internal/blobstore/` | `TestABatchBecomesAnArchiveObject` | **Built** |
+| A canonical copy outlives the hot window | Compressed Parquet in the archive bucket | `apps/backend/internal/archive/`, `internal/blobstore/` | `TestABatchBecomesAnArchiveObject` | **Built** |
 | The lawful basis survives into the archive | Consent columns on every archived row, not only on the ClickHouse row | `internal/archive/row.go` | `TestABatchBecomesAnArchiveObject` | **Built** |
 | A redelivered batch is archived once | The object is named by a digest of the batches inside it; the manifest conflicts | `internal/archive/writer.go` | `TestARedeliveredBatchArchivesOnce` | **Built** |
 | Nothing is acknowledged before object *and* manifest are durable | The handler returns nil only after both | `internal/archive/writer.go` | — | **Built** |
 | A slow archive cannot hold storage back | Its own subscription and its own position (§20) | `apps/backend/internal/eventbus/` | `TestTheArchiveHasItsOwnPosition` | **Built** |
 | Storage is billed on a recorded size | `object_size_bytes` on the manifest, written with the object | `internal/archive/writer.go` | `TestTheManifestDescribesItsObject` | **Built** |
 | Local data is not expired before it is archived | **Unenforceable** — a ClickHouse TTL is a declarative instruction to a background merge with no hook. Held by margin, and the margin is measured | `apps/backend/cmd/archivecheck` | `archivecheck` fails when a day would expire inside the warning window | **Measured, not enforced** |
-| The archive stays in its cell's region | One bucket per cell; the region is recorded on every manifest | `internal/blobstore/gcs.go` | `TestTheManifestDescribesItsObject` | **Built** |
 
 ## Audit
 
 | Obligation | Mechanism | Code | Test | Status |
 |---|---|---|---|---|
 | Staff reads of customer data are logged with a reason | Admin console audit log, append-only, stored apart | — | — | *Designed* |
-| Breach scoping is a query | Archive manifests recording project, environment and time range per object | `apps/backend/ent/schema/regionaltier/regional.go`, `internal/archive/writer.go` | `TestTheManifestDescribesItsObject` | **Built** |
+| Breach scoping is a query | Archive manifests recording project, environment and time range per object | `apps/backend/ent/schema/regional.go`, `internal/archive/writer.go` | `TestTheManifestDescribesItsObject` | **Built** |
 | …and the ranges are tight enough to be useful | An object holds one project, one environment and one hour; a batch spanning two is split | `internal/archive/writer.go` | `TestEachHourIsItsOwnObject` | **Built** |

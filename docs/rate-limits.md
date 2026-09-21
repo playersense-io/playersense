@@ -34,7 +34,7 @@ on, which already has one; it is not a problem a per-caller budget solves.
 
 ### Except for the one route whose cost is somebody else's
 
-Sending an invitation is the only write in the control plane that reaches outside the system.
+Sending an invitation is the only write in the dashboard that reaches outside the system.
 The person it can hurt is not the person making the request: it costs a stranger's attention,
 this deployment's sending reputation, and — once a provider is configured — money. That is a
 different argument from load, and it is the entire reason this surface has one budget when
@@ -163,10 +163,7 @@ would then not be counted at all, so an attacker spraying invalid credentials wo
 unlimited free verifications. One policy carries one tracker, so the two cannot coexist.
 
 So the meaningful budgets are counted in the **handler**, which is the first point where both
-the project (from the credential) and the device (from the body) are known. They run before
-the residency check on purpose: a batch aimed at the wrong cell is still a request this cell
-served, and not counting it would make the 421 path the cheapest way to send unlimited
-traffic.
+the project (from the credential) and the device (from the body) are known.
 
 All four counters go out in **one Lua round trip** (`valkey.RateLimitStorage.IncrementMany`).
 Four round trips per request on the ingestion path would make the limiter more expensive than
@@ -185,9 +182,11 @@ Both ingestion and configuration **allow** requests when rate-limit storage fail
 rule is that losing Valkey costs speed rather than data: refusing every batch or configuration
 request because a cache is unreachable would turn a degraded dependency into a product outage.
 
-The storage reports an error, and the SDK limiter's `FailOpen` policy allows the request.
-The limiter also supports reporting that error as a 503 when `FailOpen` is false, but no
-service currently registers that policy. Authentication still requires a valid credential.
+The storage reports an error, and the published limiter's `FailOpen` policy allows the
+request. One limiter serves the whole API, so the invitation route — which wants the
+opposite, because an email cannot be taken back — takes a fail-closed copy per call through
+`Limiter.Strict`, and a storage failure there is a 503. Authentication still requires a valid
+credential either way.
 
 ---
 

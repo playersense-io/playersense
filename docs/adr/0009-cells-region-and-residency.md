@@ -70,8 +70,8 @@ different shapes, which is the first reason anyone splits one.
 
 ## Enforcement
 
-- `apps/backend/ent/schema/globaltier/cell.go` — the registry; `slug` and `region` immutable.
-- `apps/backend/ent/schema/globaltier/project.go` — the immutable required edge.
+- `apps/backend/ent/schema/cell.go` — the registry; `slug` and `region` immutable.
+- `apps/backend/ent/schema/project.go` — the immutable required edge.
 - `apps/backend/internal/handlers/control.go:findCell` — refuses an unknown or non-active cell.
 - `apps/backend/internal/core/cell.go:CellCheck` — the start-up assertion.
 - `apps/backend/internal/valkey/valkey.go:Key` — every key carries the cell prefix.

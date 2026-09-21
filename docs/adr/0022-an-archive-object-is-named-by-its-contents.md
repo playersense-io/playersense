@@ -80,7 +80,7 @@ turns a manifest table into an event table.
 
 - `apps/backend/internal/archive/writer.go` — `digest` and `objectPath`; the manifest write
   follows the object write and uses `OnConflictColumns(...).DoNothing()`.
-- `apps/backend/ent/schema/regionaltier/regional.go` — the unique index that makes the
+- `apps/backend/ent/schema/regional.go` — the unique index that makes the
   conflict possible.
 - `TestARedeliveredBatchArchivesOnce` rewinds the archive's own offset — what a crash between
   the object and the acknowledgement leaves — and asserts one object and one manifest.
