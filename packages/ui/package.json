@@ -1,0 +1,6 @@
+{
+  "name": "@playersense/ui",
+  "private": true,
+  "type": "module",
+  "main": "./nuxt.config.ts"
+}

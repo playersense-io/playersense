@@ -1,0 +1,16 @@
+{
+  "name": "playersense",
+  "private": true,
+  "packageManager": "pnpm@11.22.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev:landing": "pnpm --filter @playersense/landing dev",
+    "dev:client": "pnpm --filter @playersense/client dev",
+    "dev:admin": "pnpm --filter @playersense/admin dev",
+    "build": "pnpm --filter \"./apps/**\" build",
+    "typecheck": "pnpm --filter \"./apps/**\" typecheck",
+    "lint": "pnpm --filter \"./apps/**\" --filter \"./packages/**\" lint"
+  }
+}
