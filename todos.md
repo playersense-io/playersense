@@ -2,9 +2,9 @@
 
 ## Current state (as of this writing)
 
-The backend is the mature part of this repo: seven Go services (`control-api`, `ingest-api`,
-`analytics-writer`, `archive-writer`, `query-api`, `config-api`, `worker`) built on the Muzak
-framework, a two-tier PostgreSQL control plane (global + per-cell), ClickHouse for analytics,
+The backend is the mature part of this repo: four Go binaries (`api`, `analytics-writer`,
+`archive-writer`, `worker`) built on the Muzak framework, one PostgreSQL database, ClickHouse
+for analytics,
 Valkey for ephemeral state, GCS for archives, and a Rust SDK core shipping today as a Unity
 package. 37 ADRs and an 11-file compliance dossier record *why* it's built this way, and
 `docs/compliance/10-open-items.md` is an accurate, current list of what is designed but not
@@ -36,7 +36,7 @@ check it before assuming an endpoint exists).
       currently has its own `eslint.config.mjs` (identical, from the Nuxt UI template);
       not yet deduplicated into a shared package.
 - [ ] `packages/contracts` — generate TypeScript types from each service's `GET /openapi.json`
-      (confirmed: all seven services — `control-api`, `ingest-api`, `query-api`, `config-api`,
+      (confirmed: all four binaries — `api`,
       `analytics-writer`, `archive-writer`, `worker` — construct `muzak.New(muzak.AppOptions{...})`,
       which serves this by default). Script the regeneration so contract drift is a CI failure,
       not a runtime surprise.
@@ -55,7 +55,7 @@ check it before assuming an endpoint exists).
       three environments, shared across `landing`/`client`/`admin`.
 - [ ] **CORS is unconfigured today** — `grep -n CORS apps/backend/cmd/*/main.go` returns
       nothing. Muzak denies all cross-origin requests until a policy is set (`muzak.md`
-      "CORS"). Add `CORSOptions` to `control-api`, `query-api`, and `config-api` for
+      "CORS"). Add `CORSOptions` to `api` for
       `https://app.playersense.io`, `https://admin.playersense.io`, `https://playersense.io`,
       plus local dev origins, with `AllowCredentials` as needed for the Firebase bearer token
       flow.
@@ -67,7 +67,7 @@ check it before assuming an endpoint exists).
       for the three new apps — CI today only covers the Rust SDK, the Go backend, and the
       native library matrix.
 - [ ] Decide token plumbing: Firebase ID token as `Authorization: Bearer` on every
-      `control-api`/`query-api` call from `client`/`admin`; refresh-on-expiry. `client` and
+      `api` calls from `client`/`admin`; refresh-on-expiry. `client` and
       `admin` are already set `ssr: false` (both `nuxt.config.ts`) so the token lives in
       client-only auth state, not something SSR has to handle — that half is settled; the
       actual Firebase wiring and request interceptor are not.
@@ -108,10 +108,10 @@ status/legal links, signup/login entry. **Must not contain privileged admin logi
 - [ ] Signup entry — Firebase Auth creates the user; the backend already provisions the row +
       personal organization automatically. `identity.EnsureUser`
       (`apps/backend/internal/identity/identity.go:94`) is called from the auth-resolution path
-      in `internal/core/principal.go:179` that every authenticated `control-api` request goes
+      in `internal/core/principal.go:179` that every authenticated dashboard request goes
       through, so opening the dashboard for the first time is enough — no dedicated
-      signup-completion route is needed. `query-api`'s `core.ResolveKnownUser` is the read-only
-      cell counterpart and deliberately does not create anything (§55.2).
+      signup-completion route is needed. `core.ResolveKnownUser` is the read-only counterpart
+      used by the analytics routes and deliberately does not create anything (§55.2).
 - [ ] Login entry — Firebase sign-in, redirect into `client`.
 - [ ] Recovery/password-reset flow must not disclose whether an account exists (§55,
       `docs/rate-limits.md` §6), and auth-email buttons need the 60-second cooldown described
@@ -126,12 +126,13 @@ status/legal links, signup/login entry. **Must not contain privileged admin logi
       Unovis for charts, TanStack Table, Zod; see the corrected charting decision in §6).
 - [ ] Auth shell: Firebase sign-in, organization/project switcher, environment switcher
       (development/staging/production, §75–76).
-- [ ] Wire `packages/contracts`-typed clients to `control-api` (`:21080`, config/mgmt) and
-      `query-api` (`:21083`, analytics), both carrying the Firebase ID token.
+- [ ] Wire `packages/contracts`-typed clients to `api` (`:21080`), carrying the Firebase ID
+      token.
 - [ ] Respect Appendix C #3: a project outside the caller's access list comes back as
       "no such project," never a 403 — don't let the UI infer or display anything about
       projects a person wasn't granted.
-- [ ] Handle `query-api`'s 421 (wrong-cell) response by following the returned address (§6,
+- [x] ~~Handle the 421 (wrong-cell) response by following the returned address~~ — removed
+      with the cell architecture (ADR 0038). Nothing answers 421 any more (§6,
       Appendix B) rather than treating it as a generic error.
 - [ ] The dashboard is deliberately **not** rate-limited except invitations
       (`docs/rate-limits.md` §1) — don't build client-side throttling anywhere else.
@@ -174,10 +175,10 @@ status/legal links, signup/login entry. **Must not contain privileged admin logi
 - [ ] **Audit log** (§55.4) — read-only, gated on `audit.read` (only Owner/Admin among the six
       seeded roles). Render before/after state on role and rollout changes; label
       operator-initiated entries as self-asserted, per the backend's own labeling.
-- [ ] **Project Settings** — metadata, environments; show `cell` and `policy_tier` as read-only
+- [ ] **Project Settings** — metadata, environments; show `policy_tier` as read-only
       (fixed at creation, §75 — never editable in place).
 
-### Ready to build now — analytics via `query-api`'s person-auth routes (§55.2)
+### Ready to build now — analytics via the person-auth routes (§55.2)
 - [ ] **Overview** — headline metrics from `/analytics/{env}/metrics/query`.
 - [ ] **Cohorts** — retention (classic + rolling), playtime, revenue/LTV, payer conversion,
       one-dimension breakdowns (never two — the compiler refuses it, §57.1). Every chart must
@@ -221,14 +222,14 @@ Tracked as ground truth in `docs/compliance/10-open-items.md` and cross-checked 
       page to call yet.
 - [ ] **Webhooks** — no outbound customer-webhook package, handler, router, or transactional
       outbox table exists (`grep -rli outbox apps/backend` is empty). The only webhook-adjacent
-      code is (a) comments confirming `ingest-api` deliberately calls none, (b) `StripeEvent`
+      code is (a) comments confirming the ingestion routes deliberately call none, (b) `StripeEvent`
       (`ent/schema/globaltier/billing.go`) — an *inbound* record of Stripe's webhooks for
       billing, unrelated to §49's outbound customer webhooks, and (c) `MaxWebhookEndpoints`, an
       entitlement constant (`internal/billing/billing.go:63`) with no CRUD or delivery logic
       behind it. Phase 2, §90.
-- [ ] **Exports** — `internal/export` (bundle assembly) and query-api's `/v1/privacy/exports`
+- [ ] **Exports** — `internal/export` (bundle assembly) and `/v1/privacy/exports`
       exist, but only for a **server key** (a studio's own backend), not a dashboard session.
-      There is no control-api route for a signed-in member to request/download their own
+      There is no dashboard route for a signed-in member to request/download their own
       project's export. Confirm intended scope (see the open decision in §6) before building.
 - [ ] Data-subject-rights UI (§101) in general — same gap as Exports: the existing
       `/v1/privacy/*` routes are designed for server-to-server use, not a browser session.
@@ -245,7 +246,7 @@ frontend-only, and do the staff-identity item first — everything else depends 
 - [x] Scaffold Nuxt app at `apps/admin` (also `ui/dashboard` — same shell, its own nav).
 - [ ] **Staff authentication + the `staff_access` model (prerequisite for everything below).**
       Nothing exists yet: no way to distinguish PlayerSense staff from customer accounts, no
-      `staff_access` table in the global tier recording actor + customer + reason per read
+      `staff_access` table recording actor + customer + reason per read
       (§104), no routes that accept staff credentials. §56 requires "a separate authorization
       scope," and §104 calls the admin console "the highest-risk surface in the system."
 - [ ] Per-read reason-capture UI — every staff lookup of customer data must require a ticket
@@ -253,7 +254,7 @@ frontend-only, and do the staff-identity item first — everything else depends 
 - [ ] Organization lookup.
 - [ ] Project lookup.
 - [ ] Entitlement overrides.
-- [ ] Billing inspection (can likely reuse `control-api`'s billing routes under staff scope
+- [ ] Billing inspection (can likely reuse the billing routes under staff scope
       once that exists, rather than the member scope `client` uses).
 - [ ] Credit grants/charges UI over the existing operator routes
       (`POST /v1/operator/organizations/{org}/credits`, `.../charges`). Today these sit behind
@@ -277,7 +278,7 @@ frontend-only, and do the staff-identity item first — everything else depends 
 - [ ] Support tooling — a "view as" mode for debugging a customer's dashboard state, itself
       going through `staff_access` and reason capture like every other read here.
 - [ ] Audit access — staff's view into customer audit logs, plus (a distinct, separately
-      flagged gap) a **staff access review**: who on our side can reach which cell, and when —
+      flagged gap) a **staff access review**: who on our side can reach the deployment, and when —
       not the same thing as a customer's own member list.
 - [ ] Verify the separate authorization scope end-to-end at the **routing layer** — a guard on
       every route, not just hidden nav links — since §56 is explicit that this must never be
@@ -290,7 +291,7 @@ frontend-only, and do the staff-identity item first — everything else depends 
 Track alongside the frontend work above; none of it blocks `landing`, but most of `client`'s
 "blocked" section and nearly all of `admin` depend on these.
 
-- [ ] CORS configuration on `control-api`/`query-api`/`config-api` (§0).
+- [ ] CORS configuration on `api` (§0).
 - [ ] `staff_access` table + staff authentication — blocks all of `admin`.
 - [ ] Verified staff identity for the operator credit/charge routes (currently shared-token
       only).
@@ -357,9 +358,10 @@ Track alongside the frontend work above; none of it blocks `landing`, but most o
 - [x] **Deployment model: independent Nitro servers per app on Cloud Run**, not static builds
       embedded in a Go binary via Muzak's `Router.Frontend`. `project.md` line 7 calls these
       "three independent applications" and §93/§87 Step 4 both assume separate deployables; this
-      codebase has been consistently disciplined about service boundaries everywhere else
-      (control/data plane, per-cell isolation), and folding frontend assets into a Go service
-      binary would be the one place that discipline breaks.
+      codebase has been consistently disciplined about service boundaries everywhere else —
+      the writers and the worker are still their own binaries even after the four HTTP
+      services merged (ADR 0038) — and folding frontend assets into a Go service binary would
+      be the one place that discipline breaks.
 - [x] **Brand mark, wordmark and favicon.** The mark (`packages/ui/assets/brand/mark.svg`) is
       the Solar icon-set radar mark by 480 Design, used as-is under CC BY 4.0 — an open ring
       with a hand sweeping to the centre and an inner ring, as a single filled path in

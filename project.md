@@ -40,7 +40,7 @@ PlayerSense is **not** intended to be only a charting UI over a database. The lo
 
 The product goal is:
 
-> Give game developers one lightweight SDK and one control plane for understanding, configuring, operating and monetizing their games without requiring them to build their own analytics pipeline, feature-flag service, LiveOps backend, purchase-verification layer and webhook system.
+> Give game developers one lightweight SDK and one backend for understanding, configuring, operating and monetizing their games without requiring them to build their own analytics pipeline, feature-flag service, LiveOps backend, purchase-verification layer and webhook system.
 
 The architecture must satisfy two apparently conflicting constraints:
 
@@ -55,11 +55,15 @@ The answer is not to make Stage 1 hardware magically handle Stage 2 traffic. A s
 
 ## 3. Core architecture principles
 
-### 3.1 Separate the control plane from the data plane
+### 3.1 Separate the transactional workload from the analytical one
 
-PlayerSense has two fundamentally different workloads.
+PlayerSense has two fundamentally different workloads, and this principle is about the
+**storage engines** rather than about deployments. The services that serve them merged into
+one binary ([ADR 0038](docs/adr/0038-one-api-one-database.md)); the two shapes of data did
+not, and putting either in the other's engine is the mistake this section exists to prevent
+(ADR 0001).
 
-**Control plane** data is relational, transactional and relatively small:
+**Transactional** data is relational and relatively small:
 
 - users;
 - organizations;
@@ -78,7 +82,7 @@ PlayerSense has two fundamentally different workloads.
 
 This belongs in **PostgreSQL**.
 
-**Data plane** traffic is high-volume, append-heavy and analytical:
+**Analytical** traffic is high-volume and append-heavy:
 
 - game events;
 - session activity;
@@ -303,92 +307,54 @@ flowchart LR
 
 ---
 
-## 6. Region and cell
+## 6. One deployment
 
-PlayerSense is a **cell-based data plane** from the start, even though only one cell exists
-for years.
+> **Revised 2026-09-21.** This section used to define a cell-based data plane: a region was
+> a legal boundary, a cell was one stack inside it, a project was assigned to a cell at
+> creation, and a gateway that received another cell's key answered **421 Misdirected
+> Request** with the address that could serve it. All of it was built, and all of it was
+> removed ([ADR 0038](docs/adr/0038-one-api-one-database.md)). The section number is kept
+> because several hundred references point at it.
 
-### The two words mean different things
+There is one deployment: one API, one PostgreSQL database, one ClickHouse, one Valkey, one
+archive bucket. A project is not placed anywhere, because there is nowhere to place it.
 
-They are separated because they split for different reasons, and conflating them is how a
-system ends up unable to answer "where is our players' data".
+### Why the cellular design went
 
-**A region is a legal boundary** — `eu`, `us`. It says what law applies and where bytes may
-sit. Regions exist because a customer's procurement asks the question and because a
-regulator can, in principle, ask it too.
+It was correct for a company with customers, and the company does not have them yet. What
+it cost while nobody was asking:
 
-**A cell is one stack inside a region** — `eu-1`, `eu-2`. It is a unit of capacity and of
-blast radius. One region may hold several cells, and splitting one is an engineering
-decision that needs nobody's legal opinion.
+- a cells registry, and a start-up check against it in every binary;
+- a residency comparison on every credential check, and the `421` that followed it, carried
+  into the SDK and its conformance suite;
+- a cell slug prefixing every Valkey key, every event-bus segment, every archive object path
+  and the ClickHouse Keeper `{shard}` macro;
+- and, with §99's tier split, two generated ORM clients and two connection pools.
 
-### What a cell contains
+The argument for rebuilding it is in [ADR 0009](docs/adr/0009-cells-region-and-residency.md),
+kept as a superseded record rather than deleted, because the day a customer's procurement
+asks the question is the day that argument needs to be read rather than reconstructed.
 
-One complete, self-contained copy of the machinery that stores and processes events:
+### What survives, and why it is the part that mattered
 
-- an ingestion endpoint;
-- a queue/topic;
-- ClickHouse capacity;
-- a PostgreSQL database for everything that names a player (§99);
-- archive writers and a regional GCS prefix/bucket;
-- query workers;
-- Valkey, for the cache, the rate-limit counters and the device state.
+**Every column declares what it holds** (§96). The residency rule was written *in terms of*
+that classification — "no column classified `identifier` in the global tier" — so the
+classification is the primitive and the tier was a policy on top of it. `migrate verify`
+still reads it back out of the live catalog. A tier split can be re-expressed against it
+without being re-derived.
 
-A project is assigned to exactly one cell **at creation** and its data never leaves it. The
-assignment is immutable for the reason §75 gives about `policy_tier`: a project that could
-change cells is a project whose stored rows no longer all mean the same thing.
+**The surrogate allocator is still singular.** Every entity's auto-increment id becomes an
+`org_seq` / `project_seq` / `environment_seq` in ClickHouse's sort keys, and one database
+means one allocator, so those integers are unique by construction. This was the mechanical
+reason the old control plane could not be replicated per region, and it is the same reason
+any future split has to keep one place that issues them.
 
-```text
-project A -> eu-1
-project B -> eu-1
-project C -> us-1
-project D -> asia-1
-```
+### What it costs, stated plainly
 
-### The registry
-
-The global control plane (§11) holds a `cells` table: slug, region, status, and the public
-ingest URL. It holds identity and endpoints and deliberately **never credentials** — a
-table of database passwords is a table of database passwords. DSNs live in each service's
-own environment, and a service asserts at start-up that the cell it was configured as
-exists and agrees with its configuration, so a typo fails to boot rather than writing
-somewhere nobody is reading.
-
-`status` is `active`, `draining` or `readonly`. A draining cell still serves the projects
-it holds but accepts no new ones; a readonly cell serves queries only, which is what
-migrating out of a cell needs.
-
-### A foreign key at a gateway is refused, not served
-
-A gateway that receives a key belonging to another cell answers **421 Misdirected Request**
-and names the `ingest_url` that can serve it.
-
-This is the single most important rule in the whole cell design. Without it, one wrong
-hostname in an SDK configuration puts one region's player data on another region's disks —
-the exact outcome the design exists to prevent, defeated by a typo. 421 rather than 403
-because the request is well-formed and the credential is good; it simply arrived somewhere
-that cannot serve it, and a misconfigured integration is better told where to go than
-merely refused.
-
-### What it buys
-
-- data residency is real rather than aspirational;
-- EU and US event traffic does not cross the world;
-- one very large customer can be moved to a dedicated cell;
-- analytics failures are isolated to a cell;
-- the system grows past one ClickHouse cluster without inventing cross-region sharding.
-
-### One thing a cell is not
-
-The control plane is **not** a cell. There is exactly one of it, it is global, and it holds
-no player data at all (§99). That is what lets it stay singular — and it has a second,
-purely mechanical consequence worth stating: every entity's auto-increment id becomes an
-`org_seq` / `project_seq` / `environment_seq` in ClickHouse's sort keys. One global tier
-means one allocator, so those integers are globally unique and two cells' rows can never
-blend. Replicating the control plane per region would have required inventing a surrogate
-allocation scheme first.
-
-**Stage 1:** one cell.  
-**Stage 2:** add cells only when justified.
+Data residency is now a claim about where this deployment runs, not a property of the
+architecture. A customer who needs their players' data in a named jurisdiction is a customer
+this cannot serve. See `docs/compliance/03-residency-and-transfers.md`, which says so in the
+document a procurement questionnaire is answered from.
 
 ---
 
@@ -421,9 +387,7 @@ A practical Stage 1 evolution is:
 
 ```text
 VPS-1
-  - control-api
-  - ingest-api
-  - query-api
+  - api
   - workers
   - PostgreSQL
   - Valkey
@@ -440,8 +404,7 @@ GCP
 
 ```text
 VPS-Control
-  - control-api
-  - query-api
+  - api
   - workers
   - PostgreSQL
   - Valkey
@@ -452,7 +415,7 @@ VPS-Analytics
   - archive-writer scratch/cache
 
 VPS-Ingest or autoscaled app nodes
-  - ingest-api
+  - a second `api` instance, if ingestion needs to scale on its own
 
 GCP
   - Pub/Sub
@@ -511,10 +474,7 @@ Global External Application Load Balancer
     |
     +--> Cloud Armor
     |
-    +--> Cloud Run: control-api
-    +--> Cloud Run: ingest-api
-    +--> Cloud Run: query-api
-    +--> Cloud Run: config-api
+    +--> Cloud Run: api
     +--> Cloud Run: worker roles
 
 Stateful services
@@ -530,7 +490,7 @@ Stateful services
 
 Do not move to AlloyDB just because it is the bigger product.
 
-Use **Cloud SQL PostgreSQL** first when it satisfies the control-plane workload.
+Use **Cloud SQL PostgreSQL** first when it satisfies the transactional workload.
 
 Move to **AlloyDB** when there is a demonstrated reason such as:
 
@@ -540,7 +500,7 @@ Move to **AlloyDB** when there is a demonstrated reason such as:
 - a desire for disaggregated storage/compute behavior;
 - a workload that benefits from AlloyDB's architecture enough to justify the cost.
 
-The control plane is not supposed to contain billions of analytics rows, so ordinary Cloud SQL may remain sufficient for a long time.
+PostgreSQL is not supposed to contain billions of analytics rows, so ordinary Cloud SQL may remain sufficient for a long time.
 
 ### 8.2 Managed ClickHouse
 
@@ -593,9 +553,26 @@ PlayerSense is a prefund product. Operational simplicity matters.
 
 Use a **modular Go codebase with a small number of separately scalable binaries**.
 
-Recommended deployables:
+> **Revised 2026-09-21.** §10.1, §10.2, §10.5 and §10.6 named four binaries. They are one
+> binary, `api`, serving four routers on one address
+> ([ADR 0038](docs/adr/0038-one-api-one-database.md)). The subsection numbers are kept
+> because the rest of this document references them, and each still describes a real,
+> separable responsibility — which is what makes splitting them again a deployment change
+> rather than a rewrite.
+>
+> `analytics-writer` (§10.3), `archive-writer` (§10.4) and `worker` (§10.7) are still
+> separate binaries, because they are not request-serving at all.
 
-### 10.1 `control-api`
+Deployables:
+
+```text
+api                 §10.1 dashboard, §10.2 ingestion, §10.5 reporting, §10.6 configuration
+analytics-writer    §10.3
+archive-writer      §10.4
+worker              §10.7
+```
+
+### 10.1 The dashboard surface
 
 Responsible for:
 
@@ -619,7 +596,7 @@ Primary dependencies:
 - Stripe;
 - GCS for occasional assets/exports.
 
-### 10.2 `ingest-api`
+### 10.2 The ingestion surface
 
 Responsible only for high-volume SDK ingestion.
 
@@ -629,7 +606,13 @@ Primary dependencies:
 - rate limiter;
 - Pub/Sub.
 
-It should not depend on ClickHouse being immediately available.
+It should not depend on ClickHouse being immediately available, and it does not query
+PostgreSQL per request — the tenant comes from the key cache (§65) and the batch goes to the
+queue (§19). That is the property this subsection existed to protect, and it survives the
+merge: a PostgreSQL outage still does not stop a batch being accepted (§64).
+
+What does **not** survive is independent deployment. A bad deploy now takes the dashboard
+and ingestion together, which is the cost §10's revision note records.
 
 ### 10.3 `analytics-writer`
 
@@ -650,25 +633,20 @@ so this is one lookup per batch rather than per event — and stamps `cohort_dat
 sticky install dimensions onto every row before the insert. A miss is the first batch that
 installation has ever sent, and the writer creates the entry.
 
-It belongs here rather than in `ingest-api` for the reason §3.2 gives: the ingestion path
+It belongs here rather than on the ingestion path for the reason §3.2 gives: the ingestion path
 must stay cheap and must not acquire a dependency that can make it fail. If Valkey is
 unavailable the writer stamps nulls and the nightly derivation backfills them, which is
 §65's rule that losing Valkey costs speed rather than data.
 
-**It never touches the control plane.** The tenant travels on the message — surrogates,
-UUIDs, policy tier, retention tier, cell — which is what makes §64's claim true of storage
-rather than only of ingestion. Its only dependencies are its cell's bus, its cell's Valkey
-and its cell's ClickHouse.
+**It never touches PostgreSQL.** The tenant travels on the message — surrogates, UUIDs,
+policy tier, retention tier — which is what makes §64's claim true of storage rather than
+only of ingestion. Its only dependencies are the bus, Valkey and ClickHouse.
 
-Three things it refuses to store, each for a different reason:
+Two things it refuses to store, each for a different reason:
 
-- **A message from another cell** is a routing mistake, and storing it would put one
-  region's player data in another region's ClickHouse — the same failure §6's 421 prevents,
-  arriving by a different road. Dropped and counted rather than retried: redelivering it
-  would never make it belong.
 - **A batch for a deleted project** (§61). A queue holds messages for hours, so this is
   ordinary rather than exceptional, and writing it would resurrect data somebody asked to
-  have erased. The writer reads a project tombstone from its cell's Valkey. If Valkey
+  have erased. The writer reads a project tombstone from Valkey. If Valkey
   cannot answer, the batch **is** written and the asynchronous purge removes it — the purge
   is the guarantee and this is a fast path, because making the fast path the guarantee
   would let a cache outage silently resurrect deleted data.
@@ -711,7 +689,7 @@ acknowledging messages whose effect is still in memory (Appendix C.2). Light tra
 therefore produces small objects, which is what the fourth responsibility exists for and
 what §10.7 owns.
 
-### 10.5 `query-api`
+### 10.5 The reporting surface
 
 Responsible for analytics queries.
 
@@ -728,10 +706,10 @@ Responsibilities:
 
 The browser never receives ClickHouse credentials and never submits arbitrary SQL.
 
-Cell-local, like the writer. It reads its own cell's ClickHouse and holds a global-tier
-connection for one purpose: filling the key cache. A reporting key belonging to another cell
-is refused with **421** naming that cell's `query_url`, for a reason worth spelling out —
-this cell holds none of that project's data, so serving the request would return no rows,
+It reads ClickHouse and holds a PostgreSQL connection for one purpose: filling the key
+cache. It used to also refuse a reporting key belonging to another cell with **421** naming
+that cell's `query_url`, for a reason worth keeping in mind if cells return —
+a cell holding none of that project's data would serve no rows,
 and "no rows" reads as "no players" rather than "wrong server". A studio would conclude
 their game was dead.
 
@@ -761,7 +739,7 @@ A time-series answer names the tier that served it and says whether its player c
 exact or a sketch, because the realtime tiers trade one for the other (§27) and a number
 that might be off by a fraction of a percent must not be silently comparable to an invoice.
 
-### 10.6 `config-api`
+### 10.6 The configuration surface
 
 Low-latency read path for:
 
@@ -795,7 +773,7 @@ Workers can be split into independent deployments only when load requires it.
 
 ## 11. PostgreSQL — source of truth for product state
 
-PostgreSQL is the authoritative store for transactional/control-plane data.
+PostgreSQL is the authoritative store for transactional product state.
 
 Suggested major tables/domains:
 
@@ -846,38 +824,31 @@ audit_log
 - raw telemetry properties;
 - billions of log rows.
 
-### The control plane is two databases, not one
+### One database, and the rule that outlived the split
 
-The list above is written as one database, and it cannot stay that way once a customer
-requires that European data remains in Europe. Some of those tables hold nothing about a
-player — organizations, billing, entitlements — while others are full of player-linked
-rows: `verified_purchases`, `purchase_entitlements`, `data_deletion_requests`, `exports`,
-`archive_manifests`.
+> **Revised 2026-09-21.** This subsection used to describe a **global tier** and a
+> **per-cell tier** under the governing rule *a player identifier never appears in the
+> global tier*, enforced by two generated ORM clients, two marker tables and a residency
+> check in `migrate verify`. That split was built and removed
+> ([ADR 0038](docs/adr/0038-one-api-one-database.md)).
 
-§99 splits them into a **global tier** and a **per-cell tier** under one governing rule:
-**a player identifier never appears in the global tier.** This is among the few decisions
-in this document that genuinely cannot be retrofitted, because undoing it means migrating
-live transactional data across a jurisdiction boundary.
+There is one PostgreSQL database. It holds the tables that name nobody — organizations,
+projects, environments, keys, billing, flags, usage counts — alongside the five that name a
+player: `verified_purchases`, `purchase_entitlements`, `data_deletion_requests`, `exports`
+and `archive_manifests`.
 
-They are separate **databases**, not separate schemas in one, because in production they
-are separate servers under separate jurisdictions: the global tier is US-hosted and the
-cell tier sits in the cell's region. Locally they are two databases in one container, so
-the development stack does not grow while the code is shaped for the split production
-actually has.
+The split was described here as one of the few decisions that "cannot be retrofitted",
+because undoing it means migrating live transactional data across a jurisdiction boundary.
+That was, and remains, true — and it is why it was removed *now*, while there is no live
+transactional data to migrate. The cost of carrying it was being paid every week; the cost
+of rebuilding it is a migration that has to happen before a customer exists either way.
 
-Two mechanisms keep the split honest rather than merely intended:
-
-- **The compiler.** Two generated ORM clients, one per tier. A query written against the
-  global client cannot reach a cell entity because the type does not exist in that package.
-- **`migrate verify`.** Every column in both databases carries a §96 classification, read
-  back out of `pg_description`, and a column classified `identifier` in the global tier is
-  a build failure. This check is what makes a US-hosted control plane defensible rather
-  than merely convenient: it is the mechanical proof that no player data crosses.
-
-Each database also carries a marker table naming the tier it holds, and each migration
-refuses to run against the other. Without that, pointing the migrator at the wrong DSN
-grows a second `organizations` and `projects` there — the control plane forking rather than
-erroring, a mistake discovered weeks later by two customers holding the same project id.
+**What keeps the inventory honest is §96, not the tier.** Every column in both databases
+carries a classification, read back out of the live catalog by `migrate verify` rather than
+out of the schema files — so a column added by hand is exactly the one it catches. The
+residency rule was expressed in terms of that classification, which is why removing the
+rule leaves the check intact and why a future tier split can be re-expressed against it
+rather than re-derived.
 
 ---
 
@@ -977,21 +948,22 @@ Example:
 
 ```text
 gs://playersense-events-prod/
-  cell=eu-1/
-    org=<org_id>/
-      project=<project_id>/
-        env=production/
-          dt=2026-09-14/
-            hour=10/
-              part-<digest>.parquet
+  org=<org_id>/
+    project=<project_id>/
+      env=production/
+        dt=2026-09-14/
+          hour=10/
+            part-<digest>.parquet
 ```
 
-Two segments changed once this was built, and both are worth the sentence.
+One segment changed once this was built, and it is worth the sentence.
 
-The first is `cell=`, not `region=`. An earlier draft wrote `region=eu-1`, but `eu-1` is a
-cell and §6 separates the two: one bucket belongs to one cell, so the cell is what
-distinguishes a prefix. The legal region is a column on the manifest, where a query can use
-it.
+An earlier draft opened the prefix with `region=eu-1`, then with `cell=eu-1` once §6
+separated the two words. Both named a constant for as long as there was one deployment, and
+the segment went with the cells ([ADR 0038](docs/adr/0038-one-api-one-database.md)): the
+organisation is the first thing that actually distinguishes an object. Objects written under
+the old prefix are not found by the new one, which cost nothing because none existed outside
+a development stack.
 
 The object name is a **digest of the batches inside it**, not a ULID. Delivery is
 at-least-once (§21), so a name derived from a clock or a random id makes every redelivery a
@@ -1015,7 +987,6 @@ Every object gets a manifest record containing fields similar to:
 object_id
 bucket
 object_path
-region
 org_id
 project_id
 environment_id
@@ -1968,7 +1939,7 @@ before the ClickHouse insert, reading a device-state entry from Valkey keyed by
 
 - **One lookup per batch, not per event.** A batch belongs to one installation, so at
   §4.1's 10M batches/day this is roughly 116 lookups per second.
-- **It is off the ingestion critical path.** `ingest-api` is untouched, §3.2 holds, and a
+- **It is off the ingestion critical path.** §10.2's routes are untouched, §3.2 holds, and a
   `202` still means only that the batch reached durable queueing.
 - **A miss is the first-ever batch** from that installation; the writer creates the entry.
 - **A Valkey outage** leaves the columns null and the nightly derivation backfills them,
@@ -2665,8 +2636,9 @@ same fact. Deriving the two independently would eventually produce a month where
 invoice and the dashboard disagree, and no amount of investigation would establish which
 was right.
 
-The global billing tier receives only the resulting count. The actor set itself stays in
-the region that produced it, which is what §99's rule requires.
+The billing row receives only the resulting count. The actor set itself is never stored:
+it is computed for the month and discarded, which is the whole reason the daily figure and
+the monthly one are different numbers.
 
 ---
 
@@ -2765,7 +2737,7 @@ A publish operation compiles active flags into a compact project/environment sna
 ### 41.1 The authoring surface
 
 The three tables a studio edits — segments, flags and LiveOps events — are written through
-`control-api` under `liveops.read` and `liveops.write`, with `liveops.publish` reserved to the
+the dashboard surface under `liveops.read` and `liveops.write`, with `liveops.publish` reserved to the
 one irreversible route beside them. That separation is the point: a junior drafts a rollout and
 a senior ships it.
 
@@ -3132,8 +3104,8 @@ Valkey              shared by every instance; keyed by SHA-256 of the credential
 PostgreSQL          the authority: one indexed lookup, one Argon2 comparison
 ```
 
-The tiers are not an optimisation. §3.2 forbids the ingestion path from querying the
-control plane per request, §64 requires ingestion to keep working through a PostgreSQL
+The tiers are not an optimisation. §3.2 forbids the ingestion path from querying
+PostgreSQL per request, §64 requires ingestion to keep working through a PostgreSQL
 outage, and §65 requires losing Valkey to cost speed rather than data. Each tier exists
 because one of those sentences does.
 
@@ -3144,7 +3116,7 @@ cache exists to avoid.
 
 Rejections are cached too, for a shorter window. A project key is assumed discoverable
 (§71), so wrong keys arrive in volume and none of them should reach an Argon2 comparison
-twice. A key that is merely *unverifiable* — because the control plane is unreachable —
+twice. A key that is merely *unverifiable* — because PostgreSQL is unreachable —
 is never cached as a rejection: an outage remembered as a rejection turns a blip into an
 hour of refused traffic.
 
@@ -3157,8 +3129,7 @@ Revoking a key writes `revoked_at` **and evicts the credential from the cache**.
 for a TTL to expire leaves a leaked key working for minutes, which is exactly the window
 during which somebody needs it to stop.
 
-The control plane cannot reproduce the cache key, because it only ever saw the secret
-once. So revocation writes a short-lived tombstone under the public identifier instead,
+The API cannot reproduce the cache key, because it only ever saw the secret once. So revocation writes a short-lived tombstone under the public identifier instead,
 and every resolver refuses anything matching it. The in-process tier is the one window
 eviction cannot reach, which is why its lifetime is measured in seconds.
 
@@ -3211,12 +3182,9 @@ Organization / Team
 API Keys
 ```
 
-Analytics pages call `query-api`; configuration pages call `control-api`. **Both with the
-person's own Firebase sign-in** — §52's reporting key is a secret and a browser cannot hold one,
-so `query-api` carries a second set of reporting routes scoped by path and guarded by
-`analytics.read` (§55.2). They are on the cell rather than proxied through the control plane
-because the data is on the cell, and proxying would route every European query through American
-infrastructure.
+Every page calls the one API. **All of it with the person's own Firebase sign-in** — §52's
+reporting key is a secret and a browser cannot hold one, so §10.5's routes have a second set
+scoped by path and guarded by `analytics.read` (§55.2).
 
 The dashboard application is not implemented yet. Authentication email actions will call
 Firebase directly, disable duplicate submissions while pending, and use a 60-second button
@@ -3228,8 +3196,8 @@ whether an account exists. The full behavior and Firebase references are in
 
 ### 55.1 Organization / Team
 
-The one page above that is built on the backend already. `control-api` serves the members, the
-roles they can hold and the invitations that put them there.
+The one page above that is built on the backend already. §10.1's routes serve the members,
+the roles they can hold and the invitations that put them there.
 
 **Two axes, two requests.** A role says *what* somebody may do; the project access list says
 *where*. A LiveOps manager on two of a studio's five games holds one role and two grants, rather
@@ -3283,8 +3251,8 @@ A reporting key answers for a machine — a studio's own BI pulling numbers serv
 dashboard cannot use one: §52 makes it a secret, and shipping it to a page publishes every
 studio's analytics to anyone who opens the network tab.
 
-So the same two questions are reachable a second way, on `query-api`, with the Firebase token the
-dashboard already holds:
+So the same two questions are reachable a second way, with the Firebase token the dashboard
+already holds:
 
 ```text
 POST /organizations/{org}/projects/{project}/analytics/{environment}/cohorts/query
@@ -3303,14 +3271,11 @@ scope members remain decoys that refuse the request.
 fixed when its credential is; a person switches between development and production in a
 dashboard. It is not a widening — all three belong to the project the access list already granted.
 
-**The cell refuses a project it does not hold** (§6, §99), with 421 and the address that can serve
-it, decided by the *project's* cell because a person's credential names none. Answering would
-return no rows, and "no rows" reads as "no players" rather than "wrong server".
-
-**A cell resolves accounts and does not create them.** `EnsureUser` writes a user row and a
-personal organization into the global tier on a first sign-in, and an EU service creating
-organizations in the US-hosted control plane as a side effect of somebody opening a chart is a
-boundary worth keeping even though the rows hold no player data.
+**Reading a chart does not create an account.** `EnsureUser` writes a user row *and a personal
+organization* on a first sign-in, which is right where somebody is signing up and wrong
+everywhere else. So these routes resolve a person through `ResolveKnownUser`, which withholds
+that creation: a valid token from a stranger is "no such organization", the same answer a real
+member of no organization gets, and nothing is written.
 
 There is no rate limit here, for the reason §32 gives about queries generally: the protections are
 per *query* — MaxRows, MaxExecutionTime, MaxBytesToRead, the structural refusal to join on an
@@ -3639,7 +3604,7 @@ If ClickHouse is unavailable:
 - writer retries with backoff;
 - alert on oldest unacked message age;
 - dashboard realtime data becomes stale;
-- control plane and feature flags remain available;
+- the dashboard and feature flags remain available;
 - restore writer service before queue retention is exhausted.
 
 ---
@@ -3648,7 +3613,7 @@ If ClickHouse is unavailable:
 
 During a PostgreSQL outage:
 
-- control-plane writes stop;
+- dashboard writes stop;
 - existing published feature flags should continue from Valkey/compiled snapshots;
 - ingestion should continue using a cached project-key/entitlement snapshot for a limited safe interval;
 - analytics writer is unaffected if normalized metadata is present in queued batches;
@@ -3793,8 +3758,8 @@ OpenTelemetry should be used for distributed traces across:
 
 ```text
 ingest -> Pub/Sub publish
-query-api -> ClickHouse
-control-api -> PostgreSQL
+api    -> ClickHouse
+api    -> PostgreSQL
 worker -> Stripe/customer webhook
 ```
 
@@ -3817,7 +3782,7 @@ Rules:
 - aggregates too thin to be anonymous are suppressed before they leave the service (§32.2);
 - internal service accounts have least privilege;
 - archive object prefixes are never exposed as unrestricted bucket access;
-- a player identifier never appears in the global control-plane tier (§99).
+- every column declares what it holds, and the build refuses one that does not (§96, §99).
 
 Tenant isolation and privacy are the same mechanism seen from two directions, which is why
 the last two rules live here rather than only in Part XXXII. Part XXXII sets out the
@@ -3946,17 +3911,17 @@ A project also carries two attributes that govern how its data may be handled, b
 at creation rather than editable in place:
 
 ```text
-cell           which cell holds this project's data — a row in the registry, not a string (§6)
 policy_tier    standard | child_directed | kids_strict (§98)
 ```
 
-`cell` is a foreign key into §6's registry rather than free text, and the difference is not
-cosmetic: a free-text region is a field nothing validates and nothing routes on, so a
-project can be created in a region no code can reach and nobody finds out until somebody
-asks where the data went. A key is refused at creation if the cell does not exist or is not
-`active`, and the gateway reads the same row to decide whether a batch belongs to it (§6).
+A project used to carry a second immutable field, `cell`, naming where its data lived. It
+was a foreign key into §6's registry rather than free text, because a free-text region is a
+field nothing validates and nothing routes on — a project could be created in a region no
+code could reach and nobody found out until somebody asked where the data went. That is the
+trap to remember if placement ever returns; the field went with the cells
+([ADR 0038](docs/adr/0038-one-api-one-database.md)).
 
-Both are stamped onto every event, not merely looked up when a query runs. A project that
+The tier is stamped onto every event, not merely looked up when a query runs. A project that
 changes tier does so from that moment forward: the rows already written keep the basis they
 were collected under, because a later flag cannot retroactively make an earlier collection
 lawful, and because reprocessing history to pretend otherwise is exactly the audit failure
@@ -3997,10 +3962,7 @@ playersense/
 ├─ apps/
 │  ├─ backend/
 │  │  ├─ cmd/
-│  │  │  ├─ control-api/
-│  │  │  ├─ ingest-api/
-│  │  │  ├─ query-api/
-│  │  │  ├─ config-api/
+│  │  │  ├─ api/
 │  │  │  ├─ analytics-writer/
 │  │  │  ├─ archive-writer/
 │  │  │  └─ worker/
@@ -4236,11 +4198,11 @@ Scale actions include:
 - faster/larger local NVMe;
 - separate query and ingestion nodes/clusters;
 - managed ClickHouse migration;
-- additional regional cells.
+- a second deployment in another region, which §6 no longer provides for.
 
 ---
 
-## 83. Split a customer/cell when
+## 83. Split a customer out when
 
 A single project may justify isolation when it consumes a disproportionate share of:
 
@@ -4250,7 +4212,12 @@ A single project may justify isolation when it consumes a disproportionate share
 - retention storage;
 - concurrent dashboard load.
 
-Because `project -> cell` is explicit, this move is operational rather than a product rewrite.
+This used to be operational rather than a product rewrite, because `project -> cell` was
+explicit. With §6 revised it is neither: there is one deployment and no placement, so
+isolating a customer means rebuilding the registry and the routing first
+([ADR 0038](docs/adr/0038-one-api-one-database.md)). That is the trade, and this is the
+symptom to watch for — a customer large enough to want their own stack is also a customer
+large enough to pay for rebuilding it.
 
 ---
 
@@ -4313,7 +4280,7 @@ Do not choose final table ordering or pricing assumptions from synthetic row-cou
 
 ### Do not store analytics in PostgreSQL
 
-It is the wrong workload and will endanger the control plane.
+It is the wrong workload, and it endangers the one database everything transactional depends on.
 
 ### Do not insert one event per ClickHouse INSERT
 
@@ -4421,9 +4388,11 @@ Options:
 - switch writer;
 - retire old cluster after verification.
 
-### Step 6 — add regional cells if needed
+### Step 6 — restore placement if a region is needed
 
-New projects can be assigned to the new cell first, then selected existing projects can be migrated.
+§6 no longer places a project anywhere, so this step now starts with rebuilding the registry
+and the routing ([ADR 0038](docs/adr/0038-one-api-one-database.md)). After that, new projects
+can be assigned to the new region first and selected existing projects migrated.
 
 ---
 
@@ -4528,7 +4497,7 @@ Add when metrics justify it:
 - Cloud SQL/AlloyDB;
 - Memorystore;
 - Cloud Run autoscaling;
-- regional cells;
+- a second region, once §6's placement is rebuilt;
 - read/write analytical compute separation;
 - enterprise exports/data-residency controls.
 
@@ -4562,7 +4531,7 @@ Add when metrics justify it:
 
 If this entire document is reduced to the decisions that matter most:
 
-1. **PostgreSQL is the control plane, not the analytics database.**
+1. **PostgreSQL is the transactional store, not the analytics database.**
 2. **ClickHouse is the realtime OLAP database.**
 3. **GCS is the durable raw-retention/archive layer.**
 4. **Valkey is ephemeral acceleration, not source of truth.**
@@ -4574,7 +4543,7 @@ If this entire document is reduced to the decisions that matter most:
    a column on the row, not something resolved against a player dimension at read time.
 10. **Raw retention and aggregate retention are different product concepts.**
 11. **A 500 GB VPS stays bounded; old raw data moves to object storage.**
-12. **The system scales via cells and infrastructure capacity, not by rewriting APIs.**
+12. **The system scales via infrastructure capacity, not by rewriting APIs.**
 13. **MAU is a good customer-facing primary meter, but storage and extreme event volume must also be metered.**
 14. **PlayerSense computes usage internally and sends aggregated meter events to Stripe.**
 15. **Feature flags are versioned in PostgreSQL and served as immutable cached snapshots.**
@@ -4600,9 +4569,9 @@ it does not claim certification.
 
 **Who and where.** PlayerSense is operated by a United States entity. It is a **processor**
 for the player data a studio sends it and a **controller** for its own customer accounts
-and billing. The global control plane is hosted in the United States; every cell holding
-player data is hosted in its own region, and `eu-1` is in Europe. §99 sets out why those
-differ and what it does and does not buy.
+and billing. There is one deployment, in one place, and the account data and the player data
+sit together in it. §99 sets out what that does and does not buy, and what it costs against
+the arrangement it replaced.
 
 **Architected for:** GDPR and UK GDPR; CCPA and CPRA; COPPA; Apple's App Review
 Guidelines, including App Tracking Transparency and privacy manifests; Google Play's Data
@@ -4614,9 +4583,10 @@ using Stripe (§40) already gives, since no card data ever reaches PlayerSense; 
 PIPL, which needs a domestic entity and domestic infrastructure and is better left out of
 scope than half-designed.
 
-The four things in this Part that genuinely cannot be retrofitted are consent provenance
-(§97), the policy tier (§98), the control-plane split (§99) and the column classification
-(§96). Everything else can arrive later.
+The three things in this Part that genuinely cannot be retrofitted are consent provenance
+(§97), the policy tier (§98) and the column classification (§96). Everything else can arrive
+later — including the residency split, which §99 used to list here and which was removed
+precisely because doing it before there is live data to migrate is the cheap moment.
 
 The reasoning behind each decision, and the code and test that enforce it, are recorded
 separately: `docs/adr/` for the decisions and `docs/compliance/` for the obligations they
@@ -4711,96 +4681,63 @@ gives.
 
 ---
 
-## 99. Residency and the control-plane split
+## 99. Residency and data classification
 
-§6 makes the data plane cellular: ingestion, the queue, ClickHouse and the archive all
-belong to a cell, and a project is assigned to one at creation. §11's control plane has no
-such division, and that is where European residency breaks — not in the analytics data,
-which is already cellular, but in PostgreSQL, where `verified_purchases`,
-`purchase_entitlements`, `data_deletion_requests`, `exports` and `archive_manifests` all
-hold rows about identifiable players.
+> **Revised 2026-09-21.** This section used to split PostgreSQL into a US-hosted **global
+> tier** and a per-cell tier in the cell's own region, under the rule *a player identifier
+> never appears in the global tier*, enforced by two ORM clients, two marker tables and
+> `migrate verify`. That split was built and removed
+> ([ADR 0038](docs/adr/0038-one-api-one-database.md)). The section number is kept because
+> the rest of this document and much of the code reference it.
 
-Split it in two.
+There is one PostgreSQL database and one deployment. Residency is a claim about where that
+deployment runs, recorded in `docs/compliance/03-residency-and-transfers.md` and in the
+customer DPA, not a property the architecture enforces.
 
-**Global tier** — one database, holding no player-linked data:
+### What is still enforced
 
-```text
-users                    billing_customers
-organizations            billing_subscriptions
-organization_members     billing_entitlements
-projects                 usage_ledger_daily        (aggregate counts only)
-project_environments     billing_period_snapshots
-project_api_keys         feature_flags
-project_settings         feature_flag_versions
-retention_policies       segments / experiments
-cells                    liveops_events / config_versions
-webhook_endpoints
-```
+> **Every column declares what it holds.**
 
-**Cell tier** — one database per cell, holding anything that names a player:
+Each column in PostgreSQL and in ClickHouse carries one of §96's five classifications in its
+comment, and `migrate verify` reads them back out of the live catalog — not out of the schema
+files, because the question is what the database actually holds and a column added by hand is
+exactly the one a schema-file check would miss. Any unclassified column, or any class the
+vocabulary does not know, fails the command.
 
-```text
-verified_purchases       exports
-purchase_entitlements    archive_manifests
-data_deletion_requests   audit records naming a player
-```
+This was the primitive the residency rule was written in terms of: *no column classified
+`identifier` in the global tier*. The rule is gone with the tier; the primitive is not, and it
+is what makes the Article 30 record, the Play declaration and the Apple manifest generated
+rather than maintained (§96, §103).
 
-One rule governs the split, and it is short enough to check in review:
+### What is no longer true
 
-> **A player identifier never appears in the global tier.**
+The three claims below were in this section and are now false. They are listed rather than
+deleted, because a reader who remembers them needs to know they went:
 
-§38 already respects it: the billing meter computes its actor set inside the cell and sends
-the global tier a count. Everything else follows the same shape — the global tier learns
-aggregates, never subjects.
+- A player identifier never appears beside the account records. It does now; they are one
+  database.
+- A project's data is confined to a named jurisdiction. There is one, and no project names it.
+- A US-hosted tier holds only customer account records, keeping the transfer surface narrow.
+  Administrative access now reaches account data and player data together.
 
-### Where each one sits, and why they differ
-
-| | Global tier | Cell tier |
-|---|---|---|
-| How many | Exactly one | One per cell |
-| Where | United States | The cell's region — `eu-1` is in Europe |
-| Holds | Accounts, projects, keys, billing, cells | Everything naming a player |
-| Why there | Beside the entity and its payment processor | Because that is the part painful to move |
-
-**The global tier is US-hosted** because the company is a US entity, billing sits next to
-Stripe, and — decisively — it holds no player data. Its rows describe direct customers who
-signed the terms themselves, and there are thousands of them rather than millions.
-
-**A cell's tier is in the cell's region** because it holds the player data, and that is the
-part a customer's procurement asks about. "Frankfurt" is a better answer than "the United
-States, under a framework". Ingest latency does not argue against it: batches are
-fire-and-forget and answered `202` (§19), so an extra hundred milliseconds is invisible.
-
-One thing must be stated plainly, because it is easy to assume otherwise: **hosting the
-control plane in the United States does not reduce GDPR exposure.** GDPR attaches because
-EU players' data is processed and services are offered to EU studios, not because of where
-a server sits. A US entity needs a transfer mechanism — Data Privacy Framework
+The transfer position is unchanged in substance, and was always stated the same way here:
+**hosting a server in Europe does not, on its own, remove GDPR exposure.** GDPR attaches
+because EU players' data is processed and services are offered to EU studios, not because of
+where a server sits. A US entity needs a transfer mechanism — Data Privacy Framework
 self-certification, or standard contractual clauses — for EU personal data it controls
-*wherever* that data is hosted, since US staff can reach it. What actually keeps that
-surface small is the rule above: no player identifier ever reaches the global tier, so the
-US-hosted database holds only customer account records.
+*wherever* that data is hosted, since US staff can reach it.
 
-### How the rule is enforced rather than intended
+### Rebuilding it
 
-Three mechanisms, in increasing order of how hard they are to bypass:
+The superseded records describe how: [ADR 0008](docs/adr/0008-two-tier-control-plane.md) for
+the tier split, [ADR 0009](docs/adr/0009-cells-region-and-residency.md) for regions and cells,
+[ADR 0010](docs/adr/0010-us-control-plane-eu-cell.md) for the hosting arrangement. They are
+kept precisely so that the argument can be re-read rather than reconstructed, and the
+classification they were built on is still in place to rebuild against.
 
-1. **Two ORM clients.** Each tier's entities are generated into their own package, so a
-   query written against the global client cannot name a cell entity — the type is not
-   there. §99 becomes a compile error rather than a review comment.
-2. **Tier markers.** Each database carries a table naming the tier it holds, and each
-   migration refuses to run against the other. Pointing the migrator at the wrong DSN would
-   otherwise grow a second control plane inside a cell's database, silently.
-3. **`migrate verify`.** Every column in both databases carries its §96 classification in
-   the column comment. The verifier reads them back out of the catalog and fails on any
-   column classified `identifier` in the global tier, and on any column classified at all.
-   Reading the catalog rather than the schema files is deliberate: the question is what the
-   database actually holds, and a column added by hand is exactly the one a schema-file
-   check would miss.
-
-Stage 1 runs one cell (§6), and locally both tiers are two databases inside one container.
-The split lives in the schema, in the connection strings and in the code that reaches them,
-which is what makes adding a second region an operational move rather than a migration of
-live transactional data across a jurisdiction boundary.
+Doing it before there is live transactional data is cheap. Doing it after is the migration
+across a jurisdiction boundary this section used to warn about, which is the reason the
+removal happened now rather than later.
 
 ---
 
@@ -5026,7 +4963,7 @@ us.ingest.playersense.io
 asia.ingest.playersense.io
 ```
 
-And regional reporting alongside it, because a cell's data is read where it is stored:
+And regional reporting alongside it, because data is read where it is stored:
 
 ```text
 eu.query.playersense.io
@@ -5035,9 +4972,11 @@ us.query.playersense.io
 
 The SDK may receive its assigned endpoint from project configuration rather than hardcoding a region forever.
 
-Both addresses are held per cell in the registry (§6) as `ingest_url` and `query_url`, and
-both are returned to a caller that reaches the wrong one. A gateway that refuses without
-saying where to go turns one wrong hostname into a support conversation.
+That is the shape to build back to. It existed — a registry held both addresses per cell and
+returned them to a caller that reached the wrong one — and was removed with §6
+([ADR 0038](docs/adr/0038-one-api-one-database.md)). The part worth carrying forward is the
+reason: a gateway that refuses without saying where to go turns one wrong hostname into a
+support conversation.
 
 ---
 
@@ -5056,7 +4995,7 @@ These should be treated as hard engineering rules.
 9. Webhook delivery is at least once and carries a stable event ID.
 10. Project keys are assumed discoverable by attackers, and no key is stored in a form
     that could be presented as a credential.
-11. Analytics failures must not break feature-flag control-plane CRUD.
+11. Analytics failures must not break feature-flag CRUD.
 12. Valkey loss must not cause permanent data loss.
 13. A failed archival/retention job must be retryable and auditable.
 14. Data-plane services are horizontally scalable and do not require local session state.
@@ -5067,7 +5006,7 @@ These should be treated as hard engineering rules.
 18. A cohort fact is partitioned by its activity month and rebuilt in whole months.
 19. A cohort's numerator and denominator are recomputed and published together.
 20. No aggregate leaves the service in a cell too thin to be anonymous.
-21. No player identifier appears in the global control-plane tier.
+21. No column exists in any database without a declared data classification.
 22. No event is stored without the consent basis it was collected under.
 23. A policy tier applies from the moment it is set and is never applied retroactively.
 
@@ -5109,4 +5048,4 @@ Stripe
 
 The sophistication comes from **data layout, batching, summaries, retention and boundaries**, not from deploying dozens of technologies.
 
-If the architecture is followed correctly, the first production deployment can remain inexpensive while the product is prefund, yet a successful PlayerSense deployment can later move onto managed GCP/ClickHouse infrastructure and regional cells without invalidating the SDKs, billing model, event protocol or product architecture.
+If the architecture is followed correctly, the first production deployment can remain inexpensive while the product is prefund, yet a successful PlayerSense deployment can later move onto managed GCP/ClickHouse infrastructure, and restore §6's regional placement, without invalidating the SDKs, billing model, event protocol or product architecture.
