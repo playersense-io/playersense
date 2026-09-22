@@ -209,8 +209,9 @@ GET    POST                 /v1/operator/plans/{plan}/rate-cards
 GET                         /v1/pricing                 public: what the landing page reads
 ```
 
-A card is a plan's tiers from `effective_from` on. It cannot be changed or start in the past; a new
-price is a new card, and each player is priced at the card in force when they arrived. Tiers are
+A card is a plan's tiers from `effective_from` on. It cannot be changed, and it starts no sooner than
+a minute after it is published — chargers keep prices in memory for less than that, so every one of
+them has the card before it applies. A new price is a new card, and each player is priced at the card in force when they arrived. Tiers are
 player positions within a calendar month, inclusive, and the last is unbounded. The launch prices —
 $1.00 per 1,000 players to 100,000, $0.80 to 500,000, $0.70 to 1,000,000, $0.60 above, so a studio
 with 200,000 players a month and 10,000 included pays $170 — are data, loaded like this (`$TOKEN`
@@ -244,7 +245,9 @@ Checkout or by the browser coming back — only by Stripe's signed webhook, keye
 a payment reported several ways is credited once. The card paid with is saved at Stripe, and automatic
 top-up (`PUT …/billing/auto-topup`) charges it from `billing-writer` when the balance falls below the
 threshold, with an idempotency key committed before the request so a lost response never becomes a
-second charge. Without `STRIPE_SECRET_KEY` these routes answer 503.
+second charge. The charge that leaves a balance low queues the top-up in its own transaction, and the
+queue is worked every two seconds; at most 3 automatic charges per organization in any 24 hours
+([ADR 0041](docs/adr/0041-top-ups-are-queued-by-the-charge-pricing-is-cached.md)). Without `STRIPE_SECRET_KEY` these routes answer 503.
 
 To receive webhooks locally, forward them with the Stripe CLI and give the API the secret it prints:
 
@@ -392,7 +395,10 @@ go run ./apps/backend/cmd/billing-writer
 Charges tracked players as they arrive, on its own subscription: counts who is new this month,
 queues what they cost, drains the queue into wallets every `BILLING_DRAIN_EVERY`, and deletes player
 sets older than last month; with `STRIPE_SECRET_KEY` set, it also charges saved cards for balances
-below their automatic top-up threshold. Needs PostgreSQL; Valkey only makes it faster. Refuses to start without a
+below their automatic top-up threshold. Needs PostgreSQL; Valkey only makes it faster — it answers
+"already counted this month" and holds each organization's pricing, so a busy organization costs no
+database reads to price. `BILLING_LOAD=1 go test ./apps/backend/internal/charging -run TestLoad -v`
+pushes a million batches through four writers and checks every organization's books. Refuses to start without a
 `BILLING_DIGEST_KEY` of 32 bytes or more — and that key must never change mid-month, or every player
 of the month is new again and charged twice. Ingestion never waits for it
 ([ADR 0039](docs/adr/0039-players-are-charged-as-they-arrive.md)).

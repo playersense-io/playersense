@@ -212,7 +212,8 @@ status/legal links, signup/login entry. **Must not contain privileged admin logi
       (`?checkout=success`) do **not** show the credit as arrived — poll `GET …/billing` for a few
       seconds until the webhook's lot appears, and say "payment received, crediting…" meanwhile.
       Auto top-up form: no card field; a 422 saying there is no saved card means "pay once or add a
-      card in the portal first". Show `auto_topup.pending` and `auto_topup.last_error`.
+      card in the portal first". Show `auto_topup.pending`, `queued`, `last_error`, and
+      `used_today` of `daily_limit` (3 by default, ADR 0041).
 - [ ] **Audit log** (§55.4) — read-only, gated on `audit.read` (only Owner/Admin among the six
       seeded roles). Render before/after state on role and rollout changes; label
       operator-initiated entries as self-asserted, per the backend's own labeling.
@@ -304,6 +305,8 @@ frontend-only, and do the staff-identity item first — everything else depends 
       (`PUT /v1/operator/organizations/{org}/plan`). There is deliberately no "edit price" —
       publishing a card *is* the edit, and it cannot start in the past. Same shared-token caveat
       as credit grants below.
+- [ ] Automatic top-up daily limit per organization (`auto_topup_daily_limit`, default 3, ADR 0041)
+      — editable only in the database today; needs an operator route and a field here.
 - [ ] Credit grants/charges UI over the existing operator routes
       (`POST /v1/operator/organizations/{org}/credits`, `.../charges`). Today these sit behind
       a **shared operator token**, not a verified staff identity — `granted_by_user_id` is
