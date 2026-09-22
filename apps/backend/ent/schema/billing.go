@@ -103,11 +103,20 @@ func (Plan) Fields() []ent.Field {
 		// sold, and deleting it would leave them pointing at nothing on the one screen
 		// where "what am I paying for" has to be answerable.
 		field.Bool("active").Default(true).Comment(dataclass.None),
+
+		// The plan a new organization is put on. At most one, enforced where it is set
+		// (handlers.UpdatePlan unsets the others in the same transaction) — a partial unique
+		// index would say the same thing and refuse the swap mid-transaction.
+		field.Bool("is_default").Default(false).Comment(dataclass.None),
 	}
 }
 
 func (Plan) Edges() []ent.Edge {
-	return []ent.Edge{edge.To("accounts", BillingAccount.Type)}
+	return []ent.Edge{
+		edge.To("accounts", BillingAccount.Type),
+		// Its price lists, one per meter per moment it changed (see RateCard).
+		edge.To("rate_cards", RateCard.Type),
+	}
 }
 
 // BillingAccount is one organisation's commercial relationship.
@@ -171,6 +180,17 @@ func (BillingAccount) Fields() []ent.Field {
 		// it at zero would forgive it silently.
 		field.Int64("balance_micros").Default(0).Comment(dataclass.Financial),
 
+		// Usage the wallet could not cover when it was charged (ADR 0039). A real-time charge
+		// is never refused — the players were already served — so what credit cannot pay
+		// becomes this, and the next grant pays it before becoming spendable credit.
+		//
+		// Kept as its own number rather than inferred from a negative balance, because the
+		// balance also moves with lapsed-but-unswept credit, and "how much does this account
+		// owe" must not depend on whether the expiry sweep has run.
+		//
+		// Invariant: balance_micros = Σ lots.remaining_micros − arrears_micros.
+		field.Int64("arrears_micros").Default(0).Min(0).Comment(dataclass.Financial),
+
 		// Automatic top-up. Off by default: a charge nobody authorised at the moment it
 		// happens needs to be something a person turned on deliberately.
 		field.Bool("auto_topup_enabled").Default(false).Comment(dataclass.None),
@@ -216,6 +236,8 @@ func (BillingAccount) Edges() []ent.Edge {
 		edge.To("credit_lots", CreditLot.Type),
 		edge.To("periods", BillingPeriod.Type),
 		edge.To("stripe_events", StripeEvent.Type),
+		edge.To("monthly_usage", MonthlyUsage.Type),
+		edge.To("usage_charges", UsageCharge.Type),
 	}
 }
 

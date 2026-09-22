@@ -9,6 +9,7 @@ import (
 	"math"
 
 	"entgo.io/ent"
+	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
@@ -16,10 +17,12 @@ import (
 	"playersense.dev/backend/ent/billingperiod"
 	"playersense.dev/backend/ent/creditlot"
 	"playersense.dev/backend/ent/ledgerentry"
+	"playersense.dev/backend/ent/monthlyusage"
 	"playersense.dev/backend/ent/organization"
 	"playersense.dev/backend/ent/plan"
 	"playersense.dev/backend/ent/predicate"
 	"playersense.dev/backend/ent/stripeevent"
+	"playersense.dev/backend/ent/usagecharge"
 )
 
 // BillingAccountQuery is the builder for querying BillingAccount entities.
@@ -35,6 +38,9 @@ type BillingAccountQuery struct {
 	withCreditLots    *CreditLotQuery
 	withPeriods       *BillingPeriodQuery
 	withStripeEvents  *StripeEventQuery
+	withMonthlyUsage  *MonthlyUsageQuery
+	withUsageCharges  *UsageChargeQuery
+	modifiers         []func(*sql.Selector)
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -196,6 +202,50 @@ func (_q *BillingAccountQuery) QueryStripeEvents() *StripeEventQuery {
 			sqlgraph.From(billingaccount.Table, billingaccount.FieldID, selector),
 			sqlgraph.To(stripeevent.Table, stripeevent.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, billingaccount.StripeEventsTable, billingaccount.StripeEventsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryMonthlyUsage chains the current query on the "monthly_usage" edge.
+func (_q *BillingAccountQuery) QueryMonthlyUsage() *MonthlyUsageQuery {
+	query := (&MonthlyUsageClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(billingaccount.Table, billingaccount.FieldID, selector),
+			sqlgraph.To(monthlyusage.Table, monthlyusage.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, billingaccount.MonthlyUsageTable, billingaccount.MonthlyUsageColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryUsageCharges chains the current query on the "usage_charges" edge.
+func (_q *BillingAccountQuery) QueryUsageCharges() *UsageChargeQuery {
+	query := (&UsageChargeClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(billingaccount.Table, billingaccount.FieldID, selector),
+			sqlgraph.To(usagecharge.Table, usagecharge.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, billingaccount.UsageChargesTable, billingaccount.UsageChargesColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -401,6 +451,8 @@ func (_q *BillingAccountQuery) Clone() *BillingAccountQuery {
 		withCreditLots:    _q.withCreditLots.Clone(),
 		withPeriods:       _q.withPeriods.Clone(),
 		withStripeEvents:  _q.withStripeEvents.Clone(),
+		withMonthlyUsage:  _q.withMonthlyUsage.Clone(),
+		withUsageCharges:  _q.withUsageCharges.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -470,6 +522,28 @@ func (_q *BillingAccountQuery) WithStripeEvents(opts ...func(*StripeEventQuery))
 		opt(query)
 	}
 	_q.withStripeEvents = query
+	return _q
+}
+
+// WithMonthlyUsage tells the query-builder to eager-load the nodes that are connected to
+// the "monthly_usage" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *BillingAccountQuery) WithMonthlyUsage(opts ...func(*MonthlyUsageQuery)) *BillingAccountQuery {
+	query := (&MonthlyUsageClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withMonthlyUsage = query
+	return _q
+}
+
+// WithUsageCharges tells the query-builder to eager-load the nodes that are connected to
+// the "usage_charges" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *BillingAccountQuery) WithUsageCharges(opts ...func(*UsageChargeQuery)) *BillingAccountQuery {
+	query := (&UsageChargeClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withUsageCharges = query
 	return _q
 }
 
@@ -551,13 +625,15 @@ func (_q *BillingAccountQuery) sqlAll(ctx context.Context, hooks ...queryHook) (
 	var (
 		nodes       = []*BillingAccount{}
 		_spec       = _q.querySpec()
-		loadedTypes = [6]bool{
+		loadedTypes = [8]bool{
 			_q.withOrganization != nil,
 			_q.withPlan != nil,
 			_q.withLedgerEntries != nil,
 			_q.withCreditLots != nil,
 			_q.withPeriods != nil,
 			_q.withStripeEvents != nil,
+			_q.withMonthlyUsage != nil,
+			_q.withUsageCharges != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -568,6 +644,9 @@ func (_q *BillingAccountQuery) sqlAll(ctx context.Context, hooks ...queryHook) (
 		nodes = append(nodes, node)
 		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
+	}
+	if len(_q.modifiers) > 0 {
+		_spec.Modifiers = _q.modifiers
 	}
 	for i := range hooks {
 		hooks[i](ctx, _spec)
@@ -615,6 +694,20 @@ func (_q *BillingAccountQuery) sqlAll(ctx context.Context, hooks ...queryHook) (
 		if err := _q.loadStripeEvents(ctx, query, nodes,
 			func(n *BillingAccount) { n.Edges.StripeEvents = []*StripeEvent{} },
 			func(n *BillingAccount, e *StripeEvent) { n.Edges.StripeEvents = append(n.Edges.StripeEvents, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withMonthlyUsage; query != nil {
+		if err := _q.loadMonthlyUsage(ctx, query, nodes,
+			func(n *BillingAccount) { n.Edges.MonthlyUsage = []*MonthlyUsage{} },
+			func(n *BillingAccount, e *MonthlyUsage) { n.Edges.MonthlyUsage = append(n.Edges.MonthlyUsage, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withUsageCharges; query != nil {
+		if err := _q.loadUsageCharges(ctx, query, nodes,
+			func(n *BillingAccount) { n.Edges.UsageCharges = []*UsageCharge{} },
+			func(n *BillingAccount, e *UsageCharge) { n.Edges.UsageCharges = append(n.Edges.UsageCharges, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -802,9 +895,72 @@ func (_q *BillingAccountQuery) loadStripeEvents(ctx context.Context, query *Stri
 	}
 	return nil
 }
+func (_q *BillingAccountQuery) loadMonthlyUsage(ctx context.Context, query *MonthlyUsageQuery, nodes []*BillingAccount, init func(*BillingAccount), assign func(*BillingAccount, *MonthlyUsage)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*BillingAccount)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(monthlyusage.FieldAccountID)
+	}
+	query.Where(predicate.MonthlyUsage(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(billingaccount.MonthlyUsageColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.AccountID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "account_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *BillingAccountQuery) loadUsageCharges(ctx context.Context, query *UsageChargeQuery, nodes []*BillingAccount, init func(*BillingAccount), assign func(*BillingAccount, *UsageCharge)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*BillingAccount)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(usagecharge.FieldAccountID)
+	}
+	query.Where(predicate.UsageCharge(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(billingaccount.UsageChargesColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.AccountID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "account_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
 
 func (_q *BillingAccountQuery) sqlCount(ctx context.Context) (int, error) {
 	_spec := _q.querySpec()
+	if len(_q.modifiers) > 0 {
+		_spec.Modifiers = _q.modifiers
+	}
 	_spec.Node.Columns = _q.ctx.Fields
 	if len(_q.ctx.Fields) > 0 {
 		_spec.Unique = _q.ctx.Unique != nil && *_q.ctx.Unique
@@ -873,6 +1029,9 @@ func (_q *BillingAccountQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	if _q.ctx.Unique != nil && *_q.ctx.Unique {
 		selector.Distinct()
 	}
+	for _, m := range _q.modifiers {
+		m(selector)
+	}
 	for _, p := range _q.predicates {
 		p(selector)
 	}
@@ -888,6 +1047,32 @@ func (_q *BillingAccountQuery) sqlQuery(ctx context.Context) *sql.Selector {
 		selector.Limit(*limit)
 	}
 	return selector
+}
+
+// ForUpdate locks the selected rows against concurrent updates, and prevent them from being
+// updated, deleted or "selected ... for update" by other sessions, until the transaction is
+// either committed or rolled-back.
+func (_q *BillingAccountQuery) ForUpdate(opts ...sql.LockOption) *BillingAccountQuery {
+	if _q.driver.Dialect() == dialect.Postgres {
+		_q.Unique(false)
+	}
+	_q.modifiers = append(_q.modifiers, func(s *sql.Selector) {
+		s.ForUpdate(opts...)
+	})
+	return _q
+}
+
+// ForShare behaves similarly to ForUpdate, except that it acquires a shared mode lock
+// on any rows that are read. Other sessions can read the rows, but cannot modify them
+// until your transaction commits.
+func (_q *BillingAccountQuery) ForShare(opts ...sql.LockOption) *BillingAccountQuery {
+	if _q.driver.Dialect() == dialect.Postgres {
+		_q.Unique(false)
+	}
+	_q.modifiers = append(_q.modifiers, func(s *sql.Selector) {
+		s.ForShare(opts...)
+	})
+	return _q
 }
 
 // BillingAccountGroupBy is the group-by builder for BillingAccount entities.

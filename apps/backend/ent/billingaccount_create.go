@@ -16,9 +16,11 @@ import (
 	"playersense.dev/backend/ent/billingperiod"
 	"playersense.dev/backend/ent/creditlot"
 	"playersense.dev/backend/ent/ledgerentry"
+	"playersense.dev/backend/ent/monthlyusage"
 	"playersense.dev/backend/ent/organization"
 	"playersense.dev/backend/ent/plan"
 	"playersense.dev/backend/ent/stripeevent"
+	"playersense.dev/backend/ent/usagecharge"
 )
 
 // BillingAccountCreate is the builder for creating a BillingAccount entity.
@@ -163,6 +165,20 @@ func (_c *BillingAccountCreate) SetBalanceMicros(v int64) *BillingAccountCreate 
 func (_c *BillingAccountCreate) SetNillableBalanceMicros(v *int64) *BillingAccountCreate {
 	if v != nil {
 		_c.SetBalanceMicros(*v)
+	}
+	return _c
+}
+
+// SetArrearsMicros sets the "arrears_micros" field.
+func (_c *BillingAccountCreate) SetArrearsMicros(v int64) *BillingAccountCreate {
+	_c.mutation.SetArrearsMicros(v)
+	return _c
+}
+
+// SetNillableArrearsMicros sets the "arrears_micros" field if the given value is not nil.
+func (_c *BillingAccountCreate) SetNillableArrearsMicros(v *int64) *BillingAccountCreate {
+	if v != nil {
+		_c.SetArrearsMicros(*v)
 	}
 	return _c
 }
@@ -319,6 +335,36 @@ func (_c *BillingAccountCreate) AddStripeEvents(v ...*StripeEvent) *BillingAccou
 	return _c.AddStripeEventIDs(ids...)
 }
 
+// AddMonthlyUsageIDs adds the "monthly_usage" edge to the MonthlyUsage entity by IDs.
+func (_c *BillingAccountCreate) AddMonthlyUsageIDs(ids ...int) *BillingAccountCreate {
+	_c.mutation.AddMonthlyUsageIDs(ids...)
+	return _c
+}
+
+// AddMonthlyUsage adds the "monthly_usage" edges to the MonthlyUsage entity.
+func (_c *BillingAccountCreate) AddMonthlyUsage(v ...*MonthlyUsage) *BillingAccountCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddMonthlyUsageIDs(ids...)
+}
+
+// AddUsageChargeIDs adds the "usage_charges" edge to the UsageCharge entity by IDs.
+func (_c *BillingAccountCreate) AddUsageChargeIDs(ids ...int) *BillingAccountCreate {
+	_c.mutation.AddUsageChargeIDs(ids...)
+	return _c
+}
+
+// AddUsageCharges adds the "usage_charges" edges to the UsageCharge entity.
+func (_c *BillingAccountCreate) AddUsageCharges(v ...*UsageCharge) *BillingAccountCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddUsageChargeIDs(ids...)
+}
+
 // Mutation returns the BillingAccountMutation object of the builder.
 func (_c *BillingAccountCreate) Mutation() *BillingAccountMutation {
 	return _c.mutation
@@ -396,6 +442,10 @@ func (_c *BillingAccountCreate) defaults() error {
 		v := billingaccount.DefaultBalanceMicros
 		_c.mutation.SetBalanceMicros(v)
 	}
+	if _, ok := _c.mutation.ArrearsMicros(); !ok {
+		v := billingaccount.DefaultArrearsMicros
+		_c.mutation.SetArrearsMicros(v)
+	}
 	if _, ok := _c.mutation.AutoTopupEnabled(); !ok {
 		v := billingaccount.DefaultAutoTopupEnabled
 		_c.mutation.SetAutoTopupEnabled(v)
@@ -463,6 +513,14 @@ func (_c *BillingAccountCreate) check() error {
 	}
 	if _, ok := _c.mutation.BalanceMicros(); !ok {
 		return &ValidationError{Name: "balance_micros", err: errors.New(`ent: missing required field "BillingAccount.balance_micros"`)}
+	}
+	if _, ok := _c.mutation.ArrearsMicros(); !ok {
+		return &ValidationError{Name: "arrears_micros", err: errors.New(`ent: missing required field "BillingAccount.arrears_micros"`)}
+	}
+	if v, ok := _c.mutation.ArrearsMicros(); ok {
+		if err := billingaccount.ArrearsMicrosValidator(v); err != nil {
+			return &ValidationError{Name: "arrears_micros", err: fmt.Errorf(`ent: validator failed for field "BillingAccount.arrears_micros": %w`, err)}
+		}
 	}
 	if _, ok := _c.mutation.AutoTopupEnabled(); !ok {
 		return &ValidationError{Name: "auto_topup_enabled", err: errors.New(`ent: missing required field "BillingAccount.auto_topup_enabled"`)}
@@ -570,6 +628,10 @@ func (_c *BillingAccountCreate) createSpec() (*BillingAccount, *sqlgraph.CreateS
 	if value, ok := _c.mutation.BalanceMicros(); ok {
 		_spec.SetField(billingaccount.FieldBalanceMicros, field.TypeInt64, value)
 		_node.BalanceMicros = value
+	}
+	if value, ok := _c.mutation.ArrearsMicros(); ok {
+		_spec.SetField(billingaccount.FieldArrearsMicros, field.TypeInt64, value)
+		_node.ArrearsMicros = value
 	}
 	if value, ok := _c.mutation.AutoTopupEnabled(); ok {
 		_spec.SetField(billingaccount.FieldAutoTopupEnabled, field.TypeBool, value)
@@ -686,6 +748,38 @@ func (_c *BillingAccountCreate) createSpec() (*BillingAccount, *sqlgraph.CreateS
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(stripeevent.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.MonthlyUsageIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   billingaccount.MonthlyUsageTable,
+			Columns: []string{billingaccount.MonthlyUsageColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(monthlyusage.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.UsageChargesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   billingaccount.UsageChargesTable,
+			Columns: []string{billingaccount.UsageChargesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(usagecharge.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {
@@ -856,6 +950,24 @@ func (u *BillingAccountUpsert) UpdateBalanceMicros() *BillingAccountUpsert {
 // AddBalanceMicros adds v to the "balance_micros" field.
 func (u *BillingAccountUpsert) AddBalanceMicros(v int64) *BillingAccountUpsert {
 	u.Add(billingaccount.FieldBalanceMicros, v)
+	return u
+}
+
+// SetArrearsMicros sets the "arrears_micros" field.
+func (u *BillingAccountUpsert) SetArrearsMicros(v int64) *BillingAccountUpsert {
+	u.Set(billingaccount.FieldArrearsMicros, v)
+	return u
+}
+
+// UpdateArrearsMicros sets the "arrears_micros" field to the value that was provided on create.
+func (u *BillingAccountUpsert) UpdateArrearsMicros() *BillingAccountUpsert {
+	u.SetExcluded(billingaccount.FieldArrearsMicros)
+	return u
+}
+
+// AddArrearsMicros adds v to the "arrears_micros" field.
+func (u *BillingAccountUpsert) AddArrearsMicros(v int64) *BillingAccountUpsert {
+	u.Add(billingaccount.FieldArrearsMicros, v)
 	return u
 }
 
@@ -1142,6 +1254,27 @@ func (u *BillingAccountUpsertOne) AddBalanceMicros(v int64) *BillingAccountUpser
 func (u *BillingAccountUpsertOne) UpdateBalanceMicros() *BillingAccountUpsertOne {
 	return u.Update(func(s *BillingAccountUpsert) {
 		s.UpdateBalanceMicros()
+	})
+}
+
+// SetArrearsMicros sets the "arrears_micros" field.
+func (u *BillingAccountUpsertOne) SetArrearsMicros(v int64) *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetArrearsMicros(v)
+	})
+}
+
+// AddArrearsMicros adds v to the "arrears_micros" field.
+func (u *BillingAccountUpsertOne) AddArrearsMicros(v int64) *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.AddArrearsMicros(v)
+	})
+}
+
+// UpdateArrearsMicros sets the "arrears_micros" field to the value that was provided on create.
+func (u *BillingAccountUpsertOne) UpdateArrearsMicros() *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateArrearsMicros()
 	})
 }
 
@@ -1610,6 +1743,27 @@ func (u *BillingAccountUpsertBulk) AddBalanceMicros(v int64) *BillingAccountUpse
 func (u *BillingAccountUpsertBulk) UpdateBalanceMicros() *BillingAccountUpsertBulk {
 	return u.Update(func(s *BillingAccountUpsert) {
 		s.UpdateBalanceMicros()
+	})
+}
+
+// SetArrearsMicros sets the "arrears_micros" field.
+func (u *BillingAccountUpsertBulk) SetArrearsMicros(v int64) *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetArrearsMicros(v)
+	})
+}
+
+// AddArrearsMicros adds v to the "arrears_micros" field.
+func (u *BillingAccountUpsertBulk) AddArrearsMicros(v int64) *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.AddArrearsMicros(v)
+	})
+}
+
+// UpdateArrearsMicros sets the "arrears_micros" field to the value that was provided on create.
+func (u *BillingAccountUpsertBulk) UpdateArrearsMicros() *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateArrearsMicros()
 	})
 }
 

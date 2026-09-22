@@ -15,6 +15,7 @@ import (
 	"playersense.dev/backend/ent/apikey"
 	"playersense.dev/backend/ent/archivemanifest"
 	"playersense.dev/backend/ent/auditevent"
+	"playersense.dev/backend/ent/billableplayer"
 	"playersense.dev/backend/ent/billingaccount"
 	"playersense.dev/backend/ent/billingperiod"
 	"playersense.dev/backend/ent/configversion"
@@ -27,14 +28,17 @@ import (
 	"playersense.dev/backend/ent/ledgerentry"
 	"playersense.dev/backend/ent/liveopsevent"
 	"playersense.dev/backend/ent/memberproject"
+	"playersense.dev/backend/ent/monthlyusage"
 	"playersense.dev/backend/ent/organization"
 	"playersense.dev/backend/ent/organizationmember"
 	"playersense.dev/backend/ent/plan"
 	"playersense.dev/backend/ent/project"
+	"playersense.dev/backend/ent/ratecard"
 	"playersense.dev/backend/ent/role"
 	"playersense.dev/backend/ent/segment"
 	"playersense.dev/backend/ent/staffaccess"
 	"playersense.dev/backend/ent/stripeevent"
+	"playersense.dev/backend/ent/usagecharge"
 	"playersense.dev/backend/ent/usagedaily"
 	"playersense.dev/backend/ent/user"
 	"playersense.dev/backend/ent/verifiedpurchase"
@@ -101,6 +105,7 @@ func checkColumn(t, c string) error {
 			apikey.Table:              apikey.ValidColumn,
 			archivemanifest.Table:     archivemanifest.ValidColumn,
 			auditevent.Table:          auditevent.ValidColumn,
+			billableplayer.Table:      billableplayer.ValidColumn,
 			billingaccount.Table:      billingaccount.ValidColumn,
 			billingperiod.Table:       billingperiod.ValidColumn,
 			configversion.Table:       configversion.ValidColumn,
@@ -113,14 +118,17 @@ func checkColumn(t, c string) error {
 			ledgerentry.Table:         ledgerentry.ValidColumn,
 			liveopsevent.Table:        liveopsevent.ValidColumn,
 			memberproject.Table:       memberproject.ValidColumn,
+			monthlyusage.Table:        monthlyusage.ValidColumn,
 			organization.Table:        organization.ValidColumn,
 			organizationmember.Table:  organizationmember.ValidColumn,
 			plan.Table:                plan.ValidColumn,
 			project.Table:             project.ValidColumn,
+			ratecard.Table:            ratecard.ValidColumn,
 			role.Table:                role.ValidColumn,
 			segment.Table:             segment.ValidColumn,
 			staffaccess.Table:         staffaccess.ValidColumn,
 			stripeevent.Table:         stripeevent.ValidColumn,
+			usagecharge.Table:         usagecharge.ValidColumn,
 			usagedaily.Table:          usagedaily.ValidColumn,
 			user.Table:                user.ValidColumn,
 			verifiedpurchase.Table:    verifiedpurchase.ValidColumn,

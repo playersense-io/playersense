@@ -18,6 +18,7 @@ import (
 	"playersense.dev/backend/ent/apikey"
 	"playersense.dev/backend/ent/archivemanifest"
 	"playersense.dev/backend/ent/auditevent"
+	"playersense.dev/backend/ent/billableplayer"
 	"playersense.dev/backend/ent/billingaccount"
 	"playersense.dev/backend/ent/billingperiod"
 	"playersense.dev/backend/ent/configversion"
@@ -30,17 +31,22 @@ import (
 	"playersense.dev/backend/ent/ledgerentry"
 	"playersense.dev/backend/ent/liveopsevent"
 	"playersense.dev/backend/ent/memberproject"
+	"playersense.dev/backend/ent/monthlyusage"
 	"playersense.dev/backend/ent/organization"
 	"playersense.dev/backend/ent/organizationmember"
 	"playersense.dev/backend/ent/plan"
 	"playersense.dev/backend/ent/project"
+	"playersense.dev/backend/ent/ratecard"
 	"playersense.dev/backend/ent/role"
 	"playersense.dev/backend/ent/segment"
 	"playersense.dev/backend/ent/staffaccess"
 	"playersense.dev/backend/ent/stripeevent"
+	"playersense.dev/backend/ent/usagecharge"
 	"playersense.dev/backend/ent/usagedaily"
 	"playersense.dev/backend/ent/user"
 	"playersense.dev/backend/ent/verifiedpurchase"
+
+	stdsql "database/sql"
 )
 
 // Client is the client that holds all ent builders.
@@ -54,6 +60,8 @@ type Client struct {
 	ArchiveManifest *ArchiveManifestClient
 	// AuditEvent is the client for interacting with the AuditEvent builders.
 	AuditEvent *AuditEventClient
+	// BillablePlayer is the client for interacting with the BillablePlayer builders.
+	BillablePlayer *BillablePlayerClient
 	// BillingAccount is the client for interacting with the BillingAccount builders.
 	BillingAccount *BillingAccountClient
 	// BillingPeriod is the client for interacting with the BillingPeriod builders.
@@ -78,6 +86,8 @@ type Client struct {
 	LiveOpsEvent *LiveOpsEventClient
 	// MemberProject is the client for interacting with the MemberProject builders.
 	MemberProject *MemberProjectClient
+	// MonthlyUsage is the client for interacting with the MonthlyUsage builders.
+	MonthlyUsage *MonthlyUsageClient
 	// Organization is the client for interacting with the Organization builders.
 	Organization *OrganizationClient
 	// OrganizationMember is the client for interacting with the OrganizationMember builders.
@@ -86,6 +96,8 @@ type Client struct {
 	Plan *PlanClient
 	// Project is the client for interacting with the Project builders.
 	Project *ProjectClient
+	// RateCard is the client for interacting with the RateCard builders.
+	RateCard *RateCardClient
 	// Role is the client for interacting with the Role builders.
 	Role *RoleClient
 	// Segment is the client for interacting with the Segment builders.
@@ -94,6 +106,8 @@ type Client struct {
 	StaffAccess *StaffAccessClient
 	// StripeEvent is the client for interacting with the StripeEvent builders.
 	StripeEvent *StripeEventClient
+	// UsageCharge is the client for interacting with the UsageCharge builders.
+	UsageCharge *UsageChargeClient
 	// UsageDaily is the client for interacting with the UsageDaily builders.
 	UsageDaily *UsageDailyClient
 	// User is the client for interacting with the User builders.
@@ -114,6 +128,7 @@ func (c *Client) init() {
 	c.APIKey = NewAPIKeyClient(c.config)
 	c.ArchiveManifest = NewArchiveManifestClient(c.config)
 	c.AuditEvent = NewAuditEventClient(c.config)
+	c.BillablePlayer = NewBillablePlayerClient(c.config)
 	c.BillingAccount = NewBillingAccountClient(c.config)
 	c.BillingPeriod = NewBillingPeriodClient(c.config)
 	c.ConfigVersion = NewConfigVersionClient(c.config)
@@ -126,14 +141,17 @@ func (c *Client) init() {
 	c.LedgerEntry = NewLedgerEntryClient(c.config)
 	c.LiveOpsEvent = NewLiveOpsEventClient(c.config)
 	c.MemberProject = NewMemberProjectClient(c.config)
+	c.MonthlyUsage = NewMonthlyUsageClient(c.config)
 	c.Organization = NewOrganizationClient(c.config)
 	c.OrganizationMember = NewOrganizationMemberClient(c.config)
 	c.Plan = NewPlanClient(c.config)
 	c.Project = NewProjectClient(c.config)
+	c.RateCard = NewRateCardClient(c.config)
 	c.Role = NewRoleClient(c.config)
 	c.Segment = NewSegmentClient(c.config)
 	c.StaffAccess = NewStaffAccessClient(c.config)
 	c.StripeEvent = NewStripeEventClient(c.config)
+	c.UsageCharge = NewUsageChargeClient(c.config)
 	c.UsageDaily = NewUsageDailyClient(c.config)
 	c.User = NewUserClient(c.config)
 	c.VerifiedPurchase = NewVerifiedPurchaseClient(c.config)
@@ -232,6 +250,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		APIKey:              NewAPIKeyClient(cfg),
 		ArchiveManifest:     NewArchiveManifestClient(cfg),
 		AuditEvent:          NewAuditEventClient(cfg),
+		BillablePlayer:      NewBillablePlayerClient(cfg),
 		BillingAccount:      NewBillingAccountClient(cfg),
 		BillingPeriod:       NewBillingPeriodClient(cfg),
 		ConfigVersion:       NewConfigVersionClient(cfg),
@@ -244,14 +263,17 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		LedgerEntry:         NewLedgerEntryClient(cfg),
 		LiveOpsEvent:        NewLiveOpsEventClient(cfg),
 		MemberProject:       NewMemberProjectClient(cfg),
+		MonthlyUsage:        NewMonthlyUsageClient(cfg),
 		Organization:        NewOrganizationClient(cfg),
 		OrganizationMember:  NewOrganizationMemberClient(cfg),
 		Plan:                NewPlanClient(cfg),
 		Project:             NewProjectClient(cfg),
+		RateCard:            NewRateCardClient(cfg),
 		Role:                NewRoleClient(cfg),
 		Segment:             NewSegmentClient(cfg),
 		StaffAccess:         NewStaffAccessClient(cfg),
 		StripeEvent:         NewStripeEventClient(cfg),
+		UsageCharge:         NewUsageChargeClient(cfg),
 		UsageDaily:          NewUsageDailyClient(cfg),
 		User:                NewUserClient(cfg),
 		VerifiedPurchase:    NewVerifiedPurchaseClient(cfg),
@@ -277,6 +299,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		APIKey:              NewAPIKeyClient(cfg),
 		ArchiveManifest:     NewArchiveManifestClient(cfg),
 		AuditEvent:          NewAuditEventClient(cfg),
+		BillablePlayer:      NewBillablePlayerClient(cfg),
 		BillingAccount:      NewBillingAccountClient(cfg),
 		BillingPeriod:       NewBillingPeriodClient(cfg),
 		ConfigVersion:       NewConfigVersionClient(cfg),
@@ -289,14 +312,17 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		LedgerEntry:         NewLedgerEntryClient(cfg),
 		LiveOpsEvent:        NewLiveOpsEventClient(cfg),
 		MemberProject:       NewMemberProjectClient(cfg),
+		MonthlyUsage:        NewMonthlyUsageClient(cfg),
 		Organization:        NewOrganizationClient(cfg),
 		OrganizationMember:  NewOrganizationMemberClient(cfg),
 		Plan:                NewPlanClient(cfg),
 		Project:             NewProjectClient(cfg),
+		RateCard:            NewRateCardClient(cfg),
 		Role:                NewRoleClient(cfg),
 		Segment:             NewSegmentClient(cfg),
 		StaffAccess:         NewStaffAccessClient(cfg),
 		StripeEvent:         NewStripeEventClient(cfg),
+		UsageCharge:         NewUsageChargeClient(cfg),
 		UsageDaily:          NewUsageDailyClient(cfg),
 		User:                NewUserClient(cfg),
 		VerifiedPurchase:    NewVerifiedPurchaseClient(cfg),
@@ -329,11 +355,12 @@ func (c *Client) Close() error {
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
-		c.APIKey, c.ArchiveManifest, c.AuditEvent, c.BillingAccount, c.BillingPeriod,
-		c.ConfigVersion, c.CreditLot, c.DataDeletionRequest, c.DataExportRequest,
-		c.Environment, c.FeatureFlag, c.Invitation, c.LedgerEntry, c.LiveOpsEvent,
-		c.MemberProject, c.Organization, c.OrganizationMember, c.Plan, c.Project,
-		c.Role, c.Segment, c.StaffAccess, c.StripeEvent, c.UsageDaily, c.User,
+		c.APIKey, c.ArchiveManifest, c.AuditEvent, c.BillablePlayer, c.BillingAccount,
+		c.BillingPeriod, c.ConfigVersion, c.CreditLot, c.DataDeletionRequest,
+		c.DataExportRequest, c.Environment, c.FeatureFlag, c.Invitation, c.LedgerEntry,
+		c.LiveOpsEvent, c.MemberProject, c.MonthlyUsage, c.Organization,
+		c.OrganizationMember, c.Plan, c.Project, c.RateCard, c.Role, c.Segment,
+		c.StaffAccess, c.StripeEvent, c.UsageCharge, c.UsageDaily, c.User,
 		c.VerifiedPurchase,
 	} {
 		n.Use(hooks...)
@@ -344,11 +371,12 @@ func (c *Client) Use(hooks ...Hook) {
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
-		c.APIKey, c.ArchiveManifest, c.AuditEvent, c.BillingAccount, c.BillingPeriod,
-		c.ConfigVersion, c.CreditLot, c.DataDeletionRequest, c.DataExportRequest,
-		c.Environment, c.FeatureFlag, c.Invitation, c.LedgerEntry, c.LiveOpsEvent,
-		c.MemberProject, c.Organization, c.OrganizationMember, c.Plan, c.Project,
-		c.Role, c.Segment, c.StaffAccess, c.StripeEvent, c.UsageDaily, c.User,
+		c.APIKey, c.ArchiveManifest, c.AuditEvent, c.BillablePlayer, c.BillingAccount,
+		c.BillingPeriod, c.ConfigVersion, c.CreditLot, c.DataDeletionRequest,
+		c.DataExportRequest, c.Environment, c.FeatureFlag, c.Invitation, c.LedgerEntry,
+		c.LiveOpsEvent, c.MemberProject, c.MonthlyUsage, c.Organization,
+		c.OrganizationMember, c.Plan, c.Project, c.RateCard, c.Role, c.Segment,
+		c.StaffAccess, c.StripeEvent, c.UsageCharge, c.UsageDaily, c.User,
 		c.VerifiedPurchase,
 	} {
 		n.Intercept(interceptors...)
@@ -364,6 +392,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.ArchiveManifest.mutate(ctx, m)
 	case *AuditEventMutation:
 		return c.AuditEvent.mutate(ctx, m)
+	case *BillablePlayerMutation:
+		return c.BillablePlayer.mutate(ctx, m)
 	case *BillingAccountMutation:
 		return c.BillingAccount.mutate(ctx, m)
 	case *BillingPeriodMutation:
@@ -388,6 +418,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.LiveOpsEvent.mutate(ctx, m)
 	case *MemberProjectMutation:
 		return c.MemberProject.mutate(ctx, m)
+	case *MonthlyUsageMutation:
+		return c.MonthlyUsage.mutate(ctx, m)
 	case *OrganizationMutation:
 		return c.Organization.mutate(ctx, m)
 	case *OrganizationMemberMutation:
@@ -396,6 +428,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Plan.mutate(ctx, m)
 	case *ProjectMutation:
 		return c.Project.mutate(ctx, m)
+	case *RateCardMutation:
+		return c.RateCard.mutate(ctx, m)
 	case *RoleMutation:
 		return c.Role.mutate(ctx, m)
 	case *SegmentMutation:
@@ -404,6 +438,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.StaffAccess.mutate(ctx, m)
 	case *StripeEventMutation:
 		return c.StripeEvent.mutate(ctx, m)
+	case *UsageChargeMutation:
+		return c.UsageCharge.mutate(ctx, m)
 	case *UsageDailyMutation:
 		return c.UsageDaily.mutate(ctx, m)
 	case *UserMutation:
@@ -910,6 +946,139 @@ func (c *AuditEventClient) mutate(ctx context.Context, m *AuditEventMutation) (V
 	}
 }
 
+// BillablePlayerClient is a client for the BillablePlayer schema.
+type BillablePlayerClient struct {
+	config
+}
+
+// NewBillablePlayerClient returns a client for the BillablePlayer from the given config.
+func NewBillablePlayerClient(c config) *BillablePlayerClient {
+	return &BillablePlayerClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `billableplayer.Hooks(f(g(h())))`.
+func (c *BillablePlayerClient) Use(hooks ...Hook) {
+	c.hooks.BillablePlayer = append(c.hooks.BillablePlayer, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `billableplayer.Intercept(f(g(h())))`.
+func (c *BillablePlayerClient) Intercept(interceptors ...Interceptor) {
+	c.inters.BillablePlayer = append(c.inters.BillablePlayer, interceptors...)
+}
+
+// Create returns a builder for creating a BillablePlayer entity.
+func (c *BillablePlayerClient) Create() *BillablePlayerCreate {
+	mutation := newBillablePlayerMutation(c.config, OpCreate)
+	return &BillablePlayerCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of BillablePlayer entities.
+func (c *BillablePlayerClient) CreateBulk(builders ...*BillablePlayerCreate) *BillablePlayerCreateBulk {
+	return &BillablePlayerCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *BillablePlayerClient) MapCreateBulk(slice any, setFunc func(*BillablePlayerCreate, int)) *BillablePlayerCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &BillablePlayerCreateBulk{err: fmt.Errorf("calling to BillablePlayerClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*BillablePlayerCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &BillablePlayerCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for BillablePlayer.
+func (c *BillablePlayerClient) Update() *BillablePlayerUpdate {
+	mutation := newBillablePlayerMutation(c.config, OpUpdate)
+	return &BillablePlayerUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *BillablePlayerClient) UpdateOne(_m *BillablePlayer) *BillablePlayerUpdateOne {
+	mutation := newBillablePlayerMutation(c.config, OpUpdateOne, withBillablePlayer(_m))
+	return &BillablePlayerUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *BillablePlayerClient) UpdateOneID(id int64) *BillablePlayerUpdateOne {
+	mutation := newBillablePlayerMutation(c.config, OpUpdateOne, withBillablePlayerID(id))
+	return &BillablePlayerUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for BillablePlayer.
+func (c *BillablePlayerClient) Delete() *BillablePlayerDelete {
+	mutation := newBillablePlayerMutation(c.config, OpDelete)
+	return &BillablePlayerDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *BillablePlayerClient) DeleteOne(_m *BillablePlayer) *BillablePlayerDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *BillablePlayerClient) DeleteOneID(id int64) *BillablePlayerDeleteOne {
+	builder := c.Delete().Where(billableplayer.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &BillablePlayerDeleteOne{builder}
+}
+
+// Query returns a query builder for BillablePlayer.
+func (c *BillablePlayerClient) Query() *BillablePlayerQuery {
+	return &BillablePlayerQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeBillablePlayer},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a BillablePlayer entity by its id.
+func (c *BillablePlayerClient) Get(ctx context.Context, id int64) (*BillablePlayer, error) {
+	return c.Query().Where(billableplayer.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *BillablePlayerClient) GetX(ctx context.Context, id int64) *BillablePlayer {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *BillablePlayerClient) Hooks() []Hook {
+	return c.hooks.BillablePlayer
+}
+
+// Interceptors returns the client interceptors.
+func (c *BillablePlayerClient) Interceptors() []Interceptor {
+	return c.inters.BillablePlayer
+}
+
+func (c *BillablePlayerClient) mutate(ctx context.Context, m *BillablePlayerMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&BillablePlayerCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&BillablePlayerUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&BillablePlayerUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&BillablePlayerDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown BillablePlayer mutation op: %q", m.Op())
+	}
+}
+
 // BillingAccountClient is a client for the BillingAccount schema.
 type BillingAccountClient struct {
 	config
@@ -1107,6 +1276,38 @@ func (c *BillingAccountClient) QueryStripeEvents(_m *BillingAccount) *StripeEven
 			sqlgraph.From(billingaccount.Table, billingaccount.FieldID, id),
 			sqlgraph.To(stripeevent.Table, stripeevent.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, billingaccount.StripeEventsTable, billingaccount.StripeEventsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryMonthlyUsage queries the monthly_usage edge of a BillingAccount.
+func (c *BillingAccountClient) QueryMonthlyUsage(_m *BillingAccount) *MonthlyUsageQuery {
+	query := (&MonthlyUsageClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(billingaccount.Table, billingaccount.FieldID, id),
+			sqlgraph.To(monthlyusage.Table, monthlyusage.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, billingaccount.MonthlyUsageTable, billingaccount.MonthlyUsageColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryUsageCharges queries the usage_charges edge of a BillingAccount.
+func (c *BillingAccountClient) QueryUsageCharges(_m *BillingAccount) *UsageChargeQuery {
+	query := (&UsageChargeClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(billingaccount.Table, billingaccount.FieldID, id),
+			sqlgraph.To(usagecharge.Table, usagecharge.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, billingaccount.UsageChargesTable, billingaccount.UsageChargesColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -2923,6 +3124,155 @@ func (c *MemberProjectClient) mutate(ctx context.Context, m *MemberProjectMutati
 	}
 }
 
+// MonthlyUsageClient is a client for the MonthlyUsage schema.
+type MonthlyUsageClient struct {
+	config
+}
+
+// NewMonthlyUsageClient returns a client for the MonthlyUsage from the given config.
+func NewMonthlyUsageClient(c config) *MonthlyUsageClient {
+	return &MonthlyUsageClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `monthlyusage.Hooks(f(g(h())))`.
+func (c *MonthlyUsageClient) Use(hooks ...Hook) {
+	c.hooks.MonthlyUsage = append(c.hooks.MonthlyUsage, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `monthlyusage.Intercept(f(g(h())))`.
+func (c *MonthlyUsageClient) Intercept(interceptors ...Interceptor) {
+	c.inters.MonthlyUsage = append(c.inters.MonthlyUsage, interceptors...)
+}
+
+// Create returns a builder for creating a MonthlyUsage entity.
+func (c *MonthlyUsageClient) Create() *MonthlyUsageCreate {
+	mutation := newMonthlyUsageMutation(c.config, OpCreate)
+	return &MonthlyUsageCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of MonthlyUsage entities.
+func (c *MonthlyUsageClient) CreateBulk(builders ...*MonthlyUsageCreate) *MonthlyUsageCreateBulk {
+	return &MonthlyUsageCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *MonthlyUsageClient) MapCreateBulk(slice any, setFunc func(*MonthlyUsageCreate, int)) *MonthlyUsageCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &MonthlyUsageCreateBulk{err: fmt.Errorf("calling to MonthlyUsageClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*MonthlyUsageCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &MonthlyUsageCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for MonthlyUsage.
+func (c *MonthlyUsageClient) Update() *MonthlyUsageUpdate {
+	mutation := newMonthlyUsageMutation(c.config, OpUpdate)
+	return &MonthlyUsageUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *MonthlyUsageClient) UpdateOne(_m *MonthlyUsage) *MonthlyUsageUpdateOne {
+	mutation := newMonthlyUsageMutation(c.config, OpUpdateOne, withMonthlyUsage(_m))
+	return &MonthlyUsageUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *MonthlyUsageClient) UpdateOneID(id int) *MonthlyUsageUpdateOne {
+	mutation := newMonthlyUsageMutation(c.config, OpUpdateOne, withMonthlyUsageID(id))
+	return &MonthlyUsageUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for MonthlyUsage.
+func (c *MonthlyUsageClient) Delete() *MonthlyUsageDelete {
+	mutation := newMonthlyUsageMutation(c.config, OpDelete)
+	return &MonthlyUsageDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *MonthlyUsageClient) DeleteOne(_m *MonthlyUsage) *MonthlyUsageDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *MonthlyUsageClient) DeleteOneID(id int) *MonthlyUsageDeleteOne {
+	builder := c.Delete().Where(monthlyusage.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &MonthlyUsageDeleteOne{builder}
+}
+
+// Query returns a query builder for MonthlyUsage.
+func (c *MonthlyUsageClient) Query() *MonthlyUsageQuery {
+	return &MonthlyUsageQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeMonthlyUsage},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a MonthlyUsage entity by its id.
+func (c *MonthlyUsageClient) Get(ctx context.Context, id int) (*MonthlyUsage, error) {
+	return c.Query().Where(monthlyusage.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *MonthlyUsageClient) GetX(ctx context.Context, id int) *MonthlyUsage {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryAccount queries the account edge of a MonthlyUsage.
+func (c *MonthlyUsageClient) QueryAccount(_m *MonthlyUsage) *BillingAccountQuery {
+	query := (&BillingAccountClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(monthlyusage.Table, monthlyusage.FieldID, id),
+			sqlgraph.To(billingaccount.Table, billingaccount.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, monthlyusage.AccountTable, monthlyusage.AccountColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *MonthlyUsageClient) Hooks() []Hook {
+	return c.hooks.MonthlyUsage
+}
+
+// Interceptors returns the client interceptors.
+func (c *MonthlyUsageClient) Interceptors() []Interceptor {
+	return c.inters.MonthlyUsage
+}
+
+func (c *MonthlyUsageClient) mutate(ctx context.Context, m *MonthlyUsageMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&MonthlyUsageCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&MonthlyUsageUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&MonthlyUsageUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&MonthlyUsageDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown MonthlyUsage mutation op: %q", m.Op())
+	}
+}
+
 // OrganizationClient is a client for the Organization schema.
 type OrganizationClient struct {
 	config
@@ -3473,6 +3823,22 @@ func (c *PlanClient) QueryAccounts(_m *Plan) *BillingAccountQuery {
 	return query
 }
 
+// QueryRateCards queries the rate_cards edge of a Plan.
+func (c *PlanClient) QueryRateCards(_m *Plan) *RateCardQuery {
+	query := (&RateCardClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(plan.Table, plan.FieldID, id),
+			sqlgraph.To(ratecard.Table, ratecard.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, plan.RateCardsTable, plan.RateCardsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *PlanClient) Hooks() []Hook {
 	hooks := c.hooks.Plan
@@ -3757,6 +4123,172 @@ func (c *ProjectClient) mutate(ctx context.Context, m *ProjectMutation) (Value, 
 		return (&ProjectDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown Project mutation op: %q", m.Op())
+	}
+}
+
+// RateCardClient is a client for the RateCard schema.
+type RateCardClient struct {
+	config
+}
+
+// NewRateCardClient returns a client for the RateCard from the given config.
+func NewRateCardClient(c config) *RateCardClient {
+	return &RateCardClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `ratecard.Hooks(f(g(h())))`.
+func (c *RateCardClient) Use(hooks ...Hook) {
+	c.hooks.RateCard = append(c.hooks.RateCard, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `ratecard.Intercept(f(g(h())))`.
+func (c *RateCardClient) Intercept(interceptors ...Interceptor) {
+	c.inters.RateCard = append(c.inters.RateCard, interceptors...)
+}
+
+// Create returns a builder for creating a RateCard entity.
+func (c *RateCardClient) Create() *RateCardCreate {
+	mutation := newRateCardMutation(c.config, OpCreate)
+	return &RateCardCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of RateCard entities.
+func (c *RateCardClient) CreateBulk(builders ...*RateCardCreate) *RateCardCreateBulk {
+	return &RateCardCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *RateCardClient) MapCreateBulk(slice any, setFunc func(*RateCardCreate, int)) *RateCardCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &RateCardCreateBulk{err: fmt.Errorf("calling to RateCardClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*RateCardCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &RateCardCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for RateCard.
+func (c *RateCardClient) Update() *RateCardUpdate {
+	mutation := newRateCardMutation(c.config, OpUpdate)
+	return &RateCardUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *RateCardClient) UpdateOne(_m *RateCard) *RateCardUpdateOne {
+	mutation := newRateCardMutation(c.config, OpUpdateOne, withRateCard(_m))
+	return &RateCardUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *RateCardClient) UpdateOneID(id int) *RateCardUpdateOne {
+	mutation := newRateCardMutation(c.config, OpUpdateOne, withRateCardID(id))
+	return &RateCardUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for RateCard.
+func (c *RateCardClient) Delete() *RateCardDelete {
+	mutation := newRateCardMutation(c.config, OpDelete)
+	return &RateCardDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *RateCardClient) DeleteOne(_m *RateCard) *RateCardDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *RateCardClient) DeleteOneID(id int) *RateCardDeleteOne {
+	builder := c.Delete().Where(ratecard.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &RateCardDeleteOne{builder}
+}
+
+// Query returns a query builder for RateCard.
+func (c *RateCardClient) Query() *RateCardQuery {
+	return &RateCardQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeRateCard},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a RateCard entity by its id.
+func (c *RateCardClient) Get(ctx context.Context, id int) (*RateCard, error) {
+	return c.Query().Where(ratecard.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *RateCardClient) GetX(ctx context.Context, id int) *RateCard {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryPlan queries the plan edge of a RateCard.
+func (c *RateCardClient) QueryPlan(_m *RateCard) *PlanQuery {
+	query := (&PlanClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(ratecard.Table, ratecard.FieldID, id),
+			sqlgraph.To(plan.Table, plan.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, ratecard.PlanTable, ratecard.PlanColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryCharges queries the charges edge of a RateCard.
+func (c *RateCardClient) QueryCharges(_m *RateCard) *UsageChargeQuery {
+	query := (&UsageChargeClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(ratecard.Table, ratecard.FieldID, id),
+			sqlgraph.To(usagecharge.Table, usagecharge.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, ratecard.ChargesTable, ratecard.ChargesColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *RateCardClient) Hooks() []Hook {
+	hooks := c.hooks.RateCard
+	return append(hooks[:len(hooks):len(hooks)], ratecard.Hooks[:]...)
+}
+
+// Interceptors returns the client interceptors.
+func (c *RateCardClient) Interceptors() []Interceptor {
+	return c.inters.RateCard
+}
+
+func (c *RateCardClient) mutate(ctx context.Context, m *RateCardMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&RateCardCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&RateCardUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&RateCardUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&RateCardDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown RateCard mutation op: %q", m.Op())
 	}
 }
 
@@ -4373,6 +4905,187 @@ func (c *StripeEventClient) mutate(ctx context.Context, m *StripeEventMutation) 
 	}
 }
 
+// UsageChargeClient is a client for the UsageCharge schema.
+type UsageChargeClient struct {
+	config
+}
+
+// NewUsageChargeClient returns a client for the UsageCharge from the given config.
+func NewUsageChargeClient(c config) *UsageChargeClient {
+	return &UsageChargeClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `usagecharge.Hooks(f(g(h())))`.
+func (c *UsageChargeClient) Use(hooks ...Hook) {
+	c.hooks.UsageCharge = append(c.hooks.UsageCharge, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `usagecharge.Intercept(f(g(h())))`.
+func (c *UsageChargeClient) Intercept(interceptors ...Interceptor) {
+	c.inters.UsageCharge = append(c.inters.UsageCharge, interceptors...)
+}
+
+// Create returns a builder for creating a UsageCharge entity.
+func (c *UsageChargeClient) Create() *UsageChargeCreate {
+	mutation := newUsageChargeMutation(c.config, OpCreate)
+	return &UsageChargeCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of UsageCharge entities.
+func (c *UsageChargeClient) CreateBulk(builders ...*UsageChargeCreate) *UsageChargeCreateBulk {
+	return &UsageChargeCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *UsageChargeClient) MapCreateBulk(slice any, setFunc func(*UsageChargeCreate, int)) *UsageChargeCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &UsageChargeCreateBulk{err: fmt.Errorf("calling to UsageChargeClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*UsageChargeCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &UsageChargeCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for UsageCharge.
+func (c *UsageChargeClient) Update() *UsageChargeUpdate {
+	mutation := newUsageChargeMutation(c.config, OpUpdate)
+	return &UsageChargeUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *UsageChargeClient) UpdateOne(_m *UsageCharge) *UsageChargeUpdateOne {
+	mutation := newUsageChargeMutation(c.config, OpUpdateOne, withUsageCharge(_m))
+	return &UsageChargeUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *UsageChargeClient) UpdateOneID(id int) *UsageChargeUpdateOne {
+	mutation := newUsageChargeMutation(c.config, OpUpdateOne, withUsageChargeID(id))
+	return &UsageChargeUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for UsageCharge.
+func (c *UsageChargeClient) Delete() *UsageChargeDelete {
+	mutation := newUsageChargeMutation(c.config, OpDelete)
+	return &UsageChargeDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *UsageChargeClient) DeleteOne(_m *UsageCharge) *UsageChargeDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *UsageChargeClient) DeleteOneID(id int) *UsageChargeDeleteOne {
+	builder := c.Delete().Where(usagecharge.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &UsageChargeDeleteOne{builder}
+}
+
+// Query returns a query builder for UsageCharge.
+func (c *UsageChargeClient) Query() *UsageChargeQuery {
+	return &UsageChargeQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeUsageCharge},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a UsageCharge entity by its id.
+func (c *UsageChargeClient) Get(ctx context.Context, id int) (*UsageCharge, error) {
+	return c.Query().Where(usagecharge.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *UsageChargeClient) GetX(ctx context.Context, id int) *UsageCharge {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryAccount queries the account edge of a UsageCharge.
+func (c *UsageChargeClient) QueryAccount(_m *UsageCharge) *BillingAccountQuery {
+	query := (&BillingAccountClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(usagecharge.Table, usagecharge.FieldID, id),
+			sqlgraph.To(billingaccount.Table, billingaccount.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, usagecharge.AccountTable, usagecharge.AccountColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryRateCard queries the rate_card edge of a UsageCharge.
+func (c *UsageChargeClient) QueryRateCard(_m *UsageCharge) *RateCardQuery {
+	query := (&RateCardClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(usagecharge.Table, usagecharge.FieldID, id),
+			sqlgraph.To(ratecard.Table, ratecard.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, usagecharge.RateCardTable, usagecharge.RateCardColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryLedgerEntry queries the ledger_entry edge of a UsageCharge.
+func (c *UsageChargeClient) QueryLedgerEntry(_m *UsageCharge) *LedgerEntryQuery {
+	query := (&LedgerEntryClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(usagecharge.Table, usagecharge.FieldID, id),
+			sqlgraph.To(ledgerentry.Table, ledgerentry.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, false, usagecharge.LedgerEntryTable, usagecharge.LedgerEntryColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *UsageChargeClient) Hooks() []Hook {
+	return c.hooks.UsageCharge
+}
+
+// Interceptors returns the client interceptors.
+func (c *UsageChargeClient) Interceptors() []Interceptor {
+	return c.inters.UsageCharge
+}
+
+func (c *UsageChargeClient) mutate(ctx context.Context, m *UsageChargeMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&UsageChargeCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&UsageChargeUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&UsageChargeUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&UsageChargeDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown UsageCharge mutation op: %q", m.Op())
+	}
+}
+
 // UsageDailyClient is a client for the UsageDaily schema.
 type UsageDailyClient struct {
 	config
@@ -4871,17 +5584,43 @@ func (c *VerifiedPurchaseClient) mutate(ctx context.Context, m *VerifiedPurchase
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		APIKey, ArchiveManifest, AuditEvent, BillingAccount, BillingPeriod,
-		ConfigVersion, CreditLot, DataDeletionRequest, DataExportRequest, Environment,
-		FeatureFlag, Invitation, LedgerEntry, LiveOpsEvent, MemberProject,
-		Organization, OrganizationMember, Plan, Project, Role, Segment, StaffAccess,
-		StripeEvent, UsageDaily, User, VerifiedPurchase []ent.Hook
+		APIKey, ArchiveManifest, AuditEvent, BillablePlayer, BillingAccount,
+		BillingPeriod, ConfigVersion, CreditLot, DataDeletionRequest,
+		DataExportRequest, Environment, FeatureFlag, Invitation, LedgerEntry,
+		LiveOpsEvent, MemberProject, MonthlyUsage, Organization, OrganizationMember,
+		Plan, Project, RateCard, Role, Segment, StaffAccess, StripeEvent, UsageCharge,
+		UsageDaily, User, VerifiedPurchase []ent.Hook
 	}
 	inters struct {
-		APIKey, ArchiveManifest, AuditEvent, BillingAccount, BillingPeriod,
-		ConfigVersion, CreditLot, DataDeletionRequest, DataExportRequest, Environment,
-		FeatureFlag, Invitation, LedgerEntry, LiveOpsEvent, MemberProject,
-		Organization, OrganizationMember, Plan, Project, Role, Segment, StaffAccess,
-		StripeEvent, UsageDaily, User, VerifiedPurchase []ent.Interceptor
+		APIKey, ArchiveManifest, AuditEvent, BillablePlayer, BillingAccount,
+		BillingPeriod, ConfigVersion, CreditLot, DataDeletionRequest,
+		DataExportRequest, Environment, FeatureFlag, Invitation, LedgerEntry,
+		LiveOpsEvent, MemberProject, MonthlyUsage, Organization, OrganizationMember,
+		Plan, Project, RateCard, Role, Segment, StaffAccess, StripeEvent, UsageCharge,
+		UsageDaily, User, VerifiedPurchase []ent.Interceptor
 	}
 )
+
+// ExecContext allows calling the underlying ExecContext method of the driver if it is supported by it.
+// See, database/sql#DB.ExecContext for more information.
+func (c *config) ExecContext(ctx context.Context, query string, args ...any) (stdsql.Result, error) {
+	ex, ok := c.driver.(interface {
+		ExecContext(context.Context, string, ...any) (stdsql.Result, error)
+	})
+	if !ok {
+		return nil, fmt.Errorf("Driver.ExecContext is not supported")
+	}
+	return ex.ExecContext(ctx, query, args...)
+}
+
+// QueryContext allows calling the underlying QueryContext method of the driver if it is supported by it.
+// See, database/sql#DB.QueryContext for more information.
+func (c *config) QueryContext(ctx context.Context, query string, args ...any) (*stdsql.Rows, error) {
+	q, ok := c.driver.(interface {
+		QueryContext(context.Context, string, ...any) (*stdsql.Rows, error)
+	})
+	if !ok {
+		return nil, fmt.Errorf("Driver.QueryContext is not supported")
+	}
+	return q.QueryContext(ctx, query, args...)
+}

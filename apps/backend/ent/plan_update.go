@@ -14,6 +14,7 @@ import (
 	"playersense.dev/backend/ent/billingaccount"
 	"playersense.dev/backend/ent/plan"
 	"playersense.dev/backend/ent/predicate"
+	"playersense.dev/backend/ent/ratecard"
 )
 
 // PlanUpdate is the builder for updating Plan entities.
@@ -138,6 +139,20 @@ func (_u *PlanUpdate) SetNillableActive(v *bool) *PlanUpdate {
 	return _u
 }
 
+// SetIsDefault sets the "is_default" field.
+func (_u *PlanUpdate) SetIsDefault(v bool) *PlanUpdate {
+	_u.mutation.SetIsDefault(v)
+	return _u
+}
+
+// SetNillableIsDefault sets the "is_default" field if the given value is not nil.
+func (_u *PlanUpdate) SetNillableIsDefault(v *bool) *PlanUpdate {
+	if v != nil {
+		_u.SetIsDefault(*v)
+	}
+	return _u
+}
+
 // AddAccountIDs adds the "accounts" edge to the BillingAccount entity by IDs.
 func (_u *PlanUpdate) AddAccountIDs(ids ...int) *PlanUpdate {
 	_u.mutation.AddAccountIDs(ids...)
@@ -151,6 +166,21 @@ func (_u *PlanUpdate) AddAccounts(v ...*BillingAccount) *PlanUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.AddAccountIDs(ids...)
+}
+
+// AddRateCardIDs adds the "rate_cards" edge to the RateCard entity by IDs.
+func (_u *PlanUpdate) AddRateCardIDs(ids ...int) *PlanUpdate {
+	_u.mutation.AddRateCardIDs(ids...)
+	return _u
+}
+
+// AddRateCards adds the "rate_cards" edges to the RateCard entity.
+func (_u *PlanUpdate) AddRateCards(v ...*RateCard) *PlanUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddRateCardIDs(ids...)
 }
 
 // Mutation returns the PlanMutation object of the builder.
@@ -177,6 +207,27 @@ func (_u *PlanUpdate) RemoveAccounts(v ...*BillingAccount) *PlanUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveAccountIDs(ids...)
+}
+
+// ClearRateCards clears all "rate_cards" edges to the RateCard entity.
+func (_u *PlanUpdate) ClearRateCards() *PlanUpdate {
+	_u.mutation.ClearRateCards()
+	return _u
+}
+
+// RemoveRateCardIDs removes the "rate_cards" edge to RateCard entities by IDs.
+func (_u *PlanUpdate) RemoveRateCardIDs(ids ...int) *PlanUpdate {
+	_u.mutation.RemoveRateCardIDs(ids...)
+	return _u
+}
+
+// RemoveRateCards removes "rate_cards" edges to RateCard entities.
+func (_u *PlanUpdate) RemoveRateCards(v ...*RateCard) *PlanUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveRateCardIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -293,6 +344,9 @@ func (_u *PlanUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.Active(); ok {
 		_spec.SetField(plan.FieldActive, field.TypeBool, value)
 	}
+	if value, ok := _u.mutation.IsDefault(); ok {
+		_spec.SetField(plan.FieldIsDefault, field.TypeBool, value)
+	}
 	if _u.mutation.AccountsCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
@@ -331,6 +385,51 @@ func (_u *PlanUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(billingaccount.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.RateCardsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   plan.RateCardsTable,
+			Columns: []string{plan.RateCardsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(ratecard.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedRateCardsIDs(); len(nodes) > 0 && !_u.mutation.RateCardsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   plan.RateCardsTable,
+			Columns: []string{plan.RateCardsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(ratecard.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RateCardsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   plan.RateCardsTable,
+			Columns: []string{plan.RateCardsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(ratecard.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {
@@ -467,6 +566,20 @@ func (_u *PlanUpdateOne) SetNillableActive(v *bool) *PlanUpdateOne {
 	return _u
 }
 
+// SetIsDefault sets the "is_default" field.
+func (_u *PlanUpdateOne) SetIsDefault(v bool) *PlanUpdateOne {
+	_u.mutation.SetIsDefault(v)
+	return _u
+}
+
+// SetNillableIsDefault sets the "is_default" field if the given value is not nil.
+func (_u *PlanUpdateOne) SetNillableIsDefault(v *bool) *PlanUpdateOne {
+	if v != nil {
+		_u.SetIsDefault(*v)
+	}
+	return _u
+}
+
 // AddAccountIDs adds the "accounts" edge to the BillingAccount entity by IDs.
 func (_u *PlanUpdateOne) AddAccountIDs(ids ...int) *PlanUpdateOne {
 	_u.mutation.AddAccountIDs(ids...)
@@ -480,6 +593,21 @@ func (_u *PlanUpdateOne) AddAccounts(v ...*BillingAccount) *PlanUpdateOne {
 		ids[i] = v[i].ID
 	}
 	return _u.AddAccountIDs(ids...)
+}
+
+// AddRateCardIDs adds the "rate_cards" edge to the RateCard entity by IDs.
+func (_u *PlanUpdateOne) AddRateCardIDs(ids ...int) *PlanUpdateOne {
+	_u.mutation.AddRateCardIDs(ids...)
+	return _u
+}
+
+// AddRateCards adds the "rate_cards" edges to the RateCard entity.
+func (_u *PlanUpdateOne) AddRateCards(v ...*RateCard) *PlanUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddRateCardIDs(ids...)
 }
 
 // Mutation returns the PlanMutation object of the builder.
@@ -506,6 +634,27 @@ func (_u *PlanUpdateOne) RemoveAccounts(v ...*BillingAccount) *PlanUpdateOne {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveAccountIDs(ids...)
+}
+
+// ClearRateCards clears all "rate_cards" edges to the RateCard entity.
+func (_u *PlanUpdateOne) ClearRateCards() *PlanUpdateOne {
+	_u.mutation.ClearRateCards()
+	return _u
+}
+
+// RemoveRateCardIDs removes the "rate_cards" edge to RateCard entities by IDs.
+func (_u *PlanUpdateOne) RemoveRateCardIDs(ids ...int) *PlanUpdateOne {
+	_u.mutation.RemoveRateCardIDs(ids...)
+	return _u
+}
+
+// RemoveRateCards removes "rate_cards" edges to RateCard entities.
+func (_u *PlanUpdateOne) RemoveRateCards(v ...*RateCard) *PlanUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveRateCardIDs(ids...)
 }
 
 // Where appends a list predicates to the PlanUpdate builder.
@@ -652,6 +801,9 @@ func (_u *PlanUpdateOne) sqlSave(ctx context.Context) (_node *Plan, err error) {
 	if value, ok := _u.mutation.Active(); ok {
 		_spec.SetField(plan.FieldActive, field.TypeBool, value)
 	}
+	if value, ok := _u.mutation.IsDefault(); ok {
+		_spec.SetField(plan.FieldIsDefault, field.TypeBool, value)
+	}
 	if _u.mutation.AccountsCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
@@ -690,6 +842,51 @@ func (_u *PlanUpdateOne) sqlSave(ctx context.Context) (_node *Plan, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(billingaccount.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.RateCardsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   plan.RateCardsTable,
+			Columns: []string{plan.RateCardsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(ratecard.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedRateCardsIDs(); len(nodes) > 0 && !_u.mutation.RateCardsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   plan.RateCardsTable,
+			Columns: []string{plan.RateCardsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(ratecard.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RateCardsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   plan.RateCardsTable,
+			Columns: []string{plan.RateCardsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(ratecard.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

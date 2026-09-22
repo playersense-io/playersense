@@ -44,6 +44,8 @@ type BillingAccount struct {
 	Currency string `json:"currency,omitempty"`
 	// class=financial
 	BalanceMicros int64 `json:"balance_micros,omitempty"`
+	// class=financial
+	ArrearsMicros int64 `json:"arrears_micros,omitempty"`
 	// class=none
 	AutoTopupEnabled bool `json:"auto_topup_enabled,omitempty"`
 	// class=financial
@@ -76,9 +78,13 @@ type BillingAccountEdges struct {
 	Periods []*BillingPeriod `json:"periods,omitempty"`
 	// StripeEvents holds the value of the stripe_events edge.
 	StripeEvents []*StripeEvent `json:"stripe_events,omitempty"`
+	// MonthlyUsage holds the value of the monthly_usage edge.
+	MonthlyUsage []*MonthlyUsage `json:"monthly_usage,omitempty"`
+	// UsageCharges holds the value of the usage_charges edge.
+	UsageCharges []*UsageCharge `json:"usage_charges,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [6]bool
+	loadedTypes [8]bool
 }
 
 // OrganizationOrErr returns the Organization value or an error if the edge
@@ -139,6 +145,24 @@ func (e BillingAccountEdges) StripeEventsOrErr() ([]*StripeEvent, error) {
 	return nil, &NotLoadedError{edge: "stripe_events"}
 }
 
+// MonthlyUsageOrErr returns the MonthlyUsage value or an error if the edge
+// was not loaded in eager-loading.
+func (e BillingAccountEdges) MonthlyUsageOrErr() ([]*MonthlyUsage, error) {
+	if e.loadedTypes[6] {
+		return e.MonthlyUsage, nil
+	}
+	return nil, &NotLoadedError{edge: "monthly_usage"}
+}
+
+// UsageChargesOrErr returns the UsageCharges value or an error if the edge
+// was not loaded in eager-loading.
+func (e BillingAccountEdges) UsageChargesOrErr() ([]*UsageCharge, error) {
+	if e.loadedTypes[7] {
+		return e.UsageCharges, nil
+	}
+	return nil, &NotLoadedError{edge: "usage_charges"}
+}
+
 // scanValues returns the types for scanning values from sql.Rows.
 func (*BillingAccount) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
@@ -148,7 +172,7 @@ func (*BillingAccount) scanValues(columns []string) ([]any, error) {
 			values[i] = new([]byte)
 		case billingaccount.FieldAutoTopupEnabled:
 			values[i] = new(sql.NullBool)
-		case billingaccount.FieldID, billingaccount.FieldOrganizationID, billingaccount.FieldPlanID, billingaccount.FieldBalanceMicros, billingaccount.FieldAutoTopupThresholdMicros, billingaccount.FieldAutoTopupAmountMicros:
+		case billingaccount.FieldID, billingaccount.FieldOrganizationID, billingaccount.FieldPlanID, billingaccount.FieldBalanceMicros, billingaccount.FieldArrearsMicros, billingaccount.FieldAutoTopupThresholdMicros, billingaccount.FieldAutoTopupAmountMicros:
 			values[i] = new(sql.NullInt64)
 		case billingaccount.FieldStripeCustomerID, billingaccount.FieldStripeSubscriptionID, billingaccount.FieldState, billingaccount.FieldCurrency, billingaccount.FieldDefaultPaymentMethod, billingaccount.FieldBillingEmail:
 			values[i] = new(sql.NullString)
@@ -245,6 +269,12 @@ func (_m *BillingAccount) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.BalanceMicros = value.Int64
 			}
+		case billingaccount.FieldArrearsMicros:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field arrears_micros", values[i])
+			} else if value.Valid {
+				_m.ArrearsMicros = value.Int64
+			}
 		case billingaccount.FieldAutoTopupEnabled:
 			if value, ok := values[i].(*sql.NullBool); !ok {
 				return fmt.Errorf("unexpected type %T for field auto_topup_enabled", values[i])
@@ -328,6 +358,16 @@ func (_m *BillingAccount) QueryStripeEvents() *StripeEventQuery {
 	return NewBillingAccountClient(_m.config).QueryStripeEvents(_m)
 }
 
+// QueryMonthlyUsage queries the "monthly_usage" edge of the BillingAccount entity.
+func (_m *BillingAccount) QueryMonthlyUsage() *MonthlyUsageQuery {
+	return NewBillingAccountClient(_m.config).QueryMonthlyUsage(_m)
+}
+
+// QueryUsageCharges queries the "usage_charges" edge of the BillingAccount entity.
+func (_m *BillingAccount) QueryUsageCharges() *UsageChargeQuery {
+	return NewBillingAccountClient(_m.config).QueryUsageCharges(_m)
+}
+
 // Update returns a builder for updating this BillingAccount.
 // Note that you need to call BillingAccount.Unwrap() before calling this method if this BillingAccount
 // was returned from a transaction, and the transaction was committed or rolled back.
@@ -387,6 +427,9 @@ func (_m *BillingAccount) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("balance_micros=")
 	builder.WriteString(fmt.Sprintf("%v", _m.BalanceMicros))
+	builder.WriteString(", ")
+	builder.WriteString("arrears_micros=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ArrearsMicros))
 	builder.WriteString(", ")
 	builder.WriteString("auto_topup_enabled=")
 	builder.WriteString(fmt.Sprintf("%v", _m.AutoTopupEnabled))

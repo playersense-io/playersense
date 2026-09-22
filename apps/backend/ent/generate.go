@@ -17,4 +17,10 @@ package ent
 // The archive manifest needs insert-or-do-nothing: delivery is at-least-once (§21), so a
 // redelivered flush produces the same object path and must leave one manifest row rather
 // than fail.
-//go:generate go run entgo.io/ent/cmd/ent generate --feature sql/upsert ./schema
+//
+// Row locks and raw queries, for the real-time charger (ADR 0039). Pricing a player depends on
+// how many came before them this month, so an account's accruals take turns on a locked row; the
+// drain takes accounts with SKIP LOCKED so two drains never wait on each other; and counting new
+// players is one INSERT … ON CONFLICT DO NOTHING RETURNING per delivery, which ent's builders
+// cannot express with the inserted rows back.
+//go:generate go run entgo.io/ent/cmd/ent generate --feature sql/upsert,sql/lock,sql/execquery ./schema

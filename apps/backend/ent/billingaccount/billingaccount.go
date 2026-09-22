@@ -39,6 +39,8 @@ const (
 	FieldCurrency = "currency"
 	// FieldBalanceMicros holds the string denoting the balance_micros field in the database.
 	FieldBalanceMicros = "balance_micros"
+	// FieldArrearsMicros holds the string denoting the arrears_micros field in the database.
+	FieldArrearsMicros = "arrears_micros"
 	// FieldAutoTopupEnabled holds the string denoting the auto_topup_enabled field in the database.
 	FieldAutoTopupEnabled = "auto_topup_enabled"
 	// FieldAutoTopupThresholdMicros holds the string denoting the auto_topup_threshold_micros field in the database.
@@ -63,6 +65,10 @@ const (
 	EdgePeriods = "periods"
 	// EdgeStripeEvents holds the string denoting the stripe_events edge name in mutations.
 	EdgeStripeEvents = "stripe_events"
+	// EdgeMonthlyUsage holds the string denoting the monthly_usage edge name in mutations.
+	EdgeMonthlyUsage = "monthly_usage"
+	// EdgeUsageCharges holds the string denoting the usage_charges edge name in mutations.
+	EdgeUsageCharges = "usage_charges"
 	// Table holds the table name of the billingaccount in the database.
 	Table = "billing_accounts"
 	// OrganizationTable is the table that holds the organization relation/edge.
@@ -107,6 +113,20 @@ const (
 	StripeEventsInverseTable = "stripe_events"
 	// StripeEventsColumn is the table column denoting the stripe_events relation/edge.
 	StripeEventsColumn = "account_id"
+	// MonthlyUsageTable is the table that holds the monthly_usage relation/edge.
+	MonthlyUsageTable = "monthly_usage"
+	// MonthlyUsageInverseTable is the table name for the MonthlyUsage entity.
+	// It exists in this package in order to avoid circular dependency with the "monthlyusage" package.
+	MonthlyUsageInverseTable = "monthly_usage"
+	// MonthlyUsageColumn is the table column denoting the monthly_usage relation/edge.
+	MonthlyUsageColumn = "account_id"
+	// UsageChargesTable is the table that holds the usage_charges relation/edge.
+	UsageChargesTable = "usage_charges"
+	// UsageChargesInverseTable is the table name for the UsageCharge entity.
+	// It exists in this package in order to avoid circular dependency with the "usagecharge" package.
+	UsageChargesInverseTable = "usage_charges"
+	// UsageChargesColumn is the table column denoting the usage_charges relation/edge.
+	UsageChargesColumn = "account_id"
 )
 
 // Columns holds all SQL columns for billingaccount fields.
@@ -123,6 +143,7 @@ var Columns = []string{
 	FieldStateChangedAt,
 	FieldCurrency,
 	FieldBalanceMicros,
+	FieldArrearsMicros,
 	FieldAutoTopupEnabled,
 	FieldAutoTopupThresholdMicros,
 	FieldAutoTopupAmountMicros,
@@ -168,6 +189,10 @@ var (
 	CurrencyValidator func(string) error
 	// DefaultBalanceMicros holds the default value on creation for the "balance_micros" field.
 	DefaultBalanceMicros int64
+	// DefaultArrearsMicros holds the default value on creation for the "arrears_micros" field.
+	DefaultArrearsMicros int64
+	// ArrearsMicrosValidator is a validator for the "arrears_micros" field. It is called by the builders before save.
+	ArrearsMicrosValidator func(int64) error
 	// DefaultAutoTopupEnabled holds the default value on creation for the "auto_topup_enabled" field.
 	DefaultAutoTopupEnabled bool
 	// DefaultAutoTopupThresholdMicros holds the default value on creation for the "auto_topup_threshold_micros" field.
@@ -278,6 +303,11 @@ func ByBalanceMicros(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldBalanceMicros, opts...).ToFunc()
 }
 
+// ByArrearsMicros orders the results by the arrears_micros field.
+func ByArrearsMicros(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldArrearsMicros, opts...).ToFunc()
+}
+
 // ByAutoTopupEnabled orders the results by the auto_topup_enabled field.
 func ByAutoTopupEnabled(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldAutoTopupEnabled, opts...).ToFunc()
@@ -372,6 +402,34 @@ func ByStripeEvents(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newStripeEventsStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
+
+// ByMonthlyUsageCount orders the results by monthly_usage count.
+func ByMonthlyUsageCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newMonthlyUsageStep(), opts...)
+	}
+}
+
+// ByMonthlyUsage orders the results by monthly_usage terms.
+func ByMonthlyUsage(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newMonthlyUsageStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByUsageChargesCount orders the results by usage_charges count.
+func ByUsageChargesCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newUsageChargesStep(), opts...)
+	}
+}
+
+// ByUsageCharges orders the results by usage_charges terms.
+func ByUsageCharges(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newUsageChargesStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newOrganizationStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -412,5 +470,19 @@ func newStripeEventsStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(StripeEventsInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, StripeEventsTable, StripeEventsColumn),
+	)
+}
+func newMonthlyUsageStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(MonthlyUsageInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, MonthlyUsageTable, MonthlyUsageColumn),
+	)
+}
+func newUsageChargesStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(UsageChargesInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, UsageChargesTable, UsageChargesColumn),
 	)
 }

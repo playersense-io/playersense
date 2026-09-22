@@ -106,6 +106,11 @@ func BalanceMicros(v int64) predicate.BillingAccount {
 	return predicate.BillingAccount(sql.FieldEQ(FieldBalanceMicros, v))
 }
 
+// ArrearsMicros applies equality check predicate on the "arrears_micros" field. It's identical to ArrearsMicrosEQ.
+func ArrearsMicros(v int64) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldEQ(FieldArrearsMicros, v))
+}
+
 // AutoTopupEnabled applies equality check predicate on the "auto_topup_enabled" field. It's identical to AutoTopupEnabledEQ.
 func AutoTopupEnabled(v bool) predicate.BillingAccount {
 	return predicate.BillingAccount(sql.FieldEQ(FieldAutoTopupEnabled, v))
@@ -606,6 +611,46 @@ func BalanceMicrosLTE(v int64) predicate.BillingAccount {
 	return predicate.BillingAccount(sql.FieldLTE(FieldBalanceMicros, v))
 }
 
+// ArrearsMicrosEQ applies the EQ predicate on the "arrears_micros" field.
+func ArrearsMicrosEQ(v int64) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldEQ(FieldArrearsMicros, v))
+}
+
+// ArrearsMicrosNEQ applies the NEQ predicate on the "arrears_micros" field.
+func ArrearsMicrosNEQ(v int64) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldNEQ(FieldArrearsMicros, v))
+}
+
+// ArrearsMicrosIn applies the In predicate on the "arrears_micros" field.
+func ArrearsMicrosIn(vs ...int64) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldIn(FieldArrearsMicros, vs...))
+}
+
+// ArrearsMicrosNotIn applies the NotIn predicate on the "arrears_micros" field.
+func ArrearsMicrosNotIn(vs ...int64) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldNotIn(FieldArrearsMicros, vs...))
+}
+
+// ArrearsMicrosGT applies the GT predicate on the "arrears_micros" field.
+func ArrearsMicrosGT(v int64) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldGT(FieldArrearsMicros, v))
+}
+
+// ArrearsMicrosGTE applies the GTE predicate on the "arrears_micros" field.
+func ArrearsMicrosGTE(v int64) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldGTE(FieldArrearsMicros, v))
+}
+
+// ArrearsMicrosLT applies the LT predicate on the "arrears_micros" field.
+func ArrearsMicrosLT(v int64) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldLT(FieldArrearsMicros, v))
+}
+
+// ArrearsMicrosLTE applies the LTE predicate on the "arrears_micros" field.
+func ArrearsMicrosLTE(v int64) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldLTE(FieldArrearsMicros, v))
+}
+
 // AutoTopupEnabledEQ applies the EQ predicate on the "auto_topup_enabled" field.
 func AutoTopupEnabledEQ(v bool) predicate.BillingAccount {
 	return predicate.BillingAccount(sql.FieldEQ(FieldAutoTopupEnabled, v))
@@ -976,6 +1021,52 @@ func HasStripeEvents() predicate.BillingAccount {
 func HasStripeEventsWith(preds ...predicate.StripeEvent) predicate.BillingAccount {
 	return predicate.BillingAccount(func(s *sql.Selector) {
 		step := newStripeEventsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasMonthlyUsage applies the HasEdge predicate on the "monthly_usage" edge.
+func HasMonthlyUsage() predicate.BillingAccount {
+	return predicate.BillingAccount(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, MonthlyUsageTable, MonthlyUsageColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasMonthlyUsageWith applies the HasEdge predicate on the "monthly_usage" edge with a given conditions (other predicates).
+func HasMonthlyUsageWith(preds ...predicate.MonthlyUsage) predicate.BillingAccount {
+	return predicate.BillingAccount(func(s *sql.Selector) {
+		step := newMonthlyUsageStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasUsageCharges applies the HasEdge predicate on the "usage_charges" edge.
+func HasUsageCharges() predicate.BillingAccount {
+	return predicate.BillingAccount(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, UsageChargesTable, UsageChargesColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasUsageChargesWith applies the HasEdge predicate on the "usage_charges" edge with a given conditions (other predicates).
+func HasUsageChargesWith(preds ...predicate.UsageCharge) predicate.BillingAccount {
+	return predicate.BillingAccount(func(s *sql.Selector) {
+		step := newUsageChargesStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

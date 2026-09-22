@@ -141,6 +141,31 @@ var (
 			},
 		},
 	}
+	// BillablePlayerColumns holds the columns for the "billable_player" table.
+	BillablePlayerColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true, Comment: "class=none"},
+		{Name: "account_id", Type: field.TypeInt, Comment: "class=none"},
+		{Name: "period_start", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "digest", Type: field.TypeBytes, Size: 32, Comment: "class=identifier"},
+	}
+	// BillablePlayerTable holds the schema information for the "billable_player" table.
+	BillablePlayerTable = &schema.Table{
+		Name:       "billable_player",
+		Columns:    BillablePlayerColumns,
+		PrimaryKey: []*schema.Column{BillablePlayerColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "billableplayer_account_id_period_start_digest",
+				Unique:  true,
+				Columns: []*schema.Column{BillablePlayerColumns[1], BillablePlayerColumns[2], BillablePlayerColumns[3]},
+			},
+			{
+				Name:    "billableplayer_period_start",
+				Unique:  false,
+				Columns: []*schema.Column{BillablePlayerColumns[2]},
+			},
+		},
+	}
 	// BillingAccountsColumns holds the columns for the "billing_accounts" table.
 	BillingAccountsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
@@ -153,6 +178,7 @@ var (
 		{Name: "state_changed_at", Type: field.TypeTime, Comment: "class=none"},
 		{Name: "currency", Type: field.TypeString, Size: 3, Comment: "class=financial", Default: "usd"},
 		{Name: "balance_micros", Type: field.TypeInt64, Comment: "class=financial", Default: 0},
+		{Name: "arrears_micros", Type: field.TypeInt64, Comment: "class=financial", Default: 0},
 		{Name: "auto_topup_enabled", Type: field.TypeBool, Comment: "class=none", Default: false},
 		{Name: "auto_topup_threshold_micros", Type: field.TypeInt64, Comment: "class=financial", Default: 0},
 		{Name: "auto_topup_amount_micros", Type: field.TypeInt64, Comment: "class=financial", Default: 0},
@@ -170,13 +196,13 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "billing_accounts_organizations_billing_account",
-				Columns:    []*schema.Column{BillingAccountsColumns[16]},
+				Columns:    []*schema.Column{BillingAccountsColumns[17]},
 				RefColumns: []*schema.Column{OrganizationsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "billing_accounts_plans_accounts",
-				Columns:    []*schema.Column{BillingAccountsColumns[17]},
+				Columns:    []*schema.Column{BillingAccountsColumns[18]},
 				RefColumns: []*schema.Column{PlansColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -647,6 +673,38 @@ var (
 			},
 		},
 	}
+	// MonthlyUsageColumns holds the columns for the "monthly_usage" table.
+	MonthlyUsageColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
+		{Name: "uid", Type: field.TypeUUID, Unique: true, Comment: "class=none"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "updated_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "period_start", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "tracked_players", Type: field.TypeInt64, Comment: "class=none", Default: 0},
+		{Name: "charged_micros", Type: field.TypeInt64, Comment: "class=financial", Default: 0},
+		{Name: "account_id", Type: field.TypeInt, Comment: "class=none"},
+	}
+	// MonthlyUsageTable holds the schema information for the "monthly_usage" table.
+	MonthlyUsageTable = &schema.Table{
+		Name:       "monthly_usage",
+		Columns:    MonthlyUsageColumns,
+		PrimaryKey: []*schema.Column{MonthlyUsageColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "monthly_usage_billing_accounts_monthly_usage",
+				Columns:    []*schema.Column{MonthlyUsageColumns[7]},
+				RefColumns: []*schema.Column{BillingAccountsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "monthlyusage_period_start_account_id",
+				Unique:  true,
+				Columns: []*schema.Column{MonthlyUsageColumns[4], MonthlyUsageColumns[7]},
+			},
+		},
+	}
 	// OrganizationsColumns holds the columns for the "organizations" table.
 	OrganizationsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
@@ -722,6 +780,7 @@ var (
 		{Name: "stripe_price_id", Type: field.TypeString, Nullable: true, Size: 255, Comment: "class=none"},
 		{Name: "entitlements", Type: field.TypeJSON, Comment: "class=none"},
 		{Name: "active", Type: field.TypeBool, Comment: "class=none", Default: true},
+		{Name: "is_default", Type: field.TypeBool, Comment: "class=none", Default: false},
 	}
 	// PlansTable holds the schema information for the "plans" table.
 	PlansTable = &schema.Table{
@@ -759,6 +818,41 @@ var (
 				Name:    "project_slug_organization_id",
 				Unique:  true,
 				Columns: []*schema.Column{ProjectsColumns[5], ProjectsColumns[8]},
+			},
+		},
+	}
+	// RateCardsColumns holds the columns for the "rate_cards" table.
+	RateCardsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
+		{Name: "uid", Type: field.TypeUUID, Unique: true, Comment: "class=none"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "meter", Type: field.TypeEnum, Comment: "class=none", Enums: []string{"tracked_players"}},
+		{Name: "mode", Type: field.TypeEnum, Comment: "class=none", Enums: []string{"graduated", "volume"}, Default: "graduated"},
+		{Name: "currency", Type: field.TypeString, Size: 3, Comment: "class=financial", Default: "usd"},
+		{Name: "tiers", Type: field.TypeJSON, Comment: "class=financial"},
+		{Name: "effective_from", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "note", Type: field.TypeString, Size: 500, Comment: "class=none", Default: ""},
+		{Name: "created_by", Type: field.TypeString, Size: 254, Comment: "class=none"},
+		{Name: "plan_id", Type: field.TypeInt, Comment: "class=none"},
+	}
+	// RateCardsTable holds the schema information for the "rate_cards" table.
+	RateCardsTable = &schema.Table{
+		Name:       "rate_cards",
+		Columns:    RateCardsColumns,
+		PrimaryKey: []*schema.Column{RateCardsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "rate_cards_plans_rate_cards",
+				Columns:    []*schema.Column{RateCardsColumns[10]},
+				RefColumns: []*schema.Column{PlansColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "ratecard_meter_effective_from_plan_id",
+				Unique:  true,
+				Columns: []*schema.Column{RateCardsColumns[3], RateCardsColumns[7], RateCardsColumns[10]},
 			},
 		},
 	}
@@ -904,6 +998,63 @@ var (
 			},
 		},
 	}
+	// UsageChargesColumns holds the columns for the "usage_charges" table.
+	UsageChargesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
+		{Name: "uid", Type: field.TypeUUID, Unique: true, Comment: "class=none"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "updated_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "period_start", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "first_unit", Type: field.TypeInt64, Comment: "class=none"},
+		{Name: "last_unit", Type: field.TypeInt64, Comment: "class=none"},
+		{Name: "amount_micros", Type: field.TypeInt64, Comment: "class=financial"},
+		{Name: "currency", Type: field.TypeString, Size: 3, Comment: "class=financial", Default: "usd"},
+		{Name: "settled_at", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
+		{Name: "account_id", Type: field.TypeInt, Comment: "class=none"},
+		{Name: "rate_card_id", Type: field.TypeInt, Comment: "class=none"},
+		{Name: "ledger_entry_id", Type: field.TypeInt, Nullable: true, Comment: "class=none"},
+	}
+	// UsageChargesTable holds the schema information for the "usage_charges" table.
+	UsageChargesTable = &schema.Table{
+		Name:       "usage_charges",
+		Columns:    UsageChargesColumns,
+		PrimaryKey: []*schema.Column{UsageChargesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "usage_charges_billing_accounts_usage_charges",
+				Columns:    []*schema.Column{UsageChargesColumns[10]},
+				RefColumns: []*schema.Column{BillingAccountsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "usage_charges_rate_cards_charges",
+				Columns:    []*schema.Column{UsageChargesColumns[11]},
+				RefColumns: []*schema.Column{RateCardsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "usage_charges_ledger_entries_ledger_entry",
+				Columns:    []*schema.Column{UsageChargesColumns[12]},
+				RefColumns: []*schema.Column{LedgerEntriesColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "usagecharge_period_start_first_unit_account_id",
+				Unique:  true,
+				Columns: []*schema.Column{UsageChargesColumns[4], UsageChargesColumns[5], UsageChargesColumns[10]},
+			},
+			{
+				Name:    "usagecharge_account_id",
+				Unique:  false,
+				Columns: []*schema.Column{UsageChargesColumns[10]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "settled_at IS NULL",
+				},
+			},
+		},
+	}
 	// UsageDailyColumns holds the columns for the "usage_daily" table.
 	UsageDailyColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
@@ -1003,6 +1154,7 @@ var (
 		APIKeysTable,
 		ArchiveManifestsTable,
 		AuditEventsTable,
+		BillablePlayerTable,
 		BillingAccountsTable,
 		BillingPeriodsTable,
 		ConfigVersionsTable,
@@ -1015,14 +1167,17 @@ var (
 		LedgerEntriesTable,
 		LiveopsEventsTable,
 		MemberProjectsTable,
+		MonthlyUsageTable,
 		OrganizationsTable,
 		OrganizationMembersTable,
 		PlansTable,
 		ProjectsTable,
+		RateCardsTable,
 		RolesTable,
 		SegmentsTable,
 		StaffAccessTable,
 		StripeEventsTable,
+		UsageChargesTable,
 		UsageDailyTable,
 		UsersTable,
 		VerifiedPurchasesTable,
@@ -1034,6 +1189,9 @@ func init() {
 	AuditEventsTable.ForeignKeys[0].RefTable = APIKeysTable
 	AuditEventsTable.ForeignKeys[1].RefTable = OrganizationsTable
 	AuditEventsTable.ForeignKeys[2].RefTable = UsersTable
+	BillablePlayerTable.Annotation = &entsql.Annotation{
+		Table: "billable_player",
+	}
 	BillingAccountsTable.ForeignKeys[0].RefTable = OrganizationsTable
 	BillingAccountsTable.ForeignKeys[1].RefTable = PlansTable
 	BillingPeriodsTable.ForeignKeys[0].RefTable = BillingAccountsTable
@@ -1056,16 +1214,24 @@ func init() {
 	}
 	MemberProjectsTable.ForeignKeys[0].RefTable = OrganizationMembersTable
 	MemberProjectsTable.ForeignKeys[1].RefTable = ProjectsTable
+	MonthlyUsageTable.ForeignKeys[0].RefTable = BillingAccountsTable
+	MonthlyUsageTable.Annotation = &entsql.Annotation{
+		Table: "monthly_usage",
+	}
 	OrganizationMembersTable.ForeignKeys[0].RefTable = OrganizationsTable
 	OrganizationMembersTable.ForeignKeys[1].RefTable = RolesTable
 	OrganizationMembersTable.ForeignKeys[2].RefTable = UsersTable
 	ProjectsTable.ForeignKeys[0].RefTable = OrganizationsTable
+	RateCardsTable.ForeignKeys[0].RefTable = PlansTable
 	RolesTable.ForeignKeys[0].RefTable = OrganizationsTable
 	SegmentsTable.ForeignKeys[0].RefTable = ProjectsTable
 	StaffAccessTable.Annotation = &entsql.Annotation{
 		Table: "staff_access",
 	}
 	StripeEventsTable.ForeignKeys[0].RefTable = BillingAccountsTable
+	UsageChargesTable.ForeignKeys[0].RefTable = BillingAccountsTable
+	UsageChargesTable.ForeignKeys[1].RefTable = RateCardsTable
+	UsageChargesTable.ForeignKeys[2].RefTable = LedgerEntriesTable
 	UsageDailyTable.ForeignKeys[0].RefTable = ProjectsTable
 	UsageDailyTable.Annotation = &entsql.Annotation{
 		Table: "usage_daily",

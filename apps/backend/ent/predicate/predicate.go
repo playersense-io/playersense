@@ -15,6 +15,9 @@ type ArchiveManifest func(*sql.Selector)
 // AuditEvent is the predicate function for auditevent builders.
 type AuditEvent func(*sql.Selector)
 
+// BillablePlayer is the predicate function for billableplayer builders.
+type BillablePlayer func(*sql.Selector)
+
 // BillingAccount is the predicate function for billingaccount builders.
 type BillingAccount func(*sql.Selector)
 
@@ -51,6 +54,9 @@ type LiveOpsEvent func(*sql.Selector)
 // MemberProject is the predicate function for memberproject builders.
 type MemberProject func(*sql.Selector)
 
+// MonthlyUsage is the predicate function for monthlyusage builders.
+type MonthlyUsage func(*sql.Selector)
+
 // Organization is the predicate function for organization builders.
 type Organization func(*sql.Selector)
 
@@ -63,6 +69,9 @@ type Plan func(*sql.Selector)
 // Project is the predicate function for project builders.
 type Project func(*sql.Selector)
 
+// RateCard is the predicate function for ratecard builders.
+type RateCard func(*sql.Selector)
+
 // Role is the predicate function for role builders.
 type Role func(*sql.Selector)
 
@@ -74,6 +83,9 @@ type StaffAccess func(*sql.Selector)
 
 // StripeEvent is the predicate function for stripeevent builders.
 type StripeEvent func(*sql.Selector)
+
+// UsageCharge is the predicate function for usagecharge builders.
+type UsageCharge func(*sql.Selector)
 
 // UsageDaily is the predicate function for usagedaily builders.
 type UsageDaily func(*sql.Selector)

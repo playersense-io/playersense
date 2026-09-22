@@ -14,6 +14,7 @@ import (
 	"github.com/google/uuid"
 	"playersense.dev/backend/ent/billingaccount"
 	"playersense.dev/backend/ent/plan"
+	"playersense.dev/backend/ent/ratecard"
 )
 
 // PlanCreate is the builder for creating a Plan entity.
@@ -154,6 +155,20 @@ func (_c *PlanCreate) SetNillableActive(v *bool) *PlanCreate {
 	return _c
 }
 
+// SetIsDefault sets the "is_default" field.
+func (_c *PlanCreate) SetIsDefault(v bool) *PlanCreate {
+	_c.mutation.SetIsDefault(v)
+	return _c
+}
+
+// SetNillableIsDefault sets the "is_default" field if the given value is not nil.
+func (_c *PlanCreate) SetNillableIsDefault(v *bool) *PlanCreate {
+	if v != nil {
+		_c.SetIsDefault(*v)
+	}
+	return _c
+}
+
 // SetID sets the "id" field.
 func (_c *PlanCreate) SetID(v int) *PlanCreate {
 	_c.mutation.SetID(v)
@@ -173,6 +188,21 @@ func (_c *PlanCreate) AddAccounts(v ...*BillingAccount) *PlanCreate {
 		ids[i] = v[i].ID
 	}
 	return _c.AddAccountIDs(ids...)
+}
+
+// AddRateCardIDs adds the "rate_cards" edge to the RateCard entity by IDs.
+func (_c *PlanCreate) AddRateCardIDs(ids ...int) *PlanCreate {
+	_c.mutation.AddRateCardIDs(ids...)
+	return _c
+}
+
+// AddRateCards adds the "rate_cards" edges to the RateCard entity.
+func (_c *PlanCreate) AddRateCards(v ...*RateCard) *PlanCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddRateCardIDs(ids...)
 }
 
 // Mutation returns the PlanMutation object of the builder.
@@ -253,6 +283,10 @@ func (_c *PlanCreate) defaults() error {
 		v := plan.DefaultActive
 		_c.mutation.SetActive(v)
 	}
+	if _, ok := _c.mutation.IsDefault(); !ok {
+		v := plan.DefaultIsDefault
+		_c.mutation.SetIsDefault(v)
+	}
 	return nil
 }
 
@@ -317,6 +351,9 @@ func (_c *PlanCreate) check() error {
 	}
 	if _, ok := _c.mutation.Active(); !ok {
 		return &ValidationError{Name: "active", err: errors.New(`ent: missing required field "Plan.active"`)}
+	}
+	if _, ok := _c.mutation.IsDefault(); !ok {
+		return &ValidationError{Name: "is_default", err: errors.New(`ent: missing required field "Plan.is_default"`)}
 	}
 	return nil
 }
@@ -395,6 +432,10 @@ func (_c *PlanCreate) createSpec() (*Plan, *sqlgraph.CreateSpec) {
 		_spec.SetField(plan.FieldActive, field.TypeBool, value)
 		_node.Active = value
 	}
+	if value, ok := _c.mutation.IsDefault(); ok {
+		_spec.SetField(plan.FieldIsDefault, field.TypeBool, value)
+		_node.IsDefault = value
+	}
 	if nodes := _c.mutation.AccountsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
@@ -404,6 +445,22 @@ func (_c *PlanCreate) createSpec() (*Plan, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(billingaccount.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.RateCardsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   plan.RateCardsTable,
+			Columns: []string{plan.RateCardsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(ratecard.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {
@@ -568,6 +625,18 @@ func (u *PlanUpsert) SetActive(v bool) *PlanUpsert {
 // UpdateActive sets the "active" field to the value that was provided on create.
 func (u *PlanUpsert) UpdateActive() *PlanUpsert {
 	u.SetExcluded(plan.FieldActive)
+	return u
+}
+
+// SetIsDefault sets the "is_default" field.
+func (u *PlanUpsert) SetIsDefault(v bool) *PlanUpsert {
+	u.Set(plan.FieldIsDefault, v)
+	return u
+}
+
+// UpdateIsDefault sets the "is_default" field to the value that was provided on create.
+func (u *PlanUpsert) UpdateIsDefault() *PlanUpsert {
+	u.SetExcluded(plan.FieldIsDefault)
 	return u
 }
 
@@ -751,6 +820,20 @@ func (u *PlanUpsertOne) SetActive(v bool) *PlanUpsertOne {
 func (u *PlanUpsertOne) UpdateActive() *PlanUpsertOne {
 	return u.Update(func(s *PlanUpsert) {
 		s.UpdateActive()
+	})
+}
+
+// SetIsDefault sets the "is_default" field.
+func (u *PlanUpsertOne) SetIsDefault(v bool) *PlanUpsertOne {
+	return u.Update(func(s *PlanUpsert) {
+		s.SetIsDefault(v)
+	})
+}
+
+// UpdateIsDefault sets the "is_default" field to the value that was provided on create.
+func (u *PlanUpsertOne) UpdateIsDefault() *PlanUpsertOne {
+	return u.Update(func(s *PlanUpsert) {
+		s.UpdateIsDefault()
 	})
 }
 
@@ -1100,6 +1183,20 @@ func (u *PlanUpsertBulk) SetActive(v bool) *PlanUpsertBulk {
 func (u *PlanUpsertBulk) UpdateActive() *PlanUpsertBulk {
 	return u.Update(func(s *PlanUpsert) {
 		s.UpdateActive()
+	})
+}
+
+// SetIsDefault sets the "is_default" field.
+func (u *PlanUpsertBulk) SetIsDefault(v bool) *PlanUpsertBulk {
+	return u.Update(func(s *PlanUpsert) {
+		s.SetIsDefault(v)
+	})
+}
+
+// UpdateIsDefault sets the "is_default" field to the value that was provided on create.
+func (u *PlanUpsertBulk) UpdateIsDefault() *PlanUpsertBulk {
+	return u.Update(func(s *PlanUpsert) {
+		s.UpdateIsDefault()
 	})
 }
 

@@ -4,6 +4,8 @@ package ent
 
 import (
 	"context"
+	stdsql "database/sql"
+	"fmt"
 	"sync"
 
 	"entgo.io/ent/dialect"
@@ -18,6 +20,8 @@ type Tx struct {
 	ArchiveManifest *ArchiveManifestClient
 	// AuditEvent is the client for interacting with the AuditEvent builders.
 	AuditEvent *AuditEventClient
+	// BillablePlayer is the client for interacting with the BillablePlayer builders.
+	BillablePlayer *BillablePlayerClient
 	// BillingAccount is the client for interacting with the BillingAccount builders.
 	BillingAccount *BillingAccountClient
 	// BillingPeriod is the client for interacting with the BillingPeriod builders.
@@ -42,6 +46,8 @@ type Tx struct {
 	LiveOpsEvent *LiveOpsEventClient
 	// MemberProject is the client for interacting with the MemberProject builders.
 	MemberProject *MemberProjectClient
+	// MonthlyUsage is the client for interacting with the MonthlyUsage builders.
+	MonthlyUsage *MonthlyUsageClient
 	// Organization is the client for interacting with the Organization builders.
 	Organization *OrganizationClient
 	// OrganizationMember is the client for interacting with the OrganizationMember builders.
@@ -50,6 +56,8 @@ type Tx struct {
 	Plan *PlanClient
 	// Project is the client for interacting with the Project builders.
 	Project *ProjectClient
+	// RateCard is the client for interacting with the RateCard builders.
+	RateCard *RateCardClient
 	// Role is the client for interacting with the Role builders.
 	Role *RoleClient
 	// Segment is the client for interacting with the Segment builders.
@@ -58,6 +66,8 @@ type Tx struct {
 	StaffAccess *StaffAccessClient
 	// StripeEvent is the client for interacting with the StripeEvent builders.
 	StripeEvent *StripeEventClient
+	// UsageCharge is the client for interacting with the UsageCharge builders.
+	UsageCharge *UsageChargeClient
 	// UsageDaily is the client for interacting with the UsageDaily builders.
 	UsageDaily *UsageDailyClient
 	// User is the client for interacting with the User builders.
@@ -198,6 +208,7 @@ func (tx *Tx) init() {
 	tx.APIKey = NewAPIKeyClient(tx.config)
 	tx.ArchiveManifest = NewArchiveManifestClient(tx.config)
 	tx.AuditEvent = NewAuditEventClient(tx.config)
+	tx.BillablePlayer = NewBillablePlayerClient(tx.config)
 	tx.BillingAccount = NewBillingAccountClient(tx.config)
 	tx.BillingPeriod = NewBillingPeriodClient(tx.config)
 	tx.ConfigVersion = NewConfigVersionClient(tx.config)
@@ -210,14 +221,17 @@ func (tx *Tx) init() {
 	tx.LedgerEntry = NewLedgerEntryClient(tx.config)
 	tx.LiveOpsEvent = NewLiveOpsEventClient(tx.config)
 	tx.MemberProject = NewMemberProjectClient(tx.config)
+	tx.MonthlyUsage = NewMonthlyUsageClient(tx.config)
 	tx.Organization = NewOrganizationClient(tx.config)
 	tx.OrganizationMember = NewOrganizationMemberClient(tx.config)
 	tx.Plan = NewPlanClient(tx.config)
 	tx.Project = NewProjectClient(tx.config)
+	tx.RateCard = NewRateCardClient(tx.config)
 	tx.Role = NewRoleClient(tx.config)
 	tx.Segment = NewSegmentClient(tx.config)
 	tx.StaffAccess = NewStaffAccessClient(tx.config)
 	tx.StripeEvent = NewStripeEventClient(tx.config)
+	tx.UsageCharge = NewUsageChargeClient(tx.config)
 	tx.UsageDaily = NewUsageDailyClient(tx.config)
 	tx.User = NewUserClient(tx.config)
 	tx.VerifiedPurchase = NewVerifiedPurchaseClient(tx.config)
@@ -283,3 +297,27 @@ func (tx *txDriver) Query(ctx context.Context, query string, args, v any) error 
 }
 
 var _ dialect.Driver = (*txDriver)(nil)
+
+// ExecContext allows calling the underlying ExecContext method of the transaction if it is supported by it.
+// See, database/sql#Tx.ExecContext for more information.
+func (tx *txDriver) ExecContext(ctx context.Context, query string, args ...any) (stdsql.Result, error) {
+	ex, ok := tx.tx.(interface {
+		ExecContext(context.Context, string, ...any) (stdsql.Result, error)
+	})
+	if !ok {
+		return nil, fmt.Errorf("Tx.ExecContext is not supported")
+	}
+	return ex.ExecContext(ctx, query, args...)
+}
+
+// QueryContext allows calling the underlying QueryContext method of the transaction if it is supported by it.
+// See, database/sql#Tx.QueryContext for more information.
+func (tx *txDriver) QueryContext(ctx context.Context, query string, args ...any) (*stdsql.Rows, error) {
+	q, ok := tx.tx.(interface {
+		QueryContext(context.Context, string, ...any) (*stdsql.Rows, error)
+	})
+	if !ok {
+		return nil, fmt.Errorf("Tx.QueryContext is not supported")
+	}
+	return q.QueryContext(ctx, query, args...)
+}

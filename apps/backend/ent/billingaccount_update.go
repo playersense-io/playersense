@@ -15,9 +15,11 @@ import (
 	"playersense.dev/backend/ent/billingperiod"
 	"playersense.dev/backend/ent/creditlot"
 	"playersense.dev/backend/ent/ledgerentry"
+	"playersense.dev/backend/ent/monthlyusage"
 	"playersense.dev/backend/ent/plan"
 	"playersense.dev/backend/ent/predicate"
 	"playersense.dev/backend/ent/stripeevent"
+	"playersense.dev/backend/ent/usagecharge"
 )
 
 // BillingAccountUpdate is the builder for updating BillingAccount entities.
@@ -153,6 +155,27 @@ func (_u *BillingAccountUpdate) SetNillableBalanceMicros(v *int64) *BillingAccou
 // AddBalanceMicros adds value to the "balance_micros" field.
 func (_u *BillingAccountUpdate) AddBalanceMicros(v int64) *BillingAccountUpdate {
 	_u.mutation.AddBalanceMicros(v)
+	return _u
+}
+
+// SetArrearsMicros sets the "arrears_micros" field.
+func (_u *BillingAccountUpdate) SetArrearsMicros(v int64) *BillingAccountUpdate {
+	_u.mutation.ResetArrearsMicros()
+	_u.mutation.SetArrearsMicros(v)
+	return _u
+}
+
+// SetNillableArrearsMicros sets the "arrears_micros" field if the given value is not nil.
+func (_u *BillingAccountUpdate) SetNillableArrearsMicros(v *int64) *BillingAccountUpdate {
+	if v != nil {
+		_u.SetArrearsMicros(*v)
+	}
+	return _u
+}
+
+// AddArrearsMicros adds value to the "arrears_micros" field.
+func (_u *BillingAccountUpdate) AddArrearsMicros(v int64) *BillingAccountUpdate {
+	_u.mutation.AddArrearsMicros(v)
 	return _u
 }
 
@@ -323,6 +346,36 @@ func (_u *BillingAccountUpdate) AddStripeEvents(v ...*StripeEvent) *BillingAccou
 	return _u.AddStripeEventIDs(ids...)
 }
 
+// AddMonthlyUsageIDs adds the "monthly_usage" edge to the MonthlyUsage entity by IDs.
+func (_u *BillingAccountUpdate) AddMonthlyUsageIDs(ids ...int) *BillingAccountUpdate {
+	_u.mutation.AddMonthlyUsageIDs(ids...)
+	return _u
+}
+
+// AddMonthlyUsage adds the "monthly_usage" edges to the MonthlyUsage entity.
+func (_u *BillingAccountUpdate) AddMonthlyUsage(v ...*MonthlyUsage) *BillingAccountUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddMonthlyUsageIDs(ids...)
+}
+
+// AddUsageChargeIDs adds the "usage_charges" edge to the UsageCharge entity by IDs.
+func (_u *BillingAccountUpdate) AddUsageChargeIDs(ids ...int) *BillingAccountUpdate {
+	_u.mutation.AddUsageChargeIDs(ids...)
+	return _u
+}
+
+// AddUsageCharges adds the "usage_charges" edges to the UsageCharge entity.
+func (_u *BillingAccountUpdate) AddUsageCharges(v ...*UsageCharge) *BillingAccountUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddUsageChargeIDs(ids...)
+}
+
 // Mutation returns the BillingAccountMutation object of the builder.
 func (_u *BillingAccountUpdate) Mutation() *BillingAccountMutation {
 	return _u.mutation
@@ -418,6 +471,48 @@ func (_u *BillingAccountUpdate) RemoveStripeEvents(v ...*StripeEvent) *BillingAc
 	return _u.RemoveStripeEventIDs(ids...)
 }
 
+// ClearMonthlyUsage clears all "monthly_usage" edges to the MonthlyUsage entity.
+func (_u *BillingAccountUpdate) ClearMonthlyUsage() *BillingAccountUpdate {
+	_u.mutation.ClearMonthlyUsage()
+	return _u
+}
+
+// RemoveMonthlyUsageIDs removes the "monthly_usage" edge to MonthlyUsage entities by IDs.
+func (_u *BillingAccountUpdate) RemoveMonthlyUsageIDs(ids ...int) *BillingAccountUpdate {
+	_u.mutation.RemoveMonthlyUsageIDs(ids...)
+	return _u
+}
+
+// RemoveMonthlyUsage removes "monthly_usage" edges to MonthlyUsage entities.
+func (_u *BillingAccountUpdate) RemoveMonthlyUsage(v ...*MonthlyUsage) *BillingAccountUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveMonthlyUsageIDs(ids...)
+}
+
+// ClearUsageCharges clears all "usage_charges" edges to the UsageCharge entity.
+func (_u *BillingAccountUpdate) ClearUsageCharges() *BillingAccountUpdate {
+	_u.mutation.ClearUsageCharges()
+	return _u
+}
+
+// RemoveUsageChargeIDs removes the "usage_charges" edge to UsageCharge entities by IDs.
+func (_u *BillingAccountUpdate) RemoveUsageChargeIDs(ids ...int) *BillingAccountUpdate {
+	_u.mutation.RemoveUsageChargeIDs(ids...)
+	return _u
+}
+
+// RemoveUsageCharges removes "usage_charges" edges to UsageCharge entities.
+func (_u *BillingAccountUpdate) RemoveUsageCharges(v ...*UsageCharge) *BillingAccountUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveUsageChargeIDs(ids...)
+}
+
 // Save executes the query and returns the number of nodes affected by the update operation.
 func (_u *BillingAccountUpdate) Save(ctx context.Context) (int, error) {
 	if err := _u.defaults(); err != nil {
@@ -480,6 +575,11 @@ func (_u *BillingAccountUpdate) check() error {
 	if v, ok := _u.mutation.Currency(); ok {
 		if err := billingaccount.CurrencyValidator(v); err != nil {
 			return &ValidationError{Name: "currency", err: fmt.Errorf(`ent: validator failed for field "BillingAccount.currency": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.ArrearsMicros(); ok {
+		if err := billingaccount.ArrearsMicrosValidator(v); err != nil {
+			return &ValidationError{Name: "arrears_micros", err: fmt.Errorf(`ent: validator failed for field "BillingAccount.arrears_micros": %w`, err)}
 		}
 	}
 	if v, ok := _u.mutation.AutoTopupThresholdMicros(); ok {
@@ -552,6 +652,12 @@ func (_u *BillingAccountUpdate) sqlSave(ctx context.Context) (_node int, err err
 	}
 	if value, ok := _u.mutation.AddedBalanceMicros(); ok {
 		_spec.AddField(billingaccount.FieldBalanceMicros, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.ArrearsMicros(); ok {
+		_spec.SetField(billingaccount.FieldArrearsMicros, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedArrearsMicros(); ok {
+		_spec.AddField(billingaccount.FieldArrearsMicros, field.TypeInt64, value)
 	}
 	if value, ok := _u.mutation.AutoTopupEnabled(); ok {
 		_spec.SetField(billingaccount.FieldAutoTopupEnabled, field.TypeBool, value)
@@ -792,6 +898,96 @@ func (_u *BillingAccountUpdate) sqlSave(ctx context.Context) (_node int, err err
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.MonthlyUsageCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   billingaccount.MonthlyUsageTable,
+			Columns: []string{billingaccount.MonthlyUsageColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(monthlyusage.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedMonthlyUsageIDs(); len(nodes) > 0 && !_u.mutation.MonthlyUsageCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   billingaccount.MonthlyUsageTable,
+			Columns: []string{billingaccount.MonthlyUsageColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(monthlyusage.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.MonthlyUsageIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   billingaccount.MonthlyUsageTable,
+			Columns: []string{billingaccount.MonthlyUsageColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(monthlyusage.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.UsageChargesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   billingaccount.UsageChargesTable,
+			Columns: []string{billingaccount.UsageChargesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(usagecharge.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedUsageChargesIDs(); len(nodes) > 0 && !_u.mutation.UsageChargesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   billingaccount.UsageChargesTable,
+			Columns: []string{billingaccount.UsageChargesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(usagecharge.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.UsageChargesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   billingaccount.UsageChargesTable,
+			Columns: []string{billingaccount.UsageChargesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(usagecharge.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{billingaccount.Label}
@@ -932,6 +1128,27 @@ func (_u *BillingAccountUpdateOne) SetNillableBalanceMicros(v *int64) *BillingAc
 // AddBalanceMicros adds value to the "balance_micros" field.
 func (_u *BillingAccountUpdateOne) AddBalanceMicros(v int64) *BillingAccountUpdateOne {
 	_u.mutation.AddBalanceMicros(v)
+	return _u
+}
+
+// SetArrearsMicros sets the "arrears_micros" field.
+func (_u *BillingAccountUpdateOne) SetArrearsMicros(v int64) *BillingAccountUpdateOne {
+	_u.mutation.ResetArrearsMicros()
+	_u.mutation.SetArrearsMicros(v)
+	return _u
+}
+
+// SetNillableArrearsMicros sets the "arrears_micros" field if the given value is not nil.
+func (_u *BillingAccountUpdateOne) SetNillableArrearsMicros(v *int64) *BillingAccountUpdateOne {
+	if v != nil {
+		_u.SetArrearsMicros(*v)
+	}
+	return _u
+}
+
+// AddArrearsMicros adds value to the "arrears_micros" field.
+func (_u *BillingAccountUpdateOne) AddArrearsMicros(v int64) *BillingAccountUpdateOne {
+	_u.mutation.AddArrearsMicros(v)
 	return _u
 }
 
@@ -1102,6 +1319,36 @@ func (_u *BillingAccountUpdateOne) AddStripeEvents(v ...*StripeEvent) *BillingAc
 	return _u.AddStripeEventIDs(ids...)
 }
 
+// AddMonthlyUsageIDs adds the "monthly_usage" edge to the MonthlyUsage entity by IDs.
+func (_u *BillingAccountUpdateOne) AddMonthlyUsageIDs(ids ...int) *BillingAccountUpdateOne {
+	_u.mutation.AddMonthlyUsageIDs(ids...)
+	return _u
+}
+
+// AddMonthlyUsage adds the "monthly_usage" edges to the MonthlyUsage entity.
+func (_u *BillingAccountUpdateOne) AddMonthlyUsage(v ...*MonthlyUsage) *BillingAccountUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddMonthlyUsageIDs(ids...)
+}
+
+// AddUsageChargeIDs adds the "usage_charges" edge to the UsageCharge entity by IDs.
+func (_u *BillingAccountUpdateOne) AddUsageChargeIDs(ids ...int) *BillingAccountUpdateOne {
+	_u.mutation.AddUsageChargeIDs(ids...)
+	return _u
+}
+
+// AddUsageCharges adds the "usage_charges" edges to the UsageCharge entity.
+func (_u *BillingAccountUpdateOne) AddUsageCharges(v ...*UsageCharge) *BillingAccountUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddUsageChargeIDs(ids...)
+}
+
 // Mutation returns the BillingAccountMutation object of the builder.
 func (_u *BillingAccountUpdateOne) Mutation() *BillingAccountMutation {
 	return _u.mutation
@@ -1197,6 +1444,48 @@ func (_u *BillingAccountUpdateOne) RemoveStripeEvents(v ...*StripeEvent) *Billin
 	return _u.RemoveStripeEventIDs(ids...)
 }
 
+// ClearMonthlyUsage clears all "monthly_usage" edges to the MonthlyUsage entity.
+func (_u *BillingAccountUpdateOne) ClearMonthlyUsage() *BillingAccountUpdateOne {
+	_u.mutation.ClearMonthlyUsage()
+	return _u
+}
+
+// RemoveMonthlyUsageIDs removes the "monthly_usage" edge to MonthlyUsage entities by IDs.
+func (_u *BillingAccountUpdateOne) RemoveMonthlyUsageIDs(ids ...int) *BillingAccountUpdateOne {
+	_u.mutation.RemoveMonthlyUsageIDs(ids...)
+	return _u
+}
+
+// RemoveMonthlyUsage removes "monthly_usage" edges to MonthlyUsage entities.
+func (_u *BillingAccountUpdateOne) RemoveMonthlyUsage(v ...*MonthlyUsage) *BillingAccountUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveMonthlyUsageIDs(ids...)
+}
+
+// ClearUsageCharges clears all "usage_charges" edges to the UsageCharge entity.
+func (_u *BillingAccountUpdateOne) ClearUsageCharges() *BillingAccountUpdateOne {
+	_u.mutation.ClearUsageCharges()
+	return _u
+}
+
+// RemoveUsageChargeIDs removes the "usage_charges" edge to UsageCharge entities by IDs.
+func (_u *BillingAccountUpdateOne) RemoveUsageChargeIDs(ids ...int) *BillingAccountUpdateOne {
+	_u.mutation.RemoveUsageChargeIDs(ids...)
+	return _u
+}
+
+// RemoveUsageCharges removes "usage_charges" edges to UsageCharge entities.
+func (_u *BillingAccountUpdateOne) RemoveUsageCharges(v ...*UsageCharge) *BillingAccountUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveUsageChargeIDs(ids...)
+}
+
 // Where appends a list predicates to the BillingAccountUpdate builder.
 func (_u *BillingAccountUpdateOne) Where(ps ...predicate.BillingAccount) *BillingAccountUpdateOne {
 	_u.mutation.Where(ps...)
@@ -1272,6 +1561,11 @@ func (_u *BillingAccountUpdateOne) check() error {
 	if v, ok := _u.mutation.Currency(); ok {
 		if err := billingaccount.CurrencyValidator(v); err != nil {
 			return &ValidationError{Name: "currency", err: fmt.Errorf(`ent: validator failed for field "BillingAccount.currency": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.ArrearsMicros(); ok {
+		if err := billingaccount.ArrearsMicrosValidator(v); err != nil {
+			return &ValidationError{Name: "arrears_micros", err: fmt.Errorf(`ent: validator failed for field "BillingAccount.arrears_micros": %w`, err)}
 		}
 	}
 	if v, ok := _u.mutation.AutoTopupThresholdMicros(); ok {
@@ -1361,6 +1655,12 @@ func (_u *BillingAccountUpdateOne) sqlSave(ctx context.Context) (_node *BillingA
 	}
 	if value, ok := _u.mutation.AddedBalanceMicros(); ok {
 		_spec.AddField(billingaccount.FieldBalanceMicros, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.ArrearsMicros(); ok {
+		_spec.SetField(billingaccount.FieldArrearsMicros, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedArrearsMicros(); ok {
+		_spec.AddField(billingaccount.FieldArrearsMicros, field.TypeInt64, value)
 	}
 	if value, ok := _u.mutation.AutoTopupEnabled(); ok {
 		_spec.SetField(billingaccount.FieldAutoTopupEnabled, field.TypeBool, value)
@@ -1594,6 +1894,96 @@ func (_u *BillingAccountUpdateOne) sqlSave(ctx context.Context) (_node *BillingA
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(stripeevent.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.MonthlyUsageCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   billingaccount.MonthlyUsageTable,
+			Columns: []string{billingaccount.MonthlyUsageColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(monthlyusage.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedMonthlyUsageIDs(); len(nodes) > 0 && !_u.mutation.MonthlyUsageCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   billingaccount.MonthlyUsageTable,
+			Columns: []string{billingaccount.MonthlyUsageColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(monthlyusage.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.MonthlyUsageIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   billingaccount.MonthlyUsageTable,
+			Columns: []string{billingaccount.MonthlyUsageColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(monthlyusage.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.UsageChargesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   billingaccount.UsageChargesTable,
+			Columns: []string{billingaccount.UsageChargesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(usagecharge.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedUsageChargesIDs(); len(nodes) > 0 && !_u.mutation.UsageChargesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   billingaccount.UsageChargesTable,
+			Columns: []string{billingaccount.UsageChargesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(usagecharge.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.UsageChargesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   billingaccount.UsageChargesTable,
+			Columns: []string{billingaccount.UsageChargesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(usagecharge.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

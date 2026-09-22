@@ -9,22 +9,26 @@ import (
 	"math"
 
 	"entgo.io/ent"
+	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"playersense.dev/backend/ent/billingaccount"
 	"playersense.dev/backend/ent/plan"
 	"playersense.dev/backend/ent/predicate"
+	"playersense.dev/backend/ent/ratecard"
 )
 
 // PlanQuery is the builder for querying Plan entities.
 type PlanQuery struct {
 	config
-	ctx          *QueryContext
-	order        []plan.OrderOption
-	inters       []Interceptor
-	predicates   []predicate.Plan
-	withAccounts *BillingAccountQuery
+	ctx           *QueryContext
+	order         []plan.OrderOption
+	inters        []Interceptor
+	predicates    []predicate.Plan
+	withAccounts  *BillingAccountQuery
+	withRateCards *RateCardQuery
+	modifiers     []func(*sql.Selector)
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -76,6 +80,28 @@ func (_q *PlanQuery) QueryAccounts() *BillingAccountQuery {
 			sqlgraph.From(plan.Table, plan.FieldID, selector),
 			sqlgraph.To(billingaccount.Table, billingaccount.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, plan.AccountsTable, plan.AccountsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryRateCards chains the current query on the "rate_cards" edge.
+func (_q *PlanQuery) QueryRateCards() *RateCardQuery {
+	query := (&RateCardClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(plan.Table, plan.FieldID, selector),
+			sqlgraph.To(ratecard.Table, ratecard.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, plan.RateCardsTable, plan.RateCardsColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -270,12 +296,13 @@ func (_q *PlanQuery) Clone() *PlanQuery {
 		return nil
 	}
 	return &PlanQuery{
-		config:       _q.config,
-		ctx:          _q.ctx.Clone(),
-		order:        append([]plan.OrderOption{}, _q.order...),
-		inters:       append([]Interceptor{}, _q.inters...),
-		predicates:   append([]predicate.Plan{}, _q.predicates...),
-		withAccounts: _q.withAccounts.Clone(),
+		config:        _q.config,
+		ctx:           _q.ctx.Clone(),
+		order:         append([]plan.OrderOption{}, _q.order...),
+		inters:        append([]Interceptor{}, _q.inters...),
+		predicates:    append([]predicate.Plan{}, _q.predicates...),
+		withAccounts:  _q.withAccounts.Clone(),
+		withRateCards: _q.withRateCards.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -290,6 +317,17 @@ func (_q *PlanQuery) WithAccounts(opts ...func(*BillingAccountQuery)) *PlanQuery
 		opt(query)
 	}
 	_q.withAccounts = query
+	return _q
+}
+
+// WithRateCards tells the query-builder to eager-load the nodes that are connected to
+// the "rate_cards" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *PlanQuery) WithRateCards(opts ...func(*RateCardQuery)) *PlanQuery {
+	query := (&RateCardClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withRateCards = query
 	return _q
 }
 
@@ -371,8 +409,9 @@ func (_q *PlanQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Plan, e
 	var (
 		nodes       = []*Plan{}
 		_spec       = _q.querySpec()
-		loadedTypes = [1]bool{
+		loadedTypes = [2]bool{
 			_q.withAccounts != nil,
+			_q.withRateCards != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -383,6 +422,9 @@ func (_q *PlanQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Plan, e
 		nodes = append(nodes, node)
 		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
+	}
+	if len(_q.modifiers) > 0 {
+		_spec.Modifiers = _q.modifiers
 	}
 	for i := range hooks {
 		hooks[i](ctx, _spec)
@@ -397,6 +439,13 @@ func (_q *PlanQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Plan, e
 		if err := _q.loadAccounts(ctx, query, nodes,
 			func(n *Plan) { n.Edges.Accounts = []*BillingAccount{} },
 			func(n *Plan, e *BillingAccount) { n.Edges.Accounts = append(n.Edges.Accounts, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withRateCards; query != nil {
+		if err := _q.loadRateCards(ctx, query, nodes,
+			func(n *Plan) { n.Edges.RateCards = []*RateCard{} },
+			func(n *Plan, e *RateCard) { n.Edges.RateCards = append(n.Edges.RateCards, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -433,9 +482,42 @@ func (_q *PlanQuery) loadAccounts(ctx context.Context, query *BillingAccountQuer
 	}
 	return nil
 }
+func (_q *PlanQuery) loadRateCards(ctx context.Context, query *RateCardQuery, nodes []*Plan, init func(*Plan), assign func(*Plan, *RateCard)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Plan)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(ratecard.FieldPlanID)
+	}
+	query.Where(predicate.RateCard(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(plan.RateCardsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.PlanID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "plan_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
 
 func (_q *PlanQuery) sqlCount(ctx context.Context) (int, error) {
 	_spec := _q.querySpec()
+	if len(_q.modifiers) > 0 {
+		_spec.Modifiers = _q.modifiers
+	}
 	_spec.Node.Columns = _q.ctx.Fields
 	if len(_q.ctx.Fields) > 0 {
 		_spec.Unique = _q.ctx.Unique != nil && *_q.ctx.Unique
@@ -498,6 +580,9 @@ func (_q *PlanQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	if _q.ctx.Unique != nil && *_q.ctx.Unique {
 		selector.Distinct()
 	}
+	for _, m := range _q.modifiers {
+		m(selector)
+	}
 	for _, p := range _q.predicates {
 		p(selector)
 	}
@@ -513,6 +598,32 @@ func (_q *PlanQuery) sqlQuery(ctx context.Context) *sql.Selector {
 		selector.Limit(*limit)
 	}
 	return selector
+}
+
+// ForUpdate locks the selected rows against concurrent updates, and prevent them from being
+// updated, deleted or "selected ... for update" by other sessions, until the transaction is
+// either committed or rolled-back.
+func (_q *PlanQuery) ForUpdate(opts ...sql.LockOption) *PlanQuery {
+	if _q.driver.Dialect() == dialect.Postgres {
+		_q.Unique(false)
+	}
+	_q.modifiers = append(_q.modifiers, func(s *sql.Selector) {
+		s.ForUpdate(opts...)
+	})
+	return _q
+}
+
+// ForShare behaves similarly to ForUpdate, except that it acquires a shared mode lock
+// on any rows that are read. Other sessions can read the rows, but cannot modify them
+// until your transaction commits.
+func (_q *PlanQuery) ForShare(opts ...sql.LockOption) *PlanQuery {
+	if _q.driver.Dialect() == dialect.Postgres {
+		_q.Unique(false)
+	}
+	_q.modifiers = append(_q.modifiers, func(s *sql.Selector) {
+		s.ForShare(opts...)
+	})
+	return _q
 }
 
 // PlanGroupBy is the group-by builder for Plan entities.

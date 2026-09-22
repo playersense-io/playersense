@@ -9,6 +9,7 @@ import (
 	"playersense.dev/backend/ent/apikey"
 	"playersense.dev/backend/ent/archivemanifest"
 	"playersense.dev/backend/ent/auditevent"
+	"playersense.dev/backend/ent/billableplayer"
 	"playersense.dev/backend/ent/billingaccount"
 	"playersense.dev/backend/ent/billingperiod"
 	"playersense.dev/backend/ent/configversion"
@@ -21,15 +22,18 @@ import (
 	"playersense.dev/backend/ent/ledgerentry"
 	"playersense.dev/backend/ent/liveopsevent"
 	"playersense.dev/backend/ent/memberproject"
+	"playersense.dev/backend/ent/monthlyusage"
 	"playersense.dev/backend/ent/organization"
 	"playersense.dev/backend/ent/organizationmember"
 	"playersense.dev/backend/ent/plan"
 	"playersense.dev/backend/ent/project"
+	"playersense.dev/backend/ent/ratecard"
 	"playersense.dev/backend/ent/role"
 	"playersense.dev/backend/ent/schema"
 	"playersense.dev/backend/ent/segment"
 	"playersense.dev/backend/ent/staffaccess"
 	"playersense.dev/backend/ent/stripeevent"
+	"playersense.dev/backend/ent/usagecharge"
 	"playersense.dev/backend/ent/usagedaily"
 	"playersense.dev/backend/ent/user"
 	"playersense.dev/backend/ent/verifiedpurchase"
@@ -216,6 +220,26 @@ func init() {
 	auditevent.DefaultIP = auditeventDescIP.Default.(string)
 	// auditevent.IPValidator is a validator for the "ip" field. It is called by the builders before save.
 	auditevent.IPValidator = auditeventDescIP.Validators[0].(func(string) error)
+	billableplayerFields := schema.BillablePlayer{}.Fields()
+	_ = billableplayerFields
+	// billableplayerDescDigest is the schema descriptor for digest field.
+	billableplayerDescDigest := billableplayerFields[3].Descriptor()
+	// billableplayer.DigestValidator is a validator for the "digest" field. It is called by the builders before save.
+	billableplayer.DigestValidator = func() func([]byte) error {
+		validators := billableplayerDescDigest.Validators
+		fns := [...]func([]byte) error{
+			validators[0].(func([]byte) error),
+			validators[1].(func([]byte) error),
+		}
+		return func(digest []byte) error {
+			for _, fn := range fns {
+				if err := fn(digest); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
 	billingaccountMixin := schema.BillingAccount{}.Mixin()
 	billingaccountHooks := schema.BillingAccount{}.Hooks()
 	billingaccount.Hooks[0] = billingaccountHooks[0]
@@ -259,12 +283,18 @@ func init() {
 	billingaccountDescBalanceMicros := billingaccountFields[7].Descriptor()
 	// billingaccount.DefaultBalanceMicros holds the default value on creation for the balance_micros field.
 	billingaccount.DefaultBalanceMicros = billingaccountDescBalanceMicros.Default.(int64)
+	// billingaccountDescArrearsMicros is the schema descriptor for arrears_micros field.
+	billingaccountDescArrearsMicros := billingaccountFields[8].Descriptor()
+	// billingaccount.DefaultArrearsMicros holds the default value on creation for the arrears_micros field.
+	billingaccount.DefaultArrearsMicros = billingaccountDescArrearsMicros.Default.(int64)
+	// billingaccount.ArrearsMicrosValidator is a validator for the "arrears_micros" field. It is called by the builders before save.
+	billingaccount.ArrearsMicrosValidator = billingaccountDescArrearsMicros.Validators[0].(func(int64) error)
 	// billingaccountDescAutoTopupEnabled is the schema descriptor for auto_topup_enabled field.
-	billingaccountDescAutoTopupEnabled := billingaccountFields[8].Descriptor()
+	billingaccountDescAutoTopupEnabled := billingaccountFields[9].Descriptor()
 	// billingaccount.DefaultAutoTopupEnabled holds the default value on creation for the auto_topup_enabled field.
 	billingaccount.DefaultAutoTopupEnabled = billingaccountDescAutoTopupEnabled.Default.(bool)
 	// billingaccountDescAutoTopupThresholdMicros is the schema descriptor for auto_topup_threshold_micros field.
-	billingaccountDescAutoTopupThresholdMicros := billingaccountFields[9].Descriptor()
+	billingaccountDescAutoTopupThresholdMicros := billingaccountFields[10].Descriptor()
 	// billingaccount.DefaultAutoTopupThresholdMicros holds the default value on creation for the auto_topup_threshold_micros field.
 	billingaccount.DefaultAutoTopupThresholdMicros = billingaccountDescAutoTopupThresholdMicros.Default.(int64)
 	// billingaccount.AutoTopupThresholdMicrosValidator is a validator for the "auto_topup_threshold_micros" field. It is called by the builders before save.
@@ -284,7 +314,7 @@ func init() {
 		}
 	}()
 	// billingaccountDescAutoTopupAmountMicros is the schema descriptor for auto_topup_amount_micros field.
-	billingaccountDescAutoTopupAmountMicros := billingaccountFields[10].Descriptor()
+	billingaccountDescAutoTopupAmountMicros := billingaccountFields[11].Descriptor()
 	// billingaccount.DefaultAutoTopupAmountMicros holds the default value on creation for the auto_topup_amount_micros field.
 	billingaccount.DefaultAutoTopupAmountMicros = billingaccountDescAutoTopupAmountMicros.Default.(int64)
 	// billingaccount.AutoTopupAmountMicrosValidator is a validator for the "auto_topup_amount_micros" field. It is called by the builders before save.
@@ -304,15 +334,15 @@ func init() {
 		}
 	}()
 	// billingaccountDescDefaultPaymentMethod is the schema descriptor for default_payment_method field.
-	billingaccountDescDefaultPaymentMethod := billingaccountFields[11].Descriptor()
+	billingaccountDescDefaultPaymentMethod := billingaccountFields[12].Descriptor()
 	// billingaccount.DefaultPaymentMethodValidator is a validator for the "default_payment_method" field. It is called by the builders before save.
 	billingaccount.DefaultPaymentMethodValidator = billingaccountDescDefaultPaymentMethod.Validators[0].(func(string) error)
 	// billingaccountDescBillingEmail is the schema descriptor for billing_email field.
-	billingaccountDescBillingEmail := billingaccountFields[12].Descriptor()
+	billingaccountDescBillingEmail := billingaccountFields[13].Descriptor()
 	// billingaccount.BillingEmailValidator is a validator for the "billing_email" field. It is called by the builders before save.
 	billingaccount.BillingEmailValidator = billingaccountDescBillingEmail.Validators[0].(func(string) error)
 	// billingaccountDescEntitlementOverrides is the schema descriptor for entitlement_overrides field.
-	billingaccountDescEntitlementOverrides := billingaccountFields[13].Descriptor()
+	billingaccountDescEntitlementOverrides := billingaccountFields[14].Descriptor()
 	// billingaccount.DefaultEntitlementOverrides holds the default value on creation for the entitlement_overrides field.
 	billingaccount.DefaultEntitlementOverrides = billingaccountDescEntitlementOverrides.Default.(map[string]int64)
 	billingperiodMixin := schema.BillingPeriod{}.Mixin()
@@ -952,6 +982,35 @@ func init() {
 	memberprojectDescGrantedAt := memberprojectFields[2].Descriptor()
 	// memberproject.DefaultGrantedAt holds the default value on creation for the granted_at field.
 	memberproject.DefaultGrantedAt = memberprojectDescGrantedAt.Default.(func() time.Time)
+	monthlyusageMixin := schema.MonthlyUsage{}.Mixin()
+	monthlyusageMixinFields0 := monthlyusageMixin[0].Fields()
+	_ = monthlyusageMixinFields0
+	monthlyusageFields := schema.MonthlyUsage{}.Fields()
+	_ = monthlyusageFields
+	// monthlyusageDescUID is the schema descriptor for uid field.
+	monthlyusageDescUID := monthlyusageMixinFields0[1].Descriptor()
+	// monthlyusage.DefaultUID holds the default value on creation for the uid field.
+	monthlyusage.DefaultUID = monthlyusageDescUID.Default.(func() uuid.UUID)
+	// monthlyusageDescCreatedAt is the schema descriptor for created_at field.
+	monthlyusageDescCreatedAt := monthlyusageMixinFields0[2].Descriptor()
+	// monthlyusage.DefaultCreatedAt holds the default value on creation for the created_at field.
+	monthlyusage.DefaultCreatedAt = monthlyusageDescCreatedAt.Default.(func() time.Time)
+	// monthlyusageDescUpdatedAt is the schema descriptor for updated_at field.
+	monthlyusageDescUpdatedAt := monthlyusageMixinFields0[3].Descriptor()
+	// monthlyusage.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	monthlyusage.DefaultUpdatedAt = monthlyusageDescUpdatedAt.Default.(func() time.Time)
+	// monthlyusage.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	monthlyusage.UpdateDefaultUpdatedAt = monthlyusageDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// monthlyusageDescTrackedPlayers is the schema descriptor for tracked_players field.
+	monthlyusageDescTrackedPlayers := monthlyusageFields[2].Descriptor()
+	// monthlyusage.DefaultTrackedPlayers holds the default value on creation for the tracked_players field.
+	monthlyusage.DefaultTrackedPlayers = monthlyusageDescTrackedPlayers.Default.(int64)
+	// monthlyusage.TrackedPlayersValidator is a validator for the "tracked_players" field. It is called by the builders before save.
+	monthlyusage.TrackedPlayersValidator = monthlyusageDescTrackedPlayers.Validators[0].(func(int64) error)
+	// monthlyusageDescChargedMicros is the schema descriptor for charged_micros field.
+	monthlyusageDescChargedMicros := monthlyusageFields[3].Descriptor()
+	// monthlyusage.DefaultChargedMicros holds the default value on creation for the charged_micros field.
+	monthlyusage.DefaultChargedMicros = monthlyusageDescChargedMicros.Default.(int64)
 	organizationMixin := schema.Organization{}.Mixin()
 	organizationMixinFields0 := organizationMixin[0].Fields()
 	_ = organizationMixinFields0
@@ -1127,6 +1186,10 @@ func init() {
 	planDescActive := planFields[7].Descriptor()
 	// plan.DefaultActive holds the default value on creation for the active field.
 	plan.DefaultActive = planDescActive.Default.(bool)
+	// planDescIsDefault is the schema descriptor for is_default field.
+	planDescIsDefault := planFields[8].Descriptor()
+	// plan.DefaultIsDefault holds the default value on creation for the is_default field.
+	plan.DefaultIsDefault = planDescIsDefault.Default.(bool)
 	projectMixin := schema.Project{}.Mixin()
 	projectMixinFields0 := projectMixin[0].Fields()
 	_ = projectMixinFields0
@@ -1186,6 +1249,37 @@ func init() {
 	projectDescRetentionDays := projectFields[3].Descriptor()
 	// project.DefaultRetentionDays holds the default value on creation for the retention_days field.
 	project.DefaultRetentionDays = projectDescRetentionDays.Default.(uint16)
+	ratecardMixin := schema.RateCard{}.Mixin()
+	ratecardHooks := schema.RateCard{}.Hooks()
+	ratecard.Hooks[0] = ratecardHooks[0]
+	ratecardMixinFields0 := ratecardMixin[0].Fields()
+	_ = ratecardMixinFields0
+	ratecardFields := schema.RateCard{}.Fields()
+	_ = ratecardFields
+	// ratecardDescUID is the schema descriptor for uid field.
+	ratecardDescUID := ratecardMixinFields0[1].Descriptor()
+	// ratecard.DefaultUID holds the default value on creation for the uid field.
+	ratecard.DefaultUID = ratecardDescUID.Default.(func() uuid.UUID)
+	// ratecardDescCreatedAt is the schema descriptor for created_at field.
+	ratecardDescCreatedAt := ratecardMixinFields0[2].Descriptor()
+	// ratecard.DefaultCreatedAt holds the default value on creation for the created_at field.
+	ratecard.DefaultCreatedAt = ratecardDescCreatedAt.Default.(func() time.Time)
+	// ratecardDescCurrency is the schema descriptor for currency field.
+	ratecardDescCurrency := ratecardFields[3].Descriptor()
+	// ratecard.DefaultCurrency holds the default value on creation for the currency field.
+	ratecard.DefaultCurrency = ratecardDescCurrency.Default.(string)
+	// ratecard.CurrencyValidator is a validator for the "currency" field. It is called by the builders before save.
+	ratecard.CurrencyValidator = ratecardDescCurrency.Validators[0].(func(string) error)
+	// ratecardDescNote is the schema descriptor for note field.
+	ratecardDescNote := ratecardFields[6].Descriptor()
+	// ratecard.DefaultNote holds the default value on creation for the note field.
+	ratecard.DefaultNote = ratecardDescNote.Default.(string)
+	// ratecard.NoteValidator is a validator for the "note" field. It is called by the builders before save.
+	ratecard.NoteValidator = ratecardDescNote.Validators[0].(func(string) error)
+	// ratecardDescCreatedBy is the schema descriptor for created_by field.
+	ratecardDescCreatedBy := ratecardFields[7].Descriptor()
+	// ratecard.CreatedByValidator is a validator for the "created_by" field. It is called by the builders before save.
+	ratecard.CreatedByValidator = ratecardDescCreatedBy.Validators[0].(func(string) error)
 	roleMixin := schema.Role{}.Mixin()
 	roleHooks := schema.Role{}.Hooks()
 	role.Hooks[0] = roleHooks[0]
@@ -1474,6 +1568,39 @@ func init() {
 	stripeevent.DefaultAttempts = stripeeventDescAttempts.Default.(int)
 	// stripeevent.AttemptsValidator is a validator for the "attempts" field. It is called by the builders before save.
 	stripeevent.AttemptsValidator = stripeeventDescAttempts.Validators[0].(func(int) error)
+	usagechargeMixin := schema.UsageCharge{}.Mixin()
+	usagechargeMixinFields0 := usagechargeMixin[0].Fields()
+	_ = usagechargeMixinFields0
+	usagechargeFields := schema.UsageCharge{}.Fields()
+	_ = usagechargeFields
+	// usagechargeDescUID is the schema descriptor for uid field.
+	usagechargeDescUID := usagechargeMixinFields0[1].Descriptor()
+	// usagecharge.DefaultUID holds the default value on creation for the uid field.
+	usagecharge.DefaultUID = usagechargeDescUID.Default.(func() uuid.UUID)
+	// usagechargeDescCreatedAt is the schema descriptor for created_at field.
+	usagechargeDescCreatedAt := usagechargeMixinFields0[2].Descriptor()
+	// usagecharge.DefaultCreatedAt holds the default value on creation for the created_at field.
+	usagecharge.DefaultCreatedAt = usagechargeDescCreatedAt.Default.(func() time.Time)
+	// usagechargeDescUpdatedAt is the schema descriptor for updated_at field.
+	usagechargeDescUpdatedAt := usagechargeMixinFields0[3].Descriptor()
+	// usagecharge.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	usagecharge.DefaultUpdatedAt = usagechargeDescUpdatedAt.Default.(func() time.Time)
+	// usagecharge.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	usagecharge.UpdateDefaultUpdatedAt = usagechargeDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// usagechargeDescFirstUnit is the schema descriptor for first_unit field.
+	usagechargeDescFirstUnit := usagechargeFields[3].Descriptor()
+	// usagecharge.FirstUnitValidator is a validator for the "first_unit" field. It is called by the builders before save.
+	usagecharge.FirstUnitValidator = usagechargeDescFirstUnit.Validators[0].(func(int64) error)
+	// usagechargeDescLastUnit is the schema descriptor for last_unit field.
+	usagechargeDescLastUnit := usagechargeFields[4].Descriptor()
+	// usagecharge.LastUnitValidator is a validator for the "last_unit" field. It is called by the builders before save.
+	usagecharge.LastUnitValidator = usagechargeDescLastUnit.Validators[0].(func(int64) error)
+	// usagechargeDescCurrency is the schema descriptor for currency field.
+	usagechargeDescCurrency := usagechargeFields[6].Descriptor()
+	// usagecharge.DefaultCurrency holds the default value on creation for the currency field.
+	usagecharge.DefaultCurrency = usagechargeDescCurrency.Default.(string)
+	// usagecharge.CurrencyValidator is a validator for the "currency" field. It is called by the builders before save.
+	usagecharge.CurrencyValidator = usagechargeDescCurrency.Validators[0].(func(string) error)
 	usagedailyMixin := schema.UsageDaily{}.Mixin()
 	usagedailyMixinFields0 := usagedailyMixin[0].Fields()
 	_ = usagedailyMixinFields0

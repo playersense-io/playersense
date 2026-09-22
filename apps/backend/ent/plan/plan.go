@@ -38,8 +38,12 @@ const (
 	FieldEntitlements = "entitlements"
 	// FieldActive holds the string denoting the active field in the database.
 	FieldActive = "active"
+	// FieldIsDefault holds the string denoting the is_default field in the database.
+	FieldIsDefault = "is_default"
 	// EdgeAccounts holds the string denoting the accounts edge name in mutations.
 	EdgeAccounts = "accounts"
+	// EdgeRateCards holds the string denoting the rate_cards edge name in mutations.
+	EdgeRateCards = "rate_cards"
 	// Table holds the table name of the plan in the database.
 	Table = "plans"
 	// AccountsTable is the table that holds the accounts relation/edge.
@@ -49,6 +53,13 @@ const (
 	AccountsInverseTable = "billing_accounts"
 	// AccountsColumn is the table column denoting the accounts relation/edge.
 	AccountsColumn = "plan_id"
+	// RateCardsTable is the table that holds the rate_cards relation/edge.
+	RateCardsTable = "rate_cards"
+	// RateCardsInverseTable is the table name for the RateCard entity.
+	// It exists in this package in order to avoid circular dependency with the "ratecard" package.
+	RateCardsInverseTable = "rate_cards"
+	// RateCardsColumn is the table column denoting the rate_cards relation/edge.
+	RateCardsColumn = "plan_id"
 )
 
 // Columns holds all SQL columns for plan fields.
@@ -65,6 +76,7 @@ var Columns = []string{
 	FieldStripePriceID,
 	FieldEntitlements,
 	FieldActive,
+	FieldIsDefault,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -114,6 +126,8 @@ var (
 	DefaultEntitlements map[string]int64
 	// DefaultActive holds the default value on creation for the "active" field.
 	DefaultActive bool
+	// DefaultIsDefault holds the default value on creation for the "is_default" field.
+	DefaultIsDefault bool
 )
 
 // OrderOption defines the ordering options for the Plan queries.
@@ -174,6 +188,11 @@ func ByActive(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldActive, opts...).ToFunc()
 }
 
+// ByIsDefault orders the results by the is_default field.
+func ByIsDefault(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldIsDefault, opts...).ToFunc()
+}
+
 // ByAccountsCount orders the results by accounts count.
 func ByAccountsCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -187,10 +206,31 @@ func ByAccounts(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newAccountsStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
+
+// ByRateCardsCount orders the results by rate_cards count.
+func ByRateCardsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newRateCardsStep(), opts...)
+	}
+}
+
+// ByRateCards orders the results by rate_cards terms.
+func ByRateCards(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newRateCardsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newAccountsStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(AccountsInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, AccountsTable, AccountsColumn),
+	)
+}
+func newRateCardsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(RateCardsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, RateCardsTable, RateCardsColumn),
 	)
 }

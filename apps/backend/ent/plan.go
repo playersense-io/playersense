@@ -42,6 +42,8 @@ type Plan struct {
 	Entitlements map[string]int64 `json:"entitlements,omitempty"`
 	// class=none
 	Active bool `json:"active,omitempty"`
+	// class=none
+	IsDefault bool `json:"is_default,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the PlanQuery when eager-loading is set.
 	Edges        PlanEdges `json:"edges"`
@@ -52,9 +54,11 @@ type Plan struct {
 type PlanEdges struct {
 	// Accounts holds the value of the accounts edge.
 	Accounts []*BillingAccount `json:"accounts,omitempty"`
+	// RateCards holds the value of the rate_cards edge.
+	RateCards []*RateCard `json:"rate_cards,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [1]bool
+	loadedTypes [2]bool
 }
 
 // AccountsOrErr returns the Accounts value or an error if the edge
@@ -66,6 +70,15 @@ func (e PlanEdges) AccountsOrErr() ([]*BillingAccount, error) {
 	return nil, &NotLoadedError{edge: "accounts"}
 }
 
+// RateCardsOrErr returns the RateCards value or an error if the edge
+// was not loaded in eager-loading.
+func (e PlanEdges) RateCardsOrErr() ([]*RateCard, error) {
+	if e.loadedTypes[1] {
+		return e.RateCards, nil
+	}
+	return nil, &NotLoadedError{edge: "rate_cards"}
+}
+
 // scanValues returns the types for scanning values from sql.Rows.
 func (*Plan) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
@@ -73,7 +86,7 @@ func (*Plan) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case plan.FieldEntitlements:
 			values[i] = new([]byte)
-		case plan.FieldActive:
+		case plan.FieldActive, plan.FieldIsDefault:
 			values[i] = new(sql.NullBool)
 		case plan.FieldID, plan.FieldMonthlyPriceMicros:
 			values[i] = new(sql.NullInt64)
@@ -173,6 +186,12 @@ func (_m *Plan) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.Active = value.Bool
 			}
+		case plan.FieldIsDefault:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field is_default", values[i])
+			} else if value.Valid {
+				_m.IsDefault = value.Bool
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -189,6 +208,11 @@ func (_m *Plan) Value(name string) (ent.Value, error) {
 // QueryAccounts queries the "accounts" edge of the Plan entity.
 func (_m *Plan) QueryAccounts() *BillingAccountQuery {
 	return NewPlanClient(_m.config).QueryAccounts(_m)
+}
+
+// QueryRateCards queries the "rate_cards" edge of the Plan entity.
+func (_m *Plan) QueryRateCards() *RateCardQuery {
+	return NewPlanClient(_m.config).QueryRateCards(_m)
 }
 
 // Update returns a builder for updating this Plan.
@@ -248,6 +272,9 @@ func (_m *Plan) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("active=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Active))
+	builder.WriteString(", ")
+	builder.WriteString("is_default=")
+	builder.WriteString(fmt.Sprintf("%v", _m.IsDefault))
 	builder.WriteByte(')')
 	return builder.String()
 }
