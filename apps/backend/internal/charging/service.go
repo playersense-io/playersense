@@ -9,6 +9,7 @@ import (
 
 	"playersense.dev/backend/internal/eventbus"
 	"playersense.dev/backend/internal/pgdb"
+	"playersense.dev/backend/internal/valkey"
 )
 
 // Service runs the charger: the bus subscription, the drain and the prune, as one component.
@@ -16,7 +17,21 @@ import (
 // The three are independent loops on purpose. The subscription is paced by traffic, the drain by a
 // clock, and the prune by the calendar; a slow drain must not hold back counting, and a burst of
 // counting must not delay a drain.
+//
+// # It opens its own stores
+//
+// The framework starts components in parallel, so a loop started beside the database pool can run
+// before the pool exists — the first build of this service did exactly that, and the drain
+// dereferenced a nil client within a millisecond of start-up. analytics-writer is safe from it only
+// because its ClickHouse handle reports "not connected" as an error; a nil ent client panics. So the
+// service owns the order: PostgreSQL first, and failing to reach it fails start-up; then Valkey,
+// whose absence only costs speed (§65); then the loops. Stop runs it backwards.
 type Service struct {
+	// DB and Cache are opened by Start and closed by Stop. Pass them here rather than
+	// registering them as separate components.
+	DB    *pgdb.DB
+	Cache *valkey.Client
+
 	Bus     eventbus.Bus
 	Accruer *Accruer
 	Drainer *Drainer
@@ -40,10 +55,24 @@ func (s *Service) Name() string { return "billing-writer" }
 //
 // Not derived from the start-up context, for the reason analytics-writer gives: that one is
 // cancelled once start-up finishes.
-func (s *Service) Start(context.Context) error {
+func (s *Service) Start(startup context.Context) error {
 	if s.DrainEvery <= 0 {
 		return fmt.Errorf("the drain needs an interval")
 	}
+	if s.DB != nil {
+		if err := s.DB.Start(startup); err != nil {
+			return err
+		}
+	}
+	if s.Cache != nil {
+		if err := s.Cache.Start(startup); err != nil {
+			// Not fatal. An unconnected client answers every lookup with ErrUnavailable,
+			// and the accruer then asks PostgreSQL about every player.
+			s.log().Warn("valkey is unavailable; every player will be checked in PostgreSQL",
+				"error", err)
+		}
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	s.cancel = cancel
 
@@ -91,6 +120,12 @@ func (s *Service) Stop(ctx context.Context) error {
 	case <-done:
 	case <-ctx.Done():
 		return fmt.Errorf("the billing writer did not stop within the shutdown timeout")
+	}
+	if s.Cache != nil {
+		_ = s.Cache.Stop(ctx)
+	}
+	if s.DB != nil {
+		_ = s.DB.Stop(ctx)
 	}
 	s.log().Info("billing writer stopped",
 		"messages", s.Accruer.Stats.Messages.Load(),

@@ -16,6 +16,7 @@
 /apps/backend/analytics-writer
 /apps/backend/archive-writer
 /apps/backend/archivecheck
+/apps/backend/billing-writer
 /apps/backend/cohortcheck
 /apps/backend/migrate
 /apps/backend/wiresize

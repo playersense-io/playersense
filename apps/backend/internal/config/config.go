@@ -283,6 +283,34 @@ type Settings struct {
 	// write time and corrected by the nightly derivation, which reads player_lifetime.
 	WriterDeviceStateTTL time.Duration `env:"WRITER_DEVICE_STATE_TTL" default:"720h"`
 
+	// BillingWriterAddr is where the billing writer serves its health probe (ADR 0039).
+	BillingWriterAddr string `env:"BILLING_WRITER_ADDR" default:":21088"`
+
+	// BillingDigestKey is the HMAC key behind every billable player's monthly digest.
+	//
+	// Secret, because the digest is what keeps the billing table from being joined to
+	// events_raw by whoever can read it. Not required by every binary — only the billing
+	// writer uses it, and it refuses to start without one of at least 32 bytes.
+	//
+	// **Do not rotate it mid-month.** Every player of the current month would become new
+	// again under a new key and be charged a second time. Rotate on the first of a month,
+	// before the first batch of it arrives.
+	BillingDigestKey string `env:"BILLING_DIGEST_KEY" secret:"true"`
+
+	// BillingDrainEvery is how often queued usage charges are moved into wallets. It is how
+	// stale a balance can be; the charges themselves are durable from the moment they are
+	// counted.
+	BillingDrainEvery time.Duration `env:"BILLING_DRAIN_EVERY" default:"5s"`
+
+	// BillingDrainMaxAccounts bounds one drain pass. The rest are the next pass's.
+	BillingDrainMaxAccounts int `env:"BILLING_DRAIN_MAX_ACCOUNTS" default:"500"`
+
+	// BillingMaxInsert bounds one INSERT of new players.
+	BillingMaxInsert int `env:"BILLING_MAX_INSERT" default:"1000"`
+
+	// BillingPruneEvery is how often player sets older than last month are deleted.
+	BillingPruneEvery time.Duration `env:"BILLING_PRUNE_EVERY" default:"1h"`
+
 	// WorkerAddr is where the worker serves its health probe. It has no API.
 	WorkerAddr string `env:"WORKER_ADDR" default:":21086"`
 
