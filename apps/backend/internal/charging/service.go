@@ -45,12 +45,16 @@ type Service struct {
 	// PruneEvery is how often last-but-one month's player set is removed.
 	PruneEvery time.Duration
 
-	// TopUp charges saved cards for balances below their threshold (payments.AutoTopUp). An
-	// interface so charging does not import the payment provider; nil runs without it.
+	// TopUp charges saved cards for balances below their threshold (payments.AutoTopUp): Run
+	// works the queue every TopUpEvery, Sweep scans for anything the queue missed every
+	// TopUpSweepEvery. An interface so charging does not import the payment provider; nil runs
+	// without it.
 	TopUp interface {
 		Run(context.Context) (int, error)
+		Sweep(context.Context) (int, error)
 	}
-	TopUpEvery time.Duration
+	TopUpEvery      time.Duration
+	TopUpSweepEvery time.Duration
 
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
@@ -84,7 +88,7 @@ func (s *Service) Start(startup context.Context) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	s.cancel = cancel
 
-	s.wg.Add(4)
+	s.wg.Add(5)
 	go func() {
 		defer s.wg.Done()
 		if err := s.Bus.Subscribe(ctx, eventbus.GroupBillingWriter, s.Accruer.Handle); err != nil && ctx.Err() == nil {
@@ -108,6 +112,17 @@ func (s *Service) Start(startup context.Context) error {
 			if _, err := s.TopUp.Run(ctx); err != nil && ctx.Err() == nil {
 				s.log().Warn("an automatic top-up pass did not finish; claims are kept and retried",
 					"error", err)
+			}
+		})
+	}()
+	go func() {
+		defer s.wg.Done()
+		if s.TopUp == nil || s.TopUpSweepEvery <= 0 {
+			return
+		}
+		s.every(ctx, s.TopUpSweepEvery, func(ctx context.Context) {
+			if _, err := s.TopUp.Sweep(ctx); err != nil && ctx.Err() == nil {
+				s.log().Warn("an automatic top-up sweep did not finish", "error", err)
 			}
 		})
 	}()

@@ -16,6 +16,7 @@ import (
 	"playersense.dev/backend/ent/billingaccount"
 	"playersense.dev/backend/internal/billing"
 	"playersense.dev/backend/internal/pgdb"
+	"playersense.dev/backend/internal/wallet"
 )
 
 var sqlNoRows = sql.ErrNoRows
@@ -65,27 +66,44 @@ type AutoTopUpStats struct {
 	Credited atomic.Int64
 	Declined atomic.Int64
 	Unknown  atomic.Int64 // no answer; the claim is kept and retried with its key
+	Limited  atomic.Int64 // not charged: the daily limit was reached
 }
+
+// Day is the daily limit's window: any 24 hours, not a calendar day, so three charges at 23:59 and
+// three more at 00:01 is not something the limit allows.
+const Day = 24 * time.Hour
 
 // keyLifetime is how long Stripe is relied on to remember an Idempotency-Key. Its documented
 // minimum is twenty-four hours; this leaves margin.
 const keyLifetime = 20 * time.Hour
 
-// Run makes one pass.
+// Run works the queue: accounts whose balance movement asked for a top-up (ADR 0041).
+//
+// Read through a partial index that holds only asking accounts, oldest ask first, so it is cheap
+// enough to run every couple of seconds at any number of accounts — which is what turns "a charge
+// left the balance low" into "the card was charged" in seconds rather than at the next sweep.
 func (a *AutoTopUp) Run(ctx context.Context) (int, error) {
+	return a.pass(ctx, true)
+}
+
+// Sweep is the safety net: every account below its threshold, asked for or not.
+//
+// The queue is written in the same transaction as the balance, so nothing should reach here that the
+// queue missed — but a threshold raised directly in the database, or an account restored from a
+// backup, would. It is a full scan of billing accounts and runs every few minutes, not seconds.
+func (a *AutoTopUp) Sweep(ctx context.Context) (int, error) {
+	return a.pass(ctx, false)
+}
+
+func (a *AutoTopUp) pass(ctx context.Context, queued bool) (int, error) {
 	now := a.now()
 	limit := a.MaxAccounts
 	if limit <= 0 {
 		limit = 100
 	}
 
-	// Below threshold, able to be charged, and either unclaimed or holding a claim that has
-	// gone unanswered. The balance is the ledger's running total, which already nets arrears.
-	candidates, err := a.DB.Client.BillingAccount.Query().
+	query := a.DB.Client.BillingAccount.Query().
 		Where(
-			billingaccount.AutoTopupEnabled(true),
-			billingaccount.StripeCustomerIDNotNil(),
-			billingaccount.StateNEQ(billingaccount.StateCanceled),
 			billingaccount.Or(
 				billingaccount.AutoTopupRetryAfterIsNil(),
 				billingaccount.AutoTopupRetryAfterLTE(now),
@@ -94,13 +112,25 @@ func (a *AutoTopUp) Run(ctx context.Context) (int, error) {
 				billingaccount.AutoTopupPendingKeyIsNil(),
 				billingaccount.AutoTopupPendingAtLTE(now.Add(-a.staleAfter())),
 			),
+		)
+	if queued {
+		query = query.
+			Where(billingaccount.AutoTopupRequestedAtNotNil()).
+			Order(ent.Asc(billingaccount.FieldAutoTopupRequestedAt))
+	} else {
+		// Below threshold, able to be charged. The balance is the ledger's running total,
+		// which already nets arrears.
+		query = query.Where(
+			billingaccount.AutoTopupEnabled(true),
+			billingaccount.StripeCustomerIDNotNil(),
+			billingaccount.StateNEQ(billingaccount.StateCanceled),
 			func(s *entsql.Selector) {
 				s.Where(entsql.ColumnsLT(s.C(billingaccount.FieldBalanceMicros),
 					s.C(billingaccount.FieldAutoTopupThresholdMicros)))
 			},
-		).
-		Limit(limit).
-		IDs(ctx)
+		)
+	}
+	candidates, err := query.Limit(limit).IDs(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("find accounts to top up: %w", err)
 	}
@@ -213,33 +243,76 @@ func (a *AutoTopUp) claim(ctx context.Context, accountID int) (*claim, error) {
 	}
 
 	now := a.now()
-	amount, needed := Amount(account)
-	switch {
-	case !account.AutoTopupEnabled || account.StripeCustomerID == nil:
-		return nil, nil
-	case account.AutoTopupPendingKey != nil:
+	wants := wallet.WantsTopUp(account, account.BalanceMicros)
+
+	// An ask that no longer holds — the balance recovered, the setting was switched off — leaves
+	// the queue in whatever write this claim makes, under the lock, so the queue never keeps a row
+	// it has no reason to.
+	update := tx.BillingAccount.UpdateOneID(account.ID)
+	dequeue := !wants && account.AutoTopupRequestedAt != nil
+	if dequeue {
+		update = update.ClearAutoTopupRequestedAt()
+	}
+
+	// An outstanding claim is resolved whether or not a top-up is still wanted: a charge may
+	// already have happened under it, and only its own key can find out.
+	if account.AutoTopupPendingKey != nil {
 		if account.AutoTopupPendingAt != nil && now.Sub(*account.AutoTopupPendingAt) < a.staleAfter() {
 			return nil, nil // answered by somebody else while this pass was starting
 		}
 		// Resumed with its own key and its own amount — a different amount under the same key
 		// is a request Stripe refuses, and rightly.
-		c := &claim{account: account, key: *account.AutoTopupPendingKey, resumed: true, amount: amount}
+		c := &claim{account: account, key: *account.AutoTopupPendingKey, resumed: true}
 		if account.AutoTopupPendingAt != nil {
 			c.since = *account.AutoTopupPendingAt
 		}
 		if account.AutoTopupPendingAmountMicros != nil {
 			c.amount = *account.AutoTopupPendingAmountMicros
+		} else {
+			c.amount, _ = Amount(account)
 		}
-		if err := tx.BillingAccount.UpdateOneID(account.ID).SetAutoTopupPendingAt(now).Exec(ctx); err != nil {
+		if err := update.SetAutoTopupPendingAt(now).Exec(ctx); err != nil {
 			return nil, err
 		}
 		return c, tx.Commit()
-	case !needed:
+	}
+
+	amount, needed := Amount(account)
+	if !wants || !needed {
+		if dequeue {
+			if err := update.Exec(ctx); err != nil {
+				return nil, err
+			}
+			return nil, tx.Commit()
+		}
 		return nil, nil
 	}
 
+	// The daily limit, counted under the lock so two workers cannot both take the last slot.
+	windowStart, count := now, 0
+	if account.AutoTopupWindowStartedAt != nil && now.Sub(*account.AutoTopupWindowStartedAt) < Day {
+		windowStart, count = *account.AutoTopupWindowStartedAt, account.AutoTopupWindowCount
+	}
+	if count >= account.AutoTopupDailyLimit {
+		// Not charged, and not asked about again until the window reopens. The request stays
+		// queued, so the top-up happens then if the balance is still low.
+		reopens := windowStart.Add(Day)
+		if err := update.
+			SetAutoTopupRetryAfter(reopens).
+			SetAutoTopupLastError(fmt.Sprintf(
+				"the limit of %d automatic top-ups in 24 hours was reached; the next can be made after %s",
+				account.AutoTopupDailyLimit, reopens.Format(time.RFC3339))).
+			Exec(ctx); err != nil {
+			return nil, err
+		}
+		a.Stats.Limited.Add(1)
+		return nil, tx.Commit()
+	}
+
 	key := "playersense-autotopup-" + account.UID.String() + "-" + uuid.NewString()
-	if err := tx.BillingAccount.UpdateOneID(account.ID).
+	if err := update.
+		SetAutoTopupWindowStartedAt(windowStart).
+		SetAutoTopupWindowCount(count + 1).
 		SetAutoTopupPendingKey(key).
 		SetAutoTopupPendingAt(now).
 		SetAutoTopupPendingAmountMicros(amount).

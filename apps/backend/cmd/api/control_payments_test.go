@@ -102,7 +102,7 @@ func TestOnlyBillingManagersCanPay(t *testing.T) {
 	w.join(t, w.slug, dev, authz.RoleDeveloper, true)
 	w.as(t, dev).Post(w.base()+"/billing/top-ups",
 		testclient.JSON(map[string]any{"amount_micros": dollars(10)})).AssertStatus(http.StatusForbidden)
-	w.as(t, dev).Post(w.base()+"/billing/portal").AssertStatus(http.StatusForbidden)
+	w.as(t, dev).Post(w.base() + "/billing/portal").AssertStatus(http.StatusForbidden)
 }
 
 // The portal opens before any top-up, so a card can be added first.
@@ -110,7 +110,7 @@ func TestThePortalOpensForANewAccount(t *testing.T) {
 	stripe := paymentstest.New()
 	w := newWalletWith(t, stripe)
 	out := testclient.Decoded[schemas.PortalOut](
-		w.client(t).Post(w.base()+"/billing/portal").AssertStatus(http.StatusOK))
+		w.client(t).Post(w.base() + "/billing/portal").AssertStatus(http.StatusOK))
 	if out.URL == "" || stripe.Portals != 1 {
 		t.Errorf("portal = %+v, opened %d", out, stripe.Portals)
 	}
@@ -157,4 +157,40 @@ func TestWithoutStripeThePaymentRoutesSaySo(t *testing.T) {
 	w := newWalletWith(t, nil)
 	w.client(t).Post(w.base()+"/billing/top-ups",
 		testclient.JSON(map[string]any{"amount_micros": dollars(10)})).AssertStatus(http.StatusServiceUnavailable)
+}
+
+// Turning automatic top-up on while already below the threshold queues a top-up at once; turning it
+// off takes the account out of the queue. And the page says how many of the day's charges are used.
+func TestTheSettingsRouteQueuesAndUnqueues(t *testing.T) {
+	w := newWalletWith(t, paymentstest.New())
+	client := w.client(t)
+	// A card, saved at Stripe by a first top-up.
+	client.Post(w.base()+"/billing/top-ups",
+		testclient.JSON(map[string]any{"amount_micros": dollars(20)})).AssertStatus(http.StatusOK)
+	path := w.base() + "/billing/auto-topup"
+
+	var on struct {
+		AutoTopUp struct {
+			Queued     bool `json:"queued"`
+			DailyLimit int  `json:"daily_limit"`
+			UsedToday  int  `json:"used_today"`
+		} `json:"auto_topup"`
+	}
+	client.Put(path, testclient.JSON(map[string]any{
+		"enabled": true, "threshold_micros": dollars(10), "amount_micros": dollars(50),
+	})).AssertStatus(http.StatusOK).JSON(&on)
+	if !on.AutoTopUp.Queued || on.AutoTopUp.DailyLimit != 3 || on.AutoTopUp.UsedToday != 0 {
+		t.Errorf("enabled at $0 = %+v; want queued, a limit of 3, none used", on.AutoTopUp)
+	}
+
+	var off struct {
+		AutoTopUp struct {
+			Queued bool `json:"queued"`
+		} `json:"auto_topup"`
+	}
+	client.Put(path, testclient.JSON(map[string]any{"enabled": false})).
+		AssertStatus(http.StatusOK).JSON(&off)
+	if off.AutoTopUp.Queued {
+		t.Error("switching automatic top-up off left the account queued")
+	}
 }

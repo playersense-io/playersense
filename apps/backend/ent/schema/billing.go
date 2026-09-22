@@ -237,6 +237,28 @@ func (BillingAccount) Fields() []ent.Field {
 		// once one succeeds.
 		field.String("auto_topup_last_error").MaxLen(500).Default("").Comment(dataclass.None),
 
+		// The signal that this account wants an automatic top-up (ADR 0041). Set by the same
+		// UPDATE that moved the balance below the threshold — so it commits with the charge that
+		// caused it, cannot be lost, and costs no extra statement — and cleared by the one that
+		// moves it back above, or by turning automatic top-up off.
+		//
+		// A queue made of a column: the worker reads only flagged rows, through a partial index
+		// that holds nothing else, so polling it every few seconds costs the same with ten
+		// accounts as with ten million.
+		field.Time("auto_topup_requested_at").Optional().Nillable().Comment(dataclass.None),
+
+		// At most this many automatic charges in any 24 hours (ADR 0041). Three by default: a card
+		// charged again and again in a day is what a card network reads as abuse, and one top-up
+		// already covers a whole debt, so a legitimate account never needs more. Per account, so
+		// staff can raise it for a studio whose volume does.
+		field.Int("auto_topup_daily_limit").Default(3).Min(1).Max(48).Comment(dataclass.None),
+
+		// The current window: when it opened and how many charges have been sent in it. Counted
+		// when a charge is *claimed* — declined or not, because a decline is what a bank counts —
+		// and never for a retry of a claim, which is the same request to Stripe.
+		field.Time("auto_topup_window_started_at").Optional().Nillable().Comment(dataclass.None),
+		field.Int("auto_topup_window_count").Default(0).Min(0).Comment(dataclass.None),
+
 		// Where invoices go, when it is not the owner's own address. Optional: most
 		// studios never set it, and defaulting it to a person's address would send the
 		// bill to whoever happened to sign up first.
@@ -247,6 +269,14 @@ func (BillingAccount) Fields() []ent.Field {
 		// on — and not a branch in code, which is where a discount that outlives its deal
 		// comes from.
 		field.JSON("entitlement_overrides", map[string]int64{}).Default(map[string]int64{}).Comment(dataclass.None),
+	}
+}
+
+func (BillingAccount) Indexes() []ent.Index {
+	return []ent.Index{
+		// The automatic top-up queue: only accounts that are asking. Oldest request first.
+		index.Fields("auto_topup_requested_at").
+			Annotations(entsql.IndexWhere("auto_topup_requested_at IS NOT NULL")),
 	}
 }
 

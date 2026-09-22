@@ -171,6 +171,9 @@ type AutoTopUpOut struct {
 	AmountMicros    int64 `json:"amount_micros"`
 
 	Pending    bool       `json:"pending" doc:"A charge has been sent to Stripe and its outcome is not yet known"`
+	Queued     bool       `json:"queued" doc:"The balance is below the threshold and a top-up is due within seconds"`
+	DailyLimit int        `json:"daily_limit" doc:"Automatic charges allowed in any 24 hours"`
+	UsedToday  int        `json:"used_today" doc:"Automatic charges sent in the current 24-hour window"`
 	RetryAfter *time.Time `json:"retry_after,omitzero" doc:"After a decline, not tried again before this"`
 	LastError  string     `json:"last_error,omitzero" doc:"Why the last automatic top-up did not happen"`
 }

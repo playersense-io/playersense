@@ -363,6 +363,19 @@ func record(ctx context.Context, tx *ent.Tx, account *ent.BillingAccount, in mov
 		update = update.SetState(state).SetStateChangedAt(time.Now().UTC())
 		account.State = state
 	}
+	// The automatic top-up signal rides on the same UPDATE (ADR 0041): a movement that leaves the
+	// balance below the threshold asks for a top-up, and one that lifts it back clears the ask.
+	// No extra read and no extra write — the row is already locked and already being written —
+	// and the signal commits with the charge that caused it, or not at all.
+	switch wants := WantsTopUp(account, after); {
+	case wants && account.AutoTopupRequestedAt == nil:
+		now := time.Now().UTC()
+		update = update.SetAutoTopupRequestedAt(now)
+		account.AutoTopupRequestedAt = &now
+	case !wants && account.AutoTopupRequestedAt != nil:
+		update = update.ClearAutoTopupRequestedAt()
+		account.AutoTopupRequestedAt = nil
+	}
 	if _, err := update.Save(ctx); err != nil {
 		return nil, fmt.Errorf("move the account's balance: %w", err)
 	}
@@ -371,6 +384,18 @@ func record(ctx context.Context, tx *ent.Tx, account *ent.BillingAccount, in mov
 	account.BalanceMicros = after
 	account.ArrearsMicros = arrears
 	return entry, nil
+}
+
+// WantsTopUp is whether an account with this balance should be asking for an automatic top-up.
+//
+// Enabled, with a Stripe customer to charge, and strictly below the threshold. The same rule the
+// settings route applies when automatic top-up is switched on, so an account that is already low at
+// that moment is asked for straight away rather than at the next charge.
+func WantsTopUp(account *ent.BillingAccount, balance int64) bool {
+	return account.AutoTopupEnabled &&
+		account.StripeCustomerID != nil &&
+		account.State != billingaccount.StateCanceled &&
+		balance < account.AutoTopupThresholdMicros
 }
 
 // stateFor is §40.1's first step, and deliberately only the first.

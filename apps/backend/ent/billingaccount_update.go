@@ -336,6 +336,88 @@ func (_u *BillingAccountUpdate) SetNillableAutoTopupLastError(v *string) *Billin
 	return _u
 }
 
+// SetAutoTopupRequestedAt sets the "auto_topup_requested_at" field.
+func (_u *BillingAccountUpdate) SetAutoTopupRequestedAt(v time.Time) *BillingAccountUpdate {
+	_u.mutation.SetAutoTopupRequestedAt(v)
+	return _u
+}
+
+// SetNillableAutoTopupRequestedAt sets the "auto_topup_requested_at" field if the given value is not nil.
+func (_u *BillingAccountUpdate) SetNillableAutoTopupRequestedAt(v *time.Time) *BillingAccountUpdate {
+	if v != nil {
+		_u.SetAutoTopupRequestedAt(*v)
+	}
+	return _u
+}
+
+// ClearAutoTopupRequestedAt clears the value of the "auto_topup_requested_at" field.
+func (_u *BillingAccountUpdate) ClearAutoTopupRequestedAt() *BillingAccountUpdate {
+	_u.mutation.ClearAutoTopupRequestedAt()
+	return _u
+}
+
+// SetAutoTopupDailyLimit sets the "auto_topup_daily_limit" field.
+func (_u *BillingAccountUpdate) SetAutoTopupDailyLimit(v int) *BillingAccountUpdate {
+	_u.mutation.ResetAutoTopupDailyLimit()
+	_u.mutation.SetAutoTopupDailyLimit(v)
+	return _u
+}
+
+// SetNillableAutoTopupDailyLimit sets the "auto_topup_daily_limit" field if the given value is not nil.
+func (_u *BillingAccountUpdate) SetNillableAutoTopupDailyLimit(v *int) *BillingAccountUpdate {
+	if v != nil {
+		_u.SetAutoTopupDailyLimit(*v)
+	}
+	return _u
+}
+
+// AddAutoTopupDailyLimit adds value to the "auto_topup_daily_limit" field.
+func (_u *BillingAccountUpdate) AddAutoTopupDailyLimit(v int) *BillingAccountUpdate {
+	_u.mutation.AddAutoTopupDailyLimit(v)
+	return _u
+}
+
+// SetAutoTopupWindowStartedAt sets the "auto_topup_window_started_at" field.
+func (_u *BillingAccountUpdate) SetAutoTopupWindowStartedAt(v time.Time) *BillingAccountUpdate {
+	_u.mutation.SetAutoTopupWindowStartedAt(v)
+	return _u
+}
+
+// SetNillableAutoTopupWindowStartedAt sets the "auto_topup_window_started_at" field if the given value is not nil.
+func (_u *BillingAccountUpdate) SetNillableAutoTopupWindowStartedAt(v *time.Time) *BillingAccountUpdate {
+	if v != nil {
+		_u.SetAutoTopupWindowStartedAt(*v)
+	}
+	return _u
+}
+
+// ClearAutoTopupWindowStartedAt clears the value of the "auto_topup_window_started_at" field.
+func (_u *BillingAccountUpdate) ClearAutoTopupWindowStartedAt() *BillingAccountUpdate {
+	_u.mutation.ClearAutoTopupWindowStartedAt()
+	return _u
+}
+
+// SetAutoTopupWindowCount sets the "auto_topup_window_count" field.
+func (_u *BillingAccountUpdate) SetAutoTopupWindowCount(v int) *BillingAccountUpdate {
+	_u.mutation.ResetAutoTopupWindowCount()
+	_u.mutation.SetAutoTopupWindowCount(v)
+	return _u
+}
+
+// SetNillableAutoTopupWindowCount sets the "auto_topup_window_count" field if the given value is not nil.
+func (_u *BillingAccountUpdate) SetNillableAutoTopupWindowCount(v *int) *BillingAccountUpdate {
+	if v != nil {
+		_u.SetAutoTopupWindowCount(*v)
+	}
+	return _u
+}
+
+// AddAutoTopupWindowCount adds value to the "auto_topup_window_count" field.
+func (_u *BillingAccountUpdate) AddAutoTopupWindowCount(v int) *BillingAccountUpdate {
+	_u.mutation.AddAutoTopupWindowCount(v)
+	return _u
+}
+
 // SetBillingEmail sets the "billing_email" field.
 func (_u *BillingAccountUpdate) SetBillingEmail(v string) *BillingAccountUpdate {
 	_u.mutation.SetBillingEmail(v)
@@ -683,6 +765,16 @@ func (_u *BillingAccountUpdate) check() error {
 			return &ValidationError{Name: "auto_topup_last_error", err: fmt.Errorf(`ent: validator failed for field "BillingAccount.auto_topup_last_error": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.AutoTopupDailyLimit(); ok {
+		if err := billingaccount.AutoTopupDailyLimitValidator(v); err != nil {
+			return &ValidationError{Name: "auto_topup_daily_limit", err: fmt.Errorf(`ent: validator failed for field "BillingAccount.auto_topup_daily_limit": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.AutoTopupWindowCount(); ok {
+		if err := billingaccount.AutoTopupWindowCountValidator(v); err != nil {
+			return &ValidationError{Name: "auto_topup_window_count", err: fmt.Errorf(`ent: validator failed for field "BillingAccount.auto_topup_window_count": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.BillingEmail(); ok {
 		if err := billingaccount.BillingEmailValidator(v); err != nil {
 			return &ValidationError{Name: "billing_email", err: fmt.Errorf(`ent: validator failed for field "BillingAccount.billing_email": %w`, err)}
@@ -789,6 +881,30 @@ func (_u *BillingAccountUpdate) sqlSave(ctx context.Context) (_node int, err err
 	}
 	if value, ok := _u.mutation.AutoTopupLastError(); ok {
 		_spec.SetField(billingaccount.FieldAutoTopupLastError, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.AutoTopupRequestedAt(); ok {
+		_spec.SetField(billingaccount.FieldAutoTopupRequestedAt, field.TypeTime, value)
+	}
+	if _u.mutation.AutoTopupRequestedAtCleared() {
+		_spec.ClearField(billingaccount.FieldAutoTopupRequestedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.AutoTopupDailyLimit(); ok {
+		_spec.SetField(billingaccount.FieldAutoTopupDailyLimit, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedAutoTopupDailyLimit(); ok {
+		_spec.AddField(billingaccount.FieldAutoTopupDailyLimit, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AutoTopupWindowStartedAt(); ok {
+		_spec.SetField(billingaccount.FieldAutoTopupWindowStartedAt, field.TypeTime, value)
+	}
+	if _u.mutation.AutoTopupWindowStartedAtCleared() {
+		_spec.ClearField(billingaccount.FieldAutoTopupWindowStartedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.AutoTopupWindowCount(); ok {
+		_spec.SetField(billingaccount.FieldAutoTopupWindowCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedAutoTopupWindowCount(); ok {
+		_spec.AddField(billingaccount.FieldAutoTopupWindowCount, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.BillingEmail(); ok {
 		_spec.SetField(billingaccount.FieldBillingEmail, field.TypeString, value)
@@ -1419,6 +1535,88 @@ func (_u *BillingAccountUpdateOne) SetNillableAutoTopupLastError(v *string) *Bil
 	return _u
 }
 
+// SetAutoTopupRequestedAt sets the "auto_topup_requested_at" field.
+func (_u *BillingAccountUpdateOne) SetAutoTopupRequestedAt(v time.Time) *BillingAccountUpdateOne {
+	_u.mutation.SetAutoTopupRequestedAt(v)
+	return _u
+}
+
+// SetNillableAutoTopupRequestedAt sets the "auto_topup_requested_at" field if the given value is not nil.
+func (_u *BillingAccountUpdateOne) SetNillableAutoTopupRequestedAt(v *time.Time) *BillingAccountUpdateOne {
+	if v != nil {
+		_u.SetAutoTopupRequestedAt(*v)
+	}
+	return _u
+}
+
+// ClearAutoTopupRequestedAt clears the value of the "auto_topup_requested_at" field.
+func (_u *BillingAccountUpdateOne) ClearAutoTopupRequestedAt() *BillingAccountUpdateOne {
+	_u.mutation.ClearAutoTopupRequestedAt()
+	return _u
+}
+
+// SetAutoTopupDailyLimit sets the "auto_topup_daily_limit" field.
+func (_u *BillingAccountUpdateOne) SetAutoTopupDailyLimit(v int) *BillingAccountUpdateOne {
+	_u.mutation.ResetAutoTopupDailyLimit()
+	_u.mutation.SetAutoTopupDailyLimit(v)
+	return _u
+}
+
+// SetNillableAutoTopupDailyLimit sets the "auto_topup_daily_limit" field if the given value is not nil.
+func (_u *BillingAccountUpdateOne) SetNillableAutoTopupDailyLimit(v *int) *BillingAccountUpdateOne {
+	if v != nil {
+		_u.SetAutoTopupDailyLimit(*v)
+	}
+	return _u
+}
+
+// AddAutoTopupDailyLimit adds value to the "auto_topup_daily_limit" field.
+func (_u *BillingAccountUpdateOne) AddAutoTopupDailyLimit(v int) *BillingAccountUpdateOne {
+	_u.mutation.AddAutoTopupDailyLimit(v)
+	return _u
+}
+
+// SetAutoTopupWindowStartedAt sets the "auto_topup_window_started_at" field.
+func (_u *BillingAccountUpdateOne) SetAutoTopupWindowStartedAt(v time.Time) *BillingAccountUpdateOne {
+	_u.mutation.SetAutoTopupWindowStartedAt(v)
+	return _u
+}
+
+// SetNillableAutoTopupWindowStartedAt sets the "auto_topup_window_started_at" field if the given value is not nil.
+func (_u *BillingAccountUpdateOne) SetNillableAutoTopupWindowStartedAt(v *time.Time) *BillingAccountUpdateOne {
+	if v != nil {
+		_u.SetAutoTopupWindowStartedAt(*v)
+	}
+	return _u
+}
+
+// ClearAutoTopupWindowStartedAt clears the value of the "auto_topup_window_started_at" field.
+func (_u *BillingAccountUpdateOne) ClearAutoTopupWindowStartedAt() *BillingAccountUpdateOne {
+	_u.mutation.ClearAutoTopupWindowStartedAt()
+	return _u
+}
+
+// SetAutoTopupWindowCount sets the "auto_topup_window_count" field.
+func (_u *BillingAccountUpdateOne) SetAutoTopupWindowCount(v int) *BillingAccountUpdateOne {
+	_u.mutation.ResetAutoTopupWindowCount()
+	_u.mutation.SetAutoTopupWindowCount(v)
+	return _u
+}
+
+// SetNillableAutoTopupWindowCount sets the "auto_topup_window_count" field if the given value is not nil.
+func (_u *BillingAccountUpdateOne) SetNillableAutoTopupWindowCount(v *int) *BillingAccountUpdateOne {
+	if v != nil {
+		_u.SetAutoTopupWindowCount(*v)
+	}
+	return _u
+}
+
+// AddAutoTopupWindowCount adds value to the "auto_topup_window_count" field.
+func (_u *BillingAccountUpdateOne) AddAutoTopupWindowCount(v int) *BillingAccountUpdateOne {
+	_u.mutation.AddAutoTopupWindowCount(v)
+	return _u
+}
+
 // SetBillingEmail sets the "billing_email" field.
 func (_u *BillingAccountUpdateOne) SetBillingEmail(v string) *BillingAccountUpdateOne {
 	_u.mutation.SetBillingEmail(v)
@@ -1779,6 +1977,16 @@ func (_u *BillingAccountUpdateOne) check() error {
 			return &ValidationError{Name: "auto_topup_last_error", err: fmt.Errorf(`ent: validator failed for field "BillingAccount.auto_topup_last_error": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.AutoTopupDailyLimit(); ok {
+		if err := billingaccount.AutoTopupDailyLimitValidator(v); err != nil {
+			return &ValidationError{Name: "auto_topup_daily_limit", err: fmt.Errorf(`ent: validator failed for field "BillingAccount.auto_topup_daily_limit": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.AutoTopupWindowCount(); ok {
+		if err := billingaccount.AutoTopupWindowCountValidator(v); err != nil {
+			return &ValidationError{Name: "auto_topup_window_count", err: fmt.Errorf(`ent: validator failed for field "BillingAccount.auto_topup_window_count": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.BillingEmail(); ok {
 		if err := billingaccount.BillingEmailValidator(v); err != nil {
 			return &ValidationError{Name: "billing_email", err: fmt.Errorf(`ent: validator failed for field "BillingAccount.billing_email": %w`, err)}
@@ -1902,6 +2110,30 @@ func (_u *BillingAccountUpdateOne) sqlSave(ctx context.Context) (_node *BillingA
 	}
 	if value, ok := _u.mutation.AutoTopupLastError(); ok {
 		_spec.SetField(billingaccount.FieldAutoTopupLastError, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.AutoTopupRequestedAt(); ok {
+		_spec.SetField(billingaccount.FieldAutoTopupRequestedAt, field.TypeTime, value)
+	}
+	if _u.mutation.AutoTopupRequestedAtCleared() {
+		_spec.ClearField(billingaccount.FieldAutoTopupRequestedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.AutoTopupDailyLimit(); ok {
+		_spec.SetField(billingaccount.FieldAutoTopupDailyLimit, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedAutoTopupDailyLimit(); ok {
+		_spec.AddField(billingaccount.FieldAutoTopupDailyLimit, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AutoTopupWindowStartedAt(); ok {
+		_spec.SetField(billingaccount.FieldAutoTopupWindowStartedAt, field.TypeTime, value)
+	}
+	if _u.mutation.AutoTopupWindowStartedAtCleared() {
+		_spec.ClearField(billingaccount.FieldAutoTopupWindowStartedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.AutoTopupWindowCount(); ok {
+		_spec.SetField(billingaccount.FieldAutoTopupWindowCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedAutoTopupWindowCount(); ok {
+		_spec.AddField(billingaccount.FieldAutoTopupWindowCount, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.BillingEmail(); ok {
 		_spec.SetField(billingaccount.FieldBillingEmail, field.TypeString, value)

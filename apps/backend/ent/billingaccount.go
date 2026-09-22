@@ -63,6 +63,14 @@ type BillingAccount struct {
 	// class=none
 	AutoTopupLastError string `json:"auto_topup_last_error,omitempty"`
 	// class=none
+	AutoTopupRequestedAt *time.Time `json:"auto_topup_requested_at,omitempty"`
+	// class=none
+	AutoTopupDailyLimit int `json:"auto_topup_daily_limit,omitempty"`
+	// class=none
+	AutoTopupWindowStartedAt *time.Time `json:"auto_topup_window_started_at,omitempty"`
+	// class=none
+	AutoTopupWindowCount int `json:"auto_topup_window_count,omitempty"`
+	// class=none
 	BillingEmail *string `json:"billing_email,omitempty"`
 	// class=none
 	EntitlementOverrides map[string]int64 `json:"entitlement_overrides,omitempty"`
@@ -180,11 +188,11 @@ func (*BillingAccount) scanValues(columns []string) ([]any, error) {
 			values[i] = new([]byte)
 		case billingaccount.FieldAutoTopupEnabled:
 			values[i] = new(sql.NullBool)
-		case billingaccount.FieldID, billingaccount.FieldOrganizationID, billingaccount.FieldPlanID, billingaccount.FieldBalanceMicros, billingaccount.FieldArrearsMicros, billingaccount.FieldAutoTopupThresholdMicros, billingaccount.FieldAutoTopupAmountMicros, billingaccount.FieldAutoTopupPendingAmountMicros:
+		case billingaccount.FieldID, billingaccount.FieldOrganizationID, billingaccount.FieldPlanID, billingaccount.FieldBalanceMicros, billingaccount.FieldArrearsMicros, billingaccount.FieldAutoTopupThresholdMicros, billingaccount.FieldAutoTopupAmountMicros, billingaccount.FieldAutoTopupPendingAmountMicros, billingaccount.FieldAutoTopupDailyLimit, billingaccount.FieldAutoTopupWindowCount:
 			values[i] = new(sql.NullInt64)
 		case billingaccount.FieldStripeCustomerID, billingaccount.FieldStripeSubscriptionID, billingaccount.FieldState, billingaccount.FieldCurrency, billingaccount.FieldAutoTopupPendingKey, billingaccount.FieldAutoTopupLastError, billingaccount.FieldBillingEmail:
 			values[i] = new(sql.NullString)
-		case billingaccount.FieldCreatedAt, billingaccount.FieldUpdatedAt, billingaccount.FieldStateChangedAt, billingaccount.FieldAutoTopupPendingAt, billingaccount.FieldAutoTopupRetryAfter:
+		case billingaccount.FieldCreatedAt, billingaccount.FieldUpdatedAt, billingaccount.FieldStateChangedAt, billingaccount.FieldAutoTopupPendingAt, billingaccount.FieldAutoTopupRetryAfter, billingaccount.FieldAutoTopupRequestedAt, billingaccount.FieldAutoTopupWindowStartedAt:
 			values[i] = new(sql.NullTime)
 		case billingaccount.FieldUID:
 			values[i] = new(uuid.UUID)
@@ -334,6 +342,32 @@ func (_m *BillingAccount) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field auto_topup_last_error", values[i])
 			} else if value.Valid {
 				_m.AutoTopupLastError = value.String
+			}
+		case billingaccount.FieldAutoTopupRequestedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field auto_topup_requested_at", values[i])
+			} else if value.Valid {
+				_m.AutoTopupRequestedAt = new(time.Time)
+				*_m.AutoTopupRequestedAt = value.Time
+			}
+		case billingaccount.FieldAutoTopupDailyLimit:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field auto_topup_daily_limit", values[i])
+			} else if value.Valid {
+				_m.AutoTopupDailyLimit = int(value.Int64)
+			}
+		case billingaccount.FieldAutoTopupWindowStartedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field auto_topup_window_started_at", values[i])
+			} else if value.Valid {
+				_m.AutoTopupWindowStartedAt = new(time.Time)
+				*_m.AutoTopupWindowStartedAt = value.Time
+			}
+		case billingaccount.FieldAutoTopupWindowCount:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field auto_topup_window_count", values[i])
+			} else if value.Valid {
+				_m.AutoTopupWindowCount = int(value.Int64)
 			}
 		case billingaccount.FieldBillingEmail:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -497,6 +531,22 @@ func (_m *BillingAccount) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("auto_topup_last_error=")
 	builder.WriteString(_m.AutoTopupLastError)
+	builder.WriteString(", ")
+	if v := _m.AutoTopupRequestedAt; v != nil {
+		builder.WriteString("auto_topup_requested_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("auto_topup_daily_limit=")
+	builder.WriteString(fmt.Sprintf("%v", _m.AutoTopupDailyLimit))
+	builder.WriteString(", ")
+	if v := _m.AutoTopupWindowStartedAt; v != nil {
+		builder.WriteString("auto_topup_window_started_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("auto_topup_window_count=")
+	builder.WriteString(fmt.Sprintf("%v", _m.AutoTopupWindowCount))
 	builder.WriteString(", ")
 	if v := _m.BillingEmail; v != nil {
 		builder.WriteString("billing_email=")

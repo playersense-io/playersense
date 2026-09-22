@@ -1111,11 +1111,18 @@ export interface components {
         readonly AutoTopUpOut: {
             /** Format: int64 */
             readonly amount_micros: number;
+            /**
+             * Format: int64
+             * @description Automatic charges allowed in any 24 hours
+             */
+            readonly daily_limit: number;
             readonly enabled: boolean;
             /** @description Why the last automatic top-up did not happen */
             readonly last_error?: string;
             /** @description A charge has been sent to Stripe and its outcome is not yet known */
             readonly pending: boolean;
+            /** @description The balance is below the threshold and a top-up is due within seconds */
+            readonly queued: boolean;
             /**
              * Format: date-time
              * @description After a decline, not tried again before this
@@ -1123,6 +1130,11 @@ export interface components {
             readonly retry_after?: string | null;
             /** Format: int64 */
             readonly threshold_micros: number;
+            /**
+             * Format: int64
+             * @description Automatic charges sent in the current 24-hour window
+             */
+            readonly used_today: number;
         };
         readonly BillingOut: {
             readonly arrears: string;

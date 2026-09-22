@@ -4112,6 +4112,12 @@ type BillingAccountMutation struct {
 	addauto_topup_pending_amount_micros *int64
 	auto_topup_retry_after              *time.Time
 	auto_topup_last_error               *string
+	auto_topup_requested_at             *time.Time
+	auto_topup_daily_limit              *int
+	addauto_topup_daily_limit           *int
+	auto_topup_window_started_at        *time.Time
+	auto_topup_window_count             *int
+	addauto_topup_window_count          *int
 	billing_email                       *string
 	entitlement_overrides               *map[string]int64
 	clearedFields                       map[string]struct{}
@@ -5145,6 +5151,216 @@ func (m *BillingAccountMutation) ResetAutoTopupLastError() {
 	m.auto_topup_last_error = nil
 }
 
+// SetAutoTopupRequestedAt sets the "auto_topup_requested_at" field.
+func (m *BillingAccountMutation) SetAutoTopupRequestedAt(t time.Time) {
+	m.auto_topup_requested_at = &t
+}
+
+// AutoTopupRequestedAt returns the value of the "auto_topup_requested_at" field in the mutation.
+func (m *BillingAccountMutation) AutoTopupRequestedAt() (r time.Time, exists bool) {
+	v := m.auto_topup_requested_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAutoTopupRequestedAt returns the old "auto_topup_requested_at" field's value of the BillingAccount entity.
+// If the BillingAccount object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BillingAccountMutation) OldAutoTopupRequestedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAutoTopupRequestedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAutoTopupRequestedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAutoTopupRequestedAt: %w", err)
+	}
+	return oldValue.AutoTopupRequestedAt, nil
+}
+
+// ClearAutoTopupRequestedAt clears the value of the "auto_topup_requested_at" field.
+func (m *BillingAccountMutation) ClearAutoTopupRequestedAt() {
+	m.auto_topup_requested_at = nil
+	m.clearedFields[billingaccount.FieldAutoTopupRequestedAt] = struct{}{}
+}
+
+// AutoTopupRequestedAtCleared returns if the "auto_topup_requested_at" field was cleared in this mutation.
+func (m *BillingAccountMutation) AutoTopupRequestedAtCleared() bool {
+	_, ok := m.clearedFields[billingaccount.FieldAutoTopupRequestedAt]
+	return ok
+}
+
+// ResetAutoTopupRequestedAt resets all changes to the "auto_topup_requested_at" field.
+func (m *BillingAccountMutation) ResetAutoTopupRequestedAt() {
+	m.auto_topup_requested_at = nil
+	delete(m.clearedFields, billingaccount.FieldAutoTopupRequestedAt)
+}
+
+// SetAutoTopupDailyLimit sets the "auto_topup_daily_limit" field.
+func (m *BillingAccountMutation) SetAutoTopupDailyLimit(i int) {
+	m.auto_topup_daily_limit = &i
+	m.addauto_topup_daily_limit = nil
+}
+
+// AutoTopupDailyLimit returns the value of the "auto_topup_daily_limit" field in the mutation.
+func (m *BillingAccountMutation) AutoTopupDailyLimit() (r int, exists bool) {
+	v := m.auto_topup_daily_limit
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAutoTopupDailyLimit returns the old "auto_topup_daily_limit" field's value of the BillingAccount entity.
+// If the BillingAccount object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BillingAccountMutation) OldAutoTopupDailyLimit(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAutoTopupDailyLimit is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAutoTopupDailyLimit requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAutoTopupDailyLimit: %w", err)
+	}
+	return oldValue.AutoTopupDailyLimit, nil
+}
+
+// AddAutoTopupDailyLimit adds i to the "auto_topup_daily_limit" field.
+func (m *BillingAccountMutation) AddAutoTopupDailyLimit(i int) {
+	if m.addauto_topup_daily_limit != nil {
+		*m.addauto_topup_daily_limit += i
+	} else {
+		m.addauto_topup_daily_limit = &i
+	}
+}
+
+// AddedAutoTopupDailyLimit returns the value that was added to the "auto_topup_daily_limit" field in this mutation.
+func (m *BillingAccountMutation) AddedAutoTopupDailyLimit() (r int, exists bool) {
+	v := m.addauto_topup_daily_limit
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAutoTopupDailyLimit resets all changes to the "auto_topup_daily_limit" field.
+func (m *BillingAccountMutation) ResetAutoTopupDailyLimit() {
+	m.auto_topup_daily_limit = nil
+	m.addauto_topup_daily_limit = nil
+}
+
+// SetAutoTopupWindowStartedAt sets the "auto_topup_window_started_at" field.
+func (m *BillingAccountMutation) SetAutoTopupWindowStartedAt(t time.Time) {
+	m.auto_topup_window_started_at = &t
+}
+
+// AutoTopupWindowStartedAt returns the value of the "auto_topup_window_started_at" field in the mutation.
+func (m *BillingAccountMutation) AutoTopupWindowStartedAt() (r time.Time, exists bool) {
+	v := m.auto_topup_window_started_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAutoTopupWindowStartedAt returns the old "auto_topup_window_started_at" field's value of the BillingAccount entity.
+// If the BillingAccount object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BillingAccountMutation) OldAutoTopupWindowStartedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAutoTopupWindowStartedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAutoTopupWindowStartedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAutoTopupWindowStartedAt: %w", err)
+	}
+	return oldValue.AutoTopupWindowStartedAt, nil
+}
+
+// ClearAutoTopupWindowStartedAt clears the value of the "auto_topup_window_started_at" field.
+func (m *BillingAccountMutation) ClearAutoTopupWindowStartedAt() {
+	m.auto_topup_window_started_at = nil
+	m.clearedFields[billingaccount.FieldAutoTopupWindowStartedAt] = struct{}{}
+}
+
+// AutoTopupWindowStartedAtCleared returns if the "auto_topup_window_started_at" field was cleared in this mutation.
+func (m *BillingAccountMutation) AutoTopupWindowStartedAtCleared() bool {
+	_, ok := m.clearedFields[billingaccount.FieldAutoTopupWindowStartedAt]
+	return ok
+}
+
+// ResetAutoTopupWindowStartedAt resets all changes to the "auto_topup_window_started_at" field.
+func (m *BillingAccountMutation) ResetAutoTopupWindowStartedAt() {
+	m.auto_topup_window_started_at = nil
+	delete(m.clearedFields, billingaccount.FieldAutoTopupWindowStartedAt)
+}
+
+// SetAutoTopupWindowCount sets the "auto_topup_window_count" field.
+func (m *BillingAccountMutation) SetAutoTopupWindowCount(i int) {
+	m.auto_topup_window_count = &i
+	m.addauto_topup_window_count = nil
+}
+
+// AutoTopupWindowCount returns the value of the "auto_topup_window_count" field in the mutation.
+func (m *BillingAccountMutation) AutoTopupWindowCount() (r int, exists bool) {
+	v := m.auto_topup_window_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAutoTopupWindowCount returns the old "auto_topup_window_count" field's value of the BillingAccount entity.
+// If the BillingAccount object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BillingAccountMutation) OldAutoTopupWindowCount(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAutoTopupWindowCount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAutoTopupWindowCount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAutoTopupWindowCount: %w", err)
+	}
+	return oldValue.AutoTopupWindowCount, nil
+}
+
+// AddAutoTopupWindowCount adds i to the "auto_topup_window_count" field.
+func (m *BillingAccountMutation) AddAutoTopupWindowCount(i int) {
+	if m.addauto_topup_window_count != nil {
+		*m.addauto_topup_window_count += i
+	} else {
+		m.addauto_topup_window_count = &i
+	}
+}
+
+// AddedAutoTopupWindowCount returns the value that was added to the "auto_topup_window_count" field in this mutation.
+func (m *BillingAccountMutation) AddedAutoTopupWindowCount() (r int, exists bool) {
+	v := m.addauto_topup_window_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAutoTopupWindowCount resets all changes to the "auto_topup_window_count" field.
+func (m *BillingAccountMutation) ResetAutoTopupWindowCount() {
+	m.auto_topup_window_count = nil
+	m.addauto_topup_window_count = nil
+}
+
 // SetBillingEmail sets the "billing_email" field.
 func (m *BillingAccountMutation) SetBillingEmail(s string) {
 	m.billing_email = &s
@@ -5642,7 +5858,7 @@ func (m *BillingAccountMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *BillingAccountMutation) Fields() []string {
-	fields := make([]string, 0, 22)
+	fields := make([]string, 0, 26)
 	if m.uid != nil {
 		fields = append(fields, billingaccount.FieldUID)
 	}
@@ -5703,6 +5919,18 @@ func (m *BillingAccountMutation) Fields() []string {
 	if m.auto_topup_last_error != nil {
 		fields = append(fields, billingaccount.FieldAutoTopupLastError)
 	}
+	if m.auto_topup_requested_at != nil {
+		fields = append(fields, billingaccount.FieldAutoTopupRequestedAt)
+	}
+	if m.auto_topup_daily_limit != nil {
+		fields = append(fields, billingaccount.FieldAutoTopupDailyLimit)
+	}
+	if m.auto_topup_window_started_at != nil {
+		fields = append(fields, billingaccount.FieldAutoTopupWindowStartedAt)
+	}
+	if m.auto_topup_window_count != nil {
+		fields = append(fields, billingaccount.FieldAutoTopupWindowCount)
+	}
 	if m.billing_email != nil {
 		fields = append(fields, billingaccount.FieldBillingEmail)
 	}
@@ -5757,6 +5985,14 @@ func (m *BillingAccountMutation) Field(name string) (ent.Value, bool) {
 		return m.AutoTopupRetryAfter()
 	case billingaccount.FieldAutoTopupLastError:
 		return m.AutoTopupLastError()
+	case billingaccount.FieldAutoTopupRequestedAt:
+		return m.AutoTopupRequestedAt()
+	case billingaccount.FieldAutoTopupDailyLimit:
+		return m.AutoTopupDailyLimit()
+	case billingaccount.FieldAutoTopupWindowStartedAt:
+		return m.AutoTopupWindowStartedAt()
+	case billingaccount.FieldAutoTopupWindowCount:
+		return m.AutoTopupWindowCount()
 	case billingaccount.FieldBillingEmail:
 		return m.BillingEmail()
 	case billingaccount.FieldEntitlementOverrides:
@@ -5810,6 +6046,14 @@ func (m *BillingAccountMutation) OldField(ctx context.Context, name string) (ent
 		return m.OldAutoTopupRetryAfter(ctx)
 	case billingaccount.FieldAutoTopupLastError:
 		return m.OldAutoTopupLastError(ctx)
+	case billingaccount.FieldAutoTopupRequestedAt:
+		return m.OldAutoTopupRequestedAt(ctx)
+	case billingaccount.FieldAutoTopupDailyLimit:
+		return m.OldAutoTopupDailyLimit(ctx)
+	case billingaccount.FieldAutoTopupWindowStartedAt:
+		return m.OldAutoTopupWindowStartedAt(ctx)
+	case billingaccount.FieldAutoTopupWindowCount:
+		return m.OldAutoTopupWindowCount(ctx)
 	case billingaccount.FieldBillingEmail:
 		return m.OldBillingEmail(ctx)
 	case billingaccount.FieldEntitlementOverrides:
@@ -5963,6 +6207,34 @@ func (m *BillingAccountMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetAutoTopupLastError(v)
 		return nil
+	case billingaccount.FieldAutoTopupRequestedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAutoTopupRequestedAt(v)
+		return nil
+	case billingaccount.FieldAutoTopupDailyLimit:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAutoTopupDailyLimit(v)
+		return nil
+	case billingaccount.FieldAutoTopupWindowStartedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAutoTopupWindowStartedAt(v)
+		return nil
+	case billingaccount.FieldAutoTopupWindowCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAutoTopupWindowCount(v)
+		return nil
 	case billingaccount.FieldBillingEmail:
 		v, ok := value.(string)
 		if !ok {
@@ -6000,6 +6272,12 @@ func (m *BillingAccountMutation) AddedFields() []string {
 	if m.addauto_topup_pending_amount_micros != nil {
 		fields = append(fields, billingaccount.FieldAutoTopupPendingAmountMicros)
 	}
+	if m.addauto_topup_daily_limit != nil {
+		fields = append(fields, billingaccount.FieldAutoTopupDailyLimit)
+	}
+	if m.addauto_topup_window_count != nil {
+		fields = append(fields, billingaccount.FieldAutoTopupWindowCount)
+	}
 	return fields
 }
 
@@ -6018,6 +6296,10 @@ func (m *BillingAccountMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedAutoTopupAmountMicros()
 	case billingaccount.FieldAutoTopupPendingAmountMicros:
 		return m.AddedAutoTopupPendingAmountMicros()
+	case billingaccount.FieldAutoTopupDailyLimit:
+		return m.AddedAutoTopupDailyLimit()
+	case billingaccount.FieldAutoTopupWindowCount:
+		return m.AddedAutoTopupWindowCount()
 	}
 	return nil, false
 }
@@ -6062,6 +6344,20 @@ func (m *BillingAccountMutation) AddField(name string, value ent.Value) error {
 		}
 		m.AddAutoTopupPendingAmountMicros(v)
 		return nil
+	case billingaccount.FieldAutoTopupDailyLimit:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAutoTopupDailyLimit(v)
+		return nil
+	case billingaccount.FieldAutoTopupWindowCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAutoTopupWindowCount(v)
+		return nil
 	}
 	return fmt.Errorf("unknown BillingAccount numeric field %s", name)
 }
@@ -6087,6 +6383,12 @@ func (m *BillingAccountMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(billingaccount.FieldAutoTopupRetryAfter) {
 		fields = append(fields, billingaccount.FieldAutoTopupRetryAfter)
+	}
+	if m.FieldCleared(billingaccount.FieldAutoTopupRequestedAt) {
+		fields = append(fields, billingaccount.FieldAutoTopupRequestedAt)
+	}
+	if m.FieldCleared(billingaccount.FieldAutoTopupWindowStartedAt) {
+		fields = append(fields, billingaccount.FieldAutoTopupWindowStartedAt)
 	}
 	if m.FieldCleared(billingaccount.FieldBillingEmail) {
 		fields = append(fields, billingaccount.FieldBillingEmail)
@@ -6122,6 +6424,12 @@ func (m *BillingAccountMutation) ClearField(name string) error {
 		return nil
 	case billingaccount.FieldAutoTopupRetryAfter:
 		m.ClearAutoTopupRetryAfter()
+		return nil
+	case billingaccount.FieldAutoTopupRequestedAt:
+		m.ClearAutoTopupRequestedAt()
+		return nil
+	case billingaccount.FieldAutoTopupWindowStartedAt:
+		m.ClearAutoTopupWindowStartedAt()
 		return nil
 	case billingaccount.FieldBillingEmail:
 		m.ClearBillingEmail()
@@ -6193,6 +6501,18 @@ func (m *BillingAccountMutation) ResetField(name string) error {
 		return nil
 	case billingaccount.FieldAutoTopupLastError:
 		m.ResetAutoTopupLastError()
+		return nil
+	case billingaccount.FieldAutoTopupRequestedAt:
+		m.ResetAutoTopupRequestedAt()
+		return nil
+	case billingaccount.FieldAutoTopupDailyLimit:
+		m.ResetAutoTopupDailyLimit()
+		return nil
+	case billingaccount.FieldAutoTopupWindowStartedAt:
+		m.ResetAutoTopupWindowStartedAt()
+		return nil
+	case billingaccount.FieldAutoTopupWindowCount:
+		m.ResetAutoTopupWindowCount()
 		return nil
 	case billingaccount.FieldBillingEmail:
 		m.ResetBillingEmail()

@@ -151,6 +151,26 @@ func AutoTopupLastError(v string) predicate.BillingAccount {
 	return predicate.BillingAccount(sql.FieldEQ(FieldAutoTopupLastError, v))
 }
 
+// AutoTopupRequestedAt applies equality check predicate on the "auto_topup_requested_at" field. It's identical to AutoTopupRequestedAtEQ.
+func AutoTopupRequestedAt(v time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldEQ(FieldAutoTopupRequestedAt, v))
+}
+
+// AutoTopupDailyLimit applies equality check predicate on the "auto_topup_daily_limit" field. It's identical to AutoTopupDailyLimitEQ.
+func AutoTopupDailyLimit(v int) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldEQ(FieldAutoTopupDailyLimit, v))
+}
+
+// AutoTopupWindowStartedAt applies equality check predicate on the "auto_topup_window_started_at" field. It's identical to AutoTopupWindowStartedAtEQ.
+func AutoTopupWindowStartedAt(v time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldEQ(FieldAutoTopupWindowStartedAt, v))
+}
+
+// AutoTopupWindowCount applies equality check predicate on the "auto_topup_window_count" field. It's identical to AutoTopupWindowCountEQ.
+func AutoTopupWindowCount(v int) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldEQ(FieldAutoTopupWindowCount, v))
+}
+
 // BillingEmail applies equality check predicate on the "billing_email" field. It's identical to BillingEmailEQ.
 func BillingEmail(v string) predicate.BillingAccount {
 	return predicate.BillingAccount(sql.FieldEQ(FieldBillingEmail, v))
@@ -1049,6 +1069,186 @@ func AutoTopupLastErrorEqualFold(v string) predicate.BillingAccount {
 // AutoTopupLastErrorContainsFold applies the ContainsFold predicate on the "auto_topup_last_error" field.
 func AutoTopupLastErrorContainsFold(v string) predicate.BillingAccount {
 	return predicate.BillingAccount(sql.FieldContainsFold(FieldAutoTopupLastError, v))
+}
+
+// AutoTopupRequestedAtEQ applies the EQ predicate on the "auto_topup_requested_at" field.
+func AutoTopupRequestedAtEQ(v time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldEQ(FieldAutoTopupRequestedAt, v))
+}
+
+// AutoTopupRequestedAtNEQ applies the NEQ predicate on the "auto_topup_requested_at" field.
+func AutoTopupRequestedAtNEQ(v time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldNEQ(FieldAutoTopupRequestedAt, v))
+}
+
+// AutoTopupRequestedAtIn applies the In predicate on the "auto_topup_requested_at" field.
+func AutoTopupRequestedAtIn(vs ...time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldIn(FieldAutoTopupRequestedAt, vs...))
+}
+
+// AutoTopupRequestedAtNotIn applies the NotIn predicate on the "auto_topup_requested_at" field.
+func AutoTopupRequestedAtNotIn(vs ...time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldNotIn(FieldAutoTopupRequestedAt, vs...))
+}
+
+// AutoTopupRequestedAtGT applies the GT predicate on the "auto_topup_requested_at" field.
+func AutoTopupRequestedAtGT(v time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldGT(FieldAutoTopupRequestedAt, v))
+}
+
+// AutoTopupRequestedAtGTE applies the GTE predicate on the "auto_topup_requested_at" field.
+func AutoTopupRequestedAtGTE(v time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldGTE(FieldAutoTopupRequestedAt, v))
+}
+
+// AutoTopupRequestedAtLT applies the LT predicate on the "auto_topup_requested_at" field.
+func AutoTopupRequestedAtLT(v time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldLT(FieldAutoTopupRequestedAt, v))
+}
+
+// AutoTopupRequestedAtLTE applies the LTE predicate on the "auto_topup_requested_at" field.
+func AutoTopupRequestedAtLTE(v time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldLTE(FieldAutoTopupRequestedAt, v))
+}
+
+// AutoTopupRequestedAtIsNil applies the IsNil predicate on the "auto_topup_requested_at" field.
+func AutoTopupRequestedAtIsNil() predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldIsNull(FieldAutoTopupRequestedAt))
+}
+
+// AutoTopupRequestedAtNotNil applies the NotNil predicate on the "auto_topup_requested_at" field.
+func AutoTopupRequestedAtNotNil() predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldNotNull(FieldAutoTopupRequestedAt))
+}
+
+// AutoTopupDailyLimitEQ applies the EQ predicate on the "auto_topup_daily_limit" field.
+func AutoTopupDailyLimitEQ(v int) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldEQ(FieldAutoTopupDailyLimit, v))
+}
+
+// AutoTopupDailyLimitNEQ applies the NEQ predicate on the "auto_topup_daily_limit" field.
+func AutoTopupDailyLimitNEQ(v int) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldNEQ(FieldAutoTopupDailyLimit, v))
+}
+
+// AutoTopupDailyLimitIn applies the In predicate on the "auto_topup_daily_limit" field.
+func AutoTopupDailyLimitIn(vs ...int) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldIn(FieldAutoTopupDailyLimit, vs...))
+}
+
+// AutoTopupDailyLimitNotIn applies the NotIn predicate on the "auto_topup_daily_limit" field.
+func AutoTopupDailyLimitNotIn(vs ...int) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldNotIn(FieldAutoTopupDailyLimit, vs...))
+}
+
+// AutoTopupDailyLimitGT applies the GT predicate on the "auto_topup_daily_limit" field.
+func AutoTopupDailyLimitGT(v int) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldGT(FieldAutoTopupDailyLimit, v))
+}
+
+// AutoTopupDailyLimitGTE applies the GTE predicate on the "auto_topup_daily_limit" field.
+func AutoTopupDailyLimitGTE(v int) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldGTE(FieldAutoTopupDailyLimit, v))
+}
+
+// AutoTopupDailyLimitLT applies the LT predicate on the "auto_topup_daily_limit" field.
+func AutoTopupDailyLimitLT(v int) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldLT(FieldAutoTopupDailyLimit, v))
+}
+
+// AutoTopupDailyLimitLTE applies the LTE predicate on the "auto_topup_daily_limit" field.
+func AutoTopupDailyLimitLTE(v int) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldLTE(FieldAutoTopupDailyLimit, v))
+}
+
+// AutoTopupWindowStartedAtEQ applies the EQ predicate on the "auto_topup_window_started_at" field.
+func AutoTopupWindowStartedAtEQ(v time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldEQ(FieldAutoTopupWindowStartedAt, v))
+}
+
+// AutoTopupWindowStartedAtNEQ applies the NEQ predicate on the "auto_topup_window_started_at" field.
+func AutoTopupWindowStartedAtNEQ(v time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldNEQ(FieldAutoTopupWindowStartedAt, v))
+}
+
+// AutoTopupWindowStartedAtIn applies the In predicate on the "auto_topup_window_started_at" field.
+func AutoTopupWindowStartedAtIn(vs ...time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldIn(FieldAutoTopupWindowStartedAt, vs...))
+}
+
+// AutoTopupWindowStartedAtNotIn applies the NotIn predicate on the "auto_topup_window_started_at" field.
+func AutoTopupWindowStartedAtNotIn(vs ...time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldNotIn(FieldAutoTopupWindowStartedAt, vs...))
+}
+
+// AutoTopupWindowStartedAtGT applies the GT predicate on the "auto_topup_window_started_at" field.
+func AutoTopupWindowStartedAtGT(v time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldGT(FieldAutoTopupWindowStartedAt, v))
+}
+
+// AutoTopupWindowStartedAtGTE applies the GTE predicate on the "auto_topup_window_started_at" field.
+func AutoTopupWindowStartedAtGTE(v time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldGTE(FieldAutoTopupWindowStartedAt, v))
+}
+
+// AutoTopupWindowStartedAtLT applies the LT predicate on the "auto_topup_window_started_at" field.
+func AutoTopupWindowStartedAtLT(v time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldLT(FieldAutoTopupWindowStartedAt, v))
+}
+
+// AutoTopupWindowStartedAtLTE applies the LTE predicate on the "auto_topup_window_started_at" field.
+func AutoTopupWindowStartedAtLTE(v time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldLTE(FieldAutoTopupWindowStartedAt, v))
+}
+
+// AutoTopupWindowStartedAtIsNil applies the IsNil predicate on the "auto_topup_window_started_at" field.
+func AutoTopupWindowStartedAtIsNil() predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldIsNull(FieldAutoTopupWindowStartedAt))
+}
+
+// AutoTopupWindowStartedAtNotNil applies the NotNil predicate on the "auto_topup_window_started_at" field.
+func AutoTopupWindowStartedAtNotNil() predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldNotNull(FieldAutoTopupWindowStartedAt))
+}
+
+// AutoTopupWindowCountEQ applies the EQ predicate on the "auto_topup_window_count" field.
+func AutoTopupWindowCountEQ(v int) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldEQ(FieldAutoTopupWindowCount, v))
+}
+
+// AutoTopupWindowCountNEQ applies the NEQ predicate on the "auto_topup_window_count" field.
+func AutoTopupWindowCountNEQ(v int) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldNEQ(FieldAutoTopupWindowCount, v))
+}
+
+// AutoTopupWindowCountIn applies the In predicate on the "auto_topup_window_count" field.
+func AutoTopupWindowCountIn(vs ...int) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldIn(FieldAutoTopupWindowCount, vs...))
+}
+
+// AutoTopupWindowCountNotIn applies the NotIn predicate on the "auto_topup_window_count" field.
+func AutoTopupWindowCountNotIn(vs ...int) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldNotIn(FieldAutoTopupWindowCount, vs...))
+}
+
+// AutoTopupWindowCountGT applies the GT predicate on the "auto_topup_window_count" field.
+func AutoTopupWindowCountGT(v int) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldGT(FieldAutoTopupWindowCount, v))
+}
+
+// AutoTopupWindowCountGTE applies the GTE predicate on the "auto_topup_window_count" field.
+func AutoTopupWindowCountGTE(v int) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldGTE(FieldAutoTopupWindowCount, v))
+}
+
+// AutoTopupWindowCountLT applies the LT predicate on the "auto_topup_window_count" field.
+func AutoTopupWindowCountLT(v int) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldLT(FieldAutoTopupWindowCount, v))
+}
+
+// AutoTopupWindowCountLTE applies the LTE predicate on the "auto_topup_window_count" field.
+func AutoTopupWindowCountLTE(v int) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldLTE(FieldAutoTopupWindowCount, v))
 }
 
 // BillingEmailEQ applies the EQ predicate on the "billing_email" field.

@@ -328,9 +328,15 @@ type Settings struct {
 	// StripePortalReturnURL is where Stripe's customer portal links back to.
 	StripePortalReturnURL string `env:"STRIPE_PORTAL_RETURN_URL" default:"http://localhost:3000/billing/wallet"`
 
-	// BillingAutoTopUpEvery is how often the billing writer looks for balances below their
-	// automatic top-up threshold.
-	BillingAutoTopUpEvery time.Duration `env:"BILLING_AUTO_TOPUP_EVERY" default:"30s"`
+	// BillingAutoTopUpEvery is how often the billing writer works the automatic top-up queue:
+	// accounts whose last charge left them below their threshold (ADR 0041). The queue is a
+	// partial index holding only those, so a short interval costs nothing at any scale.
+	BillingAutoTopUpEvery time.Duration `env:"BILLING_AUTO_TOPUP_EVERY" default:"2s"`
+
+	// BillingAutoTopUpSweepEvery is how often every account is checked against its threshold,
+	// for anything the queue did not see. A safety net: a full scan, so minutes rather than
+	// seconds.
+	BillingAutoTopUpSweepEvery time.Duration `env:"BILLING_AUTO_TOPUP_SWEEP_EVERY" default:"5m"`
 
 	// BillingAutoTopUpRetryAfter is how long an account waits after a declined automatic top-up
 	// before its card is tried again. A card declined now is declined in thirty seconds too, and

@@ -57,6 +57,14 @@ const (
 	FieldAutoTopupRetryAfter = "auto_topup_retry_after"
 	// FieldAutoTopupLastError holds the string denoting the auto_topup_last_error field in the database.
 	FieldAutoTopupLastError = "auto_topup_last_error"
+	// FieldAutoTopupRequestedAt holds the string denoting the auto_topup_requested_at field in the database.
+	FieldAutoTopupRequestedAt = "auto_topup_requested_at"
+	// FieldAutoTopupDailyLimit holds the string denoting the auto_topup_daily_limit field in the database.
+	FieldAutoTopupDailyLimit = "auto_topup_daily_limit"
+	// FieldAutoTopupWindowStartedAt holds the string denoting the auto_topup_window_started_at field in the database.
+	FieldAutoTopupWindowStartedAt = "auto_topup_window_started_at"
+	// FieldAutoTopupWindowCount holds the string denoting the auto_topup_window_count field in the database.
+	FieldAutoTopupWindowCount = "auto_topup_window_count"
 	// FieldBillingEmail holds the string denoting the billing_email field in the database.
 	FieldBillingEmail = "billing_email"
 	// FieldEntitlementOverrides holds the string denoting the entitlement_overrides field in the database.
@@ -160,6 +168,10 @@ var Columns = []string{
 	FieldAutoTopupPendingAmountMicros,
 	FieldAutoTopupRetryAfter,
 	FieldAutoTopupLastError,
+	FieldAutoTopupRequestedAt,
+	FieldAutoTopupDailyLimit,
+	FieldAutoTopupWindowStartedAt,
+	FieldAutoTopupWindowCount,
 	FieldBillingEmail,
 	FieldEntitlementOverrides,
 }
@@ -221,6 +233,14 @@ var (
 	DefaultAutoTopupLastError string
 	// AutoTopupLastErrorValidator is a validator for the "auto_topup_last_error" field. It is called by the builders before save.
 	AutoTopupLastErrorValidator func(string) error
+	// DefaultAutoTopupDailyLimit holds the default value on creation for the "auto_topup_daily_limit" field.
+	DefaultAutoTopupDailyLimit int
+	// AutoTopupDailyLimitValidator is a validator for the "auto_topup_daily_limit" field. It is called by the builders before save.
+	AutoTopupDailyLimitValidator func(int) error
+	// DefaultAutoTopupWindowCount holds the default value on creation for the "auto_topup_window_count" field.
+	DefaultAutoTopupWindowCount int
+	// AutoTopupWindowCountValidator is a validator for the "auto_topup_window_count" field. It is called by the builders before save.
+	AutoTopupWindowCountValidator func(int) error
 	// BillingEmailValidator is a validator for the "billing_email" field. It is called by the builders before save.
 	BillingEmailValidator func(string) error
 	// DefaultEntitlementOverrides holds the default value on creation for the "entitlement_overrides" field.
@@ -362,6 +382,26 @@ func ByAutoTopupRetryAfter(opts ...sql.OrderTermOption) OrderOption {
 // ByAutoTopupLastError orders the results by the auto_topup_last_error field.
 func ByAutoTopupLastError(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldAutoTopupLastError, opts...).ToFunc()
+}
+
+// ByAutoTopupRequestedAt orders the results by the auto_topup_requested_at field.
+func ByAutoTopupRequestedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAutoTopupRequestedAt, opts...).ToFunc()
+}
+
+// ByAutoTopupDailyLimit orders the results by the auto_topup_daily_limit field.
+func ByAutoTopupDailyLimit(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAutoTopupDailyLimit, opts...).ToFunc()
+}
+
+// ByAutoTopupWindowStartedAt orders the results by the auto_topup_window_started_at field.
+func ByAutoTopupWindowStartedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAutoTopupWindowStartedAt, opts...).ToFunc()
+}
+
+// ByAutoTopupWindowCount orders the results by the auto_topup_window_count field.
+func ByAutoTopupWindowCount(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAutoTopupWindowCount, opts...).ToFunc()
 }
 
 // ByBillingEmail orders the results by the billing_email field.

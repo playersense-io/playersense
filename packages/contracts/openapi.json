@@ -7336,6 +7336,11 @@
             "type": "integer",
             "format": "int64"
           },
+          "daily_limit": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Automatic charges allowed in any 24 hours"
+          },
           "enabled": {
             "type": "boolean"
           },
@@ -7346,6 +7351,10 @@
           "pending": {
             "type": "boolean",
             "description": "A charge has been sent to Stripe and its outcome is not yet known"
+          },
+          "queued": {
+            "type": "boolean",
+            "description": "The balance is below the threshold and a top-up is due within seconds"
           },
           "retry_after": {
             "type": [
@@ -7358,13 +7367,21 @@
           "threshold_micros": {
             "type": "integer",
             "format": "int64"
+          },
+          "used_today": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Automatic charges sent in the current 24-hour window"
           }
         },
         "required": [
           "amount_micros",
+          "daily_limit",
           "enabled",
           "pending",
-          "threshold_micros"
+          "queued",
+          "threshold_micros",
+          "used_today"
         ]
       },
       "BillingOut": {

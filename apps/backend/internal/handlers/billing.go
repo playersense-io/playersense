@@ -18,6 +18,7 @@ import (
 	"playersense.dev/backend/internal/audit"
 	"playersense.dev/backend/internal/billing"
 	"playersense.dev/backend/internal/core"
+	"playersense.dev/backend/internal/payments"
 	"playersense.dev/backend/internal/schemas"
 	"playersense.dev/backend/internal/wallet"
 )
@@ -278,6 +279,16 @@ func SetAutoTopUp(ctx *muzak.Context, in schemas.SetAutoTopUpIn) (schemas.Billin
 	if err != nil {
 		return schemas.BillingOut{}, core.AsHTTPError(err)
 	}
+	// The row as it is now, locked: the top-up signal below depends on the balance, and a drain
+	// moving it between the read above and this write would otherwise leave the signal computed
+	// from a balance that no longer exists.
+	locked, err := tx.BillingAccount.Query().
+		Where(billingaccount.ID(account.ID)).ForUpdate().Only(ctx.Context())
+	if err != nil {
+		_ = tx.Rollback()
+		return schemas.BillingOut{}, core.AsHTTPError(err)
+	}
+	account = locked
 
 	// Built from the transaction rather than from the account row. `account.Update()` carries the
 	// application's client, so it would have committed on its own — leaving a configuration change
@@ -291,6 +302,19 @@ func SetAutoTopUp(ctx *muzak.Context, in schemas.SetAutoTopUpIn) (schemas.Billin
 		// A fresh start: a decline recorded against the old configuration says nothing about
 		// the one just saved.
 		update = update.ClearAutoTopupRetryAfter().SetAutoTopupLastError("")
+	}
+	// The signal follows the settings as it follows the balance (ADR 0041): an account already
+	// below its new threshold is asked for now, not at its next charge; one switched off stops
+	// asking.
+	after := *account
+	after.AutoTopupEnabled = wanted.Enabled
+	after.AutoTopupThresholdMicros = wanted.Threshold
+	if wallet.WantsTopUp(&after, account.BalanceMicros) {
+		if account.AutoTopupRequestedAt == nil {
+			update = update.SetAutoTopupRequestedAt(nowUTC())
+		}
+	} else {
+		update = update.ClearAutoTopupRequestedAt()
 	}
 	if _, err := update.Save(ctx.Context()); err != nil {
 		_ = tx.Rollback()
@@ -595,6 +619,11 @@ func billingOut(ctx context.Context, db *core.DB, account *ent.BillingAccount,
 	}
 	out.Month = month
 	out.AutoTopUp.Pending = account.AutoTopupPendingKey != nil
+	out.AutoTopUp.Queued = account.AutoTopupRequestedAt != nil
+	out.AutoTopUp.DailyLimit = account.AutoTopupDailyLimit
+	if account.AutoTopupWindowStartedAt != nil && at.Sub(*account.AutoTopupWindowStartedAt) < payments.Day {
+		out.AutoTopUp.UsedToday = account.AutoTopupWindowCount
+	}
 	out.AutoTopUp.RetryAfter = account.AutoTopupRetryAfter
 	out.AutoTopUp.LastError = account.AutoTopupLastError
 	if plan := account.Edges.Plan; plan != nil {

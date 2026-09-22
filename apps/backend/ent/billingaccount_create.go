@@ -295,6 +295,62 @@ func (_c *BillingAccountCreate) SetNillableAutoTopupLastError(v *string) *Billin
 	return _c
 }
 
+// SetAutoTopupRequestedAt sets the "auto_topup_requested_at" field.
+func (_c *BillingAccountCreate) SetAutoTopupRequestedAt(v time.Time) *BillingAccountCreate {
+	_c.mutation.SetAutoTopupRequestedAt(v)
+	return _c
+}
+
+// SetNillableAutoTopupRequestedAt sets the "auto_topup_requested_at" field if the given value is not nil.
+func (_c *BillingAccountCreate) SetNillableAutoTopupRequestedAt(v *time.Time) *BillingAccountCreate {
+	if v != nil {
+		_c.SetAutoTopupRequestedAt(*v)
+	}
+	return _c
+}
+
+// SetAutoTopupDailyLimit sets the "auto_topup_daily_limit" field.
+func (_c *BillingAccountCreate) SetAutoTopupDailyLimit(v int) *BillingAccountCreate {
+	_c.mutation.SetAutoTopupDailyLimit(v)
+	return _c
+}
+
+// SetNillableAutoTopupDailyLimit sets the "auto_topup_daily_limit" field if the given value is not nil.
+func (_c *BillingAccountCreate) SetNillableAutoTopupDailyLimit(v *int) *BillingAccountCreate {
+	if v != nil {
+		_c.SetAutoTopupDailyLimit(*v)
+	}
+	return _c
+}
+
+// SetAutoTopupWindowStartedAt sets the "auto_topup_window_started_at" field.
+func (_c *BillingAccountCreate) SetAutoTopupWindowStartedAt(v time.Time) *BillingAccountCreate {
+	_c.mutation.SetAutoTopupWindowStartedAt(v)
+	return _c
+}
+
+// SetNillableAutoTopupWindowStartedAt sets the "auto_topup_window_started_at" field if the given value is not nil.
+func (_c *BillingAccountCreate) SetNillableAutoTopupWindowStartedAt(v *time.Time) *BillingAccountCreate {
+	if v != nil {
+		_c.SetAutoTopupWindowStartedAt(*v)
+	}
+	return _c
+}
+
+// SetAutoTopupWindowCount sets the "auto_topup_window_count" field.
+func (_c *BillingAccountCreate) SetAutoTopupWindowCount(v int) *BillingAccountCreate {
+	_c.mutation.SetAutoTopupWindowCount(v)
+	return _c
+}
+
+// SetNillableAutoTopupWindowCount sets the "auto_topup_window_count" field if the given value is not nil.
+func (_c *BillingAccountCreate) SetNillableAutoTopupWindowCount(v *int) *BillingAccountCreate {
+	if v != nil {
+		_c.SetAutoTopupWindowCount(*v)
+	}
+	return _c
+}
+
 // SetBillingEmail sets the "billing_email" field.
 func (_c *BillingAccountCreate) SetBillingEmail(v string) *BillingAccountCreate {
 	_c.mutation.SetBillingEmail(v)
@@ -518,6 +574,14 @@ func (_c *BillingAccountCreate) defaults() error {
 		v := billingaccount.DefaultAutoTopupLastError
 		_c.mutation.SetAutoTopupLastError(v)
 	}
+	if _, ok := _c.mutation.AutoTopupDailyLimit(); !ok {
+		v := billingaccount.DefaultAutoTopupDailyLimit
+		_c.mutation.SetAutoTopupDailyLimit(v)
+	}
+	if _, ok := _c.mutation.AutoTopupWindowCount(); !ok {
+		v := billingaccount.DefaultAutoTopupWindowCount
+		_c.mutation.SetAutoTopupWindowCount(v)
+	}
 	if _, ok := _c.mutation.EntitlementOverrides(); !ok {
 		v := billingaccount.DefaultEntitlementOverrides
 		_c.mutation.SetEntitlementOverrides(v)
@@ -612,6 +676,22 @@ func (_c *BillingAccountCreate) check() error {
 	if v, ok := _c.mutation.AutoTopupLastError(); ok {
 		if err := billingaccount.AutoTopupLastErrorValidator(v); err != nil {
 			return &ValidationError{Name: "auto_topup_last_error", err: fmt.Errorf(`ent: validator failed for field "BillingAccount.auto_topup_last_error": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.AutoTopupDailyLimit(); !ok {
+		return &ValidationError{Name: "auto_topup_daily_limit", err: errors.New(`ent: missing required field "BillingAccount.auto_topup_daily_limit"`)}
+	}
+	if v, ok := _c.mutation.AutoTopupDailyLimit(); ok {
+		if err := billingaccount.AutoTopupDailyLimitValidator(v); err != nil {
+			return &ValidationError{Name: "auto_topup_daily_limit", err: fmt.Errorf(`ent: validator failed for field "BillingAccount.auto_topup_daily_limit": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.AutoTopupWindowCount(); !ok {
+		return &ValidationError{Name: "auto_topup_window_count", err: errors.New(`ent: missing required field "BillingAccount.auto_topup_window_count"`)}
+	}
+	if v, ok := _c.mutation.AutoTopupWindowCount(); ok {
+		if err := billingaccount.AutoTopupWindowCountValidator(v); err != nil {
+			return &ValidationError{Name: "auto_topup_window_count", err: fmt.Errorf(`ent: validator failed for field "BillingAccount.auto_topup_window_count": %w`, err)}
 		}
 	}
 	if v, ok := _c.mutation.BillingEmail(); ok {
@@ -732,6 +812,22 @@ func (_c *BillingAccountCreate) createSpec() (*BillingAccount, *sqlgraph.CreateS
 	if value, ok := _c.mutation.AutoTopupLastError(); ok {
 		_spec.SetField(billingaccount.FieldAutoTopupLastError, field.TypeString, value)
 		_node.AutoTopupLastError = value
+	}
+	if value, ok := _c.mutation.AutoTopupRequestedAt(); ok {
+		_spec.SetField(billingaccount.FieldAutoTopupRequestedAt, field.TypeTime, value)
+		_node.AutoTopupRequestedAt = &value
+	}
+	if value, ok := _c.mutation.AutoTopupDailyLimit(); ok {
+		_spec.SetField(billingaccount.FieldAutoTopupDailyLimit, field.TypeInt, value)
+		_node.AutoTopupDailyLimit = value
+	}
+	if value, ok := _c.mutation.AutoTopupWindowStartedAt(); ok {
+		_spec.SetField(billingaccount.FieldAutoTopupWindowStartedAt, field.TypeTime, value)
+		_node.AutoTopupWindowStartedAt = &value
+	}
+	if value, ok := _c.mutation.AutoTopupWindowCount(); ok {
+		_spec.SetField(billingaccount.FieldAutoTopupWindowCount, field.TypeInt, value)
+		_node.AutoTopupWindowCount = value
 	}
 	if value, ok := _c.mutation.BillingEmail(); ok {
 		_spec.SetField(billingaccount.FieldBillingEmail, field.TypeString, value)
@@ -1193,6 +1289,78 @@ func (u *BillingAccountUpsert) UpdateAutoTopupLastError() *BillingAccountUpsert 
 	return u
 }
 
+// SetAutoTopupRequestedAt sets the "auto_topup_requested_at" field.
+func (u *BillingAccountUpsert) SetAutoTopupRequestedAt(v time.Time) *BillingAccountUpsert {
+	u.Set(billingaccount.FieldAutoTopupRequestedAt, v)
+	return u
+}
+
+// UpdateAutoTopupRequestedAt sets the "auto_topup_requested_at" field to the value that was provided on create.
+func (u *BillingAccountUpsert) UpdateAutoTopupRequestedAt() *BillingAccountUpsert {
+	u.SetExcluded(billingaccount.FieldAutoTopupRequestedAt)
+	return u
+}
+
+// ClearAutoTopupRequestedAt clears the value of the "auto_topup_requested_at" field.
+func (u *BillingAccountUpsert) ClearAutoTopupRequestedAt() *BillingAccountUpsert {
+	u.SetNull(billingaccount.FieldAutoTopupRequestedAt)
+	return u
+}
+
+// SetAutoTopupDailyLimit sets the "auto_topup_daily_limit" field.
+func (u *BillingAccountUpsert) SetAutoTopupDailyLimit(v int) *BillingAccountUpsert {
+	u.Set(billingaccount.FieldAutoTopupDailyLimit, v)
+	return u
+}
+
+// UpdateAutoTopupDailyLimit sets the "auto_topup_daily_limit" field to the value that was provided on create.
+func (u *BillingAccountUpsert) UpdateAutoTopupDailyLimit() *BillingAccountUpsert {
+	u.SetExcluded(billingaccount.FieldAutoTopupDailyLimit)
+	return u
+}
+
+// AddAutoTopupDailyLimit adds v to the "auto_topup_daily_limit" field.
+func (u *BillingAccountUpsert) AddAutoTopupDailyLimit(v int) *BillingAccountUpsert {
+	u.Add(billingaccount.FieldAutoTopupDailyLimit, v)
+	return u
+}
+
+// SetAutoTopupWindowStartedAt sets the "auto_topup_window_started_at" field.
+func (u *BillingAccountUpsert) SetAutoTopupWindowStartedAt(v time.Time) *BillingAccountUpsert {
+	u.Set(billingaccount.FieldAutoTopupWindowStartedAt, v)
+	return u
+}
+
+// UpdateAutoTopupWindowStartedAt sets the "auto_topup_window_started_at" field to the value that was provided on create.
+func (u *BillingAccountUpsert) UpdateAutoTopupWindowStartedAt() *BillingAccountUpsert {
+	u.SetExcluded(billingaccount.FieldAutoTopupWindowStartedAt)
+	return u
+}
+
+// ClearAutoTopupWindowStartedAt clears the value of the "auto_topup_window_started_at" field.
+func (u *BillingAccountUpsert) ClearAutoTopupWindowStartedAt() *BillingAccountUpsert {
+	u.SetNull(billingaccount.FieldAutoTopupWindowStartedAt)
+	return u
+}
+
+// SetAutoTopupWindowCount sets the "auto_topup_window_count" field.
+func (u *BillingAccountUpsert) SetAutoTopupWindowCount(v int) *BillingAccountUpsert {
+	u.Set(billingaccount.FieldAutoTopupWindowCount, v)
+	return u
+}
+
+// UpdateAutoTopupWindowCount sets the "auto_topup_window_count" field to the value that was provided on create.
+func (u *BillingAccountUpsert) UpdateAutoTopupWindowCount() *BillingAccountUpsert {
+	u.SetExcluded(billingaccount.FieldAutoTopupWindowCount)
+	return u
+}
+
+// AddAutoTopupWindowCount adds v to the "auto_topup_window_count" field.
+func (u *BillingAccountUpsert) AddAutoTopupWindowCount(v int) *BillingAccountUpsert {
+	u.Add(billingaccount.FieldAutoTopupWindowCount, v)
+	return u
+}
+
 // SetBillingEmail sets the "billing_email" field.
 func (u *BillingAccountUpsert) SetBillingEmail(v string) *BillingAccountUpsert {
 	u.Set(billingaccount.FieldBillingEmail, v)
@@ -1592,6 +1760,90 @@ func (u *BillingAccountUpsertOne) SetAutoTopupLastError(v string) *BillingAccoun
 func (u *BillingAccountUpsertOne) UpdateAutoTopupLastError() *BillingAccountUpsertOne {
 	return u.Update(func(s *BillingAccountUpsert) {
 		s.UpdateAutoTopupLastError()
+	})
+}
+
+// SetAutoTopupRequestedAt sets the "auto_topup_requested_at" field.
+func (u *BillingAccountUpsertOne) SetAutoTopupRequestedAt(v time.Time) *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetAutoTopupRequestedAt(v)
+	})
+}
+
+// UpdateAutoTopupRequestedAt sets the "auto_topup_requested_at" field to the value that was provided on create.
+func (u *BillingAccountUpsertOne) UpdateAutoTopupRequestedAt() *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateAutoTopupRequestedAt()
+	})
+}
+
+// ClearAutoTopupRequestedAt clears the value of the "auto_topup_requested_at" field.
+func (u *BillingAccountUpsertOne) ClearAutoTopupRequestedAt() *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.ClearAutoTopupRequestedAt()
+	})
+}
+
+// SetAutoTopupDailyLimit sets the "auto_topup_daily_limit" field.
+func (u *BillingAccountUpsertOne) SetAutoTopupDailyLimit(v int) *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetAutoTopupDailyLimit(v)
+	})
+}
+
+// AddAutoTopupDailyLimit adds v to the "auto_topup_daily_limit" field.
+func (u *BillingAccountUpsertOne) AddAutoTopupDailyLimit(v int) *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.AddAutoTopupDailyLimit(v)
+	})
+}
+
+// UpdateAutoTopupDailyLimit sets the "auto_topup_daily_limit" field to the value that was provided on create.
+func (u *BillingAccountUpsertOne) UpdateAutoTopupDailyLimit() *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateAutoTopupDailyLimit()
+	})
+}
+
+// SetAutoTopupWindowStartedAt sets the "auto_topup_window_started_at" field.
+func (u *BillingAccountUpsertOne) SetAutoTopupWindowStartedAt(v time.Time) *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetAutoTopupWindowStartedAt(v)
+	})
+}
+
+// UpdateAutoTopupWindowStartedAt sets the "auto_topup_window_started_at" field to the value that was provided on create.
+func (u *BillingAccountUpsertOne) UpdateAutoTopupWindowStartedAt() *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateAutoTopupWindowStartedAt()
+	})
+}
+
+// ClearAutoTopupWindowStartedAt clears the value of the "auto_topup_window_started_at" field.
+func (u *BillingAccountUpsertOne) ClearAutoTopupWindowStartedAt() *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.ClearAutoTopupWindowStartedAt()
+	})
+}
+
+// SetAutoTopupWindowCount sets the "auto_topup_window_count" field.
+func (u *BillingAccountUpsertOne) SetAutoTopupWindowCount(v int) *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetAutoTopupWindowCount(v)
+	})
+}
+
+// AddAutoTopupWindowCount adds v to the "auto_topup_window_count" field.
+func (u *BillingAccountUpsertOne) AddAutoTopupWindowCount(v int) *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.AddAutoTopupWindowCount(v)
+	})
+}
+
+// UpdateAutoTopupWindowCount sets the "auto_topup_window_count" field to the value that was provided on create.
+func (u *BillingAccountUpsertOne) UpdateAutoTopupWindowCount() *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateAutoTopupWindowCount()
 	})
 }
 
@@ -2165,6 +2417,90 @@ func (u *BillingAccountUpsertBulk) SetAutoTopupLastError(v string) *BillingAccou
 func (u *BillingAccountUpsertBulk) UpdateAutoTopupLastError() *BillingAccountUpsertBulk {
 	return u.Update(func(s *BillingAccountUpsert) {
 		s.UpdateAutoTopupLastError()
+	})
+}
+
+// SetAutoTopupRequestedAt sets the "auto_topup_requested_at" field.
+func (u *BillingAccountUpsertBulk) SetAutoTopupRequestedAt(v time.Time) *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetAutoTopupRequestedAt(v)
+	})
+}
+
+// UpdateAutoTopupRequestedAt sets the "auto_topup_requested_at" field to the value that was provided on create.
+func (u *BillingAccountUpsertBulk) UpdateAutoTopupRequestedAt() *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateAutoTopupRequestedAt()
+	})
+}
+
+// ClearAutoTopupRequestedAt clears the value of the "auto_topup_requested_at" field.
+func (u *BillingAccountUpsertBulk) ClearAutoTopupRequestedAt() *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.ClearAutoTopupRequestedAt()
+	})
+}
+
+// SetAutoTopupDailyLimit sets the "auto_topup_daily_limit" field.
+func (u *BillingAccountUpsertBulk) SetAutoTopupDailyLimit(v int) *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetAutoTopupDailyLimit(v)
+	})
+}
+
+// AddAutoTopupDailyLimit adds v to the "auto_topup_daily_limit" field.
+func (u *BillingAccountUpsertBulk) AddAutoTopupDailyLimit(v int) *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.AddAutoTopupDailyLimit(v)
+	})
+}
+
+// UpdateAutoTopupDailyLimit sets the "auto_topup_daily_limit" field to the value that was provided on create.
+func (u *BillingAccountUpsertBulk) UpdateAutoTopupDailyLimit() *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateAutoTopupDailyLimit()
+	})
+}
+
+// SetAutoTopupWindowStartedAt sets the "auto_topup_window_started_at" field.
+func (u *BillingAccountUpsertBulk) SetAutoTopupWindowStartedAt(v time.Time) *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetAutoTopupWindowStartedAt(v)
+	})
+}
+
+// UpdateAutoTopupWindowStartedAt sets the "auto_topup_window_started_at" field to the value that was provided on create.
+func (u *BillingAccountUpsertBulk) UpdateAutoTopupWindowStartedAt() *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateAutoTopupWindowStartedAt()
+	})
+}
+
+// ClearAutoTopupWindowStartedAt clears the value of the "auto_topup_window_started_at" field.
+func (u *BillingAccountUpsertBulk) ClearAutoTopupWindowStartedAt() *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.ClearAutoTopupWindowStartedAt()
+	})
+}
+
+// SetAutoTopupWindowCount sets the "auto_topup_window_count" field.
+func (u *BillingAccountUpsertBulk) SetAutoTopupWindowCount(v int) *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetAutoTopupWindowCount(v)
+	})
+}
+
+// AddAutoTopupWindowCount adds v to the "auto_topup_window_count" field.
+func (u *BillingAccountUpsertBulk) AddAutoTopupWindowCount(v int) *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.AddAutoTopupWindowCount(v)
+	})
+}
+
+// UpdateAutoTopupWindowCount sets the "auto_topup_window_count" field to the value that was provided on create.
+func (u *BillingAccountUpsertBulk) UpdateAutoTopupWindowCount() *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateAutoTopupWindowCount()
 	})
 }
 

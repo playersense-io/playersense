@@ -343,12 +343,38 @@ func init() {
 	billingaccount.DefaultAutoTopupLastError = billingaccountDescAutoTopupLastError.Default.(string)
 	// billingaccount.AutoTopupLastErrorValidator is a validator for the "auto_topup_last_error" field. It is called by the builders before save.
 	billingaccount.AutoTopupLastErrorValidator = billingaccountDescAutoTopupLastError.Validators[0].(func(string) error)
+	// billingaccountDescAutoTopupDailyLimit is the schema descriptor for auto_topup_daily_limit field.
+	billingaccountDescAutoTopupDailyLimit := billingaccountFields[18].Descriptor()
+	// billingaccount.DefaultAutoTopupDailyLimit holds the default value on creation for the auto_topup_daily_limit field.
+	billingaccount.DefaultAutoTopupDailyLimit = billingaccountDescAutoTopupDailyLimit.Default.(int)
+	// billingaccount.AutoTopupDailyLimitValidator is a validator for the "auto_topup_daily_limit" field. It is called by the builders before save.
+	billingaccount.AutoTopupDailyLimitValidator = func() func(int) error {
+		validators := billingaccountDescAutoTopupDailyLimit.Validators
+		fns := [...]func(int) error{
+			validators[0].(func(int) error),
+			validators[1].(func(int) error),
+		}
+		return func(auto_topup_daily_limit int) error {
+			for _, fn := range fns {
+				if err := fn(auto_topup_daily_limit); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// billingaccountDescAutoTopupWindowCount is the schema descriptor for auto_topup_window_count field.
+	billingaccountDescAutoTopupWindowCount := billingaccountFields[20].Descriptor()
+	// billingaccount.DefaultAutoTopupWindowCount holds the default value on creation for the auto_topup_window_count field.
+	billingaccount.DefaultAutoTopupWindowCount = billingaccountDescAutoTopupWindowCount.Default.(int)
+	// billingaccount.AutoTopupWindowCountValidator is a validator for the "auto_topup_window_count" field. It is called by the builders before save.
+	billingaccount.AutoTopupWindowCountValidator = billingaccountDescAutoTopupWindowCount.Validators[0].(func(int) error)
 	// billingaccountDescBillingEmail is the schema descriptor for billing_email field.
-	billingaccountDescBillingEmail := billingaccountFields[17].Descriptor()
+	billingaccountDescBillingEmail := billingaccountFields[21].Descriptor()
 	// billingaccount.BillingEmailValidator is a validator for the "billing_email" field. It is called by the builders before save.
 	billingaccount.BillingEmailValidator = billingaccountDescBillingEmail.Validators[0].(func(string) error)
 	// billingaccountDescEntitlementOverrides is the schema descriptor for entitlement_overrides field.
-	billingaccountDescEntitlementOverrides := billingaccountFields[18].Descriptor()
+	billingaccountDescEntitlementOverrides := billingaccountFields[22].Descriptor()
 	// billingaccount.DefaultEntitlementOverrides holds the default value on creation for the entitlement_overrides field.
 	billingaccount.DefaultEntitlementOverrides = billingaccountDescEntitlementOverrides.Default.(map[string]int64)
 	billingperiodMixin := schema.BillingPeriod{}.Mixin()

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -81,14 +82,50 @@ func (f *fixture) autoTopUp() *payments.AutoTopUp {
 		StaleAfter: 10 * time.Minute, RetryAfter: time.Hour}
 }
 
-// enable turns automatic top-up on: $50 whenever the balance is below $10.
+// enable turns automatic top-up on — $50 whenever the balance is below $10 — and, as the settings
+// route does, queues a top-up if the balance is already below.
 func (f *fixture) enable() {
 	f.t.Helper()
-	if _, err := f.db.Client.BillingAccount.UpdateOneID(f.account.ID).
+	f.configure(true)
+}
+
+// enableUnqueued turns it on the way a hand edit in the database would: no signal. Only the sweep
+// can find such an account.
+func (f *fixture) enableUnqueued() {
+	f.t.Helper()
+	f.configure(false)
+}
+
+func (f *fixture) configure(queue bool) {
+	f.t.Helper()
+	update := f.db.Client.BillingAccount.UpdateOneID(f.account.ID).
 		SetAutoTopupEnabled(true).
 		SetAutoTopupThresholdMicros(10 * billing.Micros).
-		SetAutoTopupAmountMicros(50 * billing.Micros).
-		Save(context.Background()); err != nil {
+		SetAutoTopupAmountMicros(50 * billing.Micros)
+	row := f.row()
+	row.AutoTopupEnabled, row.AutoTopupThresholdMicros = true, 10*billing.Micros
+	if queue && wallet.WantsTopUp(row, row.BalanceMicros) {
+		update = update.SetAutoTopupRequestedAt(f.now)
+	}
+	if _, err := update.Save(context.Background()); err != nil {
+		f.t.Fatal(err)
+	}
+}
+
+func (f *fixture) topUp(amount int64) {
+	f.t.Helper()
+	tx, err := f.db.Client.Tx(context.Background())
+	if err != nil {
+		f.t.Fatal(err)
+	}
+	if _, _, err := wallet.Grant(context.Background(), tx, wallet.GrantRequest{
+		AccountID: f.account.ID, Kind: wallet.Purchase, Amount: amount,
+		GrantedAt: time.Now(), Key: "topup:" + uuid.NewString(),
+	}); err != nil {
+		_ = tx.Rollback()
+		f.t.Fatal(err)
+	}
+	if err := tx.Commit(); err != nil {
 		f.t.Fatal(err)
 	}
 }
@@ -523,5 +560,132 @@ func TestTheAmountCoversTheDebtInOneCharge(t *testing.T) {
 			t.Errorf("balance %s: %s (%v), want %s (%v)", billing.USD(c.balance),
 				billing.USD(got), needed, billing.USD(c.want), c.needed)
 		}
+	}
+}
+
+// ---- the queue --------------------------------------------------------------
+
+// The connection that did not exist: a usage charge that leaves the balance low queues a top-up in
+// its own transaction, the next pass of the queue charges the card, and the account leaves the queue.
+func TestAChargeThatLeavesTheBalanceLowQueuesATopUp(t *testing.T) {
+	f := newFixture(t)
+	f.topUp(20 * billing.Micros)
+	f.enable()
+	if f.row().AutoTopupRequestedAt != nil {
+		t.Fatal("an account above its threshold is queued")
+	}
+
+	f.owe(15 * billing.Micros) // $20 → $5: below the $10 threshold
+	if f.row().AutoTopupRequestedAt == nil {
+		t.Fatal("the charge that left the balance low did not queue a top-up")
+	}
+
+	f.run(f.autoTopUp())
+	row := f.row()
+	if f.gateway.Charged() != 1 || row.BalanceMicros != 55*billing.Micros {
+		t.Errorf("charged %d, balance %s; want one charge and $55", f.gateway.Charged(), billing.USD(row.BalanceMicros))
+	}
+	if row.AutoTopupRequestedAt != nil {
+		t.Error("a topped-up account is still queued")
+	}
+}
+
+// The queue only reads asking accounts; the sweep is the net for anything that never asked.
+func TestTheSweepFindsWhatTheQueueNeverSaw(t *testing.T) {
+	f := newFixture(t)
+	f.enableUnqueued()
+	a := f.autoTopUp()
+
+	f.run(a)
+	if f.gateway.Calls != 0 {
+		t.Fatal("the queue charged an account that never asked")
+	}
+	if _, err := a.Sweep(context.Background()); err != nil {
+		t.Logf("sweep: %v", err)
+	}
+	if f.gateway.Charged() != 1 {
+		t.Errorf("the sweep charged %d times, want once", f.gateway.Charged())
+	}
+}
+
+// Switching automatic top-up off takes the account out of the queue at its next pass, without a charge.
+func TestADisabledAccountLeavesTheQueueUncharged(t *testing.T) {
+	f := newFixture(t)
+	f.enable()
+	if _, err := f.db.Client.BillingAccount.UpdateOneID(f.account.ID).
+		SetAutoTopupEnabled(false).Save(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	f.run(f.autoTopUp())
+	if f.gateway.Calls != 0 || f.row().AutoTopupRequestedAt != nil {
+		t.Errorf("calls %d, still queued %v", f.gateway.Calls, f.row().AutoTopupRequestedAt != nil)
+	}
+}
+
+// ---- the daily limit --------------------------------------------------------
+
+// Three charges in any 24 hours, declined or not; the fourth waits for the window, says why, and
+// happens once the window reopens.
+func TestAtMostThreeAutomaticChargesInADay(t *testing.T) {
+	f := newFixture(t)
+	f.enable()
+	f.gateway.Outcome = "declined"
+	a := f.autoTopUp() // RetryAfter is an hour
+
+	for range 5 {
+		f.run(a)
+		f.now = f.now.Add(2 * time.Hour)
+	}
+	if f.gateway.Calls != 3 {
+		t.Fatalf("%d charges sent in ten hours, want the limit of 3", f.gateway.Calls)
+	}
+	row := f.row()
+	if !strings.Contains(row.AutoTopupLastError, "limit of 3") || row.AutoTopupRequestedAt == nil {
+		t.Errorf("error %q, queued %v; want the limit named and the request kept", row.AutoTopupLastError, row.AutoTopupRequestedAt != nil)
+	}
+
+	f.gateway.Outcome = ""
+	f.now = f.now.Add(15 * time.Hour) // past 24 hours from the first charge
+	f.run(a)
+	if f.gateway.Calls != 4 || f.gateway.Charged() != 1 {
+		t.Errorf("after the window: %d calls, %d charged; want the fourth to go through", f.gateway.Calls, f.gateway.Charged())
+	}
+}
+
+// A retry of a charge whose answer was lost is the same request to Stripe, and does not spend a slot.
+func TestARetriedChargeDoesNotCountTowardTheLimit(t *testing.T) {
+	f := newFixture(t)
+	f.enable()
+	f.gateway.LoseResponses = 1
+	a := f.autoTopUp()
+	f.run(a)
+	f.now = f.now.Add(11 * time.Minute)
+	f.run(a)
+	if got := f.row().AutoTopupWindowCount; got != 1 {
+		t.Errorf("window count %d after one charge and its retry, want 1", got)
+	}
+}
+
+// Many workers at the limit's edge take one slot between them.
+func TestConcurrentWorkersCannotExceedTheLimit(t *testing.T) {
+	f := newFixture(t)
+	f.enable()
+	if _, err := f.db.Client.BillingAccount.UpdateOneID(f.account.ID).
+		SetAutoTopupWindowStartedAt(f.now).SetAutoTopupWindowCount(2).Save(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	f.gateway.Outcome = "declined"
+
+	var wg sync.WaitGroup
+	for range 8 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, _ = f.autoTopUp().Run(context.Background())
+		}()
+	}
+	wg.Wait()
+	if f.gateway.Calls != 1 || f.row().AutoTopupWindowCount != 3 {
+		t.Errorf("%d charges sent with one slot left; window count %d", f.gateway.Calls, f.row().AutoTopupWindowCount)
 	}
 }

@@ -187,6 +187,10 @@ var (
 		{Name: "auto_topup_pending_amount_micros", Type: field.TypeInt64, Nullable: true, Comment: "class=financial"},
 		{Name: "auto_topup_retry_after", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
 		{Name: "auto_topup_last_error", Type: field.TypeString, Size: 500, Comment: "class=none", Default: ""},
+		{Name: "auto_topup_requested_at", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
+		{Name: "auto_topup_daily_limit", Type: field.TypeInt, Comment: "class=none", Default: 3},
+		{Name: "auto_topup_window_started_at", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
+		{Name: "auto_topup_window_count", Type: field.TypeInt, Comment: "class=none", Default: 0},
 		{Name: "billing_email", Type: field.TypeString, Nullable: true, Size: 254, Comment: "class=none"},
 		{Name: "entitlement_overrides", Type: field.TypeJSON, Comment: "class=none"},
 		{Name: "organization_id", Type: field.TypeInt, Unique: true, Comment: "class=none"},
@@ -200,15 +204,25 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "billing_accounts_organizations_billing_account",
-				Columns:    []*schema.Column{BillingAccountsColumns[21]},
+				Columns:    []*schema.Column{BillingAccountsColumns[25]},
 				RefColumns: []*schema.Column{OrganizationsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "billing_accounts_plans_accounts",
-				Columns:    []*schema.Column{BillingAccountsColumns[22]},
+				Columns:    []*schema.Column{BillingAccountsColumns[26]},
 				RefColumns: []*schema.Column{PlansColumns[0]},
 				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "billingaccount_auto_topup_requested_at",
+				Unique:  false,
+				Columns: []*schema.Column{BillingAccountsColumns[19]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "auto_topup_requested_at IS NOT NULL",
+				},
 			},
 		},
 	}

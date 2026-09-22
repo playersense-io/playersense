@@ -71,12 +71,13 @@ func build(settings config.Settings) (*muzak.App, error) {
 			DB: db, Log: logger,
 			MaxAccounts: settings.BillingDrainMaxAccounts,
 		},
-		Pruner:     &charging.Pruner{DB: db},
-		TopUp:      topUp(settings, db, logger),
-		TopUpEvery: settings.BillingAutoTopUpEvery,
-		Log:        logger,
-		DrainEvery: settings.BillingDrainEvery,
-		PruneEvery: settings.BillingPruneEvery,
+		Pruner:          &charging.Pruner{DB: db},
+		TopUp:           topUp(settings, db, logger),
+		TopUpEvery:      settings.BillingAutoTopUpEvery,
+		TopUpSweepEvery: settings.BillingAutoTopUpSweepEvery,
+		Log:             logger,
+		DrainEvery:      settings.BillingDrainEvery,
+		PruneEvery:      settings.BillingPruneEvery,
 	}
 
 	app := muzak.New(muzak.AppOptions{
@@ -113,6 +114,7 @@ func build(settings config.Settings) (*muzak.App, error) {
 // normal thing to run, and thirty seconds of "not configured" warnings forever is noise.
 func topUp(settings config.Settings, db *pgdb.DB, log *slog.Logger) interface {
 	Run(context.Context) (int, error)
+	Sweep(context.Context) (int, error)
 } {
 	if settings.StripeSecretKey == "" {
 		log.Warn("STRIPE_SECRET_KEY is not set; automatic top-up is off")
