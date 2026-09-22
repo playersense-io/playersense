@@ -126,9 +126,29 @@ func AutoTopupAmountMicros(v int64) predicate.BillingAccount {
 	return predicate.BillingAccount(sql.FieldEQ(FieldAutoTopupAmountMicros, v))
 }
 
-// DefaultPaymentMethod applies equality check predicate on the "default_payment_method" field. It's identical to DefaultPaymentMethodEQ.
-func DefaultPaymentMethod(v string) predicate.BillingAccount {
-	return predicate.BillingAccount(sql.FieldEQ(FieldDefaultPaymentMethod, v))
+// AutoTopupPendingKey applies equality check predicate on the "auto_topup_pending_key" field. It's identical to AutoTopupPendingKeyEQ.
+func AutoTopupPendingKey(v string) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldEQ(FieldAutoTopupPendingKey, v))
+}
+
+// AutoTopupPendingAt applies equality check predicate on the "auto_topup_pending_at" field. It's identical to AutoTopupPendingAtEQ.
+func AutoTopupPendingAt(v time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldEQ(FieldAutoTopupPendingAt, v))
+}
+
+// AutoTopupPendingAmountMicros applies equality check predicate on the "auto_topup_pending_amount_micros" field. It's identical to AutoTopupPendingAmountMicrosEQ.
+func AutoTopupPendingAmountMicros(v int64) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldEQ(FieldAutoTopupPendingAmountMicros, v))
+}
+
+// AutoTopupRetryAfter applies equality check predicate on the "auto_topup_retry_after" field. It's identical to AutoTopupRetryAfterEQ.
+func AutoTopupRetryAfter(v time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldEQ(FieldAutoTopupRetryAfter, v))
+}
+
+// AutoTopupLastError applies equality check predicate on the "auto_topup_last_error" field. It's identical to AutoTopupLastErrorEQ.
+func AutoTopupLastError(v string) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldEQ(FieldAutoTopupLastError, v))
 }
 
 // BillingEmail applies equality check predicate on the "billing_email" field. It's identical to BillingEmailEQ.
@@ -741,79 +761,294 @@ func AutoTopupAmountMicrosLTE(v int64) predicate.BillingAccount {
 	return predicate.BillingAccount(sql.FieldLTE(FieldAutoTopupAmountMicros, v))
 }
 
-// DefaultPaymentMethodEQ applies the EQ predicate on the "default_payment_method" field.
-func DefaultPaymentMethodEQ(v string) predicate.BillingAccount {
-	return predicate.BillingAccount(sql.FieldEQ(FieldDefaultPaymentMethod, v))
+// AutoTopupPendingKeyEQ applies the EQ predicate on the "auto_topup_pending_key" field.
+func AutoTopupPendingKeyEQ(v string) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldEQ(FieldAutoTopupPendingKey, v))
 }
 
-// DefaultPaymentMethodNEQ applies the NEQ predicate on the "default_payment_method" field.
-func DefaultPaymentMethodNEQ(v string) predicate.BillingAccount {
-	return predicate.BillingAccount(sql.FieldNEQ(FieldDefaultPaymentMethod, v))
+// AutoTopupPendingKeyNEQ applies the NEQ predicate on the "auto_topup_pending_key" field.
+func AutoTopupPendingKeyNEQ(v string) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldNEQ(FieldAutoTopupPendingKey, v))
 }
 
-// DefaultPaymentMethodIn applies the In predicate on the "default_payment_method" field.
-func DefaultPaymentMethodIn(vs ...string) predicate.BillingAccount {
-	return predicate.BillingAccount(sql.FieldIn(FieldDefaultPaymentMethod, vs...))
+// AutoTopupPendingKeyIn applies the In predicate on the "auto_topup_pending_key" field.
+func AutoTopupPendingKeyIn(vs ...string) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldIn(FieldAutoTopupPendingKey, vs...))
 }
 
-// DefaultPaymentMethodNotIn applies the NotIn predicate on the "default_payment_method" field.
-func DefaultPaymentMethodNotIn(vs ...string) predicate.BillingAccount {
-	return predicate.BillingAccount(sql.FieldNotIn(FieldDefaultPaymentMethod, vs...))
+// AutoTopupPendingKeyNotIn applies the NotIn predicate on the "auto_topup_pending_key" field.
+func AutoTopupPendingKeyNotIn(vs ...string) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldNotIn(FieldAutoTopupPendingKey, vs...))
 }
 
-// DefaultPaymentMethodGT applies the GT predicate on the "default_payment_method" field.
-func DefaultPaymentMethodGT(v string) predicate.BillingAccount {
-	return predicate.BillingAccount(sql.FieldGT(FieldDefaultPaymentMethod, v))
+// AutoTopupPendingKeyGT applies the GT predicate on the "auto_topup_pending_key" field.
+func AutoTopupPendingKeyGT(v string) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldGT(FieldAutoTopupPendingKey, v))
 }
 
-// DefaultPaymentMethodGTE applies the GTE predicate on the "default_payment_method" field.
-func DefaultPaymentMethodGTE(v string) predicate.BillingAccount {
-	return predicate.BillingAccount(sql.FieldGTE(FieldDefaultPaymentMethod, v))
+// AutoTopupPendingKeyGTE applies the GTE predicate on the "auto_topup_pending_key" field.
+func AutoTopupPendingKeyGTE(v string) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldGTE(FieldAutoTopupPendingKey, v))
 }
 
-// DefaultPaymentMethodLT applies the LT predicate on the "default_payment_method" field.
-func DefaultPaymentMethodLT(v string) predicate.BillingAccount {
-	return predicate.BillingAccount(sql.FieldLT(FieldDefaultPaymentMethod, v))
+// AutoTopupPendingKeyLT applies the LT predicate on the "auto_topup_pending_key" field.
+func AutoTopupPendingKeyLT(v string) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldLT(FieldAutoTopupPendingKey, v))
 }
 
-// DefaultPaymentMethodLTE applies the LTE predicate on the "default_payment_method" field.
-func DefaultPaymentMethodLTE(v string) predicate.BillingAccount {
-	return predicate.BillingAccount(sql.FieldLTE(FieldDefaultPaymentMethod, v))
+// AutoTopupPendingKeyLTE applies the LTE predicate on the "auto_topup_pending_key" field.
+func AutoTopupPendingKeyLTE(v string) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldLTE(FieldAutoTopupPendingKey, v))
 }
 
-// DefaultPaymentMethodContains applies the Contains predicate on the "default_payment_method" field.
-func DefaultPaymentMethodContains(v string) predicate.BillingAccount {
-	return predicate.BillingAccount(sql.FieldContains(FieldDefaultPaymentMethod, v))
+// AutoTopupPendingKeyContains applies the Contains predicate on the "auto_topup_pending_key" field.
+func AutoTopupPendingKeyContains(v string) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldContains(FieldAutoTopupPendingKey, v))
 }
 
-// DefaultPaymentMethodHasPrefix applies the HasPrefix predicate on the "default_payment_method" field.
-func DefaultPaymentMethodHasPrefix(v string) predicate.BillingAccount {
-	return predicate.BillingAccount(sql.FieldHasPrefix(FieldDefaultPaymentMethod, v))
+// AutoTopupPendingKeyHasPrefix applies the HasPrefix predicate on the "auto_topup_pending_key" field.
+func AutoTopupPendingKeyHasPrefix(v string) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldHasPrefix(FieldAutoTopupPendingKey, v))
 }
 
-// DefaultPaymentMethodHasSuffix applies the HasSuffix predicate on the "default_payment_method" field.
-func DefaultPaymentMethodHasSuffix(v string) predicate.BillingAccount {
-	return predicate.BillingAccount(sql.FieldHasSuffix(FieldDefaultPaymentMethod, v))
+// AutoTopupPendingKeyHasSuffix applies the HasSuffix predicate on the "auto_topup_pending_key" field.
+func AutoTopupPendingKeyHasSuffix(v string) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldHasSuffix(FieldAutoTopupPendingKey, v))
 }
 
-// DefaultPaymentMethodIsNil applies the IsNil predicate on the "default_payment_method" field.
-func DefaultPaymentMethodIsNil() predicate.BillingAccount {
-	return predicate.BillingAccount(sql.FieldIsNull(FieldDefaultPaymentMethod))
+// AutoTopupPendingKeyIsNil applies the IsNil predicate on the "auto_topup_pending_key" field.
+func AutoTopupPendingKeyIsNil() predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldIsNull(FieldAutoTopupPendingKey))
 }
 
-// DefaultPaymentMethodNotNil applies the NotNil predicate on the "default_payment_method" field.
-func DefaultPaymentMethodNotNil() predicate.BillingAccount {
-	return predicate.BillingAccount(sql.FieldNotNull(FieldDefaultPaymentMethod))
+// AutoTopupPendingKeyNotNil applies the NotNil predicate on the "auto_topup_pending_key" field.
+func AutoTopupPendingKeyNotNil() predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldNotNull(FieldAutoTopupPendingKey))
 }
 
-// DefaultPaymentMethodEqualFold applies the EqualFold predicate on the "default_payment_method" field.
-func DefaultPaymentMethodEqualFold(v string) predicate.BillingAccount {
-	return predicate.BillingAccount(sql.FieldEqualFold(FieldDefaultPaymentMethod, v))
+// AutoTopupPendingKeyEqualFold applies the EqualFold predicate on the "auto_topup_pending_key" field.
+func AutoTopupPendingKeyEqualFold(v string) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldEqualFold(FieldAutoTopupPendingKey, v))
 }
 
-// DefaultPaymentMethodContainsFold applies the ContainsFold predicate on the "default_payment_method" field.
-func DefaultPaymentMethodContainsFold(v string) predicate.BillingAccount {
-	return predicate.BillingAccount(sql.FieldContainsFold(FieldDefaultPaymentMethod, v))
+// AutoTopupPendingKeyContainsFold applies the ContainsFold predicate on the "auto_topup_pending_key" field.
+func AutoTopupPendingKeyContainsFold(v string) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldContainsFold(FieldAutoTopupPendingKey, v))
+}
+
+// AutoTopupPendingAtEQ applies the EQ predicate on the "auto_topup_pending_at" field.
+func AutoTopupPendingAtEQ(v time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldEQ(FieldAutoTopupPendingAt, v))
+}
+
+// AutoTopupPendingAtNEQ applies the NEQ predicate on the "auto_topup_pending_at" field.
+func AutoTopupPendingAtNEQ(v time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldNEQ(FieldAutoTopupPendingAt, v))
+}
+
+// AutoTopupPendingAtIn applies the In predicate on the "auto_topup_pending_at" field.
+func AutoTopupPendingAtIn(vs ...time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldIn(FieldAutoTopupPendingAt, vs...))
+}
+
+// AutoTopupPendingAtNotIn applies the NotIn predicate on the "auto_topup_pending_at" field.
+func AutoTopupPendingAtNotIn(vs ...time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldNotIn(FieldAutoTopupPendingAt, vs...))
+}
+
+// AutoTopupPendingAtGT applies the GT predicate on the "auto_topup_pending_at" field.
+func AutoTopupPendingAtGT(v time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldGT(FieldAutoTopupPendingAt, v))
+}
+
+// AutoTopupPendingAtGTE applies the GTE predicate on the "auto_topup_pending_at" field.
+func AutoTopupPendingAtGTE(v time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldGTE(FieldAutoTopupPendingAt, v))
+}
+
+// AutoTopupPendingAtLT applies the LT predicate on the "auto_topup_pending_at" field.
+func AutoTopupPendingAtLT(v time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldLT(FieldAutoTopupPendingAt, v))
+}
+
+// AutoTopupPendingAtLTE applies the LTE predicate on the "auto_topup_pending_at" field.
+func AutoTopupPendingAtLTE(v time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldLTE(FieldAutoTopupPendingAt, v))
+}
+
+// AutoTopupPendingAtIsNil applies the IsNil predicate on the "auto_topup_pending_at" field.
+func AutoTopupPendingAtIsNil() predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldIsNull(FieldAutoTopupPendingAt))
+}
+
+// AutoTopupPendingAtNotNil applies the NotNil predicate on the "auto_topup_pending_at" field.
+func AutoTopupPendingAtNotNil() predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldNotNull(FieldAutoTopupPendingAt))
+}
+
+// AutoTopupPendingAmountMicrosEQ applies the EQ predicate on the "auto_topup_pending_amount_micros" field.
+func AutoTopupPendingAmountMicrosEQ(v int64) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldEQ(FieldAutoTopupPendingAmountMicros, v))
+}
+
+// AutoTopupPendingAmountMicrosNEQ applies the NEQ predicate on the "auto_topup_pending_amount_micros" field.
+func AutoTopupPendingAmountMicrosNEQ(v int64) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldNEQ(FieldAutoTopupPendingAmountMicros, v))
+}
+
+// AutoTopupPendingAmountMicrosIn applies the In predicate on the "auto_topup_pending_amount_micros" field.
+func AutoTopupPendingAmountMicrosIn(vs ...int64) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldIn(FieldAutoTopupPendingAmountMicros, vs...))
+}
+
+// AutoTopupPendingAmountMicrosNotIn applies the NotIn predicate on the "auto_topup_pending_amount_micros" field.
+func AutoTopupPendingAmountMicrosNotIn(vs ...int64) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldNotIn(FieldAutoTopupPendingAmountMicros, vs...))
+}
+
+// AutoTopupPendingAmountMicrosGT applies the GT predicate on the "auto_topup_pending_amount_micros" field.
+func AutoTopupPendingAmountMicrosGT(v int64) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldGT(FieldAutoTopupPendingAmountMicros, v))
+}
+
+// AutoTopupPendingAmountMicrosGTE applies the GTE predicate on the "auto_topup_pending_amount_micros" field.
+func AutoTopupPendingAmountMicrosGTE(v int64) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldGTE(FieldAutoTopupPendingAmountMicros, v))
+}
+
+// AutoTopupPendingAmountMicrosLT applies the LT predicate on the "auto_topup_pending_amount_micros" field.
+func AutoTopupPendingAmountMicrosLT(v int64) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldLT(FieldAutoTopupPendingAmountMicros, v))
+}
+
+// AutoTopupPendingAmountMicrosLTE applies the LTE predicate on the "auto_topup_pending_amount_micros" field.
+func AutoTopupPendingAmountMicrosLTE(v int64) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldLTE(FieldAutoTopupPendingAmountMicros, v))
+}
+
+// AutoTopupPendingAmountMicrosIsNil applies the IsNil predicate on the "auto_topup_pending_amount_micros" field.
+func AutoTopupPendingAmountMicrosIsNil() predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldIsNull(FieldAutoTopupPendingAmountMicros))
+}
+
+// AutoTopupPendingAmountMicrosNotNil applies the NotNil predicate on the "auto_topup_pending_amount_micros" field.
+func AutoTopupPendingAmountMicrosNotNil() predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldNotNull(FieldAutoTopupPendingAmountMicros))
+}
+
+// AutoTopupRetryAfterEQ applies the EQ predicate on the "auto_topup_retry_after" field.
+func AutoTopupRetryAfterEQ(v time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldEQ(FieldAutoTopupRetryAfter, v))
+}
+
+// AutoTopupRetryAfterNEQ applies the NEQ predicate on the "auto_topup_retry_after" field.
+func AutoTopupRetryAfterNEQ(v time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldNEQ(FieldAutoTopupRetryAfter, v))
+}
+
+// AutoTopupRetryAfterIn applies the In predicate on the "auto_topup_retry_after" field.
+func AutoTopupRetryAfterIn(vs ...time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldIn(FieldAutoTopupRetryAfter, vs...))
+}
+
+// AutoTopupRetryAfterNotIn applies the NotIn predicate on the "auto_topup_retry_after" field.
+func AutoTopupRetryAfterNotIn(vs ...time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldNotIn(FieldAutoTopupRetryAfter, vs...))
+}
+
+// AutoTopupRetryAfterGT applies the GT predicate on the "auto_topup_retry_after" field.
+func AutoTopupRetryAfterGT(v time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldGT(FieldAutoTopupRetryAfter, v))
+}
+
+// AutoTopupRetryAfterGTE applies the GTE predicate on the "auto_topup_retry_after" field.
+func AutoTopupRetryAfterGTE(v time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldGTE(FieldAutoTopupRetryAfter, v))
+}
+
+// AutoTopupRetryAfterLT applies the LT predicate on the "auto_topup_retry_after" field.
+func AutoTopupRetryAfterLT(v time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldLT(FieldAutoTopupRetryAfter, v))
+}
+
+// AutoTopupRetryAfterLTE applies the LTE predicate on the "auto_topup_retry_after" field.
+func AutoTopupRetryAfterLTE(v time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldLTE(FieldAutoTopupRetryAfter, v))
+}
+
+// AutoTopupRetryAfterIsNil applies the IsNil predicate on the "auto_topup_retry_after" field.
+func AutoTopupRetryAfterIsNil() predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldIsNull(FieldAutoTopupRetryAfter))
+}
+
+// AutoTopupRetryAfterNotNil applies the NotNil predicate on the "auto_topup_retry_after" field.
+func AutoTopupRetryAfterNotNil() predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldNotNull(FieldAutoTopupRetryAfter))
+}
+
+// AutoTopupLastErrorEQ applies the EQ predicate on the "auto_topup_last_error" field.
+func AutoTopupLastErrorEQ(v string) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldEQ(FieldAutoTopupLastError, v))
+}
+
+// AutoTopupLastErrorNEQ applies the NEQ predicate on the "auto_topup_last_error" field.
+func AutoTopupLastErrorNEQ(v string) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldNEQ(FieldAutoTopupLastError, v))
+}
+
+// AutoTopupLastErrorIn applies the In predicate on the "auto_topup_last_error" field.
+func AutoTopupLastErrorIn(vs ...string) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldIn(FieldAutoTopupLastError, vs...))
+}
+
+// AutoTopupLastErrorNotIn applies the NotIn predicate on the "auto_topup_last_error" field.
+func AutoTopupLastErrorNotIn(vs ...string) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldNotIn(FieldAutoTopupLastError, vs...))
+}
+
+// AutoTopupLastErrorGT applies the GT predicate on the "auto_topup_last_error" field.
+func AutoTopupLastErrorGT(v string) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldGT(FieldAutoTopupLastError, v))
+}
+
+// AutoTopupLastErrorGTE applies the GTE predicate on the "auto_topup_last_error" field.
+func AutoTopupLastErrorGTE(v string) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldGTE(FieldAutoTopupLastError, v))
+}
+
+// AutoTopupLastErrorLT applies the LT predicate on the "auto_topup_last_error" field.
+func AutoTopupLastErrorLT(v string) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldLT(FieldAutoTopupLastError, v))
+}
+
+// AutoTopupLastErrorLTE applies the LTE predicate on the "auto_topup_last_error" field.
+func AutoTopupLastErrorLTE(v string) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldLTE(FieldAutoTopupLastError, v))
+}
+
+// AutoTopupLastErrorContains applies the Contains predicate on the "auto_topup_last_error" field.
+func AutoTopupLastErrorContains(v string) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldContains(FieldAutoTopupLastError, v))
+}
+
+// AutoTopupLastErrorHasPrefix applies the HasPrefix predicate on the "auto_topup_last_error" field.
+func AutoTopupLastErrorHasPrefix(v string) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldHasPrefix(FieldAutoTopupLastError, v))
+}
+
+// AutoTopupLastErrorHasSuffix applies the HasSuffix predicate on the "auto_topup_last_error" field.
+func AutoTopupLastErrorHasSuffix(v string) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldHasSuffix(FieldAutoTopupLastError, v))
+}
+
+// AutoTopupLastErrorEqualFold applies the EqualFold predicate on the "auto_topup_last_error" field.
+func AutoTopupLastErrorEqualFold(v string) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldEqualFold(FieldAutoTopupLastError, v))
+}
+
+// AutoTopupLastErrorContainsFold applies the ContainsFold predicate on the "auto_topup_last_error" field.
+func AutoTopupLastErrorContainsFold(v string) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldContainsFold(FieldAutoTopupLastError, v))
 }
 
 // BillingEmailEQ applies the EQ predicate on the "billing_email" field.

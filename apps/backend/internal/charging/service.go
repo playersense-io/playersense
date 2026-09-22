@@ -12,7 +12,8 @@ import (
 	"playersense.dev/backend/internal/valkey"
 )
 
-// Service runs the charger: the bus subscription, the drain and the prune, as one component.
+// Service runs the charger: the bus subscription, the drain, automatic top-up and the prune, as one
+// component.
 //
 // The three are independent loops on purpose. The subscription is paced by traffic, the drain by a
 // clock, and the prune by the calendar; a slow drain must not hold back counting, and a burst of
@@ -43,6 +44,13 @@ type Service struct {
 
 	// PruneEvery is how often last-but-one month's player set is removed.
 	PruneEvery time.Duration
+
+	// TopUp charges saved cards for balances below their threshold (payments.AutoTopUp). An
+	// interface so charging does not import the payment provider; nil runs without it.
+	TopUp interface {
+		Run(context.Context) (int, error)
+	}
+	TopUpEvery time.Duration
 
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
@@ -76,7 +84,7 @@ func (s *Service) Start(startup context.Context) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	s.cancel = cancel
 
-	s.wg.Add(3)
+	s.wg.Add(4)
 	go func() {
 		defer s.wg.Done()
 		if err := s.Bus.Subscribe(ctx, eventbus.GroupBillingWriter, s.Accruer.Handle); err != nil && ctx.Err() == nil {
@@ -88,6 +96,18 @@ func (s *Service) Start(startup context.Context) error {
 		s.every(ctx, s.DrainEvery, func(ctx context.Context) {
 			if _, err := s.Drainer.Run(ctx); err != nil && ctx.Err() == nil {
 				s.log().Warn("a drain pass left charges queued", "error", err)
+			}
+		})
+	}()
+	go func() {
+		defer s.wg.Done()
+		if s.TopUp == nil || s.TopUpEvery <= 0 {
+			return
+		}
+		s.every(ctx, s.TopUpEvery, func(ctx context.Context) {
+			if _, err := s.TopUp.Run(ctx); err != nil && ctx.Err() == nil {
+				s.log().Warn("an automatic top-up pass did not finish; claims are kept and retried",
+					"error", err)
 			}
 		})
 	}()

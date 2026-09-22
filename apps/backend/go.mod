@@ -10,8 +10,10 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.11.0
 	github.com/klauspost/compress v1.19.2
+	github.com/oschwald/maxminddb-golang/v2 v2.6.0
 	github.com/parquet-go/parquet-go v0.32.0
 	github.com/pressly/goose/v3 v3.28.0
+	github.com/stripe/stripe-go/v85 v85.1.0
 	github.com/valkey-io/valkey-go v1.0.77
 	golang.org/x/crypto v0.57.0
 	muzak.dev/framework v0.2.7
@@ -56,7 +58,6 @@ require (
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/mfridman/interpolate v0.0.2 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
-	github.com/oschwald/maxminddb-golang/v2 v2.6.0 // indirect
 	github.com/parquet-go/bitpack v1.0.0 // indirect
 	github.com/parquet-go/jsonlite v1.0.0 // indirect
 	github.com/paulmach/orb v0.13.0 // indirect

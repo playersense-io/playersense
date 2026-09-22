@@ -4086,55 +4086,60 @@ func (m *BillablePlayerMutation) ResetEdge(name string) error {
 // BillingAccountMutation represents an operation that mutates the BillingAccount nodes in the graph.
 type BillingAccountMutation struct {
 	config
-	op                             Op
-	typ                            string
-	id                             *int
-	uid                            *uuid.UUID
-	created_at                     *time.Time
-	updated_at                     *time.Time
-	stripe_customer_id             *string
-	stripe_subscription_id         *string
-	state                          *billingaccount.State
-	state_changed_at               *time.Time
-	currency                       *string
-	balance_micros                 *int64
-	addbalance_micros              *int64
-	arrears_micros                 *int64
-	addarrears_micros              *int64
-	auto_topup_enabled             *bool
-	auto_topup_threshold_micros    *int64
-	addauto_topup_threshold_micros *int64
-	auto_topup_amount_micros       *int64
-	addauto_topup_amount_micros    *int64
-	default_payment_method         *string
-	billing_email                  *string
-	entitlement_overrides          *map[string]int64
-	clearedFields                  map[string]struct{}
-	organization                   *int
-	clearedorganization            bool
-	plan                           *int
-	clearedplan                    bool
-	ledger_entries                 map[int]struct{}
-	removedledger_entries          map[int]struct{}
-	clearedledger_entries          bool
-	credit_lots                    map[int]struct{}
-	removedcredit_lots             map[int]struct{}
-	clearedcredit_lots             bool
-	periods                        map[int]struct{}
-	removedperiods                 map[int]struct{}
-	clearedperiods                 bool
-	stripe_events                  map[int]struct{}
-	removedstripe_events           map[int]struct{}
-	clearedstripe_events           bool
-	monthly_usage                  map[int]struct{}
-	removedmonthly_usage           map[int]struct{}
-	clearedmonthly_usage           bool
-	usage_charges                  map[int]struct{}
-	removedusage_charges           map[int]struct{}
-	clearedusage_charges           bool
-	done                           bool
-	oldValue                       func(context.Context) (*BillingAccount, error)
-	predicates                     []predicate.BillingAccount
+	op                                  Op
+	typ                                 string
+	id                                  *int
+	uid                                 *uuid.UUID
+	created_at                          *time.Time
+	updated_at                          *time.Time
+	stripe_customer_id                  *string
+	stripe_subscription_id              *string
+	state                               *billingaccount.State
+	state_changed_at                    *time.Time
+	currency                            *string
+	balance_micros                      *int64
+	addbalance_micros                   *int64
+	arrears_micros                      *int64
+	addarrears_micros                   *int64
+	auto_topup_enabled                  *bool
+	auto_topup_threshold_micros         *int64
+	addauto_topup_threshold_micros      *int64
+	auto_topup_amount_micros            *int64
+	addauto_topup_amount_micros         *int64
+	auto_topup_pending_key              *string
+	auto_topup_pending_at               *time.Time
+	auto_topup_pending_amount_micros    *int64
+	addauto_topup_pending_amount_micros *int64
+	auto_topup_retry_after              *time.Time
+	auto_topup_last_error               *string
+	billing_email                       *string
+	entitlement_overrides               *map[string]int64
+	clearedFields                       map[string]struct{}
+	organization                        *int
+	clearedorganization                 bool
+	plan                                *int
+	clearedplan                         bool
+	ledger_entries                      map[int]struct{}
+	removedledger_entries               map[int]struct{}
+	clearedledger_entries               bool
+	credit_lots                         map[int]struct{}
+	removedcredit_lots                  map[int]struct{}
+	clearedcredit_lots                  bool
+	periods                             map[int]struct{}
+	removedperiods                      map[int]struct{}
+	clearedperiods                      bool
+	stripe_events                       map[int]struct{}
+	removedstripe_events                map[int]struct{}
+	clearedstripe_events                bool
+	monthly_usage                       map[int]struct{}
+	removedmonthly_usage                map[int]struct{}
+	clearedmonthly_usage                bool
+	usage_charges                       map[int]struct{}
+	removedusage_charges                map[int]struct{}
+	clearedusage_charges                bool
+	done                                bool
+	oldValue                            func(context.Context) (*BillingAccount, error)
+	predicates                          []predicate.BillingAccount
 }
 
 var _ ent.Mutation = (*BillingAccountMutation)(nil)
@@ -4887,53 +4892,257 @@ func (m *BillingAccountMutation) ResetAutoTopupAmountMicros() {
 	m.addauto_topup_amount_micros = nil
 }
 
-// SetDefaultPaymentMethod sets the "default_payment_method" field.
-func (m *BillingAccountMutation) SetDefaultPaymentMethod(s string) {
-	m.default_payment_method = &s
+// SetAutoTopupPendingKey sets the "auto_topup_pending_key" field.
+func (m *BillingAccountMutation) SetAutoTopupPendingKey(s string) {
+	m.auto_topup_pending_key = &s
 }
 
-// DefaultPaymentMethod returns the value of the "default_payment_method" field in the mutation.
-func (m *BillingAccountMutation) DefaultPaymentMethod() (r string, exists bool) {
-	v := m.default_payment_method
+// AutoTopupPendingKey returns the value of the "auto_topup_pending_key" field in the mutation.
+func (m *BillingAccountMutation) AutoTopupPendingKey() (r string, exists bool) {
+	v := m.auto_topup_pending_key
 	if v == nil {
 		return
 	}
 	return *v, true
 }
 
-// OldDefaultPaymentMethod returns the old "default_payment_method" field's value of the BillingAccount entity.
+// OldAutoTopupPendingKey returns the old "auto_topup_pending_key" field's value of the BillingAccount entity.
 // If the BillingAccount object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *BillingAccountMutation) OldDefaultPaymentMethod(ctx context.Context) (v *string, err error) {
+func (m *BillingAccountMutation) OldAutoTopupPendingKey(ctx context.Context) (v *string, err error) {
 	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldDefaultPaymentMethod is only allowed on UpdateOne operations")
+		return v, errors.New("OldAutoTopupPendingKey is only allowed on UpdateOne operations")
 	}
 	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldDefaultPaymentMethod requires an ID field in the mutation")
+		return v, errors.New("OldAutoTopupPendingKey requires an ID field in the mutation")
 	}
 	oldValue, err := m.oldValue(ctx)
 	if err != nil {
-		return v, fmt.Errorf("querying old value for OldDefaultPaymentMethod: %w", err)
+		return v, fmt.Errorf("querying old value for OldAutoTopupPendingKey: %w", err)
 	}
-	return oldValue.DefaultPaymentMethod, nil
+	return oldValue.AutoTopupPendingKey, nil
 }
 
-// ClearDefaultPaymentMethod clears the value of the "default_payment_method" field.
-func (m *BillingAccountMutation) ClearDefaultPaymentMethod() {
-	m.default_payment_method = nil
-	m.clearedFields[billingaccount.FieldDefaultPaymentMethod] = struct{}{}
+// ClearAutoTopupPendingKey clears the value of the "auto_topup_pending_key" field.
+func (m *BillingAccountMutation) ClearAutoTopupPendingKey() {
+	m.auto_topup_pending_key = nil
+	m.clearedFields[billingaccount.FieldAutoTopupPendingKey] = struct{}{}
 }
 
-// DefaultPaymentMethodCleared returns if the "default_payment_method" field was cleared in this mutation.
-func (m *BillingAccountMutation) DefaultPaymentMethodCleared() bool {
-	_, ok := m.clearedFields[billingaccount.FieldDefaultPaymentMethod]
+// AutoTopupPendingKeyCleared returns if the "auto_topup_pending_key" field was cleared in this mutation.
+func (m *BillingAccountMutation) AutoTopupPendingKeyCleared() bool {
+	_, ok := m.clearedFields[billingaccount.FieldAutoTopupPendingKey]
 	return ok
 }
 
-// ResetDefaultPaymentMethod resets all changes to the "default_payment_method" field.
-func (m *BillingAccountMutation) ResetDefaultPaymentMethod() {
-	m.default_payment_method = nil
-	delete(m.clearedFields, billingaccount.FieldDefaultPaymentMethod)
+// ResetAutoTopupPendingKey resets all changes to the "auto_topup_pending_key" field.
+func (m *BillingAccountMutation) ResetAutoTopupPendingKey() {
+	m.auto_topup_pending_key = nil
+	delete(m.clearedFields, billingaccount.FieldAutoTopupPendingKey)
+}
+
+// SetAutoTopupPendingAt sets the "auto_topup_pending_at" field.
+func (m *BillingAccountMutation) SetAutoTopupPendingAt(t time.Time) {
+	m.auto_topup_pending_at = &t
+}
+
+// AutoTopupPendingAt returns the value of the "auto_topup_pending_at" field in the mutation.
+func (m *BillingAccountMutation) AutoTopupPendingAt() (r time.Time, exists bool) {
+	v := m.auto_topup_pending_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAutoTopupPendingAt returns the old "auto_topup_pending_at" field's value of the BillingAccount entity.
+// If the BillingAccount object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BillingAccountMutation) OldAutoTopupPendingAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAutoTopupPendingAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAutoTopupPendingAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAutoTopupPendingAt: %w", err)
+	}
+	return oldValue.AutoTopupPendingAt, nil
+}
+
+// ClearAutoTopupPendingAt clears the value of the "auto_topup_pending_at" field.
+func (m *BillingAccountMutation) ClearAutoTopupPendingAt() {
+	m.auto_topup_pending_at = nil
+	m.clearedFields[billingaccount.FieldAutoTopupPendingAt] = struct{}{}
+}
+
+// AutoTopupPendingAtCleared returns if the "auto_topup_pending_at" field was cleared in this mutation.
+func (m *BillingAccountMutation) AutoTopupPendingAtCleared() bool {
+	_, ok := m.clearedFields[billingaccount.FieldAutoTopupPendingAt]
+	return ok
+}
+
+// ResetAutoTopupPendingAt resets all changes to the "auto_topup_pending_at" field.
+func (m *BillingAccountMutation) ResetAutoTopupPendingAt() {
+	m.auto_topup_pending_at = nil
+	delete(m.clearedFields, billingaccount.FieldAutoTopupPendingAt)
+}
+
+// SetAutoTopupPendingAmountMicros sets the "auto_topup_pending_amount_micros" field.
+func (m *BillingAccountMutation) SetAutoTopupPendingAmountMicros(i int64) {
+	m.auto_topup_pending_amount_micros = &i
+	m.addauto_topup_pending_amount_micros = nil
+}
+
+// AutoTopupPendingAmountMicros returns the value of the "auto_topup_pending_amount_micros" field in the mutation.
+func (m *BillingAccountMutation) AutoTopupPendingAmountMicros() (r int64, exists bool) {
+	v := m.auto_topup_pending_amount_micros
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAutoTopupPendingAmountMicros returns the old "auto_topup_pending_amount_micros" field's value of the BillingAccount entity.
+// If the BillingAccount object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BillingAccountMutation) OldAutoTopupPendingAmountMicros(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAutoTopupPendingAmountMicros is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAutoTopupPendingAmountMicros requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAutoTopupPendingAmountMicros: %w", err)
+	}
+	return oldValue.AutoTopupPendingAmountMicros, nil
+}
+
+// AddAutoTopupPendingAmountMicros adds i to the "auto_topup_pending_amount_micros" field.
+func (m *BillingAccountMutation) AddAutoTopupPendingAmountMicros(i int64) {
+	if m.addauto_topup_pending_amount_micros != nil {
+		*m.addauto_topup_pending_amount_micros += i
+	} else {
+		m.addauto_topup_pending_amount_micros = &i
+	}
+}
+
+// AddedAutoTopupPendingAmountMicros returns the value that was added to the "auto_topup_pending_amount_micros" field in this mutation.
+func (m *BillingAccountMutation) AddedAutoTopupPendingAmountMicros() (r int64, exists bool) {
+	v := m.addauto_topup_pending_amount_micros
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearAutoTopupPendingAmountMicros clears the value of the "auto_topup_pending_amount_micros" field.
+func (m *BillingAccountMutation) ClearAutoTopupPendingAmountMicros() {
+	m.auto_topup_pending_amount_micros = nil
+	m.addauto_topup_pending_amount_micros = nil
+	m.clearedFields[billingaccount.FieldAutoTopupPendingAmountMicros] = struct{}{}
+}
+
+// AutoTopupPendingAmountMicrosCleared returns if the "auto_topup_pending_amount_micros" field was cleared in this mutation.
+func (m *BillingAccountMutation) AutoTopupPendingAmountMicrosCleared() bool {
+	_, ok := m.clearedFields[billingaccount.FieldAutoTopupPendingAmountMicros]
+	return ok
+}
+
+// ResetAutoTopupPendingAmountMicros resets all changes to the "auto_topup_pending_amount_micros" field.
+func (m *BillingAccountMutation) ResetAutoTopupPendingAmountMicros() {
+	m.auto_topup_pending_amount_micros = nil
+	m.addauto_topup_pending_amount_micros = nil
+	delete(m.clearedFields, billingaccount.FieldAutoTopupPendingAmountMicros)
+}
+
+// SetAutoTopupRetryAfter sets the "auto_topup_retry_after" field.
+func (m *BillingAccountMutation) SetAutoTopupRetryAfter(t time.Time) {
+	m.auto_topup_retry_after = &t
+}
+
+// AutoTopupRetryAfter returns the value of the "auto_topup_retry_after" field in the mutation.
+func (m *BillingAccountMutation) AutoTopupRetryAfter() (r time.Time, exists bool) {
+	v := m.auto_topup_retry_after
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAutoTopupRetryAfter returns the old "auto_topup_retry_after" field's value of the BillingAccount entity.
+// If the BillingAccount object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BillingAccountMutation) OldAutoTopupRetryAfter(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAutoTopupRetryAfter is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAutoTopupRetryAfter requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAutoTopupRetryAfter: %w", err)
+	}
+	return oldValue.AutoTopupRetryAfter, nil
+}
+
+// ClearAutoTopupRetryAfter clears the value of the "auto_topup_retry_after" field.
+func (m *BillingAccountMutation) ClearAutoTopupRetryAfter() {
+	m.auto_topup_retry_after = nil
+	m.clearedFields[billingaccount.FieldAutoTopupRetryAfter] = struct{}{}
+}
+
+// AutoTopupRetryAfterCleared returns if the "auto_topup_retry_after" field was cleared in this mutation.
+func (m *BillingAccountMutation) AutoTopupRetryAfterCleared() bool {
+	_, ok := m.clearedFields[billingaccount.FieldAutoTopupRetryAfter]
+	return ok
+}
+
+// ResetAutoTopupRetryAfter resets all changes to the "auto_topup_retry_after" field.
+func (m *BillingAccountMutation) ResetAutoTopupRetryAfter() {
+	m.auto_topup_retry_after = nil
+	delete(m.clearedFields, billingaccount.FieldAutoTopupRetryAfter)
+}
+
+// SetAutoTopupLastError sets the "auto_topup_last_error" field.
+func (m *BillingAccountMutation) SetAutoTopupLastError(s string) {
+	m.auto_topup_last_error = &s
+}
+
+// AutoTopupLastError returns the value of the "auto_topup_last_error" field in the mutation.
+func (m *BillingAccountMutation) AutoTopupLastError() (r string, exists bool) {
+	v := m.auto_topup_last_error
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAutoTopupLastError returns the old "auto_topup_last_error" field's value of the BillingAccount entity.
+// If the BillingAccount object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BillingAccountMutation) OldAutoTopupLastError(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAutoTopupLastError is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAutoTopupLastError requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAutoTopupLastError: %w", err)
+	}
+	return oldValue.AutoTopupLastError, nil
+}
+
+// ResetAutoTopupLastError resets all changes to the "auto_topup_last_error" field.
+func (m *BillingAccountMutation) ResetAutoTopupLastError() {
+	m.auto_topup_last_error = nil
 }
 
 // SetBillingEmail sets the "billing_email" field.
@@ -5433,7 +5642,7 @@ func (m *BillingAccountMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *BillingAccountMutation) Fields() []string {
-	fields := make([]string, 0, 18)
+	fields := make([]string, 0, 22)
 	if m.uid != nil {
 		fields = append(fields, billingaccount.FieldUID)
 	}
@@ -5479,8 +5688,20 @@ func (m *BillingAccountMutation) Fields() []string {
 	if m.auto_topup_amount_micros != nil {
 		fields = append(fields, billingaccount.FieldAutoTopupAmountMicros)
 	}
-	if m.default_payment_method != nil {
-		fields = append(fields, billingaccount.FieldDefaultPaymentMethod)
+	if m.auto_topup_pending_key != nil {
+		fields = append(fields, billingaccount.FieldAutoTopupPendingKey)
+	}
+	if m.auto_topup_pending_at != nil {
+		fields = append(fields, billingaccount.FieldAutoTopupPendingAt)
+	}
+	if m.auto_topup_pending_amount_micros != nil {
+		fields = append(fields, billingaccount.FieldAutoTopupPendingAmountMicros)
+	}
+	if m.auto_topup_retry_after != nil {
+		fields = append(fields, billingaccount.FieldAutoTopupRetryAfter)
+	}
+	if m.auto_topup_last_error != nil {
+		fields = append(fields, billingaccount.FieldAutoTopupLastError)
 	}
 	if m.billing_email != nil {
 		fields = append(fields, billingaccount.FieldBillingEmail)
@@ -5526,8 +5747,16 @@ func (m *BillingAccountMutation) Field(name string) (ent.Value, bool) {
 		return m.AutoTopupThresholdMicros()
 	case billingaccount.FieldAutoTopupAmountMicros:
 		return m.AutoTopupAmountMicros()
-	case billingaccount.FieldDefaultPaymentMethod:
-		return m.DefaultPaymentMethod()
+	case billingaccount.FieldAutoTopupPendingKey:
+		return m.AutoTopupPendingKey()
+	case billingaccount.FieldAutoTopupPendingAt:
+		return m.AutoTopupPendingAt()
+	case billingaccount.FieldAutoTopupPendingAmountMicros:
+		return m.AutoTopupPendingAmountMicros()
+	case billingaccount.FieldAutoTopupRetryAfter:
+		return m.AutoTopupRetryAfter()
+	case billingaccount.FieldAutoTopupLastError:
+		return m.AutoTopupLastError()
 	case billingaccount.FieldBillingEmail:
 		return m.BillingEmail()
 	case billingaccount.FieldEntitlementOverrides:
@@ -5571,8 +5800,16 @@ func (m *BillingAccountMutation) OldField(ctx context.Context, name string) (ent
 		return m.OldAutoTopupThresholdMicros(ctx)
 	case billingaccount.FieldAutoTopupAmountMicros:
 		return m.OldAutoTopupAmountMicros(ctx)
-	case billingaccount.FieldDefaultPaymentMethod:
-		return m.OldDefaultPaymentMethod(ctx)
+	case billingaccount.FieldAutoTopupPendingKey:
+		return m.OldAutoTopupPendingKey(ctx)
+	case billingaccount.FieldAutoTopupPendingAt:
+		return m.OldAutoTopupPendingAt(ctx)
+	case billingaccount.FieldAutoTopupPendingAmountMicros:
+		return m.OldAutoTopupPendingAmountMicros(ctx)
+	case billingaccount.FieldAutoTopupRetryAfter:
+		return m.OldAutoTopupRetryAfter(ctx)
+	case billingaccount.FieldAutoTopupLastError:
+		return m.OldAutoTopupLastError(ctx)
 	case billingaccount.FieldBillingEmail:
 		return m.OldBillingEmail(ctx)
 	case billingaccount.FieldEntitlementOverrides:
@@ -5691,12 +5928,40 @@ func (m *BillingAccountMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetAutoTopupAmountMicros(v)
 		return nil
-	case billingaccount.FieldDefaultPaymentMethod:
+	case billingaccount.FieldAutoTopupPendingKey:
 		v, ok := value.(string)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
-		m.SetDefaultPaymentMethod(v)
+		m.SetAutoTopupPendingKey(v)
+		return nil
+	case billingaccount.FieldAutoTopupPendingAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAutoTopupPendingAt(v)
+		return nil
+	case billingaccount.FieldAutoTopupPendingAmountMicros:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAutoTopupPendingAmountMicros(v)
+		return nil
+	case billingaccount.FieldAutoTopupRetryAfter:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAutoTopupRetryAfter(v)
+		return nil
+	case billingaccount.FieldAutoTopupLastError:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAutoTopupLastError(v)
 		return nil
 	case billingaccount.FieldBillingEmail:
 		v, ok := value.(string)
@@ -5732,6 +5997,9 @@ func (m *BillingAccountMutation) AddedFields() []string {
 	if m.addauto_topup_amount_micros != nil {
 		fields = append(fields, billingaccount.FieldAutoTopupAmountMicros)
 	}
+	if m.addauto_topup_pending_amount_micros != nil {
+		fields = append(fields, billingaccount.FieldAutoTopupPendingAmountMicros)
+	}
 	return fields
 }
 
@@ -5748,6 +6016,8 @@ func (m *BillingAccountMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedAutoTopupThresholdMicros()
 	case billingaccount.FieldAutoTopupAmountMicros:
 		return m.AddedAutoTopupAmountMicros()
+	case billingaccount.FieldAutoTopupPendingAmountMicros:
+		return m.AddedAutoTopupPendingAmountMicros()
 	}
 	return nil, false
 }
@@ -5785,6 +6055,13 @@ func (m *BillingAccountMutation) AddField(name string, value ent.Value) error {
 		}
 		m.AddAutoTopupAmountMicros(v)
 		return nil
+	case billingaccount.FieldAutoTopupPendingAmountMicros:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAutoTopupPendingAmountMicros(v)
+		return nil
 	}
 	return fmt.Errorf("unknown BillingAccount numeric field %s", name)
 }
@@ -5799,8 +6076,17 @@ func (m *BillingAccountMutation) ClearedFields() []string {
 	if m.FieldCleared(billingaccount.FieldStripeSubscriptionID) {
 		fields = append(fields, billingaccount.FieldStripeSubscriptionID)
 	}
-	if m.FieldCleared(billingaccount.FieldDefaultPaymentMethod) {
-		fields = append(fields, billingaccount.FieldDefaultPaymentMethod)
+	if m.FieldCleared(billingaccount.FieldAutoTopupPendingKey) {
+		fields = append(fields, billingaccount.FieldAutoTopupPendingKey)
+	}
+	if m.FieldCleared(billingaccount.FieldAutoTopupPendingAt) {
+		fields = append(fields, billingaccount.FieldAutoTopupPendingAt)
+	}
+	if m.FieldCleared(billingaccount.FieldAutoTopupPendingAmountMicros) {
+		fields = append(fields, billingaccount.FieldAutoTopupPendingAmountMicros)
+	}
+	if m.FieldCleared(billingaccount.FieldAutoTopupRetryAfter) {
+		fields = append(fields, billingaccount.FieldAutoTopupRetryAfter)
 	}
 	if m.FieldCleared(billingaccount.FieldBillingEmail) {
 		fields = append(fields, billingaccount.FieldBillingEmail)
@@ -5825,8 +6111,17 @@ func (m *BillingAccountMutation) ClearField(name string) error {
 	case billingaccount.FieldStripeSubscriptionID:
 		m.ClearStripeSubscriptionID()
 		return nil
-	case billingaccount.FieldDefaultPaymentMethod:
-		m.ClearDefaultPaymentMethod()
+	case billingaccount.FieldAutoTopupPendingKey:
+		m.ClearAutoTopupPendingKey()
+		return nil
+	case billingaccount.FieldAutoTopupPendingAt:
+		m.ClearAutoTopupPendingAt()
+		return nil
+	case billingaccount.FieldAutoTopupPendingAmountMicros:
+		m.ClearAutoTopupPendingAmountMicros()
+		return nil
+	case billingaccount.FieldAutoTopupRetryAfter:
+		m.ClearAutoTopupRetryAfter()
 		return nil
 	case billingaccount.FieldBillingEmail:
 		m.ClearBillingEmail()
@@ -5884,8 +6179,20 @@ func (m *BillingAccountMutation) ResetField(name string) error {
 	case billingaccount.FieldAutoTopupAmountMicros:
 		m.ResetAutoTopupAmountMicros()
 		return nil
-	case billingaccount.FieldDefaultPaymentMethod:
-		m.ResetDefaultPaymentMethod()
+	case billingaccount.FieldAutoTopupPendingKey:
+		m.ResetAutoTopupPendingKey()
+		return nil
+	case billingaccount.FieldAutoTopupPendingAt:
+		m.ResetAutoTopupPendingAt()
+		return nil
+	case billingaccount.FieldAutoTopupPendingAmountMicros:
+		m.ResetAutoTopupPendingAmountMicros()
+		return nil
+	case billingaccount.FieldAutoTopupRetryAfter:
+		m.ResetAutoTopupRetryAfter()
+		return nil
+	case billingaccount.FieldAutoTopupLastError:
+		m.ResetAutoTopupLastError()
 		return nil
 	case billingaccount.FieldBillingEmail:
 		m.ResetBillingEmail()

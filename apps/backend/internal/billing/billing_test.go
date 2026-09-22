@@ -87,7 +87,7 @@ func TestAutoTopUp(t *testing.T) {
 			name: "on, with a card and sane amounts",
 			config: billing.AutoTopUp{
 				Enabled: true, Threshold: 10 * billing.Micros, Amount: 50 * billing.Micros,
-				PaymentMethod: "pm_123",
+				HasCard: true,
 			},
 		},
 		{
@@ -101,7 +101,7 @@ func TestAutoTopUp(t *testing.T) {
 			name: "below the floor, where most of the charge is the fee",
 			config: billing.AutoTopUp{
 				Enabled: true, Threshold: 1 * billing.Micros, Amount: 2 * billing.Micros,
-				PaymentMethod: "pm_123",
+				HasCard: true,
 			},
 			wantErr: "minimum",
 		},
@@ -109,7 +109,7 @@ func TestAutoTopUp(t *testing.T) {
 			name: "above the ceiling, which is a blast radius rather than a policy",
 			config: billing.AutoTopUp{
 				Enabled: true, Threshold: 10 * billing.Micros, Amount: billing.MaxTopUp + 1,
-				PaymentMethod: "pm_123",
+				HasCard: true,
 			},
 			wantErr: "maximum",
 		},
@@ -117,7 +117,7 @@ func TestAutoTopUp(t *testing.T) {
 			name: "a threshold at the amount charges all night",
 			config: billing.AutoTopUp{
 				Enabled: true, Threshold: 50 * billing.Micros, Amount: 50 * billing.Micros,
-				PaymentMethod: "pm_123",
+				HasCard: true,
 			},
 			wantErr: "immediately",
 		},

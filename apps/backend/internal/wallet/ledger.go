@@ -60,6 +60,11 @@ func Grant(ctx context.Context, tx *ent.Tx, in GrantRequest) (*ent.CreditLot, bo
 	existing, err := tx.CreditLot.Query().
 		Where(creditlot.IdempotencyKey(in.Key)).Only(ctx)
 	if err == nil {
+		// A key already used by another account is not a replay of this grant — returning that
+		// lot would tell the caller this account was credited when it was not. Refused loudly.
+		if existing.AccountID != in.AccountID {
+			return nil, false, fmt.Errorf("the idempotency key %q already granted credit to another account", in.Key)
+		}
 		return existing, false, nil
 	}
 	if !ent.IsNotFound(err) {

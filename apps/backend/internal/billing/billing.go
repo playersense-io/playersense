@@ -36,6 +36,10 @@ const (
 	// Micros is one unit of currency, for reading a number in a test without counting
 	// zeroes.
 	Micros int64 = 1_000_000
+
+	// CentMicros is one cent. A card is charged in cents, so an amount sent to Stripe is a
+	// whole number of these.
+	CentMicros int64 = 10_000
 )
 
 // Entitlement is one thing a plan includes. The set is closed here; the amounts are rows.

@@ -47,8 +47,16 @@ const (
 	FieldAutoTopupThresholdMicros = "auto_topup_threshold_micros"
 	// FieldAutoTopupAmountMicros holds the string denoting the auto_topup_amount_micros field in the database.
 	FieldAutoTopupAmountMicros = "auto_topup_amount_micros"
-	// FieldDefaultPaymentMethod holds the string denoting the default_payment_method field in the database.
-	FieldDefaultPaymentMethod = "default_payment_method"
+	// FieldAutoTopupPendingKey holds the string denoting the auto_topup_pending_key field in the database.
+	FieldAutoTopupPendingKey = "auto_topup_pending_key"
+	// FieldAutoTopupPendingAt holds the string denoting the auto_topup_pending_at field in the database.
+	FieldAutoTopupPendingAt = "auto_topup_pending_at"
+	// FieldAutoTopupPendingAmountMicros holds the string denoting the auto_topup_pending_amount_micros field in the database.
+	FieldAutoTopupPendingAmountMicros = "auto_topup_pending_amount_micros"
+	// FieldAutoTopupRetryAfter holds the string denoting the auto_topup_retry_after field in the database.
+	FieldAutoTopupRetryAfter = "auto_topup_retry_after"
+	// FieldAutoTopupLastError holds the string denoting the auto_topup_last_error field in the database.
+	FieldAutoTopupLastError = "auto_topup_last_error"
 	// FieldBillingEmail holds the string denoting the billing_email field in the database.
 	FieldBillingEmail = "billing_email"
 	// FieldEntitlementOverrides holds the string denoting the entitlement_overrides field in the database.
@@ -147,7 +155,11 @@ var Columns = []string{
 	FieldAutoTopupEnabled,
 	FieldAutoTopupThresholdMicros,
 	FieldAutoTopupAmountMicros,
-	FieldDefaultPaymentMethod,
+	FieldAutoTopupPendingKey,
+	FieldAutoTopupPendingAt,
+	FieldAutoTopupPendingAmountMicros,
+	FieldAutoTopupRetryAfter,
+	FieldAutoTopupLastError,
 	FieldBillingEmail,
 	FieldEntitlementOverrides,
 }
@@ -203,8 +215,12 @@ var (
 	DefaultAutoTopupAmountMicros int64
 	// AutoTopupAmountMicrosValidator is a validator for the "auto_topup_amount_micros" field. It is called by the builders before save.
 	AutoTopupAmountMicrosValidator func(int64) error
-	// DefaultPaymentMethodValidator is a validator for the "default_payment_method" field. It is called by the builders before save.
-	DefaultPaymentMethodValidator func(string) error
+	// AutoTopupPendingKeyValidator is a validator for the "auto_topup_pending_key" field. It is called by the builders before save.
+	AutoTopupPendingKeyValidator func(string) error
+	// DefaultAutoTopupLastError holds the default value on creation for the "auto_topup_last_error" field.
+	DefaultAutoTopupLastError string
+	// AutoTopupLastErrorValidator is a validator for the "auto_topup_last_error" field. It is called by the builders before save.
+	AutoTopupLastErrorValidator func(string) error
 	// BillingEmailValidator is a validator for the "billing_email" field. It is called by the builders before save.
 	BillingEmailValidator func(string) error
 	// DefaultEntitlementOverrides holds the default value on creation for the "entitlement_overrides" field.
@@ -323,9 +339,29 @@ func ByAutoTopupAmountMicros(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldAutoTopupAmountMicros, opts...).ToFunc()
 }
 
-// ByDefaultPaymentMethod orders the results by the default_payment_method field.
-func ByDefaultPaymentMethod(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldDefaultPaymentMethod, opts...).ToFunc()
+// ByAutoTopupPendingKey orders the results by the auto_topup_pending_key field.
+func ByAutoTopupPendingKey(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAutoTopupPendingKey, opts...).ToFunc()
+}
+
+// ByAutoTopupPendingAt orders the results by the auto_topup_pending_at field.
+func ByAutoTopupPendingAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAutoTopupPendingAt, opts...).ToFunc()
+}
+
+// ByAutoTopupPendingAmountMicros orders the results by the auto_topup_pending_amount_micros field.
+func ByAutoTopupPendingAmountMicros(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAutoTopupPendingAmountMicros, opts...).ToFunc()
+}
+
+// ByAutoTopupRetryAfter orders the results by the auto_topup_retry_after field.
+func ByAutoTopupRetryAfter(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAutoTopupRetryAfter, opts...).ToFunc()
+}
+
+// ByAutoTopupLastError orders the results by the auto_topup_last_error field.
+func ByAutoTopupLastError(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAutoTopupLastError, opts...).ToFunc()
 }
 
 // ByBillingEmail orders the results by the billing_email field.

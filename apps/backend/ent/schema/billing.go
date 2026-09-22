@@ -206,12 +206,36 @@ func (BillingAccount) Fields() []ent.Field {
 		field.Int64("auto_topup_amount_micros").Default(0).Min(0).
 			Max(billing.MaxTopUp).Comment(dataclass.Financial),
 
-		// Stripe's payment method id. Automatic top-up requires one — enforced in Go
-		// rather than by a constraint, because "enabled implies present" is a rule about
-		// two columns that a person reading this file should find here and not in a
-		// trigger.
-		field.String("default_payment_method").MaxLen(255).Optional().Nillable().
+		// No payment method is stored here, and that is deliberate (ADR 0040). Cards are added,
+		// replaced and removed in Stripe's own pages — Checkout and the customer portal — and
+		// Stripe is asked which card to use at the moment one is needed. A copy here would be a
+		// copy of somebody else's state, stale the moment a customer changed cards in the
+		// portal, and a card reference PlayerSense never needed to hold.
+		//
+		// What *is* kept is the automatic top-up's own bookkeeping, and every column below exists
+		// to make one promise: an automatic top-up charges a card at most once per claim.
+		//
+		// The pending key is written, committed, and only then sent to Stripe as the
+		// Idempotency-Key. So a charge whose response was lost — a timeout, a crash between the
+		// request and the reply — is retried with the *same* key, and Stripe answers with the
+		// payment it already made rather than making a second. The key is cleared only when the
+		// outcome is known: credited, declined, or needing the customer.
+		field.String("auto_topup_pending_key").MaxLen(255).Optional().Nillable().
 			Comment(dataclass.None),
+		field.Time("auto_topup_pending_at").Optional().Nillable().Comment(dataclass.None),
+
+		// What the claim charges. Kept with the key because a retry must send exactly the request
+		// the key was first sent with — Stripe refuses a reused key with different parameters —
+		// and the balance, and so the amount a fresh calculation would give, may have moved.
+		field.Int64("auto_topup_pending_amount_micros").Optional().Nillable().Comment(dataclass.Financial),
+
+		// After a decline, not before this. A card that was declined at 09:00 is declined at
+		// 09:00:30 too, and asking again every pass is how a customer's bank flags an account.
+		field.Time("auto_topup_retry_after").Optional().Nillable().Comment(dataclass.None),
+
+		// Why the last automatic top-up did not happen, in words a customer can act on. Empty
+		// once one succeeds.
+		field.String("auto_topup_last_error").MaxLen(500).Default("").Comment(dataclass.None),
 
 		// Where invoices go, when it is not the owner's own address. Optional: most
 		// studios never set it, and defaulting it to a person's address would send the

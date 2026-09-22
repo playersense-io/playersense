@@ -333,16 +333,22 @@ func init() {
 			return nil
 		}
 	}()
-	// billingaccountDescDefaultPaymentMethod is the schema descriptor for default_payment_method field.
-	billingaccountDescDefaultPaymentMethod := billingaccountFields[12].Descriptor()
-	// billingaccount.DefaultPaymentMethodValidator is a validator for the "default_payment_method" field. It is called by the builders before save.
-	billingaccount.DefaultPaymentMethodValidator = billingaccountDescDefaultPaymentMethod.Validators[0].(func(string) error)
+	// billingaccountDescAutoTopupPendingKey is the schema descriptor for auto_topup_pending_key field.
+	billingaccountDescAutoTopupPendingKey := billingaccountFields[12].Descriptor()
+	// billingaccount.AutoTopupPendingKeyValidator is a validator for the "auto_topup_pending_key" field. It is called by the builders before save.
+	billingaccount.AutoTopupPendingKeyValidator = billingaccountDescAutoTopupPendingKey.Validators[0].(func(string) error)
+	// billingaccountDescAutoTopupLastError is the schema descriptor for auto_topup_last_error field.
+	billingaccountDescAutoTopupLastError := billingaccountFields[16].Descriptor()
+	// billingaccount.DefaultAutoTopupLastError holds the default value on creation for the auto_topup_last_error field.
+	billingaccount.DefaultAutoTopupLastError = billingaccountDescAutoTopupLastError.Default.(string)
+	// billingaccount.AutoTopupLastErrorValidator is a validator for the "auto_topup_last_error" field. It is called by the builders before save.
+	billingaccount.AutoTopupLastErrorValidator = billingaccountDescAutoTopupLastError.Validators[0].(func(string) error)
 	// billingaccountDescBillingEmail is the schema descriptor for billing_email field.
-	billingaccountDescBillingEmail := billingaccountFields[13].Descriptor()
+	billingaccountDescBillingEmail := billingaccountFields[17].Descriptor()
 	// billingaccount.BillingEmailValidator is a validator for the "billing_email" field. It is called by the builders before save.
 	billingaccount.BillingEmailValidator = billingaccountDescBillingEmail.Validators[0].(func(string) error)
 	// billingaccountDescEntitlementOverrides is the schema descriptor for entitlement_overrides field.
-	billingaccountDescEntitlementOverrides := billingaccountFields[14].Descriptor()
+	billingaccountDescEntitlementOverrides := billingaccountFields[18].Descriptor()
 	// billingaccount.DefaultEntitlementOverrides holds the default value on creation for the entitlement_overrides field.
 	billingaccount.DefaultEntitlementOverrides = billingaccountDescEntitlementOverrides.Default.(map[string]int64)
 	billingperiodMixin := schema.BillingPeriod{}.Mixin()

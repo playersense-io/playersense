@@ -252,23 +252,22 @@ func SetAutoTopUp(ctx *muzak.Context, in schemas.SetAutoTopUpIn) (schemas.Billin
 		return schemas.BillingOut{}, err
 	}
 
-	method := in.PaymentMethod
-	if method == "" && account.DefaultPaymentMethod != nil {
-		// Not clearing a saved card by omitting the field. Removing one is its own action; a
-		// form that turned automatic top-up on and silently forgot the card would be a
-		// configuration that does nothing on the day it is needed.
-		method = *account.DefaultPaymentMethod
+	// Whether Stripe holds a card it can charge, asked of Stripe rather than of a column: cards are
+	// managed in Stripe's portal and never stored here (ADR 0040). Asked only when turning it on,
+	// because switching it off must work even while Stripe is unreachable.
+	hasCard := false
+	if in.Enabled {
+		var err error
+		if hasCard, err = chargeable(ctx, account); err != nil {
+			return schemas.BillingOut{}, err
+		}
 	}
 
-	// Absent means "leave it as it is", which is what keeps the configuration when somebody
-	// switches it off: the schema stores the amounts while disabled so that turning it back on
-	// restores what was set rather than presenting an empty form. A plain int64 could not tell an
-	// omitted field from a deliberate zero, so `{"enabled": false}` erased them.
 	wanted := billing.AutoTopUp{
-		Enabled:       in.Enabled,
-		Threshold:     orKeep(in.ThresholdMicros, account.AutoTopupThresholdMicros),
-		Amount:        orKeep(in.AmountMicros, account.AutoTopupAmountMicros),
-		PaymentMethod: method,
+		Enabled:   in.Enabled,
+		Threshold: orKeep(in.ThresholdMicros, account.AutoTopupThresholdMicros),
+		Amount:    orKeep(in.AmountMicros, account.AutoTopupAmountMicros),
+		HasCard:   hasCard,
 	}
 	if err := wanted.Validate(); err != nil {
 		return schemas.BillingOut{}, muzak.UnprocessableEntity(err.Error()).
@@ -288,8 +287,10 @@ func SetAutoTopUp(ctx *muzak.Context, in schemas.SetAutoTopUpIn) (schemas.Billin
 		SetAutoTopupEnabled(wanted.Enabled).
 		SetAutoTopupThresholdMicros(wanted.Threshold).
 		SetAutoTopupAmountMicros(wanted.Amount)
-	if method != "" {
-		update = update.SetDefaultPaymentMethod(method)
+	if wanted.Enabled {
+		// A fresh start: a decline recorded against the old configuration says nothing about
+		// the one just saved.
+		update = update.ClearAutoTopupRetryAfter().SetAutoTopupLastError("")
 	}
 	if _, err := update.Save(ctx.Context()); err != nil {
 		_ = tx.Rollback()
@@ -593,9 +594,9 @@ func billingOut(ctx context.Context, db *core.DB, account *ent.BillingAccount,
 		return schemas.BillingOut{}, err
 	}
 	out.Month = month
-	if account.DefaultPaymentMethod != nil {
-		out.AutoTopUp.PaymentMethod = *account.DefaultPaymentMethod
-	}
+	out.AutoTopUp.Pending = account.AutoTopupPendingKey != nil
+	out.AutoTopUp.RetryAfter = account.AutoTopupRetryAfter
+	out.AutoTopUp.LastError = account.AutoTopupLastError
 	if plan := account.Edges.Plan; plan != nil {
 		out.Plan = schemas.PlanOut{
 			Key:                plan.Key,

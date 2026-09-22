@@ -225,16 +225,72 @@ func (_c *BillingAccountCreate) SetNillableAutoTopupAmountMicros(v *int64) *Bill
 	return _c
 }
 
-// SetDefaultPaymentMethod sets the "default_payment_method" field.
-func (_c *BillingAccountCreate) SetDefaultPaymentMethod(v string) *BillingAccountCreate {
-	_c.mutation.SetDefaultPaymentMethod(v)
+// SetAutoTopupPendingKey sets the "auto_topup_pending_key" field.
+func (_c *BillingAccountCreate) SetAutoTopupPendingKey(v string) *BillingAccountCreate {
+	_c.mutation.SetAutoTopupPendingKey(v)
 	return _c
 }
 
-// SetNillableDefaultPaymentMethod sets the "default_payment_method" field if the given value is not nil.
-func (_c *BillingAccountCreate) SetNillableDefaultPaymentMethod(v *string) *BillingAccountCreate {
+// SetNillableAutoTopupPendingKey sets the "auto_topup_pending_key" field if the given value is not nil.
+func (_c *BillingAccountCreate) SetNillableAutoTopupPendingKey(v *string) *BillingAccountCreate {
 	if v != nil {
-		_c.SetDefaultPaymentMethod(*v)
+		_c.SetAutoTopupPendingKey(*v)
+	}
+	return _c
+}
+
+// SetAutoTopupPendingAt sets the "auto_topup_pending_at" field.
+func (_c *BillingAccountCreate) SetAutoTopupPendingAt(v time.Time) *BillingAccountCreate {
+	_c.mutation.SetAutoTopupPendingAt(v)
+	return _c
+}
+
+// SetNillableAutoTopupPendingAt sets the "auto_topup_pending_at" field if the given value is not nil.
+func (_c *BillingAccountCreate) SetNillableAutoTopupPendingAt(v *time.Time) *BillingAccountCreate {
+	if v != nil {
+		_c.SetAutoTopupPendingAt(*v)
+	}
+	return _c
+}
+
+// SetAutoTopupPendingAmountMicros sets the "auto_topup_pending_amount_micros" field.
+func (_c *BillingAccountCreate) SetAutoTopupPendingAmountMicros(v int64) *BillingAccountCreate {
+	_c.mutation.SetAutoTopupPendingAmountMicros(v)
+	return _c
+}
+
+// SetNillableAutoTopupPendingAmountMicros sets the "auto_topup_pending_amount_micros" field if the given value is not nil.
+func (_c *BillingAccountCreate) SetNillableAutoTopupPendingAmountMicros(v *int64) *BillingAccountCreate {
+	if v != nil {
+		_c.SetAutoTopupPendingAmountMicros(*v)
+	}
+	return _c
+}
+
+// SetAutoTopupRetryAfter sets the "auto_topup_retry_after" field.
+func (_c *BillingAccountCreate) SetAutoTopupRetryAfter(v time.Time) *BillingAccountCreate {
+	_c.mutation.SetAutoTopupRetryAfter(v)
+	return _c
+}
+
+// SetNillableAutoTopupRetryAfter sets the "auto_topup_retry_after" field if the given value is not nil.
+func (_c *BillingAccountCreate) SetNillableAutoTopupRetryAfter(v *time.Time) *BillingAccountCreate {
+	if v != nil {
+		_c.SetAutoTopupRetryAfter(*v)
+	}
+	return _c
+}
+
+// SetAutoTopupLastError sets the "auto_topup_last_error" field.
+func (_c *BillingAccountCreate) SetAutoTopupLastError(v string) *BillingAccountCreate {
+	_c.mutation.SetAutoTopupLastError(v)
+	return _c
+}
+
+// SetNillableAutoTopupLastError sets the "auto_topup_last_error" field if the given value is not nil.
+func (_c *BillingAccountCreate) SetNillableAutoTopupLastError(v *string) *BillingAccountCreate {
+	if v != nil {
+		_c.SetAutoTopupLastError(*v)
 	}
 	return _c
 }
@@ -458,6 +514,10 @@ func (_c *BillingAccountCreate) defaults() error {
 		v := billingaccount.DefaultAutoTopupAmountMicros
 		_c.mutation.SetAutoTopupAmountMicros(v)
 	}
+	if _, ok := _c.mutation.AutoTopupLastError(); !ok {
+		v := billingaccount.DefaultAutoTopupLastError
+		_c.mutation.SetAutoTopupLastError(v)
+	}
 	if _, ok := _c.mutation.EntitlementOverrides(); !ok {
 		v := billingaccount.DefaultEntitlementOverrides
 		_c.mutation.SetEntitlementOverrides(v)
@@ -541,9 +601,17 @@ func (_c *BillingAccountCreate) check() error {
 			return &ValidationError{Name: "auto_topup_amount_micros", err: fmt.Errorf(`ent: validator failed for field "BillingAccount.auto_topup_amount_micros": %w`, err)}
 		}
 	}
-	if v, ok := _c.mutation.DefaultPaymentMethod(); ok {
-		if err := billingaccount.DefaultPaymentMethodValidator(v); err != nil {
-			return &ValidationError{Name: "default_payment_method", err: fmt.Errorf(`ent: validator failed for field "BillingAccount.default_payment_method": %w`, err)}
+	if v, ok := _c.mutation.AutoTopupPendingKey(); ok {
+		if err := billingaccount.AutoTopupPendingKeyValidator(v); err != nil {
+			return &ValidationError{Name: "auto_topup_pending_key", err: fmt.Errorf(`ent: validator failed for field "BillingAccount.auto_topup_pending_key": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.AutoTopupLastError(); !ok {
+		return &ValidationError{Name: "auto_topup_last_error", err: errors.New(`ent: missing required field "BillingAccount.auto_topup_last_error"`)}
+	}
+	if v, ok := _c.mutation.AutoTopupLastError(); ok {
+		if err := billingaccount.AutoTopupLastErrorValidator(v); err != nil {
+			return &ValidationError{Name: "auto_topup_last_error", err: fmt.Errorf(`ent: validator failed for field "BillingAccount.auto_topup_last_error": %w`, err)}
 		}
 	}
 	if v, ok := _c.mutation.BillingEmail(); ok {
@@ -645,9 +713,25 @@ func (_c *BillingAccountCreate) createSpec() (*BillingAccount, *sqlgraph.CreateS
 		_spec.SetField(billingaccount.FieldAutoTopupAmountMicros, field.TypeInt64, value)
 		_node.AutoTopupAmountMicros = value
 	}
-	if value, ok := _c.mutation.DefaultPaymentMethod(); ok {
-		_spec.SetField(billingaccount.FieldDefaultPaymentMethod, field.TypeString, value)
-		_node.DefaultPaymentMethod = &value
+	if value, ok := _c.mutation.AutoTopupPendingKey(); ok {
+		_spec.SetField(billingaccount.FieldAutoTopupPendingKey, field.TypeString, value)
+		_node.AutoTopupPendingKey = &value
+	}
+	if value, ok := _c.mutation.AutoTopupPendingAt(); ok {
+		_spec.SetField(billingaccount.FieldAutoTopupPendingAt, field.TypeTime, value)
+		_node.AutoTopupPendingAt = &value
+	}
+	if value, ok := _c.mutation.AutoTopupPendingAmountMicros(); ok {
+		_spec.SetField(billingaccount.FieldAutoTopupPendingAmountMicros, field.TypeInt64, value)
+		_node.AutoTopupPendingAmountMicros = &value
+	}
+	if value, ok := _c.mutation.AutoTopupRetryAfter(); ok {
+		_spec.SetField(billingaccount.FieldAutoTopupRetryAfter, field.TypeTime, value)
+		_node.AutoTopupRetryAfter = &value
+	}
+	if value, ok := _c.mutation.AutoTopupLastError(); ok {
+		_spec.SetField(billingaccount.FieldAutoTopupLastError, field.TypeString, value)
+		_node.AutoTopupLastError = value
 	}
 	if value, ok := _c.mutation.BillingEmail(); ok {
 		_spec.SetField(billingaccount.FieldBillingEmail, field.TypeString, value)
@@ -1019,21 +1103,93 @@ func (u *BillingAccountUpsert) AddAutoTopupAmountMicros(v int64) *BillingAccount
 	return u
 }
 
-// SetDefaultPaymentMethod sets the "default_payment_method" field.
-func (u *BillingAccountUpsert) SetDefaultPaymentMethod(v string) *BillingAccountUpsert {
-	u.Set(billingaccount.FieldDefaultPaymentMethod, v)
+// SetAutoTopupPendingKey sets the "auto_topup_pending_key" field.
+func (u *BillingAccountUpsert) SetAutoTopupPendingKey(v string) *BillingAccountUpsert {
+	u.Set(billingaccount.FieldAutoTopupPendingKey, v)
 	return u
 }
 
-// UpdateDefaultPaymentMethod sets the "default_payment_method" field to the value that was provided on create.
-func (u *BillingAccountUpsert) UpdateDefaultPaymentMethod() *BillingAccountUpsert {
-	u.SetExcluded(billingaccount.FieldDefaultPaymentMethod)
+// UpdateAutoTopupPendingKey sets the "auto_topup_pending_key" field to the value that was provided on create.
+func (u *BillingAccountUpsert) UpdateAutoTopupPendingKey() *BillingAccountUpsert {
+	u.SetExcluded(billingaccount.FieldAutoTopupPendingKey)
 	return u
 }
 
-// ClearDefaultPaymentMethod clears the value of the "default_payment_method" field.
-func (u *BillingAccountUpsert) ClearDefaultPaymentMethod() *BillingAccountUpsert {
-	u.SetNull(billingaccount.FieldDefaultPaymentMethod)
+// ClearAutoTopupPendingKey clears the value of the "auto_topup_pending_key" field.
+func (u *BillingAccountUpsert) ClearAutoTopupPendingKey() *BillingAccountUpsert {
+	u.SetNull(billingaccount.FieldAutoTopupPendingKey)
+	return u
+}
+
+// SetAutoTopupPendingAt sets the "auto_topup_pending_at" field.
+func (u *BillingAccountUpsert) SetAutoTopupPendingAt(v time.Time) *BillingAccountUpsert {
+	u.Set(billingaccount.FieldAutoTopupPendingAt, v)
+	return u
+}
+
+// UpdateAutoTopupPendingAt sets the "auto_topup_pending_at" field to the value that was provided on create.
+func (u *BillingAccountUpsert) UpdateAutoTopupPendingAt() *BillingAccountUpsert {
+	u.SetExcluded(billingaccount.FieldAutoTopupPendingAt)
+	return u
+}
+
+// ClearAutoTopupPendingAt clears the value of the "auto_topup_pending_at" field.
+func (u *BillingAccountUpsert) ClearAutoTopupPendingAt() *BillingAccountUpsert {
+	u.SetNull(billingaccount.FieldAutoTopupPendingAt)
+	return u
+}
+
+// SetAutoTopupPendingAmountMicros sets the "auto_topup_pending_amount_micros" field.
+func (u *BillingAccountUpsert) SetAutoTopupPendingAmountMicros(v int64) *BillingAccountUpsert {
+	u.Set(billingaccount.FieldAutoTopupPendingAmountMicros, v)
+	return u
+}
+
+// UpdateAutoTopupPendingAmountMicros sets the "auto_topup_pending_amount_micros" field to the value that was provided on create.
+func (u *BillingAccountUpsert) UpdateAutoTopupPendingAmountMicros() *BillingAccountUpsert {
+	u.SetExcluded(billingaccount.FieldAutoTopupPendingAmountMicros)
+	return u
+}
+
+// AddAutoTopupPendingAmountMicros adds v to the "auto_topup_pending_amount_micros" field.
+func (u *BillingAccountUpsert) AddAutoTopupPendingAmountMicros(v int64) *BillingAccountUpsert {
+	u.Add(billingaccount.FieldAutoTopupPendingAmountMicros, v)
+	return u
+}
+
+// ClearAutoTopupPendingAmountMicros clears the value of the "auto_topup_pending_amount_micros" field.
+func (u *BillingAccountUpsert) ClearAutoTopupPendingAmountMicros() *BillingAccountUpsert {
+	u.SetNull(billingaccount.FieldAutoTopupPendingAmountMicros)
+	return u
+}
+
+// SetAutoTopupRetryAfter sets the "auto_topup_retry_after" field.
+func (u *BillingAccountUpsert) SetAutoTopupRetryAfter(v time.Time) *BillingAccountUpsert {
+	u.Set(billingaccount.FieldAutoTopupRetryAfter, v)
+	return u
+}
+
+// UpdateAutoTopupRetryAfter sets the "auto_topup_retry_after" field to the value that was provided on create.
+func (u *BillingAccountUpsert) UpdateAutoTopupRetryAfter() *BillingAccountUpsert {
+	u.SetExcluded(billingaccount.FieldAutoTopupRetryAfter)
+	return u
+}
+
+// ClearAutoTopupRetryAfter clears the value of the "auto_topup_retry_after" field.
+func (u *BillingAccountUpsert) ClearAutoTopupRetryAfter() *BillingAccountUpsert {
+	u.SetNull(billingaccount.FieldAutoTopupRetryAfter)
+	return u
+}
+
+// SetAutoTopupLastError sets the "auto_topup_last_error" field.
+func (u *BillingAccountUpsert) SetAutoTopupLastError(v string) *BillingAccountUpsert {
+	u.Set(billingaccount.FieldAutoTopupLastError, v)
+	return u
+}
+
+// UpdateAutoTopupLastError sets the "auto_topup_last_error" field to the value that was provided on create.
+func (u *BillingAccountUpsert) UpdateAutoTopupLastError() *BillingAccountUpsert {
+	u.SetExcluded(billingaccount.FieldAutoTopupLastError)
 	return u
 }
 
@@ -1334,24 +1490,108 @@ func (u *BillingAccountUpsertOne) UpdateAutoTopupAmountMicros() *BillingAccountU
 	})
 }
 
-// SetDefaultPaymentMethod sets the "default_payment_method" field.
-func (u *BillingAccountUpsertOne) SetDefaultPaymentMethod(v string) *BillingAccountUpsertOne {
+// SetAutoTopupPendingKey sets the "auto_topup_pending_key" field.
+func (u *BillingAccountUpsertOne) SetAutoTopupPendingKey(v string) *BillingAccountUpsertOne {
 	return u.Update(func(s *BillingAccountUpsert) {
-		s.SetDefaultPaymentMethod(v)
+		s.SetAutoTopupPendingKey(v)
 	})
 }
 
-// UpdateDefaultPaymentMethod sets the "default_payment_method" field to the value that was provided on create.
-func (u *BillingAccountUpsertOne) UpdateDefaultPaymentMethod() *BillingAccountUpsertOne {
+// UpdateAutoTopupPendingKey sets the "auto_topup_pending_key" field to the value that was provided on create.
+func (u *BillingAccountUpsertOne) UpdateAutoTopupPendingKey() *BillingAccountUpsertOne {
 	return u.Update(func(s *BillingAccountUpsert) {
-		s.UpdateDefaultPaymentMethod()
+		s.UpdateAutoTopupPendingKey()
 	})
 }
 
-// ClearDefaultPaymentMethod clears the value of the "default_payment_method" field.
-func (u *BillingAccountUpsertOne) ClearDefaultPaymentMethod() *BillingAccountUpsertOne {
+// ClearAutoTopupPendingKey clears the value of the "auto_topup_pending_key" field.
+func (u *BillingAccountUpsertOne) ClearAutoTopupPendingKey() *BillingAccountUpsertOne {
 	return u.Update(func(s *BillingAccountUpsert) {
-		s.ClearDefaultPaymentMethod()
+		s.ClearAutoTopupPendingKey()
+	})
+}
+
+// SetAutoTopupPendingAt sets the "auto_topup_pending_at" field.
+func (u *BillingAccountUpsertOne) SetAutoTopupPendingAt(v time.Time) *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetAutoTopupPendingAt(v)
+	})
+}
+
+// UpdateAutoTopupPendingAt sets the "auto_topup_pending_at" field to the value that was provided on create.
+func (u *BillingAccountUpsertOne) UpdateAutoTopupPendingAt() *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateAutoTopupPendingAt()
+	})
+}
+
+// ClearAutoTopupPendingAt clears the value of the "auto_topup_pending_at" field.
+func (u *BillingAccountUpsertOne) ClearAutoTopupPendingAt() *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.ClearAutoTopupPendingAt()
+	})
+}
+
+// SetAutoTopupPendingAmountMicros sets the "auto_topup_pending_amount_micros" field.
+func (u *BillingAccountUpsertOne) SetAutoTopupPendingAmountMicros(v int64) *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetAutoTopupPendingAmountMicros(v)
+	})
+}
+
+// AddAutoTopupPendingAmountMicros adds v to the "auto_topup_pending_amount_micros" field.
+func (u *BillingAccountUpsertOne) AddAutoTopupPendingAmountMicros(v int64) *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.AddAutoTopupPendingAmountMicros(v)
+	})
+}
+
+// UpdateAutoTopupPendingAmountMicros sets the "auto_topup_pending_amount_micros" field to the value that was provided on create.
+func (u *BillingAccountUpsertOne) UpdateAutoTopupPendingAmountMicros() *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateAutoTopupPendingAmountMicros()
+	})
+}
+
+// ClearAutoTopupPendingAmountMicros clears the value of the "auto_topup_pending_amount_micros" field.
+func (u *BillingAccountUpsertOne) ClearAutoTopupPendingAmountMicros() *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.ClearAutoTopupPendingAmountMicros()
+	})
+}
+
+// SetAutoTopupRetryAfter sets the "auto_topup_retry_after" field.
+func (u *BillingAccountUpsertOne) SetAutoTopupRetryAfter(v time.Time) *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetAutoTopupRetryAfter(v)
+	})
+}
+
+// UpdateAutoTopupRetryAfter sets the "auto_topup_retry_after" field to the value that was provided on create.
+func (u *BillingAccountUpsertOne) UpdateAutoTopupRetryAfter() *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateAutoTopupRetryAfter()
+	})
+}
+
+// ClearAutoTopupRetryAfter clears the value of the "auto_topup_retry_after" field.
+func (u *BillingAccountUpsertOne) ClearAutoTopupRetryAfter() *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.ClearAutoTopupRetryAfter()
+	})
+}
+
+// SetAutoTopupLastError sets the "auto_topup_last_error" field.
+func (u *BillingAccountUpsertOne) SetAutoTopupLastError(v string) *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetAutoTopupLastError(v)
+	})
+}
+
+// UpdateAutoTopupLastError sets the "auto_topup_last_error" field to the value that was provided on create.
+func (u *BillingAccountUpsertOne) UpdateAutoTopupLastError() *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateAutoTopupLastError()
 	})
 }
 
@@ -1823,24 +2063,108 @@ func (u *BillingAccountUpsertBulk) UpdateAutoTopupAmountMicros() *BillingAccount
 	})
 }
 
-// SetDefaultPaymentMethod sets the "default_payment_method" field.
-func (u *BillingAccountUpsertBulk) SetDefaultPaymentMethod(v string) *BillingAccountUpsertBulk {
+// SetAutoTopupPendingKey sets the "auto_topup_pending_key" field.
+func (u *BillingAccountUpsertBulk) SetAutoTopupPendingKey(v string) *BillingAccountUpsertBulk {
 	return u.Update(func(s *BillingAccountUpsert) {
-		s.SetDefaultPaymentMethod(v)
+		s.SetAutoTopupPendingKey(v)
 	})
 }
 
-// UpdateDefaultPaymentMethod sets the "default_payment_method" field to the value that was provided on create.
-func (u *BillingAccountUpsertBulk) UpdateDefaultPaymentMethod() *BillingAccountUpsertBulk {
+// UpdateAutoTopupPendingKey sets the "auto_topup_pending_key" field to the value that was provided on create.
+func (u *BillingAccountUpsertBulk) UpdateAutoTopupPendingKey() *BillingAccountUpsertBulk {
 	return u.Update(func(s *BillingAccountUpsert) {
-		s.UpdateDefaultPaymentMethod()
+		s.UpdateAutoTopupPendingKey()
 	})
 }
 
-// ClearDefaultPaymentMethod clears the value of the "default_payment_method" field.
-func (u *BillingAccountUpsertBulk) ClearDefaultPaymentMethod() *BillingAccountUpsertBulk {
+// ClearAutoTopupPendingKey clears the value of the "auto_topup_pending_key" field.
+func (u *BillingAccountUpsertBulk) ClearAutoTopupPendingKey() *BillingAccountUpsertBulk {
 	return u.Update(func(s *BillingAccountUpsert) {
-		s.ClearDefaultPaymentMethod()
+		s.ClearAutoTopupPendingKey()
+	})
+}
+
+// SetAutoTopupPendingAt sets the "auto_topup_pending_at" field.
+func (u *BillingAccountUpsertBulk) SetAutoTopupPendingAt(v time.Time) *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetAutoTopupPendingAt(v)
+	})
+}
+
+// UpdateAutoTopupPendingAt sets the "auto_topup_pending_at" field to the value that was provided on create.
+func (u *BillingAccountUpsertBulk) UpdateAutoTopupPendingAt() *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateAutoTopupPendingAt()
+	})
+}
+
+// ClearAutoTopupPendingAt clears the value of the "auto_topup_pending_at" field.
+func (u *BillingAccountUpsertBulk) ClearAutoTopupPendingAt() *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.ClearAutoTopupPendingAt()
+	})
+}
+
+// SetAutoTopupPendingAmountMicros sets the "auto_topup_pending_amount_micros" field.
+func (u *BillingAccountUpsertBulk) SetAutoTopupPendingAmountMicros(v int64) *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetAutoTopupPendingAmountMicros(v)
+	})
+}
+
+// AddAutoTopupPendingAmountMicros adds v to the "auto_topup_pending_amount_micros" field.
+func (u *BillingAccountUpsertBulk) AddAutoTopupPendingAmountMicros(v int64) *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.AddAutoTopupPendingAmountMicros(v)
+	})
+}
+
+// UpdateAutoTopupPendingAmountMicros sets the "auto_topup_pending_amount_micros" field to the value that was provided on create.
+func (u *BillingAccountUpsertBulk) UpdateAutoTopupPendingAmountMicros() *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateAutoTopupPendingAmountMicros()
+	})
+}
+
+// ClearAutoTopupPendingAmountMicros clears the value of the "auto_topup_pending_amount_micros" field.
+func (u *BillingAccountUpsertBulk) ClearAutoTopupPendingAmountMicros() *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.ClearAutoTopupPendingAmountMicros()
+	})
+}
+
+// SetAutoTopupRetryAfter sets the "auto_topup_retry_after" field.
+func (u *BillingAccountUpsertBulk) SetAutoTopupRetryAfter(v time.Time) *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetAutoTopupRetryAfter(v)
+	})
+}
+
+// UpdateAutoTopupRetryAfter sets the "auto_topup_retry_after" field to the value that was provided on create.
+func (u *BillingAccountUpsertBulk) UpdateAutoTopupRetryAfter() *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateAutoTopupRetryAfter()
+	})
+}
+
+// ClearAutoTopupRetryAfter clears the value of the "auto_topup_retry_after" field.
+func (u *BillingAccountUpsertBulk) ClearAutoTopupRetryAfter() *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.ClearAutoTopupRetryAfter()
+	})
+}
+
+// SetAutoTopupLastError sets the "auto_topup_last_error" field.
+func (u *BillingAccountUpsertBulk) SetAutoTopupLastError(v string) *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetAutoTopupLastError(v)
+	})
+}
+
+// UpdateAutoTopupLastError sets the "auto_topup_last_error" field to the value that was provided on create.
+func (u *BillingAccountUpsertBulk) UpdateAutoTopupLastError() *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateAutoTopupLastError()
 	})
 }
 

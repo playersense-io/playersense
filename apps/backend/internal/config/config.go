@@ -311,6 +311,32 @@ type Settings struct {
 	// BillingPruneEvery is how often player sets older than last month are deleted.
 	BillingPruneEvery time.Duration `env:"BILLING_PRUNE_EVERY" default:"1h"`
 
+	// StripeSecretKey is the API key for Stripe (ADR 0040). Empty disables payments: the top-up
+	// and portal routes answer 503, the webhook answers 503, and automatic top-up does nothing.
+	// A test key (sk_test_…) in development; never committed.
+	StripeSecretKey string `env:"STRIPE_SECRET_KEY" secret:"true"`
+
+	// StripeWebhookSecret verifies that a webhook came from Stripe (whsec_…). `stripe listen`
+	// prints its own for local forwarding.
+	StripeWebhookSecret string `env:"STRIPE_WEBHOOK_SECRET" secret:"true"`
+
+	// Where Stripe Checkout sends the person back to. The success page proves nothing — anybody
+	// can load it — so the dashboard shows the balance the webhook produced, not the redirect.
+	StripeCheckoutSuccessURL string `env:"STRIPE_CHECKOUT_SUCCESS_URL" default:"http://localhost:3000/billing/wallet?checkout=success"`
+	StripeCheckoutCancelURL  string `env:"STRIPE_CHECKOUT_CANCEL_URL" default:"http://localhost:3000/billing/wallet?checkout=cancel"`
+
+	// StripePortalReturnURL is where Stripe's customer portal links back to.
+	StripePortalReturnURL string `env:"STRIPE_PORTAL_RETURN_URL" default:"http://localhost:3000/billing/wallet"`
+
+	// BillingAutoTopUpEvery is how often the billing writer looks for balances below their
+	// automatic top-up threshold.
+	BillingAutoTopUpEvery time.Duration `env:"BILLING_AUTO_TOPUP_EVERY" default:"30s"`
+
+	// BillingAutoTopUpRetryAfter is how long an account waits after a declined automatic top-up
+	// before its card is tried again. A card declined now is declined in thirty seconds too, and
+	// asking every pass is how a bank flags an account.
+	BillingAutoTopUpRetryAfter time.Duration `env:"BILLING_AUTO_TOPUP_RETRY_AFTER" default:"6h"`
+
 	// WorkerAddr is where the worker serves its health probe. It has no API.
 	WorkerAddr string `env:"WORKER_ADDR" default:":21086"`
 

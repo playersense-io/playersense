@@ -53,7 +53,15 @@ type BillingAccount struct {
 	// class=financial
 	AutoTopupAmountMicros int64 `json:"auto_topup_amount_micros,omitempty"`
 	// class=none
-	DefaultPaymentMethod *string `json:"default_payment_method,omitempty"`
+	AutoTopupPendingKey *string `json:"auto_topup_pending_key,omitempty"`
+	// class=none
+	AutoTopupPendingAt *time.Time `json:"auto_topup_pending_at,omitempty"`
+	// class=financial
+	AutoTopupPendingAmountMicros *int64 `json:"auto_topup_pending_amount_micros,omitempty"`
+	// class=none
+	AutoTopupRetryAfter *time.Time `json:"auto_topup_retry_after,omitempty"`
+	// class=none
+	AutoTopupLastError string `json:"auto_topup_last_error,omitempty"`
 	// class=none
 	BillingEmail *string `json:"billing_email,omitempty"`
 	// class=none
@@ -172,11 +180,11 @@ func (*BillingAccount) scanValues(columns []string) ([]any, error) {
 			values[i] = new([]byte)
 		case billingaccount.FieldAutoTopupEnabled:
 			values[i] = new(sql.NullBool)
-		case billingaccount.FieldID, billingaccount.FieldOrganizationID, billingaccount.FieldPlanID, billingaccount.FieldBalanceMicros, billingaccount.FieldArrearsMicros, billingaccount.FieldAutoTopupThresholdMicros, billingaccount.FieldAutoTopupAmountMicros:
+		case billingaccount.FieldID, billingaccount.FieldOrganizationID, billingaccount.FieldPlanID, billingaccount.FieldBalanceMicros, billingaccount.FieldArrearsMicros, billingaccount.FieldAutoTopupThresholdMicros, billingaccount.FieldAutoTopupAmountMicros, billingaccount.FieldAutoTopupPendingAmountMicros:
 			values[i] = new(sql.NullInt64)
-		case billingaccount.FieldStripeCustomerID, billingaccount.FieldStripeSubscriptionID, billingaccount.FieldState, billingaccount.FieldCurrency, billingaccount.FieldDefaultPaymentMethod, billingaccount.FieldBillingEmail:
+		case billingaccount.FieldStripeCustomerID, billingaccount.FieldStripeSubscriptionID, billingaccount.FieldState, billingaccount.FieldCurrency, billingaccount.FieldAutoTopupPendingKey, billingaccount.FieldAutoTopupLastError, billingaccount.FieldBillingEmail:
 			values[i] = new(sql.NullString)
-		case billingaccount.FieldCreatedAt, billingaccount.FieldUpdatedAt, billingaccount.FieldStateChangedAt:
+		case billingaccount.FieldCreatedAt, billingaccount.FieldUpdatedAt, billingaccount.FieldStateChangedAt, billingaccount.FieldAutoTopupPendingAt, billingaccount.FieldAutoTopupRetryAfter:
 			values[i] = new(sql.NullTime)
 		case billingaccount.FieldUID:
 			values[i] = new(uuid.UUID)
@@ -293,12 +301,39 @@ func (_m *BillingAccount) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.AutoTopupAmountMicros = value.Int64
 			}
-		case billingaccount.FieldDefaultPaymentMethod:
+		case billingaccount.FieldAutoTopupPendingKey:
 			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field default_payment_method", values[i])
+				return fmt.Errorf("unexpected type %T for field auto_topup_pending_key", values[i])
 			} else if value.Valid {
-				_m.DefaultPaymentMethod = new(string)
-				*_m.DefaultPaymentMethod = value.String
+				_m.AutoTopupPendingKey = new(string)
+				*_m.AutoTopupPendingKey = value.String
+			}
+		case billingaccount.FieldAutoTopupPendingAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field auto_topup_pending_at", values[i])
+			} else if value.Valid {
+				_m.AutoTopupPendingAt = new(time.Time)
+				*_m.AutoTopupPendingAt = value.Time
+			}
+		case billingaccount.FieldAutoTopupPendingAmountMicros:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field auto_topup_pending_amount_micros", values[i])
+			} else if value.Valid {
+				_m.AutoTopupPendingAmountMicros = new(int64)
+				*_m.AutoTopupPendingAmountMicros = value.Int64
+			}
+		case billingaccount.FieldAutoTopupRetryAfter:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field auto_topup_retry_after", values[i])
+			} else if value.Valid {
+				_m.AutoTopupRetryAfter = new(time.Time)
+				*_m.AutoTopupRetryAfter = value.Time
+			}
+		case billingaccount.FieldAutoTopupLastError:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field auto_topup_last_error", values[i])
+			} else if value.Valid {
+				_m.AutoTopupLastError = value.String
 			}
 		case billingaccount.FieldBillingEmail:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -440,10 +475,28 @@ func (_m *BillingAccount) String() string {
 	builder.WriteString("auto_topup_amount_micros=")
 	builder.WriteString(fmt.Sprintf("%v", _m.AutoTopupAmountMicros))
 	builder.WriteString(", ")
-	if v := _m.DefaultPaymentMethod; v != nil {
-		builder.WriteString("default_payment_method=")
+	if v := _m.AutoTopupPendingKey; v != nil {
+		builder.WriteString("auto_topup_pending_key=")
 		builder.WriteString(*v)
 	}
+	builder.WriteString(", ")
+	if v := _m.AutoTopupPendingAt; v != nil {
+		builder.WriteString("auto_topup_pending_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := _m.AutoTopupPendingAmountMicros; v != nil {
+		builder.WriteString("auto_topup_pending_amount_micros=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.AutoTopupRetryAfter; v != nil {
+		builder.WriteString("auto_topup_retry_after=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("auto_topup_last_error=")
+	builder.WriteString(_m.AutoTopupLastError)
 	builder.WriteString(", ")
 	if v := _m.BillingEmail; v != nil {
 		builder.WriteString("billing_email=")

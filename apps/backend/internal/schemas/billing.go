@@ -162,11 +162,17 @@ type CreditLotOut struct {
 }
 
 // AutoTopUpOut is the automatic-charge configuration.
+//
+// No card is shown: cards live at Stripe and are managed in its portal (ADR 0040). What is shown is
+// whether a top-up is in flight and why the last one did not happen.
 type AutoTopUpOut struct {
-	Enabled         bool   `json:"enabled"`
-	ThresholdMicros int64  `json:"threshold_micros"`
-	AmountMicros    int64  `json:"amount_micros"`
-	PaymentMethod   string `json:"payment_method,omitzero" doc:"Stripe's id for the saved card, absent when there is none"`
+	Enabled         bool  `json:"enabled"`
+	ThresholdMicros int64 `json:"threshold_micros"`
+	AmountMicros    int64 `json:"amount_micros"`
+
+	Pending    bool       `json:"pending" doc:"A charge has been sent to Stripe and its outcome is not yet known"`
+	RetryAfter *time.Time `json:"retry_after,omitzero" doc:"After a decline, not tried again before this"`
+	LastError  string     `json:"last_error,omitzero" doc:"Why the last automatic top-up did not happen"`
 }
 
 // LedgerOut is a statement.
@@ -200,9 +206,9 @@ func (in *LedgerParams) Validate(v *muzak.Validation) {
 
 // SetAutoTopUpIn configures automatic charging.
 //
-// The rule about how the three fields relate lives in [billing.AutoTopUp.Validate], which existed
-// before this route did and had no caller: a threshold at or above the amount tops up into a balance
-// still under the threshold, so the next check charges again, and the next.
+// The rule about how the fields relate lives in [billing.AutoTopUp.Validate]: a threshold at or above
+// the amount tops up into a balance still under the threshold, so the next check charges again, and
+// the next. There is no card field: whether one exists is asked of Stripe (ADR 0040).
 type SetAutoTopUpIn struct {
 	OrgSlug string `path:"org"`
 
@@ -213,8 +219,6 @@ type SetAutoTopUpIn struct {
 	// plain int64 could not tell `{"enabled": false}` from "and set both amounts to nothing".
 	ThresholdMicros *int64 `json:"threshold_micros,omitzero" doc:"Absent leaves the stored value alone"`
 	AmountMicros    *int64 `json:"amount_micros,omitzero" doc:"Absent leaves the stored value alone"`
-
-	PaymentMethod string `json:"payment_method,omitzero"`
 }
 
 func (in *SetAutoTopUpIn) Validate(v *muzak.Validation) {
@@ -223,7 +227,6 @@ func (in *SetAutoTopUpIn) Validate(v *muzak.Validation) {
 	// the handler, and asking it twice is how two answers eventually disagree.
 	v.Number(&in.ThresholdMicros).Min(0).Max(float64(billing.MaxTopUp))
 	v.Number(&in.AmountMicros).Min(0).Max(float64(billing.MaxTopUp))
-	v.String(&in.PaymentMethod).Trim().MaxLen(255)
 }
 
 // ---- the operator surface ---------------------------------------------------
