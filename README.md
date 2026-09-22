@@ -212,8 +212,9 @@ GET                         /v1/pricing                 public: what the landing
 A card is a plan's tiers from `effective_from` on. It cannot be changed or start in the past; a new
 price is a new card, and each player is priced at the card in force when they arrived. Tiers are
 player positions within a calendar month, inclusive, and the last is unbounded. The launch prices —
-$0.0005 per player to 100,000, $0.0004 to 500,000, $0.00035 to 1,000,000, $0.0003 above — are data,
-loaded like this (`$TOKEN` is `CONTROL_API_ADMIN_TOKEN`):
+$1.00 per 1,000 players to 100,000, $0.80 to 500,000, $0.70 to 1,000,000, $0.60 above, so a studio
+with 200,000 players a month and 10,000 included pays $170 — are data, loaded like this (`$TOKEN`
+is `CONTROL_API_ADMIN_TOKEN`):
 
 ```bash
 curl -X POST localhost:21080/v1/operator/plans -H "Authorization: Bearer $TOKEN" -d '{
@@ -221,18 +222,18 @@ curl -X POST localhost:21080/v1/operator/plans -H "Authorization: Bearer $TOKEN"
   "entitlements": {"included_mau": 10000}, "operator": "you@playersense.dev"}'
 
 curl -X POST localhost:21080/v1/operator/plans/payg/rate-cards -H "Authorization: Bearer $TOKEN" -d '{
-  "mode": "graduated", "note": "launch prices", "operator": "you@playersense.dev",
+  "mode": "graduated", "note": "launch prices: $1 per 1,000 players", "operator": "you@playersense.dev",
   "tiers": [
-    {"up_to": 100000,  "unit_price_micros": 500},
-    {"up_to": 500000,  "unit_price_micros": 400},
-    {"up_to": 1000000, "unit_price_micros": 350},
-    {"unit_price_micros": 300}]}'
+    {"up_to": 100000,  "unit_price_micros": 1000},
+    {"up_to": 500000,  "unit_price_micros": 800},
+    {"up_to": 1000000, "unit_price_micros": 700},
+    {"unit_price_micros": 600}]}'
 ```
 
 `is_default` is the plan every new organization is put on. With no default plan, organizations get no
 billing account and `billing-writer` warns that their players are not being billed. The included
 players are free and still hold positions: with 10,000 included, player 100,001 is still in the
-$0.0004 band.
+$0.0008 band.
 
 And **the three tables a studio edits**:
 

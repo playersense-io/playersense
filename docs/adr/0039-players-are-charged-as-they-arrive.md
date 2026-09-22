@@ -17,7 +17,9 @@ The business then decided three things:
 
 - **Charge organizations in real time**, not at the end of the day or the month.
 - **Price tracked players in volume tiers** — $0.0005 each to 100,000 a month, $0.0004 to 500,000,
-  $0.00035 to 1,000,000, $0.0003 above.
+  $0.00035 to 1,000,000, $0.0003 above. (Doubled before launch to $1 per 1,000 players, falling to
+  $0.60 — which is the point of the next line: the numbers are data, and the README shows the
+  current ones.)
 - **Keep the prices in the database**, so staff change them from the admin console without a deploy.
 
 And four constraints on how: never charge twice, never lose a charge that failed, never make the
