@@ -206,7 +206,8 @@ func build(settings config.Settings, overrides ...muzak.RouterOption) (*muzak.Ap
 			{Name: "api-keys", Description: "Credentials scoped to one environment."},
 			{Name: "members", Description: "Who is in an organization, and what they may do."},
 			{Name: "billing", Description: "Usage, the wallet and the plan."},
-			{Name: "operator", Description: "PlayerSense staff only: putting credit in a wallet."},
+			{Name: "operator", Description: "PlayerSense staff only: putting credit in a wallet, and the plans and prices it is spent against."},
+			{Name: "pricing", Description: "The public price list."},
 			{Name: "liveops", Description: "What a studio edits, and publishing it."},
 			{Name: "ingestion", Description: "The high-volume SDK path."},
 			{Name: "config", Description: "What a player gets."},
@@ -358,6 +359,9 @@ func build(settings config.Settings, overrides ...muzak.RouterOption) (*muzak.Ap
 	// reviewer will look.
 	app.Include(routers.Meta())
 
+	// The price list, which is public by nature: the landing page reads it (ADR 0039).
+	app.Include(routers.Pricing(), muzak.WithPrefix("/v1"))
+
 	// ---- key-authenticated surfaces -----------------------------------------
 	//
 	// Each resolves an API key rather than a person, and each router names the key class
@@ -426,6 +430,7 @@ func build(settings config.Settings, overrides ...muzak.RouterOption) (*muzak.Ap
 	// the cost of the difference.
 	operator := muzak.NewRouter()
 	operator.Include(routers.OperatorBilling())
+	operator.Include(routers.OperatorPricing())
 	app.Include(operator,
 		muzak.WithPrefix("/v1/operator"),
 		muzak.WithDependencies(core.RequireAdminToken(settings)),

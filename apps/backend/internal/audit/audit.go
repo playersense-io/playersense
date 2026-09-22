@@ -81,6 +81,7 @@ const (
 	CreditGranted  Action = "credit.grant"
 	CreditCharged  Action = "credit.charge"
 	AutoTopUpSet   Action = "billing.auto_topup"
+	PlanChanged    Action = "billing.plan"
 	PrivacyErasure Action = "privacy.erase"
 	PrivacyExport  Action = "privacy.export"
 )

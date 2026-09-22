@@ -586,6 +586,13 @@ func billingOut(ctx context.Context, db *core.DB, account *ent.BillingAccount,
 		},
 	}
 	out.Available = billing.USD(out.AvailableMicros)
+	out.ArrearsMicros = account.ArrearsMicros
+	out.Arrears = billing.USD(account.ArrearsMicros)
+	month, err := monthOut(ctx, db, account, at)
+	if err != nil {
+		return schemas.BillingOut{}, err
+	}
+	out.Month = month
 	if account.DefaultPaymentMethod != nil {
 		out.AutoTopUp.PaymentMethod = *account.DefaultPaymentMethod
 	}

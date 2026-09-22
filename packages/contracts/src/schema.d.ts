@@ -166,6 +166,94 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/v1/operator/organizations/{org}/plan": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        /**
+         * Move an organization onto a plan
+         * @description From the next player on. The month's count carries over, so the organization keeps its place in the bands and players already charged stay charged. Recorded in the organization's audit log.
+         */
+        readonly put: operations["put_v1_operator_organizations_by_org_plan"];
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/operator/plans": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * The whole catalogue
+         * @description Every plan, withdrawn ones included, with the card in force now and the next one scheduled.
+         */
+        readonly get: operations["get_v1_operator_plans"];
+        readonly put?: never;
+        /**
+         * Add a plan
+         * @description A plan charges nothing for players until a rate card is published for it. `is_default` makes it the plan new organizations are put on, and unsets the previous default in the same transaction.
+         */
+        readonly post: operations["post_v1_operator_plans"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/operator/plans/{plan}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        /**
+         * Rename a plan, change what it includes, or withdraw it
+         * @description Absent fields are left alone. Not its prices — publish a rate card for that. Withdrawing a plan stops it being sold; accounts on it stay.
+         */
+        readonly put: operations["put_v1_operator_plans_by_plan"];
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/operator/plans/{plan}/rate-cards": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * A plan's price history
+         * @description Newest first, each marked current, scheduled or superseded.
+         */
+        readonly get: operations["get_v1_operator_plans_by_plan_rate_cards"];
+        readonly put?: never;
+        /**
+         * Set a plan's prices from a moment on
+         * @description Tiers are player positions within a calendar month, lowest first, the last one unbounded; `unit_price_micros` is per player ($0.0005 is 500). `effective_from` defaults to now and cannot be in the past. Cards are never edited: publish another to change a price.
+         */
+        readonly post: operations["post_v1_operator_plans_by_plan_rate_cards"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/v1/organizations": {
         readonly parameters: {
             readonly query?: never;
@@ -752,6 +840,26 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/v1/pricing": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * What PlayerSense costs
+         * @description Every plan on sale, its allowances, the price per tracked player in force now, and any price change already scheduled. Tiers are player positions within a calendar month, inclusive; a graduated card prices each player at the band their position falls in.
+         */
+        readonly get: operations["get_v1_pricing"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/v1/privacy/erasures": {
         readonly parameters: {
             readonly query?: never;
@@ -950,6 +1058,9 @@ export interface components {
             readonly threshold_micros: number;
         };
         readonly BillingOut: {
+            readonly arrears: string;
+            /** Format: int64 */
+            readonly arrears_micros: number;
             readonly auto_topup: components["schemas"]["AutoTopUpOut"];
             /** @description The same number, rendered */
             readonly available: string;
@@ -961,6 +1072,7 @@ export interface components {
             readonly ledger_balance_micros: number;
             /** @description Every grant with credit left, in the order it will be spent */
             readonly lots?: readonly components["schemas"]["CreditLotOut"][];
+            readonly month?: components["schemas"]["MonthUsageOut"] | null;
             readonly plan: components["schemas"]["PlanOut"];
             /** Format: int64 */
             readonly promo_micros: number;
@@ -1127,6 +1239,25 @@ export interface components {
             readonly name: string;
             /** @description URL-safe short name; lower case letters, digits and hyphens */
             readonly slug: string;
+        };
+        readonly CreatePlanIn: {
+            readonly description?: string;
+            /** @description included_mau, included_events, … — the closed vocabulary */
+            readonly entitlements?: {
+                readonly [key: string]: number;
+            };
+            /** @description The plan new organizations are put on; at most one */
+            readonly is_default?: boolean;
+            /** @description Lowercase, permanent: accounts and snapshots refer to it */
+            readonly key: string;
+            /**
+             * Format: int64
+             * @description Stored and shown; not yet charged
+             */
+            readonly monthly_price_micros?: number;
+            readonly name: string;
+            /** Format: email */
+            readonly operator: string;
         };
         readonly CreditChargedOut: {
             /** Format: int64 */
@@ -1560,6 +1691,31 @@ export interface components {
             /** Format: double */
             readonly value: number;
         };
+        readonly MonthUsageOut: {
+            readonly card?: components["schemas"]["RateCardOut"] | null;
+            readonly charged: string;
+            /**
+             * Format: int64
+             * @description Every charge this month, drained or not
+             */
+            readonly charged_micros: number;
+            /**
+             * Format: int64
+             * @description Free this month under the plan
+             */
+            readonly included_players: number;
+            /**
+             * Format: int64
+             * @description Queued and not yet taken from the wallet; seconds old at most
+             */
+            readonly pending_micros: number;
+            /** Format: date-time */
+            readonly period_start: string;
+            /** Format: int64 */
+            readonly tier: number;
+            /** Format: int64 */
+            readonly tracked_players: number;
+        };
         readonly OrganizationListOut: {
             readonly organizations: readonly components["schemas"]["OrganizationOut"][];
         };
@@ -1586,6 +1742,21 @@ export interface components {
             /** @description The role's display name */
             readonly role: string;
         };
+        readonly PlanDetailOut: {
+            readonly active: boolean;
+            readonly currency: string;
+            readonly current?: components["schemas"]["RateCardOut"] | null;
+            readonly description?: string;
+            readonly entitlements?: {
+                readonly [key: string]: number;
+            };
+            readonly is_default: boolean;
+            readonly key: string;
+            /** Format: int64 */
+            readonly monthly_price_micros: number;
+            readonly name: string;
+            readonly scheduled?: components["schemas"]["RateCardOut"] | null;
+        };
         readonly PlanOut: {
             /** @description The plan's allowances, with any per-account override already applied */
             readonly entitlements?: {
@@ -1595,6 +1766,9 @@ export interface components {
             /** Format: int64 */
             readonly monthly_price_micros: number;
             readonly name: string;
+        };
+        readonly PlansOut: {
+            readonly plans: readonly components["schemas"]["PlanDetailOut"][];
         };
         readonly ProjectListOut: {
             readonly projects: readonly components["schemas"]["ProjectOut"][];
@@ -1619,6 +1793,25 @@ export interface components {
             readonly id: string;
             readonly name: string;
             readonly slug: string;
+        };
+        readonly RateCardOut: {
+            /** Format: date-time */
+            readonly created_at: string;
+            /** @description Self-asserted; operator views only */
+            readonly created_by?: string;
+            readonly currency: string;
+            /** Format: date-time */
+            readonly effective_from: string;
+            readonly id: string;
+            readonly meter: string;
+            readonly mode: string;
+            readonly note?: string;
+            /** @description current, scheduled or superseded */
+            readonly status: string;
+            readonly tiers: readonly components["schemas"]["TierOut"][];
+        };
+        readonly RateCardsOut: {
+            readonly cards: readonly components["schemas"]["RateCardOut"][];
         };
         readonly RoleListOut: {
             readonly roles: readonly components["schemas"]["RoleOut"][];
@@ -1697,6 +1890,34 @@ export interface components {
             readonly rule: string;
             /** Format: date-time */
             readonly updated_at: string;
+        };
+        readonly TierIn: {
+            /**
+             * Format: int64
+             * @description Per player, in micros: $0.0005 is 500
+             */
+            readonly unit_price_micros: number;
+            /**
+             * Format: int64
+             * @description Inclusive. Absent on the last band only
+             */
+            readonly up_to?: number | null;
+        };
+        readonly TierOut: {
+            /**
+             * Format: int64
+             * @description The first player position in the band
+             */
+            readonly from: number;
+            /** @description $0.0005, not $0.00 */
+            readonly unit_price: string;
+            /** Format: int64 */
+            readonly unit_price_micros: number;
+            /**
+             * Format: int64
+             * @description The last, inclusive; absent on the last band
+             */
+            readonly up_to?: number | null;
         };
         readonly UsageByProjectOut: {
             readonly project: components["schemas"]["ProjectRefOut"];
@@ -2403,6 +2624,404 @@ export interface operations {
                 };
             };
             /** @description The amount is not positive, or an expiry was named for purchased credit */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly put_v1_operator_organizations_by_org_plan: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly org: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": {
+                    /** Format: email */
+                    readonly operator: string;
+                    /** @description The plan's key */
+                    readonly plan: string;
+                };
+            };
+        };
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["BillingOut"];
+                };
+            };
+            /** @description The operator token is missing or wrong */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No organization or plan by that name */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly get_v1_operator_plans: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["PlansOut"];
+                };
+            };
+            /** @description The operator token is missing or wrong */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly post_v1_operator_plans: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["CreatePlanIn"];
+            };
+        };
+        readonly responses: {
+            /** @description Created */
+            readonly 201: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["PlanDetailOut"];
+                };
+            };
+            /** @description The operator token is missing or wrong */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A plan with that key exists */
+            readonly 409: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An entitlement is misspelled or negative */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly put_v1_operator_plans_by_plan: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly plan: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": {
+                    /** @description Withdrawn plans are not sold; accounts on them stay */
+                    readonly active?: boolean | null;
+                    readonly description?: string | null;
+                    /** @description Replaces the whole map when present */
+                    readonly entitlements?: {
+                        readonly [key: string]: number;
+                    };
+                    /** @description true makes this the default and unsets the previous one */
+                    readonly is_default?: boolean | null;
+                    /** Format: int64 */
+                    readonly monthly_price_micros?: number | null;
+                    readonly name?: string | null;
+                    /** Format: email */
+                    readonly operator: string;
+                };
+            };
+        };
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["PlanDetailOut"];
+                };
+            };
+            /** @description The operator token is missing or wrong */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No plan has that key */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An entitlement is misspelled or negative */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly get_v1_operator_plans_by_plan_rate_cards: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly plan: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["RateCardsOut"];
+                };
+            };
+            /** @description The operator token is missing or wrong */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No plan has that key */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly post_v1_operator_plans_by_plan_rate_cards: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly plan: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": {
+                    /**
+                     * Format: date-time
+                     * @description Defaults to now; refused if in the past
+                     */
+                    readonly effective_from?: string | null;
+                    /**
+                     * @description Only tracked_players today
+                     * @default tracked_players
+                     * @enum {string}
+                     */
+                    readonly meter?: "tracked_players";
+                    /**
+                     * @description graduated (each band at its own price) or volume (the whole month at the band reached)
+                     * @default graduated
+                     * @enum {string}
+                     */
+                    readonly mode?: "graduated" | "volume";
+                    /** @description Why the price changed, for whoever asks next */
+                    readonly note?: string;
+                    /**
+                     * Format: email
+                     * @description Your own address. Stored on the card as self-asserted
+                     */
+                    readonly operator: string;
+                    /** @description Lowest band first */
+                    readonly tiers?: readonly components["schemas"]["TierIn"][];
+                };
+            };
+        };
+        readonly responses: {
+            /** @description Created */
+            readonly 201: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["RateCardOut"];
+                };
+            };
+            /** @description The operator token is missing or wrong */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No plan has that key */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The plan already has a card starting at that moment */
+            readonly 409: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The tiers leave a gap, overlap, or bound the last band; or the card starts in the past */
             readonly 422: {
                 headers: {
                     readonly [name: string]: unknown;
@@ -6022,6 +6641,35 @@ export interface operations {
                 };
                 content: {
                     readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly get_v1_pricing: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["PlansOut"];
                 };
             };
             /** @description An unexpected error occurred. */

@@ -1,0 +1,90 @@
+package routers
+
+import (
+	"net/http"
+
+	muzak "muzak.dev/framework"
+
+	"playersense.dev/backend/internal/handlers"
+)
+
+// Pricing is the public price list: what the landing page's pricing page reads (ADR 0039).
+//
+// No credential, on purpose. Prices are published to be read, and serving them from the same rows
+// the charger prices from means the page cannot drift from what is charged — a price staff publish
+// is on the page the moment it takes effect, with nothing to redeploy. Only plans on sale are
+// listed, and who published a card is not: that is an operator's business.
+func Pricing() *muzak.Router {
+	r := muzak.NewRouter(muzak.WithTags("pricing"))
+
+	r.Get("/pricing", handlers.ReadPricing,
+		muzak.Summary("What PlayerSense costs"),
+		muzak.Description("Every plan on sale, its allowances, the price per tracked player in "+
+			"force now, and any price change already scheduled. Tiers are player positions within "+
+			"a calendar month, inclusive; a graduated card prices each player at the band their "+
+			"position falls in."))
+
+	return r
+}
+
+// OperatorPricing is the catalogue as PlayerSense staff edit it.
+//
+// Behind the shared operator token, with the cost routers.OperatorBilling states: a shared secret
+// cannot say who acted, so each write names its operator and that name is self-asserted. Rate cards
+// carry it on the row; moving an organization between plans is in that organization's audit log.
+//
+// # Prices are published, never edited
+//
+// There is no route that changes a price. A new price is a new card from a moment on, and the
+// charger prices each player at the card in force when they arrived — so a price change can never
+// reprice a player already charged, and the history of a plan's prices is its list of cards.
+func OperatorPricing() *muzak.Router {
+	r := muzak.NewRouter(muzak.WithTags("operator"))
+
+	r.Get("/plans", handlers.ListPlans,
+		muzak.Summary("The whole catalogue"),
+		muzak.Description("Every plan, withdrawn ones included, with the card in force now and "+
+			"the next one scheduled."))
+
+	r.Post("/plans", handlers.CreatePlan,
+		muzak.Summary("Add a plan"),
+		muzak.Description("A plan charges nothing for players until a rate card is published for "+
+			"it. `is_default` makes it the plan new organizations are put on, and unsets the "+
+			"previous default in the same transaction."),
+		muzak.Status(http.StatusCreated),
+		muzak.WithResponseDoc(http.StatusConflict, "A plan with that key exists"),
+		muzak.WithResponseDoc(http.StatusUnprocessableEntity, "An entitlement is misspelled or negative"))
+
+	r.Put("/plans/{plan}", handlers.UpdatePlan,
+		muzak.Summary("Rename a plan, change what it includes, or withdraw it"),
+		muzak.Description("Absent fields are left alone. Not its prices — publish a rate card for "+
+			"that. Withdrawing a plan stops it being sold; accounts on it stay."),
+		muzak.WithResponseDoc(http.StatusNotFound, "No plan has that key"),
+		muzak.WithResponseDoc(http.StatusUnprocessableEntity, "An entitlement is misspelled or negative"))
+
+	r.Get("/plans/{plan}/rate-cards", handlers.ListRateCards,
+		muzak.Summary("A plan's price history"),
+		muzak.Description("Newest first, each marked current, scheduled or superseded."),
+		muzak.WithResponseDoc(http.StatusNotFound, "No plan has that key"))
+
+	r.Post("/plans/{plan}/rate-cards", handlers.PublishRateCard,
+		muzak.Summary("Set a plan's prices from a moment on"),
+		muzak.Description("Tiers are player positions within a calendar month, lowest first, the "+
+			"last one unbounded; `unit_price_micros` is per player ($0.0005 is 500). "+
+			"`effective_from` defaults to now and cannot be in the past. Cards are never edited: "+
+			"publish another to change a price."),
+		muzak.Status(http.StatusCreated),
+		muzak.WithResponseDoc(http.StatusNotFound, "No plan has that key"),
+		muzak.WithResponseDoc(http.StatusConflict, "The plan already has a card starting at that moment"),
+		muzak.WithResponseDoc(http.StatusUnprocessableEntity,
+			"The tiers leave a gap, overlap, or bound the last band; or the card starts in the past"))
+
+	r.Put("/organizations/{org}/plan", handlers.AssignPlan,
+		muzak.Summary("Move an organization onto a plan"),
+		muzak.Description("From the next player on. The month's count carries over, so the "+
+			"organization keeps its place in the bands and players already charged stay charged. "+
+			"Recorded in the organization's audit log."),
+		muzak.WithResponseDoc(http.StatusNotFound, "No organization or plan by that name"))
+
+	return r
+}

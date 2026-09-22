@@ -113,6 +113,16 @@ type BillingOut struct {
 	// written off. Exposed rather than hidden, so a number that looks wrong can be explained.
 	LedgerBalanceMicros int64 `json:"ledger_balance_micros"`
 
+	// ArrearsMicros is usage the wallet could not cover when it was charged (ADR 0039). The
+	// next top-up pays it before any of it becomes spendable, and while it is above zero the
+	// account is in its grace period. Ingestion is not affected.
+	ArrearsMicros int64  `json:"arrears_micros"`
+	Arrears       string `json:"arrears"`
+
+	// Month is the running month as real-time charging sees it: exact players, what they
+	// cost, and the band the next one lands in.
+	Month *MonthUsageOut `json:"month,omitzero"`
+
 	Lots []CreditLotOut `json:"lots,omitzero" doc:"Every grant with credit left, in the order it will be spent"`
 
 	// ExpiringSoon is what lapses within the warning window, soonest first. The one number a

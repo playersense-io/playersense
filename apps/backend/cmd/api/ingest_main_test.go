@@ -31,6 +31,7 @@ type ingestFixture struct {
 	key    string
 	db     *pgdb.DB
 	envID  int
+	orgID  int
 }
 
 func newIngestFixture(t *testing.T, tier string) *ingestFixture {
@@ -72,6 +73,7 @@ func newIngestFixture(t *testing.T, tier string) *ingestFixture {
 		key:   seeded.Secret,
 		db:    db,
 		envID: seeded.EnvironmentID,
+		orgID: seeded.OrgSeq,
 	}
 }
 

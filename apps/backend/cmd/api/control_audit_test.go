@@ -64,6 +64,7 @@ func TestEveryMutatingRouteDecidesAboutAudit(t *testing.T) {
 		"PUT /v1/organizations/{org}/billing/auto-topup": audit.AutoTopUpSet,
 		"POST /v1/operator/organizations/{org}/credits":  audit.CreditGranted,
 		"POST /v1/operator/organizations/{org}/charges":  audit.CreditCharged,
+		"PUT /v1/operator/organizations/{org}/plan":      audit.PlanChanged,
 	}
 
 	// Exempt, each with the reason. A route is allowed to change something and write no entry —
@@ -92,6 +93,15 @@ func TestEveryMutatingRouteDecidesAboutAudit(t *testing.T) {
 		// which an entry keyed to an organization does not.
 		"POST /v1/privacy/erasures": "recorded in data_deletion_requests, with a status machine and counts",
 		"POST /v1/privacy/exports":  "recorded in data_export_requests, with a status machine and an expiry",
+
+		// The catalogue belongs to no organization, and this log is an organization's. A rate
+		// card keeps a better record than an entry would: it is immutable, carries who published
+		// it and why, and the list of cards *is* the price history (ADR 0039). A plan's name and
+		// allowances are the one mutable part, and a staff-side log for them waits on §56's
+		// staff identities — recorded in docs/compliance/10-open-items.md.
+		"POST /v1/operator/plans":                   "the catalogue, not an organization's account",
+		"PUT /v1/operator/plans/{plan}":             "the catalogue; a staff log waits on §56",
+		"POST /v1/operator/plans/{plan}/rate-cards": "an immutable card that records who published it and why",
 	}
 
 	app := mustBuild(t, testSettings(t))

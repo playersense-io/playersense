@@ -819,6 +819,570 @@
         }
       }
     },
+    "/v1/operator/organizations/{org}/plan": {
+      "put": {
+        "tags": [
+          "operator"
+        ],
+        "summary": "Move an organization onto a plan",
+        "description": "From the next player on. The month's count carries over, so the organization keeps its place in the bands and players already charged stay charged. Recorded in the organization's audit log.",
+        "operationId": "put_v1_operator_organizations_by_org_plan",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "operator": {
+                    "type": "string",
+                    "format": "email",
+                    "maxLength": 254
+                  },
+                  "plan": {
+                    "type": "string",
+                    "description": "The plan's key",
+                    "maxLength": 64
+                  }
+                },
+                "required": [
+                  "operator",
+                  "plan"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillingOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The operator token is missing or wrong",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No organization or plan by that name",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/operator/plans": {
+      "get": {
+        "tags": [
+          "operator"
+        ],
+        "summary": "The whole catalogue",
+        "description": "Every plan, withdrawn ones included, with the card in force now and the next one scheduled.",
+        "operationId": "get_v1_operator_plans",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlansOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The operator token is missing or wrong",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "operator"
+        ],
+        "summary": "Add a plan",
+        "description": "A plan charges nothing for players until a rate card is published for it. `is_default` makes it the plan new organizations are put on, and unsets the previous default in the same transaction.",
+        "operationId": "post_v1_operator_plans",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePlanIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanDetailOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The operator token is missing or wrong",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "A plan with that key exists",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "An entitlement is misspelled or negative",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/operator/plans/{plan}": {
+      "put": {
+        "tags": [
+          "operator"
+        ],
+        "summary": "Rename a plan, change what it includes, or withdraw it",
+        "description": "Absent fields are left alone. Not its prices — publish a rate card for that. Withdrawing a plan stops it being sold; accounts on it stay.",
+        "operationId": "put_v1_operator_plans_by_plan",
+        "parameters": [
+          {
+            "name": "plan",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "active": {
+                    "type": [
+                      "boolean",
+                      "null"
+                    ],
+                    "description": "Withdrawn plans are not sold; accounts on them stay"
+                  },
+                  "description": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 500
+                  },
+                  "entitlements": {
+                    "type": "object",
+                    "description": "Replaces the whole map when present",
+                    "additionalProperties": {
+                      "type": "integer",
+                      "format": "int64"
+                    }
+                  },
+                  "is_default": {
+                    "type": [
+                      "boolean",
+                      "null"
+                    ],
+                    "description": "true makes this the default and unsets the previous one"
+                  },
+                  "monthly_price_micros": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "format": "int64",
+                    "minimum": 0,
+                    "maximum": 1000000000000
+                  },
+                  "name": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "operator": {
+                    "type": "string",
+                    "format": "email",
+                    "maxLength": 254
+                  }
+                },
+                "required": [
+                  "operator"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanDetailOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The operator token is missing or wrong",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No plan has that key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "An entitlement is misspelled or negative",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/operator/plans/{plan}/rate-cards": {
+      "get": {
+        "tags": [
+          "operator"
+        ],
+        "summary": "A plan's price history",
+        "description": "Newest first, each marked current, scheduled or superseded.",
+        "operationId": "get_v1_operator_plans_by_plan_rate_cards",
+        "parameters": [
+          {
+            "name": "plan",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RateCardsOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The operator token is missing or wrong",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No plan has that key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "operator"
+        ],
+        "summary": "Set a plan's prices from a moment on",
+        "description": "Tiers are player positions within a calendar month, lowest first, the last one unbounded; `unit_price_micros` is per player ($0.0005 is 500). `effective_from` defaults to now and cannot be in the past. Cards are never edited: publish another to change a price.",
+        "operationId": "post_v1_operator_plans_by_plan_rate_cards",
+        "parameters": [
+          {
+            "name": "plan",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "effective_from": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "date-time",
+                    "description": "Defaults to now; refused if in the past"
+                  },
+                  "meter": {
+                    "type": "string",
+                    "description": "Only tracked_players today",
+                    "default": "tracked_players",
+                    "enum": [
+                      "tracked_players"
+                    ]
+                  },
+                  "mode": {
+                    "type": "string",
+                    "description": "graduated (each band at its own price) or volume (the whole month at the band reached)",
+                    "default": "graduated",
+                    "enum": [
+                      "graduated",
+                      "volume"
+                    ]
+                  },
+                  "note": {
+                    "type": "string",
+                    "description": "Why the price changed, for whoever asks next",
+                    "maxLength": 500
+                  },
+                  "operator": {
+                    "type": "string",
+                    "format": "email",
+                    "description": "Your own address. Stored on the card as self-asserted",
+                    "maxLength": 254
+                  },
+                  "tiers": {
+                    "type": "array",
+                    "description": "Lowest band first",
+                    "items": {
+                      "$ref": "#/components/schemas/TierIn"
+                    },
+                    "minItems": 1,
+                    "maxItems": 20
+                  }
+                },
+                "required": [
+                  "operator"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RateCardOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The operator token is missing or wrong",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No plan has that key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The plan already has a card starting at that moment",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The tiers leave a gap, overlap, or bound the last band; or the card starts in the past",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/organizations": {
       "get": {
         "tags": [
@@ -5864,6 +6428,38 @@
         }
       }
     },
+    "/v1/pricing": {
+      "get": {
+        "tags": [
+          "pricing"
+        ],
+        "summary": "What PlayerSense costs",
+        "description": "Every plan on sale, its allowances, the price per tracked player in force now, and any price change already scheduled. Tiers are player positions within a calendar month, inclusive; a graduated card prices each player at the band their position falls in.",
+        "operationId": "get_v1_pricing",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlansOut"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/privacy/erasures": {
       "post": {
         "tags": [
@@ -6506,6 +7102,13 @@
       "BillingOut": {
         "type": "object",
         "properties": {
+          "arrears": {
+            "type": "string"
+          },
+          "arrears_micros": {
+            "type": "integer",
+            "format": "int64"
+          },
           "auto_topup": {
             "$ref": "#/components/schemas/AutoTopUpOut"
           },
@@ -6537,6 +7140,16 @@
               "$ref": "#/components/schemas/CreditLotOut"
             }
           },
+          "month": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MonthUsageOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "plan": {
             "$ref": "#/components/schemas/PlanOut"
           },
@@ -6554,6 +7167,8 @@
           }
         },
         "required": [
+          "arrears",
+          "arrears_micros",
           "auto_topup",
           "available",
           "available_micros",
@@ -7007,6 +7622,55 @@
         "required": [
           "name",
           "slug"
+        ]
+      },
+      "CreatePlanIn": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "entitlements": {
+            "type": "object",
+            "description": "included_mau, included_events, … — the closed vocabulary",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          "is_default": {
+            "type": "boolean",
+            "description": "The plan new organizations are put on; at most one"
+          },
+          "key": {
+            "type": "string",
+            "description": "Lowercase, permanent: accounts and snapshots refer to it",
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+            "minLength": 2,
+            "maxLength": 64
+          },
+          "monthly_price_micros": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Stored and shown; not yet charged",
+            "minimum": 0,
+            "maximum": 1000000000000
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "operator": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 254
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "operator"
         ]
       },
       "CreditChargedOut": {
@@ -8176,6 +8840,60 @@
           "value"
         ]
       },
+      "MonthUsageOut": {
+        "type": "object",
+        "properties": {
+          "card": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RateCardOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "charged": {
+            "type": "string"
+          },
+          "charged_micros": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Every charge this month, drained or not"
+          },
+          "included_players": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Free this month under the plan"
+          },
+          "pending_micros": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Queued and not yet taken from the wallet; seconds old at most"
+          },
+          "period_start": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "tier": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "tracked_players": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "charged",
+          "charged_micros",
+          "included_players",
+          "pending_micros",
+          "period_start",
+          "tier",
+          "tracked_players"
+        ]
+      },
       "OrganizationListOut": {
         "type": "object",
         "properties": {
@@ -8260,6 +8978,68 @@
           "role"
         ]
       },
+      "PlanDetailOut": {
+        "type": "object",
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "current": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RateCardOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "description": {
+            "type": "string"
+          },
+          "entitlements": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          "is_default": {
+            "type": "boolean"
+          },
+          "key": {
+            "type": "string"
+          },
+          "monthly_price_micros": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "scheduled": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RateCardOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "active",
+          "currency",
+          "is_default",
+          "key",
+          "monthly_price_micros",
+          "name"
+        ]
+      },
       "PlanOut": {
         "type": "object",
         "properties": {
@@ -8286,6 +9066,20 @@
           "key",
           "monthly_price_micros",
           "name"
+        ]
+      },
+      "PlansOut": {
+        "type": "object",
+        "properties": {
+          "plans": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlanDetailOut"
+            }
+          }
+        },
+        "required": [
+          "plans"
         ]
       },
       "ProjectListOut": {
@@ -8366,6 +9160,72 @@
           "id",
           "name",
           "slug"
+        ]
+      },
+      "RateCardOut": {
+        "type": "object",
+        "properties": {
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "created_by": {
+            "type": "string",
+            "description": "Self-asserted; operator views only"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "effective_from": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "id": {
+            "type": "string"
+          },
+          "meter": {
+            "type": "string"
+          },
+          "mode": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "description": "current, scheduled or superseded"
+          },
+          "tiers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TierOut"
+            }
+          }
+        },
+        "required": [
+          "created_at",
+          "currency",
+          "effective_from",
+          "id",
+          "meter",
+          "mode",
+          "status",
+          "tiers"
+        ]
+      },
+      "RateCardsOut": {
+        "type": "object",
+        "properties": {
+          "cards": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RateCardOut"
+            }
+          }
+        },
+        "required": [
+          "cards"
         ]
       },
       "RoleListOut": {
@@ -8582,6 +9442,58 @@
           "updated_at"
         ]
       },
+      "TierIn": {
+        "type": "object",
+        "properties": {
+          "unit_price_micros": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Per player, in micros: $0.0005 is 500"
+          },
+          "up_to": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Inclusive. Absent on the last band only"
+          }
+        },
+        "required": [
+          "unit_price_micros"
+        ]
+      },
+      "TierOut": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The first player position in the band"
+          },
+          "unit_price": {
+            "type": "string",
+            "description": "$0.0005, not $0.00"
+          },
+          "unit_price_micros": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "up_to": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "The last, inclusive; absent on the last band"
+          }
+        },
+        "required": [
+          "from",
+          "unit_price",
+          "unit_price_micros"
+        ]
+      },
       "UsageByProjectOut": {
         "type": "object",
         "properties": {
@@ -8789,7 +9701,11 @@
     },
     {
       "name": "operator",
-      "description": "PlayerSense staff only: putting credit in a wallet."
+      "description": "PlayerSense staff only: putting credit in a wallet, and the plans and prices it is spent against."
+    },
+    {
+      "name": "pricing",
+      "description": "The public price list."
     },
     {
       "name": "liveops",
