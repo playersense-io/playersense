@@ -10,7 +10,9 @@ import (
 
 	"playersense.dev/backend/ent/auditevent"
 	"playersense.dev/backend/ent/plan"
+	"playersense.dev/backend/ent/ratecard"
 	"playersense.dev/backend/internal/audit"
+	"playersense.dev/backend/internal/billing"
 	"playersense.dev/backend/internal/schemas"
 )
 
@@ -66,6 +68,28 @@ func (c *catalogue) publish(t *testing.T, planKey string, body map[string]any) *
 	return c.operator.Post("/v1/operator/plans/"+planKey+"/rate-cards", testclient.JSON(body))
 }
 
+// inForce gives a plan a card that started an hour ago — what publishing one and waiting would
+// produce, without the suite waiting for the horizon.
+func (c *catalogue) inForce(t *testing.T, planKey string, tiers billing.Tiers) {
+	t.Helper()
+	p, err := c.db.Client.Plan.Query().Where(plan.Key(planKey)).Only(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.db.Client.RateCard.Create().SetPlanID(p.ID).SetMeter(ratecard.MeterTrackedPlayers).
+		SetTiers(tiers).SetEffectiveFrom(time.Now().Add(-time.Hour)).SetCreatedBy("test@playersense.dev").
+		Save(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func launchCard() billing.Tiers {
+	return billing.Tiers{
+		{UpTo: upTo(100_000), UnitPriceMicros: 500}, {UpTo: upTo(500_000), UnitPriceMicros: 400},
+		{UpTo: upTo(1_000_000), UnitPriceMicros: 350}, {UnitPriceMicros: 300},
+	}
+}
+
 // unsetDefault puts the shared database back: a default plan changes what every other suite's
 // organizations are provisioned onto.
 func (c *catalogue) unsetDefault(t *testing.T, key string) {
@@ -84,8 +108,11 @@ func TestPublishedPricesAppearOnThePublicPricingPage(t *testing.T) {
 	card := testclient.Decoded[schemas.RateCardOut](
 		c.publish(t, created.Key, map[string]any{"tiers": launchTiers(), "note": "launch"}).
 			AssertStatus(http.StatusCreated))
-	if card.Status != "current" || card.Mode != "graduated" {
-		t.Errorf("published card is %s/%s, want current/graduated", card.Status, card.Mode)
+	// "Now" is the horizon: a minute ahead, so every charger has the card before it applies.
+	if card.Status != "scheduled" || card.Mode != "graduated" ||
+		card.EffectiveFrom.Before(time.Now().Add(50*time.Second)) {
+		t.Errorf("published card is %s/%s from %s, want scheduled/graduated about a minute ahead",
+			card.Status, card.Mode, card.EffectiveFrom)
 	}
 
 	page := testclient.Decoded[schemas.PlansOut](c.anon.Get("/v1/pricing").AssertStatus(http.StatusOK))
@@ -95,7 +122,7 @@ func TestPublishedPricesAppearOnThePublicPricingPage(t *testing.T) {
 			shown = &page.Plans[i]
 		}
 	}
-	if shown == nil || shown.Current == nil {
+	if shown == nil || shown.Scheduled == nil {
 		t.Fatalf("the plan or its card is not on the public page")
 	}
 	want := []struct {
@@ -108,17 +135,17 @@ func TestPublishedPricesAppearOnThePublicPricingPage(t *testing.T) {
 		{500_001, upTo(1_000_000), "$0.00035"},
 		{1_000_001, nil, "$0.0003"},
 	}
-	if len(shown.Current.Tiers) != len(want) {
-		t.Fatalf("tiers = %+v", shown.Current.Tiers)
+	if len(shown.Scheduled.Tiers) != len(want) {
+		t.Fatalf("tiers = %+v", shown.Scheduled.Tiers)
 	}
 	for i, w := range want {
-		got := shown.Current.Tiers[i]
+		got := shown.Scheduled.Tiers[i]
 		if got.From != w.from || got.UnitPrice != w.price || (got.UpTo == nil) != (w.upTo == nil) ||
 			(got.UpTo != nil && *got.UpTo != *w.upTo) {
 			t.Errorf("tier %d = %+v, want from %d to %v at %s", i, got, w.from, w.upTo, w.price)
 		}
 	}
-	if shown.Current.CreatedBy != "" {
+	if shown.Scheduled.CreatedBy != "" {
 		t.Error("the public page shows which operator published the card")
 	}
 	if shown.Entitlements["included_mau"] != 10_000 {
@@ -139,6 +166,9 @@ func TestACardThatCouldMispriceIsRefused(t *testing.T) {
 		"a negative price": {"tiers": []map[string]any{{"unit_price_micros": -1}}},
 		"a start in the past": {
 			"tiers": launchTiers(), "effective_from": time.Now().Add(-time.Hour).UTC(),
+		},
+		"a start sooner than the horizon": {
+			"tiers": launchTiers(), "effective_from": time.Now().Add(10 * time.Second).UTC(),
 		},
 		"a mode nobody defined": {"tiers": launchTiers(), "mode": "discounted"},
 	}
@@ -163,7 +193,7 @@ func TestACardThatCouldMispriceIsRefused(t *testing.T) {
 func TestAScheduledPriceIsShownAsScheduled(t *testing.T) {
 	c := newCatalogue(t)
 	key := c.createPlan(t, map[string]any{}).Key
-	c.publish(t, key, map[string]any{"tiers": launchTiers()}).AssertStatus(http.StatusCreated)
+	c.inForce(t, key, launchCard())
 	next := time.Now().Add(30 * 24 * time.Hour).UTC().Truncate(time.Second)
 	c.publish(t, key, map[string]any{
 		"tiers":          []map[string]any{{"unit_price_micros": 250}},
@@ -219,7 +249,7 @@ func TestNewOrganizationsLandOnTheDefaultPlan(t *testing.T) {
 func TestAssigningAPlanIsRecordedAndShowsTheMonth(t *testing.T) {
 	c := newCatalogue(t)
 	key := c.createPlan(t, map[string]any{"entitlements": map[string]int64{"included_mau": 5}}).Key
-	c.publish(t, key, map[string]any{"tiers": launchTiers()}).AssertStatus(http.StatusCreated)
+	c.inForce(t, key, launchCard())
 
 	owner := person(t)
 	slug := c.createOrg(t, owner)

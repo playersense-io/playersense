@@ -20,6 +20,7 @@ import (
 	"playersense.dev/backend/internal/charging"
 	"playersense.dev/backend/internal/core"
 	"playersense.dev/backend/internal/schemas"
+	"playersense.dev/backend/internal/valkey"
 )
 
 // Plans, prices and the pricing page (ADR 0039).
@@ -28,10 +29,6 @@ import (
 // §56's console and its staff identities exist, with the cost that implies stated on
 // routers.OperatorBilling. The pricing page reads the same rows through a public route, so a price
 // published here is on the landing page the moment it takes effect, with nothing to redeploy.
-
-// clockSkew is how far in the past a card may say it starts and still be accepted as "now". An
-// operator's clock and ours disagree by seconds; a card dated an hour ago is a mistake.
-const clockSkew = time.Minute
 
 // ---- public -----------------------------------------------------------------
 
@@ -128,6 +125,8 @@ func UpdatePlan(ctx *muzak.Context, in schemas.UpdatePlanIn) (schemas.PlanDetail
 	if err != nil {
 		return schemas.PlanDetailOut{}, catalogueError(err)
 	}
+	// Its allowance may have changed, and chargers price included players from the cache.
+	invalidatePlan(ctx, updated.ID)
 	return planOut(ctx.Context(), db, updated, nowUTC(), true)
 }
 
@@ -178,14 +177,22 @@ func PublishRateCard(ctx *muzak.Context, in schemas.PublishRateCardIn) (schemas.
 	if err := card.Validate(); err != nil {
 		return schemas.RateCardOut{}, muzak.UnprocessableEntity(err.Error()).WithCode("invalid_tiers")
 	}
+	// No sooner than the horizon (ADR 0041). Chargers keep a plan's cards in memory for less than
+	// that, so every one of them has the card before it applies and no player is priced at the
+	// old card after the new one starts. "Now" therefore means "in a minute", and says so in the
+	// effective_from it returns.
 	now := nowUTC()
-	from := now
+	earliest := now.Add(charging.CardHorizon)
+	from := earliest
 	if in.EffectiveFrom != nil {
 		from = in.EffectiveFrom.UTC()
-		if from.Before(now.Add(-clockSkew)) {
+		// Five seconds of slack for an operator's clock. Slack comes out of the margin over
+		// charging.LocalTTL, so it stays small.
+		if from.Before(earliest.Add(-5 * time.Second)) {
 			return schemas.RateCardOut{}, muzak.UnprocessableEntity(
-				"a card cannot start in the past; it would reprice players already charged").
-				WithCode("effective_from_in_past")
+				"a card starts no sooner than a minute from now, so every charger has it before " +
+					"it applies; omit effective_from to start as soon as possible").
+				WithCode("effective_from_too_soon")
 		}
 	}
 
@@ -210,12 +217,9 @@ func PublishRateCard(ctx *muzak.Context, in schemas.PublishRateCardIn) (schemas.
 		}
 		return schemas.RateCardOut{}, catalogueError(err)
 	}
+	invalidatePlan(ctx, found.ID)
 	ctx.SetStatus(http.StatusCreated)
-	status := "current"
-	if from.After(now) {
-		status = "scheduled"
-	}
-	return rateCardOut(created, status, true), nil
+	return rateCardOut(created, "scheduled", true), nil
 }
 
 // ---- operator: an organization's plan ---------------------------------------
@@ -268,11 +272,27 @@ func AssignPlan(ctx *muzak.Context, in schemas.AssignPlanIn) (schemas.BillingOut
 		return schemas.BillingOut{}, catalogueError(err)
 	}
 
+	// Chargers price its next player on the new plan once their memory of the old one expires —
+	// at most charging.LocalTTL.
+	if err := charging.InvalidateOrganization(ctx.Context(), muzak.From[*valkey.Client](ctx), org.ID); err != nil {
+		ctx.Logger().Warn("could not invalidate the organization's cached pricing; it expires on its own",
+			"org", org.Slug, "error", err)
+	}
+
 	account, err := accountOf(ctx.Context(), db, org.ID)
 	if err != nil {
 		return schemas.BillingOut{}, err
 	}
 	return billingOut(ctx.Context(), db, account, nowUTC())
+}
+
+// invalidatePlan deletes a plan's cached pricing. Best effort: the entry expires on its own within
+// charging.SharedTTL, and a card never needs it because it cannot start before the horizon.
+func invalidatePlan(ctx *muzak.Context, planID int) {
+	if err := charging.InvalidatePlan(ctx.Context(), muzak.From[*valkey.Client](ctx), planID); err != nil {
+		ctx.Logger().Warn("could not invalidate a plan's cached pricing; it expires on its own",
+			"plan_id", planID, "error", err)
+	}
 }
 
 // ---- the month so far -------------------------------------------------------

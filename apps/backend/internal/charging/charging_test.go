@@ -343,23 +343,90 @@ func TestIncludedPlayersQueueNothing(t *testing.T) {
 // A price change mid-month applies from its moment: players before it keep the old price.
 func TestAPriceChangeAppliesOnlyToPlayersAfterIt(t *testing.T) {
 	f := newFixture(t, billing.Graduated, 0)
+	clock := time.Now()
 	a := f.accruer()
-	now := time.Now()
+	a.Pricing = &PricingCache{DB: f.db, Cache: f.cache, Now: func() time.Time { return clock }}
 
-	f.handle(a, f.messages(players(5), now.Add(-10*time.Minute)))
-	f.publishCard(billing.Graduated, billing.Tiers{{UnitPriceMicros: 1_000}}, now.Add(-5*time.Minute))
-	f.handle(a, f.messages(players(5), now))
+	f.handle(a, f.messages(players(5), clock)) // warms every cache with the launch card
+
+	// Published the way the API publishes: no sooner than the horizon, and the plan's shared
+	// entry deleted. This process's memory still holds the old plan — that is the point.
+	starts := clock.Add(CardHorizon)
+	f.publishCard(billing.Graduated, billing.Tiers{{UnitPriceMicros: 1_000}}, starts)
+	if err := InvalidatePlan(context.Background(), f.cache, f.plan); err != nil {
+		t.Fatal(err)
+	}
+
+	// Before the card starts: still the old price, from memory.
+	f.handle(a, f.messages(players(5), starts.Add(-time.Second)))
+	// After it starts. By then the memory entry is older than LocalTTL, which is shorter than the
+	// horizon, so the card is known before it applies.
+	clock = starts.Add(time.Second)
+	f.handle(a, f.messages(players(5), clock))
 
 	charges := f.charges()
-	if len(charges) != 2 || charges[0].AmountMicros != 5*500 || charges[1].AmountMicros != 5*1_000 {
+	if len(charges) != 3 || charges[0].AmountMicros != 5*500 || charges[1].AmountMicros != 5*500 ||
+		charges[2].AmountMicros != 5*1_000 {
 		for _, c := range charges {
 			t.Logf("charge %d–%d: %d", c.FirstUnit, c.LastUnit, c.AmountMicros)
 		}
-		t.Fatal("the old price did not hold for the first five, or the new one for the next five")
+		t.Fatal("the old price did not hold until the card started, or the new one after it")
 	}
-	if charges[0].RateCardID == charges[1].RateCardID {
-		t.Error("both charges name the same card")
+	if charges[0].RateCardID == charges[2].RateCardID {
+		t.Error("both prices name the same card")
 	}
+}
+
+// A price scheduled in advance needs no invalidation at all: the cached plan holds every card, and the
+// one in force is chosen by the batch's arrival time, at the exact second it changes.
+func TestAScheduledPriceSwitchesOnTheSecondFromACachedPlan(t *testing.T) {
+	f := newFixture(t, billing.Graduated, 0)
+	switchAt := time.Now().Add(time.Hour).Truncate(time.Second)
+	f.publishCard(billing.Graduated, billing.Tiers{{UnitPriceMicros: 1_000}}, switchAt)
+	a := f.accruer()
+
+	f.handle(a, f.messages(players(2), switchAt.Add(-time.Second)))
+	f.handle(a, f.messages(players(2), switchAt))
+
+	charges := f.charges()
+	if len(charges) != 2 || charges[0].AmountMicros != 2*500 || charges[1].AmountMicros != 2*1_000 {
+		t.Fatalf("charges = %+v", charges)
+	}
+	if got := a.Pricing.Stats.Database.Load(); got != 1 {
+		t.Errorf("the organization was read from the database %d times, want once", got)
+	}
+}
+
+// A busy organization is priced from memory: one database read, then none, for as long as the entry
+// lives — and a second billing writer is warmed by Valkey rather than by the database.
+func TestABusyOrganizationIsPricedFromMemory(t *testing.T) {
+	f := newFixture(t, billing.Graduated, 0)
+	first := f.accruer()
+	for range 20 {
+		f.handle(first, f.messages(players(3), time.Now()))
+	}
+	if db, local := first.Pricing.Stats.Database.Load(), first.Pricing.Stats.Local.Load(); db != 1 || local != 19 {
+		t.Errorf("database %d, memory %d; want 1 and 19", db, local)
+	}
+
+	second := f.accruer()
+	f.handle(second, f.messages(players(3), time.Now()))
+	if db, shared := second.Pricing.Stats.Database.Load(), second.Pricing.Stats.Shared.Load(); db != 0 || shared != 1 {
+		t.Errorf("a second writer: database %d, valkey %d; want 0 and 1", db, shared)
+	}
+	f.drain()
+	f.assertBooks(billing.Card{Mode: billing.Graduated, Tiers: launch()}, 0, 63)
+}
+
+// With Valkey gone, pricing still works — from memory and the database.
+func TestPricingWorksWithoutValkey(t *testing.T) {
+	f := newFixture(t, billing.Graduated, 0)
+	a := f.accruer()
+	a.Cache = nil
+	f.handle(a, f.messages(players(4), time.Now()))
+	f.handle(a, f.messages(players(4), time.Now()))
+	f.drain()
+	f.assertBooks(billing.Card{Mode: billing.Graduated, Tiers: launch()}, 0, 8)
 }
 
 // A volume card crossing into a cheaper band credits the month, and the credit reaches the wallet.

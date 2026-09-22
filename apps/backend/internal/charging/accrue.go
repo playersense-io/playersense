@@ -14,13 +14,12 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
 	"playersense.dev/backend/ent"
-	"playersense.dev/backend/ent/billingaccount"
 	"playersense.dev/backend/ent/monthlyusage"
-	"playersense.dev/backend/ent/ratecard"
 	"playersense.dev/backend/internal/billing"
 	"playersense.dev/backend/internal/eventbus"
 	"playersense.dev/backend/internal/pgdb"
@@ -42,6 +41,11 @@ type Accruer struct {
 	// MaxInsert bounds one INSERT's row count, so a delivery of a hundred thousand new
 	// players is several statements rather than one with a hundred thousand parameters.
 	MaxInsert int
+
+	// Pricing serves each organization's account, allowance and rate cards from memory and
+	// Valkey (ADR 0041). Nil builds one over DB and Cache on first use.
+	Pricing *PricingCache
+	once    sync.Once
 
 	Stats Stats
 }
@@ -176,11 +180,27 @@ func (a *Accruer) accrue(ctx context.Context, g *group) error {
 		return nil
 	}
 
+	// Before the transaction, so no lock is held while memory, Valkey or — on a miss — the
+	// database answers. Nil: the organization cannot be billed.
+	pricing, err := a.pricingFor(ctx, g.orgSeq)
+	if err != nil {
+		return err
+	}
+	if pricing == nil {
+		// No account and no default plan to give it one. Nothing is counted, so that when
+		// an account exists these players are still new this month rather than silently
+		// free — and it is loud, because it is a configuration problem that loses money.
+		a.Stats.Unbilled.Add(int64(len(candidates)))
+		a.log().Warn("an organization has no billing account and no default plan exists; "+
+			"its players are not being billed", "org_seq", g.orgSeq, "players", len(candidates))
+		return nil
+	}
+
 	tx, err := a.DB.Client.Tx(ctx)
 	if err != nil {
 		return err
 	}
-	counted, err := a.count(ctx, tx, g, candidates)
+	counted, err := a.count(ctx, tx, g, pricing, candidates)
 	if err != nil {
 		_ = tx.Rollback()
 		return err
@@ -247,40 +267,24 @@ func (a *Accruer) seenKey(g *group, digest []byte) string {
 		hex.EncodeToString(digest))
 }
 
-// count is the transaction. It reports whether the players are now known to PostgreSQL — false
-// only when the organization cannot be billed at all, in which case nothing was written and
-// nothing may be cached.
-func (a *Accruer) count(ctx context.Context, tx *ent.Tx, g *group, digests [][]byte) (bool, error) {
-	account, err := accountFor(ctx, tx, g.orgSeq)
-	if err != nil {
-		return false, err
-	}
-	if account == nil {
-		// No account and no default plan to give it one. Nothing is counted, so that when
-		// an account exists these players are still new this month rather than silently
-		// free — and it is loud, because it is a configuration problem that loses money.
-		a.Stats.Unbilled.Add(int64(len(digests)))
-		a.log().Warn("an organization has no billing account and no default plan exists; "+
-			"its players are not being billed", "org_seq", g.orgSeq, "players", len(digests))
-		return false, nil
-	}
-
+// count is the transaction. It reports whether the players are now known to PostgreSQL.
+func (a *Accruer) count(ctx context.Context, tx *ent.Tx, g *group, pricing *Pricing, digests [][]byte) (bool, error) {
 	// The account-month's lock. Everything after this sees the count every earlier accrual
 	// left, so positions are never priced twice.
 	if err := tx.MonthlyUsage.Create().
-		SetAccountID(account.ID).SetPeriodStart(g.period).
+		SetAccountID(pricing.AccountID).SetPeriodStart(g.period).
 		OnConflictColumns(monthlyusage.FieldAccountID, monthlyusage.FieldPeriodStart).
 		DoNothing().Exec(ctx); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return false, fmt.Errorf("open the month: %w", err)
 	}
 	usage, err := tx.MonthlyUsage.Query().
-		Where(monthlyusage.AccountID(account.ID), monthlyusage.PeriodStart(g.period)).
+		Where(monthlyusage.AccountID(pricing.AccountID), monthlyusage.PeriodStart(g.period)).
 		ForUpdate().Only(ctx)
 	if err != nil {
 		return false, fmt.Errorf("lock the month: %w", err)
 	}
 
-	added, err := a.insert(ctx, tx, account.ID, g.period, digests)
+	added, err := a.insert(ctx, tx, pricing.AccountID, g.period, digests)
 	if err != nil {
 		return false, err
 	}
@@ -290,13 +294,10 @@ func (a *Accruer) count(ctx context.Context, tx *ent.Tx, g *group, digests [][]b
 	a.Stats.Counted.Add(added)
 
 	from, to := usage.TrackedPlayers, usage.TrackedPlayers+added
-	card, row, err := cardFor(ctx, tx, account, g.latest)
-	if err != nil {
-		return false, err
-	}
+	card := pricing.CardAt(g.latest)
 	var amount int64
-	if row != nil {
-		amount = card.Charge(from, to, included(account))
+	if card != nil {
+		amount = billing.Card{Mode: card.Mode, Tiers: card.Tiers}.Charge(from, to, pricing.Included)
 	}
 
 	if err := tx.MonthlyUsage.UpdateOne(usage).
@@ -310,13 +311,13 @@ func (a *Accruer) count(ctx context.Context, tx *ent.Tx, g *group, digests [][]b
 	// holds only what the drain has to move.
 	if amount != 0 {
 		if err := tx.UsageCharge.Create().
-			SetAccountID(account.ID).
+			SetAccountID(pricing.AccountID).
 			SetPeriodStart(g.period).
-			SetRateCardID(row.ID).
+			SetRateCardID(card.ID).
 			SetFirstUnit(from + 1).
 			SetLastUnit(to).
 			SetAmountMicros(amount).
-			SetCurrency(row.Currency).
+			SetCurrency(card.Currency).
 			Exec(ctx); err != nil {
 			return false, fmt.Errorf("queue the charge: %w", err)
 		}
@@ -368,66 +369,38 @@ func (a *Accruer) insert(ctx context.Context, tx *ent.Tx, accountID int, period 
 	return added, nil
 }
 
-// accountFor finds the organization's billing account, giving it one on the default plan if it has
-// none. Nil when there is no account and no default plan.
-func accountFor(ctx context.Context, tx *ent.Tx, orgID int) (*ent.BillingAccount, error) {
-	account, err := tx.BillingAccount.Query().
-		Where(billingaccount.OrganizationID(orgID)).
-		WithPlan().Only(ctx)
-	if err == nil {
-		return account, nil
+// pricingFor is an organization's pricing, giving it a billing account on the default plan first if
+// it has none. Nil when there is no account and no default plan.
+func (a *Accruer) pricingFor(ctx context.Context, orgSeq int) (*Pricing, error) {
+	a.once.Do(func() {
+		if a.Pricing == nil {
+			a.Pricing = &PricingCache{DB: a.DB, Cache: a.Cache}
+		}
+	})
+	pricing, err := a.Pricing.Get(ctx, orgSeq)
+	if !errors.Is(err, ErrNoAccount) {
+		return pricing, err
 	}
-	if !ent.IsNotFound(err) {
-		return nil, fmt.Errorf("find the billing account: %w", err)
+
+	tx, err := a.DB.Client.Tx(ctx)
+	if err != nil {
+		return nil, err
 	}
-	if _, err := provision.Account(ctx, tx, orgID); err != nil {
+	account, err := provision.Account(ctx, tx, orgSeq)
+	if err != nil {
+		_ = tx.Rollback()
 		if errors.Is(err, provision.ErrNoOrganization) {
 			return nil, nil
 		}
 		return nil, err
 	}
-	account, err = tx.BillingAccount.Query().
-		Where(billingaccount.OrganizationID(orgID)).
-		WithPlan().Only(ctx)
-	if ent.IsNotFound(err) {
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	if account == nil {
 		return nil, nil
 	}
-	return account, err
-}
-
-// cardFor is the rate card in force for the account's plan at an instant, or nil.
-func cardFor(ctx context.Context, tx *ent.Tx, account *ent.BillingAccount, at time.Time) (billing.Card, *ent.RateCard, error) {
-	row, err := tx.RateCard.Query().
-		Where(
-			ratecard.PlanID(account.PlanID),
-			ratecard.MeterEQ(ratecard.Meter(billing.TrackedPlayers)),
-			ratecard.EffectiveFromLTE(at),
-		).
-		Order(ent.Desc(ratecard.FieldEffectiveFrom)).
-		First(ctx)
-	if ent.IsNotFound(err) {
-		return billing.Card{}, nil, nil
-	}
-	if err != nil {
-		return billing.Card{}, nil, fmt.Errorf("find the rate card: %w", err)
-	}
-	return billing.Card{Mode: billing.Mode(row.Mode), Tiers: row.Tiers}, row, nil
-}
-
-// included is the account's free monthly players: the plan's allowance, with any override applied.
-func included(account *ent.BillingAccount) int64 {
-	limits := billing.Limits{}
-	if plan := account.Edges.Plan; plan != nil {
-		for name, amount := range plan.Entitlements {
-			limits[billing.Entitlement(name)] = amount
-		}
-	}
-	overrides := billing.Limits{}
-	for name, amount := range account.EntitlementOverrides {
-		overrides[billing.Entitlement(name)] = amount
-	}
-	amount, _ := billing.Resolve(limits, overrides).Get(billing.IncludedMAU)
-	return amount
+	return a.Pricing.Get(ctx, orgSeq)
 }
 
 func (a *Accruer) log() *slog.Logger {
