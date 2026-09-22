@@ -202,9 +202,26 @@ func Plan(lots []Lot, amount int64, at time.Time) ([]Draw, error) {
 			ErrInsufficient, billing.USD(available), billing.USD(amount))
 	}
 
+	draws, covered := Cover(lots, amount, at)
+	if covered != amount {
+		// Unreachable: Available already agreed there was enough. Reported rather than
+		// ignored, because the alternative is a spend that silently took less than it said.
+		return nil, fmt.Errorf("%w: %s short after consuming every lot",
+			ErrInsufficient, billing.USD(amount-covered))
+	}
+	return draws, nil
+}
+
+// Cover takes as much of an amount as the lots can pay, in [Order], and says how much that was.
+//
+// Plan's partial sibling, for the one charge that cannot be refused: usage (ADR 0039). The players
+// were already served when the charge was priced, so an account that cannot cover it pays what it
+// can and owes the rest as arrears — whereas an operator's charge is a decision that can wait for
+// credit, and Plan refuses it whole. Same order, same arithmetic, one function under both.
+func Cover(lots []Lot, amount int64, at time.Time) ([]Draw, int64) {
 	var (
 		draws     []Draw
-		remaining = amount
+		remaining = max(amount, 0)
 	)
 	for _, lot := range Order(lots) {
 		if remaining == 0 {
@@ -217,13 +234,7 @@ func Plan(lots []Lot, amount int64, at time.Time) ([]Draw, error) {
 		draws = append(draws, Draw{LotID: lot.ID, Kind: lot.Kind, Amount: take})
 		remaining -= take
 	}
-	if remaining != 0 {
-		// Unreachable: Available already agreed there was enough. Reported rather than
-		// ignored, because the alternative is a spend that silently took less than it said.
-		return nil, fmt.Errorf("%w: %s short after consuming every lot",
-			ErrInsufficient, billing.USD(remaining))
-	}
-	return draws, nil
+	return draws, max(amount, 0) - remaining
 }
 
 // LotsOf reads an account's lots in the shape the rules above reason about.

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"playersense.dev/backend/ent"
+	"playersense.dev/backend/ent/billingaccount"
 	"playersense.dev/backend/ent/creditlot"
 	"playersense.dev/backend/ent/ledgerentry"
 	"playersense.dev/backend/internal/billing"
@@ -17,6 +18,16 @@ import (
 // The ledger is append-only and carries `balance_after_micros`, so a statement renders without
 // summing history. That only holds if nothing ever changes a lot without writing beside it, which is
 // why none of these takes a client: a caller who cannot start a transaction cannot move money.
+//
+// # Every movement locks the account first
+//
+// `balance_after_micros` is computed from the account row, so two movements computing it from the
+// same row would each write a balance that ignores the other — a top-up landing during a usage drain
+// would erase the drain's charge from the running total. That was a race nobody hit while money
+// moved only when an operator pressed a button; with the usage drain spending every few seconds
+// (ADR 0039) it is one somebody would hit on the first busy day. So every function here starts by
+// taking the account's row lock, and the idempotency check comes *after* it: a duplicate that waited
+// for the lock then sees the row the first one committed.
 
 // Grant adds a lot and records it.
 //
@@ -41,6 +52,11 @@ func Grant(ctx context.Context, tx *ent.Tx, in GrantRequest) (*ent.CreditLot, bo
 		return nil, false, err
 	}
 
+	account, err := lock(ctx, tx, in.AccountID)
+	if err != nil {
+		return nil, false, err
+	}
+
 	existing, err := tx.CreditLot.Query().
 		Where(creditlot.IdempotencyKey(in.Key)).Only(ctx)
 	if err == nil {
@@ -50,10 +66,6 @@ func Grant(ctx context.Context, tx *ent.Tx, in GrantRequest) (*ent.CreditLot, bo
 		return nil, false, fmt.Errorf("look up an existing grant: %w", err)
 	}
 
-	account, err := tx.BillingAccount.Get(ctx, in.AccountID)
-	if err != nil {
-		return nil, false, fmt.Errorf("look up the billing account: %w", err)
-	}
 	if in.Currency != "" && in.Currency != account.Currency {
 		return nil, false, fmt.Errorf("%w: the account holds %s, not %s",
 			ErrCurrencyMismatch, account.Currency, in.Currency)
@@ -64,11 +76,17 @@ func Grant(ctx context.Context, tx *ent.Tx, in GrantRequest) (*ent.CreditLot, bo
 		return nil, false, err
 	}
 
+	// Arrears first. Usage the wallet could not cover is owed before anything else is
+	// spendable (ADR 0039), so a grant pays it down and only the rest becomes credit. The lot
+	// still records the whole grant as its amount — what was granted does not change because
+	// of what it paid for — and its remainder says what is left.
+	settled := min(account.ArrearsMicros, in.Amount)
+
 	create := tx.CreditLot.Create().
 		SetAccountID(in.AccountID).
 		SetKind(creditlot.Kind(in.Kind)).
 		SetAmountMicros(in.Amount).
-		SetRemainingMicros(in.Amount).
+		SetRemainingMicros(in.Amount - settled).
 		SetCurrency(account.Currency).
 		SetGrantedAt(in.GrantedAt).
 		SetDescription(in.Description).
@@ -95,6 +113,7 @@ func Grant(ctx context.Context, tx *ent.Tx, in GrantRequest) (*ent.CreditLot, bo
 	if _, err := record(ctx, tx, account, movement{
 		Kind:            ledgerKind(in.Kind),
 		Amount:          in.Amount,
+		Arrears:         -settled,
 		Description:     in.Description,
 		StripeReference: in.StripeReference,
 		Key:             "grant:" + in.Key,
@@ -153,20 +172,15 @@ func Spend(ctx context.Context, tx *ent.Tx, in SpendRequest) (*SpendResult, erro
 		return nil, fmt.Errorf("a spend needs an idempotency key derived from what happened")
 	}
 
-	// Already applied. Returned rather than repeated, because every caller of this is retried:
-	// a month close can run twice after a crash, and the second run must not charge again.
-	existing, err := tx.LedgerEntry.Query().
-		Where(ledgerentry.IdempotencyKey(in.Key)).Only(ctx)
-	if err == nil {
-		return &SpendResult{Entry: existing, Applied: false}, nil
-	}
-	if !ent.IsNotFound(err) {
-		return nil, fmt.Errorf("look up an existing charge: %w", err)
+	account, err := lock(ctx, tx, in.AccountID)
+	if err != nil {
+		return nil, err
 	}
 
-	account, err := tx.BillingAccount.Get(ctx, in.AccountID)
-	if err != nil {
-		return nil, fmt.Errorf("look up the billing account: %w", err)
+	// Already applied. Returned rather than repeated, because every caller of this is retried:
+	// a month close can run twice after a crash, and the second run must not charge again.
+	if existing, err := applied(ctx, tx, in.Key); err != nil || existing != nil {
+		return &SpendResult{Entry: existing, Applied: false}, err
 	}
 
 	lots, err := LotsOf(ctx, tx.CreditLot, in.AccountID)
@@ -177,22 +191,8 @@ func Spend(ctx context.Context, tx *ent.Tx, in SpendRequest) (*SpendResult, erro
 	if err != nil {
 		return nil, err
 	}
-
-	for _, draw := range draws {
-		// Guarded on the remaining amount, so two concurrent spends cannot both take the
-		// last of a lot. The update matches nothing if another transaction got there first,
-		// and a draw that moved no row fails the charge rather than silently taking less.
-		moved, err := tx.CreditLot.Update().
-			Where(creditlot.ID(draw.LotID), creditlot.RemainingMicrosGTE(draw.Amount)).
-			AddRemainingMicros(-draw.Amount).
-			Save(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("spend from lot %d: %w", draw.LotID, err)
-		}
-		if moved != 1 {
-			return nil, fmt.Errorf("%w: lot %d changed while this charge was being applied",
-				ErrInsufficient, draw.LotID)
-		}
+	if err := take(ctx, tx, draws); err != nil {
+		return nil, err
 	}
 
 	entry, err := record(ctx, tx, account, movement{
@@ -259,9 +259,9 @@ func ExpireLapsed(ctx context.Context, tx *ent.Tx, at time.Time, limit int) ([]*
 
 	var written []*ent.LedgerEntry
 	for _, lot := range lapsed {
-		account, err := tx.BillingAccount.Get(ctx, lot.AccountID)
+		account, err := lock(ctx, tx, lot.AccountID)
 		if err != nil {
-			return nil, fmt.Errorf("look up the account behind lot %d: %w", lot.ID, err)
+			return nil, err
 		}
 
 		amount := lot.RemainingMicros
@@ -303,8 +303,14 @@ func describeLot(lot *ent.CreditLot) string {
 
 // movement is one ledger entry before it knows the balance it produced.
 type movement struct {
-	Kind            string
-	Amount          int64
+	Kind   string
+	Amount int64
+
+	// Arrears is how the account's arrears move with it: positive when usage outran credit,
+	// negative when a grant paid them down. Written in the same statement as the balance, so
+	// Σ lots − arrears = balance holds at every commit rather than eventually.
+	Arrears int64
+
 	Description     string
 	StripeReference string
 	PeriodID        int
@@ -338,14 +344,94 @@ func record(ctx context.Context, tx *ent.Tx, account *ent.BillingAccount, in mov
 	if err != nil {
 		return nil, fmt.Errorf("append to the ledger: %w", err)
 	}
-	if _, err := tx.BillingAccount.UpdateOneID(account.ID).
-		SetBalanceMicros(after).Save(ctx); err != nil {
+
+	arrears := account.ArrearsMicros + in.Arrears
+	if arrears < 0 {
+		// Unreachable: every caller settles at most what is owed. Refused rather than clamped,
+		// because a negative debt is credit nobody granted.
+		return nil, fmt.Errorf("arrears would fall to %s", billing.USD(arrears))
+	}
+	update := tx.BillingAccount.UpdateOneID(account.ID).
+		SetBalanceMicros(after).
+		SetArrearsMicros(arrears)
+	if state, changed := stateFor(account.State, arrears); changed {
+		update = update.SetState(state).SetStateChangedAt(time.Now().UTC())
+		account.State = state
+	}
+	if _, err := update.Save(ctx); err != nil {
 		return nil, fmt.Errorf("move the account's balance: %w", err)
 	}
 	// Kept in step in memory too, so a caller writing two movements in one transaction does not
 	// compute the second one's balance from a stale row.
 	account.BalanceMicros = after
+	account.ArrearsMicros = arrears
 	return entry, nil
+}
+
+// stateFor is §40.1's first step, and deliberately only the first.
+//
+// An account that owes goes from active to grace_period, and one that has paid comes back — both
+// automatic, because both are facts about the ledger. Nothing here goes further. `restricted` and
+// `suspended` stop things a studio depends on, and when to do that is a commercial policy that has
+// not been decided; a charger that suspended accounts on its own would be deciding it. So an account
+// in any other state is left exactly where a person put it.
+func stateFor(current billingaccount.State, arrears int64) (billingaccount.State, bool) {
+	switch {
+	case arrears > 0 && current == billingaccount.StateActive:
+		return billingaccount.StateGracePeriod, true
+	case arrears == 0 && current == billingaccount.StateGracePeriod:
+		return billingaccount.StateActive, true
+	default:
+		return current, false
+	}
+}
+
+// lock reads an account and holds its row until the transaction ends.
+func lock(ctx context.Context, tx *ent.Tx, accountID int) (*ent.BillingAccount, error) {
+	account, err := tx.BillingAccount.Query().
+		Where(billingaccount.ID(accountID)).
+		ForUpdate().
+		Only(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("lock the billing account: %w", err)
+	}
+	return account, nil
+}
+
+// applied returns the ledger entry an idempotency key already produced, or nil.
+func applied(ctx context.Context, tx *ent.Tx, key string) (*ent.LedgerEntry, error) {
+	existing, err := tx.LedgerEntry.Query().
+		Where(ledgerentry.IdempotencyKey(key)).Only(ctx)
+	switch {
+	case err == nil:
+		return existing, nil
+	case ent.IsNotFound(err):
+		return nil, nil
+	default:
+		return nil, fmt.Errorf("look up an existing charge: %w", err)
+	}
+}
+
+// take applies draws to their lots.
+//
+// Guarded on the remaining amount, so a draw can never take more than a lot holds. With the account
+// locked nothing else should be spending from these lots, so a draw that moved no row is a bug
+// rather than a race — and it fails the whole charge rather than silently taking less.
+func take(ctx context.Context, tx *ent.Tx, draws []Draw) error {
+	for _, draw := range draws {
+		moved, err := tx.CreditLot.Update().
+			Where(creditlot.ID(draw.LotID), creditlot.RemainingMicrosGTE(draw.Amount)).
+			AddRemainingMicros(-draw.Amount).
+			Save(ctx)
+		if err != nil {
+			return fmt.Errorf("spend from lot %d: %w", draw.LotID, err)
+		}
+		if moved != 1 {
+			return fmt.Errorf("%w: lot %d changed while this charge was being applied",
+				ErrInsufficient, draw.LotID)
+		}
+	}
+	return nil
 }
 
 // ledgerKind is what a grant of this sort is called on a statement.
