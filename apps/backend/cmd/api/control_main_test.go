@@ -35,8 +35,16 @@ func testSettings(t *testing.T) config.Settings {
 	// and fail somewhere unrelated to whatever was being changed. TestAnInboxCannotBeFlooded
 	// turns them back on for itself.
 	settings.RateLimitDisabled = true
+	// Never real Stripe from this suite, whatever .env holds: a test that wants payments injects
+	// a fake gateway, and the webhook is verified against a secret the suite signs with itself.
+	// The live Stripe checks are internal/payments' opt-in suite.
+	settings.StripeSecretKey = ""
+	settings.StripeWebhookSecret = testWebhookSecret
 	return settings
 }
+
+// testWebhookSecret signs the webhook deliveries this suite makes.
+const testWebhookSecret = "whsec_playersense_test_suite"
 
 // signedIn returns a client carrying a freshly minted Firebase ID token for a new person.
 //

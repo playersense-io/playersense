@@ -32,12 +32,18 @@ type stack struct {
 
 func newStack(t *testing.T) *stack {
 	t.Helper()
+	return newStackWith(t)
+}
+
+// newStackWith builds the stack with singletons replaced — a fake payment gateway, most often.
+func newStackWith(t *testing.T, overrides ...muzak.RouterOption) *stack {
+	t.Helper()
 	settings := testSettings(t)
 	google := fbtest.New(t, settings.FirebaseProjectID)
 	settings.FirebaseCertificateURL = google.URL
 
 	return &stack{
-		settings: settings, app: mustBuild(t, settings), google: google,
+		settings: settings, app: mustBuild(t, settings, overrides...), google: google,
 		db: globalTier(t, settings),
 	}
 }

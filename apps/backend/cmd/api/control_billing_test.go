@@ -6,11 +6,14 @@ import (
 	"testing"
 	"time"
 
+	muzak "muzak.dev/framework"
 	"muzak.dev/framework/testclient"
 
 	"playersense.dev/backend/internal/authz"
 	"playersense.dev/backend/internal/billing"
 	"playersense.dev/backend/internal/firebase/fbtest"
+	"playersense.dev/backend/internal/payments"
+	"playersense.dev/backend/internal/payments/paymentstest"
 	"playersense.dev/backend/internal/testsupport"
 	"playersense.dev/backend/internal/wallet"
 )
@@ -31,7 +34,17 @@ type money struct {
 
 func newWallet(t *testing.T) *money {
 	t.Helper()
-	s := newStack(t)
+	return newWalletWith(t, paymentstest.New())
+}
+
+// newWalletWith is a wallet whose Stripe is the given fake; nil is a deployment with no Stripe key.
+func newWalletWith(t *testing.T, stripe *paymentstest.Gateway) *money {
+	t.Helper()
+	var gateway payments.Gateway = payments.Disabled{}
+	if stripe != nil {
+		gateway = stripe
+	}
+	s := newStackWith(t, muzak.WithSingleton(gateway))
 	owner := person(t)
 	slug := s.createOrg(t, owner)
 
@@ -406,7 +419,7 @@ func TestAutoTopUpRefusesAConfigurationThatWouldChargeInALoop(t *testing.T) {
 	path := w.base() + "/billing/auto-topup"
 
 	// Enabled with no saved card: refused, because it would do nothing and the account would
-	// find out by being suspended.
+	// find out by being suspended. Whether there is a card is Stripe's answer, not a field.
 	refused := client.Put(path, testclient.JSON(map[string]any{
 		"enabled": true, "threshold_micros": dollars(10), "amount_micros": dollars(50),
 	})).AssertStatus(http.StatusUnprocessableEntity)
@@ -414,10 +427,14 @@ func TestAutoTopUpRefusesAConfigurationThatWouldChargeInALoop(t *testing.T) {
 		t.Errorf("the refusal does not mention the card: %s", refused)
 	}
 
+	// A card saved at Stripe, by a top-up. From here on the card exists.
+	client.Post(w.base()+"/billing/top-ups", testclient.JSON(map[string]any{
+		"amount_micros": dollars(20),
+	})).AssertStatus(http.StatusOK)
+
 	// A threshold above the amount: refused with the arithmetic named.
 	refused = client.Put(path, testclient.JSON(map[string]any{
 		"enabled": true, "threshold_micros": dollars(100), "amount_micros": dollars(50),
-		"payment_method": "pm_test",
 	})).AssertStatus(http.StatusUnprocessableEntity)
 	if !strings.Contains(refused.String(), "immediately") {
 		t.Errorf("the refusal does not explain the loop: %s", refused)
@@ -426,13 +443,11 @@ func TestAutoTopUpRefusesAConfigurationThatWouldChargeInALoop(t *testing.T) {
 	// Below the processing floor: mostly fee.
 	client.Put(path, testclient.JSON(map[string]any{
 		"enabled": true, "threshold_micros": dollars(1), "amount_micros": dollars(2),
-		"payment_method": "pm_test",
 	})).AssertStatus(http.StatusUnprocessableEntity)
 
 	// And one that works.
 	ok := testclient.Decoded[billingOut](client.Put(path, testclient.JSON(map[string]any{
 		"enabled": true, "threshold_micros": dollars(10), "amount_micros": dollars(50),
-		"payment_method": "pm_test",
 	})).AssertStatus(http.StatusOK))
 	if !ok.AutoTopUp.Enabled || ok.AutoTopUp.AmountMicros != dollars(50) {
 		t.Errorf("auto top-up = %+v", ok.AutoTopUp)
@@ -523,7 +538,8 @@ type billingOut struct {
 		Enabled         bool   `json:"enabled"`
 		ThresholdMicros int64  `json:"threshold_micros"`
 		AmountMicros    int64  `json:"amount_micros"`
-		PaymentMethod   string `json:"payment_method"`
+		Pending         bool   `json:"pending"`
+		LastError       string `json:"last_error"`
 	} `json:"auto_topup"`
 }
 

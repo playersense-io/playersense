@@ -46,6 +46,7 @@ import (
 	"playersense.dev/backend/internal/ingest"
 	"playersense.dev/backend/internal/liveconfig"
 	"playersense.dev/backend/internal/mail"
+	"playersense.dev/backend/internal/payments"
 	"playersense.dev/backend/internal/pgdb"
 	"playersense.dev/backend/internal/query"
 	"playersense.dev/backend/internal/ratelimit"
@@ -208,6 +209,7 @@ func build(settings config.Settings, overrides ...muzak.RouterOption) (*muzak.Ap
 			{Name: "billing", Description: "Usage, the wallet and the plan."},
 			{Name: "operator", Description: "PlayerSense staff only: putting credit in a wallet, and the plans and prices it is spent against."},
 			{Name: "pricing", Description: "The public price list."},
+			{Name: "payments", Description: "Stripe's webhook: how money reaches a wallet."},
 			{Name: "liveops", Description: "What a studio edits, and publishing it."},
 			{Name: "ingestion", Description: "The high-volume SDK path."},
 			{Name: "config", Description: "What a player gets."},
@@ -302,6 +304,13 @@ func build(settings config.Settings, overrides ...muzak.RouterOption) (*muzak.Ap
 		muzak.WithSingleton(bus),
 		muzak.WithSingleton(sender),
 
+		// Stripe, or a stand-in that refuses with "not configured" when there is no key.
+		muzak.WithSingleton(payments.New(settings.StripeSecretKey)),
+		muzak.WithSingleton(&payments.Webhooks{
+			DB: db, Secret: settings.StripeWebhookSecret,
+			RetryAfter: settings.BillingAutoTopUpRetryAfter,
+		}),
+
 		// Verifies the ID token on every request and caches Google's signing
 		// certificates. Started with the application so that a deployment which cannot
 		// reach Google fails while it is starting rather than on somebody's first
@@ -361,6 +370,10 @@ func build(settings config.Settings, overrides ...muzak.RouterOption) (*muzak.Ap
 
 	// The price list, which is public by nature: the landing page reads it (ADR 0039).
 	app.Include(routers.Pricing(), muzak.WithPrefix("/v1"))
+
+	// Stripe's webhook. Its credential is Stripe's signature over the body, checked in the
+	// handler, so it sits outside every subtree that resolves a person or a key (ADR 0040).
+	app.Include(routers.StripeWebhooks(), muzak.WithPrefix("/v1"))
 
 	// ---- key-authenticated surfaces -----------------------------------------
 	//

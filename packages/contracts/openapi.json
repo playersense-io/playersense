@@ -1874,10 +1874,6 @@
                   "enabled": {
                     "type": "boolean"
                   },
-                  "payment_method": {
-                    "type": "string",
-                    "maxLength": 255
-                  },
                   "threshold_micros": {
                     "type": [
                       "integer",
@@ -1938,7 +1934,7 @@
             }
           },
           "422": {
-            "description": "The three settings cannot work together, and the message says why",
+            "description": "The settings cannot work together, or there is no saved card to charge; the message says why",
             "content": {
               "application/json": {
                 "schema": {
@@ -1948,7 +1944,7 @@
             }
           },
           "503": {
-            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "description": "Stripe could not be asked whether a card is saved",
             "content": {
               "application/json": {
                 "schema": {
@@ -2054,6 +2050,213 @@
           },
           "503": {
             "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/organizations/{org}/billing/portal": {
+      "post": {
+        "tags": [
+          "billing"
+        ],
+        "summary": "Manage cards and receipts",
+        "description": "Opens Stripe's customer portal and returns its URL: add, remove or choose the default card, and read receipts. The default card is the one automatic top-up charges.",
+        "operationId": "post_v1_organizations_by_org_billing_portal",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "description": "The organization's slug",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortalOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not do that",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The organization does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Stripe could not be reached, or payments are not configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/organizations/{org}/billing/top-ups": {
+      "post": {
+        "tags": [
+          "billing"
+        ],
+        "summary": "Pay for credit",
+        "description": "Opens a Stripe Checkout page for this amount and returns its URL; send the browser there. Nothing is credited by this call or by the browser coming back — the wallet moves when Stripe reports the payment, usually within seconds. The card used is saved at Stripe for automatic top-up; PlayerSense stores none of it.",
+        "operationId": "post_v1_organizations_by_org_billing_top_ups",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "amount_micros": {
+                    "type": "integer",
+                    "format": "int64",
+                    "description": "Whole cents, $5 to $50,000. $100 is 100000000",
+                    "minimum": 5000000,
+                    "maximum": 50000000000
+                  }
+                },
+                "required": []
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckoutOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not do that",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The organization does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Below $5, above $50,000, or not whole cents",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Stripe could not be reached, or payments are not configured",
             "content": {
               "application/json": {
                 "schema": {
@@ -6814,6 +7017,58 @@
           }
         }
       }
+    },
+    "/v1/stripe/webhook": {
+      "post": {
+        "tags": [
+          "payments"
+        ],
+        "summary": "Stripe's events",
+        "description": "Verified by the Stripe-Signature header. A payment that succeeded puts credit in its wallet, once, however many times and by however many events it is reported; a failed automatic top-up is released and retried later. Everything else is recorded and ignored.",
+        "operationId": "post_v1_stripe_webhook",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookOut"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The signature does not verify",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Payments are not configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -7084,9 +7339,21 @@
           "enabled": {
             "type": "boolean"
           },
-          "payment_method": {
+          "last_error": {
             "type": "string",
-            "description": "Stripe's id for the saved card, absent when there is none"
+            "description": "Why the last automatic top-up did not happen"
+          },
+          "pending": {
+            "type": "boolean",
+            "description": "A charge has been sent to Stripe and its outcome is not yet known"
+          },
+          "retry_after": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "After a decline, not tried again before this"
           },
           "threshold_micros": {
             "type": "integer",
@@ -7096,6 +7363,7 @@
         "required": [
           "amount_micros",
           "enabled",
+          "pending",
           "threshold_micros"
         ]
       },
@@ -7190,6 +7458,28 @@
         },
         "required": [
           "dimension"
+        ]
+      },
+      "CheckoutOut": {
+        "type": "object",
+        "properties": {
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "id": {
+            "type": "string",
+            "description": "Stripe's Checkout Session id"
+          },
+          "url": {
+            "type": "string",
+            "description": "Stripe's hosted payment page; redirect the browser here"
+          }
+        },
+        "required": [
+          "expires_at",
+          "id",
+          "url"
         ]
       },
       "CohortQueryIn": {
@@ -9082,6 +9372,18 @@
           "plans"
         ]
       },
+      "PortalOut": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "Stripe's customer portal; redirect the browser here"
+          }
+        },
+        "required": [
+          "url"
+        ]
+      },
       "ProjectListOut": {
         "type": "object",
         "properties": {
@@ -9658,6 +9960,20 @@
           "value"
         ]
       },
+      "WebhookOut": {
+        "type": "object",
+        "properties": {
+          "received": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "received"
+        ]
+      },
       "WindowOut": {
         "type": "object",
         "properties": {
@@ -9706,6 +10022,10 @@
     {
       "name": "pricing",
       "description": "The public price list."
+    },
+    {
+      "name": "payments",
+      "description": "Stripe's webhook: how money reaches a wallet."
     },
     {
       "name": "liveops",

@@ -372,6 +372,46 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/v1/organizations/{org}/billing/portal": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Manage cards and receipts
+         * @description Opens Stripe's customer portal and returns its URL: add, remove or choose the default card, and read receipts. The default card is the one automatic top-up charges.
+         */
+        readonly post: operations["post_v1_organizations_by_org_billing_portal"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/organizations/{org}/billing/top-ups": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Pay for credit
+         * @description Opens a Stripe Checkout page for this amount and returns its URL; send the browser there. Nothing is credited by this call or by the browser coming back — the wallet moves when Stripe reports the payment, usually within seconds. The card used is saved at Stripe for automatic top-up; PlayerSense stores none of it.
+         */
+        readonly post: operations["post_v1_organizations_by_org_billing_top_ups"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/v1/organizations/{org}/invitations": {
         readonly parameters: {
             readonly query?: never;
@@ -957,6 +997,26 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/v1/stripe/webhook": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Stripe's events
+         * @description Verified by the Stripe-Signature header. A payment that succeeded puts credit in its wallet, once, however many times and by however many events it is reported; a failed automatic top-up is released and retried later. Everything else is recorded and ignored.
+         */
+        readonly post: operations["post_v1_stripe_webhook"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1052,8 +1112,15 @@ export interface components {
             /** Format: int64 */
             readonly amount_micros: number;
             readonly enabled: boolean;
-            /** @description Stripe's id for the saved card, absent when there is none */
-            readonly payment_method?: string;
+            /** @description Why the last automatic top-up did not happen */
+            readonly last_error?: string;
+            /** @description A charge has been sent to Stripe and its outcome is not yet known */
+            readonly pending: boolean;
+            /**
+             * Format: date-time
+             * @description After a decline, not tried again before this
+             */
+            readonly retry_after?: string | null;
             /** Format: int64 */
             readonly threshold_micros: number;
         };
@@ -1084,6 +1151,14 @@ export interface components {
         readonly Breakdown: {
             /** @description install_platform, install_country or first_app_version */
             readonly dimension: string;
+        };
+        readonly CheckoutOut: {
+            /** Format: date-time */
+            readonly expires_at: string;
+            /** @description Stripe's Checkout Session id */
+            readonly id: string;
+            /** @description Stripe's hosted payment page; redirect the browser here */
+            readonly url: string;
         };
         readonly CohortQueryIn: {
             /**
@@ -1770,6 +1845,10 @@ export interface components {
         readonly PlansOut: {
             readonly plans: readonly components["schemas"]["PlanDetailOut"][];
         };
+        readonly PortalOut: {
+            /** @description Stripe's customer portal; redirect the browser here */
+            readonly url: string;
+        };
         readonly ProjectListOut: {
             readonly projects: readonly components["schemas"]["ProjectOut"][];
         };
@@ -1988,6 +2067,10 @@ export interface components {
              * @description What they get. Must match the flag's kind
              */
             readonly value: string;
+        };
+        readonly WebhookOut: {
+            readonly received: boolean;
+            readonly status?: string;
         };
         readonly WindowOut: {
             /**
@@ -3428,7 +3511,6 @@ export interface operations {
                      */
                     readonly amount_micros?: number | null;
                     readonly enabled: boolean;
-                    readonly payment_method?: string;
                     /**
                      * Format: int64
                      * @description Absent leaves the stored value alone
@@ -3474,7 +3556,7 @@ export interface operations {
                     readonly "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description The three settings cannot work together, and the message says why */
+            /** @description The settings cannot work together, or there is no saved card to charge; the message says why */
             readonly 422: {
                 headers: {
                     readonly [name: string]: unknown;
@@ -3483,7 +3565,7 @@ export interface operations {
                     readonly "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            /** @description Stripe could not be asked whether a card is saved */
             readonly 503: {
                 headers: {
                     readonly [name: string]: unknown;
@@ -3563,6 +3645,169 @@ export interface operations {
                 };
             };
             /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly post_v1_organizations_by_org_billing_portal: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                /** @description The organization's slug */
+                readonly org: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["PortalOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not do that */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The organization does not exist */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Stripe could not be reached, or payments are not configured */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly post_v1_organizations_by_org_billing_top_ups: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly org: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": {
+                    /**
+                     * Format: int64
+                     * @description Whole cents, $5 to $50,000. $100 is 100000000
+                     */
+                    readonly amount_micros?: number;
+                };
+            };
+        };
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["CheckoutOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not do that */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The organization does not exist */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Below $5, above $50,000, or not whole cents */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Stripe could not be reached, or payments are not configured */
             readonly 503: {
                 headers: {
                     readonly [name: string]: unknown;
@@ -6960,6 +7205,53 @@ export interface operations {
             };
             /** @description The request could not be validated. */
             readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly post_v1_stripe_webhook: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["WebhookOut"];
+                };
+            };
+            /** @description The signature does not verify */
+            readonly 400: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Payments are not configured */
+            readonly 503: {
                 headers: {
                     readonly [name: string]: unknown;
                 };

@@ -102,6 +102,13 @@ func TestEveryMutatingRouteDecidesAboutAudit(t *testing.T) {
 		"POST /v1/operator/plans":                   "the catalogue, not an organization's account",
 		"PUT /v1/operator/plans/{plan}":             "the catalogue; a staff log waits on §56",
 		"POST /v1/operator/plans/{plan}/rate-cards": "an immutable card that records who published it and why",
+
+		// Payments (ADR 0040). Opening a Checkout page or the portal changes nothing on our side
+		// until Stripe reports a payment, and a payment is recorded better than a log line could:
+		// in stripe_events with its whole body, and in the ledger with its PaymentIntent.
+		"POST /v1/organizations/{org}/billing/top-ups": "opens a Stripe page; the payment is in stripe_events and the ledger",
+		"POST /v1/organizations/{org}/billing/portal":  "opens Stripe's portal; nothing here changes",
+		"POST /v1/stripe/webhook":                      "Stripe's delivery, recorded whole in stripe_events",
 	}
 
 	app := mustBuild(t, testSettings(t))

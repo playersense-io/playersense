@@ -13,6 +13,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"log/slog"
@@ -24,6 +25,7 @@ import (
 	"playersense.dev/backend/internal/charging"
 	"playersense.dev/backend/internal/config"
 	"playersense.dev/backend/internal/eventbus"
+	"playersense.dev/backend/internal/payments"
 	"playersense.dev/backend/internal/pgdb"
 	"playersense.dev/backend/internal/routers"
 	"playersense.dev/backend/internal/valkey"
@@ -70,6 +72,8 @@ func build(settings config.Settings) (*muzak.App, error) {
 			MaxAccounts: settings.BillingDrainMaxAccounts,
 		},
 		Pruner:     &charging.Pruner{DB: db},
+		TopUp:      topUp(settings, db, logger),
+		TopUpEvery: settings.BillingAutoTopUpEvery,
 		Log:        logger,
 		DrainEvery: settings.BillingDrainEvery,
 		PruneEvery: settings.BillingPruneEvery,
@@ -101,6 +105,23 @@ func build(settings config.Settings) (*muzak.App, error) {
 
 	app.Include(routers.Meta())
 	return app, nil
+}
+
+// topUp is automatic top-up, or nothing when there is no Stripe key to charge with.
+//
+// Nil rather than a loop that fails every pass: a development stack with no Stripe account is a
+// normal thing to run, and thirty seconds of "not configured" warnings forever is noise.
+func topUp(settings config.Settings, db *pgdb.DB, log *slog.Logger) interface {
+	Run(context.Context) (int, error)
+} {
+	if settings.StripeSecretKey == "" {
+		log.Warn("STRIPE_SECRET_KEY is not set; automatic top-up is off")
+		return nil
+	}
+	return &payments.AutoTopUp{
+		DB: db, Gateway: payments.NewStripe(settings.StripeSecretKey), Log: log,
+		RetryAfter: settings.BillingAutoTopUpRetryAfter,
+	}
 }
 
 // newBus is the same choice every consumer makes; they must agree or this one subscribes to

@@ -60,7 +60,48 @@ func Billing() *muzak.Router {
 			"account would find out by being suspended."),
 		core.Require(authz.BillingManage),
 		muzak.WithResponseDoc(http.StatusUnprocessableEntity,
-			"The three settings cannot work together, and the message says why"))
+			"The settings cannot work together, or there is no saved card to charge; the message says why"),
+		muzak.WithResponseDoc(http.StatusServiceUnavailable, "Stripe could not be asked whether a card is saved"))
+
+	r.Post("/organizations/{org}/billing/top-ups", handlers.CreateTopUp,
+		muzak.Summary("Pay for credit"),
+		muzak.Description("Opens a Stripe Checkout page for this amount and returns its URL; send the "+
+			"browser there. Nothing is credited by this call or by the browser coming back — the "+
+			"wallet moves when Stripe reports the payment, usually within seconds. The card used is "+
+			"saved at Stripe for automatic top-up; PlayerSense stores none of it."),
+		core.Require(authz.BillingManage),
+		muzak.WithResponseDoc(http.StatusUnprocessableEntity, "Below $5, above $50,000, or not whole cents"),
+		muzak.WithResponseDoc(http.StatusServiceUnavailable, "Stripe could not be reached, or payments are not configured"))
+
+	r.Post("/organizations/{org}/billing/portal", handlers.OpenBillingPortal,
+		muzak.Summary("Manage cards and receipts"),
+		muzak.Description("Opens Stripe's customer portal and returns its URL: add, remove or choose "+
+			"the default card, and read receipts. The default card is the one automatic top-up "+
+			"charges."),
+		core.Require(authz.BillingManage),
+		muzak.WithResponseDoc(http.StatusServiceUnavailable, "Stripe could not be reached, or payments are not configured"))
+
+	return r
+}
+
+// StripeWebhooks is where Stripe reports payments (ADR 0040).
+//
+// No credential of ours: Stripe's signature over the exact bytes is the credential, which is why the
+// body is captured before anything decodes it. Answered 2xx only when the event is recorded and
+// handled — anything else and Stripe sends it again.
+func StripeWebhooks() *muzak.Router {
+	r := muzak.NewRouter(muzak.WithTags("payments"))
+
+	r.Post("/stripe/webhook", handlers.ReceiveStripeWebhook,
+		muzak.Summary("Stripe's events"),
+		muzak.Description("Verified by the Stripe-Signature header. A payment that succeeded puts "+
+			"credit in its wallet, once, however many times and by however many events it is "+
+			"reported; a failed automatic top-up is released and retried later. Everything else is "+
+			"recorded and ignored."),
+		muzak.CaptureBody(),
+		muzak.MaxBodySize(1<<20),
+		muzak.WithResponseDoc(http.StatusBadRequest, "The signature does not verify"),
+		muzak.WithResponseDoc(http.StatusServiceUnavailable, "Payments are not configured"))
 
 	return r
 }
