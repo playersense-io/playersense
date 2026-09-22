@@ -79,9 +79,14 @@ type Handler func(ctx context.Context, msgs []*Message) error
 //
 // The names are §20's own, because the Pub/Sub subscription is created with them and a
 // deployment reading the document should find the same words in the console.
+//
+// The billing writer is the third, and has no §20 name because §20 predates real-time charging
+// (ADR 0039). Its own position is the point: pricing players must never be a reason storage
+// falls behind, and storage must never be a reason a charge is late.
 const (
 	GroupAnalyticsWriter = "clickhouse-writer"
 	GroupArchiveWriter   = "archive-writer"
+	GroupBillingWriter   = "billing-writer"
 )
 
 // DeadLetterReason travels with a parked message so an operator can tell why it is there

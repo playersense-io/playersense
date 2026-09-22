@@ -199,3 +199,55 @@ func (c *Client) Exists(ctx context.Context, key string) (bool, error) {
 	}
 	return n > 0, nil
 }
+
+// Present reports, for each key, whether it exists — in one round trip.
+//
+// MGET rather than one EXISTS per key, because the caller is the billing writer's filter and it
+// asks about every player in a delivery at once: a thousand round trips per delivery would make
+// the filter slower than the database write it exists to avoid. An unavailable cache is an error
+// rather than "all absent", so the caller decides — and the billing writer's decision is to ask
+// PostgreSQL, which is always right and only slower.
+func (c *Client) Present(ctx context.Context, keys []string) ([]bool, error) {
+	if !c.Ready() {
+		return nil, ErrUnavailable
+	}
+	out := make([]bool, len(keys))
+	if len(keys) == 0 {
+		return out, nil
+	}
+	values, err := c.client.Do(ctx, c.client.B().Mget().Key(keys...).Build()).ToArray()
+	if err != nil {
+		return nil, err
+	}
+	for i, value := range values {
+		if i < len(out) {
+			out[i] = !value.IsNil()
+		}
+	}
+	return out, nil
+}
+
+// Mark sets each key to a one-byte value with a lifetime, pipelined into one round trip.
+//
+// The counterpart to Present. Best effort by contract: a key that failed to set costs a later
+// delivery one extra database lookup, never a wrong answer, so the first error is returned for
+// logging and nothing is retried.
+func (c *Client) Mark(ctx context.Context, keys []string, ttl time.Duration) error {
+	if !c.Ready() {
+		return ErrUnavailable
+	}
+	if len(keys) == 0 {
+		return nil
+	}
+	cmds := make(vk.Commands, 0, len(keys))
+	for _, key := range keys {
+		cmds = append(cmds, c.client.B().Set().Key(key).Value("1").
+			PxMilliseconds(ttl.Milliseconds()).Build())
+	}
+	for _, result := range c.client.DoMulti(ctx, cmds...) {
+		if err := result.Error(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
