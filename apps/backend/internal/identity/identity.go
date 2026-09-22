@@ -32,6 +32,7 @@ import (
 	"playersense.dev/backend/ent/role"
 	"playersense.dev/backend/ent/user"
 	"playersense.dev/backend/internal/authz"
+	"playersense.dev/backend/internal/provision"
 )
 
 // Claims is a Firebase ID token that somebody has already verified.
@@ -194,6 +195,14 @@ func CreateOrganization(ctx context.Context, db *ent.Client, name, slug string, 
 		SetJoinedAt(now).
 		Save(ctx); err != nil {
 		return nil, fmt.Errorf("make the creator its owner: %w", err)
+	}
+
+	// Somewhere to charge its players from the first batch (ADR 0039), on whichever plan
+	// staff have marked the default. None marked is not an error — the charger provisions
+	// the account the moment a default exists — but an organization created then counts no
+	// players until it does, and the charger says so loudly.
+	if _, err := provision.Account(ctx, tx, org.ID); err != nil {
+		return nil, err
 	}
 
 	if also != nil {

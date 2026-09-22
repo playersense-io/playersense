@@ -15,7 +15,6 @@ import (
 	"playersense.dev/backend/ent/creditlot"
 	"playersense.dev/backend/ent/ledgerentry"
 	"playersense.dev/backend/ent/monthlyusage"
-	"playersense.dev/backend/ent/plan"
 	"playersense.dev/backend/ent/ratecard"
 	"playersense.dev/backend/ent/usagecharge"
 	"playersense.dev/backend/internal/billing"
@@ -617,9 +616,10 @@ func TestAKidsStrictBatchIsNotATrackedPlayer(t *testing.T) {
 	}
 }
 
-// An organization with no account, when no plan is the default, counts nobody — so that when it is
-// given an account, its players are still new rather than silently free.
-func TestNoAccountAndNoDefaultPlanCountsNobody(t *testing.T) {
+// An organization that cannot be billed — no account and no default plan, or deleted while its last
+// batches were queued — counts nobody, and does not stall the queue. Counting nobody matters: when it
+// is given an account, its players are still new rather than silently free.
+func TestAnOrganizationThatCannotBeBilledCountsNobodyAndDoesNotStall(t *testing.T) {
 	f := newFixture(t, billing.Graduated, 0)
 	a := f.accruer()
 	msgs := f.messages(players(2), time.Now())
@@ -627,10 +627,9 @@ func TestNoAccountAndNoDefaultPlanCountsNobody(t *testing.T) {
 		m.OrgSeq = 2_000_000_000 // an organization id nothing will ever have
 	}
 
-	// Only meaningful when no plan is the default; another suite may have made one.
-	if exists, err := f.db.Client.Plan.Query().Where(plan.IsDefault(true)).Exist(context.Background()); err != nil || exists {
-		t.Skip("a default plan exists, so every organization gets an account")
-	}
+	// Whether or not some plan is the default: the organization does not exist, so there is
+	// nothing to provision — the same path an organization deleted mid-flight takes — and the
+	// delivery must not stall on it.
 	f.handle(a, msgs)
 	if a.Stats.Counted.Load() != 0 || a.Stats.Unbilled.Load() != 2 {
 		t.Errorf("counted %d, unbilled %d; want 0 and 2", a.Stats.Counted.Load(), a.Stats.Unbilled.Load())

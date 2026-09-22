@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"cmp"
 	"context"
+	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -23,6 +24,7 @@ import (
 	"playersense.dev/backend/internal/billing"
 	"playersense.dev/backend/internal/eventbus"
 	"playersense.dev/backend/internal/pgdb"
+	"playersense.dev/backend/internal/provision"
 	"playersense.dev/backend/internal/valkey"
 )
 
@@ -268,7 +270,7 @@ func (a *Accruer) count(ctx context.Context, tx *ent.Tx, g *group, digests [][]b
 	if err := tx.MonthlyUsage.Create().
 		SetAccountID(account.ID).SetPeriodStart(g.period).
 		OnConflictColumns(monthlyusage.FieldAccountID, monthlyusage.FieldPeriodStart).
-		DoNothing().Exec(ctx); err != nil && !errors.Is(err, sqlNoRows) {
+		DoNothing().Exec(ctx); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return false, fmt.Errorf("open the month: %w", err)
 	}
 	usage, err := tx.MonthlyUsage.Query().
@@ -378,7 +380,10 @@ func accountFor(ctx context.Context, tx *ent.Tx, orgID int) (*ent.BillingAccount
 	if !ent.IsNotFound(err) {
 		return nil, fmt.Errorf("find the billing account: %w", err)
 	}
-	if _, err := Provision(ctx, tx, orgID); err != nil {
+	if _, err := provision.Account(ctx, tx, orgID); err != nil {
+		if errors.Is(err, provision.ErrNoOrganization) {
+			return nil, nil
+		}
 		return nil, err
 	}
 	account, err = tx.BillingAccount.Query().

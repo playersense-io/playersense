@@ -20,6 +20,7 @@ import (
 
 	"playersense.dev/backend/ent"
 	"playersense.dev/backend/ent/apikey"
+	"playersense.dev/backend/ent/billingaccount"
 	"playersense.dev/backend/ent/environment"
 	"playersense.dev/backend/ent/plan"
 	"playersense.dev/backend/ent/project"
@@ -267,8 +268,18 @@ func SeedBillingAccount(t *testing.T, db *pgdb.DB, orgID int) *ent.BillingAccoun
 		}
 	}
 
-	account, err := db.Client.BillingAccount.Create().
-		SetOrganizationID(orgID).SetPlanID(free.ID).Save(ctx)
+	// The organization may already have one: creating an organization provisions an account
+	// whenever some plan is marked default, which another test may have done. Either way the
+	// fixture ends on the free plan.
+	account, err := db.Client.BillingAccount.Query().
+		Where(billingaccount.OrganizationID(orgID)).Only(ctx)
+	switch {
+	case err == nil:
+		account, err = account.Update().SetPlanID(free.ID).Save(ctx)
+	case ent.IsNotFound(err):
+		account, err = db.Client.BillingAccount.Create().
+			SetOrganizationID(orgID).SetPlanID(free.ID).Save(ctx)
+	}
 	if err != nil {
 		t.Fatalf("seed billing account: %v", err)
 	}
