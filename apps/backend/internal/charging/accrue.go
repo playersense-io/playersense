@@ -42,6 +42,10 @@ type Accruer struct {
 	// players is several statements rather than one with a hundred thousand parameters.
 	MaxInsert int
 
+	// Parallelism is how many account-months one delivery accrues at once. Keep it well under the
+	// database pool: every one holds a connection for its transaction.
+	Parallelism int
+
 	// Pricing serves each organization's account, allowance and rate cards from memory and
 	// Valkey (ADR 0041). Nil builds one over DB and Cache on first use.
 	Pricing *PricingCache
@@ -99,23 +103,46 @@ func (a *Accruer) Handle(ctx context.Context, msgs []*eventbus.Message) error {
 			"dedup_key", msg.msg.DedupKey, "org_id", msg.msg.OrgID, "reason", msg.reason)
 	}
 
-	// Sorted, so a redelivery works through account-months in the same order and two
-	// consumers holding overlapping deliveries take the monthly_usage locks in the same order.
+	// Sorted, so a redelivery starts its account-months in the same order.
 	keys := slices.SortedFunc(maps.Keys(groups), func(a, b groupKey) int {
 		if c := cmp.Compare(a.orgSeq, b.orgSeq); c != 0 {
 			return c
 		}
 		return a.period.Compare(b.period)
 	})
-	var errs []error
+	// Account-months in parallel, a bounded number at a time. Each takes exactly one lock — its
+	// own month's row — so they cannot deadlock one another, and a delivery holding two hundred
+	// organizations is two hundred independent short transactions that have no reason to wait
+	// in line. Bounded, so one delivery cannot take every connection in the pool.
+	var (
+		mu   sync.Mutex
+		errs []error
+		wg   sync.WaitGroup
+		sem  = make(chan struct{}, a.parallelism())
+	)
 	for _, key := range keys {
-		if err := a.accrue(ctx, groups[key]); err != nil {
-			errs = append(errs, fmt.Errorf("organization %d, %s: %w",
-				key.orgSeq, key.period.Format("2006-01"), err))
-		}
+		wg.Add(1)
+		sem <- struct{}{}
+		go func() {
+			defer func() { <-sem; wg.Done() }()
+			if err := a.accrue(ctx, groups[key]); err != nil {
+				mu.Lock()
+				errs = append(errs, fmt.Errorf("organization %d, %s: %w",
+					key.orgSeq, key.period.Format("2006-01"), err))
+				mu.Unlock()
+			}
+		}()
 	}
+	wg.Wait()
 	a.Stats.Messages.Add(int64(len(msgs)))
 	return errors.Join(errs...)
+}
+
+func (a *Accruer) parallelism() int {
+	if a.Parallelism > 0 {
+		return a.Parallelism
+	}
+	return 8
 }
 
 type groupKey struct {
