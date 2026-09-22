@@ -114,7 +114,7 @@ metrics_monthly                  monthly actives, its own distinct count
 ### PostgreSQL — exactly one
 
 Accounts, organisations, projects, environments, API keys, settings, retention policies,
-billing, feature flags and aggregate usage counts, alongside the four tables that name a
+billing, feature flags and aggregate usage counts, alongside the five tables that name a
 player:
 
 ```text
@@ -122,14 +122,23 @@ verified_purchases       player_id, store_transaction_id
 data_deletion_requests   actor_key
 data_export_requests     actor_key
 archive_manifests
+billable_player          digest
 ```
+
+`billable_player` is how real-time charging knows a player is new this month
+([ADR 0039](../adr/0039-players-are-charged-as-they-arrive.md)). It holds no identifier as
+sent: each row is a keyed HMAC of the device, salted with the month, so it cannot be joined to
+the events without the key and one player's rows in two months are unrelated values. It is
+still classified `identifier`, because a keyed pseudonym is personal data. Rows are kept for
+the current and previous month and then deleted. An erasure does not yet remove a player's
+digest from the current month — see [10](10-open-items.md).
 
 The two request tables outlive the data they name, and deliberately. Proving an erasure
 happened needs a record that it happened ([06](06-retention-and-deletion.md)), and that
 record has to carry the identifier it was about. Neither holds anything else about the
 person: what an erasure removed is recorded as counts, not as a copy of what was removed.
 
-These four used to sit in a separate database, under the rule that a player identifier
+The first four used to sit in a separate database, under the rule that a player identifier
 never appeared beside the account records. That split is gone
 ([ADR 0038](../adr/0038-one-api-one-database.md)); the classification that made it
 checkable is not, and it is what keeps this inventory accurate
@@ -138,7 +147,9 @@ checkable is not, and it is what keeps this inventory accurate
 ### Valkey — ephemeral
 
 Key cache entries, rate-limit counters, device state for cohort stamping, revocation
-tombstones. Everything in it expires and everything in it can be rebuilt.
+tombstones, and which billable players have already been counted this month — the same
+digests `billable_player` holds, expiring after the month. Everything in it expires and
+everything in it can be rebuilt.
 
 ### Google Cloud Storage
 

@@ -192,6 +192,48 @@ dashboard's DAU comes from, so an invoice and a chart are two readings of one nu
 rewritten until it settles and final at eight days. Tracked players is reported as the busiest day
 rather than a sum: adding daily figures counts one player once per day they played.
 
+**Players are charged as they arrive** ([ADR 0039](docs/adr/0039-players-are-charged-as-they-arrive.md)).
+`billing-writer` counts each organization's new tracked players this month as batches arrive, prices
+each at its *position* in the month on the plan's rate card, and queues the charge; every five seconds
+the queue is drained into the wallet. Usage the wallet cannot cover becomes arrears — never a refused
+charge, and never a refused batch — and the next top-up pays it first. The billing page's `month`
+shows the exact count, what it cost, and the band the next player lands in.
+
+**Prices are rate cards, and staff publish them rather than edit them:**
+
+```
+GET    POST                 /v1/operator/plans
+       PUT                  /v1/operator/plans/{plan}
+GET    POST                 /v1/operator/plans/{plan}/rate-cards
+       PUT                  /v1/operator/organizations/{org}/plan
+GET                         /v1/pricing                 public: what the landing page reads
+```
+
+A card is a plan's tiers from `effective_from` on. It cannot be changed or start in the past; a new
+price is a new card, and each player is priced at the card in force when they arrived. Tiers are
+player positions within a calendar month, inclusive, and the last is unbounded. The launch prices —
+$0.0005 per player to 100,000, $0.0004 to 500,000, $0.00035 to 1,000,000, $0.0003 above — are data,
+loaded like this (`$TOKEN` is `CONTROL_API_ADMIN_TOKEN`):
+
+```bash
+curl -X POST localhost:21080/v1/operator/plans -H "Authorization: Bearer $TOKEN" -d '{
+  "key": "payg", "name": "Pay as you go", "is_default": true,
+  "entitlements": {"included_mau": 10000}, "operator": "you@playersense.dev"}'
+
+curl -X POST localhost:21080/v1/operator/plans/payg/rate-cards -H "Authorization: Bearer $TOKEN" -d '{
+  "mode": "graduated", "note": "launch prices", "operator": "you@playersense.dev",
+  "tiers": [
+    {"up_to": 100000,  "unit_price_micros": 500},
+    {"up_to": 500000,  "unit_price_micros": 400},
+    {"up_to": 1000000, "unit_price_micros": 350},
+    {"unit_price_micros": 300}]}'
+```
+
+`is_default` is the plan every new organization is put on. With no default plan, organizations get no
+billing account and `billing-writer` warns that their players are not being billed. The included
+players are free and still hold positions: with 10,000 included, player 100,001 is still in the
+$0.0004 band.
+
 And **the three tables a studio edits**:
 
 ```
@@ -311,6 +353,19 @@ go run ./apps/backend/cmd/archive-writer
 Consumes the event stream on its own subscription and writes the canonical Parquet
 archive, with a manifest per object in PostgreSQL. `ARCHIVE_STORE=local` writes under
 `ARCHIVE_DIR`; `ARCHIVE_STORE=gcs` writes to the bucket.
+
+### billing-writer — `:21088` (health probe only)
+
+```bash
+go run ./apps/backend/cmd/billing-writer
+```
+
+Charges tracked players as they arrive, on its own subscription: counts who is new this month,
+queues what they cost, drains the queue into wallets every `BILLING_DRAIN_EVERY`, and deletes player
+sets older than last month. Needs PostgreSQL; Valkey only makes it faster. Refuses to start without a
+`BILLING_DIGEST_KEY` of 32 bytes or more — and that key must never change mid-month, or every player
+of the month is new again and charged twice. Ingestion never waits for it
+([ADR 0039](docs/adr/0039-players-are-charged-as-they-arrive.md)).
 
 ### worker — `:21086` (health probe only)
 

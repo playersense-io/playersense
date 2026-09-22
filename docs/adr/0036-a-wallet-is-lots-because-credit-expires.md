@@ -1,6 +1,6 @@
 # 0036. A wallet is lots, because credit expires
 
-**Status:** Accepted
+**Status:** Accepted; refusing a charge whole is superseded for usage by [0039](0039-players-are-charged-as-they-arrive.md)
 **Date:** 2026-09-18
 **Relates to:** project.md §36, §37, §38, §39, §40, §56; [ADR 0011](0011-api-key-format-and-storage.md), [ADR 0021](0021-two-metric-tiers.md), [ADR 0035](0035-an-invitation-is-addressed-not-merely-held.md)
 

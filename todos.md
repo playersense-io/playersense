@@ -111,8 +111,11 @@ status/legal links, signup/login entry. **Must not contain privileged admin logi
 - [x] Home / marketing page — hero, feature grid grounded in real capabilities (analytics,
       flags & rollouts, LiveOps, privacy-by-schema, scale, SDK), CTA. No invented pricing,
       testimonials or customer logos.
-- [ ] Pricing page reflecting §36–38 (MAU as primary meter, free tier, promo credit) —
-      needs actual numbers from product/legal; none are published in `project.md`.
+- [ ] Pricing page reflecting §36–38 (MAU as primary meter, free tier, promo credit). The
+      numbers are no longer missing: render `GET /v1/pricing` (public, no credential) — every plan
+      on sale, its included players, the tiers in force (`from`/`up_to` positions and a
+      `unit_price` already rendered below a cent, e.g. `$0.0005`) and any scheduled change. Never
+      hardcode a price in the page; staff change them as rate cards (ADR 0039).
 - [ ] Product pages: analytics, feature flags & LiveOps. Hold off on purchase-verification
       and webhooks marketing copy until those ship server-side (§90, not built — see §4
       below), or caveat them as "coming soon."
@@ -199,7 +202,11 @@ status/legal links, signup/login entry. **Must not contain privileged admin logi
       `available_micros` and `ledger_balance_micros` with an explanation of why they can
       briefly diverge (lapse vs. sweep); ledger/lot list distinguishing promotional (expiring)
       from purchased (never-expiring) credit; auto-topup toggle. No path here for a customer to
-      grant themselves credit — that's operator-only (see Admin).
+      grant themselves credit — that's operator-only (see Admin). Charging is real time now
+      (ADR 0039): `GET …/billing` carries `month` — the exact tracked players this month (not a
+      peak), what they cost, what is still queued (seconds old), the rate card and the band the
+      next player lands in — and `arrears_micros`, usage the wallet could not cover. Show arrears
+      prominently and say plainly that ingestion is unaffected.
 - [ ] **Audit log** (§55.4) — read-only, gated on `audit.read` (only Owner/Admin among the six
       seeded roles). Render before/after state on role and rollout changes; label
       operator-initiated entries as self-asserted, per the backend's own labeling.
@@ -284,6 +291,13 @@ frontend-only, and do the staff-identity item first — everything else depends 
 - [ ] Entitlement overrides.
 - [ ] Billing inspection (can likely reuse the billing routes under staff scope
       once that exists, rather than the member scope `client` uses).
+- [ ] **Plans & prices** over the operator routes (ADR 0039): list/create/edit plans
+      (`/v1/operator/plans`), publish rate cards (`/v1/operator/plans/{plan}/rate-cards`) with a
+      tier editor that shows `from`–`up_to` positions and prices below a cent, the price history
+      marked current/scheduled/superseded, and moving an organization onto a plan
+      (`PUT /v1/operator/organizations/{org}/plan`). There is deliberately no "edit price" —
+      publishing a card *is* the edit, and it cannot start in the past. Same shared-token caveat
+      as credit grants below.
 - [ ] Credit grants/charges UI over the existing operator routes
       (`POST /v1/operator/organizations/{org}/credits`, `.../charges`). Today these sit behind
       a **shared operator token**, not a verified staff identity — `granted_by_user_id` is
@@ -331,12 +345,15 @@ Track alongside the frontend work above; none of it blocks `landing`, but most o
       `client`'s Events, Funnels, and Players pages.
 - [ ] Session duration percentiles / `sessions_final` sessionization (§30) — blocks the full
       Sessions page.
-- [ ] Stripe integration (§40) — no Stripe keys in `.env.example` yet and no month-close job
-      (`docs/compliance/10-open-items.md`: "nothing reports a meter to Stripe yet"). The only
-      Stripe-related code today is a `StripeReference` passthrough field on the operator
-      credit-grant route (`internal/handlers/billing.go:360`), used as an idempotency reference,
-      not an API integration. Blocks real invoicing behind `client`'s Billing numbers, which
-      today are internally correct but never reconciled against an actual invoice.
+- [ ] Stripe, as the wallet's funding source (ADR 0039). Usage is now priced and charged by
+      `billing-writer` in real time, so Stripe no longer needs usage meters or invoices for
+      tracked players. What it needs to do: save a card, take a top-up, run automatic top-up when
+      the balance falls below `auto_topup_threshold_micros` (configured today, read by nothing),
+      and pay off arrears — each webhook granting a `purchase` lot, which pays arrears first. No
+      Stripe keys in `.env.example` yet; `StripeEvent` exists for the webhooks.
+- [ ] Decide what happens after the grace period (§40.1): how long `grace_period` lasts, what
+      `restricted` restricts, and what cancellation does to retained data. Nothing escalates past
+      `grace_period` automatically until this is decided.
 - [ ] Realtime metrics endpoint — confirm scope before `client`'s Realtime page is built.
 - [ ] A person-authenticated (not server-key) data-subject-rights route, if `client` is meant
       to expose export/erasure requests directly rather than delegating to a studio's own

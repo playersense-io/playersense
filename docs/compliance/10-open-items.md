@@ -82,14 +82,26 @@ settles and marked final at eight days. Credit is held as lots, spent promotiona
 oldest-purchase-next, and lapsed credit is written off one statement line at a time
 ([ADR 0036](../adr/0036-a-wallet-is-lots-because-credit-expires.md)).
 
+**Real-time charging** is built ([ADR 0039](../adr/0039-players-are-charged-as-they-arrive.md)).
+`billing-writer` counts each organization's new tracked players as batches arrive, prices them at
+their positions on the plan's rate card, queues the charge, and drains the queue into the wallet
+every few seconds. Prices are immutable rate cards staff publish through the operator API and the
+public pricing page reads. Usage the wallet cannot cover becomes arrears and moves the account to
+its grace period; ingestion is never affected.
+
 What it does not yet cover:
 
 | Item | Notes |
 |---|---|
-| **The month close, and Stripe** | `wallet.Spend` is called by an operator rather than by a scheduled job, because a job needs overage *rates* and §37 forbids hardcoding commercial values. Nothing reports a meter to Stripe yet either, so §40's seam exists on our side only |
+| **Stripe** | Nothing takes a card yet. Stripe's job is now to *fund the wallet* — top-ups, automatic top-up below a threshold, paying arrears — with its webhooks granting `purchase` lots; it no longer needs usage meters or invoices for tracked players. `auto_topup_*` is configured and read by nothing |
+| **What happens after the grace period** | An account with arrears goes to `grace_period` and back when it pays. Nothing moves it to `restricted` or `suspended`: how long grace lasts, what restriction restricts, and what cancellation does to retained data (§40.1) are commercial decisions not yet made |
+| **A player's digest and their erasure** | An erasure removes a player's events, archive objects and summaries, and not their `billable_player` digest for the current month. The digest is keyed and month-salted and is deleted when the month after next begins, so it lingers at most two months — but that is not "removed asynchronously" and is recorded here rather than claimed |
+| **The month seam** | Charging keys a player on the month the batch *arrived*; `metrics_monthly` keys on the month of the activity. A batch of late events from the 31st arriving on the 1st counts in different months in the two places. Chosen because keying on client time would let an SDK backdate players into a month already paid for |
+| **kids_strict is not billed by players** | The gateway replaces the install id per batch, so there is no persistent player to count. Those projects are not charged for tracked players at all until a different meter is chosen for them |
+| **Who changed a plan** | Rate cards are immutable and carry who published them. A plan's name, allowances and default flag are editable behind the shared operator token and leave no staff-side record until §56's staff identities exist. Moving an organization between plans is in that organization's audit log |
 | **Who granted credit** | The operator surface is guarded by the shared operator token, so `granted_by_user_id` is null on that path and "who gave this account $100" has no answer inside the product. It needs the audit log below and §56's console. Every grant does carry a caller-supplied reference, and no customer credential can reach the route at any permission |
-| **Whether non-production traffic is billable** | `usage_daily` is keyed by project and has no environment column, so development and staging count toward the meter. A commercial decision the schema made before the meter existed; changing it is a WHERE clause in `internal/metering` |
-| **Monthly tracked players, exactly** | The usage page reports the busiest day rather than a sum, because adding daily figures counts one player once per day. §36's meter is the distinct monthly figure, which `metrics_monthly` holds and the month close will read |
+| **Non-production traffic is billable** | Every environment's players are charged, as the daily meter already counted them. Charging only production would let a studio ship on a development key and pay nothing |
+| **The other two meters** | Only tracked players are charged. Event volume (§36's safety meter) and retained GB-month (§39) are metered daily and priced by nothing: a rate card for either meter is refused until the charger prices it |
 | **Subscription fees and refunds** | `subscription` and `refund` are ledger kinds nothing writes. The plan's `monthly_price_micros` is stored and never charged |
 
 ## Engineering — audit and access
