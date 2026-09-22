@@ -69,7 +69,7 @@ Deliberately short:
 
 ```text
 Google Cloud Platform    infrastructure, storage, queueing
-Stripe                   billing
+Stripe                   payments: top-ups, saved cards, receipts
 ```
 
 Short because every addition is a customer notification, a DPA amendment, and one more party

@@ -164,7 +164,11 @@ each has its own short expiry and is removed sooner if that person asks to be er
 
 ## What is never stored
 
-- Card numbers or any payment instrument — Stripe holds those.
+- Card numbers, payment method ids, billing addresses or any payment instrument. Paying and
+  managing cards happen on Stripe's own pages (Checkout and the customer portal); the one Stripe
+  identifier kept is the customer id on the billing account, and every Stripe webhook is kept
+  whole in `stripe_events` as the record of what Stripe reported
+  ([ADR 0040](../adr/0040-stripe-funds-the-wallet.md)).
 - IP addresses. The request address is used to key rate limits and, once the derivation is
   implemented, to produce a coarse country. It is not written to any table, and the
   function that reads it returns a country rather than an address by construction.

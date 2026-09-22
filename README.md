@@ -230,6 +230,34 @@ curl -X POST localhost:21080/v1/operator/plans/payg/rate-cards -H "Authorization
     {"unit_price_micros": 600}]}'
 ```
 
+**Money reaches the wallet through Stripe**, and PlayerSense stores no card or billing details
+([ADR 0040](docs/adr/0040-stripe-funds-the-wallet.md)):
+
+```
+       POST                 /v1/organizations/{org}/billing/top-ups    → a Stripe Checkout URL
+       POST                 /v1/organizations/{org}/billing/portal     → Stripe's customer portal URL
+       POST                 /v1/stripe/webhook                         Stripe only; signature-verified
+```
+
+Both `billing.manage` routes return a URL to send the browser to. Nothing is credited by opening
+Checkout or by the browser coming back — only by Stripe's signed webhook, keyed on the PaymentIntent so
+a payment reported several ways is credited once. The card paid with is saved at Stripe, and automatic
+top-up (`PUT …/billing/auto-topup`) charges it from `billing-writer` when the balance falls below the
+threshold, with an idempotency key committed before the request so a lost response never becomes a
+second charge. Without `STRIPE_SECRET_KEY` these routes answer 503.
+
+To receive webhooks locally, forward them with the Stripe CLI and give the API the secret it prints:
+
+```bash
+stripe listen --events payment_intent.succeeded,payment_intent.payment_failed,payment_intent.canceled,checkout.session.completed,checkout.session.async_payment_succeeded \
+  --forward-to localhost:21080/v1/stripe/webhook
+STRIPE_WEBHOOK_SECRET=whsec_… go run ./apps/backend/cmd/api    # the secret `stripe listen` printed
+```
+
+Against Stripe's test mode, `STRIPE_LIVE=1 go test ./apps/backend/internal/payments -run Live` checks
+the SDK wiring, and with `stripe listen` and the API running, `STRIPE_E2E=1 … -run EndToEnd` makes a
+real automatic top-up and waits for Stripe's own webhook for it.
+
 `is_default` is the plan every new organization is put on. With no default plan, organizations get no
 billing account and `billing-writer` warns that their players are not being billed. The included
 players are free and still hold positions: with 10,000 included, player 100,001 is still in the
@@ -363,7 +391,8 @@ go run ./apps/backend/cmd/billing-writer
 
 Charges tracked players as they arrive, on its own subscription: counts who is new this month,
 queues what they cost, drains the queue into wallets every `BILLING_DRAIN_EVERY`, and deletes player
-sets older than last month. Needs PostgreSQL; Valkey only makes it faster. Refuses to start without a
+sets older than last month; with `STRIPE_SECRET_KEY` set, it also charges saved cards for balances
+below their automatic top-up threshold. Needs PostgreSQL; Valkey only makes it faster. Refuses to start without a
 `BILLING_DIGEST_KEY` of 32 bytes or more — and that key must never change mid-month, or every player
 of the month is new again and charged twice. Ingestion never waits for it
 ([ADR 0039](docs/adr/0039-players-are-charged-as-they-arrive.md)).

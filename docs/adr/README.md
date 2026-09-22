@@ -66,6 +66,7 @@ a record is never updated to match a drifting document, it is superseded by a ne
 | [0037](0037-an-audit-log-records-decisions-not-requests.md) | An audit log records decisions, not requests | Accepted |
 | [0038](0038-one-api-one-database.md) | One API and one database, until revenue says otherwise | Accepted |
 | [0039](0039-players-are-charged-as-they-arrive.md) | Players are charged as they arrive, through a queue the wallet drains | Accepted |
+| [0040](0040-stripe-funds-the-wallet.md) | Stripe funds the wallet, and PlayerSense stores no billing information | Accepted |
 
 ## Template
 

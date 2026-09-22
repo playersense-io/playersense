@@ -207,6 +207,12 @@ status/legal links, signup/login entry. **Must not contain privileged admin logi
       peak), what they cost, what is still queued (seconds old), the rate card and the band the
       next player lands in — and `arrears_micros`, usage the wallet could not cover. Show arrears
       prominently and say plainly that ingestion is unaffected.
+      Paying (ADR 0040): "Add credit" is `POST …/billing/top-ups` → redirect the browser to the
+      returned `url`; "Manage cards" is `POST …/billing/portal` → redirect likewise. On return
+      (`?checkout=success`) do **not** show the credit as arrived — poll `GET …/billing` for a few
+      seconds until the webhook's lot appears, and say "payment received, crediting…" meanwhile.
+      Auto top-up form: no card field; a 422 saying there is no saved card means "pay once or add a
+      card in the portal first". Show `auto_topup.pending` and `auto_topup.last_error`.
 - [ ] **Audit log** (§55.4) — read-only, gated on `audit.read` (only Owner/Admin among the six
       seeded roles). Render before/after state on role and rollout changes; label
       operator-initiated entries as self-asserted, per the backend's own labeling.
@@ -345,12 +351,10 @@ Track alongside the frontend work above; none of it blocks `landing`, but most o
       `client`'s Events, Funnels, and Players pages.
 - [ ] Session duration percentiles / `sessions_final` sessionization (§30) — blocks the full
       Sessions page.
-- [ ] Stripe, as the wallet's funding source (ADR 0039). Usage is now priced and charged by
-      `billing-writer` in real time, so Stripe no longer needs usage meters or invoices for
-      tracked players. What it needs to do: save a card, take a top-up, run automatic top-up when
-      the balance falls below `auto_topup_threshold_micros` (configured today, read by nothing),
-      and pay off arrears — each webhook granting a `purchase` lot, which pays arrears first. No
-      Stripe keys in `.env.example` yet; `StripeEvent` exists for the webhooks.
+- [x] ~~Stripe, as the wallet's funding source~~ — built (ADR 0040): Checkout top-ups, the
+      customer portal for cards, signed webhooks, automatic top-up off-session. Not handled yet:
+      refunds and disputes (`charge.refunded`, `charge.dispute.*` are not subscribed), and the
+      live-mode portal needs its configuration saved once in Stripe's dashboard.
 - [ ] Decide what happens after the grace period (§40.1): how long `grace_period` lasts, what
       `restricted` restricts, and what cancellation does to retained data. Nothing escalates past
       `grace_period` automatically until this is decided.
