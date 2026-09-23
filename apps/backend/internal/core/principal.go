@@ -231,11 +231,6 @@ func (p *Principal) enterOrganization(ctx *muzak.Context, db *DB, slug string) e
 		return muzak.ServiceUnavailable("your membership has no role")
 	}
 
-	permissions := make([]authz.Permission, 0, len(member.Edges.Role.Permissions))
-	for _, name := range member.Edges.Role.Permissions {
-		permissions = append(permissions, authz.Permission(name))
-	}
-
 	var reachable []int
 	if !member.AllProjects {
 		ids, err := db.Client.MemberProject.Query().
@@ -248,24 +243,39 @@ func (p *Principal) enterOrganization(ctx *muzak.Context, db *DB, slug string) e
 		reachable = ids
 	}
 
-	systemRole := ""
-	if member.Edges.Role.System {
-		systemRole = member.Edges.Role.Key
-	}
-
 	p.Organization = org
 	p.Member = member
-	p.Actor = authz.UserActor(org.ID, p.User.ID, systemRole, permissions, member.AllProjects, reachable)
+	p.Actor = MemberActor(member, p.Claims.EmailVerified, reachable)
+
+	return p.enterProject(ctx, db)
+}
+
+// MemberActor is a person's standing in one organization, from their membership and its role.
+//
+// The one place a membership becomes an actor, so a route that answers about several organizations
+// at once — /v1/users/me — decides exactly as the organization's own routes would. The membership
+// must carry its role (WithRole). `reachable` is the project access list, needed only when the
+// question is about a project.
+func MemberActor(member *ent.OrganizationMember, emailVerified bool, reachable []int) authz.Actor {
+	role := member.Edges.Role
+	permissions := make([]authz.Permission, 0, len(role.Permissions))
+	for _, name := range role.Permissions {
+		permissions = append(permissions, authz.Permission(name))
+	}
+	systemRole := ""
+	if role.System {
+		systemRole = role.Key
+	}
+	actor := authz.UserActor(member.OrganizationID, member.UserID, systemRole, permissions, member.AllProjects, reachable)
 
 	// Set on the actor rather than checked at each call site, so a route that forgets is
 	// a route that is still safe: every permission that changes something is withheld,
 	// including from an owner.
-	if !p.Claims.EmailVerified {
-		p.Actor.ReadOnly = true
-		p.Actor.ReadOnlyReason = VerifyEmailFirst
+	if !emailVerified {
+		actor.ReadOnly = true
+		actor.ReadOnlyReason = VerifyEmailFirst
 	}
-
-	return p.enterProject(ctx, db)
+	return actor
 }
 
 // enterProject resolves the project in the path, when the route names one.
