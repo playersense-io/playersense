@@ -50,6 +50,9 @@ export const WINDOW_LABELS: Record<FunnelWindow, string> = {
   '30d': '30 days'
 }
 
+/** "within 1 day", "within the same session": how a sentence says the window. */
+export const windowPhrase = (window: FunnelWindow) => `within ${WINDOW_LABELS[window]}`
+
 const MINUTE = 60
 const HOUR = 3_600
 const DAY_S = 86_400
