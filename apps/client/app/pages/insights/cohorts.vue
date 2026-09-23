@@ -2,7 +2,8 @@
 import type { Kpi } from '~/components/KpiBoard.vue'
 
 // Players grouped by when they arrived, and what each group went on to do: retain, play,
-// spend, convert to paying. One metric at a time, per day or as the running total, by day,
+// spend, convert to paying — ten metrics in two families, one of them any event in the
+// catalogue counted per install, narrowed by its conditions. One metric at a time, per day or as the running total, by day,
 // week or month of install; narrowed to platforms, countries or first app versions, and
 // split by one of them to compare segments side by side — never two at once (§57.1).
 // Three views: the triangle, the curves, and for revenue, payback against a cost per
@@ -14,9 +15,15 @@ const { project } = useWorkspace()
 
 // --- The question -------------------------------------------------------------------------
 
-const METRICS: GhostSelectOption[] = (Object.keys(METRIC_LABELS) as CohortMetric[]).map(value => ({ value, label: METRIC_LABELS[value] }))
+const METRICS: GhostSelectOption[] = COHORT_METRIC_KEYS.map(value => ({
+  value,
+  label: COHORT_METRICS[value].label,
+  group: COHORT_METRICS[value].group,
+  note: COHORT_METRICS[value].note
+}))
 
-const metric = useQueryChoice<CohortMetric>('metric', ['retention', 'playtime', 'revenue', 'payers'], 'retention')
+const metric = useQueryChoice<CohortMetric>('metric', COHORT_METRIC_KEYS, 'retention')
+const about = computed(() => COHORT_METRICS[metric.value])
 const basis = useQueryChoice<CohortBasis>('basis', ['classic', 'rolling'], 'classic')
 const sum = useQueryChoice<'total' | 'day'>('sum', ['total', 'day'], 'total')
 const grain = useQueryChoice<CohortGrain>('grain', ['day', 'week', 'month'], 'week')
@@ -52,17 +59,40 @@ const SPLITS: SegmentedOption[] = [
   { value: 'first_app_version', label: 'Version', title: 'First app version' }
 ]
 
-const accumulates = computed(() => metric.value === 'playtime' || metric.value === 'revenue')
+const accumulates = computed(() => about.value.accumulates)
 
-const DEFINITIONS: Record<CohortMetric, string> = {
-  retention: 'The share of each cohort active on day N.',
-  playtime: 'Minutes played per install: every install counted, whether it came back or not.',
-  revenue: 'Revenue per install, verified purchases only: every install counted, paying or not. To date, it is the LTV.',
-  payers: 'The share of each cohort that has made a purchase by day N.'
+// --- The event, for Event per install -----------------------------------------------------
+
+const EVENT_NAMES = EVENT_CATALOGUE.map(event => event.name)
+const eventName = useQueryChoice('event', EVENT_NAMES, 'level_complete')
+
+/** Its conditions in the URL as property:value, only the ones the event has. */
+const whereList = useQueryList('where', () => (EVENT_CATALOGUE.find(event => event.name === eventName.value)?.properties ?? [])
+  .flatMap(property => property.values.map(value => `${property.key}:${value}`)))
+
+const where = computed<FunnelCondition[]>({
+  get: () => whereList.value.map((entry) => {
+    const [property, value] = entry.split(':') as [string, string]
+    return { property, value }
+  }),
+  set: value => void (whereList.value = value.map(condition => `${condition.property}:${condition.value}`))
+})
+
+function chooseEvent(name: string) {
+  if (name === eventName.value) return
+  whereList.value = []
+  eventName.value = name
 }
 
+/** The metric by name: the event itself, for Event per install. */
+const metricLabel = computed(() => (metric.value === 'events' ? `${eventName.value} per install` : about.value.label))
+
+const eventWords = computed(() => [eventName.value, ...where.value.map(condition => `${condition.property} = ${condition.value}`)].join(' where '))
+
 const definition = computed(() => {
-  const words = [DEFINITIONS[metric.value]]
+  const words = [metric.value === 'events'
+    ? `How often each install did ${eventWords.value}: every install counted, whether it came back or not.`
+    : about.value.definition]
   if (metric.value === 'retention') words.push(basis.value === 'classic' ? 'Classic: active on exactly day N.' : 'Rolling: active on day N or any day after.')
   if (accumulates.value) words.push(sum.value === 'total' ? 'Added up to each day.' : 'On each day alone.')
   return words.join(' ')
@@ -112,7 +142,8 @@ const data = computed(() => sampleCohorts({
   range: range.value,
   grain: grain.value,
   split: split.value,
-  filters: filters.value
+  filters: filters.value,
+  event: { name: eventName.value, where: where.value, catalogue: EVENT_CATALOGUE }
 }))
 
 const mode = computed(() => cohortModeOf(metric.value, accumulates.value && sum.value === 'total'))
@@ -187,11 +218,12 @@ function downloadTable() {
 // Curves: every offset some row is old enough for, so a line is drawn day by day.
 const curveDays = computed(() => COHORT_OFFSETS.filter(offset => data.value.rows.some(row => cellAt(row, offset).state === 'ok')))
 
-const asPercent = computed(() => metric.value === 'retention' || metric.value === 'payers')
+const asPercent = computed(() => about.value.per === 'share')
 
 const curveValue = (value: number | null) => {
   if (value === null) return null
-  return asPercent.value ? Math.round(value * 1000) / 10 : Math.round(value * 100) / 100
+  const places = 10 ** about.value.chart.decimals
+  return asPercent.value ? Math.round(value * 1000) / 10 : Math.round(value * places) / places
 }
 
 /** Split: a line per segment. Otherwise every cohort weighted, and the five newest beside it. */
@@ -247,7 +279,7 @@ const cpi = computed<number>({
       </template>
     </PageHeader>
 
-    <SectionCard :description="definition" :padded="false" :title="METRIC_LABELS[metric]">
+    <SectionCard :description="definition" :padded="false" :title="about.label">
       <template #title>
         <GhostSelect v-model="metric" :options="METRICS" label="Metric" />
       </template>
@@ -267,6 +299,18 @@ const cpi = computed<number>({
         <SegmentedControl v-model="grain" :options="GRAINS" label="Cohort size" />
       </template>
 
+      <div v-if="metric === 'events'" class="flex flex-wrap items-center gap-2 border-b border-line px-5 py-2.5">
+        <span class="text-xs text-ink/55">Count</span>
+        <EventPicker
+          :catalogue="EVENT_CATALOGUE"
+          :model-value="eventName"
+          label="Event"
+          @update:model-value="chooseEvent"
+        />
+        <EventConditions v-model="where" :catalogue="EVENT_CATALOGUE" :event="eventName" />
+        <span class="text-xs text-ink/55">per install</span>
+      </div>
+
       <TableToolbar :filters="activeFilters" @clear="clearFilters" @remove="removeFilter">
         <span class="text-xs text-ink/55">Split by</span>
         <SegmentedControl v-model="split" :options="SPLITS" label="Split by" />
@@ -275,9 +319,9 @@ const cpi = computed<number>({
     </SectionCard>
 
     <KpiBoard
-      :description="`${METRIC_LABELS[metric]} of the players who installed in the range, against the range before.`"
+      :description="`${metricLabel} of the players who installed in the range, against the range before.`"
       :items="board"
-      :title="METRIC_LABELS[metric]"
+      :title="metricLabel"
     />
 
     <div class="flex flex-col gap-5">
@@ -307,7 +351,7 @@ const cpi = computed<number>({
         <CohortTable
           :color="cohortColor"
           :grain="grain"
-          :label="`${METRIC_LABELS[metric]} by cohort`"
+          :label="`${metricLabel} by cohort`"
           :mode="mode"
           :offsets="cohortOffsets"
           :row-label="split === 'none' ? 'Cohort' : COHORT_DIMENSIONS[split as CohortDimension].label"
@@ -321,15 +365,15 @@ const cpi = computed<number>({
       <MetricCard
         v-else-if="tab === 'curves'"
         :categories="curveDays.map(offset => `D${offset}`)"
-        :decimals="asPercent ? 1 : 2"
+        :decimals="about.chart.decimals"
         :description="split === 'none'
           ? 'Every cohort together, weighted by size, and the five newest cohorts old enough to draw.'
           : 'One line per segment, every cohort in it weighted by size.'"
-        :prefix="metric === 'revenue' ? '$' : ''"
+        :prefix="about.chart.prefix ?? ''"
         :series="curveSeries"
         :titles="curveDays.map(offset => `Day ${offset}`)"
-        :title="`${METRIC_LABELS[metric]} by day since install`"
-        :unit="asPercent ? '%' : metric === 'playtime' ? 'min' : ''"
+        :title="`${metricLabel} by day since install`"
+        :unit="about.chart.unit ?? ''"
         category-label="Day"
       />
 
