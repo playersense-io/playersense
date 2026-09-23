@@ -42,6 +42,13 @@ export interface RecordColumn {
   sortable?: boolean
 }
 
+/** One tab of a `PageTabs`: the value the query keeps, what it says, and a count if it has one. */
+export interface PageTab {
+  value: string
+  label: string
+  count?: number | string
+}
+
 export interface RecordTab {
   key: string
   label: string
