@@ -22,7 +22,7 @@ const note = ref('')
 const options = computed<ChoiceOption[]>(() => [
   ...props.experiment.variants.map(entry => ({
     value: entry.id,
-    label: entry.name,
+    label: variantTitle(props.experiment, entry),
     note: entry.control ? 'The control: keep what the game does today.' : `Serve ${writeValue(entry.value)}.`
   })),
   { value: NONE, label: 'No clear winner', note: 'Nothing moved enough to change. Keep the control.' }

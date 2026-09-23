@@ -19,8 +19,10 @@ const guardrails = ref<MetricKey[]>(['d7_retention'])
 const plannedDays = ref<number>(14)
 interface VariantDraft {
   id: string
+  /** Empty for none: the variant is then called by its letter. */
   name: string
   value: Json
+  weight: number
   invalid: boolean
 }
 
@@ -48,27 +50,34 @@ watch(flagKey, () => {
   if (!current) return
   const other = current.kind === 'bool' ? !current.fallback : servedValues(documentOf(current)).find(value => !sameJson(value, current.fallback)) ?? defaultValue(current.kind)
   variants.value = [
-    { id: 'a', name: 'Control', value: current.fallback, invalid: false },
-    { id: 'b', name: 'Variant B', value: other, invalid: false }
+    { id: 'a', name: '', value: current.fallback, weight: 50, invalid: false },
+    { id: 'b', name: '', value: other, weight: 50, invalid: false }
   ]
 })
 
 function addVariant() {
   if (!flag.value || variants.value.length >= 4) return
   const id = 'abcd'[variants.value.length]!
-  variants.value = [...variants.value, { id, name: `Variant ${id.toUpperCase()}`, value: defaultValue(flag.value.kind), invalid: false }]
+  variants.value = [...variants.value, { id, name: '', value: defaultValue(flag.value.kind), weight: 0, invalid: false }]
+  splitEvenly()
 }
 
 function removeVariant(index: number) {
   variants.value = variants.value.filter((_, at) => at !== index)
+  splitEvenly()
 }
 
 /* An even split that adds up to 100: the first variants take the remainder. */
-const weights = computed(() => {
+function splitEvenly() {
   const count = variants.value.length || 1
   const base = Math.floor(100 / count)
-  return variants.value.map((_, index) => base + (index < 100 - base * count ? 1 : 0))
-})
+  variants.value = variants.value.map((entry, index) => ({ ...entry, weight: base + (index < 100 - base * count ? 1 : 0) }))
+}
+
+const splitTotal = computed(() => variants.value.reduce((sum, entry) => sum + (entry.weight || 0), 0))
+
+/* The share of the audience let in, in hundredths, as the share field and the slider hold it. */
+const traffic = ref(10_000)
 
 const METRIC_ITEMS = METRIC_KEYS.map(key => ({ value: key, title: EXPERIMENT_METRICS[key].label, subtitle: EXPERIMENT_METRICS[key].note }))
 
@@ -84,7 +93,7 @@ const duplicate = computed(() => {
 })
 
 const ready = computed(() => name.value.trim() !== '' && flag.value !== null && variants.value.length >= 2
-  && !variants.value.some(entry => entry.invalid || !entry.name.trim()) && !duplicate.value && plannedDays.value >= MIN_DAYS)
+  && !variants.value.some(entry => entry.invalid || entry.weight < 1) && splitTotal.value === 100 && !duplicate.value && plannedDays.value >= MIN_DAYS && traffic.value >= 100)
 
 function confirm() {
   if (!ready.value || !flag.value) return
@@ -93,16 +102,17 @@ function confirm() {
     hypothesis: hypothesis.value.trim(),
     flagKey: flag.value.key,
     audience: audience.value.trim() || 'Every player',
+    traffic: Math.round(traffic.value / 100),
     primaryMetric: primaryMetric.value,
     guardrails: guardrails.value,
-    variants: variants.value.map((entry, index) => ({ id: entry.id, name: entry.name.trim(), value: entry.value, weight: weights.value[index]!, control: index === 0 })),
+    variants: variants.value.map((entry, index) => ({ id: entry.id, name: entry.name.trim() || variantLetter(index), value: entry.value, weight: entry.weight, control: index === 0 })),
     plannedDays: plannedDays.value
   })
   emit('created', id)
   open.value = false
 }
 
-const ids = { name: useId(), hypothesis: useId(), flag: useId(), audience: useId(), metric: useId(), guardrails: useId(), days: useId() }
+const ids = { name: useId(), hypothesis: useId(), flag: useId(), audience: useId(), traffic: useId(), metric: useId(), guardrails: useId(), days: useId() }
 </script>
 
 <template>
@@ -164,7 +174,7 @@ const ids = { name: useId(), hypothesis: useId(), flag: useId(), audience: useId
         <div v-if="flag" class="flex flex-col gap-2">
           <div class="flex items-baseline justify-between gap-2">
             <span class="text-xs font-medium text-ink">Variants</span>
-            <span class="text-[11px] text-ink/50">Split evenly between them</span>
+            <span class="text-[11px] text-ink/50">A is the control: what the game does today</span>
           </div>
           <ul class="m-0 flex list-none flex-col gap-2 p-0">
             <li
@@ -173,19 +183,36 @@ const ids = { name: useId(), hypothesis: useId(), flag: useId(), audience: useId
               class="flex flex-col gap-3 rounded-(--ps-radius-large) border border-line p-3"
             >
               <div class="flex items-center gap-2">
+                <span
+                  :style="{ background: `rgb(var(--v-theme-chart-${index + 1}))` }"
+                  aria-hidden="true"
+                  class="flex size-7 flex-none items-center justify-center rounded-(--ps-radius-small) font-mono text-xs font-medium text-white"
+                >{{ variantLetter(index) }}</span>
                 <v-text-field
                   v-model="entry.name"
-                  :aria-label="`Variant ${index + 1} name`"
+                  :aria-label="`Variant ${variantLetter(index)} name`"
+                  :placeholder="`Variant ${variantLetter(index)}, or a name of your own`"
                   class="min-w-0 flex-1"
                   density="comfortable"
                   hide-details
+                  maxlength="60"
                   variant="outlined"
                 />
-                <span class="w-12 flex-none text-right font-mono text-xs text-ink/60">{{ weights[index] }}%</span>
-                <Tag v-if="index === 0" label="Control" />
+                <v-text-field
+                  v-model.number="entry.weight"
+                  :aria-label="`Variant ${variantLetter(index)} share of the test`"
+                  :error="entry.weight < 1"
+                  class="ps-new-experiment__weight w-24 flex-none"
+                  density="comfortable"
+                  hide-details
+                  inputmode="numeric"
+                  suffix="%"
+                  type="number"
+                  variant="outlined"
+                />
                 <v-btn
-                  v-else-if="variants.length > 2"
-                  :aria-label="`Remove ${entry.name}`"
+                  v-if="index > 0 && variants.length > 2"
+                  :aria-label="`Remove variant ${variantLetter(index)}`"
                   color="neutral"
                   icon="material-symbols:close"
                   size="small"
@@ -199,27 +226,44 @@ const ids = { name: useId(), hypothesis: useId(), flag: useId(), audience: useId
                   v-model="entry.value"
                   v-model:invalid="entry.invalid"
                   :kind="flag.kind"
-                  :label="`${entry.name} value`"
+                  :label="`Variant ${variantLetter(index)} value`"
                   block
                   dense
                 />
               </div>
             </li>
           </ul>
+
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <span :class="splitTotal === 100 ? 'text-ink/55' : 'text-error'" class="text-[11px]">
+              {{ variants.map(entry => `${entry.weight || 0}%`).join(' + ') }} = {{ splitTotal }}%{{ splitTotal === 100 ? '' : ', and a split must add up to 100%' }}
+            </span>
+            <div class="flex items-center gap-1">
+              <v-btn
+                class="text-xs"
+                color="neutral"
+                size="small"
+                variant="text"
+                @click="splitEvenly"
+              >
+                Split evenly
+              </v-btn>
+              <v-btn
+                v-if="variants.length < 4"
+                class="text-xs"
+                color="neutral"
+                prepend-icon="material-symbols:add"
+                size="small"
+                variant="text"
+                @click="addVariant"
+              >
+                Add a variant
+              </v-btn>
+            </div>
+          </div>
           <p v-if="duplicate" class="m-0 text-xs text-error">
             Two variants serve the same value, so the test could not tell them apart.
           </p>
-          <v-btn
-            v-if="variants.length < 4"
-            class="self-start text-xs"
-            color="neutral"
-            prepend-icon="material-symbols:add"
-            size="small"
-            variant="text"
-            @click="addVariant"
-          >
-            Add a variant
-          </v-btn>
         </div>
 
         <div class="flex flex-col gap-1.5">
@@ -232,6 +276,33 @@ const ids = { name: useId(), hypothesis: useId(), flag: useId(), audience: useId
             placeholder="Every player"
             variant="outlined"
           />
+        </div>
+
+        <div class="flex flex-col gap-1.5">
+          <label :for="ids.traffic" class="text-xs font-medium text-ink">Traffic</label>
+          <span class="text-[11px] leading-4 text-ink/55">
+            The share of them let into the test. The rest keep what the game serves today and are not counted.
+            Start small for a risky change, and raise it once nothing breaks.
+          </span>
+          <div class="flex items-center gap-3">
+            <ShareField :id="ids.traffic" v-model="traffic" label="Traffic" />
+            <v-slider
+              :model-value="traffic / 100"
+              aria-label="Traffic"
+              class="min-w-0 flex-1"
+              color="primary"
+              hide-details
+              max="100"
+              min="1"
+              step="1"
+              thumb-size="14"
+              track-size="4"
+              @update:model-value="traffic = Math.round($event) * 100"
+            />
+          </div>
+          <span class="text-[11px] text-ink/55">
+            {{ Math.round(traffic / 100) }}% in the test<template v-if="variants.length">: {{ variants.map((entry, index) => `${variantLetter(index)} gets ${Math.round((traffic / 100) * (entry.weight || 0)) / 100}% of the audience`).join(', ') }}</template>.
+          </span>
         </div>
 
         <div class="flex flex-col gap-1.5">
@@ -309,3 +380,17 @@ const ids = { name: useId(), hypothesis: useId(), flag: useId(), audience: useId
     </v-card>
   </v-dialog>
 </template>
+
+<style scoped>
+/* A share is read as a figure; the browser's steppers are dropped for the field's own look. */
+.ps-new-experiment__weight :deep(input) {
+  font-family: var(--font-mono);
+  -moz-appearance: textfield;
+}
+
+.ps-new-experiment__weight :deep(input::-webkit-inner-spin-button),
+.ps-new-experiment__weight :deep(input::-webkit-outer-spin-button) {
+  -webkit-appearance: none;
+  margin: 0;
+}
+</style>

@@ -7,7 +7,7 @@
 // Sample data (app/utils/experiments-sample.ts).
 const route = useRoute()
 
-const { experimentById, start, stop, finish, ship } = useExperiments()
+const { experimentById, start, setTraffic, stop, finish, ship } = useExperiments()
 const { flagByKey } = useLiveConfig()
 
 const id = computed(() => String(route.params.id ?? ''))
@@ -50,7 +50,7 @@ const categories = computed(() => results.value?.days.map(at => dayFormat.format
 const scaleOf = (key: MetricKey) => (EXPERIMENT_METRICS[key].kind === 'rate' ? 100 : 1)
 
 const series = computed<MetricSeries[]>(() => (experiment.value?.variants ?? []).map(entry => ({
-  name: entry.name,
+  name: variantTitle(experiment.value!, entry),
   data: (results.value?.daily[entry.id]?.metrics[metric.value] ?? []).map(value => Math.round(value * scaleOf(metric.value) * 1000) / 1000),
   type: 'line',
   tone: tones.value[entry.id]
@@ -69,7 +69,7 @@ const chanceSeries = computed<MetricSeries[]>(() => {
     const daily = res.daily[entry.id]!
     const sd = res.variants.find(other => other.variant.id === entry.id)!.stats[metric.value].sd
     return {
-      name: entry.name,
+      name: variantTitle(experiment.value!, entry),
       data: daily.metrics[metric.value].map((value, index) => Math.round(compareVariants(
         { n: base.players[index]!, mean: base.metrics[metric.value][index]!, sd: final.stats[metric.value].sd },
         { n: daily.players[index]!, mean: value, sd }
@@ -107,7 +107,8 @@ const facts = computed<Fact[]>(() => {
   return [
     { key: 'flag', label: 'Flag', value: exp.flagKey, mono: true, ...(flag.value ? { to: `/growth/flags/${encodeURIComponent(exp.flagKey)}` } : {}), info: 'Each variant is a value this flag serves. The server decides who gets which, by install, so a player stays in theirs.' },
     { key: 'audience', label: 'Who is in it', value: exp.audience },
-    { key: 'split', label: 'Split', value: exp.variants.map(entry => `${entry.weight}%`).join(' / ') },
+    { key: 'traffic', label: 'Traffic', value: `${exp.traffic}% of them`, info: 'The share of that audience let into the test. The rest keep what the game serves today and are not counted.' },
+    { key: 'split', label: 'Split', value: exp.variants.map((entry, index) => `${variantLetter(index)} ${entry.weight}%`).join(' · '), info: 'How the players in the test are divided between the variants.' },
     { key: 'metric', label: 'Decided by', value: EXPERIMENT_METRICS[exp.primaryMetric].label, info: EXPERIMENT_METRICS[exp.primaryMetric].note },
     { key: 'when', label: 'When', value: whenWords(exp) },
     { key: 'players', label: 'Players so far', value: results.value ? writeFigure(results.value.variants.reduce((sum, entry) => sum + entry.players, 0)) : 'None yet', mono: true }
@@ -119,6 +120,13 @@ const now = useNow({ interval: 60_000 })
 // --- Actions ------------------------------------------------------------------------------
 
 const starting = ref(false)
+
+const startWords = computed(() => {
+  const exp = experiment.value
+  if (!exp) return ''
+  const split = exp.variants.map(entry => `${entry.weight}% ${variantTitle(exp, entry)}`).join(', ')
+  return `${exp.traffic}% of ${exp.audience.toLowerCase()} enter the test, split ${split}, through ${exp.flagKey}. Publish the flag for the split to reach players.`
+})
 const ending = ref<'finish' | 'stop' | null>(null)
 const endOpen = computed({
   get: () => ending.value !== null,
@@ -127,6 +135,7 @@ const endOpen = computed({
   }
 })
 const shipping = ref(false)
+const adjusting = ref(false)
 const refusal = ref('')
 
 const winner = computed(() => experiment.value?.variants.find(entry => entry.id === experiment.value?.winner) ?? null)
@@ -216,9 +225,9 @@ function onEnd(decision: { winner: string | null, note: string }) {
         variant="flat"
         @click="shipping = true"
       >
-        Ship {{ winner.name }}
+        Ship {{ variantTitle(experiment, winner) }}
       </v-btn>
-      <StatusBadge v-else-if="experiment.shipped && winner" :label="`Shipped: ${winner.name} for everybody`" tone="success" />
+      <StatusBadge v-else-if="experiment.shipped && winner" :label="`Shipped: ${variantTitle(experiment, winner)} for everybody`" tone="success" />
       <v-btn
         v-else-if="verdict.kind === 'ready'"
         class="text-xs font-medium"
@@ -227,7 +236,7 @@ function onEnd(decision: { winner: string | null, note: string }) {
         variant="flat"
         @click="ending = 'finish'"
       >
-        Finish and pick {{ verdict.variant?.name }}
+        Finish and pick {{ verdict.variant ? variantTitle(experiment, verdict.variant) : '' }}
       </v-btn>
     </ExperimentVerdict>
     <p v-if="refusal" class="-mt-5 text-xs text-error">
@@ -245,7 +254,7 @@ function onEnd(decision: { winner: string | null, note: string }) {
             Variants
           </h2>
           <p class="m-0 text-xs text-ink/60">
-            {{ EXPERIMENT_METRICS[experiment.primaryMetric].label }}, the metric this test is decided by, for each variant against {{ split.control.variant.name }}.
+            {{ EXPERIMENT_METRICS[experiment.primaryMetric].label }}, the metric this test is decided by, for each variant against {{ variantTitle(experiment, split.control.variant) }}.
           </p>
         </div>
         <div :class="experiment.variants.length > 2 ? 'lg:grid-cols-3' : 'lg:grid-cols-2'" class="grid gap-3">
@@ -256,12 +265,9 @@ function onEnd(decision: { winner: string | null, note: string }) {
             class="flex flex-col gap-4 rounded-(--ps-radius-x-large) border bg-surface p-5"
           >
             <header class="flex items-start justify-between gap-3">
-              <div class="flex min-w-0 items-center gap-2">
-                <span :style="{ background: `rgb(var(--v-theme-chart-${tones[entry.variant.id]}))` }" aria-hidden="true" class="size-2.5 flex-none rounded-full" />
-                <h3 class="m-0 truncate text-sm font-medium text-ink">
-                  {{ entry.variant.name }}
-                </h3>
-              </div>
+              <h3 class="m-0 flex min-w-0 text-sm font-medium text-ink">
+                <VariantBadge :experiment="experiment" :variant="entry.variant" />
+              </h3>
               <Tag v-if="entry.variant.control" label="Control" />
               <StatusBadge v-else-if="experiment.winner === entry.variant.id" label="Winner" tone="success" />
             </header>
@@ -319,13 +325,13 @@ function onEnd(decision: { winner: string | null, note: string }) {
         :decimals="0"
         :series="chanceSeries"
         category-label="Day"
-        :description="`For ${EXPERIMENT_METRICS[metric].label.toLowerCase()}, how sure the test was each day that a variant beats ${split.control.variant.name}. A result is called at 95%, and only after the first week: a line that crosses it early and falls back is the noise this waits out.`"
+        :description="`For ${EXPERIMENT_METRICS[metric].label.toLowerCase()}, how sure the test was each day that a variant beats ${variantTitle(experiment, split.control.variant)}. A result is called at 95%, and only after the first week: a line that crosses it early and falls back is the noise this waits out.`"
         title="Chance to beat the control, day by day"
         type="line"
         unit="%"
       />
 
-      <SectionCard :padded="false" :description="`Everything the test measured, for each variant against ${split.control.variant.name}. A guardrail is a metric that must not get worse whatever the primary does.`" title="Every metric">
+      <SectionCard :padded="false" :description="`Everything the test measured, for each variant against ${variantTitle(experiment, split.control.variant)}. A guardrail is a metric that must not get worse whatever the primary does.`" title="Every metric">
         <div class="overflow-x-auto">
           <table class="w-full min-w-[720px] border-collapse text-left">
             <thead>
@@ -334,10 +340,10 @@ function onEnd(decision: { winner: string | null, note: string }) {
                   Metric
                 </th>
                 <th class="px-3 py-2.5 text-right font-normal">
-                  {{ split.control.variant.name }}
+                  <VariantBadge :experiment="experiment" :variant="split.control.variant" />
                 </th>
                 <th v-for="other in split.others" :key="other.variant.id" class="px-5 py-2.5 font-normal">
-                  {{ other.variant.name }}
+                  <VariantBadge :experiment="experiment" :variant="other.variant" />
                 </th>
               </tr>
             </thead>
@@ -389,7 +395,7 @@ function onEnd(decision: { winner: string | null, note: string }) {
     <ConfirmDialog
       v-if="starting"
       v-model="starting"
-      :description="`Players ${experiment.audience.toLowerCase()} are split ${experiment.variants.map(entry => `${entry.weight}% ${entry.name}`).join(', ')}, through ${experiment.flagKey}. Publish the flag for the split to reach players.`"
+      :description="startWords"
       action="Start experiment"
       title="Start this experiment?"
       tone="primary"
@@ -400,10 +406,17 @@ function onEnd(decision: { winner: string | null, note: string }) {
       v-if="shipping && winner"
       v-model="shipping"
       :description="`${experiment.flagKey} will serve ${writeValue(winner.value)} to everybody, and its test split is removed. It is saved to the flag's draft; publish it for players to get it.`"
-      :action="`Ship ${winner.name}`"
-      :title="`Ship ${winner.name}?`"
+      :action="`Ship ${variantTitle(experiment, winner)}`"
+      :title="`Ship ${variantTitle(experiment, winner)}?`"
       tone="primary"
       @confirm="onShip"
+    />
+
+    <ExperimentTrafficDialog
+      v-if="adjusting"
+      v-model="adjusting"
+      :experiment="experiment"
+      @confirm="setTraffic(experiment.id, $event)"
     />
 
     <ExperimentEndDialog
