@@ -10,6 +10,7 @@ import (
 
 	"playersense.dev/backend/ent"
 	"playersense.dev/backend/ent/billingaccount"
+	"playersense.dev/backend/ent/usagecharge"
 	"playersense.dev/backend/internal/billing"
 	"playersense.dev/backend/internal/pgdb"
 	"playersense.dev/backend/internal/valkey"
@@ -50,6 +51,9 @@ func (j *Job) Run(ctx context.Context) (Result, error) {
 }
 
 // suspend moves accounts in their grace period past either bound to suspended.
+//
+// Debt includes usage queued and not yet on the ledger (ADR 0044): charges settle every few minutes,
+// and an account must not slip past its limit in between.
 func (j *Job) suspend(ctx context.Context) (int, error) {
 	candidates, err := j.DB.Client.BillingAccount.Query().
 		Where(billingaccount.StateEQ(billingaccount.StateGracePeriod), billingaccount.ArrearsMicrosGT(0)).
@@ -97,14 +101,45 @@ func (j *Job) due(ctx context.Context, account *ent.BillingAccount, now time.Tim
 	if err != nil {
 		return "", false, err
 	}
-	if account.ArrearsMicros >= limit {
+	owed, err := Owed(ctx, j.DB.Client, account)
+	if err != nil {
+		return "", false, err
+	}
+	if owed >= limit {
 		return fmt.Sprintf("owes %s, at its %s credit limit (%s)",
-			billing.USD(account.ArrearsMicros), billing.USD(limit), source), true, nil
+			billing.USD(owed), billing.USD(limit), source), true, nil
 	}
 	if !account.StateChangedAt.IsZero() && now.Sub(account.StateChangedAt) >= j.Grace {
 		return fmt.Sprintf("has owed for longer than the %s grace period", j.Grace), true, nil
 	}
 	return "", false, nil
+}
+
+// Owed is what an account owes now: its arrears, and the part of its queued usage its credit will not
+// cover — max(0, pending − balance), where the balance is already credit minus arrears.
+func Owed(ctx context.Context, client *ent.Client, account *ent.BillingAccount) (int64, error) {
+	pending, err := Pending(ctx, client, account.ID)
+	if err != nil {
+		return 0, err
+	}
+	return max(0, pending-account.BalanceMicros), nil
+}
+
+// Pending is an account's usage queued and not yet written to its ledger.
+func Pending(ctx context.Context, client *ent.Client, accountID int) (int64, error) {
+	var sums []struct {
+		Sum int64 `json:"sum"`
+	}
+	if err := client.UsageCharge.Query().
+		Where(usagecharge.AccountID(accountID), usagecharge.SettledAtIsNil()).
+		Aggregate(ent.Sum(usagecharge.FieldAmountMicros)).
+		Scan(ctx, &sums); err != nil {
+		return 0, fmt.Errorf("sum pending usage: %w", err)
+	}
+	if len(sums) == 0 {
+		return 0, nil
+	}
+	return sums[0].Sum, nil
 }
 
 // SuspendsAt is when an account in its grace period will be suspended if it does not pay, by time.

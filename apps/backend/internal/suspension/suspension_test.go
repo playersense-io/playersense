@@ -9,7 +9,9 @@ import (
 
 	"playersense.dev/backend/ent"
 	"playersense.dev/backend/ent/billingaccount"
+	"playersense.dev/backend/ent/ratecard"
 	"playersense.dev/backend/internal/billing"
+	"playersense.dev/backend/internal/charging"
 	"playersense.dev/backend/internal/identity"
 	"playersense.dev/backend/internal/pgdb"
 	"playersense.dev/backend/internal/suspension"
@@ -29,6 +31,7 @@ type fixture struct {
 	cache   *valkey.Client
 	account *ent.BillingAccount
 	now     time.Time
+	units   int64 // players queued so far, so each queued row covers the next ones
 }
 
 func newFixture(t *testing.T) *fixture {
@@ -318,5 +321,63 @@ func TestTheToleranceIsTwentyPercentOfWhatWasPaidFor(t *testing.T) {
 	f.now = f.now.Add(suspension.GateTTL + time.Second)
 	if f.gate().Suspended(context.Background(), org) {
 		t.Error("still refused after paying")
+	}
+}
+
+// queue puts usage in the account's queue, not yet settled onto its ledger — as between two
+// settlements (ADR 0044). The card sits on a throwaway plan so it prices nobody else's players.
+func (f *fixture) queue(amount int64) {
+	f.t.Helper()
+	ctx := context.Background()
+	plan, err := f.db.Client.Plan.Create().SetKey("pending-" + uuid.NewString()[:8]).SetName("Pending").
+		SetEntitlements(map[string]int64{}).Save(ctx)
+	if err != nil {
+		f.t.Fatal(err)
+	}
+	card, err := f.db.Client.RateCard.Create().SetPlanID(plan.ID).SetMeter(ratecard.MeterTrackedPlayers).
+		SetTiers(billing.Tiers{{UnitPriceMicros: 1_000}}).SetEffectiveFrom(time.Now()).
+		SetCreatedBy("test@playersense.dev").Save(ctx)
+	if err != nil {
+		f.t.Fatal(err)
+	}
+	if err := f.db.Client.UsageCharge.Create().SetAccountID(f.account.ID).
+		SetPeriodStart(charging.PeriodOf(time.Now())).SetRateCardID(card.ID).
+		SetFirstUnit(f.units + 1).SetLastUnit(f.units + amount/1_000).SetAmountMicros(amount).Exec(ctx); err != nil {
+		f.t.Fatal(err)
+	}
+	f.units += amount / 1_000
+}
+
+// Usage waiting to be settled counts as debt: settlement runs every few minutes, and an account must
+// not slip past its credit limit in between.
+func TestUsageNotYetSettledCountsTowardTheCreditLimit(t *testing.T) {
+	f := newFixture(t)
+	f.owe(10 * billing.Micros) // in grace, well under the $50 floor
+	f.run()
+	if f.state() != billingaccount.StateGracePeriod {
+		t.Fatalf("state %s owing $10; want grace", f.state())
+	}
+	f.queue(45 * billing.Micros) // $55 owed, $45 of it not yet on the ledger
+	f.run()
+	if f.state() != billingaccount.StateSuspended {
+		t.Errorf("state %s owing $10 settled and $45 queued; want suspended at the $50 limit", f.state())
+	}
+}
+
+// Queued usage is debt only past what the wallet holds: a funded account is not charged twice over.
+func TestQueuedUsageIsDebtOnlyPastTheBalance(t *testing.T) {
+	f := newFixture(t)
+	f.pay(30 * billing.Micros)
+	f.queue(20 * billing.Micros)
+	account, err := f.db.Client.BillingAccount.Get(context.Background(), f.account.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if owed, err := suspension.Owed(context.Background(), f.db.Client, account); err != nil || owed != 0 {
+		t.Errorf("owed %d (%v) with $30 held and $20 queued; want 0", owed, err)
+	}
+	f.queue(25 * billing.Micros)
+	if owed, err := suspension.Owed(context.Background(), f.db.Client, account); err != nil || owed != 15*billing.Micros {
+		t.Errorf("owed %s (%v) with $30 held and $45 queued; want $15", billing.USD(owed), err)
 	}
 }
