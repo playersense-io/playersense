@@ -1,12 +1,7 @@
-<script setup lang="ts">
-// Placeholder until control-api's /organizations + project-access list are wired in (§55).
-const organization = 'Acme Games'
-</script>
-
 <template>
   <DashboardShell :navigation="NAV" product="PlayerSense">
     <template #switcher="{ rail }">
-      <SidebarOrganizationSwitcher :organization="organization" :rail="rail" />
+      <SidebarProjectSwitcher :rail="rail" />
     </template>
 
     <template #account="{ rail }">

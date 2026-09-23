@@ -65,6 +65,12 @@ const initials = computed(() => {
           {{ name }}
         </p>
 
+        <!-- The app's own rows above the standard ones: the client's organization picker. -->
+        <template v-if="$slots.default">
+          <slot />
+          <v-divider class="my-1" />
+        </template>
+
         <v-list-item
           v-for="item in items"
           :key="item.title"

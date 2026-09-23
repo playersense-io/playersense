@@ -9,8 +9,7 @@ import type { OverviewDay } from '~/types'
 // Sample data until the API client is wired in (app/utils/overview-sample.ts names the
 // endpoints each part comes from).
 
-// Placeholder until control-api's /organizations list is wired in (§55).
-const organization = 'Acme Games'
+const { organization } = useWorkspace()
 
 const PERIODS: SegmentedOption[] = [
   { value: '7', label: '7 days' },
@@ -234,7 +233,7 @@ const wallet = computed<Fact[]>(() => [
   <div class="flex flex-col gap-8">
     <PageHeader title="Overview">
       <template #description>
-        How <span class="text-ink">{{ organization }}</span>'s games are playing and earning —
+        How <span class="text-ink">{{ organization.name }}</span>'s games are playing and earning —
         production, every project.
       </template>
       <template #actions>

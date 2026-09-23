@@ -1,17 +1,14 @@
 <script setup lang="ts">
-// The organization the dashboard is showing, and the menu that changes it. Above the
-// navigation because every screen under it is scoped to it. The mark is an initial on the
-// accent rather than a logo: an organization is a tenant, not a brand we hold an image for.
-//
-// Placeholder until control-api's /organizations + project-access list are wired in —
-// this becomes the real organization/project switcher (§55).
-const props = defineProps<{
-  organization: string
+// The project the dashboard is showing, and the menu that changes it. Above the navigation
+// because every screen under it is scoped to one project. The mark is an initial on the
+// accent rather than a logo: a project is a tenant's game, not a brand we hold an image for.
+// The organization it belongs to heads the menu; changing that is the account menu's job.
+defineProps<{
   /** Folded to the mark alone, with the name in a tooltip. */
   rail: boolean
 }>()
 
-const organizations = computed(() => [props.organization])
+const { organization, project, selectProject } = useWorkspace()
 
 function initial(name: string): string {
   return name.trim().charAt(0).toUpperCase()
@@ -22,12 +19,12 @@ function initial(name: string): string {
   <!-- Padding and gap put the mark's centre on the same line as the glyphs in the list
        below it. Folded, the button is the rail's width and centres. -->
   <button
-    :aria-label="rail ? `Organization: ${organization}` : undefined"
+    :aria-label="rail ? `Project: ${project.name}` : undefined"
     :class="rail ? 'justify-center' : 'gap-2.5 px-2.5'"
     class="
-      group flex h-9 w-full items-center overflow-hidden rounded-(--ps-radius-small) bg-ink/4
-      text-ink transition-[background-color,transform]
-      hover:bg-ink/6
+      group flex h-9 w-full items-center overflow-hidden rounded-(--ps-radius-small) text-ink
+      transition-[background-color,transform]
+      hover:bg-ink/5
       focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary
       active:scale-[0.99]
     "
@@ -40,12 +37,12 @@ function initial(name: string): string {
         font-semibold text-on-primary
       "
     >
-      {{ initial(organization) }}
+      {{ initial(project.name) }}
     </span>
 
     <template v-if="!rail">
       <span class="min-w-0 flex-1 truncate text-left text-[13px] font-medium">
-        {{ organization }}
+        {{ project.name }}
       </span>
       <Icon
         aria-hidden="true"
@@ -59,7 +56,7 @@ function initial(name: string): string {
 
     <v-tooltip
       v-if="rail"
-      :text="organization"
+      :text="project.name"
       activator="parent"
       location="end"
       open-delay="300"
@@ -68,13 +65,14 @@ function initial(name: string): string {
     <v-menu :offset="6" activator="parent" location="bottom start">
       <v-list min-width="232" nav>
         <p class="truncate px-3 pt-1 pb-2 text-xs text-ink/60">
-          Organizations
+          {{ organization.name }}
         </p>
         <v-list-item
-          v-for="name in organizations"
-          :key="name"
-          :active="name === organization"
-          :title="name"
+          v-for="candidate in organization.projects"
+          :key="candidate.id"
+          :active="candidate.id === project.id"
+          :title="candidate.name"
+          @click="selectProject(candidate.id)"
         >
           <template #prepend>
             <span
@@ -84,10 +82,10 @@ function initial(name: string): string {
                 font-semibold text-on-primary
               "
             >
-              {{ initial(name) }}
+              {{ initial(candidate.name) }}
             </span>
           </template>
-          <template v-if="name === organization" #append>
+          <template v-if="candidate.id === project.id" #append>
             <Icon aria-hidden="true" class="text-base text-ink/70" name="material-symbols:check" />
           </template>
         </v-list-item>

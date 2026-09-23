@@ -763,9 +763,11 @@
  * one colour at two strengths.
  *
  * The ink is the ladder above: a row rests at the inactive shade and goes to the
- * theme's ink when the pointer, the focus or the route is on it. A group's header goes
- * with its children: white while one of them is the current screen, so the fold reads
- * as the place the person is, whether or not it is open. The glyph is drawn at full
+ * theme's ink when the pointer or the focus is on it. The row the route is on takes the
+ * accent, text, glyph and the overlay under them alike, since Vuetify tints the overlay in
+ * the row's own colour. A group's header goes with its children: full ink while one of
+ * them is the current screen, so the fold reads as the place the person is, whether or not
+ * it is open. The glyph is drawn at full
  * strength for the same reason, where Vuetify dims it; here the colour is the state.
  * Weight follows the route alone: every label rests at regular, where Vuetify's preset
  * sets them all medium, and the current row and the header over it are the only ones
@@ -794,9 +796,14 @@
 
 .v-list--nav .v-list-item:hover,
 .v-list--nav .v-list-item:focus-visible,
-.v-list--nav .v-list-item--active,
 .v-list--nav .ps-nav-group--current > .v-list-group__header {
   color: rgb(var(--v-theme-on-surface));
+}
+
+/* Restated with the item class so it outweighs `:hover` above: the current row keeps the
+   accent under the pointer. */
+.v-list--nav .v-list-item.v-list-item--active {
+  color: rgb(var(--v-theme-primary));
 }
 
 .v-list--nav .v-list-item-title {
