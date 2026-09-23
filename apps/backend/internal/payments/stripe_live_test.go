@@ -210,3 +210,115 @@ func TestLiveSubscriptionSetUp(t *testing.T) {
 		t.Fatalf("subscription checkout = %+v, %v", checkout, err)
 	}
 }
+
+// A usage invoice (ADR 0045): issued with net terms and sent; issued again under a key Stripe has
+// forgotten it is still the same invoice, found by its uid; then credited and marked paid out of band.
+// And a draft an earlier attempt left half-built is finished rather than duplicated.
+func TestLiveUsageInvoice(t *testing.T) {
+	gw, sc := liveGateway(t)
+	ctx := context.Background()
+	account, uid := uuid.NewString(), uuid.NewString()
+	customer, err := gw.CreateCustomer(ctx, payments.CustomerRequest{
+		AccountUID: account, Name: "Live invoiced studio", Email: "finance@studio.example", OrgSlug: "live-invoiced",
+	})
+	if err != nil {
+		t.Fatalf("customer: %v", err)
+	}
+	request := payments.InvoiceRequest{
+		AccountUID: account, InvoiceUID: uid, Customer: customer, Currency: "usd",
+		DaysUntilDue: 30, Description: "PlayerSense, May 2026", PONumber: "PO-4471", Memo: "Net 30",
+		Lines: []payments.InvoiceLine{
+			{Position: 0, Description: "Platform fee, May 2026", AmountCents: 50_000},
+			{Position: 1, Description: "Tracked players, May 2026", AmountCents: 12_345},
+			{Position: 2, Description: "Credits applied", AmountCents: -2_345},
+		},
+		Since: time.Now(), Key: "playersense-invoice-live-" + uid,
+	}
+
+	issued, err := gw.IssueInvoice(ctx, request)
+	if err != nil {
+		t.Fatalf("issue: %v", err)
+	}
+	if issued.Status != "open" || issued.AmountDue != 60_000 || issued.HostedURL == "" || issued.DueAt.IsZero() {
+		t.Fatalf("issued = %+v; want open, $600.00 due, with a hosted page and a due date", issued)
+	}
+	if days := issued.DueAt.Sub(time.Now()).Hours() / 24; days < 29 || days > 31 {
+		t.Errorf("due in %.1f days, want 30", days)
+	}
+	t.Logf("hosted invoice: %s", issued.HostedURL)
+
+	// A new key — Stripe has forgotten the old one — still finds the invoice by its uid.
+	request.Key += "-resumed"
+	again, err := gw.IssueInvoice(ctx, request)
+	if err != nil || again.ID != issued.ID {
+		t.Fatalf("resumed as %q (%v), want %q", again.ID, err, issued.ID)
+	}
+	if n := len(invoicesOf(t, sc, customer)); n != 1 {
+		t.Errorf("%d invoices for the customer, want 1", n)
+	}
+
+	note, err := gw.CreditInvoice(ctx, payments.CreditNoteRequest{
+		AccountUID: account, InvoiceUID: uid, Invoice: issued.ID, AmountCents: 10_000,
+		Memo: "Outage credit", Key: "playersense-credit-live-" + uid,
+	})
+	if err != nil || note.AmountCents != 10_000 {
+		t.Fatalf("credit note = %+v, %v", note, err)
+	}
+
+	paid, err := gw.PayInvoiceOutOfBand(ctx, issued.ID, "playersense-paid-live-"+uid)
+	if err != nil || paid.Status != "paid" {
+		t.Fatalf("paid = %+v, %v", paid, err)
+	}
+}
+
+// An attempt that died after creating the invoice and one line: the next finds the draft, adds only
+// the line it lacks, and finalizes it.
+func TestLiveUsageInvoiceResumesAHalfBuiltDraft(t *testing.T) {
+	gw, sc := liveGateway(t)
+	ctx := context.Background()
+	account, uid := uuid.NewString(), uuid.NewString()
+	customer, err := gw.CreateCustomer(ctx, payments.CustomerRequest{AccountUID: account, Name: "Live resumed studio", OrgSlug: "live-resumed"})
+	if err == nil {
+		// Created without one, as a customer opened by a top-up may have been: the contract route
+		// sets it, because Stripe will not send an invoice to a customer with no address.
+		err = gw.SetBillingEmail(ctx, customer, "finance@studio.example")
+	}
+	if err != nil {
+		t.Fatalf("customer: %v", err)
+	}
+	meta := map[string]string{payments.MetaAccount: account, payments.MetaKind: payments.KindUsageInvoice, payments.MetaInvoice: uid}
+	draft, err := sc.V1Invoices.Create(ctx, &stripe.InvoiceCreateParams{
+		Customer: stripe.String(customer), Currency: stripe.String("usd"),
+		CollectionMethod: stripe.String("send_invoice"), DaysUntilDue: stripe.Int64(30),
+		AutoAdvance: stripe.Bool(false), PendingInvoiceItemsBehavior: stripe.String("exclude"), Metadata: meta,
+	})
+	if err != nil {
+		t.Fatalf("draft: %v", err)
+	}
+	first := map[string]string{payments.MetaLine: "0"}
+	for k, v := range meta {
+		first[k] = v
+	}
+	if _, err := sc.V1InvoiceItems.Create(ctx, &stripe.InvoiceItemCreateParams{
+		Customer: stripe.String(customer), Invoice: stripe.String(draft.ID), Amount: stripe.Int64(50_000),
+		Currency: stripe.String("usd"), Description: stripe.String("Platform fee"), Metadata: first,
+	}); err != nil {
+		t.Fatalf("first line: %v", err)
+	}
+
+	issued, err := gw.IssueInvoice(ctx, payments.InvoiceRequest{
+		AccountUID: account, InvoiceUID: uid, Customer: customer, Currency: "usd", DaysUntilDue: 30,
+		Description: "PlayerSense, June 2026",
+		Lines: []payments.InvoiceLine{
+			{Position: 0, Description: "Platform fee", AmountCents: 50_000},
+			{Position: 1, Description: "Tracked players", AmountCents: 7_500},
+		},
+		Since: time.Now().Add(-time.Minute), Key: "playersense-invoice-live-" + uid,
+	})
+	if err != nil {
+		t.Fatalf("issue: %v", err)
+	}
+	if issued.ID != draft.ID || issued.Status != "open" || issued.AmountDue != 57_500 {
+		t.Errorf("issued = %+v; want the draft %s, open, with both lines ($575.00)", issued, draft.ID)
+	}
+}

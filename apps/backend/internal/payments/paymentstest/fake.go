@@ -49,6 +49,17 @@ type Gateway struct {
 
 	// Calls counts charge requests that reached "Stripe", including replays of a key.
 	Calls int
+
+	// Invoices are the usage invoices issued, by uid; IssueCalls counts requests that reached
+	// "Stripe", including resumptions. LoseInvoiceResponses makes the next n issues happen and
+	// report ErrTimeout.
+	Invoices             map[string]payments.IssuedInvoice
+	IssueRequests        []payments.InvoiceRequest
+	IssueCalls           int
+	LoseInvoiceResponses int
+	CreditNotes          []payments.CreditNoteRequest
+	PaidOutOfBand        []string
+	BillingEmails        map[string]string // customer → address
 }
 
 // New returns a fake with a saved card and payments that succeed.
@@ -56,6 +67,7 @@ func New() *Gateway {
 	return &Gateway{
 		Card: "pm_card_visa", Customers: map[string]string{},
 		Charges: map[string]payments.Payment{}, requests: map[string]payments.OffSessionRequest{},
+		Invoices: map[string]payments.IssuedInvoice{}, BillingEmails: map[string]string{},
 	}
 }
 
@@ -201,4 +213,88 @@ func (g *Gateway) CreateSubscriptionCheckout(_ context.Context, in payments.Subs
 	g.Subscriptions = append(g.Subscriptions, in)
 	id := "cs_test_" + uuid.NewString()[:12]
 	return payments.Checkout{ID: id, URL: "https://checkout.stripe.test/" + id, ExpiresAt: time.Now().Add(24 * time.Hour)}, nil
+}
+
+// IssueInvoice behaves as the real one's search does: an invoice already issued for a uid is returned,
+// however many times it is asked for, so a resumed claim never makes a second one.
+func (g *Gateway) IssueInvoice(_ context.Context, in payments.InvoiceRequest) (payments.IssuedInvoice, error) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.Down {
+		return payments.IssuedInvoice{}, ErrTimeout
+	}
+	g.IssueCalls++
+	g.IssueRequests = append(g.IssueRequests, in)
+	issued, found := g.Invoices[in.InvoiceUID]
+	if !found {
+		var total int64
+		for _, line := range in.Lines {
+			total += line.AmountCents
+		}
+		id := "in_test_" + uuid.NewString()[:12]
+		issued = payments.IssuedInvoice{
+			ID: id, Number: "PS-" + id[8:16], Status: "open", Customer: in.Customer, Currency: in.Currency,
+			HostedURL: "https://invoice.stripe.test/" + id, PDFURL: "https://invoice.stripe.test/" + id + ".pdf",
+			DueAt: time.Now().UTC().Add(time.Duration(in.DaysUntilDue) * 24 * time.Hour),
+			Total: total, AmountDue: total,
+			Metadata: map[string]string{
+				payments.MetaAccount: in.AccountUID, payments.MetaKind: payments.KindUsageInvoice,
+				payments.MetaInvoice: in.InvoiceUID,
+			},
+		}
+		g.Invoices[in.InvoiceUID] = issued
+	}
+	if g.LoseInvoiceResponses > 0 {
+		g.LoseInvoiceResponses--
+		return payments.IssuedInvoice{}, ErrTimeout
+	}
+	return issued, nil
+}
+
+// Issued is how many distinct invoices were issued — the number the customer's inbox shows.
+func (g *Gateway) Issued() int {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return len(g.Invoices)
+}
+
+func (g *Gateway) PayInvoiceOutOfBand(_ context.Context, invoice, _ string) (payments.IssuedInvoice, error) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.Down {
+		return payments.IssuedInvoice{}, ErrTimeout
+	}
+	for uid, issued := range g.Invoices {
+		if issued.ID == invoice {
+			issued.Status, issued.AmountPaid = "paid", issued.AmountDue
+			g.Invoices[uid] = issued
+			g.PaidOutOfBand = append(g.PaidOutOfBand, invoice)
+			return issued, nil
+		}
+	}
+	return payments.IssuedInvoice{}, errors.New("no such invoice")
+}
+
+func (g *Gateway) CreditInvoice(_ context.Context, in payments.CreditNoteRequest) (payments.CreditNote, error) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.Down {
+		return payments.CreditNote{}, ErrTimeout
+	}
+	g.CreditNotes = append(g.CreditNotes, in)
+	if issued, found := g.Invoices[in.InvoiceUID]; found {
+		issued.AmountDue -= in.AmountCents
+		g.Invoices[in.InvoiceUID] = issued
+	}
+	return payments.CreditNote{ID: "cn_test_" + uuid.NewString()[:12], AmountCents: in.AmountCents}, nil
+}
+
+func (g *Gateway) SetBillingEmail(_ context.Context, customer, email string) error {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.Down {
+		return ErrTimeout
+	}
+	g.BillingEmails[customer] = email
+	return nil
 }

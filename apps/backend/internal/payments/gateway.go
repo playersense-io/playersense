@@ -7,10 +7,11 @@
 // balance runs low. Every successful payment becomes a `purchase` credit lot, which pays any arrears
 // first (ADR 0039).
 //
-// Stripe does **not** meter or invoice usage: tracked players are priced and charged by the
-// billing writer against the wallet (ADR 0039). And PlayerSense stores **no billing information**:
-// no card, no payment method id, no address. It keeps one pointer — the Stripe customer id — and asks
-// Stripe for everything else at the moment it is needed.
+// Stripe does **not** meter or price usage: tracked players are priced and charged by the billing
+// writer against the wallet (ADR 0039). For a contracted account it **issues and collects the monthly
+// invoice** PlayerSense wrote (ADR 0045) — what is on it is decided here. And PlayerSense stores **no
+// billing information**: no card, no payment method id, no address. It keeps one pointer — the Stripe
+// customer id — and asks Stripe for everything else at the moment it is needed.
 //
 // # Never twice
 //
@@ -30,15 +31,21 @@ import (
 // payment belongs to without trusting anything but Stripe's signature.
 const (
 	MetaAccount = "playersense_account" // the billing account's uid
-	MetaKind    = "playersense_kind"    // KindCheckout or KindAutoTopUp
+	MetaKind    = "playersense_kind"    // KindCheckout, KindAutoTopUp or KindUsageInvoice
 	MetaKey     = "playersense_topup_key"
 	MetaPlan    = "playersense_plan"
+	MetaInvoice = "playersense_invoice" // a usage invoice's uid
+	MetaLine    = "playersense_line"    // a usage invoice line's position
 )
 
-// The two ways money arrives.
+// The ways money arrives.
 const (
 	KindCheckout  = "checkout"
 	KindAutoTopUp = "auto_topup"
+
+	// KindUsageInvoice is a contracted account's monthly invoice (ADR 0045) — the one kind of
+	// invoice whose events move money.
+	KindUsageInvoice = "usage_invoice"
 )
 
 // Payment is a PaymentIntent as the wallet needs it: whose, how much, and whether it happened.
@@ -126,6 +133,74 @@ type SubscriptionCheckoutRequest struct {
 	CancelURL  string
 }
 
+// InvoiceRequest is one usage invoice to issue (ADR 0045).
+type InvoiceRequest struct {
+	AccountUID string
+	InvoiceUID string
+	Customer   string
+	Currency   string
+
+	// DaysUntilDue is the contract's net terms.
+	DaysUntilDue int64
+
+	Description string // "PlayerSense, May 2026"
+	PONumber    string // printed as a custom field; empty prints none
+	Memo        string // the footer
+
+	Lines []InvoiceLine
+
+	// Since is when the claim was first made. An earlier attempt's invoice is looked for among
+	// the customer's invoices created after it, so a retry continues that one.
+	Since time.Time
+
+	// Key is the base of every step's Idempotency-Key, committed before the first request.
+	Key string
+}
+
+// InvoiceLine is one line, in cents. Position identifies it, so a resumed issue adds only the lines
+// an earlier attempt did not.
+type InvoiceLine struct {
+	Position    int
+	Description string
+	AmountCents int64 // negative for a credit
+}
+
+// IssuedInvoice is a usage invoice as Stripe holds it.
+type IssuedInvoice struct {
+	ID       string
+	Number   string
+	Status   string // Stripe's: draft, open, paid, void, uncollectible
+	Customer string
+	Currency string
+
+	HostedURL string
+	PDFURL    string
+	DueAt     time.Time // zero until finalized
+
+	// In cents, Stripe's unit.
+	Total      int64
+	AmountDue  int64
+	AmountPaid int64
+
+	Metadata map[string]string
+}
+
+// CreditNoteRequest reduces what an open usage invoice asks for.
+type CreditNoteRequest struct {
+	AccountUID  string
+	InvoiceUID  string
+	Invoice     string // Stripe's id
+	AmountCents int64
+	Memo        string
+	Key         string
+}
+
+// CreditNote is what Stripe made of one.
+type CreditNote struct {
+	ID          string
+	AmountCents int64
+}
+
 // Gateway is the whole of what PlayerSense asks Stripe.
 //
 // An interface so the rules around it — idempotency, claims, the webhook — are tested without a
@@ -152,6 +227,22 @@ type Gateway interface {
 
 	// CreateSubscriptionCheckout opens Stripe's hosted page to subscribe to a plan.
 	CreateSubscriptionCheckout(ctx context.Context, in SubscriptionCheckoutRequest) (Checkout, error)
+
+	// SetBillingEmail is where Stripe sends a customer's invoices. Stripe refuses to create an
+	// invoice it is to send to a customer with no address, so a contract sets one.
+	SetBillingEmail(ctx context.Context, customer, email string) error
+
+	// IssueInvoice creates, finalizes and sends a usage invoice with net terms (ADR 0045) — or
+	// continues the one an earlier attempt under the same key began. An error means the outcome is
+	// unknown and the claim is kept.
+	IssueInvoice(ctx context.Context, in InvoiceRequest) (IssuedInvoice, error)
+
+	// PayInvoiceOutOfBand marks an open invoice paid by a transfer Stripe did not see. What the
+	// wallet does about it arrives as Stripe's invoice.paid, like any other payment.
+	PayInvoiceOutOfBand(ctx context.Context, invoice, key string) (IssuedInvoice, error)
+
+	// CreditInvoice issues a credit note on an open invoice. Applied by its webhook.
+	CreditInvoice(ctx context.Context, in CreditNoteRequest) (CreditNote, error)
 }
 
 // ErrNotConfigured is a deployment with no Stripe key.
@@ -203,4 +294,20 @@ func (Disabled) SetUpSubscription(context.Context, SubscriptionPriceRequest) (Su
 
 func (Disabled) CreateSubscriptionCheckout(context.Context, SubscriptionCheckoutRequest) (Checkout, error) {
 	return Checkout{}, ErrNotConfigured
+}
+
+func (Disabled) SetBillingEmail(context.Context, string, string) error {
+	return ErrNotConfigured
+}
+
+func (Disabled) IssueInvoice(context.Context, InvoiceRequest) (IssuedInvoice, error) {
+	return IssuedInvoice{}, ErrNotConfigured
+}
+
+func (Disabled) PayInvoiceOutOfBand(context.Context, string, string) (IssuedInvoice, error) {
+	return IssuedInvoice{}, ErrNotConfigured
+}
+
+func (Disabled) CreditInvoice(context.Context, CreditNoteRequest) (CreditNote, error) {
+	return CreditNote{}, ErrNotConfigured
 }
