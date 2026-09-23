@@ -13,8 +13,9 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
 	"playersense.dev/backend/ent/billingaccount"
-	"playersense.dev/backend/ent/billingperiod"
+	"playersense.dev/backend/ent/billingcontract"
 	"playersense.dev/backend/ent/creditlot"
+	"playersense.dev/backend/ent/invoice"
 	"playersense.dev/backend/ent/ledgerentry"
 	"playersense.dev/backend/ent/monthlyusage"
 	"playersense.dev/backend/ent/organization"
@@ -253,6 +254,76 @@ func (_c *BillingAccountCreate) SetNillableArrearsMicros(v *int64) *BillingAccou
 	return _c
 }
 
+// SetCollection sets the "collection" field.
+func (_c *BillingAccountCreate) SetCollection(v billingaccount.Collection) *BillingAccountCreate {
+	_c.mutation.SetCollection(v)
+	return _c
+}
+
+// SetNillableCollection sets the "collection" field if the given value is not nil.
+func (_c *BillingAccountCreate) SetNillableCollection(v *billingaccount.Collection) *BillingAccountCreate {
+	if v != nil {
+		_c.SetCollection(*v)
+	}
+	return _c
+}
+
+// SetReceivableMicros sets the "receivable_micros" field.
+func (_c *BillingAccountCreate) SetReceivableMicros(v int64) *BillingAccountCreate {
+	_c.mutation.SetReceivableMicros(v)
+	return _c
+}
+
+// SetNillableReceivableMicros sets the "receivable_micros" field if the given value is not nil.
+func (_c *BillingAccountCreate) SetNillableReceivableMicros(v *int64) *BillingAccountCreate {
+	if v != nil {
+		_c.SetReceivableMicros(*v)
+	}
+	return _c
+}
+
+// SetOverdueSince sets the "overdue_since" field.
+func (_c *BillingAccountCreate) SetOverdueSince(v time.Time) *BillingAccountCreate {
+	_c.mutation.SetOverdueSince(v)
+	return _c
+}
+
+// SetNillableOverdueSince sets the "overdue_since" field if the given value is not nil.
+func (_c *BillingAccountCreate) SetNillableOverdueSince(v *time.Time) *BillingAccountCreate {
+	if v != nil {
+		_c.SetOverdueSince(*v)
+	}
+	return _c
+}
+
+// SetInvoicedThrough sets the "invoiced_through" field.
+func (_c *BillingAccountCreate) SetInvoicedThrough(v time.Time) *BillingAccountCreate {
+	_c.mutation.SetInvoicedThrough(v)
+	return _c
+}
+
+// SetNillableInvoicedThrough sets the "invoiced_through" field if the given value is not nil.
+func (_c *BillingAccountCreate) SetNillableInvoicedThrough(v *time.Time) *BillingAccountCreate {
+	if v != nil {
+		_c.SetInvoicedThrough(*v)
+	}
+	return _c
+}
+
+// SetInvoicedLedgerID sets the "invoiced_ledger_id" field.
+func (_c *BillingAccountCreate) SetInvoicedLedgerID(v int) *BillingAccountCreate {
+	_c.mutation.SetInvoicedLedgerID(v)
+	return _c
+}
+
+// SetNillableInvoicedLedgerID sets the "invoiced_ledger_id" field if the given value is not nil.
+func (_c *BillingAccountCreate) SetNillableInvoicedLedgerID(v *int) *BillingAccountCreate {
+	if v != nil {
+		_c.SetInvoicedLedgerID(*v)
+	}
+	return _c
+}
+
 // SetAutoTopupEnabled sets the "auto_topup_enabled" field.
 func (_c *BillingAccountCreate) SetAutoTopupEnabled(v bool) *BillingAccountCreate {
 	_c.mutation.SetAutoTopupEnabled(v)
@@ -487,19 +558,34 @@ func (_c *BillingAccountCreate) AddCreditLots(v ...*CreditLot) *BillingAccountCr
 	return _c.AddCreditLotIDs(ids...)
 }
 
-// AddPeriodIDs adds the "periods" edge to the BillingPeriod entity by IDs.
-func (_c *BillingAccountCreate) AddPeriodIDs(ids ...int) *BillingAccountCreate {
-	_c.mutation.AddPeriodIDs(ids...)
+// AddContractIDs adds the "contracts" edge to the BillingContract entity by IDs.
+func (_c *BillingAccountCreate) AddContractIDs(ids ...int) *BillingAccountCreate {
+	_c.mutation.AddContractIDs(ids...)
 	return _c
 }
 
-// AddPeriods adds the "periods" edges to the BillingPeriod entity.
-func (_c *BillingAccountCreate) AddPeriods(v ...*BillingPeriod) *BillingAccountCreate {
+// AddContracts adds the "contracts" edges to the BillingContract entity.
+func (_c *BillingAccountCreate) AddContracts(v ...*BillingContract) *BillingAccountCreate {
 	ids := make([]int, len(v))
 	for i := range v {
 		ids[i] = v[i].ID
 	}
-	return _c.AddPeriodIDs(ids...)
+	return _c.AddContractIDs(ids...)
+}
+
+// AddInvoiceIDs adds the "invoices" edge to the Invoice entity by IDs.
+func (_c *BillingAccountCreate) AddInvoiceIDs(ids ...int) *BillingAccountCreate {
+	_c.mutation.AddInvoiceIDs(ids...)
+	return _c
+}
+
+// AddInvoices adds the "invoices" edges to the Invoice entity.
+func (_c *BillingAccountCreate) AddInvoices(v ...*Invoice) *BillingAccountCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddInvoiceIDs(ids...)
 }
 
 // AddStripeEventIDs adds the "stripe_events" edge to the StripeEvent entity by IDs.
@@ -632,6 +718,18 @@ func (_c *BillingAccountCreate) defaults() error {
 		v := billingaccount.DefaultArrearsMicros
 		_c.mutation.SetArrearsMicros(v)
 	}
+	if _, ok := _c.mutation.Collection(); !ok {
+		v := billingaccount.DefaultCollection
+		_c.mutation.SetCollection(v)
+	}
+	if _, ok := _c.mutation.ReceivableMicros(); !ok {
+		v := billingaccount.DefaultReceivableMicros
+		_c.mutation.SetReceivableMicros(v)
+	}
+	if _, ok := _c.mutation.InvoicedLedgerID(); !ok {
+		v := billingaccount.DefaultInvoicedLedgerID
+		_c.mutation.SetInvoicedLedgerID(v)
+	}
 	if _, ok := _c.mutation.AutoTopupEnabled(); !ok {
 		v := billingaccount.DefaultAutoTopupEnabled
 		_c.mutation.SetAutoTopupEnabled(v)
@@ -731,6 +829,30 @@ func (_c *BillingAccountCreate) check() error {
 	if v, ok := _c.mutation.ArrearsMicros(); ok {
 		if err := billingaccount.ArrearsMicrosValidator(v); err != nil {
 			return &ValidationError{Name: "arrears_micros", err: fmt.Errorf(`ent: validator failed for field "BillingAccount.arrears_micros": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.Collection(); !ok {
+		return &ValidationError{Name: "collection", err: errors.New(`ent: missing required field "BillingAccount.collection"`)}
+	}
+	if v, ok := _c.mutation.Collection(); ok {
+		if err := billingaccount.CollectionValidator(v); err != nil {
+			return &ValidationError{Name: "collection", err: fmt.Errorf(`ent: validator failed for field "BillingAccount.collection": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.ReceivableMicros(); !ok {
+		return &ValidationError{Name: "receivable_micros", err: errors.New(`ent: missing required field "BillingAccount.receivable_micros"`)}
+	}
+	if v, ok := _c.mutation.ReceivableMicros(); ok {
+		if err := billingaccount.ReceivableMicrosValidator(v); err != nil {
+			return &ValidationError{Name: "receivable_micros", err: fmt.Errorf(`ent: validator failed for field "BillingAccount.receivable_micros": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.InvoicedLedgerID(); !ok {
+		return &ValidationError{Name: "invoiced_ledger_id", err: errors.New(`ent: missing required field "BillingAccount.invoiced_ledger_id"`)}
+	}
+	if v, ok := _c.mutation.InvoicedLedgerID(); ok {
+		if err := billingaccount.InvoicedLedgerIDValidator(v); err != nil {
+			return &ValidationError{Name: "invoiced_ledger_id", err: fmt.Errorf(`ent: validator failed for field "BillingAccount.invoiced_ledger_id": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.AutoTopupEnabled(); !ok {
@@ -888,6 +1010,26 @@ func (_c *BillingAccountCreate) createSpec() (*BillingAccount, *sqlgraph.CreateS
 		_spec.SetField(billingaccount.FieldArrearsMicros, field.TypeInt64, value)
 		_node.ArrearsMicros = value
 	}
+	if value, ok := _c.mutation.Collection(); ok {
+		_spec.SetField(billingaccount.FieldCollection, field.TypeEnum, value)
+		_node.Collection = value
+	}
+	if value, ok := _c.mutation.ReceivableMicros(); ok {
+		_spec.SetField(billingaccount.FieldReceivableMicros, field.TypeInt64, value)
+		_node.ReceivableMicros = value
+	}
+	if value, ok := _c.mutation.OverdueSince(); ok {
+		_spec.SetField(billingaccount.FieldOverdueSince, field.TypeTime, value)
+		_node.OverdueSince = &value
+	}
+	if value, ok := _c.mutation.InvoicedThrough(); ok {
+		_spec.SetField(billingaccount.FieldInvoicedThrough, field.TypeTime, value)
+		_node.InvoicedThrough = &value
+	}
+	if value, ok := _c.mutation.InvoicedLedgerID(); ok {
+		_spec.SetField(billingaccount.FieldInvoicedLedgerID, field.TypeInt, value)
+		_node.InvoicedLedgerID = value
+	}
 	if value, ok := _c.mutation.AutoTopupEnabled(); ok {
 		_spec.SetField(billingaccount.FieldAutoTopupEnabled, field.TypeBool, value)
 		_node.AutoTopupEnabled = value
@@ -1010,15 +1152,31 @@ func (_c *BillingAccountCreate) createSpec() (*BillingAccount, *sqlgraph.CreateS
 		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	if nodes := _c.mutation.PeriodsIDs(); len(nodes) > 0 {
+	if nodes := _c.mutation.ContractsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
-			Table:   billingaccount.PeriodsTable,
-			Columns: []string{billingaccount.PeriodsColumn},
+			Table:   billingaccount.ContractsTable,
+			Columns: []string{billingaccount.ContractsColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(billingperiod.FieldID, field.TypeInt),
+				IDSpec: sqlgraph.NewFieldSpec(billingcontract.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.InvoicesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   billingaccount.InvoicesTable,
+			Columns: []string{billingaccount.InvoicesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(invoice.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {
@@ -1339,6 +1497,90 @@ func (u *BillingAccountUpsert) UpdateArrearsMicros() *BillingAccountUpsert {
 // AddArrearsMicros adds v to the "arrears_micros" field.
 func (u *BillingAccountUpsert) AddArrearsMicros(v int64) *BillingAccountUpsert {
 	u.Add(billingaccount.FieldArrearsMicros, v)
+	return u
+}
+
+// SetCollection sets the "collection" field.
+func (u *BillingAccountUpsert) SetCollection(v billingaccount.Collection) *BillingAccountUpsert {
+	u.Set(billingaccount.FieldCollection, v)
+	return u
+}
+
+// UpdateCollection sets the "collection" field to the value that was provided on create.
+func (u *BillingAccountUpsert) UpdateCollection() *BillingAccountUpsert {
+	u.SetExcluded(billingaccount.FieldCollection)
+	return u
+}
+
+// SetReceivableMicros sets the "receivable_micros" field.
+func (u *BillingAccountUpsert) SetReceivableMicros(v int64) *BillingAccountUpsert {
+	u.Set(billingaccount.FieldReceivableMicros, v)
+	return u
+}
+
+// UpdateReceivableMicros sets the "receivable_micros" field to the value that was provided on create.
+func (u *BillingAccountUpsert) UpdateReceivableMicros() *BillingAccountUpsert {
+	u.SetExcluded(billingaccount.FieldReceivableMicros)
+	return u
+}
+
+// AddReceivableMicros adds v to the "receivable_micros" field.
+func (u *BillingAccountUpsert) AddReceivableMicros(v int64) *BillingAccountUpsert {
+	u.Add(billingaccount.FieldReceivableMicros, v)
+	return u
+}
+
+// SetOverdueSince sets the "overdue_since" field.
+func (u *BillingAccountUpsert) SetOverdueSince(v time.Time) *BillingAccountUpsert {
+	u.Set(billingaccount.FieldOverdueSince, v)
+	return u
+}
+
+// UpdateOverdueSince sets the "overdue_since" field to the value that was provided on create.
+func (u *BillingAccountUpsert) UpdateOverdueSince() *BillingAccountUpsert {
+	u.SetExcluded(billingaccount.FieldOverdueSince)
+	return u
+}
+
+// ClearOverdueSince clears the value of the "overdue_since" field.
+func (u *BillingAccountUpsert) ClearOverdueSince() *BillingAccountUpsert {
+	u.SetNull(billingaccount.FieldOverdueSince)
+	return u
+}
+
+// SetInvoicedThrough sets the "invoiced_through" field.
+func (u *BillingAccountUpsert) SetInvoicedThrough(v time.Time) *BillingAccountUpsert {
+	u.Set(billingaccount.FieldInvoicedThrough, v)
+	return u
+}
+
+// UpdateInvoicedThrough sets the "invoiced_through" field to the value that was provided on create.
+func (u *BillingAccountUpsert) UpdateInvoicedThrough() *BillingAccountUpsert {
+	u.SetExcluded(billingaccount.FieldInvoicedThrough)
+	return u
+}
+
+// ClearInvoicedThrough clears the value of the "invoiced_through" field.
+func (u *BillingAccountUpsert) ClearInvoicedThrough() *BillingAccountUpsert {
+	u.SetNull(billingaccount.FieldInvoicedThrough)
+	return u
+}
+
+// SetInvoicedLedgerID sets the "invoiced_ledger_id" field.
+func (u *BillingAccountUpsert) SetInvoicedLedgerID(v int) *BillingAccountUpsert {
+	u.Set(billingaccount.FieldInvoicedLedgerID, v)
+	return u
+}
+
+// UpdateInvoicedLedgerID sets the "invoiced_ledger_id" field to the value that was provided on create.
+func (u *BillingAccountUpsert) UpdateInvoicedLedgerID() *BillingAccountUpsert {
+	u.SetExcluded(billingaccount.FieldInvoicedLedgerID)
+	return u
+}
+
+// AddInvoicedLedgerID adds v to the "invoiced_ledger_id" field.
+func (u *BillingAccountUpsert) AddInvoicedLedgerID(v int) *BillingAccountUpsert {
+	u.Add(billingaccount.FieldInvoicedLedgerID, v)
 	return u
 }
 
@@ -1888,6 +2130,104 @@ func (u *BillingAccountUpsertOne) AddArrearsMicros(v int64) *BillingAccountUpser
 func (u *BillingAccountUpsertOne) UpdateArrearsMicros() *BillingAccountUpsertOne {
 	return u.Update(func(s *BillingAccountUpsert) {
 		s.UpdateArrearsMicros()
+	})
+}
+
+// SetCollection sets the "collection" field.
+func (u *BillingAccountUpsertOne) SetCollection(v billingaccount.Collection) *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetCollection(v)
+	})
+}
+
+// UpdateCollection sets the "collection" field to the value that was provided on create.
+func (u *BillingAccountUpsertOne) UpdateCollection() *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateCollection()
+	})
+}
+
+// SetReceivableMicros sets the "receivable_micros" field.
+func (u *BillingAccountUpsertOne) SetReceivableMicros(v int64) *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetReceivableMicros(v)
+	})
+}
+
+// AddReceivableMicros adds v to the "receivable_micros" field.
+func (u *BillingAccountUpsertOne) AddReceivableMicros(v int64) *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.AddReceivableMicros(v)
+	})
+}
+
+// UpdateReceivableMicros sets the "receivable_micros" field to the value that was provided on create.
+func (u *BillingAccountUpsertOne) UpdateReceivableMicros() *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateReceivableMicros()
+	})
+}
+
+// SetOverdueSince sets the "overdue_since" field.
+func (u *BillingAccountUpsertOne) SetOverdueSince(v time.Time) *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetOverdueSince(v)
+	})
+}
+
+// UpdateOverdueSince sets the "overdue_since" field to the value that was provided on create.
+func (u *BillingAccountUpsertOne) UpdateOverdueSince() *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateOverdueSince()
+	})
+}
+
+// ClearOverdueSince clears the value of the "overdue_since" field.
+func (u *BillingAccountUpsertOne) ClearOverdueSince() *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.ClearOverdueSince()
+	})
+}
+
+// SetInvoicedThrough sets the "invoiced_through" field.
+func (u *BillingAccountUpsertOne) SetInvoicedThrough(v time.Time) *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetInvoicedThrough(v)
+	})
+}
+
+// UpdateInvoicedThrough sets the "invoiced_through" field to the value that was provided on create.
+func (u *BillingAccountUpsertOne) UpdateInvoicedThrough() *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateInvoicedThrough()
+	})
+}
+
+// ClearInvoicedThrough clears the value of the "invoiced_through" field.
+func (u *BillingAccountUpsertOne) ClearInvoicedThrough() *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.ClearInvoicedThrough()
+	})
+}
+
+// SetInvoicedLedgerID sets the "invoiced_ledger_id" field.
+func (u *BillingAccountUpsertOne) SetInvoicedLedgerID(v int) *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetInvoicedLedgerID(v)
+	})
+}
+
+// AddInvoicedLedgerID adds v to the "invoiced_ledger_id" field.
+func (u *BillingAccountUpsertOne) AddInvoicedLedgerID(v int) *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.AddInvoicedLedgerID(v)
+	})
+}
+
+// UpdateInvoicedLedgerID sets the "invoiced_ledger_id" field to the value that was provided on create.
+func (u *BillingAccountUpsertOne) UpdateInvoicedLedgerID() *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateInvoicedLedgerID()
 	})
 }
 
@@ -2643,6 +2983,104 @@ func (u *BillingAccountUpsertBulk) AddArrearsMicros(v int64) *BillingAccountUpse
 func (u *BillingAccountUpsertBulk) UpdateArrearsMicros() *BillingAccountUpsertBulk {
 	return u.Update(func(s *BillingAccountUpsert) {
 		s.UpdateArrearsMicros()
+	})
+}
+
+// SetCollection sets the "collection" field.
+func (u *BillingAccountUpsertBulk) SetCollection(v billingaccount.Collection) *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetCollection(v)
+	})
+}
+
+// UpdateCollection sets the "collection" field to the value that was provided on create.
+func (u *BillingAccountUpsertBulk) UpdateCollection() *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateCollection()
+	})
+}
+
+// SetReceivableMicros sets the "receivable_micros" field.
+func (u *BillingAccountUpsertBulk) SetReceivableMicros(v int64) *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetReceivableMicros(v)
+	})
+}
+
+// AddReceivableMicros adds v to the "receivable_micros" field.
+func (u *BillingAccountUpsertBulk) AddReceivableMicros(v int64) *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.AddReceivableMicros(v)
+	})
+}
+
+// UpdateReceivableMicros sets the "receivable_micros" field to the value that was provided on create.
+func (u *BillingAccountUpsertBulk) UpdateReceivableMicros() *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateReceivableMicros()
+	})
+}
+
+// SetOverdueSince sets the "overdue_since" field.
+func (u *BillingAccountUpsertBulk) SetOverdueSince(v time.Time) *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetOverdueSince(v)
+	})
+}
+
+// UpdateOverdueSince sets the "overdue_since" field to the value that was provided on create.
+func (u *BillingAccountUpsertBulk) UpdateOverdueSince() *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateOverdueSince()
+	})
+}
+
+// ClearOverdueSince clears the value of the "overdue_since" field.
+func (u *BillingAccountUpsertBulk) ClearOverdueSince() *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.ClearOverdueSince()
+	})
+}
+
+// SetInvoicedThrough sets the "invoiced_through" field.
+func (u *BillingAccountUpsertBulk) SetInvoicedThrough(v time.Time) *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetInvoicedThrough(v)
+	})
+}
+
+// UpdateInvoicedThrough sets the "invoiced_through" field to the value that was provided on create.
+func (u *BillingAccountUpsertBulk) UpdateInvoicedThrough() *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateInvoicedThrough()
+	})
+}
+
+// ClearInvoicedThrough clears the value of the "invoiced_through" field.
+func (u *BillingAccountUpsertBulk) ClearInvoicedThrough() *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.ClearInvoicedThrough()
+	})
+}
+
+// SetInvoicedLedgerID sets the "invoiced_ledger_id" field.
+func (u *BillingAccountUpsertBulk) SetInvoicedLedgerID(v int) *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetInvoicedLedgerID(v)
+	})
+}
+
+// AddInvoicedLedgerID adds v to the "invoiced_ledger_id" field.
+func (u *BillingAccountUpsertBulk) AddInvoicedLedgerID(v int) *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.AddInvoicedLedgerID(v)
+	})
+}
+
+// UpdateInvoicedLedgerID sets the "invoiced_ledger_id" field to the value that was provided on create.
+func (u *BillingAccountUpsertBulk) UpdateInvoicedLedgerID() *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateInvoicedLedgerID()
 	})
 }
 

@@ -69,16 +69,16 @@ func (f BillingAccountFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Val
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.BillingAccountMutation", m)
 }
 
-// The BillingPeriodFunc type is an adapter to allow the use of ordinary
-// function as BillingPeriod mutator.
-type BillingPeriodFunc func(context.Context, *ent.BillingPeriodMutation) (ent.Value, error)
+// The BillingContractFunc type is an adapter to allow the use of ordinary
+// function as BillingContract mutator.
+type BillingContractFunc func(context.Context, *ent.BillingContractMutation) (ent.Value, error)
 
 // Mutate calls f(ctx, m).
-func (f BillingPeriodFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
-	if mv, ok := m.(*ent.BillingPeriodMutation); ok {
+func (f BillingContractFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.BillingContractMutation); ok {
 		return f(ctx, mv)
 	}
-	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.BillingPeriodMutation", m)
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.BillingContractMutation", m)
 }
 
 // The ConfigVersionFunc type is an adapter to allow the use of ordinary
@@ -163,6 +163,30 @@ func (f InvitationFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, 
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.InvitationMutation", m)
+}
+
+// The InvoiceFunc type is an adapter to allow the use of ordinary
+// function as Invoice mutator.
+type InvoiceFunc func(context.Context, *ent.InvoiceMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f InvoiceFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.InvoiceMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.InvoiceMutation", m)
+}
+
+// The InvoiceLineFunc type is an adapter to allow the use of ordinary
+// function as InvoiceLine mutator.
+type InvoiceLineFunc func(context.Context, *ent.InvoiceLineMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f InvoiceLineFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.InvoiceLineMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.InvoiceLineMutation", m)
 }
 
 // The LedgerEntryFunc type is an adapter to allow the use of ordinary

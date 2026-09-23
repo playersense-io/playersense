@@ -13,7 +13,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
 	"playersense.dev/backend/ent/billingaccount"
-	"playersense.dev/backend/ent/billingperiod"
+	"playersense.dev/backend/ent/invoice"
 	"playersense.dev/backend/ent/ledgerentry"
 )
 
@@ -111,16 +111,44 @@ func (_c *LedgerEntryCreate) SetNillableStripeReference(v *string) *LedgerEntryC
 	return _c
 }
 
-// SetPeriodID sets the "period_id" field.
-func (_c *LedgerEntryCreate) SetPeriodID(v int) *LedgerEntryCreate {
-	_c.mutation.SetPeriodID(v)
+// SetPeriodStart sets the "period_start" field.
+func (_c *LedgerEntryCreate) SetPeriodStart(v time.Time) *LedgerEntryCreate {
+	_c.mutation.SetPeriodStart(v)
 	return _c
 }
 
-// SetNillablePeriodID sets the "period_id" field if the given value is not nil.
-func (_c *LedgerEntryCreate) SetNillablePeriodID(v *int) *LedgerEntryCreate {
+// SetNillablePeriodStart sets the "period_start" field if the given value is not nil.
+func (_c *LedgerEntryCreate) SetNillablePeriodStart(v *time.Time) *LedgerEntryCreate {
 	if v != nil {
-		_c.SetPeriodID(*v)
+		_c.SetPeriodStart(*v)
+	}
+	return _c
+}
+
+// SetReceivableMicros sets the "receivable_micros" field.
+func (_c *LedgerEntryCreate) SetReceivableMicros(v int64) *LedgerEntryCreate {
+	_c.mutation.SetReceivableMicros(v)
+	return _c
+}
+
+// SetNillableReceivableMicros sets the "receivable_micros" field if the given value is not nil.
+func (_c *LedgerEntryCreate) SetNillableReceivableMicros(v *int64) *LedgerEntryCreate {
+	if v != nil {
+		_c.SetReceivableMicros(*v)
+	}
+	return _c
+}
+
+// SetInvoiceID sets the "invoice_id" field.
+func (_c *LedgerEntryCreate) SetInvoiceID(v int) *LedgerEntryCreate {
+	_c.mutation.SetInvoiceID(v)
+	return _c
+}
+
+// SetNillableInvoiceID sets the "invoice_id" field if the given value is not nil.
+func (_c *LedgerEntryCreate) SetNillableInvoiceID(v *int) *LedgerEntryCreate {
+	if v != nil {
+		_c.SetInvoiceID(*v)
 	}
 	return _c
 }
@@ -142,9 +170,9 @@ func (_c *LedgerEntryCreate) SetAccount(v *BillingAccount) *LedgerEntryCreate {
 	return _c.SetAccountID(v.ID)
 }
 
-// SetPeriod sets the "period" edge to the BillingPeriod entity.
-func (_c *LedgerEntryCreate) SetPeriod(v *BillingPeriod) *LedgerEntryCreate {
-	return _c.SetPeriodID(v.ID)
+// SetInvoice sets the "invoice" edge to the Invoice entity.
+func (_c *LedgerEntryCreate) SetInvoice(v *Invoice) *LedgerEntryCreate {
+	return _c.SetInvoiceID(v.ID)
 }
 
 // Mutation returns the LedgerEntryMutation object of the builder.
@@ -194,6 +222,10 @@ func (_c *LedgerEntryCreate) defaults() {
 		v := ledgerentry.DefaultDescription
 		_c.mutation.SetDescription(v)
 	}
+	if _, ok := _c.mutation.ReceivableMicros(); !ok {
+		v := ledgerentry.DefaultReceivableMicros
+		_c.mutation.SetReceivableMicros(v)
+	}
 }
 
 // check runs all checks and user-defined validators on the builder.
@@ -241,6 +273,9 @@ func (_c *LedgerEntryCreate) check() error {
 		if err := ledgerentry.StripeReferenceValidator(v); err != nil {
 			return &ValidationError{Name: "stripe_reference", err: fmt.Errorf(`ent: validator failed for field "LedgerEntry.stripe_reference": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.ReceivableMicros(); !ok {
+		return &ValidationError{Name: "receivable_micros", err: errors.New(`ent: missing required field "LedgerEntry.receivable_micros"`)}
 	}
 	if _, ok := _c.mutation.IdempotencyKey(); !ok {
 		return &ValidationError{Name: "idempotency_key", err: errors.New(`ent: missing required field "LedgerEntry.idempotency_key"`)}
@@ -318,6 +353,14 @@ func (_c *LedgerEntryCreate) createSpec() (*LedgerEntry, *sqlgraph.CreateSpec) {
 		_spec.SetField(ledgerentry.FieldStripeReference, field.TypeString, value)
 		_node.StripeReference = &value
 	}
+	if value, ok := _c.mutation.PeriodStart(); ok {
+		_spec.SetField(ledgerentry.FieldPeriodStart, field.TypeTime, value)
+		_node.PeriodStart = &value
+	}
+	if value, ok := _c.mutation.ReceivableMicros(); ok {
+		_spec.SetField(ledgerentry.FieldReceivableMicros, field.TypeInt64, value)
+		_node.ReceivableMicros = value
+	}
 	if value, ok := _c.mutation.IdempotencyKey(); ok {
 		_spec.SetField(ledgerentry.FieldIdempotencyKey, field.TypeString, value)
 		_node.IdempotencyKey = value
@@ -339,21 +382,21 @@ func (_c *LedgerEntryCreate) createSpec() (*LedgerEntry, *sqlgraph.CreateSpec) {
 		_node.AccountID = nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	if nodes := _c.mutation.PeriodIDs(); len(nodes) > 0 {
+	if nodes := _c.mutation.InvoiceIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: true,
-			Table:   ledgerentry.PeriodTable,
-			Columns: []string{ledgerentry.PeriodColumn},
+			Table:   ledgerentry.InvoiceTable,
+			Columns: []string{ledgerentry.InvoiceColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(billingperiod.FieldID, field.TypeInt),
+				IDSpec: sqlgraph.NewFieldSpec(invoice.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
-		_node.PeriodID = &nodes[0]
+		_node.InvoiceID = &nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec
@@ -452,8 +495,14 @@ func (u *LedgerEntryUpsertOne) UpdateNewValues() *LedgerEntryUpsertOne {
 		if _, exists := u.create.mutation.StripeReference(); exists {
 			s.SetIgnore(ledgerentry.FieldStripeReference)
 		}
-		if _, exists := u.create.mutation.PeriodID(); exists {
-			s.SetIgnore(ledgerentry.FieldPeriodID)
+		if _, exists := u.create.mutation.PeriodStart(); exists {
+			s.SetIgnore(ledgerentry.FieldPeriodStart)
+		}
+		if _, exists := u.create.mutation.ReceivableMicros(); exists {
+			s.SetIgnore(ledgerentry.FieldReceivableMicros)
+		}
+		if _, exists := u.create.mutation.InvoiceID(); exists {
+			s.SetIgnore(ledgerentry.FieldInvoiceID)
 		}
 		if _, exists := u.create.mutation.IdempotencyKey(); exists {
 			s.SetIgnore(ledgerentry.FieldIdempotencyKey)
@@ -698,8 +747,14 @@ func (u *LedgerEntryUpsertBulk) UpdateNewValues() *LedgerEntryUpsertBulk {
 			if _, exists := b.mutation.StripeReference(); exists {
 				s.SetIgnore(ledgerentry.FieldStripeReference)
 			}
-			if _, exists := b.mutation.PeriodID(); exists {
-				s.SetIgnore(ledgerentry.FieldPeriodID)
+			if _, exists := b.mutation.PeriodStart(); exists {
+				s.SetIgnore(ledgerentry.FieldPeriodStart)
+			}
+			if _, exists := b.mutation.ReceivableMicros(); exists {
+				s.SetIgnore(ledgerentry.FieldReceivableMicros)
+			}
+			if _, exists := b.mutation.InvoiceID(); exists {
+				s.SetIgnore(ledgerentry.FieldInvoiceID)
 			}
 			if _, exists := b.mutation.IdempotencyKey(); exists {
 				s.SetIgnore(ledgerentry.FieldIdempotencyKey)

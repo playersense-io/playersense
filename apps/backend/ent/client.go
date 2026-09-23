@@ -20,7 +20,7 @@ import (
 	"playersense.dev/backend/ent/auditevent"
 	"playersense.dev/backend/ent/billableplayer"
 	"playersense.dev/backend/ent/billingaccount"
-	"playersense.dev/backend/ent/billingperiod"
+	"playersense.dev/backend/ent/billingcontract"
 	"playersense.dev/backend/ent/configversion"
 	"playersense.dev/backend/ent/creditlot"
 	"playersense.dev/backend/ent/datadeletionrequest"
@@ -28,6 +28,8 @@ import (
 	"playersense.dev/backend/ent/environment"
 	"playersense.dev/backend/ent/featureflag"
 	"playersense.dev/backend/ent/invitation"
+	"playersense.dev/backend/ent/invoice"
+	"playersense.dev/backend/ent/invoiceline"
 	"playersense.dev/backend/ent/ledgerentry"
 	"playersense.dev/backend/ent/liveopsevent"
 	"playersense.dev/backend/ent/memberproject"
@@ -64,8 +66,8 @@ type Client struct {
 	BillablePlayer *BillablePlayerClient
 	// BillingAccount is the client for interacting with the BillingAccount builders.
 	BillingAccount *BillingAccountClient
-	// BillingPeriod is the client for interacting with the BillingPeriod builders.
-	BillingPeriod *BillingPeriodClient
+	// BillingContract is the client for interacting with the BillingContract builders.
+	BillingContract *BillingContractClient
 	// ConfigVersion is the client for interacting with the ConfigVersion builders.
 	ConfigVersion *ConfigVersionClient
 	// CreditLot is the client for interacting with the CreditLot builders.
@@ -80,6 +82,10 @@ type Client struct {
 	FeatureFlag *FeatureFlagClient
 	// Invitation is the client for interacting with the Invitation builders.
 	Invitation *InvitationClient
+	// Invoice is the client for interacting with the Invoice builders.
+	Invoice *InvoiceClient
+	// InvoiceLine is the client for interacting with the InvoiceLine builders.
+	InvoiceLine *InvoiceLineClient
 	// LedgerEntry is the client for interacting with the LedgerEntry builders.
 	LedgerEntry *LedgerEntryClient
 	// LiveOpsEvent is the client for interacting with the LiveOpsEvent builders.
@@ -130,7 +136,7 @@ func (c *Client) init() {
 	c.AuditEvent = NewAuditEventClient(c.config)
 	c.BillablePlayer = NewBillablePlayerClient(c.config)
 	c.BillingAccount = NewBillingAccountClient(c.config)
-	c.BillingPeriod = NewBillingPeriodClient(c.config)
+	c.BillingContract = NewBillingContractClient(c.config)
 	c.ConfigVersion = NewConfigVersionClient(c.config)
 	c.CreditLot = NewCreditLotClient(c.config)
 	c.DataDeletionRequest = NewDataDeletionRequestClient(c.config)
@@ -138,6 +144,8 @@ func (c *Client) init() {
 	c.Environment = NewEnvironmentClient(c.config)
 	c.FeatureFlag = NewFeatureFlagClient(c.config)
 	c.Invitation = NewInvitationClient(c.config)
+	c.Invoice = NewInvoiceClient(c.config)
+	c.InvoiceLine = NewInvoiceLineClient(c.config)
 	c.LedgerEntry = NewLedgerEntryClient(c.config)
 	c.LiveOpsEvent = NewLiveOpsEventClient(c.config)
 	c.MemberProject = NewMemberProjectClient(c.config)
@@ -252,7 +260,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		AuditEvent:          NewAuditEventClient(cfg),
 		BillablePlayer:      NewBillablePlayerClient(cfg),
 		BillingAccount:      NewBillingAccountClient(cfg),
-		BillingPeriod:       NewBillingPeriodClient(cfg),
+		BillingContract:     NewBillingContractClient(cfg),
 		ConfigVersion:       NewConfigVersionClient(cfg),
 		CreditLot:           NewCreditLotClient(cfg),
 		DataDeletionRequest: NewDataDeletionRequestClient(cfg),
@@ -260,6 +268,8 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		Environment:         NewEnvironmentClient(cfg),
 		FeatureFlag:         NewFeatureFlagClient(cfg),
 		Invitation:          NewInvitationClient(cfg),
+		Invoice:             NewInvoiceClient(cfg),
+		InvoiceLine:         NewInvoiceLineClient(cfg),
 		LedgerEntry:         NewLedgerEntryClient(cfg),
 		LiveOpsEvent:        NewLiveOpsEventClient(cfg),
 		MemberProject:       NewMemberProjectClient(cfg),
@@ -301,7 +311,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		AuditEvent:          NewAuditEventClient(cfg),
 		BillablePlayer:      NewBillablePlayerClient(cfg),
 		BillingAccount:      NewBillingAccountClient(cfg),
-		BillingPeriod:       NewBillingPeriodClient(cfg),
+		BillingContract:     NewBillingContractClient(cfg),
 		ConfigVersion:       NewConfigVersionClient(cfg),
 		CreditLot:           NewCreditLotClient(cfg),
 		DataDeletionRequest: NewDataDeletionRequestClient(cfg),
@@ -309,6 +319,8 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		Environment:         NewEnvironmentClient(cfg),
 		FeatureFlag:         NewFeatureFlagClient(cfg),
 		Invitation:          NewInvitationClient(cfg),
+		Invoice:             NewInvoiceClient(cfg),
+		InvoiceLine:         NewInvoiceLineClient(cfg),
 		LedgerEntry:         NewLedgerEntryClient(cfg),
 		LiveOpsEvent:        NewLiveOpsEventClient(cfg),
 		MemberProject:       NewMemberProjectClient(cfg),
@@ -356,11 +368,11 @@ func (c *Client) Close() error {
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.APIKey, c.ArchiveManifest, c.AuditEvent, c.BillablePlayer, c.BillingAccount,
-		c.BillingPeriod, c.ConfigVersion, c.CreditLot, c.DataDeletionRequest,
-		c.DataExportRequest, c.Environment, c.FeatureFlag, c.Invitation, c.LedgerEntry,
-		c.LiveOpsEvent, c.MemberProject, c.MonthlyUsage, c.Organization,
-		c.OrganizationMember, c.Plan, c.Project, c.RateCard, c.Role, c.Segment,
-		c.StaffAccess, c.StripeEvent, c.UsageCharge, c.UsageDaily, c.User,
+		c.BillingContract, c.ConfigVersion, c.CreditLot, c.DataDeletionRequest,
+		c.DataExportRequest, c.Environment, c.FeatureFlag, c.Invitation, c.Invoice,
+		c.InvoiceLine, c.LedgerEntry, c.LiveOpsEvent, c.MemberProject, c.MonthlyUsage,
+		c.Organization, c.OrganizationMember, c.Plan, c.Project, c.RateCard, c.Role,
+		c.Segment, c.StaffAccess, c.StripeEvent, c.UsageCharge, c.UsageDaily, c.User,
 		c.VerifiedPurchase,
 	} {
 		n.Use(hooks...)
@@ -372,11 +384,11 @@ func (c *Client) Use(hooks ...Hook) {
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.APIKey, c.ArchiveManifest, c.AuditEvent, c.BillablePlayer, c.BillingAccount,
-		c.BillingPeriod, c.ConfigVersion, c.CreditLot, c.DataDeletionRequest,
-		c.DataExportRequest, c.Environment, c.FeatureFlag, c.Invitation, c.LedgerEntry,
-		c.LiveOpsEvent, c.MemberProject, c.MonthlyUsage, c.Organization,
-		c.OrganizationMember, c.Plan, c.Project, c.RateCard, c.Role, c.Segment,
-		c.StaffAccess, c.StripeEvent, c.UsageCharge, c.UsageDaily, c.User,
+		c.BillingContract, c.ConfigVersion, c.CreditLot, c.DataDeletionRequest,
+		c.DataExportRequest, c.Environment, c.FeatureFlag, c.Invitation, c.Invoice,
+		c.InvoiceLine, c.LedgerEntry, c.LiveOpsEvent, c.MemberProject, c.MonthlyUsage,
+		c.Organization, c.OrganizationMember, c.Plan, c.Project, c.RateCard, c.Role,
+		c.Segment, c.StaffAccess, c.StripeEvent, c.UsageCharge, c.UsageDaily, c.User,
 		c.VerifiedPurchase,
 	} {
 		n.Intercept(interceptors...)
@@ -396,8 +408,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.BillablePlayer.mutate(ctx, m)
 	case *BillingAccountMutation:
 		return c.BillingAccount.mutate(ctx, m)
-	case *BillingPeriodMutation:
-		return c.BillingPeriod.mutate(ctx, m)
+	case *BillingContractMutation:
+		return c.BillingContract.mutate(ctx, m)
 	case *ConfigVersionMutation:
 		return c.ConfigVersion.mutate(ctx, m)
 	case *CreditLotMutation:
@@ -412,6 +424,10 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.FeatureFlag.mutate(ctx, m)
 	case *InvitationMutation:
 		return c.Invitation.mutate(ctx, m)
+	case *InvoiceMutation:
+		return c.Invoice.mutate(ctx, m)
+	case *InvoiceLineMutation:
+		return c.InvoiceLine.mutate(ctx, m)
 	case *LedgerEntryMutation:
 		return c.LedgerEntry.mutate(ctx, m)
 	case *LiveOpsEventMutation:
@@ -1251,15 +1267,31 @@ func (c *BillingAccountClient) QueryCreditLots(_m *BillingAccount) *CreditLotQue
 	return query
 }
 
-// QueryPeriods queries the periods edge of a BillingAccount.
-func (c *BillingAccountClient) QueryPeriods(_m *BillingAccount) *BillingPeriodQuery {
-	query := (&BillingPeriodClient{config: c.config}).Query()
+// QueryContracts queries the contracts edge of a BillingAccount.
+func (c *BillingAccountClient) QueryContracts(_m *BillingAccount) *BillingContractQuery {
+	query := (&BillingContractClient{config: c.config}).Query()
 	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
 		id := _m.ID
 		step := sqlgraph.NewStep(
 			sqlgraph.From(billingaccount.Table, billingaccount.FieldID, id),
-			sqlgraph.To(billingperiod.Table, billingperiod.FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, billingaccount.PeriodsTable, billingaccount.PeriodsColumn),
+			sqlgraph.To(billingcontract.Table, billingcontract.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, billingaccount.ContractsTable, billingaccount.ContractsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryInvoices queries the invoices edge of a BillingAccount.
+func (c *BillingAccountClient) QueryInvoices(_m *BillingAccount) *InvoiceQuery {
+	query := (&InvoiceClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(billingaccount.Table, billingaccount.FieldID, id),
+			sqlgraph.To(invoice.Table, invoice.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, billingaccount.InvoicesTable, billingaccount.InvoicesColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -1341,107 +1373,107 @@ func (c *BillingAccountClient) mutate(ctx context.Context, m *BillingAccountMuta
 	}
 }
 
-// BillingPeriodClient is a client for the BillingPeriod schema.
-type BillingPeriodClient struct {
+// BillingContractClient is a client for the BillingContract schema.
+type BillingContractClient struct {
 	config
 }
 
-// NewBillingPeriodClient returns a client for the BillingPeriod from the given config.
-func NewBillingPeriodClient(c config) *BillingPeriodClient {
-	return &BillingPeriodClient{config: c}
+// NewBillingContractClient returns a client for the BillingContract from the given config.
+func NewBillingContractClient(c config) *BillingContractClient {
+	return &BillingContractClient{config: c}
 }
 
 // Use adds a list of mutation hooks to the hooks stack.
-// A call to `Use(f, g, h)` equals to `billingperiod.Hooks(f(g(h())))`.
-func (c *BillingPeriodClient) Use(hooks ...Hook) {
-	c.hooks.BillingPeriod = append(c.hooks.BillingPeriod, hooks...)
+// A call to `Use(f, g, h)` equals to `billingcontract.Hooks(f(g(h())))`.
+func (c *BillingContractClient) Use(hooks ...Hook) {
+	c.hooks.BillingContract = append(c.hooks.BillingContract, hooks...)
 }
 
 // Intercept adds a list of query interceptors to the interceptors stack.
-// A call to `Intercept(f, g, h)` equals to `billingperiod.Intercept(f(g(h())))`.
-func (c *BillingPeriodClient) Intercept(interceptors ...Interceptor) {
-	c.inters.BillingPeriod = append(c.inters.BillingPeriod, interceptors...)
+// A call to `Intercept(f, g, h)` equals to `billingcontract.Intercept(f(g(h())))`.
+func (c *BillingContractClient) Intercept(interceptors ...Interceptor) {
+	c.inters.BillingContract = append(c.inters.BillingContract, interceptors...)
 }
 
-// Create returns a builder for creating a BillingPeriod entity.
-func (c *BillingPeriodClient) Create() *BillingPeriodCreate {
-	mutation := newBillingPeriodMutation(c.config, OpCreate)
-	return &BillingPeriodCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+// Create returns a builder for creating a BillingContract entity.
+func (c *BillingContractClient) Create() *BillingContractCreate {
+	mutation := newBillingContractMutation(c.config, OpCreate)
+	return &BillingContractCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
 }
 
-// CreateBulk returns a builder for creating a bulk of BillingPeriod entities.
-func (c *BillingPeriodClient) CreateBulk(builders ...*BillingPeriodCreate) *BillingPeriodCreateBulk {
-	return &BillingPeriodCreateBulk{config: c.config, builders: builders}
+// CreateBulk returns a builder for creating a bulk of BillingContract entities.
+func (c *BillingContractClient) CreateBulk(builders ...*BillingContractCreate) *BillingContractCreateBulk {
+	return &BillingContractCreateBulk{config: c.config, builders: builders}
 }
 
 // MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
 // a builder and applies setFunc on it.
-func (c *BillingPeriodClient) MapCreateBulk(slice any, setFunc func(*BillingPeriodCreate, int)) *BillingPeriodCreateBulk {
+func (c *BillingContractClient) MapCreateBulk(slice any, setFunc func(*BillingContractCreate, int)) *BillingContractCreateBulk {
 	rv := reflect.ValueOf(slice)
 	if rv.Kind() != reflect.Slice {
-		return &BillingPeriodCreateBulk{err: fmt.Errorf("calling to BillingPeriodClient.MapCreateBulk with wrong type %T, need slice", slice)}
+		return &BillingContractCreateBulk{err: fmt.Errorf("calling to BillingContractClient.MapCreateBulk with wrong type %T, need slice", slice)}
 	}
-	builders := make([]*BillingPeriodCreate, rv.Len())
+	builders := make([]*BillingContractCreate, rv.Len())
 	for i := 0; i < rv.Len(); i++ {
 		builders[i] = c.Create()
 		setFunc(builders[i], i)
 	}
-	return &BillingPeriodCreateBulk{config: c.config, builders: builders}
+	return &BillingContractCreateBulk{config: c.config, builders: builders}
 }
 
-// Update returns an update builder for BillingPeriod.
-func (c *BillingPeriodClient) Update() *BillingPeriodUpdate {
-	mutation := newBillingPeriodMutation(c.config, OpUpdate)
-	return &BillingPeriodUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+// Update returns an update builder for BillingContract.
+func (c *BillingContractClient) Update() *BillingContractUpdate {
+	mutation := newBillingContractMutation(c.config, OpUpdate)
+	return &BillingContractUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
 }
 
 // UpdateOne returns an update builder for the given entity.
-func (c *BillingPeriodClient) UpdateOne(_m *BillingPeriod) *BillingPeriodUpdateOne {
-	mutation := newBillingPeriodMutation(c.config, OpUpdateOne, withBillingPeriod(_m))
-	return &BillingPeriodUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+func (c *BillingContractClient) UpdateOne(_m *BillingContract) *BillingContractUpdateOne {
+	mutation := newBillingContractMutation(c.config, OpUpdateOne, withBillingContract(_m))
+	return &BillingContractUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
 }
 
 // UpdateOneID returns an update builder for the given id.
-func (c *BillingPeriodClient) UpdateOneID(id int) *BillingPeriodUpdateOne {
-	mutation := newBillingPeriodMutation(c.config, OpUpdateOne, withBillingPeriodID(id))
-	return &BillingPeriodUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+func (c *BillingContractClient) UpdateOneID(id int) *BillingContractUpdateOne {
+	mutation := newBillingContractMutation(c.config, OpUpdateOne, withBillingContractID(id))
+	return &BillingContractUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
 }
 
-// Delete returns a delete builder for BillingPeriod.
-func (c *BillingPeriodClient) Delete() *BillingPeriodDelete {
-	mutation := newBillingPeriodMutation(c.config, OpDelete)
-	return &BillingPeriodDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+// Delete returns a delete builder for BillingContract.
+func (c *BillingContractClient) Delete() *BillingContractDelete {
+	mutation := newBillingContractMutation(c.config, OpDelete)
+	return &BillingContractDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
 }
 
 // DeleteOne returns a builder for deleting the given entity.
-func (c *BillingPeriodClient) DeleteOne(_m *BillingPeriod) *BillingPeriodDeleteOne {
+func (c *BillingContractClient) DeleteOne(_m *BillingContract) *BillingContractDeleteOne {
 	return c.DeleteOneID(_m.ID)
 }
 
 // DeleteOneID returns a builder for deleting the given entity by its id.
-func (c *BillingPeriodClient) DeleteOneID(id int) *BillingPeriodDeleteOne {
-	builder := c.Delete().Where(billingperiod.ID(id))
+func (c *BillingContractClient) DeleteOneID(id int) *BillingContractDeleteOne {
+	builder := c.Delete().Where(billingcontract.ID(id))
 	builder.mutation.id = &id
 	builder.mutation.op = OpDeleteOne
-	return &BillingPeriodDeleteOne{builder}
+	return &BillingContractDeleteOne{builder}
 }
 
-// Query returns a query builder for BillingPeriod.
-func (c *BillingPeriodClient) Query() *BillingPeriodQuery {
-	return &BillingPeriodQuery{
+// Query returns a query builder for BillingContract.
+func (c *BillingContractClient) Query() *BillingContractQuery {
+	return &BillingContractQuery{
 		config: c.config,
-		ctx:    &QueryContext{Type: TypeBillingPeriod},
+		ctx:    &QueryContext{Type: TypeBillingContract},
 		inters: c.Interceptors(),
 	}
 }
 
-// Get returns a BillingPeriod entity by its id.
-func (c *BillingPeriodClient) Get(ctx context.Context, id int) (*BillingPeriod, error) {
-	return c.Query().Where(billingperiod.ID(id)).Only(ctx)
+// Get returns a BillingContract entity by its id.
+func (c *BillingContractClient) Get(ctx context.Context, id int) (*BillingContract, error) {
+	return c.Query().Where(billingcontract.ID(id)).Only(ctx)
 }
 
 // GetX is like Get, but panics if an error occurs.
-func (c *BillingPeriodClient) GetX(ctx context.Context, id int) *BillingPeriod {
+func (c *BillingContractClient) GetX(ctx context.Context, id int) *BillingContract {
 	obj, err := c.Get(ctx, id)
 	if err != nil {
 		panic(err)
@@ -1449,15 +1481,15 @@ func (c *BillingPeriodClient) GetX(ctx context.Context, id int) *BillingPeriod {
 	return obj
 }
 
-// QueryAccount queries the account edge of a BillingPeriod.
-func (c *BillingPeriodClient) QueryAccount(_m *BillingPeriod) *BillingAccountQuery {
+// QueryAccount queries the account edge of a BillingContract.
+func (c *BillingContractClient) QueryAccount(_m *BillingContract) *BillingAccountQuery {
 	query := (&BillingAccountClient{config: c.config}).Query()
 	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
 		id := _m.ID
 		step := sqlgraph.NewStep(
-			sqlgraph.From(billingperiod.Table, billingperiod.FieldID, id),
+			sqlgraph.From(billingcontract.Table, billingcontract.FieldID, id),
 			sqlgraph.To(billingaccount.Table, billingaccount.FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, true, billingperiod.AccountTable, billingperiod.AccountColumn),
+			sqlgraph.Edge(sqlgraph.M2O, true, billingcontract.AccountTable, billingcontract.AccountColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -1465,15 +1497,15 @@ func (c *BillingPeriodClient) QueryAccount(_m *BillingPeriod) *BillingAccountQue
 	return query
 }
 
-// QueryCharges queries the charges edge of a BillingPeriod.
-func (c *BillingPeriodClient) QueryCharges(_m *BillingPeriod) *LedgerEntryQuery {
-	query := (&LedgerEntryClient{config: c.config}).Query()
+// QueryInvoices queries the invoices edge of a BillingContract.
+func (c *BillingContractClient) QueryInvoices(_m *BillingContract) *InvoiceQuery {
+	query := (&InvoiceClient{config: c.config}).Query()
 	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
 		id := _m.ID
 		step := sqlgraph.NewStep(
-			sqlgraph.From(billingperiod.Table, billingperiod.FieldID, id),
-			sqlgraph.To(ledgerentry.Table, ledgerentry.FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, billingperiod.ChargesTable, billingperiod.ChargesColumn),
+			sqlgraph.From(billingcontract.Table, billingcontract.FieldID, id),
+			sqlgraph.To(invoice.Table, invoice.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, billingcontract.InvoicesTable, billingcontract.InvoicesColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -1482,27 +1514,27 @@ func (c *BillingPeriodClient) QueryCharges(_m *BillingPeriod) *LedgerEntryQuery 
 }
 
 // Hooks returns the client hooks.
-func (c *BillingPeriodClient) Hooks() []Hook {
-	return c.hooks.BillingPeriod
+func (c *BillingContractClient) Hooks() []Hook {
+	return c.hooks.BillingContract
 }
 
 // Interceptors returns the client interceptors.
-func (c *BillingPeriodClient) Interceptors() []Interceptor {
-	return c.inters.BillingPeriod
+func (c *BillingContractClient) Interceptors() []Interceptor {
+	return c.inters.BillingContract
 }
 
-func (c *BillingPeriodClient) mutate(ctx context.Context, m *BillingPeriodMutation) (Value, error) {
+func (c *BillingContractClient) mutate(ctx context.Context, m *BillingContractMutation) (Value, error) {
 	switch m.Op() {
 	case OpCreate:
-		return (&BillingPeriodCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&BillingContractCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
 	case OpUpdate:
-		return (&BillingPeriodUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&BillingContractUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
 	case OpUpdateOne:
-		return (&BillingPeriodUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&BillingContractUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
 	case OpDelete, OpDeleteOne:
-		return (&BillingPeriodDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+		return (&BillingContractDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
-		return nil, fmt.Errorf("ent: unknown BillingPeriod mutation op: %q", m.Op())
+		return nil, fmt.Errorf("ent: unknown BillingContract mutation op: %q", m.Op())
 	}
 }
 
@@ -2645,6 +2677,352 @@ func (c *InvitationClient) mutate(ctx context.Context, m *InvitationMutation) (V
 	}
 }
 
+// InvoiceClient is a client for the Invoice schema.
+type InvoiceClient struct {
+	config
+}
+
+// NewInvoiceClient returns a client for the Invoice from the given config.
+func NewInvoiceClient(c config) *InvoiceClient {
+	return &InvoiceClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `invoice.Hooks(f(g(h())))`.
+func (c *InvoiceClient) Use(hooks ...Hook) {
+	c.hooks.Invoice = append(c.hooks.Invoice, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `invoice.Intercept(f(g(h())))`.
+func (c *InvoiceClient) Intercept(interceptors ...Interceptor) {
+	c.inters.Invoice = append(c.inters.Invoice, interceptors...)
+}
+
+// Create returns a builder for creating a Invoice entity.
+func (c *InvoiceClient) Create() *InvoiceCreate {
+	mutation := newInvoiceMutation(c.config, OpCreate)
+	return &InvoiceCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Invoice entities.
+func (c *InvoiceClient) CreateBulk(builders ...*InvoiceCreate) *InvoiceCreateBulk {
+	return &InvoiceCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *InvoiceClient) MapCreateBulk(slice any, setFunc func(*InvoiceCreate, int)) *InvoiceCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &InvoiceCreateBulk{err: fmt.Errorf("calling to InvoiceClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*InvoiceCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &InvoiceCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Invoice.
+func (c *InvoiceClient) Update() *InvoiceUpdate {
+	mutation := newInvoiceMutation(c.config, OpUpdate)
+	return &InvoiceUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *InvoiceClient) UpdateOne(_m *Invoice) *InvoiceUpdateOne {
+	mutation := newInvoiceMutation(c.config, OpUpdateOne, withInvoice(_m))
+	return &InvoiceUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *InvoiceClient) UpdateOneID(id int) *InvoiceUpdateOne {
+	mutation := newInvoiceMutation(c.config, OpUpdateOne, withInvoiceID(id))
+	return &InvoiceUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Invoice.
+func (c *InvoiceClient) Delete() *InvoiceDelete {
+	mutation := newInvoiceMutation(c.config, OpDelete)
+	return &InvoiceDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *InvoiceClient) DeleteOne(_m *Invoice) *InvoiceDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *InvoiceClient) DeleteOneID(id int) *InvoiceDeleteOne {
+	builder := c.Delete().Where(invoice.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &InvoiceDeleteOne{builder}
+}
+
+// Query returns a query builder for Invoice.
+func (c *InvoiceClient) Query() *InvoiceQuery {
+	return &InvoiceQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeInvoice},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a Invoice entity by its id.
+func (c *InvoiceClient) Get(ctx context.Context, id int) (*Invoice, error) {
+	return c.Query().Where(invoice.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *InvoiceClient) GetX(ctx context.Context, id int) *Invoice {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryAccount queries the account edge of a Invoice.
+func (c *InvoiceClient) QueryAccount(_m *Invoice) *BillingAccountQuery {
+	query := (&BillingAccountClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(invoice.Table, invoice.FieldID, id),
+			sqlgraph.To(billingaccount.Table, billingaccount.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, invoice.AccountTable, invoice.AccountColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryContract queries the contract edge of a Invoice.
+func (c *InvoiceClient) QueryContract(_m *Invoice) *BillingContractQuery {
+	query := (&BillingContractClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(invoice.Table, invoice.FieldID, id),
+			sqlgraph.To(billingcontract.Table, billingcontract.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, invoice.ContractTable, invoice.ContractColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryLines queries the lines edge of a Invoice.
+func (c *InvoiceClient) QueryLines(_m *Invoice) *InvoiceLineQuery {
+	query := (&InvoiceLineClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(invoice.Table, invoice.FieldID, id),
+			sqlgraph.To(invoiceline.Table, invoiceline.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, invoice.LinesTable, invoice.LinesColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QuerySettlements queries the settlements edge of a Invoice.
+func (c *InvoiceClient) QuerySettlements(_m *Invoice) *LedgerEntryQuery {
+	query := (&LedgerEntryClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(invoice.Table, invoice.FieldID, id),
+			sqlgraph.To(ledgerentry.Table, ledgerentry.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, invoice.SettlementsTable, invoice.SettlementsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *InvoiceClient) Hooks() []Hook {
+	return c.hooks.Invoice
+}
+
+// Interceptors returns the client interceptors.
+func (c *InvoiceClient) Interceptors() []Interceptor {
+	return c.inters.Invoice
+}
+
+func (c *InvoiceClient) mutate(ctx context.Context, m *InvoiceMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&InvoiceCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&InvoiceUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&InvoiceUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&InvoiceDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown Invoice mutation op: %q", m.Op())
+	}
+}
+
+// InvoiceLineClient is a client for the InvoiceLine schema.
+type InvoiceLineClient struct {
+	config
+}
+
+// NewInvoiceLineClient returns a client for the InvoiceLine from the given config.
+func NewInvoiceLineClient(c config) *InvoiceLineClient {
+	return &InvoiceLineClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `invoiceline.Hooks(f(g(h())))`.
+func (c *InvoiceLineClient) Use(hooks ...Hook) {
+	c.hooks.InvoiceLine = append(c.hooks.InvoiceLine, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `invoiceline.Intercept(f(g(h())))`.
+func (c *InvoiceLineClient) Intercept(interceptors ...Interceptor) {
+	c.inters.InvoiceLine = append(c.inters.InvoiceLine, interceptors...)
+}
+
+// Create returns a builder for creating a InvoiceLine entity.
+func (c *InvoiceLineClient) Create() *InvoiceLineCreate {
+	mutation := newInvoiceLineMutation(c.config, OpCreate)
+	return &InvoiceLineCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of InvoiceLine entities.
+func (c *InvoiceLineClient) CreateBulk(builders ...*InvoiceLineCreate) *InvoiceLineCreateBulk {
+	return &InvoiceLineCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *InvoiceLineClient) MapCreateBulk(slice any, setFunc func(*InvoiceLineCreate, int)) *InvoiceLineCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &InvoiceLineCreateBulk{err: fmt.Errorf("calling to InvoiceLineClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*InvoiceLineCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &InvoiceLineCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for InvoiceLine.
+func (c *InvoiceLineClient) Update() *InvoiceLineUpdate {
+	mutation := newInvoiceLineMutation(c.config, OpUpdate)
+	return &InvoiceLineUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *InvoiceLineClient) UpdateOne(_m *InvoiceLine) *InvoiceLineUpdateOne {
+	mutation := newInvoiceLineMutation(c.config, OpUpdateOne, withInvoiceLine(_m))
+	return &InvoiceLineUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *InvoiceLineClient) UpdateOneID(id int) *InvoiceLineUpdateOne {
+	mutation := newInvoiceLineMutation(c.config, OpUpdateOne, withInvoiceLineID(id))
+	return &InvoiceLineUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for InvoiceLine.
+func (c *InvoiceLineClient) Delete() *InvoiceLineDelete {
+	mutation := newInvoiceLineMutation(c.config, OpDelete)
+	return &InvoiceLineDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *InvoiceLineClient) DeleteOne(_m *InvoiceLine) *InvoiceLineDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *InvoiceLineClient) DeleteOneID(id int) *InvoiceLineDeleteOne {
+	builder := c.Delete().Where(invoiceline.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &InvoiceLineDeleteOne{builder}
+}
+
+// Query returns a query builder for InvoiceLine.
+func (c *InvoiceLineClient) Query() *InvoiceLineQuery {
+	return &InvoiceLineQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeInvoiceLine},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a InvoiceLine entity by its id.
+func (c *InvoiceLineClient) Get(ctx context.Context, id int) (*InvoiceLine, error) {
+	return c.Query().Where(invoiceline.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *InvoiceLineClient) GetX(ctx context.Context, id int) *InvoiceLine {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryInvoice queries the invoice edge of a InvoiceLine.
+func (c *InvoiceLineClient) QueryInvoice(_m *InvoiceLine) *InvoiceQuery {
+	query := (&InvoiceClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(invoiceline.Table, invoiceline.FieldID, id),
+			sqlgraph.To(invoice.Table, invoice.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, invoiceline.InvoiceTable, invoiceline.InvoiceColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *InvoiceLineClient) Hooks() []Hook {
+	return c.hooks.InvoiceLine
+}
+
+// Interceptors returns the client interceptors.
+func (c *InvoiceLineClient) Interceptors() []Interceptor {
+	return c.inters.InvoiceLine
+}
+
+func (c *InvoiceLineClient) mutate(ctx context.Context, m *InvoiceLineMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&InvoiceLineCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&InvoiceLineUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&InvoiceLineUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&InvoiceLineDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown InvoiceLine mutation op: %q", m.Op())
+	}
+}
+
 // LedgerEntryClient is a client for the LedgerEntry schema.
 type LedgerEntryClient struct {
 	config
@@ -2769,15 +3147,15 @@ func (c *LedgerEntryClient) QueryAccount(_m *LedgerEntry) *BillingAccountQuery {
 	return query
 }
 
-// QueryPeriod queries the period edge of a LedgerEntry.
-func (c *LedgerEntryClient) QueryPeriod(_m *LedgerEntry) *BillingPeriodQuery {
-	query := (&BillingPeriodClient{config: c.config}).Query()
+// QueryInvoice queries the invoice edge of a LedgerEntry.
+func (c *LedgerEntryClient) QueryInvoice(_m *LedgerEntry) *InvoiceQuery {
+	query := (&InvoiceClient{config: c.config}).Query()
 	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
 		id := _m.ID
 		step := sqlgraph.NewStep(
 			sqlgraph.From(ledgerentry.Table, ledgerentry.FieldID, id),
-			sqlgraph.To(billingperiod.Table, billingperiod.FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, true, ledgerentry.PeriodTable, ledgerentry.PeriodColumn),
+			sqlgraph.To(invoice.Table, invoice.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, ledgerentry.InvoiceTable, ledgerentry.InvoiceColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -5585,19 +5963,19 @@ func (c *VerifiedPurchaseClient) mutate(ctx context.Context, m *VerifiedPurchase
 type (
 	hooks struct {
 		APIKey, ArchiveManifest, AuditEvent, BillablePlayer, BillingAccount,
-		BillingPeriod, ConfigVersion, CreditLot, DataDeletionRequest,
-		DataExportRequest, Environment, FeatureFlag, Invitation, LedgerEntry,
-		LiveOpsEvent, MemberProject, MonthlyUsage, Organization, OrganizationMember,
-		Plan, Project, RateCard, Role, Segment, StaffAccess, StripeEvent, UsageCharge,
-		UsageDaily, User, VerifiedPurchase []ent.Hook
+		BillingContract, ConfigVersion, CreditLot, DataDeletionRequest,
+		DataExportRequest, Environment, FeatureFlag, Invitation, Invoice, InvoiceLine,
+		LedgerEntry, LiveOpsEvent, MemberProject, MonthlyUsage, Organization,
+		OrganizationMember, Plan, Project, RateCard, Role, Segment, StaffAccess,
+		StripeEvent, UsageCharge, UsageDaily, User, VerifiedPurchase []ent.Hook
 	}
 	inters struct {
 		APIKey, ArchiveManifest, AuditEvent, BillablePlayer, BillingAccount,
-		BillingPeriod, ConfigVersion, CreditLot, DataDeletionRequest,
-		DataExportRequest, Environment, FeatureFlag, Invitation, LedgerEntry,
-		LiveOpsEvent, MemberProject, MonthlyUsage, Organization, OrganizationMember,
-		Plan, Project, RateCard, Role, Segment, StaffAccess, StripeEvent, UsageCharge,
-		UsageDaily, User, VerifiedPurchase []ent.Interceptor
+		BillingContract, ConfigVersion, CreditLot, DataDeletionRequest,
+		DataExportRequest, Environment, FeatureFlag, Invitation, Invoice, InvoiceLine,
+		LedgerEntry, LiveOpsEvent, MemberProject, MonthlyUsage, Organization,
+		OrganizationMember, Plan, Project, RateCard, Role, Segment, StaffAccess,
+		StripeEvent, UsageCharge, UsageDaily, User, VerifiedPurchase []ent.Interceptor
 	}
 )
 

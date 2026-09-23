@@ -57,6 +57,16 @@ type BillingAccount struct {
 	// class=financial
 	ArrearsMicros int64 `json:"arrears_micros,omitempty"`
 	// class=none
+	Collection billingaccount.Collection `json:"collection,omitempty"`
+	// class=financial
+	ReceivableMicros int64 `json:"receivable_micros,omitempty"`
+	// class=none
+	OverdueSince *time.Time `json:"overdue_since,omitempty"`
+	// class=none
+	InvoicedThrough *time.Time `json:"invoiced_through,omitempty"`
+	// class=none
+	InvoicedLedgerID int `json:"invoiced_ledger_id,omitempty"`
+	// class=none
 	AutoTopupEnabled bool `json:"auto_topup_enabled,omitempty"`
 	// class=financial
 	AutoTopupThresholdMicros int64 `json:"auto_topup_threshold_micros,omitempty"`
@@ -100,8 +110,10 @@ type BillingAccountEdges struct {
 	LedgerEntries []*LedgerEntry `json:"ledger_entries,omitempty"`
 	// CreditLots holds the value of the credit_lots edge.
 	CreditLots []*CreditLot `json:"credit_lots,omitempty"`
-	// Periods holds the value of the periods edge.
-	Periods []*BillingPeriod `json:"periods,omitempty"`
+	// Contracts holds the value of the contracts edge.
+	Contracts []*BillingContract `json:"contracts,omitempty"`
+	// Invoices holds the value of the invoices edge.
+	Invoices []*Invoice `json:"invoices,omitempty"`
 	// StripeEvents holds the value of the stripe_events edge.
 	StripeEvents []*StripeEvent `json:"stripe_events,omitempty"`
 	// MonthlyUsage holds the value of the monthly_usage edge.
@@ -110,7 +122,7 @@ type BillingAccountEdges struct {
 	UsageCharges []*UsageCharge `json:"usage_charges,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [8]bool
+	loadedTypes [9]bool
 }
 
 // OrganizationOrErr returns the Organization value or an error if the edge
@@ -153,19 +165,28 @@ func (e BillingAccountEdges) CreditLotsOrErr() ([]*CreditLot, error) {
 	return nil, &NotLoadedError{edge: "credit_lots"}
 }
 
-// PeriodsOrErr returns the Periods value or an error if the edge
+// ContractsOrErr returns the Contracts value or an error if the edge
 // was not loaded in eager-loading.
-func (e BillingAccountEdges) PeriodsOrErr() ([]*BillingPeriod, error) {
+func (e BillingAccountEdges) ContractsOrErr() ([]*BillingContract, error) {
 	if e.loadedTypes[4] {
-		return e.Periods, nil
+		return e.Contracts, nil
 	}
-	return nil, &NotLoadedError{edge: "periods"}
+	return nil, &NotLoadedError{edge: "contracts"}
+}
+
+// InvoicesOrErr returns the Invoices value or an error if the edge
+// was not loaded in eager-loading.
+func (e BillingAccountEdges) InvoicesOrErr() ([]*Invoice, error) {
+	if e.loadedTypes[5] {
+		return e.Invoices, nil
+	}
+	return nil, &NotLoadedError{edge: "invoices"}
 }
 
 // StripeEventsOrErr returns the StripeEvents value or an error if the edge
 // was not loaded in eager-loading.
 func (e BillingAccountEdges) StripeEventsOrErr() ([]*StripeEvent, error) {
-	if e.loadedTypes[5] {
+	if e.loadedTypes[6] {
 		return e.StripeEvents, nil
 	}
 	return nil, &NotLoadedError{edge: "stripe_events"}
@@ -174,7 +195,7 @@ func (e BillingAccountEdges) StripeEventsOrErr() ([]*StripeEvent, error) {
 // MonthlyUsageOrErr returns the MonthlyUsage value or an error if the edge
 // was not loaded in eager-loading.
 func (e BillingAccountEdges) MonthlyUsageOrErr() ([]*MonthlyUsage, error) {
-	if e.loadedTypes[6] {
+	if e.loadedTypes[7] {
 		return e.MonthlyUsage, nil
 	}
 	return nil, &NotLoadedError{edge: "monthly_usage"}
@@ -183,7 +204,7 @@ func (e BillingAccountEdges) MonthlyUsageOrErr() ([]*MonthlyUsage, error) {
 // UsageChargesOrErr returns the UsageCharges value or an error if the edge
 // was not loaded in eager-loading.
 func (e BillingAccountEdges) UsageChargesOrErr() ([]*UsageCharge, error) {
-	if e.loadedTypes[7] {
+	if e.loadedTypes[8] {
 		return e.UsageCharges, nil
 	}
 	return nil, &NotLoadedError{edge: "usage_charges"}
@@ -198,11 +219,11 @@ func (*BillingAccount) scanValues(columns []string) ([]any, error) {
 			values[i] = new([]byte)
 		case billingaccount.FieldSubscriptionCancelAtPeriodEnd, billingaccount.FieldAutoTopupEnabled:
 			values[i] = new(sql.NullBool)
-		case billingaccount.FieldID, billingaccount.FieldOrganizationID, billingaccount.FieldPlanID, billingaccount.FieldBalanceMicros, billingaccount.FieldArrearsMicros, billingaccount.FieldAutoTopupThresholdMicros, billingaccount.FieldAutoTopupAmountMicros, billingaccount.FieldAutoTopupPendingAmountMicros, billingaccount.FieldAutoTopupDailyLimit, billingaccount.FieldAutoTopupWindowCount:
+		case billingaccount.FieldID, billingaccount.FieldOrganizationID, billingaccount.FieldPlanID, billingaccount.FieldBalanceMicros, billingaccount.FieldArrearsMicros, billingaccount.FieldReceivableMicros, billingaccount.FieldInvoicedLedgerID, billingaccount.FieldAutoTopupThresholdMicros, billingaccount.FieldAutoTopupAmountMicros, billingaccount.FieldAutoTopupPendingAmountMicros, billingaccount.FieldAutoTopupDailyLimit, billingaccount.FieldAutoTopupWindowCount:
 			values[i] = new(sql.NullInt64)
-		case billingaccount.FieldStripeCustomerID, billingaccount.FieldStripeSubscriptionID, billingaccount.FieldSubscriptionStatus, billingaccount.FieldSubscriptionInterval, billingaccount.FieldState, billingaccount.FieldCurrency, billingaccount.FieldAutoTopupPendingKey, billingaccount.FieldAutoTopupLastError, billingaccount.FieldBillingEmail:
+		case billingaccount.FieldStripeCustomerID, billingaccount.FieldStripeSubscriptionID, billingaccount.FieldSubscriptionStatus, billingaccount.FieldSubscriptionInterval, billingaccount.FieldState, billingaccount.FieldCurrency, billingaccount.FieldCollection, billingaccount.FieldAutoTopupPendingKey, billingaccount.FieldAutoTopupLastError, billingaccount.FieldBillingEmail:
 			values[i] = new(sql.NullString)
-		case billingaccount.FieldCreatedAt, billingaccount.FieldUpdatedAt, billingaccount.FieldSubscriptionPeriodEnd, billingaccount.FieldSubscriptionSyncedAt, billingaccount.FieldStateChangedAt, billingaccount.FieldAutoTopupPendingAt, billingaccount.FieldAutoTopupRetryAfter, billingaccount.FieldAutoTopupRequestedAt, billingaccount.FieldAutoTopupWindowStartedAt:
+		case billingaccount.FieldCreatedAt, billingaccount.FieldUpdatedAt, billingaccount.FieldSubscriptionPeriodEnd, billingaccount.FieldSubscriptionSyncedAt, billingaccount.FieldStateChangedAt, billingaccount.FieldOverdueSince, billingaccount.FieldInvoicedThrough, billingaccount.FieldAutoTopupPendingAt, billingaccount.FieldAutoTopupRetryAfter, billingaccount.FieldAutoTopupRequestedAt, billingaccount.FieldAutoTopupWindowStartedAt:
 			values[i] = new(sql.NullTime)
 		case billingaccount.FieldUID:
 			values[i] = new(uuid.UUID)
@@ -335,6 +356,38 @@ func (_m *BillingAccount) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.ArrearsMicros = value.Int64
 			}
+		case billingaccount.FieldCollection:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field collection", values[i])
+			} else if value.Valid {
+				_m.Collection = billingaccount.Collection(value.String)
+			}
+		case billingaccount.FieldReceivableMicros:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field receivable_micros", values[i])
+			} else if value.Valid {
+				_m.ReceivableMicros = value.Int64
+			}
+		case billingaccount.FieldOverdueSince:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field overdue_since", values[i])
+			} else if value.Valid {
+				_m.OverdueSince = new(time.Time)
+				*_m.OverdueSince = value.Time
+			}
+		case billingaccount.FieldInvoicedThrough:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field invoiced_through", values[i])
+			} else if value.Valid {
+				_m.InvoicedThrough = new(time.Time)
+				*_m.InvoicedThrough = value.Time
+			}
+		case billingaccount.FieldInvoicedLedgerID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field invoiced_ledger_id", values[i])
+			} else if value.Valid {
+				_m.InvoicedLedgerID = int(value.Int64)
+			}
 		case billingaccount.FieldAutoTopupEnabled:
 			if value, ok := values[i].(*sql.NullBool); !ok {
 				return fmt.Errorf("unexpected type %T for field auto_topup_enabled", values[i])
@@ -461,9 +514,14 @@ func (_m *BillingAccount) QueryCreditLots() *CreditLotQuery {
 	return NewBillingAccountClient(_m.config).QueryCreditLots(_m)
 }
 
-// QueryPeriods queries the "periods" edge of the BillingAccount entity.
-func (_m *BillingAccount) QueryPeriods() *BillingPeriodQuery {
-	return NewBillingAccountClient(_m.config).QueryPeriods(_m)
+// QueryContracts queries the "contracts" edge of the BillingAccount entity.
+func (_m *BillingAccount) QueryContracts() *BillingContractQuery {
+	return NewBillingAccountClient(_m.config).QueryContracts(_m)
+}
+
+// QueryInvoices queries the "invoices" edge of the BillingAccount entity.
+func (_m *BillingAccount) QueryInvoices() *InvoiceQuery {
+	return NewBillingAccountClient(_m.config).QueryInvoices(_m)
 }
 
 // QueryStripeEvents queries the "stripe_events" edge of the BillingAccount entity.
@@ -566,6 +624,25 @@ func (_m *BillingAccount) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("arrears_micros=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ArrearsMicros))
+	builder.WriteString(", ")
+	builder.WriteString("collection=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Collection))
+	builder.WriteString(", ")
+	builder.WriteString("receivable_micros=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ReceivableMicros))
+	builder.WriteString(", ")
+	if v := _m.OverdueSince; v != nil {
+		builder.WriteString("overdue_since=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := _m.InvoicedThrough; v != nil {
+		builder.WriteString("invoiced_through=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("invoiced_ledger_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.InvoicedLedgerID))
 	builder.WriteString(", ")
 	builder.WriteString("auto_topup_enabled=")
 	builder.WriteString(fmt.Sprintf("%v", _m.AutoTopupEnabled))

@@ -159,11 +159,11 @@ func (Plan) Edges() []ent.Edge {
 //
 // # Stripe owns money, PlayerSense owns usage
 //
-// §40 sets the direction and this row is the seam. Meters are computed here from the analytics
-// tables and reported to Stripe; cards, invoices, tax and dunning are Stripe's, and everything
-// it decides arrives back as a webhook (see StripeEvent). The Stripe identifiers below are
-// therefore pointers, not mirrors — there is deliberately no local copy of an invoice, because
-// a mirror of somebody else's state is a thing that goes stale silently.
+// §40 sets the direction and this row is the seam. Usage is priced here (ADR 0039); cards, tax
+// and dunning are Stripe's, and everything it decides arrives back as a webhook (see
+// StripeEvent). The Stripe identifiers below are therefore pointers, not mirrors. The one
+// invoice kept locally is PlayerSense's own usage invoice for a contracted account (ADR 0045) —
+// because what it bills is decided here, and Stripe's copy is the delivery of it.
 //
 // # The balance is ours
 //
@@ -236,8 +236,32 @@ func (BillingAccount) Fields() []ent.Field {
 		// balance also moves with lapsed-but-unswept credit, and "how much does this account
 		// owe" must not depend on whether the expiry sweep has run.
 		//
-		// Invariant: balance_micros = Σ lots.remaining_micros − arrears_micros.
+		// Invariant: balance_micros = Σ lots.remaining_micros − arrears_micros − receivable_micros.
 		field.Int64("arrears_micros").Default(0).Min(0).Comment(dataclass.Financial),
+
+		// How this account pays (ADR 0045). `prepaid` is everything ADRs 0039–0044 describe: a
+		// wallet funded by card. `invoiced` is a contracted account billed monthly with payment
+		// terms, and only staff move an account to it — through a BillingContract, which says on
+		// what terms.
+		field.Enum("collection").Values("prepaid", "invoiced").Default("prepaid").
+			Comment(dataclass.None),
+
+		// What an invoiced account has used and not yet paid for, invoiced or not (ADR 0045).
+		// Usage credit cannot cover lands here rather than in arrears, because it is owed and not
+		// overdue: arrears starts the grace clock, and a receivable is only late once an invoice
+		// for it passes its due date. Falls when Stripe reports an invoice paid.
+		field.Int64("receivable_micros").Default(0).Min(0).Comment(dataclass.Financial),
+
+		// When the first invoice still unpaid passed its due date. Nil while nothing is overdue.
+		// Set and cleared by the suspension job and by the payment webhook; the grace before
+		// suspension is counted from here, not from when the account first owed.
+		field.Time("overdue_since").Optional().Nillable().Comment(dataclass.None),
+
+		// Where the next invoice starts: the end of the last period invoiced, and the last ledger
+		// entry that invoice covered. Written by the month close in the same transaction as the
+		// invoice, so a close that runs twice finds the month already done.
+		field.Time("invoiced_through").Optional().Nillable().Comment(dataclass.None),
+		field.Int("invoiced_ledger_id").Default(0).Min(0).Comment(dataclass.None),
 
 		// Automatic top-up. Off by default: a charge nobody authorised at the moment it
 		// happens needs to be something a person turned on deliberately.
@@ -325,6 +349,9 @@ func (BillingAccount) Indexes() []ent.Index {
 		// The automatic top-up queue: only accounts that are asking. Oldest request first.
 		index.Fields("auto_topup_requested_at").
 			Annotations(entsql.IndexWhere("auto_topup_requested_at IS NOT NULL")),
+		// The month close: invoiced accounts, oldest period first.
+		index.Fields("invoiced_through").
+			Annotations(entsql.IndexWhere("collection = 'invoiced'")),
 	}
 }
 
@@ -336,7 +363,8 @@ func (BillingAccount) Edges() []ent.Edge {
 			Field("plan_id").Unique().Required(),
 		edge.To("ledger_entries", LedgerEntry.Type),
 		edge.To("credit_lots", CreditLot.Type),
-		edge.To("periods", BillingPeriod.Type),
+		edge.To("contracts", BillingContract.Type),
+		edge.To("invoices", Invoice.Type),
 		edge.To("stripe_events", StripeEvent.Type),
 		edge.To("monthly_usage", MonthlyUsage.Type),
 		edge.To("usage_charges", UsageCharge.Type),
@@ -365,13 +393,15 @@ func (LedgerEntry) Fields() []ent.Field {
 	return []ent.Field{
 		field.Int("account_id").Immutable().Comment(dataclass.None),
 
-		//	topup         money in, from a card
-		//	promo         credit granted rather than bought, and therefore expiring
-		//	usage         a closed period's charge
-		//	subscription  the monthly plan fee
-		//	adjustment    a human decision: a credit, a correction, a goodwill refund
-		//	refund        money back out to the card
-		//	expiry        promotional credit that lapsed unspent
+		//	topup            money in, from a card
+		//	promo            credit granted rather than bought, and therefore expiring
+		//	usage            players charged
+		//	subscription     the plan fee, or an invoiced contract's platform fee
+		//	commitment       an invoiced contract's minimum, topped up at the month close
+		//	invoice_payment  an invoice paid (ADR 0045): the receivable falls
+		//	adjustment       a human decision: a credit, a correction, a goodwill refund
+		//	refund           money back out to the card, or taken back by a bank
+		//	expiry           promotional credit that lapsed unspent
 		//
 		// `promo` is not a `topup` and `expiry` is not an `adjustment`, and neither
 		// distinction is cosmetic. A topup is money that arrived — it appears in revenue and
@@ -381,7 +411,8 @@ func (LedgerEntry) Fields() []ent.Field {
 		// reading "adjustment -$40" on the day their trial credit lapsed would reasonably
 		// ask who did that to them.
 		field.Enum("kind").
-			Values("topup", "promo", "usage", "subscription", "adjustment", "refund", "expiry").
+			Values("topup", "promo", "usage", "subscription", "commitment", "invoice_payment",
+				"adjustment", "refund", "expiry").
 			Immutable().Comment(dataclass.None),
 
 		// Signed: positive adds to the balance, negative spends it. One column rather than
@@ -399,9 +430,20 @@ func (LedgerEntry) Fields() []ent.Field {
 		field.String("stripe_reference").MaxLen(255).Optional().Nillable().Immutable().
 			Comment(dataclass.None),
 
-		// Which billing period a usage charge belongs to, so a statement can group. Null
-		// for everything that is not a period charge.
-		field.Int("period_id").Optional().Nillable().Immutable().Comment(dataclass.None),
+		// The month a usage charge belongs to, by arrival (ADR 0039) — so an invoice can say
+		// "May" for usage that settled on the first of June. Null for anything that is not usage.
+		field.Time("period_start").Optional().Nillable().Immutable().Comment(dataclass.None),
+
+		// How much of this movement became, or cleared, an invoiced account's receivable (ADR
+		// 0045): positive for usage credit did not cover, a platform fee or a commitment top-up;
+		// negative for a payment, a credit note or a write-off. Zero for every prepaid movement.
+		// An invoice bills the accruals — the positive side — between two ledger entries.
+		field.Int64("receivable_micros").Default(0).Immutable().Comment(dataclass.Financial),
+
+		// The invoice a settlement settles: a payment, a credit note, a write-off, a dispute.
+		// Null on every accrual, which is how the month close tells what to bill from what
+		// has already been billed and is now being paid.
+		field.Int("invoice_id").Optional().Nillable().Immutable().Comment(dataclass.None),
 
 		// What makes writing this twice harmless.
 		//
@@ -421,8 +463,8 @@ func (LedgerEntry) Edges() []ent.Edge {
 	return []ent.Edge{
 		edge.From("account", BillingAccount.Type).Ref("ledger_entries").
 			Field("account_id").Unique().Required().Immutable(),
-		edge.From("period", BillingPeriod.Type).Ref("charges").
-			Field("period_id").Unique().Immutable(),
+		edge.From("invoice", Invoice.Type).Ref("settlements").
+			Field("invoice_id").Unique().Immutable(),
 	}
 }
 
@@ -430,6 +472,10 @@ func (LedgerEntry) Indexes() []ent.Index {
 	return []ent.Index{
 		// A statement: one account, newest first.
 		index.Fields("account_id", "created_at"),
+		// The month close: one account's entries since the last invoice.
+		index.Fields("account_id", "id"),
+		// What a month's usage came to, to check an invoice against the dashboard.
+		index.Fields("account_id", "period_start"),
 	}
 }
 
@@ -567,7 +613,7 @@ func (CreditLot) Indexes() []ent.Index {
 // It is a *distinct count*, so the month's figure is not the sum of its days — a player active
 // on twenty days would be counted twenty times. This column is the day's count, kept for the
 // dashboard's daily chart; the billable monthly number is computed once at close by an exact
-// distinct over the month's own actor set (§38) and stored on BillingPeriod. The two
+// distinct over the month's own actor set (§38) and kept in MonthlyUsage. The two
 // numbers answer different questions and the day one is deliberately not billable.
 type UsageDaily struct{ ent.Schema }
 
@@ -626,81 +672,235 @@ func (UsageDaily) Indexes() []ent.Index {
 	}
 }
 
-// BillingPeriod is one month, frozen.
+// BillingContract is the terms an organization is billed on, from a moment on (ADR 0045).
 //
-// §40's "immutable billing-period snapshot". The quantities are Immutable, so what was
-// invoiced stays readable exactly as it was computed — a customer asking about March gets
-// March's numbers, not today's recomputation of them. The reporting fields are not immutable,
-// because telling Stripe is a thing that happens after the numbers exist and can fail.
+// Append-only and versioned: new terms are a new row with a later `effective_from`, never an edit.
+// A month's invoice uses the contract in force when the month ended, so "what did we agree in March"
+// is answerable in September from the rows, not from somebody's memory of what the row used to say.
 //
-// The distinction is the point: **a snapshot's facts are final, its delivery is not.**
-type BillingPeriod struct{ ent.Schema }
+// The account's `collection` is what the charger and the wallet read, on every movement; this is what
+// the month close reads, once a month. Both are written in one transaction by the operator route that
+// sets a contract.
+type BillingContract struct{ ent.Schema }
 
-func (BillingPeriod) Mixin() []ent.Mixin { return []ent.Mixin{mixin{}} }
-func (BillingPeriod) Annotations() []schema.Annotation {
-	return []schema.Annotation{withComments()}
-}
+func (BillingContract) Mixin() []ent.Mixin               { return []ent.Mixin{appendOnlyMixin{}} }
+func (BillingContract) Annotations() []schema.Annotation { return []schema.Annotation{withComments()} }
 
-func (BillingPeriod) Fields() []ent.Field {
+func (BillingContract) Fields() []ent.Field {
 	return []ent.Field{
 		field.Int("account_id").Immutable().Comment(dataclass.None),
 
-		// Half-open, [start, end), so two adjacent months never both claim an instant.
+		// prepaid or invoiced. A prepaid contract is how an invoiced account is moved back, and it
+		// is kept rather than deleted because the history of terms is the point of the table.
+		field.Enum("collection").Values("prepaid", "invoiced").Immutable().Comment(dataclass.None),
+
+		// When these terms start. A month is billed on the contract in force at its end.
+		field.Time("effective_from").Immutable().Comment(dataclass.None),
+
+		// Net terms: an invoice is due this many days after it is issued. And the grace after a
+		// missed due date before ingestion is suspended.
+		field.Int("terms_days").Default(30).Min(0).Max(120).Immutable().Comment(dataclass.None),
+		field.Int("overdue_grace_days").Default(14).Min(0).Max(90).Immutable().Comment(dataclass.None),
+
+		// Billed every month, prorated by the day in the first and last month of the contract.
+		// Straight to the receivable: credit is a discount on usage, not on the contract.
+		field.Int64("platform_fee_micros").Default(0).Min(0).Immutable().Comment(dataclass.Financial),
+
+		// The least a month's invoice bills for usage. When usage came to less, the difference is
+		// a `commitment` line; when it came to more, nothing.
+		field.Int64("minimum_commitment_micros").Default(0).Min(0).Immutable().Comment(dataclass.Financial),
+
+		// The exposure cap agreed with the contract, recorded with it. What is enforced is the
+		// account's credit_limit_micros override, which the contract route sets from this.
+		field.Int64("credit_limit_micros").Optional().Nillable().Min(0).Immutable().
+			Comment(dataclass.Financial),
+
+		// Printed on every invoice: a purchase order is how a finance team matches an invoice
+		// to the budget it is paid from, and one without it is an invoice that waits.
+		field.String("po_number").MaxLen(140).Default("").Immutable().Comment(dataclass.None),
+		field.String("memo").MaxLen(500).Default("").Immutable().Comment(dataclass.None),
+
+		// Who set it, self-asserted, for the reason audit.OperatorActor gives.
+		field.String("operator").MaxLen(254).Default("").Immutable().Comment(dataclass.None),
+	}
+}
+
+func (BillingContract) Edges() []ent.Edge {
+	return []ent.Edge{
+		edge.From("account", BillingAccount.Type).Ref("contracts").
+			Field("account_id").Unique().Required().Immutable(),
+		edge.To("invoices", Invoice.Type),
+	}
+}
+
+func (BillingContract) Indexes() []ent.Index {
+	return []ent.Index{
+		// The contract in force at a moment: one account's, latest first.
+		index.Fields("account_id", "effective_from"),
+	}
+}
+
+// Invoice is one invoiced account's bill for a period (ADR 0045).
+//
+// # A stretch of the ledger, not a recomputation
+//
+// An invoice bills every receivable accrual on its account's ledger after `ledger_from_id` and up to
+// `ledger_to_id`: usage credit did not cover, the platform fee, the commitment top-up. So it is never
+// computed from anything but the ledger, and a charge that settled late is on the next invoice rather
+// than on neither. What it billed is fixed when it is written, and immutable.
+//
+// # Stripe is told, and answers by webhook
+//
+// The row is also the claim that issues it at Stripe, the way `auto_topup_pending_key` is for a
+// top-up: `issue_key` is committed before Stripe is asked, and every Stripe step is keyed off it, so a
+// response lost in flight is resumed as the same invoice rather than sent twice. Its status afterwards
+// is Stripe's latest word, applied only when newer than the word before.
+type Invoice struct{ ent.Schema }
+
+func (Invoice) Mixin() []ent.Mixin               { return []ent.Mixin{mixin{}} }
+func (Invoice) Annotations() []schema.Annotation { return []schema.Annotation{withComments()} }
+
+func (Invoice) Fields() []ent.Field {
+	return []ent.Field{
+		field.Int("account_id").Immutable().Comment(dataclass.None),
+		field.Int("contract_id").Optional().Nillable().Immutable().Comment(dataclass.None),
+
+		// Half-open, [start, end). A month, or less: the first month of a contract starts when it
+		// did, and a final invoice ends when the account left invoicing.
 		field.Time("period_start").Immutable().Comment(dataclass.None),
 		field.Time("period_end").Immutable().Comment(dataclass.None),
 
-		// The plan as it was, by key and price, not by edge. A plan renamed or repriced in
-		// June must not change what May's invoice says it was for.
-		field.String("plan_key").NotEmpty().MaxLen(64).Immutable().Comment(dataclass.None),
-		field.Int64("plan_price_micros").Default(0).Immutable().Comment(dataclass.Financial),
+		// The ledger it bills: entries after `from` and up to `to`.
+		field.Int("ledger_from_id").Immutable().Comment(dataclass.None),
+		field.Int("ledger_to_id").Immutable().Comment(dataclass.None),
 
-		// §38's exact distinct, computed once at close from the month's actor set and
-		// never from events_raw — the raw table is the wrong grain and the wrong cost for a
-		// number an invoice is built on.
-		field.Uint64("tracked_players").Default(0).Immutable().Comment(dataclass.None),
-		field.Uint64("events_accepted").Default(0).Immutable().Comment(dataclass.None),
-
-		// §39's GB-month, as byte-days summed over the period. Stored as the integral
-		// rather than the division, so the divisor — which is a calendar fact, 28 to 31 —
-		// is applied at render time and a leap February cannot silently change a stored
-		// number's meaning.
-		field.Uint64("retained_byte_days").Default(0).Immutable().Comment(dataclass.None),
-
-		// What it came to, and what was included. Both stored, because "you used 120k and
-		// 100k was included" is the sentence a customer needs and recomputing the
-		// allowance later would read today's plan.
-		field.JSON("included", map[string]int64{}).Default(map[string]int64{}).Immutable().
-			Comment(dataclass.None),
-		field.Int64("amount_micros").Default(0).Immutable().Comment(dataclass.Financial),
 		field.String("currency").MaxLen(3).Default("usd").Immutable().Comment(dataclass.Financial),
 
-		//	open      the month is running; quantities are provisional
-		//	closed    the numbers are final
-		//	reported  Stripe has the meter events
-		//	invoiced  Stripe has issued the invoice
-		//	void      closed in error, superseded; kept rather than deleted
-		field.Enum("status").Values("open", "closed", "reported", "invoiced", "void").
-			Default("open").Comment(dataclass.None),
-		field.Time("closed_at").Optional().Nillable().Comment(dataclass.None),
-		field.Time("reported_at").Optional().Nillable().Comment(dataclass.None),
-		field.String("stripe_invoice_id").MaxLen(255).Optional().Nillable().Comment(dataclass.None),
+		// What it bills, in whole cents as micros. Stripe bills cents and the ledger keeps micros, so
+		// the part below a cent is carried to the next invoice rather than rounded: `carry_in` is
+		// what the last one left, and `carry_out` what this one leaves.
+		field.Int64("total_micros").Min(0).Immutable().Comment(dataclass.Financial),
+		field.Int64("carry_in_micros").Default(0).Immutable().Comment(dataclass.Financial),
+		field.Int64("carry_out_micros").Default(0).Immutable().Comment(dataclass.Financial),
+
+		// How far the usage billed for the period's month is from what the dashboard said it cost
+		// (monthly_usage.charged_micros). Zero when they agree, which they should; kept rather than
+		// refused, because the ledger is what is owed and staff need to see the difference.
+		field.Int64("discrepancy_micros").Default(0).Immutable().Comment(dataclass.Financial),
+
+		// The terms it was issued on, from the contract at the time.
+		field.Int("terms_days").Default(30).Immutable().Comment(dataclass.None),
+		field.String("po_number").MaxLen(140).Default("").Immutable().Comment(dataclass.None),
+		field.String("memo").MaxLen(500).Default("").Immutable().Comment(dataclass.None),
+
+		// Issued when the account moved back to prepaid, for everything not yet billed.
+		field.Bool("final").Default(false).Immutable().Comment(dataclass.None),
+
+		//	draft          written by the close, not yet at Stripe
+		//	open           issued; awaiting payment
+		//	paid           Stripe reported it paid
+		//	void           voided in Stripe; what it billed was written off
+		//	uncollectible  marked uncollectible in Stripe; written off
+		//	empty          nothing to bill; never sent
+		field.Enum("status").Values("draft", "open", "paid", "void", "uncollectible", "empty").
+			Default("draft").Comment(dataclass.None),
+
+		// What is still owed on it, and what has been paid. Moved only by settlements, each a
+		// ledger entry naming this invoice.
+		field.Int64("amount_remaining_micros").Default(0).Min(0).Comment(dataclass.Financial),
+		field.Int64("amount_paid_micros").Default(0).Min(0).Comment(dataclass.Financial),
+
+		field.Time("issued_at").Optional().Nillable().Comment(dataclass.None),
+		field.Time("due_at").Optional().Nillable().Comment(dataclass.None),
+		field.Time("paid_at").Optional().Nillable().Comment(dataclass.None),
+
+		// The claim: committed before Stripe is asked, and the base of every Idempotency-Key the
+		// issue sends. `issue_attempted_at` is the latest attempt, so a claim left unanswered is
+		// retried after a while rather than at once by every pass.
+		field.String("issue_key").NotEmpty().MaxLen(255).Unique().Immutable().Comment(dataclass.None),
+		field.Time("issue_attempted_at").Optional().Nillable().Comment(dataclass.None),
+		field.String("last_error").MaxLen(500).Default("").Comment(dataclass.None),
+
+		// Stripe's side: pointers, and what a customer clicks.
+		field.String("stripe_invoice_id").MaxLen(255).Optional().Nillable().Unique().
+			Comment(dataclass.None),
+		field.String("number").MaxLen(64).Default("").Comment(dataclass.None),
+		field.String("hosted_url").MaxLen(2048).Default("").Comment(dataclass.None),
+		field.String("pdf_url").MaxLen(2048).Default("").Comment(dataclass.None),
+
+		// The PaymentIntent that paid it, when one did — so a dispute of the payment finds the
+		// invoice. Nil for a wire marked paid out of band.
+		field.String("payment_intent").MaxLen(255).Optional().Nillable().Comment(dataclass.None),
+
+		// Stripe's clock on the last event applied, so an event delivered late cannot undo a newer
+		// one: a `finalized` arriving after `paid` must not reopen it.
+		field.Time("stripe_synced_at").Optional().Nillable().Comment(dataclass.None),
 	}
 }
 
-func (BillingPeriod) Edges() []ent.Edge {
+func (Invoice) Edges() []ent.Edge {
 	return []ent.Edge{
-		edge.From("account", BillingAccount.Type).Ref("periods").
+		edge.From("account", BillingAccount.Type).Ref("invoices").
 			Field("account_id").Unique().Required().Immutable(),
-		edge.To("charges", LedgerEntry.Type),
+		edge.From("contract", BillingContract.Type).Ref("invoices").
+			Field("contract_id").Unique().Immutable(),
+		edge.To("lines", InvoiceLine.Type),
+		edge.To("settlements", LedgerEntry.Type),
 	}
 }
 
-func (BillingPeriod) Indexes() []ent.Index {
+func (Invoice) Indexes() []ent.Index {
 	return []ent.Index{
-		// One period per account per month, which is also what stops a second close from
-		// writing a second snapshot.
-		index.Fields("period_start").Edges("account").Unique(),
-		index.Fields("status", "period_end"),
+		// One invoice per account per period start, which is also what stops a second close of the
+		// same month from writing a second invoice.
+		index.Fields("account_id", "period_start").Unique(),
+		// The issue queue, and the overdue sweep.
+		index.Fields("status", "due_at"),
+		index.Fields("payment_intent"),
+	}
+}
+
+// InvoiceLine is one line of an invoice, as it was billed.
+type InvoiceLine struct{ ent.Schema }
+
+func (InvoiceLine) Mixin() []ent.Mixin               { return []ent.Mixin{appendOnlyMixin{}} }
+func (InvoiceLine) Annotations() []schema.Annotation { return []schema.Annotation{withComments()} }
+
+func (InvoiceLine) Fields() []ent.Field {
+	return []ent.Field{
+		field.Int("invoice_id").Immutable().Comment(dataclass.None),
+		field.Int("position").Min(0).Immutable().Comment(dataclass.None),
+
+		//	platform_fee     the contract's monthly fee
+		//	usage            players in the period's month
+		//	prior_usage      players in an earlier month, settled after it was invoiced
+		//	credits_applied  the part of usage credit paid for; negative
+		//	commitment       what the minimum exceeded usage by
+		//	adjustment       anything else the ledger accrued: arrears carried in at the switch
+		field.Enum("kind").
+			Values("platform_fee", "usage", "prior_usage", "credits_applied", "commitment", "adjustment").
+			Immutable().Comment(dataclass.None),
+		field.String("description").MaxLen(255).Immutable().Comment(dataclass.None),
+
+		// The ledger's exact amount, and what Stripe bills for it in cents. They differ by less than
+		// a cent per line; the invoice's total is the sum of the cents.
+		field.Int64("amount_micros").Immutable().Comment(dataclass.Financial),
+		field.Int64("amount_cents").Immutable().Comment(dataclass.Financial),
+
+		field.Time("period_start").Optional().Nillable().Immutable().Comment(dataclass.None),
+	}
+}
+
+func (InvoiceLine) Edges() []ent.Edge {
+	return []ent.Edge{
+		edge.From("invoice", Invoice.Type).Ref("lines").
+			Field("invoice_id").Unique().Required().Immutable(),
+	}
+}
+
+func (InvoiceLine) Indexes() []ent.Index {
+	return []ent.Index{
+		index.Fields("invoice_id", "position").Unique(),
 	}
 }
 

@@ -131,6 +131,26 @@ func ArrearsMicros(v int64) predicate.BillingAccount {
 	return predicate.BillingAccount(sql.FieldEQ(FieldArrearsMicros, v))
 }
 
+// ReceivableMicros applies equality check predicate on the "receivable_micros" field. It's identical to ReceivableMicrosEQ.
+func ReceivableMicros(v int64) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldEQ(FieldReceivableMicros, v))
+}
+
+// OverdueSince applies equality check predicate on the "overdue_since" field. It's identical to OverdueSinceEQ.
+func OverdueSince(v time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldEQ(FieldOverdueSince, v))
+}
+
+// InvoicedThrough applies equality check predicate on the "invoiced_through" field. It's identical to InvoicedThroughEQ.
+func InvoicedThrough(v time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldEQ(FieldInvoicedThrough, v))
+}
+
+// InvoicedLedgerID applies equality check predicate on the "invoiced_ledger_id" field. It's identical to InvoicedLedgerIDEQ.
+func InvoicedLedgerID(v int) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldEQ(FieldInvoicedLedgerID, v))
+}
+
 // AutoTopupEnabled applies equality check predicate on the "auto_topup_enabled" field. It's identical to AutoTopupEnabledEQ.
 func AutoTopupEnabled(v bool) predicate.BillingAccount {
 	return predicate.BillingAccount(sql.FieldEQ(FieldAutoTopupEnabled, v))
@@ -926,6 +946,206 @@ func ArrearsMicrosLTE(v int64) predicate.BillingAccount {
 	return predicate.BillingAccount(sql.FieldLTE(FieldArrearsMicros, v))
 }
 
+// CollectionEQ applies the EQ predicate on the "collection" field.
+func CollectionEQ(v Collection) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldEQ(FieldCollection, v))
+}
+
+// CollectionNEQ applies the NEQ predicate on the "collection" field.
+func CollectionNEQ(v Collection) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldNEQ(FieldCollection, v))
+}
+
+// CollectionIn applies the In predicate on the "collection" field.
+func CollectionIn(vs ...Collection) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldIn(FieldCollection, vs...))
+}
+
+// CollectionNotIn applies the NotIn predicate on the "collection" field.
+func CollectionNotIn(vs ...Collection) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldNotIn(FieldCollection, vs...))
+}
+
+// ReceivableMicrosEQ applies the EQ predicate on the "receivable_micros" field.
+func ReceivableMicrosEQ(v int64) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldEQ(FieldReceivableMicros, v))
+}
+
+// ReceivableMicrosNEQ applies the NEQ predicate on the "receivable_micros" field.
+func ReceivableMicrosNEQ(v int64) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldNEQ(FieldReceivableMicros, v))
+}
+
+// ReceivableMicrosIn applies the In predicate on the "receivable_micros" field.
+func ReceivableMicrosIn(vs ...int64) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldIn(FieldReceivableMicros, vs...))
+}
+
+// ReceivableMicrosNotIn applies the NotIn predicate on the "receivable_micros" field.
+func ReceivableMicrosNotIn(vs ...int64) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldNotIn(FieldReceivableMicros, vs...))
+}
+
+// ReceivableMicrosGT applies the GT predicate on the "receivable_micros" field.
+func ReceivableMicrosGT(v int64) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldGT(FieldReceivableMicros, v))
+}
+
+// ReceivableMicrosGTE applies the GTE predicate on the "receivable_micros" field.
+func ReceivableMicrosGTE(v int64) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldGTE(FieldReceivableMicros, v))
+}
+
+// ReceivableMicrosLT applies the LT predicate on the "receivable_micros" field.
+func ReceivableMicrosLT(v int64) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldLT(FieldReceivableMicros, v))
+}
+
+// ReceivableMicrosLTE applies the LTE predicate on the "receivable_micros" field.
+func ReceivableMicrosLTE(v int64) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldLTE(FieldReceivableMicros, v))
+}
+
+// OverdueSinceEQ applies the EQ predicate on the "overdue_since" field.
+func OverdueSinceEQ(v time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldEQ(FieldOverdueSince, v))
+}
+
+// OverdueSinceNEQ applies the NEQ predicate on the "overdue_since" field.
+func OverdueSinceNEQ(v time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldNEQ(FieldOverdueSince, v))
+}
+
+// OverdueSinceIn applies the In predicate on the "overdue_since" field.
+func OverdueSinceIn(vs ...time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldIn(FieldOverdueSince, vs...))
+}
+
+// OverdueSinceNotIn applies the NotIn predicate on the "overdue_since" field.
+func OverdueSinceNotIn(vs ...time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldNotIn(FieldOverdueSince, vs...))
+}
+
+// OverdueSinceGT applies the GT predicate on the "overdue_since" field.
+func OverdueSinceGT(v time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldGT(FieldOverdueSince, v))
+}
+
+// OverdueSinceGTE applies the GTE predicate on the "overdue_since" field.
+func OverdueSinceGTE(v time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldGTE(FieldOverdueSince, v))
+}
+
+// OverdueSinceLT applies the LT predicate on the "overdue_since" field.
+func OverdueSinceLT(v time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldLT(FieldOverdueSince, v))
+}
+
+// OverdueSinceLTE applies the LTE predicate on the "overdue_since" field.
+func OverdueSinceLTE(v time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldLTE(FieldOverdueSince, v))
+}
+
+// OverdueSinceIsNil applies the IsNil predicate on the "overdue_since" field.
+func OverdueSinceIsNil() predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldIsNull(FieldOverdueSince))
+}
+
+// OverdueSinceNotNil applies the NotNil predicate on the "overdue_since" field.
+func OverdueSinceNotNil() predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldNotNull(FieldOverdueSince))
+}
+
+// InvoicedThroughEQ applies the EQ predicate on the "invoiced_through" field.
+func InvoicedThroughEQ(v time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldEQ(FieldInvoicedThrough, v))
+}
+
+// InvoicedThroughNEQ applies the NEQ predicate on the "invoiced_through" field.
+func InvoicedThroughNEQ(v time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldNEQ(FieldInvoicedThrough, v))
+}
+
+// InvoicedThroughIn applies the In predicate on the "invoiced_through" field.
+func InvoicedThroughIn(vs ...time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldIn(FieldInvoicedThrough, vs...))
+}
+
+// InvoicedThroughNotIn applies the NotIn predicate on the "invoiced_through" field.
+func InvoicedThroughNotIn(vs ...time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldNotIn(FieldInvoicedThrough, vs...))
+}
+
+// InvoicedThroughGT applies the GT predicate on the "invoiced_through" field.
+func InvoicedThroughGT(v time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldGT(FieldInvoicedThrough, v))
+}
+
+// InvoicedThroughGTE applies the GTE predicate on the "invoiced_through" field.
+func InvoicedThroughGTE(v time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldGTE(FieldInvoicedThrough, v))
+}
+
+// InvoicedThroughLT applies the LT predicate on the "invoiced_through" field.
+func InvoicedThroughLT(v time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldLT(FieldInvoicedThrough, v))
+}
+
+// InvoicedThroughLTE applies the LTE predicate on the "invoiced_through" field.
+func InvoicedThroughLTE(v time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldLTE(FieldInvoicedThrough, v))
+}
+
+// InvoicedThroughIsNil applies the IsNil predicate on the "invoiced_through" field.
+func InvoicedThroughIsNil() predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldIsNull(FieldInvoicedThrough))
+}
+
+// InvoicedThroughNotNil applies the NotNil predicate on the "invoiced_through" field.
+func InvoicedThroughNotNil() predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldNotNull(FieldInvoicedThrough))
+}
+
+// InvoicedLedgerIDEQ applies the EQ predicate on the "invoiced_ledger_id" field.
+func InvoicedLedgerIDEQ(v int) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldEQ(FieldInvoicedLedgerID, v))
+}
+
+// InvoicedLedgerIDNEQ applies the NEQ predicate on the "invoiced_ledger_id" field.
+func InvoicedLedgerIDNEQ(v int) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldNEQ(FieldInvoicedLedgerID, v))
+}
+
+// InvoicedLedgerIDIn applies the In predicate on the "invoiced_ledger_id" field.
+func InvoicedLedgerIDIn(vs ...int) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldIn(FieldInvoicedLedgerID, vs...))
+}
+
+// InvoicedLedgerIDNotIn applies the NotIn predicate on the "invoiced_ledger_id" field.
+func InvoicedLedgerIDNotIn(vs ...int) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldNotIn(FieldInvoicedLedgerID, vs...))
+}
+
+// InvoicedLedgerIDGT applies the GT predicate on the "invoiced_ledger_id" field.
+func InvoicedLedgerIDGT(v int) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldGT(FieldInvoicedLedgerID, v))
+}
+
+// InvoicedLedgerIDGTE applies the GTE predicate on the "invoiced_ledger_id" field.
+func InvoicedLedgerIDGTE(v int) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldGTE(FieldInvoicedLedgerID, v))
+}
+
+// InvoicedLedgerIDLT applies the LT predicate on the "invoiced_ledger_id" field.
+func InvoicedLedgerIDLT(v int) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldLT(FieldInvoicedLedgerID, v))
+}
+
+// InvoicedLedgerIDLTE applies the LTE predicate on the "invoiced_ledger_id" field.
+func InvoicedLedgerIDLTE(v int) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldLTE(FieldInvoicedLedgerID, v))
+}
+
 // AutoTopupEnabledEQ applies the EQ predicate on the "auto_topup_enabled" field.
 func AutoTopupEnabledEQ(v bool) predicate.BillingAccount {
 	return predicate.BillingAccount(sql.FieldEQ(FieldAutoTopupEnabled, v))
@@ -1653,21 +1873,44 @@ func HasCreditLotsWith(preds ...predicate.CreditLot) predicate.BillingAccount {
 	})
 }
 
-// HasPeriods applies the HasEdge predicate on the "periods" edge.
-func HasPeriods() predicate.BillingAccount {
+// HasContracts applies the HasEdge predicate on the "contracts" edge.
+func HasContracts() predicate.BillingAccount {
 	return predicate.BillingAccount(func(s *sql.Selector) {
 		step := sqlgraph.NewStep(
 			sqlgraph.From(Table, FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, PeriodsTable, PeriodsColumn),
+			sqlgraph.Edge(sqlgraph.O2M, false, ContractsTable, ContractsColumn),
 		)
 		sqlgraph.HasNeighbors(s, step)
 	})
 }
 
-// HasPeriodsWith applies the HasEdge predicate on the "periods" edge with a given conditions (other predicates).
-func HasPeriodsWith(preds ...predicate.BillingPeriod) predicate.BillingAccount {
+// HasContractsWith applies the HasEdge predicate on the "contracts" edge with a given conditions (other predicates).
+func HasContractsWith(preds ...predicate.BillingContract) predicate.BillingAccount {
 	return predicate.BillingAccount(func(s *sql.Selector) {
-		step := newPeriodsStep()
+		step := newContractsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasInvoices applies the HasEdge predicate on the "invoices" edge.
+func HasInvoices() predicate.BillingAccount {
+	return predicate.BillingAccount(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, InvoicesTable, InvoicesColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasInvoicesWith applies the HasEdge predicate on the "invoices" edge with a given conditions (other predicates).
+func HasInvoicesWith(preds ...predicate.Invoice) predicate.BillingAccount {
+	return predicate.BillingAccount(func(s *sql.Selector) {
+		step := newInvoicesStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

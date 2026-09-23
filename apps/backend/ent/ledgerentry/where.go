@@ -96,9 +96,19 @@ func StripeReference(v string) predicate.LedgerEntry {
 	return predicate.LedgerEntry(sql.FieldEQ(FieldStripeReference, v))
 }
 
-// PeriodID applies equality check predicate on the "period_id" field. It's identical to PeriodIDEQ.
-func PeriodID(v int) predicate.LedgerEntry {
-	return predicate.LedgerEntry(sql.FieldEQ(FieldPeriodID, v))
+// PeriodStart applies equality check predicate on the "period_start" field. It's identical to PeriodStartEQ.
+func PeriodStart(v time.Time) predicate.LedgerEntry {
+	return predicate.LedgerEntry(sql.FieldEQ(FieldPeriodStart, v))
+}
+
+// ReceivableMicros applies equality check predicate on the "receivable_micros" field. It's identical to ReceivableMicrosEQ.
+func ReceivableMicros(v int64) predicate.LedgerEntry {
+	return predicate.LedgerEntry(sql.FieldEQ(FieldReceivableMicros, v))
+}
+
+// InvoiceID applies equality check predicate on the "invoice_id" field. It's identical to InvoiceIDEQ.
+func InvoiceID(v int) predicate.LedgerEntry {
+	return predicate.LedgerEntry(sql.FieldEQ(FieldInvoiceID, v))
 }
 
 // IdempotencyKey applies equality check predicate on the "idempotency_key" field. It's identical to IdempotencyKeyEQ.
@@ -511,34 +521,124 @@ func StripeReferenceContainsFold(v string) predicate.LedgerEntry {
 	return predicate.LedgerEntry(sql.FieldContainsFold(FieldStripeReference, v))
 }
 
-// PeriodIDEQ applies the EQ predicate on the "period_id" field.
-func PeriodIDEQ(v int) predicate.LedgerEntry {
-	return predicate.LedgerEntry(sql.FieldEQ(FieldPeriodID, v))
+// PeriodStartEQ applies the EQ predicate on the "period_start" field.
+func PeriodStartEQ(v time.Time) predicate.LedgerEntry {
+	return predicate.LedgerEntry(sql.FieldEQ(FieldPeriodStart, v))
 }
 
-// PeriodIDNEQ applies the NEQ predicate on the "period_id" field.
-func PeriodIDNEQ(v int) predicate.LedgerEntry {
-	return predicate.LedgerEntry(sql.FieldNEQ(FieldPeriodID, v))
+// PeriodStartNEQ applies the NEQ predicate on the "period_start" field.
+func PeriodStartNEQ(v time.Time) predicate.LedgerEntry {
+	return predicate.LedgerEntry(sql.FieldNEQ(FieldPeriodStart, v))
 }
 
-// PeriodIDIn applies the In predicate on the "period_id" field.
-func PeriodIDIn(vs ...int) predicate.LedgerEntry {
-	return predicate.LedgerEntry(sql.FieldIn(FieldPeriodID, vs...))
+// PeriodStartIn applies the In predicate on the "period_start" field.
+func PeriodStartIn(vs ...time.Time) predicate.LedgerEntry {
+	return predicate.LedgerEntry(sql.FieldIn(FieldPeriodStart, vs...))
 }
 
-// PeriodIDNotIn applies the NotIn predicate on the "period_id" field.
-func PeriodIDNotIn(vs ...int) predicate.LedgerEntry {
-	return predicate.LedgerEntry(sql.FieldNotIn(FieldPeriodID, vs...))
+// PeriodStartNotIn applies the NotIn predicate on the "period_start" field.
+func PeriodStartNotIn(vs ...time.Time) predicate.LedgerEntry {
+	return predicate.LedgerEntry(sql.FieldNotIn(FieldPeriodStart, vs...))
 }
 
-// PeriodIDIsNil applies the IsNil predicate on the "period_id" field.
-func PeriodIDIsNil() predicate.LedgerEntry {
-	return predicate.LedgerEntry(sql.FieldIsNull(FieldPeriodID))
+// PeriodStartGT applies the GT predicate on the "period_start" field.
+func PeriodStartGT(v time.Time) predicate.LedgerEntry {
+	return predicate.LedgerEntry(sql.FieldGT(FieldPeriodStart, v))
 }
 
-// PeriodIDNotNil applies the NotNil predicate on the "period_id" field.
-func PeriodIDNotNil() predicate.LedgerEntry {
-	return predicate.LedgerEntry(sql.FieldNotNull(FieldPeriodID))
+// PeriodStartGTE applies the GTE predicate on the "period_start" field.
+func PeriodStartGTE(v time.Time) predicate.LedgerEntry {
+	return predicate.LedgerEntry(sql.FieldGTE(FieldPeriodStart, v))
+}
+
+// PeriodStartLT applies the LT predicate on the "period_start" field.
+func PeriodStartLT(v time.Time) predicate.LedgerEntry {
+	return predicate.LedgerEntry(sql.FieldLT(FieldPeriodStart, v))
+}
+
+// PeriodStartLTE applies the LTE predicate on the "period_start" field.
+func PeriodStartLTE(v time.Time) predicate.LedgerEntry {
+	return predicate.LedgerEntry(sql.FieldLTE(FieldPeriodStart, v))
+}
+
+// PeriodStartIsNil applies the IsNil predicate on the "period_start" field.
+func PeriodStartIsNil() predicate.LedgerEntry {
+	return predicate.LedgerEntry(sql.FieldIsNull(FieldPeriodStart))
+}
+
+// PeriodStartNotNil applies the NotNil predicate on the "period_start" field.
+func PeriodStartNotNil() predicate.LedgerEntry {
+	return predicate.LedgerEntry(sql.FieldNotNull(FieldPeriodStart))
+}
+
+// ReceivableMicrosEQ applies the EQ predicate on the "receivable_micros" field.
+func ReceivableMicrosEQ(v int64) predicate.LedgerEntry {
+	return predicate.LedgerEntry(sql.FieldEQ(FieldReceivableMicros, v))
+}
+
+// ReceivableMicrosNEQ applies the NEQ predicate on the "receivable_micros" field.
+func ReceivableMicrosNEQ(v int64) predicate.LedgerEntry {
+	return predicate.LedgerEntry(sql.FieldNEQ(FieldReceivableMicros, v))
+}
+
+// ReceivableMicrosIn applies the In predicate on the "receivable_micros" field.
+func ReceivableMicrosIn(vs ...int64) predicate.LedgerEntry {
+	return predicate.LedgerEntry(sql.FieldIn(FieldReceivableMicros, vs...))
+}
+
+// ReceivableMicrosNotIn applies the NotIn predicate on the "receivable_micros" field.
+func ReceivableMicrosNotIn(vs ...int64) predicate.LedgerEntry {
+	return predicate.LedgerEntry(sql.FieldNotIn(FieldReceivableMicros, vs...))
+}
+
+// ReceivableMicrosGT applies the GT predicate on the "receivable_micros" field.
+func ReceivableMicrosGT(v int64) predicate.LedgerEntry {
+	return predicate.LedgerEntry(sql.FieldGT(FieldReceivableMicros, v))
+}
+
+// ReceivableMicrosGTE applies the GTE predicate on the "receivable_micros" field.
+func ReceivableMicrosGTE(v int64) predicate.LedgerEntry {
+	return predicate.LedgerEntry(sql.FieldGTE(FieldReceivableMicros, v))
+}
+
+// ReceivableMicrosLT applies the LT predicate on the "receivable_micros" field.
+func ReceivableMicrosLT(v int64) predicate.LedgerEntry {
+	return predicate.LedgerEntry(sql.FieldLT(FieldReceivableMicros, v))
+}
+
+// ReceivableMicrosLTE applies the LTE predicate on the "receivable_micros" field.
+func ReceivableMicrosLTE(v int64) predicate.LedgerEntry {
+	return predicate.LedgerEntry(sql.FieldLTE(FieldReceivableMicros, v))
+}
+
+// InvoiceIDEQ applies the EQ predicate on the "invoice_id" field.
+func InvoiceIDEQ(v int) predicate.LedgerEntry {
+	return predicate.LedgerEntry(sql.FieldEQ(FieldInvoiceID, v))
+}
+
+// InvoiceIDNEQ applies the NEQ predicate on the "invoice_id" field.
+func InvoiceIDNEQ(v int) predicate.LedgerEntry {
+	return predicate.LedgerEntry(sql.FieldNEQ(FieldInvoiceID, v))
+}
+
+// InvoiceIDIn applies the In predicate on the "invoice_id" field.
+func InvoiceIDIn(vs ...int) predicate.LedgerEntry {
+	return predicate.LedgerEntry(sql.FieldIn(FieldInvoiceID, vs...))
+}
+
+// InvoiceIDNotIn applies the NotIn predicate on the "invoice_id" field.
+func InvoiceIDNotIn(vs ...int) predicate.LedgerEntry {
+	return predicate.LedgerEntry(sql.FieldNotIn(FieldInvoiceID, vs...))
+}
+
+// InvoiceIDIsNil applies the IsNil predicate on the "invoice_id" field.
+func InvoiceIDIsNil() predicate.LedgerEntry {
+	return predicate.LedgerEntry(sql.FieldIsNull(FieldInvoiceID))
+}
+
+// InvoiceIDNotNil applies the NotNil predicate on the "invoice_id" field.
+func InvoiceIDNotNil() predicate.LedgerEntry {
+	return predicate.LedgerEntry(sql.FieldNotNull(FieldInvoiceID))
 }
 
 // IdempotencyKeyEQ applies the EQ predicate on the "idempotency_key" field.
@@ -629,21 +729,21 @@ func HasAccountWith(preds ...predicate.BillingAccount) predicate.LedgerEntry {
 	})
 }
 
-// HasPeriod applies the HasEdge predicate on the "period" edge.
-func HasPeriod() predicate.LedgerEntry {
+// HasInvoice applies the HasEdge predicate on the "invoice" edge.
+func HasInvoice() predicate.LedgerEntry {
 	return predicate.LedgerEntry(func(s *sql.Selector) {
 		step := sqlgraph.NewStep(
 			sqlgraph.From(Table, FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, true, PeriodTable, PeriodColumn),
+			sqlgraph.Edge(sqlgraph.M2O, true, InvoiceTable, InvoiceColumn),
 		)
 		sqlgraph.HasNeighbors(s, step)
 	})
 }
 
-// HasPeriodWith applies the HasEdge predicate on the "period" edge with a given conditions (other predicates).
-func HasPeriodWith(preds ...predicate.BillingPeriod) predicate.LedgerEntry {
+// HasInvoiceWith applies the HasEdge predicate on the "invoice" edge with a given conditions (other predicates).
+func HasInvoiceWith(preds ...predicate.Invoice) predicate.LedgerEntry {
 	return predicate.LedgerEntry(func(s *sql.Selector) {
-		step := newPeriodStep()
+		step := newInvoiceStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

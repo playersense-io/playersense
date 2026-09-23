@@ -34,14 +34,18 @@ const (
 	FieldDescription = "description"
 	// FieldStripeReference holds the string denoting the stripe_reference field in the database.
 	FieldStripeReference = "stripe_reference"
-	// FieldPeriodID holds the string denoting the period_id field in the database.
-	FieldPeriodID = "period_id"
+	// FieldPeriodStart holds the string denoting the period_start field in the database.
+	FieldPeriodStart = "period_start"
+	// FieldReceivableMicros holds the string denoting the receivable_micros field in the database.
+	FieldReceivableMicros = "receivable_micros"
+	// FieldInvoiceID holds the string denoting the invoice_id field in the database.
+	FieldInvoiceID = "invoice_id"
 	// FieldIdempotencyKey holds the string denoting the idempotency_key field in the database.
 	FieldIdempotencyKey = "idempotency_key"
 	// EdgeAccount holds the string denoting the account edge name in mutations.
 	EdgeAccount = "account"
-	// EdgePeriod holds the string denoting the period edge name in mutations.
-	EdgePeriod = "period"
+	// EdgeInvoice holds the string denoting the invoice edge name in mutations.
+	EdgeInvoice = "invoice"
 	// Table holds the table name of the ledgerentry in the database.
 	Table = "ledger_entries"
 	// AccountTable is the table that holds the account relation/edge.
@@ -51,13 +55,13 @@ const (
 	AccountInverseTable = "billing_accounts"
 	// AccountColumn is the table column denoting the account relation/edge.
 	AccountColumn = "account_id"
-	// PeriodTable is the table that holds the period relation/edge.
-	PeriodTable = "ledger_entries"
-	// PeriodInverseTable is the table name for the BillingPeriod entity.
-	// It exists in this package in order to avoid circular dependency with the "billingperiod" package.
-	PeriodInverseTable = "billing_periods"
-	// PeriodColumn is the table column denoting the period relation/edge.
-	PeriodColumn = "period_id"
+	// InvoiceTable is the table that holds the invoice relation/edge.
+	InvoiceTable = "ledger_entries"
+	// InvoiceInverseTable is the table name for the Invoice entity.
+	// It exists in this package in order to avoid circular dependency with the "invoice" package.
+	InvoiceInverseTable = "invoices"
+	// InvoiceColumn is the table column denoting the invoice relation/edge.
+	InvoiceColumn = "invoice_id"
 )
 
 // Columns holds all SQL columns for ledgerentry fields.
@@ -72,7 +76,9 @@ var Columns = []string{
 	FieldCurrency,
 	FieldDescription,
 	FieldStripeReference,
-	FieldPeriodID,
+	FieldPeriodStart,
+	FieldReceivableMicros,
+	FieldInvoiceID,
 	FieldIdempotencyKey,
 }
 
@@ -99,6 +105,8 @@ var (
 	DescriptionValidator func(string) error
 	// StripeReferenceValidator is a validator for the "stripe_reference" field. It is called by the builders before save.
 	StripeReferenceValidator func(string) error
+	// DefaultReceivableMicros holds the default value on creation for the "receivable_micros" field.
+	DefaultReceivableMicros int64
 	// IdempotencyKeyValidator is a validator for the "idempotency_key" field. It is called by the builders before save.
 	IdempotencyKeyValidator func(string) error
 )
@@ -108,13 +116,15 @@ type Kind string
 
 // Kind values.
 const (
-	KindTopup        Kind = "topup"
-	KindPromo        Kind = "promo"
-	KindUsage        Kind = "usage"
-	KindSubscription Kind = "subscription"
-	KindAdjustment   Kind = "adjustment"
-	KindRefund       Kind = "refund"
-	KindExpiry       Kind = "expiry"
+	KindTopup          Kind = "topup"
+	KindPromo          Kind = "promo"
+	KindUsage          Kind = "usage"
+	KindSubscription   Kind = "subscription"
+	KindCommitment     Kind = "commitment"
+	KindInvoicePayment Kind = "invoice_payment"
+	KindAdjustment     Kind = "adjustment"
+	KindRefund         Kind = "refund"
+	KindExpiry         Kind = "expiry"
 )
 
 func (k Kind) String() string {
@@ -124,7 +134,7 @@ func (k Kind) String() string {
 // KindValidator is a validator for the "kind" field enum values. It is called by the builders before save.
 func KindValidator(k Kind) error {
 	switch k {
-	case KindTopup, KindPromo, KindUsage, KindSubscription, KindAdjustment, KindRefund, KindExpiry:
+	case KindTopup, KindPromo, KindUsage, KindSubscription, KindCommitment, KindInvoicePayment, KindAdjustment, KindRefund, KindExpiry:
 		return nil
 	default:
 		return fmt.Errorf("ledgerentry: invalid enum value for kind field: %q", k)
@@ -184,9 +194,19 @@ func ByStripeReference(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldStripeReference, opts...).ToFunc()
 }
 
-// ByPeriodID orders the results by the period_id field.
-func ByPeriodID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldPeriodID, opts...).ToFunc()
+// ByPeriodStart orders the results by the period_start field.
+func ByPeriodStart(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPeriodStart, opts...).ToFunc()
+}
+
+// ByReceivableMicros orders the results by the receivable_micros field.
+func ByReceivableMicros(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldReceivableMicros, opts...).ToFunc()
+}
+
+// ByInvoiceID orders the results by the invoice_id field.
+func ByInvoiceID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldInvoiceID, opts...).ToFunc()
 }
 
 // ByIdempotencyKey orders the results by the idempotency_key field.
@@ -201,10 +221,10 @@ func ByAccountField(field string, opts ...sql.OrderTermOption) OrderOption {
 	}
 }
 
-// ByPeriodField orders the results by period field.
-func ByPeriodField(field string, opts ...sql.OrderTermOption) OrderOption {
+// ByInvoiceField orders the results by invoice field.
+func ByInvoiceField(field string, opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newPeriodStep(), sql.OrderByField(field, opts...))
+		sqlgraph.OrderByNeighborTerms(s, newInvoiceStep(), sql.OrderByField(field, opts...))
 	}
 }
 func newAccountStep() *sqlgraph.Step {
@@ -214,10 +234,10 @@ func newAccountStep() *sqlgraph.Step {
 		sqlgraph.Edge(sqlgraph.M2O, true, AccountTable, AccountColumn),
 	)
 }
-func newPeriodStep() *sqlgraph.Step {
+func newInvoiceStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
-		sqlgraph.To(PeriodInverseTable, FieldID),
-		sqlgraph.Edge(sqlgraph.M2O, true, PeriodTable, PeriodColumn),
+		sqlgraph.To(InvoiceInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.M2O, true, InvoiceTable, InvoiceColumn),
 	)
 }

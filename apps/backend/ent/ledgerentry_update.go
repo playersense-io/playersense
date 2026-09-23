@@ -82,6 +82,9 @@ func (_u *LedgerEntryUpdate) sqlSave(ctx context.Context) (_node int, err error)
 	if _u.mutation.StripeReferenceCleared() {
 		_spec.ClearField(ledgerentry.FieldStripeReference, field.TypeString)
 	}
+	if _u.mutation.PeriodStartCleared() {
+		_spec.ClearField(ledgerentry.FieldPeriodStart, field.TypeTime)
+	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{ledgerentry.Label}
@@ -186,6 +189,9 @@ func (_u *LedgerEntryUpdateOne) sqlSave(ctx context.Context) (_node *LedgerEntry
 	}
 	if _u.mutation.StripeReferenceCleared() {
 		_spec.ClearField(ledgerentry.FieldStripeReference, field.TypeString)
+	}
+	if _u.mutation.PeriodStartCleared() {
+		_spec.ClearField(ledgerentry.FieldPeriodStart, field.TypeTime)
 	}
 	_node = &LedgerEntry{config: _u.config}
 	_spec.Assign = _node.assignValues

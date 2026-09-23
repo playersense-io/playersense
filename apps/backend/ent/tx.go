@@ -24,8 +24,8 @@ type Tx struct {
 	BillablePlayer *BillablePlayerClient
 	// BillingAccount is the client for interacting with the BillingAccount builders.
 	BillingAccount *BillingAccountClient
-	// BillingPeriod is the client for interacting with the BillingPeriod builders.
-	BillingPeriod *BillingPeriodClient
+	// BillingContract is the client for interacting with the BillingContract builders.
+	BillingContract *BillingContractClient
 	// ConfigVersion is the client for interacting with the ConfigVersion builders.
 	ConfigVersion *ConfigVersionClient
 	// CreditLot is the client for interacting with the CreditLot builders.
@@ -40,6 +40,10 @@ type Tx struct {
 	FeatureFlag *FeatureFlagClient
 	// Invitation is the client for interacting with the Invitation builders.
 	Invitation *InvitationClient
+	// Invoice is the client for interacting with the Invoice builders.
+	Invoice *InvoiceClient
+	// InvoiceLine is the client for interacting with the InvoiceLine builders.
+	InvoiceLine *InvoiceLineClient
 	// LedgerEntry is the client for interacting with the LedgerEntry builders.
 	LedgerEntry *LedgerEntryClient
 	// LiveOpsEvent is the client for interacting with the LiveOpsEvent builders.
@@ -210,7 +214,7 @@ func (tx *Tx) init() {
 	tx.AuditEvent = NewAuditEventClient(tx.config)
 	tx.BillablePlayer = NewBillablePlayerClient(tx.config)
 	tx.BillingAccount = NewBillingAccountClient(tx.config)
-	tx.BillingPeriod = NewBillingPeriodClient(tx.config)
+	tx.BillingContract = NewBillingContractClient(tx.config)
 	tx.ConfigVersion = NewConfigVersionClient(tx.config)
 	tx.CreditLot = NewCreditLotClient(tx.config)
 	tx.DataDeletionRequest = NewDataDeletionRequestClient(tx.config)
@@ -218,6 +222,8 @@ func (tx *Tx) init() {
 	tx.Environment = NewEnvironmentClient(tx.config)
 	tx.FeatureFlag = NewFeatureFlagClient(tx.config)
 	tx.Invitation = NewInvitationClient(tx.config)
+	tx.Invoice = NewInvoiceClient(tx.config)
+	tx.InvoiceLine = NewInvoiceLineClient(tx.config)
 	tx.LedgerEntry = NewLedgerEntryClient(tx.config)
 	tx.LiveOpsEvent = NewLiveOpsEventClient(tx.config)
 	tx.MemberProject = NewMemberProjectClient(tx.config)

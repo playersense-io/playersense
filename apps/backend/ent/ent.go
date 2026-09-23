@@ -17,7 +17,7 @@ import (
 	"playersense.dev/backend/ent/auditevent"
 	"playersense.dev/backend/ent/billableplayer"
 	"playersense.dev/backend/ent/billingaccount"
-	"playersense.dev/backend/ent/billingperiod"
+	"playersense.dev/backend/ent/billingcontract"
 	"playersense.dev/backend/ent/configversion"
 	"playersense.dev/backend/ent/creditlot"
 	"playersense.dev/backend/ent/datadeletionrequest"
@@ -25,6 +25,8 @@ import (
 	"playersense.dev/backend/ent/environment"
 	"playersense.dev/backend/ent/featureflag"
 	"playersense.dev/backend/ent/invitation"
+	"playersense.dev/backend/ent/invoice"
+	"playersense.dev/backend/ent/invoiceline"
 	"playersense.dev/backend/ent/ledgerentry"
 	"playersense.dev/backend/ent/liveopsevent"
 	"playersense.dev/backend/ent/memberproject"
@@ -107,7 +109,7 @@ func checkColumn(t, c string) error {
 			auditevent.Table:          auditevent.ValidColumn,
 			billableplayer.Table:      billableplayer.ValidColumn,
 			billingaccount.Table:      billingaccount.ValidColumn,
-			billingperiod.Table:       billingperiod.ValidColumn,
+			billingcontract.Table:     billingcontract.ValidColumn,
 			configversion.Table:       configversion.ValidColumn,
 			creditlot.Table:           creditlot.ValidColumn,
 			datadeletionrequest.Table: datadeletionrequest.ValidColumn,
@@ -115,6 +117,8 @@ func checkColumn(t, c string) error {
 			environment.Table:         environment.ValidColumn,
 			featureflag.Table:         featureflag.ValidColumn,
 			invitation.Table:          invitation.ValidColumn,
+			invoice.Table:             invoice.ValidColumn,
+			invoiceline.Table:         invoiceline.ValidColumn,
 			ledgerentry.Table:         ledgerentry.ValidColumn,
 			liveopsevent.Table:        liveopsevent.ValidColumn,
 			memberproject.Table:       memberproject.ValidColumn,

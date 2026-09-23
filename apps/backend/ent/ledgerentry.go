@@ -11,7 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
 	"playersense.dev/backend/ent/billingaccount"
-	"playersense.dev/backend/ent/billingperiod"
+	"playersense.dev/backend/ent/invoice"
 	"playersense.dev/backend/ent/ledgerentry"
 )
 
@@ -40,7 +40,11 @@ type LedgerEntry struct {
 	// class=none
 	StripeReference *string `json:"stripe_reference,omitempty"`
 	// class=none
-	PeriodID *int `json:"period_id,omitempty"`
+	PeriodStart *time.Time `json:"period_start,omitempty"`
+	// class=financial
+	ReceivableMicros int64 `json:"receivable_micros,omitempty"`
+	// class=none
+	InvoiceID *int `json:"invoice_id,omitempty"`
 	// class=none
 	IdempotencyKey string `json:"idempotency_key,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
@@ -53,8 +57,8 @@ type LedgerEntry struct {
 type LedgerEntryEdges struct {
 	// Account holds the value of the account edge.
 	Account *BillingAccount `json:"account,omitempty"`
-	// Period holds the value of the period edge.
-	Period *BillingPeriod `json:"period,omitempty"`
+	// Invoice holds the value of the invoice edge.
+	Invoice *Invoice `json:"invoice,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
 	loadedTypes [2]bool
@@ -71,15 +75,15 @@ func (e LedgerEntryEdges) AccountOrErr() (*BillingAccount, error) {
 	return nil, &NotLoadedError{edge: "account"}
 }
 
-// PeriodOrErr returns the Period value or an error if the edge
+// InvoiceOrErr returns the Invoice value or an error if the edge
 // was not loaded in eager-loading, or loaded but was not found.
-func (e LedgerEntryEdges) PeriodOrErr() (*BillingPeriod, error) {
-	if e.Period != nil {
-		return e.Period, nil
+func (e LedgerEntryEdges) InvoiceOrErr() (*Invoice, error) {
+	if e.Invoice != nil {
+		return e.Invoice, nil
 	} else if e.loadedTypes[1] {
-		return nil, &NotFoundError{label: billingperiod.Label}
+		return nil, &NotFoundError{label: invoice.Label}
 	}
-	return nil, &NotLoadedError{edge: "period"}
+	return nil, &NotLoadedError{edge: "invoice"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -87,11 +91,11 @@ func (*LedgerEntry) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case ledgerentry.FieldID, ledgerentry.FieldAccountID, ledgerentry.FieldAmountMicros, ledgerentry.FieldBalanceAfterMicros, ledgerentry.FieldPeriodID:
+		case ledgerentry.FieldID, ledgerentry.FieldAccountID, ledgerentry.FieldAmountMicros, ledgerentry.FieldBalanceAfterMicros, ledgerentry.FieldReceivableMicros, ledgerentry.FieldInvoiceID:
 			values[i] = new(sql.NullInt64)
 		case ledgerentry.FieldKind, ledgerentry.FieldCurrency, ledgerentry.FieldDescription, ledgerentry.FieldStripeReference, ledgerentry.FieldIdempotencyKey:
 			values[i] = new(sql.NullString)
-		case ledgerentry.FieldCreatedAt:
+		case ledgerentry.FieldCreatedAt, ledgerentry.FieldPeriodStart:
 			values[i] = new(sql.NullTime)
 		case ledgerentry.FieldUID:
 			values[i] = new(uuid.UUID)
@@ -171,12 +175,25 @@ func (_m *LedgerEntry) assignValues(columns []string, values []any) error {
 				_m.StripeReference = new(string)
 				*_m.StripeReference = value.String
 			}
-		case ledgerentry.FieldPeriodID:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
-				return fmt.Errorf("unexpected type %T for field period_id", values[i])
+		case ledgerentry.FieldPeriodStart:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field period_start", values[i])
 			} else if value.Valid {
-				_m.PeriodID = new(int)
-				*_m.PeriodID = int(value.Int64)
+				_m.PeriodStart = new(time.Time)
+				*_m.PeriodStart = value.Time
+			}
+		case ledgerentry.FieldReceivableMicros:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field receivable_micros", values[i])
+			} else if value.Valid {
+				_m.ReceivableMicros = value.Int64
+			}
+		case ledgerentry.FieldInvoiceID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field invoice_id", values[i])
+			} else if value.Valid {
+				_m.InvoiceID = new(int)
+				*_m.InvoiceID = int(value.Int64)
 			}
 		case ledgerentry.FieldIdempotencyKey:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -202,9 +219,9 @@ func (_m *LedgerEntry) QueryAccount() *BillingAccountQuery {
 	return NewLedgerEntryClient(_m.config).QueryAccount(_m)
 }
 
-// QueryPeriod queries the "period" edge of the LedgerEntry entity.
-func (_m *LedgerEntry) QueryPeriod() *BillingPeriodQuery {
-	return NewLedgerEntryClient(_m.config).QueryPeriod(_m)
+// QueryInvoice queries the "invoice" edge of the LedgerEntry entity.
+func (_m *LedgerEntry) QueryInvoice() *InvoiceQuery {
+	return NewLedgerEntryClient(_m.config).QueryInvoice(_m)
 }
 
 // Update returns a builder for updating this LedgerEntry.
@@ -259,8 +276,16 @@ func (_m *LedgerEntry) String() string {
 		builder.WriteString(*v)
 	}
 	builder.WriteString(", ")
-	if v := _m.PeriodID; v != nil {
-		builder.WriteString("period_id=")
+	if v := _m.PeriodStart; v != nil {
+		builder.WriteString("period_start=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("receivable_micros=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ReceivableMicros))
+	builder.WriteString(", ")
+	if v := _m.InvoiceID; v != nil {
+		builder.WriteString("invoice_id=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
 	builder.WriteString(", ")

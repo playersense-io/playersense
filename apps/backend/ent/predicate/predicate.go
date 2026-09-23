@@ -21,8 +21,8 @@ type BillablePlayer func(*sql.Selector)
 // BillingAccount is the predicate function for billingaccount builders.
 type BillingAccount func(*sql.Selector)
 
-// BillingPeriod is the predicate function for billingperiod builders.
-type BillingPeriod func(*sql.Selector)
+// BillingContract is the predicate function for billingcontract builders.
+type BillingContract func(*sql.Selector)
 
 // ConfigVersion is the predicate function for configversion builders.
 type ConfigVersion func(*sql.Selector)
@@ -44,6 +44,12 @@ type FeatureFlag func(*sql.Selector)
 
 // Invitation is the predicate function for invitation builders.
 type Invitation func(*sql.Selector)
+
+// Invoice is the predicate function for invoice builders.
+type Invoice func(*sql.Selector)
+
+// InvoiceLine is the predicate function for invoiceline builders.
+type InvoiceLine func(*sql.Selector)
 
 // LedgerEntry is the predicate function for ledgerentry builders.
 type LedgerEntry func(*sql.Selector)

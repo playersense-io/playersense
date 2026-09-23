@@ -204,7 +204,6 @@ func Spend(ctx context.Context, tx *ent.Tx, in SpendRequest) (*SpendResult, erro
 		Kind:        in.Kind,
 		Amount:      -in.Amount,
 		Description: in.Description,
-		PeriodID:    in.PeriodID,
 		Key:         in.Key,
 	})
 	if err != nil {
@@ -223,7 +222,6 @@ type SpendRequest struct {
 	// left — but it is what a statement reads.
 	Kind        string
 	Description string
-	PeriodID    int
 	At          time.Time
 	Key         string
 }
@@ -318,7 +316,6 @@ type movement struct {
 
 	Description     string
 	StripeReference string
-	PeriodID        int
 	Key             string
 }
 
@@ -340,9 +337,6 @@ func record(ctx context.Context, tx *ent.Tx, account *ent.BillingAccount, in mov
 		SetIdempotencyKey(in.Key)
 	if in.StripeReference != "" {
 		create = create.SetStripeReference(in.StripeReference)
-	}
-	if in.PeriodID != 0 {
-		create = create.SetPeriodID(in.PeriodID)
 	}
 
 	entry, err := create.Save(ctx)

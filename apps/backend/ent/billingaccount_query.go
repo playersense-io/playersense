@@ -14,8 +14,9 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"playersense.dev/backend/ent/billingaccount"
-	"playersense.dev/backend/ent/billingperiod"
+	"playersense.dev/backend/ent/billingcontract"
 	"playersense.dev/backend/ent/creditlot"
+	"playersense.dev/backend/ent/invoice"
 	"playersense.dev/backend/ent/ledgerentry"
 	"playersense.dev/backend/ent/monthlyusage"
 	"playersense.dev/backend/ent/organization"
@@ -36,7 +37,8 @@ type BillingAccountQuery struct {
 	withPlan          *PlanQuery
 	withLedgerEntries *LedgerEntryQuery
 	withCreditLots    *CreditLotQuery
-	withPeriods       *BillingPeriodQuery
+	withContracts     *BillingContractQuery
+	withInvoices      *InvoiceQuery
 	withStripeEvents  *StripeEventQuery
 	withMonthlyUsage  *MonthlyUsageQuery
 	withUsageCharges  *UsageChargeQuery
@@ -165,9 +167,9 @@ func (_q *BillingAccountQuery) QueryCreditLots() *CreditLotQuery {
 	return query
 }
 
-// QueryPeriods chains the current query on the "periods" edge.
-func (_q *BillingAccountQuery) QueryPeriods() *BillingPeriodQuery {
-	query := (&BillingPeriodClient{config: _q.config}).Query()
+// QueryContracts chains the current query on the "contracts" edge.
+func (_q *BillingAccountQuery) QueryContracts() *BillingContractQuery {
+	query := (&BillingContractClient{config: _q.config}).Query()
 	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
 		if err := _q.prepareQuery(ctx); err != nil {
 			return nil, err
@@ -178,8 +180,30 @@ func (_q *BillingAccountQuery) QueryPeriods() *BillingPeriodQuery {
 		}
 		step := sqlgraph.NewStep(
 			sqlgraph.From(billingaccount.Table, billingaccount.FieldID, selector),
-			sqlgraph.To(billingperiod.Table, billingperiod.FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, billingaccount.PeriodsTable, billingaccount.PeriodsColumn),
+			sqlgraph.To(billingcontract.Table, billingcontract.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, billingaccount.ContractsTable, billingaccount.ContractsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryInvoices chains the current query on the "invoices" edge.
+func (_q *BillingAccountQuery) QueryInvoices() *InvoiceQuery {
+	query := (&InvoiceClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(billingaccount.Table, billingaccount.FieldID, selector),
+			sqlgraph.To(invoice.Table, invoice.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, billingaccount.InvoicesTable, billingaccount.InvoicesColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -449,7 +473,8 @@ func (_q *BillingAccountQuery) Clone() *BillingAccountQuery {
 		withPlan:          _q.withPlan.Clone(),
 		withLedgerEntries: _q.withLedgerEntries.Clone(),
 		withCreditLots:    _q.withCreditLots.Clone(),
-		withPeriods:       _q.withPeriods.Clone(),
+		withContracts:     _q.withContracts.Clone(),
+		withInvoices:      _q.withInvoices.Clone(),
 		withStripeEvents:  _q.withStripeEvents.Clone(),
 		withMonthlyUsage:  _q.withMonthlyUsage.Clone(),
 		withUsageCharges:  _q.withUsageCharges.Clone(),
@@ -503,14 +528,25 @@ func (_q *BillingAccountQuery) WithCreditLots(opts ...func(*CreditLotQuery)) *Bi
 	return _q
 }
 
-// WithPeriods tells the query-builder to eager-load the nodes that are connected to
-// the "periods" edge. The optional arguments are used to configure the query builder of the edge.
-func (_q *BillingAccountQuery) WithPeriods(opts ...func(*BillingPeriodQuery)) *BillingAccountQuery {
-	query := (&BillingPeriodClient{config: _q.config}).Query()
+// WithContracts tells the query-builder to eager-load the nodes that are connected to
+// the "contracts" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *BillingAccountQuery) WithContracts(opts ...func(*BillingContractQuery)) *BillingAccountQuery {
+	query := (&BillingContractClient{config: _q.config}).Query()
 	for _, opt := range opts {
 		opt(query)
 	}
-	_q.withPeriods = query
+	_q.withContracts = query
+	return _q
+}
+
+// WithInvoices tells the query-builder to eager-load the nodes that are connected to
+// the "invoices" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *BillingAccountQuery) WithInvoices(opts ...func(*InvoiceQuery)) *BillingAccountQuery {
+	query := (&InvoiceClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withInvoices = query
 	return _q
 }
 
@@ -625,12 +661,13 @@ func (_q *BillingAccountQuery) sqlAll(ctx context.Context, hooks ...queryHook) (
 	var (
 		nodes       = []*BillingAccount{}
 		_spec       = _q.querySpec()
-		loadedTypes = [8]bool{
+		loadedTypes = [9]bool{
 			_q.withOrganization != nil,
 			_q.withPlan != nil,
 			_q.withLedgerEntries != nil,
 			_q.withCreditLots != nil,
-			_q.withPeriods != nil,
+			_q.withContracts != nil,
+			_q.withInvoices != nil,
 			_q.withStripeEvents != nil,
 			_q.withMonthlyUsage != nil,
 			_q.withUsageCharges != nil,
@@ -683,10 +720,17 @@ func (_q *BillingAccountQuery) sqlAll(ctx context.Context, hooks ...queryHook) (
 			return nil, err
 		}
 	}
-	if query := _q.withPeriods; query != nil {
-		if err := _q.loadPeriods(ctx, query, nodes,
-			func(n *BillingAccount) { n.Edges.Periods = []*BillingPeriod{} },
-			func(n *BillingAccount, e *BillingPeriod) { n.Edges.Periods = append(n.Edges.Periods, e) }); err != nil {
+	if query := _q.withContracts; query != nil {
+		if err := _q.loadContracts(ctx, query, nodes,
+			func(n *BillingAccount) { n.Edges.Contracts = []*BillingContract{} },
+			func(n *BillingAccount, e *BillingContract) { n.Edges.Contracts = append(n.Edges.Contracts, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withInvoices; query != nil {
+		if err := _q.loadInvoices(ctx, query, nodes,
+			func(n *BillingAccount) { n.Edges.Invoices = []*Invoice{} },
+			func(n *BillingAccount, e *Invoice) { n.Edges.Invoices = append(n.Edges.Invoices, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -832,7 +876,7 @@ func (_q *BillingAccountQuery) loadCreditLots(ctx context.Context, query *Credit
 	}
 	return nil
 }
-func (_q *BillingAccountQuery) loadPeriods(ctx context.Context, query *BillingPeriodQuery, nodes []*BillingAccount, init func(*BillingAccount), assign func(*BillingAccount, *BillingPeriod)) error {
+func (_q *BillingAccountQuery) loadContracts(ctx context.Context, query *BillingContractQuery, nodes []*BillingAccount, init func(*BillingAccount), assign func(*BillingAccount, *BillingContract)) error {
 	fks := make([]driver.Value, 0, len(nodes))
 	nodeids := make(map[int]*BillingAccount)
 	for i := range nodes {
@@ -843,10 +887,40 @@ func (_q *BillingAccountQuery) loadPeriods(ctx context.Context, query *BillingPe
 		}
 	}
 	if len(query.ctx.Fields) > 0 {
-		query.ctx.AppendFieldOnce(billingperiod.FieldAccountID)
+		query.ctx.AppendFieldOnce(billingcontract.FieldAccountID)
 	}
-	query.Where(predicate.BillingPeriod(func(s *sql.Selector) {
-		s.Where(sql.InValues(s.C(billingaccount.PeriodsColumn), fks...))
+	query.Where(predicate.BillingContract(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(billingaccount.ContractsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.AccountID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "account_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *BillingAccountQuery) loadInvoices(ctx context.Context, query *InvoiceQuery, nodes []*BillingAccount, init func(*BillingAccount), assign func(*BillingAccount, *Invoice)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*BillingAccount)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(invoice.FieldAccountID)
+	}
+	query.Where(predicate.Invoice(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(billingaccount.InvoicesColumn), fks...))
 	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {

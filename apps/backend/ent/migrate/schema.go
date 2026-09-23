@@ -184,6 +184,11 @@ var (
 		{Name: "currency", Type: field.TypeString, Size: 3, Comment: "class=financial", Default: "usd"},
 		{Name: "balance_micros", Type: field.TypeInt64, Comment: "class=financial", Default: 0},
 		{Name: "arrears_micros", Type: field.TypeInt64, Comment: "class=financial", Default: 0},
+		{Name: "collection", Type: field.TypeEnum, Comment: "class=none", Enums: []string{"prepaid", "invoiced"}, Default: "prepaid"},
+		{Name: "receivable_micros", Type: field.TypeInt64, Comment: "class=financial", Default: 0},
+		{Name: "overdue_since", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
+		{Name: "invoiced_through", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
+		{Name: "invoiced_ledger_id", Type: field.TypeInt, Comment: "class=none", Default: 0},
 		{Name: "auto_topup_enabled", Type: field.TypeBool, Comment: "class=none", Default: false},
 		{Name: "auto_topup_threshold_micros", Type: field.TypeInt64, Comment: "class=financial", Default: 0},
 		{Name: "auto_topup_amount_micros", Type: field.TypeInt64, Comment: "class=financial", Default: 0},
@@ -209,13 +214,13 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "billing_accounts_organizations_billing_account",
-				Columns:    []*schema.Column{BillingAccountsColumns[30]},
+				Columns:    []*schema.Column{BillingAccountsColumns[35]},
 				RefColumns: []*schema.Column{OrganizationsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "billing_accounts_plans_accounts",
-				Columns:    []*schema.Column{BillingAccountsColumns[31]},
+				Columns:    []*schema.Column{BillingAccountsColumns[36]},
 				RefColumns: []*schema.Column{PlansColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -224,58 +229,56 @@ var (
 			{
 				Name:    "billingaccount_auto_topup_requested_at",
 				Unique:  false,
-				Columns: []*schema.Column{BillingAccountsColumns[24]},
+				Columns: []*schema.Column{BillingAccountsColumns[29]},
 				Annotation: &entsql.IndexAnnotation{
 					Where: "auto_topup_requested_at IS NOT NULL",
 				},
 			},
+			{
+				Name:    "billingaccount_invoiced_through",
+				Unique:  false,
+				Columns: []*schema.Column{BillingAccountsColumns[19]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "collection = 'invoiced'",
+				},
+			},
 		},
 	}
-	// BillingPeriodsColumns holds the columns for the "billing_periods" table.
-	BillingPeriodsColumns = []*schema.Column{
+	// BillingContractsColumns holds the columns for the "billing_contracts" table.
+	BillingContractsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
 		{Name: "uid", Type: field.TypeUUID, Unique: true, Comment: "class=none"},
 		{Name: "created_at", Type: field.TypeTime, Comment: "class=none"},
-		{Name: "updated_at", Type: field.TypeTime, Comment: "class=none"},
-		{Name: "period_start", Type: field.TypeTime, Comment: "class=none"},
-		{Name: "period_end", Type: field.TypeTime, Comment: "class=none"},
-		{Name: "plan_key", Type: field.TypeString, Size: 64, Comment: "class=none"},
-		{Name: "plan_price_micros", Type: field.TypeInt64, Comment: "class=financial", Default: 0},
-		{Name: "tracked_players", Type: field.TypeUint64, Comment: "class=none", Default: 0},
-		{Name: "events_accepted", Type: field.TypeUint64, Comment: "class=none", Default: 0},
-		{Name: "retained_byte_days", Type: field.TypeUint64, Comment: "class=none", Default: 0},
-		{Name: "included", Type: field.TypeJSON, Comment: "class=none"},
-		{Name: "amount_micros", Type: field.TypeInt64, Comment: "class=financial", Default: 0},
-		{Name: "currency", Type: field.TypeString, Size: 3, Comment: "class=financial", Default: "usd"},
-		{Name: "status", Type: field.TypeEnum, Comment: "class=none", Enums: []string{"open", "closed", "reported", "invoiced", "void"}, Default: "open"},
-		{Name: "closed_at", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
-		{Name: "reported_at", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
-		{Name: "stripe_invoice_id", Type: field.TypeString, Nullable: true, Size: 255, Comment: "class=none"},
+		{Name: "collection", Type: field.TypeEnum, Comment: "class=none", Enums: []string{"prepaid", "invoiced"}},
+		{Name: "effective_from", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "terms_days", Type: field.TypeInt, Comment: "class=none", Default: 30},
+		{Name: "overdue_grace_days", Type: field.TypeInt, Comment: "class=none", Default: 14},
+		{Name: "platform_fee_micros", Type: field.TypeInt64, Comment: "class=financial", Default: 0},
+		{Name: "minimum_commitment_micros", Type: field.TypeInt64, Comment: "class=financial", Default: 0},
+		{Name: "credit_limit_micros", Type: field.TypeInt64, Nullable: true, Comment: "class=financial"},
+		{Name: "po_number", Type: field.TypeString, Size: 140, Comment: "class=none", Default: ""},
+		{Name: "memo", Type: field.TypeString, Size: 500, Comment: "class=none", Default: ""},
+		{Name: "operator", Type: field.TypeString, Size: 254, Comment: "class=none", Default: ""},
 		{Name: "account_id", Type: field.TypeInt, Comment: "class=none"},
 	}
-	// BillingPeriodsTable holds the schema information for the "billing_periods" table.
-	BillingPeriodsTable = &schema.Table{
-		Name:       "billing_periods",
-		Columns:    BillingPeriodsColumns,
-		PrimaryKey: []*schema.Column{BillingPeriodsColumns[0]},
+	// BillingContractsTable holds the schema information for the "billing_contracts" table.
+	BillingContractsTable = &schema.Table{
+		Name:       "billing_contracts",
+		Columns:    BillingContractsColumns,
+		PrimaryKey: []*schema.Column{BillingContractsColumns[0]},
 		ForeignKeys: []*schema.ForeignKey{
 			{
-				Symbol:     "billing_periods_billing_accounts_periods",
-				Columns:    []*schema.Column{BillingPeriodsColumns[18]},
+				Symbol:     "billing_contracts_billing_accounts_contracts",
+				Columns:    []*schema.Column{BillingContractsColumns[13]},
 				RefColumns: []*schema.Column{BillingAccountsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 		},
 		Indexes: []*schema.Index{
 			{
-				Name:    "billingperiod_period_start_account_id",
-				Unique:  true,
-				Columns: []*schema.Column{BillingPeriodsColumns[4], BillingPeriodsColumns[18]},
-			},
-			{
-				Name:    "billingperiod_status_period_end",
+				Name:    "billingcontract_account_id_effective_from",
 				Unique:  false,
-				Columns: []*schema.Column{BillingPeriodsColumns[14], BillingPeriodsColumns[5]},
+				Columns: []*schema.Column{BillingContractsColumns[13], BillingContractsColumns[4]},
 			},
 		},
 	}
@@ -578,20 +581,130 @@ var (
 			},
 		},
 	}
+	// InvoicesColumns holds the columns for the "invoices" table.
+	InvoicesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
+		{Name: "uid", Type: field.TypeUUID, Unique: true, Comment: "class=none"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "updated_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "period_start", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "period_end", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "ledger_from_id", Type: field.TypeInt, Comment: "class=none"},
+		{Name: "ledger_to_id", Type: field.TypeInt, Comment: "class=none"},
+		{Name: "currency", Type: field.TypeString, Size: 3, Comment: "class=financial", Default: "usd"},
+		{Name: "total_micros", Type: field.TypeInt64, Comment: "class=financial"},
+		{Name: "carry_in_micros", Type: field.TypeInt64, Comment: "class=financial", Default: 0},
+		{Name: "carry_out_micros", Type: field.TypeInt64, Comment: "class=financial", Default: 0},
+		{Name: "discrepancy_micros", Type: field.TypeInt64, Comment: "class=financial", Default: 0},
+		{Name: "terms_days", Type: field.TypeInt, Comment: "class=none", Default: 30},
+		{Name: "po_number", Type: field.TypeString, Size: 140, Comment: "class=none", Default: ""},
+		{Name: "memo", Type: field.TypeString, Size: 500, Comment: "class=none", Default: ""},
+		{Name: "final", Type: field.TypeBool, Comment: "class=none", Default: false},
+		{Name: "status", Type: field.TypeEnum, Comment: "class=none", Enums: []string{"draft", "open", "paid", "void", "uncollectible", "empty"}, Default: "draft"},
+		{Name: "amount_remaining_micros", Type: field.TypeInt64, Comment: "class=financial", Default: 0},
+		{Name: "amount_paid_micros", Type: field.TypeInt64, Comment: "class=financial", Default: 0},
+		{Name: "issued_at", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
+		{Name: "due_at", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
+		{Name: "paid_at", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
+		{Name: "issue_key", Type: field.TypeString, Unique: true, Size: 255, Comment: "class=none"},
+		{Name: "issue_attempted_at", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
+		{Name: "last_error", Type: field.TypeString, Size: 500, Comment: "class=none", Default: ""},
+		{Name: "stripe_invoice_id", Type: field.TypeString, Unique: true, Nullable: true, Size: 255, Comment: "class=none"},
+		{Name: "number", Type: field.TypeString, Size: 64, Comment: "class=none", Default: ""},
+		{Name: "hosted_url", Type: field.TypeString, Size: 2048, Comment: "class=none", Default: ""},
+		{Name: "pdf_url", Type: field.TypeString, Size: 2048, Comment: "class=none", Default: ""},
+		{Name: "payment_intent", Type: field.TypeString, Nullable: true, Size: 255, Comment: "class=none"},
+		{Name: "stripe_synced_at", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
+		{Name: "account_id", Type: field.TypeInt, Comment: "class=none"},
+		{Name: "contract_id", Type: field.TypeInt, Nullable: true, Comment: "class=none"},
+	}
+	// InvoicesTable holds the schema information for the "invoices" table.
+	InvoicesTable = &schema.Table{
+		Name:       "invoices",
+		Columns:    InvoicesColumns,
+		PrimaryKey: []*schema.Column{InvoicesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "invoices_billing_accounts_invoices",
+				Columns:    []*schema.Column{InvoicesColumns[32]},
+				RefColumns: []*schema.Column{BillingAccountsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "invoices_billing_contracts_invoices",
+				Columns:    []*schema.Column{InvoicesColumns[33]},
+				RefColumns: []*schema.Column{BillingContractsColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "invoice_account_id_period_start",
+				Unique:  true,
+				Columns: []*schema.Column{InvoicesColumns[32], InvoicesColumns[4]},
+			},
+			{
+				Name:    "invoice_status_due_at",
+				Unique:  false,
+				Columns: []*schema.Column{InvoicesColumns[17], InvoicesColumns[21]},
+			},
+			{
+				Name:    "invoice_payment_intent",
+				Unique:  false,
+				Columns: []*schema.Column{InvoicesColumns[30]},
+			},
+		},
+	}
+	// InvoiceLinesColumns holds the columns for the "invoice_lines" table.
+	InvoiceLinesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
+		{Name: "uid", Type: field.TypeUUID, Unique: true, Comment: "class=none"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "position", Type: field.TypeInt, Comment: "class=none"},
+		{Name: "kind", Type: field.TypeEnum, Comment: "class=none", Enums: []string{"platform_fee", "usage", "prior_usage", "credits_applied", "commitment", "adjustment"}},
+		{Name: "description", Type: field.TypeString, Size: 255, Comment: "class=none"},
+		{Name: "amount_micros", Type: field.TypeInt64, Comment: "class=financial"},
+		{Name: "amount_cents", Type: field.TypeInt64, Comment: "class=financial"},
+		{Name: "period_start", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
+		{Name: "invoice_id", Type: field.TypeInt, Comment: "class=none"},
+	}
+	// InvoiceLinesTable holds the schema information for the "invoice_lines" table.
+	InvoiceLinesTable = &schema.Table{
+		Name:       "invoice_lines",
+		Columns:    InvoiceLinesColumns,
+		PrimaryKey: []*schema.Column{InvoiceLinesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "invoice_lines_invoices_lines",
+				Columns:    []*schema.Column{InvoiceLinesColumns[9]},
+				RefColumns: []*schema.Column{InvoicesColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "invoiceline_invoice_id_position",
+				Unique:  true,
+				Columns: []*schema.Column{InvoiceLinesColumns[9], InvoiceLinesColumns[3]},
+			},
+		},
+	}
 	// LedgerEntriesColumns holds the columns for the "ledger_entries" table.
 	LedgerEntriesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
 		{Name: "uid", Type: field.TypeUUID, Unique: true, Comment: "class=none"},
 		{Name: "created_at", Type: field.TypeTime, Comment: "class=none"},
-		{Name: "kind", Type: field.TypeEnum, Comment: "class=none", Enums: []string{"topup", "promo", "usage", "subscription", "adjustment", "refund", "expiry"}},
+		{Name: "kind", Type: field.TypeEnum, Comment: "class=none", Enums: []string{"topup", "promo", "usage", "subscription", "commitment", "invoice_payment", "adjustment", "refund", "expiry"}},
 		{Name: "amount_micros", Type: field.TypeInt64, Comment: "class=financial"},
 		{Name: "balance_after_micros", Type: field.TypeInt64, Comment: "class=financial"},
 		{Name: "currency", Type: field.TypeString, Size: 3, Comment: "class=financial"},
 		{Name: "description", Type: field.TypeString, Size: 255, Comment: "class=none", Default: ""},
 		{Name: "stripe_reference", Type: field.TypeString, Nullable: true, Size: 255, Comment: "class=none"},
+		{Name: "period_start", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
+		{Name: "receivable_micros", Type: field.TypeInt64, Comment: "class=financial", Default: 0},
 		{Name: "idempotency_key", Type: field.TypeString, Unique: true, Size: 255, Comment: "class=none"},
 		{Name: "account_id", Type: field.TypeInt, Comment: "class=none"},
-		{Name: "period_id", Type: field.TypeInt, Nullable: true, Comment: "class=none"},
+		{Name: "invoice_id", Type: field.TypeInt, Nullable: true, Comment: "class=none"},
 	}
 	// LedgerEntriesTable holds the schema information for the "ledger_entries" table.
 	LedgerEntriesTable = &schema.Table{
@@ -601,14 +714,14 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "ledger_entries_billing_accounts_ledger_entries",
-				Columns:    []*schema.Column{LedgerEntriesColumns[10]},
+				Columns:    []*schema.Column{LedgerEntriesColumns[12]},
 				RefColumns: []*schema.Column{BillingAccountsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
-				Symbol:     "ledger_entries_billing_periods_charges",
-				Columns:    []*schema.Column{LedgerEntriesColumns[11]},
-				RefColumns: []*schema.Column{BillingPeriodsColumns[0]},
+				Symbol:     "ledger_entries_invoices_settlements",
+				Columns:    []*schema.Column{LedgerEntriesColumns[13]},
+				RefColumns: []*schema.Column{InvoicesColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 		},
@@ -616,7 +729,17 @@ var (
 			{
 				Name:    "ledgerentry_account_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{LedgerEntriesColumns[10], LedgerEntriesColumns[2]},
+				Columns: []*schema.Column{LedgerEntriesColumns[12], LedgerEntriesColumns[2]},
+			},
+			{
+				Name:    "ledgerentry_account_id_id",
+				Unique:  false,
+				Columns: []*schema.Column{LedgerEntriesColumns[12], LedgerEntriesColumns[0]},
+			},
+			{
+				Name:    "ledgerentry_account_id_period_start",
+				Unique:  false,
+				Columns: []*schema.Column{LedgerEntriesColumns[12], LedgerEntriesColumns[9]},
 			},
 		},
 	}
@@ -1199,7 +1322,7 @@ var (
 		AuditEventsTable,
 		BillablePlayerTable,
 		BillingAccountsTable,
-		BillingPeriodsTable,
+		BillingContractsTable,
 		ConfigVersionsTable,
 		CreditLotsTable,
 		DataDeletionRequestsTable,
@@ -1207,6 +1330,8 @@ var (
 		EnvironmentsTable,
 		FeatureFlagsTable,
 		InvitationsTable,
+		InvoicesTable,
+		InvoiceLinesTable,
 		LedgerEntriesTable,
 		LiveopsEventsTable,
 		MemberProjectsTable,
@@ -1237,7 +1362,7 @@ func init() {
 	}
 	BillingAccountsTable.ForeignKeys[0].RefTable = OrganizationsTable
 	BillingAccountsTable.ForeignKeys[1].RefTable = PlansTable
-	BillingPeriodsTable.ForeignKeys[0].RefTable = BillingAccountsTable
+	BillingContractsTable.ForeignKeys[0].RefTable = BillingAccountsTable
 	ConfigVersionsTable.ForeignKeys[0].RefTable = APIKeysTable
 	ConfigVersionsTable.ForeignKeys[1].RefTable = EnvironmentsTable
 	ConfigVersionsTable.ForeignKeys[2].RefTable = ProjectsTable
@@ -1249,8 +1374,11 @@ func init() {
 	InvitationsTable.ForeignKeys[0].RefTable = OrganizationsTable
 	InvitationsTable.ForeignKeys[1].RefTable = RolesTable
 	InvitationsTable.ForeignKeys[2].RefTable = UsersTable
+	InvoicesTable.ForeignKeys[0].RefTable = BillingAccountsTable
+	InvoicesTable.ForeignKeys[1].RefTable = BillingContractsTable
+	InvoiceLinesTable.ForeignKeys[0].RefTable = InvoicesTable
 	LedgerEntriesTable.ForeignKeys[0].RefTable = BillingAccountsTable
-	LedgerEntriesTable.ForeignKeys[1].RefTable = BillingPeriodsTable
+	LedgerEntriesTable.ForeignKeys[1].RefTable = InvoicesTable
 	LiveopsEventsTable.ForeignKeys[0].RefTable = ProjectsTable
 	LiveopsEventsTable.Annotation = &entsql.Annotation{
 		Table: "liveops_events",

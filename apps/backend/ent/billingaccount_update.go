@@ -12,8 +12,9 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"playersense.dev/backend/ent/billingaccount"
-	"playersense.dev/backend/ent/billingperiod"
+	"playersense.dev/backend/ent/billingcontract"
 	"playersense.dev/backend/ent/creditlot"
+	"playersense.dev/backend/ent/invoice"
 	"playersense.dev/backend/ent/ledgerentry"
 	"playersense.dev/backend/ent/monthlyusage"
 	"playersense.dev/backend/ent/plan"
@@ -270,6 +271,102 @@ func (_u *BillingAccountUpdate) SetNillableArrearsMicros(v *int64) *BillingAccou
 // AddArrearsMicros adds value to the "arrears_micros" field.
 func (_u *BillingAccountUpdate) AddArrearsMicros(v int64) *BillingAccountUpdate {
 	_u.mutation.AddArrearsMicros(v)
+	return _u
+}
+
+// SetCollection sets the "collection" field.
+func (_u *BillingAccountUpdate) SetCollection(v billingaccount.Collection) *BillingAccountUpdate {
+	_u.mutation.SetCollection(v)
+	return _u
+}
+
+// SetNillableCollection sets the "collection" field if the given value is not nil.
+func (_u *BillingAccountUpdate) SetNillableCollection(v *billingaccount.Collection) *BillingAccountUpdate {
+	if v != nil {
+		_u.SetCollection(*v)
+	}
+	return _u
+}
+
+// SetReceivableMicros sets the "receivable_micros" field.
+func (_u *BillingAccountUpdate) SetReceivableMicros(v int64) *BillingAccountUpdate {
+	_u.mutation.ResetReceivableMicros()
+	_u.mutation.SetReceivableMicros(v)
+	return _u
+}
+
+// SetNillableReceivableMicros sets the "receivable_micros" field if the given value is not nil.
+func (_u *BillingAccountUpdate) SetNillableReceivableMicros(v *int64) *BillingAccountUpdate {
+	if v != nil {
+		_u.SetReceivableMicros(*v)
+	}
+	return _u
+}
+
+// AddReceivableMicros adds value to the "receivable_micros" field.
+func (_u *BillingAccountUpdate) AddReceivableMicros(v int64) *BillingAccountUpdate {
+	_u.mutation.AddReceivableMicros(v)
+	return _u
+}
+
+// SetOverdueSince sets the "overdue_since" field.
+func (_u *BillingAccountUpdate) SetOverdueSince(v time.Time) *BillingAccountUpdate {
+	_u.mutation.SetOverdueSince(v)
+	return _u
+}
+
+// SetNillableOverdueSince sets the "overdue_since" field if the given value is not nil.
+func (_u *BillingAccountUpdate) SetNillableOverdueSince(v *time.Time) *BillingAccountUpdate {
+	if v != nil {
+		_u.SetOverdueSince(*v)
+	}
+	return _u
+}
+
+// ClearOverdueSince clears the value of the "overdue_since" field.
+func (_u *BillingAccountUpdate) ClearOverdueSince() *BillingAccountUpdate {
+	_u.mutation.ClearOverdueSince()
+	return _u
+}
+
+// SetInvoicedThrough sets the "invoiced_through" field.
+func (_u *BillingAccountUpdate) SetInvoicedThrough(v time.Time) *BillingAccountUpdate {
+	_u.mutation.SetInvoicedThrough(v)
+	return _u
+}
+
+// SetNillableInvoicedThrough sets the "invoiced_through" field if the given value is not nil.
+func (_u *BillingAccountUpdate) SetNillableInvoicedThrough(v *time.Time) *BillingAccountUpdate {
+	if v != nil {
+		_u.SetInvoicedThrough(*v)
+	}
+	return _u
+}
+
+// ClearInvoicedThrough clears the value of the "invoiced_through" field.
+func (_u *BillingAccountUpdate) ClearInvoicedThrough() *BillingAccountUpdate {
+	_u.mutation.ClearInvoicedThrough()
+	return _u
+}
+
+// SetInvoicedLedgerID sets the "invoiced_ledger_id" field.
+func (_u *BillingAccountUpdate) SetInvoicedLedgerID(v int) *BillingAccountUpdate {
+	_u.mutation.ResetInvoicedLedgerID()
+	_u.mutation.SetInvoicedLedgerID(v)
+	return _u
+}
+
+// SetNillableInvoicedLedgerID sets the "invoiced_ledger_id" field if the given value is not nil.
+func (_u *BillingAccountUpdate) SetNillableInvoicedLedgerID(v *int) *BillingAccountUpdate {
+	if v != nil {
+		_u.SetInvoicedLedgerID(*v)
+	}
+	return _u
+}
+
+// AddInvoicedLedgerID adds value to the "invoiced_ledger_id" field.
+func (_u *BillingAccountUpdate) AddInvoicedLedgerID(v int) *BillingAccountUpdate {
+	_u.mutation.AddInvoicedLedgerID(v)
 	return _u
 }
 
@@ -573,19 +670,34 @@ func (_u *BillingAccountUpdate) AddCreditLots(v ...*CreditLot) *BillingAccountUp
 	return _u.AddCreditLotIDs(ids...)
 }
 
-// AddPeriodIDs adds the "periods" edge to the BillingPeriod entity by IDs.
-func (_u *BillingAccountUpdate) AddPeriodIDs(ids ...int) *BillingAccountUpdate {
-	_u.mutation.AddPeriodIDs(ids...)
+// AddContractIDs adds the "contracts" edge to the BillingContract entity by IDs.
+func (_u *BillingAccountUpdate) AddContractIDs(ids ...int) *BillingAccountUpdate {
+	_u.mutation.AddContractIDs(ids...)
 	return _u
 }
 
-// AddPeriods adds the "periods" edges to the BillingPeriod entity.
-func (_u *BillingAccountUpdate) AddPeriods(v ...*BillingPeriod) *BillingAccountUpdate {
+// AddContracts adds the "contracts" edges to the BillingContract entity.
+func (_u *BillingAccountUpdate) AddContracts(v ...*BillingContract) *BillingAccountUpdate {
 	ids := make([]int, len(v))
 	for i := range v {
 		ids[i] = v[i].ID
 	}
-	return _u.AddPeriodIDs(ids...)
+	return _u.AddContractIDs(ids...)
+}
+
+// AddInvoiceIDs adds the "invoices" edge to the Invoice entity by IDs.
+func (_u *BillingAccountUpdate) AddInvoiceIDs(ids ...int) *BillingAccountUpdate {
+	_u.mutation.AddInvoiceIDs(ids...)
+	return _u
+}
+
+// AddInvoices adds the "invoices" edges to the Invoice entity.
+func (_u *BillingAccountUpdate) AddInvoices(v ...*Invoice) *BillingAccountUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddInvoiceIDs(ids...)
 }
 
 // AddStripeEventIDs adds the "stripe_events" edge to the StripeEvent entity by IDs.
@@ -686,25 +798,46 @@ func (_u *BillingAccountUpdate) RemoveCreditLots(v ...*CreditLot) *BillingAccoun
 	return _u.RemoveCreditLotIDs(ids...)
 }
 
-// ClearPeriods clears all "periods" edges to the BillingPeriod entity.
-func (_u *BillingAccountUpdate) ClearPeriods() *BillingAccountUpdate {
-	_u.mutation.ClearPeriods()
+// ClearContracts clears all "contracts" edges to the BillingContract entity.
+func (_u *BillingAccountUpdate) ClearContracts() *BillingAccountUpdate {
+	_u.mutation.ClearContracts()
 	return _u
 }
 
-// RemovePeriodIDs removes the "periods" edge to BillingPeriod entities by IDs.
-func (_u *BillingAccountUpdate) RemovePeriodIDs(ids ...int) *BillingAccountUpdate {
-	_u.mutation.RemovePeriodIDs(ids...)
+// RemoveContractIDs removes the "contracts" edge to BillingContract entities by IDs.
+func (_u *BillingAccountUpdate) RemoveContractIDs(ids ...int) *BillingAccountUpdate {
+	_u.mutation.RemoveContractIDs(ids...)
 	return _u
 }
 
-// RemovePeriods removes "periods" edges to BillingPeriod entities.
-func (_u *BillingAccountUpdate) RemovePeriods(v ...*BillingPeriod) *BillingAccountUpdate {
+// RemoveContracts removes "contracts" edges to BillingContract entities.
+func (_u *BillingAccountUpdate) RemoveContracts(v ...*BillingContract) *BillingAccountUpdate {
 	ids := make([]int, len(v))
 	for i := range v {
 		ids[i] = v[i].ID
 	}
-	return _u.RemovePeriodIDs(ids...)
+	return _u.RemoveContractIDs(ids...)
+}
+
+// ClearInvoices clears all "invoices" edges to the Invoice entity.
+func (_u *BillingAccountUpdate) ClearInvoices() *BillingAccountUpdate {
+	_u.mutation.ClearInvoices()
+	return _u
+}
+
+// RemoveInvoiceIDs removes the "invoices" edge to Invoice entities by IDs.
+func (_u *BillingAccountUpdate) RemoveInvoiceIDs(ids ...int) *BillingAccountUpdate {
+	_u.mutation.RemoveInvoiceIDs(ids...)
+	return _u
+}
+
+// RemoveInvoices removes "invoices" edges to Invoice entities.
+func (_u *BillingAccountUpdate) RemoveInvoices(v ...*Invoice) *BillingAccountUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveInvoiceIDs(ids...)
 }
 
 // ClearStripeEvents clears all "stripe_events" edges to the StripeEvent entity.
@@ -849,6 +982,21 @@ func (_u *BillingAccountUpdate) check() error {
 			return &ValidationError{Name: "arrears_micros", err: fmt.Errorf(`ent: validator failed for field "BillingAccount.arrears_micros": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.Collection(); ok {
+		if err := billingaccount.CollectionValidator(v); err != nil {
+			return &ValidationError{Name: "collection", err: fmt.Errorf(`ent: validator failed for field "BillingAccount.collection": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.ReceivableMicros(); ok {
+		if err := billingaccount.ReceivableMicrosValidator(v); err != nil {
+			return &ValidationError{Name: "receivable_micros", err: fmt.Errorf(`ent: validator failed for field "BillingAccount.receivable_micros": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.InvoicedLedgerID(); ok {
+		if err := billingaccount.InvoicedLedgerIDValidator(v); err != nil {
+			return &ValidationError{Name: "invoiced_ledger_id", err: fmt.Errorf(`ent: validator failed for field "BillingAccount.invoiced_ledger_id": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.AutoTopupThresholdMicros(); ok {
 		if err := billingaccount.AutoTopupThresholdMicrosValidator(v); err != nil {
 			return &ValidationError{Name: "auto_topup_threshold_micros", err: fmt.Errorf(`ent: validator failed for field "BillingAccount.auto_topup_threshold_micros": %w`, err)}
@@ -967,6 +1115,33 @@ func (_u *BillingAccountUpdate) sqlSave(ctx context.Context) (_node int, err err
 	}
 	if value, ok := _u.mutation.AddedArrearsMicros(); ok {
 		_spec.AddField(billingaccount.FieldArrearsMicros, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.Collection(); ok {
+		_spec.SetField(billingaccount.FieldCollection, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.ReceivableMicros(); ok {
+		_spec.SetField(billingaccount.FieldReceivableMicros, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedReceivableMicros(); ok {
+		_spec.AddField(billingaccount.FieldReceivableMicros, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.OverdueSince(); ok {
+		_spec.SetField(billingaccount.FieldOverdueSince, field.TypeTime, value)
+	}
+	if _u.mutation.OverdueSinceCleared() {
+		_spec.ClearField(billingaccount.FieldOverdueSince, field.TypeTime)
+	}
+	if value, ok := _u.mutation.InvoicedThrough(); ok {
+		_spec.SetField(billingaccount.FieldInvoicedThrough, field.TypeTime, value)
+	}
+	if _u.mutation.InvoicedThroughCleared() {
+		_spec.ClearField(billingaccount.FieldInvoicedThrough, field.TypeTime)
+	}
+	if value, ok := _u.mutation.InvoicedLedgerID(); ok {
+		_spec.SetField(billingaccount.FieldInvoicedLedgerID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedInvoicedLedgerID(); ok {
+		_spec.AddField(billingaccount.FieldInvoicedLedgerID, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.AutoTopupEnabled(); ok {
 		_spec.SetField(billingaccount.FieldAutoTopupEnabled, field.TypeBool, value)
@@ -1165,28 +1340,28 @@ func (_u *BillingAccountUpdate) sqlSave(ctx context.Context) (_node int, err err
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
-	if _u.mutation.PeriodsCleared() {
+	if _u.mutation.ContractsCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
-			Table:   billingaccount.PeriodsTable,
-			Columns: []string{billingaccount.PeriodsColumn},
+			Table:   billingaccount.ContractsTable,
+			Columns: []string{billingaccount.ContractsColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(billingperiod.FieldID, field.TypeInt),
+				IDSpec: sqlgraph.NewFieldSpec(billingcontract.FieldID, field.TypeInt),
 			},
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.RemovedPeriodsIDs(); len(nodes) > 0 && !_u.mutation.PeriodsCleared() {
+	if nodes := _u.mutation.RemovedContractsIDs(); len(nodes) > 0 && !_u.mutation.ContractsCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
-			Table:   billingaccount.PeriodsTable,
-			Columns: []string{billingaccount.PeriodsColumn},
+			Table:   billingaccount.ContractsTable,
+			Columns: []string{billingaccount.ContractsColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(billingperiod.FieldID, field.TypeInt),
+				IDSpec: sqlgraph.NewFieldSpec(billingcontract.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {
@@ -1194,15 +1369,60 @@ func (_u *BillingAccountUpdate) sqlSave(ctx context.Context) (_node int, err err
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.PeriodsIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.ContractsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
-			Table:   billingaccount.PeriodsTable,
-			Columns: []string{billingaccount.PeriodsColumn},
+			Table:   billingaccount.ContractsTable,
+			Columns: []string{billingaccount.ContractsColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(billingperiod.FieldID, field.TypeInt),
+				IDSpec: sqlgraph.NewFieldSpec(billingcontract.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.InvoicesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   billingaccount.InvoicesTable,
+			Columns: []string{billingaccount.InvoicesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(invoice.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedInvoicesIDs(); len(nodes) > 0 && !_u.mutation.InvoicesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   billingaccount.InvoicesTable,
+			Columns: []string{billingaccount.InvoicesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(invoice.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.InvoicesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   billingaccount.InvoicesTable,
+			Columns: []string{billingaccount.InvoicesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(invoice.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {
@@ -1603,6 +1823,102 @@ func (_u *BillingAccountUpdateOne) AddArrearsMicros(v int64) *BillingAccountUpda
 	return _u
 }
 
+// SetCollection sets the "collection" field.
+func (_u *BillingAccountUpdateOne) SetCollection(v billingaccount.Collection) *BillingAccountUpdateOne {
+	_u.mutation.SetCollection(v)
+	return _u
+}
+
+// SetNillableCollection sets the "collection" field if the given value is not nil.
+func (_u *BillingAccountUpdateOne) SetNillableCollection(v *billingaccount.Collection) *BillingAccountUpdateOne {
+	if v != nil {
+		_u.SetCollection(*v)
+	}
+	return _u
+}
+
+// SetReceivableMicros sets the "receivable_micros" field.
+func (_u *BillingAccountUpdateOne) SetReceivableMicros(v int64) *BillingAccountUpdateOne {
+	_u.mutation.ResetReceivableMicros()
+	_u.mutation.SetReceivableMicros(v)
+	return _u
+}
+
+// SetNillableReceivableMicros sets the "receivable_micros" field if the given value is not nil.
+func (_u *BillingAccountUpdateOne) SetNillableReceivableMicros(v *int64) *BillingAccountUpdateOne {
+	if v != nil {
+		_u.SetReceivableMicros(*v)
+	}
+	return _u
+}
+
+// AddReceivableMicros adds value to the "receivable_micros" field.
+func (_u *BillingAccountUpdateOne) AddReceivableMicros(v int64) *BillingAccountUpdateOne {
+	_u.mutation.AddReceivableMicros(v)
+	return _u
+}
+
+// SetOverdueSince sets the "overdue_since" field.
+func (_u *BillingAccountUpdateOne) SetOverdueSince(v time.Time) *BillingAccountUpdateOne {
+	_u.mutation.SetOverdueSince(v)
+	return _u
+}
+
+// SetNillableOverdueSince sets the "overdue_since" field if the given value is not nil.
+func (_u *BillingAccountUpdateOne) SetNillableOverdueSince(v *time.Time) *BillingAccountUpdateOne {
+	if v != nil {
+		_u.SetOverdueSince(*v)
+	}
+	return _u
+}
+
+// ClearOverdueSince clears the value of the "overdue_since" field.
+func (_u *BillingAccountUpdateOne) ClearOverdueSince() *BillingAccountUpdateOne {
+	_u.mutation.ClearOverdueSince()
+	return _u
+}
+
+// SetInvoicedThrough sets the "invoiced_through" field.
+func (_u *BillingAccountUpdateOne) SetInvoicedThrough(v time.Time) *BillingAccountUpdateOne {
+	_u.mutation.SetInvoicedThrough(v)
+	return _u
+}
+
+// SetNillableInvoicedThrough sets the "invoiced_through" field if the given value is not nil.
+func (_u *BillingAccountUpdateOne) SetNillableInvoicedThrough(v *time.Time) *BillingAccountUpdateOne {
+	if v != nil {
+		_u.SetInvoicedThrough(*v)
+	}
+	return _u
+}
+
+// ClearInvoicedThrough clears the value of the "invoiced_through" field.
+func (_u *BillingAccountUpdateOne) ClearInvoicedThrough() *BillingAccountUpdateOne {
+	_u.mutation.ClearInvoicedThrough()
+	return _u
+}
+
+// SetInvoicedLedgerID sets the "invoiced_ledger_id" field.
+func (_u *BillingAccountUpdateOne) SetInvoicedLedgerID(v int) *BillingAccountUpdateOne {
+	_u.mutation.ResetInvoicedLedgerID()
+	_u.mutation.SetInvoicedLedgerID(v)
+	return _u
+}
+
+// SetNillableInvoicedLedgerID sets the "invoiced_ledger_id" field if the given value is not nil.
+func (_u *BillingAccountUpdateOne) SetNillableInvoicedLedgerID(v *int) *BillingAccountUpdateOne {
+	if v != nil {
+		_u.SetInvoicedLedgerID(*v)
+	}
+	return _u
+}
+
+// AddInvoicedLedgerID adds value to the "invoiced_ledger_id" field.
+func (_u *BillingAccountUpdateOne) AddInvoicedLedgerID(v int) *BillingAccountUpdateOne {
+	_u.mutation.AddInvoicedLedgerID(v)
+	return _u
+}
+
 // SetAutoTopupEnabled sets the "auto_topup_enabled" field.
 func (_u *BillingAccountUpdateOne) SetAutoTopupEnabled(v bool) *BillingAccountUpdateOne {
 	_u.mutation.SetAutoTopupEnabled(v)
@@ -1903,19 +2219,34 @@ func (_u *BillingAccountUpdateOne) AddCreditLots(v ...*CreditLot) *BillingAccoun
 	return _u.AddCreditLotIDs(ids...)
 }
 
-// AddPeriodIDs adds the "periods" edge to the BillingPeriod entity by IDs.
-func (_u *BillingAccountUpdateOne) AddPeriodIDs(ids ...int) *BillingAccountUpdateOne {
-	_u.mutation.AddPeriodIDs(ids...)
+// AddContractIDs adds the "contracts" edge to the BillingContract entity by IDs.
+func (_u *BillingAccountUpdateOne) AddContractIDs(ids ...int) *BillingAccountUpdateOne {
+	_u.mutation.AddContractIDs(ids...)
 	return _u
 }
 
-// AddPeriods adds the "periods" edges to the BillingPeriod entity.
-func (_u *BillingAccountUpdateOne) AddPeriods(v ...*BillingPeriod) *BillingAccountUpdateOne {
+// AddContracts adds the "contracts" edges to the BillingContract entity.
+func (_u *BillingAccountUpdateOne) AddContracts(v ...*BillingContract) *BillingAccountUpdateOne {
 	ids := make([]int, len(v))
 	for i := range v {
 		ids[i] = v[i].ID
 	}
-	return _u.AddPeriodIDs(ids...)
+	return _u.AddContractIDs(ids...)
+}
+
+// AddInvoiceIDs adds the "invoices" edge to the Invoice entity by IDs.
+func (_u *BillingAccountUpdateOne) AddInvoiceIDs(ids ...int) *BillingAccountUpdateOne {
+	_u.mutation.AddInvoiceIDs(ids...)
+	return _u
+}
+
+// AddInvoices adds the "invoices" edges to the Invoice entity.
+func (_u *BillingAccountUpdateOne) AddInvoices(v ...*Invoice) *BillingAccountUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddInvoiceIDs(ids...)
 }
 
 // AddStripeEventIDs adds the "stripe_events" edge to the StripeEvent entity by IDs.
@@ -2016,25 +2347,46 @@ func (_u *BillingAccountUpdateOne) RemoveCreditLots(v ...*CreditLot) *BillingAcc
 	return _u.RemoveCreditLotIDs(ids...)
 }
 
-// ClearPeriods clears all "periods" edges to the BillingPeriod entity.
-func (_u *BillingAccountUpdateOne) ClearPeriods() *BillingAccountUpdateOne {
-	_u.mutation.ClearPeriods()
+// ClearContracts clears all "contracts" edges to the BillingContract entity.
+func (_u *BillingAccountUpdateOne) ClearContracts() *BillingAccountUpdateOne {
+	_u.mutation.ClearContracts()
 	return _u
 }
 
-// RemovePeriodIDs removes the "periods" edge to BillingPeriod entities by IDs.
-func (_u *BillingAccountUpdateOne) RemovePeriodIDs(ids ...int) *BillingAccountUpdateOne {
-	_u.mutation.RemovePeriodIDs(ids...)
+// RemoveContractIDs removes the "contracts" edge to BillingContract entities by IDs.
+func (_u *BillingAccountUpdateOne) RemoveContractIDs(ids ...int) *BillingAccountUpdateOne {
+	_u.mutation.RemoveContractIDs(ids...)
 	return _u
 }
 
-// RemovePeriods removes "periods" edges to BillingPeriod entities.
-func (_u *BillingAccountUpdateOne) RemovePeriods(v ...*BillingPeriod) *BillingAccountUpdateOne {
+// RemoveContracts removes "contracts" edges to BillingContract entities.
+func (_u *BillingAccountUpdateOne) RemoveContracts(v ...*BillingContract) *BillingAccountUpdateOne {
 	ids := make([]int, len(v))
 	for i := range v {
 		ids[i] = v[i].ID
 	}
-	return _u.RemovePeriodIDs(ids...)
+	return _u.RemoveContractIDs(ids...)
+}
+
+// ClearInvoices clears all "invoices" edges to the Invoice entity.
+func (_u *BillingAccountUpdateOne) ClearInvoices() *BillingAccountUpdateOne {
+	_u.mutation.ClearInvoices()
+	return _u
+}
+
+// RemoveInvoiceIDs removes the "invoices" edge to Invoice entities by IDs.
+func (_u *BillingAccountUpdateOne) RemoveInvoiceIDs(ids ...int) *BillingAccountUpdateOne {
+	_u.mutation.RemoveInvoiceIDs(ids...)
+	return _u
+}
+
+// RemoveInvoices removes "invoices" edges to Invoice entities.
+func (_u *BillingAccountUpdateOne) RemoveInvoices(v ...*Invoice) *BillingAccountUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveInvoiceIDs(ids...)
 }
 
 // ClearStripeEvents clears all "stripe_events" edges to the StripeEvent entity.
@@ -2192,6 +2544,21 @@ func (_u *BillingAccountUpdateOne) check() error {
 			return &ValidationError{Name: "arrears_micros", err: fmt.Errorf(`ent: validator failed for field "BillingAccount.arrears_micros": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.Collection(); ok {
+		if err := billingaccount.CollectionValidator(v); err != nil {
+			return &ValidationError{Name: "collection", err: fmt.Errorf(`ent: validator failed for field "BillingAccount.collection": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.ReceivableMicros(); ok {
+		if err := billingaccount.ReceivableMicrosValidator(v); err != nil {
+			return &ValidationError{Name: "receivable_micros", err: fmt.Errorf(`ent: validator failed for field "BillingAccount.receivable_micros": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.InvoicedLedgerID(); ok {
+		if err := billingaccount.InvoicedLedgerIDValidator(v); err != nil {
+			return &ValidationError{Name: "invoiced_ledger_id", err: fmt.Errorf(`ent: validator failed for field "BillingAccount.invoiced_ledger_id": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.AutoTopupThresholdMicros(); ok {
 		if err := billingaccount.AutoTopupThresholdMicrosValidator(v); err != nil {
 			return &ValidationError{Name: "auto_topup_threshold_micros", err: fmt.Errorf(`ent: validator failed for field "BillingAccount.auto_topup_threshold_micros": %w`, err)}
@@ -2327,6 +2694,33 @@ func (_u *BillingAccountUpdateOne) sqlSave(ctx context.Context) (_node *BillingA
 	}
 	if value, ok := _u.mutation.AddedArrearsMicros(); ok {
 		_spec.AddField(billingaccount.FieldArrearsMicros, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.Collection(); ok {
+		_spec.SetField(billingaccount.FieldCollection, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.ReceivableMicros(); ok {
+		_spec.SetField(billingaccount.FieldReceivableMicros, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedReceivableMicros(); ok {
+		_spec.AddField(billingaccount.FieldReceivableMicros, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.OverdueSince(); ok {
+		_spec.SetField(billingaccount.FieldOverdueSince, field.TypeTime, value)
+	}
+	if _u.mutation.OverdueSinceCleared() {
+		_spec.ClearField(billingaccount.FieldOverdueSince, field.TypeTime)
+	}
+	if value, ok := _u.mutation.InvoicedThrough(); ok {
+		_spec.SetField(billingaccount.FieldInvoicedThrough, field.TypeTime, value)
+	}
+	if _u.mutation.InvoicedThroughCleared() {
+		_spec.ClearField(billingaccount.FieldInvoicedThrough, field.TypeTime)
+	}
+	if value, ok := _u.mutation.InvoicedLedgerID(); ok {
+		_spec.SetField(billingaccount.FieldInvoicedLedgerID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedInvoicedLedgerID(); ok {
+		_spec.AddField(billingaccount.FieldInvoicedLedgerID, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.AutoTopupEnabled(); ok {
 		_spec.SetField(billingaccount.FieldAutoTopupEnabled, field.TypeBool, value)
@@ -2525,28 +2919,28 @@ func (_u *BillingAccountUpdateOne) sqlSave(ctx context.Context) (_node *BillingA
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
-	if _u.mutation.PeriodsCleared() {
+	if _u.mutation.ContractsCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
-			Table:   billingaccount.PeriodsTable,
-			Columns: []string{billingaccount.PeriodsColumn},
+			Table:   billingaccount.ContractsTable,
+			Columns: []string{billingaccount.ContractsColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(billingperiod.FieldID, field.TypeInt),
+				IDSpec: sqlgraph.NewFieldSpec(billingcontract.FieldID, field.TypeInt),
 			},
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.RemovedPeriodsIDs(); len(nodes) > 0 && !_u.mutation.PeriodsCleared() {
+	if nodes := _u.mutation.RemovedContractsIDs(); len(nodes) > 0 && !_u.mutation.ContractsCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
-			Table:   billingaccount.PeriodsTable,
-			Columns: []string{billingaccount.PeriodsColumn},
+			Table:   billingaccount.ContractsTable,
+			Columns: []string{billingaccount.ContractsColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(billingperiod.FieldID, field.TypeInt),
+				IDSpec: sqlgraph.NewFieldSpec(billingcontract.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {
@@ -2554,15 +2948,60 @@ func (_u *BillingAccountUpdateOne) sqlSave(ctx context.Context) (_node *BillingA
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.PeriodsIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.ContractsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
-			Table:   billingaccount.PeriodsTable,
-			Columns: []string{billingaccount.PeriodsColumn},
+			Table:   billingaccount.ContractsTable,
+			Columns: []string{billingaccount.ContractsColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(billingperiod.FieldID, field.TypeInt),
+				IDSpec: sqlgraph.NewFieldSpec(billingcontract.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.InvoicesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   billingaccount.InvoicesTable,
+			Columns: []string{billingaccount.InvoicesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(invoice.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedInvoicesIDs(); len(nodes) > 0 && !_u.mutation.InvoicesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   billingaccount.InvoicesTable,
+			Columns: []string{billingaccount.InvoicesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(invoice.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.InvoicesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   billingaccount.InvoicesTable,
+			Columns: []string{billingaccount.InvoicesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(invoice.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

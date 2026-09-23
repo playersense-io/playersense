@@ -51,6 +51,16 @@ const (
 	FieldBalanceMicros = "balance_micros"
 	// FieldArrearsMicros holds the string denoting the arrears_micros field in the database.
 	FieldArrearsMicros = "arrears_micros"
+	// FieldCollection holds the string denoting the collection field in the database.
+	FieldCollection = "collection"
+	// FieldReceivableMicros holds the string denoting the receivable_micros field in the database.
+	FieldReceivableMicros = "receivable_micros"
+	// FieldOverdueSince holds the string denoting the overdue_since field in the database.
+	FieldOverdueSince = "overdue_since"
+	// FieldInvoicedThrough holds the string denoting the invoiced_through field in the database.
+	FieldInvoicedThrough = "invoiced_through"
+	// FieldInvoicedLedgerID holds the string denoting the invoiced_ledger_id field in the database.
+	FieldInvoicedLedgerID = "invoiced_ledger_id"
 	// FieldAutoTopupEnabled holds the string denoting the auto_topup_enabled field in the database.
 	FieldAutoTopupEnabled = "auto_topup_enabled"
 	// FieldAutoTopupThresholdMicros holds the string denoting the auto_topup_threshold_micros field in the database.
@@ -87,8 +97,10 @@ const (
 	EdgeLedgerEntries = "ledger_entries"
 	// EdgeCreditLots holds the string denoting the credit_lots edge name in mutations.
 	EdgeCreditLots = "credit_lots"
-	// EdgePeriods holds the string denoting the periods edge name in mutations.
-	EdgePeriods = "periods"
+	// EdgeContracts holds the string denoting the contracts edge name in mutations.
+	EdgeContracts = "contracts"
+	// EdgeInvoices holds the string denoting the invoices edge name in mutations.
+	EdgeInvoices = "invoices"
 	// EdgeStripeEvents holds the string denoting the stripe_events edge name in mutations.
 	EdgeStripeEvents = "stripe_events"
 	// EdgeMonthlyUsage holds the string denoting the monthly_usage edge name in mutations.
@@ -125,13 +137,20 @@ const (
 	CreditLotsInverseTable = "credit_lots"
 	// CreditLotsColumn is the table column denoting the credit_lots relation/edge.
 	CreditLotsColumn = "account_id"
-	// PeriodsTable is the table that holds the periods relation/edge.
-	PeriodsTable = "billing_periods"
-	// PeriodsInverseTable is the table name for the BillingPeriod entity.
-	// It exists in this package in order to avoid circular dependency with the "billingperiod" package.
-	PeriodsInverseTable = "billing_periods"
-	// PeriodsColumn is the table column denoting the periods relation/edge.
-	PeriodsColumn = "account_id"
+	// ContractsTable is the table that holds the contracts relation/edge.
+	ContractsTable = "billing_contracts"
+	// ContractsInverseTable is the table name for the BillingContract entity.
+	// It exists in this package in order to avoid circular dependency with the "billingcontract" package.
+	ContractsInverseTable = "billing_contracts"
+	// ContractsColumn is the table column denoting the contracts relation/edge.
+	ContractsColumn = "account_id"
+	// InvoicesTable is the table that holds the invoices relation/edge.
+	InvoicesTable = "invoices"
+	// InvoicesInverseTable is the table name for the Invoice entity.
+	// It exists in this package in order to avoid circular dependency with the "invoice" package.
+	InvoicesInverseTable = "invoices"
+	// InvoicesColumn is the table column denoting the invoices relation/edge.
+	InvoicesColumn = "account_id"
 	// StripeEventsTable is the table that holds the stripe_events relation/edge.
 	StripeEventsTable = "stripe_events"
 	// StripeEventsInverseTable is the table name for the StripeEvent entity.
@@ -175,6 +194,11 @@ var Columns = []string{
 	FieldCurrency,
 	FieldBalanceMicros,
 	FieldArrearsMicros,
+	FieldCollection,
+	FieldReceivableMicros,
+	FieldOverdueSince,
+	FieldInvoicedThrough,
+	FieldInvoicedLedgerID,
 	FieldAutoTopupEnabled,
 	FieldAutoTopupThresholdMicros,
 	FieldAutoTopupAmountMicros,
@@ -236,6 +260,14 @@ var (
 	DefaultArrearsMicros int64
 	// ArrearsMicrosValidator is a validator for the "arrears_micros" field. It is called by the builders before save.
 	ArrearsMicrosValidator func(int64) error
+	// DefaultReceivableMicros holds the default value on creation for the "receivable_micros" field.
+	DefaultReceivableMicros int64
+	// ReceivableMicrosValidator is a validator for the "receivable_micros" field. It is called by the builders before save.
+	ReceivableMicrosValidator func(int64) error
+	// DefaultInvoicedLedgerID holds the default value on creation for the "invoiced_ledger_id" field.
+	DefaultInvoicedLedgerID int
+	// InvoicedLedgerIDValidator is a validator for the "invoiced_ledger_id" field. It is called by the builders before save.
+	InvoicedLedgerIDValidator func(int) error
 	// DefaultAutoTopupEnabled holds the default value on creation for the "auto_topup_enabled" field.
 	DefaultAutoTopupEnabled bool
 	// DefaultAutoTopupThresholdMicros holds the default value on creation for the "auto_topup_threshold_micros" field.
@@ -315,6 +347,32 @@ func StateValidator(s State) error {
 		return nil
 	default:
 		return fmt.Errorf("billingaccount: invalid enum value for state field: %q", s)
+	}
+}
+
+// Collection defines the type for the "collection" enum field.
+type Collection string
+
+// CollectionPrepaid is the default value of the Collection enum.
+const DefaultCollection = CollectionPrepaid
+
+// Collection values.
+const (
+	CollectionPrepaid  Collection = "prepaid"
+	CollectionInvoiced Collection = "invoiced"
+)
+
+func (c Collection) String() string {
+	return string(c)
+}
+
+// CollectionValidator is a validator for the "collection" field enum values. It is called by the builders before save.
+func CollectionValidator(c Collection) error {
+	switch c {
+	case CollectionPrepaid, CollectionInvoiced:
+		return nil
+	default:
+		return fmt.Errorf("billingaccount: invalid enum value for collection field: %q", c)
 	}
 }
 
@@ -409,6 +467,31 @@ func ByBalanceMicros(opts ...sql.OrderTermOption) OrderOption {
 // ByArrearsMicros orders the results by the arrears_micros field.
 func ByArrearsMicros(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldArrearsMicros, opts...).ToFunc()
+}
+
+// ByCollection orders the results by the collection field.
+func ByCollection(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCollection, opts...).ToFunc()
+}
+
+// ByReceivableMicros orders the results by the receivable_micros field.
+func ByReceivableMicros(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldReceivableMicros, opts...).ToFunc()
+}
+
+// ByOverdueSince orders the results by the overdue_since field.
+func ByOverdueSince(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldOverdueSince, opts...).ToFunc()
+}
+
+// ByInvoicedThrough orders the results by the invoiced_through field.
+func ByInvoicedThrough(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldInvoicedThrough, opts...).ToFunc()
+}
+
+// ByInvoicedLedgerID orders the results by the invoiced_ledger_id field.
+func ByInvoicedLedgerID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldInvoicedLedgerID, opts...).ToFunc()
 }
 
 // ByAutoTopupEnabled orders the results by the auto_topup_enabled field.
@@ -518,17 +601,31 @@ func ByCreditLots(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	}
 }
 
-// ByPeriodsCount orders the results by periods count.
-func ByPeriodsCount(opts ...sql.OrderTermOption) OrderOption {
+// ByContractsCount orders the results by contracts count.
+func ByContractsCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newPeriodsStep(), opts...)
+		sqlgraph.OrderByNeighborsCount(s, newContractsStep(), opts...)
 	}
 }
 
-// ByPeriods orders the results by periods terms.
-func ByPeriods(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+// ByContracts orders the results by contracts terms.
+func ByContracts(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newPeriodsStep(), append([]sql.OrderTerm{term}, terms...)...)
+		sqlgraph.OrderByNeighborTerms(s, newContractsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByInvoicesCount orders the results by invoices count.
+func ByInvoicesCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newInvoicesStep(), opts...)
+	}
+}
+
+// ByInvoices orders the results by invoices terms.
+func ByInvoices(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newInvoicesStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
 
@@ -601,11 +698,18 @@ func newCreditLotsStep() *sqlgraph.Step {
 		sqlgraph.Edge(sqlgraph.O2M, false, CreditLotsTable, CreditLotsColumn),
 	)
 }
-func newPeriodsStep() *sqlgraph.Step {
+func newContractsStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
-		sqlgraph.To(PeriodsInverseTable, FieldID),
-		sqlgraph.Edge(sqlgraph.O2M, false, PeriodsTable, PeriodsColumn),
+		sqlgraph.To(ContractsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, ContractsTable, ContractsColumn),
+	)
+}
+func newInvoicesStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(InvoicesInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, InvoicesTable, InvoicesColumn),
 	)
 }
 func newStripeEventsStep() *sqlgraph.Step {

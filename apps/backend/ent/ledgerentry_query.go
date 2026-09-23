@@ -13,7 +13,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"playersense.dev/backend/ent/billingaccount"
-	"playersense.dev/backend/ent/billingperiod"
+	"playersense.dev/backend/ent/invoice"
 	"playersense.dev/backend/ent/ledgerentry"
 	"playersense.dev/backend/ent/predicate"
 )
@@ -26,7 +26,7 @@ type LedgerEntryQuery struct {
 	inters      []Interceptor
 	predicates  []predicate.LedgerEntry
 	withAccount *BillingAccountQuery
-	withPeriod  *BillingPeriodQuery
+	withInvoice *InvoiceQuery
 	modifiers   []func(*sql.Selector)
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
@@ -86,9 +86,9 @@ func (_q *LedgerEntryQuery) QueryAccount() *BillingAccountQuery {
 	return query
 }
 
-// QueryPeriod chains the current query on the "period" edge.
-func (_q *LedgerEntryQuery) QueryPeriod() *BillingPeriodQuery {
-	query := (&BillingPeriodClient{config: _q.config}).Query()
+// QueryInvoice chains the current query on the "invoice" edge.
+func (_q *LedgerEntryQuery) QueryInvoice() *InvoiceQuery {
+	query := (&InvoiceClient{config: _q.config}).Query()
 	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
 		if err := _q.prepareQuery(ctx); err != nil {
 			return nil, err
@@ -99,8 +99,8 @@ func (_q *LedgerEntryQuery) QueryPeriod() *BillingPeriodQuery {
 		}
 		step := sqlgraph.NewStep(
 			sqlgraph.From(ledgerentry.Table, ledgerentry.FieldID, selector),
-			sqlgraph.To(billingperiod.Table, billingperiod.FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, true, ledgerentry.PeriodTable, ledgerentry.PeriodColumn),
+			sqlgraph.To(invoice.Table, invoice.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, ledgerentry.InvoiceTable, ledgerentry.InvoiceColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -301,7 +301,7 @@ func (_q *LedgerEntryQuery) Clone() *LedgerEntryQuery {
 		inters:      append([]Interceptor{}, _q.inters...),
 		predicates:  append([]predicate.LedgerEntry{}, _q.predicates...),
 		withAccount: _q.withAccount.Clone(),
-		withPeriod:  _q.withPeriod.Clone(),
+		withInvoice: _q.withInvoice.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -319,14 +319,14 @@ func (_q *LedgerEntryQuery) WithAccount(opts ...func(*BillingAccountQuery)) *Led
 	return _q
 }
 
-// WithPeriod tells the query-builder to eager-load the nodes that are connected to
-// the "period" edge. The optional arguments are used to configure the query builder of the edge.
-func (_q *LedgerEntryQuery) WithPeriod(opts ...func(*BillingPeriodQuery)) *LedgerEntryQuery {
-	query := (&BillingPeriodClient{config: _q.config}).Query()
+// WithInvoice tells the query-builder to eager-load the nodes that are connected to
+// the "invoice" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *LedgerEntryQuery) WithInvoice(opts ...func(*InvoiceQuery)) *LedgerEntryQuery {
+	query := (&InvoiceClient{config: _q.config}).Query()
 	for _, opt := range opts {
 		opt(query)
 	}
-	_q.withPeriod = query
+	_q.withInvoice = query
 	return _q
 }
 
@@ -410,7 +410,7 @@ func (_q *LedgerEntryQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*
 		_spec       = _q.querySpec()
 		loadedTypes = [2]bool{
 			_q.withAccount != nil,
-			_q.withPeriod != nil,
+			_q.withInvoice != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -440,9 +440,9 @@ func (_q *LedgerEntryQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*
 			return nil, err
 		}
 	}
-	if query := _q.withPeriod; query != nil {
-		if err := _q.loadPeriod(ctx, query, nodes, nil,
-			func(n *LedgerEntry, e *BillingPeriod) { n.Edges.Period = e }); err != nil {
+	if query := _q.withInvoice; query != nil {
+		if err := _q.loadInvoice(ctx, query, nodes, nil,
+			func(n *LedgerEntry, e *Invoice) { n.Edges.Invoice = e }); err != nil {
 			return nil, err
 		}
 	}
@@ -478,14 +478,14 @@ func (_q *LedgerEntryQuery) loadAccount(ctx context.Context, query *BillingAccou
 	}
 	return nil
 }
-func (_q *LedgerEntryQuery) loadPeriod(ctx context.Context, query *BillingPeriodQuery, nodes []*LedgerEntry, init func(*LedgerEntry), assign func(*LedgerEntry, *BillingPeriod)) error {
+func (_q *LedgerEntryQuery) loadInvoice(ctx context.Context, query *InvoiceQuery, nodes []*LedgerEntry, init func(*LedgerEntry), assign func(*LedgerEntry, *Invoice)) error {
 	ids := make([]int, 0, len(nodes))
 	nodeids := make(map[int][]*LedgerEntry)
 	for i := range nodes {
-		if nodes[i].PeriodID == nil {
+		if nodes[i].InvoiceID == nil {
 			continue
 		}
-		fk := *nodes[i].PeriodID
+		fk := *nodes[i].InvoiceID
 		if _, ok := nodeids[fk]; !ok {
 			ids = append(ids, fk)
 		}
@@ -494,7 +494,7 @@ func (_q *LedgerEntryQuery) loadPeriod(ctx context.Context, query *BillingPeriod
 	if len(ids) == 0 {
 		return nil
 	}
-	query.Where(billingperiod.IDIn(ids...))
+	query.Where(invoice.IDIn(ids...))
 	neighbors, err := query.All(ctx)
 	if err != nil {
 		return err
@@ -502,7 +502,7 @@ func (_q *LedgerEntryQuery) loadPeriod(ctx context.Context, query *BillingPeriod
 	for _, n := range neighbors {
 		nodes, ok := nodeids[n.ID]
 		if !ok {
-			return fmt.Errorf(`unexpected foreign-key "period_id" returned %v`, n.ID)
+			return fmt.Errorf(`unexpected foreign-key "invoice_id" returned %v`, n.ID)
 		}
 		for i := range nodes {
 			assign(nodes[i], n)
@@ -542,8 +542,8 @@ func (_q *LedgerEntryQuery) querySpec() *sqlgraph.QuerySpec {
 		if _q.withAccount != nil {
 			_spec.Node.AddColumnOnce(ledgerentry.FieldAccountID)
 		}
-		if _q.withPeriod != nil {
-			_spec.Node.AddColumnOnce(ledgerentry.FieldPeriodID)
+		if _q.withInvoice != nil {
+			_spec.Node.AddColumnOnce(ledgerentry.FieldInvoiceID)
 		}
 	}
 	if ps := _q.predicates; len(ps) > 0 {

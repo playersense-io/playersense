@@ -11,7 +11,7 @@ import (
 	"playersense.dev/backend/ent/auditevent"
 	"playersense.dev/backend/ent/billableplayer"
 	"playersense.dev/backend/ent/billingaccount"
-	"playersense.dev/backend/ent/billingperiod"
+	"playersense.dev/backend/ent/billingcontract"
 	"playersense.dev/backend/ent/configversion"
 	"playersense.dev/backend/ent/creditlot"
 	"playersense.dev/backend/ent/datadeletionrequest"
@@ -19,6 +19,8 @@ import (
 	"playersense.dev/backend/ent/environment"
 	"playersense.dev/backend/ent/featureflag"
 	"playersense.dev/backend/ent/invitation"
+	"playersense.dev/backend/ent/invoice"
+	"playersense.dev/backend/ent/invoiceline"
 	"playersense.dev/backend/ent/ledgerentry"
 	"playersense.dev/backend/ent/liveopsevent"
 	"playersense.dev/backend/ent/memberproject"
@@ -297,12 +299,24 @@ func init() {
 	billingaccount.DefaultArrearsMicros = billingaccountDescArrearsMicros.Default.(int64)
 	// billingaccount.ArrearsMicrosValidator is a validator for the "arrears_micros" field. It is called by the builders before save.
 	billingaccount.ArrearsMicrosValidator = billingaccountDescArrearsMicros.Validators[0].(func(int64) error)
+	// billingaccountDescReceivableMicros is the schema descriptor for receivable_micros field.
+	billingaccountDescReceivableMicros := billingaccountFields[15].Descriptor()
+	// billingaccount.DefaultReceivableMicros holds the default value on creation for the receivable_micros field.
+	billingaccount.DefaultReceivableMicros = billingaccountDescReceivableMicros.Default.(int64)
+	// billingaccount.ReceivableMicrosValidator is a validator for the "receivable_micros" field. It is called by the builders before save.
+	billingaccount.ReceivableMicrosValidator = billingaccountDescReceivableMicros.Validators[0].(func(int64) error)
+	// billingaccountDescInvoicedLedgerID is the schema descriptor for invoiced_ledger_id field.
+	billingaccountDescInvoicedLedgerID := billingaccountFields[18].Descriptor()
+	// billingaccount.DefaultInvoicedLedgerID holds the default value on creation for the invoiced_ledger_id field.
+	billingaccount.DefaultInvoicedLedgerID = billingaccountDescInvoicedLedgerID.Default.(int)
+	// billingaccount.InvoicedLedgerIDValidator is a validator for the "invoiced_ledger_id" field. It is called by the builders before save.
+	billingaccount.InvoicedLedgerIDValidator = billingaccountDescInvoicedLedgerID.Validators[0].(func(int) error)
 	// billingaccountDescAutoTopupEnabled is the schema descriptor for auto_topup_enabled field.
-	billingaccountDescAutoTopupEnabled := billingaccountFields[14].Descriptor()
+	billingaccountDescAutoTopupEnabled := billingaccountFields[19].Descriptor()
 	// billingaccount.DefaultAutoTopupEnabled holds the default value on creation for the auto_topup_enabled field.
 	billingaccount.DefaultAutoTopupEnabled = billingaccountDescAutoTopupEnabled.Default.(bool)
 	// billingaccountDescAutoTopupThresholdMicros is the schema descriptor for auto_topup_threshold_micros field.
-	billingaccountDescAutoTopupThresholdMicros := billingaccountFields[15].Descriptor()
+	billingaccountDescAutoTopupThresholdMicros := billingaccountFields[20].Descriptor()
 	// billingaccount.DefaultAutoTopupThresholdMicros holds the default value on creation for the auto_topup_threshold_micros field.
 	billingaccount.DefaultAutoTopupThresholdMicros = billingaccountDescAutoTopupThresholdMicros.Default.(int64)
 	// billingaccount.AutoTopupThresholdMicrosValidator is a validator for the "auto_topup_threshold_micros" field. It is called by the builders before save.
@@ -322,7 +336,7 @@ func init() {
 		}
 	}()
 	// billingaccountDescAutoTopupAmountMicros is the schema descriptor for auto_topup_amount_micros field.
-	billingaccountDescAutoTopupAmountMicros := billingaccountFields[16].Descriptor()
+	billingaccountDescAutoTopupAmountMicros := billingaccountFields[21].Descriptor()
 	// billingaccount.DefaultAutoTopupAmountMicros holds the default value on creation for the auto_topup_amount_micros field.
 	billingaccount.DefaultAutoTopupAmountMicros = billingaccountDescAutoTopupAmountMicros.Default.(int64)
 	// billingaccount.AutoTopupAmountMicrosValidator is a validator for the "auto_topup_amount_micros" field. It is called by the builders before save.
@@ -342,17 +356,17 @@ func init() {
 		}
 	}()
 	// billingaccountDescAutoTopupPendingKey is the schema descriptor for auto_topup_pending_key field.
-	billingaccountDescAutoTopupPendingKey := billingaccountFields[17].Descriptor()
+	billingaccountDescAutoTopupPendingKey := billingaccountFields[22].Descriptor()
 	// billingaccount.AutoTopupPendingKeyValidator is a validator for the "auto_topup_pending_key" field. It is called by the builders before save.
 	billingaccount.AutoTopupPendingKeyValidator = billingaccountDescAutoTopupPendingKey.Validators[0].(func(string) error)
 	// billingaccountDescAutoTopupLastError is the schema descriptor for auto_topup_last_error field.
-	billingaccountDescAutoTopupLastError := billingaccountFields[21].Descriptor()
+	billingaccountDescAutoTopupLastError := billingaccountFields[26].Descriptor()
 	// billingaccount.DefaultAutoTopupLastError holds the default value on creation for the auto_topup_last_error field.
 	billingaccount.DefaultAutoTopupLastError = billingaccountDescAutoTopupLastError.Default.(string)
 	// billingaccount.AutoTopupLastErrorValidator is a validator for the "auto_topup_last_error" field. It is called by the builders before save.
 	billingaccount.AutoTopupLastErrorValidator = billingaccountDescAutoTopupLastError.Validators[0].(func(string) error)
 	// billingaccountDescAutoTopupDailyLimit is the schema descriptor for auto_topup_daily_limit field.
-	billingaccountDescAutoTopupDailyLimit := billingaccountFields[23].Descriptor()
+	billingaccountDescAutoTopupDailyLimit := billingaccountFields[28].Descriptor()
 	// billingaccount.DefaultAutoTopupDailyLimit holds the default value on creation for the auto_topup_daily_limit field.
 	billingaccount.DefaultAutoTopupDailyLimit = billingaccountDescAutoTopupDailyLimit.Default.(int)
 	// billingaccount.AutoTopupDailyLimitValidator is a validator for the "auto_topup_daily_limit" field. It is called by the builders before save.
@@ -372,90 +386,106 @@ func init() {
 		}
 	}()
 	// billingaccountDescAutoTopupWindowCount is the schema descriptor for auto_topup_window_count field.
-	billingaccountDescAutoTopupWindowCount := billingaccountFields[25].Descriptor()
+	billingaccountDescAutoTopupWindowCount := billingaccountFields[30].Descriptor()
 	// billingaccount.DefaultAutoTopupWindowCount holds the default value on creation for the auto_topup_window_count field.
 	billingaccount.DefaultAutoTopupWindowCount = billingaccountDescAutoTopupWindowCount.Default.(int)
 	// billingaccount.AutoTopupWindowCountValidator is a validator for the "auto_topup_window_count" field. It is called by the builders before save.
 	billingaccount.AutoTopupWindowCountValidator = billingaccountDescAutoTopupWindowCount.Validators[0].(func(int) error)
 	// billingaccountDescBillingEmail is the schema descriptor for billing_email field.
-	billingaccountDescBillingEmail := billingaccountFields[26].Descriptor()
+	billingaccountDescBillingEmail := billingaccountFields[31].Descriptor()
 	// billingaccount.BillingEmailValidator is a validator for the "billing_email" field. It is called by the builders before save.
 	billingaccount.BillingEmailValidator = billingaccountDescBillingEmail.Validators[0].(func(string) error)
 	// billingaccountDescEntitlementOverrides is the schema descriptor for entitlement_overrides field.
-	billingaccountDescEntitlementOverrides := billingaccountFields[27].Descriptor()
+	billingaccountDescEntitlementOverrides := billingaccountFields[32].Descriptor()
 	// billingaccount.DefaultEntitlementOverrides holds the default value on creation for the entitlement_overrides field.
 	billingaccount.DefaultEntitlementOverrides = billingaccountDescEntitlementOverrides.Default.(map[string]int64)
-	billingperiodMixin := schema.BillingPeriod{}.Mixin()
-	billingperiodMixinFields0 := billingperiodMixin[0].Fields()
-	_ = billingperiodMixinFields0
-	billingperiodFields := schema.BillingPeriod{}.Fields()
-	_ = billingperiodFields
-	// billingperiodDescUID is the schema descriptor for uid field.
-	billingperiodDescUID := billingperiodMixinFields0[1].Descriptor()
-	// billingperiod.DefaultUID holds the default value on creation for the uid field.
-	billingperiod.DefaultUID = billingperiodDescUID.Default.(func() uuid.UUID)
-	// billingperiodDescCreatedAt is the schema descriptor for created_at field.
-	billingperiodDescCreatedAt := billingperiodMixinFields0[2].Descriptor()
-	// billingperiod.DefaultCreatedAt holds the default value on creation for the created_at field.
-	billingperiod.DefaultCreatedAt = billingperiodDescCreatedAt.Default.(func() time.Time)
-	// billingperiodDescUpdatedAt is the schema descriptor for updated_at field.
-	billingperiodDescUpdatedAt := billingperiodMixinFields0[3].Descriptor()
-	// billingperiod.DefaultUpdatedAt holds the default value on creation for the updated_at field.
-	billingperiod.DefaultUpdatedAt = billingperiodDescUpdatedAt.Default.(func() time.Time)
-	// billingperiod.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
-	billingperiod.UpdateDefaultUpdatedAt = billingperiodDescUpdatedAt.UpdateDefault.(func() time.Time)
-	// billingperiodDescPlanKey is the schema descriptor for plan_key field.
-	billingperiodDescPlanKey := billingperiodFields[3].Descriptor()
-	// billingperiod.PlanKeyValidator is a validator for the "plan_key" field. It is called by the builders before save.
-	billingperiod.PlanKeyValidator = func() func(string) error {
-		validators := billingperiodDescPlanKey.Validators
-		fns := [...]func(string) error{
-			validators[0].(func(string) error),
-			validators[1].(func(string) error),
+	billingcontractMixin := schema.BillingContract{}.Mixin()
+	billingcontractMixinFields0 := billingcontractMixin[0].Fields()
+	_ = billingcontractMixinFields0
+	billingcontractFields := schema.BillingContract{}.Fields()
+	_ = billingcontractFields
+	// billingcontractDescUID is the schema descriptor for uid field.
+	billingcontractDescUID := billingcontractMixinFields0[1].Descriptor()
+	// billingcontract.DefaultUID holds the default value on creation for the uid field.
+	billingcontract.DefaultUID = billingcontractDescUID.Default.(func() uuid.UUID)
+	// billingcontractDescCreatedAt is the schema descriptor for created_at field.
+	billingcontractDescCreatedAt := billingcontractMixinFields0[2].Descriptor()
+	// billingcontract.DefaultCreatedAt holds the default value on creation for the created_at field.
+	billingcontract.DefaultCreatedAt = billingcontractDescCreatedAt.Default.(func() time.Time)
+	// billingcontractDescTermsDays is the schema descriptor for terms_days field.
+	billingcontractDescTermsDays := billingcontractFields[3].Descriptor()
+	// billingcontract.DefaultTermsDays holds the default value on creation for the terms_days field.
+	billingcontract.DefaultTermsDays = billingcontractDescTermsDays.Default.(int)
+	// billingcontract.TermsDaysValidator is a validator for the "terms_days" field. It is called by the builders before save.
+	billingcontract.TermsDaysValidator = func() func(int) error {
+		validators := billingcontractDescTermsDays.Validators
+		fns := [...]func(int) error{
+			validators[0].(func(int) error),
+			validators[1].(func(int) error),
 		}
-		return func(plan_key string) error {
+		return func(terms_days int) error {
 			for _, fn := range fns {
-				if err := fn(plan_key); err != nil {
+				if err := fn(terms_days); err != nil {
 					return err
 				}
 			}
 			return nil
 		}
 	}()
-	// billingperiodDescPlanPriceMicros is the schema descriptor for plan_price_micros field.
-	billingperiodDescPlanPriceMicros := billingperiodFields[4].Descriptor()
-	// billingperiod.DefaultPlanPriceMicros holds the default value on creation for the plan_price_micros field.
-	billingperiod.DefaultPlanPriceMicros = billingperiodDescPlanPriceMicros.Default.(int64)
-	// billingperiodDescTrackedPlayers is the schema descriptor for tracked_players field.
-	billingperiodDescTrackedPlayers := billingperiodFields[5].Descriptor()
-	// billingperiod.DefaultTrackedPlayers holds the default value on creation for the tracked_players field.
-	billingperiod.DefaultTrackedPlayers = billingperiodDescTrackedPlayers.Default.(uint64)
-	// billingperiodDescEventsAccepted is the schema descriptor for events_accepted field.
-	billingperiodDescEventsAccepted := billingperiodFields[6].Descriptor()
-	// billingperiod.DefaultEventsAccepted holds the default value on creation for the events_accepted field.
-	billingperiod.DefaultEventsAccepted = billingperiodDescEventsAccepted.Default.(uint64)
-	// billingperiodDescRetainedByteDays is the schema descriptor for retained_byte_days field.
-	billingperiodDescRetainedByteDays := billingperiodFields[7].Descriptor()
-	// billingperiod.DefaultRetainedByteDays holds the default value on creation for the retained_byte_days field.
-	billingperiod.DefaultRetainedByteDays = billingperiodDescRetainedByteDays.Default.(uint64)
-	// billingperiodDescIncluded is the schema descriptor for included field.
-	billingperiodDescIncluded := billingperiodFields[8].Descriptor()
-	// billingperiod.DefaultIncluded holds the default value on creation for the included field.
-	billingperiod.DefaultIncluded = billingperiodDescIncluded.Default.(map[string]int64)
-	// billingperiodDescAmountMicros is the schema descriptor for amount_micros field.
-	billingperiodDescAmountMicros := billingperiodFields[9].Descriptor()
-	// billingperiod.DefaultAmountMicros holds the default value on creation for the amount_micros field.
-	billingperiod.DefaultAmountMicros = billingperiodDescAmountMicros.Default.(int64)
-	// billingperiodDescCurrency is the schema descriptor for currency field.
-	billingperiodDescCurrency := billingperiodFields[10].Descriptor()
-	// billingperiod.DefaultCurrency holds the default value on creation for the currency field.
-	billingperiod.DefaultCurrency = billingperiodDescCurrency.Default.(string)
-	// billingperiod.CurrencyValidator is a validator for the "currency" field. It is called by the builders before save.
-	billingperiod.CurrencyValidator = billingperiodDescCurrency.Validators[0].(func(string) error)
-	// billingperiodDescStripeInvoiceID is the schema descriptor for stripe_invoice_id field.
-	billingperiodDescStripeInvoiceID := billingperiodFields[14].Descriptor()
-	// billingperiod.StripeInvoiceIDValidator is a validator for the "stripe_invoice_id" field. It is called by the builders before save.
-	billingperiod.StripeInvoiceIDValidator = billingperiodDescStripeInvoiceID.Validators[0].(func(string) error)
+	// billingcontractDescOverdueGraceDays is the schema descriptor for overdue_grace_days field.
+	billingcontractDescOverdueGraceDays := billingcontractFields[4].Descriptor()
+	// billingcontract.DefaultOverdueGraceDays holds the default value on creation for the overdue_grace_days field.
+	billingcontract.DefaultOverdueGraceDays = billingcontractDescOverdueGraceDays.Default.(int)
+	// billingcontract.OverdueGraceDaysValidator is a validator for the "overdue_grace_days" field. It is called by the builders before save.
+	billingcontract.OverdueGraceDaysValidator = func() func(int) error {
+		validators := billingcontractDescOverdueGraceDays.Validators
+		fns := [...]func(int) error{
+			validators[0].(func(int) error),
+			validators[1].(func(int) error),
+		}
+		return func(overdue_grace_days int) error {
+			for _, fn := range fns {
+				if err := fn(overdue_grace_days); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// billingcontractDescPlatformFeeMicros is the schema descriptor for platform_fee_micros field.
+	billingcontractDescPlatformFeeMicros := billingcontractFields[5].Descriptor()
+	// billingcontract.DefaultPlatformFeeMicros holds the default value on creation for the platform_fee_micros field.
+	billingcontract.DefaultPlatformFeeMicros = billingcontractDescPlatformFeeMicros.Default.(int64)
+	// billingcontract.PlatformFeeMicrosValidator is a validator for the "platform_fee_micros" field. It is called by the builders before save.
+	billingcontract.PlatformFeeMicrosValidator = billingcontractDescPlatformFeeMicros.Validators[0].(func(int64) error)
+	// billingcontractDescMinimumCommitmentMicros is the schema descriptor for minimum_commitment_micros field.
+	billingcontractDescMinimumCommitmentMicros := billingcontractFields[6].Descriptor()
+	// billingcontract.DefaultMinimumCommitmentMicros holds the default value on creation for the minimum_commitment_micros field.
+	billingcontract.DefaultMinimumCommitmentMicros = billingcontractDescMinimumCommitmentMicros.Default.(int64)
+	// billingcontract.MinimumCommitmentMicrosValidator is a validator for the "minimum_commitment_micros" field. It is called by the builders before save.
+	billingcontract.MinimumCommitmentMicrosValidator = billingcontractDescMinimumCommitmentMicros.Validators[0].(func(int64) error)
+	// billingcontractDescCreditLimitMicros is the schema descriptor for credit_limit_micros field.
+	billingcontractDescCreditLimitMicros := billingcontractFields[7].Descriptor()
+	// billingcontract.CreditLimitMicrosValidator is a validator for the "credit_limit_micros" field. It is called by the builders before save.
+	billingcontract.CreditLimitMicrosValidator = billingcontractDescCreditLimitMicros.Validators[0].(func(int64) error)
+	// billingcontractDescPoNumber is the schema descriptor for po_number field.
+	billingcontractDescPoNumber := billingcontractFields[8].Descriptor()
+	// billingcontract.DefaultPoNumber holds the default value on creation for the po_number field.
+	billingcontract.DefaultPoNumber = billingcontractDescPoNumber.Default.(string)
+	// billingcontract.PoNumberValidator is a validator for the "po_number" field. It is called by the builders before save.
+	billingcontract.PoNumberValidator = billingcontractDescPoNumber.Validators[0].(func(string) error)
+	// billingcontractDescMemo is the schema descriptor for memo field.
+	billingcontractDescMemo := billingcontractFields[9].Descriptor()
+	// billingcontract.DefaultMemo holds the default value on creation for the memo field.
+	billingcontract.DefaultMemo = billingcontractDescMemo.Default.(string)
+	// billingcontract.MemoValidator is a validator for the "memo" field. It is called by the builders before save.
+	billingcontract.MemoValidator = billingcontractDescMemo.Validators[0].(func(string) error)
+	// billingcontractDescOperator is the schema descriptor for operator field.
+	billingcontractDescOperator := billingcontractFields[10].Descriptor()
+	// billingcontract.DefaultOperator holds the default value on creation for the operator field.
+	billingcontract.DefaultOperator = billingcontractDescOperator.Default.(string)
+	// billingcontract.OperatorValidator is a validator for the "operator" field. It is called by the builders before save.
+	billingcontract.OperatorValidator = billingcontractDescOperator.Validators[0].(func(string) error)
 	configversionMixin := schema.ConfigVersion{}.Mixin()
 	configversionMixinFields0 := configversionMixin[0].Fields()
 	_ = configversionMixinFields0
@@ -847,6 +877,150 @@ func init() {
 	invitationDescProjectIds := invitationFields[6].Descriptor()
 	// invitation.DefaultProjectIds holds the default value on creation for the project_ids field.
 	invitation.DefaultProjectIds = invitationDescProjectIds.Default.([]int)
+	invoiceMixin := schema.Invoice{}.Mixin()
+	invoiceMixinFields0 := invoiceMixin[0].Fields()
+	_ = invoiceMixinFields0
+	invoiceFields := schema.Invoice{}.Fields()
+	_ = invoiceFields
+	// invoiceDescUID is the schema descriptor for uid field.
+	invoiceDescUID := invoiceMixinFields0[1].Descriptor()
+	// invoice.DefaultUID holds the default value on creation for the uid field.
+	invoice.DefaultUID = invoiceDescUID.Default.(func() uuid.UUID)
+	// invoiceDescCreatedAt is the schema descriptor for created_at field.
+	invoiceDescCreatedAt := invoiceMixinFields0[2].Descriptor()
+	// invoice.DefaultCreatedAt holds the default value on creation for the created_at field.
+	invoice.DefaultCreatedAt = invoiceDescCreatedAt.Default.(func() time.Time)
+	// invoiceDescUpdatedAt is the schema descriptor for updated_at field.
+	invoiceDescUpdatedAt := invoiceMixinFields0[3].Descriptor()
+	// invoice.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	invoice.DefaultUpdatedAt = invoiceDescUpdatedAt.Default.(func() time.Time)
+	// invoice.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	invoice.UpdateDefaultUpdatedAt = invoiceDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// invoiceDescCurrency is the schema descriptor for currency field.
+	invoiceDescCurrency := invoiceFields[6].Descriptor()
+	// invoice.DefaultCurrency holds the default value on creation for the currency field.
+	invoice.DefaultCurrency = invoiceDescCurrency.Default.(string)
+	// invoice.CurrencyValidator is a validator for the "currency" field. It is called by the builders before save.
+	invoice.CurrencyValidator = invoiceDescCurrency.Validators[0].(func(string) error)
+	// invoiceDescTotalMicros is the schema descriptor for total_micros field.
+	invoiceDescTotalMicros := invoiceFields[7].Descriptor()
+	// invoice.TotalMicrosValidator is a validator for the "total_micros" field. It is called by the builders before save.
+	invoice.TotalMicrosValidator = invoiceDescTotalMicros.Validators[0].(func(int64) error)
+	// invoiceDescCarryInMicros is the schema descriptor for carry_in_micros field.
+	invoiceDescCarryInMicros := invoiceFields[8].Descriptor()
+	// invoice.DefaultCarryInMicros holds the default value on creation for the carry_in_micros field.
+	invoice.DefaultCarryInMicros = invoiceDescCarryInMicros.Default.(int64)
+	// invoiceDescCarryOutMicros is the schema descriptor for carry_out_micros field.
+	invoiceDescCarryOutMicros := invoiceFields[9].Descriptor()
+	// invoice.DefaultCarryOutMicros holds the default value on creation for the carry_out_micros field.
+	invoice.DefaultCarryOutMicros = invoiceDescCarryOutMicros.Default.(int64)
+	// invoiceDescDiscrepancyMicros is the schema descriptor for discrepancy_micros field.
+	invoiceDescDiscrepancyMicros := invoiceFields[10].Descriptor()
+	// invoice.DefaultDiscrepancyMicros holds the default value on creation for the discrepancy_micros field.
+	invoice.DefaultDiscrepancyMicros = invoiceDescDiscrepancyMicros.Default.(int64)
+	// invoiceDescTermsDays is the schema descriptor for terms_days field.
+	invoiceDescTermsDays := invoiceFields[11].Descriptor()
+	// invoice.DefaultTermsDays holds the default value on creation for the terms_days field.
+	invoice.DefaultTermsDays = invoiceDescTermsDays.Default.(int)
+	// invoiceDescPoNumber is the schema descriptor for po_number field.
+	invoiceDescPoNumber := invoiceFields[12].Descriptor()
+	// invoice.DefaultPoNumber holds the default value on creation for the po_number field.
+	invoice.DefaultPoNumber = invoiceDescPoNumber.Default.(string)
+	// invoice.PoNumberValidator is a validator for the "po_number" field. It is called by the builders before save.
+	invoice.PoNumberValidator = invoiceDescPoNumber.Validators[0].(func(string) error)
+	// invoiceDescMemo is the schema descriptor for memo field.
+	invoiceDescMemo := invoiceFields[13].Descriptor()
+	// invoice.DefaultMemo holds the default value on creation for the memo field.
+	invoice.DefaultMemo = invoiceDescMemo.Default.(string)
+	// invoice.MemoValidator is a validator for the "memo" field. It is called by the builders before save.
+	invoice.MemoValidator = invoiceDescMemo.Validators[0].(func(string) error)
+	// invoiceDescFinal is the schema descriptor for final field.
+	invoiceDescFinal := invoiceFields[14].Descriptor()
+	// invoice.DefaultFinal holds the default value on creation for the final field.
+	invoice.DefaultFinal = invoiceDescFinal.Default.(bool)
+	// invoiceDescAmountRemainingMicros is the schema descriptor for amount_remaining_micros field.
+	invoiceDescAmountRemainingMicros := invoiceFields[16].Descriptor()
+	// invoice.DefaultAmountRemainingMicros holds the default value on creation for the amount_remaining_micros field.
+	invoice.DefaultAmountRemainingMicros = invoiceDescAmountRemainingMicros.Default.(int64)
+	// invoice.AmountRemainingMicrosValidator is a validator for the "amount_remaining_micros" field. It is called by the builders before save.
+	invoice.AmountRemainingMicrosValidator = invoiceDescAmountRemainingMicros.Validators[0].(func(int64) error)
+	// invoiceDescAmountPaidMicros is the schema descriptor for amount_paid_micros field.
+	invoiceDescAmountPaidMicros := invoiceFields[17].Descriptor()
+	// invoice.DefaultAmountPaidMicros holds the default value on creation for the amount_paid_micros field.
+	invoice.DefaultAmountPaidMicros = invoiceDescAmountPaidMicros.Default.(int64)
+	// invoice.AmountPaidMicrosValidator is a validator for the "amount_paid_micros" field. It is called by the builders before save.
+	invoice.AmountPaidMicrosValidator = invoiceDescAmountPaidMicros.Validators[0].(func(int64) error)
+	// invoiceDescIssueKey is the schema descriptor for issue_key field.
+	invoiceDescIssueKey := invoiceFields[21].Descriptor()
+	// invoice.IssueKeyValidator is a validator for the "issue_key" field. It is called by the builders before save.
+	invoice.IssueKeyValidator = func() func(string) error {
+		validators := invoiceDescIssueKey.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(issue_key string) error {
+			for _, fn := range fns {
+				if err := fn(issue_key); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// invoiceDescLastError is the schema descriptor for last_error field.
+	invoiceDescLastError := invoiceFields[23].Descriptor()
+	// invoice.DefaultLastError holds the default value on creation for the last_error field.
+	invoice.DefaultLastError = invoiceDescLastError.Default.(string)
+	// invoice.LastErrorValidator is a validator for the "last_error" field. It is called by the builders before save.
+	invoice.LastErrorValidator = invoiceDescLastError.Validators[0].(func(string) error)
+	// invoiceDescStripeInvoiceID is the schema descriptor for stripe_invoice_id field.
+	invoiceDescStripeInvoiceID := invoiceFields[24].Descriptor()
+	// invoice.StripeInvoiceIDValidator is a validator for the "stripe_invoice_id" field. It is called by the builders before save.
+	invoice.StripeInvoiceIDValidator = invoiceDescStripeInvoiceID.Validators[0].(func(string) error)
+	// invoiceDescNumber is the schema descriptor for number field.
+	invoiceDescNumber := invoiceFields[25].Descriptor()
+	// invoice.DefaultNumber holds the default value on creation for the number field.
+	invoice.DefaultNumber = invoiceDescNumber.Default.(string)
+	// invoice.NumberValidator is a validator for the "number" field. It is called by the builders before save.
+	invoice.NumberValidator = invoiceDescNumber.Validators[0].(func(string) error)
+	// invoiceDescHostedURL is the schema descriptor for hosted_url field.
+	invoiceDescHostedURL := invoiceFields[26].Descriptor()
+	// invoice.DefaultHostedURL holds the default value on creation for the hosted_url field.
+	invoice.DefaultHostedURL = invoiceDescHostedURL.Default.(string)
+	// invoice.HostedURLValidator is a validator for the "hosted_url" field. It is called by the builders before save.
+	invoice.HostedURLValidator = invoiceDescHostedURL.Validators[0].(func(string) error)
+	// invoiceDescPdfURL is the schema descriptor for pdf_url field.
+	invoiceDescPdfURL := invoiceFields[27].Descriptor()
+	// invoice.DefaultPdfURL holds the default value on creation for the pdf_url field.
+	invoice.DefaultPdfURL = invoiceDescPdfURL.Default.(string)
+	// invoice.PdfURLValidator is a validator for the "pdf_url" field. It is called by the builders before save.
+	invoice.PdfURLValidator = invoiceDescPdfURL.Validators[0].(func(string) error)
+	// invoiceDescPaymentIntent is the schema descriptor for payment_intent field.
+	invoiceDescPaymentIntent := invoiceFields[28].Descriptor()
+	// invoice.PaymentIntentValidator is a validator for the "payment_intent" field. It is called by the builders before save.
+	invoice.PaymentIntentValidator = invoiceDescPaymentIntent.Validators[0].(func(string) error)
+	invoicelineMixin := schema.InvoiceLine{}.Mixin()
+	invoicelineMixinFields0 := invoicelineMixin[0].Fields()
+	_ = invoicelineMixinFields0
+	invoicelineFields := schema.InvoiceLine{}.Fields()
+	_ = invoicelineFields
+	// invoicelineDescUID is the schema descriptor for uid field.
+	invoicelineDescUID := invoicelineMixinFields0[1].Descriptor()
+	// invoiceline.DefaultUID holds the default value on creation for the uid field.
+	invoiceline.DefaultUID = invoicelineDescUID.Default.(func() uuid.UUID)
+	// invoicelineDescCreatedAt is the schema descriptor for created_at field.
+	invoicelineDescCreatedAt := invoicelineMixinFields0[2].Descriptor()
+	// invoiceline.DefaultCreatedAt holds the default value on creation for the created_at field.
+	invoiceline.DefaultCreatedAt = invoicelineDescCreatedAt.Default.(func() time.Time)
+	// invoicelineDescPosition is the schema descriptor for position field.
+	invoicelineDescPosition := invoicelineFields[1].Descriptor()
+	// invoiceline.PositionValidator is a validator for the "position" field. It is called by the builders before save.
+	invoiceline.PositionValidator = invoicelineDescPosition.Validators[0].(func(int) error)
+	// invoicelineDescDescription is the schema descriptor for description field.
+	invoicelineDescDescription := invoicelineFields[3].Descriptor()
+	// invoiceline.DescriptionValidator is a validator for the "description" field. It is called by the builders before save.
+	invoiceline.DescriptionValidator = invoicelineDescDescription.Validators[0].(func(string) error)
 	ledgerentryMixin := schema.LedgerEntry{}.Mixin()
 	ledgerentryMixinFields0 := ledgerentryMixin[0].Fields()
 	_ = ledgerentryMixinFields0
@@ -874,8 +1048,12 @@ func init() {
 	ledgerentryDescStripeReference := ledgerentryFields[6].Descriptor()
 	// ledgerentry.StripeReferenceValidator is a validator for the "stripe_reference" field. It is called by the builders before save.
 	ledgerentry.StripeReferenceValidator = ledgerentryDescStripeReference.Validators[0].(func(string) error)
+	// ledgerentryDescReceivableMicros is the schema descriptor for receivable_micros field.
+	ledgerentryDescReceivableMicros := ledgerentryFields[8].Descriptor()
+	// ledgerentry.DefaultReceivableMicros holds the default value on creation for the receivable_micros field.
+	ledgerentry.DefaultReceivableMicros = ledgerentryDescReceivableMicros.Default.(int64)
 	// ledgerentryDescIdempotencyKey is the schema descriptor for idempotency_key field.
-	ledgerentryDescIdempotencyKey := ledgerentryFields[8].Descriptor()
+	ledgerentryDescIdempotencyKey := ledgerentryFields[10].Descriptor()
 	// ledgerentry.IdempotencyKeyValidator is a validator for the "idempotency_key" field. It is called by the builders before save.
 	ledgerentry.IdempotencyKeyValidator = func() func(string) error {
 		validators := ledgerentryDescIdempotencyKey.Validators

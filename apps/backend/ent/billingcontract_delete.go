@@ -8,30 +8,30 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"playersense.dev/backend/ent/billingperiod"
+	"playersense.dev/backend/ent/billingcontract"
 	"playersense.dev/backend/ent/predicate"
 )
 
-// BillingPeriodDelete is the builder for deleting a BillingPeriod entity.
-type BillingPeriodDelete struct {
+// BillingContractDelete is the builder for deleting a BillingContract entity.
+type BillingContractDelete struct {
 	config
 	hooks    []Hook
-	mutation *BillingPeriodMutation
+	mutation *BillingContractMutation
 }
 
-// Where appends a list predicates to the BillingPeriodDelete builder.
-func (_d *BillingPeriodDelete) Where(ps ...predicate.BillingPeriod) *BillingPeriodDelete {
+// Where appends a list predicates to the BillingContractDelete builder.
+func (_d *BillingContractDelete) Where(ps ...predicate.BillingContract) *BillingContractDelete {
 	_d.mutation.Where(ps...)
 	return _d
 }
 
 // Exec executes the deletion query and returns how many vertices were deleted.
-func (_d *BillingPeriodDelete) Exec(ctx context.Context) (int, error) {
+func (_d *BillingContractDelete) Exec(ctx context.Context) (int, error) {
 	return withHooks(ctx, _d.sqlExec, _d.mutation, _d.hooks)
 }
 
 // ExecX is like Exec, but panics if an error occurs.
-func (_d *BillingPeriodDelete) ExecX(ctx context.Context) int {
+func (_d *BillingContractDelete) ExecX(ctx context.Context) int {
 	n, err := _d.Exec(ctx)
 	if err != nil {
 		panic(err)
@@ -39,8 +39,8 @@ func (_d *BillingPeriodDelete) ExecX(ctx context.Context) int {
 	return n
 }
 
-func (_d *BillingPeriodDelete) sqlExec(ctx context.Context) (int, error) {
-	_spec := sqlgraph.NewDeleteSpec(billingperiod.Table, sqlgraph.NewFieldSpec(billingperiod.FieldID, field.TypeInt))
+func (_d *BillingContractDelete) sqlExec(ctx context.Context) (int, error) {
+	_spec := sqlgraph.NewDeleteSpec(billingcontract.Table, sqlgraph.NewFieldSpec(billingcontract.FieldID, field.TypeInt))
 	if ps := _d.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
 			for i := range ps {
@@ -56,32 +56,32 @@ func (_d *BillingPeriodDelete) sqlExec(ctx context.Context) (int, error) {
 	return affected, err
 }
 
-// BillingPeriodDeleteOne is the builder for deleting a single BillingPeriod entity.
-type BillingPeriodDeleteOne struct {
-	_d *BillingPeriodDelete
+// BillingContractDeleteOne is the builder for deleting a single BillingContract entity.
+type BillingContractDeleteOne struct {
+	_d *BillingContractDelete
 }
 
-// Where appends a list predicates to the BillingPeriodDelete builder.
-func (_d *BillingPeriodDeleteOne) Where(ps ...predicate.BillingPeriod) *BillingPeriodDeleteOne {
+// Where appends a list predicates to the BillingContractDelete builder.
+func (_d *BillingContractDeleteOne) Where(ps ...predicate.BillingContract) *BillingContractDeleteOne {
 	_d._d.mutation.Where(ps...)
 	return _d
 }
 
 // Exec executes the deletion query.
-func (_d *BillingPeriodDeleteOne) Exec(ctx context.Context) error {
+func (_d *BillingContractDeleteOne) Exec(ctx context.Context) error {
 	n, err := _d._d.Exec(ctx)
 	switch {
 	case err != nil:
 		return err
 	case n == 0:
-		return &NotFoundError{billingperiod.Label}
+		return &NotFoundError{billingcontract.Label}
 	default:
 		return nil
 	}
 }
 
 // ExecX is like Exec, but panics if an error occurs.
-func (_d *BillingPeriodDeleteOne) ExecX(ctx context.Context) {
+func (_d *BillingContractDeleteOne) ExecX(ctx context.Context) {
 	if err := _d.Exec(ctx); err != nil {
 		panic(err)
 	}
