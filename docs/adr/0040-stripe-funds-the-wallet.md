@@ -91,8 +91,18 @@ wants 3-D Secure fails at once rather than waiting for a person who is not there
   refund that fails, or a dispute that is won, puts back exactly what was taken, once. Automatic top-up
   is switched off either way, so a refunded or disputed card is not charged again seconds later.
   Verified end to end in test mode with a real refund and Stripe's self-disputing test card.
+- **Every top-up is invoiced** (added after this ADR was first written). A Checkout top-up has Stripe
+  issue a paid invoice after the payment (`invoice_creation`). An automatic top-up is charged in three
+  steps — its PaymentIntent created unconfirmed; an invoice created, given its line, finalized, and the
+  PaymentIntent attached; then the PaymentIntent confirmed off-session — each with an idempotency key
+  derived from the claim's, so a retried claim replays one invoice and one charge. A decline cancels
+  the PaymentIntent and voids the invoice (Stripe refuses to void an invoice with an open payment on
+  it). Stripe credits the attached payment to the invoice a few seconds after it succeeds. No tax is
+  calculated; Stripe Tax can be turned on without changing this flow.
 - **Invoice events never credit a wallet.** They are recorded and acknowledged; a payment is credited by
-  its PaymentIntent, once, and an invoice describing it must not be a second report of it.
+  its PaymentIntent, once, and an invoice describing it must not be a second report of it. Stripe's
+  own default PaymentIntent on a finalized invoice carries no metadata and is canceled when ours pays;
+  its cancellation is recorded and ignored.
 - **The customer portal must be configured in Stripe** — test mode already is; live mode needs its
   default configuration saved once before `…/billing/portal` works there.
 - **USD only.** A payment in another currency than the account's is recorded and not credited.

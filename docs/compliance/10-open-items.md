@@ -93,7 +93,7 @@ What it does not yet cover:
 
 | Item | Notes |
 |---|---|
-| **Invoices and tax** | Top-ups are paid through Checkout and off-session PaymentIntents; neither produces a Stripe invoice, and Stripe Tax is off. Receipts are Stripe's payment receipts, if enabled in the Dashboard. Invoice events are subscribed and recorded, and deliberately never credit a wallet (a payment is credited by its PaymentIntent, once) |
+| **Tax, and credit notes** | Every top-up is invoiced by Stripe ([ADR 0040](../adr/0040-stripe-funds-the-wallet.md)): Checkout top-ups through `invoice_creation`, automatic top-ups as invoices paid by their PaymentIntent. No tax is calculated — Stripe Tax is off until registrations exist — and a refunded top-up's invoice stays paid: no credit note is issued. Whether invoice emails are sent is Stripe's Dashboard setting |
 | **The live-mode customer portal** | Stripe's portal needs a default configuration saved once per mode. Test mode has one; live mode must be set up before `…/billing/portal` works in production |
 | **Webhook API version** | The SDK is pinned to 2026-04-22.dahlia and Stripe may deliver a newer version (`stripe listen` sends 2026-08-26.dahlia). Mismatches are accepted and recorded per event; pinning the endpoint's version in the dashboard to the SDK's removes the difference |
 | **What happens after the grace period** | An account with arrears goes to `grace_period` and back when it pays. Nothing moves it to `restricted` or `suspended`: how long grace lasts, what restriction restricts, and what cancellation does to retained data (§40.1) are commercial decisions not yet made |

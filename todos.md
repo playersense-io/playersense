@@ -357,8 +357,8 @@ Track alongside the frontend work above; none of it blocks `landing`, but most o
 - [x] ~~Stripe, as the wallet's funding source~~ — built (ADR 0040): Checkout top-ups, the
       customer portal for cards, signed webhooks, automatic top-up off-session, refunds and disputes
       taken back (never promo credit) and restored when a refund fails or a dispute is won. Still
-      open: invoices and tax (a decision first), failure emails, and the live-mode portal
-      configuration in Stripe's dashboard.
+      open: tax (Stripe Tax, once registrations exist), credit notes on refunds, failure emails,
+      and the live-mode portal configuration in Stripe's dashboard. Every top-up is invoiced.
 - [ ] Decide what happens after the grace period (§40.1): how long `grace_period` lasts, what
       `restricted` restricts, and what cancellation does to retained data. Nothing escalates past
       `grace_period` automatically until this is decided.

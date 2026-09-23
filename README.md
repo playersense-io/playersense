@@ -245,7 +245,8 @@ Checkout or by the browser coming back — only by Stripe's signed webhook, keye
 a payment reported several ways is credited once. The card paid with is saved at Stripe, and automatic
 top-up (`PUT …/billing/auto-topup`) charges it from `billing-writer` when the balance falls below the
 threshold, with an idempotency key committed before the request so a lost response never becomes a
-second charge. A refund or a dispute takes the credit back — never promotional credit — and turns
+second charge. Every top-up is invoiced by Stripe — Checkout top-ups and automatic ones alike — with the
+invoice in the customer portal. A refund or a dispute takes the credit back — never promotional credit — and turns
 automatic top-up off; a failed refund or a won dispute puts it back. The charge that leaves a balance
 low queues the top-up in its own transaction, and the
 queue is worked every two seconds; at most 3 automatic charges per organization in any 24 hours

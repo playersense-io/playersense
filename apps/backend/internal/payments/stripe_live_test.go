@@ -108,6 +108,22 @@ func TestLiveStripe(t *testing.T) {
 		t.Errorf("metadata = %v", one.Metadata)
 	}
 
+	// One invoice for the charge and its replay, and it is paid by that charge. Stripe credits an
+	// attached payment to its invoice a few seconds after the payment succeeds, so this waits.
+	invoices := invoicesOf(t, sc, first)
+	for deadline := time.Now().Add(30 * time.Second); len(invoices) == 1 &&
+		invoices[0].Status != stripe.InvoiceStatusPaid && time.Now().Before(deadline); {
+		time.Sleep(2 * time.Second)
+		invoices = invoicesOf(t, sc, first)
+	}
+	if len(invoices) != 1 || invoices[0].Status != stripe.InvoiceStatusPaid || invoices[0].AmountPaid != 5_000 {
+		for _, inv := range invoices {
+			t.Logf("invoice %s: %s, paid %d", inv.ID, inv.Status, inv.AmountPaid)
+		}
+		t.Fatalf("%d invoices for one automatic top-up; want one, paid, for $50", len(invoices))
+	}
+	t.Logf("invoice %s paid: %s", invoices[0].ID, invoices[0].HostedInvoiceURL)
+
 	// The same key with a different amount is refused, not charged.
 	changed := request
 	changed.AmountCents = 6_000
@@ -134,4 +150,27 @@ func TestLiveStripe(t *testing.T) {
 		t.Errorf("declined = %+v, %v; want a failure with a reason", declined, err)
 	}
 	t.Logf("declined with: %q (%s)", declined.FailureMessage, declined.Status)
+
+	// The declined top-up's invoice is voided, not left open for the customer to wonder about.
+	voided := invoicesOf(t, sc, declining)
+	if len(voided) != 1 || voided[0].Status != stripe.InvoiceStatusVoid {
+		for _, inv := range voided {
+			t.Logf("invoice %s: %s", inv.ID, inv.Status)
+		}
+		t.Errorf("a declined top-up left %d invoices; want one, void", len(voided))
+	}
+}
+
+func invoicesOf(t *testing.T, sc *stripe.Client, customer string) []*stripe.Invoice {
+	t.Helper()
+	var out []*stripe.Invoice
+	for inv, err := range sc.V1Invoices.List(context.Background(), &stripe.InvoiceListParams{
+		Customer: stripe.String(customer),
+	}).All(context.Background()) {
+		if err != nil {
+			t.Fatalf("list invoices: %v", err)
+		}
+		out = append(out, inv)
+	}
+	return out
 }
