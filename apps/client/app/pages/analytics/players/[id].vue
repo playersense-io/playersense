@@ -95,11 +95,11 @@ const playedDays = computed(() => (detail.value?.days ?? []).filter(day => day.s
 
 const DAY_COLUMNS: DataTableColumn<Day>[] = [
   { key: 'at', title: 'Day', fixed: true, mono: true },
-  { key: 'sessions', title: 'Sessions', align: 'end', mono: true },
-  { key: 'playtimeMs', title: 'Playtime', align: 'end', mono: true },
-  { key: 'events', title: 'Events', align: 'end', mono: true },
-  { key: 'purchases', title: 'Purchases', align: 'end', mono: true },
-  { key: 'revenueMicros', title: 'Revenue', align: 'end', mono: true }
+  { key: 'sessions', title: 'Sessions', mono: true },
+  { key: 'playtimeMs', title: 'Playtime', mono: true },
+  { key: 'events', title: 'Events', mono: true },
+  { key: 'purchases', title: 'Purchases', mono: true },
+  { key: 'revenueMicros', title: 'Revenue', mono: true }
 ]
 
 const dayColumns = ref(defaultColumnState(DAY_COLUMNS))
