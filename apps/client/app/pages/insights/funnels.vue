@@ -121,6 +121,13 @@ const steps = computed<FunnelStep[]>({
   }
 })
 
+const progression = computed<ProgressionFunnel | null>({
+  get: () => (draft.value.kind === 'progression' ? draft.value : null),
+  set: (value) => {
+    if (value) draft.value = value
+  }
+})
+
 const windowWords = computed(() => windowPhrase(draft.value.window))
 </script>
 
@@ -129,7 +136,7 @@ const windowWords = computed(() => windowPhrase(draft.value.window))
     <PageHeader title="Funnels">
       <template #description>
         How far <span class="text-ink">{{ project.name }}</span>'s players get through a
-        sequence of steps, and where they stop.
+        sequence of steps or a run of levels, and where they stop.
       </template>
       <template #actions>
         <FunnelPicker
@@ -161,6 +168,20 @@ const windowWords = computed(() => windowPhrase(draft.value.window))
       <FunnelSteps v-model="steps" :catalogue="EVENT_CATALOGUE" />
     </SectionCard>
 
+    <SectionCard
+      v-if="progression"
+      :description="`Players who did ${progression.event} at each ${progression.property.replaceAll('_', ' ')} in order, ${windowWords} of the first.`"
+      :padded="false"
+      title="Progression"
+    >
+      <template #actions>
+        <span class="text-xs text-ink/55">Reached within</span>
+        <SegmentedControl v-model="conversionWindow" :options="WINDOWS" label="Window" />
+      </template>
+      <ProgressionEditor v-model="progression" :catalogue="EVENT_CATALOGUE" />
+    </SectionCard>
+
     <FunnelReport v-if="draft.kind === 'steps'" :definition="draft" :range="range" />
+    <ProgressionReport v-if="progression" :definition="progression" :range="range" />
   </div>
 </template>
