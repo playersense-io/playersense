@@ -255,7 +255,7 @@ queue is worked every two seconds; at most 3 automatic charges per organization 
 To receive webhooks locally, forward them with the Stripe CLI and give the API the secret it prints:
 
 ```bash
-stripe listen --events payment_intent.succeeded,payment_intent.payment_failed,payment_intent.canceled,checkout.session.completed,checkout.session.async_payment_succeeded,refund.created,refund.updated,refund.failed,charge.dispute.created,charge.dispute.funds_withdrawn,charge.dispute.funds_reinstated,charge.dispute.closed \
+stripe listen --events customer.subscription.created,customer.subscription.updated,customer.subscription.deleted,payment_intent.succeeded,payment_intent.payment_failed,payment_intent.canceled,checkout.session.completed,checkout.session.async_payment_succeeded,refund.created,refund.updated,refund.failed,charge.dispute.created,charge.dispute.funds_withdrawn,charge.dispute.funds_reinstated,charge.dispute.closed \
   --forward-to localhost:21080/v1/stripe/webhook
 STRIPE_WEBHOOK_SECRET=whsec_… go run ./apps/backend/cmd/api    # the secret `stripe listen` printed
 ```
@@ -263,6 +263,28 @@ STRIPE_WEBHOOK_SECRET=whsec_… go run ./apps/backend/cmd/api    # the secret `s
 Against Stripe's test mode, `STRIPE_LIVE=1 go test ./apps/backend/internal/payments -run Live` checks
 the SDK wiring, and with `stripe listen` and the API running, `STRIPE_E2E=1 … -run EndToEnd` makes a
 real automatic top-up and waits for Stripe's own webhook for it.
+
+**Plans are Stripe subscriptions** ([ADR 0042](docs/adr/0042-plans-are-stripe-subscriptions.md)).
+Enterprise — $99 a month or $999 a year — unlocks `premium_support`, `slack_reports` and `mcp_access`;
+Free unlocks nothing. Staff set a plan's features with `PUT /v1/operator/plans/{plan}` and its prices
+with `PUT /v1/operator/plans/{plan}/subscription`, which creates the Stripe Product and Prices. A studio
+subscribes with `POST /v1/organizations/{org}/billing/subscription` (a Checkout URL) and manages or
+cancels in the portal; Stripe's `customer.subscription.*` webhooks move the organization onto the plan
+and, when it ends, back to the default. The subscription is billed to the card; players are still charged
+from the wallet on every plan.
+
+```bash
+curl -X POST localhost:21080/v1/operator/plans -H "Authorization: Bearer $TOKEN" -d '{
+  "key": "enterprise", "name": "Enterprise", "operator": "you@playersense.dev",
+  "entitlements": {"included_mau": 10000},
+  "features": ["premium_support", "slack_reports", "mcp_access"]}'
+
+curl -X PUT localhost:21080/v1/operator/plans/enterprise/subscription -H "Authorization: Bearer $TOKEN" -d '{
+  "monthly_price_micros": 99000000, "yearly_price_micros": 999000000, "operator": "you@playersense.dev"}'
+```
+
+Enterprise charges players only once it has a rate card of its own — publish one, the same as Free's or
+different.
 
 `is_default` is the plan every new organization is put on. With no default plan, organizations get no
 billing account and `billing-writer` warns that their players are not being billed. The included

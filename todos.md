@@ -211,6 +211,10 @@ status/legal links, signup/login entry. **Must not contain privileged admin logi
       returned `url`; "Manage cards" is `POST …/billing/portal` → redirect likewise. On return
       (`?checkout=success`) do **not** show the credit as arrived — poll `GET …/billing` for a few
       seconds until the webhook's lot appears, and say "payment received, crediting…" meanwhile.
+      Plan (ADR 0042): show the plan, its features and `subscription` (status, interval,
+      period_end, cancel_at_period_end); "Upgrade to Enterprise" is `POST …/billing/subscription`
+      with `month` or `year` → redirect; "Manage subscription" is the portal. Read Enterprise's
+      prices and features from `GET /v1/pricing`, never hardcoded.
       Auto top-up form: no card field; a 422 saying there is no saved card means "pay once or add a
       card in the portal first". Show `auto_topup.pending`, `queued`, `last_error`, and
       `used_today` of `daily_limit` (3 by default, ADR 0041).
@@ -298,6 +302,10 @@ frontend-only, and do the staff-identity item first — everything else depends 
 - [ ] Entitlement overrides.
 - [ ] Billing inspection (can likely reuse the billing routes under staff scope
       once that exists, rather than the member scope `client` uses).
+- [ ] **Plan features and subscription prices** (ADR 0042): a features checklist on the plan form
+      (`PUT /v1/operator/plans/{plan}`) and monthly/yearly price fields
+      (`PUT /v1/operator/plans/{plan}/subscription`), with a note that a changed price applies to new
+      subscribers only.
 - [ ] **Plans & prices** over the operator routes (ADR 0039): list/create/edit plans
       (`/v1/operator/plans`), publish rate cards (`/v1/operator/plans/{plan}/rate-cards`) with a
       tier editor that shows `from`–`up_to` positions and prices below a cent, the price history
@@ -362,6 +370,8 @@ Track alongside the frontend work above; none of it blocks `landing`, but most o
 - [ ] Decide what happens after the grace period (§40.1): how long `grace_period` lasts, what
       `restricted` restricts, and what cancellation does to retained data. Nothing escalates past
       `grace_period` automatically until this is decided.
+- [ ] Enterprise features — premium Slack support, the daily Slack report builder, the MCP server —
+      each gated on `billing.HasFeature(plan.Features, …)` (ADR 0042).
 - [ ] Realtime metrics endpoint — confirm scope before `client`'s Realtime page is built.
 - [ ] A person-authenticated (not server-key) data-subject-rights route, if `client` is meant
       to expose export/erasure requests directly rather than delegating to a studio's own
@@ -385,6 +395,13 @@ charge, 3 a day), refunds and disputes taken back, and an invoice for every top-
 - [ ] **Replaying failed webhooks.** Stripe retries a failed delivery for about three days; after that
       the event stays `failed` in `stripe_events` with its reason, and nothing reprocesses it — a job,
       or an admin screen with a replay button.
+- [ ] **Subscription events on the endpoint.** Add `customer.subscription.created`,
+      `customer.subscription.updated` and `customer.subscription.deleted` to the Dashboard webhook —
+      without them a paid Enterprise subscription never moves the organization onto Enterprise.
+- [ ] **The portal for subscriptions.** Configure Stripe's customer portal to allow canceling and
+      switching between Enterprise monthly and yearly.
+- [ ] **Two subscriptions.** Two Checkout tabs completed can leave a studio billed twice; the newer is
+      its plan. Support cancels the older in Stripe — or a webhook rule could cancel it automatically.
 - [ ] **Production setup.** Live keys in production secrets; a Dashboard webhook endpoint for
       `/v1/stripe/webhook` with its signing secret as `STRIPE_WEBHOOK_SECRET`, its API version pinned
       to `2026-04-22.dahlia`; the live-mode customer portal configuration saved once.
