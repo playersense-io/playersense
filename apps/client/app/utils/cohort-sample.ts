@@ -9,11 +9,18 @@
 //     cohort's size, players, playtime_ms, revenue_micros and its running total, and
 //     payers; a cell under the suppression threshold is dropped, not zeroed.
 //
+// Sessions per install and counts of any event per install are not metrics the query has
+// yet: they need a cohort fact per event name, which the derivation does not write.
+//
 // One set of players underneath every metric — the same cohorts retain, play, spend and
 // convert — so switching metric reads the same game another way rather than a new one.
 // Seeded, so a reload draws the same cohorts.
 
-export type CohortMetric = 'retention' | 'playtime' | 'revenue' | 'payers'
+import type { EventDefinition } from './events-sample'
+
+export type CohortMetric
+  = | 'retention' | 'sessions' | 'playtime' | 'playtime_active' | 'events'
+    | 'revenue' | 'arpdau' | 'arppu' | 'payers' | 'purchases'
 export type CohortRange = '30d' | '90d' | '180d'
 export type CohortBasis = 'classic' | 'rolling'
 export type CohortDimension = 'install_platform' | 'install_country' | 'first_app_version'
@@ -71,6 +78,68 @@ export interface CohortSampleOptions {
   grain: CohortGrain
   split: CohortSplit
   filters: CohortFilters
+  /** For the events metric: which event, narrowed how, from which catalogue. */
+  event?: { name: string, where: readonly FunnelCondition[], catalogue: readonly EventDefinition[] }
+}
+
+/** Sessions an active player starts on day `day`: a little more as the habit forms. */
+const sessionsPerActive = (day: number, quality: number) => 2.1 * (1 + 0.1 * Math.log(1 + day)) * quality ** 0.3
+
+/** What a purchase averages, to count purchases from dollars. */
+const AVERAGE_PRICE = 6.5
+
+/**
+ * How often an active player does an event on day `day`: its catalogue rate, front-loaded
+ * for the first days' tutorial and progression, and narrowed by each condition — the
+ * first listed value of a property the commonest.
+ */
+function eventsPerActive(day: number, event: CohortSampleOptions['event']): number {
+  const definition = event?.catalogue.find(entry => entry.name === event.name)
+  if (!definition) return 0
+  const early = definition.name === 'tutorial_step' ? (day === 0 ? 8 : 0.02) : 1 + 1.5 * Math.exp(-day / 2)
+  let narrowed = 1
+  for (const condition of event!.where) {
+    const property = definition.properties.find(entry => entry.key === condition.property)
+    if (!property) continue
+    const index = Math.max(0, property.values.indexOf(condition.value))
+    narrowed *= property.fill * (0.35 + 0.65 * (property.values.length - index) / property.values.length)
+  }
+  return definition.rate * early * narrowed
+}
+
+/** One day of one cohort, per install: everything any metric is read from. */
+interface Day {
+  active: number
+  retained: number
+  payers: number
+  played: number
+  playedSoFar: number
+  spent: number
+  spentSoFar: number
+  sessions: number
+  sessionsSoFar: number
+  events: number
+  eventsSoFar: number
+}
+
+/**
+ * A metric read from a day: the share of the cohort it is about (who came back, who has
+ * paid), its figure that day, and its running total where it has one.
+ */
+function measure(metric: CohortMetric, day: Day): { players: number, value: number, total: number } {
+  const everyone = { players: day.retained, total: 0 }
+  switch (metric) {
+    case 'retention': return { ...everyone, value: day.retained }
+    case 'sessions': return { ...everyone, value: day.sessions, total: day.sessionsSoFar }
+    case 'playtime': return { ...everyone, value: day.played, total: day.playedSoFar }
+    case 'playtime_active': return { ...everyone, value: day.active ? day.played / day.active : 0 }
+    case 'events': return { ...everyone, value: day.events, total: day.eventsSoFar }
+    case 'revenue': return { ...everyone, value: day.spent, total: day.spentSoFar }
+    case 'arpdau': return { ...everyone, value: day.active ? day.spent / day.active : 0 }
+    case 'arppu': return { players: day.payers, value: day.payers ? day.spentSoFar / day.payers : 0, total: 0 }
+    case 'payers': return { players: day.payers, value: day.payers, total: 0 }
+    case 'purchases': return { ...everyone, value: day.spent / AVERAGE_PRICE, total: day.spentSoFar / AVERAGE_PRICE }
+  }
 }
 
 export interface CohortSample {
@@ -142,6 +211,8 @@ function draw(options: CohortSampleOptions, populations: readonly Population[], 
       // Day by day to the last offset old enough, so running totals add every day.
       let playedSoFar = 0
       let spentSoFar = 0
+      let sessionsSoFar = 0
+      let eventsSoFar = 0
       let activeDays = 0
       let offsetAt = 0
       const until = Math.min(age, last)
@@ -150,28 +221,31 @@ function draw(options: CohortSampleOptions, populations: readonly Population[], 
         activeDays += classic
         const playedToday = classic * minutesPerActive(day, quality)
         const spentToday = classic * dollarsPerActive(day, quality)
+        const sessionsToday = classic * sessionsPerActive(day, quality)
+        const eventsToday = classic * eventsPerActive(day, options.event)
         playedSoFar += playedToday
         spentSoFar += spentToday
+        sessionsSoFar += sessionsToday
+        eventsSoFar += eventsToday
         if (day !== COHORT_OFFSETS[offsetAt]) continue
 
         const noise = 0.94 + random() * 0.12
-        const retained = active(day, options.basis, quality) * noise
-        const payers = Math.min(0.6, 0.004 * quality + 1 - Math.exp(-0.0055 * quality ** 2 * activeDays)) * noise
-        let players = size * retained
-        let value = retained
-        let total = 0
-        if (options.metric === 'playtime') {
-          value = playedToday * noise
-          total = playedSoFar * noise
-        } else if (options.metric === 'revenue') {
-          value = spentToday * noise
-          total = spentSoFar * noise
-        } else if (options.metric === 'payers') {
-          players = size * payers
-          value = payers
-        }
+        const { players, value, total } = measure(options.metric, {
+          active: classic,
+          // Day 0 is the whole cohort by definition: nothing to vary.
+          retained: day === 0 ? 1 : active(day, options.basis, quality) * noise,
+          payers: Math.min(0.6, 0.004 * quality + 1 - Math.exp(-0.0055 * quality ** 2 * activeDays)) * noise,
+          played: playedToday * noise,
+          playedSoFar: playedSoFar * noise,
+          spent: spentToday * noise,
+          spentSoFar: spentSoFar * noise,
+          sessions: sessionsToday * noise,
+          sessionsSoFar: sessionsSoFar * noise,
+          events: eventsToday * noise,
+          eventsSoFar: eventsSoFar * noise
+        })
         row.tally.mature[offsetAt]! += size
-        row.tally.players[offsetAt]! += players
+        row.tally.players[offsetAt]! += players * size
         row.tally.value[offsetAt]! += value * size
         row.tally.total[offsetAt]! += total * size
         offsetAt += 1
@@ -254,25 +328,148 @@ export function sampleCohorts(options: CohortSampleOptions): CohortSample {
 
 const minutes = (value: number) => `${writeFigure(value, { decimals: value < 10 ? 1 : 0 })}m`
 const dollars = (value: number) => `$${value.toFixed(value < 10 ? 2 : 1)}`
+/** Enough places to show a small count at all: 0.003 purchases, not 0. */
+const count = (value: number) => writeFigure(value, { decimals: value < 1 ? 3 : value < 10 ? 2 : 1 })
 
-/**
- * How the table, the curves and the figures read a metric: per day, or as the running
- * total up to the day for the ones that have one (minutes played, dollars spent). The
- * detail under each cell is the players it is about.
- */
-export function cohortModeOf(metric: CohortMetric, accumulated: boolean): CohortMode {
-  if (metric === 'retention') return rateMode('Retention')
-  if (metric === 'payers') return rateMode('Payers')
-  const format = metric === 'playtime' ? minutes : dollars
-  const label = metric === 'playtime'
-    ? (accumulated ? 'Playtime to date' : 'Playtime that day')
-    : (accumulated ? 'Revenue to date' : 'Revenue that day')
-  return accumulated ? cumulativeMode({ label, format }) : valueMode({ label, format })
+export type CohortMetricGroup = 'Engagement' | 'Monetization'
+
+export interface CohortMetricDefinition {
+  label: string
+  group: CohortMetricGroup
+  /** A line for the menu: what it answers. */
+  note: string
+  /** The sentence over the table: what a cell holds. */
+  definition: string
+  /** A share of the cohort, or a figure per install, per player active that day, or per payer. */
+  per: 'share' | 'install' | 'active' | 'payer'
+  format: (value: number) => string
+  /** A running total to show as well as the day's figure. */
+  accumulates: boolean
+  /** How a chart writes it. */
+  chart: { prefix?: string, unit?: string, decimals: number }
 }
 
-export const METRIC_LABELS: Record<CohortMetric, string> = {
-  retention: 'Retention',
-  playtime: 'Playtime per install',
-  revenue: 'Revenue per install',
-  payers: 'Payer conversion'
+/**
+ * Every metric the page reads, in the menu's order: what players do, then what they pay.
+ * Per install counts every install, whether it came back or not, so it falls as players
+ * leave; per active player counts only the ones who played that day, so it shows how
+ * engaged — or how spending — the players who stayed are.
+ */
+export const COHORT_METRICS: Record<CohortMetric, CohortMetricDefinition> = {
+  retention: {
+    label: 'Retention',
+    group: 'Engagement',
+    note: 'Who comes back',
+    definition: 'The share of each cohort active on day N.',
+    per: 'share',
+    format: value => value.toString(),
+    accumulates: false,
+    chart: { unit: '%', decimals: 1 }
+  },
+  sessions: {
+    label: 'Sessions per install',
+    group: 'Engagement',
+    note: 'How often they open the game',
+    definition: 'Sessions started per install: every install counted, whether it came back or not.',
+    per: 'install',
+    format: count,
+    accumulates: true,
+    chart: { decimals: 2 }
+  },
+  playtime: {
+    label: 'Playtime per install',
+    group: 'Engagement',
+    note: 'Minutes played, spread over everyone',
+    definition: 'Minutes played per install: every install counted, whether it came back or not.',
+    per: 'install',
+    format: minutes,
+    accumulates: true,
+    chart: { unit: 'min', decimals: 1 }
+  },
+  playtime_active: {
+    label: 'Playtime per active player',
+    group: 'Engagement',
+    note: 'How long the ones who stayed play',
+    definition: 'Minutes played on day N by each player active that day: how engaged the players who stayed are.',
+    per: 'active',
+    format: minutes,
+    accumulates: false,
+    chart: { unit: 'min', decimals: 1 }
+  },
+  events: {
+    label: 'Event per install',
+    group: 'Engagement',
+    note: 'Any event, with conditions',
+    definition: 'How often each install did the event: every install counted, whether it came back or not.',
+    per: 'install',
+    format: count,
+    accumulates: true,
+    chart: { decimals: 2 }
+  },
+  revenue: {
+    label: 'Revenue per install',
+    group: 'Monetization',
+    note: 'LTV, to date',
+    definition: 'Revenue per install, verified purchases only: every install counted, paying or not. To date, it is the LTV.',
+    per: 'install',
+    format: dollars,
+    accumulates: true,
+    chart: { prefix: '$', decimals: 2 }
+  },
+  arpdau: {
+    label: 'Revenue per active player',
+    group: 'Monetization',
+    note: 'ARPDAU, by cohort',
+    definition: 'Revenue on day N from each player active that day: what a player who is still there is worth, day by day.',
+    per: 'active',
+    format: dollars,
+    accumulates: false,
+    chart: { prefix: '$', decimals: 3 }
+  },
+  arppu: {
+    label: 'Revenue per payer',
+    group: 'Monetization',
+    note: 'ARPPU, to date',
+    definition: 'Revenue to day N over the players who had paid by then: how much a payer spends, not how many pay.',
+    per: 'payer',
+    format: dollars,
+    accumulates: false,
+    chart: { prefix: '$', decimals: 2 }
+  },
+  payers: {
+    label: 'Payer conversion',
+    group: 'Monetization',
+    note: 'Who has paid by day N',
+    definition: 'The share of each cohort that has made a purchase by day N.',
+    per: 'share',
+    format: value => value.toString(),
+    accumulates: false,
+    chart: { unit: '%', decimals: 1 }
+  },
+  purchases: {
+    label: 'Purchases per install',
+    group: 'Monetization',
+    note: 'Transactions, spread over everyone',
+    definition: 'Verified purchases per install: every install counted, paying or not.',
+    per: 'install',
+    format: count,
+    accumulates: true,
+    chart: { decimals: 3 }
+  }
+}
+
+export const COHORT_METRIC_KEYS = Object.keys(COHORT_METRICS) as CohortMetric[]
+
+/**
+ * How the table, the curves and the figures read a metric: a share with the players
+ * under it, or a figure per day — or, for the ones that have one, the running total up
+ * to the day.
+ */
+export function cohortModeOf(metric: CohortMetric, accumulated: boolean): CohortMode {
+  const definition = COHORT_METRICS[metric]
+  if (definition.per === 'share') return rateMode(definition.label)
+  const label = definition.accumulates && accumulated ? `${definition.label}, to date` : definition.label
+  return definition.accumulates && accumulated
+    ? cumulativeMode({ label, format: definition.format })
+    : valueMode({ label, format: definition.format })
 }
