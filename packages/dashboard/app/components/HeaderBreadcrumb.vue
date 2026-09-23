@@ -6,8 +6,8 @@
 //
 // One weight throughout: the current crumb is told apart by its ink, not by being bolder,
 // so the trail never changes width as it changes colour. The first crumb carries the
-// drawer's glyph for it, which ties the bar to the row lit below. On a phone the middle
-// crumbs go and the mark and the screen stay.
+// drawer's glyph for it, in the crumb's own ink, which ties the bar to the row lit below.
+// On a phone the middle crumbs go and the mark and the screen stay.
 //
 // `LogoMark` is packages/ui's, which every app extending this layer extends too.
 
@@ -91,10 +91,7 @@ function hrefOf(crumb: Crumb, index: number): string | undefined {
             v-if="crumb.icon"
             :name="crumb.icon"
             aria-hidden="true"
-            class="
-              flex-none text-[15px] text-ink/45 transition-colors
-              group-hover:text-ink/80
-            "
+            class="flex-none text-[15px]"
           />
           <span class="truncate">{{ crumb.title }}</span>
         </component>
