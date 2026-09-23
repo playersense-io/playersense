@@ -222,7 +222,7 @@ const emptyTally = (): Tally => ({
   total: COHORT_OFFSETS.map(() => 0)
 })
 
-interface Drawn { start: number, label?: string, tally: Tally }
+interface Drawn { start: number, label?: string, mark?: SegmentMarkValue, tally: Tally }
 
 /**
  * Every daily cohort of the range, day by day, into the rows it belongs to: its week or
@@ -248,7 +248,12 @@ function draw(options: CohortSampleOptions, populations: readonly Population[], 
       const quality = population.quality * lift
 
       const key = population.name || bucketKey(at, options.grain)
-      const row = rows.get(key) ?? { start: population.name ? at : bucketStart(at, options.grain), label: population.name || undefined, tally: emptyTally() }
+      const row = rows.get(key) ?? {
+        start: population.name ? at : bucketStart(at, options.grain),
+        label: population.name || undefined,
+        mark: population.name ? markOf(options.split, population.name) : undefined,
+        tally: emptyTally()
+      }
       if (population.name) row.start = Math.min(row.start, at)
       rows.set(key, row)
       row.tally.size += size
@@ -319,6 +324,13 @@ function draw(options: CohortSampleOptions, populations: readonly Population[], 
   return rows
 }
 
+/** A segment's flag or platform mark, for the two dimensions that have one. */
+function markOf(split: CohortSplit, value: string): SegmentMarkValue | undefined {
+  if (split === 'install_country') return { kind: 'country', code: value }
+  if (split === 'install_platform') return { kind: 'platform', code: value }
+  return undefined
+}
+
 function bucketStart(at: number, grain: CohortGrain): number {
   if (grain === 'day') return at
   const date = new Date(at)
@@ -348,7 +360,7 @@ function toRow(key: string, entry: Drawn): CohortTableRow {
       cumulative: tally.total[position]! / mature
     }
   })
-  return { key, label: entry.label, start: entry.start, size: tally.size < COHORT_THRESHOLD ? null : tally.size, cells }
+  return { key, label: entry.label, mark: entry.mark, start: entry.start, size: tally.size < COHORT_THRESHOLD ? null : tally.size, cells }
 }
 
 export function sampleCohorts(options: CohortSampleOptions): CohortSample {

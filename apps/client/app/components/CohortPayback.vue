@@ -22,9 +22,9 @@ const ltv = cumulativeMode({ label: 'LTV', format: value => `$${value.toFixed(2)
 const days = computed(() => COHORT_OFFSETS.filter(offset => props.rows.some(row => cellAt(row, offset).state === 'ok')))
 
 const lines = computed(() => {
-  const all = { name: 'All cohorts', values: days.value.map(offset => ltv.summarize(props.rows, offset)) }
+  const all = { name: 'All cohorts', mark: undefined as SegmentMarkValue | undefined, values: days.value.map(offset => ltv.summarize(props.rows, offset)) }
   if (!props.split) return [all]
-  return props.rows.map(row => ({ name: row.label ?? '', values: days.value.map(offset => ltv.summarize([row], offset)) }))
+  return props.rows.map(row => ({ name: row.label ?? '', mark: row.mark, values: days.value.map(offset => ltv.summarize([row], offset)) }))
 })
 
 /** The first day the line reaches the CPI, or null if it has not by the last day known. */
@@ -161,6 +161,7 @@ function applyCpi() {
             <td>
               <span class="inline-flex items-center gap-2">
                 <span :style="{ background: `rgb(var(--v-theme-chart-${(index % 6) + 1}))` }" aria-hidden="true" class="size-2 rounded-full" />
+                <SegmentMark v-if="line.mark" :mark="line.mark" />
                 {{ line.name }}
               </span>
             </td>
