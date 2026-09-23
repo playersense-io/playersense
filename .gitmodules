@@ -1,0 +1,3 @@
+[submodule "vendor/idenzy"]
+	path = vendor/idenzy
+	url = git@github.com:idenzy-io/idenzy.git
