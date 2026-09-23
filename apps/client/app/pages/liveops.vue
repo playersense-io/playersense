@@ -1,7 +1,3 @@
-<script setup lang="ts">
-definePageMeta({ title: 'LiveOps' })
-</script>
-
 <template>
   <PagePlaceholder
     title="LiveOps"

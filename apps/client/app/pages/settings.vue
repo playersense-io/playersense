@@ -1,53 +1,31 @@
 <script setup lang="ts">
-import type { NavigationMenuItem } from '@nuxt/ui'
-
-const links = [[{
-  label: 'Project',
-  icon: 'i-lucide-settings',
-  to: '/settings',
-  exact: true
-}, {
-  label: 'Data Retention',
-  icon: 'i-lucide-database',
-  to: '/settings/data-retention'
-}, {
-  label: 'Billing',
-  icon: 'i-lucide-credit-card',
-  to: '/settings/billing'
-}, {
-  label: 'Organization / Team',
-  icon: 'i-lucide-users',
-  to: '/settings/members'
-}, {
-  label: 'API Keys',
-  icon: 'i-lucide-key',
-  to: '/settings/api-keys'
-}, {
-  label: 'Audit Log',
-  icon: 'i-lucide-scroll-text',
-  to: '/settings/audit-log'
-}]] satisfies NavigationMenuItem[][]
+// The settings shell: the rail on the left, the tab it opened on the right. A parent
+// route rather than a `?tab=`, so every tab is a URL somebody can be linked to and the
+// breadcrumb can say "Settings / Members". No page header here: each tab owns its own.
+//
+// The scope on each row is the point as much as the title — project settings, the
+// organization's team and its money sit side by side, and a change on the wrong one is
+// invisible until afterwards.
+const TABS: readonly SettingsTab[] = [
+  { to: '/settings', title: 'General', scope: 'This project', icon: 'material-symbols:tune' },
+  { to: '/settings/data-retention', title: 'Data retention', scope: 'This project', icon: 'material-symbols:database-outline' },
+  { to: '/settings/members', title: 'Members', scope: 'Organization', icon: 'material-symbols:group-outline' },
+  { to: '/settings/api-keys', title: 'API keys', scope: 'This project', icon: 'material-symbols:vpn-key-outline' },
+  { to: '/settings/billing', title: 'Billing', scope: 'Organization', icon: 'material-symbols:receipt-long-outline' },
+  { to: '/settings/audit-log', title: 'Audit log', scope: 'Organization', icon: 'material-symbols:history' }
+]
 </script>
 
 <template>
-  <UDashboardPanel id="settings" :ui="{ body: 'lg:py-12' }">
-    <template #header>
-      <UDashboardNavbar title="Settings">
-        <template #leading>
-          <SidebarCollapse />
-        </template>
-      </UDashboardNavbar>
+  <!-- Stacked under `lg` rather than a rail squeezed to nothing. -->
+  <div class="grid gap-6 lg:grid-cols-[196px_minmax(0,1fr)] lg:items-start lg:gap-8">
+    <!-- Sticky under the 56px app bar, so the rail is reachable from the foot of a long tab. -->
+    <div class="lg:sticky lg:top-20">
+      <SettingsTabs :tabs="TABS" label="Settings" />
+    </div>
 
-      <UDashboardToolbar>
-        <!-- NOTE: The `-mx-1` class is used to align with the `SidebarCollapse` button here. -->
-        <UNavigationMenu :items="links" highlight class="-mx-1 flex-1" />
-      </UDashboardToolbar>
-    </template>
-
-    <template #body>
-      <div class="flex flex-col gap-4 sm:gap-6 lg:gap-12 w-full lg:max-w-2xl mx-auto">
-        <NuxtPage />
-      </div>
-    </template>
-  </UDashboardPanel>
+    <div class="min-w-0">
+      <NuxtPage />
+    </div>
+  </div>
 </template>

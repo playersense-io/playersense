@@ -1,7 +1,3 @@
-<script setup lang="ts">
-definePageMeta({ title: 'Retention' })
-</script>
-
 <template>
   <PagePlaceholder
     title="Retention"

@@ -1,7 +1,3 @@
-<script setup lang="ts">
-definePageMeta({ title: 'Players' })
-</script>
-
 <template>
   <PagePlaceholder
     title="Players"

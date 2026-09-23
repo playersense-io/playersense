@@ -1,7 +1,3 @@
-<script setup lang="ts">
-definePageMeta({ title: 'Project Settings' })
-</script>
-
 <template>
   <PagePlaceholder
     title="Project Settings"

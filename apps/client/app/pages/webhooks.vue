@@ -1,7 +1,3 @@
-<script setup lang="ts">
-definePageMeta({ title: 'Webhooks' })
-</script>
-
 <template>
   <PagePlaceholder
     title="Webhooks"

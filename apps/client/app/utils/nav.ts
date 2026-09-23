@@ -1,0 +1,67 @@
+// The customer dashboard's screens, in the order the drawer shows them: folding groups,
+// each under one glyph, the way idenzy's drawer nests its screens. Settings is one drawer
+// item and six tabs: the rail inside the page moves between them, and the group still
+// names each one for the breadcrumb and the tab title.
+export const NAV = defineNavigation({
+  sections: [{
+    entries: [
+      { title: 'Overview', to: '/', icon: 'material-symbols:space-dashboard-outline' },
+      { title: 'Realtime', to: '/realtime', icon: 'material-symbols:bolt-outline' },
+      {
+        id: 'analytics',
+        title: 'Analytics',
+        icon: 'material-symbols:analytics-outline',
+        children: [
+          { title: 'Events', to: '/events' },
+          { title: 'Players', to: '/players' },
+          { title: 'Sessions', to: '/sessions' }
+        ]
+      },
+      {
+        id: 'insights',
+        title: 'Insights',
+        icon: 'material-symbols:insights',
+        children: [
+          { title: 'Retention', to: '/retention' },
+          { title: 'Funnels', to: '/funnels' },
+          { title: 'Cohorts', to: '/cohorts' },
+          { title: 'Revenue', to: '/revenue' }
+        ]
+      },
+      {
+        id: 'growth',
+        title: 'Growth',
+        icon: 'material-symbols:rocket-launch-outline',
+        children: [
+          { title: 'Feature flags', to: '/flags' },
+          { title: 'Experiments', to: '/experiments' },
+          { title: 'LiveOps', to: '/liveops' }
+        ]
+      },
+      {
+        id: 'commerce',
+        title: 'Data & commerce',
+        icon: 'material-symbols:package-2-outline',
+        children: [
+          { title: 'Purchases', to: '/purchases' },
+          { title: 'Webhooks', to: '/webhooks' },
+          { title: 'Exports', to: '/exports' }
+        ]
+      }
+    ]
+  }],
+  footer: [{
+    id: 'settings',
+    title: 'Settings',
+    icon: 'material-symbols:settings-outline',
+    to: '/settings',
+    children: [
+      { title: 'General', to: '/settings' },
+      { title: 'Data retention', to: '/settings/data-retention' },
+      { title: 'Members', to: '/settings/members' },
+      { title: 'API keys', to: '/settings/api-keys' },
+      { title: 'Billing', to: '/settings/billing' },
+      { title: 'Audit log', to: '/settings/audit-log' }
+    ]
+  }]
+})

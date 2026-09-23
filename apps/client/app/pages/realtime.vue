@@ -1,7 +1,3 @@
-<script setup lang="ts">
-definePageMeta({ title: 'Realtime' })
-</script>
-
 <template>
   <PagePlaceholder
     title="Realtime"

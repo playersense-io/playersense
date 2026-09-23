@@ -1,7 +1,3 @@
-<script setup lang="ts">
-definePageMeta({ title: 'Funnels' })
-</script>
-
 <template>
   <PagePlaceholder
     title="Funnels"

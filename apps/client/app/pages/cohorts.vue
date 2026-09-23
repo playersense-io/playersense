@@ -1,7 +1,3 @@
-<script setup lang="ts">
-definePageMeta({ title: 'Cohorts' })
-</script>
-
 <template>
   <PagePlaceholder
     title="Cohorts"

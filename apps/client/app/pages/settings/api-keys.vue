@@ -1,7 +1,3 @@
-<script setup lang="ts">
-definePageMeta({ title: 'API Keys' })
-</script>
-
 <template>
   <PagePlaceholder
     title="API Keys"

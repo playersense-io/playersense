@@ -1,7 +1,3 @@
-<script setup lang="ts">
-definePageMeta({ title: 'Feature Flags' })
-</script>
-
 <template>
   <PagePlaceholder
     title="Feature Flags"
