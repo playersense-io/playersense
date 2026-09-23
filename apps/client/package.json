@@ -15,6 +15,7 @@
     "@playersense/dashboard": "workspace:*",
     "@playersense/ui": "workspace:*",
     "nuxt": "^4.5.2",
+    "nuxt-shiki": "0.3.2",
     "vue": "^3.5.42"
   },
   "devDependencies": {
