@@ -28,3 +28,26 @@ export function useQueryChoice<T extends string>(
     }
   })
 }
+
+/**
+ * Several values kept in one query parameter, comma-separated: the platforms a page is
+ * filtered to. Values not in `allowed` are dropped on the way in, and an empty list is
+ * no parameter at all.
+ */
+export function useQueryList(key: string, allowed: MaybeRefOrGetter<readonly string[]>) {
+  const route = useRoute()
+  const router = useRouter()
+
+  return computed<string[]>({
+    get: () => {
+      const value = route.query[key]
+      if (typeof value !== 'string' || value === '') return []
+      const known = toValue(allowed)
+      return [...new Set(value.split(','))].filter(entry => known.includes(entry))
+    },
+    set: (values) => {
+      const { [key]: _, ...rest } = route.query
+      void router.replace({ query: values.length ? { ...rest, [key]: values.join(',') } : rest })
+    }
+  })
+}
