@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { GhostSelectOption } from '../utils/components'
+import { matchParts } from '../utils/search'
 /**
  * A heading that is a choice from a long list: it reads and sits like `GhostSelect`, and
  * opens a dialog rather than a menu, because twenty options in a dropdown run off the
@@ -33,20 +34,7 @@ const current = computed(() => props.options.find(option => option.value === mod
 
 const needle = computed(() => (search.value ?? '').trim().toLowerCase())
 
-/** A text cut where the search matches it, every time it does, so the matches can be marked. */
-function partsOf(text: string): { text: string, match: boolean }[] {
-  if (!needle.value) return [{ text, match: false }]
-  const parts: { text: string, match: boolean }[] = []
-  const lower = text.toLowerCase()
-  let at = 0
-  for (let found = lower.indexOf(needle.value); found !== -1; found = lower.indexOf(needle.value, at)) {
-    if (found > at) parts.push({ text: text.slice(at, found), match: false })
-    parts.push({ text: text.slice(found, found + needle.value.length), match: true })
-    at = found + needle.value.length
-  }
-  if (at < text.length) parts.push({ text: text.slice(at), match: false })
-  return parts
-}
+const partsOf = (text: string) => matchParts(text, needle.value)
 
 const matches = computed(() => {
   if (!needle.value) return props.options
