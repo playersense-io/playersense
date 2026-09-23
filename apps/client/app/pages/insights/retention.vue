@@ -111,6 +111,22 @@ const GRAINS: SegmentedOption[] = [
   { value: 'week', label: 'Weekly' },
   { value: 'day', label: 'Daily' }
 ]
+
+// Each cell is the share that came back, with the players it is of under it.
+const MODES = [rateMode()]
+
+const COLORS: SegmentedOption[] = [
+  { value: 'heat', label: 'Heat', title: 'Shaded by the figure' },
+  { value: 'average', label: 'vs average', title: 'Shaded by how far each cohort is from all cohorts on the same day' }
+]
+
+// The days and the colouring are the reader's, kept in this browser.
+const {
+  days: cohortDays,
+  offsets: cohortOffsets,
+  mode: cohortMode,
+  color: cohortColor
+} = useCohortTableSettings('insights.retention', { modes: MODES })
 </script>
 
 <template>
@@ -148,23 +164,20 @@ const GRAINS: SegmentedOption[] = [
       title="Cohorts"
     >
       <template #actions>
+        <CohortDaysMenu v-model="cohortDays" />
+        <SegmentedControl v-model="cohortColor" :options="COLORS" label="Colour" />
         <SegmentedControl v-model="grain" :options="GRAINS" label="Cohort size" />
       </template>
 
-      <CohortTable :cohorts="data.cohorts" :grain="grain" :offsets="RETENTION_OFFSETS" />
-
-      <div class="flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-line px-4 py-3 text-[11px] text-ink/55">
-        <span class="flex items-center gap-1.5">
-          <span class="h-3 w-5 rounded-[3px] bg-primary/15" /> fewer came back
-          <span class="ml-1 h-3 w-5 rounded-[3px] bg-primary" /> more came back
-        </span>
-        <span class="flex items-center gap-1.5">
-          <span class="h-3 w-5 rounded-[3px] bg-ink/2 ring-1 ring-ink/6 ring-inset" /> not that old yet
-        </span>
-        <span class="flex items-center gap-1.5">
-          <span class="font-mono text-ink/40">&lt;{{ SUPPRESSION_THRESHOLD }}</span> too few players to show
-        </span>
-      </div>
+      <CohortTable
+        :color="cohortColor"
+        :grain="grain"
+        :mode="cohortMode"
+        :offsets="cohortOffsets"
+        :rows="data.cohorts"
+        :threshold="SUPPRESSION_THRESHOLD"
+        label="Retention by cohort"
+      />
     </SectionCard>
   </div>
 </template>

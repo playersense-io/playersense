@@ -5,8 +5,8 @@
 //     retention_basis classic | rolling (never inferred — project.md §29.10), cohort
 //     { from, to, grain day | week }, offsets, and at most one sticky breakdown
 //     (install_platform, install_source …, §29.13). Rows are (cohort, offset, players,
-//     rate) with the cohort's size; cells younger than the offset are absent, and cells
-//     under the suppression threshold come back withheld rather than as zero.
+//     rate) with the cohort's size; cells younger than the offset are absent, and so are
+//     cells under the suppression threshold — `pivotCohortRows` tells the two apart.
 //
 // Seeded, so a reload draws the same cohorts.
 
@@ -18,11 +18,8 @@ export type RetentionBreakdown = 'none' | 'platform' | 'source'
 /** How many days the retention curve runs. */
 export const CURVE_DAYS = 30
 
-/** The offsets the cohort table shows. */
-export const RETENTION_OFFSETS = [1, 3, 7, 14, 21, 30] as const
-
-/** Cells counting fewer players than this are withheld by the API. */
-export const SUPPRESSION_THRESHOLD = 10
+/** Cells counting fewer players than this are withheld by the API: its default k (§32.2). */
+export const SUPPRESSION_THRESHOLD = 5
 
 const DAY = 86_400_000
 const RANGE_DAYS: Record<RetentionRange, number> = { '30d': 30, '90d': 90 }
@@ -52,24 +49,9 @@ function curve(offset: number, basis: RetentionBasis, quality = 1): number {
   return Math.min(1, scale * quality * offset ** -decay)
 }
 
-export interface CohortCell {
-  offset: number
-  /** Null while the cohort is younger than the offset. */
-  rate: number | null
-  players: number | null
-  /** Too few players to show (the suppression threshold). */
-  withheld: boolean
-}
-
-export interface Cohort {
-  /** The cohort's first day. */
-  at: number
-  size: number
-  cells: CohortCell[]
-}
-
 export interface RetentionSample {
-  cohorts: Cohort[]
+  /** Newest first, a cell for every offset the API answers by default. */
+  cohorts: CohortTableRow[]
   /** Day 0 … CURVE_DAYS, weighted over the cohorts old enough for each day. */
   curve: (number | null)[]
   previousCurve: (number | null)[]
@@ -92,29 +74,42 @@ export function sampleRetention(
   // One daily cohort per day of the range, newest last, each with its own quality.
   const daily = Array.from({ length: days }, (_, index) => {
     const at = today - (days - index) * DAY
-    const weekend = [0, 6].includes(new Date(at).getDay()) ? 1.25 : 1
+    const weekend = [0, 6].includes(new Date(at).getUTCDay()) ? 1.25 : 1
     // Now and then a day brings almost nobody (a store outage, a holiday), so its later
-    // cells fall under the suppression threshold.
-    const size = random() < 0.08 ? Math.round(60 + random() * 60) : Math.round(2_600 * weekend * (0.85 + random() * 0.3))
+    // cells fall under the suppression threshold; once in a long while so few that the
+    // cohort itself cannot be shown.
+    const roll = random()
+    const size = roll < 0.02
+      ? Math.round(2 + random() * 2)
+      : roll < 0.09 ? Math.round(25 + random() * 45) : Math.round(2_600 * weekend * (0.85 + random() * 0.3))
     return { at, size, quality: 0.92 + random() * 0.18 + index / days * 0.05 }
   })
 
   const ageOf = (at: number) => Math.floor((today - at) / DAY) - 1
 
-  const cellFor = (size: number, age: number, offset: number, quality: number): CohortCell => {
-    if (offset > age) return { offset, rate: null, players: null, withheld: false }
-    const rate = curve(offset, basis, quality) * (0.94 + random() * 0.12)
-    const players = Math.round(size * rate)
-    return { offset, rate, players, withheld: players < SUPPRESSION_THRESHOLD }
+  const cellsFor = (size: number, age: number, quality: number) => {
+    const cells: Record<number, CohortTableCell> = {}
+    for (const offset of COHORT_OFFSETS) {
+      if (offset > age) continue
+      const rate = offset === 0 ? 1 : curve(offset, basis, quality) * (0.94 + random() * 0.12)
+      const players = Math.round(size * rate)
+      cells[offset] = size < SUPPRESSION_THRESHOLD || (players > 0 && players < SUPPRESSION_THRESHOLD)
+        ? { state: 'withheld', players: null, value: null }
+        : { state: 'ok', players, value: players / size }
+    }
+    return cells
   }
 
-  let cohorts: Cohort[]
+  const cohortOf = (at: number, size: number, age: number, quality: number): CohortTableRow => ({
+    key: String(at),
+    start: at,
+    size: size < SUPPRESSION_THRESHOLD ? null : size,
+    cells: cellsFor(size, age, quality)
+  })
+
+  let cohorts: CohortTableRow[]
   if (grain === 'day') {
-    cohorts = daily.map(cohort => ({
-      at: cohort.at,
-      size: cohort.size,
-      cells: RETENTION_OFFSETS.map(offset => cellFor(cohort.size, ageOf(cohort.at), offset, cohort.quality))
-    })).reverse()
+    cohorts = daily.map(cohort => cohortOf(cohort.at, cohort.size, ageOf(cohort.at), cohort.quality)).reverse()
   } else {
     cohorts = []
     for (let start = 0; start < daily.length; start += 7) {
@@ -122,8 +117,7 @@ export function sampleRetention(
       const size = week.reduce((sum, cohort) => sum + cohort.size, 0)
       const quality = week.reduce((sum, cohort) => sum + cohort.quality, 0) / week.length
       // A week is mature at an offset only once its youngest day is.
-      const age = ageOf(week[week.length - 1]!.at)
-      cohorts.push({ at: week[0]!.at, size, cells: RETENTION_OFFSETS.map(offset => cellFor(size, age, offset, quality)) })
+      cohorts.push(cohortOf(week[0]!.at, size, ageOf(week[week.length - 1]!.at), quality))
     }
     cohorts.reverse()
   }
