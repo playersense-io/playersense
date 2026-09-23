@@ -138,6 +138,7 @@ func build(settings config.Settings, overrides ...muzak.RouterOption) (*muzak.Ap
 	// no credential, so there is no password column to leak and no session store to
 	// compromise — and the price is that signing in depends on Google being reachable,
 	// which is why the key cache serves what it already has when it is not.
+	gateway := payments.New(settings.StripeSecretKey)
 	verifier := firebase.NewVerifier(settings.FirebaseProjectID)
 	verifier.Keys.URL = settings.FirebaseCertificateURL
 
@@ -311,9 +312,9 @@ func build(settings config.Settings, overrides ...muzak.RouterOption) (*muzak.Ap
 		muzak.WithSingleton(&suspension.Gate{Cache: cache}),
 
 		// Stripe, or a stand-in that refuses with "not configured" when there is no key.
-		muzak.WithSingleton(payments.New(settings.StripeSecretKey)),
+		muzak.WithSingleton(gateway),
 		muzak.WithSingleton(&payments.Webhooks{
-			DB: db, Cache: cache, Secret: settings.StripeWebhookSecret,
+			DB: db, Cache: cache, Secret: settings.StripeWebhookSecret, Gateway: gateway,
 			RetryAfter: settings.BillingAutoTopUpRetryAfter,
 		}),
 

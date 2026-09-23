@@ -143,12 +143,18 @@ func ApplyInvoice(ctx context.Context, tx *ent.Tx, in IssuedInvoice, at time.Tim
 		}
 		paid := in.AmountPaid * billing.CentMicros
 		if paid > 0 {
-			if _, err := wallet.PayInvoice(ctx, tx, wallet.SettleRequest{
+			result, err := wallet.PayInvoice(ctx, tx, wallet.SettleRequest{
 				AccountID: account.ID, InvoiceID: row.ID, Amount: paid, At: at,
 				Description: "Invoice " + orUID(in.Number, row) + " paid", StripeReference: in.ID,
-				Key: "invoice-paid:" + in.ID,
-			}); err != nil {
+				Key: PaidKey(in.ID),
+			})
+			if err != nil {
 				return 0, false, err
+			}
+			if !result.Applied {
+				// Settled already, by a dispute of this payment that arrived first (returns.go):
+				// what it reopened stands.
+				break
 			}
 		}
 		credited = paid > 0
@@ -272,6 +278,9 @@ func invoiceFor(ctx context.Context, tx *ent.Tx, in IssuedInvoice) (*ent.Invoice
 	}
 	return row, account, nil
 }
+
+// PaidKey is the one key an invoice's payment is settled under, whichever event reports it first.
+func PaidKey(stripeInvoice string) string { return "invoice-paid:" + stripeInvoice }
 
 func orUID(number string, row *ent.Invoice) string {
 	if number != "" {

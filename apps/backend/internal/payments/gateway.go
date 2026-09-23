@@ -243,6 +243,11 @@ type Gateway interface {
 
 	// CreditInvoice issues a credit note on an open invoice. Applied by its webhook.
 	CreditInvoice(ctx context.Context, in CreditNoteRequest) (CreditNote, error)
+
+	// InvoiceOfPayment is the invoice a PaymentIntent paid, or empty when it paid none. For a
+	// dispute that arrives before the event saying which invoice its payment paid — Stripe sends
+	// invoice_payment.paid up to a minute after the payment, and a dispute can come first.
+	InvoiceOfPayment(ctx context.Context, paymentIntent string) (string, error)
 }
 
 // ErrNotConfigured is a deployment with no Stripe key.
@@ -310,4 +315,8 @@ func (Disabled) PayInvoiceOutOfBand(context.Context, string, string) (IssuedInvo
 
 func (Disabled) CreditInvoice(context.Context, CreditNoteRequest) (CreditNote, error) {
 	return CreditNote{}, ErrNotConfigured
+}
+
+func (Disabled) InvoiceOfPayment(context.Context, string) (string, error) {
+	return "", ErrNotConfigured
 }

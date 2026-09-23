@@ -60,6 +60,9 @@ type Gateway struct {
 	CreditNotes          []payments.CreditNoteRequest
 	PaidOutOfBand        []string
 	BillingEmails        map[string]string // customer → address
+
+	// PaidInvoices is which invoice a PaymentIntent paid, as Stripe's invoice payments list says.
+	PaidInvoices map[string]string
 }
 
 // New returns a fake with a saved card and payments that succeed.
@@ -68,6 +71,7 @@ func New() *Gateway {
 		Card: "pm_card_visa", Customers: map[string]string{},
 		Charges: map[string]payments.Payment{}, requests: map[string]payments.OffSessionRequest{},
 		Invoices: map[string]payments.IssuedInvoice{}, BillingEmails: map[string]string{},
+		PaidInvoices: map[string]string{},
 	}
 }
 
@@ -297,4 +301,13 @@ func (g *Gateway) SetBillingEmail(_ context.Context, customer, email string) err
 	}
 	g.BillingEmails[customer] = email
 	return nil
+}
+
+func (g *Gateway) InvoiceOfPayment(_ context.Context, paymentIntent string) (string, error) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.Down {
+		return "", ErrTimeout
+	}
+	return g.PaidInvoices[paymentIntent], nil
 }

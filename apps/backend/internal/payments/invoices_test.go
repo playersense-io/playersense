@@ -189,7 +189,11 @@ func TestADisputedInvoicePaymentIsOwedAgainUntilItIsWon(t *testing.T) {
 	}
 
 	id := "dp_" + uuid.NewString()[:12]
-	f.dispute("charge.dispute.created", pi, id, "needs_response", 7_500)
+	f.dispute("charge.dispute.funds_withdrawn", pi, id, "needs_response", 7_500)
+	// Reported again, by the other event Stripe sends for the same dispute: the same dispute.
+	if again := f.dispute("charge.dispute.created", pi, id, "needs_response", 7_500); again.Status != "processed" {
+		t.Errorf("the second report of the dispute was %s (%s), want processed", again.Status, again.Reason)
+	}
 	if account := f.row(); account.ReceivableMicros != 75*billing.Micros || account.OverdueSince == nil {
 		t.Errorf("after the dispute: receivable %s, overdue %v; want owed and overdue again",
 			billing.USD(account.ReceivableMicros), account.OverdueSince)
@@ -226,4 +230,59 @@ func TestARefundOfAnInvoicePaymentIsFlaggedNotApplied(t *testing.T) {
 		t.Errorf("%+v, receivable %s; want recorded with a reason and nothing moved", out,
 			billing.USD(f.row().ReceivableMicros))
 	}
+}
+
+// Stripe sends invoice_payment.paid up to a minute after the payment, and a dispute of it can come
+// first — as it did against Stripe's test mode. The dispute asks Stripe which invoice the payment paid
+// rather than dropping it; and when Stripe cannot be asked, it is retried rather than ignored.
+func TestADisputeBeforeTheInvoicePaymentEventStillReopensTheInvoice(t *testing.T) {
+	f := newFixture(t)
+	f.hooks.Gateway = f.gateway
+	row := f.usageInvoice(80*billing.Micros, time.Now().Add(24*time.Hour))
+	f.invoiceEvent("invoice.paid", row, "paid", 8_000)
+	pi := "pi_" + uuid.NewString()[:12]
+	f.gateway.PaidInvoices[pi] = *row.StripeInvoiceID
+
+	f.gateway.Down = true
+	if _, err := f.deliver("evt_"+uuid.NewString(), "charge.dispute.created", map[string]any{
+		"id": "dp_" + uuid.NewString()[:12], "object": "dispute", "amount": 8_000, "currency": "usd",
+		"status": "needs_response", "payment_intent": pi,
+	}); err == nil {
+		t.Fatal("a dispute Stripe could not be asked about was answered 2xx; Stripe would not send it again")
+	}
+	f.gateway.Down = false
+
+	out := f.dispute("charge.dispute.created", pi, "dp_"+uuid.NewString()[:12], "needs_response", 8_000)
+
+	if out.Status != "processed" || f.row().ReceivableMicros != 80*billing.Micros {
+		t.Errorf("%+v, receivable %s; want the dispute applied", out, billing.USD(f.row().ReceivableMicros))
+	}
+	if fresh := f.invoice(row); fresh.Status != invoice.StatusOpen || fresh.PaymentIntent == nil || *fresh.PaymentIntent != pi {
+		t.Errorf("invoice after the dispute: %s, payment %v", fresh.Status, fresh.PaymentIntent)
+	}
+	f.assertInvariant()
+}
+
+// And a dispute can arrive before invoice.paid itself. The payment it disputes is settled under the key
+// invoice.paid uses, then reopened; invoice.paid, arriving after, finds it settled and leaves it open.
+func TestADisputeBeforeInvoicePaidEndsTheSameAsAfterIt(t *testing.T) {
+	f := newFixture(t)
+	f.hooks.Gateway = f.gateway
+	row := f.usageInvoice(90*billing.Micros, time.Now().Add(24*time.Hour))
+	pi := "pi_" + uuid.NewString()[:12]
+	f.gateway.PaidInvoices[pi] = *row.StripeInvoiceID
+
+	f.dispute("charge.dispute.created", pi, "dp_"+uuid.NewString()[:12], "needs_response", 9_000)
+	f.invoiceEvent("invoice.paid", row, "paid", 9_000)
+
+	if got := f.row().ReceivableMicros; got != 90*billing.Micros {
+		t.Errorf("receivable %s; the disputed $90 is owed again whichever event came first", billing.USD(got))
+	}
+	if fresh := f.invoice(row); fresh.Status != invoice.StatusOpen || fresh.AmountRemainingMicros != 90*billing.Micros {
+		t.Errorf("invoice %s, remaining %s; want open for the disputed $90", fresh.Status, billing.USD(fresh.AmountRemainingMicros))
+	}
+	if f.payments() != 1 {
+		t.Errorf("%d payments recorded, want one", f.payments())
+	}
+	f.assertInvariant()
 }

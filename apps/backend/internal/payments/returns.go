@@ -3,6 +3,7 @@ package payments
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -178,18 +179,42 @@ func (w *Webhooks) takeBackInvoice(ctx context.Context, tx *ent.Tx, pi string, c
 	if pi == "" {
 		return ignored("not a PlayerSense payment"), nil
 	}
-	row, err := tx.Invoice.Query().Where(invoice.PaymentIntent(pi)).ForUpdate().Only(ctx)
-	if ent.IsNotFound(err) {
-		return ignored("not a PlayerSense payment"), nil
-	}
+	row, err := w.invoiceOfPayment(ctx, tx, pi)
 	if err != nil {
 		return handled{}, err
+	}
+	if row == nil {
+		return ignored("not a PlayerSense payment"), nil
 	}
 	if !strings.HasPrefix(key, "dispute:") {
 		w.log().Error("a usage invoice's payment was refunded; adjust the ledger by hand",
 			"invoice", row.UID, "payment_intent", pi, "cents", cents)
 		return handled{status: stripeevent.StatusProcessed, accountID: row.AccountID,
 			reason: "a refund of an invoice payment is not applied; adjust the ledger by hand"}, nil
+	}
+	// Stripe reports a dispute more than once — charge.dispute.created and funds_withdrawn arrive in
+	// the same second — and each report after the first is the same dispute, already applied.
+	if done, err := wallet.Reversed(ctx, tx, key); err != nil || done != nil {
+		return handled{status: stripeevent.StatusProcessed, accountID: row.AccountID,
+			reason: "already taken back"}, err
+	}
+	// A dispute proves the payment it disputes was made, and it can arrive before invoice.paid — in
+	// the same second, against Stripe's test mode. So an invoice not yet recorded as paid is settled
+	// here first, under the key invoice.paid will use: that event then finds it done, and leaves the
+	// reopening below standing. Either order ends in the same ledger.
+	if row.Status == invoice.StatusOpen && row.AmountPaidMicros == 0 && row.AmountRemainingMicros > 0 &&
+		row.StripeInvoiceID != nil {
+		result, err := wallet.PayInvoice(ctx, tx, wallet.SettleRequest{
+			AccountID: row.AccountID, InvoiceID: row.ID, Amount: row.AmountRemainingMicros, At: w.now(),
+			Description: "Invoice " + orUID(row.Number, row) + " paid", StripeReference: *row.StripeInvoiceID,
+			Key: PaidKey(*row.StripeInvoiceID),
+		})
+		if err != nil {
+			return handled{}, err
+		}
+		if result.Applied {
+			row.AmountPaidMicros, row.AmountRemainingMicros = row.AmountRemainingMicros, 0
+		}
 	}
 	amount := min(cents*billing.CentMicros, row.AmountPaidMicros)
 	if amount <= 0 {
@@ -213,6 +238,45 @@ func (w *Webhooks) takeBackInvoice(ctx context.Context, tx *ent.Tx, pi string, c
 	}
 	return handled{status: stripeevent.StatusProcessed, accountID: row.AccountID},
 		ReassessOverdue(ctx, tx, row.AccountID, w.now())
+}
+
+// invoiceOfPayment is the usage invoice a PaymentIntent paid, locked, or nil.
+//
+// Recorded from invoice_payment.paid when that has arrived. Stripe sends it up to a minute after the
+// payment, and a dispute of the payment can arrive first — so when nothing is recorded, Stripe is
+// asked. An error asking is returned rather than ignored: the event is answered 500 and Stripe
+// delivers it again, instead of a dispute being dropped because Stripe was slow to answer once.
+func (w *Webhooks) invoiceOfPayment(ctx context.Context, tx *ent.Tx, pi string) (*ent.Invoice, error) {
+	row, err := tx.Invoice.Query().Where(invoice.PaymentIntent(pi)).ForUpdate().Only(ctx)
+	switch {
+	case err == nil:
+		return row, nil
+	case !ent.IsNotFound(err):
+		return nil, err
+	case w.Gateway == nil:
+		return nil, nil
+	}
+	id, err := w.Gateway.InvoiceOfPayment(ctx, pi)
+	switch {
+	case errors.Is(err, ErrNotConfigured):
+		return nil, nil
+	case err != nil:
+		return nil, err
+	case id == "":
+		return nil, nil
+	}
+	row, err = tx.Invoice.Query().Where(invoice.StripeInvoiceID(id)).ForUpdate().Only(ctx)
+	if ent.IsNotFound(err) {
+		return nil, nil // a subscription's invoice, or one PlayerSense did not issue
+	}
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.Invoice.UpdateOneID(row.ID).SetPaymentIntent(pi).Exec(ctx); err != nil {
+		return nil, fmt.Errorf("record the invoice's payment: %w", err)
+	}
+	row.PaymentIntent = &pi
+	return row, nil
 }
 
 // restoreInvoice settles an invoice again when the dispute that reopened it is won.

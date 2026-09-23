@@ -116,6 +116,12 @@ is written off the receivable as an adjustment.
 A dispute on an invoice payment reopens the receivable and the invoice: the bank took the money back,
 so it is owed again, and the invoice is overdue at once. A won dispute settles it again.
 
+Stripe does not deliver these in order. Against its test mode a dispute arrived in the same second as
+`invoice.paid`, and before `invoice_payment.paid` — which says which PaymentIntent paid the invoice —
+by thirty seconds. So a dispute naming a payment not yet recorded asks Stripe which invoice it paid, and
+one arriving before `invoice.paid` settles the invoice under the key that event uses and then reopens
+it; `invoice.paid`, arriving after, finds the settlement done. Either order ends in the same ledger.
+
 ### Overdue, not owing, starts the clock
 
 An open invoice past its due date makes the account **overdue** (`overdue_since`) and puts it in its
@@ -194,5 +200,8 @@ negotiated minimum, which is a discount nobody agreed to.
   another customer's invoice, disputes, and a refund flagged rather than applied.
 - `apps/backend/internal/suspension/` — overdue grace, the exposure cap, and letting an invoiced account
   back in; `invoiced_test.go` also proves unbilled usage under the limit is never suspended.
+- `apps/backend/internal/payments/stripe_e2e_invoice_test.go` — `STRIPE_E2E=1`: real invoices issued,
+  credited, paid by card, voided, marked uncollectible, disputed and won, each checked by Stripe's own
+  webhook arriving at a running API through `stripe listen`.
 - `apps/backend/cmd/api/control_invoicing_test.go` — staff putting an organization on a contract,
   audited; customers refused top-ups and subscriptions; a month closing, listed, marked paid and settled.

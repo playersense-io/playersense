@@ -44,6 +44,10 @@ type Webhooks struct {
 	// RetryAfter is how long an automatic top-up waits after a decline.
 	RetryAfter time.Duration
 
+	// Gateway answers the one question an event cannot: which usage invoice a disputed payment
+	// paid, when the dispute arrives before the event that says so. Nil: only what is recorded.
+	Gateway Gateway
+
 	Now func() time.Time
 }
 

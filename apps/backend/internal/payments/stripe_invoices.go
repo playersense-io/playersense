@@ -169,6 +169,23 @@ func (s *Stripe) CreditInvoice(ctx context.Context, in CreditNoteRequest) (Credi
 	return CreditNote{ID: note.ID, AmountCents: note.Amount}, nil
 }
 
+// InvoiceOfPayment asks Stripe which invoice a PaymentIntent paid.
+func (s *Stripe) InvoiceOfPayment(ctx context.Context, paymentIntent string) (string, error) {
+	params := &stripe.InvoicePaymentListParams{Payment: &stripe.InvoicePaymentListPaymentParams{
+		Type: stripe.String("payment_intent"), PaymentIntent: stripe.String(paymentIntent),
+	}}
+	params.Limit = stripe.Int64(1)
+	for payment, err := range s.client.V1InvoicePayments.List(ctx, params).All(ctx) {
+		if err != nil {
+			return "", fmt.Errorf("find the invoice the payment paid: %w", err)
+		}
+		if payment.Invoice != nil {
+			return payment.Invoice.ID, nil
+		}
+	}
+	return "", nil
+}
+
 // issuedOf reads a Stripe invoice as PlayerSense needs it — from a response or from an event.
 func issuedOf(invoice *stripe.Invoice) IssuedInvoice {
 	out := IssuedInvoice{
