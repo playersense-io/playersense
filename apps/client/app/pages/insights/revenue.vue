@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { Kpi } from '~/components/KpiBoard.vue'
-import type { ShareRow } from '~/components/ShareList.vue'
 
 // What the game earned, and everything between the price and the money in the bank:
 // gross verified purchases, less refunds, less the stores' fees, to net; who paid and how
@@ -148,29 +147,9 @@ const byStoreSeries = computed<MetricSeries[]>(() => STORE_KEYS
     tone: ((index % 6) + 1) as 1 | 2 | 3 | 4 | 5 | 6
   })))
 
-const storeRows = computed<ShareRow[]>(() => STORE_KEYS
-  .map((store) => {
-    const amount = data.value.daily.reduce((sum, day) => sum + day.byStore[store][basis.value], 0)
-    const fees = data.value.daily.reduce((sum, day) => sum + day.byStore[store].fees, 0)
-    return { key: store, label: STORES[store].label, value: amount, display: formatMoney(amount), note: `${formatMoney(fees)} fees`, mark: { kind: 'platform' as const, code: STORES[store].platform } }
-  })
-  .filter(row => row.value > 0)
-  .sort((a, b) => b.value - a.value))
-
-const showAllCountries = ref(false)
-
-const countryRows = computed<ShareRow[]>(() => {
-  const total = data.value.total[basis.value] || 1
-  const rows = data.value.countries.map(country => ({
-    key: country.code,
-    label: segmentName('install_country', country.code),
-    value: country[basis.value],
-    display: formatMoney(country[basis.value]),
-    note: `${formatShare(country[basis.value] / total)} · ${formatExactMoney(country.gross / Math.max(country.payers, 1))}`,
-    mark: { kind: 'country' as const, code: country.code }
-  }))
-  return showAllCountries.value ? rows : rows.slice(0, 10)
-})
+/** A country's or a store's name and mark, for the breakdown tables. */
+const describeCountry = (line: BreakdownLine) => ({ label: segmentName('install_country', line.key), mark: { kind: 'country' as const, code: line.key } })
+const describeStore = (line: BreakdownLine) => ({ label: STORES[line.key as RevenueStore].label, mark: { kind: 'platform' as const, code: STORES[line.key as RevenueStore].platform } })
 
 // --- Packages -----------------------------------------------------------------------------
 
@@ -217,12 +196,21 @@ function downloadPackages() {
       </template>
     </PageHeader>
 
-    <v-card border flat>
-      <TableToolbar :filters="activeFilters" @clear="clearFilters" @remove="removeFilter">
-        <FilterDialog v-model="filters" :groups="FILTER_GROUPS" title="Filter revenue" />
-      </TableToolbar>
-      <InfoNote class="m-3" text="Packages, stores, refunds, fees and verification are sample data until verified purchases are recorded server-side. Revenue, purchases and payers over time are what the metrics query answers today." />
-    </v-card>
+    <InfoNote text="Packages, stores, refunds, fees and verification are sample data until verified purchases are recorded server-side. Revenue, purchases and payers over time are what the metrics query answers today." />
+
+    <!-- The filters stay in reach down the whole page, figures and tabs alike. -->
+    <StickyBar>
+      <v-card border flat>
+        <TableToolbar
+          :filters="activeFilters"
+          :ruled="false"
+          @clear="clearFilters"
+          @remove="removeFilter"
+        >
+          <FilterDialog v-model="filters" :groups="FILTER_GROUPS" title="Filter revenue" />
+        </TableToolbar>
+      </v-card>
+    </StickyBar>
 
     <KpiBoard
       :description="`Verified purchases in ${RANGE_WORDS[range]}, in USD, against the range before.`"
@@ -254,26 +242,29 @@ function downloadPackages() {
           type="area"
         />
 
-        <div class="grid gap-5 lg:grid-cols-[2fr_3fr]">
-          <SectionCard description="Each store's part, and what it kept." title="By store">
-            <ShareList :rows="storeRows" label="Revenue by store" />
-          </SectionCard>
-          <SectionCard description="Where the money comes from: each country's share, and what a payer there spends." title="By country">
-            <template #actions>
-              <v-btn
-                v-if="data.countries.length > 10"
-                class="text-xs font-medium"
-                color="neutral"
-                size="small"
-                variant="text"
-                @click="showAllCountries = !showAllCountries"
-              >
-                {{ showAllCountries ? 'Top 10' : `All ${data.countries.length}` }}
-              </v-btn>
-            </template>
-            <ShareList :rows="countryRows" label="Revenue by country" />
-          </SectionCard>
-        </div>
+        <SectionCard
+          :padded="false"
+          description="Where the money comes from: each country's revenue and share, how it moved, and what its payers spend."
+          title="By country"
+        >
+          <RevenueBreakdown
+            :basis="basis"
+            :describe="describeCountry"
+            :limit="10"
+            :lines="data.countries"
+            noun="Country"
+          />
+        </SectionCard>
+
+        <SectionCard :padded="false" description="Each store's part, and what it kept of it." title="By store">
+          <RevenueBreakdown
+            :basis="basis"
+            :describe="describeStore"
+            :lines="data.stores"
+            fees
+            noun="Store"
+          />
+        </SectionCard>
       </template>
 
       <SectionCard

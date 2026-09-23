@@ -20,14 +20,16 @@ export const REVENUE_RANGE_DAYS: Record<RevenueRange, number> = { '7d': 7, '30d'
 
 /**
  * Where a purchase is made: the store's name, the platform its mark is drawn for, what it
- * keeps of each sale, and its share of transactions. The web shop is a game's own
- * checkout, which keeps little more than the card processor's cut.
+ * keeps of each sale, its share of transactions, and how readily it refunds: Google Play
+ * lets a player refund themselves for two days, Apple decides for them, and a game's own
+ * web shop refunds only what it chooses to. The web shop keeps little more than the card
+ * processor's cut.
  */
-export const STORES: Record<RevenueStore, { label: string, platform: string, fee: number, share: number, verifyMs: number }> = {
-  app_store: { label: 'App Store', platform: 'iOS', fee: 0.3, share: 0.47, verifyMs: 420 },
-  google_play: { label: 'Google Play', platform: 'Android', fee: 0.3, share: 0.41, verifyMs: 310 },
-  steam: { label: 'Steam', platform: 'Steam', fee: 0.3, share: 0.09, verifyMs: 650 },
-  web_shop: { label: 'Web shop', platform: 'web', fee: 0.05, share: 0.03, verifyMs: 120 }
+export const STORES: Record<RevenueStore, { label: string, platform: string, fee: number, share: number, verifyMs: number, refunds: number }> = {
+  app_store: { label: 'App Store', platform: 'iOS', fee: 0.3, share: 0.47, verifyMs: 420, refunds: 0.8 },
+  google_play: { label: 'Google Play', platform: 'Android', fee: 0.3, share: 0.41, verifyMs: 310, refunds: 1.3 },
+  steam: { label: 'Steam', platform: 'Steam', fee: 0.3, share: 0.09, verifyMs: 650, refunds: 1.1 },
+  web_shop: { label: 'Web shop', platform: 'web', fee: 0.05, share: 0.03, verifyMs: 120, refunds: 0.5 }
 }
 
 export const STORE_KEYS = Object.keys(STORES) as RevenueStore[]
@@ -145,13 +147,29 @@ export interface ProductLine extends Money {
   reasons: { reason: RefundReason, count: number }[]
 }
 
+/** One store's or country's part: its money, the players who paid there, and its gross the range before. */
+export interface BreakdownLine extends Money {
+  key: string
+  payers: number
+  previousGross: number
+}
+
+/**
+ * Where refunds run above or below the average: chargebacks and card fraud cluster in some
+ * markets, and players in others rarely ask for their money back.
+ */
+const REFUND_BIAS: Record<string, number> = { BR: 1.6, ID: 1.8, VN: 1.9, PH: 1.5, IN: 1.7, MX: 1.4, RU: 1.5, CO: 1.4, AR: 1.3, JP: 0.6, KR: 0.7, DE: 0.8 }
+
 export interface RevenueSample {
   days: number[]
   total: Money
   previous: Money
   daily: (Money & { byStore: Record<RevenueStore, Money> })[]
   products: ProductLine[]
-  countries: { code: string, gross: number, net: number, payers: number }[]
+  /** Each store's money, payers and the range before. */
+  stores: BreakdownLine[]
+  /** Each country's, the biggest first. */
+  countries: BreakdownLine[]
   payers: { total: number, newPayers: number, previousTotal: number, daily: { new: number, returning: number }[] }
   /** Player-days in the range: what ARPDAU divides by. */
   activePlayers: number
@@ -214,9 +232,10 @@ function draw(range: RevenueRange, filters: RevenueFilters, end: number, today: 
       for (const store of stores) {
         const transactions = base * (product.weight / weightTotal) * (STORES[store].share / storePull) * eventLift * (0.85 + random() * 0.3)
         const gross = transactions * product.price
-        add(day, gross, transactions, product.refundRate, STORES[store].fee)
-        add(day.byStore[store], gross, transactions, product.refundRate, STORES[store].fee)
-        add(line.money, gross, transactions, product.refundRate, STORES[store].fee)
+        const refundRate = product.refundRate * STORES[store].refunds
+        add(day, gross, transactions, refundRate, STORES[store].fee)
+        add(day.byStore[store], gross, transactions, refundRate, STORES[store].fee)
+        add(line.money, gross, transactions, refundRate, STORES[store].fee)
         line.daily[index]! += gross
         line.byStore[store] += gross
       }
@@ -272,15 +291,40 @@ export function sampleRevenue(range: RevenueRange, filters: RevenueFilters): Rev
     }
   }).sort((a, b) => b.gross - a.gross)
 
+  // Each country's part: its spend share of the money, its installs' share of the payers,
+  // its own refund rate, and the range before with a little movement of its own.
   const countryTotal = now.countries.reduce((sum, country) => sum + country.spend, 0) || 1
-  const countries = now.countries
-    .map(country => ({
-      code: country.code,
-      gross: now.total.gross * country.spend / countryTotal,
-      net: now.total.net * country.spend / countryTotal,
-      payers: payersTotal * (country.share / now.installPull) * (0.7 + 0.3 * country.spend / country.share)
-    }))
+  const refundRate = now.total.transactions ? now.total.refunded / now.total.transactions : 0
+  const averagePrice = now.total.transactions ? now.total.gross / now.total.transactions : 0
+  const countries: BreakdownLine[] = now.countries
+    .map((country) => {
+      const gross = now.total.gross * country.spend / countryTotal
+      const transactions = gross / Math.max(averagePrice * (0.85 + 0.3 * Math.min(1, country.spend / country.share / 1.3)), 0.01)
+      const refunded = transactions * refundRate * (REFUND_BIAS[country.code] ?? 1)
+      const refunds = refunded * (transactions ? gross / transactions : 0)
+      const fees = (gross - refunds) * (now.total.gross ? now.total.fees / (now.total.gross - now.total.refunds) : 0.3)
+      return {
+        key: country.code,
+        gross,
+        refunds,
+        fees,
+        net: gross - refunds - fees,
+        transactions,
+        refunded,
+        payers: payersTotal * (country.share / now.installPull) * (0.7 + 0.3 * country.spend / country.share),
+        previousGross: before.total.gross * country.spend / countryTotal * (0.92 + random() * 0.16)
+      }
+    })
     .sort((a, b) => b.gross - a.gross)
+
+  const stores: BreakdownLine[] = now.stores.map((store) => {
+    const money = now.daily.reduce((sum, day) => {
+      for (const key of ['gross', 'refunds', 'fees', 'net', 'transactions', 'refunded'] as const) sum[key] += day.byStore[store][key]
+      return sum
+    }, zero())
+    const previousGross = before.daily.reduce((sum, day) => sum + day.byStore[store].gross, 0)
+    return { key: store, ...money, payers: money.transactions / perPayer, previousGross }
+  }).sort((a, b) => b.gross - a.gross)
 
   const reasons = REFUND_REASONS.map(reason => ({
     reason,
@@ -315,6 +359,7 @@ export function sampleRevenue(range: RevenueRange, filters: RevenueFilters): Rev
     previous: before.total,
     daily: now.daily,
     products,
+    stores,
     countries,
     payers: {
       total: payersTotal,
