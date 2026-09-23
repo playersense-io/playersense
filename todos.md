@@ -395,9 +395,8 @@ charge, 3 a day), refunds and disputes taken back, and an invoice for every top-
 - [ ] **Replaying failed webhooks.** Stripe retries a failed delivery for about three days; after that
       the event stays `failed` in `stripe_events` with its reason, and nothing reprocesses it — a job,
       or an admin screen with a replay button.
-- [ ] **Subscription events on the endpoint.** Add `customer.subscription.created`,
-      `customer.subscription.updated` and `customer.subscription.deleted` to the Dashboard webhook —
-      without them a paid Enterprise subscription never moves the organization onto Enterprise.
+- [x] **Subscription events on the endpoint.** `customer.subscription.created`, `.updated` and
+      `.deleted` are subscribed on the Dashboard webhook.
 - [ ] **The portal for subscriptions.** Configure Stripe's customer portal to allow canceling and
       switching between Enterprise monthly and yearly.
 - [ ] **Two subscriptions.** Two Checkout tabs completed can leave a studio billed twice; the newer is
