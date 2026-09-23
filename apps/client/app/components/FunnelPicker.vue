@@ -31,6 +31,9 @@ const KINDS = [
 ] as const
 
 const naming = ref<'save-as' | 'rename' | null>(null)
+
+/** Deleting asks first: a saved funnel is somebody's work, and there is no undo. */
+const deleting = ref(false)
 const dialogOpen = computed({
   get: () => naming.value !== null,
   set: (open) => {
@@ -147,7 +150,7 @@ function named(name: string) {
           :disabled="unsaved || funnels.length <= 1"
           base-color="error"
           title="Delete funnel"
-          @click="emit('remove')"
+          @click="deleting = true"
         />
       </v-list>
     </v-menu>
@@ -159,6 +162,14 @@ function named(name: string) {
       :description="naming === 'rename' ? '' : 'Saved in this browser, with its steps and window.'"
       :title="naming === 'rename' ? 'Rename funnel' : 'Save as a new funnel'"
       @confirm="named"
+    />
+
+    <ConfirmDialog
+      v-model="deleting"
+      :description="`${name} and its steps go for everyone using this browser. This cannot be undone.`"
+      :title="`Delete ${name}?`"
+      action="Delete funnel"
+      @confirm="emit('remove')"
     />
   </div>
 </template>
