@@ -714,6 +714,22 @@
 }
 
 /*
+ * The chosen option is the ink on a faint wash of it, not the accent. A nav list lights its
+ * current row in the accent because that row is where the reader is; in a field's list the
+ * chosen row is only a value, and an autocomplete marks every row it would pick as it filters,
+ * so the accent turned a list of options into a column of blue.
+ */
+.v-menu > .v-overlay__content.ps-field-menu.ps-field-menu .v-list-item.v-list-item--active {
+  --v-activated-opacity: 0.06;
+
+  color: rgb(var(--v-theme-on-surface));
+}
+
+.v-menu > .v-overlay__content.ps-field-menu.ps-field-menu .v-list-item--active > .v-list-item__overlay {
+  background: rgb(var(--v-theme-on-surface));
+}
+
+/*
  * A divider is the one edge Vuetify draws in the text colour: `currentColor` under the
  * border opacity, which with that opacity at 1 (packages/dashboard/nuxt.config.ts) is a solid line of ink.
  * Every other edge takes the line colour, so this one does too. The cost is the `color`
