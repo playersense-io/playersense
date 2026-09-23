@@ -369,6 +369,30 @@ Track alongside the frontend work above; none of it blocks `landing`, but most o
 
 ---
 
+### Stripe — still open (ADR 0040, 0041)
+
+Built: Checkout top-ups and the customer portal, signed webhooks, automatic top-up (queued by the
+charge, 3 a day), refunds and disputes taken back, and an invoice for every top-up. What is left:
+
+- [ ] **Tax.** Stripe Tax is off until tax registrations exist. Turning it on does not change the
+      top-up flow: Checkout and the automatic-top-up invoices both take `automatic_tax`.
+- [ ] **Credit notes.** A refunded top-up's invoice stays "paid"; no credit note is issued against it.
+- [ ] **Failure emails.** A declined automatic top-up and the daily limit only show on the billing
+      page (`auto_topup.last_error`). Nobody is emailed, so an account can sit in arrears unnoticed;
+      and a card that needs 3-D Secure has no flow that sends the customer to confirm it.
+- [ ] **Stripe customer sync.** Renaming an organization or changing its billing email does not update
+      its Stripe customer; a customer deleted in Stripe's Dashboard leaves a stale pointer.
+- [ ] **Replaying failed webhooks.** Stripe retries a failed delivery for about three days; after that
+      the event stays `failed` in `stripe_events` with its reason, and nothing reprocesses it — a job,
+      or an admin screen with a replay button.
+- [ ] **Production setup.** Live keys in production secrets; a Dashboard webhook endpoint for
+      `/v1/stripe/webhook` with its signing secret as `STRIPE_WEBHOOK_SECRET`, its API version pinned
+      to `2026-04-22.dahlia`; the live-mode customer portal configuration saved once.
+- [ ] **Minor.** USD only. No refund of unused purchased credit when a studio leaves. The Stripe SDK
+      prints its own error lines to stderr; they should go through the service's logger.
+
+---
+
 ## 5. Compliance/UX details that apply across all three apps
 
 - [ ] Never imply an email was sent when `MAIL_SENDER=log` is active — show `delivered: false`
