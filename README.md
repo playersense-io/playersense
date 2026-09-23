@@ -288,7 +288,7 @@ different.
 
 **Owing is tolerated, within bounds** ([ADR 0043](docs/adr/0043-a-bounded-tolerance-for-accounts-that-owe.md)).
 An account that owes keeps ingesting for `BILLING_GRACE_PERIOD` (7 days), or until it owes its credit
-limit — 25% of its last 30 days' usage, never below a $50 floor or its plan's `credit_limit_micros` —
+limit — 20% of its last 30 days' paid usage, never below a $50 floor or its plan's `credit_limit_micros` —
 whichever comes first. Then its SDK batches are answered 429 with `Retry-After`, which the SDK keeps
 them for, until it pays; paying lets it back in within about half a minute. Staff can set an exact limit
 for one organization with `PUT /v1/operator/organizations/{org}/credit-limit`.

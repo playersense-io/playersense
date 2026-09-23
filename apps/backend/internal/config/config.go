@@ -350,12 +350,12 @@ type Settings struct {
 	// An account's credit limit — how much it may owe before ingestion is suspended sooner than the
 	// grace period — scales with what it spends (ADR 0043):
 	//
-	//	limit = max(floor, BILLING_CREDIT_LIMIT_PERCENT% of its usage in the last 30 days)
+	//	limit = max(floor, BILLING_CREDIT_LIMIT_PERCENT% of its paid usage in the last 30 days)
 	//
 	// unless staff have set an exact limit for the organization. The floor is the plan's
 	// credit_limit_micros, or this default for plans that do not state one. Micros: $50 is 50000000.
 	BillingDefaultCreditLimit int64 `env:"BILLING_DEFAULT_CREDIT_LIMIT" default:"50000000"`
-	BillingCreditLimitPercent int64 `env:"BILLING_CREDIT_LIMIT_PERCENT" default:"25"`
+	BillingCreditLimitPercent int64 `env:"BILLING_CREDIT_LIMIT_PERCENT" default:"20"`
 
 	// BillingSuspensionEvery is how often the billing writer suspends accounts past their grace
 	// or credit limit, and republishes which accounts are suspended to Valkey.

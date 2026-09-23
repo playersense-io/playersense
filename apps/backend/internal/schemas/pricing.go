@@ -281,7 +281,7 @@ type SetCreditLimitIn struct {
 
 	// CreditLimitMicros is the exact limit; absent (null) clears the override, so the limit follows
 	// the organization's spending again.
-	CreditLimitMicros *int64 `json:"credit_limit_micros,omitzero" doc:"Exact limit in micros; omit to return to 25% of usage with the floor"`
+	CreditLimitMicros *int64 `json:"credit_limit_micros,omitzero" doc:"Exact limit in micros; omit to return to 20% of paid usage with the floor"`
 
 	Operator string `json:"operator"`
 }

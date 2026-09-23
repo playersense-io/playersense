@@ -79,7 +79,7 @@ func TestASuspendedOrganizationIsRefusedUntilItPays(t *testing.T) {
 		t.Fatal(err)
 	}
 	job := &suspension.Job{DB: f.db, Cache: cache, Grace: 7 * 24 * time.Hour,
-		Policy: suspension.Policy{Floor: 50 * billing.Micros, Percent: 25}}
+		Policy: suspension.Policy{Floor: 50 * billing.Micros, Percent: 20}}
 	if _, err := job.Run(ctx); err != nil {
 		t.Fatal(err)
 	}

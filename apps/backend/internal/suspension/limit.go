@@ -15,7 +15,7 @@ import (
 // A flat limit treats a studio spending $5,000 a month like one spending $100, so the limit follows
 // what the account spends:
 //
-//	limit = max(floor, Percent% of its usage in the last 30 days)
+//	limit = max(floor, Percent% of its paid usage in the last 30 days)
 //
 // The floor is the plan's credit_limit_micros, or the deployment's default — so a new or small
 // studio is not cut off over a few dollars, and Enterprise can carry a higher floor. And staff can
@@ -25,7 +25,7 @@ import (
 // Policy is the deployment's side of the rule.
 type Policy struct {
 	Floor   int64 // micros, for plans that state no credit_limit_micros
-	Percent int64 // of the last 30 days' usage
+	Percent int64 // of the last 30 days' paid usage
 }
 
 // LimitSource says which part of the rule decided a limit, for the billing page.
@@ -68,11 +68,15 @@ func Limit(ctx context.Context, client *ent.Client, account *ent.BillingAccount,
 		Scan(ctx, &sums); err != nil {
 		return 0, "", fmt.Errorf("sum the account's usage: %w", err)
 	}
-	var spent int64
+	var used int64
 	if len(sums) == 1 {
-		spent = -sums[0].Sum // charges are negative, volume credits positive: the net
+		used = -sums[0].Sum // charges are negative, volume credits positive: the net
 	}
-	share := spent * policy.Percent / 100
+	// What it has paid for, not what it has used: the usage still owed is taken out, so a debt can
+	// never raise its own limit. A studio that paid $5,000 of usage and owes $1,000 more has a limit
+	// of 20% of $5,000 — not of $6,000.
+	paid := max(used-account.ArrearsMicros, 0)
+	share := paid * policy.Percent / 100
 	if share > floor {
 		return share, FromUsage, nil
 	}

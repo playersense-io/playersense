@@ -156,7 +156,7 @@ export interface paths {
         readonly get?: never;
         /**
          * Set an organization's credit limit
-         * @description How much it may owe before its ingestion is suspended. Without an override the limit is 25% of its usage in the last 30 days, or the plan's floor if that is higher; an override sets it exactly. Omit credit_limit_micros to clear the override. Recorded in the organization's audit log.
+         * @description How much it may owe before its ingestion is suspended. Without an override the limit is 20% of its paid usage in the last 30 days, or the plan's floor if that is higher; an override sets it exactly. Omit credit_limit_micros to clear the override. Recorded in the organization's audit log.
          */
         readonly put: operations["put_v1_operator_organizations_by_org_credit_limit"];
         readonly post?: never;
@@ -1210,7 +1210,7 @@ export interface components {
              * @description Owing this much suspends ingestion at once
              */
             readonly credit_limit_micros: number;
-            /** @description usage (25% of the last 30 days' usage), floor (the minimum), or override (set by PlayerSense) */
+            /** @description usage (20% of the last 30 days' paid usage), floor (the minimum), or override (set by PlayerSense) */
             readonly credit_limit_source: string;
             readonly currency: string;
             readonly expiring_soon?: readonly components["schemas"]["CreditLotOut"][];
@@ -2744,7 +2744,7 @@ export interface operations {
                 readonly "application/json": {
                     /**
                      * Format: int64
-                     * @description Exact limit in micros; omit to return to 25% of usage with the floor
+                     * @description Exact limit in micros; omit to return to 20% of paid usage with the floor
                      */
                     readonly credit_limit_micros?: number | null;
                     /** Format: email */

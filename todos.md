@@ -374,7 +374,7 @@ Track alongside the frontend work above; none of it blocks `landing`, but most o
       open: tax (Stripe Tax, once registrations exist), credit notes on refunds, failure emails,
       and the live-mode portal configuration in Stripe's dashboard. Every top-up is invoiced.
 - [x] ~~Decide what happens after the grace period~~ — decided and built (ADR 0043): 7 days, or
-      the credit limit (25% of 30-day usage, $50 floor, per-organization override), then ingestion is
+      the credit limit (20% of 30-day paid usage, $50 floor, per-organization override), then ingestion is
       answered 429 until the account pays. Still open: what cancellation does to retained data, and
       whether `restricted` (a dashboard lock) is ever wanted.
 - [ ] Enterprise features — premium Slack support, the daily Slack report builder, the MCP server —

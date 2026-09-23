@@ -673,7 +673,7 @@
           "operator"
         ],
         "summary": "Set an organization's credit limit",
-        "description": "How much it may owe before its ingestion is suspended. Without an override the limit is 25% of its usage in the last 30 days, or the plan's floor if that is higher; an override sets it exactly. Omit credit_limit_micros to clear the override. Recorded in the organization's audit log.",
+        "description": "How much it may owe before its ingestion is suspended. Without an override the limit is 20% of its paid usage in the last 30 days, or the plan's floor if that is higher; an override sets it exactly. Omit credit_limit_micros to clear the override. Recorded in the organization's audit log.",
         "operationId": "put_v1_operator_organizations_by_org_credit_limit",
         "parameters": [
           {
@@ -699,7 +699,7 @@
                       "null"
                     ],
                     "format": "int64",
-                    "description": "Exact limit in micros; omit to return to 25% of usage with the floor",
+                    "description": "Exact limit in micros; omit to return to 20% of paid usage with the floor",
                     "minimum": 0,
                     "maximum": 1000000000000
                   },
@@ -7771,7 +7771,7 @@
           },
           "credit_limit_source": {
             "type": "string",
-            "description": "usage (25% of the last 30 days' usage), floor (the minimum), or override (set by PlayerSense)"
+            "description": "usage (20% of the last 30 days' paid usage), floor (the minimum), or override (set by PlayerSense)"
           },
           "currency": {
             "type": "string"

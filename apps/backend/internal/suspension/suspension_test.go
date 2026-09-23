@@ -20,8 +20,8 @@ import (
 
 // The bounded tolerance (ADR 0043), against the real database and cache.
 
-// policy is the deployment default: a $50 floor, and 25% of the last 30 days' usage.
-var policy = suspension.Policy{Floor: 50 * billing.Micros, Percent: 25}
+// policy is the deployment default: a $50 floor, and 20% of the last 30 days' paid usage.
+var policy = suspension.Policy{Floor: 50 * billing.Micros, Percent: 20}
 
 type fixture struct {
 	t       *testing.T
@@ -231,13 +231,13 @@ func (f *fixture) limit() (int64, suspension.LimitSource) {
 	return limit, source
 }
 
-// The limit follows what an account spends: a studio spending $5,000 a month may owe $1,250; one
+// The limit follows what an account pays for: a studio spending $5,000 a month may owe $1,000; one
 // spending $100 gets the $50 floor.
 func TestTheCreditLimitScalesWithSpend(t *testing.T) {
 	big := newFixture(t)
 	big.spend(5_000 * billing.Micros)
-	if limit, source := big.limit(); limit != 1_250*billing.Micros || source != suspension.FromUsage {
-		t.Errorf("a $5,000 spender's limit = %s (%s), want $1,250 from usage", billing.USD(limit), source)
+	if limit, source := big.limit(); limit != 1_000*billing.Micros || source != suspension.FromUsage {
+		t.Errorf("a $5,000 spender's limit = %s (%s), want $1,000 from usage", billing.USD(limit), source)
 	}
 
 	small := newFixture(t)
@@ -275,5 +275,48 @@ func TestAnOverrideWinsOverTheRule(t *testing.T) {
 	}
 	if limit, source := f.limit(); limit != 20*billing.Micros || source != suspension.FromOverride {
 		t.Errorf("limit = %s (%s), want the $20 override", billing.USD(limit), source)
+	}
+}
+
+// The scenario, end to end: top up $5,000, spend it, the card declines, and the studio keeps sending.
+// It may owe exactly 20% of what it paid for — $1,000, not more because the debt grew its usage — and a
+// $5,000 top-up then pays the debt first and leaves $4,000, active again.
+func TestTheToleranceIsTwentyPercentOfWhatWasPaidFor(t *testing.T) {
+	f := newFixture(t)
+	org := uint32(f.account.OrganizationID)
+	f.spend(5_000 * billing.Micros)
+
+	f.owe(999 * billing.Micros)
+	f.run()
+	if f.state() != billingaccount.StateGracePeriod {
+		t.Fatalf("owing $999 of a $1,000 tolerance: %s, want still ingesting", f.state())
+	}
+	if limit, _ := f.limit(); limit != 1_000*billing.Micros {
+		t.Fatalf("the limit moved with the debt: %s, want $1,000", billing.USD(limit))
+	}
+
+	f.owe(1 * billing.Micros) // $1,000 owed: the limit
+	f.run()
+	if f.state() != billingaccount.StateSuspended || !f.gate().Suspended(context.Background(), org) {
+		t.Fatalf("owing $1,000: %s, want suspended", f.state())
+	}
+	row, _ := f.db.Client.BillingAccount.Get(context.Background(), f.account.ID)
+	if row.BalanceMicros != -1_000*billing.Micros {
+		t.Errorf("balance %s, want -$1,000", billing.USD(row.BalanceMicros))
+	}
+
+	f.pay(5_000 * billing.Micros)
+	row, _ = f.db.Client.BillingAccount.Get(context.Background(), f.account.ID)
+	if row.BalanceMicros != 4_000*billing.Micros || row.ArrearsMicros != 0 || row.State != billingaccount.StateActive {
+		t.Errorf("after topping up $5,000: balance %s, owes %s, %s; want $4,000, nothing, active",
+			billing.USD(row.BalanceMicros), billing.USD(row.ArrearsMicros), row.State)
+	}
+	j := f.job()
+	if _, err := j.Run(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	f.now = f.now.Add(suspension.GateTTL + time.Second)
+	if f.gate().Suspended(context.Background(), org) {
+		t.Error("still refused after paying")
 	}
 }

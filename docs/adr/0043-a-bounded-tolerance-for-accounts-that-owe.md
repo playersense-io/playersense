@@ -24,17 +24,18 @@ The business wants tolerance — time for a studio to fix a card — but not unl
 - **Time.** `BILLING_GRACE_PERIOD` (7 days), counted from when the account first owed.
 - **Money.** Its **credit limit**:
 
-      limit = max(floor, 25% of its usage in the last 30 days)
+      limit = max(floor, 20% of its paid usage in the last 30 days)
 
-  scaled so a studio spending $5,000 a month may owe $1,250 and one spending $100 may owe the floor. The
+  scaled so a studio spending $5,000 a month may owe $1,000 and one spending $100 may owe the floor. The
   floor is the plan's `credit_limit_micros` or `BILLING_DEFAULT_CREDIT_LIMIT` ($50), so a new or small
   studio is not cut off over a few dollars and Enterprise can carry more. **Staff can set an exact limit
   for one organization** (`PUT /v1/operator/organizations/{org}/credit-limit`, in its audit log), which
   wins over the rule; clearing it returns to the rule.
 
-  Usage counts unpaid usage too, but the limit grows by a quarter of each unpaid dollar while the debt
-  grows by all of it, so a debt cannot outrun its own limit: an account that never pays is suspended at
-  the floor.
+  **Paid** usage: the last 30 days' usage minus what is still owed, so a debt never raises its own
+  limit. A studio that paid for $5,000 of usage and then owes may owe exactly $1,000; a $5,000 top-up
+  after that pays the $1,000 first and leaves $4,000 (ADR 0039). An account that never pays is suspended
+  at the floor.
 
 ### Suspended means ingestion refused, and nothing lost
 
@@ -50,7 +51,9 @@ within about half a minute.
 
 PostgreSQL decides; Valkey carries the decision. The job marks each suspended organization in Valkey with
 a 90-second lifetime and renews the marks every 30 seconds, unmarking promptly any organization that
-paid. The gate on the ingestion path remembers each organization's answer for 15 seconds, so a request
+paid — found from the database (any account that left `suspended` recently), not from the job's own
+memory, so a mark set by another billing writer or before a restart is still removed. The gate on the
+ingestion path remembers each organization's answer for 15 seconds, so a request
 costs a map lookup and one Valkey `EXISTS` per organization every 15 seconds. If Valkey is unreachable,
 or the job stops, the gate **fails open**: a Valkey outage must not become an outage for every customer,
 and a few minutes of unbilled ingestion from a handful of suspended accounts is the smaller cost.
@@ -85,7 +88,9 @@ changes a few times a month per account.
 
 - `apps/backend/internal/suspension/` — the gate, the job and the limit; `suspension_test.go` covers the
   grace period, the time bound, the money bound, a plan's larger floor, scaling with spend, the same debt
-  tolerated for a large spender only, an override, paying back in, failing open, and `suspends_at`.
+  tolerated for a large spender only, an override, paying back in, failing open, `suspends_at`, and the
+  whole scenario: $5,000 paid, suspended at exactly $1,000 owed, $4,000 after a $5,000 top-up, and let
+  back in by a job that did not set the mark.
 - `apps/backend/cmd/api/ingest_billing_test.go` — a suspended organization is answered 429 with
   `Retry-After: 3600`, nothing reaches the queue, and after paying its batches are accepted; an account
   in grace is still accepted and charged.

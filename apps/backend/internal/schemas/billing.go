@@ -123,7 +123,7 @@ type BillingOut struct {
 	// credit limit by amount — whichever comes first. SuspendsAt is absent when it owes nothing.
 	SuspendsAt        *time.Time `json:"suspends_at,omitzero" doc:"If still owing then, ingestion is suspended"`
 	CreditLimitMicros int64      `json:"credit_limit_micros" doc:"Owing this much suspends ingestion at once"`
-	CreditLimitSource string     `json:"credit_limit_source" doc:"usage (25% of the last 30 days' usage), floor (the minimum), or override (set by PlayerSense)"`
+	CreditLimitSource string     `json:"credit_limit_source" doc:"usage (20% of the last 30 days' paid usage), floor (the minimum), or override (set by PlayerSense)"`
 
 	// Month is the running month as real-time charging sees it: exact players, what they
 	// cost, and the band the next one lands in.

@@ -116,9 +116,8 @@ func SuspendsAt(account *ent.BillingAccount, grace time.Duration) *time.Time {
 	return &at
 }
 
-// publish marks every suspended organization in Valkey, and unmarks the ones this process marked
-// last pass that are no longer suspended — so a studio that paid is let back in at once rather than
-// when its mark lapses.
+// publish marks every suspended organization in Valkey, and unmarks every organization that paid —
+// so a studio is let back in at once rather than when its mark lapses.
 func (j *Job) publish(ctx context.Context) (int, error) {
 	if j.Cache == nil {
 		return 0, nil
@@ -140,8 +139,28 @@ func (j *Job) publish(ctx context.Context) (int, error) {
 		return 0, fmt.Errorf("mark suspended organizations: %w", err)
 	}
 
+	// Unmark accounts that paid, decided from the database rather than from this process's memory:
+	// any account that left `suspended` recently. A mark set by another billing writer, or by this
+	// one before it restarted, is still found — memory alone left a paying studio refused until the
+	// mark lapsed. The window is longer than a mark lives, so nothing it misses is still marked.
+	var reactivated []int
+	if err := j.DB.Client.BillingAccount.Query().
+		Where(
+			billingaccount.StateNEQ(billingaccount.StateSuspended),
+			billingaccount.StateChangedAtGTE(j.now().Add(-5*MarkTTL)),
+		).
+		Select(billingaccount.FieldOrganizationID).
+		Scan(ctx, &reactivated); err != nil {
+		return len(keys), fmt.Errorf("read recently reactivated accounts: %w", err)
+	}
+
 	j.mu.Lock()
 	var released []string
+	for _, org := range reactivated {
+		if !now[uint32(org)] {
+			released = append(released, Key(j.Cache, uint32(org)))
+		}
+	}
 	for org := range j.marked {
 		if !now[org] {
 			released = append(released, Key(j.Cache, org))

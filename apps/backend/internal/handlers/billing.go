@@ -766,5 +766,5 @@ func policyOf(ctx *muzak.Context) suspensionPolicy {
 		return suspensionPolicy{grace: settings.BillingGracePeriod, limit: suspension.Policy{
 			Floor: settings.BillingDefaultCreditLimit, Percent: settings.BillingCreditLimitPercent}}
 	}
-	return suspensionPolicy{grace: 7 * 24 * time.Hour, limit: suspension.Policy{Floor: 50 * billing.Micros, Percent: 25}}
+	return suspensionPolicy{grace: 7 * 24 * time.Hour, limit: suspension.Policy{Floor: 50 * billing.Micros, Percent: 20}}
 }

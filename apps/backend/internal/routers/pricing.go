@@ -92,7 +92,7 @@ func OperatorPricing() *muzak.Router {
 	r.Put("/organizations/{org}/credit-limit", handlers.SetCreditLimit,
 		muzak.Summary("Set an organization's credit limit"),
 		muzak.Description("How much it may owe before its ingestion is suspended. Without an override "+
-			"the limit is 25% of its usage in the last 30 days, or the plan's floor if that is higher; "+
+			"the limit is 20% of its paid usage in the last 30 days, or the plan's floor if that is higher; "+
 			"an override sets it exactly. Omit credit_limit_micros to clear the override. Recorded in "+
 			"the organization's audit log."),
 		muzak.WithResponseDoc(http.StatusNotFound, "No organization has that slug"))
