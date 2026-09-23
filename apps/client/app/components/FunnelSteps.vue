@@ -14,26 +14,6 @@ const props = defineProps<{
 
 const steps = defineModel<FunnelStep[]>({ required: true })
 
-const search = ref<string | null>('')
-
-const byCategory = computed(() => {
-  const needle = (search.value ?? '').trim().toLowerCase()
-  const groups = new Map<string, EventDefinition[]>()
-  for (const event of props.catalogue) {
-    if (needle && !event.name.includes(needle) && !event.description.toLowerCase().includes(needle)) continue
-    const label = EVENT_CATEGORY_LABELS[event.category]
-    groups.set(label, [...(groups.get(label) ?? []), event])
-  }
-  return [...groups.entries()]
-})
-
-/** The search, ready to type into once the menu is open: the overlay takes focus on entering. */
-function focusSearch() {
-  document.querySelector<HTMLInputElement>('.v-overlay--active .ps-funnel-steps__search input')?.focus()
-}
-
-const eventOf = (name: string) => props.catalogue.find(event => event.name === name)
-
 function update(index: number, change: Partial<FunnelStep>) {
   steps.value = steps.value.map((step, at) => (at === index ? { ...step, ...change } : step))
 }
@@ -60,25 +40,6 @@ function add() {
   const last = steps.value[steps.value.length - 1]
   steps.value = [...steps.value, { event: last?.event ?? props.catalogue[0]?.name ?? '', where: [] }]
 }
-
-// --- Conditions ---------------------------------------------------------------------------
-
-/** The property a step's "where" menu is choosing a value for, when it has got that far. */
-const picking = ref<{ step: number, property: string } | null>(null)
-
-const freeProperties = (step: FunnelStep) => (eventOf(step.event)?.properties ?? []).filter(property => !step.where.some(condition => condition.property === property.key))
-
-function addCondition(index: number, property: string, value: string) {
-  const step = steps.value[index]
-  if (!step) return
-  update(index, { where: [...step.where, { property, value }] })
-  picking.value = null
-}
-
-function removeCondition(index: number, property: string) {
-  const step = steps.value[index]
-  if (step) update(index, { where: step.where.filter(condition => condition.property !== property) })
-}
 </script>
 
 <template>
@@ -92,138 +53,19 @@ function removeCondition(index: number, property: string) {
         {{ index + 1 }}
       </span>
 
-      <v-menu
-        :offset="4"
-        location="bottom start"
-        @after-enter="focusSearch"
-        @update:model-value="search = ''"
-      >
-        <template #activator="{ props: activator }">
-          <button
-            v-bind="activator"
-            :aria-label="`Step ${index + 1} event: ${step.event}`"
-            class="inline-flex h-7 items-center gap-1 rounded-(--ps-radius-x-small) px-2 font-mono text-xs text-ink transition-colors duration-150 hover:bg-ink/5 focus-visible:outline-2 focus-visible:outline-primary"
-            type="button"
-          >
-            {{ step.event }}
-            <Icon aria-hidden="true" class="text-sm text-ink/45" name="material-symbols:unfold-more" />
-          </button>
-        </template>
+      <EventPicker
+        :catalogue="catalogue"
+        :label="`Step ${index + 1} event`"
+        :model-value="step.event"
+        @update:model-value="choose(index, $event)"
+      />
 
-        <v-card class="w-80" flat>
-          <div class="border-b border-line p-2">
-            <v-text-field
-              v-model="search"
-              aria-label="Find an event"
-              class="ps-funnel-steps__search"
-              clearable
-              density="comfortable"
-              hide-details
-              placeholder="Find an event"
-              prepend-inner-icon="material-symbols:search"
-              variant="filled"
-            />
-          </div>
-          <div class="max-h-80 overflow-y-auto p-1">
-            <template v-for="[category, events] in byCategory" :key="category">
-              <p class="m-0 px-2 pt-2 pb-1 text-[11px] text-ink/45">
-                {{ category }}
-              </p>
-              <button
-                v-for="event in events"
-                :key="event.name"
-                :class="event.name === step.event ? 'bg-primary/8' : 'hover:bg-ink/4'"
-                class="flex w-full flex-col items-start gap-0.5 rounded-(--ps-radius-x-small) px-2 py-1.5 text-left transition-colors duration-150"
-                type="button"
-                @click="choose(index, event.name)"
-              >
-                <span class="font-mono text-xs text-ink">{{ event.name }}</span>
-                <span class="line-clamp-1 text-[11px] text-ink/55">{{ event.description }}</span>
-              </button>
-            </template>
-            <p v-if="!byCategory.length" class="m-0 px-2 py-3 text-xs text-ink/55">
-              No event matches.
-            </p>
-          </div>
-        </v-card>
-      </v-menu>
-
-      <span
-        v-for="condition in step.where"
-        :key="condition.property"
-        class="inline-flex h-6 items-center gap-1 rounded-(--ps-radius-x-small) bg-ink/5 pr-0.5 pl-2 text-[11px] text-ink/80"
-      >
-        <span class="text-ink/50">where</span>
-        <span class="font-mono">{{ condition.property }} = {{ condition.value }}</span>
-        <button
-          :aria-label="`Remove ${condition.property} = ${condition.value}`"
-          class="flex size-5 items-center justify-center rounded-(--ps-radius-x-small) text-ink/45 hover:bg-ink/8 hover:text-ink"
-          type="button"
-          @click="removeCondition(index, condition.property)"
-        >
-          <Icon aria-hidden="true" class="text-sm" name="material-symbols:close" />
-        </button>
-      </span>
-
-      <v-menu
-        v-if="freeProperties(step).length"
-        :close-on-content-click="false"
-        :offset="4"
-        location="bottom start"
-        @update:model-value="picking = null"
-      >
-        <template #activator="{ props: activator }">
-          <button
-            v-bind="activator"
-            class="inline-flex h-6 items-center gap-0.5 rounded-(--ps-radius-x-small) px-1.5 text-[11px] text-ink/50 transition-colors duration-150 hover:bg-ink/5 hover:text-ink"
-            type="button"
-          >
-            <Icon aria-hidden="true" class="text-sm" name="material-symbols:add" />
-            where
-          </button>
-        </template>
-
-        <v-card class="w-60" flat>
-          <template v-if="picking?.step === index">
-            <button
-              class="flex w-full items-center gap-1 border-b border-line px-3 py-2 text-left text-xs text-ink/60 hover:text-ink"
-              type="button"
-              @click="picking = null"
-            >
-              <Icon aria-hidden="true" class="text-sm" name="material-symbols:keyboard-arrow-left" />
-              <span class="font-mono">{{ picking.property }}</span> =
-            </button>
-            <div class="max-h-64 overflow-y-auto p-1">
-              <button
-                v-for="value in eventOf(step.event)?.properties.find(property => property.key === picking?.property)?.values ?? []"
-                :key="value"
-                class="flex w-full rounded-(--ps-radius-x-small) px-2 py-1.5 text-left font-mono text-xs text-ink hover:bg-ink/4"
-                type="button"
-                @click="addCondition(index, picking!.property, value)"
-              >
-                {{ value }}
-              </button>
-            </div>
-          </template>
-          <template v-else>
-            <p class="m-0 px-3 pt-2.5 pb-1 text-[11px] text-ink/55">
-              Only count <span class="font-mono">{{ step.event }}</span> where
-            </p>
-            <div class="p-1">
-              <button
-                v-for="property in freeProperties(step)"
-                :key="property.key"
-                class="flex w-full items-center justify-between rounded-(--ps-radius-x-small) px-2 py-1.5 text-left hover:bg-ink/4"
-                type="button"
-                @click="picking = { step: index, property: property.key }"
-              >
-                <span class="font-mono text-xs text-ink">{{ property.key }}</span>
-                <span class="text-[11px] text-ink/45">{{ property.type }}</span>
-              </button>
-            </div>
-          </template>
-        </v-card>
-      </v-menu>
+      <EventConditions
+        :catalogue="catalogue"
+        :event="step.event"
+        :model-value="step.where"
+        @update:model-value="update(index, { where: $event })"
+      />
 
       <span class="ml-auto flex items-center opacity-60 transition-opacity duration-150 group-focus-within:opacity-100 group-hover:opacity-100">
         <button
