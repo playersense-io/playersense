@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Where the screen is: the brand mark, bare, as the way home, a dot, then the path down the
+// Where the screen is: the brand mark, bare, as the way home, a rule, then the path down the
 // navigation tree. A group is a place in the tree and not a screen, so it is written but
 // not linked unless it has a page of its own; the last crumb is where the person is and is
 // not linked either. A page about one record adds its own last crumb through `usePageCrumb`.
@@ -49,7 +49,7 @@ function hrefOf(crumb: Crumb, index: number): string | undefined {
         >
           <LogoMark :size="16" />
         </NuxtLink>
-        <Icon aria-hidden="true" class="flex-none text-lg text-ink/30" name="lucide:dot" />
+        <span aria-hidden="true" class="mx-2 h-4 w-px flex-none bg-line" />
       </li>
 
       <li
