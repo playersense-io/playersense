@@ -4,8 +4,9 @@
 // sideways rather than wrap, since a wrapped line of JSON reads as two.
 //
 // Highlighted by Shiki with PANEL_CODE_THEME (utils/code-theme.ts), whose colours are the
-// variables below, set from the theme's palette for light and dark. The highlighter loads on
-// first use; until it has, the same text is shown plain, so the block never waits to be read.
+// variables in assets/css/code.css, set from the theme's palette for light and dark. The
+// highlighter loads on first use; until it has, the same text is shown plain, so the block
+// never waits to be read.
 const props = withDefaults(defineProps<{
   code: string
   lang?: 'json' | 'csharp' | 'shellscript'
@@ -43,62 +44,3 @@ const plain = computed(() => props.code.split('\n'))
     </div>
   </div>
 </template>
-
-<style>
-/*
- * Unscoped: the markup inside is Shiki's. Every rule is under `.ps-code-block`.
- *
- * The palette: each colour is a chart slot mixed towards the ink, as `Tag` mixes it, because
- * three of the slots sit under 3:1 on white and this is 12px text.
- */
-.ps-code-block {
-  --ps-code-text: rgba(var(--v-theme-on-surface), 0.86);
-  --ps-code-key: rgb(var(--v-theme-on-surface));
-  --ps-code-punctuation: rgba(var(--v-theme-on-surface), 0.42);
-  --ps-code-comment: rgba(var(--v-theme-on-surface), 0.42);
-  --ps-code-string: color-mix(in srgb, rgb(var(--v-theme-chart-3)) 72%, rgb(var(--v-theme-on-surface)));
-  --ps-code-number: color-mix(in srgb, rgb(var(--v-theme-chart-4)) 72%, rgb(var(--v-theme-on-surface)));
-  --ps-code-type: color-mix(in srgb, rgb(var(--v-theme-chart-6)) 78%, rgb(var(--v-theme-on-surface)));
-  --ps-code-keyword: color-mix(in srgb, rgb(var(--v-theme-primary)) 82%, rgb(var(--v-theme-on-surface)));
-  --ps-code-function: color-mix(in srgb, rgb(var(--v-theme-chart-5)) 70%, rgb(var(--v-theme-on-surface)));
-  --ps-code-variable: color-mix(in srgb, rgb(var(--v-theme-chart-2)) 72%, rgb(var(--v-theme-on-surface)));
-
-  background: rgba(var(--v-theme-on-surface), 0.02);
-}
-
-.ps-code-block pre {
-  width: max-content;
-  min-width: 100%;
-  margin: 0;
-  padding: 12px 0;
-  background: transparent !important;
-  font-family: var(--font-mono);
-  font-size: 12px;
-  line-height: 20px;
-  tab-size: 2;
-}
-
-.ps-code-block code {
-  counter-reset: line;
-  font-family: inherit;
-}
-
-/* Shiki's lines, and the plain ones shown until it has loaded. */
-.ps-code-block .line,
-.ps-code-block .ps-code-line {
-  padding-inline: 16px;
-}
-
-/* A line's number, in the gutter's own quiet ink, never selected with the code. */
-.ps-code-block--numbered .line::before,
-.ps-code-block--numbered .ps-code-line::before {
-  counter-increment: line;
-  content: counter(line);
-  display: inline-block;
-  width: 2ch;
-  margin-right: 16px;
-  color: rgba(var(--v-theme-on-surface), 0.25);
-  text-align: right;
-  user-select: none;
-}
-</style>

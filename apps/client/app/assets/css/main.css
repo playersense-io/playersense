@@ -1,5 +1,6 @@
 /* Tailwind, the theme tokens and the reset come from the dashboard layer; this file adds
-   the app's own files to what Tailwind scans. See packages/dashboard/app/assets/css. */
+   the app's own files to what Tailwind scans, and the colours of a block of code. See packages/dashboard/app/assets/css. */
 @import "@playersense/dashboard/app/assets/css/dashboard.css";
+@import "./code.css";
 
 @source "../../";
