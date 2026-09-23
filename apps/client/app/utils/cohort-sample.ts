@@ -39,10 +39,38 @@ export const RANGE_DAYS: Record<CohortRange, number> = { '30d': 30, '90d': 90, '
  * The sticky install dimensions the API breaks down and filters by: each value's share of
  * installs, and how well its players retain and spend against the average.
  */
-export const COHORT_DIMENSIONS: Record<CohortDimension, { label: string, values: readonly (readonly [string, number, number])[] }> = {
-  install_platform: { label: 'Platform', values: [['iOS', 0.46, 1.1], ['Android', 0.43, 0.9], ['Steam', 0.11, 1.18]] },
-  install_country: { label: 'Country', values: [['US', 0.24, 1.14], ['BR', 0.14, 0.82], ['DE', 0.09, 1.05], ['JP', 0.07, 1.22], ['TR', 0.06, 0.86], ['Other', 0.4, 0.96]] },
-  first_app_version: { label: 'First app version', values: [['2.5.0', 0.38, 1.06], ['2.4.1', 0.41, 1], ['2.4.0', 0.21, 0.9]] }
+export const COHORT_DIMENSIONS: Record<CohortDimension, { label: string, noun: string, values: readonly (readonly [string, number, number])[] }> = {
+  install_platform: {
+    label: 'Platform',
+    noun: 'platform',
+    values: [['iOS', 0.45, 1.1], ['Android', 0.42, 0.9], ['Steam', 0.1, 1.18], ['Web', 0.03, 0.78]]
+  },
+  // The markets a mobile game's installs come from, by ISO code, and the rest together.
+  install_country: {
+    label: 'Country',
+    noun: 'country',
+    values: [
+      ['US', 0.2, 1.14], ['IN', 0.06, 0.7], ['BR', 0.09, 0.82], ['DE', 0.05, 1.05], ['JP', 0.05, 1.22],
+      ['ID', 0.045, 0.72], ['TR', 0.04, 0.86], ['GB', 0.04, 1.08], ['FR', 0.035, 1.02], ['MX', 0.035, 0.85],
+      ['KR', 0.03, 1.18], ['RU', 0.03, 0.8], ['CA', 0.025, 1.1], ['PH', 0.025, 0.75], ['VN', 0.025, 0.76],
+      ['AU', 0.02, 1.12], ['IT', 0.02, 0.98], ['ES', 0.02, 0.97], ['TH', 0.02, 0.8], ['PL', 0.015, 0.9],
+      ['NL', 0.012, 1.05], ['SA', 0.012, 1], ['AR', 0.012, 0.8], ['CO', 0.01, 0.78], ['Other', 0.079, 0.92]
+    ]
+  },
+  first_app_version: {
+    label: 'First app version',
+    noun: 'version',
+    values: [['2.5.1', 0.12, 1.08], ['2.5.0', 0.3, 1.06], ['2.4.1', 0.33, 1], ['2.4.0', 0.17, 0.9], ['2.3.2', 0.08, 0.85]]
+  }
+}
+
+const regionNames = new Intl.DisplayNames(['en'], { type: 'region' })
+
+/** A segment as a reader names it: "Brazil" for BR, the rest of the countries together, a version as it is. */
+export function segmentName(dimension: CohortDimension, value: string): string {
+  if (dimension !== 'install_country') return value
+  if (value === 'Other') return 'Other countries'
+  return regionNames.of(value) ?? value
 }
 
 export const DIMENSION_KEYS = Object.keys(COHORT_DIMENSIONS) as CohortDimension[]
@@ -250,7 +278,7 @@ function draw(options: CohortSampleOptions, populations: readonly Population[], 
       const key = population.name || bucketKey(at, options.grain)
       const row = rows.get(key) ?? {
         start: population.name ? at : bucketStart(at, options.grain),
-        label: population.name || undefined,
+        label: population.name && options.split !== 'none' ? segmentName(options.split, population.name) : undefined,
         mark: population.name ? markOf(options.split, population.name) : undefined,
         tally: emptyTally()
       }

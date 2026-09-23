@@ -124,16 +124,32 @@ const filters = computed<CohortFilters>({
   }
 })
 
+/** A value's flag or platform mark, for the two dimensions that have one. */
+function markOf(dimension: CohortDimension, value: string): SegmentMarkValue | undefined {
+  if (dimension === 'install_country') return { kind: 'country', code: value }
+  if (dimension === 'install_platform') return { kind: 'platform', code: value }
+  return undefined
+}
+
 const FILTER_GROUPS: FilterGroup[] = DIMENSION_KEYS.map(dimension => ({
   key: dimension,
   label: COHORT_DIMENSIONS[dimension].label,
-  options: COHORT_DIMENSIONS[dimension].values.map(([value]) => ({ value, label: value }))
+  noun: COHORT_DIMENSIONS[dimension].noun,
+  options: COHORT_DIMENSIONS[dimension].values.map(([value, share]) => ({
+    value,
+    label: segmentName(dimension, value),
+    // The code beside a country's name, so "br" finds Brazil; and every value's share of installs.
+    note: `${dimension === 'install_country' && value !== 'Other' ? `${value} · ` : ''}${writeFigure(share * 100, { decimals: 1 })}%`,
+    mark: markOf(dimension, value)
+  }))
 }))
 
-const activeFilters = computed<ActiveFilter[]>(() => DIMENSION_KEYS.flatMap(dimension => lists[dimension].value.map(value => ({
-  key: `${dimension}:${value}`,
-  label: `${COHORT_DIMENSIONS[dimension].label}: ${value}`
-}))))
+/** A chip per value in force: a flag or mark says the dimension, and a version says it in words. */
+const activeFilters = computed<ActiveFilter[]>(() => DIMENSION_KEYS.flatMap(dimension => lists[dimension].value.map((value) => {
+  const mark = markOf(dimension, value)
+  const name = segmentName(dimension, value)
+  return { key: `${dimension}:${value}`, label: mark ? name : `${COHORT_DIMENSIONS[dimension].label}: ${name}`, mark }
+})))
 
 function removeFilter(key: string) {
   const [dimension, value] = key.split(':') as [CohortDimension, string]
@@ -243,11 +259,14 @@ const curveValue = (value: number | null) => {
   return Math.round(value * scale * places) / places
 }
 
+/** The chart has six colours, so a split draws its six largest segments; the table has them all. */
+const largest = computed(() => [...data.value.rows].sort((a, b) => (b.size ?? 0) - (a.size ?? 0)).slice(0, 6))
+
 /** Split: a line per segment. Otherwise every cohort weighted, and the five newest beside it. */
 const curveSeries = computed<MetricSeries[]>(() => {
   const { rows } = data.value
   if (split.value !== 'none') {
-    return rows.map((row, index) => ({
+    return largest.value.map((row, index) => ({
       name: row.label ?? '',
       data: curveDays.value.map(offset => curveValue(mode.value.summarize([row], offset))),
       type: 'line',
@@ -270,17 +289,14 @@ const curveSeries = computed<MetricSeries[]>(() => {
 // Payback: the cost per install, a price rather than a choice, in the URL like the rest.
 const DEFAULT_CPI = 2.5
 const route = useRoute()
-const router = useRouter()
+const patchQuery = useQueryPatch()
 
 const cpi = computed<number>({
   get: () => {
     const value = Number(route.query.cpi)
     return Number.isFinite(value) && value > 0 ? value : DEFAULT_CPI
   },
-  set: (value) => {
-    const { cpi: _, ...rest } = route.query
-    void router.replace({ query: value === DEFAULT_CPI ? rest : { ...rest, cpi: value.toFixed(2) } })
-  }
+  set: value => patchQuery({ cpi: value === DEFAULT_CPI ? undefined : value.toFixed(2) })
 })
 </script>
 
@@ -336,7 +352,7 @@ const cpi = computed<number>({
       <TableToolbar :filters="activeFilters" @clear="clearFilters" @remove="removeFilter">
         <span class="text-xs text-ink/55">Split by</span>
         <SegmentedControl v-model="split" :options="SPLITS" label="Split by" />
-        <FilterMenu v-model="filters" :groups="FILTER_GROUPS" />
+        <FilterDialog v-model="filters" :groups="FILTER_GROUPS" title="Filter cohorts" />
       </TableToolbar>
     </SectionCard>
 
@@ -394,7 +410,9 @@ const cpi = computed<number>({
         :decimals="about.chart.decimals"
         :description="split === 'none'
           ? 'Every cohort together, weighted by size, and the five newest cohorts old enough to draw.'
-          : 'One line per segment, every cohort in it weighted by size.'"
+          : data.rows.length > 6
+            ? `The six largest of ${data.rows.length} segments, every cohort in each weighted by size. The table has them all.`
+            : 'One line per segment, every cohort in it weighted by size.'"
         :prefix="about.chart.prefix ?? ''"
         :series="curveSeries"
         :titles="curveDays.map(offset => `Day ${offset}`)"
