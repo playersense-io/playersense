@@ -46,8 +46,13 @@ const model = defineModel<string>({ required: true })
 </template>
 
 <style scoped>
+/*
+ * The rule is an inset shadow rather than a border, so it lies inside the row's 40px and
+ * the slider — a child, painted over its parent's shadow — sits on it exactly: the
+ * chosen tab's accent replaces that stretch of rule instead of floating a pixel above it.
+ */
 .ps-page-tabs {
-  border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  box-shadow: inset 0 -1px 0 rgba(var(--v-border-color), var(--v-border-opacity));
   height: 40px;
 }
 
@@ -68,6 +73,12 @@ const model = defineModel<string>({ required: true })
   padding: 0;
 }
 
+/* A tab is a Vuetify button, rounded and clipping what it holds: its corners would round
+   off the ends of the slider inside it. Square, so the slider ends square. */
+.ps-page-tabs :deep(.ps-page-tabs__tab.v-btn) {
+  border-radius: 0;
+}
+
 .ps-page-tabs :deep(.ps-page-tabs__tab:hover) {
   color: rgb(var(--v-theme-on-surface));
 }
@@ -86,7 +97,10 @@ const model = defineModel<string>({ required: true })
   outline-offset: -2px;
 }
 
+/* Square, on the row's floor, as wide as the label: an edge of the rule, not a pill on it. */
 .ps-page-tabs :deep(.v-tab__slider) {
+  border-radius: 0;
+  bottom: 0;
   height: 2px;
 }
 </style>
