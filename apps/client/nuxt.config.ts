@@ -38,11 +38,12 @@ export default defineNuxtConfig({
 
   // Highlighting for the code the dashboard shows: a flag's compiled document and a player's
   // snapshot (JSON), and how a game reads a flag (C#, and curl for an engine without an SDK).
-  // Two themes, so a block follows the panel's light and dark; CodeBlock.vue picks between them.
+  // CodeBlock.vue colours it with the panel's own theme (utils/code-theme.ts), loaded at first
+  // use; the module needs one bundled theme to start from, and the smallest is named here.
   shiki: {
     bundledLangs: ['json', 'csharp', 'shellscript'],
-    bundledThemes: ['github-light', 'github-dark'],
-    defaultTheme: { light: 'github-light', dark: 'github-dark' },
+    bundledThemes: ['min-dark'],
+    defaultTheme: 'min-dark',
     defaultLang: 'json'
   }
 })

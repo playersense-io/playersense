@@ -49,8 +49,13 @@ ${whole ? 'int' : 'double'} ${name} = PlayerSense.Flags.${whole ? 'Int' : 'Numbe
 string ${name} = PlayerSense.Flags.Text("${key}", ${csharpLiteral(fallback)});`
   }
   const type = `${name[0]!.toUpperCase()}${name.slice(1)}`.replace(/(Config)?$/, 'Config')
+  const constant = `Default${type}`
+  // A verbatim string, laid out as the document is, so the default reads as JSON in the code.
+  const verbatim = JSON.stringify(fallback, null, 2).replaceAll('"', '""')
   return `// A JSON flag arrives as text; the game parses it into its own type.
-string json = PlayerSense.Flags.Text("${key}", ${csharpLiteral(fallback)});
+const string ${constant} = @"${verbatim}";
+
+string json = PlayerSense.Flags.Text("${key}", ${constant});
 ${type} ${name} = JsonUtility.FromJson<${type}>(json);`
 })
 
@@ -73,11 +78,13 @@ const code = computed(() => (engine.value === 'unity' ? unity.value : http.value
 
 <template>
   <div class="flex flex-col gap-3">
-    <div class="flex items-center justify-between gap-2">
-      <SegmentedControl v-model="engine" :options="ENGINES" label="Engine" />
-      <CopyButton :value="code" label="Copy the code" />
-    </div>
-    <CodeBlock :code="code" :lang="engine === 'unity' ? 'csharp' : 'shellscript'" />
+    <SegmentedControl
+      v-model="engine"
+      :options="ENGINES"
+      class="self-start"
+      label="Engine"
+    />
+    <CodeBlock :code="code" :lang="engine === 'unity' ? 'csharp' : 'shellscript'" :title="engine === 'unity' ? 'Unity · C#' : 'Any engine · HTTP'" />
     <p class="m-0 text-[11px] leading-4 text-ink/55">
       <template v-if="engine === 'unity'">
         The value in the call is the game's own default: a first launch offline, before any configuration has

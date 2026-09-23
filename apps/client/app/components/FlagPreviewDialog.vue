@@ -99,7 +99,7 @@ function apply(value: string | null) {
 
 type Group = 'device' | 'connection' | 'history' | 'context'
 
-const openGroup = ref<Group | null>('history')
+const openGroup = ref<Group | null>(null)
 
 const deviceSummary = computed(() => [
   PLATFORM_NAMES[platform.value] ?? platform.value,
@@ -542,7 +542,7 @@ const COUNTRY_ITEMS = COUNTRY_SUGGESTIONS.map(code => ({ value: code, title: cou
             <p class="m-0 text-xs text-ink/60">
               What the SDK receives: values, never the rules that chose them.
             </p>
-            <CodeBlock :code="snapshot" class="max-h-[60vh]" />
+            <CodeBlock :code="snapshot" class="max-h-[60vh]" title="The snapshot" />
           </div>
 
           <ul v-else class="m-0 list-none p-0">

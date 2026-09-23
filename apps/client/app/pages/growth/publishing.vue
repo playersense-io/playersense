@@ -290,10 +290,9 @@ const activity = computed(() => audit.value.filter(entry => activityFilter.value
               only the values it decides for them.
             </p>
           </div>
-          <CopyButton :value="documentText" label="Copy the document" />
         </header>
         <div class="overflow-auto p-5">
-          <CodeBlock :code="documentText" />
+          <CodeBlock :code="documentText" :title="viewing ? `${viewing.environment}-v${viewing.version}.json` : ''" />
         </div>
         <footer class="flex justify-end border-t border-line px-5 py-3">
           <v-btn
