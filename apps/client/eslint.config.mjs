@@ -14,8 +14,9 @@ export default withNuxt(
   betterTailwindcss.configs['correctness-error'],
   {
     rules: {
-      // `ps-` hooks are styled by the dashboard layer's theme.css, not Tailwind.
-      'better-tailwindcss/no-unknown-classes': ['error', { ignore: ['^ps-'] }]
+      // `ps-` hooks are styled by the dashboard layer's theme.css, not Tailwind; `record-` ones
+      // by RecordTable, whose rows and cells are the caller's markup.
+      'better-tailwindcss/no-unknown-classes': ['error', { ignore: ['^ps-', '^record-'] }]
     }
   },
   {
