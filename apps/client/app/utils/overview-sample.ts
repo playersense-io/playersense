@@ -3,8 +3,8 @@
 //
 //   POST /v1/organizations/{org}/projects/{project}/analytics/production/metrics/query
 //     metric active_players | new_players | returning_players | sessions | playtime |
-//     revenue | purchases | payers, interval=day, per project, summed here; and once more
-//     with group_by platform / country for the breakdowns (at most one dimension).
+//     revenue | purchases | payers, interval=day, per project — kept per project for the
+//     projects table and summed here for the organization.
 //   GET /v1/organizations/{org}/usage        tracked players, events, retained bytes,
 //                                            by day and by project, with the allowances
 //   GET /v1/users/me                         the wallet's live balance
@@ -14,14 +14,14 @@
 
 import type { Overview, OverviewDay as Day } from '~/types'
 
+// Each game's share of the organization's players, and how its players differ from the
+// average: a farming game plays long sessions and converts little, a tactics game earns
+// more from fewer payers, a racer is played in short bursts.
 const PROJECTS = [
-  { id: 'prj_starfall', name: 'Starfall Tactics', weight: 0.58 },
-  { id: 'prj_moonrise', name: 'Moonrise Farm', weight: 0.31 },
-  { id: 'prj_pocketrally', name: 'Pocket Rally', weight: 0.11 }
+  { id: 'prj_starfall', name: 'Starfall Tactics', weight: 0.58, growth: 1.06, sessions: 0.9, playtime: 1.05, conversion: 1.2, spend: 1.25 },
+  { id: 'prj_moonrise', name: 'Moonrise Farm', weight: 0.31, growth: 1.14, sessions: 1.25, playtime: 1.35, conversion: 0.7, spend: 0.8 },
+  { id: 'prj_pocketrally', name: 'Pocket Rally', weight: 0.11, growth: 0.93, sessions: 1.1, playtime: 0.55, conversion: 0.8, spend: 0.6 }
 ]
-
-const PLATFORMS = [['iOS', 0.46], ['Android', 0.41], ['Steam', 0.09], ['Web', 0.04]] as const
-const COUNTRIES = [['United States', 0.31], ['Japan', 0.14], ['Brazil', 0.11], ['Germany', 0.09], ['Türkiye', 0.07], ['Other', 0.28]] as const
 
 function seeded(seed: number): () => number {
   let state = seed >>> 0
@@ -74,19 +74,25 @@ export function sampleOverview(days: 7 | 30 | 90): Overview {
   // A little smaller, so the sample reads as a growing studio rather than noise.
   const previous = series(days, days, 1_000 + days, 0.9)
 
-  const projects = PROJECTS.map(project => ({
-    id: project.id,
-    name: project.name,
-    active_players: Math.round(sum(current, 'active_players') / days * project.weight),
-    new_players: Math.round(sum(current, 'new_players') * project.weight),
-    revenue_micros: Math.round(sum(current, 'revenue_micros') * project.weight),
-    previous_revenue_micros: Math.round(sum(previous, 'revenue_micros') * project.weight * (0.9 + project.weight / 3)),
-    events: Math.round(sum(current, 'sessions') * 41 * project.weight)
-  }))
-
-  const averageActive = sum(current, 'active_players') / days
-  const breakdown = (shares: readonly (readonly [string, number])[]) =>
-    shares.map(([value, share]) => ({ value, active_players: Math.round(averageActive * share) }))
+  const activeDays = sum(current, 'active_players')
+  const projects = PROJECTS.map((project) => {
+    const active = activeDays / days * project.weight
+    const payers = sum(current, 'payers') / days * project.weight * project.conversion
+    const revenue = sum(current, 'revenue_micros') * project.weight * project.conversion * project.spend
+    return {
+      id: project.id,
+      name: project.name,
+      active_players: Math.round(active),
+      previous_active_players: Math.round(active / project.growth),
+      new_players: Math.round(sum(current, 'new_players') * project.weight * project.growth),
+      sessions_per_player: sum(current, 'sessions') / activeDays * project.sessions,
+      playtime_per_player_ms: sum(current, 'playtime_ms') / activeDays * project.playtime,
+      payers: Math.round(payers),
+      revenue_micros: Math.round(revenue),
+      previous_revenue_micros: Math.round(revenue / (project.growth + (project.spend - 1) / 4)),
+      events: Math.round(sum(current, 'sessions') * 41 * project.weight * project.sessions)
+    }
+  })
 
   // The billing month, which is not the period above: usage is billed per calendar month.
   const month = series(new Date().getUTCDate() - 1 || 1, 0, 42)
@@ -97,8 +103,6 @@ export function sampleOverview(days: 7 | 30 | 90): Overview {
     current,
     previous,
     projects,
-    by_platform: breakdown(PLATFORMS),
-    by_country: breakdown(COUNTRIES),
     usage: {
       period_start: new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1)).toISOString(),
       // Tracked players is the busiest day, not a sum: adding days counts a player once per day.

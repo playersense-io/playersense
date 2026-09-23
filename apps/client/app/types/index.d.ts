@@ -32,16 +32,16 @@ export interface OverviewProject {
   name: string
   /** Daily average over the period. */
   active_players: number
+  previous_active_players: number
   new_players: number
+  /** Per active player, per day. */
+  sessions_per_player: number
+  playtime_per_player_ms: number
+  /** Daily average over the period. */
+  payers: number
   revenue_micros: number
   previous_revenue_micros: number
   events: number
-}
-
-export interface OverviewBreakdown {
-  value: string
-  /** Daily average over the period. */
-  active_players: number
 }
 
 export interface OverviewUsage {
@@ -63,7 +63,5 @@ export interface Overview {
   current: OverviewDay[]
   previous: OverviewDay[]
   projects: OverviewProject[]
-  by_platform: OverviewBreakdown[]
-  by_country: OverviewBreakdown[]
   usage: OverviewUsage
 }

@@ -175,29 +175,24 @@ const monetization = computed<Kpi[]>(() => [
   })
 ])
 
-// --- Where players are -------------------------------------------------------------------
-
-const BREAKDOWNS: SegmentedOption[] = [
-  { value: 'platform', label: 'Platform' },
-  { value: 'country', label: 'Country' }
-]
-
-const breakdown = ref('platform')
-
-const breakdownRows = computed(() =>
-  (breakdown.value === 'platform' ? data.value.by_platform : data.value.by_country)
-    .map(row => ({ value: row.value, figure: row.active_players })))
-
 // --- Projects ----------------------------------------------------------------------------
 
 type ProjectRow = typeof data.value.projects[number]
 
+// Revenue over the period divided by the player-days that earned it.
+const arpdauOf = (row: ProjectRow) => dollars(row.revenue_micros) / (row.active_players * data.value.days)
+
+// Each game in full: who plays it, how, and what it earns. Players and revenue carry their
+// change against the previous period beside them; the ratios are per player, per day.
 const PROJECT_COLUMNS: DataTableColumn<ProjectRow>[] = [
   { key: 'name', title: 'Project', fixed: true },
   { key: 'active_players', title: 'Active players', align: 'end', mono: true },
   { key: 'new_players', title: 'New players', align: 'end', mono: true },
+  { key: 'sessions_per_player', title: 'Sessions / player', align: 'end', mono: true },
+  { key: 'playtime_per_player_ms', title: 'Playtime / player', align: 'end', mono: true },
+  { key: 'conversion', title: 'Payer conversion', align: 'end', mono: true, value: row => row.payers / row.active_players },
+  { key: 'arpdau', title: 'ARPDAU', align: 'end', mono: true, value: row => arpdauOf(row) },
   { key: 'revenue_micros', title: 'Revenue', align: 'end', mono: true },
-  { key: 'change', title: 'Change', align: 'end', mono: true, value: row => relativeChange(row.revenue_micros, row.previous_revenue_micros) ?? 0 },
   { key: 'events', title: 'Events', align: 'end', mono: true }
 ]
 
@@ -281,62 +276,63 @@ const wallet = computed<Fact[]>(() => [
       />
     </div>
 
-    <!-- Projects, and where the players are -->
-    <div class="grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-      <SectionCard :padded="false" description="Each game's share of the period." title="Projects">
-        <DataTable
-          v-model:column-state="projectColumns"
-          :columns="PROJECT_COLUMNS"
-          :items="data.projects"
-          :paged="false"
-          label="Projects"
-        >
-          <template #cell.name="{ item }">
-            <span class="flex min-w-0 items-center gap-2.5">
-              <span
-                aria-hidden="true"
-                class="
-                  flex size-6 flex-none items-center justify-center rounded-md bg-ink/6
-                  text-[10px] text-ink/70
-                "
-              >
-                {{ item.name.charAt(0) }}
-              </span>
-              <span class="truncate text-ink">{{ item.name }}</span>
-            </span>
-          </template>
-          <template #cell.active_players="{ item }">
-            {{ writeFigure(item.active_players, { compact: true }) }}
-          </template>
-          <template #cell.new_players="{ item }">
-            {{ writeFigure(item.new_players, { compact: true }) }}
-          </template>
-          <template #cell.revenue_micros="{ item }">
-            {{ money(dollars(item.revenue_micros)) }}
-          </template>
-          <template #cell.change="{ item }">
+    <!-- Projects -->
+    <SectionCard :padded="false" description="Each game over the period: who plays it, how, and what it earns." title="Projects">
+      <DataTable
+        v-model:column-state="projectColumns"
+        :columns="PROJECT_COLUMNS"
+        :items="data.projects"
+        :paged="false"
+        label="Projects"
+      >
+        <template #cell.name="{ item }">
+          <span class="flex min-w-0 items-center gap-2.5">
             <span
-              :class="item.revenue_micros >= item.previous_revenue_micros ? 'text-success' : 'text-error'"
+              aria-hidden="true"
+              class="
+                flex size-6 flex-none items-center justify-center rounded-md bg-ink/6
+                text-[10px] text-ink/70
+              "
             >
-              {{ formatChange(relativeChange(item.revenue_micros, item.previous_revenue_micros) ?? 0) }}
+              {{ item.name.charAt(0) }}
             </span>
-          </template>
-          <template #cell.events="{ item }">
-            {{ writeFigure(item.events, { compact: true }) }}
-          </template>
-        </DataTable>
-      </SectionCard>
-
-      <SectionCard description="Active players, daily average." title="Where players are">
-        <template #actions>
-          <SegmentedControl v-model="breakdown" :options="BREAKDOWNS" label="Break down by" />
+            <span class="truncate text-ink">{{ item.name }}</span>
+          </span>
         </template>
-        <ShareBars
-          :label="`Active players by ${breakdown}`"
-          :rows="breakdownRows"
-        />
-      </SectionCard>
-    </div>
+        <template #cell.active_players="{ item }">
+          <ProjectFigure
+            :previous="item.previous_active_players"
+            :value="item.active_players"
+            :written="writeFigure(item.active_players, { compact: true })"
+          />
+        </template>
+        <template #cell.new_players="{ item }">
+          {{ writeFigure(item.new_players, { compact: true }) }}
+        </template>
+        <template #cell.sessions_per_player="{ item }">
+          {{ writeFigure(item.sessions_per_player) }}
+        </template>
+        <template #cell.playtime_per_player_ms="{ item }">
+          {{ writeFigure(item.playtime_per_player_ms / 60_000, { decimals: 0 }) }} min
+        </template>
+        <template #cell.conversion="{ item }">
+          {{ writeFigure(item.payers / item.active_players * 100, { decimals: 2, unit: '%' }) }}
+        </template>
+        <template #cell.arpdau="{ item }">
+          {{ money(arpdauOf(item)) }}
+        </template>
+        <template #cell.revenue_micros="{ item }">
+          <ProjectFigure
+            :previous="item.previous_revenue_micros"
+            :value="item.revenue_micros"
+            :written="money(dollars(item.revenue_micros))"
+          />
+        </template>
+        <template #cell.events="{ item }">
+          {{ writeFigure(item.events, { compact: true }) }}
+        </template>
+      </DataTable>
+    </SectionCard>
 
     <!-- Usage -->
     <SectionCard
