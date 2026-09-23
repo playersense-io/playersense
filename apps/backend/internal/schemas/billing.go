@@ -125,6 +125,11 @@ type BillingOut struct {
 	CreditLimitMicros int64      `json:"credit_limit_micros" doc:"Owing this much suspends ingestion at once"`
 	CreditLimitSource string     `json:"credit_limit_source" doc:"usage (20% of the last 30 days' paid usage), floor (the minimum), or override (set by PlayerSense)"`
 
+	// Live is the wallet as it stands at this request (ADR 0044): the ledger's numbers minus usage
+	// queued and not yet written to it. The headline a dashboard shows; the fields above are the
+	// statement's, which trail by at most a few minutes.
+	Live LiveBalanceOut `json:"live"`
+
 	// Month is the running month as real-time charging sees it: exact players, what they
 	// cost, and the band the next one lands in.
 	Month *MonthUsageOut `json:"month,omitzero"`
@@ -367,4 +372,21 @@ type DrawOut struct {
 	Lot          uuid.UUID `json:"lot"`
 	Kind         string    `json:"kind"`
 	AmountMicros int64     `json:"amount_micros"`
+}
+
+// LiveBalanceOut is the wallet at this request: the ledger minus what is queued (ADR 0044).
+//
+// Exact rather than estimated: queued usage is committed the moment players are counted, and the
+// split is projected with the same spending order the drain will apply — promotional credit soonest to
+// expire first, then purchased oldest first — so it is what the statement will say once the queue is
+// written.
+type LiveBalanceOut struct {
+	BalanceMicros   int64  `json:"balance_micros" doc:"The headline: credit minus what is owed, after pending usage"`
+	Balance         string `json:"balance"`
+	AvailableMicros int64  `json:"available_micros" doc:"Credit left to spend, after pending usage"`
+	PromoMicros     int64  `json:"promo_micros"`
+	PurchasedMicros int64  `json:"purchased_micros"`
+	OwedMicros      int64  `json:"owed_micros" doc:"Arrears plus pending usage the credit does not cover"`
+	PendingMicros   int64  `json:"pending_micros" doc:"Usage counted and not yet on the statement — minutes old at most"`
+	Pending         string `json:"pending"`
 }

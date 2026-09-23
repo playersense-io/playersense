@@ -671,6 +671,7 @@ func billingOut(ctx context.Context, db *core.DB, account *ent.BillingAccount,
 	for _, lot := range wallet.Expiring(lots, at, at.Add(ExpiryWarning)) {
 		out.ExpiringSoon = append(out.ExpiringSoon, creditLotOut(byID[lot.ID], at))
 	}
+	out.Live = liveOut(out, lots, month.PendingMicros, account.ArrearsMicros, account.BalanceMicros, at)
 	return out, nil
 }
 
@@ -767,4 +768,39 @@ func policyOf(ctx *muzak.Context) suspensionPolicy {
 			Floor: settings.BillingDefaultCreditLimit, Percent: settings.BillingCreditLimitPercent}}
 	}
 	return suspensionPolicy{grace: 7 * 24 * time.Hour, limit: suspension.Policy{Floor: 50 * billing.Micros, Percent: 20}}
+}
+
+// liveOut projects the queued usage onto the wallet, exactly as the drain will apply it.
+func liveOut(out schemas.BillingOut, lots []wallet.Lot, pending, arrears, balance int64, at time.Time) schemas.LiveBalanceOut {
+	live := schemas.LiveBalanceOut{
+		PendingMicros:   pending,
+		BalanceMicros:   balance - pending,
+		AvailableMicros: out.AvailableMicros,
+		PromoMicros:     out.PromoMicros,
+		PurchasedMicros: out.PurchasedMicros,
+		OwedMicros:      arrears,
+	}
+	switch {
+	case pending > 0:
+		draws, covered := wallet.Cover(lots, pending, at)
+		for _, d := range draws {
+			if d.Kind == wallet.Promo {
+				live.PromoMicros -= d.Amount
+			} else {
+				live.PurchasedMicros -= d.Amount
+			}
+		}
+		live.AvailableMicros -= covered
+		live.OwedMicros += pending - covered
+	case pending < 0:
+		// A volume card's credit: it pays arrears first, and the rest is purchased credit.
+		credit := -pending
+		paid := min(arrears, credit)
+		live.OwedMicros -= paid
+		live.PurchasedMicros += credit - paid
+		live.AvailableMicros += credit - paid
+	}
+	live.Balance = billing.USD(live.BalanceMicros)
+	live.Pending = billing.USD(live.PendingMicros)
+	return live
 }

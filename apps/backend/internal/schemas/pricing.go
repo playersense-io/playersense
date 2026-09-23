@@ -212,7 +212,8 @@ func (in *AssignPlanIn) Validate(v *muzak.Validation) {
 //
 // Exact rather than estimated: TrackedPlayers is the count the charger has priced, not a peak of
 // daily figures, and ChargedMicros is what those players cost. PendingMicros is the part still in
-// the queue — at most a few seconds' worth — so a balance that looks a little high is explained.
+// the queue — at most a few minutes' worth (ADR 0044) — and the billing page's live balance already
+// takes it off, so what a studio sees is never stale.
 type MonthUsageOut struct {
 	PeriodStart     time.Time `json:"period_start"`
 	TrackedPlayers  int64     `json:"tracked_players"`
@@ -220,7 +221,7 @@ type MonthUsageOut struct {
 
 	ChargedMicros int64  `json:"charged_micros" doc:"Every charge this month, drained or not"`
 	Charged       string `json:"charged"`
-	PendingMicros int64  `json:"pending_micros" doc:"Queued and not yet taken from the wallet; seconds old at most"`
+	PendingMicros int64  `json:"pending_micros" doc:"Queued and not yet taken from the wallet; minutes old at most"`
 
 	// Card is the price list in force, and Tier the band the next player lands in, counting
 	// from zero — so a dashboard can say "you are in the $0.0004 band; $0.00035 from 500,001".

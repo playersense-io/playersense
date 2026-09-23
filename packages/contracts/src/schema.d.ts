@@ -1217,6 +1217,7 @@ export interface components {
             readonly features: readonly string[];
             /** Format: int64 */
             readonly ledger_balance_micros: number;
+            readonly live: components["schemas"]["LiveBalanceOut"];
             /** @description Every grant with credit left, in the order it will be spent */
             readonly lots?: readonly components["schemas"]["CreditLotOut"][];
             readonly month?: components["schemas"]["MonthUsageOut"] | null;
@@ -1735,6 +1736,34 @@ export interface components {
         readonly LedgerOut: {
             readonly entries: readonly components["schemas"]["LedgerEntryOut"][];
         };
+        readonly LiveBalanceOut: {
+            /**
+             * Format: int64
+             * @description Credit left to spend, after pending usage
+             */
+            readonly available_micros: number;
+            readonly balance: string;
+            /**
+             * Format: int64
+             * @description The headline: credit minus what is owed, after pending usage
+             */
+            readonly balance_micros: number;
+            /**
+             * Format: int64
+             * @description Arrears plus pending usage the credit does not cover
+             */
+            readonly owed_micros: number;
+            readonly pending: string;
+            /**
+             * Format: int64
+             * @description Usage counted and not yet on the statement — minutes old at most
+             */
+            readonly pending_micros: number;
+            /** Format: int64 */
+            readonly promo_micros: number;
+            /** Format: int64 */
+            readonly purchased_micros: number;
+        };
         readonly LiveOpsEventListOut: {
             readonly liveops_events: readonly components["schemas"]["LiveOpsEventOut"][];
         };
@@ -1869,7 +1898,7 @@ export interface components {
             readonly included_players: number;
             /**
              * Format: int64
-             * @description Queued and not yet taken from the wallet; seconds old at most
+             * @description Queued and not yet taken from the wallet; minutes old at most
              */
             readonly pending_micros: number;
             /** Format: date-time */

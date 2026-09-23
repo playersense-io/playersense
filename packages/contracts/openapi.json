@@ -7792,6 +7792,9 @@
             "type": "integer",
             "format": "int64"
           },
+          "live": {
+            "$ref": "#/components/schemas/LiveBalanceOut"
+          },
           "lots": {
             "type": "array",
             "description": "Every grant with credit left, in the order it will be spent",
@@ -7854,6 +7857,7 @@
           "currency",
           "features",
           "ledger_balance_micros",
+          "live",
           "plan",
           "promo_micros",
           "purchased_micros",
@@ -9225,6 +9229,55 @@
           "entries"
         ]
       },
+      "LiveBalanceOut": {
+        "type": "object",
+        "properties": {
+          "available_micros": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Credit left to spend, after pending usage"
+          },
+          "balance": {
+            "type": "string"
+          },
+          "balance_micros": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The headline: credit minus what is owed, after pending usage"
+          },
+          "owed_micros": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Arrears plus pending usage the credit does not cover"
+          },
+          "pending": {
+            "type": "string"
+          },
+          "pending_micros": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Usage counted and not yet on the statement — minutes old at most"
+          },
+          "promo_micros": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "purchased_micros": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "available_micros",
+          "balance",
+          "balance_micros",
+          "owed_micros",
+          "pending",
+          "pending_micros",
+          "promo_micros",
+          "purchased_micros"
+        ]
+      },
       "LiveOpsEventListOut": {
         "type": "object",
         "properties": {
@@ -9578,7 +9631,7 @@
           "pending_micros": {
             "type": "integer",
             "format": "int64",
-            "description": "Queued and not yet taken from the wallet; seconds old at most"
+            "description": "Queued and not yet taken from the wallet; minutes old at most"
           },
           "period_start": {
             "type": "string",
