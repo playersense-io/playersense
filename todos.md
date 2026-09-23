@@ -479,12 +479,12 @@ charge, 3 a day), refunds and disputes taken back, and an invoice for every top-
       services merged (ADR 0038) — and folding frontend assets into a Go service binary would
       be the one place that discipline breaks.
 - [x] **Brand mark, wordmark and favicon.** The mark (`packages/ui/assets/brand/mark.svg`) is
-      PlayerSense's own: five rounded bars rising to the centre over a baseline, on a 512 grid
-      with its bounds at x108–404, y112–400 (centred on 256,256). `mark.svg` and `LogoMark.vue`
-      crop it square to those bounds (`viewBox="108 108 296 296"`) in `currentColor`, so the
-      logo takes the ink of wherever it sits — bare, with no tile, in the dashboards' bar.
-      `favicon.svg` is the badge (`#0B0E14`, radius 112, white mark) and `tile.svg` the same
-      full-bleed for app icons, which the platform rounds itself. Rasters are rendered from
+      PlayerSense's own, "Aperture": four quarter-discs turned about the centre of a 512 grid,
+      bounds x/y 92–420 (centred on 256,256). `mark.svg` and `LogoMark.vue` crop it square to
+      those bounds (`viewBox="92 92 328 328"`) in `currentColor`, so the logo takes the ink of
+      wherever it sits — bare, with no tile, in the dashboards' bar. `favicon.svg` is the badge
+      (`#0A0B0F`, radius 112, white mark) and `tile.svg` the same full-bleed for app icons,
+      which the platform rounds itself. Rasters are rendered from
       `favicon.svg` (32/48) and `tile.svg` (180/192/512) with resvg. Wordmark set in lowercase
       ("playersense") in Space Grotesk: landing loads it through `@nuxt/fonts`' zero-config
       detection (which only sees `font-family` in real CSS/`<style>` blocks, hence the scoped

@@ -3,22 +3,20 @@ withDefaults(defineProps<{ size?: number | string }>(), { size: 24 })
 </script>
 
 <template>
-  <!-- assets/brand/mark.svg: the mark alone, cropped square to its bounds. -->
+  <!-- assets/brand/mark.svg: the Aperture mark alone, cropped square to its bounds. -->
   <svg
     :width="size"
     :height="size"
-    viewBox="108 108 296 296"
+    viewBox="92 92 328 328"
     xmlns="http://www.w3.org/2000/svg"
     class="text-neutral-950 dark:text-neutral-50"
     aria-hidden="true"
   >
     <g fill="currentColor">
-      <path d="M108 352V292A20 20 0 0 1 148 292V352Z" />
-      <path d="M172 352V212A20 20 0 0 1 212 212V352Z" />
-      <path d="M236 352V132A20 20 0 0 1 276 132V352Z" />
-      <path d="M300 352V212A20 20 0 0 1 340 212V352Z" />
-      <path d="M364 352V292A20 20 0 0 1 404 292V352Z" />
-      <rect x="108" y="376" width="296" height="24" rx="12" />
+      <path d="M196 196H300A104 104 0 0 0 196 92Z" />
+      <path d="M196 196H300A104 104 0 0 0 196 92Z" transform="rotate(90 256 256)" />
+      <path d="M196 196H300A104 104 0 0 0 196 92Z" transform="rotate(180 256 256)" />
+      <path d="M196 196H300A104 104 0 0 0 196 92Z" transform="rotate(270 256 256)" />
     </g>
   </svg>
 </template>
