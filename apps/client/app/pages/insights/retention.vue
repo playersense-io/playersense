@@ -10,9 +10,6 @@ import type { Kpi } from '~/components/KpiBoard.vue'
 // will query).
 const { project } = useWorkspace()
 
-const route = useRoute()
-const router = useRouter()
-
 const BASES: SegmentedOption[] = [
   { value: 'classic', label: 'Classic', title: 'Active on exactly day N' },
   { value: 'rolling', label: 'Rolling', title: 'Active on day N or any day after' }
@@ -24,15 +21,8 @@ const RANGES: SegmentedOption[] = [
 ]
 
 // Both in the URL, so a link to the page names the retention it shows.
-function queried<T extends string>(key: string, allowed: readonly T[], fallback: T) {
-  return computed<T>({
-    get: () => (allowed.includes(route.query[key] as T) ? route.query[key] as T : fallback),
-    set: value => void router.replace({ query: { ...route.query, [key]: value } })
-  })
-}
-
-const basis = queried<RetentionBasis>('basis', ['classic', 'rolling'], 'classic')
-const range = queried<RetentionRange>('range', ['30d', '90d'], '90d')
+const basis = useQueryChoice<RetentionBasis>('basis', ['classic', 'rolling'], 'classic')
+const range = useQueryChoice<RetentionRange>('range', ['30d', '90d'], '90d')
 
 const grain = ref<RetentionGrain>('week')
 const breakdown = ref<RetentionBreakdown>('none')
