@@ -76,8 +76,12 @@ const same = (a: FunnelDefinition, b: FunnelDefinition) => {
 
 const dirty = computed(() => !saved.value || !same(draft.value, saved.value))
 
+/** A funnel not yet saved has no name of its own, so saving it asks for one. */
+const naming = ref(false)
+
 function onSave() {
-  save(draft.value)
+  if (saved.value) save(draft.value)
+  else naming.value = true
 }
 
 function onSaveAs(name: string) {
@@ -145,10 +149,8 @@ const windowWords = computed(() => windowPhrase(draft.value.window))
           :funnels="funnels"
           :name="draft.name"
           :unsaved="!saved"
-          @discard="onDiscard"
           @remove="onRemove"
           @rename="onRename"
-          @save="onSave"
           @save-as="onSaveAs"
         />
         <SegmentedControl v-model="range" :options="RANGES" label="Range" />
@@ -183,5 +185,36 @@ const windowWords = computed(() => windowPhrase(draft.value.window))
 
     <FunnelReport v-if="draft.kind === 'steps'" :definition="draft" :range="range" />
     <ProgressionReport v-if="progression" :definition="progression" :range="range" />
+
+    <ActionBar :open="dirty" label="Unsaved funnel">
+      <template #status>
+        {{ saved ? `Unsaved changes to ${draft.name}` : `${draft.name} is not saved yet` }}
+      </template>
+      <v-btn
+        class="text-xs font-medium"
+        color="neutral"
+        size="small"
+        variant="text"
+        @click="onDiscard"
+      >
+        {{ saved ? 'Discard' : 'Start over' }}
+      </v-btn>
+      <v-btn
+        class="text-xs font-medium"
+        color="primary"
+        size="small"
+        variant="flat"
+        @click="onSave"
+      >
+        Save
+      </v-btn>
+    </ActionBar>
+
+    <NameDialog
+      v-model="naming"
+      description="Saved in this browser, with its steps and window."
+      title="Save funnel"
+      @confirm="onSaveAs"
+    />
   </div>
 </template>

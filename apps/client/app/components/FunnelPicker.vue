@@ -1,10 +1,9 @@
 <script setup lang="ts">
-// Which saved funnel is open, and what can be done with the one on screen: save its edits,
-// throw them away, keep it as a new funnel, rename it, delete it. The edits are the page's
-// draft; this only says what the reader asked for.
-//
-// A funnel not yet saved has no name of its own, so saving it asks for one.
-const props = defineProps<{
+// Which saved funnel is open, and what else can be done with the one on screen: keep it as
+// a new funnel, rename it, delete it. Saving and discarding an edit are the page's action
+// bar's; the dot here only says there is one. The edits are the page's draft; this only
+// says what the reader asked for.
+defineProps<{
   funnels: readonly FunnelDefinition[]
   /** The draft's name. */
   name: string
@@ -17,11 +16,9 @@ const props = defineProps<{
 const selected = defineModel<string>({ required: true })
 
 const emit = defineEmits<{
-  'save': []
   'save-as': [name: string]
   'rename': [name: string]
   'remove': []
-  'discard': []
 }>()
 
 /** A new funnel of either kind, by the id the page opens it under. */
@@ -40,11 +37,6 @@ const dialogOpen = computed({
     if (!open) naming.value = null
   }
 })
-
-function save() {
-  if (props.unsaved) naming.value = 'save-as'
-  else emit('save')
-}
 
 function named(name: string) {
   if (naming.value === 'rename') emit('rename', name)
@@ -109,28 +101,6 @@ function named(name: string) {
         </div>
       </v-card>
     </v-menu>
-
-    <template v-if="dirty">
-      <v-btn
-        v-if="!unsaved"
-        class="text-xs font-medium"
-        color="neutral"
-        size="small"
-        variant="text"
-        @click="emit('discard')"
-      >
-        Discard
-      </v-btn>
-      <v-btn
-        class="text-xs font-medium"
-        color="primary"
-        size="small"
-        variant="flat"
-        @click="save"
-      >
-        Save
-      </v-btn>
-    </template>
 
     <v-menu :offset="6" location="bottom end">
       <template #activator="{ props: activator }">
