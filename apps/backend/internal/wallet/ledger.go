@@ -311,8 +311,17 @@ type movement struct {
 
 	// Arrears is how the account's arrears move with it: positive when usage outran credit,
 	// negative when a grant paid them down. Written in the same statement as the balance, so
-	// Σ lots − arrears = balance holds at every commit rather than eventually.
+	// Σ lots − arrears − receivable = balance holds at every commit rather than eventually.
 	Arrears int64
+
+	// Receivable is the same for an invoiced account's receivable (ADR 0045): positive for an
+	// accrual an invoice will bill, negative for a settlement of one.
+	Receivable int64
+
+	// PeriodStart is the month a usage charge belongs to; InvoiceID the invoice a settlement
+	// settles. Both absent on everything else.
+	PeriodStart *time.Time
+	InvoiceID   int
 
 	Description     string
 	StripeReference string
@@ -334,9 +343,16 @@ func record(ctx context.Context, tx *ent.Tx, account *ent.BillingAccount, in mov
 		SetBalanceAfterMicros(after).
 		SetCurrency(account.Currency).
 		SetDescription(in.Description).
+		SetReceivableMicros(in.Receivable).
 		SetIdempotencyKey(in.Key)
 	if in.StripeReference != "" {
 		create = create.SetStripeReference(in.StripeReference)
+	}
+	if in.PeriodStart != nil {
+		create = create.SetPeriodStart(in.PeriodStart.UTC())
+	}
+	if in.InvoiceID != 0 {
+		create = create.SetInvoiceID(in.InvoiceID)
 	}
 
 	entry, err := create.Save(ctx)
@@ -345,15 +361,18 @@ func record(ctx context.Context, tx *ent.Tx, account *ent.BillingAccount, in mov
 	}
 
 	arrears := account.ArrearsMicros + in.Arrears
-	if arrears < 0 {
+	receivable := account.ReceivableMicros + in.Receivable
+	if arrears < 0 || receivable < 0 {
 		// Unreachable: every caller settles at most what is owed. Refused rather than clamped,
 		// because a negative debt is credit nobody granted.
-		return nil, fmt.Errorf("arrears would fall to %s", billing.USD(arrears))
+		return nil, fmt.Errorf("arrears would fall to %s and the receivable to %s",
+			billing.USD(arrears), billing.USD(receivable))
 	}
 	update := tx.BillingAccount.UpdateOneID(account.ID).
 		SetBalanceMicros(after).
-		SetArrearsMicros(arrears)
-	if state, changed := stateFor(account.State, arrears); changed {
+		SetArrearsMicros(arrears).
+		SetReceivableMicros(receivable)
+	if state, changed := stateFor(account, arrears); changed {
 		update = update.SetState(state).SetStateChangedAt(time.Now().UTC())
 		account.State = state
 	}
@@ -377,6 +396,7 @@ func record(ctx context.Context, tx *ent.Tx, account *ent.BillingAccount, in mov
 	// compute the second one's balance from a stale row.
 	account.BalanceMicros = after
 	account.ArrearsMicros = arrears
+	account.ReceivableMicros = receivable
 	return entry, nil
 }
 
@@ -385,8 +405,12 @@ func record(ctx context.Context, tx *ent.Tx, account *ent.BillingAccount, in mov
 // Enabled, with a Stripe customer to charge, and strictly below the threshold. The same rule the
 // settings route applies when automatic top-up is switched on, so an account that is already low at
 // that moment is asked for straight away rather than at the next charge.
+//
+// Never for an invoiced account (ADR 0045): its balance is below zero by everything it has not yet
+// been invoiced for, and charging a card for that would be billing it twice.
 func WantsTopUp(account *ent.BillingAccount, balance int64) bool {
 	return account.AutoTopupEnabled &&
+		account.Collection == billingaccount.CollectionPrepaid &&
 		account.StripeCustomerID != nil &&
 		account.State != billingaccount.StateCanceled &&
 		balance < account.AutoTopupThresholdMicros
@@ -399,11 +423,20 @@ func WantsTopUp(account *ent.BillingAccount, balance int64) bool {
 // Suspending is not decided here: it is the grace period running out or the credit limit being
 // reached, which is the suspension job's rule (ADR 0043). `restricted` and `canceled` are left exactly
 // where a person put them.
-func stateFor(current billingaccount.State, arrears int64) (billingaccount.State, bool) {
+//
+// "Owes" is arrears, or an invoice past its due date (ADR 0045) — never a receivable that is not yet
+// due. And an invoiced account that was suspended is let back in by the suspension job alone, which
+// checks both of its bounds: it may have been suspended for its exposure rather than for a debt, so
+// a movement finding no arrears proves nothing about it.
+func stateFor(account *ent.BillingAccount, arrears int64) (billingaccount.State, bool) {
+	current := account.State
+	owes := arrears > 0 || account.OverdueSince != nil
 	switch {
-	case arrears > 0 && current == billingaccount.StateActive:
+	case owes && current == billingaccount.StateActive:
 		return billingaccount.StateGracePeriod, true
-	case arrears == 0 && (current == billingaccount.StateGracePeriod || current == billingaccount.StateSuspended):
+	case !owes && current == billingaccount.StateGracePeriod:
+		return billingaccount.StateActive, true
+	case !owes && current == billingaccount.StateSuspended && account.Collection == billingaccount.CollectionPrepaid:
 		// Paid: a suspended account is active again the moment its debt is cleared (ADR 0043).
 		return billingaccount.StateActive, true
 	default:

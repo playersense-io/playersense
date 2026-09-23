@@ -228,6 +228,9 @@ func (d *Drainer) pay(ctx context.Context, tx *ent.Tx, accountID int, batch []*e
 		AccountID:   accountID,
 		Description: describe(batch),
 		At:          now,
+		// The month, so an invoice bills it as that month's even when it settles in the next
+		// (ADR 0045). byPeriod made the batch one month.
+		PeriodStart: first.PeriodStart,
 		// Derived from the rows it settles, which are settled exactly once — see drainAccount
 		// for why a crash cannot make this pass run twice over the same rows.
 		Key: "usage:" + strconv.Itoa(accountID) + ":" + strconv.Itoa(first.ID) + "-" + strconv.Itoa(last.ID),

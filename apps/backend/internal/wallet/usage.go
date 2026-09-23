@@ -21,6 +21,10 @@ import (
 //
 // Both movements here are a single ledger entry of kind `usage` however many lots paid, for the
 // reason [Spend] gives: a customer was charged once.
+//
+// An invoiced account (ADR 0045) spends credit the same way, and owes the rest as a receivable
+// rather than arrears: it is billed on the month's invoice and due on the invoice's terms, not
+// overdue the moment it is charged.
 
 // UsageRequest is one drain's net charge for one account.
 type UsageRequest struct {
@@ -33,6 +37,10 @@ type UsageRequest struct {
 	Description string
 	At          time.Time
 
+	// PeriodStart is the month the usage belongs to, by arrival (ADR 0039), so an invoice can
+	// bill it as that month's even when it settles in the next. Zero leaves it unrecorded.
+	PeriodStart time.Time
+
 	// Key is derived from the queue rows the drain settled, so a drain that crashed after
 	// spending and before marking its rows finds its own entry on the next pass.
 	Key string
@@ -43,7 +51,8 @@ type UsageResult struct {
 	Entry *ent.LedgerEntry
 	Draws []Draw
 
-	// Owed is the part credit could not cover, added to the account's arrears.
+	// Owed is the part credit could not cover, added to the account's arrears — or, for an
+	// invoiced account, to its receivable.
 	Owed int64
 
 	// Applied is false when the key had already been used.
@@ -73,13 +82,19 @@ func ChargeUsage(ctx context.Context, tx *ent.Tx, in UsageRequest) (*UsageResult
 	}
 
 	owed := in.Amount - covered
-	entry, err := record(ctx, tx, account, movement{
+	move := movement{
 		Kind:        "usage",
 		Amount:      -in.Amount,
-		Arrears:     owed,
+		PeriodStart: in.period(),
 		Description: in.Description,
 		Key:         in.Key,
-	})
+	}
+	if IsInvoiced(account) {
+		move.Receivable = owed
+	} else {
+		move.Arrears = owed
+	}
+	entry, err := record(ctx, tx, account, move)
 	if err != nil {
 		return nil, err
 	}
@@ -88,9 +103,11 @@ func ChargeUsage(ctx context.Context, tx *ent.Tx, in UsageRequest) (*UsageResult
 
 // CreditUsage gives usage money back: a volume card repricing the month downward.
 //
-// Arrears first, for the same reason a grant pays them first. What is left becomes a **purchase**
-// lot — it is money the customer already paid for players, so it does not expire and it is not a
-// discount — keyed off the same idempotency key so a replay cannot mint it twice.
+// Arrears first, for the same reason a grant pays them first — or, for an invoiced account, the
+// receivable, which is usage not yet paid for: taking it off the next invoice is the credit. What is
+// left becomes a **purchase** lot — it is money the customer already paid for players, so it does not
+// expire and it is not a discount — keyed off the same idempotency key so a replay cannot mint it
+// twice.
 func CreditUsage(ctx context.Context, tx *ent.Tx, in UsageRequest) (*UsageResult, error) {
 	if err := in.validate(); err != nil {
 		return nil, err
@@ -103,7 +120,11 @@ func CreditUsage(ctx context.Context, tx *ent.Tx, in UsageRequest) (*UsageResult
 		return &UsageResult{Entry: existing}, err
 	}
 
-	settled := min(account.ArrearsMicros, in.Amount)
+	owing := account.ArrearsMicros
+	if IsInvoiced(account) {
+		owing = account.ReceivableMicros
+	}
+	settled := min(owing, in.Amount)
 	if rest := in.Amount - settled; rest > 0 {
 		if _, err := tx.CreditLot.Create().
 			SetAccountID(in.AccountID).
@@ -119,17 +140,31 @@ func CreditUsage(ctx context.Context, tx *ent.Tx, in UsageRequest) (*UsageResult
 		}
 	}
 
-	entry, err := record(ctx, tx, account, movement{
+	move := movement{
 		Kind:        "usage",
 		Amount:      in.Amount,
-		Arrears:     -settled,
+		PeriodStart: in.period(),
 		Description: in.Description,
 		Key:         in.Key,
-	})
+	}
+	if IsInvoiced(account) {
+		move.Receivable = -settled
+	} else {
+		move.Arrears = -settled
+	}
+	entry, err := record(ctx, tx, account, move)
 	if err != nil {
 		return nil, err
 	}
 	return &UsageResult{Entry: entry, Applied: true}, nil
+}
+
+func (in UsageRequest) period() *time.Time {
+	if in.PeriodStart.IsZero() {
+		return nil
+	}
+	start := in.PeriodStart.UTC()
+	return &start
 }
 
 func (in UsageRequest) validate() error {

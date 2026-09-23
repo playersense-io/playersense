@@ -54,8 +54,8 @@ func (a *account) row(t *testing.T) *ent.BillingAccount {
 }
 
 // assertInvariant is the one equation the wallet rests on: the ledger's running total is what the
-// lots hold minus what is owed. Checked after every scenario, because every bug in this area shows
-// up as this equation failing.
+// lots hold minus what is owed — arrears, and an invoiced account's receivable. Checked after every
+// scenario, because every bug in this area shows up as this equation failing.
 func (a *account) assertInvariant(t *testing.T) {
 	t.Helper()
 	row := a.row(t)
@@ -67,9 +67,9 @@ func (a *account) assertInvariant(t *testing.T) {
 	for _, lot := range lots {
 		held += lot.RemainingMicros
 	}
-	if row.BalanceMicros != held-row.ArrearsMicros {
-		t.Errorf("balance %s ≠ lots %s − arrears %s",
-			billing.USD(row.BalanceMicros), billing.USD(held), billing.USD(row.ArrearsMicros))
+	if row.BalanceMicros != held-row.ArrearsMicros-row.ReceivableMicros {
+		t.Errorf("balance %s ≠ lots %s − arrears %s − receivable %s", billing.USD(row.BalanceMicros),
+			billing.USD(held), billing.USD(row.ArrearsMicros), billing.USD(row.ReceivableMicros))
 	}
 }
 
