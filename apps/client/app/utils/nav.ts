@@ -23,7 +23,7 @@ export const NAV = defineNavigation({
         icon: 'material-symbols:insights',
         children: [
           { title: 'Retention', to: '/insights/retention' },
-          { title: 'Funnels', to: '/funnels' },
+          { title: 'Funnels', to: '/insights/funnels' },
           { title: 'Cohorts', to: '/cohorts' },
           { title: 'Revenue', to: '/revenue' }
         ]
