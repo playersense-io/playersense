@@ -56,9 +56,11 @@ ingest path still reads nothing.
 
 Each ledger entry now carries two more facts: the month a usage charge belongs to (`period_start`,
 by arrival as ADR 0039 keys it), and how much of the entry became receivable (`receivable_micros`).
-An invoice bills every receivable **accrual** since the previous invoice — usage, the fee, the
-commitment top-up — and records the last ledger entry it covered. Settlements (a payment, a credit
-note) name the invoice they settle and are never billed.
+An invoice bills every receivable **accrual** for its period or earlier that no invoice has billed —
+usage, the fee, the commitment top-up — and records the last ledger entry on the ledger when it
+closed. Next month's first players, settled in the hours before this month closed, are left for next
+month's invoice by their month. Settlements (a payment, a credit note) name the invoice they settle
+and are never billed.
 
 So an invoice is never recomputed from anywhere else, and a charge is never lost at a month boundary:
 usage for May that settles after May closed is on June's invoice as a "prior period" line. Summed
@@ -77,8 +79,9 @@ it ends, and only once no usage for that month is still queued. Under the accoun
 
 1. posts the platform fee as a `subscription` entry, prorated by the day in a contract's first and last
    month;
-2. posts the minimum-commitment top-up as a `commitment` entry: what the commitment exceeds the gross
-   usage billed on this invoice by, and nothing when usage exceeded it;
+2. posts the minimum-commitment top-up as a `commitment` entry: what the commitment — prorated like
+   the fee — exceeds the month's own gross usage by, and nothing when usage exceeded it. Prior-period
+   usage on the same invoice counts toward the month it belongs to, not this one;
 3. writes the invoice with its lines — platform fee, usage, prior-period usage, credits applied,
    commitment, adjustments — as a draft.
 
@@ -104,8 +107,9 @@ top-up is credited by its PaymentIntent, once. A usage invoice's PaymentIntent c
 ours, so it can never be credited a second time through the top-up path.
 
 Staff marking an invoice paid for a wire received outside Stripe, and staff issuing a credit note, are
-requests to Stripe. What changes the ledger is the webhook Stripe sends back, so an action taken in
-Stripe's own dashboard is applied exactly as one taken through the API. A credit note reduces what an
+requests to Stripe. What changes the ledger is Stripe's answer — applied by the same function its
+webhook calls, keyed on the same Stripe ids, so the webhook that follows moves nothing — and an action
+taken in Stripe's own dashboard is applied by that webhook exactly as one taken through the API. A credit note reduces what an
 open invoice asks for, and the receivable with it; an invoice voided or marked uncollectible in Stripe
 is written off the receivable as an adjustment.
 
@@ -174,16 +178,21 @@ negotiated minimum, which is a discount nobody agreed to.
 
 ## Enforcement
 
-- `apps/backend/internal/wallet/` — receivable accrual, settlement and the invariant; `usage_test.go`
-  and `ledger_test.go` cover usage becoming receivable for an invoiced account, settling and
-  overpaying, a dispute reopening it, and `balance = lots − arrears − receivable` after each.
-- `apps/backend/internal/invoicing/` — the close and the issue; its tests cover the lines, a late charge
-  rolling into the next invoice, the sub-cent carry, the fee's proration, the commitment top-up, no close
-  while usage is queued, a lost response resumed as the same invoice, and a zero invoice not sent.
+- `apps/backend/internal/wallet/` — receivable accrual, settlement and the invariant;
+  `receivable_test.go` covers usage becoming receivable for an invoiced account, settling and
+  overpaying, a write-off never becoming credit, a dispute reopening it, overdue starting and ending
+  the grace period, and `balance = lots − arrears − receivable` after each.
+- `apps/backend/internal/invoicing/` — the close and the issue; `invoicing_test.go` covers the lines, a
+  late charge rolling into the next invoice, next month's usage left for next month, the sub-cent
+  carry, the fee's proration, the commitment top-up, no close while usage is queued or before
+  `BILLING_INVOICE_CLOSE_AFTER`, a lost response resumed as the same invoice, a zero invoice not sent,
+  and a difference from the dashboard recorded. `STRIPE_LIVE=1` runs the issue against Stripe's test
+  mode, including a half-built draft finished rather than duplicated.
 - `apps/backend/internal/payments/invoices.go` — settling from Stripe's events;
-  `TestInvoiceIssuingAndReviewEventsNeverMoveMoney` still holds for top-up invoices, and the invoice
-  tests cover paying once, credit notes, write-offs and disputes.
+  `TestInvoiceIssuingAndReviewEventsNeverMoveMoney` still holds for top-up invoices, and
+  `invoices_test.go` covers paying once, a late event not reopening a paid invoice, credit notes, voids,
+  another customer's invoice, disputes, and a refund flagged rather than applied.
 - `apps/backend/internal/suspension/` — overdue grace, the exposure cap, and letting an invoiced account
-  back in.
+  back in; `invoiced_test.go` also proves unbilled usage under the limit is never suspended.
 - `apps/backend/cmd/api/control_invoicing_test.go` — staff putting an organization on a contract,
   audited; customers refused top-ups and subscriptions; a month closing, listed, marked paid and settled.

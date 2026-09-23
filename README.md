@@ -255,7 +255,7 @@ queue is worked every two seconds; at most 3 automatic charges per organization 
 To receive webhooks locally, forward them with the Stripe CLI and give the API the secret it prints:
 
 ```bash
-stripe listen --events customer.subscription.created,customer.subscription.updated,customer.subscription.deleted,payment_intent.succeeded,payment_intent.payment_failed,payment_intent.canceled,checkout.session.completed,checkout.session.async_payment_succeeded,refund.created,refund.updated,refund.failed,charge.dispute.created,charge.dispute.funds_withdrawn,charge.dispute.funds_reinstated,charge.dispute.closed \
+stripe listen --events customer.subscription.created,customer.subscription.updated,customer.subscription.deleted,payment_intent.succeeded,payment_intent.payment_failed,payment_intent.canceled,checkout.session.completed,checkout.session.async_payment_succeeded,refund.created,refund.updated,refund.failed,charge.dispute.created,charge.dispute.funds_withdrawn,charge.dispute.funds_reinstated,charge.dispute.closed,invoice.finalized,invoice.sent,invoice.paid,invoice.voided,invoice.marked_uncollectible,invoice.overdue,invoice_payment.paid,credit_note.created \
   --forward-to localhost:21080/v1/stripe/webhook
 STRIPE_WEBHOOK_SECRET=whsec_… go run ./apps/backend/cmd/api    # the secret `stripe listen` printed
 ```
@@ -292,6 +292,39 @@ limit — 20% of its last 30 days' paid usage, never below a $50 floor or its pl
 whichever comes first. Then its SDK batches are answered 429 with `Retry-After`, which the SDK keeps
 them for, until it pays; paying lets it back in within about half a minute. Staff can set an exact limit
 for one organization with `PUT /v1/operator/organizations/{org}/credit-limit`.
+
+**Contracted organizations are invoiced monthly** ([ADR 0045](docs/adr/0045-contracted-accounts-are-invoiced-monthly.md)).
+Staff put an organization on a contract — net terms, the grace after a missed due date, a platform
+fee, a minimum commitment, a credit limit, a PO number — and from then on usage its credit does not
+cover is a *receivable*, owed on the next invoice rather than overdue. `billing-writer` closes each
+month `BILLING_INVOICE_CLOSE_AFTER` (2 hours) after it ends and issues one Stripe invoice
+(`send_invoice`, due `terms_days` later): the fee, the month's players, credits applied, and any top-up
+to the minimum. An invoice is a stretch of the ledger, so it cannot disagree with it; usage that
+settles after its month closed is on the next invoice as prior-period usage. Stripe collects it — by
+bank transfer or card on its hosted page — and its webhook settles the receivable. The account is
+suspended only `overdue_grace_days` after a missed due date, or at once when what it owes, billed or
+not, reaches its credit limit. Customers of an invoiced organization cannot top up, turn on automatic
+top-up or subscribe; its plan fee is on the invoice, and staff assign its plan.
+
+```
+PUT    /v1/operator/organizations/{org}/contract                            invoiced or prepaid, from now
+GET    /v1/operator/organizations/{org}/invoices                            drafts, failures, discrepancies
+POST   /v1/operator/organizations/{org}/invoices/{invoice_id}/mark-paid     a wire Stripe did not see
+POST   /v1/operator/organizations/{org}/invoices/{invoice_id}/credit-notes  lower an open invoice
+GET    /v1/organizations/{org}/billing/invoices                             billing.read
+GET    /v1/organizations/{org}/billing/invoices/{invoice_id}                billing.read
+```
+
+```bash
+curl -X PUT localhost:21080/v1/operator/organizations/$ORG/contract -H "Authorization: Bearer $TOKEN" -d '{
+  "collection": "invoiced", "terms_days": 30, "overdue_grace_days": 14,
+  "platform_fee_micros": 2000000000, "minimum_commitment_micros": 5000000000,
+  "credit_limit_micros": 20000000000, "billing_email": "ap@publisher.example",
+  "po_number": "PO-4471", "operator": "you@playersense.dev"}'
+```
+
+Moving an organization back to `prepaid` issues a final invoice for everything unbilled; its open
+invoices stay collectable. Invoice reminder emails are Stripe's Dashboard setting.
 
 `is_default` is the plan every new organization is put on. With no default plan, organizations get no
 billing account and `billing-writer` warns that their players are not being billed. The included
@@ -430,7 +463,8 @@ within seconds when a balance would cross zero or its top-up threshold
 ([ADR 0044](docs/adr/0044-usage-settles-when-it-matters.md)); the billing page's `live` balance already
 takes off what is queued. It deletes player sets older than last month, and queue rows a year after they
 settled; with `STRIPE_SECRET_KEY` set, it also charges saved cards for balances
-below their automatic top-up threshold. Needs PostgreSQL; Valkey only makes it faster — it answers
+below their automatic top-up threshold, and closes invoiced organizations' months into Stripe invoices
+every `BILLING_INVOICE_EVERY` ([ADR 0045](docs/adr/0045-contracted-accounts-are-invoiced-monthly.md)). Needs PostgreSQL; Valkey only makes it faster — it answers
 "already counted this month" and holds each organization's pricing, so a busy organization costs no
 database reads to price. `BILLING_LOAD=1 go test ./apps/backend/internal/charging -run TestLoad -v`
 pushes a million batches through four writers and checks every organization's books. Refuses to start without a
