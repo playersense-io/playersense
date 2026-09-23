@@ -110,10 +110,10 @@ const daysPerPage = ref(10)
 type Occurrence = NonNullable<typeof detail.value>['recent'][number]
 
 const EVENT_COLUMNS: DataTableColumn<Occurrence>[] = [
-  { key: 'at', title: 'Time', fixed: true, mono: true },
+  { key: 'requestId', title: 'Request ID', fixed: true, mono: true },
   { key: 'name', title: 'Event', mono: true },
-  { key: 'requestId', title: 'Request ID', mono: true },
-  { key: 'payload', title: 'Properties', mono: true, sortable: false }
+  { key: 'payload', title: 'Properties', mono: true, sortable: false },
+  { key: 'at', title: 'Time', align: 'end', mono: true }
 ]
 
 const eventColumns = ref(defaultColumnState(EVENT_COLUMNS))
@@ -166,7 +166,10 @@ const eventsPerPage = ref(10)
           label="Days played"
         >
           <template #cell.at="{ item }">
-            {{ dayTick.format(item.at) }}
+            <span class="inline-flex items-baseline gap-1.5">
+              <span class="font-mono">{{ formatDay(item.at) }}</span>
+              <span class="text-xs text-ink/50">({{ relativeDay(item.at) }})</span>
+            </span>
           </template>
           <template #cell.playtimeMs="{ item }">
             {{ writeFigure(item.playtimeMs / 60_000, { decimals: 0 }) }} min

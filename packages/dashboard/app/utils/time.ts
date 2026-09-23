@@ -57,9 +57,22 @@ export function formatDateTime(iso: string): string {
   return dayjs(iso).format('MMM D, YYYY, HH:mm')
 }
 
-/** "09.09.2026 14:03": day first, dotted, twenty-four hour — the stamp on a row of a log. */
+/** "09-09-2026 14:03": day first, twenty-four hour — the stamp on a row of a log. */
 export function formatTimestamp(at: number | string): string {
-  return dayjs(at).format('DD.MM.YYYY HH:mm')
+  return dayjs(at).format('DD-MM-YYYY HH:mm')
+}
+
+/** "09-09-2026": a calendar day, day first. */
+export function formatDay(at: number | string): string {
+  return dayjs(at).format('DD-MM-YYYY')
+}
+
+/** How far back a calendar day is, in whole days: "today", "yesterday", "5 days ago". */
+export function relativeDay(at: number | string, now: number | Date = Date.now()): string {
+  const days = dayjs(now).startOf('day').diff(dayjs(at).startOf('day'), 'day')
+  if (days <= 0) return 'today'
+  if (days === 1) return 'yesterday'
+  return `${days} days ago`
 }
 
 /** "Sep 9, 2026". */

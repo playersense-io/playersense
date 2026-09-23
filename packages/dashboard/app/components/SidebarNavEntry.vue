@@ -12,10 +12,16 @@ const props = defineProps<{
 }>()
 
 const route = useRoute()
+const navigation = useNavigation()
+
+// The link the current screen belongs to, from the tree rather than the router: a detail
+// page (/analytics/players/abc) is a sibling route of its list, not a child, so the router
+// would light nothing. The tree's rule is the breadcrumb's — the deepest link it sits under.
+const current = computed(() => navigation.linkOf(route.path))
 
 // Whether the current screen is inside the group, so the rail row lights and the unfolded
 // header takes the ink of an active row (theme.css): the fold is where the person is.
-const holds = computed(() => isGroup(props.entry) && props.entry.children.some(child => child.to === route.path))
+const holds = computed(() => isGroup(props.entry) && props.entry.children.some(child => child === current.value))
 </script>
 
 <template>
@@ -23,7 +29,7 @@ const holds = computed(() => isGroup(props.entry) && props.entry.children.some(c
        aria-label is what a screen reader says. -->
   <v-list-item
     v-if="!isGroup(entry) || entry.to"
-    :active="isGroup(entry) ? holds : undefined"
+    :active="isGroup(entry) ? holds : entry === current"
     :aria-label="rail ? entry.title : undefined"
     :prepend-icon="entry.icon"
     :title="entry.title"
@@ -54,6 +60,7 @@ const holds = computed(() => isGroup(props.entry) && props.entry.children.some(c
           v-for="child in entry.children"
           :key="child.to"
           :title="child.title"
+          :active="child === current"
           :to="child.to"
         />
       </v-list>
@@ -77,6 +84,7 @@ const holds = computed(() => isGroup(props.entry) && props.entry.children.some(c
       v-for="child in entry.children"
       :key="child.to"
       :title="child.title"
+      :active="child === current"
       :to="child.to"
     />
   </v-list-group>

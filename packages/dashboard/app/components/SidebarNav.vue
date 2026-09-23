@@ -25,7 +25,8 @@ const opened = computed({
 })
 
 watch(() => route.path, (path) => {
-  const group = navigation.groupOf(path)
+  // Through the link the screen belongs to, so a detail page reopens its list's group too.
+  const group = navigation.groupOf(navigation.linkOf(path)?.to ?? path)
   if (group && closed.value.includes(group.id)) {
     closed.value = closed.value.filter(id => id !== group.id)
   }
