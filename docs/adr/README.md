@@ -71,6 +71,7 @@ a record is never updated to match a drifting document, it is superseded by a ne
 | [0042](0042-plans-are-stripe-subscriptions.md) | Plans are sold as Stripe subscriptions, and unlock features | Accepted |
 | [0043](0043-a-bounded-tolerance-for-accounts-that-owe.md) | A bounded tolerance for accounts that owe | Accepted |
 | [0044](0044-usage-settles-when-it-matters.md) | Usage settles when it matters, and the balance a studio sees is live | Accepted |
+| [0045](0045-contracted-accounts-are-invoiced-monthly.md) | Contracted accounts are invoiced monthly, from the ledger | Accepted |
 
 ## Template
 
