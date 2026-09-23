@@ -479,20 +479,17 @@ charge, 3 a day), refunds and disputes taken back, and an invoice for every top-
       services merged (ADR 0038) — and folding frontend assets into a Go service binary would
       be the one place that discipline breaks.
 - [x] **Brand mark, wordmark and favicon.** The mark (`packages/ui/assets/brand/mark.svg`) is
-      the Solar icon-set radar mark by 480 Design, used as-is under CC BY 4.0 — an open ring
-      with a hand sweeping to the centre and an inner ring, as a single filled path in
-      `currentColor`, so `Logo`/`LogoMark` track `text-neutral-950 dark:text-neutral-50`
-      automatically. The attribution comment stays in every source file that carries the path
-      (`mark.svg`, `favicon.svg`, `tile.svg`, `LogoMark.vue`); if the licence ever needs a
-      visible credit, the landing footer is the place. Rasters are rendered from
-      `favicon.svg` (32/48, rounded badge, transparent corners, mark at ~60% of the badge) and
-      `tile.svg` (180/192/512, square) with resvg. Wordmark set in lowercase
-      ("playersense") in Space Grotesk, loaded via `@nuxt/fonts`' zero-config Google Fonts
-      detection — note it only detects `font-family` in real CSS/`<style>` blocks, not inline
-      `style=""` attributes, which is why `Logo.vue` uses a scoped `<style>` block rather than
-      an inline style. Favicon is a fixed dark rounded badge (`#0a0a0a` bg, `#fafafa` mark) —
-      deliberately not adaptive to OS theme, unlike the in-app logo, matching how most product
-      favicons stay one consistent brand color regardless of dark mode. Shipped as
+      PlayerSense's own: five rounded bars rising to the centre over a baseline, on a 512 grid
+      with its bounds at x108–404, y112–400 (centred on 256,256). `mark.svg` and `LogoMark.vue`
+      crop it square to those bounds (`viewBox="108 108 296 296"`) in `currentColor`, so the
+      logo takes the ink of wherever it sits — bare, with no tile, in the dashboards' bar.
+      `favicon.svg` is the badge (`#0B0E14`, radius 112, white mark) and `tile.svg` the same
+      full-bleed for app icons, which the platform rounds itself. Rasters are rendered from
+      `favicon.svg` (32/48) and `tile.svg` (180/192/512) with resvg. Wordmark set in lowercase
+      ("playersense") in Space Grotesk: landing loads it through `@nuxt/fonts`' zero-config
+      detection (which only sees `font-family` in real CSS/`<style>` blocks, hence the scoped
+      `<style>` in `Logo.vue`); admin self-hosts `@fontsource/space-grotesk`. The favicon is a
+      fixed dark badge — deliberately not adaptive to OS theme, unlike the in-app logo. Shipped as
       `favicon.svg` + PNG fallbacks + `apple-touch-icon.png` + `site.webmanifest`, no legacy
       `.ico` (full SVG/PNG support across evergreen browsers as of 2026 makes it low-value).
 - [x] **`client` does not expose data-subject rights (export/erasure) directly in v1.** The
