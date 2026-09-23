@@ -2,8 +2,8 @@
 import type { Kpi } from '~/components/KpiBoard.vue'
 
 // Players grouped by when they arrived, and what each group went on to do: retain, play,
-// spend, convert to paying — ten metrics in two families, one of them any event in the
-// catalogue counted per install, narrowed by its conditions. One metric at a time, per day or as the running total, by day,
+// spend, convert to paying, crash — twenty metrics in four families, two of them about any
+// event in the catalogue, narrowed by its conditions: how often, and who has done it. One metric at a time, per day or as the running total, by day,
 // week or month of install; narrowed to platforms, countries or first app versions, and
 // split by one of them to compare segments side by side — never two at once (§57.1).
 // Three views: the triangle, the curves, and for revenue, payback against a cost per
@@ -85,14 +85,24 @@ function chooseEvent(name: string) {
 }
 
 /** The metric by name: the event itself, for Event per install. */
-const metricLabel = computed(() => (metric.value === 'events' ? `${eventName.value} per install` : about.value.label))
+/** The two metrics about one event, which the event row edits. */
+const aboutEvent = computed(() => metric.value === 'events' || metric.value === 'event_share')
+
+/** The metric by name: the event itself, for the event metrics. */
+const metricLabel = computed(() => {
+  if (metric.value === 'events') return `${eventName.value} per install`
+  if (metric.value === 'event_share') return `Players who did ${eventName.value}`
+  return about.value.label
+})
 
 const eventWords = computed(() => [eventName.value, ...where.value.map(condition => `${condition.property} = ${condition.value}`)].join(' where '))
 
 const definition = computed(() => {
   const words = [metric.value === 'events'
     ? `How often each install did ${eventWords.value}: every install counted, whether it came back or not.`
-    : about.value.definition]
+    : metric.value === 'event_share'
+      ? `The share of each cohort that has done ${eventWords.value} at least once by day N.`
+      : about.value.definition]
   if (metric.value === 'retention') words.push(basis.value === 'classic' ? 'Classic: active on exactly day N.' : 'Rolling: active on day N or any day after.')
   if (accumulates.value) words.push(sum.value === 'total' ? 'Added up to each day.' : 'On each day alone.')
   return words.join(' ')
@@ -183,10 +193,13 @@ const board = computed<Kpi[]>(() => {
 
 // --- Views --------------------------------------------------------------------------------
 
+/** The money per install a cost per install can be paid back from: purchases, ads, or both. */
+const PAID_BACK: readonly CohortMetric[] = ['revenue', 'ad_revenue', 'revenue_all']
+
 const tabs = computed<PageTab[]>(() => [
   { value: 'table', label: split.value === 'none' ? 'Cohorts' : 'Segments', count: data.value.rows.length },
   { value: 'curves', label: 'Curves' },
-  ...(metric.value === 'revenue' ? [{ value: 'payback', label: 'Payback' }] : [])
+  ...(PAID_BACK.includes(metric.value) ? [{ value: 'payback', label: 'Payback' }] : [])
 ])
 
 const tab = useQueryChoice('tab', () => tabs.value.map(entry => entry.value), 'table')
@@ -218,12 +231,12 @@ function downloadTable() {
 // Curves: every offset some row is old enough for, so a line is drawn day by day.
 const curveDays = computed(() => COHORT_OFFSETS.filter(offset => data.value.rows.some(row => cellAt(row, offset).state === 'ok')))
 
-const asPercent = computed(() => about.value.per === 'share')
-
+/** A value as the chart draws it: scaled to percent where it is one, and rounded to its places. */
 const curveValue = (value: number | null) => {
   if (value === null) return null
-  const places = 10 ** about.value.chart.decimals
-  return asPercent.value ? Math.round(value * 1000) / 10 : Math.round(value * places) / places
+  const { scale = 1, decimals } = about.value.chart
+  const places = 10 ** decimals
+  return Math.round(value * scale * places) / places
 }
 
 /** Split: a line per segment. Otherwise every cohort weighted, and the five newest beside it. */
@@ -299,8 +312,8 @@ const cpi = computed<number>({
         <SegmentedControl v-model="grain" :options="GRAINS" label="Cohort size" />
       </template>
 
-      <div v-if="metric === 'events'" class="flex flex-wrap items-center gap-2 border-b border-line px-5 py-2.5">
-        <span class="text-xs text-ink/55">Count</span>
+      <div v-if="aboutEvent" class="flex flex-wrap items-center gap-2 border-b border-line px-5 py-2.5">
+        <span class="text-xs text-ink/55">{{ metric === 'events' ? 'Count' : 'Players who did' }}</span>
         <EventPicker
           :catalogue="EVENT_CATALOGUE"
           :model-value="eventName"
@@ -308,7 +321,7 @@ const cpi = computed<number>({
           @update:model-value="chooseEvent"
         />
         <EventConditions v-model="where" :catalogue="EVENT_CATALOGUE" :event="eventName" />
-        <span class="text-xs text-ink/55">per install</span>
+        <span class="text-xs text-ink/55">{{ metric === 'events' ? 'per install' : 'by day N' }}</span>
       </div>
 
       <TableToolbar :filters="activeFilters" @clear="clearFilters" @remove="removeFilter">
