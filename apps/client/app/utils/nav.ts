@@ -32,10 +32,15 @@ export const NAV = defineNavigation({
         id: 'growth',
         title: 'Growth',
         icon: 'material-symbols:rocket-launch-outline',
+        // Everything the game is told at runtime. Flags and LiveOps are authored against the
+        // same segments and shipped in the same document, which Publishing sends to an
+        // environment; so the five sit together, in the order a change travels through them.
         children: [
-          { title: 'Feature flags', to: '/flags' },
-          { title: 'Experiments', to: '/experiments' },
-          { title: 'LiveOps', to: '/liveops' }
+          { title: 'Feature flags', to: '/growth/flags' },
+          { title: 'Segments', to: '/growth/segments' },
+          { title: 'Experiments', to: '/growth/experiments' },
+          { title: 'LiveOps', to: '/growth/liveops' },
+          { title: 'Publishing', to: '/growth/publishing' }
         ]
       },
       {

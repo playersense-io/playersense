@@ -18,7 +18,11 @@ export default defineNuxtConfig({
   routeRules: {
     '/api/**': {
       cors: true
-    }
+    },
+    // Growth's screens moved under /growth; links and bookmarks to the old paths still land.
+    '/flags': { redirect: '/growth/flags' },
+    '/experiments': { redirect: '/growth/experiments' },
+    '/liveops': { redirect: '/growth/liveops' }
   },
 
   compatibilityDate: '2026-06-30',
