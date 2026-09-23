@@ -530,13 +530,7 @@ const changeCount = computed(() => {
           </div>
         </SectionCard>
 
-        <DangerZone
-          v-if="!saved.archived"
-          action="Archive flag"
-          description="Left out of every publish from then on. Nothing is deleted, and the key is never reused."
-          title="Archive this flag"
-          @confirm="archiving = true"
-        />
+        <FlagArchiveCard :flag="saved" @archive="archiving = true" @restore="setFlagArchived(saved.key, false)" />
       </div>
     </div>
 
