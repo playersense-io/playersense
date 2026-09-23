@@ -146,7 +146,7 @@ const creating = ref(false)
 
           <div v-if="row.lead && row.verdict.kind !== 'collecting'" class="flex items-end justify-between gap-4">
             <div class="flex flex-col">
-              <span class="text-[11px] text-ink/50">{{ row.verdict.variant?.name ?? 'Best variant' }} against control</span>
+              <span class="text-[11px] text-ink/50">{{ row.verdict.variant ? variantTitle(row, row.verdict.variant) : 'Best variant' }} against A</span>
               <span :class="outcomeOf(row.lead) === 'better' ? 'text-success' : outcomeOf(row.lead) === 'worse' ? 'text-error' : 'text-ink'" class="font-mono text-2xl leading-8">{{ writeLift(row.primaryMetric, row.lead) }}</span>
             </div>
             <div class="flex flex-col items-end">
@@ -171,8 +171,10 @@ const creating = ref(false)
       </LayerCard>
     </section>
 
-    <SectionCard description="When each test ran and how it ended. Hover a bar for its dates; select it to open the results." title="Timeline">
-      <ExperimentTimeline :experiments="experiments" />
+    <SectionCard :padded="false" description="Every test on the days it ran, against the whole game's players and revenue. Hover a bar for how it ended; select it to open the results." title="Calendar">
+      <div class="p-4">
+        <ExperimentCalendar :experiments="experiments" />
+      </div>
     </SectionCard>
 
     <SectionCard :padded="false" description="Every experiment, with what it was testing and what came of it." title="All experiments">
