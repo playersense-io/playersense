@@ -1,6 +1,7 @@
 <script setup lang="ts">
-// Which saved funnel is open, and what else can be done with the one on screen: keep it as
-// a new funnel, rename it, delete it. Saving and discarding an edit are the page's action
+// Which saved funnel is open, as the heading of the card that edits it — its name in the
+// heading's own type, a menu of the others behind it — and what else can be done with it:
+// keep it as a new funnel, rename it, delete it. Saving and discarding an edit are the page's action
 // bar's; the dot here only says there is one. The edits are the page's draft; this only
 // says what the reader asked for.
 defineProps<{
@@ -45,26 +46,23 @@ function named(name: string) {
 </script>
 
 <template>
-  <div class="flex items-center gap-1">
-    <v-menu :offset="6" location="bottom end">
+  <div class="flex min-w-0 items-center gap-1">
+    <v-menu :offset="4" location="bottom start">
       <template #activator="{ props: activator }">
-        <v-btn
+        <button
           v-bind="activator"
-          append-icon="material-symbols:unfold-more"
-          class="ps-toolbar-control text-xs font-medium"
-          color="neutral"
-          prepend-icon="material-symbols:filter-alt-outline"
-          size="small"
-          variant="text"
+          :aria-label="`Funnel: ${name}${dirty ? ', unsaved changes' : ''}`"
+          class="group -ml-2 inline-flex h-(--ps-toolbar-height) max-w-full min-w-0 items-center gap-1.5 rounded-(--ps-radius) px-2 text-sm font-medium text-ink transition-colors duration-150 hover:bg-ink/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          type="button"
         >
-          <span class="max-w-40 truncate">{{ name }}</span>
-          <span
-            v-if="dirty"
-            aria-label="Unsaved changes"
-            class="ml-1.5 size-1.5 rounded-full bg-primary"
-            role="img"
+          <span class="truncate">{{ name }}</span>
+          <span v-if="dirty" aria-hidden="true" class="size-1.5 flex-none rounded-full bg-primary" />
+          <Icon
+            aria-hidden="true"
+            class="flex-none text-base text-ink/50 transition-colors duration-150 group-hover:text-ink/80"
+            name="material-symbols:unfold-more"
           />
-        </v-btn>
+        </button>
       </template>
 
       <v-card class="w-72" flat>

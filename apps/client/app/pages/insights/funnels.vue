@@ -8,19 +8,13 @@
 // Funnels are saved in this browser until the server keeps them.
 const { project } = useWorkspace()
 
-const route = useRoute()
-const router = useRouter()
-
 const RANGES: SegmentedOption[] = [
   { value: '7d', label: 'Last 7 days' },
   { value: '30d', label: 'Last 30 days' },
   { value: '90d', label: 'Last 90 days' }
 ]
 
-const range = computed<FunnelRange>({
-  get: () => (['7d', '30d', '90d'].includes(route.query.range as string) ? route.query.range as FunnelRange : '30d'),
-  set: value => void router.replace({ query: { ...route.query, range: value } })
-})
+const range = useQueryChoice<FunnelRange>('range', ['7d', '30d', '90d'], '30d')
 
 // --- Which funnel -------------------------------------------------------------------------
 
@@ -48,13 +42,12 @@ const BLANKS: Record<string, () => FunnelDefinition> = {
   })
 }
 
-const selected = computed<string>({
-  get: () => {
-    const id = route.query.funnel as string | undefined
-    return id && (id in BLANKS || funnels.value.some(funnel => funnel.id === id)) ? id : funnels.value[0]!.id
-  },
-  set: id => void router.replace({ query: { ...route.query, funnel: id } })
-})
+/** The open funnel, in the URL: a saved one, or a new one of either kind. */
+const selected = useQueryChoice(
+  'funnel',
+  () => [...Object.keys(BLANKS), ...funnels.value.map(funnel => funnel.id)],
+  () => funnels.value[0]!.id
+)
 
 const saved = computed(() => funnels.value.find(funnel => funnel.id === selected.value) ?? null)
 
@@ -143,6 +136,17 @@ const windowWords = computed(() => windowPhrase(draft.value.window))
         sequence of steps or a run of levels, and where they stop.
       </template>
       <template #actions>
+        <SegmentedControl v-model="range" :options="RANGES" label="Range" />
+      </template>
+    </PageHeader>
+
+    <SectionCard
+      v-if="draft.kind === 'steps'"
+      :description="`Players who did each step in order, other events in between allowed, ${windowWords} of step 1.`"
+      :padded="false"
+      :title="draft.name"
+    >
+      <template #title>
         <FunnelPicker
           v-model="selected"
           :dirty="dirty"
@@ -153,16 +157,7 @@ const windowWords = computed(() => windowPhrase(draft.value.window))
           @rename="onRename"
           @save-as="onSaveAs"
         />
-        <SegmentedControl v-model="range" :options="RANGES" label="Range" />
       </template>
-    </PageHeader>
-
-    <SectionCard
-      v-if="draft.kind === 'steps'"
-      :description="`Players who did each step in order, other events in between allowed, ${windowWords} of step 1.`"
-      :padded="false"
-      title="Steps"
-    >
       <template #actions>
         <span class="text-xs text-ink/55">Converted within</span>
         <SegmentedControl v-model="conversionWindow" :options="WINDOWS" label="Conversion window" />
@@ -174,8 +169,20 @@ const windowWords = computed(() => windowPhrase(draft.value.window))
       v-if="progression"
       :description="`Players who did ${progression.event} at each ${progression.property.replaceAll('_', ' ')} in order, ${windowWords} of the first.`"
       :padded="false"
-      title="Progression"
+      :title="draft.name"
     >
+      <template #title>
+        <FunnelPicker
+          v-model="selected"
+          :dirty="dirty"
+          :funnels="funnels"
+          :name="draft.name"
+          :unsaved="!saved"
+          @remove="onRemove"
+          @rename="onRename"
+          @save-as="onSaveAs"
+        />
+      </template>
       <template #actions>
         <span class="text-xs text-ink/55">Reached within</span>
         <SegmentedControl v-model="conversionWindow" :options="WINDOWS" label="Window" />
