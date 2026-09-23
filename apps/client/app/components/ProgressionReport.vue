@@ -105,6 +105,16 @@ const ORDERS: SegmentedOption[] = [
 
 const order = ref<'value' | 'hardest'>('value')
 
+// --- Which view ---------------------------------------------------------------------------
+
+const tabs = computed<PageTab[]>(() => [
+  { value: 'stops', label: 'Where players stop' },
+  { value: 'values', label: `Every ${property.value}`, count: data.value.rows.length }
+])
+
+/** In the URL, so a reload or a link opens the same view. */
+const tab = useQueryChoice('tab', ['stops', 'values'], 'stops')
+
 function download() {
   const { rows } = data.value
   const first = rows[0]?.players ?? null
@@ -129,40 +139,46 @@ function download() {
       title="Completion"
     />
 
-    <MetricCard
-      :categories="categories"
-      :category-label="Property"
-      :series="lossSeries"
-      :titles="titles"
-      :description="`Of the players who reached the ${property} before, the share who never got past this one. The tall bars are where the game loses them.`"
-      title="Where players stop"
-      type="bar"
-      unit="%"
-    />
+    <div class="flex flex-col gap-5">
+      <PageTabs v-model="tab" :tabs="tabs" label="Progression views" />
 
-    <SectionCard
-      :description="`Every ${property} from ${definition.from} to ${definition.to}. Lost here is shaded against the worst of them; tries is how often each player did ${definition.event} there.`"
-      :padded="false"
-      :title="`Every ${property}`"
-    >
-      <template #actions>
-        <SegmentedControl v-model="order" :options="ORDERS" label="Order" />
-        <v-btn
-          aria-label="Download as CSV"
-          color="neutral"
-          icon="material-symbols:download"
-          size="small"
-          variant="text"
-          @click="download"
-        />
-      </template>
-
-      <ProgressionTable
-        :order="order"
-        :property="definition.property"
-        :rows="data.rows"
-        :threshold="FUNNEL_THRESHOLD"
+      <MetricCard
+        v-if="tab === 'stops'"
+        :categories="categories"
+        :category-label="Property"
+        :series="lossSeries"
+        :titles="titles"
+        :description="`Of the players who reached the ${property} before, the share who never got past this one. The tall bars are where the game loses them.`"
+        title="Where players stop"
+        type="bar"
+        unit="%"
       />
-    </SectionCard>
+
+      <SectionCard
+        v-else
+        :description="`Every ${property} from ${definition.from} to ${definition.to}. Lost here is shaded against the worst of them; tries is how often each player did ${definition.event} there.`"
+        :padded="false"
+        :title="`Every ${property}`"
+      >
+        <template #actions>
+          <SegmentedControl v-model="order" :options="ORDERS" label="Order" />
+          <v-btn
+            aria-label="Download as CSV"
+            color="neutral"
+            icon="material-symbols:download"
+            size="small"
+            variant="text"
+            @click="download"
+          />
+        </template>
+
+        <ProgressionTable
+          :order="order"
+          :property="definition.property"
+          :rows="data.rows"
+          :threshold="FUNNEL_THRESHOLD"
+        />
+      </SectionCard>
+    </div>
   </div>
 </template>

@@ -25,6 +25,17 @@ const BREAKDOWNS: SegmentedOption[] = [
 
 const breakdown = ref<FunnelBreakdown>('none')
 
+// --- Which view ---------------------------------------------------------------------------
+
+const TABS: PageTab[] = [
+  { value: 'funnel', label: 'Funnel' },
+  { value: 'trend', label: 'Over time' },
+  { value: 'time', label: 'Time to convert' }
+]
+
+/** In the URL, so a reload or a link opens the same view. */
+const tab = useQueryChoice('tab', TABS.map(entry => entry.value), 'funnel')
+
 const data = computed(() => sampleFunnel(props.definition, props.range, breakdown.value, EVENT_CATALOGUE))
 
 const windowWords = computed(() => windowPhrase(props.definition.window))
@@ -210,104 +221,108 @@ const timeSeries = computed<MetricSeries[]>(() => [
   <div class="flex flex-col gap-8">
     <KpiBoard :description="`Players who entered in ${RANGE_WORDS[range]}, against the range before.`" :items="board" title="Conversion" />
 
-    <SectionCard
-      :description="breakdown === 'none'
-        ? 'The share of step 1 that reached each step. Between two steps: how many went on, and the median time they took.'
-        : `Each ${BREAKDOWN_LABELS[breakdown].toLowerCase()} against its own step 1, so a small one is compared by how it converts. The figures above are every player's.`"
-      :padded="false"
-      title="Funnel"
-    >
-      <template #actions>
-        <SegmentedControl v-model="breakdown" :options="BREAKDOWNS" label="Break down by" />
-        <SegmentedControl v-model="funnelView" :options="VIEWS" label="View" />
-        <v-btn
-          aria-label="Download as CSV"
-          color="neutral"
-          icon="material-symbols:download"
-          size="small"
-          variant="text"
-          @click="downloadFunnel"
-        />
-      </template>
+    <div class="flex flex-col gap-5">
+      <PageTabs v-model="tab" :tabs="TABS" label="Funnel views" />
 
-      <FunnelStepTable
-        v-if="funnelView === 'table'"
-        :breakdown="data.breakdown"
-        :steps="definition.steps"
-        :threshold="FUNNEL_THRESHOLD"
-        :total="data.total"
-      />
+      <SectionCard
+        v-if="tab === 'funnel'"
+        :description="breakdown === 'none'
+          ? 'The share of step 1 that reached each step. Between two steps: how many went on, and the median time they took.'
+          : `Each ${BREAKDOWN_LABELS[breakdown].toLowerCase()} against its own step 1, so a small one is compared by how it converts. The figures above are every player's.`"
+        :padded="false"
+        title="Funnel"
+      >
+        <template #actions>
+          <SegmentedControl v-model="breakdown" :options="BREAKDOWNS" label="Break down by" />
+          <SegmentedControl v-model="funnelView" :options="VIEWS" label="View" />
+          <v-btn
+            aria-label="Download as CSV"
+            color="neutral"
+            icon="material-symbols:download"
+            size="small"
+            variant="text"
+            @click="downloadFunnel"
+          />
+        </template>
 
-      <div v-else class="p-5">
-        <FunnelChart
+        <FunnelStepTable
+          v-if="funnelView === 'table'"
           :breakdown="data.breakdown"
           :steps="definition.steps"
           :threshold="FUNNEL_THRESHOLD"
           :total="data.total"
         />
-      </div>
 
-      <div v-if="funnelView === 'chart' && breakdown !== 'none'" class="overflow-x-auto border-t border-line">
-        <table class="w-full border-separate border-spacing-0 text-xs">
-          <thead>
-            <tr class="text-ink/55">
-              <th class="border-b border-line px-5 py-2.5 text-left font-normal">
-                {{ BREAKDOWN_LABELS[breakdown] }}
-              </th>
-              <th class="border-b border-line px-3 py-2.5 text-right font-normal">
-                Entered
-              </th>
-              <th
-                v-for="(_, step) in definition.steps.slice(1)"
-                :key="step"
-                class="border-b border-line px-3 py-2.5 text-right font-mono font-normal"
-              >
-                Step {{ step + 2 }}
-              </th>
-              <th class="border-b border-line px-5 py-2.5 text-right font-normal">
-                Conversion
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="row in breakdownRows" :key="row.series.name" class="hover:bg-ink/3">
-              <td :class="row.colour ? 'text-ink/80' : 'font-medium text-ink'" class="border-b border-line px-5 py-2">
-                <span class="flex items-center gap-2">
-                  <span
-                    v-if="row.colour"
-                    :style="{ background: row.colour }"
-                    aria-hidden="true"
-                    class="size-2 flex-none rounded-full"
-                  />
-                  {{ row.series.name }}
-                </span>
-              </td>
-              <td class="border-b border-line px-3 py-2 text-right font-mono text-ink/70">
-                {{ row.series.players[0] === null ? `<${FUNNEL_THRESHOLD}` : writeFigure(row.series.players[0]!) }}
-              </td>
-              <td
-                v-for="(value, step) in row.shares.slice(1)"
-                :key="step"
-                class="border-b border-line px-3 py-2 text-right font-mono text-ink/70"
-              >
-                {{ row.series.players[step + 1] === null ? `<${FUNNEL_THRESHOLD}` : value === null ? '–' : percent(value) }}
-              </td>
-              <td class="border-b border-line px-5 py-2 text-right font-mono">
-                <span
-                  :class="row.colour && row.conversion !== null && row.conversion === bestConversion ? 'bg-success/12 text-success' : 'text-ink'"
-                  class="rounded-(--ps-radius-x-small) px-1.5 py-0.5"
+        <div v-else class="p-5">
+          <FunnelChart
+            :breakdown="data.breakdown"
+            :steps="definition.steps"
+            :threshold="FUNNEL_THRESHOLD"
+            :total="data.total"
+          />
+        </div>
+
+        <div v-if="funnelView === 'chart' && breakdown !== 'none'" class="overflow-x-auto border-t border-line">
+          <table class="w-full border-separate border-spacing-0 text-xs">
+            <thead>
+              <tr class="text-ink/55">
+                <th class="border-b border-line px-5 py-2.5 text-left font-normal">
+                  {{ BREAKDOWN_LABELS[breakdown] }}
+                </th>
+                <th class="border-b border-line px-3 py-2.5 text-right font-normal">
+                  Entered
+                </th>
+                <th
+                  v-for="(_, step) in definition.steps.slice(1)"
+                  :key="step"
+                  class="border-b border-line px-3 py-2.5 text-right font-mono font-normal"
                 >
-                  {{ row.conversion === null ? '–' : percent(row.conversion) }}
-                </span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </SectionCard>
+                  Step {{ step + 2 }}
+                </th>
+                <th class="border-b border-line px-5 py-2.5 text-right font-normal">
+                  Conversion
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="row in breakdownRows" :key="row.series.name" class="hover:bg-ink/3">
+                <td :class="row.colour ? 'text-ink/80' : 'font-medium text-ink'" class="border-b border-line px-5 py-2">
+                  <span class="flex items-center gap-2">
+                    <span
+                      v-if="row.colour"
+                      :style="{ background: row.colour }"
+                      aria-hidden="true"
+                      class="size-2 flex-none rounded-full"
+                    />
+                    {{ row.series.name }}
+                  </span>
+                </td>
+                <td class="border-b border-line px-3 py-2 text-right font-mono text-ink/70">
+                  {{ row.series.players[0] === null ? `<${FUNNEL_THRESHOLD}` : writeFigure(row.series.players[0]!) }}
+                </td>
+                <td
+                  v-for="(value, step) in row.shares.slice(1)"
+                  :key="step"
+                  class="border-b border-line px-3 py-2 text-right font-mono text-ink/70"
+                >
+                  {{ row.series.players[step + 1] === null ? `<${FUNNEL_THRESHOLD}` : value === null ? '–' : percent(value) }}
+                </td>
+                <td class="border-b border-line px-5 py-2 text-right font-mono">
+                  <span
+                    :class="row.colour && row.conversion !== null && row.conversion === bestConversion ? 'bg-success/12 text-success' : 'text-ink'"
+                    class="rounded-(--ps-radius-x-small) px-1.5 py-0.5"
+                  >
+                    {{ row.conversion === null ? '–' : percent(row.conversion) }}
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </SectionCard>
 
-    <div class="grid gap-8 lg:grid-cols-2">
       <MetricCard
+        v-else-if="tab === 'trend'"
         :categories="data.trend.categories"
         :description="trendDescription"
         :series="trendSeries"
@@ -318,6 +333,7 @@ const timeSeries = computed<MetricSeries[]>(() => [
       />
 
       <MetricCard
+        v-else
         :categories="timeCategories"
         :series="timeSeries"
         :value="data.medianToConvert === null ? null : formatSeconds(data.medianToConvert)"
