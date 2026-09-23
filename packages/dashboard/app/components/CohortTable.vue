@@ -60,11 +60,25 @@ const props = withDefaults(defineProps<{
 
 const dayFormat = new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric', timeZone: 'UTC' })
 const weekdayFormat = new Intl.DateTimeFormat('en', { weekday: 'short', timeZone: 'UTC' })
+const monthFormat = new Intl.DateTimeFormat('en', { month: 'short', year: 'numeric', timeZone: 'UTC' })
 
 function cohortLabel(row: CohortTableRow): string {
+  if (row.label) return row.label
   if (props.grain === 'day') return dayFormat.format(row.start)
+  if (props.grain === 'month') return monthFormat.format(row.start)
   return `${dayFormat.format(row.start)} – ${dayFormat.format(lastDayOf(row, 'week'))}`
 }
+
+/** The card's name for a row: a segment by its name, a stretch of time in full. */
+function cohortTitle(row: CohortTableRow): string {
+  if (row.label) return row.label
+  if (props.grain === 'week') return `Week of ${cohortLabel(row)}`
+  if (props.grain === 'month') return cohortLabel(row)
+  return `${weekdayFormat.format(row.start)} ${cohortLabel(row)}`
+}
+
+/** Named rows and week ranges want the wider label column. */
+const labelWidth = computed(() => (props.grain === 'week' || props.rows.some(row => row.label) ? '9.25rem' : '7.5rem'))
 
 const sizeText = (size: number | null) => (size === null ? `<${props.threshold}` : writeFigure(size))
 
@@ -287,7 +301,7 @@ const card = computed<Card | null>(() => {
   const row = props.rows[place.row - 1]
   if (!row) return null
   const cell = cellAt(row, place.offset)
-  const title = props.grain === 'week' ? `Week of ${cohortLabel(row)}` : `${weekdayFormat.format(row.start)} ${cohortLabel(row)}`
+  const title = cohortTitle(row)
 
   if (cell.state === 'immature') {
     return { title, day, lines: [`Not old enough for day ${place.offset} yet`, `Known from ${dayFormat.format(readyOn(row, props.grain, place.offset))}`] }
@@ -331,7 +345,7 @@ const GLYPH_CLASS = { up: 'cohort-card__glyph--up', down: 'cohort-card__glyph--d
     <div
       ref="scroller"
       :class="{ 'cohort-table__scroller--scrolled': scrolledX > 0 }"
-      :style="{ 'maxHeight': maxHeight, '--cohort-label': grain === 'week' ? '9.25rem' : '7.5rem' }"
+      :style="{ 'maxHeight': maxHeight, '--cohort-label': labelWidth }"
       class="cohort-table__scroller"
     >
       <table
@@ -412,7 +426,7 @@ const GLYPH_CLASS = { up: 'cohort-card__glyph--up', down: 'cohort-card__glyph--d
           >
             <th class="cohort-grid__label" scope="row">
               <span class="cohort-grid__name">{{ cohortLabel(row) }}</span>
-              <span v-if="grain === 'day'" class="cohort-grid__weekday">{{ weekdayFormat.format(row.start) }}</span>
+              <span v-if="grain === 'day' && !row.label" class="cohort-grid__weekday">{{ weekdayFormat.format(row.start) }}</span>
             </th>
             <td class="cohort-grid__size" :class="{ 'cohort-grid__size--withheld': row.size === null }">
               {{ sizeText(row.size) }}

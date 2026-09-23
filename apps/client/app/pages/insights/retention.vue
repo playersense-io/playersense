@@ -103,7 +103,7 @@ const GRAINS: SegmentedOption[] = [
 ]
 
 // Each cell is the share that came back, with the players it is of under it.
-const MODES = [rateMode()]
+const cohortMode = rateMode()
 
 const COLORS: SegmentedOption[] = [
   { value: 'heat', label: 'Heat', title: 'Shaded by the figure' },
@@ -114,9 +114,8 @@ const COLORS: SegmentedOption[] = [
 const {
   days: cohortDays,
   offsets: cohortOffsets,
-  mode: cohortMode,
   color: cohortColor
-} = useCohortTableSettings('insights.retention', { modes: MODES })
+} = useCohortTableSettings('insights.retention', {})
 </script>
 
 <template>

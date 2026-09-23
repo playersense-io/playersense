@@ -31,7 +31,7 @@ export const COHORT_OFFSETS: readonly number[] = [
 
 export const offsetLabel = (offset: number) => `D${offset}`
 
-export type CohortGrain = 'day' | 'week'
+export type CohortGrain = 'day' | 'week' | 'month'
 
 /** Heat shades a cell by its value; average, by how far it sits from its column's. */
 export type CohortColor = 'heat' | 'average'
@@ -155,6 +155,12 @@ export interface CohortTableCell {
 
 export interface CohortTableRow {
   key: string
+  /**
+   * What the row is called when it is not a stretch of time: a segment compared with the
+   * others ("iOS"), rather than the players who arrived on a day. Dates are the table's
+   * to write when this is absent.
+   */
+  label?: string
   /** The cohort's first day, as UTC midnight. */
   start: number
   /** Null when the cohort itself is too small to describe. */
@@ -169,9 +175,23 @@ export function cellAt(row: CohortTableRow, offset: number): CohortTableCell {
   return row.cells[offset] ?? NOT_YET
 }
 
-/** The cohort's last day: itself for a day, the seventh for a week. */
+/** The cohort's last day: itself for a day, the seventh for a week, the month's last for a month. */
 export function lastDayOf(row: Pick<CohortTableRow, 'start'>, grain: CohortGrain): number {
-  return row.start + (grain === 'week' ? 6 * DAY : 0)
+  if (grain === 'week') return row.start + 6 * DAY
+  if (grain === 'month') {
+    const start = new Date(row.start)
+    return Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 0)
+  }
+  return row.start
+}
+
+/** The first day of the cohort after this one. */
+export function nextStart(start: number, grain: CohortGrain): number {
+  if (grain === 'month') {
+    const date = new Date(start)
+    return Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 1)
+  }
+  return start + (grain === 'week' ? 7 : 1) * DAY
 }
 
 /** The first day a cell of this row can be known: its youngest player's day N, over. */
@@ -416,12 +436,11 @@ const utcDay = (text: string) => Date.parse(`${text.slice(0, 10)}T00:00:00Z`)
  *   range asked for rather than from the rows, and such a cohort comes out with no size.
  */
 export function pivotCohortRows<R extends CohortRowLike>(rows: readonly R[], options: PivotOptions<R>): CohortTableRow[] {
-  const step = options.grain === 'week' ? 7 * DAY : DAY
   const asOf = typeof options.asOf === 'number' ? options.asOf : Date.parse(options.asOf)
   const today = Math.floor(asOf / DAY) * DAY
 
   const byCohort = new Map<number, R[]>()
-  for (let at = utcDay(options.from); at <= utcDay(options.to); at += step) byCohort.set(at, [])
+  for (let at = utcDay(options.from); at <= utcDay(options.to); at = nextStart(at, options.grain)) byCohort.set(at, [])
   for (const row of rows) {
     const at = utcDay(row.cohort_date)
     byCohort.set(at, [...(byCohort.get(at) ?? []), row])

@@ -28,14 +28,16 @@ interface StoredCohortSettings {
 export function useCohortTableSettings(
   id: string,
   options: {
-    modes: readonly CohortMode[]
+    /** The ways a cell can be read, when the reader chooses; none, when the page decides. */
+    modes?: readonly CohortMode[]
     presets?: readonly CohortPreset[]
     available?: readonly number[]
   }
 ) {
   const presets = options.presets ?? COHORT_PRESETS
   const available = options.available ?? COHORT_OFFSETS
-  const firstMode = options.modes[0]?.key ?? ''
+  const modes = options.modes ?? []
+  const firstMode = modes[0]?.key ?? ''
 
   const stored = useLocalStorage<StoredCohortSettings>(
     `playersense.cohorts.${id}`,
@@ -51,11 +53,11 @@ export function useCohortTableSettings(
   const offsets = computed(() => shownOffsets(days.value, presets, available))
 
   const modeKey = computed<string>({
-    get: () => (options.modes.some(mode => mode.key === stored.value.mode) ? stored.value.mode : firstMode),
+    get: () => (modes.some(mode => mode.key === stored.value.mode) ? stored.value.mode : firstMode),
     set: value => void (stored.value = { ...stored.value, mode: value })
   })
 
-  const mode = computed(() => options.modes.find(entry => entry.key === modeKey.value) ?? options.modes[0]!)
+  const mode = computed(() => modes.find(entry => entry.key === modeKey.value) ?? modes[0])
 
   const color = computed<CohortColor>({
     get: () => (stored.value.color === 'average' ? 'average' : 'heat'),
