@@ -75,7 +75,8 @@ func Limit(ctx context.Context, client *ent.Client, account *ent.BillingAccount,
 	// What it has paid for, not what it has used: the usage still owed is taken out, so a debt can
 	// never raise its own limit. A studio that paid $5,000 of usage and owes $1,000 more has a limit
 	// of 20% of $5,000 — not of $6,000.
-	paid := max(used-account.ArrearsMicros, 0) // pending usage is not on the ledger, so not in `used`
+	// An invoiced account's receivable is usage not yet paid for either (ADR 0045).
+	paid := max(used-account.ArrearsMicros-account.ReceivableMicros, 0) // pending usage is not on the ledger, so not in `used`
 	share := paid * policy.Percent / 100
 	if share > floor {
 		return share, FromUsage, nil

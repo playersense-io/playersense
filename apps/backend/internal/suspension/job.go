@@ -28,6 +28,10 @@ type Job struct {
 	// Policy is the credit limit's floor and share of spend (limit.go).
 	Policy Policy
 
+	// OverdueGrace is how long an invoice may be overdue before ingestion is suspended, for an
+	// account whose contract does not say (ADR 0045).
+	OverdueGrace time.Duration
+
 	Now func() time.Time
 
 	mu     sync.Mutex
@@ -36,8 +40,9 @@ type Job struct {
 
 // Result is one pass.
 type Result struct {
-	Suspended int // newly suspended this pass
-	Marked    int // suspended accounts published to Valkey
+	Suspended   int // newly suspended this pass
+	Reactivated int // invoiced accounts let back in this pass
+	Marked      int // suspended accounts published to Valkey
 }
 
 // Run makes one pass: suspend, then publish.
@@ -45,9 +50,12 @@ func (j *Job) Run(ctx context.Context) (Result, error) {
 	var out Result
 	suspended, err := j.suspend(ctx)
 	out.Suspended = suspended
+	invoiced, reactivated, invoicedErr := j.invoiced(ctx)
+	out.Suspended += invoiced
+	out.Reactivated = reactivated
 	marked, markErr := j.publish(ctx)
 	out.Marked = marked
-	return out, errors.Join(err, markErr)
+	return out, errors.Join(err, invoicedErr, markErr)
 }
 
 // suspend moves accounts in their grace period past either bound to suspended.
