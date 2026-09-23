@@ -265,9 +265,10 @@ func TestLiveUsageInvoice(t *testing.T) {
 		t.Fatalf("credit note = %+v, %v", note, err)
 	}
 
+	// What the wallet settles from: the amount paid, after the credit note.
 	paid, err := gw.PayInvoiceOutOfBand(ctx, issued.ID, "playersense-paid-live-"+uid)
-	if err != nil || paid.Status != "paid" {
-		t.Fatalf("paid = %+v, %v", paid, err)
+	if err != nil || paid.Status != "paid" || paid.AmountPaid != 50_000 {
+		t.Fatalf("paid = %+v, %v; want paid, $500.00", paid, err)
 	}
 }
 

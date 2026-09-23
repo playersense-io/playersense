@@ -11,6 +11,7 @@ import (
 	"playersense.dev/backend/ent"
 	"playersense.dev/backend/ent/billingaccount"
 	"playersense.dev/backend/ent/creditlot"
+	"playersense.dev/backend/ent/invoice"
 	"playersense.dev/backend/ent/stripeevent"
 	"playersense.dev/backend/internal/billing"
 	"playersense.dev/backend/internal/wallet"
@@ -30,6 +31,12 @@ import (
 // Automatic top-up is switched off on the account either way. The alternative is charging, seconds
 // later, the card whose money was just returned — which is how a refunded customer becomes a
 // disputing one, and how a disputed card becomes a second dispute.
+//
+// A usage invoice's payment (ADR 0045) is found the same way, by the PaymentIntent its invoice
+// recorded. A dispute puts what it took back on the receivable and reopens the invoice — overdue at
+// once, since its due date has passed — and a won dispute settles it again. A refund of one is
+// recorded and flagged: whether money returned means the customer owed less or was overpaid is a
+// person's decision, not the ledger's.
 
 func (w *Webhooks) returns(ctx context.Context, tx *ent.Tx, event stripe.Event) (handled, bool, error) {
 	switch event.Type {
@@ -91,8 +98,11 @@ func (w *Webhooks) returns(ctx context.Context, tx *ent.Tx, event stripe.Event) 
 // takeBack reverses a top-up's credit and turns automatic top-up off.
 func (w *Webhooks) takeBack(ctx context.Context, tx *ent.Tx, pi string, cents int64, currency, key, description, reason string) (handled, error) {
 	lot, err := topUpLot(ctx, tx, pi)
-	if err != nil || lot == nil {
-		return ignored("not a PlayerSense top-up"), err
+	if err != nil {
+		return handled{}, err
+	}
+	if lot == nil {
+		return w.takeBackInvoice(ctx, tx, pi, cents, key)
 	}
 	if !strings.EqualFold(currency, lot.Currency) {
 		w.log().Error("a refund or dispute is in another currency than its top-up", "payment_intent", pi, "currency", currency)
@@ -130,6 +140,9 @@ func (w *Webhooks) restore(ctx context.Context, tx *ent.Tx, pi, reversedKey, key
 	if taken == nil {
 		return ignored("nothing was taken back, so nothing is restored"), nil
 	}
+	if taken.InvoiceID != nil {
+		return w.restoreInvoice(ctx, tx, taken, key, description)
+	}
 	// Purchased credit, because it is the customer's money returning — and a purchase lot pays any
 	// arrears the reversal created before it becomes spendable.
 	if _, _, err := wallet.Grant(ctx, tx, wallet.GrantRequest{
@@ -158,4 +171,82 @@ func piOf(pi *stripe.PaymentIntent) string {
 		return ""
 	}
 	return pi.ID
+}
+
+// takeBackInvoice reopens a usage invoice whose payment a bank took back.
+func (w *Webhooks) takeBackInvoice(ctx context.Context, tx *ent.Tx, pi string, cents int64, key string) (handled, error) {
+	if pi == "" {
+		return ignored("not a PlayerSense payment"), nil
+	}
+	row, err := tx.Invoice.Query().Where(invoice.PaymentIntent(pi)).ForUpdate().Only(ctx)
+	if ent.IsNotFound(err) {
+		return ignored("not a PlayerSense payment"), nil
+	}
+	if err != nil {
+		return handled{}, err
+	}
+	if !strings.HasPrefix(key, "dispute:") {
+		w.log().Error("a usage invoice's payment was refunded; adjust the ledger by hand",
+			"invoice", row.UID, "payment_intent", pi, "cents", cents)
+		return handled{status: stripeevent.StatusProcessed, accountID: row.AccountID,
+			reason: "a refund of an invoice payment is not applied; adjust the ledger by hand"}, nil
+	}
+	amount := min(cents*billing.CentMicros, row.AmountPaidMicros)
+	if amount <= 0 {
+		return ignored("nothing was paid on the invoice to take back"), nil
+	}
+	result, err := wallet.Reopen(ctx, tx, wallet.SettleRequest{
+		AccountID: row.AccountID, InvoiceID: row.ID, Amount: amount, At: w.now(),
+		Description: "Disputed payment of invoice " + orUID(row.Number, row), StripeReference: pi, Key: key,
+	})
+	if err != nil {
+		return handled{}, err
+	}
+	if result.Applied {
+		if err := tx.Invoice.UpdateOneID(row.ID).
+			SetStatus(invoice.StatusOpen).
+			SetAmountPaidMicros(row.AmountPaidMicros - amount).
+			SetAmountRemainingMicros(row.AmountRemainingMicros + amount).
+			Exec(ctx); err != nil {
+			return handled{}, fmt.Errorf("reopen the invoice: %w", err)
+		}
+	}
+	return handled{status: stripeevent.StatusProcessed, accountID: row.AccountID},
+		ReassessOverdue(ctx, tx, row.AccountID, w.now())
+}
+
+// restoreInvoice settles an invoice again when the dispute that reopened it is won.
+func (w *Webhooks) restoreInvoice(ctx context.Context, tx *ent.Tx, taken *ent.LedgerEntry, key, description string) (handled, error) {
+	row, err := tx.Invoice.Query().Where(invoice.ID(*taken.InvoiceID)).ForUpdate().Only(ctx)
+	if err != nil {
+		return handled{}, err
+	}
+	amount := -taken.AmountMicros
+	result, err := wallet.PayInvoice(ctx, tx, wallet.SettleRequest{
+		AccountID: taken.AccountID, InvoiceID: row.ID, Amount: amount, At: w.now(),
+		Description: description, StripeReference: orEmpty(taken.StripeReference), Key: key,
+	})
+	if err != nil {
+		return handled{}, err
+	}
+	if result.Applied {
+		update := tx.Invoice.UpdateOneID(row.ID).
+			SetAmountPaidMicros(row.AmountPaidMicros + amount).
+			SetAmountRemainingMicros(max(0, row.AmountRemainingMicros-amount))
+		if row.AmountRemainingMicros <= amount {
+			update = update.SetStatus(invoice.StatusPaid)
+		}
+		if err := update.Exec(ctx); err != nil {
+			return handled{}, fmt.Errorf("settle the invoice again: %w", err)
+		}
+	}
+	return handled{status: stripeevent.StatusProcessed, accountID: taken.AccountID},
+		ReassessOverdue(ctx, tx, taken.AccountID, w.now())
+}
+
+func orEmpty(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
 }

@@ -168,6 +168,10 @@ func (w *Webhooks) handle(ctx context.Context, tx *ent.Tx, event stripe.Event) (
 	if result, matched, err := w.subscription(ctx, tx, event); matched {
 		return result, err
 	}
+	// PlayerSense's own usage invoices, and only those (invoices.go, ADR 0045).
+	if result, matched, err := w.usageInvoice(ctx, tx, event); matched {
+		return result, err
+	}
 	switch event.Type {
 	case "payment_intent.succeeded":
 		var pi stripe.PaymentIntent
@@ -224,10 +228,11 @@ func (w *Webhooks) handle(ctx context.Context, tx *ent.Tx, event stripe.Event) (
 
 	default:
 		// checkout.session.expired, async_payment_failed, payment_intent.created/processing,
-		// payment_method.*, account.updated, and every invoice.* and invoiceitem.* event:
-		// recorded, and nothing here depends on them. Invoices in particular never credit a
-		// wallet — a payment is credited by its PaymentIntent, once, and an invoice describing
-		// the same payment must not be a second report of it.
+		// payment_method.*, account.updated, and every invoice.* and invoiceitem.* event that is
+		// not about a usage invoice: recorded, and nothing here depends on them. A top-up's or a
+		// subscription's invoice never credits a wallet — a payment is credited by its
+		// PaymentIntent, once, and an invoice describing the same payment must not be a second
+		// report of it.
 		return ignored(""), nil
 	}
 }

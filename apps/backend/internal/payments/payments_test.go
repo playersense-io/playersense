@@ -926,7 +926,8 @@ func (f *fixture) grantPromo(amount int64) {
 	}
 }
 
-// assertInvariant: the ledger's running total is what the lots hold minus what is owed.
+// assertInvariant: the ledger's running total is what the lots hold minus what is owed — arrears, and
+// an invoiced account's receivable.
 func (f *fixture) assertInvariant() {
 	f.t.Helper()
 	row := f.row()
@@ -934,8 +935,9 @@ func (f *fixture) assertInvariant() {
 	for _, lot := range f.lots() {
 		held += lot.RemainingMicros
 	}
-	if row.BalanceMicros != held-row.ArrearsMicros {
-		f.t.Errorf("balance %s ≠ lots %s − arrears %s", billing.USD(row.BalanceMicros), billing.USD(held), billing.USD(row.ArrearsMicros))
+	if row.BalanceMicros != held-row.ArrearsMicros-row.ReceivableMicros {
+		f.t.Errorf("balance %s ≠ lots %s − arrears %s − receivable %s", billing.USD(row.BalanceMicros),
+			billing.USD(held), billing.USD(row.ArrearsMicros), billing.USD(row.ReceivableMicros))
 	}
 }
 
