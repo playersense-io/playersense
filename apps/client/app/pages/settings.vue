@@ -18,7 +18,7 @@ const TABS: readonly SettingsTab[] = [
 
 <template>
   <!-- Stacked under `lg` rather than a rail squeezed to nothing. -->
-  <div class="grid gap-6 lg:grid-cols-[196px_minmax(0,1fr)] lg:items-start lg:gap-8">
+  <div class="grid gap-6 lg:grid-cols-[248px_minmax(0,1fr)] lg:items-start lg:gap-8">
     <!-- Sticky under the 56px app bar, so the rail is reachable from the foot of a long tab. -->
     <div class="lg:sticky lg:top-20">
       <SettingsTabs :tabs="TABS" label="Settings" />
