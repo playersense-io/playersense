@@ -399,7 +399,7 @@ function onCreated(key: string) {
                   variant="text"
                 />
               </template>
-              <v-list density="compact" nav>
+              <v-list min-width="200" nav>
                 <v-list-item :to="`/growth/flags/${encodeURIComponent(item.key)}`" prepend-icon="material-symbols:open-in-new" title="Open" />
                 <v-list-item prepend-icon="material-symbols:content-copy-outline" title="Copy key" @click="copy(item.key)" />
                 <v-list-item prepend-icon="material-symbols:library-add-outline" title="Duplicate" @click="duplicating = item" />
@@ -422,12 +422,19 @@ function onCreated(key: string) {
       </SectionCard>
     </div>
 
-    <NewFlagDialog v-model="creating" @created="onCreated" />
-    <NewFlagDialog v-model="duplicateOpen" :from="duplicating" @created="onCreated" />
-    <FlagPreviewDialog v-model="previewing" />
-    <PublishDialog v-model="publishing" :environment="publishTo" />
+    <!-- Mounted only while open: see the note on the flag page. -->
+    <NewFlagDialog v-if="creating" v-model="creating" @created="onCreated" />
+    <NewFlagDialog
+      v-if="duplicateOpen"
+      v-model="duplicateOpen"
+      :from="duplicating"
+      @created="onCreated"
+    />
+    <FlagPreviewDialog v-if="previewing" v-model="previewing" />
+    <PublishDialog v-if="publishing" v-model="publishing" :environment="publishTo" />
 
     <ConfirmDialog
+      v-if="archiveOpen"
       v-model="archiveOpen"
       :description="archiving ? `${archiving.name} leaves the draft. Each environment keeps serving it until the next publish there; after that, devices fall back to the value written in the game's code.` : ''"
       :title="archiving ? `Archive ${archiving.name}?` : ''"

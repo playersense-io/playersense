@@ -72,7 +72,7 @@ const valueProblem = computed(() => props.problems.find(problem => problem.field
           aria-label="Move up"
           color="neutral"
           icon="material-symbols:arrow-upward"
-          size="x-small"
+          size="small"
           variant="text"
           @click="emit('move', -1)"
         />
@@ -81,7 +81,7 @@ const valueProblem = computed(() => props.problems.find(problem => problem.field
           aria-label="Move down"
           color="neutral"
           icon="material-symbols:arrow-downward"
-          size="x-small"
+          size="small"
           variant="text"
           @click="emit('move', 1)"
         />
@@ -92,11 +92,11 @@ const valueProblem = computed(() => props.problems.find(problem => problem.field
               :aria-label="`Rule ${index + 1} options`"
               color="neutral"
               icon="material-symbols:more-horiz"
-              size="x-small"
+              size="small"
               variant="text"
             />
           </template>
-          <v-list density="compact" nav>
+          <v-list min-width="200" nav>
             <v-list-item prepend-icon="material-symbols:content-copy-outline" title="Duplicate rule" @click="emit('duplicate')" />
             <v-list-item prepend-icon="material-symbols:delete-outline" title="Remove rule" @click="emit('remove')" />
           </v-list>

@@ -61,38 +61,38 @@ function focusSearch() {
     @update:model-value="search = ''"
   >
     <template #activator="{ props: activator }">
+      <!-- Drawn as the outlined field beside it, at the same 36px, so a condition reads as
+           one row of fields: the resting edge, the hover and the focus are theme.css's. -->
       <button
         v-bind="activator"
         :aria-label="`${label}: ${chosen?.label ?? 'none chosen'}`"
-        :class="chosen ? 'text-ink' : 'text-primary'"
-        class="inline-flex h-8 max-w-full min-w-0 items-center gap-1.5 rounded-(--ps-radius-small) border border-line bg-surface px-2 text-xs transition-colors duration-150 hover:border-ink/30 focus-visible:outline-2 focus-visible:outline-primary"
+        :class="[open ? 'border-primary' : 'border-ink/25 hover:border-ink/45 dark:border-ink/10 dark:hover:border-ink/22', chosen ? 'text-ink' : 'text-ink/40']"
+        class="inline-flex h-(--ps-toolbar-height) max-w-full min-w-48 items-center gap-2 rounded-(--ps-radius) border bg-transparent px-3 text-[13px] transition-colors duration-150 focus-visible:border-primary focus-visible:outline-none"
         type="button"
       >
         <template v-if="chosen">
           <AuthorityMark :authority="chosen.authority" />
-          <span class="truncate font-medium">{{ chosen.label }}</span>
+          <span class="truncate">{{ chosen.label }}</span>
           <span class="hidden truncate font-mono text-[11px] text-ink/45 sm:inline">{{ chosen.key }}</span>
         </template>
-        <template v-else>
-          <Icon aria-hidden="true" class="text-sm" name="material-symbols:add" />
-          Choose a key
-        </template>
-        <Icon aria-hidden="true" class="flex-none text-sm text-ink/40" name="material-symbols:unfold-more" />
+        <span v-else class="flex-1 text-left">Choose a key</span>
+        <Icon aria-hidden="true" class="ml-auto flex-none text-base text-ink/40" name="material-symbols:unfold-more" />
       </button>
     </template>
 
-    <v-card class="w-96 max-w-[calc(100vw-2rem)]" flat>
+    <v-card class="w-md max-w-[calc(100vw-2rem)]" flat>
       <div class="border-b border-line p-2">
         <v-text-field
           v-model="search"
           aria-label="Find a key"
+          autofocus
           class="ps-attribute-picker__search"
           clearable
           density="comfortable"
           hide-details
           placeholder="Find a key, or type one of the game's own"
           prepend-inner-icon="material-symbols:search"
-          variant="filled"
+          variant="outlined"
           @keydown.enter.prevent="customKey && choose(customKey, true)"
         />
       </div>

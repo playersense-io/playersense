@@ -101,7 +101,7 @@ const booleanValue = computed({
   }
 })
 
-const BOOLEANS: SegmentedOption[] = [{ value: 'true', label: 'true' }, { value: 'false', label: 'false' }]
+const BOOLEANS = [{ value: 'true', title: 'true' }, { value: 'false', title: 'false' }]
 
 const TYPES: { value: AttributeType, title: string }[] = [
   { value: 'string', title: 'Text' },
@@ -125,7 +125,7 @@ const placeholder = computed(() => {
 </script>
 
 <template>
-  <div class="ps-audience-condition flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
+  <div class="flex min-w-0 flex-1 flex-wrap items-center gap-2">
     <button
       v-if="node.negate"
       class="rounded-(--ps-radius-x-small) bg-error/10 px-1.5 text-[10px] leading-5 font-medium tracking-wide text-error uppercase"
@@ -142,9 +142,10 @@ const placeholder = computed(() => {
       v-if="custom"
       :aria-label="`${label} value type`"
       :items="TYPES"
+      v-bind="FIELD_MENU"
       :model-value="node.valueType ?? 'string'"
-      class="ps-audience-condition__field w-32 flex-none"
-      density="compact"
+      class="w-40 flex-none"
+      density="comfortable"
       hide-details
       variant="outlined"
       @update:model-value="setType"
@@ -154,30 +155,38 @@ const placeholder = computed(() => {
       <v-select
         :aria-label="`${label} comparison`"
         :items="operators"
+        v-bind="FIELD_MENU"
         :model-value="node.op"
-        class="ps-audience-condition__field w-44 flex-none"
-        density="compact"
+        class="w-48 flex-none"
+        density="comfortable"
         hide-details
         variant="outlined"
         @update:model-value="setOp"
       />
 
       <template v-if="arity === 'one'">
-        <SegmentedControl
+        <v-select
           v-if="attribute.type === 'bool'"
           v-model="booleanValue"
-          :label="`${label} value`"
-          :options="BOOLEANS"
+          :aria-label="`${label} value`"
+          :items="BOOLEANS"
+          v-bind="FIELD_MENU"
+          class="w-32 flex-none font-mono"
+          density="comfortable"
+          hide-details
+          placeholder="Choose"
+          variant="outlined"
         />
         <v-combobox
           v-else-if="suggestions.length"
           v-model="single"
           :aria-label="`${label} value`"
           :items="suggestions"
+          v-bind="FIELD_MENU"
           :placeholder="placeholder"
           :return-object="false"
-          class="ps-audience-condition__field min-w-32 flex-1"
-          density="compact"
+          class="max-w-72 min-w-44 flex-1"
+          density="comfortable"
           hide-details
           variant="outlined"
         />
@@ -188,8 +197,8 @@ const placeholder = computed(() => {
           :inputmode="attribute.type === 'number' ? 'decimal' : undefined"
           :placeholder="placeholder"
           :prefix="attribute.unit === 'micros' ? '$' : undefined"
-          class="ps-audience-condition__field max-w-56 min-w-28 flex-1"
-          density="compact"
+          class="max-w-56 min-w-36 flex-1"
+          density="comfortable"
           hide-details
           variant="outlined"
         />
@@ -200,12 +209,13 @@ const placeholder = computed(() => {
         v-model="many"
         :aria-label="`${label} values`"
         :items="suggestions"
+        v-bind="FIELD_MENU"
         :placeholder="`${placeholder}, one or more`"
         :return-object="false"
         chips
-        class="ps-audience-condition__field ps-audience-condition__many min-w-48 flex-1"
+        class="ps-audience-condition__many min-w-56 flex-1"
         closable-chips
-        density="compact"
+        density="comfortable"
         hide-details
         multiple
         variant="outlined"
@@ -220,29 +230,31 @@ const placeholder = computed(() => {
           class="ml-auto"
           color="neutral"
           icon="material-symbols:more-horiz"
-          size="x-small"
+          size="small"
           variant="text"
         />
       </template>
-      <v-list density="compact" nav>
+      <v-list min-width="200" nav>
         <v-list-item
           :title="node.negate ? 'Remove Not' : 'Turn round with Not'"
           prepend-icon="material-symbols:swap-horiz"
           @click="node = { ...node, negate: !node.negate }"
         />
-        <v-list-item prepend-icon="material-symbols:delete-outline" title="Remove condition" @click="emit('remove')" />
+        <v-list-item
+          base-color="error"
+          prepend-icon="material-symbols:delete-outline"
+          title="Remove condition"
+          @click="emit('remove')"
+        />
       </v-list>
     </v-menu>
   </div>
 </template>
 
 <style scoped>
-.ps-audience-condition__field :deep(.v-field__input) {
-  font-size: 12px;
-}
-
-/* The chips of a list of values sit inside the field's own height rather than growing it a
-   row at a time: a list of ten countries wraps, and the field grows with it. */
+/* A list of values wraps inside the field rather than scrolling in it: ten countries make
+   the field taller, not wider. The height is still the density's; only the control is
+   allowed to grow past it. */
 .ps-audience-condition__many :deep(.v-field__input) {
   flex-wrap: wrap;
   gap: 4px;
@@ -255,9 +267,6 @@ const placeholder = computed(() => {
 }
 
 .ps-audience-condition__many :deep(.v-chip) {
-  --v-chip-height: 20px;
-
-  font-size: 11px;
   margin: 0;
 }
 </style>

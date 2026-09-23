@@ -225,7 +225,7 @@ const { copy } = useClipboard({ legacy: true })
                   variant="text"
                 />
               </template>
-              <v-list density="compact" nav>
+              <v-list min-width="200" nav>
                 <v-list-item prepend-icon="material-symbols:edit-outline" title="Edit" @click="openSegment(item)" />
                 <v-list-item prepend-icon="material-symbols:content-copy-outline" title="Copy key" @click="copy(item.key)" />
                 <v-list-item
@@ -247,9 +247,10 @@ const { copy } = useClipboard({ legacy: true })
       </SectionCard>
     </div>
 
-    <SegmentDialog v-model="dialogOpen" :segment="editing" />
+    <SegmentDialog v-if="dialogOpen" v-model="dialogOpen" :segment="editing" />
 
     <ConfirmDialog
+      v-if="archiveOpen"
       v-model="archiveOpen"
       :description="archiveWords"
       :title="archiving ? `Archive ${archiving.name}?` : ''"

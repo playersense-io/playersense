@@ -248,7 +248,7 @@ const activity = computed(() => audit.value.filter(entry => activityFilter.value
                     variant="text"
                   />
                 </template>
-                <v-list density="compact" nav>
+                <v-list min-width="200" nav>
                   <v-list-item prepend-icon="material-symbols:data-object" title="View the document" @click="viewing = version" />
                   <v-list-item prepend-icon="material-symbols:history" title="Restore into the draft" @click="restoring = version" />
                 </v-list>
@@ -271,9 +271,14 @@ const activity = computed(() => audit.value.filter(entry => activityFilter.value
       <ConfigHistory :entries="activity" show-target />
     </SectionCard>
 
-    <PublishDialog v-model="publishing" :environment="publishTo" />
+    <PublishDialog v-if="publishing" v-model="publishing" :environment="publishTo" />
 
-    <v-dialog v-model="viewOpen" max-width="760" scrollable>
+    <v-dialog
+      v-if="viewOpen"
+      v-model="viewOpen"
+      max-width="760"
+      scrollable
+    >
       <v-card border flat>
         <header class="flex items-start justify-between gap-3 border-b border-line p-5">
           <div class="flex flex-col gap-1">
@@ -305,6 +310,7 @@ const activity = computed(() => audit.value.filter(entry => activityFilter.value
     </v-dialog>
 
     <ConfirmDialog
+      v-if="restoreOpen"
       v-model="restoreOpen"
       :description="restoreWords"
       :title="restoring ? `Restore v${restoring.version} into the draft?` : ''"

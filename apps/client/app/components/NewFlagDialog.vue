@@ -31,6 +31,7 @@ const refusal = ref('')
 
 const slug = (text: string) => text.trim().toLowerCase().replace(/[^a-z0-9.]+/g, '_').replace(/^[_.]+|[_.]+$/g, '').slice(0, 64)
 
+/* Immediate, because the dialog is mounted only while it is open. */
 watch(open, (value) => {
   if (!value) return
   const source = props.from
@@ -42,7 +43,7 @@ watch(open, (value) => {
   fallback.value = source ? JSON.parse(JSON.stringify(source.fallback)) as Json : false
   description.value = source?.description ?? ''
   refusal.value = ''
-})
+}, { immediate: true })
 
 watch(name, (value) => {
   if (!keyEdited.value) key.value = slug(value)
@@ -123,7 +124,7 @@ const descriptionId = useId()
       </header>
 
       <form class="flex flex-col gap-5 overflow-y-auto p-5" @submit.prevent="confirm">
-        <div class="grid gap-4 sm:grid-cols-2">
+        <div class="flex flex-col gap-5">
           <div class="flex flex-col gap-1">
             <label :for="nameId" class="text-xs font-medium text-ink">Name</label>
             <v-text-field
@@ -174,24 +175,23 @@ const descriptionId = useId()
             v-model="fallback"
             v-model:invalid="fallbackInvalid"
             :kind="kind"
+            block
             label="Fallback"
           />
         </div>
 
-        <div class="grid gap-4 sm:grid-cols-2">
+        <div class="flex flex-col gap-5">
           <div class="flex flex-col gap-1">
             <span class="text-xs font-medium text-ink">Purpose</span>
             <v-select
               v-model="purpose"
               :items="PURPOSE_ITEMS"
+              v-bind="FIELD_MENU"
               aria-label="Purpose"
               hide-details
+              item-props
               variant="outlined"
-            >
-              <template #item="{ props: item, item: option }">
-                <v-list-item v-bind="item" :subtitle="option.subtitle" />
-              </template>
-            </v-select>
+            />
           </div>
           <div class="flex flex-col gap-1">
             <label :for="descriptionId" class="text-xs font-medium text-ink">Description <span class="font-normal text-ink/45">optional</span></label>

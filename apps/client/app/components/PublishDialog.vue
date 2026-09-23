@@ -30,7 +30,7 @@ watch(open, (value) => {
   target.value = props.environment
   note.value = ''
   refusal.value = ''
-})
+}, { immediate: true })
 
 const check = computed(() => draftCheck())
 

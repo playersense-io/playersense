@@ -62,8 +62,8 @@ const id = useId()
           v-model="text"
           :aria-label="`${label}, percent`"
           :disabled="disabled"
-          class="ps-rollout-field__input w-20 flex-none"
-          density="compact"
+          class="ps-rollout-field__input w-24 flex-none"
+          density="comfortable"
           hide-details
           inputmode="decimal"
           variant="outlined"
@@ -80,7 +80,7 @@ const id = useId()
         :aria-pressed="rollout === step"
         :class="rollout === step ? 'bg-primary/10 text-primary' : 'text-ink/55 hover:bg-ink/5 hover:text-ink'"
         :disabled="disabled"
-        class="rounded-(--ps-radius-x-small) px-1.5 py-0.5 font-mono text-[11px] transition-colors duration-150 disabled:opacity-40"
+        class="rounded-(--ps-radius-small) px-2 py-1 font-mono text-xs transition-colors duration-150 disabled:opacity-40"
         type="button"
         @click="rollout = step"
       >

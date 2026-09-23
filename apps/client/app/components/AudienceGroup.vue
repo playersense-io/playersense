@@ -73,20 +73,21 @@ const canNest = computed(() => props.depth < 3)
       <v-select
         v-model="match"
         :items="MATCH_ITEMS"
+        v-bind="FIELD_MENU"
         aria-label="How these combine"
-        class="ps-audience-group__match w-32 flex-none"
-        density="compact"
+        class="w-36 flex-none"
+        density="comfortable"
         hide-details
         variant="outlined"
       />
-      <span class="text-xs text-ink/55">these are true</span>
+      <span class="text-[13px] text-ink/55">these are true</span>
       <v-btn
         v-if="!root"
         aria-label="Remove group"
         class="ml-auto"
         color="neutral"
         icon="material-symbols:close"
-        size="x-small"
+        size="small"
         variant="text"
         @click="emit('remove')"
       />
@@ -113,16 +114,17 @@ const canNest = computed(() => props.depth < 3)
         />
 
         <div v-else-if="child.type === 'segment'" class="flex flex-wrap items-center gap-1.5">
-          <span class="inline-flex h-8 items-center gap-1.5 px-1 text-xs text-ink/60">
+          <span class="inline-flex h-(--ps-toolbar-height) items-center gap-1.5 px-1 text-[13px] text-ink/60">
             <Icon aria-hidden="true" class="text-sm" name="material-symbols:group-outline" />
             Player
           </span>
           <v-select
             :items="SEGMENT_MODES"
             :model-value="child.negate ? 'out' : 'in'"
+            v-bind="FIELD_MENU"
             aria-label="In or not in the segment"
-            class="ps-audience-group__match w-32 flex-none"
-            density="compact"
+            class="w-36 flex-none"
+            density="comfortable"
             hide-details
             variant="outlined"
             @update:model-value="setSegment(index, child, { negate: $event === 'out' })"
@@ -130,23 +132,22 @@ const canNest = computed(() => props.depth < 3)
           <v-autocomplete
             :items="segmentItems"
             :model-value="child.segment || null"
+            v-bind="FIELD_MENU"
             aria-label="Segment"
-            class="ps-audience-group__match min-w-48 flex-1"
-            density="compact"
+            class="max-w-md min-w-56 flex-1"
+            density="comfortable"
             hide-details
+            item-props
             placeholder="Choose a segment"
             variant="outlined"
             @update:model-value="setSegment(index, child, { segment: $event ?? '' })"
-          >
-            <template #item="{ props: item, item: option }">
-              <v-list-item v-bind="item" :subtitle="option.subtitle" />
-            </template>
-          </v-autocomplete>
+          />
           <v-btn
             aria-label="Remove segment"
+            class="ml-auto"
             color="neutral"
             icon="material-symbols:close"
-            size="x-small"
+            size="small"
             variant="text"
             @click="remove(index)"
           />
@@ -200,9 +201,3 @@ const canNest = computed(() => props.depth < 3)
     </div>
   </div>
 </template>
-
-<style scoped>
-.ps-audience-group__match :deep(.v-field__input) {
-  font-size: 12px;
-}
-</style>

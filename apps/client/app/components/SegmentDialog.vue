@@ -31,7 +31,7 @@ watch(open, (value) => {
   description.value = props.segment?.description ?? ''
   rule.value = props.segment ? JSON.parse(JSON.stringify(props.segment.rule)) as TargetRule : {}
   refusal.value = ''
-})
+}, { immediate: true })
 
 watch(name, (value) => {
   if (!keyEdited.value) key.value = value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 64)

@@ -11,9 +11,12 @@ const props = withDefaults(defineProps<{
   /** Other values this flag serves, offered for a string. */
   suggestions?: readonly string[]
   error?: boolean
+  /** The container's full width, for a form where every field is; otherwise sized to the value. */
+  block?: boolean
 }>(), {
   suggestions: () => [],
-  error: false
+  error: false,
+  block: false
 })
 
 const value = defineModel<Json>({ required: true })
@@ -24,7 +27,6 @@ const problem = ref('')
 
 function show(current: Json) {
   if (props.kind === 'json') text.value = JSON.stringify(current, null, 2)
-  else if (props.kind === 'number') text.value = typeof current === 'number' ? String(current) : ''
   else if (props.kind === 'string') text.value = typeof current === 'string' ? current : ''
 }
 
@@ -38,7 +40,6 @@ watch(value, (current) => {
       // The box holds something unparsed: the model changed from outside, so show the model.
     }
   }
-  if (props.kind === 'number' && Number(text.value) === current && text.value.trim() !== '') return
   show(current)
   problem.value = ''
   invalid.value = false
@@ -48,18 +49,6 @@ function onText(next: string) {
   text.value = next
   if (props.kind === 'string') {
     value.value = next
-    return
-  }
-  if (props.kind === 'number') {
-    const parsed = Number(next.replace(',', '.'))
-    if (next.trim() === '' || !Number.isFinite(parsed)) {
-      problem.value = 'Not a number'
-      invalid.value = true
-      return
-    }
-    problem.value = ''
-    invalid.value = false
-    value.value = parsed
     return
   }
   try {
@@ -74,6 +63,17 @@ function onText(next: string) {
   }
 }
 
+function onNumber(next: number | null) {
+  if (next === null || !Number.isFinite(next)) {
+    problem.value = 'A number flag needs a number'
+    invalid.value = true
+    return
+  }
+  problem.value = ''
+  invalid.value = false
+  value.value = next
+}
+
 function format() {
   try {
     text.value = JSON.stringify(JSON.parse(text.value), null, 2)
@@ -82,9 +82,9 @@ function format() {
   }
 }
 
-const BOOLEANS: SegmentedOption[] = [
-  { value: 'true', label: 'true' },
-  { value: 'false', label: 'false' }
+const BOOLEANS = [
+  { value: 'true', title: 'true' },
+  { value: 'false', title: 'false' }
 ]
 
 const bool = computed({
@@ -98,11 +98,17 @@ const lines = computed(() => Math.min(14, Math.max(4, text.value.split('\n').len
 </script>
 
 <template>
-  <SegmentedControl
+  <v-select
     v-if="kind === 'bool'"
     v-model="bool"
-    :label="label"
-    :options="BOOLEANS"
+    :aria-label="label"
+    :error="error"
+    :items="BOOLEANS"
+    v-bind="FIELD_MENU"
+    :class="block ? 'w-full' : 'w-40'"
+    class="ps-flag-value-editor"
+    hide-details
+    variant="outlined"
   />
 
   <v-combobox
@@ -110,9 +116,9 @@ const lines = computed(() => Math.min(14, Math.max(4, text.value.split('\n').len
     :aria-label="label"
     :error="error"
     :items="[...suggestions]"
+    v-bind="FIELD_MENU"
     :model-value="text"
-    class="ps-flag-value-editor font-mono"
-    density="default"
+    class="ps-flag-value-editor"
     hide-details
     hide-no-data
     placeholder="Text"
@@ -121,18 +127,22 @@ const lines = computed(() => Math.min(14, Math.max(4, text.value.split('\n').len
     @update:search="onText($event ?? '')"
   />
 
-  <div v-else-if="kind === 'number'" class="flex flex-col gap-1">
-    <v-text-field
+  <!-- A number, with steppers; a whole number steps by one and a fraction by a tenth.
+       Emptied, it holds no value, which the page refuses to save. -->
+  <div v-else-if="kind === 'number'" :class="block ? 'w-full' : ''" class="flex flex-col gap-1">
+    <v-number-input
       :aria-label="label"
       :error="error || problem !== ''"
-      :model-value="text"
-      class="ps-flag-value-editor w-48"
-      density="default"
+      :model-value="typeof value === 'number' ? value : null"
+      :precision="null"
+      :step="typeof value === 'number' && !Number.isInteger(value) ? 0.1 : 1"
+      :class="block ? 'w-full' : 'w-56'"
+      class="ps-flag-value-editor"
+      control-variant="split"
       hide-details
-      inputmode="decimal"
-      placeholder="0"
+      inset
       variant="outlined"
-      @update:model-value="onText($event)"
+      @update:model-value="onNumber"
     />
     <span v-if="problem" class="text-[11px] text-error">{{ problem }}</span>
   </div>
@@ -159,10 +169,12 @@ const lines = computed(() => Math.min(14, Math.max(4, text.value.split('\n').len
 </template>
 
 <style scoped>
+/* A value is read character by character, so it is set in the mono face at the field's own
+   size; the size is theme.css's, not restated here. */
 .ps-flag-value-editor :deep(input),
+.ps-flag-value-editor :deep(.v-select__selection-text),
 .ps-flag-value-editor--json :deep(textarea) {
   font-family: var(--font-mono);
-  font-size: 12px;
 }
 
 .ps-flag-value-editor--json :deep(textarea) {

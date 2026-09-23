@@ -296,7 +296,7 @@ const changeCount = computed(() => {
               variant="text"
             />
           </template>
-          <v-list density="compact" nav>
+          <v-list min-width="200" nav>
             <v-list-item prepend-icon="material-symbols:library-add-outline" title="Duplicate" @click="duplicating = true" />
             <v-list-item
               v-if="saved.archived"
@@ -451,22 +451,21 @@ const changeCount = computed(() => {
             <SettingRow :description="FLAG_PURPOSES[draft.purpose].note" label="Purpose">
               <v-select
                 :items="PURPOSE_ITEMS"
+                v-bind="FIELD_MENU"
                 :model-value="draft.purpose"
                 aria-label="Purpose"
-                class="w-56"
+                class="w-64"
                 hide-details
+                item-props
                 variant="outlined"
                 @update:model-value="patch({ purpose: $event })"
-              >
-                <template #item="{ props: item, item: option }">
-                  <v-list-item v-bind="item" :subtitle="option.subtitle" />
-                </template>
-              </v-select>
+              />
             </SettingRow>
             <SettingRow description="For finding and filtering flags: a team, a system, a release." label="Tags">
               <template #detail>
                 <v-combobox
                   :items="TAG_OPTIONS"
+                  v-bind="FIELD_MENU"
                   :model-value="draft.tags"
                   aria-label="Tags"
                   chips
@@ -580,9 +579,21 @@ const changeCount = computed(() => {
       </template>
     </v-snackbar>
 
-    <FlagPreviewDialog v-model="previewing" :focus="saved.key" />
-    <PublishDialog v-model="publishing" :environment="publishTo" :focus="saved.key" />
-    <NewFlagDialog v-model="duplicating" :from="creating" @created="router.push(`/growth/flags/${encodeURIComponent($event)}`)" />
+    <!-- Each dialog is mounted only while it is open: one left mounted across the write it
+         makes can leave its content painted on the page after it has closed. -->
+    <FlagPreviewDialog v-if="previewing" v-model="previewing" :focus="saved.key" />
+    <PublishDialog
+      v-if="publishing"
+      v-model="publishing"
+      :environment="publishTo"
+      :focus="saved.key"
+    />
+    <NewFlagDialog
+      v-if="duplicating"
+      v-model="duplicating"
+      :from="creating"
+      @created="router.push(`/growth/flags/${encodeURIComponent($event)}`)"
+    />
 
     <v-dialog v-model="compareOpen" max-width="520">
       <v-card border flat>
@@ -626,6 +637,7 @@ const changeCount = computed(() => {
     </v-dialog>
 
     <ConfirmDialog
+      v-if="reshuffling"
       v-model="reshuffling"
       action="Reshuffle"
       description="Every player is drawn again for this flag's partial rollouts once the draft is saved and published. Players already in a rollout may leave it, and others join."
@@ -635,6 +647,7 @@ const changeCount = computed(() => {
     />
 
     <ConfirmDialog
+      v-if="archiving"
       v-model="archiving"
       :description="`${saved.name} leaves the draft. Each environment keeps serving it until the next publish there; after that, devices fall back to the value written in the game's code.`"
       :title="`Archive ${saved.name}?`"
@@ -643,6 +656,7 @@ const changeCount = computed(() => {
     />
 
     <ConfirmDialog
+      v-if="leaveOpen"
       v-model="leaveOpen"
       :description="`${changeCount} unsaved ${changeCount === 1 ? 'change' : 'changes'} to ${saved.name} will be lost. Nothing has reached the draft or any player.`"
       action="Discard and leave"
