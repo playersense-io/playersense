@@ -13,11 +13,16 @@ const props = withDefaults(defineProps<{
   error?: boolean
   /** The container's full width, for a form where every field is; otherwise sized to the value. */
   block?: boolean
+  /** The 36px step, for a field set in a line of words rather than in a form. */
+  dense?: boolean
 }>(), {
   suggestions: () => [],
   error: false,
-  block: false
+  block: false,
+  dense: false
 })
+
+const density = computed(() => (props.dense ? 'comfortable' : 'default'))
 
 const value = defineModel<Json>({ required: true })
 const invalid = defineModel<boolean>('invalid', { default: false })
@@ -101,6 +106,7 @@ const lines = computed(() => Math.min(14, Math.max(4, text.value.split('\n').len
   <v-select
     v-if="kind === 'bool'"
     v-model="bool"
+    :density="density"
     :aria-label="label"
     :error="error"
     :items="BOOLEANS"
@@ -113,6 +119,8 @@ const lines = computed(() => Math.min(14, Math.max(4, text.value.split('\n').len
 
   <v-combobox
     v-else-if="kind === 'string'"
+    :class="block ? 'w-full' : 'w-64'"
+    :density="density"
     :aria-label="label"
     :error="error"
     :items="[...suggestions]"
@@ -132,6 +140,7 @@ const lines = computed(() => Math.min(14, Math.max(4, text.value.split('\n').len
   <div v-else-if="kind === 'number'" :class="block ? 'w-full' : ''" class="flex flex-col gap-1">
     <v-number-input
       :aria-label="label"
+      :density="density"
       :error="error || problem !== ''"
       :model-value="typeof value === 'number' ? value : null"
       :precision="null"
