@@ -34,7 +34,7 @@ export interface MetricSeries {
    * colour when the one before it is hidden: colour follows the metric, never its rank.
    */
   tone?: MetricTone
-  /** Bars sharing a name pile up. Lines and areas ignore it. */
+  /** Bars, or areas, sharing a name pile up. Lines ignore it. */
   stack?: string
   /** Drawn dashed: the previous period beside the current one. */
   dashed?: boolean
@@ -134,8 +134,8 @@ export function escapeHtml(text: string): string {
  *
  * One readout, every series, in the legend's order; the value is the loud part and the
  * name steps back, which is the legend's hierarchy inverted, because here the reader has
- * the series and wants the number. Stacked bars end with their total, since a stack's
- * height is the one figure the segments do not say.
+ * the series and wants the number. Stacked bars and areas end with their total, since a
+ * stack's height is the one figure the segments do not say.
  */
 export function renderTooltip(
   index: number,
@@ -166,7 +166,7 @@ export function renderTooltip(
       + '</li>'
     )
 
-    if (kind === 'bar' && series.stack !== undefined) {
+    if (kind !== 'line' && series.stack !== undefined) {
       stacked += 1
       total += value ?? 0
     }
@@ -233,7 +233,8 @@ function barSeries(
  * A two-pixel line with round joins, eased through its points but never past them.
  * Symbols show only under the pointer, ringed in the surface so one stays legible where
  * it crosses another line. An area is the same line over a wash of its own colour that
- * fades to nothing at the baseline.
+ * fades to nothing at the baseline — or, stacked on another, an even wash, since each band's
+ * floor is the line below it and a fade would leave the band looking hollow.
  */
 function lineSeries(
   entry: MetricSeries,
@@ -253,23 +254,25 @@ function lineSeries(
     lineStyle: { width: 2, cap: 'round', join: 'round', type: entry.dashed ? [4, 4] : 'solid' },
     itemStyle: { color, borderColor: palette.surface, borderWidth: 2 },
     emphasis: { focus: 'none', scale: 1.25 },
-    ...(filled
-      ? {
-          areaStyle: {
-            color: {
-              type: 'linear',
-              x: 0,
-              y: 0,
-              x2: 0,
-              y2: 1,
-              colorStops: [
-                { offset: 0, color: alpha(color, 0.18) },
-                { offset: 1, color: alpha(color, 0) }
-              ]
+    ...(filled && entry.stack !== undefined
+      ? { stack: entry.stack, areaStyle: { color: alpha(color, 0.32) } }
+      : filled
+        ? {
+            areaStyle: {
+              color: {
+                type: 'linear',
+                x: 0,
+                y: 0,
+                x2: 0,
+                y2: 1,
+                colorStops: [
+                  { offset: 0, color: alpha(color, 0.18) },
+                  { offset: 1, color: alpha(color, 0) }
+                ]
+              }
             }
           }
-        }
-      : {})
+        : {})
   }
 }
 
