@@ -81,7 +81,28 @@ const traffic = ref(10_000)
 
 const METRIC_ITEMS = METRIC_KEYS.map(key => ({ value: key, title: EXPERIMENT_METRICS[key].label, subtitle: EXPERIMENT_METRICS[key].note }))
 
-const guardrailItems = computed(() => METRIC_ITEMS.filter(item => item.value !== primaryMetric.value))
+/* Searched rather than picked from a list, and never emptied: a test is always decided by one. */
+const primaryModel = computed({
+  get: () => primaryMetric.value as string,
+  set: (value: string | null) => {
+    if (value) primaryMetric.value = value as MetricKey
+  }
+})
+
+/* Every metric, the one the test is decided by marked rather than hidden, so the list stays put. */
+const GUARDRAIL_OPTIONS = computed(() => METRIC_KEYS.map(key => ({
+  value: key,
+  label: EXPERIMENT_METRICS[key].label,
+  note: EXPERIMENT_METRICS[key].note,
+  ...(key === primaryMetric.value ? { disabledReason: 'The test is decided by this one already.' } : {})
+})))
+
+const guardrailModel = computed({
+  get: () => guardrails.value as string[],
+  set: (value: string[]) => {
+    guardrails.value = value as MetricKey[]
+  }
+})
 
 watch(primaryMetric, (value) => {
   guardrails.value = guardrails.value.filter(entry => entry !== value)
@@ -112,7 +133,7 @@ function confirm() {
   open.value = false
 }
 
-const ids = { name: useId(), hypothesis: useId(), flag: useId(), audience: useId(), traffic: useId(), metric: useId(), guardrails: useId(), days: useId() }
+const ids = { name: useId(), hypothesis: useId(), flag: useId(), audience: useId(), traffic: useId(), metric: useId(), days: useId() }
 </script>
 
 <template>
@@ -308,31 +329,29 @@ const ids = { name: useId(), hypothesis: useId(), flag: useId(), audience: useId
         <div class="flex flex-col gap-1.5">
           <label :for="ids.metric" class="text-xs font-medium text-ink">Decided by</label>
           <span class="text-[11px] leading-4 text-ink/55">The one metric the winner is picked on. Choose it now, not after the results are in.</span>
-          <v-select
+          <v-autocomplete
             :id="ids.metric"
-            v-model="primaryMetric"
+            v-model="primaryModel"
             v-bind="FIELD_MENU"
             :items="METRIC_ITEMS"
+            auto-select-first
             hide-details
             item-props
+            placeholder="Find a metric"
+            prepend-inner-icon="material-symbols:search"
             variant="outlined"
           />
         </div>
 
         <div class="flex flex-col gap-1.5">
-          <label :for="ids.guardrails" class="text-xs font-medium text-ink">Must not get worse</label>
+          <span class="text-xs font-medium text-ink">Must not get worse</span>
           <span class="text-[11px] leading-4 text-ink/55">Guardrails: the page warns if a variant makes one of these worse, whatever it does to the metric above.</span>
-          <v-select
-            :id="ids.guardrails"
-            v-model="guardrails"
-            v-bind="FIELD_MENU"
-            :items="guardrailItems"
-            chips
-            closable-chips
-            hide-details
-            item-props
-            multiple
-            variant="outlined"
+          <CheckList
+            v-model="guardrailModel"
+            :columns="2"
+            :options="GUARDRAIL_OPTIONS"
+            class="mt-1"
+            label="Must not get worse"
           />
         </div>
 
