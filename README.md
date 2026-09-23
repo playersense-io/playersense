@@ -425,8 +425,11 @@ go run ./apps/backend/cmd/billing-writer
 ```
 
 Charges tracked players as they arrive, on its own subscription: counts who is new this month,
-queues what they cost, drains the queue into wallets every `BILLING_DRAIN_EVERY`, and deletes player
-sets older than last month; with `STRIPE_SECRET_KEY` set, it also charges saved cards for balances
+queues what they cost, and settles the queue into wallets — within `BILLING_SETTLE_AFTER` (5 minutes), or
+within seconds when a balance would cross zero or its top-up threshold
+([ADR 0044](docs/adr/0044-usage-settles-when-it-matters.md)); the billing page's `live` balance already
+takes off what is queued. It deletes player sets older than last month, and queue rows a year after they
+settled; with `STRIPE_SECRET_KEY` set, it also charges saved cards for balances
 below their automatic top-up threshold. Needs PostgreSQL; Valkey only makes it faster — it answers
 "already counted this month" and holds each organization's pricing, so a busy organization costs no
 database reads to price. `BILLING_LOAD=1 go test ./apps/backend/internal/charging -run TestLoad -v`

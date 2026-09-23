@@ -84,10 +84,12 @@ oldest-purchase-next, and lapsed credit is written off one statement line at a t
 
 **Real-time charging** is built ([ADR 0039](../adr/0039-players-are-charged-as-they-arrive.md)).
 `billing-writer` counts each organization's new tracked players as batches arrive, prices them at
-their positions on the plan's rate card, queues the charge, and drains the queue into the wallet
-every few seconds. Prices are immutable rate cards staff publish through the operator API and the
+their positions on the plan's rate card, queues the charge, and settles the queue into the wallet
+within five minutes — within seconds when a balance would cross zero or its top-up threshold
+([ADR 0044](../adr/0044-usage-settles-when-it-matters.md)). Prices are immutable rate cards staff publish through the operator API and the
 public pricing page reads. Usage the wallet cannot cover becomes arrears and moves the account to
-its grace period; ingestion is never affected.
+its grace period; ingestion is refused only past the bounded tolerance of
+[ADR 0043](../adr/0043-a-bounded-tolerance-for-accounts-that-owe.md).
 
 What it does not yet cover:
 

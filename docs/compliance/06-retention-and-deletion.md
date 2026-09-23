@@ -103,7 +103,9 @@ deletion of an individual actor, because it is not about them any more —
 [07](07-aggregate-disclosure.md) covers where that stops being true.
 
 **Billing records.** Invoices and usage counts are retained for the period tax law requires.
-They are aggregate counts and name no player.
+They are aggregate counts and name no player. The charging queue (`usage_charges`) is working state, not a
+record: its rows are deleted 395 days after they settle, and the ledger line each settled into is kept
+([ADR 0044](../adr/0044-usage-settles-when-it-matters.md)).
 
 **Audit records of the deletion itself.** Proving an erasure happened requires a record that
 it happened, which necessarily outlives the data. It holds the actor key, the request, and

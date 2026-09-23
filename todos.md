@@ -204,9 +204,12 @@ status/legal links, signup/login entry. **Must not contain privileged admin logi
       from purchased (never-expiring) credit; auto-topup toggle. No path here for a customer to
       grant themselves credit — that's operator-only (see Admin). Charging is real time now
       (ADR 0039): `GET …/billing` carries `month` — the exact tracked players this month (not a
-      peak), what they cost, what is still queued (seconds old), the rate card and the band the
+      peak), what they cost, what is still queued (minutes old at most), the rate card and the band the
       next player lands in — and `arrears_micros`, usage the wallet could not cover. Show arrears
-      prominently and say plainly that ingestion is unaffected.
+      prominently. **Show `live` as the balance** (ADR 0044): the ledger settles every few minutes,
+      and `live` is the ledger minus what is queued, with its own promo / purchased / owed split —
+      the headline number, with a small "includes $X of usage not yet on your statement" line from
+      `live.pending`. The lot list and statement are the ledger's and may trail `live` by minutes.
       Paying (ADR 0040): "Add credit" is `POST …/billing/top-ups` → redirect the browser to the
       returned `url`; "Manage cards" is `POST …/billing/portal` → redirect likewise. On return
       (`?checkout=success`) do **not** show the credit as arrived — poll `GET …/billing` for a few
