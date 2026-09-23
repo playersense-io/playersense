@@ -39,7 +39,49 @@ const live = computed(() => rows.value.filter(row => row.state === 'live'))
 const upcoming = computed(() => rows.value
   .filter(row => row.state === 'scheduled' && row.next && row.next.start - time.value < 45 * DAY)
   .sort((a, b) => a.next!.start - b.next!.start)
-  .slice(0, 6))
+  .slice(0, 5))
+
+/* "30 days left", "5 hours left": the one thing about a live event's time worth a line. */
+function leftWords(row: Row): string {
+  if (!row.current) return ''
+  return `${relativeWords(row.current.end, time.value).replace('in ', '')} left`
+}
+
+/*
+ * A live event as a metric tile: its name, the metric it is meant to move a day while on, and
+ * how far that is from what its players would have done without it. An event not meant to
+ * move anything shows the players it reached.
+ */
+function tileOf(row: Row) {
+  const goal = row.goal
+  if (!row.last || !goal) return { label: row.name, value: row.last ? row.last.players : null, compact: true }
+  const kind = LIVEOPS_METRICS[goal].kind
+  const scale = kind === 'rate' ? 100 : 1
+  const metric = row.last.metrics[goal]
+  return {
+    label: row.name,
+    value: metric.during * scale,
+    previous: metric.expected * scale,
+    compare: row.last.method === 'holdout' ? 'vs held back' : 'vs expected',
+    prefix: kind === 'money' ? '$' : '',
+    unit: ({ rate: '%', money: '', count: '', minutes: 'min', ratio: '' })[kind],
+    decimals: kind === 'money' && metric.during < 10 ? 3 : 1,
+    compact: true
+  }
+}
+
+const startFormat = new Intl.DateTimeFormat('en', { weekday: 'short', month: 'short', day: 'numeric' })
+
+/* "Fri, Sep 25 at 18:00". */
+const startWords = (window: Occurrence) => `${startFormat.format(window.start)} at ${new Date(window.start).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`
+
+/* "18h", "3d": the countdown, as short as it can be read. */
+function untilWords(window: Occurrence): string {
+  const gap = Math.max(0, window.start - time.value)
+  if (gap >= 2 * DAY) return `${Math.round(gap / DAY)}d`
+  if (gap >= 3_600_000) return `${Math.round(gap / 3_600_000)}h`
+  return `${Math.max(1, Math.round(gap / 60_000))}m`
+}
 
 const progress = (row: Row) => (row.current ? Math.min(1, (time.value - row.current.start) / (row.current.end - row.current.start)) : 0)
 
@@ -255,95 +297,62 @@ const router = useRouter()
 
     <InfoNote text="Events and their results are sample data until the dashboard reads /liveops-events and the daily figures. Whether an event is on for a player is already decided by the server, from the published schedule." />
 
-    <!-- On now, and what is next. -->
-    <div class="grid gap-6 xl:grid-cols-3">
-      <section class="flex flex-col gap-3 xl:col-span-2">
-        <div class="flex flex-col gap-0.5">
-          <h2 class="m-0 flex items-center gap-2 text-sm font-medium text-ink">
-            On now
-            <span class="font-mono text-[11px] font-normal text-ink/45">{{ live.length }}</span>
-          </h2>
-          <p class="m-0 text-xs text-ink/60">
-            Each figure is its players against what they would have done without it, so a sale under a season is read apart from the season.
-          </p>
-        </div>
-
-        <div v-if="live.length" class="grid gap-3 md:grid-cols-2">
-          <NuxtLink
-            v-for="row in live"
-            :key="row.key"
-            :to="`/growth/liveops/${row.key}`"
-            class="group flex flex-col gap-4 rounded-(--ps-radius-x-large) border border-line bg-surface p-5 no-underline transition-colors hover:border-ink/25"
-          >
-            <div class="flex items-start justify-between gap-3">
-              <div class="flex min-w-0 items-start gap-3">
-                <LiveOpsKindMark :kind="row.kind" bare size="large" />
-                <div class="flex min-w-0 flex-col gap-0.5">
-                  <span class="truncate text-sm font-medium text-ink group-hover:text-primary">{{ row.name }}</span>
-                  <span class="truncate text-xs text-ink/55">{{ kindLook(row.kind).label }} · {{ audienceWords(row.audience) }}</span>
-                </div>
-              </div>
-              <StatusBadge :label="LIVEOPS_STATE.live.label" tone="success" />
-            </div>
-
-            <div v-if="row.last && row.goal" class="flex items-end justify-between gap-4">
-              <div class="flex flex-col">
-                <span class="text-[11px] text-ink/50">{{ LIVEOPS_METRICS[row.goal].label }} so far</span>
-                <span :class="OUTCOME_TEXT[outcomeOf(row.last.metrics[row.goal].comparison)]" class="font-mono text-2xl leading-8">{{ writeOpsLift(row.goal, row.last.metrics[row.goal].comparison) }}</span>
-              </div>
-              <div class="flex flex-col items-end">
-                <span class="text-[11px] text-ink/50">{{ row.last.method === 'holdout' ? 'Against players held back' : 'Against its usual' }}</span>
-                <span class="font-mono text-sm leading-6 text-ink/80">{{ writeOpsMetric(row.goal, row.last.metrics[row.goal].during) }} <span class="text-ink/40">vs</span> {{ writeOpsMetric(row.goal, row.last.metrics[row.goal].expected) }}</span>
-              </div>
-            </div>
-            <p v-else class="m-0 text-xs leading-5 text-ink/60">
-              Not measured: it is not meant to move a metric.
-            </p>
-
-            <div class="flex flex-col gap-1.5">
-              <span class="relative h-1.5 overflow-hidden rounded-full bg-ink/8">
-                <span :style="{ width: `${progress(row) * 100}%`, background: toneColour(kindLook(row.kind).tone) }" class="absolute inset-y-0 left-0 rounded-full" />
-              </span>
-              <span class="flex justify-between gap-2 text-[11px] text-ink/50">
-                <span>{{ row.current ? windowWords(row.current) : '' }}</span>
-                <span class="flex-none">{{ stateWords(row, time) }}</span>
-              </span>
-            </div>
-          </NuxtLink>
-        </div>
-        <LayerCard v-else>
-          <EmptyState description="Schedule one, or check the calendar for what is coming." icon="material-symbols:event-outline" title="Nothing is on right now" />
-        </LayerCard>
-      </section>
-
-      <section class="flex flex-col gap-3">
-        <div class="flex flex-col gap-0.5">
-          <h2 class="m-0 text-sm font-medium text-ink">
-            Coming up
-          </h2>
-          <p class="m-0 text-xs text-ink/60">
-            The next windows in the next six weeks, soonest first.
-          </p>
-        </div>
-        <LayerCard :padded="false">
-          <ol v-if="upcoming.length" class="m-0 flex list-none flex-col p-0">
-            <li v-for="row in upcoming" :key="row.key" class="border-b border-line/70 last:border-b-0">
-              <NuxtLink :to="`/growth/liveops/${row.key}`" class="group flex items-center gap-3 px-3 py-2.5 no-underline">
-                <LiveOpsKindMark :kind="row.kind" bare />
-                <span class="flex min-w-0 flex-1 flex-col">
-                  <span class="truncate text-[13px] text-ink group-hover:text-primary">{{ row.name }}</span>
-                  <span class="truncate text-[11px] text-ink/50">{{ windowWords(row.next!) }}</span>
+    <!-- On now: a tile an event, its metric while on against what was expected without it. -->
+    <section class="flex flex-col gap-3">
+      <h2 class="m-0 flex items-center gap-2 text-sm font-medium text-ink">
+        On now
+        <span class="rounded-full bg-success/12 px-1.5 font-mono text-[11px] leading-4 text-success">{{ live.length }}</span>
+      </h2>
+      <div v-if="live.length" class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <NuxtLink
+          v-for="row in live"
+          :key="row.key"
+          :to="`/growth/liveops/${row.key}`"
+          class="block rounded-(--ps-radius-large) no-underline transition-shadow hover:shadow-[0_0_0_1px_rgba(var(--v-theme-on-surface),0.18)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        >
+          <Statistic v-bind="tileOf(row)">
+            <template #description>
+              <span class="flex flex-col gap-2">
+                <span class="truncate text-ink/50">{{ row.goal ? LIVEOPS_METRICS[row.goal].label : 'Players reached' }} a day · {{ leftWords(row) }}</span>
+                <span :aria-label="`${Math.round(progress(row) * 100)}% through`" class="relative h-1 overflow-hidden rounded-full bg-ink/8" role="img">
+                  <span :style="{ width: `${progress(row) * 100}%`, background: toneColour(kindLook(row.kind).tone) }" class="absolute inset-y-0 left-0 rounded-full" />
                 </span>
-                <span class="flex-none font-mono text-[11px] text-ink/60">{{ relativeWords(row.next!.start, time).replace('in ', '') }}</span>
-              </NuxtLink>
-            </li>
-          </ol>
-          <p v-else class="m-0 px-4 py-8 text-center text-xs text-ink/50">
-            Nothing is scheduled in the next six weeks.
-          </p>
-        </LayerCard>
-      </section>
-    </div>
+              </span>
+            </template>
+          </Statistic>
+        </NuxtLink>
+      </div>
+      <LayerCard v-else>
+        <p class="m-0 py-6 text-center text-xs text-ink/50">
+          Nothing is on right now.
+        </p>
+      </LayerCard>
+    </section>
+
+    <!-- Next up: the windows due, soonest first, in one row. -->
+    <section class="flex flex-col gap-3">
+      <h2 class="m-0 text-sm font-medium text-ink">
+        Next up
+      </h2>
+      <div class="flex overflow-x-auto rounded-(--ps-radius-large) border border-line bg-surface">
+        <NuxtLink
+          v-for="row in upcoming"
+          :key="row.key"
+          :to="`/growth/liveops/${row.key}`"
+          class="group flex min-w-52 flex-1 items-center gap-3 border-r border-line/70 px-4 py-3 no-underline last:border-r-0 hover:bg-ink/3"
+        >
+          <LiveOpsKindMark :kind="row.kind" bare />
+          <span class="flex min-w-0 flex-1 flex-col">
+            <span class="truncate text-[13px] text-ink group-hover:text-primary">{{ row.name }}</span>
+            <span class="truncate text-[11px] text-ink/50">{{ startWords(row.next!) }}</span>
+          </span>
+          <span class="flex-none font-mono text-xs text-ink/60">{{ untilWords(row.next!) }}</span>
+        </NuxtLink>
+        <p v-if="!upcoming.length" class="m-0 flex-1 px-4 py-6 text-center text-xs text-ink/50">
+          Nothing is due in the next six weeks.
+        </p>
+      </div>
+    </section>
 
     <SectionCard :padded="false" description="Every event on the days it was on, in a band per kind, with the A/B tests running at the time and the whole game's day along the top. Hover a bar for what it did; select it for its results." title="Calendar">
       <div class="p-4">
