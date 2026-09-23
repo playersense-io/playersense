@@ -213,7 +213,7 @@ const placeholder = computed(() => {
         :placeholder="`${placeholder}, one or more`"
         :return-object="false"
         chips
-        class="ps-audience-condition__many min-w-56 flex-1"
+        class="ps-audience-condition__many max-w-lg min-w-56 flex-1"
         closable-chips
         density="comfortable"
         hide-details
@@ -227,7 +227,6 @@ const placeholder = computed(() => {
         <v-btn
           v-bind="activator"
           :aria-label="`${label} options`"
-          class="ml-auto"
           color="neutral"
           icon="material-symbols:more-horiz"
           size="small"

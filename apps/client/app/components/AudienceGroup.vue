@@ -84,7 +84,6 @@ const canNest = computed(() => props.depth < 3)
       <v-btn
         v-if="!root"
         aria-label="Remove group"
-        class="ml-auto"
         color="neutral"
         icon="material-symbols:close"
         size="small"
@@ -144,7 +143,6 @@ const canNest = computed(() => props.depth < 3)
           />
           <v-btn
             aria-label="Remove segment"
-            class="ml-auto"
             color="neutral"
             icon="material-symbols:close"
             size="small"
