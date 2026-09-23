@@ -52,6 +52,13 @@ const props = withDefaults(defineProps<{
   /** What a cohort is made of, in the card: "1,204 of 9,830 players". */
   unit?: string
   maxHeight?: string
+  /**
+   * While the answer is on its way: the header stays, since the days are the reader's and
+   * already known, and every row below it is bones in the shape of the cells to come.
+   */
+  loading?: boolean
+  /** How many rows of bones to draw while loading: about as many as are coming. */
+  loadingRows?: number
 }>(), {
   color: 'heat',
   grain: 'day',
@@ -59,7 +66,9 @@ const props = withDefaults(defineProps<{
   rowLabel: 'Cohort',
   sizeLabel: 'Players',
   unit: 'players',
-  maxHeight: '34rem'
+  maxHeight: '34rem',
+  loading: false,
+  loadingRows: 8
 })
 
 // --- Words --------------------------------------------------------------------------------
@@ -347,10 +356,50 @@ const GLYPH_CLASS = { up: 'cohort-card__glyph--up', down: 'cohort-card__glyph--d
       ref="scroller"
       :class="{ 'cohort-table__scroller--scrolled': scrolledX > 0 }"
       :style="{ 'maxHeight': maxHeight, '--cohort-label': labelWidth }"
+      :aria-busy="loading || undefined"
       class="cohort-table__scroller"
     >
+      <table v-if="loading && offsets.length" :aria-label="`${label}, loading`" class="cohort-grid">
+        <colgroup>
+          <col class="cohort-grid__label-col">
+          <col class="cohort-grid__size-col">
+          <col v-for="offset in offsets" :key="offset">
+        </colgroup>
+        <thead>
+          <tr class="cohort-grid__head">
+            <th class="cohort-grid__label" scope="col">
+              {{ rowLabel }}
+            </th>
+            <th class="cohort-grid__size" scope="col">
+              {{ sizeLabel }}
+            </th>
+            <th
+              v-for="offset in offsets"
+              :key="offset"
+              class="cohort-grid__day"
+              scope="col"
+            >
+              <span>{{ offsetLabel(offset) }}</span>
+            </th>
+          </tr>
+        </thead>
+        <tbody aria-hidden="true">
+          <tr v-for="line in loadingRows" :key="line">
+            <th class="cohort-grid__label" scope="row">
+              <span :style="{ width: `${55 + (line * 37) % 30}%` }" class="cohort-grid__bone" />
+            </th>
+            <td class="cohort-grid__size">
+              <span class="cohort-grid__bone ml-auto w-3/5" />
+            </td>
+            <td v-for="offset in offsets" :key="offset">
+              <span class="cohort-grid__cell cohort-grid__cell--bone" />
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
       <table
-        v-if="rows.length && offsets.length"
+        v-else-if="rows.length && offsets.length"
         ref="table"
         :aria-colcount="offsets.length + 2"
         :aria-label="label"
@@ -441,7 +490,7 @@ const GLYPH_CLASS = { up: 'cohort-card__glyph--up', down: 'cohort-card__glyph--d
       </p>
     </div>
 
-    <div class="flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-line px-4 py-3 text-[11px] text-ink/55">
+    <div v-if="!loading" class="flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-line px-4 py-3 text-[11px] text-ink/55">
       <span v-if="color === 'heat'" class="flex items-center gap-2">
         <span class="font-mono">{{ domain ? mode.format(domain[0]) : '' }}</span>
         <span aria-hidden="true" class="cohort-legend__ramp cohort-legend__ramp--heat" />
@@ -704,6 +753,20 @@ const GLYPH_CLASS = { up: 'cohort-card__glyph--up', down: 'cohort-card__glyph--d
 .cohort-grid td[data-offset]:hover > .cohort-grid__cell,
 .cohort-grid td[data-offset]:focus-visible > .cohort-grid__cell {
   box-shadow: 0 0 0 2px rgb(var(--v-theme-on-surface));
+}
+
+/* --- Loading ------------------------------------------------------------------------- */
+
+/* Still, in the panel's skeleton colours: a label's line, and a well where each cell goes. */
+.cohort-grid__bone {
+  background: var(--ps-skeleton-bone);
+  border-radius: var(--ps-radius-x-small);
+  display: block;
+  height: 10px;
+}
+
+.cohort-grid__cell--bone {
+  background: var(--ps-skeleton-well);
 }
 
 /* --- The crosshair -------------------------------------------------------------------- */
