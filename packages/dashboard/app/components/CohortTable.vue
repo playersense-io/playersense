@@ -472,7 +472,7 @@ const GLYPH_CLASS = { up: 'cohort-card__glyph--up', down: 'cohort-card__glyph--d
       :model-value="card !== null"
       :offset="8"
       :target="active?.el"
-      content-class="cohort-card"
+      content-class="ps-figure-card"
       location="top"
       :transition="false"
     >
@@ -767,23 +767,7 @@ const GLYPH_CLASS = { up: 'cohort-card__glyph--up', down: 'cohort-card__glyph--d
 </style>
 
 <style>
-/*
- * The card is a small panel on the surface rather than the inverted tooltip every other
- * hint uses: it carries a figure and a coloured glyph, and both need the page's ground to
- * read. Unscoped, because the overlay is teleported out of this component.
- */
-.v-tooltip > .v-overlay__content.cohort-card {
-  background: rgb(var(--v-theme-surface));
-  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-  border-radius: var(--ps-radius-small, 6px);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
-  color: rgb(var(--v-theme-on-surface));
-  font-weight: 400;
-  max-width: 18rem;
-  padding: 8px 10px;
-  pointer-events: none;
-}
-
+/* The card's glyph. Unscoped, because the overlay is teleported out of this component. */
 .cohort-card__glyph {
   font-size: 9px;
 }
