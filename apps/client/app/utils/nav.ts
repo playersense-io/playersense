@@ -24,7 +24,7 @@ export const NAV = defineNavigation({
         children: [
           { title: 'Retention', to: '/insights/retention' },
           { title: 'Funnels', to: '/insights/funnels' },
-          { title: 'Cohorts', to: '/cohorts' },
+          { title: 'Cohorts', to: '/insights/cohorts' },
           { title: 'Revenue', to: '/revenue' }
         ]
       },
