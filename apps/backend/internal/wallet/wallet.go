@@ -260,6 +260,25 @@ func LotsOf(ctx context.Context, lots *ent.CreditLotClient, accountID int) ([]Lo
 	return out, nil
 }
 
+// LotsOfAccounts is [LotsOf] for several accounts in one query, keyed by account — for a read that
+// answers about every organization a person belongs to at once. An account with no credit is absent.
+func LotsOfAccounts(ctx context.Context, lots *ent.CreditLotClient, accountIDs []int) (map[int][]Lot, error) {
+	out := make(map[int][]Lot, len(accountIDs))
+	if len(accountIDs) == 0 {
+		return out, nil
+	}
+	rows, err := lots.Query().
+		Where(creditlot.AccountIDIn(accountIDs...), creditlot.RemainingMicrosGT(0)).
+		All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("read credit lots: %w", err)
+	}
+	for _, row := range rows {
+		out[row.AccountID] = append(out[row.AccountID], lotOf(row))
+	}
+	return out, nil
+}
+
 // lotOf is the one place a row becomes a Lot, so the two cannot drift.
 func lotOf(row *ent.CreditLot) Lot {
 	return Lot{

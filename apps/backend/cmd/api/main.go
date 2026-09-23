@@ -203,6 +203,7 @@ func build(settings config.Settings, overrides ...muzak.RouterOption) (*muzak.Ap
 			{URL: settings.PublicURL, Description: "this deployment"},
 		},
 		Tags: []muzak.Tag{
+			{Name: "users", Description: "The signed-in person, and where they belong."},
 			{Name: "organizations", Description: "The billing and ownership boundary."},
 			{Name: "projects", Description: "One game, with its environments."},
 			{Name: "api-keys", Description: "Credentials scoped to one environment."},
@@ -406,6 +407,10 @@ func build(settings config.Settings, overrides ...muzak.RouterOption) (*muzak.Ap
 	// resolve a signed-in person, and guarded individually rather than by a permission —
 	// see the router.
 	api.Include(routers.Invitations())
+
+	// The signed-in person, for the dashboard's shell. Names no organization either; what each
+	// organization shows is decided by the person's role in it.
+	api.Include(routers.Users())
 
 	// A provider, not a guard, and the framework's own documentation says why twice over:
 	// per-user credentials want a provider rather than a shared-secret guard, and every

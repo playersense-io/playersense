@@ -7428,6 +7428,68 @@
           }
         }
       }
+    },
+    "/v1/users/me": {
+      "get": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Who you are, and where you belong",
+        "description": "The signed-in person and every organization they belong to, with their role in each. `balance` is the organization's live balance — `available_micros`, or `owed_micros` when it owes, is the headline — and is null where the role does not hold `billing.read`, exactly where GET …/billing would refuse.",
+        "operationId": "get_v1_users_me",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not do that",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -7741,6 +7803,48 @@
           "queued",
           "threshold_micros",
           "used_today"
+        ]
+      },
+      "BalanceSummaryOut": {
+        "type": "object",
+        "properties": {
+          "available": {
+            "type": "string"
+          },
+          "available_micros": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The headline: credit left to spend, after usage not yet settled"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "owed": {
+            "type": "string"
+          },
+          "owed_micros": {
+            "type": "integer",
+            "format": "int64",
+            "description": "What it owes, including usage not yet settled; the headline when not zero"
+          },
+          "pending_micros": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Usage counted and not yet on the statement — minutes old at most"
+          },
+          "state": {
+            "type": "string",
+            "description": "active, grace_period, restricted, suspended or canceled"
+          }
+        },
+        "required": [
+          "available",
+          "available_micros",
+          "currency",
+          "owed",
+          "owed_micros",
+          "pending_micros",
+          "state"
         ]
       },
       "BillingOut": {
@@ -9367,6 +9471,75 @@
           "updated_at"
         ]
       },
+      "MeOrganizationOut": {
+        "type": "object",
+        "properties": {
+          "balance": {
+            "description": "Null when your role may not read billing, or there is no billing account",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BalanceSummaryOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/MeRoleOut"
+          },
+          "slug": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "role",
+          "slug"
+        ]
+      },
+      "MeOut": {
+        "type": "object",
+        "properties": {
+          "organizations": {
+            "type": "array",
+            "description": "Every organization you belong to, by name",
+            "items": {
+              "$ref": "#/components/schemas/MeOrganizationOut"
+            }
+          },
+          "person": {
+            "$ref": "#/components/schemas/PersonOut"
+          }
+        },
+        "required": [
+          "organizations",
+          "person"
+        ]
+      },
+      "MeRoleOut": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "description": "Stable; owner, admin, liveops_manager, developer, growth_manager or billing for the seeded six"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "name"
+        ]
+      },
       "MemberListOut": {
         "type": "object",
         "properties": {
@@ -9738,6 +9911,32 @@
           "organization",
           "organization_slug",
           "role"
+        ]
+      },
+      "PersonOut": {
+        "type": "object",
+        "properties": {
+          "avatar_url": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "email_verified": {
+            "type": "boolean",
+            "description": "False means read-only until the address is confirmed"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "email_verified",
+          "id"
         ]
       },
       "PlanDetailOut": {
@@ -10518,6 +10717,10 @@
     }
   },
   "tags": [
+    {
+      "name": "users",
+      "description": "The signed-in person, and where they belong."
+    },
     {
       "name": "organizations",
       "description": "The billing and ownership boundary."

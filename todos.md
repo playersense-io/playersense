@@ -156,7 +156,11 @@ status/legal links, signup/login entry. **Must not contain privileged admin logi
 - [x] Scaffold Nuxt app at `apps/client` (Nuxt UI's `ui/dashboard` template — ships with
       Unovis for charts, TanStack Table, Zod; see the corrected charting decision in §6).
 - [ ] Auth shell: Firebase sign-in, organization/project switcher, environment switcher
-      (development/staging/production, §75–76).
+      (development/staging/production, §75–76). Load the shell from `GET /v1/users/me`: the
+      person, every organization with the caller's role, and each one's live `balance` — show
+      `available` in the header (or `owed`, red, when it is not zero; a banner when `state` is
+      `grace_period` or `suspended`). `balance` is null where the role lacks `billing.read`:
+      show nothing there, not $0. Refetch after a top-up returns and when switching organization.
 - [ ] Wire `packages/contracts`-typed clients to `api` (`:21080`), carrying the Firebase ID
       token.
 - [ ] Respect Appendix C #3: a project outside the caller's access list comes back as

@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	"playersense.dev/backend/ent/ledgerentry"
 	"playersense.dev/backend/ent/organization"
 	"playersense.dev/backend/ent/project"
+	"playersense.dev/backend/ent/usagecharge"
 	"playersense.dev/backend/ent/usagedaily"
 	"playersense.dev/backend/internal/audit"
 	"playersense.dev/backend/internal/billing"
@@ -671,7 +673,7 @@ func billingOut(ctx context.Context, db *core.DB, account *ent.BillingAccount,
 	for _, lot := range wallet.Expiring(lots, at, at.Add(ExpiryWarning)) {
 		out.ExpiringSoon = append(out.ExpiringSoon, creditLotOut(byID[lot.ID], at))
 	}
-	out.Live = liveOut(out, lots, month.PendingMicros, account.ArrearsMicros, account.BalanceMicros, at)
+	out.Live = liveOut(lots, month.PendingMicros, account.ArrearsMicros, account.BalanceMicros, at)
 	return out, nil
 }
 
@@ -771,13 +773,28 @@ func policyOf(ctx *muzak.Context) suspensionPolicy {
 }
 
 // liveOut projects the queued usage onto the wallet, exactly as the drain will apply it.
-func liveOut(out schemas.BillingOut, lots []wallet.Lot, pending, arrears, balance int64, at time.Time) schemas.LiveBalanceOut {
+//
+// From the lots alone, skipping lapsed ones as the spend path does, so the billing page and
+// /v1/users/me cannot compute the same balance two ways.
+func liveOut(lots []wallet.Lot, pending, arrears, balance int64, at time.Time) schemas.LiveBalanceOut {
+	var promo, purchased int64
+	for _, lot := range lots {
+		if !lot.Spendable(at) {
+			continue
+		}
+		switch lot.Kind {
+		case wallet.Promo:
+			promo += lot.Remaining
+		case wallet.Purchase:
+			purchased += lot.Remaining
+		}
+	}
 	live := schemas.LiveBalanceOut{
 		PendingMicros:   pending,
 		BalanceMicros:   balance - pending,
-		AvailableMicros: out.AvailableMicros,
-		PromoMicros:     out.PromoMicros,
-		PurchasedMicros: out.PurchasedMicros,
+		AvailableMicros: wallet.Available(lots, at),
+		PromoMicros:     promo,
+		PurchasedMicros: purchased,
 		OwedMicros:      arrears,
 	}
 	switch {
@@ -803,4 +820,56 @@ func liveOut(out schemas.BillingOut, lots []wallet.Lot, pending, arrears, balanc
 	live.Balance = billing.USD(live.BalanceMicros)
 	live.Pending = billing.USD(live.PendingMicros)
 	return live
+}
+
+// balancesOf is the live balance of several organizations at once, keyed by organization: three
+// queries however many there are — accounts, their credit, their queued usage. An organization
+// with no billing account is absent.
+func balancesOf(ctx context.Context, db *core.DB, orgIDs []int, at time.Time) (map[int]schemas.BalanceSummaryOut, error) {
+	out := make(map[int]schemas.BalanceSummaryOut, len(orgIDs))
+	if len(orgIDs) == 0 {
+		return out, nil
+	}
+	accounts, err := db.Client.BillingAccount.Query().
+		Where(billingaccount.OrganizationIDIn(orgIDs...)).All(ctx)
+	if err != nil || len(accounts) == 0 {
+		return out, err
+	}
+	ids := make([]int, len(accounts))
+	for i, account := range accounts {
+		ids[i] = account.ID
+	}
+	lots, err := wallet.LotsOfAccounts(ctx, db.Client.CreditLot, ids)
+	if err != nil {
+		return nil, err
+	}
+	var sums []struct {
+		AccountID int   `json:"account_id"`
+		Sum       int64 `json:"sum"`
+	}
+	if err := db.Client.UsageCharge.Query().
+		Where(usagecharge.AccountIDIn(ids...), usagecharge.SettledAtIsNil()).
+		GroupBy(usagecharge.FieldAccountID).
+		Aggregate(ent.Sum(usagecharge.FieldAmountMicros)).
+		Scan(ctx, &sums); err != nil {
+		return nil, fmt.Errorf("sum pending usage: %w", err)
+	}
+	pending := make(map[int]int64, len(sums))
+	for _, row := range sums {
+		pending[row.AccountID] = row.Sum
+	}
+
+	for _, account := range accounts {
+		live := liveOut(lots[account.ID], pending[account.ID], account.ArrearsMicros, account.BalanceMicros, at)
+		out[account.OrganizationID] = schemas.BalanceSummaryOut{
+			State:           string(account.State),
+			Currency:        account.Currency,
+			AvailableMicros: live.AvailableMicros,
+			Available:       billing.USD(live.AvailableMicros),
+			OwedMicros:      live.OwedMicros,
+			Owed:            billing.USD(live.OwedMicros),
+			PendingMicros:   live.PendingMicros,
+		}
+	}
+	return out, nil
 }

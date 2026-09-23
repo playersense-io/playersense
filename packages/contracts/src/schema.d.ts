@@ -1077,6 +1077,26 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/v1/users/me": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * Who you are, and where you belong
+         * @description The signed-in person and every organization they belong to, with their role in each. `balance` is the organization's live balance — `available_micros`, or `owed_micros` when it owes, is the headline — and is null where the role does not hold `billing.read`, exactly where GET …/billing would refuse.
+         */
+        readonly get: operations["get_v1_users_me"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1195,6 +1215,28 @@ export interface components {
              * @description Automatic charges sent in the current 24-hour window
              */
             readonly used_today: number;
+        };
+        readonly BalanceSummaryOut: {
+            readonly available: string;
+            /**
+             * Format: int64
+             * @description The headline: credit left to spend, after usage not yet settled
+             */
+            readonly available_micros: number;
+            readonly currency: string;
+            readonly owed: string;
+            /**
+             * Format: int64
+             * @description What it owes, including usage not yet settled; the headline when not zero
+             */
+            readonly owed_micros: number;
+            /**
+             * Format: int64
+             * @description Usage counted and not yet on the statement — minutes old at most
+             */
+            readonly pending_micros: number;
+            /** @description active, grace_period, restricted, suspended or canceled */
+            readonly state: string;
         };
         readonly BillingOut: {
             readonly arrears: string;
@@ -1799,6 +1841,24 @@ export interface components {
             /** Format: date-time */
             readonly updated_at: string;
         };
+        readonly MeOrganizationOut: {
+            /** @description Null when your role may not read billing, or there is no billing account */
+            readonly balance?: components["schemas"]["BalanceSummaryOut"] | null;
+            readonly id: string;
+            readonly name: string;
+            readonly role: components["schemas"]["MeRoleOut"];
+            readonly slug: string;
+        };
+        readonly MeOut: {
+            /** @description Every organization you belong to, by name */
+            readonly organizations: readonly components["schemas"]["MeOrganizationOut"][];
+            readonly person: components["schemas"]["PersonOut"];
+        };
+        readonly MeRoleOut: {
+            /** @description Stable; owner, admin, liveops_manager, developer, growth_manager or billing for the seeded six */
+            readonly key: string;
+            readonly name: string;
+        };
         readonly MemberListOut: {
             /** Format: int64 */
             readonly member_limit: number;
@@ -1933,6 +1993,14 @@ export interface components {
             readonly organization_slug: string;
             /** @description The role's display name */
             readonly role: string;
+        };
+        readonly PersonOut: {
+            readonly avatar_url?: string;
+            readonly email: string;
+            /** @description False means read-only until the address is confirmed */
+            readonly email_verified: boolean;
+            readonly id: string;
+            readonly name?: string;
         };
         readonly PlanDetailOut: {
             readonly active: boolean;
@@ -7639,6 +7707,62 @@ export interface operations {
                 };
             };
             /** @description Payments are not configured */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly get_v1_users_me: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["MeOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not do that */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
             readonly 503: {
                 headers: {
                     readonly [name: string]: unknown;
