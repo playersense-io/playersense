@@ -52,7 +52,7 @@ function named(name: string) {
         <button
           v-bind="activator"
           :aria-label="`Funnel: ${name}${dirty ? ', unsaved changes' : ''}`"
-          class="group -ml-2 inline-flex h-(--ps-toolbar-height) max-w-full min-w-0 items-center gap-1.5 rounded-(--ps-radius) px-2 text-sm font-medium text-ink transition-colors duration-150 hover:bg-ink/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          class="group -ml-2 inline-flex h-(--ps-toolbar-height) max-w-[calc(100%+0.5rem)] min-w-0 items-center gap-1.5 rounded-(--ps-radius) px-2 text-sm font-medium text-ink transition-colors duration-150 hover:bg-ink/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
           type="button"
         >
           <span class="truncate">{{ name }}</span>

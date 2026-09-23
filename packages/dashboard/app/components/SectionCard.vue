@@ -31,7 +31,7 @@ const titleId = useId()
   >
     <header class="flex flex-col gap-1 p-5" :class="padded ? 'pb-0' : ''">
       <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <h2 :id="titleId" class="m-0 min-w-0 text-sm leading-7 font-medium text-ink">
+        <h2 :id="titleId" class="m-0 max-w-full shrink-0 text-sm leading-7 font-medium text-ink">
           <slot name="title">
             {{ title }}
           </slot>

@@ -14,6 +14,8 @@ import type { GhostSelectOption } from '../utils/components'
  *
  * The button is pulled left by its own padding so the label sits on the card's edge
  * where a plain heading would, and the hover fill appears around it rather than beside.
+ * Its cap on width is its container's plus that pull: capped at the container alone, it
+ * comes out the pull short of its own label and truncates a name that fits.
  */
 withDefaults(
   defineProps<{
@@ -34,7 +36,7 @@ const open = ref(false)
   <button
     :aria-label="label"
     :class="open ? 'bg-ink/5' : ''"
-    class="group -ml-2 inline-flex h-(--ps-toolbar-height) max-w-full items-center gap-1 rounded-(--ps-radius) px-2 text-sm font-medium text-ink transition-colors duration-150 hover:bg-ink/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+    class="group -ml-2 inline-flex h-(--ps-toolbar-height) max-w-[calc(100%+0.5rem)] items-center gap-1 rounded-(--ps-radius) px-2 text-sm font-medium text-ink transition-colors duration-150 hover:bg-ink/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
     type="button"
   >
     <span class="truncate">
