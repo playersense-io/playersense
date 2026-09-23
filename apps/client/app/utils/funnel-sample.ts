@@ -29,15 +29,41 @@ export interface FunnelStep {
   where: FunnelCondition[]
 }
 
-export interface FunnelDefinition {
+interface FunnelBase {
   id: string
   name: string
-  steps: FunnelStep[]
   window: FunnelWindow
 }
 
+/** Steps chosen one by one: session_start, then tutorial_step where step = 6, then… */
+export interface StepFunnel extends FunnelBase {
+  kind: 'steps'
+  steps: FunnelStep[]
+}
+
+/**
+ * One step per value of a number property of one event, in order: level_complete at level
+ * 1, then at level 2, … up to `to`. The level funnel a game is read by, too long to build
+ * by hand and too long to draw as bars, so it is its own kind.
+ */
+export interface ProgressionFunnel extends FunnelBase {
+  kind: 'progression'
+  event: string
+  property: string
+  from: number
+  to: number
+  /** Narrows every value's occurrences alike: result = win. */
+  where: FunnelCondition[]
+}
+
+export type FunnelDefinition = StepFunnel | ProgressionFunnel
+export type FunnelKind = FunnelDefinition['kind']
+
 export const MIN_STEPS = 2
 export const MAX_STEPS = 10
+
+/** The most values a progression steps through. */
+export const MAX_VALUES = 200
 
 /** Counts under this are withheld: the API's default k (§32.2). */
 export const FUNNEL_THRESHOLD = 5
@@ -107,6 +133,7 @@ const FALLBACK = { reach: 0.4, after: 2 * HOUR }
 export const SAMPLE_FUNNELS: readonly FunnelDefinition[] = [
   {
     id: 'onboarding',
+    kind: 'steps',
     name: 'Onboarding',
     window: '1d',
     steps: [
@@ -118,6 +145,7 @@ export const SAMPLE_FUNNELS: readonly FunnelDefinition[] = [
   },
   {
     id: 'first-purchase',
+    kind: 'steps',
     name: 'First purchase',
     window: '7d',
     steps: [
@@ -129,6 +157,7 @@ export const SAMPLE_FUNNELS: readonly FunnelDefinition[] = [
   },
   {
     id: 'social',
+    kind: 'steps',
     name: 'Into a guild',
     window: '30d',
     steps: [
@@ -136,6 +165,17 @@ export const SAMPLE_FUNNELS: readonly FunnelDefinition[] = [
       { event: 'daily_reward_claim', where: [] },
       { event: 'guild_join', where: [] }
     ]
+  },
+  {
+    id: 'levels',
+    kind: 'progression',
+    name: 'Levels 1–40',
+    window: '30d',
+    event: 'level_complete',
+    property: 'level',
+    from: 1,
+    to: 40,
+    where: [{ property: 'result', value: 'win' }]
   }
 ]
 
@@ -224,7 +264,7 @@ interface Shape {
 }
 
 /** The funnel's true shape before any breakdown: who enters, and each step's odds and pace. */
-function shapeOf(definition: FunnelDefinition, range: FunnelRange, catalogue: readonly EventDefinition[]): Shape {
+function shapeOf(definition: StepFunnel, range: FunnelRange, catalogue: readonly EventDefinition[]): Shape {
   const days = RANGE_DAYS[range]
   const window = WINDOW_SECONDS[definition.window]
   const keys = definition.steps.map((_, index) => `${range}:${JSON.stringify([definition.window, definition.steps.slice(0, index + 1)])}`)
@@ -283,7 +323,7 @@ const BUCKETS: readonly (readonly [number, string])[] = [
 const dayLabel = new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric', timeZone: 'UTC' })
 
 export function sampleFunnel(
-  definition: FunnelDefinition,
+  definition: StepFunnel,
   range: FunnelRange,
   breakdown: FunnelBreakdown,
   catalogue: readonly EventDefinition[]
@@ -346,6 +386,98 @@ export function sampleFunnel(
   const timeToConvert = buckets.map(([, label], index) => ({ label, players: Math.round(converted * mass[index]! / whole) }))
 
   return { total, previous, breakdown: breakdownSeries, trend, timeToConvert, medianToConvert }
+}
+
+// --- Progression --------------------------------------------------------------------------
+
+export interface ProgressionRow {
+  value: number
+  /** Players who reached this value in order from the first. Null when too few to show. */
+  players: number | null
+  /** How often each of them did the event at this value: attempts, for a level. */
+  tries: number | null
+  /** Median seconds from this value to the next, for the players who went on. */
+  toNext: number | null
+}
+
+export interface ProgressionSample {
+  rows: ProgressionRow[]
+  /** The first value's and the last value's players in the range before. */
+  previous: { first: number | null, last: number | null }
+  /** Median seconds from the first value to the last, for the players who got there. */
+  medianToLast: number | null
+}
+
+const withheldBelow = (count: number) => {
+  const whole = Math.round(count)
+  return whole > 0 && whole < FUNNEL_THRESHOLD ? null : whole
+}
+
+/**
+ * A level funnel, drawn the way games lose players: a steady trickle that slows as the
+ * ones left grow invested, a hard level now and then where many more give up and those
+ * who stay try again and again, a wall every tenth level, and a window that cuts off the
+ * later levels for players who have not had time to reach them.
+ *
+ * Each value is drawn from its own seed — the definition up to it — so widening the range
+ * leaves the levels already on screen as they were.
+ */
+export function sampleProgression(
+  definition: ProgressionFunnel,
+  range: FunnelRange,
+  catalogue: readonly EventDefinition[]
+): ProgressionSample {
+  const days = RANGE_DAYS[range]
+  const window = WINDOW_SECONDS[definition.window]
+  const event = catalogue.find(entry => entry.name === definition.event)
+  const reach = Math.min(0.97, 1 - Math.exp(-(event?.rate ?? 1) * days * 0.6))
+  const narrowed = narrowing({ event: definition.event, where: definition.where }, catalogue)
+  const { after } = BEHAVIOUR[definition.event] ?? FALLBACK
+  const key = JSON.stringify([definition.window, definition.event, definition.property, definition.where, definition.from])
+
+  const rows: ProgressionRow[] = []
+  let count = activeIn(days) * reach * narrowed
+  let elapsed = 0
+  let reachedInTime = 1
+  const first = definition.from
+  const last = Math.min(definition.to, first + MAX_VALUES - 1)
+  for (let value = first; value <= last; value += 1) {
+    const random = seeded(`progression:${range}:${key}:${value}`)
+    const spike = random() < 0.14 ? 0.5 + random() : 0
+    const wall = value % 10 === 0 ? 0.6 : 0
+    const difficulty = 0.4 + spike + wall + random() * 0.3
+    const tries = 1 + difficulty * (0.6 + random() * 0.5) + (value - first) * 0.01
+    const pace = after * tries
+
+    if (value > first) {
+      const invested = 1.4 - Math.min(0.6, (value - first) / 80)
+      const churn = Math.min(0.6, (0.012 + 0.03 * difficulty) * invested)
+      elapsed += pace
+      const inTime = within(window, elapsed, 1.1)
+      count *= (1 - churn) * Math.min(1, inTime / reachedInTime)
+      reachedInTime = inTime
+    }
+
+    const players = withheldBelow(count)
+    rows.push({
+      value,
+      players,
+      tries: players === null ? null : Math.round(tries * 10) / 10,
+      toNext: value === last || players === null ? null : pace * (0.8 + random() * 0.4)
+    })
+  }
+
+  const before = seeded(`progression-previous:${range}:${key}`)
+  const firstPlayers = rows[0]?.players ?? null
+  const lastPlayers = rows[rows.length - 1]?.players ?? null
+  return {
+    rows,
+    previous: {
+      first: firstPlayers === null ? null : Math.round(firstPlayers * (0.9 + before() * 0.12)),
+      last: lastPlayers === null ? null : Math.round(lastPlayers * (0.88 + before() * 0.16))
+    },
+    medianToLast: lastPlayers ? rows.reduce((sum, row) => sum + (row.toNext ?? 0), 0) : null
+  }
 }
 
 // --- Words --------------------------------------------------------------------------------

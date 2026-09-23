@@ -26,33 +26,53 @@ const range = computed<FunnelRange>({
 
 const { funnels, save, create, remove } = useSavedFunnels()
 
-const NEW = 'new'
+/** A funnel not yet saved, of either kind, opens under one of these. */
+const BLANKS: Record<string, () => FunnelDefinition> = {
+  'new': () => ({
+    id: 'new',
+    kind: 'steps',
+    name: 'Untitled funnel',
+    window: '1d',
+    steps: [{ event: 'session_start', where: [] }, { event: 'level_complete', where: [] }]
+  }),
+  'new-progression': () => ({
+    id: 'new-progression',
+    kind: 'progression',
+    name: 'Untitled progression',
+    window: '30d',
+    event: 'level_complete',
+    property: 'level',
+    from: 1,
+    to: 30,
+    where: []
+  })
+}
 
 const selected = computed<string>({
   get: () => {
     const id = route.query.funnel as string | undefined
-    return id === NEW || funnels.value.some(funnel => funnel.id === id) ? id! : funnels.value[0]!.id
+    return id && (id in BLANKS || funnels.value.some(funnel => funnel.id === id)) ? id : funnels.value[0]!.id
   },
   set: id => void router.replace({ query: { ...route.query, funnel: id } })
 })
 
 const saved = computed(() => funnels.value.find(funnel => funnel.id === selected.value) ?? null)
 
-const blank = (): FunnelDefinition => ({
-  id: NEW,
-  name: 'Untitled funnel',
-  window: '1d',
-  steps: [{ event: 'session_start', where: [] }, { event: 'level_complete', where: [] }]
-})
+const opened = () => copyFunnel(saved.value ?? (BLANKS[selected.value] ?? BLANKS.new!)())
 
 /** The funnel on screen: the saved one, as edited so far. */
-const draft = ref<FunnelDefinition>(copyFunnel(saved.value ?? blank()))
+const draft = ref<FunnelDefinition>(opened())
 
 watch(selected, () => {
-  draft.value = copyFunnel(saved.value ?? blank())
+  draft.value = opened()
 })
 
-const same = (a: FunnelDefinition, b: FunnelDefinition) => JSON.stringify([a.steps, a.window]) === JSON.stringify([b.steps, b.window])
+/** Whether two funnels ask the same question: everything but their id and name. */
+const same = (a: FunnelDefinition, b: FunnelDefinition) => {
+  const { id: _a, name: _an, ...left } = a
+  const { id: _b, name: _bn, ...right } = b
+  return JSON.stringify(left) === JSON.stringify(right)
+}
 
 const dirty = computed(() => !saved.value || !same(draft.value, saved.value))
 
@@ -78,7 +98,7 @@ function onRemove() {
 }
 
 function onDiscard() {
-  draft.value = copyFunnel(saved.value ?? blank())
+  draft.value = opened()
 }
 
 const WINDOWS: SegmentedOption[] = [
@@ -95,8 +115,10 @@ const conversionWindow = computed<string>({
 })
 
 const steps = computed<FunnelStep[]>({
-  get: () => draft.value.steps,
-  set: value => void (draft.value = { ...draft.value, steps: value })
+  get: () => (draft.value.kind === 'steps' ? draft.value.steps : []),
+  set: (value) => {
+    if (draft.value.kind === 'steps') draft.value = { ...draft.value, steps: value }
+  }
 })
 
 const windowWords = computed(() => windowPhrase(draft.value.window))
@@ -127,6 +149,7 @@ const windowWords = computed(() => windowPhrase(draft.value.window))
     </PageHeader>
 
     <SectionCard
+      v-if="draft.kind === 'steps'"
       :description="`Players who did each step in order, other events in between allowed, ${windowWords} of step 1.`"
       :padded="false"
       title="Steps"
@@ -138,6 +161,6 @@ const windowWords = computed(() => windowPhrase(draft.value.window))
       <FunnelSteps v-model="steps" :catalogue="EVENT_CATALOGUE" />
     </SectionCard>
 
-    <FunnelReport :definition="draft" :range="range" />
+    <FunnelReport v-if="draft.kind === 'steps'" :definition="draft" :range="range" />
   </div>
 </template>

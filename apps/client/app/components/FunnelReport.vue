@@ -8,7 +8,7 @@ import type { Kpi } from '~/components/KpiBoard.vue'
 // The definition is the page's, edited there; this reads it. Sample data until the funnel
 // query exists (app/utils/funnel-sample.ts says what it will ask).
 const props = defineProps<{
-  definition: FunnelDefinition
+  definition: StepFunnel
   range: FunnelRange
 }>()
 

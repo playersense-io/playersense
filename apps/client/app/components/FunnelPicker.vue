@@ -24,6 +24,12 @@ const emit = defineEmits<{
   'discard': []
 }>()
 
+/** A new funnel of either kind, by the id the page opens it under. */
+const KINDS = [
+  { id: 'new', label: 'New step funnel', note: 'Events in an order you choose' },
+  { id: 'new-progression', label: 'New progression', note: 'Level 1, level 2, … level N' }
+] as const
+
 const naming = ref<'save-as' | 'rename' | null>(null)
 const dialogOpen = computed({
   get: () => naming.value !== null,
@@ -80,17 +86,22 @@ function named(name: string) {
             @click="selected = funnel.id"
           >
             <span class="truncate text-xs text-ink">{{ funnel.name }}</span>
-            <span class="flex-none font-mono text-[11px] text-ink/45">{{ funnel.steps.length }} steps</span>
+            <span class="flex-none font-mono text-[11px] text-ink/45">{{ funnel.kind === 'steps' ? `${funnel.steps.length} steps` : `${funnel.property} ${funnel.from}–${funnel.to}` }}</span>
           </button>
         </div>
         <div class="border-t border-line p-1">
           <button
-            class="flex w-full items-center gap-1.5 rounded-(--ps-radius-x-small) px-2 py-1.5 text-left text-xs text-ink hover:bg-ink/4"
+            v-for="kind in KINDS"
+            :key="kind.id"
+            class="flex w-full items-start gap-1.5 rounded-(--ps-radius-x-small) px-2 py-1.5 text-left hover:bg-ink/4"
             type="button"
-            @click="selected = 'new'"
+            @click="selected = kind.id"
           >
-            <Icon aria-hidden="true" class="text-base text-ink/60" name="material-symbols:add" />
-            New funnel
+            <Icon aria-hidden="true" class="mt-px text-base text-ink/60" name="material-symbols:add" />
+            <span class="flex flex-col">
+              <span class="text-xs text-ink">{{ kind.label }}</span>
+              <span class="text-[11px] text-ink/50">{{ kind.note }}</span>
+            </span>
           </button>
         </div>
       </v-card>
