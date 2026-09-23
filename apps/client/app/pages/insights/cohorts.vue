@@ -146,15 +146,19 @@ function clearFilters() {
 
 // --- The answer ---------------------------------------------------------------------------
 
-const data = computed(() => sampleCohorts({
-  metric: metric.value,
-  basis: basis.value,
-  range: range.value,
-  grain: grain.value,
-  split: split.value,
-  filters: filters.value,
-  event: { name: eventName.value, where: where.value, catalogue: EVENT_CATALOGUE }
-}))
+/** The answer, a moment after each question, as the API's will be: `pending` in between. */
+const { data, pending } = useSampleQuery(
+  () => ({
+    metric: metric.value,
+    basis: basis.value,
+    range: range.value,
+    grain: grain.value,
+    split: split.value,
+    filters: filters.value,
+    event: { name: eventName.value, where: where.value }
+  }),
+  question => sampleCohorts({ ...question, event: { ...question.event, catalogue: EVENT_CATALOGUE } })
+)
 
 const mode = computed(() => cohortModeOf(metric.value, accumulates.value && sum.value === 'total'))
 
@@ -294,7 +298,12 @@ const cpi = computed<number>({
 
     <SectionCard :description="definition" :padded="false" :title="about.label">
       <template #title>
-        <GhostSelect v-model="metric" :options="METRICS" label="Metric" />
+        <GhostPicker
+          v-model="metric"
+          :options="METRICS"
+          description="What each cohort is measured by: what its players do, what they pay, and how the build holds up."
+          label="Metric"
+        />
       </template>
       <template #actions>
         <SegmentedControl
@@ -332,6 +341,7 @@ const cpi = computed<number>({
     </SectionCard>
 
     <KpiBoard
+      :loading="pending"
       :description="`${metricLabel} of the players who installed in the range, against the range before.`"
       :items="board"
       :title="metricLabel"
@@ -362,6 +372,8 @@ const cpi = computed<number>({
         </template>
 
         <CohortTable
+          :loading="pending"
+          :loading-rows="Math.min(Math.max(data.rows.length, 3), 12)"
           :color="cohortColor"
           :grain="grain"
           :label="`${metricLabel} by cohort`"
@@ -377,6 +389,7 @@ const cpi = computed<number>({
 
       <MetricCard
         v-else-if="tab === 'curves'"
+        :loading="pending"
         :categories="curveDays.map(offset => `D${offset}`)"
         :decimals="about.chart.decimals"
         :description="split === 'none'
@@ -393,6 +406,7 @@ const cpi = computed<number>({
       <CohortPayback
         v-else
         v-model:cpi="cpi"
+        :loading="pending"
         :rows="data.rows"
         :split="split !== 'none'"
       />

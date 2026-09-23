@@ -10,6 +10,8 @@ const props = defineProps<{
   /** The cohorts, or the segments, with each cell's running total of revenue per install. */
   rows: readonly CohortTableRow[]
   split: boolean
+  /** While the answer is on its way: the figures are bones and the chart its skeleton. */
+  loading?: boolean
 }>()
 
 const cpi = defineModel<number>('cpi', { required: true })
@@ -111,10 +113,22 @@ function applyCpi() {
         />
       </template>
 
-      <FactGrid :columns="4" :facts="facts" label="Payback" />
+      <div v-if="loading" aria-busy="true" class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div v-for="index in 4" :key="index" class="flex flex-col gap-2 rounded-(--ps-radius) p-3 ring-1 ring-line ring-inset">
+          <span class="ps-cohort-payback__bone h-2.5 w-20" />
+          <span class="ps-cohort-payback__bone h-4 w-14" />
+        </div>
+      </div>
+      <FactGrid
+        v-else
+        :columns="4"
+        :facts="facts"
+        label="Payback"
+      />
     </SectionCard>
 
     <MetricCard
+      :loading="loading"
       :categories="categories"
       :decimals="2"
       :series="series"
@@ -126,7 +140,7 @@ function applyCpi() {
     />
 
     <SectionCard
-      v-if="split"
+      v-if="split && !loading"
       :padded="false"
       description="The same, one segment to a row."
       title="By segment"
@@ -175,6 +189,12 @@ function applyCpi() {
 </template>
 
 <style scoped>
+.ps-cohort-payback__bone {
+  background: var(--ps-skeleton-bone);
+  border-radius: var(--ps-radius-x-small);
+  display: block;
+}
+
 .ps-cohort-payback__cpi {
   flex: none;
   width: 8rem;

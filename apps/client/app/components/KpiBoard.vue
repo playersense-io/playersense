@@ -26,12 +26,14 @@ defineProps<{
   title: string
   description?: string
   items: readonly Kpi[]
+  /** While the figures are on their way: each cell keeps its label, and its figure is a bone. */
+  loading?: boolean
 }>()
 </script>
 
 <template>
   <SectionCard :description="description" :padded="false" :title="title">
-    <div class="grid grid-cols-2 gap-px bg-line lg:grid-cols-5">
+    <div :aria-busy="loading || undefined" class="grid grid-cols-2 gap-px bg-line lg:grid-cols-5">
       <div
         v-for="item in items"
         :key="item.key"
@@ -60,7 +62,12 @@ defineProps<{
           </v-tooltip>
         </div>
 
-        <div class="flex min-w-0 items-center gap-2">
+        <div v-if="loading" aria-hidden="true" class="flex h-8 items-center gap-2">
+          <span class="ps-kpi-board__bone h-5 w-24" />
+          <span class="ps-kpi-board__bone h-3 w-10" />
+        </div>
+
+        <div v-else class="flex min-w-0 items-center gap-2">
           <p :title="item.exact" class="m-0 flex min-w-0 items-baseline gap-1">
             <span class="truncate font-mono text-2xl leading-8 text-ink tabular-nums">{{ item.value }}</span>
             <span v-if="item.unit" class="text-xs text-ink/55">{{ item.unit }}</span>
@@ -79,3 +86,12 @@ defineProps<{
     </div>
   </SectionCard>
 </template>
+
+<style scoped>
+/* The panel's bone, still, as MetricSkeleton draws its own. */
+.ps-kpi-board__bone {
+  background: var(--ps-skeleton-bone);
+  border-radius: var(--ps-radius-x-small);
+  display: block;
+}
+</style>
