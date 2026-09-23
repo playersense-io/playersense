@@ -47,4 +47,8 @@ type BalanceSummaryOut struct {
 	OwedMicros      int64  `json:"owed_micros" doc:"What it owes, including usage not yet settled; the headline when not zero"`
 	Owed            string `json:"owed"`
 	PendingMicros   int64  `json:"pending_micros" doc:"Usage counted and not yet on the statement — minutes old at most"`
+
+	// An invoiced organization (ADR 0045) owes by design; that is not a debt it is late on.
+	Collection       string `json:"collection" doc:"prepaid or invoiced"`
+	ReceivableMicros int64  `json:"receivable_micros" doc:"For an invoiced organization, what it owes on its invoices, billed or not; not late"`
 }

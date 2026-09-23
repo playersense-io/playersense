@@ -125,6 +125,14 @@ type BillingOut struct {
 	CreditLimitMicros int64      `json:"credit_limit_micros" doc:"Owing this much suspends ingestion at once"`
 	CreditLimitSource string     `json:"credit_limit_source" doc:"usage (20% of the last 30 days' paid usage), floor (the minimum), or override (set by PlayerSense)"`
 
+	// Collection is how the organization pays: `prepaid` from this wallet, or `invoiced` by a
+	// monthly invoice on a contract (ADR 0045). For an invoiced organization, Contract says on what
+	// terms and Receivable what it owes that is not yet due; SuspendsAt is then the end of the grace
+	// after its first missed due date.
+	Collection string         `json:"collection" doc:"prepaid or invoiced"`
+	Contract   *ContractOut   `json:"contract,omitzero" doc:"The terms in force; absent if the organization has never had a contract"`
+	Receivable *ReceivableOut `json:"receivable,omitzero" doc:"What an invoiced organization owes and is not yet late on"`
+
 	// Live is the wallet as it stands at this request (ADR 0044): the ledger's numbers minus usage
 	// queued and not yet written to it. The headline a dashboard shows; the fields above are the
 	// statement's, which trail by at most a few minutes.
@@ -146,6 +154,15 @@ type BillingOut struct {
 	ExpiringSoon []CreditLotOut `json:"expiring_soon,omitzero"`
 
 	AutoTopUp AutoTopUpOut `json:"auto_topup"`
+}
+
+// ReceivableOut is what an invoiced organization owes (ADR 0045), in three parts.
+type ReceivableOut struct {
+	UnbilledMicros int64      `json:"unbilled_micros" doc:"Used and not yet invoiced, including usage not yet settled"`
+	OpenMicros     int64      `json:"open_micros" doc:"Invoiced and not yet paid"`
+	OverdueMicros  int64      `json:"overdue_micros" doc:"Of that, past its due date"`
+	OverdueSince   *time.Time `json:"overdue_since,omitzero" doc:"When the first unpaid invoice passed its due date"`
+	NextInvoiceAt  *time.Time `json:"next_invoice_at,omitzero" doc:"When the current period closes into an invoice"`
 }
 
 // PlanOut is what an organization is on.
@@ -385,12 +402,13 @@ type DrawOut struct {
 // ledger's running total minus pending, so like ledger_balance_micros it still counts promotional
 // credit that has lapsed and the janitor has not yet written off (§55.3): explainable, not headline.
 type LiveBalanceOut struct {
-	BalanceMicros   int64  `json:"balance_micros" doc:"The ledger total minus pending usage; counts lapsed promo credit until it is written off, so not the headline"`
-	Balance         string `json:"balance"`
-	AvailableMicros int64  `json:"available_micros" doc:"The headline: credit left to spend, after pending usage"`
-	PromoMicros     int64  `json:"promo_micros"`
-	PurchasedMicros int64  `json:"purchased_micros"`
-	OwedMicros      int64  `json:"owed_micros" doc:"Arrears plus pending usage the credit does not cover; the headline when not zero"`
-	PendingMicros   int64  `json:"pending_micros" doc:"Usage counted and not yet on the statement — minutes old at most"`
-	Pending         string `json:"pending"`
+	BalanceMicros    int64  `json:"balance_micros" doc:"The ledger total minus pending usage; counts lapsed promo credit until it is written off, so not the headline"`
+	Balance          string `json:"balance"`
+	AvailableMicros  int64  `json:"available_micros" doc:"The headline: credit left to spend, after pending usage"`
+	PromoMicros      int64  `json:"promo_micros"`
+	PurchasedMicros  int64  `json:"purchased_micros"`
+	OwedMicros       int64  `json:"owed_micros" doc:"Arrears plus pending usage the credit does not cover; the headline when not zero"`
+	ReceivableMicros int64  `json:"receivable_micros" doc:"For an invoiced organization, what it owes on its invoices, billed or not, including pending usage the credit does not cover — owed, not late. Zero for a prepaid one"`
+	PendingMicros    int64  `json:"pending_micros" doc:"Usage counted and not yet on the statement — minutes old at most"`
+	Pending          string `json:"pending"`
 }

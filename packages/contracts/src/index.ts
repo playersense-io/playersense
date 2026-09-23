@@ -48,6 +48,8 @@ export type AutoTopUp = Schema<'AutoTopUpOut'>
 /** A contracted organization's monthly invoice (ADR 0045). */
 export type Invoice = Schema<'InvoiceOut'>
 export type InvoiceLine = Schema<'InvoiceLineOut'>
+export type Contract = Schema<'ContractOut'>
+export type Receivable = Schema<'ReceivableOut'>
 
 export type Segment = Schema<'SegmentOut'>
 export type FeatureFlag = Schema<'FlagOut'>

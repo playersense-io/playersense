@@ -11,7 +11,9 @@ import (
 
 	"playersense.dev/backend/ent"
 	"playersense.dev/backend/ent/billingaccount"
+	"playersense.dev/backend/ent/billingcontract"
 	"playersense.dev/backend/ent/creditlot"
+	"playersense.dev/backend/ent/invoice"
 	"playersense.dev/backend/ent/ledgerentry"
 	"playersense.dev/backend/ent/organization"
 	"playersense.dev/backend/ent/project"
@@ -21,6 +23,7 @@ import (
 	"playersense.dev/backend/internal/billing"
 	"playersense.dev/backend/internal/config"
 	"playersense.dev/backend/internal/core"
+	"playersense.dev/backend/internal/invoicing"
 	"playersense.dev/backend/internal/payments"
 	"playersense.dev/backend/internal/schemas"
 	"playersense.dev/backend/internal/suspension"
@@ -679,8 +682,62 @@ func billingOut(ctx context.Context, db *core.DB, account *ent.BillingAccount,
 	for _, lot := range wallet.Expiring(lots, at, at.Add(ExpiryWarning)) {
 		out.ExpiringSoon = append(out.ExpiringSoon, creditLotOut(byID[lot.ID], at))
 	}
-	out.Live = liveOut(lots, month.PendingMicros, account.ArrearsMicros, account.BalanceMicros, at)
+	out.Live = liveOut(account, lots, month.PendingMicros, at)
+	if err := invoicedOut(ctx, db, account, &out, at, policy); err != nil {
+		return schemas.BillingOut{}, err
+	}
 	return out, nil
+}
+
+// invoicedOut adds what an organization billed by invoice needs to read (ADR 0045): its terms, what it
+// owes in three parts, and when it is suspended if it does not pay — the end of the grace after its
+// first missed due date, not ADR 0043's seven days.
+func invoicedOut(ctx context.Context, db *core.DB, account *ent.BillingAccount, out *schemas.BillingOut,
+	at time.Time, policy suspensionPolicy,
+) error {
+	out.Collection = string(account.Collection)
+	contract, err := db.Client.BillingContract.Query().
+		Where(billingcontract.AccountID(account.ID)).
+		Order(ent.Desc(billingcontract.FieldEffectiveFrom), ent.Desc(billingcontract.FieldID)).
+		First(ctx)
+	switch {
+	case err == nil:
+		out.Contract = &schemas.ContractOut{
+			Collection: string(contract.Collection), EffectiveFrom: contract.EffectiveFrom,
+			TermsDays: contract.TermsDays, OverdueGraceDays: contract.OverdueGraceDays,
+			PlatformFeeMicros: contract.PlatformFeeMicros, MinimumCommitmentMicros: contract.MinimumCommitmentMicros,
+			CreditLimitMicros: contract.CreditLimitMicros, PONumber: contract.PoNumber, Memo: contract.Memo,
+		}
+	case !ent.IsNotFound(err):
+		return core.AsHTTPError(err)
+	}
+	if !wallet.IsInvoiced(account) && account.ReceivableMicros == 0 && account.OverdueSince == nil {
+		return nil
+	}
+
+	open, err := db.Client.Invoice.Query().
+		Where(invoice.AccountID(account.ID), invoice.StatusEQ(invoice.StatusOpen)).All(ctx)
+	if err != nil {
+		return core.AsHTTPError(err)
+	}
+	receivable := &schemas.ReceivableOut{OverdueSince: account.OverdueSince}
+	for _, row := range open {
+		receivable.OpenMicros += row.AmountRemainingMicros
+		if row.DueAt != nil && row.DueAt.Before(at) {
+			receivable.OverdueMicros += row.AmountRemainingMicros
+		}
+	}
+	// Everything owed that no open invoice asks for, and pending usage credit will not cover.
+	receivable.UnbilledMicros = max(0, out.Live.ReceivableMicros-receivable.OpenMicros)
+	if wallet.IsInvoiced(account) && account.InvoicedThrough != nil {
+		next := invoicing.MonthOf(*account.InvoicedThrough).AddDate(0, 1, 0)
+		receivable.NextInvoiceAt = &next
+	}
+	out.Receivable = receivable
+	if at := suspension.OverdueSuspendsAt(ctx, db.Client, account, policy.overdueGrace); at != nil {
+		out.SuspendsAt = at
+	}
+	return nil
 }
 
 // resolvedEntitlements layers the account's overrides onto its plan.
@@ -766,23 +823,28 @@ func walletError(err error) error {
 
 // suspensionPolicy is the deployment's tolerance for an account that owes (ADR 0043).
 type suspensionPolicy struct {
-	grace time.Duration
-	limit suspension.Policy
+	grace        time.Duration
+	overdueGrace time.Duration // after a missed due date, when no contract says (ADR 0045)
+	limit        suspension.Policy
 }
 
 func policyOf(ctx *muzak.Context) suspensionPolicy {
 	if settings, found := muzak.TryFrom[config.Settings](ctx); found {
-		return suspensionPolicy{grace: settings.BillingGracePeriod, limit: suspension.Policy{
-			Floor: settings.BillingDefaultCreditLimit, Percent: settings.BillingCreditLimitPercent}}
+		return suspensionPolicy{grace: settings.BillingGracePeriod, overdueGrace: settings.BillingInvoiceOverdueGrace,
+			limit: suspension.Policy{Floor: settings.BillingDefaultCreditLimit, Percent: settings.BillingCreditLimitPercent}}
 	}
-	return suspensionPolicy{grace: 7 * 24 * time.Hour, limit: suspension.Policy{Floor: 50 * billing.Micros, Percent: 20}}
+	return suspensionPolicy{grace: 7 * 24 * time.Hour, overdueGrace: 14 * 24 * time.Hour,
+		limit: suspension.Policy{Floor: 50 * billing.Micros, Percent: 20}}
 }
 
 // liveOut projects the queued usage onto the wallet, exactly as the drain will apply it.
 //
 // From the lots alone, skipping lapsed ones as the spend path does, so the billing page and
-// /v1/users/me cannot compute the same balance two ways.
-func liveOut(lots []wallet.Lot, pending, arrears, balance int64, at time.Time) schemas.LiveBalanceOut {
+// /v1/users/me cannot compute the same balance two ways. For an invoiced account what credit will not
+// cover goes to the receivable, as the drain will put it — owed on the next invoice, not late.
+func liveOut(account *ent.BillingAccount, lots []wallet.Lot, pending int64, at time.Time) schemas.LiveBalanceOut {
+	arrears, balance := account.ArrearsMicros, account.BalanceMicros
+	invoiced := wallet.IsInvoiced(account)
 	var promo, purchased int64
 	for _, lot := range lots {
 		if !lot.Spendable(at) {
@@ -796,12 +858,13 @@ func liveOut(lots []wallet.Lot, pending, arrears, balance int64, at time.Time) s
 		}
 	}
 	live := schemas.LiveBalanceOut{
-		PendingMicros:   pending,
-		BalanceMicros:   balance - pending,
-		AvailableMicros: wallet.Available(lots, at),
-		PromoMicros:     promo,
-		PurchasedMicros: purchased,
-		OwedMicros:      arrears,
+		PendingMicros:    pending,
+		BalanceMicros:    balance - pending,
+		AvailableMicros:  wallet.Available(lots, at),
+		PromoMicros:      promo,
+		PurchasedMicros:  purchased,
+		OwedMicros:       arrears,
+		ReceivableMicros: account.ReceivableMicros,
 	}
 	switch {
 	case pending > 0:
@@ -814,10 +877,22 @@ func liveOut(lots []wallet.Lot, pending, arrears, balance int64, at time.Time) s
 			}
 		}
 		live.AvailableMicros -= covered
-		live.OwedMicros += pending - covered
+		if invoiced {
+			live.ReceivableMicros += pending - covered
+		} else {
+			live.OwedMicros += pending - covered
+		}
 	case pending < 0:
-		// A volume card's credit: it pays arrears first, and the rest is purchased credit.
+		// A volume card's credit: it pays arrears first — or an invoiced account's receivable —
+		// and the rest is purchased credit.
 		credit := -pending
+		if invoiced {
+			paid := min(account.ReceivableMicros, credit)
+			live.ReceivableMicros -= paid
+			live.PurchasedMicros += credit - paid
+			live.AvailableMicros += credit - paid
+			break
+		}
 		paid := min(arrears, credit)
 		live.OwedMicros -= paid
 		live.PurchasedMicros += credit - paid
@@ -866,15 +941,17 @@ func balancesOf(ctx context.Context, db *core.DB, orgIDs []int, at time.Time) (m
 	}
 
 	for _, account := range accounts {
-		live := liveOut(lots[account.ID], pending[account.ID], account.ArrearsMicros, account.BalanceMicros, at)
+		live := liveOut(account, lots[account.ID], pending[account.ID], at)
 		out[account.OrganizationID] = schemas.BalanceSummaryOut{
-			State:           string(account.State),
-			Currency:        account.Currency,
-			AvailableMicros: live.AvailableMicros,
-			Available:       billing.USD(live.AvailableMicros),
-			OwedMicros:      live.OwedMicros,
-			Owed:            billing.USD(live.OwedMicros),
-			PendingMicros:   live.PendingMicros,
+			State:            string(account.State),
+			Currency:         account.Currency,
+			AvailableMicros:  live.AvailableMicros,
+			Available:        billing.USD(live.AvailableMicros),
+			OwedMicros:       live.OwedMicros,
+			Owed:             billing.USD(live.OwedMicros),
+			PendingMicros:    live.PendingMicros,
+			Collection:       string(account.Collection),
+			ReceivableMicros: live.ReceivableMicros,
 		}
 	}
 	return out, nil

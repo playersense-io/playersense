@@ -1340,6 +1340,8 @@ export interface components {
              * @description The headline: credit left to spend, after usage not yet settled
              */
             readonly available_micros: number;
+            /** @description prepaid or invoiced */
+            readonly collection: string;
             readonly currency: string;
             readonly owed: string;
             /**
@@ -1352,6 +1354,11 @@ export interface components {
              * @description Usage counted and not yet on the statement — minutes old at most
              */
             readonly pending_micros: number;
+            /**
+             * Format: int64
+             * @description For an invoiced organization, what it owes on its invoices, billed or not; not late
+             */
+            readonly receivable_micros: number;
             /** @description active, grace_period, restricted, suspended or canceled */
             readonly state: string;
         };
@@ -1364,6 +1371,10 @@ export interface components {
             readonly available: string;
             /** Format: int64 */
             readonly available_micros: number;
+            /** @description prepaid or invoiced */
+            readonly collection: string;
+            /** @description The terms in force; absent if the organization has never had a contract */
+            readonly contract?: components["schemas"]["ContractOut"] | null;
             /**
              * Format: int64
              * @description Owing this much suspends ingestion at once
@@ -1385,6 +1396,8 @@ export interface components {
             readonly promo_micros: number;
             /** Format: int64 */
             readonly purchased_micros: number;
+            /** @description What an invoiced organization owes and is not yet late on */
+            readonly receivable?: components["schemas"]["ReceivableOut"] | null;
             /** @description active, grace_period (owes; everything works), suspended (ingestion refused until paid), restricted or canceled */
             readonly state: string;
             readonly subscription?: components["schemas"]["SubscriptionOut"] | null;
@@ -1554,6 +1567,24 @@ export interface components {
             readonly values?: {
                 readonly [key: string]: unknown;
             };
+        };
+        readonly ContractOut: {
+            /** @description invoiced or prepaid */
+            readonly collection: string;
+            /** Format: int64 */
+            readonly credit_limit_micros?: number | null;
+            /** Format: date-time */
+            readonly effective_from: string;
+            readonly memo?: string;
+            /** Format: int64 */
+            readonly minimum_commitment_micros: number;
+            /** Format: int64 */
+            readonly overdue_grace_days: number;
+            /** Format: int64 */
+            readonly platform_fee_micros: number;
+            readonly po_number?: string;
+            /** Format: int64 */
+            readonly terms_days: number;
         };
         readonly CreateOrganizationIn: {
             /** @description Display name */
@@ -1979,6 +2010,11 @@ export interface components {
             readonly promo_micros: number;
             /** Format: int64 */
             readonly purchased_micros: number;
+            /**
+             * Format: int64
+             * @description For an invoiced organization, what it owes on its invoices, billed or not, including pending usage the credit does not cover — owed, not late. Zero for a prepaid one
+             */
+            readonly receivable_micros: number;
         };
         readonly LiveOpsEventListOut: {
             readonly liveops_events: readonly components["schemas"]["LiveOpsEventOut"][];
@@ -2312,6 +2348,33 @@ export interface components {
         };
         readonly RateCardsOut: {
             readonly cards: readonly components["schemas"]["RateCardOut"][];
+        };
+        readonly ReceivableOut: {
+            /**
+             * Format: date-time
+             * @description When the current period closes into an invoice
+             */
+            readonly next_invoice_at?: string | null;
+            /**
+             * Format: int64
+             * @description Invoiced and not yet paid
+             */
+            readonly open_micros: number;
+            /**
+             * Format: int64
+             * @description Of that, past its due date
+             */
+            readonly overdue_micros: number;
+            /**
+             * Format: date-time
+             * @description When the first unpaid invoice passed its due date
+             */
+            readonly overdue_since?: string | null;
+            /**
+             * Format: int64
+             * @description Used and not yet invoiced, including usage not yet settled
+             */
+            readonly unbilled_micros: number;
         };
         readonly RoleListOut: {
             readonly roles: readonly components["schemas"]["RoleOut"][];

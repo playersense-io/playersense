@@ -111,6 +111,30 @@ func TestAnInvoicedContractFromContractToPaidInvoice(t *testing.T) {
 	if err := tx.Commit(); err != nil {
 		t.Fatal(err)
 	}
+	// The billing page: invoiced, the month's players owed on the next invoice — and nothing late.
+	var page struct {
+		Collection string `json:"collection"`
+		State      string `json:"state"`
+		Contract   struct {
+			TermsDays         int   `json:"terms_days"`
+			PlatformFeeMicros int64 `json:"platform_fee_micros"`
+		} `json:"contract"`
+		Receivable struct {
+			UnbilledMicros int64      `json:"unbilled_micros"`
+			NextInvoiceAt  *time.Time `json:"next_invoice_at"`
+		} `json:"receivable"`
+		Live struct {
+			OwedMicros       int64 `json:"owed_micros"`
+			ReceivableMicros int64 `json:"receivable_micros"`
+		} `json:"live"`
+	}
+	w.client(t).Get(w.base() + "/billing").AssertStatus(http.StatusOK).JSON(&page)
+	if page.Collection != "invoiced" || page.State != "active" || page.Contract.TermsDays != 30 ||
+		page.Contract.PlatformFeeMicros != dollars(300) || page.Receivable.UnbilledMicros != dollars(120) ||
+		page.Receivable.NextInvoiceAt == nil || page.Live.OwedMicros != 0 || page.Live.ReceivableMicros != dollars(120) {
+		t.Errorf("billing page %+v", page)
+	}
+
 	job := &invoicing.Job{DB: w.db, Gateway: stripe,
 		Now: func() time.Time { return month.AddDate(0, 1, 0).Add(3 * time.Hour) }}
 	if n, err := job.CloseAccount(ctx, account.ID); err != nil || n != 1 {

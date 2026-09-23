@@ -8537,6 +8537,10 @@
             "format": "int64",
             "description": "The headline: credit left to spend, after usage not yet settled"
           },
+          "collection": {
+            "type": "string",
+            "description": "prepaid or invoiced"
+          },
           "currency": {
             "type": "string"
           },
@@ -8553,6 +8557,11 @@
             "format": "int64",
             "description": "Usage counted and not yet on the statement — minutes old at most"
           },
+          "receivable_micros": {
+            "type": "integer",
+            "format": "int64",
+            "description": "For an invoiced organization, what it owes on its invoices, billed or not; not late"
+          },
           "state": {
             "type": "string",
             "description": "active, grace_period, restricted, suspended or canceled"
@@ -8561,10 +8570,12 @@
         "required": [
           "available",
           "available_micros",
+          "collection",
           "currency",
           "owed",
           "owed_micros",
           "pending_micros",
+          "receivable_micros",
           "state"
         ]
       },
@@ -8588,6 +8599,21 @@
           "available_micros": {
             "type": "integer",
             "format": "int64"
+          },
+          "collection": {
+            "type": "string",
+            "description": "prepaid or invoiced"
+          },
+          "contract": {
+            "description": "The terms in force; absent if the organization has never had a contract",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContractOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "credit_limit_micros": {
             "type": "integer",
@@ -8648,6 +8674,17 @@
             "type": "integer",
             "format": "int64"
           },
+          "receivable": {
+            "description": "What an invoiced organization owes and is not yet late on",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReceivableOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "state": {
             "type": "string",
             "description": "active, grace_period (owes; everything works), suspended (ingestion refused until paid), restricted or canceled"
@@ -8677,6 +8714,7 @@
           "auto_topup",
           "available",
           "available_micros",
+          "collection",
           "credit_limit_micros",
           "credit_limit_source",
           "currency",
@@ -9131,6 +9169,56 @@
         },
         "required": [
           "at"
+        ]
+      },
+      "ContractOut": {
+        "type": "object",
+        "properties": {
+          "collection": {
+            "type": "string",
+            "description": "invoiced or prepaid"
+          },
+          "credit_limit_micros": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "effective_from": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "memo": {
+            "type": "string"
+          },
+          "minimum_commitment_micros": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "overdue_grace_days": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "platform_fee_micros": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "po_number": {
+            "type": "string"
+          },
+          "terms_days": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "collection",
+          "effective_from",
+          "minimum_commitment_micros",
+          "overdue_grace_days",
+          "platform_fee_micros",
+          "terms_days"
         ]
       },
       "CreateOrganizationIn": {
@@ -10240,6 +10328,11 @@
           "purchased_micros": {
             "type": "integer",
             "format": "int64"
+          },
+          "receivable_micros": {
+            "type": "integer",
+            "format": "int64",
+            "description": "For an invoiced organization, what it owes on its invoices, billed or not, including pending usage the credit does not cover — owed, not late. Zero for a prepaid one"
           }
         },
         "required": [
@@ -10250,7 +10343,8 @@
           "pending",
           "pending_micros",
           "promo_micros",
-          "purchased_micros"
+          "purchased_micros",
+          "receivable_micros"
         ]
       },
       "LiveOpsEventListOut": {
@@ -11241,6 +11335,47 @@
         },
         "required": [
           "cards"
+        ]
+      },
+      "ReceivableOut": {
+        "type": "object",
+        "properties": {
+          "next_invoice_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When the current period closes into an invoice"
+          },
+          "open_micros": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Invoiced and not yet paid"
+          },
+          "overdue_micros": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Of that, past its due date"
+          },
+          "overdue_since": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When the first unpaid invoice passed its due date"
+          },
+          "unbilled_micros": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Used and not yet invoiced, including usage not yet settled"
+          }
+        },
+        "required": [
+          "open_micros",
+          "overdue_micros",
+          "unbilled_micros"
         ]
       },
       "RoleListOut": {
