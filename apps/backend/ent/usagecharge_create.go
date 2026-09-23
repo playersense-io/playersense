@@ -457,6 +457,42 @@ func (u *UsageChargeUpsert) UpdateUpdatedAt() *UsageChargeUpsert {
 	return u
 }
 
+// SetLastUnit sets the "last_unit" field.
+func (u *UsageChargeUpsert) SetLastUnit(v int64) *UsageChargeUpsert {
+	u.Set(usagecharge.FieldLastUnit, v)
+	return u
+}
+
+// UpdateLastUnit sets the "last_unit" field to the value that was provided on create.
+func (u *UsageChargeUpsert) UpdateLastUnit() *UsageChargeUpsert {
+	u.SetExcluded(usagecharge.FieldLastUnit)
+	return u
+}
+
+// AddLastUnit adds v to the "last_unit" field.
+func (u *UsageChargeUpsert) AddLastUnit(v int64) *UsageChargeUpsert {
+	u.Add(usagecharge.FieldLastUnit, v)
+	return u
+}
+
+// SetAmountMicros sets the "amount_micros" field.
+func (u *UsageChargeUpsert) SetAmountMicros(v int64) *UsageChargeUpsert {
+	u.Set(usagecharge.FieldAmountMicros, v)
+	return u
+}
+
+// UpdateAmountMicros sets the "amount_micros" field to the value that was provided on create.
+func (u *UsageChargeUpsert) UpdateAmountMicros() *UsageChargeUpsert {
+	u.SetExcluded(usagecharge.FieldAmountMicros)
+	return u
+}
+
+// AddAmountMicros adds v to the "amount_micros" field.
+func (u *UsageChargeUpsert) AddAmountMicros(v int64) *UsageChargeUpsert {
+	u.Add(usagecharge.FieldAmountMicros, v)
+	return u
+}
+
 // SetSettledAt sets the "settled_at" field.
 func (u *UsageChargeUpsert) SetSettledAt(v time.Time) *UsageChargeUpsert {
 	u.Set(usagecharge.FieldSettledAt, v)
@@ -528,12 +564,6 @@ func (u *UsageChargeUpsertOne) UpdateNewValues() *UsageChargeUpsertOne {
 		if _, exists := u.create.mutation.FirstUnit(); exists {
 			s.SetIgnore(usagecharge.FieldFirstUnit)
 		}
-		if _, exists := u.create.mutation.LastUnit(); exists {
-			s.SetIgnore(usagecharge.FieldLastUnit)
-		}
-		if _, exists := u.create.mutation.AmountMicros(); exists {
-			s.SetIgnore(usagecharge.FieldAmountMicros)
-		}
 		if _, exists := u.create.mutation.Currency(); exists {
 			s.SetIgnore(usagecharge.FieldCurrency)
 		}
@@ -579,6 +609,48 @@ func (u *UsageChargeUpsertOne) SetUpdatedAt(v time.Time) *UsageChargeUpsertOne {
 func (u *UsageChargeUpsertOne) UpdateUpdatedAt() *UsageChargeUpsertOne {
 	return u.Update(func(s *UsageChargeUpsert) {
 		s.UpdateUpdatedAt()
+	})
+}
+
+// SetLastUnit sets the "last_unit" field.
+func (u *UsageChargeUpsertOne) SetLastUnit(v int64) *UsageChargeUpsertOne {
+	return u.Update(func(s *UsageChargeUpsert) {
+		s.SetLastUnit(v)
+	})
+}
+
+// AddLastUnit adds v to the "last_unit" field.
+func (u *UsageChargeUpsertOne) AddLastUnit(v int64) *UsageChargeUpsertOne {
+	return u.Update(func(s *UsageChargeUpsert) {
+		s.AddLastUnit(v)
+	})
+}
+
+// UpdateLastUnit sets the "last_unit" field to the value that was provided on create.
+func (u *UsageChargeUpsertOne) UpdateLastUnit() *UsageChargeUpsertOne {
+	return u.Update(func(s *UsageChargeUpsert) {
+		s.UpdateLastUnit()
+	})
+}
+
+// SetAmountMicros sets the "amount_micros" field.
+func (u *UsageChargeUpsertOne) SetAmountMicros(v int64) *UsageChargeUpsertOne {
+	return u.Update(func(s *UsageChargeUpsert) {
+		s.SetAmountMicros(v)
+	})
+}
+
+// AddAmountMicros adds v to the "amount_micros" field.
+func (u *UsageChargeUpsertOne) AddAmountMicros(v int64) *UsageChargeUpsertOne {
+	return u.Update(func(s *UsageChargeUpsert) {
+		s.AddAmountMicros(v)
+	})
+}
+
+// UpdateAmountMicros sets the "amount_micros" field to the value that was provided on create.
+func (u *UsageChargeUpsertOne) UpdateAmountMicros() *UsageChargeUpsertOne {
+	return u.Update(func(s *UsageChargeUpsert) {
+		s.UpdateAmountMicros()
 	})
 }
 
@@ -824,12 +896,6 @@ func (u *UsageChargeUpsertBulk) UpdateNewValues() *UsageChargeUpsertBulk {
 			if _, exists := b.mutation.FirstUnit(); exists {
 				s.SetIgnore(usagecharge.FieldFirstUnit)
 			}
-			if _, exists := b.mutation.LastUnit(); exists {
-				s.SetIgnore(usagecharge.FieldLastUnit)
-			}
-			if _, exists := b.mutation.AmountMicros(); exists {
-				s.SetIgnore(usagecharge.FieldAmountMicros)
-			}
 			if _, exists := b.mutation.Currency(); exists {
 				s.SetIgnore(usagecharge.FieldCurrency)
 			}
@@ -876,6 +942,48 @@ func (u *UsageChargeUpsertBulk) SetUpdatedAt(v time.Time) *UsageChargeUpsertBulk
 func (u *UsageChargeUpsertBulk) UpdateUpdatedAt() *UsageChargeUpsertBulk {
 	return u.Update(func(s *UsageChargeUpsert) {
 		s.UpdateUpdatedAt()
+	})
+}
+
+// SetLastUnit sets the "last_unit" field.
+func (u *UsageChargeUpsertBulk) SetLastUnit(v int64) *UsageChargeUpsertBulk {
+	return u.Update(func(s *UsageChargeUpsert) {
+		s.SetLastUnit(v)
+	})
+}
+
+// AddLastUnit adds v to the "last_unit" field.
+func (u *UsageChargeUpsertBulk) AddLastUnit(v int64) *UsageChargeUpsertBulk {
+	return u.Update(func(s *UsageChargeUpsert) {
+		s.AddLastUnit(v)
+	})
+}
+
+// UpdateLastUnit sets the "last_unit" field to the value that was provided on create.
+func (u *UsageChargeUpsertBulk) UpdateLastUnit() *UsageChargeUpsertBulk {
+	return u.Update(func(s *UsageChargeUpsert) {
+		s.UpdateLastUnit()
+	})
+}
+
+// SetAmountMicros sets the "amount_micros" field.
+func (u *UsageChargeUpsertBulk) SetAmountMicros(v int64) *UsageChargeUpsertBulk {
+	return u.Update(func(s *UsageChargeUpsert) {
+		s.SetAmountMicros(v)
+	})
+}
+
+// AddAmountMicros adds v to the "amount_micros" field.
+func (u *UsageChargeUpsertBulk) AddAmountMicros(v int64) *UsageChargeUpsertBulk {
+	return u.Update(func(s *UsageChargeUpsert) {
+		s.AddAmountMicros(v)
+	})
+}
+
+// UpdateAmountMicros sets the "amount_micros" field to the value that was provided on create.
+func (u *UsageChargeUpsertBulk) UpdateAmountMicros() *UsageChargeUpsertBulk {
+	return u.Update(func(s *UsageChargeUpsert) {
+		s.UpdateAmountMicros()
 	})
 }
 

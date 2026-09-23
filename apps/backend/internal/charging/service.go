@@ -230,24 +230,41 @@ type Pruner struct {
 	Chunk int
 }
 
-// Run deletes everything before the start of last month and reports how many rows went.
+// ChargeRetention is how long a settled usage charge is kept (ADR 0044). The ledger entry it was paid
+// with is the permanent record; the charge row adds which positions and which card, which matters
+// while somebody might still dispute a recent statement and not for years after.
+const ChargeRetention = 395 * 24 * time.Hour
+
+// Run deletes player sets from before last month and settled charges past ChargeRetention, and
+// reports how many rows went.
 func (p *Pruner) Run(ctx context.Context) (int64, error) {
-	now := time.Now()
-	if p.Now != nil {
-		now = p.Now()
+	players, err := p.players(ctx)
+	if err != nil {
+		return players, err
 	}
-	cutoff := PeriodOf(now).AddDate(0, -1, 0)
+	charges, err := p.chunked(ctx,
+		`DELETE FROM usage_charges WHERE id IN (
+		     SELECT id FROM usage_charges WHERE settled_at IS NOT NULL AND settled_at < $1 LIMIT $2)`,
+		p.clock().Add(-ChargeRetention))
+	return players + charges, err
+}
+
+func (p *Pruner) clock() time.Time {
+	if p.Now != nil {
+		return p.Now()
+	}
+	return time.Now()
+}
+
+// chunked runs a bounded DELETE until it deletes less than a chunk.
+func (p *Pruner) chunked(ctx context.Context, query string, cutoff time.Time) (int64, error) {
 	chunk := p.Chunk
 	if chunk <= 0 {
 		chunk = 10_000
 	}
-
 	var total int64
 	for {
-		res, err := p.DB.Client.ExecContext(ctx,
-			`DELETE FROM billable_player WHERE id IN (
-			     SELECT id FROM billable_player WHERE period_start < $1 LIMIT $2)`,
-			cutoff, chunk)
+		res, err := p.DB.Client.ExecContext(ctx, query, cutoff, chunk)
 		if err != nil {
 			return total, err
 		}
@@ -260,4 +277,12 @@ func (p *Pruner) Run(ctx context.Context) (int64, error) {
 			return total, ctx.Err()
 		}
 	}
+}
+
+// players deletes everything before the start of last month.
+func (p *Pruner) players(ctx context.Context) (int64, error) {
+	return p.chunked(ctx,
+		`DELETE FROM billable_player WHERE id IN (
+		     SELECT id FROM billable_player WHERE period_start < $1 LIMIT $2)`,
+		PeriodOf(p.clock()).AddDate(0, -1, 0))
 }

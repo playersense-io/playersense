@@ -14,6 +14,7 @@ import (
 	"github.com/google/uuid"
 
 	"playersense.dev/backend/ent/creditlot"
+	"playersense.dev/backend/ent/ledgerentry"
 	"playersense.dev/backend/ent/monthlyusage"
 	"playersense.dev/backend/ent/usagecharge"
 	"playersense.dev/backend/internal/billing"
@@ -141,7 +142,10 @@ func TestLoad(t *testing.T) {
 		known[tn.customer] = true
 	}
 	topUp := &payments.AutoTopUp{DB: db, Gateway: loadOnly{Gateway: stripe, known: known}}
-	drainer := &Drainer{DB: db, MaxAccounts: 1000}
+	// As deployed (ADR 0044): an account settles when its oldest charge is five minutes old, or at
+	// once when its queue would cross zero or its top-up threshold. The run is shorter than five
+	// minutes, so every settlement during it is one of the boundaries.
+	drainer := &Drainer{DB: db, MaxAccounts: 1000, SettleAfter: 5 * time.Minute}
 	stop := make(chan struct{})
 	var background sync.WaitGroup
 	background.Add(1)
@@ -197,15 +201,17 @@ func TestLoad(t *testing.T) {
 		t.Fatalf("a delivery kept failing: %v", err)
 	}
 
-	// Drain what is left, top up what is low, then stop the background loops.
+	// Settle what is left — as the clock would five minutes later — top up what is low, then stop
+	// the background loops.
+	close(stop)
+	background.Wait()
+	final := &Drainer{DB: db, MaxAccounts: 1000}
 	for range 20 {
-		if _, err := drainer.Run(ctx); err != nil {
+		if _, err := final.Run(ctx); err != nil {
 			t.Logf("drain: %v", err)
 		}
 		_, _ = topUp.Run(ctx)
 	}
-	close(stop)
-	background.Wait()
 
 	var counted, cached, fromDB, fromValkey, fromMemory int64
 	for _, a := range accs {
@@ -227,6 +233,14 @@ func TestLoad(t *testing.T) {
 	}
 
 	// The books, organization by organization.
+	var rows struct{ charges, entries, orgs, maxEntries int }
+	defer func() {
+		if rows.orgs > 0 {
+			t.Logf("rows per organization: %.1f queue rows, %.1f ledger lines (at most %d), for %.0f deliveries each",
+				float64(rows.charges)/float64(rows.orgs), float64(rows.entries)/float64(rows.orgs),
+				rows.maxEntries, float64(handled.Load())/float64(rows.orgs))
+		}
+	}()
 	for _, tn := range tenants {
 		if len(tn.players) == 0 {
 			continue
@@ -241,6 +255,25 @@ func TestLoad(t *testing.T) {
 			t.Errorf("org %d: %d players charged %s; want %d and %s", tn.org, usage.TrackedPlayers,
 				billing.USD(usage.ChargedMicros), len(tn.players), billing.USD(want))
 		}
+		charges, _ := db.Client.UsageCharge.Query().Where(usagecharge.AccountID(tn.account)).All(ctx)
+		var queued int64
+		for _, c := range charges {
+			queued += c.AmountMicros
+		}
+		entries, _ := db.Client.LedgerEntry.Query().
+			Where(ledgerentry.AccountID(tn.account), ledgerentry.KindEQ(ledgerentry.KindUsage)).All(ctx)
+		var drained int64
+		for _, e := range entries {
+			drained -= e.AmountMicros
+		}
+		if queued != want || drained != want {
+			t.Errorf("org %d: queued %s, ledger drained %s; want %s", tn.org,
+				billing.USD(queued), billing.USD(drained), billing.USD(want))
+		}
+		rows.charges += len(charges)
+		rows.entries += len(entries)
+		rows.orgs++
+		rows.maxEntries = max(rows.maxEntries, len(entries))
 		unsettled, _ := db.Client.UsageCharge.Query().
 			Where(usagecharge.AccountID(tn.account), usagecharge.SettledAtIsNil()).Count(ctx)
 		if unsettled != 0 {

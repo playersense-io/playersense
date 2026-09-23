@@ -1080,6 +1080,22 @@ var (
 					Where: "settled_at IS NULL",
 				},
 			},
+			{
+				Name:    "usagecharge_account_id_period_start_rate_card_id",
+				Unique:  false,
+				Columns: []*schema.Column{UsageChargesColumns[10], UsageChargesColumns[4], UsageChargesColumns[11]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "settled_at IS NULL",
+				},
+			},
+			{
+				Name:    "usagecharge_settled_at",
+				Unique:  false,
+				Columns: []*schema.Column{UsageChargesColumns[9]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "settled_at IS NOT NULL",
+				},
+			},
 		},
 	}
 	// UsageDailyColumns holds the columns for the "usage_daily" table.

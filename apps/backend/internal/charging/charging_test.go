@@ -141,7 +141,7 @@ func (f *fixture) accruer() *Accruer {
 	return &Accruer{DB: f.db, Cache: f.cache, Bus: f.bus, Key: f.key, MaxInsert: 7}
 }
 
-func (f *fixture) drainer() *Drainer { return &Drainer{DB: f.db} }
+func (f *fixture) drainer() *Drainer { return &Drainer{DB: f.db} } // settles everything, every pass
 
 // players returns n new install ids.
 func players(n int) []string {
@@ -364,15 +364,17 @@ func TestAPriceChangeAppliesOnlyToPlayersAfterIt(t *testing.T) {
 	clock = starts.Add(time.Second)
 	f.handle(a, f.messages(players(5), clock))
 
+	// Two rows, not three: the two deliveries at the old price extend one open row (ADR 0044),
+	// and the new card opens its own.
 	charges := f.charges()
-	if len(charges) != 3 || charges[0].AmountMicros != 5*500 || charges[1].AmountMicros != 5*500 ||
-		charges[2].AmountMicros != 5*1_000 {
+	if len(charges) != 2 || charges[0].AmountMicros != 10*500 || charges[0].LastUnit != 10 ||
+		charges[1].AmountMicros != 5*1_000 || charges[1].FirstUnit != 11 {
 		for _, c := range charges {
 			t.Logf("charge %d–%d: %d", c.FirstUnit, c.LastUnit, c.AmountMicros)
 		}
 		t.Fatal("the old price did not hold until the card started, or the new one after it")
 	}
-	if charges[0].RateCardID == charges[2].RateCardID {
+	if charges[0].RateCardID == charges[1].RateCardID {
 		t.Error("both prices name the same card")
 	}
 }
@@ -750,3 +752,184 @@ func TestDigestsDoNotLinkAcrossMonthsOrKeys(t *testing.T) {
 }
 
 func ratecardMode(mode billing.Mode) ratecard.Mode { return ratecard.Mode(mode) }
+
+// ---- settling when it matters (ADR 0044) ------------------------------------
+
+func (f *fixture) unsettledRows() []*ent.UsageCharge {
+	f.t.Helper()
+	rows, err := f.db.Client.UsageCharge.Query().
+		Where(usagecharge.AccountID(f.account), usagecharge.SettledAtIsNil()).All(context.Background())
+	if err != nil {
+		f.t.Fatal(err)
+	}
+	return rows
+}
+
+// patient is the production drain: settles on the clock, or at a boundary.
+func (f *fixture) patient(now time.Time) *Drainer {
+	return &Drainer{DB: f.db, SettleAfter: 5 * time.Minute, Now: func() time.Time { return now }}
+}
+
+// Deliveries extend the account's one open row instead of adding one each: a statement line per
+// settlement, not per delivery.
+func TestDeliveriesExtendOneOpenRow(t *testing.T) {
+	f := newFixture(t, billing.Graduated, 0)
+	a := f.accruer()
+	for range 10 {
+		f.handle(a, f.messages(players(3), time.Now()))
+	}
+	rows := f.unsettledRows()
+	if len(rows) != 1 || rows[0].FirstUnit != 1 || rows[0].LastUnit != 30 {
+		t.Fatalf("%d open rows (%+v); want one covering players 1–30", len(rows), rows)
+	}
+	if a.Stats.Queued.Load() != 1 || a.Stats.Extended.Load() != 9 {
+		t.Errorf("opened %d, extended %d; want 1 and 9", a.Stats.Queued.Load(), a.Stats.Extended.Load())
+	}
+	f.drain()
+	f.assertBooks(billing.Card{Mode: billing.Graduated, Tiers: launch()}, 0, 30)
+}
+
+// A row the drain has paid is never changed: the next players open a new one, contiguous with it.
+func TestASettledRowIsNeverExtended(t *testing.T) {
+	f := newFixture(t, billing.Graduated, 0)
+	a := f.accruer()
+	f.handle(a, f.messages(players(4), time.Now()))
+	f.drain()
+	f.handle(a, f.messages(players(4), time.Now()))
+
+	charges := f.charges()
+	if len(charges) != 2 || charges[0].LastUnit != 4 || charges[1].FirstUnit != 5 || charges[0].SettledAt == nil {
+		t.Fatalf("charges = %+v", charges)
+	}
+	f.drain()
+	f.assertBooks(billing.Card{Mode: billing.Graduated, Tiers: launch()}, 0, 8)
+}
+
+// A funded account's usage waits up to five minutes to reach the ledger — and the balance a customer
+// sees does not wait at all, because it is ledger minus pending.
+func TestSettlingWaitsFiveMinutesUnlessItMatters(t *testing.T) {
+	f := newFixture(t, billing.Graduated, 0)
+	f.topUp(100 * billing.Micros)
+	f.handle(f.accruer(), f.messages(players(10), time.Now()))
+
+	if _, err := f.patient(time.Now()).Run(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if len(f.unsettledRows()) != 1 {
+		t.Fatal("a young charge on a funded account was settled at once")
+	}
+	if _, err := f.patient(time.Now().Add(6 * time.Minute)).Run(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if len(f.unsettledRows()) != 0 {
+		t.Fatal("a charge five minutes old was not settled")
+	}
+	f.assertBooks(billing.Card{Mode: billing.Graduated, Tiers: launch()}, 0, 10)
+}
+
+// Usage that would take a funded account below zero is settled at once, so the debt — and the grace
+// period — start now, not in five minutes.
+func TestCrossingZeroSettlesAtOnce(t *testing.T) {
+	f := newFixture(t, billing.Graduated, 0)
+	f.topUp(2_000) // $0.002: four players' worth
+	f.handle(f.accruer(), f.messages(players(10), time.Now()))
+
+	if _, err := f.patient(time.Now()).Run(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if len(f.unsettledRows()) != 0 || f.accountRow().ArrearsMicros == 0 {
+		t.Fatalf("crossing zero: %d unsettled, arrears %d; want settled and owing", len(f.unsettledRows()), f.accountRow().ArrearsMicros)
+	}
+}
+
+// Usage that would take an account below its automatic top-up threshold is settled at once — which
+// is what queues the top-up, so the card is charged in seconds.
+func TestCrossingTheTopUpThresholdSettlesAtOnce(t *testing.T) {
+	f := newFixture(t, billing.Graduated, 0)
+	f.topUp(10*billing.Micros + 2_000)
+	if _, err := f.db.Client.BillingAccount.UpdateOneID(f.account).SetStripeCustomerID("cus_" + uuid.NewString()[:8]).
+		SetAutoTopupEnabled(true).SetAutoTopupThresholdMicros(10 * billing.Micros).
+		SetAutoTopupAmountMicros(50 * billing.Micros).Save(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	f.handle(f.accruer(), f.messages(players(10), time.Now()))
+	if _, err := f.patient(time.Now()).Run(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	row := f.accountRow()
+	if len(f.unsettledRows()) != 0 || row.AutoTopupRequestedAt == nil {
+		t.Errorf("crossing the threshold: %d unsettled, top-up queued %v; want settled and queued", len(f.unsettledRows()), row.AutoTopupRequestedAt != nil)
+	}
+}
+
+// An account already in debt does not settle every few seconds: it has already crossed zero, and
+// settles on the clock like any other — so a debtor cannot fill the ledger either.
+func TestAnAccountAlreadyInDebtSettlesOnTheClock(t *testing.T) {
+	f := newFixture(t, billing.Graduated, 0)
+	a := f.accruer()
+	f.handle(a, f.messages(players(5), time.Now()))
+	f.drain() // now in debt
+	f.handle(a, f.messages(players(5), time.Now()))
+	if _, err := f.patient(time.Now()).Run(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if len(f.unsettledRows()) != 1 {
+		t.Error("an account already in debt was settled before its charge was five minutes old")
+	}
+}
+
+// Accruals extending rows while drains settle them, all at once: the books are exact.
+func TestExtendingAndSettlingAtOnceKeepTheBooksExact(t *testing.T) {
+	f := newFixture(t, billing.Graduated, 0)
+	f.topUp(billing.Micros)
+	stop := make(chan struct{})
+	var drains sync.WaitGroup
+	drains.Add(1)
+	go func() {
+		defer drains.Done()
+		for {
+			select {
+			case <-stop:
+				return
+			default:
+				_, _ = f.drainer().Run(context.Background())
+			}
+		}
+	}()
+	var wg sync.WaitGroup
+	for range 6 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			a := f.accruer()
+			for range 10 {
+				if err := a.Handle(context.Background(), f.messages(players(2), time.Now())); err != nil {
+					t.Errorf("accrue: %v", err)
+				}
+			}
+		}()
+	}
+	wg.Wait()
+	close(stop)
+	drains.Wait()
+	f.drain()
+	f.assertBooks(billing.Card{Mode: billing.Graduated, Tiers: launch()}, 0, 120)
+}
+
+// Settled charges are kept for a year and a month, then pruned; unsettled ones never are.
+func TestSettledChargesArePrunedAfterRetention(t *testing.T) {
+	f := newFixture(t, billing.Graduated, 0)
+	a := f.accruer()
+	f.handle(a, f.messages(players(3), time.Now()))
+	f.drain()
+	f.handle(a, f.messages(players(3), time.Now())) // open, unsettled
+
+	p := &Pruner{DB: f.db, Now: func() time.Time { return time.Now().Add(ChargeRetention + 24*time.Hour) }}
+	if _, err := p.Run(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	charges := f.charges()
+	if len(charges) != 1 || charges[0].SettledAt != nil {
+		t.Errorf("after pruning: %d charges (%+v); want only the unsettled one", len(charges), charges)
+	}
+}

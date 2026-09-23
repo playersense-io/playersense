@@ -27,6 +27,20 @@ type Drainer struct {
 	// so a backlog is worked through at a steady rate rather than in one transaction storm.
 	MaxAccounts int
 
+	// When an account's queue is settled (ADR 0044). The drain looks every few seconds and
+	// settles an account only when it matters:
+	//
+	//	its open charge is SettleAfter old          — at most one ledger line per SettleAfter
+	//	its pending charges reach SettleCap         — no statement line holds more than this
+	//	pending would take the balance below zero   — debt appears on the ledger at once
+	//	pending would cross its auto top-up threshold — the card is charged within seconds
+	//
+	// The last two only on the crossing, not while already below: an account already in debt
+	// or already waiting on a top-up settles on the clock like any other. Zero SettleAfter
+	// settles everything, every pass.
+	SettleAfter time.Duration
+	SettleCap   int64
+
 	Now func() time.Time
 
 	Stats DrainStats
@@ -60,10 +74,28 @@ func (d *Drainer) Run(ctx context.Context) (DrainResult, error) {
 		limit = 500
 	}
 
-	// Distinct accounts with something unsettled, off the partial index — a handful of rows
-	// however large usage_charges grows.
-	rows, err := d.DB.Client.QueryContext(ctx,
-		`SELECT DISTINCT account_id FROM usage_charges WHERE settled_at IS NULL LIMIT $1`, limit)
+	// Accounts whose queue is due, off the partial index over unsettled rows — which, with each
+	// delivery extending an account's open row, is about one row per account however large
+	// usage_charges grows. Oldest first, so a backlog is worked in order.
+	cap := d.SettleCap
+	if cap <= 0 {
+		cap = 1_000_000_000 // $1,000
+	}
+	rows, err := d.DB.Client.QueryContext(ctx, `
+		SELECT c.account_id
+		FROM usage_charges c
+		JOIN billing_accounts a ON a.id = c.account_id
+		WHERE c.settled_at IS NULL
+		GROUP BY c.account_id, a.balance_micros, a.auto_topup_enabled, a.auto_topup_threshold_micros
+		HAVING min(c.created_at) <= $1
+		    OR sum(c.amount_micros) >= $2
+		    OR (a.balance_micros >= 0 AND a.balance_micros - sum(c.amount_micros) < 0)
+		    OR (a.auto_topup_enabled
+		        AND a.balance_micros >= a.auto_topup_threshold_micros
+		        AND a.balance_micros - sum(c.amount_micros) < a.auto_topup_threshold_micros)
+		ORDER BY min(c.created_at)
+		LIMIT $3`,
+		d.now().Add(-d.SettleAfter), cap, limit)
 	if err != nil {
 		return DrainResult{}, fmt.Errorf("find queued charges: %w", err)
 	}
@@ -139,9 +171,14 @@ func (d *Drainer) settle(ctx context.Context, tx *ent.Tx, accountID int) (int, e
 		return 0, fmt.Errorf("lock the account: %w", err)
 	}
 
+	// FOR UPDATE: an open row can still be extended by an accrual (ADR 0044). Locked here, an
+	// extension either committed first — and is read, and paid — or waits for this commit, finds the
+	// row settled and opens a new one. Read unlocked, an extension landing between this read and the
+	// mark below would be marked settled without being paid.
 	charges, err := tx.UsageCharge.Query().
 		Where(usagecharge.AccountID(accountID), usagecharge.SettledAtIsNil()).
 		Order(ent.Asc(usagecharge.FieldID)).
+		ForUpdate().
 		All(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("read the queue: %w", err)

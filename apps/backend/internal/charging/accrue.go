@@ -20,6 +20,7 @@ import (
 
 	"playersense.dev/backend/ent"
 	"playersense.dev/backend/ent/monthlyusage"
+	"playersense.dev/backend/ent/usagecharge"
 	"playersense.dev/backend/internal/billing"
 	"playersense.dev/backend/internal/eventbus"
 	"playersense.dev/backend/internal/pgdb"
@@ -60,7 +61,8 @@ type Stats struct {
 	Skipped      atomic.Int64 // no persistent player: kids_strict, or no install id
 	KnownByCache atomic.Int64 // answered by Valkey, never reached PostgreSQL
 	Counted      atomic.Int64 // new this month, inserted into billable_player
-	Queued       atomic.Int64 // usage_charges rows written
+	Queued       atomic.Int64 // usage_charges rows opened
+	Extended     atomic.Int64 // deliveries that extended an open row instead
 	Unbilled     atomic.Int64 // players of an organization with no account and no default plan
 	DeadLettered atomic.Int64
 	CacheErrors  atomic.Int64
@@ -337,18 +339,41 @@ func (a *Accruer) count(ctx context.Context, tx *ent.Tx, g *group, pricing *Pric
 	// No row when nothing is owed — included players, or a plan with no card — so the queue
 	// holds only what the drain has to move.
 	if amount != 0 {
-		if err := tx.UsageCharge.Create().
-			SetAccountID(pricing.AccountID).
-			SetPeriodStart(g.period).
-			SetRateCardID(card.ID).
-			SetFirstUnit(from + 1).
+		// Extend the account's open row for this month and card when it ends where these
+		// players begin (ADR 0044): one row per settlement rather than one per delivery. The
+		// WHERE carries the whole condition, so a row the drain is paying right now — locked
+		// by it — is re-checked once that commits, found settled, and left alone; these
+		// players then open a new row.
+		extended, err := tx.UsageCharge.Update().
+			Where(
+				usagecharge.AccountID(pricing.AccountID),
+				usagecharge.PeriodStart(g.period),
+				usagecharge.RateCardID(card.ID),
+				usagecharge.SettledAtIsNil(),
+				usagecharge.LastUnit(from),
+			).
 			SetLastUnit(to).
-			SetAmountMicros(amount).
-			SetCurrency(card.Currency).
-			Exec(ctx); err != nil {
-			return false, fmt.Errorf("queue the charge: %w", err)
+			AddAmountMicros(amount).
+			Save(ctx)
+		if err != nil {
+			return false, fmt.Errorf("extend the open charge: %w", err)
 		}
-		a.Stats.Queued.Add(1)
+		if extended == 0 {
+			if err := tx.UsageCharge.Create().
+				SetAccountID(pricing.AccountID).
+				SetPeriodStart(g.period).
+				SetRateCardID(card.ID).
+				SetFirstUnit(from + 1).
+				SetLastUnit(to).
+				SetAmountMicros(amount).
+				SetCurrency(card.Currency).
+				Exec(ctx); err != nil {
+				return false, fmt.Errorf("queue the charge: %w", err)
+			}
+			a.Stats.Queued.Add(1)
+		} else {
+			a.Stats.Extended.Add(1)
+		}
 	}
 	return true, nil
 }

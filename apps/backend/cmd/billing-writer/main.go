@@ -71,6 +71,8 @@ func build(settings config.Settings) (*muzak.App, error) {
 		Drainer: &charging.Drainer{
 			DB: db, Log: logger,
 			MaxAccounts: settings.BillingDrainMaxAccounts,
+			SettleAfter: settings.BillingSettleAfter,
+			SettleCap:   settings.BillingSettleCap,
 		},
 		Pruner:          &charging.Pruner{DB: db},
 		TopUp:           topUp(settings, db, logger),

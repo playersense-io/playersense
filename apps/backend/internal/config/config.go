@@ -302,6 +302,13 @@ type Settings struct {
 	// counted.
 	BillingDrainEvery time.Duration `env:"BILLING_DRAIN_EVERY" default:"5s"`
 
+	// BillingSettleAfter is how old an account's pending usage may grow before it is written to
+	// the ledger (ADR 0044): about one statement line per account per this. Sooner when pending
+	// would take the balance below zero or below its auto top-up threshold, or reaches
+	// BillingSettleCap. The balance a customer sees is live regardless: ledger minus pending.
+	BillingSettleAfter time.Duration `env:"BILLING_SETTLE_AFTER" default:"5m"`
+	BillingSettleCap   int64         `env:"BILLING_SETTLE_CAP" default:"1000000000"`
+
 	// BillingDrainMaxAccounts bounds one drain pass. The rest are the next pass's.
 	BillingDrainMaxAccounts int `env:"BILLING_DRAIN_MAX_ACCOUNTS" default:"500"`
 

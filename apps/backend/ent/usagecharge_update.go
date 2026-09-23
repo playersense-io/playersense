@@ -35,6 +35,48 @@ func (_u *UsageChargeUpdate) SetUpdatedAt(v time.Time) *UsageChargeUpdate {
 	return _u
 }
 
+// SetLastUnit sets the "last_unit" field.
+func (_u *UsageChargeUpdate) SetLastUnit(v int64) *UsageChargeUpdate {
+	_u.mutation.ResetLastUnit()
+	_u.mutation.SetLastUnit(v)
+	return _u
+}
+
+// SetNillableLastUnit sets the "last_unit" field if the given value is not nil.
+func (_u *UsageChargeUpdate) SetNillableLastUnit(v *int64) *UsageChargeUpdate {
+	if v != nil {
+		_u.SetLastUnit(*v)
+	}
+	return _u
+}
+
+// AddLastUnit adds value to the "last_unit" field.
+func (_u *UsageChargeUpdate) AddLastUnit(v int64) *UsageChargeUpdate {
+	_u.mutation.AddLastUnit(v)
+	return _u
+}
+
+// SetAmountMicros sets the "amount_micros" field.
+func (_u *UsageChargeUpdate) SetAmountMicros(v int64) *UsageChargeUpdate {
+	_u.mutation.ResetAmountMicros()
+	_u.mutation.SetAmountMicros(v)
+	return _u
+}
+
+// SetNillableAmountMicros sets the "amount_micros" field if the given value is not nil.
+func (_u *UsageChargeUpdate) SetNillableAmountMicros(v *int64) *UsageChargeUpdate {
+	if v != nil {
+		_u.SetAmountMicros(*v)
+	}
+	return _u
+}
+
+// AddAmountMicros adds value to the "amount_micros" field.
+func (_u *UsageChargeUpdate) AddAmountMicros(v int64) *UsageChargeUpdate {
+	_u.mutation.AddAmountMicros(v)
+	return _u
+}
+
 // SetSettledAt sets the "settled_at" field.
 func (_u *UsageChargeUpdate) SetSettledAt(v time.Time) *UsageChargeUpdate {
 	_u.mutation.SetSettledAt(v)
@@ -129,6 +171,11 @@ func (_u *UsageChargeUpdate) defaults() {
 
 // check runs all checks and user-defined validators on the builder.
 func (_u *UsageChargeUpdate) check() error {
+	if v, ok := _u.mutation.LastUnit(); ok {
+		if err := usagecharge.LastUnitValidator(v); err != nil {
+			return &ValidationError{Name: "last_unit", err: fmt.Errorf(`ent: validator failed for field "UsageCharge.last_unit": %w`, err)}
+		}
+	}
 	if _u.mutation.AccountCleared() && len(_u.mutation.AccountIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "UsageCharge.account"`)
 	}
@@ -152,6 +199,18 @@ func (_u *UsageChargeUpdate) sqlSave(ctx context.Context) (_node int, err error)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(usagecharge.FieldUpdatedAt, field.TypeTime, value)
+	}
+	if value, ok := _u.mutation.LastUnit(); ok {
+		_spec.SetField(usagecharge.FieldLastUnit, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedLastUnit(); ok {
+		_spec.AddField(usagecharge.FieldLastUnit, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AmountMicros(); ok {
+		_spec.SetField(usagecharge.FieldAmountMicros, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedAmountMicros(); ok {
+		_spec.AddField(usagecharge.FieldAmountMicros, field.TypeInt64, value)
 	}
 	if value, ok := _u.mutation.SettledAt(); ok {
 		_spec.SetField(usagecharge.FieldSettledAt, field.TypeTime, value)
@@ -211,6 +270,48 @@ type UsageChargeUpdateOne struct {
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *UsageChargeUpdateOne) SetUpdatedAt(v time.Time) *UsageChargeUpdateOne {
 	_u.mutation.SetUpdatedAt(v)
+	return _u
+}
+
+// SetLastUnit sets the "last_unit" field.
+func (_u *UsageChargeUpdateOne) SetLastUnit(v int64) *UsageChargeUpdateOne {
+	_u.mutation.ResetLastUnit()
+	_u.mutation.SetLastUnit(v)
+	return _u
+}
+
+// SetNillableLastUnit sets the "last_unit" field if the given value is not nil.
+func (_u *UsageChargeUpdateOne) SetNillableLastUnit(v *int64) *UsageChargeUpdateOne {
+	if v != nil {
+		_u.SetLastUnit(*v)
+	}
+	return _u
+}
+
+// AddLastUnit adds value to the "last_unit" field.
+func (_u *UsageChargeUpdateOne) AddLastUnit(v int64) *UsageChargeUpdateOne {
+	_u.mutation.AddLastUnit(v)
+	return _u
+}
+
+// SetAmountMicros sets the "amount_micros" field.
+func (_u *UsageChargeUpdateOne) SetAmountMicros(v int64) *UsageChargeUpdateOne {
+	_u.mutation.ResetAmountMicros()
+	_u.mutation.SetAmountMicros(v)
+	return _u
+}
+
+// SetNillableAmountMicros sets the "amount_micros" field if the given value is not nil.
+func (_u *UsageChargeUpdateOne) SetNillableAmountMicros(v *int64) *UsageChargeUpdateOne {
+	if v != nil {
+		_u.SetAmountMicros(*v)
+	}
+	return _u
+}
+
+// AddAmountMicros adds value to the "amount_micros" field.
+func (_u *UsageChargeUpdateOne) AddAmountMicros(v int64) *UsageChargeUpdateOne {
+	_u.mutation.AddAmountMicros(v)
 	return _u
 }
 
@@ -321,6 +422,11 @@ func (_u *UsageChargeUpdateOne) defaults() {
 
 // check runs all checks and user-defined validators on the builder.
 func (_u *UsageChargeUpdateOne) check() error {
+	if v, ok := _u.mutation.LastUnit(); ok {
+		if err := usagecharge.LastUnitValidator(v); err != nil {
+			return &ValidationError{Name: "last_unit", err: fmt.Errorf(`ent: validator failed for field "UsageCharge.last_unit": %w`, err)}
+		}
+	}
 	if _u.mutation.AccountCleared() && len(_u.mutation.AccountIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "UsageCharge.account"`)
 	}
@@ -361,6 +467,18 @@ func (_u *UsageChargeUpdateOne) sqlSave(ctx context.Context) (_node *UsageCharge
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(usagecharge.FieldUpdatedAt, field.TypeTime, value)
+	}
+	if value, ok := _u.mutation.LastUnit(); ok {
+		_spec.SetField(usagecharge.FieldLastUnit, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedLastUnit(); ok {
+		_spec.AddField(usagecharge.FieldLastUnit, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AmountMicros(); ok {
+		_spec.SetField(usagecharge.FieldAmountMicros, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedAmountMicros(); ok {
+		_spec.AddField(usagecharge.FieldAmountMicros, field.TypeInt64, value)
 	}
 	if value, ok := _u.mutation.SettledAt(); ok {
 		_spec.SetField(usagecharge.FieldSettledAt, field.TypeTime, value)

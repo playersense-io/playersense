@@ -224,11 +224,16 @@ func (UsageCharge) Fields() []ent.Field {
 		// Positions within the month, inclusive: this charge is for the players counted
 		// first_unit through last_unit. Contiguous across an account's charges for a month,
 		// which is what makes a statement line say "players 100,001 to 100,142".
+		//
+		// last_unit and amount_micros grow while the row is open (ADR 0044): each delivery's new
+		// players extend the account's one unsettled row for the month and card, rather than
+		// adding a row per delivery. Only while settled_at is null — the extending UPDATE says
+		// so in its WHERE — so a row the drain has paid is never changed.
 		field.Int64("first_unit").Positive().Immutable().Comment(dataclass.None),
-		field.Int64("last_unit").Positive().Immutable().Comment(dataclass.None),
+		field.Int64("last_unit").Positive().Comment(dataclass.None),
 
 		// Signed. Negative only on a volume card crossing into a cheaper band.
-		field.Int64("amount_micros").Immutable().Comment(dataclass.Financial),
+		field.Int64("amount_micros").Comment(dataclass.Financial),
 		field.String("currency").MaxLen(3).Default("usd").Immutable().Comment(dataclass.Financial),
 
 		// When the drain paid it, and the entry it paid it with.
@@ -263,5 +268,13 @@ func (UsageCharge) Indexes() []ent.Index {
 		// large the table grows.
 		index.Fields("account_id").
 			Annotations(entsql.IndexWhere("settled_at IS NULL")),
+
+		// The open row a delivery extends: one per account, month and card.
+		index.Fields("account_id", "period_start", "rate_card_id").
+			Annotations(entsql.IndexWhere("settled_at IS NULL")),
+
+		// The prune: settled charges old enough that the ledger alone is their record.
+		index.Fields("settled_at").
+			Annotations(entsql.IndexWhere("settled_at IS NOT NULL")),
 	}
 }
