@@ -50,7 +50,7 @@ type Effects = Partial<Record<MetricKey, number>>
 interface SampleExperiment extends ExperimentDef {
   /** The true effect of each variant, relative to the control, by metric. */
   truth: Record<string, Effects>
-  /** Players entering the test a day, across its variants. */
+  /** Eligible players a day, before the test's traffic share lets some of them in. */
   enrolment: number
 }
 
@@ -61,6 +61,7 @@ const event = (days: number, actor: string, text: string): ExperimentEvent => ({
 const SAMPLES: SampleExperiment[] = [
   {
     id: 'exp-battle-pass-regional',
+    traffic: 50,
     name: 'Regional battle pass price',
     hypothesis: 'A lower battle pass price where regional pricing applies sells enough more passes to earn more per player.',
     flagKey: 'battle_pass.price_tier',
@@ -74,10 +75,11 @@ const SAMPLES: SampleExperiment[] = [
     started_at: ago(33),
     events: [event(35, 'mira@acme.games', 'Created'), event(33, 'mira@acme.games', 'Started: 50% standard, 50% regional')],
     truth: { b: { revenue_per_player: 0.2, payer_conversion: 0.6, d7_retention: 0.01 } },
-    enrolment: 2600
+    enrolment: 5200
   },
   {
     id: 'exp-skip-tutorial',
+    traffic: 100,
     name: 'Skip button on the tutorial',
     hypothesis: 'Letting experienced players skip the tutorial keeps more of them past the first day.',
     flagKey: 'tutorial.skip_button',
@@ -95,6 +97,7 @@ const SAMPLES: SampleExperiment[] = [
   },
   {
     id: 'exp-halloween-banner',
+    traffic: 20,
     name: 'Halloween banner on the main menu',
     hypothesis: 'A banner for the Halloween event on the main menu brings players back to it more often.',
     flagKey: 'events.halloween_banner',
@@ -107,10 +110,11 @@ const SAMPLES: SampleExperiment[] = [
     created_at: ago(2),
     events: [event(2, 'hmmusicproducing@gmail.com', 'Created')],
     truth: {},
-    enrolment: 3000
+    enrolment: 15000
   },
   {
     id: 'exp-daily-reward',
+    traffic: 30,
     name: 'Daily reward size',
     hypothesis: 'A bigger daily login chest keeps more players to their second week.',
     flagKey: 'economy.daily_reward_gems',
@@ -128,10 +132,11 @@ const SAMPLES: SampleExperiment[] = [
     conclusion: '80 gems kept more players to day 7 without costing purchases. 100 gems kept as many, but players bought fewer gems.',
     events: [event(72, 'deniz@acme.games', 'Created'), event(70, 'deniz@acme.games', 'Started: a third each on 50, 80 and 100 gems'), event(42, 'deniz@acme.games', 'Finished: 80 gems won'), event(41, 'deniz@acme.games', 'Shipped 80 gems to every player')],
     truth: { b: { d7_retention: 0.06, revenue_per_player: -0.01, sessions_per_player: 0.03 }, c: { d7_retention: 0.065, revenue_per_player: -0.08, payer_conversion: -0.07 } },
-    enrolment: 6200
+    enrolment: 20600
   },
   {
     id: 'exp-store-carousel',
+    traffic: 50,
     name: 'Carousel storefront',
     hypothesis: 'Showing offers one at a time in a carousel sells more than the grid.',
     flagKey: 'store.layout',
@@ -148,10 +153,11 @@ const SAMPLES: SampleExperiment[] = [
     conclusion: 'No clear difference in four weeks. The grid stays; the carousel ships slowly as a design change rather than a revenue one.',
     events: [event(97, 'mira@acme.games', 'Created'), event(95, 'mira@acme.games', 'Started: 50% grid, 50% carousel'), event(67, 'mira@acme.games', 'Finished: no clear winner')],
     truth: { b: { revenue_per_player: 0.008, payer_conversion: 0.01 } },
-    enrolment: 3800
+    enrolment: 7600
   },
   {
     id: 'exp-starter-discount',
+    traffic: 100,
     name: 'Starter pack discount',
     hypothesis: '30% off the starter pack turns more new players into payers, and pays for itself.',
     flagKey: 'offers.starter_pack_discount',
@@ -173,6 +179,7 @@ const SAMPLES: SampleExperiment[] = [
   },
   {
     id: 'exp-energy-refill',
+    traffic: 25,
     name: 'Faster energy refill',
     hypothesis: 'Refilling energy in 6 minutes instead of 8 makes players play more sessions.',
     flagKey: 'economy.energy_refill_seconds',
@@ -189,10 +196,11 @@ const SAMPLES: SampleExperiment[] = [
     conclusion: 'Stopped on day 10: revenue per player fell by a fifth, as players stopped buying refills. Sessions barely moved.',
     events: [event(162, 'deniz@acme.games', 'Created'), event(160, 'deniz@acme.games', 'Started'), event(150, 'deniz@acme.games', 'Stopped early: revenue guardrail')],
     truth: { b: { sessions_per_player: 0.03, revenue_per_player: -0.22, payer_conversion: -0.15 } },
-    enrolment: 6000
+    enrolment: 24000
   },
   {
     id: 'exp-interstitials',
+    traffic: 40,
     name: 'Fewer interstitial ads',
     hypothesis: 'An interstitial every 4 matches instead of every 3 keeps more players without losing much ad revenue.',
     flagKey: 'ads.interstitial_every_n_matches',
@@ -210,7 +218,7 @@ const SAMPLES: SampleExperiment[] = [
     conclusion: 'Day-7 retention rose and ad revenue per player held within its noise.',
     events: [event(207, 'mira@acme.games', 'Created'), event(205, 'mira@acme.games', 'Started'), event(177, 'mira@acme.games', 'Finished: every 4 matches won'), event(176, 'mira@acme.games', 'Shipped every 4 matches')],
     truth: { b: { d7_retention: 0.07, ad_revenue_per_player: -0.03, sessions_per_player: 0.03 } },
-    enrolment: 5200
+    enrolment: 13000
   }
 ]
 
@@ -252,7 +260,7 @@ export function sampleExperimentResults(experiment: ExperimentDef): ExperimentRe
   const daily: ExperimentResults['daily'] = {}
   const variants: VariantResult[] = experiment.variants.map((entry) => {
     const effects = truth[entry.id] ?? {}
-    const players = dayStarts.map((_, index) => Math.round(enrolment * (entry.weight / 100) * (index + 1) * (0.94 + random() * 0.12)))
+    const players = dayStarts.map((_, index) => Math.round(enrolment * ((experiment.traffic ?? 100) / 100) * (entry.weight / 100) * (index + 1) * (0.94 + random() * 0.12)))
     const metrics = {} as Record<MetricKey, number[]>
     const stats = {} as Record<MetricKey, VariantStat>
     for (const metric of METRIC_KEYS) {
@@ -271,4 +279,30 @@ export function sampleExperimentResults(experiment: ExperimentDef): ExperimentRe
   })
 
   return { days: dayStarts, variants, daily }
+}
+
+// --- The game, day by day -----------------------------------------------------------------
+
+export interface DayTotals {
+  players: number
+  newPlayers: number
+  revenue: number
+}
+
+/**
+ * The whole game's day, for the strip over the calendar: players, new players and revenue, so
+ * a test can be read against the week it ran in. Null for a day that has not happened. Stands
+ * in for the metrics query's daily totals (dau, installs, revenue).
+ */
+export function sampleDayTotals(dayStart: number): DayTotals | null {
+  if (dayStart > Date.now()) return null
+  const random = seeded(`day:${new Date(dayStart).toISOString().slice(0, 10)}`)
+  const weekday = new Date(dayStart).getDay()
+  const weekend = weekday === 0 || weekday === 6 ? 1.14 : 1
+  const players = Math.round(48_000 * weekend * (0.94 + random() * 0.12))
+  return {
+    players,
+    newPlayers: Math.round(players * (0.06 + random() * 0.02)),
+    revenue: Math.round(players * 0.41 * (0.8 + random() * 0.45))
+  }
 }

@@ -12,7 +12,7 @@ let shared: Ref<ExperimentDef[]> | null = null
 
 /* One ref for the app, in a detached scope, so its write to storage outlives any one screen. */
 function storedExperiments(): Ref<ExperimentDef[]> {
-  shared ??= effectScope(true).run(() => useLocalStorage<ExperimentDef[]>('playersense.experiments', seedExperiments, { deep: false }))!
+  shared ??= effectScope(true).run(() => useLocalStorage<ExperimentDef[]>('playersense.experiments.v2', seedExperiments, { deep: false }))!
   return shared
 }
 
@@ -23,7 +23,8 @@ export function useExperiments() {
   const experiments = computed<ExperimentDef[]>(() => {
     const value = stored.value
     const valid = Array.isArray(value) && value.every(entry => typeof entry?.id === 'string' && Array.isArray(entry.variants) && Array.isArray(entry.events))
-    return valid ? value : seedExperiments()
+    /* A test stored before traffic existed let everybody in. */
+    return (valid ? value : seedExperiments()).map(entry => ({ ...entry, traffic: entry.traffic ?? 100 }))
   })
 
   const experimentById = (id: string) => experiments.value.find(entry => entry.id === id) ?? null
@@ -44,17 +45,30 @@ export function useExperiments() {
   }
 
   function start(id: string) {
-    const split = experimentById(id)?.variants.map(entry => `${entry.weight}% ${entry.name}`).join(', ') ?? ''
-    write(id, entry => ({ ...entry, status: 'running', started_at: new Date().toISOString() }), `Started: ${split}`)
+    const experiment = experimentById(id)
+    const split = experiment?.variants.map(entry => `${entry.weight}% ${variantTitle(experiment, entry)}`).join(', ') ?? ''
+    write(id, entry => ({ ...entry, status: 'running', started_at: new Date().toISOString() }), `Started with ${experiment?.traffic ?? 100}% of the audience: ${split}`)
   }
 
   function stop(id: string, reason: string) {
     write(id, entry => ({ ...entry, status: 'stopped', ended_at: new Date().toISOString(), winner: null, conclusion: reason || undefined }), `Stopped early${reason ? `: ${reason}` : ''}`)
   }
 
+  /**
+   * Lets more or fewer of the audience into a running test. Raising it keeps everybody already
+   * in: assignment is a hash of the install, so a wider share only adds players.
+   */
+  function setTraffic(id: string, traffic: number) {
+    const before = experimentById(id)?.traffic ?? 100
+    if (before === traffic) return
+    write(id, entry => ({ ...entry, traffic }), `Traffic ${before}% → ${traffic}% of the audience`)
+  }
+
   /** Ends a test with a decision: a winning variant, or null for none. */
   function finish(id: string, winner: string | null, conclusion: string) {
-    const name = experimentById(id)?.variants.find(entry => entry.id === winner)?.name
+    const experiment = experimentById(id)
+    const chosen = experiment?.variants.find(entry => entry.id === winner)
+    const name = experiment && chosen ? variantTitle(experiment, chosen) : null
     write(id, entry => ({ ...entry, status: 'concluded', ended_at: entry.ended_at ?? new Date().toISOString(), winner, conclusion: conclusion || undefined }), name ? `Finished: ${name} won` : 'Finished: no clear winner')
   }
 
@@ -76,9 +90,9 @@ export function useExperiments() {
       rules: flag.rules.filter(rule => !(values.includes(JSON.stringify(rule.value)) && rule.rollout < FULL_ROLLOUT))
     })
     if (problem) return problem
-    write(id, entry => ({ ...entry, shipped: true }), `Shipped ${winner.name}: ${experiment.flagKey} now serves ${writeValue(winner.value)} to everybody`)
+    write(id, entry => ({ ...entry, shipped: true }), `Shipped ${variantTitle(experiment, winner)}: ${experiment.flagKey} now serves ${writeValue(winner.value)} to everybody`)
     return null
   }
 
-  return { experiments, experimentById, create, start, stop, finish, ship }
+  return { experiments, experimentById, create, start, setTraffic, stop, finish, ship }
 }

@@ -49,12 +49,22 @@ export const METRIC_KEYS = Object.keys(EXPERIMENT_METRICS) as MetricKey[]
 
 export interface VariantDef {
   id: string
+  /** A name of the team's own, or the variant's letter when it has none. */
   name: string
   /** What the experiment's flag serves this variant. */
   value: Json
-  /** Percent of the test's audience. The variants add up to 100. */
+  /** Percent of the players in the test. The variants add up to 100. */
   weight: number
   control: boolean
+}
+
+/** A variant's letter, by its place: the control is A. */
+export const variantLetter = (index: number) => 'ABCDEFGH'[index] ?? String(index + 1)
+
+/** "A", or "A: Standard price" for a variant with a name of its own. */
+export function variantTitle(experiment: Pick<ExperimentDef, 'variants'>, variant: VariantDef): string {
+  const letter = variantLetter(experiment.variants.findIndex(entry => entry.id === variant.id))
+  return variant.name && variant.name !== letter ? `${letter}: ${variant.name}` : `Variant ${letter}`
 }
 
 export interface ExperimentEvent {
@@ -69,8 +79,13 @@ export interface ExperimentDef {
   /** What the team expects, in a sentence: the thing the result answers. */
   hypothesis: string
   flagKey: string
-  /** Who is in the test, in words: "New players on Android". */
+  /** Who can be in the test, in words: "New players on Android". */
   audience: string
+  /**
+   * Percent of that audience let into the test. The rest keep what the game serves today and
+   * are not counted, which is how a risky test starts small and is ramped up.
+   */
+  traffic: number
   status: ExperimentStatus
   primaryMetric: MetricKey
   /** Metrics that must not get worse, whatever the primary does. */
@@ -254,7 +269,7 @@ export function verdictOf(experiment: ExperimentDef, results: ExperimentResults 
   const days = daysRun(experiment)
   const figures = (entry: VariantAgainstControl) => {
     const comparison = entry.comparisons[experiment.primaryMetric]
-    return `${writeLift(experiment.primaryMetric, comparison)} ${metric.label.toLowerCase()} against ${control.variant.name}, a ${writeChance(comparison.chance)} chance it is really better`
+    return `${writeLift(experiment.primaryMetric, comparison)} ${metric.label.toLowerCase()} against ${variantTitle(experiment, control.variant)}, a ${writeChance(comparison.chance)} chance it is really better`
   }
 
   if (experiment.status === 'stopped') {
@@ -264,7 +279,7 @@ export function verdictOf(experiment: ExperimentDef, results: ExperimentResults 
     const winner = experiment.variants.find(entry => entry.id === experiment.winner)
     if (winner) {
       const entry = others.find(other => other.variant.id === winner.id)
-      return { kind: 'won', title: `${winner.name} won`, detail: experiment.conclusion ?? (entry ? `${figures(entry)}.` : ''), variant: winner, breaches }
+      return { kind: 'won', title: `${variantTitle(experiment, winner)} won`, detail: experiment.conclusion ?? (entry ? `${figures(entry)}.` : ''), variant: winner, breaches }
     }
     return { kind: 'no-winner', title: 'No clear winner', detail: experiment.conclusion ?? `No variant moved ${metric.label.toLowerCase()} by more than its noise.`, breaches }
   }
@@ -277,16 +292,16 @@ export function verdictOf(experiment: ExperimentDef, results: ExperimentResults 
   const finished = days >= experiment.plannedDays
   if (outcome === 'better') {
     return finished
-      ? { kind: 'ready', title: `${best.variant.name} won`, detail: `${figures(best)}. The test has run its planned ${experiment.plannedDays} days: finish it and ship the winner.`, variant: best.variant, breaches }
-      : { kind: 'leading', title: `${best.variant.name} is winning`, detail: `${figures(best)}. Let it run to day ${experiment.plannedDays} to be sure the lead holds.`, variant: best.variant, breaches }
+      ? { kind: 'ready', title: `${variantTitle(experiment, best.variant)} won`, detail: `${figures(best)}. The test has run its planned ${experiment.plannedDays} days: finish it and ship the winner.`, variant: best.variant, breaches }
+      : { kind: 'leading', title: `${variantTitle(experiment, best.variant)} is winning`, detail: `${figures(best)}. Let it run to day ${experiment.plannedDays} to be sure the lead holds.`, variant: best.variant, breaches }
   }
   if (others.every(entry => outcomeOf(entry.comparisons[experiment.primaryMetric]) === 'worse')) {
-    return { kind: 'control', title: `${control.variant.name} is winning`, detail: `Every variant is doing worse than the control on ${metric.label.toLowerCase()}.`, variant: control.variant, breaches }
+    return { kind: 'control', title: `${variantTitle(experiment, control.variant)} is winning`, detail: `Every variant is doing worse than the control on ${metric.label.toLowerCase()}.`, variant: control.variant, breaches }
   }
   return {
     kind: 'unclear',
     title: finished ? 'No clear winner' : 'No clear leader yet',
-    detail: `${best.variant.name} is closest: ${figures(best)}. ${finished ? 'The planned days are up; keep the control or test a bigger change.' : `${Math.max(0, experiment.plannedDays - days - 1)} days to go.`}`,
+    detail: `${variantTitle(experiment, best.variant)} is closest: ${figures(best)}. ${finished ? 'The planned days are up; keep the control or test a bigger change.' : `${Math.max(0, experiment.plannedDays - days - 1)} days to go.`}`,
     variant: best.variant,
     breaches
   }
