@@ -1,7 +1,3 @@
-<script setup lang="ts">
-definePageMeta({ title: 'Queue Backlog' })
-</script>
-
 <template>
   <PagePlaceholder
     title="Queue Backlog"

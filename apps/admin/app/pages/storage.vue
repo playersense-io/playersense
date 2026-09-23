@@ -1,7 +1,3 @@
-<script setup lang="ts">
-definePageMeta({ title: 'Storage' })
-</script>
-
 <template>
   <PagePlaceholder
     title="Storage"

@@ -1,7 +1,3 @@
-<script setup lang="ts">
-definePageMeta({ title: 'Ingestion Volume' })
-</script>
-
 <template>
   <PagePlaceholder
     title="Ingestion Volume"

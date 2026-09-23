@@ -1,7 +1,3 @@
-<script setup lang="ts">
-definePageMeta({ title: 'Audit Access' })
-</script>
-
 <template>
   <PagePlaceholder
     title="Audit Access"

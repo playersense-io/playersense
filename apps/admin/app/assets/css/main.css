@@ -1,6 +1,5 @@
-@import "tailwindcss" theme(static);
-@import "@nuxt/ui";
+/* Tailwind, the theme tokens and the reset come from the dashboard layer; this file adds
+   the app's own files to what Tailwind scans. See packages/dashboard/app/assets/css. */
+@import "@playersense/dashboard/app/assets/css/dashboard.css";
 
-@theme static {
-  --font-sans: 'Public Sans', sans-serif;
-}
+@source "../../";

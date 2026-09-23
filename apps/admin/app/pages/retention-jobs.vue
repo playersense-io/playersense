@@ -1,7 +1,3 @@
-<script setup lang="ts">
-definePageMeta({ title: 'Retention Jobs' })
-</script>
-
 <template>
   <PagePlaceholder
     title="Retention Jobs"

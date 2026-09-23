@@ -1,12 +1,10 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
-  extends: ['../../packages/ui'],
+  // packages/dashboard brings Vuetify, Tailwind, icons, the theme, the shell and the
+  // common components; packages/ui the brand marks and favicons.
+  extends: ['../../packages/dashboard', '../../packages/ui'],
 
-  modules: [
-    '@nuxt/eslint',
-    '@nuxt/ui',
-    '@vueuse/nuxt'
-  ],
+  modules: ['@nuxt/eslint'],
 
   // Internal staff console, behind its own auth — no public content to
   // server-render (§56).
@@ -16,7 +14,8 @@ export default defineNuxtConfig({
     enabled: true
   },
 
-  css: ['~/assets/css/main.css'],
+  // Space Grotesk is the wordmark's face (packages/ui Logo.vue).
+  css: ['@fontsource/space-grotesk/600.css', '~/assets/css/main.css'],
 
   routeRules: {
     '/api/**': {

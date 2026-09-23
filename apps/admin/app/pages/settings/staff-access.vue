@@ -1,45 +1,51 @@
 <script setup lang="ts">
 import type { StaffAccessEntry } from '~/types'
 
-definePageMeta({ title: 'Staff Access' })
+const { data: entries, pending } = await useFetch<StaffAccessEntry[]>('/api/staff-access', { default: () => [] })
 
-const { data: entries } = await useFetch<StaffAccessEntry[]>('/api/staff-access', { default: () => [] })
+const COLUMNS: DataTableColumn<StaffAccessEntry>[] = [
+  { key: 'staffName', title: 'Staff', fixed: true },
+  { key: 'organization', title: 'Organization' },
+  { key: 'ticketReference', title: 'Ticket', mono: true },
+  { key: 'accessedAt', title: 'Accessed at', mono: true, align: 'end' }
+]
+
+const columns = ref(defaultColumnState(COLUMNS))
+
+const dateTime = new Intl.DateTimeFormat('en', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'UTC' })
 </script>
 
 <template>
-  <UDashboardPanel id="staff-access">
-    <template #header>
-      <UDashboardNavbar title="Staff Access">
-        <template #leading>
-          <UDashboardSidebarCollapse />
+  <div class="flex flex-col gap-6">
+    <PageHeader
+      title="Staff access"
+      description="Every PlayerSense staff read of a customer's data, with a ticket reference — not the customer's own audit log (§104)."
+    />
+
+    <InfoNote icon="material-symbols:construction" tone="warning">
+      Blocked on backend: the staff_access table doesn't exist yet — nothing writes it today.
+      The rows below are placeholder shape only.
+    </InfoNote>
+
+    <v-card border flat>
+      <div class="flex justify-end border-b border-line p-3">
+        <DataTableColumnsMenu v-model="columns" :columns="COLUMNS" />
+      </div>
+
+      <DataTable
+        v-model:column-state="columns"
+        :columns="COLUMNS"
+        :items="entries"
+        :loading="pending"
+        empty-description="No staff member has read a customer's data."
+        empty-title="No access recorded."
+        item-value="ticketReference"
+        label="Staff access"
+      >
+        <template #cell.accessedAt="{ item }">
+          {{ dateTime.format(new Date(item.accessedAt)) }} UTC
         </template>
-      </UDashboardNavbar>
-    </template>
-
-    <template #body>
-      <UPageHeader
-        title="Staff Access"
-        description="Every PlayerSense staff read of a customer's data, with a ticket reference — not the customer's own audit log (§104)."
-      />
-
-      <UAlert
-        color="warning"
-        variant="subtle"
-        icon="i-lucide-construction"
-        title="Blocked on backend"
-        description="The staff_access table doesn't exist yet — nothing writes it today. The rows below are placeholder shape only."
-        class="my-6"
-      />
-
-      <UTable
-        :data="entries"
-        :columns="[
-          { accessorKey: 'staffName', header: 'Staff' },
-          { accessorKey: 'organization', header: 'Organization' },
-          { accessorKey: 'ticketReference', header: 'Ticket' },
-          { accessorKey: 'accessedAt', header: 'Accessed at' }
-        ]"
-      />
-    </template>
-  </UDashboardPanel>
+      </DataTable>
+    </v-card>
+  </div>
 </template>

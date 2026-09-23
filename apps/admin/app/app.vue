@@ -1,14 +1,12 @@
 <script setup lang="ts">
-const colorMode = useColorMode()
-const route = useRoute()
-
-const color = computed(() => colorMode.value === 'dark' ? '#0a0a0a' : '#fafafa')
+const { isDark } = useColorScheme()
 
 useHead({
   meta: [
     { charset: 'utf-8' },
     { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-    { key: 'theme-color', name: 'theme-color', content: color },
+    // The shell colour of each theme (packages/dashboard/nuxt.config.ts).
+    { key: 'theme-color', name: 'theme-color', content: () => (isDark.value ? '#111111' : '#ffffff') },
     { name: 'robots', content: 'noindex, nofollow' }
   ],
   link: [
@@ -18,18 +16,14 @@ useHead({
   ],
   htmlAttrs: {
     lang: 'en'
-  },
-  titleTemplate: title => title ? `${title} · PlayerSense Admin` : 'PlayerSense Admin',
-  title: computed(() => route.meta.title as string | undefined)
+  }
 })
 </script>
 
 <template>
-  <UApp>
-    <NuxtLoadingIndicator />
+  <NuxtLoadingIndicator color="rgb(var(--v-theme-primary))" />
 
-    <NuxtLayout>
-      <NuxtPage />
-    </NuxtLayout>
-  </UApp>
+  <NuxtLayout>
+    <NuxtPage />
+  </NuxtLayout>
 </template>

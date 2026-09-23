@@ -1,7 +1,3 @@
-<script setup lang="ts">
-definePageMeta({ title: 'Abuse / Rate Limits' })
-</script>
-
 <template>
   <PagePlaceholder
     title="Abuse / Rate Limits"

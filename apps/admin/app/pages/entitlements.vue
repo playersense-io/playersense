@@ -1,7 +1,3 @@
-<script setup lang="ts">
-definePageMeta({ title: 'Entitlements' })
-</script>
-
 <template>
   <PagePlaceholder
     title="Entitlements"

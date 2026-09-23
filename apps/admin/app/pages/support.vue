@@ -1,7 +1,3 @@
-<script setup lang="ts">
-definePageMeta({ title: 'Support Tooling' })
-</script>
-
 <template>
   <PagePlaceholder
     title="Support Tooling"

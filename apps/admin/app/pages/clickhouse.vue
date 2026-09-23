@@ -1,7 +1,3 @@
-<script setup lang="ts">
-definePageMeta({ title: 'ClickHouse Health' })
-</script>
-
 <template>
   <PagePlaceholder
     title="ClickHouse Health"

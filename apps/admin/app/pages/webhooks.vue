@@ -1,7 +1,3 @@
-<script setup lang="ts">
-definePageMeta({ title: 'Webhook Failures' })
-</script>
-
 <template>
   <PagePlaceholder
     title="Webhook Failures"

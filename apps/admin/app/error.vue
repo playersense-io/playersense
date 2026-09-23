@@ -1,16 +1,14 @@
 <script setup lang="ts">
 import type { NuxtError } from '#app'
 
-defineProps<{
+const props = defineProps<{
   error: NuxtError
 }>()
 
-useSeoMeta({
-  title: 'Page not found',
-  description: 'We are sorry but this page could not be found.'
-})
+const notFound = computed(() => props.error.statusCode === 404)
 
 useHead({
+  title: () => (notFound.value ? 'Page not found' : 'Something went wrong'),
   htmlAttrs: {
     lang: 'en'
   }
@@ -18,7 +16,19 @@ useHead({
 </script>
 
 <template>
-  <UApp>
-    <UError :error="error" />
-  </UApp>
+  <v-app>
+    <v-main class="flex items-center justify-center">
+      <EmptyState
+        :description="notFound ? 'There is no page at this address. It may have moved, or the link was mistyped.' : error.message"
+        :icon="notFound ? 'material-symbols:explore-off-outline' : 'material-symbols:error-outline'"
+        :title="notFound ? 'Page not found' : `Error ${error.statusCode}`"
+      >
+        <template #actions>
+          <v-btn color="primary" variant="flat" @click="clearError({ redirect: '/' })">
+            Back to the dashboard
+          </v-btn>
+        </template>
+      </EmptyState>
+    </v-main>
+  </v-app>
 </template>

@@ -1,7 +1,3 @@
-<script setup lang="ts">
-definePageMeta({ title: 'Purchase Verification' })
-</script>
-
 <template>
   <PagePlaceholder
     title="Purchase Verification"
