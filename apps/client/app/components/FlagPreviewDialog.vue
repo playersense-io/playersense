@@ -5,9 +5,11 @@
 // through, SHA-256 buckets keyed by the install — against the draft or against whatever an
 // environment serves now.
 //
-// The player is described the way the server sees one: what the SDK sends, what the connection
-// says, what the player's history holds, and the game's own context. A player without a player
-// id has no `.player.` history, as on the server.
+// The player is described the way the server sees one, in four parts by who says so: the
+// device, the connection, their history and the game's own context. A sample player fills
+// the fields in; each stays editable. A player who has not signed in has no `.player.`
+// history, as on the server, and the install id — which decides every rollout — is one line
+// at the foot, with a button to draw another.
 const props = withDefaults(defineProps<{
   /** A flag to put first. */
   focus?: string
@@ -23,15 +25,20 @@ const { project } = useWorkspace()
 type Source = 'draft' | EnvironmentKind
 
 const source = ref<Source>('draft')
-const SOURCES = computed<SegmentedOption[]>(() => [
-  { value: 'draft', label: 'Draft' },
-  ...ENVIRONMENTS.map(environment => ({ value: environment, label: ENVIRONMENT_LABELS[environment], disabled: !latest(environment) }))
+const SOURCES = computed(() => [
+  { value: 'draft', title: 'The draft', subtitle: 'Everything saved, published or not' },
+  ...ENVIRONMENTS.filter(environment => latest(environment)).map(environment => ({
+    value: environment,
+    title: ENVIRONMENT_LABELS[environment],
+    subtitle: `What it serves now, v${latest(environment)!.version}`
+  }))
 ])
 
+/* Rollouts are drawn from the install id, so a new one is a player drawn again. */
 const newInstall = () => crypto.randomUUID()
 
 const install = ref(newInstall())
-const player = ref('')
+const signedIn = ref(false)
 const platform = ref<string>('android')
 const appVersion = ref('2.5.1')
 const country = ref<string>('TR')
@@ -50,33 +57,76 @@ const context = ref<{ key: string, value: string }[]>([
 ])
 
 interface Persona {
-  label: string
+  value: string
+  title: string
+  subtitle: string
   spend: string
   purchases: string
   daysSinceInstall: string
   daysSinceSeen: string
   sessions: string
   level: string
-  player: string
+  signedIn: boolean
 }
 
-/** Players worth checking, one press away. */
+/**
+ * Players worth checking, each described by what they are rather than named for a segment:
+ * choosing one fills in the history and the level below, which stay editable.
+ */
 const PERSONAS: Persona[] = [
-  { label: 'New player', spend: '0', purchases: '0', daysSinceInstall: '1', daysSinceSeen: '0', sessions: '3', level: '4', player: '' },
-  { label: 'Whale', spend: '240', purchases: '31', daysSinceInstall: '210', daysSinceSeen: '0', sessions: '640', level: '87', player: 'player_1842' },
-  { label: 'Lapsed payer', spend: '9.99', purchases: '1', daysSinceInstall: '120', daysSinceSeen: '21', sessions: '48', level: '23', player: 'player_0977' }
+  { value: 'new', title: 'A new player', subtitle: 'Installed yesterday, level 4, has never paid', spend: '0', purchases: '0', daysSinceInstall: '1', daysSinceSeen: '0', sessions: '3', level: '4', signedIn: false },
+  { value: 'payer', title: 'A regular payer', subtitle: 'Two months in, level 35, spent $24.97 over 3 purchases', spend: '24.97', purchases: '3', daysSinceInstall: '60', daysSinceSeen: '0', sessions: '180', level: '35', signedIn: true },
+  { value: 'whale', title: 'A big spender', subtitle: 'Seven months in, level 87, spent $240 over 31 purchases', spend: '240', purchases: '31', daysSinceInstall: '210', daysSinceSeen: '0', sessions: '640', level: '87', signedIn: true },
+  { value: 'lapsed', title: 'A returning player', subtitle: 'Back after 3 weeks away, level 23, one purchase', spend: '9.99', purchases: '1', daysSinceInstall: '120', daysSinceSeen: '21', sessions: '48', level: '23', signedIn: true }
 ]
 
-function apply(persona: Persona) {
-  spend.value = persona.spend
-  purchases.value = persona.purchases
-  daysSinceInstall.value = persona.daysSinceInstall
-  daysSinceSeen.value = persona.daysSinceSeen
-  sessions.value = persona.sessions
-  player.value = persona.player
+const persona = ref<string | null>('new')
+
+function apply(value: string | null) {
+  persona.value = value
+  const chosen = PERSONAS.find(entry => entry.value === value)
+  if (!chosen) return
+  spend.value = chosen.spend
+  purchases.value = chosen.purchases
+  daysSinceInstall.value = chosen.daysSinceInstall
+  daysSinceSeen.value = chosen.daysSinceSeen
+  sessions.value = chosen.sessions
+  signedIn.value = chosen.signedIn
   const level = context.value.find(entry => entry.key === 'progress.level')
-  if (level) level.value = persona.level
-  else context.value.push({ key: 'progress.level', value: persona.level })
+  if (level) level.value = chosen.level
+  else context.value.push({ key: 'progress.level', value: chosen.level })
+}
+
+type Group = 'device' | 'connection' | 'history' | 'context'
+
+const openGroup = ref<Group | null>('history')
+
+const deviceSummary = computed(() => [
+  PLATFORM_NAMES[platform.value] ?? platform.value,
+  appVersion.value,
+  LOCALES.find(entry => entry.value === locale.value)?.title ?? locale.value
+].filter(Boolean).join(' · '))
+
+const connectionSummary = computed(() => `${country.value ? countryName(country.value) : 'Unknown'}${vpn.value ? ', through a VPN' : ''}`)
+
+const historySummary = computed(() => {
+  const bought = Number(purchases.value) || 0
+  const money = bought ? `$${spend.value} over ${bought} ${bought === 1 ? 'purchase' : 'purchases'}` : 'never paid'
+  return `Day ${daysSinceInstall.value}, ${money}${signedIn.value ? ', signed in' : ''}`
+})
+
+const contextSummary = computed(() => {
+  const set = context.value.filter(entry => entry.key.trim() && entry.value.trim())
+  return set.length ? set.slice(0, 3).map(entry => `${entry.key.replace(/^progress\./, '')} ${entry.value}`).join(', ') + (set.length > 3 ? '…' : '') : 'Nothing set'
+})
+
+const LOCALES = ['en-US', 'en-GB', 'de-DE', 'fr-FR', 'es-ES', 'pt-BR', 'ja-JP', 'ko-KR', 'tr-TR', 'zh-CN'].map((value) => {
+  const language = new Intl.DisplayNames(['en'], { type: 'language' }).of(value) ?? value
+  return { value, title: language, subtitle: value }
+})
+
+const PLATFORM_NAMES: Record<string, string> = {
+  ios: 'iOS', android: 'Android', windows: 'Windows', macos: 'macOS', linux: 'Linux', web: 'Web', console: 'Console'
 }
 
 const CONTINENTS: Record<string, string> = {
@@ -126,7 +176,7 @@ const facts = computed<TargetFacts>(() => {
     out[`activity.${scope}.playtime_seconds`] = number(sessions.value) * 640
   }
   history('install')
-  if (player.value.trim()) history('player')
+  if (signedIn.value) history('player')
   for (const entry of context.value) {
     const key = entry.key.trim().replace(/^context\./, '')
     if (key && entry.value.trim() !== '') out[`context.${key}`] = scalar(entry.value)
@@ -203,239 +253,274 @@ const snapshot = computed(() => JSON.stringify({
 
 const showSnapshot = ref(false)
 
-const PLATFORM_ITEMS = TARGET_PLATFORMS.map(value => ({ value, title: value }))
-const COUNTRY_ITEMS = COUNTRY_SUGGESTIONS.map(code => ({ value: code, title: `${code} · ${countryName(code)}` }))
+const PLATFORM_ITEMS = TARGET_PLATFORMS.map(value => ({ value, title: PLATFORM_NAMES[value] ?? value }))
+const COUNTRY_ITEMS = COUNTRY_SUGGESTIONS.map(code => ({ value: code, title: countryName(code) }))
 </script>
 
 <template>
   <v-dialog v-model="open" max-width="1080" scrollable>
     <v-card border flat>
-      <header class="flex flex-wrap items-start justify-between gap-3 border-b border-line p-5">
-        <div class="flex min-w-0 flex-col gap-1">
-          <h2 class="m-0 text-sm font-medium text-ink">
-            Preview a player
-          </h2>
-          <p class="m-0 text-xs leading-5 text-ink/60">
-            Describe a player and see what every flag serves them, evaluated as the server evaluates it.
-          </p>
-        </div>
-        <SegmentedControl v-model="source" :options="SOURCES" label="Evaluate against" />
+      <header class="flex flex-col gap-1 border-b border-line p-5">
+        <h2 class="m-0 text-sm font-medium text-ink">
+          Preview a player
+        </h2>
+        <p class="m-0 text-xs leading-5 text-ink/60">
+          Describe a player and see what every flag serves them, and why — worked out the way the server works it out.
+        </p>
       </header>
 
-      <div class="grid min-h-0 overflow-y-auto lg:grid-cols-[20rem_minmax(0,1fr)]">
-        <aside class="flex flex-col gap-5 border-b border-line p-5 lg:border-r lg:border-b-0">
-          <div class="flex flex-wrap gap-1">
-            <v-btn
-              v-for="persona in PERSONAS"
-              :key="persona.label"
-              class="text-xs"
-              color="neutral"
-              size="small"
-              variant="tonal"
-              @click="apply(persona)"
-            >
-              {{ persona.label }}
-            </v-btn>
+      <div class="grid min-h-0 overflow-y-auto lg:grid-cols-[22rem_minmax(0,1fr)]">
+        <aside class="flex flex-col gap-6 border-b border-line p-5 lg:border-r lg:border-b-0">
+          <div class="flex flex-col gap-4">
+            <div class="flex flex-col gap-1.5">
+              <label class="text-xs font-medium text-ink" for="preview-source">Answer from</label>
+              <v-select
+                id="preview-source"
+                v-model="source"
+                :items="SOURCES"
+                v-bind="FIELD_MENU"
+                density="comfortable"
+                hide-details
+                item-props
+                variant="outlined"
+              />
+            </div>
+            <div class="flex flex-col gap-1.5">
+              <label class="text-xs font-medium text-ink" for="preview-persona">Start from</label>
+              <v-select
+                id="preview-persona"
+                :items="PERSONAS"
+                v-bind="FIELD_MENU"
+                :model-value="persona"
+                density="comfortable"
+                hide-details
+                item-props
+                placeholder="A player of your own"
+                variant="outlined"
+                @update:model-value="apply"
+              />
+              <span class="text-[11px] leading-4 text-ink/50">Fills in the fields below. Change any of them after.</span>
+            </div>
           </div>
 
-          <fieldset class="m-0 flex flex-col gap-2 border-0 p-0">
-            <legend class="mb-1 flex items-center gap-1.5 p-0 text-[11px] text-ink/50">
-              <AuthorityMark authority="sdk" /> Sent by the SDK
-            </legend>
-            <div class="flex items-end gap-1">
-              <div class="flex min-w-0 flex-1 flex-col gap-1">
-                <span class="text-[11px] text-ink/55">Install id</span><v-text-field
-                  v-model="install"
-                  class="ps-preview-field font-mono"
-                  density="compact"
+          <!-- The player in four parts, by who says so. One is open at a time; the others say
+               what they are set to, so the whole player reads without opening any. -->
+          <div class="flex flex-col border-t border-line">
+            <FoldGroup
+              :open="openGroup === 'device'"
+              :summary="deviceSummary"
+              title="Their device"
+              @update:open="openGroup = $event ? 'device' : null"
+            >
+              <template #mark>
+                <AuthorityMark authority="sdk" />
+              </template>
+              <div class="grid grid-cols-2 gap-3">
+                <div class="flex min-w-0 flex-col gap-1.5">
+                  <label class="text-[11px] text-ink/55" for="preview-platform">Platform</label>
+                  <v-select
+                    id="preview-platform"
+                    v-model="platform"
+                    :items="PLATFORM_ITEMS"
+                    v-bind="FIELD_MENU"
+                    density="comfortable"
+                    hide-details
+                    variant="outlined"
+                  />
+                </div>
+                <div class="flex min-w-0 flex-col gap-1.5">
+                  <label class="text-[11px] text-ink/55" for="preview-version">Game version</label>
+                  <v-text-field
+                    id="preview-version"
+                    v-model="appVersion"
+                    class="font-mono"
+                    density="comfortable"
+                    hide-details
+                    variant="outlined"
+                  />
+                </div>
+              </div>
+              <div class="flex flex-col gap-1.5">
+                <label class="text-[11px] text-ink/55" for="preview-locale">Language</label>
+                <v-select
+                  id="preview-locale"
+                  v-model="locale"
+                  :items="LOCALES"
+                  v-bind="FIELD_MENU"
+                  density="comfortable"
                   hide-details
-                  aria-label="Install id"
+                  item-props
                   variant="outlined"
                 />
               </div>
+            </FoldGroup>
+
+            <FoldGroup
+              :open="openGroup === 'connection'"
+              :summary="connectionSummary"
+              title="Where they connect from"
+              @update:open="openGroup = $event ? 'connection' : null"
+            >
+              <template #mark>
+                <AuthorityMark authority="connection" />
+              </template>
+              <div class="flex flex-col gap-1.5">
+                <label class="text-[11px] text-ink/55" for="preview-country">Country</label>
+                <v-autocomplete
+                  id="preview-country"
+                  v-model="country"
+                  :items="COUNTRY_ITEMS"
+                  v-bind="FIELD_MENU"
+                  density="comfortable"
+                  hide-details
+                  variant="outlined"
+                />
+              </div>
+              <SwitchRow v-model="vpn" label="Through a VPN" note="PlayerSense sees the VPN's country, not theirs." />
+            </FoldGroup>
+
+            <FoldGroup
+              :open="openGroup === 'history'"
+              :summary="historySummary"
+              title="What they have done"
+              @update:open="openGroup = $event ? 'history' : null"
+            >
+              <template #mark>
+                <AuthorityMark authority="history" />
+              </template>
+              <div class="grid grid-cols-2 gap-3">
+                <div class="flex min-w-0 flex-col gap-1.5">
+                  <label class="text-[11px] text-ink/55" for="preview-spend">Spent in total</label>
+                  <v-text-field
+                    id="preview-spend"
+                    v-model="spend"
+                    density="comfortable"
+                    hide-details
+                    inputmode="decimal"
+                    prefix="$"
+                    variant="outlined"
+                    @update:model-value="persona = null"
+                  />
+                </div>
+                <div class="flex min-w-0 flex-col gap-1.5">
+                  <label class="text-[11px] text-ink/55" for="preview-purchases">Purchases</label>
+                  <v-text-field
+                    id="preview-purchases"
+                    v-model="purchases"
+                    density="comfortable"
+                    hide-details
+                    inputmode="numeric"
+                    variant="outlined"
+                    @update:model-value="persona = null"
+                  />
+                </div>
+                <div class="flex min-w-0 flex-col gap-1.5">
+                  <label class="text-[11px] text-ink/55" for="preview-installed">Days since install</label>
+                  <v-text-field
+                    id="preview-installed"
+                    v-model="daysSinceInstall"
+                    density="comfortable"
+                    hide-details
+                    inputmode="numeric"
+                    variant="outlined"
+                    @update:model-value="persona = null"
+                  />
+                </div>
+                <div class="flex min-w-0 flex-col gap-1.5">
+                  <label class="text-[11px] text-ink/55" for="preview-away">Days away before today</label>
+                  <v-text-field
+                    id="preview-away"
+                    v-model="daysSinceSeen"
+                    density="comfortable"
+                    hide-details
+                    inputmode="numeric"
+                    variant="outlined"
+                    @update:model-value="persona = null"
+                  />
+                </div>
+                <div class="flex min-w-0 flex-col gap-1.5">
+                  <label class="text-[11px] text-ink/55" for="preview-sessions">Sessions played</label>
+                  <v-text-field
+                    id="preview-sessions"
+                    v-model="sessions"
+                    density="comfortable"
+                    hide-details
+                    inputmode="numeric"
+                    variant="outlined"
+                    @update:model-value="persona = null"
+                  />
+                </div>
+              </div>
+              <SwitchRow
+                v-model="signedIn"
+                label="Signed in to an account"
+                note="Their history is then counted across every device they play on."
+              />
+            </FoldGroup>
+
+            <FoldGroup
+              :open="openGroup === 'context'"
+              :summary="contextSummary"
+              title="What the game says about them"
+              @update:open="openGroup = $event ? 'context' : null"
+            >
+              <template #mark>
+                <AuthorityMark authority="client" />
+              </template>
+              <div v-for="(entry, index) in context" :key="index" class="flex items-center gap-2">
+                <v-text-field
+                  v-model="entry.key"
+                  :aria-label="`Context key ${index + 1}`"
+                  class="min-w-0 flex-1 font-mono"
+                  density="comfortable"
+                  hide-details
+                  placeholder="key"
+                  variant="outlined"
+                />
+                <v-text-field
+                  v-model="entry.value"
+                  :aria-label="`Context value ${index + 1}`"
+                  class="w-28 flex-none"
+                  density="comfortable"
+                  hide-details
+                  placeholder="value"
+                  variant="outlined"
+                />
+                <v-btn
+                  :aria-label="`Remove ${entry.key || 'context key'}`"
+                  color="neutral"
+                  icon="material-symbols:close"
+                  size="small"
+                  variant="text"
+                  @click="context.splice(index, 1)"
+                />
+              </div>
               <v-btn
-                aria-label="New install id"
+                class="self-start text-xs"
                 color="neutral"
-                icon="material-symbols:refresh"
+                prepend-icon="material-symbols:add"
                 size="small"
                 variant="text"
-                @click="install = newInstall()"
-              />
-            </div>
-            <div class="flex min-w-0 flex-col gap-1">
-              <span class="text-[11px] text-ink/55">Player id (signed in)</span><v-text-field
-                v-model="player"
-                class="ps-preview-field"
-                density="compact"
-                hide-details
-                aria-label="Player id (signed in)"
-                placeholder="None"
-                variant="outlined"
-              />
-            </div>
-            <div class="grid grid-cols-2 gap-2">
-              <div class="flex min-w-0 flex-col gap-1">
-                <span class="text-[11px] text-ink/55">Platform</span><v-select
-                  v-model="platform"
-                  :items="PLATFORM_ITEMS"
-                  class="ps-preview-field"
-                  density="compact"
-                  hide-details
-                  aria-label="Platform"
-                  variant="outlined"
-                />
-              </div>
-              <div class="flex min-w-0 flex-col gap-1">
-                <span class="text-[11px] text-ink/55">App version</span><v-text-field
-                  v-model="appVersion"
-                  class="ps-preview-field"
-                  density="compact"
-                  hide-details
-                  aria-label="App version"
-                  variant="outlined"
-                />
-              </div>
-            </div>
-            <div class="flex min-w-0 flex-col gap-1">
-              <span class="text-[11px] text-ink/55">Locale</span><v-text-field
-                v-model="locale"
-                class="ps-preview-field"
-                density="compact"
-                hide-details
-                aria-label="Locale"
-                variant="outlined"
-              />
-            </div>
-          </fieldset>
+                @click="context.push({ key: '', value: '' })"
+              >
+                Add a key
+              </v-btn>
+            </FoldGroup>
+          </div>
 
-          <fieldset class="m-0 flex flex-col gap-2 border-0 p-0">
-            <legend class="mb-1 flex items-center gap-1.5 p-0 text-[11px] text-ink/50">
-              <AuthorityMark authority="connection" /> From the connection
-            </legend>
-            <div class="flex min-w-0 flex-col gap-1">
-              <span class="text-[11px] text-ink/55">Country</span><v-combobox
-                v-model="country"
-                :items="COUNTRY_ITEMS"
-                :return-object="false"
-                class="ps-preview-field"
-                density="compact"
-                hide-details
-                aria-label="Country"
-                variant="outlined"
-              />
-            </div>
-            <v-switch
-              v-model="vpn"
-              class="ps-preview-switch"
-              color="primary"
-              density="compact"
-              hide-details
-              inset
-              label="On a VPN"
-            />
-          </fieldset>
-
-          <fieldset class="m-0 flex flex-col gap-2 border-0 p-0">
-            <legend class="mb-1 flex items-center gap-1.5 p-0 text-[11px] text-ink/50">
-              <AuthorityMark authority="history" /> From their history
-            </legend>
-            <div class="grid grid-cols-2 gap-2">
-              <div class="flex min-w-0 flex-col gap-1">
-                <span class="text-[11px] text-ink/55">Lifetime spend</span><v-text-field
-                  v-model="spend"
-                  class="ps-preview-field"
-                  density="compact"
-                  hide-details
-                  aria-label="Lifetime spend"
-                  prefix="$"
-                  variant="outlined"
-                />
-              </div>
-              <div class="flex min-w-0 flex-col gap-1">
-                <span class="text-[11px] text-ink/55">Purchases</span><v-text-field
-                  v-model="purchases"
-                  class="ps-preview-field"
-                  density="compact"
-                  hide-details
-                  aria-label="Purchases"
-                  variant="outlined"
-                />
-              </div>
-              <div class="flex min-w-0 flex-col gap-1">
-                <span class="text-[11px] text-ink/55">Days since install</span><v-text-field
-                  v-model="daysSinceInstall"
-                  class="ps-preview-field"
-                  density="compact"
-                  hide-details
-                  aria-label="Days since install"
-                  variant="outlined"
-                />
-              </div>
-              <div class="flex min-w-0 flex-col gap-1">
-                <span class="text-[11px] text-ink/55">Days away</span><v-text-field
-                  v-model="daysSinceSeen"
-                  class="ps-preview-field"
-                  density="compact"
-                  hide-details
-                  aria-label="Days away"
-                  variant="outlined"
-                />
-              </div>
-              <div class="flex min-w-0 flex-col gap-1">
-                <span class="text-[11px] text-ink/55">Sessions</span><v-text-field
-                  v-model="sessions"
-                  class="ps-preview-field"
-                  density="compact"
-                  hide-details
-                  aria-label="Sessions"
-                  variant="outlined"
-                />
-              </div>
-            </div>
-          </fieldset>
-
-          <fieldset class="m-0 flex flex-col gap-2 border-0 p-0">
-            <legend class="mb-1 flex items-center gap-1.5 p-0 text-[11px] text-ink/50">
-              <AuthorityMark authority="client" /> Set by the game
-            </legend>
-            <div v-for="(entry, index) in context" :key="index" class="flex items-center gap-1.5">
-              <v-text-field
-                v-model="entry.key"
-                class="ps-preview-field font-mono"
-                density="compact"
-                hide-details
-                placeholder="key"
-                prefix="context."
-                variant="outlined"
-              />
-              <v-text-field
-                v-model="entry.value"
-                class="ps-preview-field w-24 flex-none"
-                density="compact"
-                hide-details
-                placeholder="value"
-                variant="outlined"
-              />
-              <v-btn
-                aria-label="Remove"
-                color="neutral"
-                icon="material-symbols:close"
-                size="x-small"
-                variant="text"
-                @click="context.splice(index, 1)"
-              />
-            </div>
+          <p class="m-0 flex items-center justify-between gap-2 border-t border-line pt-4 text-[11px] leading-4 text-ink/50">
+            <span>Rollouts are drawn by install. This one is <span class="font-mono text-ink/70">{{ install.slice(0, 8) }}</span>.</span>
             <v-btn
-              class="self-start text-xs"
+              class="flex-none text-xs"
               color="neutral"
-              prepend-icon="material-symbols:add"
+              prepend-icon="material-symbols:casino-outline"
               size="small"
               variant="text"
-              @click="context.push({ key: '', value: '' })"
+              @click="install = newInstall()"
             >
-              Context key
+              Draw again
             </v-btn>
-          </fieldset>
+          </p>
         </aside>
 
         <section class="flex min-w-0 flex-col">
@@ -499,14 +584,3 @@ const COUNTRY_ITEMS = COUNTRY_SUGGESTIONS.map(code => ({ value: code, title: `${
     </v-card>
   </v-dialog>
 </template>
-
-<style scoped>
-.ps-preview-field :deep(.v-field__input),
-.ps-preview-field :deep(.v-label) {
-  font-size: 12px;
-}
-
-.ps-preview-switch :deep(.v-label) {
-  font-size: 12px;
-}
-</style>
