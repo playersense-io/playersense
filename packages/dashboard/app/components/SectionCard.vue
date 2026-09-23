@@ -6,6 +6,10 @@
 // Not `LayerCard`, which sets its content on an inner panel inside a tray. `padded` is off
 // for content that is its own layout (a table, a grid of cells); that content then starts
 // under a rule, edge to edge.
+//
+// The `title` slot is for a heading that is also a control — the funnel a card edits,
+// chosen from a menu in the heading's place. `title` is still given, as the text a
+// screen reader names the card by.
 withDefaults(defineProps<{
   title: string
   description?: string
@@ -27,8 +31,10 @@ const titleId = useId()
   >
     <header class="flex flex-col gap-1 p-5" :class="padded ? 'pb-0' : ''">
       <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <h2 :id="titleId" class="m-0 text-sm leading-7 font-medium text-ink">
-          {{ title }}
+        <h2 :id="titleId" class="m-0 min-w-0 text-sm leading-7 font-medium text-ink">
+          <slot name="title">
+            {{ title }}
+          </slot>
         </h2>
         <slot name="badge" />
         <div v-if="$slots.actions" class="ml-auto flex flex-wrap items-center gap-2">
