@@ -239,7 +239,7 @@ const chartLabel = computed(() => {
 
       <div
         v-if="value !== undefined || $slots.figure"
-        class="flex flex-wrap items-baseline gap-x-2.5 gap-y-1"
+        class="flex flex-wrap items-center gap-x-2.5 gap-y-1"
       >
         <slot name="figure">
           <MetricSkeleton v-if="loading" :trend="previous !== null" shape="figure" />

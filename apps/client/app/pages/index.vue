@@ -79,15 +79,15 @@ const playerHeadline = computed(() => {
 })
 
 const revenueSeries = computed<MetricSeries[]>(() => [
-  { name: 'Revenue', data: now.value.map(day => dollars(day.revenue_micros)), type: 'bar', tone: 3 },
-  { name: 'Previous period', data: before.value.map(day => dollars(day.revenue_micros)), type: 'line', dashed: true, tone: 'muted' }
+  { name: 'Revenue', data: now.value.map(day => dollars(day.revenue_micros)), type: 'area', tone: 3 },
+  { name: 'Previous period', data: before.value.map(day => dollars(day.revenue_micros)), dashed: true, tone: 'muted' }
 ])
 
 // --- Engagement and monetization -------------------------------------------------------
 
 const money = (value: number) => `$${writeFigure(value, { format: 'money' })}`
 
-// Each figure, and the same figure per day for its sparkline.
+// Each headline figure over a period of days.
 function figuresOf(days: OverviewDay[]) {
   const active = total(days, 'active_players')
   const sessions = total(days, 'sessions')
@@ -108,8 +108,6 @@ function figuresOf(days: OverviewDay[]) {
   }
 }
 
-const perDay = (pick: (day: OverviewDay) => number) => now.value.map(pick)
-
 const figures = computed(() => ({ now: figuresOf(now.value), before: figuresOf(before.value) }))
 
 function kpi(key: keyof ReturnType<typeof figuresOf>, fields: Omit<Kpi, 'key' | 'trend'>): Kpi {
@@ -122,33 +120,28 @@ const audience = computed<Kpi[]>(() => [
   kpi('active', {
     label: 'Active players',
     value: compact(figures.value.now.active),
-    series: perDay(day => day.active_players),
     info: 'Players with at least one session, as a daily average over the period.'
   }),
   kpi('fresh', {
     label: 'New players',
     value: compact(figures.value.now.fresh),
-    series: perDay(day => day.new_players),
     info: 'Players seen for the first time during the period.'
   }),
   kpi('sessions', {
     label: 'Sessions per player',
     value: writeFigure(figures.value.now.sessions),
-    series: perDay(day => day.sessions / day.active_players),
     info: 'Sessions divided by active players, per day.'
   }),
   kpi('playtime', {
     label: 'Playtime per player',
     value: writeFigure(figures.value.now.playtime, { decimals: 0 }),
     unit: 'min',
-    series: perDay(day => day.playtime_ms / day.active_players / 60_000),
     info: 'Minutes played per active player, per day.'
   }),
   kpi('session', {
     label: 'Average session',
     value: writeFigure(figures.value.now.session),
     unit: 'min',
-    series: perDay(day => day.playtime_ms / day.sessions / 60_000),
     info: 'Minutes played per session.'
   })
 ])
@@ -158,31 +151,26 @@ const monetization = computed<Kpi[]>(() => [
     label: 'Revenue',
     value: `$${compact(figures.value.now.revenue)}`,
     exact: money(figures.value.now.revenue),
-    series: perDay(day => dollars(day.revenue_micros)),
     info: 'Verified purchases, gross: store receipts verified server-side, before platform fees and refunds.'
   }),
   kpi('payers', {
     label: 'Paying players',
     value: compact(figures.value.now.payers),
-    series: perDay(day => day.payers),
     info: 'Players with a verified purchase, as a daily average over the period.'
   }),
   kpi('conversion', {
     label: 'Payer conversion',
     value: writeFigure(figures.value.now.conversion, { decimals: 2, unit: '%' }),
-    series: perDay(day => day.payers / day.active_players * 100),
     info: 'The share of each day\'s active players who made a verified purchase.'
   }),
   kpi('arpdau', {
     label: 'ARPDAU',
     value: money(figures.value.now.arpdau),
-    series: perDay(day => dollars(day.revenue_micros) / day.active_players),
     info: 'Average revenue per daily active player: revenue divided by active players, summed by day.'
   }),
   kpi('arppu', {
     label: 'ARPPU',
     value: money(figures.value.now.arppu),
-    series: perDay(day => dollars(day.revenue_micros) / day.payers),
     info: 'Average revenue per paying player, per day they paid.'
   })
 ])
@@ -290,7 +278,6 @@ const wallet = computed<Fact[]>(() => [
         description="Verified purchases per day, against the same days last period."
         prefix="$"
         title="Revenue"
-        type="bar"
       />
     </div>
 
