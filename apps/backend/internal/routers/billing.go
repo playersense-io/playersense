@@ -84,6 +84,19 @@ func Billing() *muzak.Router {
 		muzak.WithResponseDoc(http.StatusUnprocessableEntity, "The plan cannot be paid at that interval"),
 		muzak.WithResponseDoc(http.StatusServiceUnavailable, "Stripe could not be reached, or payments are not configured"))
 
+	r.Get("/organizations/{org}/billing/invoices", handlers.ListInvoices,
+		muzak.Summary("Monthly invoices"),
+		muzak.Description("For an organization billed by invoice (ADR 0045): every invoice it was sent, "+
+			"newest first, with its lines — the platform fee, each month's players, the credit that "+
+			"paid for some of them, and any top-up to the contract's minimum — its due date, and "+
+			"Stripe's page to read and pay it. Empty for a prepaid organization."),
+		core.Require(authz.BillingRead))
+
+	r.Get("/organizations/{org}/billing/invoices/{invoice_id}", handlers.ReadInvoice,
+		muzak.Summary("One invoice"),
+		core.Require(authz.BillingRead),
+		muzak.WithResponseDoc(http.StatusNotFound, "No such invoice"))
+
 	r.Post("/organizations/{org}/billing/portal", handlers.OpenBillingPortal,
 		muzak.Summary("Manage cards and receipts"),
 		muzak.Description("Opens Stripe's customer portal and returns its URL: add, remove or choose "+
@@ -107,7 +120,8 @@ func StripeWebhooks() *muzak.Router {
 		muzak.Summary("Stripe's events"),
 		muzak.Description("Verified by the Stripe-Signature header. A payment that succeeded puts "+
 			"credit in its wallet, once, however many times and by however many events it is "+
-			"reported; a failed automatic top-up is released and retried later. Everything else is "+
+			"reported; a failed automatic top-up is released and retried later; a usage invoice paid, "+
+			"credited or voided settles what its organization owes (ADR 0045). Everything else is "+
 			"recorded and ignored."),
 		muzak.CaptureBody(),
 		muzak.MaxBodySize(1<<20),
@@ -161,6 +175,41 @@ func OperatorBilling() *muzak.Router {
 		muzak.WithResponseDoc(http.StatusConflict,
 			"There is not enough credit, and the message names both numbers"),
 		muzak.WithResponseDoc(http.StatusUnprocessableEntity, "The amount is not positive"))
+
+	r.Put("/organizations/{org}/contract", handlers.SetContract,
+		muzak.Summary("Put an organization on a contract"),
+		muzak.Description("From now (ADR 0045). `invoiced` bills it monthly: usage its credit does not "+
+			"cover, the platform fee (prorated in a part month) and any top-up to the minimum "+
+			"commitment go on one Stripe invoice, due `terms_days` after it is sent; ingestion is "+
+			"suspended `overdue_grace_days` after a missed due date, or at once when what it owes, "+
+			"billed or not, reaches `credit_limit_micros`. It needs a credit limit and a billing email, "+
+			"and no live subscription. `prepaid` moves it back, closing what is unbilled on a final "+
+			"invoice. Terms are never edited: each call is a new contract. Recorded in the "+
+			"organization's audit log."),
+		muzak.WithResponseDoc(http.StatusConflict, "The organization has a live subscription"),
+		muzak.WithResponseDoc(http.StatusUnprocessableEntity, "No credit limit, or no billing email, for an invoiced contract"),
+		muzak.WithResponseDoc(http.StatusServiceUnavailable, "Stripe could not be reached, or payments are not configured"))
+
+	r.Get("/organizations/{org}/invoices", handlers.ListOperatorInvoices,
+		muzak.Summary("An organization's invoices, as staff see them"),
+		muzak.Description("Drafts and failed issues included, with why the last attempt did not issue, "+
+			"any difference between the month's usage and the dashboard's, and the ledger range each "+
+			"one bills."))
+
+	r.Post("/organizations/{org}/invoices/{invoice_id}/mark-paid", handlers.MarkInvoicePaid,
+		muzak.Summary("Record a wire Stripe did not see"),
+		muzak.Description("Marks an open invoice paid out of band at Stripe, and settles it here as "+
+			"Stripe's webhook would. `reference` is the transfer's; the same one twice marks it once."),
+		muzak.WithResponseDoc(http.StatusConflict, "The invoice is not open"),
+		muzak.WithResponseDoc(http.StatusServiceUnavailable, "Stripe could not be reached"))
+
+	r.Post("/organizations/{org}/invoices/{invoice_id}/credit-notes", handlers.CreditInvoice,
+		muzak.Summary("Credit part of an open invoice"),
+		muzak.Description("Issues a Stripe credit note lowering what the invoice asks for, and what the "+
+			"organization owes with it. Whole cents, at most what is still owed."),
+		muzak.WithResponseDoc(http.StatusConflict, "The invoice is not open"),
+		muzak.WithResponseDoc(http.StatusUnprocessableEntity, "Not whole cents, or more than is owed"),
+		muzak.WithResponseDoc(http.StatusServiceUnavailable, "Stripe could not be reached"))
 
 	return r
 }

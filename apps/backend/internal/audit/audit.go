@@ -83,8 +83,14 @@ const (
 	AutoTopUpSet   Action = "billing.auto_topup"
 	PlanChanged    Action = "billing.plan"
 	CreditLimitSet Action = "billing.credit_limit"
-	PrivacyErasure Action = "privacy.erase"
-	PrivacyExport  Action = "privacy.export"
+
+	// ADR 0045: an organization put on new terms, an invoice marked paid by a transfer Stripe did
+	// not see, and a credit note issued on an invoice.
+	ContractSet     Action = "billing.contract"
+	InvoicePaid     Action = "billing.invoice_paid"
+	InvoiceCredited Action = "billing.credit_note"
+	PrivacyErasure  Action = "privacy.erase"
+	PrivacyExport   Action = "privacy.export"
 )
 
 // Actor is who did it, as one of three things.

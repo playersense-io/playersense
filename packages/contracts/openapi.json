@@ -667,6 +667,189 @@
         }
       }
     },
+    "/v1/operator/organizations/{org}/contract": {
+      "put": {
+        "tags": [
+          "operator"
+        ],
+        "summary": "Put an organization on a contract",
+        "description": "From now (ADR 0045). `invoiced` bills it monthly: usage its credit does not cover, the platform fee (prorated in a part month) and any top-up to the minimum commitment go on one Stripe invoice, due `terms_days` after it is sent; ingestion is suspended `overdue_grace_days` after a missed due date, or at once when what it owes, billed or not, reaches `credit_limit_micros`. It needs a credit limit and a billing email, and no live subscription. `prepaid` moves it back, closing what is unbilled on a final invoice. Terms are never edited: each call is a new contract. Recorded in the organization's audit log.",
+        "operationId": "put_v1_operator_organizations_by_org_contract",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "billing_email": {
+                    "type": "string",
+                    "format": "email",
+                    "description": "Where invoices are sent",
+                    "maxLength": 254
+                  },
+                  "collection": {
+                    "type": "string",
+                    "description": "invoiced or prepaid",
+                    "enum": [
+                      "invoiced",
+                      "prepaid"
+                    ]
+                  },
+                  "credit_limit_micros": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "format": "int64",
+                    "description": "Required for invoiced. Owing this much, billed or not, suspends ingestion",
+                    "minimum": 0,
+                    "maximum": 1000000000000
+                  },
+                  "memo": {
+                    "type": "string",
+                    "description": "The invoice footer",
+                    "maxLength": 500
+                  },
+                  "minimum_commitment_micros": {
+                    "type": "integer",
+                    "format": "int64",
+                    "description": "The least a month bills for usage; the difference is a commitment line",
+                    "minimum": 0,
+                    "maximum": 1000000000000
+                  },
+                  "operator": {
+                    "type": "string",
+                    "format": "email",
+                    "description": "Your own address. Recorded in the customer's audit log as self-asserted",
+                    "maxLength": 254
+                  },
+                  "overdue_grace_days": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "format": "int64",
+                    "description": "Days after a missed due date before ingestion is suspended. Defaults to 14",
+                    "minimum": 0,
+                    "maximum": 90
+                  },
+                  "platform_fee_micros": {
+                    "type": "integer",
+                    "format": "int64",
+                    "description": "Billed every month, prorated in a part month. $500 is 500000000",
+                    "minimum": 0,
+                    "maximum": 1000000000000
+                  },
+                  "po_number": {
+                    "type": "string",
+                    "description": "Printed on every invoice",
+                    "maxLength": 140
+                  },
+                  "terms_days": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "format": "int64",
+                    "description": "Days an invoice is due after it is issued. Defaults to 30",
+                    "minimum": 0,
+                    "maximum": 120
+                  }
+                },
+                "required": [
+                  "collection",
+                  "operator"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillingOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The operator token is missing or wrong",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No organization has that slug",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The organization has a live subscription",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "No credit limit, or no billing email, for an invoiced contract",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Stripe could not be reached, or payments are not configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/operator/organizations/{org}/credit-limit": {
       "put": {
         "tags": [
@@ -901,6 +1084,350 @@
           },
           "422": {
             "description": "The amount is not positive, or an expiry was named for purchased credit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/operator/organizations/{org}/invoices": {
+      "get": {
+        "tags": [
+          "operator"
+        ],
+        "summary": "An organization's invoices, as staff see them",
+        "description": "Drafts and failed issues included, with why the last attempt did not issue, any difference between the month's usage and the dashboard's, and the ledger range each one bills.",
+        "operationId": "get_v1_operator_organizations_by_org_invoices",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "description": "The organization's slug",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperatorInvoicesOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The operator token is missing or wrong",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No organization has that slug",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/operator/organizations/{org}/invoices/{invoice_id}/credit-notes": {
+      "post": {
+        "tags": [
+          "operator"
+        ],
+        "summary": "Credit part of an open invoice",
+        "description": "Issues a Stripe credit note lowering what the invoice asks for, and what the organization owes with it. Whole cents, at most what is still owed.",
+        "operationId": "post_v1_operator_organizations_by_org_invoices_by_invoice_id_credit_notes",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "invoice_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "amount_micros": {
+                    "type": "integer",
+                    "format": "int64",
+                    "description": "Whole cents, at most what is still owed on it",
+                    "minimum": 1,
+                    "maximum": 1000000000000
+                  },
+                  "operator": {
+                    "type": "string",
+                    "format": "email",
+                    "maxLength": 254
+                  },
+                  "reason": {
+                    "type": "string",
+                    "description": "Printed on the credit note",
+                    "minLength": 3,
+                    "maxLength": 500
+                  },
+                  "reference": {
+                    "type": "string",
+                    "description": "An idempotency key: the same one twice credits once",
+                    "minLength": 4,
+                    "maxLength": 200
+                  }
+                },
+                "required": [
+                  "operator",
+                  "reason",
+                  "reference"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperatorInvoiceOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The operator token is missing or wrong",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No organization has that slug",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The invoice is not open",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Not whole cents, or more than is owed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Stripe could not be reached",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/operator/organizations/{org}/invoices/{invoice_id}/mark-paid": {
+      "post": {
+        "tags": [
+          "operator"
+        ],
+        "summary": "Record a wire Stripe did not see",
+        "description": "Marks an open invoice paid out of band at Stripe, and settles it here as Stripe's webhook would. `reference` is the transfer's; the same one twice marks it once.",
+        "operationId": "post_v1_operator_organizations_by_org_invoices_by_invoice_id_mark_paid",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "invoice_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "operator": {
+                    "type": "string",
+                    "format": "email",
+                    "maxLength": 254
+                  },
+                  "reference": {
+                    "type": "string",
+                    "description": "The transfer's reference; the same one twice marks it paid once",
+                    "minLength": 4,
+                    "maxLength": 200
+                  }
+                },
+                "required": [
+                  "operator",
+                  "reference"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperatorInvoiceOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The operator token is missing or wrong",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No organization has that slug",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The invoice is not open",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Stripe could not be reached",
             "content": {
               "application/json": {
                 "schema": {
@@ -2172,6 +2699,200 @@
           },
           "503": {
             "description": "Stripe could not be asked whether a card is saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/organizations/{org}/billing/invoices": {
+      "get": {
+        "tags": [
+          "billing"
+        ],
+        "summary": "Monthly invoices",
+        "description": "For an organization billed by invoice (ADR 0045): every invoice it was sent, newest first, with its lines — the platform fee, each month's players, the credit that paid for some of them, and any top-up to the contract's minimum — its due date, and Stripe's page to read and pay it. Empty for a prepaid organization.",
+        "operationId": "get_v1_organizations_by_org_billing_invoices",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "description": "The organization's slug",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvoicesOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not do that",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The organization does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/organizations/{org}/billing/invoices/{invoice_id}": {
+      "get": {
+        "tags": [
+          "billing"
+        ],
+        "summary": "One invoice",
+        "operationId": "get_v1_organizations_by_org_billing_invoices_by_invoice_id",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "invoice_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvoiceOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not do that",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such invoice",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
             "content": {
               "application/json": {
                 "schema": {
@@ -7383,7 +8104,7 @@
           "payments"
         ],
         "summary": "Stripe's events",
-        "description": "Verified by the Stripe-Signature header. A payment that succeeded puts credit in its wallet, once, however many times and by however many events it is reported; a failed automatic top-up is released and retried later. Everything else is recorded and ignored.",
+        "description": "Verified by the Stripe-Signature header. A payment that succeeded puts credit in its wallet, once, however many times and by however many events it is reported; a failed automatic top-up is released and retried later; a usage invoice paid, credited or voided settles what its organization owes (ADR 0045). Everything else is recorded and ignored.",
         "operationId": "post_v1_stripe_webhook",
         "responses": {
           "200": {
@@ -9280,6 +10001,156 @@
           "status"
         ]
       },
+      "InvoiceLineOut": {
+        "type": "object",
+        "properties": {
+          "amount_cents": {
+            "type": "integer",
+            "format": "int64",
+            "description": "What the invoice bills for it"
+          },
+          "amount_micros": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The ledger's exact amount"
+          },
+          "description": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "description": "platform_fee, usage, prior_usage, credits_applied, commitment or adjustment"
+          },
+          "period_start": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "amount_cents",
+          "amount_micros",
+          "description",
+          "kind"
+        ]
+      },
+      "InvoiceOut": {
+        "type": "object",
+        "properties": {
+          "amount_paid_micros": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "amount_remaining_micros": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "due_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "final": {
+            "type": "boolean",
+            "description": "Issued when the organization left invoicing"
+          },
+          "hosted_url": {
+            "type": "string",
+            "description": "Stripe's page to read and pay it"
+          },
+          "id": {
+            "type": "string"
+          },
+          "issued_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "lines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InvoiceLineOut"
+            }
+          },
+          "number": {
+            "type": "string",
+            "description": "Stripe's invoice number, once issued"
+          },
+          "overdue": {
+            "type": "boolean",
+            "description": "Open and past its due date"
+          },
+          "paid_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "pdf_url": {
+            "type": "string"
+          },
+          "period_end": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Exclusive"
+          },
+          "period_start": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "po_number": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "description": "draft (being issued), open, paid, void, uncollectible, or empty (nothing to bill; never sent)"
+          },
+          "total": {
+            "type": "string"
+          },
+          "total_micros": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "amount_paid_micros",
+          "amount_remaining_micros",
+          "currency",
+          "id",
+          "lines",
+          "overdue",
+          "period_end",
+          "period_start",
+          "status",
+          "total",
+          "total_micros"
+        ]
+      },
+      "InvoicesOut": {
+        "type": "object",
+        "properties": {
+          "invoices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InvoiceOut"
+            }
+          }
+        },
+        "required": [
+          "invoices"
+        ]
+      },
       "LedgerEntryOut": {
         "type": "object",
         "properties": {
@@ -9827,6 +10698,154 @@
           "period_start",
           "tier",
           "tracked_players"
+        ]
+      },
+      "OperatorInvoiceOut": {
+        "type": "object",
+        "properties": {
+          "amount_paid_micros": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "amount_remaining_micros": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "carry_in_micros": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "carry_out_micros": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "discrepancy_micros": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Usage billed for the month minus what the dashboard said it cost; zero when they agree"
+          },
+          "due_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "final": {
+            "type": "boolean",
+            "description": "Issued when the organization left invoicing"
+          },
+          "hosted_url": {
+            "type": "string",
+            "description": "Stripe's page to read and pay it"
+          },
+          "id": {
+            "type": "string"
+          },
+          "issued_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "last_error": {
+            "type": "string",
+            "description": "Why the last attempt to issue it did not"
+          },
+          "ledger_from_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "ledger_to_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "lines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InvoiceLineOut"
+            }
+          },
+          "number": {
+            "type": "string",
+            "description": "Stripe's invoice number, once issued"
+          },
+          "overdue": {
+            "type": "boolean",
+            "description": "Open and past its due date"
+          },
+          "paid_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "pdf_url": {
+            "type": "string"
+          },
+          "period_end": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Exclusive"
+          },
+          "period_start": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "po_number": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "description": "draft (being issued), open, paid, void, uncollectible, or empty (nothing to bill; never sent)"
+          },
+          "stripe_invoice_id": {
+            "type": "string"
+          },
+          "total": {
+            "type": "string"
+          },
+          "total_micros": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "amount_paid_micros",
+          "amount_remaining_micros",
+          "carry_in_micros",
+          "carry_out_micros",
+          "currency",
+          "discrepancy_micros",
+          "id",
+          "ledger_from_id",
+          "ledger_to_id",
+          "lines",
+          "overdue",
+          "period_end",
+          "period_start",
+          "status",
+          "total",
+          "total_micros"
+        ]
+      },
+      "OperatorInvoicesOut": {
+        "type": "object",
+        "properties": {
+          "invoices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OperatorInvoiceOut"
+            }
+          }
+        },
+        "required": [
+          "invoices"
         ]
       },
       "OrganizationListOut": {

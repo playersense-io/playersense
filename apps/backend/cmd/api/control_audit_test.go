@@ -66,6 +66,10 @@ func TestEveryMutatingRouteDecidesAboutAudit(t *testing.T) {
 		"POST /v1/operator/organizations/{org}/charges":     audit.CreditCharged,
 		"PUT /v1/operator/organizations/{org}/plan":         audit.PlanChanged,
 		"PUT /v1/operator/organizations/{org}/credit-limit": audit.CreditLimitSet,
+
+		"PUT /v1/operator/organizations/{org}/contract":                            audit.ContractSet,
+		"POST /v1/operator/organizations/{org}/invoices/{invoice_id}/mark-paid":    audit.InvoicePaid,
+		"POST /v1/operator/organizations/{org}/invoices/{invoice_id}/credit-notes": audit.InvoiceCredited,
 	}
 
 	// Exempt, each with the reason. A route is allowed to change something and write no entry —

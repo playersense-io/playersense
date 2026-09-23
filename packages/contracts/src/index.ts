@@ -45,6 +45,9 @@ export type AuditEvent = Schema<'AuditEventOut'>
 export type Billing = Schema<'BillingOut'>
 export type CreditLot = Schema<'CreditLotOut'>
 export type AutoTopUp = Schema<'AutoTopUpOut'>
+/** A contracted organization's monthly invoice (ADR 0045). */
+export type Invoice = Schema<'InvoiceOut'>
+export type InvoiceLine = Schema<'InvoiceLineOut'>
 
 export type Segment = Schema<'SegmentOut'>
 export type FeatureFlag = Schema<'FlagOut'>

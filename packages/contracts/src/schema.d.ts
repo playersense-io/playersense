@@ -146,6 +146,26 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/v1/operator/organizations/{org}/contract": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        /**
+         * Put an organization on a contract
+         * @description From now (ADR 0045). `invoiced` bills it monthly: usage its credit does not cover, the platform fee (prorated in a part month) and any top-up to the minimum commitment go on one Stripe invoice, due `terms_days` after it is sent; ingestion is suspended `overdue_grace_days` after a missed due date, or at once when what it owes, billed or not, reaches `credit_limit_micros`. It needs a credit limit and a billing email, and no live subscription. `prepaid` moves it back, closing what is unbilled on a final invoice. Terms are never edited: each call is a new contract. Recorded in the organization's audit log.
+         */
+        readonly put: operations["put_v1_operator_organizations_by_org_contract"];
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/v1/operator/organizations/{org}/credit-limit": {
         readonly parameters: {
             readonly query?: never;
@@ -180,6 +200,66 @@ export interface paths {
          * @description A `promo` expires — ninety days unless `expires_at` names another date — and is spent before purchased credit. A `purchase` does not expire and cannot be given a date. `granted_at` backdates the grant, which decides where purchased credit sits in the spend queue. `reference` is the idempotency key: the same one twice grants once.
          */
         readonly post: operations["post_v1_operator_organizations_by_org_credits"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/operator/organizations/{org}/invoices": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * An organization's invoices, as staff see them
+         * @description Drafts and failed issues included, with why the last attempt did not issue, any difference between the month's usage and the dashboard's, and the ledger range each one bills.
+         */
+        readonly get: operations["get_v1_operator_organizations_by_org_invoices"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/operator/organizations/{org}/invoices/{invoice_id}/credit-notes": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Credit part of an open invoice
+         * @description Issues a Stripe credit note lowering what the invoice asks for, and what the organization owes with it. Whole cents, at most what is still owed.
+         */
+        readonly post: operations["post_v1_operator_organizations_by_org_invoices_by_invoice_id_credit_notes"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/operator/organizations/{org}/invoices/{invoice_id}/mark-paid": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Record a wire Stripe did not see
+         * @description Marks an open invoice paid out of band at Stripe, and settles it here as Stripe's webhook would. `reference` is the transfer's; the same one twice marks it once.
+         */
+        readonly post: operations["post_v1_operator_organizations_by_org_invoices_by_invoice_id_mark_paid"];
         readonly delete?: never;
         readonly options?: never;
         readonly head?: never;
@@ -385,6 +465,43 @@ export interface paths {
          * @description A threshold at or above the amount is refused: it would top up into a balance still under the threshold, so the next check charges again, and the next. Enabling it without a saved card is refused too — it would do nothing, and the account would find out by being suspended.
          */
         readonly put: operations["put_v1_organizations_by_org_billing_auto_topup"];
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/organizations/{org}/billing/invoices": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * Monthly invoices
+         * @description For an organization billed by invoice (ADR 0045): every invoice it was sent, newest first, with its lines — the platform fee, each month's players, the credit that paid for some of them, and any top-up to the contract's minimum — its due date, and Stripe's page to read and pay it. Empty for a prepaid organization.
+         */
+        readonly get: operations["get_v1_organizations_by_org_billing_invoices"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/organizations/{org}/billing/invoices/{invoice_id}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** One invoice */
+        readonly get: operations["get_v1_organizations_by_org_billing_invoices_by_invoice_id"];
+        readonly put?: never;
         readonly post?: never;
         readonly delete?: never;
         readonly options?: never;
@@ -1068,7 +1185,7 @@ export interface paths {
         readonly put?: never;
         /**
          * Stripe's events
-         * @description Verified by the Stripe-Signature header. A payment that succeeded puts credit in its wallet, once, however many times and by however many events it is reported; a failed automatic top-up is released and retried later. Everything else is recorded and ignored.
+         * @description Verified by the Stripe-Signature header. A payment that succeeded puts credit in its wallet, once, however many times and by however many events it is reported; a failed automatic top-up is released and retried later; a usage invoice paid, credited or voided settles what its organization owes (ADR 0045). Everything else is recorded and ignored.
          */
         readonly post: operations["post_v1_stripe_webhook"];
         readonly delete?: never;
@@ -1759,6 +1876,63 @@ export interface components {
             /** @description pending, accepted, revoked or expired */
             readonly status: string;
         };
+        readonly InvoiceLineOut: {
+            /**
+             * Format: int64
+             * @description What the invoice bills for it
+             */
+            readonly amount_cents: number;
+            /**
+             * Format: int64
+             * @description The ledger's exact amount
+             */
+            readonly amount_micros: number;
+            readonly description: string;
+            /** @description platform_fee, usage, prior_usage, credits_applied, commitment or adjustment */
+            readonly kind: string;
+            /** Format: date-time */
+            readonly period_start?: string | null;
+        };
+        readonly InvoiceOut: {
+            /** Format: int64 */
+            readonly amount_paid_micros: number;
+            /** Format: int64 */
+            readonly amount_remaining_micros: number;
+            readonly currency: string;
+            /** Format: date-time */
+            readonly due_at?: string | null;
+            /** @description Issued when the organization left invoicing */
+            readonly final?: boolean;
+            /** @description Stripe's page to read and pay it */
+            readonly hosted_url?: string;
+            readonly id: string;
+            /** Format: date-time */
+            readonly issued_at?: string | null;
+            readonly lines: readonly components["schemas"]["InvoiceLineOut"][];
+            /** @description Stripe's invoice number, once issued */
+            readonly number?: string;
+            /** @description Open and past its due date */
+            readonly overdue: boolean;
+            /** Format: date-time */
+            readonly paid_at?: string | null;
+            readonly pdf_url?: string;
+            /**
+             * Format: date-time
+             * @description Exclusive
+             */
+            readonly period_end: string;
+            /** Format: date-time */
+            readonly period_start: string;
+            readonly po_number?: string;
+            /** @description draft (being issued), open, paid, void, uncollectible, or empty (nothing to bill; never sent) */
+            readonly status: string;
+            readonly total: string;
+            /** Format: int64 */
+            readonly total_micros: number;
+        };
+        readonly InvoicesOut: {
+            readonly invoices: readonly components["schemas"]["InvoiceOut"][];
+        };
         readonly LedgerEntryOut: {
             readonly amount: string;
             /**
@@ -1967,6 +2141,62 @@ export interface components {
             readonly tier: number;
             /** Format: int64 */
             readonly tracked_players: number;
+        };
+        readonly OperatorInvoiceOut: {
+            /** Format: int64 */
+            readonly amount_paid_micros: number;
+            /** Format: int64 */
+            readonly amount_remaining_micros: number;
+            /** Format: int64 */
+            readonly carry_in_micros: number;
+            /** Format: int64 */
+            readonly carry_out_micros: number;
+            readonly currency: string;
+            /**
+             * Format: int64
+             * @description Usage billed for the month minus what the dashboard said it cost; zero when they agree
+             */
+            readonly discrepancy_micros: number;
+            /** Format: date-time */
+            readonly due_at?: string | null;
+            /** @description Issued when the organization left invoicing */
+            readonly final?: boolean;
+            /** @description Stripe's page to read and pay it */
+            readonly hosted_url?: string;
+            readonly id: string;
+            /** Format: date-time */
+            readonly issued_at?: string | null;
+            /** @description Why the last attempt to issue it did not */
+            readonly last_error?: string;
+            /** Format: int64 */
+            readonly ledger_from_id: number;
+            /** Format: int64 */
+            readonly ledger_to_id: number;
+            readonly lines: readonly components["schemas"]["InvoiceLineOut"][];
+            /** @description Stripe's invoice number, once issued */
+            readonly number?: string;
+            /** @description Open and past its due date */
+            readonly overdue: boolean;
+            /** Format: date-time */
+            readonly paid_at?: string | null;
+            readonly pdf_url?: string;
+            /**
+             * Format: date-time
+             * @description Exclusive
+             */
+            readonly period_end: string;
+            /** Format: date-time */
+            readonly period_start: string;
+            readonly po_number?: string;
+            /** @description draft (being issued), open, paid, void, uncollectible, or empty (nothing to bill; never sent) */
+            readonly status: string;
+            readonly stripe_invoice_id?: string;
+            readonly total: string;
+            /** Format: int64 */
+            readonly total_micros: number;
+        };
+        readonly OperatorInvoicesOut: {
+            readonly invoices: readonly components["schemas"]["OperatorInvoiceOut"][];
         };
         readonly OrganizationListOut: {
             readonly organizations: readonly components["schemas"]["OrganizationOut"][];
@@ -2827,6 +3057,131 @@ export interface operations {
             };
         };
     };
+    readonly put_v1_operator_organizations_by_org_contract: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly org: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": {
+                    /**
+                     * Format: email
+                     * @description Where invoices are sent
+                     */
+                    readonly billing_email?: string;
+                    /**
+                     * @description invoiced or prepaid
+                     * @enum {string}
+                     */
+                    readonly collection: "invoiced" | "prepaid";
+                    /**
+                     * Format: int64
+                     * @description Required for invoiced. Owing this much, billed or not, suspends ingestion
+                     */
+                    readonly credit_limit_micros?: number | null;
+                    /** @description The invoice footer */
+                    readonly memo?: string;
+                    /**
+                     * Format: int64
+                     * @description The least a month bills for usage; the difference is a commitment line
+                     */
+                    readonly minimum_commitment_micros?: number;
+                    /**
+                     * Format: email
+                     * @description Your own address. Recorded in the customer's audit log as self-asserted
+                     */
+                    readonly operator: string;
+                    /**
+                     * Format: int64
+                     * @description Days after a missed due date before ingestion is suspended. Defaults to 14
+                     */
+                    readonly overdue_grace_days?: number | null;
+                    /**
+                     * Format: int64
+                     * @description Billed every month, prorated in a part month. $500 is 500000000
+                     */
+                    readonly platform_fee_micros?: number;
+                    /** @description Printed on every invoice */
+                    readonly po_number?: string;
+                    /**
+                     * Format: int64
+                     * @description Days an invoice is due after it is issued. Defaults to 30
+                     */
+                    readonly terms_days?: number | null;
+                };
+            };
+        };
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["BillingOut"];
+                };
+            };
+            /** @description The operator token is missing or wrong */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No organization has that slug */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The organization has a live subscription */
+            readonly 409: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No credit limit, or no billing email, for an invoiced contract */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Stripe could not be reached, or payments are not configured */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     readonly put_v1_operator_organizations_by_org_credit_limit: {
         readonly parameters: {
             readonly query?: never;
@@ -2981,6 +3336,244 @@ export interface operations {
             };
             /** @description The amount is not positive, or an expiry was named for purchased credit */
             readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly get_v1_operator_organizations_by_org_invoices: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                /** @description The organization's slug */
+                readonly org: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["OperatorInvoicesOut"];
+                };
+            };
+            /** @description The operator token is missing or wrong */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No organization has that slug */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly post_v1_operator_organizations_by_org_invoices_by_invoice_id_credit_notes: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly org: string;
+                readonly invoice_id: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": {
+                    /**
+                     * Format: int64
+                     * @description Whole cents, at most what is still owed on it
+                     */
+                    readonly amount_micros?: number;
+                    /** Format: email */
+                    readonly operator: string;
+                    /** @description Printed on the credit note */
+                    readonly reason: string;
+                    /** @description An idempotency key: the same one twice credits once */
+                    readonly reference: string;
+                };
+            };
+        };
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["OperatorInvoiceOut"];
+                };
+            };
+            /** @description The operator token is missing or wrong */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No organization has that slug */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The invoice is not open */
+            readonly 409: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not whole cents, or more than is owed */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Stripe could not be reached */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly post_v1_operator_organizations_by_org_invoices_by_invoice_id_mark_paid: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly org: string;
+                readonly invoice_id: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": {
+                    /** Format: email */
+                    readonly operator: string;
+                    /** @description The transfer's reference; the same one twice marks it paid once */
+                    readonly reference: string;
+                };
+            };
+        };
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["OperatorInvoiceOut"];
+                };
+            };
+            /** @description The operator token is missing or wrong */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No organization has that slug */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The invoice is not open */
+            readonly 409: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Stripe could not be reached */
+            readonly 503: {
                 headers: {
                     readonly [name: string]: unknown;
                 };
@@ -3925,6 +4518,160 @@ export interface operations {
                 };
             };
             /** @description Stripe could not be asked whether a card is saved */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly get_v1_organizations_by_org_billing_invoices: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                /** @description The organization's slug */
+                readonly org: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["InvoicesOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not do that */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The organization does not exist */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly get_v1_organizations_by_org_billing_invoices_by_invoice_id: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly org: string;
+                readonly invoice_id: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["InvoiceOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not do that */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No such invoice */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
             readonly 503: {
                 headers: {
                     readonly [name: string]: unknown;

@@ -556,6 +556,9 @@ func Subscribe(ctx *muzak.Context, in schemas.SubscribeIn) (schemas.CheckoutOut,
 	if err != nil {
 		return schemas.CheckoutOut{}, err
 	}
+	if err := refuseInvoiced(account, "its plan fee is on the invoice rather than a subscription"); err != nil {
+		return schemas.CheckoutOut{}, err
+	}
 	if account.SubscriptionStatus != nil && payments.Live(*account.SubscriptionStatus) {
 		return schemas.CheckoutOut{}, muzak.Conflict(
 			"this organization already has a subscription; change or cancel it in the billing portal").

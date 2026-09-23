@@ -37,6 +37,9 @@ func CreateTopUp(ctx *muzak.Context, in schemas.TopUpIn) (schemas.CheckoutOut, e
 	if err != nil {
 		return schemas.CheckoutOut{}, err
 	}
+	if err := refuseInvoiced(account, "it is not topped up by card"); err != nil {
+		return schemas.CheckoutOut{}, err
+	}
 	customer, err := ensureCustomer(ctx, account)
 	if err != nil {
 		return schemas.CheckoutOut{}, err

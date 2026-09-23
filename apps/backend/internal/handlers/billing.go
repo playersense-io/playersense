@@ -257,6 +257,12 @@ func SetAutoTopUp(ctx *muzak.Context, in schemas.SetAutoTopUpIn) (schemas.Billin
 		return schemas.BillingOut{}, err
 	}
 
+	if in.Enabled {
+		if err := refuseInvoiced(account, "it is never topped up automatically"); err != nil {
+			return schemas.BillingOut{}, err
+		}
+	}
+
 	// Whether Stripe holds a card it can charge, asked of Stripe rather than of a column: cards are
 	// managed in Stripe's portal and never stored here (ADR 0040). Asked only when turning it on,
 	// because switching it off must work even while Stripe is unreachable.

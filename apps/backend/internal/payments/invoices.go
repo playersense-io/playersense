@@ -182,7 +182,7 @@ func ApplyInvoice(ctx context.Context, tx *ent.Tx, in IssuedInvoice, at time.Tim
 // customer owed less or was simply overpaid, is a person's call: it is recorded and flagged, and the
 // ledger corrected by hand (ADR 0045).
 func (w *Webhooks) creditNote(ctx context.Context, tx *ent.Tx, row *ent.Invoice, note stripe.CreditNote) (handled, error) {
-	if err := ApplyCreditNote(ctx, tx, row, CreditNote{ID: note.ID, AmountCents: note.PrePaymentAmount}, w.now()); err != nil {
+	if _, err := ApplyCreditNote(ctx, tx, row, CreditNote{ID: note.ID, AmountCents: note.PrePaymentAmount}, w.now()); err != nil {
 		return handled{}, err
 	}
 	h := handled{status: stripeevent.StatusProcessed, accountID: row.AccountID}
@@ -196,15 +196,16 @@ func (w *Webhooks) creditNote(ctx context.Context, tx *ent.Tx, row *ent.Invoice,
 	return h, nil
 }
 
-// ApplyCreditNote writes off what a credit note took off an open invoice, once per note.
-func ApplyCreditNote(ctx context.Context, tx *ent.Tx, row *ent.Invoice, note CreditNote, at time.Time) error {
+// ApplyCreditNote writes off what a credit note took off an open invoice, once per note, and reports
+// whether this call was the one that did.
+func ApplyCreditNote(ctx context.Context, tx *ent.Tx, row *ent.Invoice, note CreditNote, at time.Time) (bool, error) {
 	amount := note.AmountCents * billing.CentMicros
 	if amount <= 0 {
-		return nil
+		return false, nil
 	}
 	locked, err := tx.Invoice.Query().Where(invoice.ID(row.ID)).ForUpdate().Only(ctx)
 	if err != nil {
-		return err
+		return false, err
 	}
 	result, err := wallet.WriteOff(ctx, tx, wallet.SettleRequest{
 		AccountID: row.AccountID, InvoiceID: row.ID, Amount: min(amount, locked.AmountRemainingMicros),
@@ -212,15 +213,15 @@ func ApplyCreditNote(ctx context.Context, tx *ent.Tx, row *ent.Invoice, note Cre
 		At: at, Key: "credit-note:" + note.ID,
 	})
 	if err != nil {
-		return err
+		return false, err
 	}
 	if result.Applied {
 		if err := tx.Invoice.UpdateOneID(row.ID).
 			SetAmountRemainingMicros(max(0, locked.AmountRemainingMicros-amount)).Exec(ctx); err != nil {
-			return fmt.Errorf("record the credit note: %w", err)
+			return false, fmt.Errorf("record the credit note: %w", err)
 		}
 	}
-	return ReassessOverdue(ctx, tx, row.AccountID, at)
+	return result.Applied, ReassessOverdue(ctx, tx, row.AccountID, at)
 }
 
 // ReassessOverdue sets when an account's earliest unpaid invoice passed its due date, or clears it when
