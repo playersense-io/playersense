@@ -3,6 +3,9 @@
 // it describes, each with who asserts it, and the game's own context keys after them. A key of
 // the game's own that is not listed yet can be typed in — "rank" becomes `context.rank` — since
 // a studio's vocabulary is its own (docs/sdk/context-and-targeting.md §1).
+//
+// The button is one fixed width and truncates, so a condition stays on one row whatever the
+// key is called; the full name and the key itself are on its tooltip and in the menu.
 defineProps<{
   /** What the choice is, for a screen reader: "Condition 2 key". */
   label: string
@@ -66,14 +69,14 @@ function focusSearch() {
       <button
         v-bind="activator"
         :aria-label="`${label}: ${chosen?.label ?? 'none chosen'}`"
+        :title="chosen ? `${chosen.label} (${chosen.key})` : undefined"
         :class="[open ? 'border-primary' : 'border-ink/25 hover:border-ink/45 dark:border-ink/10 dark:hover:border-ink/22', chosen ? 'text-ink' : 'text-ink/40']"
-        class="inline-flex h-(--ps-toolbar-height) max-w-full min-w-48 items-center gap-2 rounded-(--ps-radius) border bg-transparent px-3 text-[13px] transition-colors duration-150 focus-visible:border-primary focus-visible:outline-none"
+        class="inline-flex h-(--ps-toolbar-height) w-52 max-w-full flex-none items-center gap-2 rounded-(--ps-radius) border bg-transparent px-3 text-[13px] transition-colors duration-150 focus-visible:border-primary focus-visible:outline-none"
         type="button"
       >
         <template v-if="chosen">
           <AuthorityMark :authority="chosen.authority" />
-          <span class="truncate">{{ chosen.label }}</span>
-          <span class="hidden truncate font-mono text-[11px] text-ink/45 sm:inline">{{ chosen.key }}</span>
+          <span class="min-w-0 truncate">{{ chosen.label }}</span>
         </template>
         <span v-else class="flex-1 text-left">Choose a key</span>
         <Icon aria-hidden="true" class="ml-auto flex-none text-base text-ink/40" name="material-symbols:unfold-more" />

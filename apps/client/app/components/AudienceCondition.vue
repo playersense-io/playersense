@@ -144,7 +144,7 @@ const placeholder = computed(() => {
       :items="TYPES"
       v-bind="FIELD_MENU"
       :model-value="node.valueType ?? 'string'"
-      class="w-40 flex-none"
+      class="w-32 flex-none"
       density="comfortable"
       hide-details
       variant="outlined"
@@ -157,7 +157,7 @@ const placeholder = computed(() => {
         :items="operators"
         v-bind="FIELD_MENU"
         :model-value="node.op"
-        class="w-48 flex-none"
+        class="w-40 flex-none"
         density="comfortable"
         hide-details
         variant="outlined"
@@ -185,7 +185,7 @@ const placeholder = computed(() => {
           v-bind="FIELD_MENU"
           :placeholder="placeholder"
           :return-object="false"
-          class="max-w-72 min-w-44 flex-1"
+          class="max-w-64 min-w-36 flex-1"
           density="comfortable"
           hide-details
           variant="outlined"
@@ -197,7 +197,7 @@ const placeholder = computed(() => {
           :inputmode="attribute.type === 'number' ? 'decimal' : undefined"
           :placeholder="placeholder"
           :prefix="attribute.unit === 'micros' ? '$' : undefined"
-          class="max-w-56 min-w-36 flex-1"
+          class="max-w-56 min-w-32 flex-1"
           density="comfortable"
           hide-details
           variant="outlined"
@@ -213,7 +213,7 @@ const placeholder = computed(() => {
         :placeholder="`${placeholder}, one or more`"
         :return-object="false"
         chips
-        class="ps-audience-condition__many max-w-lg min-w-56 flex-1"
+        class="ps-audience-condition__many max-w-lg min-w-44 flex-1"
         closable-chips
         density="comfortable"
         hide-details
