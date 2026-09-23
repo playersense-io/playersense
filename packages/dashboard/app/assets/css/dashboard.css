@@ -1,0 +1,75 @@
+/*
+ * Tailwind for the dashboards, imported by each app's own app/assets/css/main.css (which
+ * adds an `@source` for that app's files).
+ *
+ * Entered through Tailwind's individual modules rather than `@import "tailwindcss"`, to
+ * skip preflight: Vuetify's `styles/core` already resets the document, and two resets
+ * fight over buttons, inputs and borders.
+ */
+@import "tailwindcss/theme.css" layer(theme);
+
+/*
+ * Utilities are imported unlayered, and that is load-bearing. Vuetify 4 ships its whole
+ * stylesheet in cascade layers appended after this file, and a later layer beats an
+ * earlier one whatever the specificity — inside `@layer utilities`, `class="p-6"` on a
+ * `v-card-text` silently does nothing. Unlayered outranks every layer.
+ */
+@import "tailwindcss/utilities.css";
+
+/* This layer's own components. */
+@source "../../";
+
+/*
+ * The one piece of preflight the dashboards need: Vuetify's reset stops short of
+ * `button`, so a bare one keeps the browser's border, fill and font. Layered so it loses
+ * to every utility and to Vuetify's own button.
+ */
+@layer base {
+  button {
+    appearance: none;
+    background: none;
+    border: 0;
+    color: inherit;
+    cursor: pointer;
+    font: inherit;
+    padding: 0;
+  }
+
+  button:disabled {
+    cursor: default;
+  }
+}
+
+/*
+ * Vuetify's theme as Tailwind colours, so a template says `bg-ink/5` or `border-line`
+ * rather than spelling out `rgba(var(--v-theme-on-surface), 0.05)`. Vuetify owns the
+ * values (packages/dashboard/nuxt.config.ts); a colour a template wants that is not here
+ * is a token to add, not a hex to write.
+ *
+ * `inline` so the reference resolves at the element carrying the utility, inside
+ * whatever theme scope it is in, rather than once on `:root`.
+ */
+@theme inline {
+  --color-canvas: rgb(var(--v-theme-background));
+  --color-shell: rgb(var(--v-theme-shell));
+  --color-surface: rgb(var(--v-theme-surface));
+  --color-ink: rgb(var(--v-theme-on-surface));
+  --color-primary: rgb(var(--v-theme-primary));
+  --color-on-primary: rgb(var(--v-theme-on-primary));
+  --color-success: rgb(var(--v-theme-success));
+  --color-warning: rgb(var(--v-theme-warning));
+  --color-error: rgb(var(--v-theme-error));
+  --color-line: rgba(var(--v-border-color), var(--v-border-opacity));
+  /* The shell's edge and the rule between its rows, declared in theme.css. */
+  --color-shell-line: var(--ps-shell-line);
+  --color-shell-divider: var(--ps-shell-divider);
+}
+
+/*
+ * DM Mono for figures, loaded in theme.css. Tailwind's own `font-mono` is the system
+ * stack, a different face on every OS. It ships at 400 and 500 only; `font-bold` on it
+ * is synthesised and looks it.
+ */
+@theme {
+  --font-mono: "DM Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}

@@ -1,0 +1,966 @@
+/*
+ * The dashboards' own metrics for Vuetify's components: control heights, radii, type and
+ * the resting border weight. Colours stay in packages/dashboard/nuxt.config.ts, where
+ * Vuetify owns them. Ported from idenzy's panel (vendor/idenzy/apps/client).
+ *
+ * Written as CSS rather than through Vuetify's sass variables on purpose. The module
+ * takes `styles.configFile` and `styles.utilities` as alternatives, not together: the
+ * configFile branch pulls `vuetify/styles` whole, utilities included, and those are the
+ * 236 KB of class names that collide with Tailwind. Overriding here keeps one utility
+ * system, and Vuetify exposes most of what we need as custom properties anyway.
+ *
+ * Everything below is unlayered, which is what makes it win: Vuetify 4 ships inside
+ * cascade layers, and a layered rule loses to an unlayered one whatever its specificity.
+ * The same fact is a trap, so state-dependent values are restated here rather than left
+ * to Vuetify, and theme scoping goes through `:where()` so it adds no specificity of its
+ * own. See dashboard.css beside this file for the other half of that argument.
+ */
+
+/* Self-hosted, so the dashboards make no request to fonts.googleapis.com and the
+   variable font is compiled into the bundle. */
+@import "@fontsource-variable/dm-sans";
+
+/* DM Sans's companion face, for figures. Static rather than variable because that is
+   all it ships as, and two weights rather than the six: the regular for a figure in
+   running text and the medium for one set large. Medium is the heaviest it has, so a
+   `font-bold` on it is synthesised and looks it. */
+@import "@fontsource/dm-mono/400.css";
+@import "@fontsource/dm-mono/500.css";
+
+:root {
+  /* Vuetify's own hook. Everything it styles reads this, Roboto being the fallback it
+     ships with rather than a font we load. */
+  --v-font-body: "DM Sans Variable", ui-sans-serif, system-ui, sans-serif;
+
+  /* Interactive controls are one height, so a button beside a field lines up without
+     either being asked to. The ladder is 8px per step off a 40px default. */
+  --ps-control-height-x-small: 24px;
+  --ps-control-height-small: 32px;
+  --ps-control-height: 40px;
+  --ps-control-height-large: 48px;
+  --ps-control-height-x-large: 56px;
+
+  /*
+   * The row of controls that sits over a table: a search, a period, Filter, Columns.
+   *
+   * Off the ladder on purpose, and the one height here that is. It is the table head's own
+   * height (`--v-table-header-height` in DataTable.vue), so the controls for a table and the
+   * head of that table are the same band. A small control is right in a dialog footer or a
+   * row of settings, where it is one of several things on a line; alone above a table it
+   * reads as an afterthought rather than as the controls for what is below, and the default
+   * forty is a second header.
+   *
+   * One token for all four, because the whole point of the row is that a field, a segmented
+   * control and two buttons of three different component families end up the same height.
+   * Four numbers in four files is four chances for one of them to drift.
+   */
+  --ps-toolbar-height: 36px;
+
+  /* A scale of corners, for the things that nest: a menu inside a card, a row inside a
+     menu, a segment inside its track. Controls no longer climb it — a button and a field
+     both take `--ps-radius` whatever their size, because they sit beside each other and
+     a pair that turns differently reads as a pair that does not match. */
+  --ps-radius-x-small: 4px;
+  --ps-radius-small: 6px;
+  --ps-radius: 8px;
+  --ps-radius-large: 10px;
+  --ps-radius-x-large: 12px;
+
+  --ps-icon-size-x-small: 0.75rem;
+  --ps-icon-size-small: 0.875rem;
+  --ps-icon-size: 1rem;
+  --ps-icon-size-large: 1.125rem;
+  --ps-icon-size-x-large: 1.25rem;
+
+  --ps-font-size-control: 0.8125rem;
+
+  /* A field's affix icons. Vuetify draws these at its 24px default, which next to a 13px
+     value is the largest thing in the row. */
+  --ps-field-icon-size-compact: 1rem;
+  --ps-field-icon-size-comfortable: 1.125rem;
+  --ps-field-icon-size: 1.25rem;
+
+  /* The drawer's inset and the height of an item in it, shared with the rows the layout
+     builds above and below the list so they sit on the same edge. The rail restates the
+     inset below, where the class that means "rail" is. */
+  --ps-nav-inset: 12px;
+  --ps-nav-item-height: 36px;
+
+  /* A menu's inset, half the drawer's. The drawer's is set to line up with the rows the
+     layout builds above and below its list; a menu has no such rows, and at twelve
+     pixels a list of three items floats in its box with more frame than content. */
+  --ps-menu-inset: 6px;
+
+  /* The drawer's two shades of ink under the theme's own. A heading is furniture and
+     takes the muted one; a row nobody is on or over takes the second; the row the
+     pointer or the route is on takes `on-surface`. Given as colours rather than as
+     opacities of white, because a grey over a near-black surface picks up a cast the
+     eye reads as blue, and these are warm on purpose. */
+  --ps-nav-muted: #84827c;
+  --ps-nav-inactive: #4f4d48;
+
+  /* The shell's two lines, each a step quieter than the theme's. A card's edge marks
+     something set on the page; the drawer's and the bar's mark where the page begins,
+     and drawn at the same weight they box the content in. The rules inside the drawer
+     are quieter again: they part one row of the chrome from the next, and at the
+     weight of the edge they would cut the drawer into boxes. */
+  --ps-shell-line: #ececeb;
+  --ps-shell-divider: #f0f0ef;
+
+  /* A skeleton's bone, at the strength the statistic tile's is, and the well a set of
+     them sits in, a step under it so the bones read as ink on a surface. */
+  --ps-skeleton-bone: rgba(var(--v-theme-on-surface), 0.08);
+  --ps-skeleton-well: rgba(var(--v-theme-on-surface), 0.035);
+
+}
+
+:where(.v-theme--dark) {
+  --ps-nav-muted: #898781;
+  --ps-nav-inactive: #a9a7a1;
+  --ps-shell-line: #292929;
+  --ps-shell-divider: #202020;
+  --ps-skeleton-bone: rgba(var(--v-theme-on-surface), 0.1);
+  --ps-skeleton-well: rgba(var(--v-theme-on-surface), 0.05);
+}
+
+/*
+ * Type. Vuetify tracks its labels and buttons out by roughly a hundredth of an em, which
+ * is a Material Design signature and reads as one at every size we use. Letter-spacing
+ * and capitalisation are the two things a reader notices as "not ours", so both go.
+ *
+ * `text-indent` goes with the letter-spacing it compensates for: Vuetify indents a button
+ * by minus one track to re-centre a label that trailing space has pushed left, and left
+ * alone it shifts every label a pixel the other way.
+ */
+.v-application,
+.v-btn,
+.v-label,
+.v-field,
+.v-field__input,
+.v-list-item-title,
+.v-list-item-subtitle,
+.v-toolbar-title,
+.v-tab,
+.v-chip,
+.v-messages {
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.v-btn {
+  text-indent: 0;
+}
+
+/*
+ * Fields.
+ *
+ * `--v-input-control-height` is set on both the input and the field because Vuetify
+ * redeclares it per variant on the field itself, and the variant rule would otherwise
+ * put the underlined default of 48px back. The three padding hooks are zeroed for the
+ * same reason the height is stated: they exist to reserve room for a floating label, and
+ * this panel labels its fields from the outside.
+ *
+ * The explicit control height is what pulls the underline up against the input. Without
+ * it the field keeps the taller box the padding implied and the rule floats 12px below
+ * the text, which reads as a misalignment rather than a size.
+ */
+.v-input--density-default,
+.v-input--density-default .v-field {
+  --v-input-control-height: var(--ps-control-height);
+}
+
+/* Comfortable is the toolbar's density rather than a rung of its own: every search field
+   in the panel is one, and each of them sits in the row over a table beside the segmented
+   control and the two menu buttons. So it takes that row's height and not the ladder's. */
+.v-input--density-comfortable,
+.v-input--density-comfortable .v-field {
+  --v-input-control-height: var(--ps-toolbar-height);
+}
+
+.v-input--density-compact,
+.v-input--density-compact .v-field {
+  --v-input-control-height: var(--ps-control-height-x-small);
+}
+
+.v-field {
+  --v-input-padding-top: 0px;
+  --v-field-padding-top: 0px;
+  --v-field-padding-bottom: 0px;
+  --v-field-input-padding-top: 0px;
+  --v-field-input-padding-bottom: 0px;
+
+  border-radius: var(--ps-radius);
+  font-size: var(--ps-font-size-control);
+}
+
+/* Single-line by construction, so the control is exactly its height. Left to stretch it
+   takes whatever the row gives it, which is where the extra space under the rule came
+   from. The exclusion is explicit because `v-textarea` renders with `v-text-field` on its
+   root, so it is caught by this selector: without it a textarea's control is pinned to one
+   row's height and the element inside draws over whatever follows. */
+.v-text-field:not(.v-textarea) .v-input__control {
+  height: var(--v-input-control-height);
+}
+
+/*
+ * Vuetify dims the whole input to its high-emphasis opacity, which then multiplies into
+ * everything drawn inside it. Full strength here and an explicit opacity on the
+ * placeholder is what makes that opacity mean what it says: a quarter is a quarter, not a
+ * quarter of 87%.
+ */
+.v-field__input {
+  color: rgb(var(--v-theme-on-surface));
+  font-size: var(--ps-font-size-control);
+  min-height: var(--v-input-control-height);
+  opacity: 1;
+}
+
+/* On-surface at 40%: black on a light theme, white on a dark one. Vuetify's own default
+   is bright enough on a dark surface to read as a value somebody typed. */
+.v-field__input::placeholder {
+  color: rgb(var(--v-theme-on-surface));
+  font-size: var(--ps-font-size-control);
+  opacity: 0.4;
+}
+
+/*
+ * Affixes sit in the middle of the control. Vuetify tops them out and pads them down by
+ * the label's height, which is right for a field whose label floats inside it and wrong
+ * for every field in this panel: with the reserved space gone the padding is measured
+ * against nothing and the icon lands against the top edge.
+ */
+.v-field__prepend-inner,
+.v-field__append-inner,
+.v-field__clearable {
+  align-items: center;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+/*
+ * An affix icon marks the row rather than saying anything, so it sits at the placeholder's
+ * weight instead of the medium emphasis Vuetify gives it. A clickable one answers the
+ * pointer: `v-icon--clickable` is Vuetify's own marker for an icon that has a handler
+ * bound, which is what keeps the decorative ones from lighting up under a cursor that can
+ * do nothing with them.
+ */
+.v-field__prepend-inner > .v-icon,
+.v-field__append-inner > .v-icon,
+.v-field__clearable > .v-icon {
+  color: rgb(var(--v-theme-on-surface));
+  opacity: 0.4;
+  transition: opacity 150ms var(--v-transition-standard-easing, ease);
+}
+
+.v-field__prepend-inner > .v-icon--clickable:hover,
+.v-field__prepend-inner > .v-icon--clickable:focus-visible,
+.v-field__append-inner > .v-icon--clickable:hover,
+.v-field__append-inner > .v-icon--clickable:focus-visible,
+.v-field__clearable > .v-icon--clickable:hover,
+.v-field__clearable > .v-icon--clickable:focus-visible {
+  opacity: 0.8;
+}
+
+/* Underlined and plain draw a rule rather than a box, so a radius on them would round
+   nothing and clip the line's ends. */
+.v-field--variant-underlined,
+.v-field--variant-plain {
+  border-radius: 0;
+}
+
+/*
+ * The resting rule is deliberately faint: black at a quarter, white at a tenth. It is
+ * currentColor under an opacity, and currentColor is the theme's on-surface, so the two
+ * numbers are the whole difference between the themes.
+ *
+ * Hover and focus are restated because unlayered wins: leaving them to Vuetify would let
+ * this rule flatten a field's states into one weight, and a field that does not answer
+ * the cursor reads as disabled.
+ */
+.v-field__outline {
+  --v-field-border-opacity: 0.25;
+}
+
+:where(.v-theme--dark) .v-field__outline {
+  --v-field-border-opacity: 0.1;
+}
+
+.v-field:hover .v-field__outline {
+  --v-field-border-opacity: 0.45;
+}
+
+:where(.v-theme--dark) .v-field:hover .v-field__outline {
+  --v-field-border-opacity: 0.22;
+}
+
+/* `.v-field` is restated on these so they weigh as much as the hover rule above, whose
+   `:hover` counts as a class. Without it a field the pointer is still over keeps the
+   hover strength after it is focused, and lights up only once the pointer leaves. */
+.v-field.v-field--focused .v-field__outline,
+.v-field.v-field--error .v-field__outline {
+  --v-field-border-opacity: 1;
+}
+
+/*
+ * Disabled is a state, not a faded accent.
+ *
+ * Vuetify keeps the colour class on a disabled button and lowers the emphasis around it,
+ * so a disabled primary button is a pale version of the same blue. That reads as a button
+ * mid-transition rather than one that cannot be pressed, and the paler the accent the more
+ * it reads as "loading". Grey says the thing the state means.
+ *
+ * Derived from `on-surface` rather than given hues of its own, so it follows the theme
+ * without a second pair of colours to keep in step: black on white, white on the dark
+ * surface, at the weight the state deserves in each.
+ */
+.v-btn--disabled.v-btn--variant-elevated,
+.v-btn--disabled.v-btn--variant-flat,
+.v-btn--disabled.v-btn--variant-tonal {
+  background-color: rgba(var(--v-theme-on-surface), 0.06);
+  color: rgba(var(--v-theme-on-surface), 0.26);
+  opacity: 1;
+}
+
+.v-btn--disabled.v-btn--variant-outlined,
+.v-btn--disabled.v-btn--variant-text,
+.v-btn--disabled.v-btn--variant-plain {
+  background-color: transparent;
+  color: rgba(var(--v-theme-on-surface), 0.26);
+  opacity: 1;
+}
+
+/* A step under the resting outline further down, so the button that cannot be pressed is
+   not the one drawn with the heavier line. */
+.v-btn--disabled.v-btn--variant-outlined {
+  border-color: rgba(var(--v-theme-on-surface), 0.1);
+}
+
+:where(.v-theme--dark) .v-btn--disabled.v-btn--variant-elevated,
+:where(.v-theme--dark) .v-btn--disabled.v-btn--variant-flat,
+:where(.v-theme--dark) .v-btn--disabled.v-btn--variant-tonal {
+  background-color: rgba(var(--v-theme-on-surface), 0.08);
+  color: rgba(var(--v-theme-on-surface), 0.3);
+}
+
+:where(.v-theme--dark) .v-btn--disabled.v-btn--variant-outlined,
+:where(.v-theme--dark) .v-btn--disabled.v-btn--variant-text,
+:where(.v-theme--dark) .v-btn--disabled.v-btn--variant-plain {
+  color: rgba(var(--v-theme-on-surface), 0.3);
+}
+
+:where(.v-theme--dark) .v-btn--disabled.v-btn--variant-outlined {
+  border-color: rgba(var(--v-theme-on-surface), 0.06);
+}
+
+/*
+ * Buttons. Height per size, corner shared.
+ *
+ * `--v-btn-height` is Vuetify's own hook and the padding it derives follows it, so the
+ * ladder still makes `size="large"` mean something.
+ *
+ * The corner does not climb that ladder, and it used to. A button's neighbour is a field —
+ * a search with a button beside it, a form with a save under it — and `.v-field` takes
+ * `--ps-radius` at every density rather than one per size. A 32px button turning at six
+ * beside a 36px field turning at eight is the pair not quite agreeing, which is more
+ * visible than the two heights being different, because the heights are meant to be.
+ */
+.v-btn {
+  border-radius: var(--ps-radius);
+}
+
+.v-btn--size-x-small {
+  --v-btn-height: var(--ps-control-height-x-small);
+}
+
+.v-btn--size-small {
+  --v-btn-height: var(--ps-control-height-small);
+}
+
+.v-btn--size-default {
+  --v-btn-height: var(--ps-control-height);
+}
+
+.v-btn--size-large {
+  --v-btn-height: var(--ps-control-height-large);
+}
+
+.v-btn--size-x-large {
+  --v-btn-height: var(--ps-control-height-x-large);
+}
+
+/*
+ * A button in the row over a table: Filter, Columns.
+ *
+ * `size="small"` is still true of everything else about it — the type, the icon and the
+ * padding Vuetify derives are that size — and only the height is the row's. Given a rung of
+ * its own instead, every small button in the panel would have grown with it, which is four
+ * pixels onto every dialog footer to line up four controls on one screen.
+ */
+.ps-toolbar-control {
+  --v-btn-height: var(--ps-toolbar-height);
+}
+
+/*
+ * Outlined buttons.
+ *
+ * Vuetify draws the variant as a 1px line of the button's own ink at full strength with
+ * nothing inside it. On a dark surface that is a white rectangle, the brightest thing on
+ * the screen, and a column of five reads as a wireframe rather than a list of ways in.
+ * Here the line is a hairline of the ink, and the dark theme adds a faint fill so the
+ * button reads as a surface rather than a hole in one. Light keeps the page's own
+ * surface, where a fill would only grey it.
+ *
+ * Mixed from `currentColor` rather than from `on-surface`, so a button that carries an
+ * accent keeps it: an outlined `error` button is faintly red around red text, not grey.
+ * For `neutral`, which is every outlined button in the panel today, the two are a step
+ * apart and the result is the same.
+ *
+ * Hover strengthens the line, and Vuetify's own overlay tints the fill on hover and
+ * focus, so those two are left to it. Pressed is the one state the overlay does not
+ * cover, and its fill is stated here. The weights are custom properties so the dark
+ * theme restates four numbers rather than four rules; the disabled state is above, with
+ * the other variants, and sits a step under the resting line in both themes.
+ *
+ * The transition is the shorthand on purpose. Vuetify's own covers shadow, transform and
+ * opacity, none of which an outlined button has, and the two properties that do move
+ * here are not in its list.
+ */
+.v-btn--variant-outlined {
+  --ps-outlined-fill: 0%;
+  --ps-outlined-fill-pressed: 6%;
+  --ps-outlined-line: 16%;
+  --ps-outlined-line-raised: 28%;
+
+  background-color: color-mix(in srgb, currentColor var(--ps-outlined-fill), transparent);
+  border-color: color-mix(in srgb, currentColor var(--ps-outlined-line), transparent);
+  transition:
+    background-color 150ms var(--v-transition-standard-easing, ease),
+    border-color 150ms var(--v-transition-standard-easing, ease);
+}
+
+:where(.v-theme--dark) .v-btn--variant-outlined {
+  --ps-outlined-fill: 4%;
+  --ps-outlined-fill-pressed: 10%;
+  --ps-outlined-line: 10%;
+  --ps-outlined-line-raised: 18%;
+}
+
+.v-btn--variant-outlined:hover,
+.v-btn--variant-outlined:focus-visible {
+  border-color: color-mix(in srgb, currentColor var(--ps-outlined-line-raised), transparent);
+}
+
+.v-btn--variant-outlined:active {
+  background-color: color-mix(
+    in srgb,
+    currentColor var(--ps-outlined-fill-pressed),
+    transparent
+  );
+}
+
+/*
+ * Icons inside a button are sized in rem rather than the em Vuetify uses, because an em
+ * ties the glyph to the label and the two do not scale together: a 13px label beside a
+ * 13px icon reads as an icon that failed to load.
+ */
+.v-btn .v-icon {
+  font-size: var(--ps-icon-size);
+}
+
+.v-btn--size-x-small .v-icon {
+  font-size: var(--ps-icon-size-x-small);
+}
+
+.v-btn--size-small .v-icon {
+  font-size: var(--ps-icon-size-small);
+}
+
+.v-btn--size-large .v-icon {
+  font-size: var(--ps-icon-size-large);
+}
+
+.v-btn--size-x-large .v-icon {
+  font-size: var(--ps-icon-size-x-large);
+}
+
+/*
+ * A field's affix icons. Kept here, after the button rules, so that every rule ending in
+ * `.v-icon` reads in ascending specificity: a lower-specificity button rule written below
+ * these would look like it loses and would not, which is the sort of thing that only
+ * shows up on the one screen that has both.
+ *
+ * They follow the control's density rather than its font size, because they mark the row
+ * and are not read alongside the value.
+ */
+.v-input--density-default .v-field .v-icon {
+  font-size: var(--ps-field-icon-size);
+}
+
+.v-input--density-comfortable .v-field .v-icon {
+  font-size: var(--ps-field-icon-size-comfortable);
+}
+
+.v-input--density-compact .v-field .v-icon {
+  font-size: var(--ps-field-icon-size-compact);
+}
+
+/*
+ * An icon button is square at its size's height, so it lines up with the text button
+ * beside it. Vuetify makes it twelve pixels bigger than that in both directions, which
+ * beside a 32px "Docs" is a 44px bell.
+ *
+ * Nothing here restores the corner. Vuetify draws an icon button as a circle, in its own
+ * layer, and the unlayered `.v-btn` above beats a layer whatever the specificity — so the
+ * corner is already the one every other button takes, and a rule saying so again would be
+ * a second copy of a value to keep true.
+ */
+.v-btn--icon {
+  height: var(--v-btn-height);
+  width: var(--v-btn-height);
+}
+
+/*
+ * The one-time-code field.
+ *
+ * Its own block rather than one more field variant, because the component nests a
+ * `v-field` per digit and Vuetify sizes those from the row instead of from the control
+ * ladder above. The two paddings go first: the component insets its boxes by 8px on
+ * every side, which is invisible until a button underneath is asked to line up with
+ * them.
+ *
+ * The row states what it is and the boxes take the rest. Width is left to the page, so
+ * six boxes fill whatever column they are given and the button below spans the same
+ * edges; Vuetify's own 320px cap would otherwise decide the layout from in here.
+ */
+.v-otp-input {
+  padding: 0;
+}
+
+.v-otp-input__content {
+  gap: 0.625rem;
+  height: var(--ps-control-height-x-large);
+  max-width: none;
+  padding: 0;
+}
+
+/*
+ * The boxes themselves are Vuetify's filled field and are left that way: the fill, the
+ * rule under it and the weights they take through hover, focus and error are the
+ * variant's own.
+ */
+
+/*
+ * A filled field is square at the bottom so the rule under it meets both ends flush.
+ * `.v-field` above rounds all four corners, since an unlayered shorthand beats the
+ * variant's two layered longhands, and a straight line would then run across two rounded
+ * corners and out past the edges of the box. Every filled field takes this: the code
+ * boxes, and the forms that use the variant on a card, where a box reads better than a
+ * bare rule.
+ */
+.v-field--variant-filled {
+  border-end-end-radius: 0;
+  border-end-start-radius: 0;
+}
+
+/* A box is a place to type, so it answers the pointer like one. Vuetify draws each digit
+   in a div rather than an input, and a div carries no cursor of its own. Figures are
+   tabular for the same reason they are in a table: a 1 that sits narrow puts itself off
+   the centre of a box whose whole job is to hold one character. */
+.v-otp-input__field {
+  cursor: text;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Surfaces sit one step above the controls they hold, which is what keeps a control
+   from looking pinned to the corner of the card it is in. A menu holds items off the
+   bottom of the ladder and takes the step above those. Every value is a step on the
+   ladder rather than a number, so the whole panel is retuned from one place. */
+.v-card,
+.v-sheet.v-sheet--border {
+  border-radius: var(--ps-radius-x-large);
+}
+
+/*
+ * A dialog's scrim hides the page rather than tinting it. Vuetify's is black at a third,
+ * which leaves the screen behind a dialog readable and competing with it; this one is the
+ * theme's own background at nearly three quarters over a blur, so what is behind reads as
+ * a surface the dialog sits on and not as content. The colour is set with its alpha rather
+ * than through `opacity`, because opacity on the element would fade the blur with it.
+ */
+.v-overlay__scrim {
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  background: rgba(var(--v-theme-background), 0.72);
+  opacity: 1;
+}
+
+.v-menu > .v-overlay__content,
+.v-select__content {
+  border-radius: var(--ps-radius);
+}
+
+.v-list {
+  border-radius: var(--ps-radius-large);
+}
+
+.v-list-item {
+  border-radius: var(--ps-radius-small);
+}
+
+/*
+ * A menu is a card that floats, so it carries a card's edge and a shadow light enough
+ * that the edge is what separates it from the page. Vuetify's own shadow is the Material
+ * eight-step one, and on a page whose surfaces are a few percent apart it reads as a
+ * smudge rather than a lift.
+ */
+.v-menu > .v-overlay__content > .v-list,
+.v-menu > .v-overlay__content > .v-card,
+.v-menu > .v-overlay__content > .v-sheet {
+  border: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
+  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.24);
+}
+
+/* A menu's list is a nav list for the sake of the item, and takes the menu's inset over
+   the drawer's. Three classes deep so it outranks the nav rule further down whatever
+   order the two are in. */
+.v-menu > .v-overlay__content > .v-list {
+  padding: var(--ps-menu-inset);
+}
+
+/*
+ * A dropdown is Vuetify's own list, and none of the above.
+ *
+ * Everything a menu is given here — the corner, the gutter, the rounded row — is drawn
+ * for the menus the panel opens off a button: a handful of items, floating over a page
+ * of rounded surfaces, where an inset row reads as a thing to point at. A select's menu
+ * is a different object. It belongs to the field it drops out of, it is exactly that
+ * field's width, and it can run to a scrolling list of options, so a corner and a gutter
+ * stop it being the field's continuation and make it a second, smaller box floating near
+ * one. The fields it opens under are `variant="underlined"`, which is a rule and two
+ * square ends, and nothing about that shape asks for a rounded tray beneath it.
+ *
+ * `revert-layer` rather than a zero, because the target named is Vuetify's default and
+ * not a number of ours. This file is unlayered and Vuetify ships inside
+ * `@layer vuetify-components`, so rolling the unlayered value back leaves exactly what
+ * Vuetify would have drawn: a 4px corner on the popup, square rows, and its own band
+ * above and below the list. A zero written out would be a third answer, agreeing with
+ * neither, and it would go stale the day Vuetify changes its mind.
+ *
+ * Three content classes because a select, a combobox and an autocomplete each label
+ * their own overlay, and the panel uses two of the three. Four classes deep so the rules
+ * above are outranked whatever order they end up in.
+ *
+ * The edge and the shadow are deliberately left alone: those separate the popup from the
+ * page behind it, which is a different question from its shape.
+ */
+.v-menu
+> .v-overlay__content:is(.v-select__content, .v-combobox__content, .v-autocomplete__content),
+.v-menu
+  > .v-overlay__content:is(.v-select__content, .v-combobox__content, .v-autocomplete__content)
+  > .v-list,
+.v-menu
+  > .v-overlay__content:is(.v-select__content, .v-combobox__content, .v-autocomplete__content)
+  .v-list-item {
+  border-radius: revert-layer;
+}
+
+.v-menu
+  > .v-overlay__content:is(.v-select__content, .v-combobox__content, .v-autocomplete__content)
+  > .v-list {
+  padding: revert-layer;
+}
+
+/*
+ * A divider is the one edge Vuetify draws in the text colour: `currentColor` under the
+ * border opacity, which with that opacity at 1 (packages/dashboard/nuxt.config.ts) is a solid line of ink.
+ * Every other edge takes the line colour, so this one does too. The cost is the `color`
+ * prop, which now changes nothing, and nothing here passes one.
+ */
+.v-divider {
+  border-color: rgba(var(--v-border-color), var(--v-border-opacity));
+  opacity: 1;
+}
+
+/* A tooltip is the theme inverted: the ink for a ground and the surface for the words.
+   Vuetify's is a mid grey in both themes, which on the dark one is the brightest
+   rectangle on the screen. */
+.v-tooltip > .v-overlay__content {
+  background: rgb(var(--v-theme-on-surface));
+  border-radius: var(--ps-radius-x-small);
+  color: rgb(var(--v-theme-surface));
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.25rem;
+  padding: 2px 8px;
+}
+
+/*
+ * A skeleton, recoloured. Vuetify paints a bone in the ink at `--v-border-opacity`, and
+ * ours is 1 where Material's is 0.12 (packages/dashboard/nuxt.config.ts), so left alone every bone is a
+ * solid bar of ink rather than a placeholder.
+ *
+ * Only the fill is ours. The sweep that crosses a bone is switched off where a skeleton
+ * is drawn, with Vuetify's own `boilerplate`, so there is nothing here to recolour or to
+ * hold back for a reader who asked for stillness.
+ */
+.v-skeleton-loader .v-skeleton-loader__avatar,
+.v-skeleton-loader .v-skeleton-loader__button,
+.v-skeleton-loader .v-skeleton-loader__chip,
+.v-skeleton-loader .v-skeleton-loader__divider,
+.v-skeleton-loader .v-skeleton-loader__heading,
+.v-skeleton-loader .v-skeleton-loader__image,
+.v-skeleton-loader .v-skeleton-loader__ossein,
+.v-skeleton-loader .v-skeleton-loader__text {
+  background: var(--ps-skeleton-bone);
+}
+
+/*
+ * The shell: the drawer and the app bar, and the navigation list inside the first.
+ *
+ * Both are `color="shell"` in the layout, so their fill is the theme's and nothing here
+ * paints one. The app bar draws its bottom edge and no other: its left edge meets the
+ * drawer's right one, and two thin lines side by side read as one thick one. The
+ * drawer's edge is Vuetify's own, drawn for a left drawer whether or not `border` is
+ * set; both edges take the shell's line rather than the theme's, and a divider inside
+ * the drawer takes the quieter one, for the reason given where they are declared. A
+ * list inside the drawer is see-through, because Vuetify paints every list in the
+ * surface colour and a card-coloured block down the middle of the chrome is not a list.
+ *
+ * Scoped to `color="shell"` rather than every `v-app-bar`, so a bar floating over a
+ * centred card (a future sign-in screen) draws no line.
+ */
+.v-app-bar.v-toolbar.bg-shell {
+  border-bottom-color: var(--ps-shell-line);
+  border-bottom-width: thin;
+}
+
+/* The bar's contents are the page's column, laid out by the layout, and Vuetify's own
+   inset would put that column a few pixels off the one under it. */
+.v-app-bar.v-toolbar > .v-toolbar__content {
+  padding: 0;
+}
+
+.v-navigation-drawer {
+  border-color: var(--ps-shell-line);
+}
+
+.v-navigation-drawer .v-divider {
+  border-color: var(--ps-shell-divider);
+}
+
+.v-navigation-drawer .v-list {
+  background: transparent;
+}
+
+.v-navigation-drawer--rail {
+  --ps-nav-inset: 8px;
+}
+
+/*
+ * A navigation item: 36px tall, the ladder's smallest corner, a 16px glyph ten pixels
+ * from a 13px label. Vuetify's nav preset has the type right and is a size up on
+ * everything else. The two overlay weights are its own hooks, so hover and active stay
+ * one colour at two strengths.
+ *
+ * The ink is the ladder above: a row rests at the inactive shade and goes to the
+ * theme's ink when the pointer, the focus or the route is on it. A group's header goes
+ * with its children: white while one of them is the current screen, so the fold reads
+ * as the place the person is, whether or not it is open. The glyph is drawn at full
+ * strength for the same reason, where Vuetify dims it; here the colour is the state.
+ * Weight follows the route alone: every label rests at regular, where Vuetify's preset
+ * sets them all medium, and the current row and the header over it are the only ones
+ * set medium. Not on hover, because a heavier label is a wider one and a row that
+ * changes width under the pointer shifts.
+ *
+ * Scoped to `nav` lists rather than to the drawer, so the menus that open off the
+ * drawer take the same item on the same ladder.
+ */
+.v-list--nav {
+  --v-list-prepend-gap: 10px;
+
+  padding: var(--ps-nav-inset);
+}
+
+.v-list--nav .v-list-item {
+  --v-hover-opacity: 0.05;
+  --v-activated-opacity: 0.08;
+
+  border-radius: var(--ps-radius-x-small);
+  color: var(--ps-nav-inactive);
+  min-height: var(--ps-nav-item-height);
+  padding-inline: 12px;
+  transition: color 150ms var(--v-transition-standard-easing, ease);
+}
+
+.v-list--nav .v-list-item:hover,
+.v-list--nav .v-list-item:focus-visible,
+.v-list--nav .v-list-item--active,
+.v-list--nav .ps-nav-group--current > .v-list-group__header {
+  color: rgb(var(--v-theme-on-surface));
+}
+
+.v-list--nav .v-list-item-title {
+  font-weight: 400;
+}
+
+.v-list--nav .v-list-item--active .v-list-item-title,
+.v-list--nav .ps-nav-group--current > .v-list-group__header .v-list-item-title {
+  font-weight: 500;
+}
+
+.v-list--nav .v-list-item:not(:first-child) {
+  margin-top: 2px;
+}
+
+.v-list--nav .v-list-item__prepend > .v-icon,
+.v-list--nav .v-list-item__append > .v-icon {
+  font-size: var(--ps-icon-size);
+  opacity: 1;
+}
+
+/*
+ * A section heading is a label and not an item: twelve pixels, the muted shade, at the
+ * item's inset so it sits over the glyphs. The gap above it is the one that separates
+ * sections, so it is the larger of its two.
+ */
+.v-list--nav .v-list-subheader {
+  color: var(--ps-nav-muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1rem;
+  margin: 16px 0 4px;
+  min-height: 0;
+  padding-inline: 12px;
+}
+
+/*
+ * A group unfolds under a rule dropped from the centre of its glyph, with its children
+ * set eight pixels in from it: the drawer's inset and half a glyph put the rule at
+ * twenty. Vuetify indents by a prepend width that assumes a 24px glyph and a 16px step,
+ * so both are replaced rather than adjusted. The rule is the drawer's divider, dashed,
+ * because it is a guide and not a boundary: it says which rows belong to the header,
+ * and nothing sits on either side of it. The header takes the item's 2px rhythm in
+ * place of Vuetify's four.
+ */
+.v-list--nav .v-list-group:not(:first-child) > .v-list-group__header {
+  margin-top: 2px;
+}
+
+.v-list--nav .v-list-group__items {
+  border-inline-start: thin dashed var(--ps-shell-divider);
+  margin: 2px 0 2px 20px;
+  padding-inline-start: 8px;
+}
+
+.v-list--nav .v-list-group__items .v-list-item {
+  padding-inline-start: 12px;
+}
+
+.v-list--nav .v-list-group__items > .v-list-item:first-child {
+  margin-top: 0;
+}
+
+/* The chevron is one glyph turned a quarter rather than two swapped, so it moves rather
+   than blinks. Smaller and fainter than a leading glyph: it says "more", not "here". */
+.v-list--nav .v-list-group__header .v-list-item__append > .v-icon {
+  font-size: var(--ps-icon-size-small);
+  opacity: 0.6;
+  transition: transform 150ms var(--v-transition-standard-easing, ease);
+}
+
+.v-list--nav .v-list-group--open > .v-list-group__header .v-list-item__append > .v-icon {
+  transform: rotate(90deg);
+}
+
+/*
+ * In the rail the label has nowhere to go, and Vuetify leaves it to be clipped, which
+ * shows a first letter or an ellipsis depending on the width that day. Content and
+ * spacer go together: with the spacer left in, the glyph sits five pixels off centre.
+ * Padding plus glyph is the rail's forty pixels exactly, which is where the centring
+ * comes from.
+ */
+.v-navigation-drawer--rail .v-list--nav .v-list-item__content,
+.v-navigation-drawer--rail .v-list--nav .v-list-item__spacer {
+  display: none;
+}
+
+/* A divider in the rail stands in for a heading, so it is set in from both sides: at
+   the width of an item it would read as one more row, and at twenty-four pixels it
+   reads as the mark between two runs of them. */
+.v-navigation-drawer--rail .v-list--nav .v-divider {
+  margin-inline: 8px;
+}
+
+p,
+ul {
+  margin: initial;
+}
+
+/*
+ * A switch, at the panel's size and in the panel's colours. Vuetify's inset switch is
+ * Material's, 32px tall with a thumb that changes size as it moves; here the track is
+ * a 36 by 20 pill, the thumb a 16px disc that only slides, and the colour is the whole
+ * state: the accent when on, a wash of ink when off. Restated at every step because
+ * Vuetify's own rules are layered and these are not.
+ */
+.v-switch.v-switch--inset {
+  --v-switch-track-height: 20px;
+  --v-switch-thumb-height: 16px;
+  --v-switch-thumb-width: 16px;
+  --v-selection-control-size: 24px;
+
+  flex: none;
+}
+
+.v-switch.v-switch--inset .v-selection-control {
+  min-height: 0;
+}
+
+.v-switch.v-switch--inset .v-switch__track {
+  background-color: rgba(var(--v-theme-on-surface), 0.15);
+  min-width: 36px;
+  opacity: 1;
+  padding: 0;
+  transition: background-color 150ms var(--v-transition-standard-easing, ease);
+}
+
+.v-switch.v-switch--inset .v-selection-control--dirty .v-switch__track {
+  background-color: rgb(var(--v-theme-primary));
+}
+
+.v-switch.v-switch--inset .v-selection-control--disabled .v-switch__track {
+  opacity: 0.4;
+}
+
+.v-switch.v-switch--inset .v-switch__thumb {
+  background-color: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  color: transparent;
+  transform: none;
+  transition: transform 150ms var(--v-transition-standard-easing, ease);
+}
+
+/* The thumb travels the track's width less its own, less two pixels of margin. */
+.v-switch.v-switch--inset .v-selection-control__wrapper {
+  height: var(--v-switch-track-height);
+  width: 36px;
+}
+
+.v-switch.v-switch--inset .v-selection-control__input {
+  height: var(--v-switch-track-height);
+  transform: translateX(-8px);
+  width: var(--v-switch-thumb-width);
+}
+
+.v-switch.v-switch--inset .v-selection-control--dirty .v-selection-control__input {
+  transform: translateX(8px);
+}
+
+.v-switch.v-switch--inset .v-selection-control__input::before {
+  display: none;
+}
+
+/* Vuetify's inset thumb inherits the track's accent when on; the disc stays white. */
+.v-switch.v-switch--inset .v-selection-control--dirty .v-switch__thumb {
+  background-color: #fff;
+}

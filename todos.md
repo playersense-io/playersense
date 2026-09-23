@@ -449,18 +449,23 @@ charge, 3 a day), refunds and disputes taken back, and an invoice for every top-
 
 ## 6. Decisions made, so they don't get relitigated per-PR
 
-- [x] **Component library: Nuxt UI + Tailwind** (§0). Two of the three apps are data-dense
-      authenticated dashboards that need to ship fast; Nuxt UI's components are built on
-      Tailwind + Reka UI and cover the data-grid/form/modal vocabulary `client` and `admin`
-      both need without a second design system.
-- [x] **Charting library: Unovis** (`@unovis/ts` + `@unovis/vue`), superseding an earlier draft
-      of this decision that picked ECharts before `client` was scaffolded. Nuxt UI's own
-      `ui/dashboard` template — which `client`/`admin` are built from — ships Unovis as its
-      chart layer already (see `apps/client/package.json`), so it's the better-supported,
-      zero-extra-dependency choice: no competing charting library to wire theme tokens into.
-      Handles time series and heatmaps; still needs its own verification for the cohort/
-      retention pages' specific annotation needs (suppression thresholds, maturity boundaries)
-      when those are actually built.
+- [x] **Component library: Vuetify 4 + Tailwind 4 for the dashboards, Nuxt UI for landing.**
+      `client` and `admin` extend `packages/dashboard`, a Nuxt layer ported from idenzy's panel
+      (the `vendor/idenzy` submodule, whose `docs/guide/panel.md` holds the reasoning): Vuetify
+      for components with its own utility classes off, Tailwind utilities imported unlayered so
+      they beat Vuetify's cascade layers, Material Symbols through `@nuxt/icon` compiled into the
+      bundle, the theme tokens (`bg-ink/4`, `border-line`, `chart-1`…`chart-6`), the shell
+      (`DashboardShell`, one navigation tree per app in `app/utils/nav.ts`) and the common
+      components (`PageHeader`, `LayerCard`, `DataTable`, `MetricCard`, `SettingRow`…).
+      `landing` stays on Nuxt UI through `packages/ui`, which still holds the brand marks. This
+      supersedes Nuxt UI for the dashboards, which was the "reference design system" the
+      monochrome placeholder theme was waiting for.
+- [x] **Charting library: ECharts** (`nuxt-echarts`, registered per chart type in
+      `packages/dashboard/nuxt.config.ts`), through `MetricCard`, which draws a series as a
+      chart or a table and reads its colours off the theme. This supersedes Unovis, which came
+      with the Nuxt UI dashboard template and left with it. Still needs its own verification for
+      the cohort/retention pages' specific annotation needs (suppression thresholds, maturity
+      boundaries) when those are actually built.
 - [x] **Data fetching: Nuxt's built-in `useFetch`/`useAsyncData`** over the generated
       `packages/contracts` client, not a separate query library. Muzak's own backend philosophy
       is zero third-party dependencies where avoidable; matching that on the frontend keeps one
