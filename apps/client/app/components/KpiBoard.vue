@@ -8,7 +8,8 @@ export interface Kpi {
   unit?: string
   /** The exact figure, for the tooltip on a compacted one. */
   exact?: string
-  trend: Trend
+  /** How far it moved; absent for a figure with nothing to compare against. */
+  trend?: Trend
   /** What the figure counts, behind the info glyph. */
   info?: string
 }
@@ -66,6 +67,7 @@ defineProps<{
           </p>
 
           <span
+            v-if="item.trend"
             :class="TREND_TONES[item.trend.tone]"
             class="inline-flex flex-none items-center gap-0.5 font-mono text-xs tabular-nums"
           >

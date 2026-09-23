@@ -89,3 +89,16 @@ export interface SegmentedOption {
   title?: string
   disabled?: boolean
 }
+
+/** One group of choices in a `FilterMenu`: "Category", with its values. */
+export interface FilterGroup {
+  key: string
+  label: string
+  options: readonly { value: string, label: string }[]
+}
+
+/** A filter in force, as a `TableToolbar` chip. `key` is what removing it hands back. */
+export interface ActiveFilter {
+  key: string
+  label: string
+}
