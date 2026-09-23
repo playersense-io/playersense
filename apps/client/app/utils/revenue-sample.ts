@@ -153,8 +153,11 @@ export interface RevenueSample {
   products: ProductLine[]
   countries: { code: string, gross: number, net: number, payers: number }[]
   payers: { total: number, newPayers: number, previousTotal: number, daily: { new: number, returning: number }[] }
+  /** Player-days in the range: what ARPDAU divides by. */
   activePlayers: number
   previousActivePlayers: number
+  /** Different players active in the range: what payer conversion divides by. */
+  uniquePlayers: number
   refunds: {
     reasons: { reason: RefundReason, count: number, amount: number }[]
     recent: { id: string, product: string, store: RevenueStore, country: string, amount: number, purchasedAt: number, refundedAt: number, reason: RefundReason }[]
@@ -173,7 +176,12 @@ function keep<T extends string>(all: readonly T[], chosen: readonly string[]): T
   return chosen.length ? all.filter(entry => chosen.includes(entry)) : [...all]
 }
 
-function draw(range: RevenueRange, filters: RevenueFilters, today: number, salt: string) {
+/**
+ * One range of the shop, ending on `end`. Limited offers are placed against the real
+ * today, so a Halloween bundle on sale this month is new against the month before rather
+ * than on sale in both; `scale` sets how the range compares, for a game that is growing.
+ */
+function draw(range: RevenueRange, filters: RevenueFilters, end: number, today: number, salt: string, scale = 1) {
   const days = REVENUE_RANGE_DAYS[range]
   const random = seeded(`revenue:${salt}:${range}:${JSON.stringify(filters)}`)
   const stores = keep(STORE_KEYS, filters.store)
@@ -184,7 +192,7 @@ function draw(range: RevenueRange, filters: RevenueFilters, today: number, salt:
   const storePull = stores.reduce((sum, store) => sum + STORES[store].share, 0)
   const weightTotal = PRODUCTS.reduce((sum, product) => sum + product.weight, 0)
 
-  const starts = Array.from({ length: days }, (_, index) => today - (days - index) * DAY)
+  const starts = Array.from({ length: days }, (_, index) => end - (days - index) * DAY)
   const daily: (Money & { byStore: Record<RevenueStore, Money> })[] = []
   const lines = new Map(products.map(product => [product.id, {
     money: zero(),
@@ -193,9 +201,9 @@ function draw(range: RevenueRange, filters: RevenueFilters, today: number, salt:
   }]))
 
   starts.forEach((at, index) => {
-    const ago = days - index
+    const ago = Math.round((today - at) / DAY)
     const weekend = [0, 6].includes(new Date(at).getUTCDay()) ? 1.25 : 1
-    const base = 1_150 * weekend * (0.9 + random() * 0.2) * (1 + index / days * 0.06) * countryPull * storePull
+    const base = 1_150 * scale * weekend * (0.9 + random() * 0.2) * (1 + index / days * 0.06) * countryPull * storePull
     const day = { ...zero(), byStore: Object.fromEntries(STORE_KEYS.map(store => [store, zero()])) as Record<RevenueStore, Money> }
     for (const product of products) {
       const onSale = !product.window || (ago <= product.window[0] && ago >= product.window[1])
@@ -226,12 +234,14 @@ function draw(range: RevenueRange, filters: RevenueFilters, today: number, salt:
 
 export function sampleRevenue(range: RevenueRange, filters: RevenueFilters): RevenueSample {
   const today = Math.floor(Date.now() / DAY) * DAY
-  const now = draw(range, filters, today, 'now')
-  const before = draw(range, filters, today - REVENUE_RANGE_DAYS[range] * DAY, 'before')
+  const now = draw(range, filters, today, today, 'now')
+  const before = draw(range, filters, today - REVENUE_RANGE_DAYS[range] * DAY, today, 'before', 0.93)
   const { random, days } = now
 
-  // Payers repeat more over a longer range: fewer of them per transaction.
-  const perPayer = 1.3 + 0.25 * Math.log(days)
+  // Payers repeat, and more over a longer range: about 2.7 purchases each in a week, 3.8 in
+  // a month — whales buying again pull the average up, so payers are a few percent of
+  // players, as in a game that earns this.
+  const perPayer = 1.1 + 0.8 * Math.log(days)
   const payersTotal = now.total.transactions / perPayer
   const newPayers = payersTotal * (0.34 + random() * 0.06)
 
@@ -245,7 +255,7 @@ export function sampleRevenue(range: RevenueRange, filters: RevenueFilters): Rev
       return { reason, count: line.money.refunded * share }
     })
     // Big packs skew to the markets whose payers spend most.
-    const skew = product.price >= 19.99 ? 1.6 : 1
+    const skew = product.price >= 19.99 ? 1.25 : 1
     const byCountry = now.countries
       .map(country => ({ code: country.code, gross: line.money.gross * (country.spend ** skew) }))
     const skewTotal = byCountry.reduce((sum, entry) => sum + entry.gross, 0) || 1
@@ -280,7 +290,9 @@ export function sampleRevenue(range: RevenueRange, filters: RevenueFilters): Rev
 
   const recent = Array.from({ length: 12 }, (_, index) => {
     const line = products[Math.floor(random() ** 1.6 * products.length)] ?? products[0]!
-    const store = now.stores[Math.floor(random() * now.stores.length)] ?? 'app_store'
+    // A store by its share of sales, so the list looks like the stores' mix.
+    let pick = random() * now.storePull
+    const store = now.stores.find(entry => (pick -= STORES[entry].share) < 0) ?? now.stores[0] ?? 'app_store'
     const country = now.countries[Math.floor(random() ** 2 * now.countries.length)]?.code ?? 'US'
     const refundedAt = today - Math.floor(index * 0.6 * DAY + random() * 0.5 * DAY)
     const reason = REFUND_REASONS[Math.min(REFUND_REASONS.length - 1, Math.floor(random() ** (line.product.price > 50 ? 0.5 : 1.8) * REFUND_REASONS.length))]!
@@ -295,6 +307,7 @@ export function sampleRevenue(range: RevenueRange, filters: RevenueFilters): Rev
 
   const activePlayers = 31_000 * now.installPull * now.storePull * days
   const previousActivePlayers = activePlayers * (0.94 + random() * 0.06)
+  const uniquePlayers = 31_000 * (1 + 0.9 * Math.log(days)) * now.installPull * now.storePull
 
   return {
     days: now.starts,
@@ -311,6 +324,7 @@ export function sampleRevenue(range: RevenueRange, filters: RevenueFilters): Rev
     },
     activePlayers,
     previousActivePlayers,
+    uniquePlayers,
     refunds: { reasons, recent, medianDays: 3 },
     verification: {
       verified: now.total.transactions,

@@ -25,7 +25,7 @@ export const NAV = defineNavigation({
           { title: 'Retention', to: '/insights/retention' },
           { title: 'Funnels', to: '/insights/funnels' },
           { title: 'Cohorts', to: '/insights/cohorts' },
-          { title: 'Revenue', to: '/revenue' }
+          { title: 'Revenue', to: '/insights/revenue' }
         ]
       },
       {
