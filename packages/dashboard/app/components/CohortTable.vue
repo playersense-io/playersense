@@ -398,6 +398,7 @@ const GLYPH_CLASS = { up: 'cohort-card__glyph--up', down: 'cohort-card__glyph--d
                   <span class="cohort-grid__figure">{{ mode.format(value) }}</span>
                   <span v-if="summaryDetails[index]" class="cohort-grid__detail">{{ summaryDetails[index] }}</span>
                 </template>
+                <span v-else class="cohort-grid__empty">–</span>
               </span>
             </td>
           </tr>
@@ -425,7 +426,7 @@ const GLYPH_CLASS = { up: 'cohort-card__glyph--up', down: 'cohort-card__glyph--d
               :tabindex="tabIndexOf(index + 1, cell.offset)"
               role="gridcell"
             >
-              <span v-if="cell.state === 'immature'" class="cohort-grid__cell cohort-grid__cell--immature" />
+              <span v-if="cell.state === 'immature'" class="cohort-grid__cell cohort-grid__cell--immature"><span class="cohort-grid__empty">–</span></span>
               <span v-else-if="cell.state === 'withheld'" class="cohort-grid__cell cohort-grid__cell--withheld">&lt;{{ threshold }}</span>
               <span
                 v-else
@@ -683,6 +684,12 @@ const GLYPH_CLASS = { up: 'cohort-card__glyph--up', down: 'cohort-card__glyph--d
 
 .cohort-grid__cell--immature {
   background: rgba(var(--v-theme-on-surface), 0.02);
+}
+
+/* The dash a cell with nothing to know yet holds: there, so the cell is not read as
+   missing, and faint, so it is not read as a figure. */
+.cohort-grid__empty {
+  color: rgba(var(--v-theme-on-surface), 0.25);
 }
 
 .cohort-grid__cell--withheld {
