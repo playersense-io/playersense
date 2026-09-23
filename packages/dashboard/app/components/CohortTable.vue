@@ -12,13 +12,16 @@
  * Pointing at a cell, or moving to it with the arrow keys, lights its row and its column
  * and opens a card that says the cell in words. The table can hold ninety cohorts by
  * thirty-five days, so the light is kept off the rows: the row is `:hover` and
- * `:focus-within`, the column is one `<col>`, and each row is memoised on its own data so
- * moving the pointer re-renders the header and nothing under it.
+ * `:focus-within`, the column is one `<col>`, and each row is a `CohortGridRow`, which Vue
+ * leaves alone unless its own props changed — so moving the pointer redraws the header
+ * and nothing under it. A component rather than `v-memo`: the skip is Vue's own props
+ * check, with nothing cached by hand to go stale when the list is replaced whole.
  */
 import {
   type CohortColor,
   type CohortGrain,
   type CohortMode,
+  type CohortDrawnCell,
   type CohortShade,
   type CohortTableRow,
   cellAt,
@@ -126,14 +129,9 @@ function shadeOf(value: number | null, index: number): CohortShade | null {
   return difference === null ? null : divergingShade(difference, spreads.value[index] ?? 0)
 }
 
-interface DrawnCell {
-  offset: number
-  state: 'ok' | 'immature' | 'withheld'
-  text: string
-  /** The smaller figure under it, when the mode has one. */
-  detail: string
-  shade: CohortShade | null
-}
+type DrawnCell = CohortDrawnCell
+
+const NO_CELLS: readonly DrawnCell[] = []
 
 /**
  * Every cell as it is drawn, worked out once per change of data, days, mode or colouring
@@ -422,40 +420,19 @@ const GLYPH_CLASS = { up: 'cohort-card__glyph--up', down: 'cohort-card__glyph--d
         </thead>
 
         <tbody>
-          <tr
+          <CohortGridRow
             v-for="(row, index) in rows"
             :key="row.key"
-            v-memo="[row, drawn, grain, threshold, stopIn(index + 1), stopIn(index + 1) === -1 ? '' : card]"
-          >
-            <th class="cohort-grid__label" scope="row">
-              <span class="cohort-grid__name">{{ cohortLabel(row) }}</span>
-              <span v-if="grain === 'day' && !row.label" class="cohort-grid__weekday">{{ weekdayFormat.format(row.start) }}</span>
-            </th>
-            <td class="cohort-grid__size" :class="{ 'cohort-grid__size--withheld': row.size === null }">
-              {{ sizeText(row.size) }}
-            </td>
-            <td
-              v-for="cell in drawn.get(row.key)"
-              :key="cell.offset"
-              :aria-label="spoken(index + 1, cell.offset)"
-              :data-offset="cell.offset"
-              :data-row="index + 1"
-              :tabindex="tabIndexOf(index + 1, cell.offset)"
-              role="gridcell"
-            >
-              <span v-if="cell.state === 'immature'" class="cohort-grid__cell cohort-grid__cell--immature"><span class="cohort-grid__empty">–</span></span>
-              <span v-else-if="cell.state === 'withheld'" class="cohort-grid__cell cohort-grid__cell--withheld">&lt;{{ threshold }}</span>
-              <span
-                v-else
-                :class="{ 'cohort-grid__cell--plain': !cell.shade }"
-                :style="cell.shade ?? undefined"
-                class="cohort-grid__cell"
-              >
-                <span class="cohort-grid__figure">{{ cell.text }}</span>
-                <span v-if="cell.detail" class="cohort-grid__detail">{{ cell.detail }}</span>
-              </span>
-            </td>
-          </tr>
+            :cells="drawn.get(row.key) ?? NO_CELLS"
+            :index="index + 1"
+            :label="cohortLabel(row)"
+            :size="sizeText(row.size)"
+            :spoken="stopIn(index + 1) === -1 ? undefined : spoken(index + 1, stopIn(index + 1))"
+            :tab-stop="stopIn(index + 1)"
+            :threshold="threshold"
+            :weekday="grain === 'day' && !row.label ? weekdayFormat.format(row.start) : ''"
+            :withheld-size="row.size === null"
+          />
         </tbody>
       </table>
 
@@ -513,7 +490,12 @@ const GLYPH_CLASS = { up: 'cohort-card__glyph--up', down: 'cohort-card__glyph--d
   </div>
 </template>
 
-<style scoped>
+<!--
+  Not scoped: the body's rows are CohortGridRow's elements, which a scoped sheet would not
+  reach. Every class here is the table's own — cohort-grid__, cohort-table__, cohort-legend__ — so nothing
+  else on a page is drawn by it.
+-->
+<style>
 /*
  * Fixed heights make the sticky rows exact: the header is one line and every row below it
  * one cell of two, so "All cohorts" sticks at the header's height rather than a measured

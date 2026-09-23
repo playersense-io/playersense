@@ -334,6 +334,16 @@ export function formatDifference(mode: CohortMode, difference: number): string {
   return `${points > 0 ? '+' : '−'}${Math.abs(points).toFixed(1)} pp`
 }
 
+/** A cell as the table draws it: its state, its figure and the one under it, and its shade. */
+export interface CohortDrawnCell {
+  offset: number
+  state: CohortCellState
+  text: string
+  /** The smaller figure under it, when the mode has one. */
+  detail: string
+  shade: CohortShade | null
+}
+
 // --- Colour -------------------------------------------------------------------------------
 
 /** A type rather than an interface, so Vue takes it as a `style` binding. */
