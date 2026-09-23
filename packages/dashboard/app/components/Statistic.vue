@@ -123,7 +123,7 @@ useResizeObserver([row, run, aside], fit)
       <div class="flex min-w-0 items-center gap-1">
         <!-- `min-w-0` on the span as well as the row: a flex item will not shrink below
              its text without it, and `truncate` then has nothing to truncate. -->
-        <span :id="labelId" class="min-w-0 truncate text-[0.8125rem] font-medium text-ink/60 capitalize">
+        <span :id="labelId" class="min-w-0 truncate text-[0.8125rem] font-medium text-ink/60">
           {{ label }}
         </span>
         <button
