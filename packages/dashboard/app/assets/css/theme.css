@@ -203,6 +203,16 @@
 }
 
 /*
+ * A switch or a checkbox carries its label beside it, the one label in the panel that is
+ * not above its field, and Vuetify sets it at 16px: bigger than the value in any field
+ * next to it. It takes the control's own size, so a switch under a row of fields reads as
+ * one more of them.
+ */
+.v-selection-control .v-label {
+  font-size: var(--ps-font-size-control);
+}
+
+/*
  * Vuetify dims the whole input to its high-emphasis opacity, which then multiplies into
  * everything drawn inside it. Full strength here and an explicit opacity on the
  * placeholder is what makes that opacity mean what it says: a quarter is a quarter, not a
@@ -668,6 +678,30 @@
   > .v-overlay__content:is(.v-select__content, .v-combobox__content, .v-autocomplete__content)
   > .v-list {
   padding: revert-layer;
+}
+
+/*
+ * A dropdown under an outlined field opts back in to the menu's shape.
+ *
+ * The reasoning above is about the underlined field, a rule with square ends. An outlined
+ * field is a rounded box, and the list that drops out of it reads as the panel's own menu
+ * when it is one: the rounded tray, the inset, the nav row with its accent on the chosen
+ * option. `FIELD_MENU` in the app (utils/fields.ts) is the opt-in, so a
+ * field says which it is rather than this file guessing from its variant.
+ *
+ * The class is doubled to outrank the revert above, whose `:is()` counts as a class.
+ */
+.v-menu > .v-overlay__content.ps-field-menu.ps-field-menu,
+.v-menu > .v-overlay__content.ps-field-menu.ps-field-menu > .v-list {
+  border-radius: var(--ps-radius-large);
+}
+
+.v-menu > .v-overlay__content.ps-field-menu.ps-field-menu > .v-list {
+  padding: var(--ps-menu-inset);
+}
+
+.v-menu > .v-overlay__content.ps-field-menu.ps-field-menu .v-list-item {
+  border-radius: var(--ps-radius-x-small);
 }
 
 /*
