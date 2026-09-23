@@ -1,6 +1,6 @@
 <script setup lang="ts">
-// "Go to": every screen in the navigation tree, filtered as you type, opened from the bar
-// or with ⌘K / Ctrl+K. Arrow keys move, Enter goes.
+// "Go to": every screen in the navigation tree, filtered as you type, opened with ⌘K /
+// Ctrl+K. Arrow keys move, Enter goes. Keyboard only — the bar has no button for it.
 const navigation = useNavigation()
 const router = useRouter()
 
@@ -46,22 +46,6 @@ async function go(to?: string) {
 </script>
 
 <template>
-  <v-btn
-    aria-label="Go to a screen"
-    aria-keyshortcuts="Meta+K Control+K"
-    class="
-      text-ink/70
-      hover:text-ink
-    "
-    icon
-    size="small"
-    variant="text"
-    @click="toggle()"
-  >
-    <Icon aria-hidden="true" class="text-lg" name="material-symbols:search" />
-    <v-tooltip activator="parent" location="bottom" text="Go to… (⌘K)" />
-  </v-btn>
-
   <!-- Mounted only while open: a Vuetify dialog closed in the same flush as a navigation
        leaves its teleported content painted with its model already false. -->
   <v-dialog

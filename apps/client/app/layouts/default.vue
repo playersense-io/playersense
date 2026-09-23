@@ -13,6 +13,10 @@ const organization = 'Acme Games'
       <SidebarUserMenu :rail="rail" />
     </template>
 
+    <template #actions>
+      <HeaderActions />
+    </template>
+
     <slot />
   </DashboardShell>
 </template>

@@ -122,11 +122,14 @@ watch(() => route.path, () => {
           @click="open = !open"
         />
         <HeaderBreadcrumb :root="root" />
+        <!-- The app's own actions; the theme toggle alone when it has none. An app that
+             fills the slot places the toggle itself. -->
         <div class="flex items-center gap-1">
-          <NavSearch />
-          <slot name="actions" />
-          <ThemeToggle />
+          <slot name="actions">
+            <ThemeToggle />
+          </slot>
         </div>
+        <NavSearch />
       </div>
     </v-app-bar>
 

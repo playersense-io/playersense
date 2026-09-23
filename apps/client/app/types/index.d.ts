@@ -6,3 +6,9 @@ export interface Member {
   username: string
   role: MemberRole
 }
+
+// The headline fields of LiveBalanceOut (packages/contracts), in micro-dollars.
+export interface Balance {
+  available_micros: number
+  owed_micros: number
+}
