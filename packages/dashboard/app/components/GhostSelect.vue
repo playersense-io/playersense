@@ -14,6 +14,9 @@ import type { GhostSelectOption } from '../utils/components'
  *
  * The button is pulled left by its own padding so the label sits on the card's edge
  * where a plain heading would, and the hover fill appears around it rather than beside.
+ * Options may carry a group, listed under a heading when it changes, and a note under
+ * the label, for a menu long enough to need them: a dozen metrics in two families.
+ *
  * Its cap on width is its container's plus that pull: capped at the container alone, it
  * comes out the pull short of its own label and truncates a name that fits.
  */
@@ -54,18 +57,25 @@ const open = ref(false)
       activator="parent"
       location="bottom start"
     >
-      <v-list min-width="208" nav>
-        <v-list-item
-          v-for="option in options"
-          :key="option.value"
-          :active="option.value === model"
-          :title="option.label"
-          @click="model = option.value"
-        >
-          <template v-if="option.value === model" #append>
-            <Icon aria-hidden="true" class="text-base text-ink/70" name="material-symbols:check" />
-          </template>
-        </v-list-item>
+      <v-list class="max-h-[70vh]" min-width="208" nav>
+        <template v-for="(option, index) in options" :key="option.value">
+          <v-list-subheader
+            v-if="option.group && option.group !== options[index - 1]?.group"
+            class="text-[11px] text-ink/45"
+          >
+            {{ option.group }}
+          </v-list-subheader>
+          <v-list-item
+            :active="option.value === model"
+            :subtitle="option.note"
+            :title="option.label"
+            @click="model = option.value"
+          >
+            <template v-if="option.value === model" #append>
+              <Icon aria-hidden="true" class="text-base text-ink/70" name="material-symbols:check" />
+            </template>
+          </v-list-item>
+        </template>
       </v-list>
     </v-menu>
   </button>

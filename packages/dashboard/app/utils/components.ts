@@ -58,6 +58,10 @@ export interface RecordTab {
 export interface GhostSelectOption {
   value: string
   label: string
+  /** The heading it is listed under; consecutive options with the same one share it. */
+  group?: string
+  /** A line under the label, quieter: what choosing it shows. */
+  note?: string
 }
 
 export interface SettingsTab {
