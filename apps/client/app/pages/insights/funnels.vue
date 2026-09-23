@@ -194,6 +194,48 @@ const board = computed<Kpi[]>(() => {
   ]
 })
 
+// --- As a table, and as a file -----------------------------------------------------------
+
+const VIEWS: SegmentedOption[] = [
+  { value: 'chart', icon: 'material-symbols:bar-chart', title: 'Chart' },
+  { value: 'table', icon: 'material-symbols:table-chart-outline', title: 'Table' }
+]
+
+const funnelView = ref<'chart' | 'table'>('chart')
+
+/**
+ * The funnel as a CSV: a row per step, and for every player and each breakdown value its
+ * players, its shares and its median wait. Shares as fractions and waits in seconds, so a
+ * spreadsheet reads them as numbers; a withheld count is an empty cell.
+ */
+function downloadFunnel() {
+  const series = [data.value.total, ...data.value.breakdown]
+  // Every player's columns bare, a breakdown value's named: "players", "iOS players".
+  const header = ['step', 'event', 'conditions', ...series.flatMap((entry, index) => {
+    const of = index === 0 ? '' : `${entry.name} `
+    return [`${of}players`, `${of}share of step 1`, `${of}share of step before`, `${of}median wait (s)`]
+  })]
+  const rows = draft.value.steps.map((step, index) => [
+    index + 1,
+    step.event,
+    step.where.map(condition => `${condition.property} = ${condition.value}`).join('; '),
+    ...series.flatMap((entry) => {
+      const here = entry.players[index] ?? null
+      const first = entry.players[0]
+      const before = entry.players[index - 1]
+      const median = entry.medians[index]
+      return [
+        here,
+        here !== null && first ? Math.round(here / first * 10_000) / 10_000 : null,
+        here !== null && index > 0 && before ? Math.round(here / before * 10_000) / 10_000 : null,
+        median === null || median === undefined ? null : Math.round(median)
+      ]
+    })
+  ])
+  const split = breakdown.value === 'none' ? '' : `-by-${fileSlug(BREAKDOWN_LABELS[breakdown.value])}`
+  downloadCsv(`${fileSlug(draft.value.name)}-${range.value}${split}`, [header, ...rows])
+}
+
 // --- Breakdown table ----------------------------------------------------------------------
 
 const breakdownRows = computed(() => [data.value.total, ...data.value.breakdown].map((series, index) => ({
@@ -302,9 +344,26 @@ const timeSeries = computed<MetricSeries[]>(() => [
     >
       <template #actions>
         <SegmentedControl v-model="breakdown" :options="BREAKDOWNS" label="Break down by" />
+        <SegmentedControl v-model="funnelView" :options="VIEWS" label="View" />
+        <v-btn
+          aria-label="Download as CSV"
+          color="neutral"
+          icon="material-symbols:download"
+          size="small"
+          variant="text"
+          @click="downloadFunnel"
+        />
       </template>
 
-      <div class="p-5">
+      <FunnelStepTable
+        v-if="funnelView === 'table'"
+        :breakdown="data.breakdown"
+        :steps="draft.steps"
+        :threshold="FUNNEL_THRESHOLD"
+        :total="data.total"
+      />
+
+      <div v-else class="p-5">
         <FunnelChart
           :breakdown="data.breakdown"
           :steps="draft.steps"
@@ -313,7 +372,7 @@ const timeSeries = computed<MetricSeries[]>(() => [
         />
       </div>
 
-      <div v-if="breakdown !== 'none'" class="overflow-x-auto border-t border-line">
+      <div v-if="funnelView === 'chart' && breakdown !== 'none'" class="overflow-x-auto border-t border-line">
         <table class="w-full border-separate border-spacing-0 text-xs">
           <thead>
             <tr class="text-ink/55">
