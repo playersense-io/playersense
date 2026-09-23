@@ -14,6 +14,7 @@ import (
 
 	"playersense.dev/backend/ent"
 	"playersense.dev/backend/ent/creditlot"
+	"playersense.dev/backend/ent/ledgerentry"
 	"playersense.dev/backend/ent/stripeevent"
 	"playersense.dev/backend/internal/billing"
 	"playersense.dev/backend/internal/identity"
@@ -687,5 +688,252 @@ func TestConcurrentWorkersCannotExceedTheLimit(t *testing.T) {
 	wg.Wait()
 	if f.gateway.Calls != 1 || f.row().AutoTopupWindowCount != 3 {
 		t.Errorf("%d charges sent with one slot left; window count %d", f.gateway.Calls, f.row().AutoTopupWindowCount)
+	}
+}
+
+// ---- money going back -------------------------------------------------------
+
+// credit is a Checkout top-up as Stripe reports it, credited through the webhook; returns its PI.
+func (f *fixture) credit(cents int64) string {
+	f.t.Helper()
+	pi := "pi_" + uuid.NewString()[:12]
+	if _, err := f.deliver("evt_"+uuid.NewString(), "payment_intent.succeeded",
+		f.paymentIntent(pi, cents, f.ours(payments.KindCheckout))); err != nil {
+		f.t.Fatal(err)
+	}
+	return pi
+}
+
+func (f *fixture) refund(pi, id, status string, cents int64) payments.Outcome {
+	f.t.Helper()
+	out, err := f.deliver("evt_"+uuid.NewString(), "refund.updated", map[string]any{
+		"id": id, "object": "refund", "amount": cents, "currency": "usd", "status": status,
+		"payment_intent": pi,
+	})
+	if err != nil {
+		f.t.Fatal(err)
+	}
+	return out
+}
+
+func (f *fixture) dispute(kind, pi, id, status string, cents int64) payments.Outcome {
+	f.t.Helper()
+	out, err := f.deliver("evt_"+uuid.NewString(), kind, map[string]any{
+		"id": id, "object": "dispute", "amount": cents, "currency": "usd", "status": status,
+		"payment_intent": pi,
+	})
+	if err != nil {
+		f.t.Fatal(err)
+	}
+	return out
+}
+
+func (f *fixture) balance() int64 {
+	f.t.Helper()
+	return f.row().BalanceMicros
+}
+
+func (f *fixture) refunds() int {
+	f.t.Helper()
+	n, err := f.db.Client.LedgerEntry.Query().
+		Where(ledgerentry.AccountID(f.account.ID), ledgerentry.KindEQ(ledgerentry.KindRefund)).Count(context.Background())
+	if err != nil {
+		f.t.Fatal(err)
+	}
+	return n
+}
+
+// A refund, reported by every event that reports one and delivered more than once, is taken back once
+// — and automatic top-up is switched off, so the refunded card is not charged again seconds later.
+func TestARefundIsTakenBackOnceAndStopsAutoTopUp(t *testing.T) {
+	f := newFixture(t)
+	f.enable()
+	pi := f.credit(10_000)
+	refund := "re_" + uuid.NewString()[:12]
+
+	for _, kind := range []string{"refund.created", "refund.updated", "refund.updated"} {
+		if _, err := f.deliver("evt_"+uuid.NewString(), kind, map[string]any{
+			"id": refund, "object": "refund", "amount": 10_000, "currency": "usd",
+			"status": "succeeded", "payment_intent": pi,
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := f.deliver("evt_"+uuid.NewString(), "charge.refunded", map[string]any{
+		"id": "ch_x", "object": "charge", "payment_intent": pi, "amount_refunded": 10_000,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	row := f.row()
+	if row.BalanceMicros != 0 || f.refunds() != 1 {
+		t.Errorf("balance %s after one refund of the whole top-up, %d refund entries; want $0 and 1",
+			billing.USD(row.BalanceMicros), f.refunds())
+	}
+	if row.AutoTopupEnabled || row.AutoTopupLastError == "" {
+		t.Errorf("automatic top-up enabled=%v, error %q; want off with a reason", row.AutoTopupEnabled, row.AutoTopupLastError)
+	}
+	f.assertInvariant()
+}
+
+// Credit already spent is taken from the customer's other money, oldest first, then owed — and never
+// from promotional credit, which was not paid for.
+func TestARefundOfSpentCreditTakesPurchasesNotPromos(t *testing.T) {
+	f := newFixture(t)
+	first := f.credit(10_000)  // $100
+	f.owe(70 * billing.Micros) // $70 of it spent on players
+	f.credit(5_000)            // $50 more
+	f.grantPromo(20 * billing.Micros)
+
+	f.refund(first, "re_"+uuid.NewString()[:12], "succeeded", 10_000)
+
+	// $30 left of the first, $50 of the second, $20 promo; refund $100 → first $30, second $50,
+	// and $20 owed. The promo stays.
+	row := f.row()
+	if row.ArrearsMicros != 20*billing.Micros {
+		t.Errorf("arrears %s, want $20", billing.USD(row.ArrearsMicros))
+	}
+	var promo, purchased int64
+	for _, lot := range f.lots() {
+		if lot.Kind == creditlot.KindPromo {
+			promo += lot.RemainingMicros
+		} else {
+			purchased += lot.RemainingMicros
+		}
+	}
+	if promo != 20*billing.Micros || purchased != 0 {
+		t.Errorf("promo %s, purchased %s left; want $20 promo untouched and no purchase", billing.USD(promo), billing.USD(purchased))
+	}
+	f.assertInvariant()
+}
+
+// A pending refund takes nothing; the refund takes when it succeeds; and a refund that then fails puts
+// back exactly what it took, once.
+func TestARefundTakesOnlyWhenItSucceedsAndFailingPutsItBack(t *testing.T) {
+	f := newFixture(t)
+	pi := f.credit(10_000)
+	refund := "re_" + uuid.NewString()[:12]
+
+	if out := f.refund(pi, refund, "pending", 4_000); out.Status != "ignored" || f.balance() != 100*billing.Micros {
+		t.Fatalf("a pending refund: %s, balance %s", out.Status, billing.USD(f.balance()))
+	}
+	f.refund(pi, refund, "succeeded", 4_000)
+	if f.balance() != 60*billing.Micros {
+		t.Fatalf("after the refund: %s, want $60", billing.USD(f.balance()))
+	}
+	f.refund(pi, refund, "failed", 4_000)
+	f.refund(pi, refund, "failed", 4_000)
+	if f.balance() != 100*billing.Micros {
+		t.Errorf("after the refund failed: %s, want $100 restored once", billing.USD(f.balance()))
+	}
+	f.assertInvariant()
+}
+
+// A refund of something PlayerSense did not sell is nobody's wallet's business.
+func TestARefundOfAnotherPaymentIsIgnored(t *testing.T) {
+	f := newFixture(t)
+	f.credit(10_000)
+	if out := f.refund("pi_unknown", "re_x"+uuid.NewString()[:8], "succeeded", 10_000); out.Status != "ignored" {
+		t.Errorf("status %s, want ignored", out.Status)
+	}
+	if f.balance() != 100*billing.Micros {
+		t.Error("an unrelated refund moved the balance")
+	}
+}
+
+// A dispute: taken when the funds are withdrawn (reported twice, taken once), put back once when won.
+func TestADisputeIsTakenBackAndPutBackWhenWon(t *testing.T) {
+	f := newFixture(t)
+	f.enable()
+	pi := f.credit(10_000)
+	id := "dp_" + uuid.NewString()[:12]
+
+	f.dispute("charge.dispute.created", pi, id, "needs_response", 10_000)
+	f.dispute("charge.dispute.funds_withdrawn", pi, id, "needs_response", 10_000)
+	f.dispute("charge.dispute.updated", pi, id, "under_review", 10_000)
+	if f.balance() != 0 || f.refunds() != 1 || f.row().AutoTopupEnabled {
+		t.Fatalf("after the dispute: balance %s, %d entries, auto %v", billing.USD(f.balance()), f.refunds(), f.row().AutoTopupEnabled)
+	}
+
+	f.dispute("charge.dispute.funds_reinstated", pi, id, "won", 10_000)
+	f.dispute("charge.dispute.closed", pi, id, "won", 10_000)
+	if f.balance() != 100*billing.Micros {
+		t.Errorf("after winning: %s, want $100 restored once", billing.USD(f.balance()))
+	}
+	f.assertInvariant()
+}
+
+// An inquiry moves no money; a lost dispute leaves the credit taken.
+func TestAnInquiryTakesNothingAndALostDisputeKeepsItTaken(t *testing.T) {
+	f := newFixture(t)
+	pi := f.credit(10_000)
+	if out := f.dispute("charge.dispute.created", pi, "dp_i"+uuid.NewString()[:8], "warning_needs_response", 10_000); out.Status != "ignored" {
+		t.Errorf("an inquiry: %s", out.Status)
+	}
+	lost := "dp_l" + uuid.NewString()[:8]
+	f.dispute("charge.dispute.funds_withdrawn", pi, lost, "needs_response", 10_000)
+	f.dispute("charge.dispute.closed", pi, lost, "lost", 10_000)
+	if f.balance() != 0 {
+		t.Errorf("after a lost dispute: %s, want $0", billing.USD(f.balance()))
+	}
+}
+
+// Invoices, Issuing and Radar reviews never move money here — least of all an invoice describing a
+// payment already credited, which would otherwise be a second report of it.
+func TestInvoiceIssuingAndReviewEventsNeverMoveMoney(t *testing.T) {
+	f := newFixture(t)
+	pi := f.credit(10_000)
+	for _, kind := range []string{
+		"invoice.created", "invoice.deleted", "invoice.finalization_failed", "invoice.finalized",
+		"invoice.marked_uncollectible", "invoice.overdue", "invoice.overpaid", "invoice.paid",
+		"invoice.payment_action_required", "invoice.payment_attempt_required", "invoice.payment_failed",
+		"invoice.payment_succeeded", "invoice.sent", "invoice.upcoming", "invoice.updated",
+		"invoice.voided", "invoice.will_be_due", "invoice_payment.paid", "invoiceitem.created",
+		"invoiceitem.deleted", "issuing_dispute.closed", "issuing_dispute.created",
+		"issuing_dispute.funds_reinstated", "issuing_dispute.funds_rescinded",
+		"issuing_dispute.submitted", "issuing_dispute.updated", "review.closed",
+	} {
+		out, err := f.deliver("evt_"+uuid.NewString(), kind, map[string]any{
+			"id": "in_" + uuid.NewString()[:8], "object": "invoice", "payment_intent": pi,
+			"amount_paid": 10_000, "currency": "usd", "customer": f.customer, "status": "paid",
+			"metadata": f.ours(payments.KindCheckout),
+		})
+		if err != nil || out.Status != "ignored" {
+			t.Errorf("%s: %s, %v; want ignored", kind, out.Status, err)
+		}
+	}
+	if len(f.lots()) != 1 || f.balance() != 100*billing.Micros {
+		t.Errorf("lots %d, balance %s; want the one top-up untouched", len(f.lots()), billing.USD(f.balance()))
+	}
+}
+
+func (f *fixture) grantPromo(amount int64) {
+	f.t.Helper()
+	tx, err := f.db.Client.Tx(context.Background())
+	if err != nil {
+		f.t.Fatal(err)
+	}
+	if _, _, err := wallet.Grant(context.Background(), tx, wallet.GrantRequest{
+		AccountID: f.account.ID, Kind: wallet.Promo, Amount: amount,
+		GrantedAt: time.Now(), Key: "promo:" + uuid.NewString(),
+	}); err != nil {
+		_ = tx.Rollback()
+		f.t.Fatal(err)
+	}
+	if err := tx.Commit(); err != nil {
+		f.t.Fatal(err)
+	}
+}
+
+// assertInvariant: the ledger's running total is what the lots hold minus what is owed.
+func (f *fixture) assertInvariant() {
+	f.t.Helper()
+	row := f.row()
+	var held int64
+	for _, lot := range f.lots() {
+		held += lot.RemainingMicros
+	}
+	if row.BalanceMicros != held-row.ArrearsMicros {
+		f.t.Errorf("balance %s ≠ lots %s − arrears %s", billing.USD(row.BalanceMicros), billing.USD(held), billing.USD(row.ArrearsMicros))
 	}
 }

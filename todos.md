@@ -355,9 +355,10 @@ Track alongside the frontend work above; none of it blocks `landing`, but most o
 - [ ] Session duration percentiles / `sessions_final` sessionization (§30) — blocks the full
       Sessions page.
 - [x] ~~Stripe, as the wallet's funding source~~ — built (ADR 0040): Checkout top-ups, the
-      customer portal for cards, signed webhooks, automatic top-up off-session. Not handled yet:
-      refunds and disputes (`charge.refunded`, `charge.dispute.*` are not subscribed), and the
-      live-mode portal needs its configuration saved once in Stripe's dashboard.
+      customer portal for cards, signed webhooks, automatic top-up off-session, refunds and disputes
+      taken back (never promo credit) and restored when a refund fails or a dispute is won. Still
+      open: invoices and tax (a decision first), failure emails, and the live-mode portal
+      configuration in Stripe's dashboard.
 - [ ] Decide what happens after the grace period (§40.1): how long `grace_period` lasts, what
       `restricted` restricts, and what cancellation does to retained data. Nothing escalates past
       `grace_period` automatically until this is decided.

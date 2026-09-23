@@ -245,14 +245,16 @@ Checkout or by the browser coming back — only by Stripe's signed webhook, keye
 a payment reported several ways is credited once. The card paid with is saved at Stripe, and automatic
 top-up (`PUT …/billing/auto-topup`) charges it from `billing-writer` when the balance falls below the
 threshold, with an idempotency key committed before the request so a lost response never becomes a
-second charge. The charge that leaves a balance low queues the top-up in its own transaction, and the
+second charge. A refund or a dispute takes the credit back — never promotional credit — and turns
+automatic top-up off; a failed refund or a won dispute puts it back. The charge that leaves a balance
+low queues the top-up in its own transaction, and the
 queue is worked every two seconds; at most 3 automatic charges per organization in any 24 hours
 ([ADR 0041](docs/adr/0041-top-ups-are-queued-by-the-charge-pricing-is-cached.md)). Without `STRIPE_SECRET_KEY` these routes answer 503.
 
 To receive webhooks locally, forward them with the Stripe CLI and give the API the secret it prints:
 
 ```bash
-stripe listen --events payment_intent.succeeded,payment_intent.payment_failed,payment_intent.canceled,checkout.session.completed,checkout.session.async_payment_succeeded \
+stripe listen --events payment_intent.succeeded,payment_intent.payment_failed,payment_intent.canceled,checkout.session.completed,checkout.session.async_payment_succeeded,refund.created,refund.updated,refund.failed,charge.dispute.created,charge.dispute.funds_withdrawn,charge.dispute.funds_reinstated,charge.dispute.closed \
   --forward-to localhost:21080/v1/stripe/webhook
 STRIPE_WEBHOOK_SECRET=whsec_… go run ./apps/backend/cmd/api    # the secret `stripe listen` printed
 ```

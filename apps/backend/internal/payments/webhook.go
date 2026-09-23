@@ -155,6 +155,10 @@ func ignored(reason string) handled {
 
 // handle acts on one event inside the transaction that marks it handled.
 func (w *Webhooks) handle(ctx context.Context, tx *ent.Tx, event stripe.Event) (handled, error) {
+	// Money going back — refunds and disputes (returns.go).
+	if result, matched, err := w.returns(ctx, tx, event); matched {
+		return result, err
+	}
 	switch event.Type {
 	case "payment_intent.succeeded":
 		var pi stripe.PaymentIntent
@@ -211,7 +215,10 @@ func (w *Webhooks) handle(ctx context.Context, tx *ent.Tx, event stripe.Event) (
 
 	default:
 		// checkout.session.expired, async_payment_failed, payment_intent.created/processing,
-		// payment_method.*, account.updated: recorded, and nothing here depends on them.
+		// payment_method.*, account.updated, and every invoice.* and invoiceitem.* event:
+		// recorded, and nothing here depends on them. Invoices in particular never credit a
+		// wallet — a payment is credited by its PaymentIntent, once, and an invoice describing
+		// the same payment must not be a second report of it.
 		return ignored(""), nil
 	}
 }

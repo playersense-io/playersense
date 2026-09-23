@@ -84,8 +84,15 @@ wants 3-D Secure fails at once rather than waiting for a person who is not there
   a customer's card can be changed in the portal without anything here going stale.
 - **Asking Stripe costs a round trip** when auto top-up is enabled and before each automatic charge.
   Neither is on a hot path.
-- **Refunds and disputes are not handled.** `charge.refunded` and `charge.dispute.*` are not among the
-  events the endpoint sends, and a refund issued in Stripe's dashboard does not remove credit here.
+- **Refunds and disputes take the credit back** (added after this ADR was first written). A refund is
+  taken when Stripe reports it succeeded, keyed on the refund id; a dispute when its funds are
+  withdrawn, keyed on the dispute id. What is taken: what is left of the refunded top-up, then other
+  purchased credit oldest first, then arrears — never promotional credit, which was not paid for. A
+  refund that fails, or a dispute that is won, puts back exactly what was taken, once. Automatic top-up
+  is switched off either way, so a refunded or disputed card is not charged again seconds later.
+  Verified end to end in test mode with a real refund and Stripe's self-disputing test card.
+- **Invoice events never credit a wallet.** They are recorded and acknowledged; a payment is credited by
+  its PaymentIntent, once, and an invoice describing it must not be a second report of it.
 - **The customer portal must be configured in Stripe** — test mode already is; live mode needs its
   default configuration saved once before `…/billing/portal` works there.
 - **USD only.** A payment in another currency than the account's is recorded and not credited.

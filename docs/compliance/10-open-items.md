@@ -93,7 +93,7 @@ What it does not yet cover:
 
 | Item | Notes |
 |---|---|
-| **Refunds and disputes** | Wallets are funded through Stripe ([ADR 0040](../adr/0040-stripe-funds-the-wallet.md)): Checkout top-ups, cards in the customer portal, automatic top-up off-session. A refund or a dispute is not handled: `charge.refunded` and `charge.dispute.*` are not among the events the endpoint sends, and a refund issued in Stripe's dashboard does not remove the credit it paid for. The `refund` ledger kind exists and nothing writes it |
+| **Invoices and tax** | Top-ups are paid through Checkout and off-session PaymentIntents; neither produces a Stripe invoice, and Stripe Tax is off. Receipts are Stripe's payment receipts, if enabled in the Dashboard. Invoice events are subscribed and recorded, and deliberately never credit a wallet (a payment is credited by its PaymentIntent, once) |
 | **The live-mode customer portal** | Stripe's portal needs a default configuration saved once per mode. Test mode has one; live mode must be set up before `…/billing/portal` works in production |
 | **Webhook API version** | The SDK is pinned to 2026-04-22.dahlia and Stripe may deliver a newer version (`stripe listen` sends 2026-08-26.dahlia). Mismatches are accepted and recorded per event; pinning the endpoint's version in the dashboard to the SDK's removes the difference |
 | **What happens after the grace period** | An account with arrears goes to `grace_period` and back when it pays. Nothing moves it to `restricted` or `suspended`: how long grace lasts, what restriction restricts, and what cancellation does to retained data (§40.1) are commercial decisions not yet made |
