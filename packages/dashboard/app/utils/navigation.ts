@@ -45,6 +45,8 @@ export interface Crumb {
   title: string
   /** Absent on a group, which is a place in the tree and not a screen. */
   to?: string
+  /** The drawer's glyph for the entry, on the crumb that starts the way down the tree. */
+  icon?: string
 }
 
 export function isGroup(entry: NavEntry): entry is NavGroup {
@@ -86,8 +88,8 @@ export function defineNavigation(tree: NavTree): DashboardNavigation {
     const link = linkOf(path)
     if (!link) return []
     const group = groups.find(candidate => candidate.children.includes(link))
-    const last: Crumb = { title: link.title, to: link.to }
-    return group ? [{ title: group.title, to: group.to }, last] : [last]
+    if (!group) return [{ title: link.title, to: link.to, icon: link.icon }]
+    return [{ title: group.title, to: group.to, icon: group.icon }, { title: link.title, to: link.to }]
   }
 
   return {
