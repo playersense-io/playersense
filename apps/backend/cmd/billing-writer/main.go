@@ -25,6 +25,7 @@ import (
 	"playersense.dev/backend/internal/charging"
 	"playersense.dev/backend/internal/config"
 	"playersense.dev/backend/internal/eventbus"
+	"playersense.dev/backend/internal/invoicing"
 	"playersense.dev/backend/internal/payments"
 	"playersense.dev/backend/internal/pgdb"
 	"playersense.dev/backend/internal/routers"
@@ -82,6 +83,8 @@ func build(settings config.Settings) (*muzak.App, error) {
 			Grace:  settings.BillingGracePeriod,
 			Policy: suspension.Policy{Floor: settings.BillingDefaultCreditLimit, Percent: settings.BillingCreditLimitPercent}},
 		SuspendEvery: settings.BillingSuspensionEvery,
+		Invoice:      invoices(settings, db, logger),
+		InvoiceEvery: settings.BillingInvoiceEvery,
 		Log:          logger,
 		DrainEvery:   settings.BillingDrainEvery,
 		PruneEvery:   settings.BillingPruneEvery,
@@ -130,6 +133,22 @@ func topUp(settings config.Settings, db *pgdb.DB, log *slog.Logger) interface {
 	return &payments.AutoTopUp{
 		DB: db, Gateway: payments.NewStripe(settings.StripeSecretKey), Log: log,
 		RetryAfter: settings.BillingAutoTopUpRetryAfter,
+	}
+}
+
+// invoices is the month close and the invoices it issues (ADR 0045), or nothing without a Stripe key
+// to issue them with — for the reason topUp gives. With no key an invoiced account's months simply
+// wait, and are closed once one is configured.
+func invoices(settings config.Settings, db *pgdb.DB, log *slog.Logger) interface {
+	Run(context.Context) (invoicing.Result, error)
+} {
+	if settings.StripeSecretKey == "" {
+		log.Warn("STRIPE_SECRET_KEY is not set; invoiced accounts' months are not closed")
+		return nil
+	}
+	return &invoicing.Job{
+		DB: db, Gateway: payments.NewStripe(settings.StripeSecretKey), Log: log,
+		CloseAfter: settings.BillingInvoiceCloseAfter,
 	}
 }
 

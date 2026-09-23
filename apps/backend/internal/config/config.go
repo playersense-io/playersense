@@ -368,6 +368,18 @@ type Settings struct {
 	// or credit limit, and republishes which accounts are suspended to Valkey.
 	BillingSuspensionEvery time.Duration `env:"BILLING_SUSPENSION_EVERY" default:"30s"`
 
+	// BillingInvoiceEvery is how often the billing writer closes invoiced accounts' months and
+	// issues their invoices at Stripe (ADR 0045). A month closes BillingInvoiceCloseAfter after it
+	// ends, once its usage has settled — time for the last players to be counted, and a margin
+	// before anything is sent to a customer.
+	BillingInvoiceEvery      time.Duration `env:"BILLING_INVOICE_EVERY" default:"15m"`
+	BillingInvoiceCloseAfter time.Duration `env:"BILLING_INVOICE_CLOSE_AFTER" default:"2h"`
+
+	// The terms a contract gets when staff do not name them: net 30, and a fortnight after a
+	// missed due date before ingestion is suspended.
+	BillingInvoiceTermsDays    int           `env:"BILLING_INVOICE_TERMS_DAYS" default:"30"`
+	BillingInvoiceOverdueGrace time.Duration `env:"BILLING_INVOICE_OVERDUE_GRACE" default:"336h"`
+
 	// WorkerAddr is where the worker serves its health probe. It has no API.
 	WorkerAddr string `env:"WORKER_ADDR" default:":21086"`
 
