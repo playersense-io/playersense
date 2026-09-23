@@ -227,7 +227,7 @@ const activity = computed(() => audit.value.filter(entry => activityFilter.value
               <span class="font-mono text-xs text-ink">v{{ version.version }}</span>
               <StatusBadge v-if="version.current" label="Live" tone="success" />
             </span>
-            <span class="record-cell text-xs text-ink/80" data-label="Note">{{ version.note || '—' }}</span>
+            <span class="record-cell text-xs text-ink/80" data-label="Note">{{ version.note || 'No note' }}</span>
             <span class="record-cell flex flex-col" data-label="Published">
               <span class="text-xs text-ink/80">{{ sinceWords(version.published_at, now) }}</span>
               <span class="truncate text-[11px] text-ink/45">{{ version.published_by }}</span>
@@ -286,7 +286,7 @@ const activity = computed(() => audit.value.filter(entry => activityFilter.value
               {{ viewing ? `${ENVIRONMENT_LABELS[viewing.environment]} v${viewing.version}` : '' }}
             </h2>
             <p class="m-0 text-xs leading-5 text-ink/60">
-              The compiled document the server evaluates: segments written into each rule. Devices never receive it —
+              The compiled document the server evaluates: segments written into each rule. Devices never receive it,
               only the values it decides for them.
             </p>
           </div>

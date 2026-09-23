@@ -46,7 +46,7 @@ const board = computed<Kpi[]>(() => {
     { key: 'exposures', label: 'Exposures', value: writeFigure(sample.exposures, { compact: true }), exact: writeFigure(sample.exposures), trend: trendOf(sample.exposures, sample.previousExposures), info: 'Sessions in which the game read this flag. A read is counted once per session and config version.' },
     { key: 'players', label: 'Players', value: writeFigure(sample.players, { compact: true }), info: 'Distinct installs that read it in the range.' },
     { key: 'values', label: 'Values served', value: String(sample.lines.filter(line => line.source !== 'default').length), info: 'Distinct values PlayerSense served for it.' },
-    { key: 'default', label: 'On the game default', value: sample.exposures ? formatShare(defaultReads / sample.exposures) : '–', info: 'Reads that found no configuration on the device — a first launch offline — and used the value written in the code.' },
+    { key: 'default', label: 'On the game default', value: sample.exposures ? formatShare(defaultReads / sample.exposures) : '–', info: 'Reads that found no configuration on the device, such as a first launch offline, and used the value written in the code.' },
     { key: 'last', label: 'Last read', value: sample.lastSeen === null ? 'Never' : sample.lastSeen < 1 ? 'Just now' : `${sample.lastSeen}m ago`, info: 'When a production device last read it.' }
   ]
 })
@@ -91,7 +91,7 @@ const readByNobody = computed(() => data.value !== null && data.value.exposures 
     <template v-else>
       <InfoNote v-if="readByNobody" icon="material-symbols:warning-outline" tone="warning">
         Production serves this flag, and no device has read it in {{ range }} days. The shipped build
-        probably does not call it yet — or no longer does, and the flag can be archived.
+        probably does not call it yet. If it no longer does, the flag can be archived.
       </InfoNote>
 
       <KpiBoard

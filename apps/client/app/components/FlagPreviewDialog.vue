@@ -265,7 +265,7 @@ const COUNTRY_ITEMS = COUNTRY_SUGGESTIONS.map(code => ({ value: code, title: cou
           Preview a player
         </h2>
         <p class="m-0 text-xs leading-5 text-ink/60">
-          Describe a player and see what every flag serves them, and why — worked out the way the server works it out.
+          Describe a player and see what every flag serves them, and why. Worked out the way the server works it out.
         </p>
       </header>
 

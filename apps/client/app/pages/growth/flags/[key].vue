@@ -376,6 +376,7 @@ const changeCount = computed(() => {
             :key="index"
             v-model:invalid="unparsed[`rule-${index}`]"
             :count="rules.length"
+            :fallback="draft.fallback"
             :grants-value="draft.grantsValue"
             :index="index"
             :kind="draft.kind"
@@ -436,7 +437,7 @@ const changeCount = computed(() => {
         <!-- A plain form, one field under another at the card's width, each with its label
              above and one line on what it is for. -->
         <SectionCard description="Kept with the flag in the draft. None of it changes what a player receives." title="About this flag">
-          <div class="flex max-w-3xl flex-col gap-6">
+          <div class="flex flex-col gap-6">
             <div class="flex flex-col gap-1.5">
               <label class="text-xs font-medium text-ink" for="flag-name">Name</label>
               <v-text-field
