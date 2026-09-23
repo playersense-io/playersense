@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { Kpi } from '~/components/KpiBoard.vue'
 import type { OverviewDay } from '~/types'
 
 // The organization at a glance: how its games are playing and earning over a period, how
@@ -86,98 +87,105 @@ const revenueSeries = computed<MetricSeries[]>(() => [
 
 const money = (value: number) => `$${writeFigure(value, { format: 'money' })}`
 
-interface Ratio {
-  key: string
-  label: string
-  value: number
-  previous: number
-  prefix?: string
-  unit?: string
-  format?: FigureFormat
-  decimals?: number
-  info?: string
-  description: string
-}
-
-// The per-player ratios behind the headline, each against the same ratio last period.
-function ratiosOf(days: OverviewDay[]) {
+// Each figure, and the same figure per day for its sparkline.
+function figuresOf(days: OverviewDay[]) {
   const active = total(days, 'active_players')
   const sessions = total(days, 'sessions')
   const playtime = total(days, 'playtime_ms')
   const revenue = dollars(total(days, 'revenue_micros'))
   const payers = total(days, 'payers')
   return {
+    active: average(days, 'active_players'),
+    fresh: total(days, 'new_players'),
     sessions: sessions / active,
     playtime: playtime / active / 60_000,
     session: playtime / sessions / 60_000,
+    revenue,
+    payers: average(days, 'payers'),
+    conversion: payers / active * 100,
     arpdau: revenue / active,
-    arppu: revenue / payers,
-    conversion: payers / active * 100
+    arppu: revenue / payers
   }
 }
 
-const ratios = computed<Ratio[]>(() => {
-  const current = ratiosOf(now.value)
-  const previous = ratiosOf(before.value)
-  return [
-    {
-      key: 'sessions',
-      label: 'Sessions per player',
-      value: current.sessions,
-      previous: previous.sessions,
-      info: 'Sessions divided by active players, per day.',
-      description: 'Per day'
-    },
-    {
-      key: 'playtime',
-      label: 'Playtime per player',
-      value: current.playtime,
-      previous: previous.playtime,
-      unit: 'min',
-      decimals: 0,
-      info: 'Minutes played per active player, per day.',
-      description: 'Per day'
-    },
-    {
-      key: 'session',
-      label: 'Average session',
-      value: current.session,
-      previous: previous.session,
-      unit: 'min',
-      description: 'Length'
-    },
-    {
-      key: 'arpdau',
-      label: 'ARPDAU',
-      value: current.arpdau,
-      previous: previous.arpdau,
-      prefix: '$',
-      format: 'money',
-      info: 'Average revenue per daily active player: revenue divided by active players, summed by day.',
-      description: 'Per active player'
-    },
-    {
-      key: 'arppu',
-      label: 'ARPPU',
-      value: current.arppu,
-      previous: previous.arppu,
-      prefix: '$',
-      format: 'money',
-      info: 'Average revenue per paying player, per day they paid.',
-      description: 'Per paying player'
-    },
-    {
-      key: 'conversion',
-      label: 'Payer conversion',
-      value: current.conversion,
-      previous: previous.conversion,
-      unit: '%',
-      decimals: 2,
-      info: 'The share of each day\'s active players who made a verified purchase.',
-      description: 'Of active players'
-    }
-  ]
-})
+const perDay = (pick: (day: OverviewDay) => number) => now.value.map(pick)
+
+const figures = computed(() => ({ now: figuresOf(now.value), before: figuresOf(before.value) }))
+
+function kpi(key: keyof ReturnType<typeof figuresOf>, fields: Omit<Kpi, 'key' | 'trend'>): Kpi {
+  return { key, trend: trendOf(figures.value.now[key], figures.value.before[key]), ...fields }
+}
+
+const compact = (value: number) => writeFigure(value, { compact: true })
+
+const audience = computed<Kpi[]>(() => [
+  kpi('active', {
+    label: 'Active players',
+    value: compact(figures.value.now.active),
+    series: perDay(day => day.active_players),
+    info: 'Players with at least one session, as a daily average over the period.'
+  }),
+  kpi('fresh', {
+    label: 'New players',
+    value: compact(figures.value.now.fresh),
+    series: perDay(day => day.new_players),
+    info: 'Players seen for the first time during the period.'
+  }),
+  kpi('sessions', {
+    label: 'Sessions per player',
+    value: writeFigure(figures.value.now.sessions),
+    series: perDay(day => day.sessions / day.active_players),
+    info: 'Sessions divided by active players, per day.'
+  }),
+  kpi('playtime', {
+    label: 'Playtime per player',
+    value: writeFigure(figures.value.now.playtime, { decimals: 0 }),
+    unit: 'min',
+    series: perDay(day => day.playtime_ms / day.active_players / 60_000),
+    info: 'Minutes played per active player, per day.'
+  }),
+  kpi('session', {
+    label: 'Average session',
+    value: writeFigure(figures.value.now.session),
+    unit: 'min',
+    series: perDay(day => day.playtime_ms / day.sessions / 60_000),
+    info: 'Minutes played per session.'
+  })
+])
+
+const monetization = computed<Kpi[]>(() => [
+  kpi('revenue', {
+    label: 'Revenue',
+    value: `$${compact(figures.value.now.revenue)}`,
+    exact: money(figures.value.now.revenue),
+    series: perDay(day => dollars(day.revenue_micros)),
+    info: 'Verified purchases, gross: store receipts verified server-side, before platform fees and refunds.'
+  }),
+  kpi('payers', {
+    label: 'Paying players',
+    value: compact(figures.value.now.payers),
+    series: perDay(day => day.payers),
+    info: 'Players with a verified purchase, as a daily average over the period.'
+  }),
+  kpi('conversion', {
+    label: 'Payer conversion',
+    value: writeFigure(figures.value.now.conversion, { decimals: 2, unit: '%' }),
+    series: perDay(day => day.payers / day.active_players * 100),
+    info: 'The share of each day\'s active players who made a verified purchase.'
+  }),
+  kpi('arpdau', {
+    label: 'ARPDAU',
+    value: money(figures.value.now.arpdau),
+    series: perDay(day => dollars(day.revenue_micros) / day.active_players),
+    info: 'Average revenue per daily active player: revenue divided by active players, summed by day.'
+  }),
+  kpi('arppu', {
+    label: 'ARPPU',
+    value: money(figures.value.now.arppu),
+    series: perDay(day => dollars(day.revenue_micros) / day.payers),
+    info: 'Average revenue per paying player, per day they paid.'
+  })
+])
 
 // --- Where players are -------------------------------------------------------------------
 
@@ -251,63 +259,9 @@ const wallet = computed<Fact[]>(() => [
       </template>
     </PageHeader>
 
-    <!-- Headline: the four figures, then the per-player ratios that explain them. -->
-    <div class="flex flex-col gap-4">
-      <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Statistic
-          :compare="compare"
-          :previous="Math.round(average(before, 'active_players'))"
-          :value="Math.round(average(now, 'active_players'))"
-          compact
-          description="Daily average"
-          info="Players with at least one session, averaged over the days in the period."
-          label="Active players"
-        />
-        <Statistic
-          :compare="compare"
-          :previous="total(before, 'new_players')"
-          :value="total(now, 'new_players')"
-          compact
-          description="First seen in the period"
-          label="New players"
-        />
-        <Statistic
-          :compare="compare"
-          :previous="dollars(total(before, 'revenue_micros'))"
-          :value="dollars(total(now, 'revenue_micros'))"
-          description="Verified purchases, gross"
-          format="money"
-          info="Store receipts verified server-side, before platform fees and refunds."
-          label="Revenue"
-          prefix="$"
-        />
-        <Statistic
-          :compare="compare"
-          :previous="Math.round(average(before, 'payers'))"
-          :value="Math.round(average(now, 'payers'))"
-          compact
-          description="Daily average"
-          label="Paying players"
-        />
-      </div>
-
-      <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <Statistic
-          v-for="ratio in ratios"
-          :key="ratio.key"
-          :compare="compare"
-          :decimals="ratio.decimals"
-          :description="ratio.description"
-          :format="ratio.format"
-          :info="ratio.info"
-          :label="ratio.label"
-          :prefix="ratio.prefix"
-          :previous="ratio.previous"
-          :unit="ratio.unit"
-          :value="ratio.value"
-        />
-      </div>
-    </div>
+    <!-- Headline: who played and how, then what it earned. -->
+    <KpiBoard :description="`Over the last ${period} days, against the ${period} before.`" :items="audience" title="Audience" />
+    <KpiBoard :description="`Over the last ${period} days, against the ${period} before.`" :items="monetization" title="Monetization" />
 
     <!-- Trends, one full-width row each: a period of days reads better wide than halved. -->
     <div class="flex flex-col gap-4">
