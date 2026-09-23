@@ -93,7 +93,7 @@ func (in *UsageParams) Validate(v *muzak.Validation) {
 // BillingOut is the account, its plan and its wallet.
 type BillingOut struct {
 	Plan  PlanOut `json:"plan"`
-	State string  `json:"state" doc:"active, grace_period, restricted, suspended or canceled"`
+	State string  `json:"state" doc:"active, grace_period (owes; everything works), suspended (ingestion refused until paid), restricted or canceled"`
 
 	Currency string `json:"currency"`
 
@@ -118,6 +118,12 @@ type BillingOut struct {
 	// account is in its grace period. Ingestion is not affected.
 	ArrearsMicros int64  `json:"arrears_micros"`
 	Arrears       string `json:"arrears"`
+
+	// While it owes, when ingestion stops unless it pays (ADR 0043): SuspendsAt by time, and the
+	// credit limit by amount — whichever comes first. SuspendsAt is absent when it owes nothing.
+	SuspendsAt        *time.Time `json:"suspends_at,omitzero" doc:"If still owing then, ingestion is suspended"`
+	CreditLimitMicros int64      `json:"credit_limit_micros" doc:"Owing this much suspends ingestion at once"`
+	CreditLimitSource string     `json:"credit_limit_source" doc:"usage (25% of the last 30 days' usage), floor (the minimum), or override (set by PlayerSense)"`
 
 	// Month is the running month as real-time charging sees it: exact players, what they
 	// cost, and the band the next one lands in.

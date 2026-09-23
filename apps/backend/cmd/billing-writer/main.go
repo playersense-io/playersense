@@ -28,6 +28,7 @@ import (
 	"playersense.dev/backend/internal/payments"
 	"playersense.dev/backend/internal/pgdb"
 	"playersense.dev/backend/internal/routers"
+	"playersense.dev/backend/internal/suspension"
 	"playersense.dev/backend/internal/valkey"
 )
 
@@ -75,9 +76,13 @@ func build(settings config.Settings) (*muzak.App, error) {
 		TopUp:           topUp(settings, db, logger),
 		TopUpEvery:      settings.BillingAutoTopUpEvery,
 		TopUpSweepEvery: settings.BillingAutoTopUpSweepEvery,
-		Log:             logger,
-		DrainEvery:      settings.BillingDrainEvery,
-		PruneEvery:      settings.BillingPruneEvery,
+		Suspend: &suspension.Job{DB: db, Cache: cache, Log: logger,
+			Grace:  settings.BillingGracePeriod,
+			Policy: suspension.Policy{Floor: settings.BillingDefaultCreditLimit, Percent: settings.BillingCreditLimitPercent}},
+		SuspendEvery: settings.BillingSuspensionEvery,
+		Log:          logger,
+		DrainEvery:   settings.BillingDrainEvery,
+		PruneEvery:   settings.BillingPruneEvery,
 	}
 
 	app := muzak.New(muzak.AppOptions{

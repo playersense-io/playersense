@@ -667,6 +667,109 @@
         }
       }
     },
+    "/v1/operator/organizations/{org}/credit-limit": {
+      "put": {
+        "tags": [
+          "operator"
+        ],
+        "summary": "Set an organization's credit limit",
+        "description": "How much it may owe before its ingestion is suspended. Without an override the limit is 25% of its usage in the last 30 days, or the plan's floor if that is higher; an override sets it exactly. Omit credit_limit_micros to clear the override. Recorded in the organization's audit log.",
+        "operationId": "put_v1_operator_organizations_by_org_credit_limit",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "credit_limit_micros": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "format": "int64",
+                    "description": "Exact limit in micros; omit to return to 25% of usage with the floor",
+                    "minimum": 0,
+                    "maximum": 1000000000000
+                  },
+                  "operator": {
+                    "type": "string",
+                    "format": "email",
+                    "maxLength": 254
+                  }
+                },
+                "required": [
+                  "operator"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillingOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The operator token is missing or wrong",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No organization has that slug",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/operator/organizations/{org}/credits": {
       "post": {
         "tags": [
@@ -7661,6 +7764,15 @@
             "type": "integer",
             "format": "int64"
           },
+          "credit_limit_micros": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Owing this much suspends ingestion at once"
+          },
+          "credit_limit_source": {
+            "type": "string",
+            "description": "usage (25% of the last 30 days' usage), floor (the minimum), or override (set by PlayerSense)"
+          },
           "currency": {
             "type": "string"
           },
@@ -7710,7 +7822,7 @@
           },
           "state": {
             "type": "string",
-            "description": "active, grace_period, restricted, suspended or canceled"
+            "description": "active, grace_period (owes; everything works), suspended (ingestion refused until paid), restricted or canceled"
           },
           "subscription": {
             "anyOf": [
@@ -7721,6 +7833,14 @@
                 "type": "null"
               }
             ]
+          },
+          "suspends_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "If still owing then, ingestion is suspended"
           }
         },
         "required": [
@@ -7729,6 +7849,8 @@
           "auto_topup",
           "available",
           "available_micros",
+          "credit_limit_micros",
+          "credit_limit_source",
           "currency",
           "features",
           "ledger_balance_micros",

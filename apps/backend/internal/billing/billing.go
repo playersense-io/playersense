@@ -65,12 +65,17 @@ const (
 
 	MaxProjects         Entitlement = "max_projects"
 	MaxWebhookEndpoints Entitlement = "max_webhook_endpoints"
+
+	// CreditLimit is how much an account may owe before its ingestion is suspended (ADR 0043):
+	// the money bound on the tolerance, beside the time bound of the grace period. A plan that
+	// does not state it gets the deployment's default; Enterprise can carry a larger one.
+	CreditLimit Entitlement = "credit_limit_micros"
 )
 
 // entitlements is the closed set, in the order a pricing page reads.
 var entitlements = []Entitlement{
 	IncludedMAU, IncludedEvents, IncludedStorageGBMonth,
-	MaxRawRetentionDays, MaxProjects, MaxWebhookEndpoints,
+	MaxRawRetentionDays, MaxProjects, MaxWebhookEndpoints, CreditLimit,
 }
 
 // Entitlements returns the vocabulary.

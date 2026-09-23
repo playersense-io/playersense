@@ -146,6 +146,26 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/v1/operator/organizations/{org}/credit-limit": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        /**
+         * Set an organization's credit limit
+         * @description How much it may owe before its ingestion is suspended. Without an override the limit is 25% of its usage in the last 30 days, or the plan's floor if that is higher; an override sets it exactly. Omit credit_limit_micros to clear the override. Recorded in the organization's audit log.
+         */
+        readonly put: operations["put_v1_operator_organizations_by_org_credit_limit"];
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/v1/operator/organizations/{org}/credits": {
         readonly parameters: {
             readonly query?: never;
@@ -1185,6 +1205,13 @@ export interface components {
             readonly available: string;
             /** Format: int64 */
             readonly available_micros: number;
+            /**
+             * Format: int64
+             * @description Owing this much suspends ingestion at once
+             */
+            readonly credit_limit_micros: number;
+            /** @description usage (25% of the last 30 days' usage), floor (the minimum), or override (set by PlayerSense) */
+            readonly credit_limit_source: string;
             readonly currency: string;
             readonly expiring_soon?: readonly components["schemas"]["CreditLotOut"][];
             readonly features: readonly string[];
@@ -1198,9 +1225,14 @@ export interface components {
             readonly promo_micros: number;
             /** Format: int64 */
             readonly purchased_micros: number;
-            /** @description active, grace_period, restricted, suspended or canceled */
+            /** @description active, grace_period (owes; everything works), suspended (ingestion refused until paid), restricted or canceled */
             readonly state: string;
             readonly subscription?: components["schemas"]["SubscriptionOut"] | null;
+            /**
+             * Format: date-time
+             * @description If still owing then, ingestion is suspended
+             */
+            readonly suspends_at?: string | null;
         };
         readonly Breakdown: {
             /** @description install_platform, install_country or first_app_version */
@@ -2679,6 +2711,76 @@ export interface operations {
                 };
             };
             /** @description The amount is not positive */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly put_v1_operator_organizations_by_org_credit_limit: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly org: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": {
+                    /**
+                     * Format: int64
+                     * @description Exact limit in micros; omit to return to 25% of usage with the floor
+                     */
+                    readonly credit_limit_micros?: number | null;
+                    /** Format: email */
+                    readonly operator: string;
+                };
+            };
+        };
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["BillingOut"];
+                };
+            };
+            /** @description The operator token is missing or wrong */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No organization has that slug */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
             readonly 422: {
                 headers: {
                     readonly [name: string]: unknown;

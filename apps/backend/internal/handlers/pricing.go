@@ -289,7 +289,7 @@ func AssignPlan(ctx *muzak.Context, in schemas.AssignPlanIn) (schemas.BillingOut
 	if err != nil {
 		return schemas.BillingOut{}, err
 	}
-	return billingOut(ctx.Context(), db, account, nowUTC())
+	return billingOut(ctx.Context(), db, account, nowUTC(), policyOf(ctx))
 }
 
 // invalidatePlan deletes a plan's cached pricing. Best effort: the entry expires on its own within
@@ -585,4 +585,61 @@ func Subscribe(ctx *muzak.Context, in schemas.SubscribeIn) (schemas.CheckoutOut,
 		return schemas.CheckoutOut{}, paymentsError(err)
 	}
 	return schemas.CheckoutOut{URL: checkout.URL, ID: checkout.ID, ExpiresAt: checkout.ExpiresAt}, nil
+}
+
+// SetCreditLimit sets, or clears, an exact credit limit for one organization (ADR 0043).
+//
+// Stored as the account's credit_limit_micros override, which the rule gives way to. Recorded in the
+// organization's audit log with the previous value, because a limit changed is a decision somebody
+// may be asked about — by the customer whose ingestion it stopped, or did not.
+func SetCreditLimit(ctx *muzak.Context, in schemas.SetCreditLimitIn) (schemas.BillingOut, error) {
+	db := muzak.From[*core.DB](ctx)
+	org, err := organizationBySlug(ctx.Context(), db, in.OrgSlug)
+	if err != nil {
+		return schemas.BillingOut{}, err
+	}
+	_, err = inTx(ctx, func(tx *ent.Tx) (struct{}, error) {
+		var none struct{}
+		account, err := tx.BillingAccount.Query().
+			Where(billingaccount.OrganizationID(org.ID)).ForUpdate().Only(ctx.Context())
+		if err != nil {
+			return none, err
+		}
+		overrides := map[string]int64{}
+		for name, amount := range account.EntitlementOverrides {
+			overrides[name] = amount
+		}
+		previous, had := overrides[string(billing.CreditLimit)]
+		if in.CreditLimitMicros != nil {
+			overrides[string(billing.CreditLimit)] = *in.CreditLimitMicros
+		} else {
+			delete(overrides, string(billing.CreditLimit))
+		}
+		if _, err := tx.BillingAccount.UpdateOne(account).SetEntitlementOverrides(overrides).Save(ctx.Context()); err != nil {
+			return none, err
+		}
+		meta := map[string]any{"credit_limit_micros": in.CreditLimitMicros}
+		if had {
+			meta["was_credit_limit_micros"] = previous
+		}
+		return none, auditFor(ctx).forOrganization(org.ID).byOperator(in.Operator).
+			record(ctx.Context(), tx, audit.CreditLimitSet, "billing_account", org.Slug, meta)
+	})
+	if err != nil {
+		return schemas.BillingOut{}, catalogueError(err)
+	}
+	// The override is also an entitlement the charger caches with the organization's pricing.
+	invalidateOrg(ctx, org.ID)
+	account, err := accountOf(ctx.Context(), db, org.ID)
+	if err != nil {
+		return schemas.BillingOut{}, err
+	}
+	return billingOut(ctx.Context(), db, account, nowUTC(), policyOf(ctx))
+}
+
+func invalidateOrg(ctx *muzak.Context, orgID int) {
+	if err := charging.InvalidateOrganization(ctx.Context(), muzak.From[*valkey.Client](ctx), orgID); err != nil {
+		ctx.Logger().Warn("could not invalidate the organization's cached pricing; it expires on its own",
+			"org_id", orgID, "error", err)
+	}
 }

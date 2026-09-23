@@ -1,0 +1,172 @@
+package suspension
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"log/slog"
+	"sync"
+	"time"
+
+	"playersense.dev/backend/ent"
+	"playersense.dev/backend/ent/billingaccount"
+	"playersense.dev/backend/internal/billing"
+	"playersense.dev/backend/internal/pgdb"
+	"playersense.dev/backend/internal/valkey"
+)
+
+// Job suspends accounts past their bounds, and publishes which accounts are suspended.
+type Job struct {
+	DB    *pgdb.DB
+	Cache *valkey.Client
+	Log   *slog.Logger
+
+	// Grace is how long an account may owe before it is suspended.
+	Grace time.Duration
+
+	// Policy is the credit limit's floor and share of spend (limit.go).
+	Policy Policy
+
+	Now func() time.Time
+
+	mu     sync.Mutex
+	marked map[uint32]bool // what this process marked last pass, to unmark promptly
+}
+
+// Result is one pass.
+type Result struct {
+	Suspended int // newly suspended this pass
+	Marked    int // suspended accounts published to Valkey
+}
+
+// Run makes one pass: suspend, then publish.
+func (j *Job) Run(ctx context.Context) (Result, error) {
+	var out Result
+	suspended, err := j.suspend(ctx)
+	out.Suspended = suspended
+	marked, markErr := j.publish(ctx)
+	out.Marked = marked
+	return out, errors.Join(err, markErr)
+}
+
+// suspend moves accounts in their grace period past either bound to suspended.
+func (j *Job) suspend(ctx context.Context) (int, error) {
+	candidates, err := j.DB.Client.BillingAccount.Query().
+		Where(billingaccount.StateEQ(billingaccount.StateGracePeriod), billingaccount.ArrearsMicrosGT(0)).
+		WithPlan().
+		All(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("read accounts in grace: %w", err)
+	}
+	now := j.now()
+	done := 0
+	for _, account := range candidates {
+		reason, due, err := j.due(ctx, account, now)
+		if err != nil {
+			return done, err
+		}
+		if !due {
+			continue
+		}
+		// Under the row lock, and only if it still owes and is still in grace: a top-up that
+		// landed between the read and here has already made it active.
+		n, err := j.DB.Client.BillingAccount.Update().
+			Where(
+				billingaccount.ID(account.ID),
+				billingaccount.StateEQ(billingaccount.StateGracePeriod),
+				billingaccount.ArrearsMicrosGT(0),
+			).
+			SetState(billingaccount.StateSuspended).
+			SetStateChangedAt(now).
+			Save(ctx)
+		if err != nil {
+			return done, fmt.Errorf("suspend account %d: %w", account.ID, err)
+		}
+		if n == 1 {
+			done++
+			j.log().Warn("suspended ingestion for an account", "account_id", account.ID,
+				"org", account.OrganizationID, "arrears", billing.USD(account.ArrearsMicros), "reason", reason)
+		}
+	}
+	return done, nil
+}
+
+// due reports whether an account in grace has passed either bound, and which.
+func (j *Job) due(ctx context.Context, account *ent.BillingAccount, now time.Time) (string, bool, error) {
+	limit, source, err := Limit(ctx, j.DB.Client, account, j.Policy, now)
+	if err != nil {
+		return "", false, err
+	}
+	if account.ArrearsMicros >= limit {
+		return fmt.Sprintf("owes %s, at its %s credit limit (%s)",
+			billing.USD(account.ArrearsMicros), billing.USD(limit), source), true, nil
+	}
+	if !account.StateChangedAt.IsZero() && now.Sub(account.StateChangedAt) >= j.Grace {
+		return fmt.Sprintf("has owed for longer than the %s grace period", j.Grace), true, nil
+	}
+	return "", false, nil
+}
+
+// SuspendsAt is when an account in its grace period will be suspended if it does not pay, by time.
+func SuspendsAt(account *ent.BillingAccount, grace time.Duration) *time.Time {
+	if account.State != billingaccount.StateGracePeriod || account.StateChangedAt.IsZero() {
+		return nil
+	}
+	at := account.StateChangedAt.Add(grace)
+	return &at
+}
+
+// publish marks every suspended organization in Valkey, and unmarks the ones this process marked
+// last pass that are no longer suspended — so a studio that paid is let back in at once rather than
+// when its mark lapses.
+func (j *Job) publish(ctx context.Context) (int, error) {
+	if j.Cache == nil {
+		return 0, nil
+	}
+	var orgs []int
+	if err := j.DB.Client.BillingAccount.Query().
+		Where(billingaccount.StateEQ(billingaccount.StateSuspended)).
+		Select(billingaccount.FieldOrganizationID).
+		Scan(ctx, &orgs); err != nil {
+		return 0, fmt.Errorf("read suspended accounts: %w", err)
+	}
+	now := make(map[uint32]bool, len(orgs))
+	keys := make([]string, 0, len(orgs))
+	for _, org := range orgs {
+		now[uint32(org)] = true
+		keys = append(keys, Key(j.Cache, uint32(org)))
+	}
+	if err := j.Cache.Mark(ctx, keys, MarkTTL); err != nil {
+		return 0, fmt.Errorf("mark suspended organizations: %w", err)
+	}
+
+	j.mu.Lock()
+	var released []string
+	for org := range j.marked {
+		if !now[org] {
+			released = append(released, Key(j.Cache, org))
+		}
+	}
+	j.marked = now
+	j.mu.Unlock()
+	if len(released) > 0 {
+		if err := j.Cache.Del(ctx, released...); err != nil {
+			return len(keys), fmt.Errorf("unmark organizations that paid: %w", err)
+		}
+	}
+	return len(keys), nil
+}
+
+func (j *Job) now() time.Time {
+	if j.Now != nil {
+		return j.Now().UTC()
+	}
+	return time.Now().UTC()
+}
+
+func (j *Job) log() *slog.Logger {
+	if j.Log != nil {
+		return j.Log
+	}
+	return slog.Default()
+}

@@ -273,3 +273,21 @@ type SubscriptionOut struct {
 	PeriodEnd         *time.Time `json:"period_end,omitzero" doc:"When the paid period ends — and, if canceling, when the plan does"`
 	CancelAtPeriodEnd bool       `json:"cancel_at_period_end"`
 }
+
+// SetCreditLimitIn sets an exact credit limit for one organization, or clears it back to the rule
+// (ADR 0043).
+type SetCreditLimitIn struct {
+	OrgSlug string `path:"org"`
+
+	// CreditLimitMicros is the exact limit; absent (null) clears the override, so the limit follows
+	// the organization's spending again.
+	CreditLimitMicros *int64 `json:"credit_limit_micros,omitzero" doc:"Exact limit in micros; omit to return to 25% of usage with the floor"`
+
+	Operator string `json:"operator"`
+}
+
+func (in *SetCreditLimitIn) Validate(v *muzak.Validation) {
+	v.String(&in.OrgSlug).Trim().Lower().Required().MaxLen(64)
+	v.Number(&in.CreditLimitMicros).Min(0).Max(float64(MaxGrant))
+	v.String(&in.Operator).Trim().Lower().Required().Email().MaxLen(254)
+}

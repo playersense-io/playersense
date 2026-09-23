@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -15,6 +16,7 @@ import (
 	"playersense.dev/backend/internal/protocol"
 	"playersense.dev/backend/internal/ratelimit"
 	"playersense.dev/backend/internal/schemas"
+	"playersense.dev/backend/internal/suspension"
 )
 
 // AcceptBatch is the ingestion endpoint (§19).
@@ -29,6 +31,18 @@ func AcceptBatch(ctx *muzak.Context, in schemas.IngestBatchIn) (protocol.Accepte
 	tenant := muzak.From[*core.Tenant](ctx)
 	bus := muzak.From[eventbus.Bus](ctx)
 	limits := muzak.From[ingest.Limits](ctx)
+
+	// An account past its grace period or credit limit sends no more data until it pays (ADR
+	// 0043). 429 with Retry-After, because that is the answer an SDK keeps the batch for and
+	// retries later (protocol §9) — so nothing is lost while the studio pays. A map lookup, and
+	// a Valkey round trip per organization every few seconds; never PostgreSQL.
+	if gate, found := muzak.TryFrom[*suspension.Gate](ctx); found && gate.Suspended(ctx.Context(), tenant.OrgSeq) {
+		ctx.SetHeader(muzak.HeaderRetryAfter, strconv.Itoa(int(suspension.RetryAfter.Seconds())))
+		return protocol.Accepted{}, muzak.TooManyRequests(
+			"this organization's ingestion is suspended until its balance is paid; " +
+				"the batch was not stored — keep it and retry after Retry-After").
+			WithCode("payment_required")
+	}
 
 	// Counted here rather than by the framework, because this is the first point at which
 	// the caller is known by name: the project from the credential, the installation from

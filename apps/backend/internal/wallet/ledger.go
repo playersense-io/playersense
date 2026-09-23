@@ -400,16 +400,17 @@ func WantsTopUp(account *ent.BillingAccount, balance int64) bool {
 
 // stateFor is §40.1's first step, and deliberately only the first.
 //
-// An account that owes goes from active to grace_period, and one that has paid comes back — both
-// automatic, because both are facts about the ledger. Nothing here goes further. `restricted` and
-// `suspended` stop things a studio depends on, and when to do that is a commercial policy that has
-// not been decided; a charger that suspended accounts on its own would be deciding it. So an account
-// in any other state is left exactly where a person put it.
+// An account that owes goes from active to grace_period, and one that has paid comes back — from
+// grace_period or from suspended — both automatic, because both are facts about the ledger.
+// Suspending is not decided here: it is the grace period running out or the credit limit being
+// reached, which is the suspension job's rule (ADR 0043). `restricted` and `canceled` are left exactly
+// where a person put them.
 func stateFor(current billingaccount.State, arrears int64) (billingaccount.State, bool) {
 	switch {
 	case arrears > 0 && current == billingaccount.StateActive:
 		return billingaccount.StateGracePeriod, true
-	case arrears == 0 && current == billingaccount.StateGracePeriod:
+	case arrears == 0 && (current == billingaccount.StateGracePeriod || current == billingaccount.StateSuspended):
+		// Paid: a suspended account is active again the moment its debt is cleared (ADR 0043).
 		return billingaccount.StateActive, true
 	default:
 		return current, false

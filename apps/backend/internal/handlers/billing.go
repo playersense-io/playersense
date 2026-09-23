@@ -17,9 +17,11 @@ import (
 	"playersense.dev/backend/ent/usagedaily"
 	"playersense.dev/backend/internal/audit"
 	"playersense.dev/backend/internal/billing"
+	"playersense.dev/backend/internal/config"
 	"playersense.dev/backend/internal/core"
 	"playersense.dev/backend/internal/payments"
 	"playersense.dev/backend/internal/schemas"
+	"playersense.dev/backend/internal/suspension"
 	"playersense.dev/backend/internal/wallet"
 )
 
@@ -203,7 +205,7 @@ func ReadBilling(ctx *muzak.Context, _ schemas.OrganizationParams) (schemas.Bill
 	if err != nil {
 		return schemas.BillingOut{}, err
 	}
-	return billingOut(ctx.Context(), db, account, nowUTC())
+	return billingOut(ctx.Context(), db, account, nowUTC(), policyOf(ctx))
 }
 
 // ReadLedger answers "why is my balance this".
@@ -344,7 +346,7 @@ func SetAutoTopUp(ctx *muzak.Context, in schemas.SetAutoTopUpIn) (schemas.Billin
 	if err != nil {
 		return schemas.BillingOut{}, err
 	}
-	return billingOut(ctx.Context(), db, fresh, nowUTC())
+	return billingOut(ctx.Context(), db, fresh, nowUTC(), policyOf(ctx))
 }
 
 // ---- the operator surface ---------------------------------------------------
@@ -580,7 +582,7 @@ func availableOf(ctx context.Context, db *core.DB, accountID int, at time.Time) 
 const ExpiryWarning = 14 * 24 * time.Hour
 
 func billingOut(ctx context.Context, db *core.DB, account *ent.BillingAccount,
-	at time.Time,
+	at time.Time, policy suspensionPolicy,
 ) (schemas.BillingOut, error) {
 	rows, err := db.Client.CreditLot.Query().
 		Where(creditlot.AccountID(account.ID), creditlot.RemainingMicrosGT(0)).
@@ -613,6 +615,12 @@ func billingOut(ctx context.Context, db *core.DB, account *ent.BillingAccount,
 	out.Available = billing.USD(out.AvailableMicros)
 	out.ArrearsMicros = account.ArrearsMicros
 	out.Arrears = billing.USD(account.ArrearsMicros)
+	out.SuspendsAt = suspension.SuspendsAt(account, policy.grace)
+	limit, source, err := suspension.Limit(ctx, db.Client, account, policy.limit, at)
+	if err != nil {
+		return schemas.BillingOut{}, core.AsHTTPError(err)
+	}
+	out.CreditLimitMicros, out.CreditLimitSource = limit, string(source)
 	month, err := monthOut(ctx, db, account, at)
 	if err != nil {
 		return schemas.BillingOut{}, err
@@ -745,4 +753,18 @@ func walletError(err error) error {
 	default:
 		return core.AsHTTPError(err)
 	}
+}
+
+// suspensionPolicy is the deployment's tolerance for an account that owes (ADR 0043).
+type suspensionPolicy struct {
+	grace time.Duration
+	limit suspension.Policy
+}
+
+func policyOf(ctx *muzak.Context) suspensionPolicy {
+	if settings, found := muzak.TryFrom[config.Settings](ctx); found {
+		return suspensionPolicy{grace: settings.BillingGracePeriod, limit: suspension.Policy{
+			Floor: settings.BillingDefaultCreditLimit, Percent: settings.BillingCreditLimitPercent}}
+	}
+	return suspensionPolicy{grace: 7 * 24 * time.Hour, limit: suspension.Policy{Floor: 50 * billing.Micros, Percent: 25}}
 }

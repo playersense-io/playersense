@@ -343,6 +343,24 @@ type Settings struct {
 	// asking every pass is how a bank flags an account.
 	BillingAutoTopUpRetryAfter time.Duration `env:"BILLING_AUTO_TOPUP_RETRY_AFTER" default:"6h"`
 
+	// BillingGracePeriod is how long an account may owe money before its ingestion is suspended
+	// (ADR 0043) — the time for a studio to fix its card. Counted from when it first owed.
+	BillingGracePeriod time.Duration `env:"BILLING_GRACE_PERIOD" default:"168h"`
+
+	// An account's credit limit — how much it may owe before ingestion is suspended sooner than the
+	// grace period — scales with what it spends (ADR 0043):
+	//
+	//	limit = max(floor, BILLING_CREDIT_LIMIT_PERCENT% of its usage in the last 30 days)
+	//
+	// unless staff have set an exact limit for the organization. The floor is the plan's
+	// credit_limit_micros, or this default for plans that do not state one. Micros: $50 is 50000000.
+	BillingDefaultCreditLimit int64 `env:"BILLING_DEFAULT_CREDIT_LIMIT" default:"50000000"`
+	BillingCreditLimitPercent int64 `env:"BILLING_CREDIT_LIMIT_PERCENT" default:"25"`
+
+	// BillingSuspensionEvery is how often the billing writer suspends accounts past their grace
+	// or credit limit, and republishes which accounts are suspended to Valkey.
+	BillingSuspensionEvery time.Duration `env:"BILLING_SUSPENSION_EVERY" default:"30s"`
+
 	// WorkerAddr is where the worker serves its health probe. It has no API.
 	WorkerAddr string `env:"WORKER_ADDR" default:":21086"`
 

@@ -19,6 +19,7 @@ import (
 	"playersense.dev/backend/internal/pgdb"
 	"playersense.dev/backend/internal/protocol"
 	"playersense.dev/backend/internal/routers"
+	"playersense.dev/backend/internal/suspension"
 	"playersense.dev/backend/internal/testsupport"
 	"playersense.dev/backend/internal/transport"
 	"playersense.dev/backend/internal/valkey"
@@ -32,6 +33,7 @@ type ingestFixture struct {
 	db     *pgdb.DB
 	envID  int
 	orgID  int
+	gate   *suspension.Gate
 }
 
 func newIngestFixture(t *testing.T, tier string) *ingestFixture {
@@ -45,6 +47,7 @@ func newIngestFixture(t *testing.T, tier string) *ingestFixture {
 
 	// Its own spool per test, so tests do not read each other's messages.
 	bus := eventbus.NewLocal(t.TempDir())
+	gate := &suspension.Gate{Cache: testCache(t)}
 
 	app := muzak.New(muzak.AppOptions{
 		Title:         "ingest-test",
@@ -55,6 +58,7 @@ func newIngestFixture(t *testing.T, tier string) *ingestFixture {
 		muzak.WithSingleton(core.NewKeyResolver(db, testCache(t), core.KeyResolverOptions{TTL: time.Minute, NegativeTTL: time.Second, LocalTTL: time.Second, MaxLocal: 1000})),
 		muzak.WithSingleton(ingest.DefaultLimits()),
 		muzak.WithSingleton(eventbus.Bus(bus)),
+		muzak.WithSingleton(gate),
 	)
 	// The same middleware `build` installs, so a test exercises the wire the way the
 	// service serves it. It no-ops on a request with no Content-Encoding, which is most of
@@ -74,6 +78,7 @@ func newIngestFixture(t *testing.T, tier string) *ingestFixture {
 		db:    db,
 		envID: seeded.EnvironmentID,
 		orgID: seeded.OrgSeq,
+		gate:  gate,
 	}
 }
 

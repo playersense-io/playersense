@@ -12,7 +12,9 @@ import (
 	"github.com/stripe/stripe-go/v85/webhook"
 	"muzak.dev/framework/testclient"
 
+	"playersense.dev/backend/ent/auditevent"
 	"playersense.dev/backend/ent/billingaccount"
+	"playersense.dev/backend/internal/audit"
 	"playersense.dev/backend/internal/authz"
 	"playersense.dev/backend/internal/payments"
 	"playersense.dev/backend/internal/payments/paymentstest"
@@ -265,4 +267,42 @@ func TestSubscriptionInputsThatCannotWorkAreRefused(t *testing.T) {
 	w.operator.Put("/v1/operator/plans/"+key, testclient.JSON(map[string]any{
 		"features": []string{"mcp_acess"}, "operator": "ada@playersense.dev",
 	})).AssertStatus(http.StatusUnprocessableEntity)
+}
+
+// PlayerSense can set an organization's credit limit exactly, and clear it back to the rule; both are
+// in the organization's audit log, and the billing page says where the limit comes from.
+func TestStaffCanSetAndClearAnOrganizationsCreditLimit(t *testing.T) {
+	w := newWallet(t)
+	path := "/v1/operator/organizations/" + w.slug + "/credit-limit"
+
+	var set struct {
+		CreditLimitMicros int64  `json:"credit_limit_micros"`
+		CreditLimitSource string `json:"credit_limit_source"`
+	}
+	w.operator.Put(path, testclient.JSON(map[string]any{
+		"credit_limit_micros": dollars(2_000), "operator": "ada@playersense.dev",
+	})).AssertStatus(http.StatusOK).JSON(&set)
+	if set.CreditLimitMicros != dollars(2_000) || set.CreditLimitSource != "override" {
+		t.Errorf("after setting: %+v", set)
+	}
+
+	var cleared struct {
+		CreditLimitMicros int64  `json:"credit_limit_micros"`
+		CreditLimitSource string `json:"credit_limit_source"`
+	}
+	w.operator.Put(path, testclient.JSON(map[string]any{"operator": "ada@playersense.dev"})).
+		AssertStatus(http.StatusOK).JSON(&cleared)
+	if cleared.CreditLimitSource == "override" {
+		t.Errorf("after clearing: %+v; want the rule again", cleared)
+	}
+
+	org := w.organization(t, w.slug)
+	n, err := w.db.Client.AuditEvent.Query().
+		Where(auditevent.OrganizationID(org.ID), auditevent.Action(string(audit.CreditLimitSet))).Count(context.Background())
+	if err != nil || n != 2 {
+		t.Errorf("credit limit changes logged = %d (%v), want 2", n, err)
+	}
+	// Nobody but staff.
+	w.client(t).Put(path, testclient.JSON(map[string]any{"credit_limit_micros": 1, "operator": "x@y.z"})).
+		AssertStatus(http.StatusUnauthorized)
 }

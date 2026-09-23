@@ -51,6 +51,7 @@ import (
 	"playersense.dev/backend/internal/query"
 	"playersense.dev/backend/internal/ratelimit"
 	"playersense.dev/backend/internal/routers"
+	"playersense.dev/backend/internal/suspension"
 	"playersense.dev/backend/internal/transport"
 	"playersense.dev/backend/internal/valkey"
 )
@@ -303,6 +304,10 @@ func build(settings config.Settings, overrides ...muzak.RouterOption) (*muzak.Ap
 		// running — §3.6's whole point.
 		muzak.WithSingleton(bus),
 		muzak.WithSingleton(sender),
+
+		// Which organizations may not ingest until they pay (ADR 0043), read from Valkey and
+		// remembered for seconds; never PostgreSQL on the ingestion path.
+		muzak.WithSingleton(&suspension.Gate{Cache: cache}),
 
 		// Stripe, or a stand-in that refuses with "not configured" when there is no key.
 		muzak.WithSingleton(payments.New(settings.StripeSecretKey)),

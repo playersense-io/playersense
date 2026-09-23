@@ -9,6 +9,7 @@ import (
 
 	"playersense.dev/backend/internal/eventbus"
 	"playersense.dev/backend/internal/pgdb"
+	"playersense.dev/backend/internal/suspension"
 	"playersense.dev/backend/internal/valkey"
 )
 
@@ -56,6 +57,13 @@ type Service struct {
 	TopUpEvery      time.Duration
 	TopUpSweepEvery time.Duration
 
+	// Suspend moves accounts past their grace period or credit limit to suspended, and publishes
+	// which accounts are suspended to the ingestion path (suspension.Job, ADR 0043).
+	Suspend interface {
+		Run(context.Context) (suspension.Result, error)
+	}
+	SuspendEvery time.Duration
+
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
 }
@@ -88,7 +96,7 @@ func (s *Service) Start(startup context.Context) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	s.cancel = cancel
 
-	s.wg.Add(5)
+	s.wg.Add(6)
 	go func() {
 		defer s.wg.Done()
 		if err := s.Bus.Subscribe(ctx, eventbus.GroupBillingWriter, s.Accruer.Handle); err != nil && ctx.Err() == nil {
@@ -123,6 +131,17 @@ func (s *Service) Start(startup context.Context) error {
 		s.every(ctx, s.TopUpSweepEvery, func(ctx context.Context) {
 			if _, err := s.TopUp.Sweep(ctx); err != nil && ctx.Err() == nil {
 				s.log().Warn("an automatic top-up sweep did not finish", "error", err)
+			}
+		})
+	}()
+	go func() {
+		defer s.wg.Done()
+		if s.Suspend == nil || s.SuspendEvery <= 0 {
+			return
+		}
+		s.every(ctx, s.SuspendEvery, func(ctx context.Context) {
+			if _, err := s.Suspend.Run(ctx); err != nil && ctx.Err() == nil {
+				s.log().Warn("a suspension pass did not finish", "error", err)
 			}
 		})
 	}()
