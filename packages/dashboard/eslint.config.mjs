@@ -29,7 +29,7 @@ export default createConfigForNuxt({
       // Components' own scoped classes (BEM, `block__element--modifier`) and the `ps-`
       // hooks theme.css styles are not Tailwind's to know about.
       'better-tailwindcss/no-unknown-classes': ['error', {
-        ignore: ['^ps-', '__', '--', '^(action|data-table|tag|record|segmented|statistic|search-field|settings-tab|metric-chart|metric-key|metric-skeleton)$']
+        ignore: ['^ps-', '__', '--', '^(action|data-table|tag|record|segmented|statistic|search-field|settings-tab|metric-chart|metric-key|metric-skeleton|cohort-table|cohort-grid)$']
       }]
     }
   },
