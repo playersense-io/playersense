@@ -71,6 +71,10 @@ export default defineNuxtConfig({
       // Material Symbols set is installed by app/plugins/vuetify-icons.ts.
       icons: { defaultSet: 'custom' },
 
+      // Labs components the dashboards use, named rather than `true` so the bundle
+      // carries these and none of the rest: VHeatmap draws the week grid on Sessions.
+      labComponents: ['VHeatmap'],
+
       // Every action is a text button, which has no fill of its own to change under a
       // finger; without the ripple a tap leaves only a hover overlay that looks stuck.
       defaults: { global: { ripple: true } },

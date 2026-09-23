@@ -14,7 +14,7 @@ export const NAV = defineNavigation({
         children: [
           { title: 'Events', to: '/analytics/events' },
           { title: 'Players', to: '/analytics/players' },
-          { title: 'Sessions', to: '/sessions' }
+          { title: 'Sessions', to: '/analytics/sessions' }
         ]
       },
       {
