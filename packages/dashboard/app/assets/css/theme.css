@@ -203,6 +203,15 @@
 }
 
 /*
+ * A textarea is the one field that is several lines tall, so the padding zeroed above for a
+ * single line — where the height centres the text — is given back: without it the first line
+ * sits against the top edge and the last against the bottom.
+ */
+.v-textarea .v-field__input {
+  padding-block: 10px;
+}
+
+/*
  * A switch or a checkbox carries its label beside it, the one label in the panel that is
  * not above its field, and Vuetify sets it at 16px: bigger than the value in any field
  * next to it. It takes the control's own size, so a switch under a row of fields reads as

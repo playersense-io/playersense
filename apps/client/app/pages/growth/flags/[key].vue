@@ -143,7 +143,19 @@ const history = computed(() => audit.value.filter((entry) => {
 
 const TAG_OPTIONS = computed(() => [...new Set(flags.value.flatMap(flag => flag.tags))].sort())
 
-const PURPOSE_ITEMS = (Object.keys(FLAG_PURPOSES) as FlagPurpose[]).map(value => ({ value, title: FLAG_PURPOSES[value].label, subtitle: FLAG_PURPOSES[value].note }))
+const PURPOSE_OPTIONS: ChoiceOption[] = (Object.keys(FLAG_PURPOSES) as FlagPurpose[]).map(value => ({
+  value,
+  label: FLAG_PURPOSES[value].label,
+  note: FLAG_PURPOSES[value].note,
+  icon: FLAG_PURPOSES[value].icon
+}))
+
+const purpose = computed({
+  get: () => draft.value?.purpose ?? null,
+  set: (value: string | null) => {
+    if (value) patch({ purpose: value as FlagPurpose })
+  }
+})
 
 const reshuffling = ref(false)
 
@@ -421,76 +433,69 @@ const changeCount = computed(() => {
       </SectionCard>
 
       <div v-else class="flex flex-col gap-5">
+        <!-- A plain form, one field under another at the card's width, each with its label
+             above and one line on what it is for. -->
         <SectionCard description="Kept with the flag in the draft. None of it changes what a player receives." title="About this flag">
-          <div class="flex flex-col divide-y divide-line">
-            <SettingRow description="What the flag is called on every screen." label="Name">
+          <div class="flex max-w-3xl flex-col gap-6">
+            <div class="flex flex-col gap-1.5">
+              <label class="text-xs font-medium text-ink" for="flag-name">Name</label>
               <v-text-field
+                id="flag-name"
                 :model-value="draft.name"
-                aria-label="Name"
-                class="w-72"
                 hide-details
                 maxlength="120"
                 variant="outlined"
                 @update:model-value="patch({ name: $event })"
               />
-            </SettingRow>
-            <SettingRow label="Description">
-              <template #detail>
-                <v-textarea
-                  :model-value="draft.description"
-                  aria-label="Description"
-                  auto-grow
-                  hide-details
-                  maxlength="500"
-                  rows="2"
-                  variant="outlined"
-                  @update:model-value="patch({ description: $event })"
-                />
-              </template>
-            </SettingRow>
-            <SettingRow :description="FLAG_PURPOSES[draft.purpose].note" label="Purpose">
-              <v-select
-                :items="PURPOSE_ITEMS"
-                v-bind="FIELD_MENU"
-                :model-value="draft.purpose"
-                aria-label="Purpose"
-                class="w-64"
+            </div>
+
+            <div class="flex flex-col gap-1.5">
+              <label class="text-xs font-medium text-ink" for="flag-description">Description</label>
+              <v-textarea
+                id="flag-description"
+                :model-value="draft.description"
+                auto-grow
                 hide-details
-                item-props
+                maxlength="500"
+                placeholder="What it changes in the game, and who to ask about it"
+                rows="4"
                 variant="outlined"
-                @update:model-value="patch({ purpose: $event })"
+                @update:model-value="patch({ description: $event })"
               />
-            </SettingRow>
-            <SettingRow description="For finding and filtering flags: a team, a system, a release." label="Tags">
-              <template #detail>
-                <v-combobox
-                  :items="TAG_OPTIONS"
-                  v-bind="FIELD_MENU"
-                  :model-value="draft.tags"
-                  aria-label="Tags"
-                  chips
-                  closable-chips
-                  hide-details
-                  multiple
-                  placeholder="economy, store…"
-                  variant="outlined"
-                  @update:model-value="patch({ tags: [...new Set(($event as string[]).map(tag => tag.trim().toLowerCase()).filter(Boolean))] })"
-                />
-              </template>
-            </SettingRow>
-            <SettingRow
-              description="Currency, items, discounts or paid content. Rules reading a key the game client sets are then warned about, since a modified client can send any value."
-              label="Grants value to players"
-            >
-              <v-switch
+            </div>
+
+            <div class="flex flex-col gap-1.5">
+              <span class="text-xs font-medium text-ink">Purpose</span>
+              <span class="text-[11px] leading-4 text-ink/55">Decides when the list says it is time to clean up.</span>
+              <ChoiceList
+                v-model="purpose"
+                :columns="2"
+                :options="PURPOSE_OPTIONS"
+                class="mt-1"
+                label="Purpose"
+              />
+            </div>
+
+            <div class="flex flex-col gap-1.5">
+              <span class="text-xs font-medium text-ink">Tags</span>
+              <span class="text-[11px] leading-4 text-ink/55">For finding and filtering flags: a team, a system, a release.</span>
+              <TagInput
+                :model-value="draft.tags"
+                :suggestions="TAG_OPTIONS"
+                class="mt-1"
+                label="Add a tag"
+                @update:model-value="patch({ tags: $event })"
+              />
+            </div>
+
+            <div class="rounded-(--ps-radius-large) border border-line p-4">
+              <SwitchRow
                 :model-value="draft.grantsValue"
-                aria-label="Grants value to players"
-                color="primary"
-                hide-details
-                inset
-                @update:model-value="patch({ grantsValue: Boolean($event) })"
+                label="Grants value to players"
+                note="Currency, items, discounts or paid content. Rules reading a key the game client sets are then warned about, since a modified client can send any value."
+                @update:model-value="patch({ grantsValue: $event })"
               />
-            </SettingRow>
+            </div>
           </div>
         </SectionCard>
 

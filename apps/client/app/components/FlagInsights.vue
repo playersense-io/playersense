@@ -33,8 +33,7 @@ const series = computed<MetricSeries[]>(() => (data.value?.lines ?? []).map((lin
   // A JSON value is its size, which tells two documents apart no better than the rule that served them.
   name: line.source === 'default' ? 'Game default' : line.value !== null && typeof line.value === 'object' ? line.label : `${writeValue(line.value)} · ${line.label}`,
   data: line.daily,
-  type: 'bar',
-  stack: 'values',
+  type: 'line',
   tone: line.source === 'default' ? 'muted' : ((index % 6) + 1) as MetricTone
 })))
 
@@ -112,7 +111,7 @@ const readByNobody = computed(() => data.value !== null && data.value.exposures 
         compact
         description="Each value served, by the rule that served it, and the reads that used the game's own default."
         title="Served, day by day"
-        type="bar"
+        type="line"
       />
 
       <SectionCard v-if="!readByNobody" description="Every value, over the whole range." title="By value">

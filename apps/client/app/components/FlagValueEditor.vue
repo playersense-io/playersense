@@ -179,6 +179,5 @@ const lines = computed(() => Math.min(14, Math.max(4, text.value.split('\n').len
 
 .ps-flag-value-editor--json :deep(textarea) {
   line-height: 18px;
-  padding-block: 10px;
 }
 </style>
