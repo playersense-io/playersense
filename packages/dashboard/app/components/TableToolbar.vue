@@ -30,6 +30,7 @@ const emit = defineEmits<{
             text-ink
           "
         >
+          <SegmentMark v-if="filter.mark" :mark="filter.mark" :size="12" />
           <span class="truncate">{{ filter.label }}</span>
           <button
             :aria-label="`Remove ${filter.label}`"

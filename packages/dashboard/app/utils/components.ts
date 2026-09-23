@@ -107,15 +107,28 @@ export interface SegmentedOption {
   disabled?: boolean
 }
 
-/** One group of choices in a `FilterMenu`: "Category", with its values. */
+/** One group of choices in a `FilterMenu` or `FilterDialog`: "Category", with its values. */
 export interface FilterGroup {
   key: string
   label: string
-  options: readonly { value: string, label: string }[]
+  options: readonly FilterOption[]
+  /** What one value is called, for the dialog's search: "country". The label, lowered, when absent. */
+  noun?: string
+}
+
+export interface FilterOption {
+  value: string
+  label: string
+  /** A quieter word after the label: a country's code, a share of installs. */
+  note?: string
+  /** A flag or a platform's mark, drawn before the label. */
+  mark?: SegmentMarkValue
 }
 
 /** A filter in force, as a `TableToolbar` chip. `key` is what removing it hands back. */
 export interface ActiveFilter {
   key: string
   label: string
+  /** A flag or a platform's mark, before the label. */
+  mark?: SegmentMarkValue
 }
