@@ -380,7 +380,7 @@ const hasTicksInView = (bar: Bar) => bar.ticks?.some((tick) => {
     </div>
 
     <div :class="fullscreen ? 'min-h-0 flex-1 overflow-auto' : 'overflow-x-auto'">
-      <div :class="compact ? 'min-w-[1100px]' : 'min-w-[900px]'" class="relative">
+      <div :class="[compact ? 'min-w-[1100px]' : 'min-w-[900px]', fullscreen ? 'flex min-h-full flex-col' : '']" class="relative">
         <!-- The days. -->
         <div class="flex border-b border-line">
           <div class="w-11 flex-none" />
@@ -428,8 +428,8 @@ const hasTicksInView = (bar: Bar) => bar.ticks?.some((tick) => {
           </div>
         </template>
 
-        <!-- The bands. -->
-        <div class="relative">
+        <!-- The bands. Full screen, they reach the foot of the window, the days running on below them. -->
+        <div :class="fullscreen ? 'flex flex-1 flex-col' : ''" class="relative">
           <span
             v-if="nowAt > 0 && nowAt < 1"
             :style="{ left: `calc(2.75rem + (100% - 2.75rem) * ${nowAt})` }"
@@ -562,6 +562,18 @@ const hasTicksInView = (bar: Bar) => bar.ticks?.some((tick) => {
           <p v-if="!bands.length" class="m-0 py-12 text-center text-xs text-ink/50">
             Nothing is scheduled in these days.
           </p>
+
+          <div v-if="fullscreen" aria-hidden="true" class="flex flex-1">
+            <div class="w-11 flex-none border-r border-line/60" />
+            <div :style="columns" class="grid flex-1">
+              <span
+                v-for="day in days"
+                :key="day.at"
+                :class="day.weekend ? 'bg-warning/6' : ''"
+                class="border-l border-line/60"
+              />
+            </div>
+          </div>
         </div>
       </div>
     </div>
