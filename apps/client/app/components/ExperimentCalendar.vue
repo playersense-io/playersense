@@ -221,16 +221,11 @@ const STRIP: { key: string, icon: string, label: string, tone: string, value: (t
               v-for="day in days"
               :key="day.at"
               :class="[day.weekend ? 'bg-warning/6' : '', day.today ? 'text-primary' : 'text-ink']"
-              class="flex flex-col items-center justify-center gap-0.5 border-l border-line/60 py-3"
+              class="flex items-baseline justify-center gap-1 border-l border-line/60 py-1.5"
             >
-              <span :class="compact ? 'text-xs' : 'text-base'" class="leading-5 font-medium">{{ day.day }}</span>
+              <span :class="compact ? 'text-xs' : 'text-sm'" class="font-medium">{{ day.day }}</span>
               <span v-if="!compact" class="text-[10px] tracking-wide text-ink/45 uppercase">{{ day.weekday }}</span>
             </div>
-            <span
-              v-if="nowAt > 0 && nowAt < 1"
-              :style="{ left: `${nowAt * 100}%` }"
-              class="absolute -bottom-2 z-10 -translate-x-1/2 rounded-(--ps-radius-x-small) bg-ink px-1.5 font-mono text-[10px] leading-4 text-surface"
-            >{{ now.toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit' }) }}</span>
           </div>
         </div>
 
