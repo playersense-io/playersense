@@ -626,9 +626,15 @@ const GLYPH_CLASS = { up: 'cohort-card__glyph--up', down: 'cohort-card__glyph--d
     8px 0 8px -8px rgba(0, 0, 0, 0.2);
 }
 
+/* A long segment name — United Kingdom — ends in an ellipsis rather than under the size. */
 .cohort-grid__name {
   display: inline-block;
   font-size: 0.75rem;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+  white-space: nowrap;
 }
 
 .cohort-grid__weekday {

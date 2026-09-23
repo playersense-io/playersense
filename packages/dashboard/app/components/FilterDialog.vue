@@ -22,6 +22,7 @@ const props = defineProps<{
 const model = defineModel<Record<string, string[]>>({ required: true })
 
 const open = ref(false)
+const field = useTemplateRef<{ focus: () => void }>('field')
 const draft = ref<Record<string, string[]>>({})
 const current = ref(props.groups[0]?.key ?? '')
 const search = ref<string | null>('')
@@ -35,8 +36,10 @@ watch(open, (value) => {
   search.value = ''
 })
 
+// Another group is another search: cleared, and ready to type into again.
 watch(current, () => {
   search.value = ''
+  void nextTick(() => field.value?.focus())
 })
 
 const group = computed(() => props.groups.find(entry => entry.key === current.value) ?? props.groups[0])
@@ -81,8 +84,6 @@ function apply() {
   model.value = draft.value
   open.value = false
 }
-
-const field = useTemplateRef<{ focus: () => void }>('field')
 </script>
 
 <template>
