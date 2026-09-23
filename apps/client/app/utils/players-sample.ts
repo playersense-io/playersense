@@ -177,7 +177,9 @@ export interface PlayerDetail {
   player: PlayerSummary
   /** The last 30 days, oldest first; days the player did not play are zero. */
   days: { at: number, sessions: number, playtimeMs: number, events: number, revenueMicros: number, purchases: number }[]
-  recent: { at: number, name: string, payload: Record<string, string | number> }[]
+  /** Newest first. `requestId` is the ingestion request the event arrived in: the SDK
+      sends events in batches, so neighbours share one. */
+  recent: { at: number, requestId: string, name: string, payload: Record<string, string | number> }[]
 }
 
 const EVENT_NAMES = ['level_complete', 'ad_impression', 'currency_spend', 'item_equip', 'match_end', 'session_start']
@@ -205,7 +207,9 @@ export function samplePlayerDetail(id: string): PlayerDetail | null {
     }
   })
 
-  const recent = Array.from({ length: 10 }, (_, index) => {
+  let requestId = ''
+  const recent = Array.from({ length: 30 }, (_, index) => {
+    if (index === 0 || random() < 0.3) requestId = `${hex(random, 8)}-${hex(random, 4)}-4${hex(random, 3)}-${hex(random, 4)}-${hex(random, 12)}`
     const name = EVENT_NAMES[Math.floor(random() * EVENT_NAMES.length)]!
     const payload: Record<string, string | number> = name === 'level_complete'
       ? { level: 10 + Math.floor(random() * 30), result: random() < 0.6 ? 'win' : 'loss' }
@@ -218,7 +222,7 @@ export function samplePlayerDetail(id: string): PlayerDetail | null {
             : name === 'match_end'
               ? { mode: 'ranked', placement: 1 + Math.floor(random() * 4) }
               : { entry_point: 'app_icon' }
-    return { at: player.lastSeen - Math.round((index * 2.5 + random()) * 60_000), name, payload }
+    return { at: player.lastSeen - Math.round((index * 2.5 + random()) * 60_000), requestId, name, payload }
   })
 
   return { player, days, recent }

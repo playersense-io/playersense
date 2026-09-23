@@ -21,7 +21,6 @@ const money = (value: number) => `$${writeFigure(value, { format: 'money' })}`
 const hours = (ms: number) => `${writeFigure(ms / 3_600_000, { decimals: 1 })} h`
 
 const date = new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric', year: 'numeric' })
-const dateTime = new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })
 
 /** "12m ago", "5h ago", "3d ago". */
 function ago(at: number): string {
@@ -41,7 +40,7 @@ const facts = computed<Fact[]>(() => {
   return [
     { key: 'id', label: player.identifiedBy === 'actor_key' ? 'Player ID' : 'Install ID', value: player.id, mono: true, copy: player.id },
     { key: 'first', label: 'First seen', value: date.format(player.firstSeen), note: ago(player.firstSeen) },
-    { key: 'last', label: 'Last seen', value: dateTime.format(player.lastSeen), note: ago(player.lastSeen) },
+    { key: 'last', label: 'Last seen', value: formatTimestamp(player.lastSeen), note: ago(player.lastSeen) },
     { key: 'platform', label: 'Platform', value: player.platform, note: `App ${player.version}` },
     { key: 'country', label: 'Country', value: player.country },
     { key: 'source', label: 'Acquisition', value: player.source, info: 'Where the player came from, as reported with their first attributed event.' }
@@ -113,10 +112,12 @@ type Occurrence = NonNullable<typeof detail.value>['recent'][number]
 const EVENT_COLUMNS: DataTableColumn<Occurrence>[] = [
   { key: 'at', title: 'Time', fixed: true, mono: true },
   { key: 'name', title: 'Event', mono: true },
+  { key: 'requestId', title: 'Request ID', mono: true },
   { key: 'payload', title: 'Properties', mono: true, sortable: false }
 ]
 
 const eventColumns = ref(defaultColumnState(EVENT_COLUMNS))
+const eventsPerPage = ref(10)
 </script>
 
 <template>
@@ -181,14 +182,20 @@ const eventColumns = ref(defaultColumnState(EVENT_COLUMNS))
       <SectionCard :padded="false" description="What the player did last, with what each event carried." title="Latest events">
         <DataTable
           v-model:column-state="eventColumns"
+          v-model:items-per-page="eventsPerPage"
           :columns="EVENT_COLUMNS"
           :items="detail.recent"
-          :paged="false"
           item-value="at"
           label="Latest events"
         >
           <template #cell.at="{ item }">
-            {{ dateTime.format(item.at) }}
+            <span class="font-mono">{{ formatTimestamp(item.at) }}</span>
+          </template>
+          <template #cell.requestId="{ item }">
+            <span class="inline-flex items-center gap-1 font-mono text-ink/70">
+              {{ item.requestId }}
+              <CopyButton :value="item.requestId" label="Copy the request ID" />
+            </span>
           </template>
           <template #cell.name="{ item }">
             <NuxtLink

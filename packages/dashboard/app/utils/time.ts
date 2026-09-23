@@ -57,6 +57,11 @@ export function formatDateTime(iso: string): string {
   return dayjs(iso).format('MMM D, YYYY, HH:mm')
 }
 
+/** "09.09.2026 14:03": day first, dotted, twenty-four hour — the stamp on a row of a log. */
+export function formatTimestamp(at: number | string): string {
+  return dayjs(at).format('DD.MM.YYYY HH:mm')
+}
+
 /** "Sep 9, 2026". */
 export function formatDate(iso: string): string {
   return dayjs(iso).format('MMM D, YYYY')
