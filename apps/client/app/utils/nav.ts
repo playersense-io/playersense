@@ -13,7 +13,7 @@ export const NAV = defineNavigation({
         icon: 'material-symbols:analytics-outline',
         children: [
           { title: 'Events', to: '/analytics/events' },
-          { title: 'Players', to: '/players' },
+          { title: 'Players', to: '/analytics/players' },
           { title: 'Sessions', to: '/sessions' }
         ]
       },
