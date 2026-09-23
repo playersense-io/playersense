@@ -16,6 +16,12 @@
  */
 @import "tailwindcss/utilities.css";
 
+/*
+ * `dark:` follows the theme Vuetify is drawing, not `prefers-color-scheme`: the toggle in
+ * the bar can disagree with the operating system, and Vuetify marks its root either way.
+ */
+@custom-variant dark (&:where(.v-theme--dark, .v-theme--dark *));
+
 /* This layer's own components. */
 @source "../../";
 

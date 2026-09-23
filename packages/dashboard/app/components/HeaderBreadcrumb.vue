@@ -40,10 +40,12 @@ function hrefOf(crumb: Crumb, index: number): string | undefined {
           aria-label="Overview"
           class="
             flex size-7 items-center justify-center rounded-(--ps-radius-small) bg-ink
-            text-canvas no-underline transition-opacity duration-150
+            text-canvas no-underline transition-[background-color,opacity] duration-150
             [&>svg]:text-canvas
             hover:opacity-85
             focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary
+            dark:bg-ink/5 dark:text-ink dark:hover:bg-ink/10 dark:hover:opacity-100
+            dark:[&>svg]:text-ink
           "
           to="/"
         >
