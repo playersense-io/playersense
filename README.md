@@ -286,6 +286,13 @@ curl -X PUT localhost:21080/v1/operator/plans/enterprise/subscription -H "Author
 Enterprise charges players only once it has a rate card of its own — publish one, the same as Free's or
 different.
 
+**Owing is tolerated, within bounds** ([ADR 0043](docs/adr/0043-a-bounded-tolerance-for-accounts-that-owe.md)).
+An account that owes keeps ingesting for `BILLING_GRACE_PERIOD` (7 days), or until it owes its credit
+limit — 25% of its last 30 days' usage, never below a $50 floor or its plan's `credit_limit_micros` —
+whichever comes first. Then its SDK batches are answered 429 with `Retry-After`, which the SDK keeps
+them for, until it pays; paying lets it back in within about half a minute. Staff can set an exact limit
+for one organization with `PUT /v1/operator/organizations/{org}/credit-limit`.
+
 `is_default` is the plan every new organization is put on. With no default plan, organizations get no
 billing account and `billing-writer` warns that their players are not being billed. The included
 players are free and still hold positions: with 10,000 included, player 100,001 is still in the

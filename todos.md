@@ -211,6 +211,10 @@ status/legal links, signup/login entry. **Must not contain privileged admin logi
       returned `url`; "Manage cards" is `POST …/billing/portal` → redirect likewise. On return
       (`?checkout=success`) do **not** show the credit as arrived — poll `GET …/billing` for a few
       seconds until the webhook's lot appears, and say "payment received, crediting…" meanwhile.
+      Owing (ADR 0043): while `state` is `grace_period`, show a banner with the debt and
+      `suspends_at`, and the credit limit (`credit_limit_micros`, `credit_limit_source`); when
+      `suspended`, say plainly that new data is not being accepted and that paying resumes it —
+      and that players' events are waiting on their devices for up to seven days.
       Plan (ADR 0042): show the plan, its features and `subscription` (status, interval,
       period_end, cancel_at_period_end); "Upgrade to Enterprise" is `POST …/billing/subscription`
       with `month` or `year` → redirect; "Manage subscription" is the portal. Read Enterprise's
@@ -302,6 +306,8 @@ frontend-only, and do the staff-identity item first — everything else depends 
 - [ ] Entitlement overrides.
 - [ ] Billing inspection (can likely reuse the billing routes under staff scope
       once that exists, rather than the member scope `client` uses).
+- [ ] **Credit limit per organization** (ADR 0043): show the effective limit and its source, with a
+      field over `PUT /v1/operator/organizations/{org}/credit-limit` to set or clear an override.
 - [ ] **Plan features and subscription prices** (ADR 0042): a features checklist on the plan form
       (`PUT /v1/operator/plans/{plan}`) and monthly/yearly price fields
       (`PUT /v1/operator/plans/{plan}/subscription`), with a note that a changed price applies to new
@@ -367,9 +373,10 @@ Track alongside the frontend work above; none of it blocks `landing`, but most o
       taken back (never promo credit) and restored when a refund fails or a dispute is won. Still
       open: tax (Stripe Tax, once registrations exist), credit notes on refunds, failure emails,
       and the live-mode portal configuration in Stripe's dashboard. Every top-up is invoiced.
-- [ ] Decide what happens after the grace period (§40.1): how long `grace_period` lasts, what
-      `restricted` restricts, and what cancellation does to retained data. Nothing escalates past
-      `grace_period` automatically until this is decided.
+- [x] ~~Decide what happens after the grace period~~ — decided and built (ADR 0043): 7 days, or
+      the credit limit (25% of 30-day usage, $50 floor, per-organization override), then ingestion is
+      answered 429 until the account pays. Still open: what cancellation does to retained data, and
+      whether `restricted` (a dashboard lock) is ever wanted.
 - [ ] Enterprise features — premium Slack support, the daily Slack report builder, the MCP server —
       each gated on `billing.HasFeature(plan.Features, …)` (ADR 0042).
 - [ ] Realtime metrics endpoint — confirm scope before `client`'s Realtime page is built.
@@ -387,8 +394,9 @@ charge, 3 a day), refunds and disputes taken back, and an invoice for every top-
 - [ ] **Tax.** Stripe Tax is off until tax registrations exist. Turning it on does not change the
       top-up flow: Checkout and the automatic-top-up invoices both take `automatic_tax`.
 - [ ] **Credit notes.** A refunded top-up's invoice stays "paid"; no credit note is issued against it.
-- [ ] **Failure emails.** A declined automatic top-up and the daily limit only show on the billing
-      page (`auto_topup.last_error`). Nobody is emailed, so an account can sit in arrears unnoticed;
+- [ ] **Failure emails.** A declined automatic top-up, the daily limit, entering the grace period
+      and suspension (ADR 0043) only show on the billing page (`auto_topup.last_error`, `state`,
+      `suspends_at`). Nobody is emailed, so an account can sit in arrears unnoticed;
       and a card that needs 3-D Secure has no flow that sends the customer to confirm it.
 - [ ] **Stripe customer sync.** Renaming an organization or changing its billing email does not update
       its Stripe customer; a customer deleted in Stripe's Dashboard leaves a stale pointer.
