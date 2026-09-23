@@ -137,9 +137,9 @@ function clearFilters() {
 }
 
 const COLUMNS: DataTableColumn<PlayerSummary>[] = [
-  { key: 'id', title: 'Player', fixed: true, minWidth: 240 },
+  { key: 'id', title: 'Player', fixed: true, minWidth: 220 },
   { key: 'status', title: 'Status', value: player => PLAYER_STATUS_LABELS[player.status] },
-  { key: 'platform', title: 'Platform' },
+  { key: 'platform', title: 'Platform', hidden: true },
   { key: 'country', title: 'Country' },
   { key: 'source', title: 'Acquisition', hidden: true },
   { key: 'firstSeen', title: 'First seen', mono: true },
@@ -152,7 +152,7 @@ const COLUMNS: DataTableColumn<PlayerSummary>[] = [
 
 const columns = ref(defaultColumnState(COLUMNS))
 const sortBy = ref<DataTableSort[]>([{ key: 'lastSeen', order: 'desc' }])
-const perPage = ref(25)
+const perPage = ref(10)
 
 const STATUS_TONES: Record<PlayerStatus, BadgeTone> = { active: 'success', lapsed: 'warning', churned: 'neutral' }
 
@@ -167,6 +167,16 @@ function ago(at: number): string {
 }
 
 const hours = (ms: number) => `${writeFigure(ms / 3_600_000, { decimals: 1 })} h`
+
+// Written out so @nuxt/icon bundles them.
+const PLATFORM_ICONS: Record<string, string> = {
+  iOS: 'material-symbols:phone-iphone',
+  Android: 'material-symbols:android',
+  Steam: 'material-symbols:desktop-windows-outline'
+}
+
+/** An install UUID shortened in the middle, where it is least read: "1a55f872…27ce7". */
+const shortId = (id: string) => (id.length > 16 ? `${id.slice(0, 8)}…${id.slice(-5)}` : id)
 </script>
 
 <template>
@@ -234,17 +244,30 @@ const hours = (ms: number) => `${writeFigure(ms / 3_600_000, { decimals: 1 })} h
       >
         <template #cell.id="{ item }">
           <NuxtLink
+            :title="item.id"
             :to="`/analytics/players/${item.id}`"
-            class="group flex min-w-0 flex-col no-underline"
+            class="group flex min-w-0 items-center gap-3 no-underline"
           >
             <span
+              aria-hidden="true"
               class="
-                truncate font-mono text-[13px] text-ink transition-colors
-                group-hover:text-primary
+                flex size-8 flex-none items-center justify-center rounded-(--ps-radius) bg-ink/5
+                text-ink/60 transition-colors
+                group-hover:bg-primary/10 group-hover:text-primary
               "
-            >{{ item.id }}</span>
-            <span class="text-xs text-ink/55">
-              {{ item.identifiedBy === 'actor_key' ? 'Player ID' : 'Install ID' }}
+            >
+              <Icon :name="PLATFORM_ICONS[item.platform] ?? 'material-symbols:sports-esports-outline'" class="text-base" />
+            </span>
+            <span class="flex min-w-0 flex-col">
+              <span
+                class="
+                  truncate font-mono text-[13px] leading-5 text-ink transition-colors
+                  group-hover:text-primary
+                "
+              >{{ shortId(item.id) }}</span>
+              <span class="truncate text-[11px] leading-4 text-ink/50">
+                {{ item.identifiedBy === 'actor_key' ? 'Player ID' : 'Install ID' }} · {{ item.platform }}
+              </span>
             </span>
           </NuxtLink>
         </template>

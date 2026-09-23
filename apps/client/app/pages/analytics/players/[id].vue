@@ -153,63 +153,61 @@ const eventColumns = ref(defaultColumnState(EVENT_COLUMNS))
         category-label="Day"
       />
 
-      <div class="grid gap-4 xl:grid-cols-2">
-        <SectionCard :padded="false" description="The days they played in the last 30, latest first." title="Days played">
-          <DataTable
-            v-model:column-state="dayColumns"
-            v-model:items-per-page="daysPerPage"
-            :columns="DAY_COLUMNS"
-            :items="playedDays"
-            empty-description="No sessions in the last 30 days."
-            empty-title="Nothing recent."
-            item-value="at"
-            label="Days played"
-          >
-            <template #cell.at="{ item }">
-              {{ dayTick.format(item.at) }}
-            </template>
-            <template #cell.playtimeMs="{ item }">
-              {{ writeFigure(item.playtimeMs / 60_000, { decimals: 0 }) }} min
-            </template>
-            <template #cell.revenueMicros="{ item }">
-              <span :class="item.revenueMicros ? 'text-ink' : 'text-ink/40'">
-                {{ money(item.revenueMicros / 1_000_000) }}
-              </span>
-            </template>
-          </DataTable>
-        </SectionCard>
+      <SectionCard :padded="false" description="The days they played in the last 30, latest first." title="Days played">
+        <DataTable
+          v-model:column-state="dayColumns"
+          v-model:items-per-page="daysPerPage"
+          :columns="DAY_COLUMNS"
+          :items="playedDays"
+          empty-description="No sessions in the last 30 days."
+          empty-title="Nothing recent."
+          item-value="at"
+          label="Days played"
+        >
+          <template #cell.at="{ item }">
+            {{ dayTick.format(item.at) }}
+          </template>
+          <template #cell.playtimeMs="{ item }">
+            {{ writeFigure(item.playtimeMs / 60_000, { decimals: 0 }) }} min
+          </template>
+          <template #cell.revenueMicros="{ item }">
+            <span :class="item.revenueMicros ? 'text-ink' : 'text-ink/40'">
+              {{ money(item.revenueMicros / 1_000_000) }}
+            </span>
+          </template>
+        </DataTable>
+      </SectionCard>
 
-        <SectionCard :padded="false" description="What the player did last, with what each event carried." title="Latest events">
-          <DataTable
-            v-model:column-state="eventColumns"
-            :columns="EVENT_COLUMNS"
-            :items="detail.recent"
-            :paged="false"
-            item-value="at"
-            label="Latest events"
-          >
-            <template #cell.at="{ item }">
-              {{ dateTime.format(item.at) }}
-            </template>
-            <template #cell.name="{ item }">
-              <NuxtLink
-                :to="`/analytics/events/${item.name}`"
-                class="
-                  text-ink no-underline
-                  hover:text-primary
-                "
-              >
-                {{ item.name }}
-              </NuxtLink>
-            </template>
-            <template #cell.payload="{ item }">
-              <span :title="JSON.stringify(item.payload, null, 2)" class="text-ink/70">
-                {{ JSON.stringify(item.payload) }}
-              </span>
-            </template>
-          </DataTable>
-        </SectionCard>
-      </div>
+      <SectionCard :padded="false" description="What the player did last, with what each event carried." title="Latest events">
+        <DataTable
+          v-model:column-state="eventColumns"
+          :columns="EVENT_COLUMNS"
+          :items="detail.recent"
+          :paged="false"
+          item-value="at"
+          label="Latest events"
+        >
+          <template #cell.at="{ item }">
+            {{ dateTime.format(item.at) }}
+          </template>
+          <template #cell.name="{ item }">
+            <NuxtLink
+              :to="`/analytics/events/${item.name}`"
+              class="
+                text-ink no-underline
+                hover:text-primary
+              "
+            >
+              {{ item.name }}
+            </NuxtLink>
+          </template>
+          <template #cell.payload="{ item }">
+            <span :title="JSON.stringify(item.payload, null, 2)" class="text-ink/70">
+              {{ JSON.stringify(item.payload) }}
+            </span>
+          </template>
+        </DataTable>
+      </SectionCard>
     </template>
 
     <SectionCard v-else :padded="false" title="Players">
