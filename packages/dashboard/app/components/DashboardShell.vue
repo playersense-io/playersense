@@ -7,15 +7,11 @@
 // The drawer is declared before the bar because Vuetify's layout gives each edge to the
 // component that registered first: this way the drawer owns the left edge top to bottom
 // and the bar starts where it ends.
-const props = withDefaults(defineProps<{
+const props = defineProps<{
   navigation: DashboardNavigation
   /** Suffix of every tab title: "Players · PlayerSense". */
   product: string
-  /** The breadcrumb's first crumb, when the app has a scope above its screens. */
-  root?: Crumb
-}>(), {
-  root: undefined
-})
+}>()
 
 provide(NAVIGATION_KEY, props.navigation)
 
@@ -121,7 +117,7 @@ watch(() => route.path, () => {
           class="-ml-2"
           @click="open = !open"
         />
-        <HeaderBreadcrumb :root="root" />
+        <HeaderBreadcrumb />
         <!-- The app's own actions; the theme toggle alone when it has none. An app that
              fills the slot places the toggle itself. -->
         <div class="flex items-center gap-1">

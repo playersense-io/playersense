@@ -4,7 +4,7 @@ const organization = 'Acme Games'
 </script>
 
 <template>
-  <DashboardShell :navigation="NAV" :root="{ title: organization, to: '/' }" product="PlayerSense">
+  <DashboardShell :navigation="NAV" product="PlayerSense">
     <template #switcher="{ rail }">
       <SidebarOrganizationSwitcher :organization="organization" :rail="rail" />
     </template>
