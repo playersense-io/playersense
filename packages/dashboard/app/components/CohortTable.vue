@@ -42,6 +42,8 @@ const props = withDefaults(defineProps<{
   threshold: number
   /** What the table is, for a screen reader. */
   label?: string
+  /** The head of the first column: "Cohort", or the dimension segments are named by. */
+  rowLabel?: string
   /** The head of the size column. */
   sizeLabel?: string
   /** What a cohort is made of, in the card: "1,204 of 9,830 players". */
@@ -51,6 +53,7 @@ const props = withDefaults(defineProps<{
   color: 'heat',
   grain: 'day',
   label: 'Cohorts',
+  rowLabel: 'Cohort',
   sizeLabel: 'Players',
   unit: 'players',
   maxHeight: '34rem'
@@ -375,7 +378,7 @@ const GLYPH_CLASS = { up: 'cohort-card__glyph--up', down: 'cohort-card__glyph--d
         <thead>
           <tr class="cohort-grid__head">
             <th class="cohort-grid__label" scope="col">
-              Cohort
+              {{ rowLabel }}
             </th>
             <th class="cohort-grid__size" scope="col">
               {{ sizeLabel }}
