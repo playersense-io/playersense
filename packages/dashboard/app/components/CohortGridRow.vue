@@ -8,12 +8,15 @@
  * The table's stylesheet draws it: its classes are the table's, and it adds none.
  */
 import type { CohortDrawnCell } from '../utils/cohort-table'
+import type { SegmentMarkValue } from '../utils/components'
 
 defineProps<{
   /** The row's place in the grid: 1 is the newest cohort, under "All cohorts". */
   index: number
   cells: readonly CohortDrawnCell[]
   label: string
+  /** A country's flag or a platform's mark, for a row that is one. */
+  mark?: SegmentMarkValue
   /** "Tue", for a day's cohort; empty otherwise. */
   weekday: string
   size: string
@@ -29,7 +32,9 @@ defineProps<{
 <template>
   <tr>
     <th class="cohort-grid__label" scope="row">
-      <span class="cohort-grid__name">{{ label }}</span>
+      <span class="cohort-grid__name">
+        <SegmentMark v-if="mark" :mark="mark" class="mr-1.5" />{{ label }}
+      </span>
       <span v-if="weekday" class="cohort-grid__weekday">{{ weekday }}</span>
     </th>
     <td class="cohort-grid__size" :class="{ 'cohort-grid__size--withheld': withheldSize }">

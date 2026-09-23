@@ -47,8 +47,12 @@ export default defineNuxtConfig({
     fallbackToApi: false,
     serverBundle: false,
     // Every layer's app/ is scanned; .ts is not by default, and nav trees and the Vuetify
-    // alias map are .ts.
-    clientBundle: { scan: { globInclude: ['app/**/*.{vue,ts}'] } }
+    // alias map are .ts. The scan only knows the collections in its own list, and
+    // selfhst is newer than it: its icons are named here, or they draw nothing.
+    clientBundle: {
+      scan: { globInclude: ['app/**/*.{vue,ts}'] },
+      icons: ['selfhst:steam']
+    }
   },
 
   vuetify: {

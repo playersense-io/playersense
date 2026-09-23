@@ -42,6 +42,12 @@ export interface RecordColumn {
   sortable?: boolean
 }
 
+/** What a `SegmentMark` draws: a country by its ISO 3166 code, or a platform by its name. */
+export interface SegmentMarkValue {
+  kind: 'country' | 'platform'
+  code: string
+}
+
 /** One tab of a `PageTabs`: the value the query keeps, what it says, and a count if it has one. */
 export interface PageTab {
   value: string

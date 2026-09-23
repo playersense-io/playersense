@@ -473,6 +473,7 @@ const GLYPH_CLASS = { up: 'cohort-card__glyph--up', down: 'cohort-card__glyph--d
             v-for="(row, index) in rows"
             :key="row.key"
             :cells="drawn.get(row.key) ?? NO_CELLS"
+            :mark="row.mark"
             :index="index + 1"
             :label="cohortLabel(row)"
             :size="sizeText(row.size)"

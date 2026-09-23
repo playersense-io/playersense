@@ -9,6 +9,7 @@
  * offsets changing, what an absent cell means — are tested rather than trusted.
  */
 
+import type { SegmentMarkValue } from './components'
 import { formatChange, writeFigure } from './format'
 
 const DAY = 86_400_000
@@ -161,6 +162,8 @@ export interface CohortTableRow {
    * to write when this is absent.
    */
   label?: string
+  /** For a row that is a country or a platform: its flag or mark, drawn beside the label. */
+  mark?: SegmentMarkValue
   /** The cohort's first day, as UTC midnight. */
   start: number
   /** Null when the cohort itself is too small to describe. */
