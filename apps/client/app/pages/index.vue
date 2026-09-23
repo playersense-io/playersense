@@ -283,7 +283,7 @@ const wallet = computed<Fact[]>(() => [
 
     <!-- Projects, and where the players are -->
     <div class="grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-      <LayerCard :padded="false" description="Each game's share of the period." title="Projects">
+      <SectionCard :padded="false" description="Each game's share of the period." title="Projects">
         <DataTable
           v-model:column-state="projectColumns"
           :columns="PROJECT_COLUMNS"
@@ -325,9 +325,9 @@ const wallet = computed<Fact[]>(() => [
             {{ writeFigure(item.events, { compact: true }) }}
           </template>
         </DataTable>
-      </LayerCard>
+      </SectionCard>
 
-      <LayerCard description="Active players, daily average." title="Where players are">
+      <SectionCard description="Active players, daily average." title="Where players are">
         <template #actions>
           <SegmentedControl v-model="breakdown" :options="BREAKDOWNS" label="Break down by" />
         </template>
@@ -335,11 +335,11 @@ const wallet = computed<Fact[]>(() => [
           :label="`Active players by ${breakdown}`"
           :rows="breakdownRows"
         />
-      </LayerCard>
+      </SectionCard>
     </div>
 
     <!-- Usage -->
-    <LayerCard
+    <SectionCard
       :description="`${month} so far, across every project. Usage past the allowance is taken from the wallet.`"
       title="Usage this month"
     >
@@ -381,6 +381,6 @@ const wallet = computed<Fact[]>(() => [
 
         <FactGrid :columns="3" :facts="wallet" label="Wallet this month" />
       </div>
-    </LayerCard>
+    </SectionCard>
   </div>
 </template>

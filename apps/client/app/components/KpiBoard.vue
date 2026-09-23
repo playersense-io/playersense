@@ -29,7 +29,7 @@ defineProps<{
 </script>
 
 <template>
-  <LayerCard :description="description" :padded="false" :title="title">
+  <SectionCard :description="description" :padded="false" :title="title">
     <div class="grid grid-cols-2 gap-px bg-line lg:grid-cols-5">
       <div
         v-for="item in items"
@@ -75,5 +75,5 @@ defineProps<{
         </div>
       </div>
     </div>
-  </LayerCard>
+  </SectionCard>
 </template>
