@@ -123,6 +123,11 @@ type BillingOut struct {
 	// cost, and the band the next one lands in.
 	Month *MonthUsageOut `json:"month,omitzero"`
 
+	// Subscription is the plan's subscription as Stripe last reported it, absent when the account
+	// has none (ADR 0042). Features is what the current plan unlocks.
+	Subscription *SubscriptionOut `json:"subscription,omitzero"`
+	Features     []string         `json:"features"`
+
 	Lots []CreditLotOut `json:"lots,omitzero" doc:"Every grant with credit left, in the order it will be spent"`
 
 	// ExpiringSoon is what lapses within the warning window, soonest first. The one number a

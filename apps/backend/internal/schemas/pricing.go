@@ -125,6 +125,8 @@ type CreatePlanIn struct {
 
 	IsDefault bool `json:"is_default,omitzero" doc:"The plan new organizations are put on; at most one"`
 
+	Features []string `json:"features,omitzero" doc:"premium_support, slack_reports, mcp_access — the closed vocabulary"`
+
 	Operator string `json:"operator"`
 }
 
@@ -148,6 +150,7 @@ type UpdatePlanIn struct {
 	Entitlements       map[string]int64 `json:"entitlements,omitzero" doc:"Replaces the whole map when present"`
 	Active             *bool            `json:"active,omitzero" doc:"Withdrawn plans are not sold; accounts on them stay"`
 	IsDefault          *bool            `json:"is_default,omitzero" doc:"true makes this the default and unsets the previous one"`
+	Features           []string         `json:"features,omitzero" doc:"Replaces the whole list when present"`
 
 	Operator string `json:"operator"`
 }
@@ -170,6 +173,13 @@ type PlanDetailOut struct {
 	Entitlements       map[string]int64 `json:"entitlements,omitzero"`
 	Active             bool             `json:"active"`
 	IsDefault          bool             `json:"is_default"`
+
+	// The subscription (ADR 0042): what it costs per month and per year, what it unlocks, and
+	// whether it can be bought — a plan with no Stripe price is not subscribable.
+	YearlyPriceMicros int64    `json:"yearly_price_micros"`
+	Features          []string `json:"features"`
+	Subscribable      bool     `json:"subscribable"`
+	Intervals         []string `json:"intervals,omitzero" doc:"month, year — the ones this plan can be paid by"`
 
 	// Current is the card pricing new players now, absent when the plan charges nothing for
 	// them. Scheduled is the next card waiting to take over, so a pricing page can say "from
@@ -216,4 +226,50 @@ type MonthUsageOut struct {
 	// from zero — so a dashboard can say "you are in the $0.0004 band; $0.00035 from 500,001".
 	Card *RateCardOut `json:"card,omitzero"`
 	Tier int          `json:"tier"`
+}
+
+// ---- subscriptions (ADR 0042) -----------------------------------------------
+
+// SetSubscriptionPricesIn sets what a plan's subscription costs, and creates the prices at Stripe.
+type SetSubscriptionPricesIn struct {
+	PlanKey string `path:"plan"`
+
+	MonthlyPriceMicros int64 `json:"monthly_price_micros" doc:"$99 is 99000000; zero for no monthly price"`
+	YearlyPriceMicros  int64 `json:"yearly_price_micros" doc:"$999 is 999000000; zero for no yearly price"`
+
+	Operator string `json:"operator"`
+}
+
+func (in *SetSubscriptionPricesIn) Validate(v *muzak.Validation) {
+	v.String(&in.PlanKey).Trim().Lower().Required().MaxLen(64)
+	v.Number(&in.MonthlyPriceMicros).Min(0).Max(float64(MaxGrant))
+	v.Number(&in.YearlyPriceMicros).Min(0).Max(float64(MaxGrant))
+	v.String(&in.Operator).Trim().Lower().Required().Email().MaxLen(254)
+	if in.MonthlyPriceMicros%billing.CentMicros != 0 || in.YearlyPriceMicros%billing.CentMicros != 0 {
+		v.Reject(&in.MonthlyPriceMicros, "a subscription is charged in whole cents")
+	}
+	if in.MonthlyPriceMicros == 0 && in.YearlyPriceMicros == 0 {
+		v.Reject(&in.MonthlyPriceMicros, "name a monthly price, a yearly price, or both")
+	}
+}
+
+// SubscribeIn is a person choosing a plan and how often to pay for it.
+type SubscribeIn struct {
+	OrgSlug  string `path:"org"`
+	Plan     string `json:"plan" doc:"The plan's key, e.g. enterprise"`
+	Interval string `json:"interval" doc:"month or year"`
+}
+
+func (in *SubscribeIn) Validate(v *muzak.Validation) {
+	v.String(&in.OrgSlug).Trim().Lower().Required().MaxLen(64)
+	v.String(&in.Plan).Trim().Lower().Required().MaxLen(64)
+	v.String(&in.Interval).Trim().Lower().Required().OneOf("month", "year")
+}
+
+// SubscriptionOut is the account's subscription, as Stripe last reported it.
+type SubscriptionOut struct {
+	Status            string     `json:"status" doc:"Stripe's: active, trialing, past_due, canceled, unpaid, …"`
+	Interval          string     `json:"interval,omitzero" doc:"month or year"`
+	PeriodEnd         *time.Time `json:"period_end,omitzero" doc:"When the paid period ends — and, if canceling, when the plan does"`
+	CancelAtPeriodEnd bool       `json:"cancel_at_period_end"`
 }

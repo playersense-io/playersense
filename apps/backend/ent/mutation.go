@@ -4094,6 +4094,11 @@ type BillingAccountMutation struct {
 	updated_at                          *time.Time
 	stripe_customer_id                  *string
 	stripe_subscription_id              *string
+	subscription_status                 *string
+	subscription_interval               *billingaccount.SubscriptionInterval
+	subscription_period_end             *time.Time
+	subscription_cancel_at_period_end   *bool
+	subscription_synced_at              *time.Time
 	state                               *billingaccount.State
 	state_changed_at                    *time.Time
 	currency                            *string
@@ -4528,6 +4533,238 @@ func (m *BillingAccountMutation) StripeSubscriptionIDCleared() bool {
 func (m *BillingAccountMutation) ResetStripeSubscriptionID() {
 	m.stripe_subscription_id = nil
 	delete(m.clearedFields, billingaccount.FieldStripeSubscriptionID)
+}
+
+// SetSubscriptionStatus sets the "subscription_status" field.
+func (m *BillingAccountMutation) SetSubscriptionStatus(s string) {
+	m.subscription_status = &s
+}
+
+// SubscriptionStatus returns the value of the "subscription_status" field in the mutation.
+func (m *BillingAccountMutation) SubscriptionStatus() (r string, exists bool) {
+	v := m.subscription_status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSubscriptionStatus returns the old "subscription_status" field's value of the BillingAccount entity.
+// If the BillingAccount object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BillingAccountMutation) OldSubscriptionStatus(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSubscriptionStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSubscriptionStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSubscriptionStatus: %w", err)
+	}
+	return oldValue.SubscriptionStatus, nil
+}
+
+// ClearSubscriptionStatus clears the value of the "subscription_status" field.
+func (m *BillingAccountMutation) ClearSubscriptionStatus() {
+	m.subscription_status = nil
+	m.clearedFields[billingaccount.FieldSubscriptionStatus] = struct{}{}
+}
+
+// SubscriptionStatusCleared returns if the "subscription_status" field was cleared in this mutation.
+func (m *BillingAccountMutation) SubscriptionStatusCleared() bool {
+	_, ok := m.clearedFields[billingaccount.FieldSubscriptionStatus]
+	return ok
+}
+
+// ResetSubscriptionStatus resets all changes to the "subscription_status" field.
+func (m *BillingAccountMutation) ResetSubscriptionStatus() {
+	m.subscription_status = nil
+	delete(m.clearedFields, billingaccount.FieldSubscriptionStatus)
+}
+
+// SetSubscriptionInterval sets the "subscription_interval" field.
+func (m *BillingAccountMutation) SetSubscriptionInterval(bi billingaccount.SubscriptionInterval) {
+	m.subscription_interval = &bi
+}
+
+// SubscriptionInterval returns the value of the "subscription_interval" field in the mutation.
+func (m *BillingAccountMutation) SubscriptionInterval() (r billingaccount.SubscriptionInterval, exists bool) {
+	v := m.subscription_interval
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSubscriptionInterval returns the old "subscription_interval" field's value of the BillingAccount entity.
+// If the BillingAccount object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BillingAccountMutation) OldSubscriptionInterval(ctx context.Context) (v *billingaccount.SubscriptionInterval, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSubscriptionInterval is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSubscriptionInterval requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSubscriptionInterval: %w", err)
+	}
+	return oldValue.SubscriptionInterval, nil
+}
+
+// ClearSubscriptionInterval clears the value of the "subscription_interval" field.
+func (m *BillingAccountMutation) ClearSubscriptionInterval() {
+	m.subscription_interval = nil
+	m.clearedFields[billingaccount.FieldSubscriptionInterval] = struct{}{}
+}
+
+// SubscriptionIntervalCleared returns if the "subscription_interval" field was cleared in this mutation.
+func (m *BillingAccountMutation) SubscriptionIntervalCleared() bool {
+	_, ok := m.clearedFields[billingaccount.FieldSubscriptionInterval]
+	return ok
+}
+
+// ResetSubscriptionInterval resets all changes to the "subscription_interval" field.
+func (m *BillingAccountMutation) ResetSubscriptionInterval() {
+	m.subscription_interval = nil
+	delete(m.clearedFields, billingaccount.FieldSubscriptionInterval)
+}
+
+// SetSubscriptionPeriodEnd sets the "subscription_period_end" field.
+func (m *BillingAccountMutation) SetSubscriptionPeriodEnd(t time.Time) {
+	m.subscription_period_end = &t
+}
+
+// SubscriptionPeriodEnd returns the value of the "subscription_period_end" field in the mutation.
+func (m *BillingAccountMutation) SubscriptionPeriodEnd() (r time.Time, exists bool) {
+	v := m.subscription_period_end
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSubscriptionPeriodEnd returns the old "subscription_period_end" field's value of the BillingAccount entity.
+// If the BillingAccount object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BillingAccountMutation) OldSubscriptionPeriodEnd(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSubscriptionPeriodEnd is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSubscriptionPeriodEnd requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSubscriptionPeriodEnd: %w", err)
+	}
+	return oldValue.SubscriptionPeriodEnd, nil
+}
+
+// ClearSubscriptionPeriodEnd clears the value of the "subscription_period_end" field.
+func (m *BillingAccountMutation) ClearSubscriptionPeriodEnd() {
+	m.subscription_period_end = nil
+	m.clearedFields[billingaccount.FieldSubscriptionPeriodEnd] = struct{}{}
+}
+
+// SubscriptionPeriodEndCleared returns if the "subscription_period_end" field was cleared in this mutation.
+func (m *BillingAccountMutation) SubscriptionPeriodEndCleared() bool {
+	_, ok := m.clearedFields[billingaccount.FieldSubscriptionPeriodEnd]
+	return ok
+}
+
+// ResetSubscriptionPeriodEnd resets all changes to the "subscription_period_end" field.
+func (m *BillingAccountMutation) ResetSubscriptionPeriodEnd() {
+	m.subscription_period_end = nil
+	delete(m.clearedFields, billingaccount.FieldSubscriptionPeriodEnd)
+}
+
+// SetSubscriptionCancelAtPeriodEnd sets the "subscription_cancel_at_period_end" field.
+func (m *BillingAccountMutation) SetSubscriptionCancelAtPeriodEnd(b bool) {
+	m.subscription_cancel_at_period_end = &b
+}
+
+// SubscriptionCancelAtPeriodEnd returns the value of the "subscription_cancel_at_period_end" field in the mutation.
+func (m *BillingAccountMutation) SubscriptionCancelAtPeriodEnd() (r bool, exists bool) {
+	v := m.subscription_cancel_at_period_end
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSubscriptionCancelAtPeriodEnd returns the old "subscription_cancel_at_period_end" field's value of the BillingAccount entity.
+// If the BillingAccount object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BillingAccountMutation) OldSubscriptionCancelAtPeriodEnd(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSubscriptionCancelAtPeriodEnd is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSubscriptionCancelAtPeriodEnd requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSubscriptionCancelAtPeriodEnd: %w", err)
+	}
+	return oldValue.SubscriptionCancelAtPeriodEnd, nil
+}
+
+// ResetSubscriptionCancelAtPeriodEnd resets all changes to the "subscription_cancel_at_period_end" field.
+func (m *BillingAccountMutation) ResetSubscriptionCancelAtPeriodEnd() {
+	m.subscription_cancel_at_period_end = nil
+}
+
+// SetSubscriptionSyncedAt sets the "subscription_synced_at" field.
+func (m *BillingAccountMutation) SetSubscriptionSyncedAt(t time.Time) {
+	m.subscription_synced_at = &t
+}
+
+// SubscriptionSyncedAt returns the value of the "subscription_synced_at" field in the mutation.
+func (m *BillingAccountMutation) SubscriptionSyncedAt() (r time.Time, exists bool) {
+	v := m.subscription_synced_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSubscriptionSyncedAt returns the old "subscription_synced_at" field's value of the BillingAccount entity.
+// If the BillingAccount object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BillingAccountMutation) OldSubscriptionSyncedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSubscriptionSyncedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSubscriptionSyncedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSubscriptionSyncedAt: %w", err)
+	}
+	return oldValue.SubscriptionSyncedAt, nil
+}
+
+// ClearSubscriptionSyncedAt clears the value of the "subscription_synced_at" field.
+func (m *BillingAccountMutation) ClearSubscriptionSyncedAt() {
+	m.subscription_synced_at = nil
+	m.clearedFields[billingaccount.FieldSubscriptionSyncedAt] = struct{}{}
+}
+
+// SubscriptionSyncedAtCleared returns if the "subscription_synced_at" field was cleared in this mutation.
+func (m *BillingAccountMutation) SubscriptionSyncedAtCleared() bool {
+	_, ok := m.clearedFields[billingaccount.FieldSubscriptionSyncedAt]
+	return ok
+}
+
+// ResetSubscriptionSyncedAt resets all changes to the "subscription_synced_at" field.
+func (m *BillingAccountMutation) ResetSubscriptionSyncedAt() {
+	m.subscription_synced_at = nil
+	delete(m.clearedFields, billingaccount.FieldSubscriptionSyncedAt)
 }
 
 // SetState sets the "state" field.
@@ -5858,7 +6095,7 @@ func (m *BillingAccountMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *BillingAccountMutation) Fields() []string {
-	fields := make([]string, 0, 26)
+	fields := make([]string, 0, 31)
 	if m.uid != nil {
 		fields = append(fields, billingaccount.FieldUID)
 	}
@@ -5879,6 +6116,21 @@ func (m *BillingAccountMutation) Fields() []string {
 	}
 	if m.stripe_subscription_id != nil {
 		fields = append(fields, billingaccount.FieldStripeSubscriptionID)
+	}
+	if m.subscription_status != nil {
+		fields = append(fields, billingaccount.FieldSubscriptionStatus)
+	}
+	if m.subscription_interval != nil {
+		fields = append(fields, billingaccount.FieldSubscriptionInterval)
+	}
+	if m.subscription_period_end != nil {
+		fields = append(fields, billingaccount.FieldSubscriptionPeriodEnd)
+	}
+	if m.subscription_cancel_at_period_end != nil {
+		fields = append(fields, billingaccount.FieldSubscriptionCancelAtPeriodEnd)
+	}
+	if m.subscription_synced_at != nil {
+		fields = append(fields, billingaccount.FieldSubscriptionSyncedAt)
 	}
 	if m.state != nil {
 		fields = append(fields, billingaccount.FieldState)
@@ -5959,6 +6211,16 @@ func (m *BillingAccountMutation) Field(name string) (ent.Value, bool) {
 		return m.StripeCustomerID()
 	case billingaccount.FieldStripeSubscriptionID:
 		return m.StripeSubscriptionID()
+	case billingaccount.FieldSubscriptionStatus:
+		return m.SubscriptionStatus()
+	case billingaccount.FieldSubscriptionInterval:
+		return m.SubscriptionInterval()
+	case billingaccount.FieldSubscriptionPeriodEnd:
+		return m.SubscriptionPeriodEnd()
+	case billingaccount.FieldSubscriptionCancelAtPeriodEnd:
+		return m.SubscriptionCancelAtPeriodEnd()
+	case billingaccount.FieldSubscriptionSyncedAt:
+		return m.SubscriptionSyncedAt()
 	case billingaccount.FieldState:
 		return m.State()
 	case billingaccount.FieldStateChangedAt:
@@ -6020,6 +6282,16 @@ func (m *BillingAccountMutation) OldField(ctx context.Context, name string) (ent
 		return m.OldStripeCustomerID(ctx)
 	case billingaccount.FieldStripeSubscriptionID:
 		return m.OldStripeSubscriptionID(ctx)
+	case billingaccount.FieldSubscriptionStatus:
+		return m.OldSubscriptionStatus(ctx)
+	case billingaccount.FieldSubscriptionInterval:
+		return m.OldSubscriptionInterval(ctx)
+	case billingaccount.FieldSubscriptionPeriodEnd:
+		return m.OldSubscriptionPeriodEnd(ctx)
+	case billingaccount.FieldSubscriptionCancelAtPeriodEnd:
+		return m.OldSubscriptionCancelAtPeriodEnd(ctx)
+	case billingaccount.FieldSubscriptionSyncedAt:
+		return m.OldSubscriptionSyncedAt(ctx)
 	case billingaccount.FieldState:
 		return m.OldState(ctx)
 	case billingaccount.FieldStateChangedAt:
@@ -6115,6 +6387,41 @@ func (m *BillingAccountMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetStripeSubscriptionID(v)
+		return nil
+	case billingaccount.FieldSubscriptionStatus:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSubscriptionStatus(v)
+		return nil
+	case billingaccount.FieldSubscriptionInterval:
+		v, ok := value.(billingaccount.SubscriptionInterval)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSubscriptionInterval(v)
+		return nil
+	case billingaccount.FieldSubscriptionPeriodEnd:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSubscriptionPeriodEnd(v)
+		return nil
+	case billingaccount.FieldSubscriptionCancelAtPeriodEnd:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSubscriptionCancelAtPeriodEnd(v)
+		return nil
+	case billingaccount.FieldSubscriptionSyncedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSubscriptionSyncedAt(v)
 		return nil
 	case billingaccount.FieldState:
 		v, ok := value.(billingaccount.State)
@@ -6372,6 +6679,18 @@ func (m *BillingAccountMutation) ClearedFields() []string {
 	if m.FieldCleared(billingaccount.FieldStripeSubscriptionID) {
 		fields = append(fields, billingaccount.FieldStripeSubscriptionID)
 	}
+	if m.FieldCleared(billingaccount.FieldSubscriptionStatus) {
+		fields = append(fields, billingaccount.FieldSubscriptionStatus)
+	}
+	if m.FieldCleared(billingaccount.FieldSubscriptionInterval) {
+		fields = append(fields, billingaccount.FieldSubscriptionInterval)
+	}
+	if m.FieldCleared(billingaccount.FieldSubscriptionPeriodEnd) {
+		fields = append(fields, billingaccount.FieldSubscriptionPeriodEnd)
+	}
+	if m.FieldCleared(billingaccount.FieldSubscriptionSyncedAt) {
+		fields = append(fields, billingaccount.FieldSubscriptionSyncedAt)
+	}
 	if m.FieldCleared(billingaccount.FieldAutoTopupPendingKey) {
 		fields = append(fields, billingaccount.FieldAutoTopupPendingKey)
 	}
@@ -6412,6 +6731,18 @@ func (m *BillingAccountMutation) ClearField(name string) error {
 		return nil
 	case billingaccount.FieldStripeSubscriptionID:
 		m.ClearStripeSubscriptionID()
+		return nil
+	case billingaccount.FieldSubscriptionStatus:
+		m.ClearSubscriptionStatus()
+		return nil
+	case billingaccount.FieldSubscriptionInterval:
+		m.ClearSubscriptionInterval()
+		return nil
+	case billingaccount.FieldSubscriptionPeriodEnd:
+		m.ClearSubscriptionPeriodEnd()
+		return nil
+	case billingaccount.FieldSubscriptionSyncedAt:
+		m.ClearSubscriptionSyncedAt()
 		return nil
 	case billingaccount.FieldAutoTopupPendingKey:
 		m.ClearAutoTopupPendingKey()
@@ -6462,6 +6793,21 @@ func (m *BillingAccountMutation) ResetField(name string) error {
 		return nil
 	case billingaccount.FieldStripeSubscriptionID:
 		m.ResetStripeSubscriptionID()
+		return nil
+	case billingaccount.FieldSubscriptionStatus:
+		m.ResetSubscriptionStatus()
+		return nil
+	case billingaccount.FieldSubscriptionInterval:
+		m.ResetSubscriptionInterval()
+		return nil
+	case billingaccount.FieldSubscriptionPeriodEnd:
+		m.ResetSubscriptionPeriodEnd()
+		return nil
+	case billingaccount.FieldSubscriptionCancelAtPeriodEnd:
+		m.ResetSubscriptionCancelAtPeriodEnd()
+		return nil
+	case billingaccount.FieldSubscriptionSyncedAt:
+		m.ResetSubscriptionSyncedAt()
 		return nil
 	case billingaccount.FieldState:
 		m.ResetState()
@@ -22185,7 +22531,13 @@ type PlanMutation struct {
 	monthly_price_micros    *int64
 	addmonthly_price_micros *int64
 	currency                *string
-	stripe_price_id         *string
+	yearly_price_micros     *int64
+	addyearly_price_micros  *int64
+	stripe_product_id       *string
+	stripe_price_monthly_id *string
+	stripe_price_yearly_id  *string
+	features                *[]string
+	appendfeatures          []string
 	entitlements            *map[string]int64
 	active                  *bool
 	is_default              *bool
@@ -22613,53 +22965,258 @@ func (m *PlanMutation) ResetCurrency() {
 	m.currency = nil
 }
 
-// SetStripePriceID sets the "stripe_price_id" field.
-func (m *PlanMutation) SetStripePriceID(s string) {
-	m.stripe_price_id = &s
+// SetYearlyPriceMicros sets the "yearly_price_micros" field.
+func (m *PlanMutation) SetYearlyPriceMicros(i int64) {
+	m.yearly_price_micros = &i
+	m.addyearly_price_micros = nil
 }
 
-// StripePriceID returns the value of the "stripe_price_id" field in the mutation.
-func (m *PlanMutation) StripePriceID() (r string, exists bool) {
-	v := m.stripe_price_id
+// YearlyPriceMicros returns the value of the "yearly_price_micros" field in the mutation.
+func (m *PlanMutation) YearlyPriceMicros() (r int64, exists bool) {
+	v := m.yearly_price_micros
 	if v == nil {
 		return
 	}
 	return *v, true
 }
 
-// OldStripePriceID returns the old "stripe_price_id" field's value of the Plan entity.
+// OldYearlyPriceMicros returns the old "yearly_price_micros" field's value of the Plan entity.
 // If the Plan object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *PlanMutation) OldStripePriceID(ctx context.Context) (v *string, err error) {
+func (m *PlanMutation) OldYearlyPriceMicros(ctx context.Context) (v int64, err error) {
 	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldStripePriceID is only allowed on UpdateOne operations")
+		return v, errors.New("OldYearlyPriceMicros is only allowed on UpdateOne operations")
 	}
 	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldStripePriceID requires an ID field in the mutation")
+		return v, errors.New("OldYearlyPriceMicros requires an ID field in the mutation")
 	}
 	oldValue, err := m.oldValue(ctx)
 	if err != nil {
-		return v, fmt.Errorf("querying old value for OldStripePriceID: %w", err)
+		return v, fmt.Errorf("querying old value for OldYearlyPriceMicros: %w", err)
 	}
-	return oldValue.StripePriceID, nil
+	return oldValue.YearlyPriceMicros, nil
 }
 
-// ClearStripePriceID clears the value of the "stripe_price_id" field.
-func (m *PlanMutation) ClearStripePriceID() {
-	m.stripe_price_id = nil
-	m.clearedFields[plan.FieldStripePriceID] = struct{}{}
+// AddYearlyPriceMicros adds i to the "yearly_price_micros" field.
+func (m *PlanMutation) AddYearlyPriceMicros(i int64) {
+	if m.addyearly_price_micros != nil {
+		*m.addyearly_price_micros += i
+	} else {
+		m.addyearly_price_micros = &i
+	}
 }
 
-// StripePriceIDCleared returns if the "stripe_price_id" field was cleared in this mutation.
-func (m *PlanMutation) StripePriceIDCleared() bool {
-	_, ok := m.clearedFields[plan.FieldStripePriceID]
+// AddedYearlyPriceMicros returns the value that was added to the "yearly_price_micros" field in this mutation.
+func (m *PlanMutation) AddedYearlyPriceMicros() (r int64, exists bool) {
+	v := m.addyearly_price_micros
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetYearlyPriceMicros resets all changes to the "yearly_price_micros" field.
+func (m *PlanMutation) ResetYearlyPriceMicros() {
+	m.yearly_price_micros = nil
+	m.addyearly_price_micros = nil
+}
+
+// SetStripeProductID sets the "stripe_product_id" field.
+func (m *PlanMutation) SetStripeProductID(s string) {
+	m.stripe_product_id = &s
+}
+
+// StripeProductID returns the value of the "stripe_product_id" field in the mutation.
+func (m *PlanMutation) StripeProductID() (r string, exists bool) {
+	v := m.stripe_product_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStripeProductID returns the old "stripe_product_id" field's value of the Plan entity.
+// If the Plan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PlanMutation) OldStripeProductID(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStripeProductID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStripeProductID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStripeProductID: %w", err)
+	}
+	return oldValue.StripeProductID, nil
+}
+
+// ClearStripeProductID clears the value of the "stripe_product_id" field.
+func (m *PlanMutation) ClearStripeProductID() {
+	m.stripe_product_id = nil
+	m.clearedFields[plan.FieldStripeProductID] = struct{}{}
+}
+
+// StripeProductIDCleared returns if the "stripe_product_id" field was cleared in this mutation.
+func (m *PlanMutation) StripeProductIDCleared() bool {
+	_, ok := m.clearedFields[plan.FieldStripeProductID]
 	return ok
 }
 
-// ResetStripePriceID resets all changes to the "stripe_price_id" field.
-func (m *PlanMutation) ResetStripePriceID() {
-	m.stripe_price_id = nil
-	delete(m.clearedFields, plan.FieldStripePriceID)
+// ResetStripeProductID resets all changes to the "stripe_product_id" field.
+func (m *PlanMutation) ResetStripeProductID() {
+	m.stripe_product_id = nil
+	delete(m.clearedFields, plan.FieldStripeProductID)
+}
+
+// SetStripePriceMonthlyID sets the "stripe_price_monthly_id" field.
+func (m *PlanMutation) SetStripePriceMonthlyID(s string) {
+	m.stripe_price_monthly_id = &s
+}
+
+// StripePriceMonthlyID returns the value of the "stripe_price_monthly_id" field in the mutation.
+func (m *PlanMutation) StripePriceMonthlyID() (r string, exists bool) {
+	v := m.stripe_price_monthly_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStripePriceMonthlyID returns the old "stripe_price_monthly_id" field's value of the Plan entity.
+// If the Plan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PlanMutation) OldStripePriceMonthlyID(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStripePriceMonthlyID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStripePriceMonthlyID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStripePriceMonthlyID: %w", err)
+	}
+	return oldValue.StripePriceMonthlyID, nil
+}
+
+// ClearStripePriceMonthlyID clears the value of the "stripe_price_monthly_id" field.
+func (m *PlanMutation) ClearStripePriceMonthlyID() {
+	m.stripe_price_monthly_id = nil
+	m.clearedFields[plan.FieldStripePriceMonthlyID] = struct{}{}
+}
+
+// StripePriceMonthlyIDCleared returns if the "stripe_price_monthly_id" field was cleared in this mutation.
+func (m *PlanMutation) StripePriceMonthlyIDCleared() bool {
+	_, ok := m.clearedFields[plan.FieldStripePriceMonthlyID]
+	return ok
+}
+
+// ResetStripePriceMonthlyID resets all changes to the "stripe_price_monthly_id" field.
+func (m *PlanMutation) ResetStripePriceMonthlyID() {
+	m.stripe_price_monthly_id = nil
+	delete(m.clearedFields, plan.FieldStripePriceMonthlyID)
+}
+
+// SetStripePriceYearlyID sets the "stripe_price_yearly_id" field.
+func (m *PlanMutation) SetStripePriceYearlyID(s string) {
+	m.stripe_price_yearly_id = &s
+}
+
+// StripePriceYearlyID returns the value of the "stripe_price_yearly_id" field in the mutation.
+func (m *PlanMutation) StripePriceYearlyID() (r string, exists bool) {
+	v := m.stripe_price_yearly_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStripePriceYearlyID returns the old "stripe_price_yearly_id" field's value of the Plan entity.
+// If the Plan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PlanMutation) OldStripePriceYearlyID(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStripePriceYearlyID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStripePriceYearlyID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStripePriceYearlyID: %w", err)
+	}
+	return oldValue.StripePriceYearlyID, nil
+}
+
+// ClearStripePriceYearlyID clears the value of the "stripe_price_yearly_id" field.
+func (m *PlanMutation) ClearStripePriceYearlyID() {
+	m.stripe_price_yearly_id = nil
+	m.clearedFields[plan.FieldStripePriceYearlyID] = struct{}{}
+}
+
+// StripePriceYearlyIDCleared returns if the "stripe_price_yearly_id" field was cleared in this mutation.
+func (m *PlanMutation) StripePriceYearlyIDCleared() bool {
+	_, ok := m.clearedFields[plan.FieldStripePriceYearlyID]
+	return ok
+}
+
+// ResetStripePriceYearlyID resets all changes to the "stripe_price_yearly_id" field.
+func (m *PlanMutation) ResetStripePriceYearlyID() {
+	m.stripe_price_yearly_id = nil
+	delete(m.clearedFields, plan.FieldStripePriceYearlyID)
+}
+
+// SetFeatures sets the "features" field.
+func (m *PlanMutation) SetFeatures(s []string) {
+	m.features = &s
+	m.appendfeatures = nil
+}
+
+// Features returns the value of the "features" field in the mutation.
+func (m *PlanMutation) Features() (r []string, exists bool) {
+	v := m.features
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFeatures returns the old "features" field's value of the Plan entity.
+// If the Plan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PlanMutation) OldFeatures(ctx context.Context) (v []string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFeatures is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFeatures requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFeatures: %w", err)
+	}
+	return oldValue.Features, nil
+}
+
+// AppendFeatures adds s to the "features" field.
+func (m *PlanMutation) AppendFeatures(s []string) {
+	m.appendfeatures = append(m.appendfeatures, s...)
+}
+
+// AppendedFeatures returns the list of values that were appended to the "features" field in this mutation.
+func (m *PlanMutation) AppendedFeatures() ([]string, bool) {
+	if len(m.appendfeatures) == 0 {
+		return nil, false
+	}
+	return m.appendfeatures, true
+}
+
+// ResetFeatures resets all changes to the "features" field.
+func (m *PlanMutation) ResetFeatures() {
+	m.features = nil
+	m.appendfeatures = nil
 }
 
 // SetEntitlements sets the "entitlements" field.
@@ -22912,7 +23469,7 @@ func (m *PlanMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *PlanMutation) Fields() []string {
-	fields := make([]string, 0, 12)
+	fields := make([]string, 0, 16)
 	if m.uid != nil {
 		fields = append(fields, plan.FieldUID)
 	}
@@ -22937,8 +23494,20 @@ func (m *PlanMutation) Fields() []string {
 	if m.currency != nil {
 		fields = append(fields, plan.FieldCurrency)
 	}
-	if m.stripe_price_id != nil {
-		fields = append(fields, plan.FieldStripePriceID)
+	if m.yearly_price_micros != nil {
+		fields = append(fields, plan.FieldYearlyPriceMicros)
+	}
+	if m.stripe_product_id != nil {
+		fields = append(fields, plan.FieldStripeProductID)
+	}
+	if m.stripe_price_monthly_id != nil {
+		fields = append(fields, plan.FieldStripePriceMonthlyID)
+	}
+	if m.stripe_price_yearly_id != nil {
+		fields = append(fields, plan.FieldStripePriceYearlyID)
+	}
+	if m.features != nil {
+		fields = append(fields, plan.FieldFeatures)
 	}
 	if m.entitlements != nil {
 		fields = append(fields, plan.FieldEntitlements)
@@ -22973,8 +23542,16 @@ func (m *PlanMutation) Field(name string) (ent.Value, bool) {
 		return m.MonthlyPriceMicros()
 	case plan.FieldCurrency:
 		return m.Currency()
-	case plan.FieldStripePriceID:
-		return m.StripePriceID()
+	case plan.FieldYearlyPriceMicros:
+		return m.YearlyPriceMicros()
+	case plan.FieldStripeProductID:
+		return m.StripeProductID()
+	case plan.FieldStripePriceMonthlyID:
+		return m.StripePriceMonthlyID()
+	case plan.FieldStripePriceYearlyID:
+		return m.StripePriceYearlyID()
+	case plan.FieldFeatures:
+		return m.Features()
 	case plan.FieldEntitlements:
 		return m.Entitlements()
 	case plan.FieldActive:
@@ -23006,8 +23583,16 @@ func (m *PlanMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldMonthlyPriceMicros(ctx)
 	case plan.FieldCurrency:
 		return m.OldCurrency(ctx)
-	case plan.FieldStripePriceID:
-		return m.OldStripePriceID(ctx)
+	case plan.FieldYearlyPriceMicros:
+		return m.OldYearlyPriceMicros(ctx)
+	case plan.FieldStripeProductID:
+		return m.OldStripeProductID(ctx)
+	case plan.FieldStripePriceMonthlyID:
+		return m.OldStripePriceMonthlyID(ctx)
+	case plan.FieldStripePriceYearlyID:
+		return m.OldStripePriceYearlyID(ctx)
+	case plan.FieldFeatures:
+		return m.OldFeatures(ctx)
 	case plan.FieldEntitlements:
 		return m.OldEntitlements(ctx)
 	case plan.FieldActive:
@@ -23079,12 +23664,40 @@ func (m *PlanMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetCurrency(v)
 		return nil
-	case plan.FieldStripePriceID:
+	case plan.FieldYearlyPriceMicros:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetYearlyPriceMicros(v)
+		return nil
+	case plan.FieldStripeProductID:
 		v, ok := value.(string)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
-		m.SetStripePriceID(v)
+		m.SetStripeProductID(v)
+		return nil
+	case plan.FieldStripePriceMonthlyID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStripePriceMonthlyID(v)
+		return nil
+	case plan.FieldStripePriceYearlyID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStripePriceYearlyID(v)
+		return nil
+	case plan.FieldFeatures:
+		v, ok := value.([]string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFeatures(v)
 		return nil
 	case plan.FieldEntitlements:
 		v, ok := value.(map[string]int64)
@@ -23118,6 +23731,9 @@ func (m *PlanMutation) AddedFields() []string {
 	if m.addmonthly_price_micros != nil {
 		fields = append(fields, plan.FieldMonthlyPriceMicros)
 	}
+	if m.addyearly_price_micros != nil {
+		fields = append(fields, plan.FieldYearlyPriceMicros)
+	}
 	return fields
 }
 
@@ -23128,6 +23744,8 @@ func (m *PlanMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
 	case plan.FieldMonthlyPriceMicros:
 		return m.AddedMonthlyPriceMicros()
+	case plan.FieldYearlyPriceMicros:
+		return m.AddedYearlyPriceMicros()
 	}
 	return nil, false
 }
@@ -23144,6 +23762,13 @@ func (m *PlanMutation) AddField(name string, value ent.Value) error {
 		}
 		m.AddMonthlyPriceMicros(v)
 		return nil
+	case plan.FieldYearlyPriceMicros:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddYearlyPriceMicros(v)
+		return nil
 	}
 	return fmt.Errorf("unknown Plan numeric field %s", name)
 }
@@ -23152,8 +23777,14 @@ func (m *PlanMutation) AddField(name string, value ent.Value) error {
 // mutation.
 func (m *PlanMutation) ClearedFields() []string {
 	var fields []string
-	if m.FieldCleared(plan.FieldStripePriceID) {
-		fields = append(fields, plan.FieldStripePriceID)
+	if m.FieldCleared(plan.FieldStripeProductID) {
+		fields = append(fields, plan.FieldStripeProductID)
+	}
+	if m.FieldCleared(plan.FieldStripePriceMonthlyID) {
+		fields = append(fields, plan.FieldStripePriceMonthlyID)
+	}
+	if m.FieldCleared(plan.FieldStripePriceYearlyID) {
+		fields = append(fields, plan.FieldStripePriceYearlyID)
 	}
 	return fields
 }
@@ -23169,8 +23800,14 @@ func (m *PlanMutation) FieldCleared(name string) bool {
 // error if the field is not defined in the schema.
 func (m *PlanMutation) ClearField(name string) error {
 	switch name {
-	case plan.FieldStripePriceID:
-		m.ClearStripePriceID()
+	case plan.FieldStripeProductID:
+		m.ClearStripeProductID()
+		return nil
+	case plan.FieldStripePriceMonthlyID:
+		m.ClearStripePriceMonthlyID()
+		return nil
+	case plan.FieldStripePriceYearlyID:
+		m.ClearStripePriceYearlyID()
 		return nil
 	}
 	return fmt.Errorf("unknown Plan nullable field %s", name)
@@ -23204,8 +23841,20 @@ func (m *PlanMutation) ResetField(name string) error {
 	case plan.FieldCurrency:
 		m.ResetCurrency()
 		return nil
-	case plan.FieldStripePriceID:
-		m.ResetStripePriceID()
+	case plan.FieldYearlyPriceMicros:
+		m.ResetYearlyPriceMicros()
+		return nil
+	case plan.FieldStripeProductID:
+		m.ResetStripeProductID()
+		return nil
+	case plan.FieldStripePriceMonthlyID:
+		m.ResetStripePriceMonthlyID()
+		return nil
+	case plan.FieldStripePriceYearlyID:
+		m.ResetStripePriceYearlyID()
+		return nil
+	case plan.FieldFeatures:
+		m.ResetFeatures()
 		return nil
 	case plan.FieldEntitlements:
 		m.ResetEntitlements()

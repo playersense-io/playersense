@@ -10,6 +10,7 @@ import (
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"entgo.io/ent/dialect/sql/sqljson"
 	"entgo.io/ent/schema/field"
 	"playersense.dev/backend/ent/billingaccount"
 	"playersense.dev/backend/ent/plan"
@@ -99,23 +100,96 @@ func (_u *PlanUpdate) SetNillableCurrency(v *string) *PlanUpdate {
 	return _u
 }
 
-// SetStripePriceID sets the "stripe_price_id" field.
-func (_u *PlanUpdate) SetStripePriceID(v string) *PlanUpdate {
-	_u.mutation.SetStripePriceID(v)
+// SetYearlyPriceMicros sets the "yearly_price_micros" field.
+func (_u *PlanUpdate) SetYearlyPriceMicros(v int64) *PlanUpdate {
+	_u.mutation.ResetYearlyPriceMicros()
+	_u.mutation.SetYearlyPriceMicros(v)
 	return _u
 }
 
-// SetNillableStripePriceID sets the "stripe_price_id" field if the given value is not nil.
-func (_u *PlanUpdate) SetNillableStripePriceID(v *string) *PlanUpdate {
+// SetNillableYearlyPriceMicros sets the "yearly_price_micros" field if the given value is not nil.
+func (_u *PlanUpdate) SetNillableYearlyPriceMicros(v *int64) *PlanUpdate {
 	if v != nil {
-		_u.SetStripePriceID(*v)
+		_u.SetYearlyPriceMicros(*v)
 	}
 	return _u
 }
 
-// ClearStripePriceID clears the value of the "stripe_price_id" field.
-func (_u *PlanUpdate) ClearStripePriceID() *PlanUpdate {
-	_u.mutation.ClearStripePriceID()
+// AddYearlyPriceMicros adds value to the "yearly_price_micros" field.
+func (_u *PlanUpdate) AddYearlyPriceMicros(v int64) *PlanUpdate {
+	_u.mutation.AddYearlyPriceMicros(v)
+	return _u
+}
+
+// SetStripeProductID sets the "stripe_product_id" field.
+func (_u *PlanUpdate) SetStripeProductID(v string) *PlanUpdate {
+	_u.mutation.SetStripeProductID(v)
+	return _u
+}
+
+// SetNillableStripeProductID sets the "stripe_product_id" field if the given value is not nil.
+func (_u *PlanUpdate) SetNillableStripeProductID(v *string) *PlanUpdate {
+	if v != nil {
+		_u.SetStripeProductID(*v)
+	}
+	return _u
+}
+
+// ClearStripeProductID clears the value of the "stripe_product_id" field.
+func (_u *PlanUpdate) ClearStripeProductID() *PlanUpdate {
+	_u.mutation.ClearStripeProductID()
+	return _u
+}
+
+// SetStripePriceMonthlyID sets the "stripe_price_monthly_id" field.
+func (_u *PlanUpdate) SetStripePriceMonthlyID(v string) *PlanUpdate {
+	_u.mutation.SetStripePriceMonthlyID(v)
+	return _u
+}
+
+// SetNillableStripePriceMonthlyID sets the "stripe_price_monthly_id" field if the given value is not nil.
+func (_u *PlanUpdate) SetNillableStripePriceMonthlyID(v *string) *PlanUpdate {
+	if v != nil {
+		_u.SetStripePriceMonthlyID(*v)
+	}
+	return _u
+}
+
+// ClearStripePriceMonthlyID clears the value of the "stripe_price_monthly_id" field.
+func (_u *PlanUpdate) ClearStripePriceMonthlyID() *PlanUpdate {
+	_u.mutation.ClearStripePriceMonthlyID()
+	return _u
+}
+
+// SetStripePriceYearlyID sets the "stripe_price_yearly_id" field.
+func (_u *PlanUpdate) SetStripePriceYearlyID(v string) *PlanUpdate {
+	_u.mutation.SetStripePriceYearlyID(v)
+	return _u
+}
+
+// SetNillableStripePriceYearlyID sets the "stripe_price_yearly_id" field if the given value is not nil.
+func (_u *PlanUpdate) SetNillableStripePriceYearlyID(v *string) *PlanUpdate {
+	if v != nil {
+		_u.SetStripePriceYearlyID(*v)
+	}
+	return _u
+}
+
+// ClearStripePriceYearlyID clears the value of the "stripe_price_yearly_id" field.
+func (_u *PlanUpdate) ClearStripePriceYearlyID() *PlanUpdate {
+	_u.mutation.ClearStripePriceYearlyID()
+	return _u
+}
+
+// SetFeatures sets the "features" field.
+func (_u *PlanUpdate) SetFeatures(v []string) *PlanUpdate {
+	_u.mutation.SetFeatures(v)
+	return _u
+}
+
+// AppendFeatures appends value to the "features" field.
+func (_u *PlanUpdate) AppendFeatures(v []string) *PlanUpdate {
+	_u.mutation.AppendFeatures(v)
 	return _u
 }
 
@@ -294,9 +368,24 @@ func (_u *PlanUpdate) check() error {
 			return &ValidationError{Name: "currency", err: fmt.Errorf(`ent: validator failed for field "Plan.currency": %w`, err)}
 		}
 	}
-	if v, ok := _u.mutation.StripePriceID(); ok {
-		if err := plan.StripePriceIDValidator(v); err != nil {
-			return &ValidationError{Name: "stripe_price_id", err: fmt.Errorf(`ent: validator failed for field "Plan.stripe_price_id": %w`, err)}
+	if v, ok := _u.mutation.YearlyPriceMicros(); ok {
+		if err := plan.YearlyPriceMicrosValidator(v); err != nil {
+			return &ValidationError{Name: "yearly_price_micros", err: fmt.Errorf(`ent: validator failed for field "Plan.yearly_price_micros": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.StripeProductID(); ok {
+		if err := plan.StripeProductIDValidator(v); err != nil {
+			return &ValidationError{Name: "stripe_product_id", err: fmt.Errorf(`ent: validator failed for field "Plan.stripe_product_id": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.StripePriceMonthlyID(); ok {
+		if err := plan.StripePriceMonthlyIDValidator(v); err != nil {
+			return &ValidationError{Name: "stripe_price_monthly_id", err: fmt.Errorf(`ent: validator failed for field "Plan.stripe_price_monthly_id": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.StripePriceYearlyID(); ok {
+		if err := plan.StripePriceYearlyIDValidator(v); err != nil {
+			return &ValidationError{Name: "stripe_price_yearly_id", err: fmt.Errorf(`ent: validator failed for field "Plan.stripe_price_yearly_id": %w`, err)}
 		}
 	}
 	return nil
@@ -332,11 +421,37 @@ func (_u *PlanUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.Currency(); ok {
 		_spec.SetField(plan.FieldCurrency, field.TypeString, value)
 	}
-	if value, ok := _u.mutation.StripePriceID(); ok {
-		_spec.SetField(plan.FieldStripePriceID, field.TypeString, value)
+	if value, ok := _u.mutation.YearlyPriceMicros(); ok {
+		_spec.SetField(plan.FieldYearlyPriceMicros, field.TypeInt64, value)
 	}
-	if _u.mutation.StripePriceIDCleared() {
-		_spec.ClearField(plan.FieldStripePriceID, field.TypeString)
+	if value, ok := _u.mutation.AddedYearlyPriceMicros(); ok {
+		_spec.AddField(plan.FieldYearlyPriceMicros, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.StripeProductID(); ok {
+		_spec.SetField(plan.FieldStripeProductID, field.TypeString, value)
+	}
+	if _u.mutation.StripeProductIDCleared() {
+		_spec.ClearField(plan.FieldStripeProductID, field.TypeString)
+	}
+	if value, ok := _u.mutation.StripePriceMonthlyID(); ok {
+		_spec.SetField(plan.FieldStripePriceMonthlyID, field.TypeString, value)
+	}
+	if _u.mutation.StripePriceMonthlyIDCleared() {
+		_spec.ClearField(plan.FieldStripePriceMonthlyID, field.TypeString)
+	}
+	if value, ok := _u.mutation.StripePriceYearlyID(); ok {
+		_spec.SetField(plan.FieldStripePriceYearlyID, field.TypeString, value)
+	}
+	if _u.mutation.StripePriceYearlyIDCleared() {
+		_spec.ClearField(plan.FieldStripePriceYearlyID, field.TypeString)
+	}
+	if value, ok := _u.mutation.Features(); ok {
+		_spec.SetField(plan.FieldFeatures, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedFeatures(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, plan.FieldFeatures, value)
+		})
 	}
 	if value, ok := _u.mutation.Entitlements(); ok {
 		_spec.SetField(plan.FieldEntitlements, field.TypeJSON, value)
@@ -526,23 +641,96 @@ func (_u *PlanUpdateOne) SetNillableCurrency(v *string) *PlanUpdateOne {
 	return _u
 }
 
-// SetStripePriceID sets the "stripe_price_id" field.
-func (_u *PlanUpdateOne) SetStripePriceID(v string) *PlanUpdateOne {
-	_u.mutation.SetStripePriceID(v)
+// SetYearlyPriceMicros sets the "yearly_price_micros" field.
+func (_u *PlanUpdateOne) SetYearlyPriceMicros(v int64) *PlanUpdateOne {
+	_u.mutation.ResetYearlyPriceMicros()
+	_u.mutation.SetYearlyPriceMicros(v)
 	return _u
 }
 
-// SetNillableStripePriceID sets the "stripe_price_id" field if the given value is not nil.
-func (_u *PlanUpdateOne) SetNillableStripePriceID(v *string) *PlanUpdateOne {
+// SetNillableYearlyPriceMicros sets the "yearly_price_micros" field if the given value is not nil.
+func (_u *PlanUpdateOne) SetNillableYearlyPriceMicros(v *int64) *PlanUpdateOne {
 	if v != nil {
-		_u.SetStripePriceID(*v)
+		_u.SetYearlyPriceMicros(*v)
 	}
 	return _u
 }
 
-// ClearStripePriceID clears the value of the "stripe_price_id" field.
-func (_u *PlanUpdateOne) ClearStripePriceID() *PlanUpdateOne {
-	_u.mutation.ClearStripePriceID()
+// AddYearlyPriceMicros adds value to the "yearly_price_micros" field.
+func (_u *PlanUpdateOne) AddYearlyPriceMicros(v int64) *PlanUpdateOne {
+	_u.mutation.AddYearlyPriceMicros(v)
+	return _u
+}
+
+// SetStripeProductID sets the "stripe_product_id" field.
+func (_u *PlanUpdateOne) SetStripeProductID(v string) *PlanUpdateOne {
+	_u.mutation.SetStripeProductID(v)
+	return _u
+}
+
+// SetNillableStripeProductID sets the "stripe_product_id" field if the given value is not nil.
+func (_u *PlanUpdateOne) SetNillableStripeProductID(v *string) *PlanUpdateOne {
+	if v != nil {
+		_u.SetStripeProductID(*v)
+	}
+	return _u
+}
+
+// ClearStripeProductID clears the value of the "stripe_product_id" field.
+func (_u *PlanUpdateOne) ClearStripeProductID() *PlanUpdateOne {
+	_u.mutation.ClearStripeProductID()
+	return _u
+}
+
+// SetStripePriceMonthlyID sets the "stripe_price_monthly_id" field.
+func (_u *PlanUpdateOne) SetStripePriceMonthlyID(v string) *PlanUpdateOne {
+	_u.mutation.SetStripePriceMonthlyID(v)
+	return _u
+}
+
+// SetNillableStripePriceMonthlyID sets the "stripe_price_monthly_id" field if the given value is not nil.
+func (_u *PlanUpdateOne) SetNillableStripePriceMonthlyID(v *string) *PlanUpdateOne {
+	if v != nil {
+		_u.SetStripePriceMonthlyID(*v)
+	}
+	return _u
+}
+
+// ClearStripePriceMonthlyID clears the value of the "stripe_price_monthly_id" field.
+func (_u *PlanUpdateOne) ClearStripePriceMonthlyID() *PlanUpdateOne {
+	_u.mutation.ClearStripePriceMonthlyID()
+	return _u
+}
+
+// SetStripePriceYearlyID sets the "stripe_price_yearly_id" field.
+func (_u *PlanUpdateOne) SetStripePriceYearlyID(v string) *PlanUpdateOne {
+	_u.mutation.SetStripePriceYearlyID(v)
+	return _u
+}
+
+// SetNillableStripePriceYearlyID sets the "stripe_price_yearly_id" field if the given value is not nil.
+func (_u *PlanUpdateOne) SetNillableStripePriceYearlyID(v *string) *PlanUpdateOne {
+	if v != nil {
+		_u.SetStripePriceYearlyID(*v)
+	}
+	return _u
+}
+
+// ClearStripePriceYearlyID clears the value of the "stripe_price_yearly_id" field.
+func (_u *PlanUpdateOne) ClearStripePriceYearlyID() *PlanUpdateOne {
+	_u.mutation.ClearStripePriceYearlyID()
+	return _u
+}
+
+// SetFeatures sets the "features" field.
+func (_u *PlanUpdateOne) SetFeatures(v []string) *PlanUpdateOne {
+	_u.mutation.SetFeatures(v)
+	return _u
+}
+
+// AppendFeatures appends value to the "features" field.
+func (_u *PlanUpdateOne) AppendFeatures(v []string) *PlanUpdateOne {
+	_u.mutation.AppendFeatures(v)
 	return _u
 }
 
@@ -734,9 +922,24 @@ func (_u *PlanUpdateOne) check() error {
 			return &ValidationError{Name: "currency", err: fmt.Errorf(`ent: validator failed for field "Plan.currency": %w`, err)}
 		}
 	}
-	if v, ok := _u.mutation.StripePriceID(); ok {
-		if err := plan.StripePriceIDValidator(v); err != nil {
-			return &ValidationError{Name: "stripe_price_id", err: fmt.Errorf(`ent: validator failed for field "Plan.stripe_price_id": %w`, err)}
+	if v, ok := _u.mutation.YearlyPriceMicros(); ok {
+		if err := plan.YearlyPriceMicrosValidator(v); err != nil {
+			return &ValidationError{Name: "yearly_price_micros", err: fmt.Errorf(`ent: validator failed for field "Plan.yearly_price_micros": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.StripeProductID(); ok {
+		if err := plan.StripeProductIDValidator(v); err != nil {
+			return &ValidationError{Name: "stripe_product_id", err: fmt.Errorf(`ent: validator failed for field "Plan.stripe_product_id": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.StripePriceMonthlyID(); ok {
+		if err := plan.StripePriceMonthlyIDValidator(v); err != nil {
+			return &ValidationError{Name: "stripe_price_monthly_id", err: fmt.Errorf(`ent: validator failed for field "Plan.stripe_price_monthly_id": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.StripePriceYearlyID(); ok {
+		if err := plan.StripePriceYearlyIDValidator(v); err != nil {
+			return &ValidationError{Name: "stripe_price_yearly_id", err: fmt.Errorf(`ent: validator failed for field "Plan.stripe_price_yearly_id": %w`, err)}
 		}
 	}
 	return nil
@@ -789,11 +992,37 @@ func (_u *PlanUpdateOne) sqlSave(ctx context.Context) (_node *Plan, err error) {
 	if value, ok := _u.mutation.Currency(); ok {
 		_spec.SetField(plan.FieldCurrency, field.TypeString, value)
 	}
-	if value, ok := _u.mutation.StripePriceID(); ok {
-		_spec.SetField(plan.FieldStripePriceID, field.TypeString, value)
+	if value, ok := _u.mutation.YearlyPriceMicros(); ok {
+		_spec.SetField(plan.FieldYearlyPriceMicros, field.TypeInt64, value)
 	}
-	if _u.mutation.StripePriceIDCleared() {
-		_spec.ClearField(plan.FieldStripePriceID, field.TypeString)
+	if value, ok := _u.mutation.AddedYearlyPriceMicros(); ok {
+		_spec.AddField(plan.FieldYearlyPriceMicros, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.StripeProductID(); ok {
+		_spec.SetField(plan.FieldStripeProductID, field.TypeString, value)
+	}
+	if _u.mutation.StripeProductIDCleared() {
+		_spec.ClearField(plan.FieldStripeProductID, field.TypeString)
+	}
+	if value, ok := _u.mutation.StripePriceMonthlyID(); ok {
+		_spec.SetField(plan.FieldStripePriceMonthlyID, field.TypeString, value)
+	}
+	if _u.mutation.StripePriceMonthlyIDCleared() {
+		_spec.ClearField(plan.FieldStripePriceMonthlyID, field.TypeString)
+	}
+	if value, ok := _u.mutation.StripePriceYearlyID(); ok {
+		_spec.SetField(plan.FieldStripePriceYearlyID, field.TypeString, value)
+	}
+	if _u.mutation.StripePriceYearlyIDCleared() {
+		_spec.ClearField(plan.FieldStripePriceYearlyID, field.TypeString)
+	}
+	if value, ok := _u.mutation.Features(); ok {
+		_spec.SetField(plan.FieldFeatures, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedFeatures(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, plan.FieldFeatures, value)
+		})
 	}
 	if value, ok := _u.mutation.Entitlements(); ok {
 		_spec.SetField(plan.FieldEntitlements, field.TypeJSON, value)

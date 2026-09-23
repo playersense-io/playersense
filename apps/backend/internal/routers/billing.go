@@ -73,6 +73,17 @@ func Billing() *muzak.Router {
 		muzak.WithResponseDoc(http.StatusUnprocessableEntity, "Below $5, above $50,000, or not whole cents"),
 		muzak.WithResponseDoc(http.StatusServiceUnavailable, "Stripe could not be reached, or payments are not configured"))
 
+	r.Post("/organizations/{org}/billing/subscription", handlers.Subscribe,
+		muzak.Summary("Subscribe to a plan"),
+		muzak.Description("Opens Stripe Checkout for the plan's monthly or yearly price and returns its "+
+			"URL. The organization moves to the plan when Stripe reports the subscription, by webhook. "+
+			"An organization that already has a subscription changes or cancels it in the billing "+
+			"portal instead."),
+		core.Require(authz.BillingManage),
+		muzak.WithResponseDoc(http.StatusConflict, "The organization already has a subscription"),
+		muzak.WithResponseDoc(http.StatusUnprocessableEntity, "The plan cannot be paid at that interval"),
+		muzak.WithResponseDoc(http.StatusServiceUnavailable, "Stripe could not be reached, or payments are not configured"))
+
 	r.Post("/organizations/{org}/billing/portal", handlers.OpenBillingPortal,
 		muzak.Summary("Manage cards and receipts"),
 		muzak.Description("Opens Stripe's customer portal and returns its URL: add, remove or choose "+

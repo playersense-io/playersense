@@ -194,3 +194,75 @@ func TestTheSettingsRouteQueuesAndUnqueues(t *testing.T) {
 		t.Error("switching automatic top-up off left the account queued")
 	}
 }
+
+// ---- subscriptions (ADR 0042) -----------------------------------------------
+
+// Staff set the Enterprise prices, the pricing page shows them with the features, and a customer is
+// sent to Stripe to subscribe — once: a second subscription is refused while the first is live.
+func TestEnterpriseIsPricedPublishedAndSubscribedTo(t *testing.T) {
+	stripe := paymentstest.New()
+	w := newWalletWith(t, stripe)
+	operator := w.operator
+	key := unique("enterprise")
+	operator.Post("/v1/operator/plans", testclient.JSON(map[string]any{
+		"key": key, "name": "Enterprise", "operator": "ada@playersense.dev",
+		"features": []string{"premium_support", "slack_reports", "mcp_access"},
+	})).AssertStatus(http.StatusCreated)
+
+	priced := testclient.Decoded[schemas.PlanDetailOut](operator.Put("/v1/operator/plans/"+key+"/subscription",
+		testclient.JSON(map[string]any{
+			"monthly_price_micros": dollars(99), "yearly_price_micros": dollars(999), "operator": "ada@playersense.dev",
+		})).AssertStatus(http.StatusOK))
+	if !priced.Subscribable || len(priced.Intervals) != 2 || priced.MonthlyPriceMicros != dollars(99) ||
+		priced.YearlyPriceMicros != dollars(999) || len(priced.Features) != 3 {
+		t.Fatalf("enterprise = %+v", priced)
+	}
+
+	page := testclient.Decoded[schemas.PlansOut](testclient.New(t, w.app).Get("/v1/pricing").AssertStatus(http.StatusOK))
+	found := false
+	for _, p := range page.Plans {
+		if p.Key == key && p.Subscribable && len(p.Features) == 3 {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("the public page does not show Enterprise as subscribable with its features")
+	}
+
+	client := w.client(t)
+	checkout := testclient.Decoded[schemas.CheckoutOut](client.Post(w.base()+"/billing/subscription",
+		testclient.JSON(map[string]any{"plan": key, "interval": "year"})).AssertStatus(http.StatusOK))
+	if checkout.URL == "" || len(stripe.Subscriptions) != 1 {
+		t.Fatalf("subscribe = %+v", checkout)
+	}
+
+	// Stripe reports it live; now a second subscription is refused.
+	org := w.organization(t, w.slug)
+	if _, err := w.db.Client.BillingAccount.Update().Where(billingaccount.OrganizationID(org.ID)).
+		SetSubscriptionStatus("active").Save(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	client.Post(w.base()+"/billing/subscription",
+		testclient.JSON(map[string]any{"plan": key, "interval": "month"})).AssertStatus(http.StatusConflict)
+}
+
+// A plan with no yearly price cannot be bought yearly, and a feature outside the vocabulary is refused.
+func TestSubscriptionInputsThatCannotWorkAreRefused(t *testing.T) {
+	w := newWalletWith(t, paymentstest.New())
+	key := unique("monthly")
+	w.operator.Post("/v1/operator/plans", testclient.JSON(map[string]any{
+		"key": key, "name": "Monthly only", "operator": "ada@playersense.dev",
+	})).AssertStatus(http.StatusCreated)
+	w.operator.Put("/v1/operator/plans/"+key+"/subscription", testclient.JSON(map[string]any{
+		"monthly_price_micros": dollars(10), "operator": "ada@playersense.dev",
+	})).AssertStatus(http.StatusOK)
+
+	w.client(t).Post(w.base()+"/billing/subscription",
+		testclient.JSON(map[string]any{"plan": key, "interval": "year"})).AssertStatus(http.StatusUnprocessableEntity)
+	w.operator.Put("/v1/operator/plans/"+key+"/subscription", testclient.JSON(map[string]any{
+		"operator": "ada@playersense.dev",
+	})).AssertStatus(http.StatusUnprocessableEntity)
+	w.operator.Put("/v1/operator/plans/"+key, testclient.JSON(map[string]any{
+		"features": []string{"mcp_acess"}, "operator": "ada@playersense.dev",
+	})).AssertStatus(http.StatusUnprocessableEntity)
+}

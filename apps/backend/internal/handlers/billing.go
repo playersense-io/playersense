@@ -626,7 +626,21 @@ func billingOut(ctx context.Context, db *core.DB, account *ent.BillingAccount,
 	}
 	out.AutoTopUp.RetryAfter = account.AutoTopupRetryAfter
 	out.AutoTopUp.LastError = account.AutoTopupLastError
+	out.Features = []string{}
+	if account.SubscriptionStatus != nil {
+		sub := &schemas.SubscriptionOut{
+			Status: *account.SubscriptionStatus, PeriodEnd: account.SubscriptionPeriodEnd,
+			CancelAtPeriodEnd: account.SubscriptionCancelAtPeriodEnd,
+		}
+		if account.SubscriptionInterval != nil {
+			sub.Interval = string(*account.SubscriptionInterval)
+		}
+		out.Subscription = sub
+	}
 	if plan := account.Edges.Plan; plan != nil {
+		if plan.Features != nil {
+			out.Features = plan.Features
+		}
 		out.Plan = schemas.PlanOut{
 			Key:                plan.Key,
 			Name:               plan.Name,

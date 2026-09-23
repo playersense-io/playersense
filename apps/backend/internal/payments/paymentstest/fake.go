@@ -40,11 +40,12 @@ type Gateway struct {
 	// so a test's pass over a shared database charges its own account and nobody else's.
 	Only string
 
-	Customers map[string]string           // account uid → customer id
-	Charges   map[string]payments.Payment // idempotency key → the payment it made
-	requests  map[string]payments.OffSessionRequest
-	Checkouts []payments.CheckoutRequest
-	Portals   int
+	Customers     map[string]string           // account uid → customer id
+	Charges       map[string]payments.Payment // idempotency key → the payment it made
+	requests      map[string]payments.OffSessionRequest
+	Checkouts     []payments.CheckoutRequest
+	Subscriptions []payments.SubscriptionCheckoutRequest
+	Portals       int
 
 	// Calls counts charge requests that reached "Stripe", including replays of a key.
 	Calls int
@@ -170,4 +171,34 @@ func (g *Gateway) Charged() int {
 		}
 	}
 	return n
+}
+
+func (g *Gateway) SetUpSubscription(_ context.Context, in payments.SubscriptionPriceRequest) (payments.SubscriptionPrices, error) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.Down {
+		return payments.SubscriptionPrices{}, ErrTimeout
+	}
+	out := payments.SubscriptionPrices{Product: in.Product}
+	if out.Product == "" {
+		out.Product = "prod_test_" + in.PlanUID[:8]
+	}
+	if in.MonthlyCents > 0 {
+		out.Monthly = "price_test_" + uuid.NewString()[:10]
+	}
+	if in.YearlyCents > 0 {
+		out.Yearly = "price_test_" + uuid.NewString()[:10]
+	}
+	return out, nil
+}
+
+func (g *Gateway) CreateSubscriptionCheckout(_ context.Context, in payments.SubscriptionCheckoutRequest) (payments.Checkout, error) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.Down {
+		return payments.Checkout{}, ErrTimeout
+	}
+	g.Subscriptions = append(g.Subscriptions, in)
+	id := "cs_test_" + uuid.NewString()[:12]
+	return payments.Checkout{ID: id, URL: "https://checkout.stripe.test/" + id, ExpiresAt: time.Now().Add(24 * time.Hour)}, nil
 }

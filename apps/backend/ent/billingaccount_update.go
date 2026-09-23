@@ -95,6 +95,100 @@ func (_u *BillingAccountUpdate) ClearStripeSubscriptionID() *BillingAccountUpdat
 	return _u
 }
 
+// SetSubscriptionStatus sets the "subscription_status" field.
+func (_u *BillingAccountUpdate) SetSubscriptionStatus(v string) *BillingAccountUpdate {
+	_u.mutation.SetSubscriptionStatus(v)
+	return _u
+}
+
+// SetNillableSubscriptionStatus sets the "subscription_status" field if the given value is not nil.
+func (_u *BillingAccountUpdate) SetNillableSubscriptionStatus(v *string) *BillingAccountUpdate {
+	if v != nil {
+		_u.SetSubscriptionStatus(*v)
+	}
+	return _u
+}
+
+// ClearSubscriptionStatus clears the value of the "subscription_status" field.
+func (_u *BillingAccountUpdate) ClearSubscriptionStatus() *BillingAccountUpdate {
+	_u.mutation.ClearSubscriptionStatus()
+	return _u
+}
+
+// SetSubscriptionInterval sets the "subscription_interval" field.
+func (_u *BillingAccountUpdate) SetSubscriptionInterval(v billingaccount.SubscriptionInterval) *BillingAccountUpdate {
+	_u.mutation.SetSubscriptionInterval(v)
+	return _u
+}
+
+// SetNillableSubscriptionInterval sets the "subscription_interval" field if the given value is not nil.
+func (_u *BillingAccountUpdate) SetNillableSubscriptionInterval(v *billingaccount.SubscriptionInterval) *BillingAccountUpdate {
+	if v != nil {
+		_u.SetSubscriptionInterval(*v)
+	}
+	return _u
+}
+
+// ClearSubscriptionInterval clears the value of the "subscription_interval" field.
+func (_u *BillingAccountUpdate) ClearSubscriptionInterval() *BillingAccountUpdate {
+	_u.mutation.ClearSubscriptionInterval()
+	return _u
+}
+
+// SetSubscriptionPeriodEnd sets the "subscription_period_end" field.
+func (_u *BillingAccountUpdate) SetSubscriptionPeriodEnd(v time.Time) *BillingAccountUpdate {
+	_u.mutation.SetSubscriptionPeriodEnd(v)
+	return _u
+}
+
+// SetNillableSubscriptionPeriodEnd sets the "subscription_period_end" field if the given value is not nil.
+func (_u *BillingAccountUpdate) SetNillableSubscriptionPeriodEnd(v *time.Time) *BillingAccountUpdate {
+	if v != nil {
+		_u.SetSubscriptionPeriodEnd(*v)
+	}
+	return _u
+}
+
+// ClearSubscriptionPeriodEnd clears the value of the "subscription_period_end" field.
+func (_u *BillingAccountUpdate) ClearSubscriptionPeriodEnd() *BillingAccountUpdate {
+	_u.mutation.ClearSubscriptionPeriodEnd()
+	return _u
+}
+
+// SetSubscriptionCancelAtPeriodEnd sets the "subscription_cancel_at_period_end" field.
+func (_u *BillingAccountUpdate) SetSubscriptionCancelAtPeriodEnd(v bool) *BillingAccountUpdate {
+	_u.mutation.SetSubscriptionCancelAtPeriodEnd(v)
+	return _u
+}
+
+// SetNillableSubscriptionCancelAtPeriodEnd sets the "subscription_cancel_at_period_end" field if the given value is not nil.
+func (_u *BillingAccountUpdate) SetNillableSubscriptionCancelAtPeriodEnd(v *bool) *BillingAccountUpdate {
+	if v != nil {
+		_u.SetSubscriptionCancelAtPeriodEnd(*v)
+	}
+	return _u
+}
+
+// SetSubscriptionSyncedAt sets the "subscription_synced_at" field.
+func (_u *BillingAccountUpdate) SetSubscriptionSyncedAt(v time.Time) *BillingAccountUpdate {
+	_u.mutation.SetSubscriptionSyncedAt(v)
+	return _u
+}
+
+// SetNillableSubscriptionSyncedAt sets the "subscription_synced_at" field if the given value is not nil.
+func (_u *BillingAccountUpdate) SetNillableSubscriptionSyncedAt(v *time.Time) *BillingAccountUpdate {
+	if v != nil {
+		_u.SetSubscriptionSyncedAt(*v)
+	}
+	return _u
+}
+
+// ClearSubscriptionSyncedAt clears the value of the "subscription_synced_at" field.
+func (_u *BillingAccountUpdate) ClearSubscriptionSyncedAt() *BillingAccountUpdate {
+	_u.mutation.ClearSubscriptionSyncedAt()
+	return _u
+}
+
 // SetState sets the "state" field.
 func (_u *BillingAccountUpdate) SetState(v billingaccount.State) *BillingAccountUpdate {
 	_u.mutation.SetState(v)
@@ -730,6 +824,16 @@ func (_u *BillingAccountUpdate) check() error {
 			return &ValidationError{Name: "stripe_subscription_id", err: fmt.Errorf(`ent: validator failed for field "BillingAccount.stripe_subscription_id": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.SubscriptionStatus(); ok {
+		if err := billingaccount.SubscriptionStatusValidator(v); err != nil {
+			return &ValidationError{Name: "subscription_status", err: fmt.Errorf(`ent: validator failed for field "BillingAccount.subscription_status": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.SubscriptionInterval(); ok {
+		if err := billingaccount.SubscriptionIntervalValidator(v); err != nil {
+			return &ValidationError{Name: "subscription_interval", err: fmt.Errorf(`ent: validator failed for field "BillingAccount.subscription_interval": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.State(); ok {
 		if err := billingaccount.StateValidator(v); err != nil {
 			return &ValidationError{Name: "state", err: fmt.Errorf(`ent: validator failed for field "BillingAccount.state": %w`, err)}
@@ -815,6 +919,33 @@ func (_u *BillingAccountUpdate) sqlSave(ctx context.Context) (_node int, err err
 	}
 	if _u.mutation.StripeSubscriptionIDCleared() {
 		_spec.ClearField(billingaccount.FieldStripeSubscriptionID, field.TypeString)
+	}
+	if value, ok := _u.mutation.SubscriptionStatus(); ok {
+		_spec.SetField(billingaccount.FieldSubscriptionStatus, field.TypeString, value)
+	}
+	if _u.mutation.SubscriptionStatusCleared() {
+		_spec.ClearField(billingaccount.FieldSubscriptionStatus, field.TypeString)
+	}
+	if value, ok := _u.mutation.SubscriptionInterval(); ok {
+		_spec.SetField(billingaccount.FieldSubscriptionInterval, field.TypeEnum, value)
+	}
+	if _u.mutation.SubscriptionIntervalCleared() {
+		_spec.ClearField(billingaccount.FieldSubscriptionInterval, field.TypeEnum)
+	}
+	if value, ok := _u.mutation.SubscriptionPeriodEnd(); ok {
+		_spec.SetField(billingaccount.FieldSubscriptionPeriodEnd, field.TypeTime, value)
+	}
+	if _u.mutation.SubscriptionPeriodEndCleared() {
+		_spec.ClearField(billingaccount.FieldSubscriptionPeriodEnd, field.TypeTime)
+	}
+	if value, ok := _u.mutation.SubscriptionCancelAtPeriodEnd(); ok {
+		_spec.SetField(billingaccount.FieldSubscriptionCancelAtPeriodEnd, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.SubscriptionSyncedAt(); ok {
+		_spec.SetField(billingaccount.FieldSubscriptionSyncedAt, field.TypeTime, value)
+	}
+	if _u.mutation.SubscriptionSyncedAtCleared() {
+		_spec.ClearField(billingaccount.FieldSubscriptionSyncedAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.State(); ok {
 		_spec.SetField(billingaccount.FieldState, field.TypeEnum, value)
@@ -1291,6 +1422,100 @@ func (_u *BillingAccountUpdateOne) SetNillableStripeSubscriptionID(v *string) *B
 // ClearStripeSubscriptionID clears the value of the "stripe_subscription_id" field.
 func (_u *BillingAccountUpdateOne) ClearStripeSubscriptionID() *BillingAccountUpdateOne {
 	_u.mutation.ClearStripeSubscriptionID()
+	return _u
+}
+
+// SetSubscriptionStatus sets the "subscription_status" field.
+func (_u *BillingAccountUpdateOne) SetSubscriptionStatus(v string) *BillingAccountUpdateOne {
+	_u.mutation.SetSubscriptionStatus(v)
+	return _u
+}
+
+// SetNillableSubscriptionStatus sets the "subscription_status" field if the given value is not nil.
+func (_u *BillingAccountUpdateOne) SetNillableSubscriptionStatus(v *string) *BillingAccountUpdateOne {
+	if v != nil {
+		_u.SetSubscriptionStatus(*v)
+	}
+	return _u
+}
+
+// ClearSubscriptionStatus clears the value of the "subscription_status" field.
+func (_u *BillingAccountUpdateOne) ClearSubscriptionStatus() *BillingAccountUpdateOne {
+	_u.mutation.ClearSubscriptionStatus()
+	return _u
+}
+
+// SetSubscriptionInterval sets the "subscription_interval" field.
+func (_u *BillingAccountUpdateOne) SetSubscriptionInterval(v billingaccount.SubscriptionInterval) *BillingAccountUpdateOne {
+	_u.mutation.SetSubscriptionInterval(v)
+	return _u
+}
+
+// SetNillableSubscriptionInterval sets the "subscription_interval" field if the given value is not nil.
+func (_u *BillingAccountUpdateOne) SetNillableSubscriptionInterval(v *billingaccount.SubscriptionInterval) *BillingAccountUpdateOne {
+	if v != nil {
+		_u.SetSubscriptionInterval(*v)
+	}
+	return _u
+}
+
+// ClearSubscriptionInterval clears the value of the "subscription_interval" field.
+func (_u *BillingAccountUpdateOne) ClearSubscriptionInterval() *BillingAccountUpdateOne {
+	_u.mutation.ClearSubscriptionInterval()
+	return _u
+}
+
+// SetSubscriptionPeriodEnd sets the "subscription_period_end" field.
+func (_u *BillingAccountUpdateOne) SetSubscriptionPeriodEnd(v time.Time) *BillingAccountUpdateOne {
+	_u.mutation.SetSubscriptionPeriodEnd(v)
+	return _u
+}
+
+// SetNillableSubscriptionPeriodEnd sets the "subscription_period_end" field if the given value is not nil.
+func (_u *BillingAccountUpdateOne) SetNillableSubscriptionPeriodEnd(v *time.Time) *BillingAccountUpdateOne {
+	if v != nil {
+		_u.SetSubscriptionPeriodEnd(*v)
+	}
+	return _u
+}
+
+// ClearSubscriptionPeriodEnd clears the value of the "subscription_period_end" field.
+func (_u *BillingAccountUpdateOne) ClearSubscriptionPeriodEnd() *BillingAccountUpdateOne {
+	_u.mutation.ClearSubscriptionPeriodEnd()
+	return _u
+}
+
+// SetSubscriptionCancelAtPeriodEnd sets the "subscription_cancel_at_period_end" field.
+func (_u *BillingAccountUpdateOne) SetSubscriptionCancelAtPeriodEnd(v bool) *BillingAccountUpdateOne {
+	_u.mutation.SetSubscriptionCancelAtPeriodEnd(v)
+	return _u
+}
+
+// SetNillableSubscriptionCancelAtPeriodEnd sets the "subscription_cancel_at_period_end" field if the given value is not nil.
+func (_u *BillingAccountUpdateOne) SetNillableSubscriptionCancelAtPeriodEnd(v *bool) *BillingAccountUpdateOne {
+	if v != nil {
+		_u.SetSubscriptionCancelAtPeriodEnd(*v)
+	}
+	return _u
+}
+
+// SetSubscriptionSyncedAt sets the "subscription_synced_at" field.
+func (_u *BillingAccountUpdateOne) SetSubscriptionSyncedAt(v time.Time) *BillingAccountUpdateOne {
+	_u.mutation.SetSubscriptionSyncedAt(v)
+	return _u
+}
+
+// SetNillableSubscriptionSyncedAt sets the "subscription_synced_at" field if the given value is not nil.
+func (_u *BillingAccountUpdateOne) SetNillableSubscriptionSyncedAt(v *time.Time) *BillingAccountUpdateOne {
+	if v != nil {
+		_u.SetSubscriptionSyncedAt(*v)
+	}
+	return _u
+}
+
+// ClearSubscriptionSyncedAt clears the value of the "subscription_synced_at" field.
+func (_u *BillingAccountUpdateOne) ClearSubscriptionSyncedAt() *BillingAccountUpdateOne {
+	_u.mutation.ClearSubscriptionSyncedAt()
 	return _u
 }
 
@@ -1942,6 +2167,16 @@ func (_u *BillingAccountUpdateOne) check() error {
 			return &ValidationError{Name: "stripe_subscription_id", err: fmt.Errorf(`ent: validator failed for field "BillingAccount.stripe_subscription_id": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.SubscriptionStatus(); ok {
+		if err := billingaccount.SubscriptionStatusValidator(v); err != nil {
+			return &ValidationError{Name: "subscription_status", err: fmt.Errorf(`ent: validator failed for field "BillingAccount.subscription_status": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.SubscriptionInterval(); ok {
+		if err := billingaccount.SubscriptionIntervalValidator(v); err != nil {
+			return &ValidationError{Name: "subscription_interval", err: fmt.Errorf(`ent: validator failed for field "BillingAccount.subscription_interval": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.State(); ok {
 		if err := billingaccount.StateValidator(v); err != nil {
 			return &ValidationError{Name: "state", err: fmt.Errorf(`ent: validator failed for field "BillingAccount.state": %w`, err)}
@@ -2044,6 +2279,33 @@ func (_u *BillingAccountUpdateOne) sqlSave(ctx context.Context) (_node *BillingA
 	}
 	if _u.mutation.StripeSubscriptionIDCleared() {
 		_spec.ClearField(billingaccount.FieldStripeSubscriptionID, field.TypeString)
+	}
+	if value, ok := _u.mutation.SubscriptionStatus(); ok {
+		_spec.SetField(billingaccount.FieldSubscriptionStatus, field.TypeString, value)
+	}
+	if _u.mutation.SubscriptionStatusCleared() {
+		_spec.ClearField(billingaccount.FieldSubscriptionStatus, field.TypeString)
+	}
+	if value, ok := _u.mutation.SubscriptionInterval(); ok {
+		_spec.SetField(billingaccount.FieldSubscriptionInterval, field.TypeEnum, value)
+	}
+	if _u.mutation.SubscriptionIntervalCleared() {
+		_spec.ClearField(billingaccount.FieldSubscriptionInterval, field.TypeEnum)
+	}
+	if value, ok := _u.mutation.SubscriptionPeriodEnd(); ok {
+		_spec.SetField(billingaccount.FieldSubscriptionPeriodEnd, field.TypeTime, value)
+	}
+	if _u.mutation.SubscriptionPeriodEndCleared() {
+		_spec.ClearField(billingaccount.FieldSubscriptionPeriodEnd, field.TypeTime)
+	}
+	if value, ok := _u.mutation.SubscriptionCancelAtPeriodEnd(); ok {
+		_spec.SetField(billingaccount.FieldSubscriptionCancelAtPeriodEnd, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.SubscriptionSyncedAt(); ok {
+		_spec.SetField(billingaccount.FieldSubscriptionSyncedAt, field.TypeTime, value)
+	}
+	if _u.mutation.SubscriptionSyncedAtCleared() {
+		_spec.ClearField(billingaccount.FieldSubscriptionSyncedAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.State(); ok {
 		_spec.SetField(billingaccount.FieldState, field.TypeEnum, value)

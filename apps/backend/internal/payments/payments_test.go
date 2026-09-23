@@ -15,6 +15,7 @@ import (
 	"playersense.dev/backend/ent"
 	"playersense.dev/backend/ent/creditlot"
 	"playersense.dev/backend/ent/ledgerentry"
+	"playersense.dev/backend/ent/plan"
 	"playersense.dev/backend/ent/stripeevent"
 	"playersense.dev/backend/internal/billing"
 	"playersense.dev/backend/internal/identity"
@@ -935,5 +936,134 @@ func (f *fixture) assertInvariant() {
 	}
 	if row.BalanceMicros != held-row.ArrearsMicros {
 		f.t.Errorf("balance %s ≠ lots %s − arrears %s", billing.USD(row.BalanceMicros), billing.USD(held), billing.USD(row.ArrearsMicros))
+	}
+}
+
+// ---- subscriptions (ADR 0042) -----------------------------------------------
+
+// subscriptionPlans gives the fixture a free default plan and an enterprise plan with Stripe prices.
+func (f *fixture) subscriptionPlans() (free, enterprise *ent.Plan) {
+	f.t.Helper()
+	ctx := context.Background()
+	id := uuid.NewString()[:8]
+	var err error
+	free, err = f.db.Client.Plan.Create().SetKey("free-" + id).SetName("Free").SetIsDefault(true).Save(ctx)
+	if err != nil {
+		f.t.Fatal(err)
+	}
+	f.t.Cleanup(func() { _, _ = f.db.Client.Plan.UpdateOneID(free.ID).SetIsDefault(false).Save(context.Background()) })
+	// Only one default at a time, as the catalogue route guarantees.
+	if _, err := f.db.Client.Plan.Update().Where(plan.IsDefault(true), plan.IDNEQ(free.ID)).SetIsDefault(false).Save(ctx); err != nil {
+		f.t.Fatal(err)
+	}
+	enterprise, err = f.db.Client.Plan.Create().SetKey("enterprise-" + id).SetName("Enterprise").
+		SetMonthlyPriceMicros(99 * billing.Micros).SetYearlyPriceMicros(999 * billing.Micros).
+		SetStripePriceMonthlyID("price_m_" + id).SetStripePriceYearlyID("price_y_" + id).
+		SetFeatures([]string{string(billing.PremiumSupport), string(billing.SlackReports), string(billing.MCPAccess)}).
+		Save(ctx)
+	if err != nil {
+		f.t.Fatal(err)
+	}
+	return free, enterprise
+}
+
+func (f *fixture) subscriptionEvent(kind, id, status, price, interval string, at time.Time, cancelAtEnd bool) payments.Outcome {
+	f.t.Helper()
+	payload, err := json.Marshal(map[string]any{
+		"id": "evt_" + uuid.NewString(), "object": "event", "type": kind, "api_version": "2026-04-22.dahlia",
+		"created": at.Unix(), "data": map[string]any{"object": map[string]any{
+			"id": id, "object": "subscription", "status": status, "customer": f.customer,
+			"cancel_at_period_end": cancelAtEnd,
+			"items": map[string]any{"object": "list", "data": []any{map[string]any{
+				"id": "si_1", "object": "subscription_item", "current_period_end": at.Add(30 * 24 * time.Hour).Unix(),
+				"price": map[string]any{"id": price, "object": "price", "recurring": map[string]any{"interval": interval}},
+			}}},
+		}},
+	})
+	if err != nil {
+		f.t.Fatal(err)
+	}
+	signed := webhook.GenerateTestSignedPayload(&webhook.UnsignedPayload{Payload: payload, Secret: secret})
+	out, err := f.hooks.Receive(context.Background(), signed.Payload, signed.Header)
+	if err != nil {
+		f.t.Fatal(err)
+	}
+	return out
+}
+
+// Subscribing puts the account on the plan; canceling at period end keeps it there until the end; the
+// end puts it back on the default plan.
+func TestASubscriptionMovesTheAccountBetweenPlans(t *testing.T) {
+	f := newFixture(t)
+	free, enterprise := f.subscriptionPlans()
+	sub := "sub_" + uuid.NewString()[:10]
+	t0 := time.Now().Add(-time.Hour)
+
+	f.subscriptionEvent("customer.subscription.created", sub, "active", *enterprise.StripePriceMonthlyID, "month", t0, false)
+	row := f.row()
+	if row.PlanID != enterprise.ID || *row.SubscriptionStatus != "active" || *row.SubscriptionInterval != "month" {
+		t.Fatalf("after subscribing: plan %d, status %v, interval %v", row.PlanID, row.SubscriptionStatus, row.SubscriptionInterval)
+	}
+
+	f.subscriptionEvent("customer.subscription.updated", sub, "active", *enterprise.StripePriceMonthlyID, "month", t0.Add(time.Minute), true)
+	if row := f.row(); row.PlanID != enterprise.ID || !row.SubscriptionCancelAtPeriodEnd {
+		t.Errorf("canceling at period end: plan %d, cancel %v; want still enterprise, true", row.PlanID, row.SubscriptionCancelAtPeriodEnd)
+	}
+
+	f.subscriptionEvent("customer.subscription.deleted", sub, "canceled", *enterprise.StripePriceMonthlyID, "month", t0.Add(2*time.Minute), true)
+	if row := f.row(); row.PlanID != free.ID || *row.SubscriptionStatus != "canceled" {
+		t.Errorf("after it ended: plan %d, status %v; want the free plan", row.PlanID, *row.SubscriptionStatus)
+	}
+}
+
+// An `updated` delivered after the `deleted` it preceded does not bring the subscription back.
+func TestALateSubscriptionEventCannotUndoANewerOne(t *testing.T) {
+	f := newFixture(t)
+	free, enterprise := f.subscriptionPlans()
+	sub := "sub_" + uuid.NewString()[:10]
+	t0 := time.Now().Add(-time.Hour)
+
+	f.subscriptionEvent("customer.subscription.created", sub, "active", *enterprise.StripePriceYearlyID, "year", t0, false)
+	f.subscriptionEvent("customer.subscription.deleted", sub, "canceled", *enterprise.StripePriceYearlyID, "year", t0.Add(2*time.Minute), false)
+	out := f.subscriptionEvent("customer.subscription.updated", sub, "active", *enterprise.StripePriceYearlyID, "year", t0.Add(time.Minute), false)
+	if out.Status != "ignored" || f.row().PlanID != free.ID {
+		t.Errorf("a stale update: %s, plan %d; want ignored and still free", out.Status, f.row().PlanID)
+	}
+}
+
+// Stripe retrying a failed renewal (past_due) keeps the plan; giving up (unpaid) ends it.
+func TestARenewalBeingRetriedKeepsThePlan(t *testing.T) {
+	f := newFixture(t)
+	free, enterprise := f.subscriptionPlans()
+	sub := "sub_" + uuid.NewString()[:10]
+	t0 := time.Now().Add(-time.Hour)
+	price := *enterprise.StripePriceMonthlyID
+
+	f.subscriptionEvent("customer.subscription.created", sub, "active", price, "month", t0, false)
+	f.subscriptionEvent("customer.subscription.updated", sub, "past_due", price, "month", t0.Add(time.Minute), false)
+	if f.row().PlanID != enterprise.ID {
+		t.Fatal("a renewal being retried took the plan away")
+	}
+	f.subscriptionEvent("customer.subscription.updated", sub, "unpaid", price, "month", t0.Add(2*time.Minute), false)
+	if f.row().PlanID != free.ID {
+		t.Error("a renewal Stripe gave up on kept the plan")
+	}
+}
+
+// A subscription that was never the account's cannot end the plan staff gave it by contract, and a
+// price that belongs to no plan moves nothing.
+func TestOnlyTheAccountsOwnSubscriptionMovesItsPlan(t *testing.T) {
+	f := newFixture(t)
+	_, enterprise := f.subscriptionPlans()
+	if _, err := f.db.Client.BillingAccount.UpdateOneID(f.account.ID).SetPlanID(enterprise.ID).Save(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	t0 := time.Now().Add(-time.Hour)
+	f.subscriptionEvent("customer.subscription.deleted", "sub_other", "incomplete_expired", *enterprise.StripePriceMonthlyID, "month", t0, false)
+	if f.row().PlanID != enterprise.ID {
+		t.Error("a subscription that was never the account's ended its contract plan")
+	}
+	if out := f.subscriptionEvent("customer.subscription.created", "sub_x", "active", "price_nobody", "month", t0.Add(time.Minute), false); out.Status != "ignored" {
+		t.Errorf("an unknown price: %s, want ignored", out.Status)
 	}
 }

@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"sort"
-	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -17,6 +16,7 @@ import (
 	"playersense.dev/backend/ent/ratecard"
 	"playersense.dev/backend/internal/billing"
 	"playersense.dev/backend/internal/pgdb"
+	"playersense.dev/backend/internal/pricingcache"
 	"playersense.dev/backend/internal/valkey"
 )
 
@@ -166,7 +166,7 @@ func (c *PricingCache) org(ctx context.Context, orgSeq int) (orgEntry, error) {
 	}
 	c.mu.Unlock()
 
-	key := OrgKey(c.Cache, orgSeq)
+	key := pricingcache.OrgKey(c.Cache, orgSeq)
 	var entry orgEntry
 	if c.fromShared(ctx, key, &entry) {
 		c.Stats.Shared.Add(1)
@@ -201,7 +201,7 @@ func (c *PricingCache) plan(ctx context.Context, planID int) (planEntry, error) 
 	}
 	c.mu.Unlock()
 
-	key := PlanKey(c.Cache, planID)
+	key := pricingcache.PlanKey(c.Cache, planID)
 	var entry planEntry
 	if c.fromShared(ctx, key, &entry) {
 		c.remember(func() { c.plans = put(c.plans, planID, entry, now) })
@@ -287,33 +287,9 @@ func (c *PricingCache) now() time.Time {
 	return time.Now()
 }
 
-// OrgKey and PlanKey name the shared entries. Every writer that changes what they hold deletes them.
-func OrgKey(cache *valkey.Client, orgSeq int) string {
-	if cache == nil {
-		return ""
-	}
-	return cache.Key("billing", "pricing", "org", strconv.Itoa(orgSeq))
-}
-
-func PlanKey(cache *valkey.Client, planID int) string {
-	if cache == nil {
-		return ""
-	}
-	return cache.Key("billing", "pricing", "plan", strconv.Itoa(planID))
-}
-
-// InvalidateOrganization is called after an organization moves plans or its overrides change.
-func InvalidateOrganization(ctx context.Context, cache *valkey.Client, orgSeq int) error {
-	if cache == nil {
-		return nil
-	}
-	return cache.Del(ctx, OrgKey(cache, orgSeq))
-}
-
-// InvalidatePlan is called after a plan's allowances change or a card is published for it.
-func InvalidatePlan(ctx context.Context, cache *valkey.Client, planID int) error {
-	if cache == nil {
-		return nil
-	}
-	return cache.Del(ctx, PlanKey(cache, planID))
-}
+// InvalidateOrganization and InvalidatePlan are pricingcache's, kept here for callers that already
+// speak to charging.
+var (
+	InvalidateOrganization = pricingcache.InvalidateOrganization
+	InvalidatePlan         = pricingcache.InvalidatePlan
+)

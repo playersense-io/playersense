@@ -254,6 +254,26 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/v1/operator/plans/{plan}/subscription": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        /**
+         * Set what a plan's subscription costs
+         * @description Monthly and yearly prices in micros ($99 is 99000000). Creates the plan's Stripe Product the first time, and a Stripe Price per interval — Prices cannot be edited, so a changed amount is a new Price: new subscribers pay it, existing ones keep theirs until they change plan.
+         */
+        readonly put: operations["put_v1_operator_plans_by_plan_subscription"];
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/v1/organizations": {
         readonly parameters: {
             readonly query?: never;
@@ -386,6 +406,26 @@ export interface paths {
          * @description Opens Stripe's customer portal and returns its URL: add, remove or choose the default card, and read receipts. The default card is the one automatic top-up charges.
          */
         readonly post: operations["post_v1_organizations_by_org_billing_portal"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/organizations/{org}/billing/subscription": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Subscribe to a plan
+         * @description Opens Stripe Checkout for the plan's monthly or yearly price and returns its URL. The organization moves to the plan when Stripe reports the subscription, by webhook. An organization that already has a subscription changes or cancels it in the billing portal instead.
+         */
+        readonly post: operations["post_v1_organizations_by_org_billing_subscription"];
         readonly delete?: never;
         readonly options?: never;
         readonly head?: never;
@@ -1147,6 +1187,7 @@ export interface components {
             readonly available_micros: number;
             readonly currency: string;
             readonly expiring_soon?: readonly components["schemas"]["CreditLotOut"][];
+            readonly features: readonly string[];
             /** Format: int64 */
             readonly ledger_balance_micros: number;
             /** @description Every grant with credit left, in the order it will be spent */
@@ -1159,6 +1200,7 @@ export interface components {
             readonly purchased_micros: number;
             /** @description active, grace_period, restricted, suspended or canceled */
             readonly state: string;
+            readonly subscription?: components["schemas"]["SubscriptionOut"] | null;
         };
         readonly Breakdown: {
             /** @description install_platform, install_country or first_app_version */
@@ -1333,6 +1375,8 @@ export interface components {
             readonly entitlements?: {
                 readonly [key: string]: number;
             };
+            /** @description premium_support, slack_reports, mcp_access — the closed vocabulary */
+            readonly features?: readonly string[];
             /** @description The plan new organizations are put on; at most one */
             readonly is_default?: boolean;
             /** @description Lowercase, permanent: accounts and snapshots refer to it */
@@ -1837,12 +1881,18 @@ export interface components {
             readonly entitlements?: {
                 readonly [key: string]: number;
             };
+            readonly features: readonly string[];
+            /** @description month, year — the ones this plan can be paid by */
+            readonly intervals?: readonly string[];
             readonly is_default: boolean;
             readonly key: string;
             /** Format: int64 */
             readonly monthly_price_micros: number;
             readonly name: string;
             readonly scheduled?: components["schemas"]["RateCardOut"] | null;
+            readonly subscribable: boolean;
+            /** Format: int64 */
+            readonly yearly_price_micros: number;
         };
         readonly PlanOut: {
             /** @description The plan's allowances, with any per-account override already applied */
@@ -1981,6 +2031,18 @@ export interface components {
             readonly rule: string;
             /** Format: date-time */
             readonly updated_at: string;
+        };
+        readonly SubscriptionOut: {
+            readonly cancel_at_period_end: boolean;
+            /** @description month or year */
+            readonly interval?: string;
+            /**
+             * Format: date-time
+             * @description When the paid period ends — and, if canceling, when the plan does
+             */
+            readonly period_end?: string | null;
+            /** @description Stripe's: active, trialing, past_due, canceled, unpaid, … */
+            readonly status: string;
         };
         readonly TierIn: {
             /**
@@ -2922,6 +2984,8 @@ export interface operations {
                     readonly entitlements?: {
                         readonly [key: string]: number;
                     };
+                    /** @description Replaces the whole list when present */
+                    readonly features?: readonly string[];
                     /** @description true makes this the default and unsets the previous one */
                     readonly is_default?: boolean | null;
                     /** Format: int64 */
@@ -3118,6 +3182,90 @@ export interface operations {
             };
             /** @description The tiers leave a gap, overlap, or bound the last band; or the card starts in the past */
             readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly put_v1_operator_plans_by_plan_subscription: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly plan: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": {
+                    /**
+                     * Format: int64
+                     * @description $99 is 99000000; zero for no monthly price
+                     */
+                    readonly monthly_price_micros?: number;
+                    /** Format: email */
+                    readonly operator: string;
+                    /**
+                     * Format: int64
+                     * @description $999 is 999000000; zero for no yearly price
+                     */
+                    readonly yearly_price_micros?: number;
+                };
+            };
+        };
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["PlanDetailOut"];
+                };
+            };
+            /** @description The operator token is missing or wrong */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No plan has that key */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Neither price named, or not whole cents */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Stripe could not be reached, or payments are not configured */
+            readonly 503: {
                 headers: {
                     readonly [name: string]: unknown;
                 };
@@ -3725,6 +3873,103 @@ export interface operations {
                 };
             };
             /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Stripe could not be reached, or payments are not configured */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly post_v1_organizations_by_org_billing_subscription: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly org: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": {
+                    /**
+                     * @description month or year
+                     * @enum {string}
+                     */
+                    readonly interval: "month" | "year";
+                    /** @description The plan's key, e.g. enterprise */
+                    readonly plan: string;
+                };
+            };
+        };
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["CheckoutOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not do that */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The organization does not exist */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The organization already has a subscription */
+            readonly 409: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The plan cannot be paid at that interval */
             readonly 422: {
                 headers: {
                     readonly [name: string]: unknown;

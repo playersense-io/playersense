@@ -40,15 +40,31 @@ func entitlementsHook(get func(ent.Mutation) (map[string]int64, bool)) ent.Hook 
 }
 
 func (Plan) Hooks() []ent.Hook {
-	return []ent.Hook{entitlementsHook(func(m ent.Mutation) (map[string]int64, bool) {
-		mutation, ok := m.(interface {
-			Entitlements() (map[string]int64, bool)
-		})
-		if !ok {
-			return nil, false
-		}
-		return mutation.Entitlements()
-	})}
+	return []ent.Hook{
+		entitlementsHook(func(m ent.Mutation) (map[string]int64, bool) {
+			mutation, ok := m.(interface {
+				Entitlements() (map[string]int64, bool)
+			})
+			if !ok {
+				return nil, false
+			}
+			return mutation.Entitlements()
+		}),
+		// Features, against the closed vocabulary, for the same reason entitlements are: a
+		// misspelled feature saves and unlocks nothing.
+		func(next ent.Mutator) ent.Mutator {
+			return ent.MutateFunc(func(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+				if mutation, ok := m.(interface{ Features() ([]string, bool) }); ok {
+					if names, set := mutation.Features(); set {
+						if err := billing.ValidateFeatures(names); err != nil {
+							return nil, err
+						}
+					}
+				}
+				return next.Mutate(ctx, m)
+			})
+		},
+	}
 }
 
 func (BillingAccount) Hooks() []ent.Hook {
@@ -90,9 +106,26 @@ func (Plan) Fields() []ent.Field {
 		field.Int64("monthly_price_micros").Default(0).Min(0).Comment(dataclass.Financial),
 		field.String("currency").MaxLen(3).Default("usd").Comment(dataclass.Financial),
 
-		// Stripe's price object. Nillable, because a plan can exist here before anybody
-		// has created its counterpart — and because the free plan has no price at all.
-		field.String("stripe_price_id").MaxLen(255).Optional().Nillable().Comment(dataclass.None),
+		// What a year of the subscription costs, when it can be paid yearly (ADR 0042). Zero when
+		// the plan has no yearly price.
+		field.Int64("yearly_price_micros").Default(0).Min(0).Comment(dataclass.Financial),
+
+		// Stripe's Product and its two Prices for this plan's subscription. Created by the
+		// operator route that sets the prices, never typed in: a Price is immutable at Stripe,
+		// so changing a price makes a new one and points here at it. Existing subscribers keep
+		// the Price they subscribed at until they change plan. Nil for a plan with no
+		// subscription — Free.
+		field.String("stripe_product_id").MaxLen(255).Optional().Nillable().Comment(dataclass.None),
+		field.String("stripe_price_monthly_id").MaxLen(255).Optional().Nillable().Comment(dataclass.None),
+		field.String("stripe_price_yearly_id").MaxLen(255).Optional().Nillable().Comment(dataclass.None),
+
+		// What it unlocks, by billing.Feature: premium Slack support, the Slack report builder,
+		// MCP access. Validated against the closed vocabulary by the hook below.
+		//
+		// A database default as well as a Go one, so the column can be added to a table that
+		// already has plans in it.
+		field.JSON("features", []string{}).Default([]string{}).
+			Annotations(entsql.DefaultExpr("'[]'::jsonb")).Comment(dataclass.None),
 
 		// What it includes, keyed by billing.Entitlement. Validated in Go against the
 		// closed vocabulary, so a typo is refused when somebody saves the plan rather than
@@ -157,6 +190,21 @@ func (BillingAccount) Fields() []ent.Field {
 			Comment(dataclass.None),
 		field.String("stripe_subscription_id").MaxLen(255).Optional().Nillable().
 			Comment(dataclass.None),
+
+		// The subscription as Stripe last reported it (ADR 0042). Stripe owns it — renewals,
+		// retries, cancellation in the portal — and these are its latest word, applied only when
+		// newer than the word before: webhooks arrive out of order, and an `updated` delivered
+		// after a `deleted` must not bring a subscription back.
+		//
+		//	status       Stripe's: active, trialing, past_due, unpaid, canceled, incomplete, …
+		//	interval     month or year
+		//	period_end   when the current paid period ends — and, if canceling, when features stop
+		field.String("subscription_status").MaxLen(32).Optional().Nillable().Comment(dataclass.None),
+		field.Enum("subscription_interval").Values("month", "year").Optional().Nillable().
+			Comment(dataclass.None),
+		field.Time("subscription_period_end").Optional().Nillable().Comment(dataclass.None),
+		field.Bool("subscription_cancel_at_period_end").Default(false).Comment(dataclass.None),
+		field.Time("subscription_synced_at").Optional().Nillable().Comment(dataclass.None),
 
 		// §40.1's states, and the reason they exist: a first failed payment must not stop
 		// ingestion. Losing a studio's live telemetry over a card that expired is a

@@ -32,6 +32,7 @@ const (
 	MetaAccount = "playersense_account" // the billing account's uid
 	MetaKind    = "playersense_kind"    // KindCheckout or KindAutoTopUp
 	MetaKey     = "playersense_topup_key"
+	MetaPlan    = "playersense_plan"
 )
 
 // The two ways money arrives.
@@ -96,6 +97,35 @@ type OffSessionRequest struct {
 	Key string
 }
 
+// SubscriptionPriceRequest sets a plan's subscription prices at Stripe (ADR 0042).
+type SubscriptionPriceRequest struct {
+	PlanUID  string
+	PlanKey  string
+	Name     string
+	Product  string // the plan's Stripe Product, when it already has one
+	Currency string
+
+	MonthlyCents int64 // zero: no monthly price
+	YearlyCents  int64 // zero: no yearly price
+}
+
+// SubscriptionPrices is what Stripe calls them.
+type SubscriptionPrices struct {
+	Product string
+	Monthly string
+	Yearly  string
+}
+
+// SubscriptionCheckoutRequest is one person subscribing through Stripe's hosted page.
+type SubscriptionCheckoutRequest struct {
+	AccountUID string
+	PlanKey    string
+	Customer   string
+	Price      string
+	SuccessURL string
+	CancelURL  string
+}
+
 // Gateway is the whole of what PlayerSense asks Stripe.
 //
 // An interface so the rules around it — idempotency, claims, the webhook — are tested without a
@@ -116,6 +146,12 @@ type Gateway interface {
 	// FindAutoTopUp looks for the charge a key already made, for a claim whose response was
 	// lost long enough ago that Stripe may have forgotten the key.
 	FindAutoTopUp(ctx context.Context, customer, key string, since time.Time) (*Payment, error)
+
+	// SetUpSubscription gives a plan a Stripe Product (once) and a Price per interval.
+	SetUpSubscription(ctx context.Context, in SubscriptionPriceRequest) (SubscriptionPrices, error)
+
+	// CreateSubscriptionCheckout opens Stripe's hosted page to subscribe to a plan.
+	CreateSubscriptionCheckout(ctx context.Context, in SubscriptionCheckoutRequest) (Checkout, error)
 }
 
 // ErrNotConfigured is a deployment with no Stripe key.
@@ -159,4 +195,12 @@ func (Disabled) ChargeOffSession(context.Context, OffSessionRequest) (Payment, e
 
 func (Disabled) FindAutoTopUp(context.Context, string, string, time.Time) (*Payment, error) {
 	return nil, ErrNotConfigured
+}
+
+func (Disabled) SetUpSubscription(context.Context, SubscriptionPriceRequest) (SubscriptionPrices, error) {
+	return SubscriptionPrices{}, ErrNotConfigured
+}
+
+func (Disabled) CreateSubscriptionCheckout(context.Context, SubscriptionCheckoutRequest) (Checkout, error) {
+	return Checkout{}, ErrNotConfigured
 }

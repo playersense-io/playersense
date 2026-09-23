@@ -269,32 +269,40 @@ func init() {
 	billingaccountDescStripeSubscriptionID := billingaccountFields[3].Descriptor()
 	// billingaccount.StripeSubscriptionIDValidator is a validator for the "stripe_subscription_id" field. It is called by the builders before save.
 	billingaccount.StripeSubscriptionIDValidator = billingaccountDescStripeSubscriptionID.Validators[0].(func(string) error)
+	// billingaccountDescSubscriptionStatus is the schema descriptor for subscription_status field.
+	billingaccountDescSubscriptionStatus := billingaccountFields[4].Descriptor()
+	// billingaccount.SubscriptionStatusValidator is a validator for the "subscription_status" field. It is called by the builders before save.
+	billingaccount.SubscriptionStatusValidator = billingaccountDescSubscriptionStatus.Validators[0].(func(string) error)
+	// billingaccountDescSubscriptionCancelAtPeriodEnd is the schema descriptor for subscription_cancel_at_period_end field.
+	billingaccountDescSubscriptionCancelAtPeriodEnd := billingaccountFields[7].Descriptor()
+	// billingaccount.DefaultSubscriptionCancelAtPeriodEnd holds the default value on creation for the subscription_cancel_at_period_end field.
+	billingaccount.DefaultSubscriptionCancelAtPeriodEnd = billingaccountDescSubscriptionCancelAtPeriodEnd.Default.(bool)
 	// billingaccountDescStateChangedAt is the schema descriptor for state_changed_at field.
-	billingaccountDescStateChangedAt := billingaccountFields[5].Descriptor()
+	billingaccountDescStateChangedAt := billingaccountFields[10].Descriptor()
 	// billingaccount.DefaultStateChangedAt holds the default value on creation for the state_changed_at field.
 	billingaccount.DefaultStateChangedAt = billingaccountDescStateChangedAt.Default.(func() time.Time)
 	// billingaccountDescCurrency is the schema descriptor for currency field.
-	billingaccountDescCurrency := billingaccountFields[6].Descriptor()
+	billingaccountDescCurrency := billingaccountFields[11].Descriptor()
 	// billingaccount.DefaultCurrency holds the default value on creation for the currency field.
 	billingaccount.DefaultCurrency = billingaccountDescCurrency.Default.(string)
 	// billingaccount.CurrencyValidator is a validator for the "currency" field. It is called by the builders before save.
 	billingaccount.CurrencyValidator = billingaccountDescCurrency.Validators[0].(func(string) error)
 	// billingaccountDescBalanceMicros is the schema descriptor for balance_micros field.
-	billingaccountDescBalanceMicros := billingaccountFields[7].Descriptor()
+	billingaccountDescBalanceMicros := billingaccountFields[12].Descriptor()
 	// billingaccount.DefaultBalanceMicros holds the default value on creation for the balance_micros field.
 	billingaccount.DefaultBalanceMicros = billingaccountDescBalanceMicros.Default.(int64)
 	// billingaccountDescArrearsMicros is the schema descriptor for arrears_micros field.
-	billingaccountDescArrearsMicros := billingaccountFields[8].Descriptor()
+	billingaccountDescArrearsMicros := billingaccountFields[13].Descriptor()
 	// billingaccount.DefaultArrearsMicros holds the default value on creation for the arrears_micros field.
 	billingaccount.DefaultArrearsMicros = billingaccountDescArrearsMicros.Default.(int64)
 	// billingaccount.ArrearsMicrosValidator is a validator for the "arrears_micros" field. It is called by the builders before save.
 	billingaccount.ArrearsMicrosValidator = billingaccountDescArrearsMicros.Validators[0].(func(int64) error)
 	// billingaccountDescAutoTopupEnabled is the schema descriptor for auto_topup_enabled field.
-	billingaccountDescAutoTopupEnabled := billingaccountFields[9].Descriptor()
+	billingaccountDescAutoTopupEnabled := billingaccountFields[14].Descriptor()
 	// billingaccount.DefaultAutoTopupEnabled holds the default value on creation for the auto_topup_enabled field.
 	billingaccount.DefaultAutoTopupEnabled = billingaccountDescAutoTopupEnabled.Default.(bool)
 	// billingaccountDescAutoTopupThresholdMicros is the schema descriptor for auto_topup_threshold_micros field.
-	billingaccountDescAutoTopupThresholdMicros := billingaccountFields[10].Descriptor()
+	billingaccountDescAutoTopupThresholdMicros := billingaccountFields[15].Descriptor()
 	// billingaccount.DefaultAutoTopupThresholdMicros holds the default value on creation for the auto_topup_threshold_micros field.
 	billingaccount.DefaultAutoTopupThresholdMicros = billingaccountDescAutoTopupThresholdMicros.Default.(int64)
 	// billingaccount.AutoTopupThresholdMicrosValidator is a validator for the "auto_topup_threshold_micros" field. It is called by the builders before save.
@@ -314,7 +322,7 @@ func init() {
 		}
 	}()
 	// billingaccountDescAutoTopupAmountMicros is the schema descriptor for auto_topup_amount_micros field.
-	billingaccountDescAutoTopupAmountMicros := billingaccountFields[11].Descriptor()
+	billingaccountDescAutoTopupAmountMicros := billingaccountFields[16].Descriptor()
 	// billingaccount.DefaultAutoTopupAmountMicros holds the default value on creation for the auto_topup_amount_micros field.
 	billingaccount.DefaultAutoTopupAmountMicros = billingaccountDescAutoTopupAmountMicros.Default.(int64)
 	// billingaccount.AutoTopupAmountMicrosValidator is a validator for the "auto_topup_amount_micros" field. It is called by the builders before save.
@@ -334,17 +342,17 @@ func init() {
 		}
 	}()
 	// billingaccountDescAutoTopupPendingKey is the schema descriptor for auto_topup_pending_key field.
-	billingaccountDescAutoTopupPendingKey := billingaccountFields[12].Descriptor()
+	billingaccountDescAutoTopupPendingKey := billingaccountFields[17].Descriptor()
 	// billingaccount.AutoTopupPendingKeyValidator is a validator for the "auto_topup_pending_key" field. It is called by the builders before save.
 	billingaccount.AutoTopupPendingKeyValidator = billingaccountDescAutoTopupPendingKey.Validators[0].(func(string) error)
 	// billingaccountDescAutoTopupLastError is the schema descriptor for auto_topup_last_error field.
-	billingaccountDescAutoTopupLastError := billingaccountFields[16].Descriptor()
+	billingaccountDescAutoTopupLastError := billingaccountFields[21].Descriptor()
 	// billingaccount.DefaultAutoTopupLastError holds the default value on creation for the auto_topup_last_error field.
 	billingaccount.DefaultAutoTopupLastError = billingaccountDescAutoTopupLastError.Default.(string)
 	// billingaccount.AutoTopupLastErrorValidator is a validator for the "auto_topup_last_error" field. It is called by the builders before save.
 	billingaccount.AutoTopupLastErrorValidator = billingaccountDescAutoTopupLastError.Validators[0].(func(string) error)
 	// billingaccountDescAutoTopupDailyLimit is the schema descriptor for auto_topup_daily_limit field.
-	billingaccountDescAutoTopupDailyLimit := billingaccountFields[18].Descriptor()
+	billingaccountDescAutoTopupDailyLimit := billingaccountFields[23].Descriptor()
 	// billingaccount.DefaultAutoTopupDailyLimit holds the default value on creation for the auto_topup_daily_limit field.
 	billingaccount.DefaultAutoTopupDailyLimit = billingaccountDescAutoTopupDailyLimit.Default.(int)
 	// billingaccount.AutoTopupDailyLimitValidator is a validator for the "auto_topup_daily_limit" field. It is called by the builders before save.
@@ -364,17 +372,17 @@ func init() {
 		}
 	}()
 	// billingaccountDescAutoTopupWindowCount is the schema descriptor for auto_topup_window_count field.
-	billingaccountDescAutoTopupWindowCount := billingaccountFields[20].Descriptor()
+	billingaccountDescAutoTopupWindowCount := billingaccountFields[25].Descriptor()
 	// billingaccount.DefaultAutoTopupWindowCount holds the default value on creation for the auto_topup_window_count field.
 	billingaccount.DefaultAutoTopupWindowCount = billingaccountDescAutoTopupWindowCount.Default.(int)
 	// billingaccount.AutoTopupWindowCountValidator is a validator for the "auto_topup_window_count" field. It is called by the builders before save.
 	billingaccount.AutoTopupWindowCountValidator = billingaccountDescAutoTopupWindowCount.Validators[0].(func(int) error)
 	// billingaccountDescBillingEmail is the schema descriptor for billing_email field.
-	billingaccountDescBillingEmail := billingaccountFields[21].Descriptor()
+	billingaccountDescBillingEmail := billingaccountFields[26].Descriptor()
 	// billingaccount.BillingEmailValidator is a validator for the "billing_email" field. It is called by the builders before save.
 	billingaccount.BillingEmailValidator = billingaccountDescBillingEmail.Validators[0].(func(string) error)
 	// billingaccountDescEntitlementOverrides is the schema descriptor for entitlement_overrides field.
-	billingaccountDescEntitlementOverrides := billingaccountFields[22].Descriptor()
+	billingaccountDescEntitlementOverrides := billingaccountFields[27].Descriptor()
 	// billingaccount.DefaultEntitlementOverrides holds the default value on creation for the entitlement_overrides field.
 	billingaccount.DefaultEntitlementOverrides = billingaccountDescEntitlementOverrides.Default.(map[string]int64)
 	billingperiodMixin := schema.BillingPeriod{}.Mixin()
@@ -1134,6 +1142,7 @@ func init() {
 	planMixin := schema.Plan{}.Mixin()
 	planHooks := schema.Plan{}.Hooks()
 	plan.Hooks[0] = planHooks[0]
+	plan.Hooks[1] = planHooks[1]
 	planMixinFields0 := planMixin[0].Fields()
 	_ = planMixinFields0
 	planFields := schema.Plan{}.Fields()
@@ -1206,20 +1215,38 @@ func init() {
 	plan.DefaultCurrency = planDescCurrency.Default.(string)
 	// plan.CurrencyValidator is a validator for the "currency" field. It is called by the builders before save.
 	plan.CurrencyValidator = planDescCurrency.Validators[0].(func(string) error)
-	// planDescStripePriceID is the schema descriptor for stripe_price_id field.
-	planDescStripePriceID := planFields[5].Descriptor()
-	// plan.StripePriceIDValidator is a validator for the "stripe_price_id" field. It is called by the builders before save.
-	plan.StripePriceIDValidator = planDescStripePriceID.Validators[0].(func(string) error)
+	// planDescYearlyPriceMicros is the schema descriptor for yearly_price_micros field.
+	planDescYearlyPriceMicros := planFields[5].Descriptor()
+	// plan.DefaultYearlyPriceMicros holds the default value on creation for the yearly_price_micros field.
+	plan.DefaultYearlyPriceMicros = planDescYearlyPriceMicros.Default.(int64)
+	// plan.YearlyPriceMicrosValidator is a validator for the "yearly_price_micros" field. It is called by the builders before save.
+	plan.YearlyPriceMicrosValidator = planDescYearlyPriceMicros.Validators[0].(func(int64) error)
+	// planDescStripeProductID is the schema descriptor for stripe_product_id field.
+	planDescStripeProductID := planFields[6].Descriptor()
+	// plan.StripeProductIDValidator is a validator for the "stripe_product_id" field. It is called by the builders before save.
+	plan.StripeProductIDValidator = planDescStripeProductID.Validators[0].(func(string) error)
+	// planDescStripePriceMonthlyID is the schema descriptor for stripe_price_monthly_id field.
+	planDescStripePriceMonthlyID := planFields[7].Descriptor()
+	// plan.StripePriceMonthlyIDValidator is a validator for the "stripe_price_monthly_id" field. It is called by the builders before save.
+	plan.StripePriceMonthlyIDValidator = planDescStripePriceMonthlyID.Validators[0].(func(string) error)
+	// planDescStripePriceYearlyID is the schema descriptor for stripe_price_yearly_id field.
+	planDescStripePriceYearlyID := planFields[8].Descriptor()
+	// plan.StripePriceYearlyIDValidator is a validator for the "stripe_price_yearly_id" field. It is called by the builders before save.
+	plan.StripePriceYearlyIDValidator = planDescStripePriceYearlyID.Validators[0].(func(string) error)
+	// planDescFeatures is the schema descriptor for features field.
+	planDescFeatures := planFields[9].Descriptor()
+	// plan.DefaultFeatures holds the default value on creation for the features field.
+	plan.DefaultFeatures = planDescFeatures.Default.([]string)
 	// planDescEntitlements is the schema descriptor for entitlements field.
-	planDescEntitlements := planFields[6].Descriptor()
+	planDescEntitlements := planFields[10].Descriptor()
 	// plan.DefaultEntitlements holds the default value on creation for the entitlements field.
 	plan.DefaultEntitlements = planDescEntitlements.Default.(map[string]int64)
 	// planDescActive is the schema descriptor for active field.
-	planDescActive := planFields[7].Descriptor()
+	planDescActive := planFields[11].Descriptor()
 	// plan.DefaultActive holds the default value on creation for the active field.
 	plan.DefaultActive = planDescActive.Default.(bool)
 	// planDescIsDefault is the schema descriptor for is_default field.
-	planDescIsDefault := planFields[8].Descriptor()
+	planDescIsDefault := planFields[12].Descriptor()
 	// plan.DefaultIsDefault holds the default value on creation for the is_default field.
 	plan.DefaultIsDefault = planDescIsDefault.Default.(bool)
 	projectMixin := schema.Project{}.Mixin()

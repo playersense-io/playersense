@@ -308,3 +308,77 @@ func paymentOf(pi *stripe.PaymentIntent) Payment {
 	}
 	return out
 }
+
+// SetUpSubscription gives a plan its Stripe Product and Prices (ADR 0042).
+//
+// The Product once, keyed on the plan. A Price per interval, keyed on the plan, the interval and the
+// amount — so pressing "save" twice makes one Price, and changing the amount makes a new one, because a
+// Stripe Price cannot be edited. Existing subscribers keep the Price they subscribed at until they
+// change plan; new subscribers get the new one.
+func (s *Stripe) SetUpSubscription(ctx context.Context, in SubscriptionPriceRequest) (SubscriptionPrices, error) {
+	out := SubscriptionPrices{Product: in.Product}
+	meta := map[string]string{MetaPlan: in.PlanKey, "playersense_plan_uid": in.PlanUID}
+	if out.Product == "" {
+		params := &stripe.ProductCreateParams{
+			Name:        stripe.String("PlayerSense " + in.Name),
+			Description: stripe.String("PlayerSense " + in.Name + " subscription"),
+			Metadata:    meta,
+		}
+		params.SetIdempotencyKey("playersense-product-" + in.PlanUID)
+		product, err := s.client.V1Products.Create(ctx, params)
+		if err != nil {
+			return out, fmt.Errorf("create the stripe product: %w", err)
+		}
+		out.Product = product.ID
+	}
+	price := func(interval string, cents int64) (string, error) {
+		if cents <= 0 {
+			return "", nil
+		}
+		params := &stripe.PriceCreateParams{
+			Product:    stripe.String(out.Product),
+			Currency:   stripe.String(in.Currency),
+			UnitAmount: stripe.Int64(cents),
+			Recurring:  &stripe.PriceCreateRecurringParams{Interval: stripe.String(interval)},
+			Nickname:   stripe.String(in.Name + " (" + interval + "ly)"),
+			Metadata:   meta,
+		}
+		params.SetIdempotencyKey(fmt.Sprintf("playersense-price-%s-%s-%d", in.PlanUID, interval, cents))
+		p, err := s.client.V1Prices.Create(ctx, params)
+		if err != nil {
+			return "", fmt.Errorf("create the %sly price: %w", interval, err)
+		}
+		return p.ID, nil
+	}
+	var err error
+	if out.Monthly, err = price("month", in.MonthlyCents); err != nil {
+		return out, err
+	}
+	if out.Yearly, err = price("year", in.YearlyCents); err != nil {
+		return out, err
+	}
+	return out, nil
+}
+
+// CreateSubscriptionCheckout opens Stripe's page to subscribe. The subscription carries the account
+// and the plan in its metadata, so its webhooks say whose it is without trusting anything else; its
+// invoices are Stripe's own, and its card is saved to the customer by Stripe.
+func (s *Stripe) CreateSubscriptionCheckout(ctx context.Context, in SubscriptionCheckoutRequest) (Checkout, error) {
+	meta := map[string]string{MetaAccount: in.AccountUID, MetaPlan: in.PlanKey}
+	session, err := s.client.V1CheckoutSessions.Create(ctx, &stripe.CheckoutSessionCreateParams{
+		Mode:              stripe.String(string(stripe.CheckoutSessionModeSubscription)),
+		Customer:          stripe.String(in.Customer),
+		ClientReferenceID: stripe.String(in.AccountUID),
+		SuccessURL:        stripe.String(in.SuccessURL),
+		CancelURL:         stripe.String(in.CancelURL),
+		Metadata:          meta,
+		LineItems: []*stripe.CheckoutSessionCreateLineItemParams{{
+			Price: stripe.String(in.Price), Quantity: stripe.Int64(1),
+		}},
+		SubscriptionData: &stripe.CheckoutSessionCreateSubscriptionDataParams{Metadata: meta},
+	})
+	if err != nil {
+		return Checkout{}, fmt.Errorf("create the subscription checkout: %w", err)
+	}
+	return Checkout{ID: session.ID, URL: session.URL, ExpiresAt: time.Unix(session.ExpiresAt, 0).UTC()}, nil
+}

@@ -96,9 +96,24 @@ func Currency(v string) predicate.Plan {
 	return predicate.Plan(sql.FieldEQ(FieldCurrency, v))
 }
 
-// StripePriceID applies equality check predicate on the "stripe_price_id" field. It's identical to StripePriceIDEQ.
-func StripePriceID(v string) predicate.Plan {
-	return predicate.Plan(sql.FieldEQ(FieldStripePriceID, v))
+// YearlyPriceMicros applies equality check predicate on the "yearly_price_micros" field. It's identical to YearlyPriceMicrosEQ.
+func YearlyPriceMicros(v int64) predicate.Plan {
+	return predicate.Plan(sql.FieldEQ(FieldYearlyPriceMicros, v))
+}
+
+// StripeProductID applies equality check predicate on the "stripe_product_id" field. It's identical to StripeProductIDEQ.
+func StripeProductID(v string) predicate.Plan {
+	return predicate.Plan(sql.FieldEQ(FieldStripeProductID, v))
+}
+
+// StripePriceMonthlyID applies equality check predicate on the "stripe_price_monthly_id" field. It's identical to StripePriceMonthlyIDEQ.
+func StripePriceMonthlyID(v string) predicate.Plan {
+	return predicate.Plan(sql.FieldEQ(FieldStripePriceMonthlyID, v))
+}
+
+// StripePriceYearlyID applies equality check predicate on the "stripe_price_yearly_id" field. It's identical to StripePriceYearlyIDEQ.
+func StripePriceYearlyID(v string) predicate.Plan {
+	return predicate.Plan(sql.FieldEQ(FieldStripePriceYearlyID, v))
 }
 
 // Active applies equality check predicate on the "active" field. It's identical to ActiveEQ.
@@ -531,79 +546,269 @@ func CurrencyContainsFold(v string) predicate.Plan {
 	return predicate.Plan(sql.FieldContainsFold(FieldCurrency, v))
 }
 
-// StripePriceIDEQ applies the EQ predicate on the "stripe_price_id" field.
-func StripePriceIDEQ(v string) predicate.Plan {
-	return predicate.Plan(sql.FieldEQ(FieldStripePriceID, v))
+// YearlyPriceMicrosEQ applies the EQ predicate on the "yearly_price_micros" field.
+func YearlyPriceMicrosEQ(v int64) predicate.Plan {
+	return predicate.Plan(sql.FieldEQ(FieldYearlyPriceMicros, v))
 }
 
-// StripePriceIDNEQ applies the NEQ predicate on the "stripe_price_id" field.
-func StripePriceIDNEQ(v string) predicate.Plan {
-	return predicate.Plan(sql.FieldNEQ(FieldStripePriceID, v))
+// YearlyPriceMicrosNEQ applies the NEQ predicate on the "yearly_price_micros" field.
+func YearlyPriceMicrosNEQ(v int64) predicate.Plan {
+	return predicate.Plan(sql.FieldNEQ(FieldYearlyPriceMicros, v))
 }
 
-// StripePriceIDIn applies the In predicate on the "stripe_price_id" field.
-func StripePriceIDIn(vs ...string) predicate.Plan {
-	return predicate.Plan(sql.FieldIn(FieldStripePriceID, vs...))
+// YearlyPriceMicrosIn applies the In predicate on the "yearly_price_micros" field.
+func YearlyPriceMicrosIn(vs ...int64) predicate.Plan {
+	return predicate.Plan(sql.FieldIn(FieldYearlyPriceMicros, vs...))
 }
 
-// StripePriceIDNotIn applies the NotIn predicate on the "stripe_price_id" field.
-func StripePriceIDNotIn(vs ...string) predicate.Plan {
-	return predicate.Plan(sql.FieldNotIn(FieldStripePriceID, vs...))
+// YearlyPriceMicrosNotIn applies the NotIn predicate on the "yearly_price_micros" field.
+func YearlyPriceMicrosNotIn(vs ...int64) predicate.Plan {
+	return predicate.Plan(sql.FieldNotIn(FieldYearlyPriceMicros, vs...))
 }
 
-// StripePriceIDGT applies the GT predicate on the "stripe_price_id" field.
-func StripePriceIDGT(v string) predicate.Plan {
-	return predicate.Plan(sql.FieldGT(FieldStripePriceID, v))
+// YearlyPriceMicrosGT applies the GT predicate on the "yearly_price_micros" field.
+func YearlyPriceMicrosGT(v int64) predicate.Plan {
+	return predicate.Plan(sql.FieldGT(FieldYearlyPriceMicros, v))
 }
 
-// StripePriceIDGTE applies the GTE predicate on the "stripe_price_id" field.
-func StripePriceIDGTE(v string) predicate.Plan {
-	return predicate.Plan(sql.FieldGTE(FieldStripePriceID, v))
+// YearlyPriceMicrosGTE applies the GTE predicate on the "yearly_price_micros" field.
+func YearlyPriceMicrosGTE(v int64) predicate.Plan {
+	return predicate.Plan(sql.FieldGTE(FieldYearlyPriceMicros, v))
 }
 
-// StripePriceIDLT applies the LT predicate on the "stripe_price_id" field.
-func StripePriceIDLT(v string) predicate.Plan {
-	return predicate.Plan(sql.FieldLT(FieldStripePriceID, v))
+// YearlyPriceMicrosLT applies the LT predicate on the "yearly_price_micros" field.
+func YearlyPriceMicrosLT(v int64) predicate.Plan {
+	return predicate.Plan(sql.FieldLT(FieldYearlyPriceMicros, v))
 }
 
-// StripePriceIDLTE applies the LTE predicate on the "stripe_price_id" field.
-func StripePriceIDLTE(v string) predicate.Plan {
-	return predicate.Plan(sql.FieldLTE(FieldStripePriceID, v))
+// YearlyPriceMicrosLTE applies the LTE predicate on the "yearly_price_micros" field.
+func YearlyPriceMicrosLTE(v int64) predicate.Plan {
+	return predicate.Plan(sql.FieldLTE(FieldYearlyPriceMicros, v))
 }
 
-// StripePriceIDContains applies the Contains predicate on the "stripe_price_id" field.
-func StripePriceIDContains(v string) predicate.Plan {
-	return predicate.Plan(sql.FieldContains(FieldStripePriceID, v))
+// StripeProductIDEQ applies the EQ predicate on the "stripe_product_id" field.
+func StripeProductIDEQ(v string) predicate.Plan {
+	return predicate.Plan(sql.FieldEQ(FieldStripeProductID, v))
 }
 
-// StripePriceIDHasPrefix applies the HasPrefix predicate on the "stripe_price_id" field.
-func StripePriceIDHasPrefix(v string) predicate.Plan {
-	return predicate.Plan(sql.FieldHasPrefix(FieldStripePriceID, v))
+// StripeProductIDNEQ applies the NEQ predicate on the "stripe_product_id" field.
+func StripeProductIDNEQ(v string) predicate.Plan {
+	return predicate.Plan(sql.FieldNEQ(FieldStripeProductID, v))
 }
 
-// StripePriceIDHasSuffix applies the HasSuffix predicate on the "stripe_price_id" field.
-func StripePriceIDHasSuffix(v string) predicate.Plan {
-	return predicate.Plan(sql.FieldHasSuffix(FieldStripePriceID, v))
+// StripeProductIDIn applies the In predicate on the "stripe_product_id" field.
+func StripeProductIDIn(vs ...string) predicate.Plan {
+	return predicate.Plan(sql.FieldIn(FieldStripeProductID, vs...))
 }
 
-// StripePriceIDIsNil applies the IsNil predicate on the "stripe_price_id" field.
-func StripePriceIDIsNil() predicate.Plan {
-	return predicate.Plan(sql.FieldIsNull(FieldStripePriceID))
+// StripeProductIDNotIn applies the NotIn predicate on the "stripe_product_id" field.
+func StripeProductIDNotIn(vs ...string) predicate.Plan {
+	return predicate.Plan(sql.FieldNotIn(FieldStripeProductID, vs...))
 }
 
-// StripePriceIDNotNil applies the NotNil predicate on the "stripe_price_id" field.
-func StripePriceIDNotNil() predicate.Plan {
-	return predicate.Plan(sql.FieldNotNull(FieldStripePriceID))
+// StripeProductIDGT applies the GT predicate on the "stripe_product_id" field.
+func StripeProductIDGT(v string) predicate.Plan {
+	return predicate.Plan(sql.FieldGT(FieldStripeProductID, v))
 }
 
-// StripePriceIDEqualFold applies the EqualFold predicate on the "stripe_price_id" field.
-func StripePriceIDEqualFold(v string) predicate.Plan {
-	return predicate.Plan(sql.FieldEqualFold(FieldStripePriceID, v))
+// StripeProductIDGTE applies the GTE predicate on the "stripe_product_id" field.
+func StripeProductIDGTE(v string) predicate.Plan {
+	return predicate.Plan(sql.FieldGTE(FieldStripeProductID, v))
 }
 
-// StripePriceIDContainsFold applies the ContainsFold predicate on the "stripe_price_id" field.
-func StripePriceIDContainsFold(v string) predicate.Plan {
-	return predicate.Plan(sql.FieldContainsFold(FieldStripePriceID, v))
+// StripeProductIDLT applies the LT predicate on the "stripe_product_id" field.
+func StripeProductIDLT(v string) predicate.Plan {
+	return predicate.Plan(sql.FieldLT(FieldStripeProductID, v))
+}
+
+// StripeProductIDLTE applies the LTE predicate on the "stripe_product_id" field.
+func StripeProductIDLTE(v string) predicate.Plan {
+	return predicate.Plan(sql.FieldLTE(FieldStripeProductID, v))
+}
+
+// StripeProductIDContains applies the Contains predicate on the "stripe_product_id" field.
+func StripeProductIDContains(v string) predicate.Plan {
+	return predicate.Plan(sql.FieldContains(FieldStripeProductID, v))
+}
+
+// StripeProductIDHasPrefix applies the HasPrefix predicate on the "stripe_product_id" field.
+func StripeProductIDHasPrefix(v string) predicate.Plan {
+	return predicate.Plan(sql.FieldHasPrefix(FieldStripeProductID, v))
+}
+
+// StripeProductIDHasSuffix applies the HasSuffix predicate on the "stripe_product_id" field.
+func StripeProductIDHasSuffix(v string) predicate.Plan {
+	return predicate.Plan(sql.FieldHasSuffix(FieldStripeProductID, v))
+}
+
+// StripeProductIDIsNil applies the IsNil predicate on the "stripe_product_id" field.
+func StripeProductIDIsNil() predicate.Plan {
+	return predicate.Plan(sql.FieldIsNull(FieldStripeProductID))
+}
+
+// StripeProductIDNotNil applies the NotNil predicate on the "stripe_product_id" field.
+func StripeProductIDNotNil() predicate.Plan {
+	return predicate.Plan(sql.FieldNotNull(FieldStripeProductID))
+}
+
+// StripeProductIDEqualFold applies the EqualFold predicate on the "stripe_product_id" field.
+func StripeProductIDEqualFold(v string) predicate.Plan {
+	return predicate.Plan(sql.FieldEqualFold(FieldStripeProductID, v))
+}
+
+// StripeProductIDContainsFold applies the ContainsFold predicate on the "stripe_product_id" field.
+func StripeProductIDContainsFold(v string) predicate.Plan {
+	return predicate.Plan(sql.FieldContainsFold(FieldStripeProductID, v))
+}
+
+// StripePriceMonthlyIDEQ applies the EQ predicate on the "stripe_price_monthly_id" field.
+func StripePriceMonthlyIDEQ(v string) predicate.Plan {
+	return predicate.Plan(sql.FieldEQ(FieldStripePriceMonthlyID, v))
+}
+
+// StripePriceMonthlyIDNEQ applies the NEQ predicate on the "stripe_price_monthly_id" field.
+func StripePriceMonthlyIDNEQ(v string) predicate.Plan {
+	return predicate.Plan(sql.FieldNEQ(FieldStripePriceMonthlyID, v))
+}
+
+// StripePriceMonthlyIDIn applies the In predicate on the "stripe_price_monthly_id" field.
+func StripePriceMonthlyIDIn(vs ...string) predicate.Plan {
+	return predicate.Plan(sql.FieldIn(FieldStripePriceMonthlyID, vs...))
+}
+
+// StripePriceMonthlyIDNotIn applies the NotIn predicate on the "stripe_price_monthly_id" field.
+func StripePriceMonthlyIDNotIn(vs ...string) predicate.Plan {
+	return predicate.Plan(sql.FieldNotIn(FieldStripePriceMonthlyID, vs...))
+}
+
+// StripePriceMonthlyIDGT applies the GT predicate on the "stripe_price_monthly_id" field.
+func StripePriceMonthlyIDGT(v string) predicate.Plan {
+	return predicate.Plan(sql.FieldGT(FieldStripePriceMonthlyID, v))
+}
+
+// StripePriceMonthlyIDGTE applies the GTE predicate on the "stripe_price_monthly_id" field.
+func StripePriceMonthlyIDGTE(v string) predicate.Plan {
+	return predicate.Plan(sql.FieldGTE(FieldStripePriceMonthlyID, v))
+}
+
+// StripePriceMonthlyIDLT applies the LT predicate on the "stripe_price_monthly_id" field.
+func StripePriceMonthlyIDLT(v string) predicate.Plan {
+	return predicate.Plan(sql.FieldLT(FieldStripePriceMonthlyID, v))
+}
+
+// StripePriceMonthlyIDLTE applies the LTE predicate on the "stripe_price_monthly_id" field.
+func StripePriceMonthlyIDLTE(v string) predicate.Plan {
+	return predicate.Plan(sql.FieldLTE(FieldStripePriceMonthlyID, v))
+}
+
+// StripePriceMonthlyIDContains applies the Contains predicate on the "stripe_price_monthly_id" field.
+func StripePriceMonthlyIDContains(v string) predicate.Plan {
+	return predicate.Plan(sql.FieldContains(FieldStripePriceMonthlyID, v))
+}
+
+// StripePriceMonthlyIDHasPrefix applies the HasPrefix predicate on the "stripe_price_monthly_id" field.
+func StripePriceMonthlyIDHasPrefix(v string) predicate.Plan {
+	return predicate.Plan(sql.FieldHasPrefix(FieldStripePriceMonthlyID, v))
+}
+
+// StripePriceMonthlyIDHasSuffix applies the HasSuffix predicate on the "stripe_price_monthly_id" field.
+func StripePriceMonthlyIDHasSuffix(v string) predicate.Plan {
+	return predicate.Plan(sql.FieldHasSuffix(FieldStripePriceMonthlyID, v))
+}
+
+// StripePriceMonthlyIDIsNil applies the IsNil predicate on the "stripe_price_monthly_id" field.
+func StripePriceMonthlyIDIsNil() predicate.Plan {
+	return predicate.Plan(sql.FieldIsNull(FieldStripePriceMonthlyID))
+}
+
+// StripePriceMonthlyIDNotNil applies the NotNil predicate on the "stripe_price_monthly_id" field.
+func StripePriceMonthlyIDNotNil() predicate.Plan {
+	return predicate.Plan(sql.FieldNotNull(FieldStripePriceMonthlyID))
+}
+
+// StripePriceMonthlyIDEqualFold applies the EqualFold predicate on the "stripe_price_monthly_id" field.
+func StripePriceMonthlyIDEqualFold(v string) predicate.Plan {
+	return predicate.Plan(sql.FieldEqualFold(FieldStripePriceMonthlyID, v))
+}
+
+// StripePriceMonthlyIDContainsFold applies the ContainsFold predicate on the "stripe_price_monthly_id" field.
+func StripePriceMonthlyIDContainsFold(v string) predicate.Plan {
+	return predicate.Plan(sql.FieldContainsFold(FieldStripePriceMonthlyID, v))
+}
+
+// StripePriceYearlyIDEQ applies the EQ predicate on the "stripe_price_yearly_id" field.
+func StripePriceYearlyIDEQ(v string) predicate.Plan {
+	return predicate.Plan(sql.FieldEQ(FieldStripePriceYearlyID, v))
+}
+
+// StripePriceYearlyIDNEQ applies the NEQ predicate on the "stripe_price_yearly_id" field.
+func StripePriceYearlyIDNEQ(v string) predicate.Plan {
+	return predicate.Plan(sql.FieldNEQ(FieldStripePriceYearlyID, v))
+}
+
+// StripePriceYearlyIDIn applies the In predicate on the "stripe_price_yearly_id" field.
+func StripePriceYearlyIDIn(vs ...string) predicate.Plan {
+	return predicate.Plan(sql.FieldIn(FieldStripePriceYearlyID, vs...))
+}
+
+// StripePriceYearlyIDNotIn applies the NotIn predicate on the "stripe_price_yearly_id" field.
+func StripePriceYearlyIDNotIn(vs ...string) predicate.Plan {
+	return predicate.Plan(sql.FieldNotIn(FieldStripePriceYearlyID, vs...))
+}
+
+// StripePriceYearlyIDGT applies the GT predicate on the "stripe_price_yearly_id" field.
+func StripePriceYearlyIDGT(v string) predicate.Plan {
+	return predicate.Plan(sql.FieldGT(FieldStripePriceYearlyID, v))
+}
+
+// StripePriceYearlyIDGTE applies the GTE predicate on the "stripe_price_yearly_id" field.
+func StripePriceYearlyIDGTE(v string) predicate.Plan {
+	return predicate.Plan(sql.FieldGTE(FieldStripePriceYearlyID, v))
+}
+
+// StripePriceYearlyIDLT applies the LT predicate on the "stripe_price_yearly_id" field.
+func StripePriceYearlyIDLT(v string) predicate.Plan {
+	return predicate.Plan(sql.FieldLT(FieldStripePriceYearlyID, v))
+}
+
+// StripePriceYearlyIDLTE applies the LTE predicate on the "stripe_price_yearly_id" field.
+func StripePriceYearlyIDLTE(v string) predicate.Plan {
+	return predicate.Plan(sql.FieldLTE(FieldStripePriceYearlyID, v))
+}
+
+// StripePriceYearlyIDContains applies the Contains predicate on the "stripe_price_yearly_id" field.
+func StripePriceYearlyIDContains(v string) predicate.Plan {
+	return predicate.Plan(sql.FieldContains(FieldStripePriceYearlyID, v))
+}
+
+// StripePriceYearlyIDHasPrefix applies the HasPrefix predicate on the "stripe_price_yearly_id" field.
+func StripePriceYearlyIDHasPrefix(v string) predicate.Plan {
+	return predicate.Plan(sql.FieldHasPrefix(FieldStripePriceYearlyID, v))
+}
+
+// StripePriceYearlyIDHasSuffix applies the HasSuffix predicate on the "stripe_price_yearly_id" field.
+func StripePriceYearlyIDHasSuffix(v string) predicate.Plan {
+	return predicate.Plan(sql.FieldHasSuffix(FieldStripePriceYearlyID, v))
+}
+
+// StripePriceYearlyIDIsNil applies the IsNil predicate on the "stripe_price_yearly_id" field.
+func StripePriceYearlyIDIsNil() predicate.Plan {
+	return predicate.Plan(sql.FieldIsNull(FieldStripePriceYearlyID))
+}
+
+// StripePriceYearlyIDNotNil applies the NotNil predicate on the "stripe_price_yearly_id" field.
+func StripePriceYearlyIDNotNil() predicate.Plan {
+	return predicate.Plan(sql.FieldNotNull(FieldStripePriceYearlyID))
+}
+
+// StripePriceYearlyIDEqualFold applies the EqualFold predicate on the "stripe_price_yearly_id" field.
+func StripePriceYearlyIDEqualFold(v string) predicate.Plan {
+	return predicate.Plan(sql.FieldEqualFold(FieldStripePriceYearlyID, v))
+}
+
+// StripePriceYearlyIDContainsFold applies the ContainsFold predicate on the "stripe_price_yearly_id" field.
+func StripePriceYearlyIDContainsFold(v string) predicate.Plan {
+	return predicate.Plan(sql.FieldContainsFold(FieldStripePriceYearlyID, v))
 }
 
 // ActiveEQ applies the EQ predicate on the "active" field.

@@ -121,17 +121,65 @@ func (_c *PlanCreate) SetNillableCurrency(v *string) *PlanCreate {
 	return _c
 }
 
-// SetStripePriceID sets the "stripe_price_id" field.
-func (_c *PlanCreate) SetStripePriceID(v string) *PlanCreate {
-	_c.mutation.SetStripePriceID(v)
+// SetYearlyPriceMicros sets the "yearly_price_micros" field.
+func (_c *PlanCreate) SetYearlyPriceMicros(v int64) *PlanCreate {
+	_c.mutation.SetYearlyPriceMicros(v)
 	return _c
 }
 
-// SetNillableStripePriceID sets the "stripe_price_id" field if the given value is not nil.
-func (_c *PlanCreate) SetNillableStripePriceID(v *string) *PlanCreate {
+// SetNillableYearlyPriceMicros sets the "yearly_price_micros" field if the given value is not nil.
+func (_c *PlanCreate) SetNillableYearlyPriceMicros(v *int64) *PlanCreate {
 	if v != nil {
-		_c.SetStripePriceID(*v)
+		_c.SetYearlyPriceMicros(*v)
 	}
+	return _c
+}
+
+// SetStripeProductID sets the "stripe_product_id" field.
+func (_c *PlanCreate) SetStripeProductID(v string) *PlanCreate {
+	_c.mutation.SetStripeProductID(v)
+	return _c
+}
+
+// SetNillableStripeProductID sets the "stripe_product_id" field if the given value is not nil.
+func (_c *PlanCreate) SetNillableStripeProductID(v *string) *PlanCreate {
+	if v != nil {
+		_c.SetStripeProductID(*v)
+	}
+	return _c
+}
+
+// SetStripePriceMonthlyID sets the "stripe_price_monthly_id" field.
+func (_c *PlanCreate) SetStripePriceMonthlyID(v string) *PlanCreate {
+	_c.mutation.SetStripePriceMonthlyID(v)
+	return _c
+}
+
+// SetNillableStripePriceMonthlyID sets the "stripe_price_monthly_id" field if the given value is not nil.
+func (_c *PlanCreate) SetNillableStripePriceMonthlyID(v *string) *PlanCreate {
+	if v != nil {
+		_c.SetStripePriceMonthlyID(*v)
+	}
+	return _c
+}
+
+// SetStripePriceYearlyID sets the "stripe_price_yearly_id" field.
+func (_c *PlanCreate) SetStripePriceYearlyID(v string) *PlanCreate {
+	_c.mutation.SetStripePriceYearlyID(v)
+	return _c
+}
+
+// SetNillableStripePriceYearlyID sets the "stripe_price_yearly_id" field if the given value is not nil.
+func (_c *PlanCreate) SetNillableStripePriceYearlyID(v *string) *PlanCreate {
+	if v != nil {
+		_c.SetStripePriceYearlyID(*v)
+	}
+	return _c
+}
+
+// SetFeatures sets the "features" field.
+func (_c *PlanCreate) SetFeatures(v []string) *PlanCreate {
+	_c.mutation.SetFeatures(v)
 	return _c
 }
 
@@ -275,6 +323,14 @@ func (_c *PlanCreate) defaults() error {
 		v := plan.DefaultCurrency
 		_c.mutation.SetCurrency(v)
 	}
+	if _, ok := _c.mutation.YearlyPriceMicros(); !ok {
+		v := plan.DefaultYearlyPriceMicros
+		_c.mutation.SetYearlyPriceMicros(v)
+	}
+	if _, ok := _c.mutation.Features(); !ok {
+		v := plan.DefaultFeatures
+		_c.mutation.SetFeatures(v)
+	}
 	if _, ok := _c.mutation.Entitlements(); !ok {
 		v := plan.DefaultEntitlements
 		_c.mutation.SetEntitlements(v)
@@ -341,9 +397,27 @@ func (_c *PlanCreate) check() error {
 			return &ValidationError{Name: "currency", err: fmt.Errorf(`ent: validator failed for field "Plan.currency": %w`, err)}
 		}
 	}
-	if v, ok := _c.mutation.StripePriceID(); ok {
-		if err := plan.StripePriceIDValidator(v); err != nil {
-			return &ValidationError{Name: "stripe_price_id", err: fmt.Errorf(`ent: validator failed for field "Plan.stripe_price_id": %w`, err)}
+	if _, ok := _c.mutation.YearlyPriceMicros(); !ok {
+		return &ValidationError{Name: "yearly_price_micros", err: errors.New(`ent: missing required field "Plan.yearly_price_micros"`)}
+	}
+	if v, ok := _c.mutation.YearlyPriceMicros(); ok {
+		if err := plan.YearlyPriceMicrosValidator(v); err != nil {
+			return &ValidationError{Name: "yearly_price_micros", err: fmt.Errorf(`ent: validator failed for field "Plan.yearly_price_micros": %w`, err)}
+		}
+	}
+	if v, ok := _c.mutation.StripeProductID(); ok {
+		if err := plan.StripeProductIDValidator(v); err != nil {
+			return &ValidationError{Name: "stripe_product_id", err: fmt.Errorf(`ent: validator failed for field "Plan.stripe_product_id": %w`, err)}
+		}
+	}
+	if v, ok := _c.mutation.StripePriceMonthlyID(); ok {
+		if err := plan.StripePriceMonthlyIDValidator(v); err != nil {
+			return &ValidationError{Name: "stripe_price_monthly_id", err: fmt.Errorf(`ent: validator failed for field "Plan.stripe_price_monthly_id": %w`, err)}
+		}
+	}
+	if v, ok := _c.mutation.StripePriceYearlyID(); ok {
+		if err := plan.StripePriceYearlyIDValidator(v); err != nil {
+			return &ValidationError{Name: "stripe_price_yearly_id", err: fmt.Errorf(`ent: validator failed for field "Plan.stripe_price_yearly_id": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.Entitlements(); !ok {
@@ -420,9 +494,25 @@ func (_c *PlanCreate) createSpec() (*Plan, *sqlgraph.CreateSpec) {
 		_spec.SetField(plan.FieldCurrency, field.TypeString, value)
 		_node.Currency = value
 	}
-	if value, ok := _c.mutation.StripePriceID(); ok {
-		_spec.SetField(plan.FieldStripePriceID, field.TypeString, value)
-		_node.StripePriceID = &value
+	if value, ok := _c.mutation.YearlyPriceMicros(); ok {
+		_spec.SetField(plan.FieldYearlyPriceMicros, field.TypeInt64, value)
+		_node.YearlyPriceMicros = value
+	}
+	if value, ok := _c.mutation.StripeProductID(); ok {
+		_spec.SetField(plan.FieldStripeProductID, field.TypeString, value)
+		_node.StripeProductID = &value
+	}
+	if value, ok := _c.mutation.StripePriceMonthlyID(); ok {
+		_spec.SetField(plan.FieldStripePriceMonthlyID, field.TypeString, value)
+		_node.StripePriceMonthlyID = &value
+	}
+	if value, ok := _c.mutation.StripePriceYearlyID(); ok {
+		_spec.SetField(plan.FieldStripePriceYearlyID, field.TypeString, value)
+		_node.StripePriceYearlyID = &value
+	}
+	if value, ok := _c.mutation.Features(); ok {
+		_spec.SetField(plan.FieldFeatures, field.TypeJSON, value)
+		_node.Features = value
 	}
 	if value, ok := _c.mutation.Entitlements(); ok {
 		_spec.SetField(plan.FieldEntitlements, field.TypeJSON, value)
@@ -586,21 +676,87 @@ func (u *PlanUpsert) UpdateCurrency() *PlanUpsert {
 	return u
 }
 
-// SetStripePriceID sets the "stripe_price_id" field.
-func (u *PlanUpsert) SetStripePriceID(v string) *PlanUpsert {
-	u.Set(plan.FieldStripePriceID, v)
+// SetYearlyPriceMicros sets the "yearly_price_micros" field.
+func (u *PlanUpsert) SetYearlyPriceMicros(v int64) *PlanUpsert {
+	u.Set(plan.FieldYearlyPriceMicros, v)
 	return u
 }
 
-// UpdateStripePriceID sets the "stripe_price_id" field to the value that was provided on create.
-func (u *PlanUpsert) UpdateStripePriceID() *PlanUpsert {
-	u.SetExcluded(plan.FieldStripePriceID)
+// UpdateYearlyPriceMicros sets the "yearly_price_micros" field to the value that was provided on create.
+func (u *PlanUpsert) UpdateYearlyPriceMicros() *PlanUpsert {
+	u.SetExcluded(plan.FieldYearlyPriceMicros)
 	return u
 }
 
-// ClearStripePriceID clears the value of the "stripe_price_id" field.
-func (u *PlanUpsert) ClearStripePriceID() *PlanUpsert {
-	u.SetNull(plan.FieldStripePriceID)
+// AddYearlyPriceMicros adds v to the "yearly_price_micros" field.
+func (u *PlanUpsert) AddYearlyPriceMicros(v int64) *PlanUpsert {
+	u.Add(plan.FieldYearlyPriceMicros, v)
+	return u
+}
+
+// SetStripeProductID sets the "stripe_product_id" field.
+func (u *PlanUpsert) SetStripeProductID(v string) *PlanUpsert {
+	u.Set(plan.FieldStripeProductID, v)
+	return u
+}
+
+// UpdateStripeProductID sets the "stripe_product_id" field to the value that was provided on create.
+func (u *PlanUpsert) UpdateStripeProductID() *PlanUpsert {
+	u.SetExcluded(plan.FieldStripeProductID)
+	return u
+}
+
+// ClearStripeProductID clears the value of the "stripe_product_id" field.
+func (u *PlanUpsert) ClearStripeProductID() *PlanUpsert {
+	u.SetNull(plan.FieldStripeProductID)
+	return u
+}
+
+// SetStripePriceMonthlyID sets the "stripe_price_monthly_id" field.
+func (u *PlanUpsert) SetStripePriceMonthlyID(v string) *PlanUpsert {
+	u.Set(plan.FieldStripePriceMonthlyID, v)
+	return u
+}
+
+// UpdateStripePriceMonthlyID sets the "stripe_price_monthly_id" field to the value that was provided on create.
+func (u *PlanUpsert) UpdateStripePriceMonthlyID() *PlanUpsert {
+	u.SetExcluded(plan.FieldStripePriceMonthlyID)
+	return u
+}
+
+// ClearStripePriceMonthlyID clears the value of the "stripe_price_monthly_id" field.
+func (u *PlanUpsert) ClearStripePriceMonthlyID() *PlanUpsert {
+	u.SetNull(plan.FieldStripePriceMonthlyID)
+	return u
+}
+
+// SetStripePriceYearlyID sets the "stripe_price_yearly_id" field.
+func (u *PlanUpsert) SetStripePriceYearlyID(v string) *PlanUpsert {
+	u.Set(plan.FieldStripePriceYearlyID, v)
+	return u
+}
+
+// UpdateStripePriceYearlyID sets the "stripe_price_yearly_id" field to the value that was provided on create.
+func (u *PlanUpsert) UpdateStripePriceYearlyID() *PlanUpsert {
+	u.SetExcluded(plan.FieldStripePriceYearlyID)
+	return u
+}
+
+// ClearStripePriceYearlyID clears the value of the "stripe_price_yearly_id" field.
+func (u *PlanUpsert) ClearStripePriceYearlyID() *PlanUpsert {
+	u.SetNull(plan.FieldStripePriceYearlyID)
+	return u
+}
+
+// SetFeatures sets the "features" field.
+func (u *PlanUpsert) SetFeatures(v []string) *PlanUpsert {
+	u.Set(plan.FieldFeatures, v)
+	return u
+}
+
+// UpdateFeatures sets the "features" field to the value that was provided on create.
+func (u *PlanUpsert) UpdateFeatures() *PlanUpsert {
+	u.SetExcluded(plan.FieldFeatures)
 	return u
 }
 
@@ -774,24 +930,101 @@ func (u *PlanUpsertOne) UpdateCurrency() *PlanUpsertOne {
 	})
 }
 
-// SetStripePriceID sets the "stripe_price_id" field.
-func (u *PlanUpsertOne) SetStripePriceID(v string) *PlanUpsertOne {
+// SetYearlyPriceMicros sets the "yearly_price_micros" field.
+func (u *PlanUpsertOne) SetYearlyPriceMicros(v int64) *PlanUpsertOne {
 	return u.Update(func(s *PlanUpsert) {
-		s.SetStripePriceID(v)
+		s.SetYearlyPriceMicros(v)
 	})
 }
 
-// UpdateStripePriceID sets the "stripe_price_id" field to the value that was provided on create.
-func (u *PlanUpsertOne) UpdateStripePriceID() *PlanUpsertOne {
+// AddYearlyPriceMicros adds v to the "yearly_price_micros" field.
+func (u *PlanUpsertOne) AddYearlyPriceMicros(v int64) *PlanUpsertOne {
 	return u.Update(func(s *PlanUpsert) {
-		s.UpdateStripePriceID()
+		s.AddYearlyPriceMicros(v)
 	})
 }
 
-// ClearStripePriceID clears the value of the "stripe_price_id" field.
-func (u *PlanUpsertOne) ClearStripePriceID() *PlanUpsertOne {
+// UpdateYearlyPriceMicros sets the "yearly_price_micros" field to the value that was provided on create.
+func (u *PlanUpsertOne) UpdateYearlyPriceMicros() *PlanUpsertOne {
 	return u.Update(func(s *PlanUpsert) {
-		s.ClearStripePriceID()
+		s.UpdateYearlyPriceMicros()
+	})
+}
+
+// SetStripeProductID sets the "stripe_product_id" field.
+func (u *PlanUpsertOne) SetStripeProductID(v string) *PlanUpsertOne {
+	return u.Update(func(s *PlanUpsert) {
+		s.SetStripeProductID(v)
+	})
+}
+
+// UpdateStripeProductID sets the "stripe_product_id" field to the value that was provided on create.
+func (u *PlanUpsertOne) UpdateStripeProductID() *PlanUpsertOne {
+	return u.Update(func(s *PlanUpsert) {
+		s.UpdateStripeProductID()
+	})
+}
+
+// ClearStripeProductID clears the value of the "stripe_product_id" field.
+func (u *PlanUpsertOne) ClearStripeProductID() *PlanUpsertOne {
+	return u.Update(func(s *PlanUpsert) {
+		s.ClearStripeProductID()
+	})
+}
+
+// SetStripePriceMonthlyID sets the "stripe_price_monthly_id" field.
+func (u *PlanUpsertOne) SetStripePriceMonthlyID(v string) *PlanUpsertOne {
+	return u.Update(func(s *PlanUpsert) {
+		s.SetStripePriceMonthlyID(v)
+	})
+}
+
+// UpdateStripePriceMonthlyID sets the "stripe_price_monthly_id" field to the value that was provided on create.
+func (u *PlanUpsertOne) UpdateStripePriceMonthlyID() *PlanUpsertOne {
+	return u.Update(func(s *PlanUpsert) {
+		s.UpdateStripePriceMonthlyID()
+	})
+}
+
+// ClearStripePriceMonthlyID clears the value of the "stripe_price_monthly_id" field.
+func (u *PlanUpsertOne) ClearStripePriceMonthlyID() *PlanUpsertOne {
+	return u.Update(func(s *PlanUpsert) {
+		s.ClearStripePriceMonthlyID()
+	})
+}
+
+// SetStripePriceYearlyID sets the "stripe_price_yearly_id" field.
+func (u *PlanUpsertOne) SetStripePriceYearlyID(v string) *PlanUpsertOne {
+	return u.Update(func(s *PlanUpsert) {
+		s.SetStripePriceYearlyID(v)
+	})
+}
+
+// UpdateStripePriceYearlyID sets the "stripe_price_yearly_id" field to the value that was provided on create.
+func (u *PlanUpsertOne) UpdateStripePriceYearlyID() *PlanUpsertOne {
+	return u.Update(func(s *PlanUpsert) {
+		s.UpdateStripePriceYearlyID()
+	})
+}
+
+// ClearStripePriceYearlyID clears the value of the "stripe_price_yearly_id" field.
+func (u *PlanUpsertOne) ClearStripePriceYearlyID() *PlanUpsertOne {
+	return u.Update(func(s *PlanUpsert) {
+		s.ClearStripePriceYearlyID()
+	})
+}
+
+// SetFeatures sets the "features" field.
+func (u *PlanUpsertOne) SetFeatures(v []string) *PlanUpsertOne {
+	return u.Update(func(s *PlanUpsert) {
+		s.SetFeatures(v)
+	})
+}
+
+// UpdateFeatures sets the "features" field to the value that was provided on create.
+func (u *PlanUpsertOne) UpdateFeatures() *PlanUpsertOne {
+	return u.Update(func(s *PlanUpsert) {
+		s.UpdateFeatures()
 	})
 }
 
@@ -1137,24 +1370,101 @@ func (u *PlanUpsertBulk) UpdateCurrency() *PlanUpsertBulk {
 	})
 }
 
-// SetStripePriceID sets the "stripe_price_id" field.
-func (u *PlanUpsertBulk) SetStripePriceID(v string) *PlanUpsertBulk {
+// SetYearlyPriceMicros sets the "yearly_price_micros" field.
+func (u *PlanUpsertBulk) SetYearlyPriceMicros(v int64) *PlanUpsertBulk {
 	return u.Update(func(s *PlanUpsert) {
-		s.SetStripePriceID(v)
+		s.SetYearlyPriceMicros(v)
 	})
 }
 
-// UpdateStripePriceID sets the "stripe_price_id" field to the value that was provided on create.
-func (u *PlanUpsertBulk) UpdateStripePriceID() *PlanUpsertBulk {
+// AddYearlyPriceMicros adds v to the "yearly_price_micros" field.
+func (u *PlanUpsertBulk) AddYearlyPriceMicros(v int64) *PlanUpsertBulk {
 	return u.Update(func(s *PlanUpsert) {
-		s.UpdateStripePriceID()
+		s.AddYearlyPriceMicros(v)
 	})
 }
 
-// ClearStripePriceID clears the value of the "stripe_price_id" field.
-func (u *PlanUpsertBulk) ClearStripePriceID() *PlanUpsertBulk {
+// UpdateYearlyPriceMicros sets the "yearly_price_micros" field to the value that was provided on create.
+func (u *PlanUpsertBulk) UpdateYearlyPriceMicros() *PlanUpsertBulk {
 	return u.Update(func(s *PlanUpsert) {
-		s.ClearStripePriceID()
+		s.UpdateYearlyPriceMicros()
+	})
+}
+
+// SetStripeProductID sets the "stripe_product_id" field.
+func (u *PlanUpsertBulk) SetStripeProductID(v string) *PlanUpsertBulk {
+	return u.Update(func(s *PlanUpsert) {
+		s.SetStripeProductID(v)
+	})
+}
+
+// UpdateStripeProductID sets the "stripe_product_id" field to the value that was provided on create.
+func (u *PlanUpsertBulk) UpdateStripeProductID() *PlanUpsertBulk {
+	return u.Update(func(s *PlanUpsert) {
+		s.UpdateStripeProductID()
+	})
+}
+
+// ClearStripeProductID clears the value of the "stripe_product_id" field.
+func (u *PlanUpsertBulk) ClearStripeProductID() *PlanUpsertBulk {
+	return u.Update(func(s *PlanUpsert) {
+		s.ClearStripeProductID()
+	})
+}
+
+// SetStripePriceMonthlyID sets the "stripe_price_monthly_id" field.
+func (u *PlanUpsertBulk) SetStripePriceMonthlyID(v string) *PlanUpsertBulk {
+	return u.Update(func(s *PlanUpsert) {
+		s.SetStripePriceMonthlyID(v)
+	})
+}
+
+// UpdateStripePriceMonthlyID sets the "stripe_price_monthly_id" field to the value that was provided on create.
+func (u *PlanUpsertBulk) UpdateStripePriceMonthlyID() *PlanUpsertBulk {
+	return u.Update(func(s *PlanUpsert) {
+		s.UpdateStripePriceMonthlyID()
+	})
+}
+
+// ClearStripePriceMonthlyID clears the value of the "stripe_price_monthly_id" field.
+func (u *PlanUpsertBulk) ClearStripePriceMonthlyID() *PlanUpsertBulk {
+	return u.Update(func(s *PlanUpsert) {
+		s.ClearStripePriceMonthlyID()
+	})
+}
+
+// SetStripePriceYearlyID sets the "stripe_price_yearly_id" field.
+func (u *PlanUpsertBulk) SetStripePriceYearlyID(v string) *PlanUpsertBulk {
+	return u.Update(func(s *PlanUpsert) {
+		s.SetStripePriceYearlyID(v)
+	})
+}
+
+// UpdateStripePriceYearlyID sets the "stripe_price_yearly_id" field to the value that was provided on create.
+func (u *PlanUpsertBulk) UpdateStripePriceYearlyID() *PlanUpsertBulk {
+	return u.Update(func(s *PlanUpsert) {
+		s.UpdateStripePriceYearlyID()
+	})
+}
+
+// ClearStripePriceYearlyID clears the value of the "stripe_price_yearly_id" field.
+func (u *PlanUpsertBulk) ClearStripePriceYearlyID() *PlanUpsertBulk {
+	return u.Update(func(s *PlanUpsert) {
+		s.ClearStripePriceYearlyID()
+	})
+}
+
+// SetFeatures sets the "features" field.
+func (u *PlanUpsertBulk) SetFeatures(v []string) *PlanUpsertBulk {
+	return u.Update(func(s *PlanUpsert) {
+		s.SetFeatures(v)
+	})
+}
+
+// UpdateFeatures sets the "features" field to the value that was provided on create.
+func (u *PlanUpsertBulk) UpdateFeatures() *PlanUpsertBulk {
+	return u.Update(func(s *PlanUpsert) {
+		s.UpdateFeatures()
 	})
 }
 

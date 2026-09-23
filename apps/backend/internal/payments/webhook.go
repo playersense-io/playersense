@@ -16,6 +16,7 @@ import (
 	"playersense.dev/backend/ent/billingaccount"
 	"playersense.dev/backend/ent/stripeevent"
 	"playersense.dev/backend/internal/pgdb"
+	"playersense.dev/backend/internal/valkey"
 )
 
 // Webhooks receives Stripe's events.
@@ -35,6 +36,10 @@ type Webhooks struct {
 	DB     *pgdb.DB
 	Secret string
 	Log    *slog.Logger
+
+	// Cache is where charging keeps each organization's pricing, invalidated when a subscription
+	// moves an account between plans. Nil: the entry expires on its own.
+	Cache *valkey.Client
 
 	// RetryAfter is how long an automatic top-up waits after a decline.
 	RetryAfter time.Duration
@@ -157,6 +162,10 @@ func ignored(reason string) handled {
 func (w *Webhooks) handle(ctx context.Context, tx *ent.Tx, event stripe.Event) (handled, error) {
 	// Money going back — refunds and disputes (returns.go).
 	if result, matched, err := w.returns(ctx, tx, event); matched {
+		return result, err
+	}
+	// Subscriptions — which plan the account is on (subscriptions.go).
+	if result, matched, err := w.subscription(ctx, tx, event); matched {
 		return result, err
 	}
 	switch event.Type {

@@ -174,3 +174,39 @@ func invoicesOf(t *testing.T, sc *stripe.Client, customer string) []*stripe.Invo
 	}
 	return out
 }
+
+// A plan's subscription prices, and a subscription checkout, at Stripe itself.
+func TestLiveSubscriptionSetUp(t *testing.T) {
+	gw, _ := liveGateway(t)
+	ctx := context.Background()
+	plan := uuid.NewString()
+	in := payments.SubscriptionPriceRequest{PlanUID: plan, PlanKey: "enterprise-live-test", Name: "Enterprise (live test)",
+		Currency: "usd", MonthlyCents: 9_900, YearlyCents: 99_900}
+
+	first, err := gw.SetUpSubscription(ctx, in)
+	if err != nil || first.Product == "" || first.Monthly == "" || first.Yearly == "" {
+		t.Fatalf("set up = %+v, %v", first, err)
+	}
+	in.Product = first.Product
+	again, err := gw.SetUpSubscription(ctx, in)
+	if err != nil || again.Monthly != first.Monthly || again.Yearly != first.Yearly {
+		t.Errorf("saving the same prices again made new ones: %+v vs %+v (%v)", again, first, err)
+	}
+	in.MonthlyCents = 10_900
+	changed, err := gw.SetUpSubscription(ctx, in)
+	if err != nil || changed.Monthly == first.Monthly || changed.Product != first.Product {
+		t.Errorf("a changed price did not make a new Price on the same Product: %+v (%v)", changed, err)
+	}
+
+	customer, err := gw.CreateCustomer(ctx, payments.CustomerRequest{AccountUID: uuid.NewString(), Name: "Subscriber"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	checkout, err := gw.CreateSubscriptionCheckout(ctx, payments.SubscriptionCheckoutRequest{
+		AccountUID: uuid.NewString(), PlanKey: "enterprise-live-test", Customer: customer, Price: first.Yearly,
+		SuccessURL: "http://localhost:3000/billing?subscribed=1", CancelURL: "http://localhost:3000/billing",
+	})
+	if err != nil || !strings.HasPrefix(checkout.URL, "https://checkout.stripe.com/") {
+		t.Fatalf("subscription checkout = %+v, %v", checkout, err)
+	}
+}

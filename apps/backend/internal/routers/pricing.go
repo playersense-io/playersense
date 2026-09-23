@@ -79,6 +79,16 @@ func OperatorPricing() *muzak.Router {
 		muzak.WithResponseDoc(http.StatusUnprocessableEntity,
 			"The tiers leave a gap, overlap, or bound the last band; or the card starts in the past"))
 
+	r.Put("/plans/{plan}/subscription", handlers.SetSubscriptionPrices,
+		muzak.Summary("Set what a plan's subscription costs"),
+		muzak.Description("Monthly and yearly prices in micros ($99 is 99000000). Creates the plan's "+
+			"Stripe Product the first time, and a Stripe Price per interval — Prices cannot be edited, "+
+			"so a changed amount is a new Price: new subscribers pay it, existing ones keep theirs "+
+			"until they change plan."),
+		muzak.WithResponseDoc(http.StatusNotFound, "No plan has that key"),
+		muzak.WithResponseDoc(http.StatusUnprocessableEntity, "Neither price named, or not whole cents"),
+		muzak.WithResponseDoc(http.StatusServiceUnavailable, "Stripe could not be reached, or payments are not configured"))
+
 	r.Put("/organizations/{org}/plan", handlers.AssignPlan,
 		muzak.Summary("Move an organization onto a plan"),
 		muzak.Description("From the next player on. The month's count carries over, so the "+

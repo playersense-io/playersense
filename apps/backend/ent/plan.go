@@ -36,8 +36,16 @@ type Plan struct {
 	MonthlyPriceMicros int64 `json:"monthly_price_micros,omitempty"`
 	// class=financial
 	Currency string `json:"currency,omitempty"`
+	// class=financial
+	YearlyPriceMicros int64 `json:"yearly_price_micros,omitempty"`
 	// class=none
-	StripePriceID *string `json:"stripe_price_id,omitempty"`
+	StripeProductID *string `json:"stripe_product_id,omitempty"`
+	// class=none
+	StripePriceMonthlyID *string `json:"stripe_price_monthly_id,omitempty"`
+	// class=none
+	StripePriceYearlyID *string `json:"stripe_price_yearly_id,omitempty"`
+	// class=none
+	Features []string `json:"features,omitempty"`
 	// class=none
 	Entitlements map[string]int64 `json:"entitlements,omitempty"`
 	// class=none
@@ -84,13 +92,13 @@ func (*Plan) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case plan.FieldEntitlements:
+		case plan.FieldFeatures, plan.FieldEntitlements:
 			values[i] = new([]byte)
 		case plan.FieldActive, plan.FieldIsDefault:
 			values[i] = new(sql.NullBool)
-		case plan.FieldID, plan.FieldMonthlyPriceMicros:
+		case plan.FieldID, plan.FieldMonthlyPriceMicros, plan.FieldYearlyPriceMicros:
 			values[i] = new(sql.NullInt64)
-		case plan.FieldKey, plan.FieldName, plan.FieldDescription, plan.FieldCurrency, plan.FieldStripePriceID:
+		case plan.FieldKey, plan.FieldName, plan.FieldDescription, plan.FieldCurrency, plan.FieldStripeProductID, plan.FieldStripePriceMonthlyID, plan.FieldStripePriceYearlyID:
 			values[i] = new(sql.NullString)
 		case plan.FieldCreatedAt, plan.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -165,12 +173,40 @@ func (_m *Plan) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.Currency = value.String
 			}
-		case plan.FieldStripePriceID:
-			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field stripe_price_id", values[i])
+		case plan.FieldYearlyPriceMicros:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field yearly_price_micros", values[i])
 			} else if value.Valid {
-				_m.StripePriceID = new(string)
-				*_m.StripePriceID = value.String
+				_m.YearlyPriceMicros = value.Int64
+			}
+		case plan.FieldStripeProductID:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field stripe_product_id", values[i])
+			} else if value.Valid {
+				_m.StripeProductID = new(string)
+				*_m.StripeProductID = value.String
+			}
+		case plan.FieldStripePriceMonthlyID:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field stripe_price_monthly_id", values[i])
+			} else if value.Valid {
+				_m.StripePriceMonthlyID = new(string)
+				*_m.StripePriceMonthlyID = value.String
+			}
+		case plan.FieldStripePriceYearlyID:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field stripe_price_yearly_id", values[i])
+			} else if value.Valid {
+				_m.StripePriceYearlyID = new(string)
+				*_m.StripePriceYearlyID = value.String
+			}
+		case plan.FieldFeatures:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field features", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.Features); err != nil {
+					return fmt.Errorf("unmarshal field features: %w", err)
+				}
 			}
 		case plan.FieldEntitlements:
 			if value, ok := values[i].(*[]byte); !ok {
@@ -262,10 +298,26 @@ func (_m *Plan) String() string {
 	builder.WriteString("currency=")
 	builder.WriteString(_m.Currency)
 	builder.WriteString(", ")
-	if v := _m.StripePriceID; v != nil {
-		builder.WriteString("stripe_price_id=")
+	builder.WriteString("yearly_price_micros=")
+	builder.WriteString(fmt.Sprintf("%v", _m.YearlyPriceMicros))
+	builder.WriteString(", ")
+	if v := _m.StripeProductID; v != nil {
+		builder.WriteString("stripe_product_id=")
 		builder.WriteString(*v)
 	}
+	builder.WriteString(", ")
+	if v := _m.StripePriceMonthlyID; v != nil {
+		builder.WriteString("stripe_price_monthly_id=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.StripePriceYearlyID; v != nil {
+		builder.WriteString("stripe_price_yearly_id=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	builder.WriteString("features=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Features))
 	builder.WriteString(", ")
 	builder.WriteString("entitlements=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Entitlements))

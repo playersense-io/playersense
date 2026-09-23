@@ -31,6 +31,16 @@ const (
 	FieldStripeCustomerID = "stripe_customer_id"
 	// FieldStripeSubscriptionID holds the string denoting the stripe_subscription_id field in the database.
 	FieldStripeSubscriptionID = "stripe_subscription_id"
+	// FieldSubscriptionStatus holds the string denoting the subscription_status field in the database.
+	FieldSubscriptionStatus = "subscription_status"
+	// FieldSubscriptionInterval holds the string denoting the subscription_interval field in the database.
+	FieldSubscriptionInterval = "subscription_interval"
+	// FieldSubscriptionPeriodEnd holds the string denoting the subscription_period_end field in the database.
+	FieldSubscriptionPeriodEnd = "subscription_period_end"
+	// FieldSubscriptionCancelAtPeriodEnd holds the string denoting the subscription_cancel_at_period_end field in the database.
+	FieldSubscriptionCancelAtPeriodEnd = "subscription_cancel_at_period_end"
+	// FieldSubscriptionSyncedAt holds the string denoting the subscription_synced_at field in the database.
+	FieldSubscriptionSyncedAt = "subscription_synced_at"
 	// FieldState holds the string denoting the state field in the database.
 	FieldState = "state"
 	// FieldStateChangedAt holds the string denoting the state_changed_at field in the database.
@@ -155,6 +165,11 @@ var Columns = []string{
 	FieldPlanID,
 	FieldStripeCustomerID,
 	FieldStripeSubscriptionID,
+	FieldSubscriptionStatus,
+	FieldSubscriptionInterval,
+	FieldSubscriptionPeriodEnd,
+	FieldSubscriptionCancelAtPeriodEnd,
+	FieldSubscriptionSyncedAt,
 	FieldState,
 	FieldStateChangedAt,
 	FieldCurrency,
@@ -205,6 +220,10 @@ var (
 	StripeCustomerIDValidator func(string) error
 	// StripeSubscriptionIDValidator is a validator for the "stripe_subscription_id" field. It is called by the builders before save.
 	StripeSubscriptionIDValidator func(string) error
+	// SubscriptionStatusValidator is a validator for the "subscription_status" field. It is called by the builders before save.
+	SubscriptionStatusValidator func(string) error
+	// DefaultSubscriptionCancelAtPeriodEnd holds the default value on creation for the "subscription_cancel_at_period_end" field.
+	DefaultSubscriptionCancelAtPeriodEnd bool
 	// DefaultStateChangedAt holds the default value on creation for the "state_changed_at" field.
 	DefaultStateChangedAt func() time.Time
 	// DefaultCurrency holds the default value on creation for the "currency" field.
@@ -246,6 +265,29 @@ var (
 	// DefaultEntitlementOverrides holds the default value on creation for the "entitlement_overrides" field.
 	DefaultEntitlementOverrides map[string]int64
 )
+
+// SubscriptionInterval defines the type for the "subscription_interval" enum field.
+type SubscriptionInterval string
+
+// SubscriptionInterval values.
+const (
+	SubscriptionIntervalMonth SubscriptionInterval = "month"
+	SubscriptionIntervalYear  SubscriptionInterval = "year"
+)
+
+func (si SubscriptionInterval) String() string {
+	return string(si)
+}
+
+// SubscriptionIntervalValidator is a validator for the "subscription_interval" field enum values. It is called by the builders before save.
+func SubscriptionIntervalValidator(si SubscriptionInterval) error {
+	switch si {
+	case SubscriptionIntervalMonth, SubscriptionIntervalYear:
+		return nil
+	default:
+		return fmt.Errorf("billingaccount: invalid enum value for subscription_interval field: %q", si)
+	}
+}
 
 // State defines the type for the "state" enum field.
 type State string
@@ -317,6 +359,31 @@ func ByStripeCustomerID(opts ...sql.OrderTermOption) OrderOption {
 // ByStripeSubscriptionID orders the results by the stripe_subscription_id field.
 func ByStripeSubscriptionID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldStripeSubscriptionID, opts...).ToFunc()
+}
+
+// BySubscriptionStatus orders the results by the subscription_status field.
+func BySubscriptionStatus(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSubscriptionStatus, opts...).ToFunc()
+}
+
+// BySubscriptionInterval orders the results by the subscription_interval field.
+func BySubscriptionInterval(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSubscriptionInterval, opts...).ToFunc()
+}
+
+// BySubscriptionPeriodEnd orders the results by the subscription_period_end field.
+func BySubscriptionPeriodEnd(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSubscriptionPeriodEnd, opts...).ToFunc()
+}
+
+// BySubscriptionCancelAtPeriodEnd orders the results by the subscription_cancel_at_period_end field.
+func BySubscriptionCancelAtPeriodEnd(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSubscriptionCancelAtPeriodEnd, opts...).ToFunc()
+}
+
+// BySubscriptionSyncedAt orders the results by the subscription_synced_at field.
+func BySubscriptionSyncedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSubscriptionSyncedAt, opts...).ToFunc()
 }
 
 // ByState orders the results by the state field.

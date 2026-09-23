@@ -1,6 +1,7 @@
 package billing_test
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
@@ -153,5 +154,19 @@ func TestUSD(t *testing.T) {
 		if got := billing.USD(c.micros); got != c.want {
 			t.Errorf("USD(%d) = %s, want %s", c.micros, got, c.want)
 		}
+	}
+}
+
+func TestAFeatureIsOnlyWhatThePlanSays(t *testing.T) {
+	enterprise := []string{string(billing.PremiumSupport), string(billing.MCPAccess)}
+	if !billing.HasFeature(enterprise, billing.MCPAccess) || billing.HasFeature(enterprise, billing.SlackReports) {
+		t.Error("a feature was granted or withheld against the plan")
+	}
+	if billing.HasFeature(nil, billing.MCPAccess) {
+		t.Error("no plan features granted one")
+	}
+	var unknown *billing.UnknownFeatureError
+	if err := billing.ValidateFeatures([]string{"mcp_acess"}); !errors.As(err, &unknown) {
+		t.Errorf("a misspelled feature validated: %v", err)
 	}
 }

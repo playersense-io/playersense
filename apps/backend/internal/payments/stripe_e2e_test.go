@@ -12,6 +12,7 @@ import (
 
 	"playersense.dev/backend/ent"
 	"playersense.dev/backend/ent/creditlot"
+	"playersense.dev/backend/ent/plan"
 	"playersense.dev/backend/ent/stripeevent"
 	"playersense.dev/backend/internal/billing"
 	"playersense.dev/backend/internal/identity"
@@ -213,4 +214,78 @@ func TestEndToEndADisputeTakesTheCreditBack(t *testing.T) {
 		return a.BalanceMicros == 0 && !a.AutoTopupEnabled
 	})
 	t.Logf("taken back; automatic top-up off: %q", row.AutoTopupLastError)
+}
+
+// A real subscription: Stripe's own subscription webhooks put the organization on Enterprise, and
+// canceling it puts the organization back on the default plan.
+func TestEndToEndASubscriptionMovesThePlan(t *testing.T) {
+	if os.Getenv("STRIPE_E2E") != "1" {
+		t.Skip("set STRIPE_E2E=1 with `stripe listen` and the API running")
+	}
+	gw, sc := liveGateway(t)
+	settings := testsupport.Settings(t)
+	db := testsupport.Postgres(t, settings)
+	ctx := context.Background()
+	id := uuid.NewString()[:8]
+
+	free, err := db.Client.Plan.Create().SetKey("free-e2e-" + id).SetName("Free").SetIsDefault(true).Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Client.Plan.Update().Where(plan.IsDefault(true), plan.IDNEQ(free.ID)).SetIsDefault(false).Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _, _ = db.Client.Plan.UpdateOneID(free.ID).SetIsDefault(false).Save(context.Background()) })
+	enterprise, err := db.Client.Plan.Create().SetKey("enterprise-e2e-" + id).SetName("Enterprise E2E").Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	prices, err := gw.SetUpSubscription(ctx, payments.SubscriptionPriceRequest{PlanUID: enterprise.UID.String(),
+		PlanKey: enterprise.Key, Name: enterprise.Name, Currency: "usd", MonthlyCents: 9_900, YearlyCents: 99_900})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := enterprise.Update().SetStripeProductID(prices.Product).SetStripePriceMonthlyID(prices.Monthly).
+		SetStripePriceYearlyID(prices.Yearly).Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	person, err := identity.EnsureUser(ctx, db.Client, identity.Claims{
+		UID: "firebase-" + id, Email: "sub-" + id + "@studio.example", EmailVerified: true, Name: "Sub", Provider: "google.com",
+	}, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	orgs, _ := identity.Organizations(ctx, db.Client, person.ID)
+	account := testsupport.SeedBillingAccount(t, db, orgs[0].ID)
+	customer, err := gw.CreateCustomer(ctx, payments.CustomerRequest{AccountUID: account.UID.String(), Name: "Sub " + id})
+	if err != nil {
+		t.Fatal(err)
+	}
+	card := savedCard(t, sc, customer, "pm_card_visa")
+	if _, err := account.Update().SetStripeCustomerID(customer).Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	// What Checkout does once the person pays: a subscription on the customer, to the plan's price.
+	sub, err := sc.V1Subscriptions.Create(ctx, &stripe.SubscriptionCreateParams{
+		Customer:             stripe.String(customer),
+		Items:                []*stripe.SubscriptionCreateItemParams{{Price: stripe.String(prices.Monthly)}},
+		DefaultPaymentMethod: stripe.String(card),
+		Metadata:             map[string]string{payments.MetaAccount: account.UID.String(), payments.MetaPlan: enterprise.Key},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("subscribed %s (%s)", sub.ID, sub.Status)
+	waitFor(t, db, account.ID, "the subscription putting the account on Enterprise", func(a *ent.BillingAccount) bool {
+		return a.PlanID == enterprise.ID && a.SubscriptionStatus != nil && *a.SubscriptionStatus == "active"
+	})
+
+	if _, err := sc.V1Subscriptions.Cancel(ctx, sub.ID, nil); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, db, account.ID, "canceling putting the account back on Free", func(a *ent.BillingAccount) bool {
+		return a.PlanID == free.ID
+	})
 }

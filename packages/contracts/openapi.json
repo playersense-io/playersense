@@ -1078,6 +1078,13 @@
                       "format": "int64"
                     }
                   },
+                  "features": {
+                    "type": "array",
+                    "description": "Replaces the whole list when present",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
                   "is_default": {
                     "type": [
                       "boolean",
@@ -1362,6 +1369,123 @@
           },
           "422": {
             "description": "The tiers leave a gap, overlap, or bound the last band; or the card starts in the past",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/operator/plans/{plan}/subscription": {
+      "put": {
+        "tags": [
+          "operator"
+        ],
+        "summary": "Set what a plan's subscription costs",
+        "description": "Monthly and yearly prices in micros ($99 is 99000000). Creates the plan's Stripe Product the first time, and a Stripe Price per interval — Prices cannot be edited, so a changed amount is a new Price: new subscribers pay it, existing ones keep theirs until they change plan.",
+        "operationId": "put_v1_operator_plans_by_plan_subscription",
+        "parameters": [
+          {
+            "name": "plan",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "monthly_price_micros": {
+                    "type": "integer",
+                    "format": "int64",
+                    "description": "$99 is 99000000; zero for no monthly price",
+                    "minimum": 0,
+                    "maximum": 1000000000000
+                  },
+                  "operator": {
+                    "type": "string",
+                    "format": "email",
+                    "maxLength": 254
+                  },
+                  "yearly_price_micros": {
+                    "type": "integer",
+                    "format": "int64",
+                    "description": "$999 is 999000000; zero for no yearly price",
+                    "minimum": 0,
+                    "maximum": 1000000000000
+                  }
+                },
+                "required": [
+                  "operator"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanDetailOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The operator token is missing or wrong",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No plan has that key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Neither price named, or not whole cents",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Stripe could not be reached, or payments are not configured",
             "content": {
               "application/json": {
                 "schema": {
@@ -2134,6 +2258,138 @@
           },
           "422": {
             "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Stripe could not be reached, or payments are not configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/organizations/{org}/billing/subscription": {
+      "post": {
+        "tags": [
+          "billing"
+        ],
+        "summary": "Subscribe to a plan",
+        "description": "Opens Stripe Checkout for the plan's monthly or yearly price and returns its URL. The organization moves to the plan when Stripe reports the subscription, by webhook. An organization that already has a subscription changes or cancels it in the billing portal instead.",
+        "operationId": "post_v1_organizations_by_org_billing_subscription",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "interval": {
+                    "type": "string",
+                    "description": "month or year",
+                    "enum": [
+                      "month",
+                      "year"
+                    ]
+                  },
+                  "plan": {
+                    "type": "string",
+                    "description": "The plan's key, e.g. enterprise",
+                    "maxLength": 64
+                  }
+                },
+                "required": [
+                  "interval",
+                  "plan"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckoutOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not do that",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The organization does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The organization already has a subscription",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The plan cannot be paid at that interval",
             "content": {
               "application/json": {
                 "schema": {
@@ -7414,6 +7670,12 @@
               "$ref": "#/components/schemas/CreditLotOut"
             }
           },
+          "features": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
           "ledger_balance_micros": {
             "type": "integer",
             "format": "int64"
@@ -7449,6 +7711,16 @@
           "state": {
             "type": "string",
             "description": "active, grace_period, restricted, suspended or canceled"
+          },
+          "subscription": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SubscriptionOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -7458,6 +7730,7 @@
           "available",
           "available_micros",
           "currency",
+          "features",
           "ledger_balance_micros",
           "plan",
           "promo_micros",
@@ -7944,6 +8217,13 @@
             "additionalProperties": {
               "type": "integer",
               "format": "int64"
+            }
+          },
+          "features": {
+            "type": "array",
+            "description": "premium_support, slack_reports, mcp_access — the closed vocabulary",
+            "items": {
+              "type": "string"
             }
           },
           "is_default": {
@@ -9314,6 +9594,19 @@
               "format": "int64"
             }
           },
+          "features": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "intervals": {
+            "type": "array",
+            "description": "month, year — the ones this plan can be paid by",
+            "items": {
+              "type": "string"
+            }
+          },
           "is_default": {
             "type": "boolean"
           },
@@ -9336,15 +9629,25 @@
                 "type": "null"
               }
             ]
+          },
+          "subscribable": {
+            "type": "boolean"
+          },
+          "yearly_price_micros": {
+            "type": "integer",
+            "format": "int64"
           }
         },
         "required": [
           "active",
           "currency",
+          "features",
           "is_default",
           "key",
           "monthly_price_micros",
-          "name"
+          "name",
+          "subscribable",
+          "yearly_price_micros"
         ]
       },
       "PlanOut": {
@@ -9759,6 +10062,34 @@
           "name",
           "rule",
           "updated_at"
+        ]
+      },
+      "SubscriptionOut": {
+        "type": "object",
+        "properties": {
+          "cancel_at_period_end": {
+            "type": "boolean"
+          },
+          "interval": {
+            "type": "string",
+            "description": "month or year"
+          },
+          "period_end": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When the paid period ends — and, if canceling, when the plan does"
+          },
+          "status": {
+            "type": "string",
+            "description": "Stripe's: active, trialing, past_due, canceled, unpaid, …"
+          }
+        },
+        "required": [
+          "cancel_at_period_end",
+          "status"
         ]
       },
       "TierIn": {

@@ -32,8 +32,16 @@ const (
 	FieldMonthlyPriceMicros = "monthly_price_micros"
 	// FieldCurrency holds the string denoting the currency field in the database.
 	FieldCurrency = "currency"
-	// FieldStripePriceID holds the string denoting the stripe_price_id field in the database.
-	FieldStripePriceID = "stripe_price_id"
+	// FieldYearlyPriceMicros holds the string denoting the yearly_price_micros field in the database.
+	FieldYearlyPriceMicros = "yearly_price_micros"
+	// FieldStripeProductID holds the string denoting the stripe_product_id field in the database.
+	FieldStripeProductID = "stripe_product_id"
+	// FieldStripePriceMonthlyID holds the string denoting the stripe_price_monthly_id field in the database.
+	FieldStripePriceMonthlyID = "stripe_price_monthly_id"
+	// FieldStripePriceYearlyID holds the string denoting the stripe_price_yearly_id field in the database.
+	FieldStripePriceYearlyID = "stripe_price_yearly_id"
+	// FieldFeatures holds the string denoting the features field in the database.
+	FieldFeatures = "features"
 	// FieldEntitlements holds the string denoting the entitlements field in the database.
 	FieldEntitlements = "entitlements"
 	// FieldActive holds the string denoting the active field in the database.
@@ -73,7 +81,11 @@ var Columns = []string{
 	FieldDescription,
 	FieldMonthlyPriceMicros,
 	FieldCurrency,
-	FieldStripePriceID,
+	FieldYearlyPriceMicros,
+	FieldStripeProductID,
+	FieldStripePriceMonthlyID,
+	FieldStripePriceYearlyID,
+	FieldFeatures,
 	FieldEntitlements,
 	FieldActive,
 	FieldIsDefault,
@@ -95,7 +107,7 @@ func ValidColumn(column string) bool {
 //
 //	import _ "playersense.dev/backend/ent/runtime"
 var (
-	Hooks [1]ent.Hook
+	Hooks [2]ent.Hook
 	// DefaultUID holds the default value on creation for the "uid" field.
 	DefaultUID func() uuid.UUID
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
@@ -120,8 +132,18 @@ var (
 	DefaultCurrency string
 	// CurrencyValidator is a validator for the "currency" field. It is called by the builders before save.
 	CurrencyValidator func(string) error
-	// StripePriceIDValidator is a validator for the "stripe_price_id" field. It is called by the builders before save.
-	StripePriceIDValidator func(string) error
+	// DefaultYearlyPriceMicros holds the default value on creation for the "yearly_price_micros" field.
+	DefaultYearlyPriceMicros int64
+	// YearlyPriceMicrosValidator is a validator for the "yearly_price_micros" field. It is called by the builders before save.
+	YearlyPriceMicrosValidator func(int64) error
+	// StripeProductIDValidator is a validator for the "stripe_product_id" field. It is called by the builders before save.
+	StripeProductIDValidator func(string) error
+	// StripePriceMonthlyIDValidator is a validator for the "stripe_price_monthly_id" field. It is called by the builders before save.
+	StripePriceMonthlyIDValidator func(string) error
+	// StripePriceYearlyIDValidator is a validator for the "stripe_price_yearly_id" field. It is called by the builders before save.
+	StripePriceYearlyIDValidator func(string) error
+	// DefaultFeatures holds the default value on creation for the "features" field.
+	DefaultFeatures []string
 	// DefaultEntitlements holds the default value on creation for the "entitlements" field.
 	DefaultEntitlements map[string]int64
 	// DefaultActive holds the default value on creation for the "active" field.
@@ -178,9 +200,24 @@ func ByCurrency(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCurrency, opts...).ToFunc()
 }
 
-// ByStripePriceID orders the results by the stripe_price_id field.
-func ByStripePriceID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldStripePriceID, opts...).ToFunc()
+// ByYearlyPriceMicros orders the results by the yearly_price_micros field.
+func ByYearlyPriceMicros(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldYearlyPriceMicros, opts...).ToFunc()
+}
+
+// ByStripeProductID orders the results by the stripe_product_id field.
+func ByStripeProductID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldStripeProductID, opts...).ToFunc()
+}
+
+// ByStripePriceMonthlyID orders the results by the stripe_price_monthly_id field.
+func ByStripePriceMonthlyID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldStripePriceMonthlyID, opts...).ToFunc()
+}
+
+// ByStripePriceYearlyID orders the results by the stripe_price_yearly_id field.
+func ByStripePriceYearlyID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldStripePriceYearlyID, opts...).ToFunc()
 }
 
 // ByActive orders the results by the active field.

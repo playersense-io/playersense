@@ -307,7 +307,7 @@ func build(settings config.Settings, overrides ...muzak.RouterOption) (*muzak.Ap
 		// Stripe, or a stand-in that refuses with "not configured" when there is no key.
 		muzak.WithSingleton(payments.New(settings.StripeSecretKey)),
 		muzak.WithSingleton(&payments.Webhooks{
-			DB: db, Secret: settings.StripeWebhookSecret,
+			DB: db, Cache: cache, Secret: settings.StripeWebhookSecret,
 			RetryAfter: settings.BillingAutoTopUpRetryAfter,
 		}),
 

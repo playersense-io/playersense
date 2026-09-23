@@ -18,7 +18,9 @@ import (
 	"playersense.dev/backend/internal/audit"
 	"playersense.dev/backend/internal/billing"
 	"playersense.dev/backend/internal/charging"
+	"playersense.dev/backend/internal/config"
 	"playersense.dev/backend/internal/core"
+	"playersense.dev/backend/internal/payments"
 	"playersense.dev/backend/internal/schemas"
 	"playersense.dev/backend/internal/valkey"
 )
@@ -75,6 +77,7 @@ func CreatePlan(ctx *muzak.Context, in schemas.CreatePlanIn) (schemas.PlanDetail
 			SetMonthlyPriceMicros(in.MonthlyPriceMicros).
 			SetEntitlements(orEmptyLimits(in.Entitlements)).
 			SetIsDefault(in.IsDefault).
+			SetFeatures(orEmptyFeatures(in.Features)).
 			Save(ctx.Context())
 	})
 	if err != nil {
@@ -119,6 +122,9 @@ func UpdatePlan(ctx *muzak.Context, in schemas.UpdatePlanIn) (schemas.PlanDetail
 		}
 		if in.IsDefault != nil {
 			update = update.SetIsDefault(*in.IsDefault)
+		}
+		if in.Features != nil {
+			update = update.SetFeatures(in.Features)
 		}
 		return update.Save(ctx.Context())
 	})
@@ -370,7 +376,15 @@ func planOut(ctx context.Context, db *core.DB, p *ent.Plan, at time.Time, operat
 		Key: p.Key, Name: p.Name, Description: p.Description,
 		MonthlyPriceMicros: p.MonthlyPriceMicros, Currency: p.Currency,
 		Entitlements: p.Entitlements, Active: p.Active, IsDefault: p.IsDefault,
+		YearlyPriceMicros: p.YearlyPriceMicros, Features: orEmptyFeatures(p.Features),
 	}
+	if p.StripePriceMonthlyID != nil {
+		out.Intervals = append(out.Intervals, "month")
+	}
+	if p.StripePriceYearlyID != nil {
+		out.Intervals = append(out.Intervals, "year")
+	}
+	out.Subscribable = len(out.Intervals) > 0
 	base := db.Client.RateCard.Query().Where(
 		ratecard.PlanID(p.ID), ratecard.MeterEQ(ratecard.Meter(billing.TrackedPlayers)))
 
@@ -451,7 +465,10 @@ func catalogueError(err error) error {
 	var unknown *billing.UnknownEntitlementError
 	var negative *billing.NegativeEntitlementError
 	var tiers *billing.TierError
+	var feature *billing.UnknownFeatureError
 	switch {
+	case errors.As(err, &feature):
+		return muzak.UnprocessableEntity(err.Error()).WithCode("invalid_feature")
 	case err == nil:
 		return nil
 	case errors.As(err, &unknown), errors.As(err, &negative):
@@ -465,4 +482,107 @@ func catalogueError(err error) error {
 	default:
 		return core.AsHTTPError(err)
 	}
+}
+
+func orEmptyFeatures(in []string) []string {
+	if in == nil {
+		return []string{}
+	}
+	return in
+}
+
+// ---- subscriptions (ADR 0042) -----------------------------------------------
+
+// SetSubscriptionPrices sets a plan's monthly and yearly price, creating them at Stripe.
+//
+// Stripe's Prices cannot be edited, so a changed amount is a new Price: new subscribers pay it, and
+// existing ones keep the Price they subscribed at until they change plan. The plan's Stripe Product
+// is created the first time and reused after.
+func SetSubscriptionPrices(ctx *muzak.Context, in schemas.SetSubscriptionPricesIn) (schemas.PlanDetailOut, error) {
+	db := muzak.From[*core.DB](ctx)
+	gateway := muzak.From[payments.Gateway](ctx)
+
+	found, err := db.Client.Plan.Query().Where(plan.Key(in.PlanKey)).Only(ctx.Context())
+	if err != nil {
+		return schemas.PlanDetailOut{}, catalogueError(err)
+	}
+	product := ""
+	if found.StripeProductID != nil {
+		product = *found.StripeProductID
+	}
+	prices, err := gateway.SetUpSubscription(ctx.Context(), payments.SubscriptionPriceRequest{
+		PlanUID: found.UID.String(), PlanKey: found.Key, Name: found.Name, Product: product,
+		Currency:     found.Currency,
+		MonthlyCents: in.MonthlyPriceMicros / billing.CentMicros,
+		YearlyCents:  in.YearlyPriceMicros / billing.CentMicros,
+	})
+	if err != nil {
+		return schemas.PlanDetailOut{}, paymentsError(err)
+	}
+
+	update := db.Client.Plan.UpdateOne(found).
+		SetStripeProductID(prices.Product).
+		SetMonthlyPriceMicros(in.MonthlyPriceMicros).
+		SetYearlyPriceMicros(in.YearlyPriceMicros)
+	if prices.Monthly != "" {
+		update = update.SetStripePriceMonthlyID(prices.Monthly)
+	} else {
+		update = update.ClearStripePriceMonthlyID()
+	}
+	if prices.Yearly != "" {
+		update = update.SetStripePriceYearlyID(prices.Yearly)
+	} else {
+		update = update.ClearStripePriceYearlyID()
+	}
+	saved, err := update.Save(ctx.Context())
+	if err != nil {
+		return schemas.PlanDetailOut{}, catalogueError(err)
+	}
+	return planOut(ctx.Context(), db, saved, nowUTC(), true)
+}
+
+// Subscribe opens Stripe Checkout to subscribe to a plan.
+//
+// Nothing changes here: the account moves to the plan when Stripe reports the subscription, by webhook.
+// An account that already has a live subscription is sent to the customer portal instead — switching
+// plan or interval there is Stripe's proration to get right, and two subscriptions would be two bills.
+func Subscribe(ctx *muzak.Context, in schemas.SubscribeIn) (schemas.CheckoutOut, error) {
+	db := muzak.From[*core.DB](ctx)
+	settings := muzak.From[config.Settings](ctx)
+	gateway := muzak.From[payments.Gateway](ctx)
+	org := muzak.From[*core.Principal](ctx).Organization
+
+	account, err := accountOf(ctx.Context(), db, org.ID)
+	if err != nil {
+		return schemas.CheckoutOut{}, err
+	}
+	if account.SubscriptionStatus != nil && payments.Live(*account.SubscriptionStatus) {
+		return schemas.CheckoutOut{}, muzak.Conflict(
+			"this organization already has a subscription; change or cancel it in the billing portal").
+			WithCode("already_subscribed")
+	}
+	target, err := db.Client.Plan.Query().Where(plan.Key(in.Plan), plan.Active(true)).Only(ctx.Context())
+	if err != nil {
+		return schemas.CheckoutOut{}, catalogueError(err)
+	}
+	price := target.StripePriceMonthlyID
+	if in.Interval == "year" {
+		price = target.StripePriceYearlyID
+	}
+	if price == nil {
+		return schemas.CheckoutOut{}, muzak.UnprocessableEntity(
+			"the " + target.Name + " plan cannot be paid " + in.Interval + "ly").WithCode("not_subscribable")
+	}
+	customer, err := ensureCustomer(ctx, account)
+	if err != nil {
+		return schemas.CheckoutOut{}, err
+	}
+	checkout, err := gateway.CreateSubscriptionCheckout(ctx.Context(), payments.SubscriptionCheckoutRequest{
+		AccountUID: account.UID.String(), PlanKey: target.Key, Customer: customer, Price: *price,
+		SuccessURL: settings.StripeCheckoutSuccessURL, CancelURL: settings.StripeCheckoutCancelURL,
+	})
+	if err != nil {
+		return schemas.CheckoutOut{}, paymentsError(err)
+	}
+	return schemas.CheckoutOut{URL: checkout.URL, ID: checkout.ID, ExpiresAt: checkout.ExpiresAt}, nil
 }

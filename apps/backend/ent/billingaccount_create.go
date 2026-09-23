@@ -113,6 +113,76 @@ func (_c *BillingAccountCreate) SetNillableStripeSubscriptionID(v *string) *Bill
 	return _c
 }
 
+// SetSubscriptionStatus sets the "subscription_status" field.
+func (_c *BillingAccountCreate) SetSubscriptionStatus(v string) *BillingAccountCreate {
+	_c.mutation.SetSubscriptionStatus(v)
+	return _c
+}
+
+// SetNillableSubscriptionStatus sets the "subscription_status" field if the given value is not nil.
+func (_c *BillingAccountCreate) SetNillableSubscriptionStatus(v *string) *BillingAccountCreate {
+	if v != nil {
+		_c.SetSubscriptionStatus(*v)
+	}
+	return _c
+}
+
+// SetSubscriptionInterval sets the "subscription_interval" field.
+func (_c *BillingAccountCreate) SetSubscriptionInterval(v billingaccount.SubscriptionInterval) *BillingAccountCreate {
+	_c.mutation.SetSubscriptionInterval(v)
+	return _c
+}
+
+// SetNillableSubscriptionInterval sets the "subscription_interval" field if the given value is not nil.
+func (_c *BillingAccountCreate) SetNillableSubscriptionInterval(v *billingaccount.SubscriptionInterval) *BillingAccountCreate {
+	if v != nil {
+		_c.SetSubscriptionInterval(*v)
+	}
+	return _c
+}
+
+// SetSubscriptionPeriodEnd sets the "subscription_period_end" field.
+func (_c *BillingAccountCreate) SetSubscriptionPeriodEnd(v time.Time) *BillingAccountCreate {
+	_c.mutation.SetSubscriptionPeriodEnd(v)
+	return _c
+}
+
+// SetNillableSubscriptionPeriodEnd sets the "subscription_period_end" field if the given value is not nil.
+func (_c *BillingAccountCreate) SetNillableSubscriptionPeriodEnd(v *time.Time) *BillingAccountCreate {
+	if v != nil {
+		_c.SetSubscriptionPeriodEnd(*v)
+	}
+	return _c
+}
+
+// SetSubscriptionCancelAtPeriodEnd sets the "subscription_cancel_at_period_end" field.
+func (_c *BillingAccountCreate) SetSubscriptionCancelAtPeriodEnd(v bool) *BillingAccountCreate {
+	_c.mutation.SetSubscriptionCancelAtPeriodEnd(v)
+	return _c
+}
+
+// SetNillableSubscriptionCancelAtPeriodEnd sets the "subscription_cancel_at_period_end" field if the given value is not nil.
+func (_c *BillingAccountCreate) SetNillableSubscriptionCancelAtPeriodEnd(v *bool) *BillingAccountCreate {
+	if v != nil {
+		_c.SetSubscriptionCancelAtPeriodEnd(*v)
+	}
+	return _c
+}
+
+// SetSubscriptionSyncedAt sets the "subscription_synced_at" field.
+func (_c *BillingAccountCreate) SetSubscriptionSyncedAt(v time.Time) *BillingAccountCreate {
+	_c.mutation.SetSubscriptionSyncedAt(v)
+	return _c
+}
+
+// SetNillableSubscriptionSyncedAt sets the "subscription_synced_at" field if the given value is not nil.
+func (_c *BillingAccountCreate) SetNillableSubscriptionSyncedAt(v *time.Time) *BillingAccountCreate {
+	if v != nil {
+		_c.SetSubscriptionSyncedAt(*v)
+	}
+	return _c
+}
+
 // SetState sets the "state" field.
 func (_c *BillingAccountCreate) SetState(v billingaccount.State) *BillingAccountCreate {
 	_c.mutation.SetState(v)
@@ -535,6 +605,10 @@ func (_c *BillingAccountCreate) defaults() error {
 		v := billingaccount.DefaultUpdatedAt()
 		_c.mutation.SetUpdatedAt(v)
 	}
+	if _, ok := _c.mutation.SubscriptionCancelAtPeriodEnd(); !ok {
+		v := billingaccount.DefaultSubscriptionCancelAtPeriodEnd
+		_c.mutation.SetSubscriptionCancelAtPeriodEnd(v)
+	}
 	if _, ok := _c.mutation.State(); !ok {
 		v := billingaccount.DefaultState
 		_c.mutation.SetState(v)
@@ -615,6 +689,19 @@ func (_c *BillingAccountCreate) check() error {
 		if err := billingaccount.StripeSubscriptionIDValidator(v); err != nil {
 			return &ValidationError{Name: "stripe_subscription_id", err: fmt.Errorf(`ent: validator failed for field "BillingAccount.stripe_subscription_id": %w`, err)}
 		}
+	}
+	if v, ok := _c.mutation.SubscriptionStatus(); ok {
+		if err := billingaccount.SubscriptionStatusValidator(v); err != nil {
+			return &ValidationError{Name: "subscription_status", err: fmt.Errorf(`ent: validator failed for field "BillingAccount.subscription_status": %w`, err)}
+		}
+	}
+	if v, ok := _c.mutation.SubscriptionInterval(); ok {
+		if err := billingaccount.SubscriptionIntervalValidator(v); err != nil {
+			return &ValidationError{Name: "subscription_interval", err: fmt.Errorf(`ent: validator failed for field "BillingAccount.subscription_interval": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.SubscriptionCancelAtPeriodEnd(); !ok {
+		return &ValidationError{Name: "subscription_cancel_at_period_end", err: errors.New(`ent: missing required field "BillingAccount.subscription_cancel_at_period_end"`)}
 	}
 	if _, ok := _c.mutation.State(); !ok {
 		return &ValidationError{Name: "state", err: errors.New(`ent: missing required field "BillingAccount.state"`)}
@@ -760,6 +847,26 @@ func (_c *BillingAccountCreate) createSpec() (*BillingAccount, *sqlgraph.CreateS
 	if value, ok := _c.mutation.StripeSubscriptionID(); ok {
 		_spec.SetField(billingaccount.FieldStripeSubscriptionID, field.TypeString, value)
 		_node.StripeSubscriptionID = &value
+	}
+	if value, ok := _c.mutation.SubscriptionStatus(); ok {
+		_spec.SetField(billingaccount.FieldSubscriptionStatus, field.TypeString, value)
+		_node.SubscriptionStatus = &value
+	}
+	if value, ok := _c.mutation.SubscriptionInterval(); ok {
+		_spec.SetField(billingaccount.FieldSubscriptionInterval, field.TypeEnum, value)
+		_node.SubscriptionInterval = &value
+	}
+	if value, ok := _c.mutation.SubscriptionPeriodEnd(); ok {
+		_spec.SetField(billingaccount.FieldSubscriptionPeriodEnd, field.TypeTime, value)
+		_node.SubscriptionPeriodEnd = &value
+	}
+	if value, ok := _c.mutation.SubscriptionCancelAtPeriodEnd(); ok {
+		_spec.SetField(billingaccount.FieldSubscriptionCancelAtPeriodEnd, field.TypeBool, value)
+		_node.SubscriptionCancelAtPeriodEnd = value
+	}
+	if value, ok := _c.mutation.SubscriptionSyncedAt(); ok {
+		_spec.SetField(billingaccount.FieldSubscriptionSyncedAt, field.TypeTime, value)
+		_node.SubscriptionSyncedAt = &value
 	}
 	if value, ok := _c.mutation.State(); ok {
 		_spec.SetField(billingaccount.FieldState, field.TypeEnum, value)
@@ -1076,6 +1183,90 @@ func (u *BillingAccountUpsert) UpdateStripeSubscriptionID() *BillingAccountUpser
 // ClearStripeSubscriptionID clears the value of the "stripe_subscription_id" field.
 func (u *BillingAccountUpsert) ClearStripeSubscriptionID() *BillingAccountUpsert {
 	u.SetNull(billingaccount.FieldStripeSubscriptionID)
+	return u
+}
+
+// SetSubscriptionStatus sets the "subscription_status" field.
+func (u *BillingAccountUpsert) SetSubscriptionStatus(v string) *BillingAccountUpsert {
+	u.Set(billingaccount.FieldSubscriptionStatus, v)
+	return u
+}
+
+// UpdateSubscriptionStatus sets the "subscription_status" field to the value that was provided on create.
+func (u *BillingAccountUpsert) UpdateSubscriptionStatus() *BillingAccountUpsert {
+	u.SetExcluded(billingaccount.FieldSubscriptionStatus)
+	return u
+}
+
+// ClearSubscriptionStatus clears the value of the "subscription_status" field.
+func (u *BillingAccountUpsert) ClearSubscriptionStatus() *BillingAccountUpsert {
+	u.SetNull(billingaccount.FieldSubscriptionStatus)
+	return u
+}
+
+// SetSubscriptionInterval sets the "subscription_interval" field.
+func (u *BillingAccountUpsert) SetSubscriptionInterval(v billingaccount.SubscriptionInterval) *BillingAccountUpsert {
+	u.Set(billingaccount.FieldSubscriptionInterval, v)
+	return u
+}
+
+// UpdateSubscriptionInterval sets the "subscription_interval" field to the value that was provided on create.
+func (u *BillingAccountUpsert) UpdateSubscriptionInterval() *BillingAccountUpsert {
+	u.SetExcluded(billingaccount.FieldSubscriptionInterval)
+	return u
+}
+
+// ClearSubscriptionInterval clears the value of the "subscription_interval" field.
+func (u *BillingAccountUpsert) ClearSubscriptionInterval() *BillingAccountUpsert {
+	u.SetNull(billingaccount.FieldSubscriptionInterval)
+	return u
+}
+
+// SetSubscriptionPeriodEnd sets the "subscription_period_end" field.
+func (u *BillingAccountUpsert) SetSubscriptionPeriodEnd(v time.Time) *BillingAccountUpsert {
+	u.Set(billingaccount.FieldSubscriptionPeriodEnd, v)
+	return u
+}
+
+// UpdateSubscriptionPeriodEnd sets the "subscription_period_end" field to the value that was provided on create.
+func (u *BillingAccountUpsert) UpdateSubscriptionPeriodEnd() *BillingAccountUpsert {
+	u.SetExcluded(billingaccount.FieldSubscriptionPeriodEnd)
+	return u
+}
+
+// ClearSubscriptionPeriodEnd clears the value of the "subscription_period_end" field.
+func (u *BillingAccountUpsert) ClearSubscriptionPeriodEnd() *BillingAccountUpsert {
+	u.SetNull(billingaccount.FieldSubscriptionPeriodEnd)
+	return u
+}
+
+// SetSubscriptionCancelAtPeriodEnd sets the "subscription_cancel_at_period_end" field.
+func (u *BillingAccountUpsert) SetSubscriptionCancelAtPeriodEnd(v bool) *BillingAccountUpsert {
+	u.Set(billingaccount.FieldSubscriptionCancelAtPeriodEnd, v)
+	return u
+}
+
+// UpdateSubscriptionCancelAtPeriodEnd sets the "subscription_cancel_at_period_end" field to the value that was provided on create.
+func (u *BillingAccountUpsert) UpdateSubscriptionCancelAtPeriodEnd() *BillingAccountUpsert {
+	u.SetExcluded(billingaccount.FieldSubscriptionCancelAtPeriodEnd)
+	return u
+}
+
+// SetSubscriptionSyncedAt sets the "subscription_synced_at" field.
+func (u *BillingAccountUpsert) SetSubscriptionSyncedAt(v time.Time) *BillingAccountUpsert {
+	u.Set(billingaccount.FieldSubscriptionSyncedAt, v)
+	return u
+}
+
+// UpdateSubscriptionSyncedAt sets the "subscription_synced_at" field to the value that was provided on create.
+func (u *BillingAccountUpsert) UpdateSubscriptionSyncedAt() *BillingAccountUpsert {
+	u.SetExcluded(billingaccount.FieldSubscriptionSyncedAt)
+	return u
+}
+
+// ClearSubscriptionSyncedAt clears the value of the "subscription_synced_at" field.
+func (u *BillingAccountUpsert) ClearSubscriptionSyncedAt() *BillingAccountUpsert {
+	u.SetNull(billingaccount.FieldSubscriptionSyncedAt)
 	return u
 }
 
@@ -1515,6 +1706,104 @@ func (u *BillingAccountUpsertOne) UpdateStripeSubscriptionID() *BillingAccountUp
 func (u *BillingAccountUpsertOne) ClearStripeSubscriptionID() *BillingAccountUpsertOne {
 	return u.Update(func(s *BillingAccountUpsert) {
 		s.ClearStripeSubscriptionID()
+	})
+}
+
+// SetSubscriptionStatus sets the "subscription_status" field.
+func (u *BillingAccountUpsertOne) SetSubscriptionStatus(v string) *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetSubscriptionStatus(v)
+	})
+}
+
+// UpdateSubscriptionStatus sets the "subscription_status" field to the value that was provided on create.
+func (u *BillingAccountUpsertOne) UpdateSubscriptionStatus() *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateSubscriptionStatus()
+	})
+}
+
+// ClearSubscriptionStatus clears the value of the "subscription_status" field.
+func (u *BillingAccountUpsertOne) ClearSubscriptionStatus() *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.ClearSubscriptionStatus()
+	})
+}
+
+// SetSubscriptionInterval sets the "subscription_interval" field.
+func (u *BillingAccountUpsertOne) SetSubscriptionInterval(v billingaccount.SubscriptionInterval) *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetSubscriptionInterval(v)
+	})
+}
+
+// UpdateSubscriptionInterval sets the "subscription_interval" field to the value that was provided on create.
+func (u *BillingAccountUpsertOne) UpdateSubscriptionInterval() *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateSubscriptionInterval()
+	})
+}
+
+// ClearSubscriptionInterval clears the value of the "subscription_interval" field.
+func (u *BillingAccountUpsertOne) ClearSubscriptionInterval() *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.ClearSubscriptionInterval()
+	})
+}
+
+// SetSubscriptionPeriodEnd sets the "subscription_period_end" field.
+func (u *BillingAccountUpsertOne) SetSubscriptionPeriodEnd(v time.Time) *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetSubscriptionPeriodEnd(v)
+	})
+}
+
+// UpdateSubscriptionPeriodEnd sets the "subscription_period_end" field to the value that was provided on create.
+func (u *BillingAccountUpsertOne) UpdateSubscriptionPeriodEnd() *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateSubscriptionPeriodEnd()
+	})
+}
+
+// ClearSubscriptionPeriodEnd clears the value of the "subscription_period_end" field.
+func (u *BillingAccountUpsertOne) ClearSubscriptionPeriodEnd() *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.ClearSubscriptionPeriodEnd()
+	})
+}
+
+// SetSubscriptionCancelAtPeriodEnd sets the "subscription_cancel_at_period_end" field.
+func (u *BillingAccountUpsertOne) SetSubscriptionCancelAtPeriodEnd(v bool) *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetSubscriptionCancelAtPeriodEnd(v)
+	})
+}
+
+// UpdateSubscriptionCancelAtPeriodEnd sets the "subscription_cancel_at_period_end" field to the value that was provided on create.
+func (u *BillingAccountUpsertOne) UpdateSubscriptionCancelAtPeriodEnd() *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateSubscriptionCancelAtPeriodEnd()
+	})
+}
+
+// SetSubscriptionSyncedAt sets the "subscription_synced_at" field.
+func (u *BillingAccountUpsertOne) SetSubscriptionSyncedAt(v time.Time) *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetSubscriptionSyncedAt(v)
+	})
+}
+
+// UpdateSubscriptionSyncedAt sets the "subscription_synced_at" field to the value that was provided on create.
+func (u *BillingAccountUpsertOne) UpdateSubscriptionSyncedAt() *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateSubscriptionSyncedAt()
+	})
+}
+
+// ClearSubscriptionSyncedAt clears the value of the "subscription_synced_at" field.
+func (u *BillingAccountUpsertOne) ClearSubscriptionSyncedAt() *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.ClearSubscriptionSyncedAt()
 	})
 }
 
@@ -2172,6 +2461,104 @@ func (u *BillingAccountUpsertBulk) UpdateStripeSubscriptionID() *BillingAccountU
 func (u *BillingAccountUpsertBulk) ClearStripeSubscriptionID() *BillingAccountUpsertBulk {
 	return u.Update(func(s *BillingAccountUpsert) {
 		s.ClearStripeSubscriptionID()
+	})
+}
+
+// SetSubscriptionStatus sets the "subscription_status" field.
+func (u *BillingAccountUpsertBulk) SetSubscriptionStatus(v string) *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetSubscriptionStatus(v)
+	})
+}
+
+// UpdateSubscriptionStatus sets the "subscription_status" field to the value that was provided on create.
+func (u *BillingAccountUpsertBulk) UpdateSubscriptionStatus() *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateSubscriptionStatus()
+	})
+}
+
+// ClearSubscriptionStatus clears the value of the "subscription_status" field.
+func (u *BillingAccountUpsertBulk) ClearSubscriptionStatus() *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.ClearSubscriptionStatus()
+	})
+}
+
+// SetSubscriptionInterval sets the "subscription_interval" field.
+func (u *BillingAccountUpsertBulk) SetSubscriptionInterval(v billingaccount.SubscriptionInterval) *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetSubscriptionInterval(v)
+	})
+}
+
+// UpdateSubscriptionInterval sets the "subscription_interval" field to the value that was provided on create.
+func (u *BillingAccountUpsertBulk) UpdateSubscriptionInterval() *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateSubscriptionInterval()
+	})
+}
+
+// ClearSubscriptionInterval clears the value of the "subscription_interval" field.
+func (u *BillingAccountUpsertBulk) ClearSubscriptionInterval() *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.ClearSubscriptionInterval()
+	})
+}
+
+// SetSubscriptionPeriodEnd sets the "subscription_period_end" field.
+func (u *BillingAccountUpsertBulk) SetSubscriptionPeriodEnd(v time.Time) *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetSubscriptionPeriodEnd(v)
+	})
+}
+
+// UpdateSubscriptionPeriodEnd sets the "subscription_period_end" field to the value that was provided on create.
+func (u *BillingAccountUpsertBulk) UpdateSubscriptionPeriodEnd() *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateSubscriptionPeriodEnd()
+	})
+}
+
+// ClearSubscriptionPeriodEnd clears the value of the "subscription_period_end" field.
+func (u *BillingAccountUpsertBulk) ClearSubscriptionPeriodEnd() *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.ClearSubscriptionPeriodEnd()
+	})
+}
+
+// SetSubscriptionCancelAtPeriodEnd sets the "subscription_cancel_at_period_end" field.
+func (u *BillingAccountUpsertBulk) SetSubscriptionCancelAtPeriodEnd(v bool) *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetSubscriptionCancelAtPeriodEnd(v)
+	})
+}
+
+// UpdateSubscriptionCancelAtPeriodEnd sets the "subscription_cancel_at_period_end" field to the value that was provided on create.
+func (u *BillingAccountUpsertBulk) UpdateSubscriptionCancelAtPeriodEnd() *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateSubscriptionCancelAtPeriodEnd()
+	})
+}
+
+// SetSubscriptionSyncedAt sets the "subscription_synced_at" field.
+func (u *BillingAccountUpsertBulk) SetSubscriptionSyncedAt(v time.Time) *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetSubscriptionSyncedAt(v)
+	})
+}
+
+// UpdateSubscriptionSyncedAt sets the "subscription_synced_at" field to the value that was provided on create.
+func (u *BillingAccountUpsertBulk) UpdateSubscriptionSyncedAt() *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateSubscriptionSyncedAt()
+	})
+}
+
+// ClearSubscriptionSyncedAt clears the value of the "subscription_synced_at" field.
+func (u *BillingAccountUpsertBulk) ClearSubscriptionSyncedAt() *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.ClearSubscriptionSyncedAt()
 	})
 }
 

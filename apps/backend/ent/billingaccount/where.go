@@ -91,6 +91,26 @@ func StripeSubscriptionID(v string) predicate.BillingAccount {
 	return predicate.BillingAccount(sql.FieldEQ(FieldStripeSubscriptionID, v))
 }
 
+// SubscriptionStatus applies equality check predicate on the "subscription_status" field. It's identical to SubscriptionStatusEQ.
+func SubscriptionStatus(v string) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldEQ(FieldSubscriptionStatus, v))
+}
+
+// SubscriptionPeriodEnd applies equality check predicate on the "subscription_period_end" field. It's identical to SubscriptionPeriodEndEQ.
+func SubscriptionPeriodEnd(v time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldEQ(FieldSubscriptionPeriodEnd, v))
+}
+
+// SubscriptionCancelAtPeriodEnd applies equality check predicate on the "subscription_cancel_at_period_end" field. It's identical to SubscriptionCancelAtPeriodEndEQ.
+func SubscriptionCancelAtPeriodEnd(v bool) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldEQ(FieldSubscriptionCancelAtPeriodEnd, v))
+}
+
+// SubscriptionSyncedAt applies equality check predicate on the "subscription_synced_at" field. It's identical to SubscriptionSyncedAtEQ.
+func SubscriptionSyncedAt(v time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldEQ(FieldSubscriptionSyncedAt, v))
+}
+
 // StateChangedAt applies equality check predicate on the "state_changed_at" field. It's identical to StateChangedAtEQ.
 func StateChangedAt(v time.Time) predicate.BillingAccount {
 	return predicate.BillingAccount(sql.FieldEQ(FieldStateChangedAt, v))
@@ -484,6 +504,221 @@ func StripeSubscriptionIDEqualFold(v string) predicate.BillingAccount {
 // StripeSubscriptionIDContainsFold applies the ContainsFold predicate on the "stripe_subscription_id" field.
 func StripeSubscriptionIDContainsFold(v string) predicate.BillingAccount {
 	return predicate.BillingAccount(sql.FieldContainsFold(FieldStripeSubscriptionID, v))
+}
+
+// SubscriptionStatusEQ applies the EQ predicate on the "subscription_status" field.
+func SubscriptionStatusEQ(v string) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldEQ(FieldSubscriptionStatus, v))
+}
+
+// SubscriptionStatusNEQ applies the NEQ predicate on the "subscription_status" field.
+func SubscriptionStatusNEQ(v string) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldNEQ(FieldSubscriptionStatus, v))
+}
+
+// SubscriptionStatusIn applies the In predicate on the "subscription_status" field.
+func SubscriptionStatusIn(vs ...string) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldIn(FieldSubscriptionStatus, vs...))
+}
+
+// SubscriptionStatusNotIn applies the NotIn predicate on the "subscription_status" field.
+func SubscriptionStatusNotIn(vs ...string) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldNotIn(FieldSubscriptionStatus, vs...))
+}
+
+// SubscriptionStatusGT applies the GT predicate on the "subscription_status" field.
+func SubscriptionStatusGT(v string) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldGT(FieldSubscriptionStatus, v))
+}
+
+// SubscriptionStatusGTE applies the GTE predicate on the "subscription_status" field.
+func SubscriptionStatusGTE(v string) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldGTE(FieldSubscriptionStatus, v))
+}
+
+// SubscriptionStatusLT applies the LT predicate on the "subscription_status" field.
+func SubscriptionStatusLT(v string) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldLT(FieldSubscriptionStatus, v))
+}
+
+// SubscriptionStatusLTE applies the LTE predicate on the "subscription_status" field.
+func SubscriptionStatusLTE(v string) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldLTE(FieldSubscriptionStatus, v))
+}
+
+// SubscriptionStatusContains applies the Contains predicate on the "subscription_status" field.
+func SubscriptionStatusContains(v string) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldContains(FieldSubscriptionStatus, v))
+}
+
+// SubscriptionStatusHasPrefix applies the HasPrefix predicate on the "subscription_status" field.
+func SubscriptionStatusHasPrefix(v string) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldHasPrefix(FieldSubscriptionStatus, v))
+}
+
+// SubscriptionStatusHasSuffix applies the HasSuffix predicate on the "subscription_status" field.
+func SubscriptionStatusHasSuffix(v string) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldHasSuffix(FieldSubscriptionStatus, v))
+}
+
+// SubscriptionStatusIsNil applies the IsNil predicate on the "subscription_status" field.
+func SubscriptionStatusIsNil() predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldIsNull(FieldSubscriptionStatus))
+}
+
+// SubscriptionStatusNotNil applies the NotNil predicate on the "subscription_status" field.
+func SubscriptionStatusNotNil() predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldNotNull(FieldSubscriptionStatus))
+}
+
+// SubscriptionStatusEqualFold applies the EqualFold predicate on the "subscription_status" field.
+func SubscriptionStatusEqualFold(v string) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldEqualFold(FieldSubscriptionStatus, v))
+}
+
+// SubscriptionStatusContainsFold applies the ContainsFold predicate on the "subscription_status" field.
+func SubscriptionStatusContainsFold(v string) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldContainsFold(FieldSubscriptionStatus, v))
+}
+
+// SubscriptionIntervalEQ applies the EQ predicate on the "subscription_interval" field.
+func SubscriptionIntervalEQ(v SubscriptionInterval) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldEQ(FieldSubscriptionInterval, v))
+}
+
+// SubscriptionIntervalNEQ applies the NEQ predicate on the "subscription_interval" field.
+func SubscriptionIntervalNEQ(v SubscriptionInterval) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldNEQ(FieldSubscriptionInterval, v))
+}
+
+// SubscriptionIntervalIn applies the In predicate on the "subscription_interval" field.
+func SubscriptionIntervalIn(vs ...SubscriptionInterval) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldIn(FieldSubscriptionInterval, vs...))
+}
+
+// SubscriptionIntervalNotIn applies the NotIn predicate on the "subscription_interval" field.
+func SubscriptionIntervalNotIn(vs ...SubscriptionInterval) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldNotIn(FieldSubscriptionInterval, vs...))
+}
+
+// SubscriptionIntervalIsNil applies the IsNil predicate on the "subscription_interval" field.
+func SubscriptionIntervalIsNil() predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldIsNull(FieldSubscriptionInterval))
+}
+
+// SubscriptionIntervalNotNil applies the NotNil predicate on the "subscription_interval" field.
+func SubscriptionIntervalNotNil() predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldNotNull(FieldSubscriptionInterval))
+}
+
+// SubscriptionPeriodEndEQ applies the EQ predicate on the "subscription_period_end" field.
+func SubscriptionPeriodEndEQ(v time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldEQ(FieldSubscriptionPeriodEnd, v))
+}
+
+// SubscriptionPeriodEndNEQ applies the NEQ predicate on the "subscription_period_end" field.
+func SubscriptionPeriodEndNEQ(v time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldNEQ(FieldSubscriptionPeriodEnd, v))
+}
+
+// SubscriptionPeriodEndIn applies the In predicate on the "subscription_period_end" field.
+func SubscriptionPeriodEndIn(vs ...time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldIn(FieldSubscriptionPeriodEnd, vs...))
+}
+
+// SubscriptionPeriodEndNotIn applies the NotIn predicate on the "subscription_period_end" field.
+func SubscriptionPeriodEndNotIn(vs ...time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldNotIn(FieldSubscriptionPeriodEnd, vs...))
+}
+
+// SubscriptionPeriodEndGT applies the GT predicate on the "subscription_period_end" field.
+func SubscriptionPeriodEndGT(v time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldGT(FieldSubscriptionPeriodEnd, v))
+}
+
+// SubscriptionPeriodEndGTE applies the GTE predicate on the "subscription_period_end" field.
+func SubscriptionPeriodEndGTE(v time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldGTE(FieldSubscriptionPeriodEnd, v))
+}
+
+// SubscriptionPeriodEndLT applies the LT predicate on the "subscription_period_end" field.
+func SubscriptionPeriodEndLT(v time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldLT(FieldSubscriptionPeriodEnd, v))
+}
+
+// SubscriptionPeriodEndLTE applies the LTE predicate on the "subscription_period_end" field.
+func SubscriptionPeriodEndLTE(v time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldLTE(FieldSubscriptionPeriodEnd, v))
+}
+
+// SubscriptionPeriodEndIsNil applies the IsNil predicate on the "subscription_period_end" field.
+func SubscriptionPeriodEndIsNil() predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldIsNull(FieldSubscriptionPeriodEnd))
+}
+
+// SubscriptionPeriodEndNotNil applies the NotNil predicate on the "subscription_period_end" field.
+func SubscriptionPeriodEndNotNil() predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldNotNull(FieldSubscriptionPeriodEnd))
+}
+
+// SubscriptionCancelAtPeriodEndEQ applies the EQ predicate on the "subscription_cancel_at_period_end" field.
+func SubscriptionCancelAtPeriodEndEQ(v bool) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldEQ(FieldSubscriptionCancelAtPeriodEnd, v))
+}
+
+// SubscriptionCancelAtPeriodEndNEQ applies the NEQ predicate on the "subscription_cancel_at_period_end" field.
+func SubscriptionCancelAtPeriodEndNEQ(v bool) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldNEQ(FieldSubscriptionCancelAtPeriodEnd, v))
+}
+
+// SubscriptionSyncedAtEQ applies the EQ predicate on the "subscription_synced_at" field.
+func SubscriptionSyncedAtEQ(v time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldEQ(FieldSubscriptionSyncedAt, v))
+}
+
+// SubscriptionSyncedAtNEQ applies the NEQ predicate on the "subscription_synced_at" field.
+func SubscriptionSyncedAtNEQ(v time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldNEQ(FieldSubscriptionSyncedAt, v))
+}
+
+// SubscriptionSyncedAtIn applies the In predicate on the "subscription_synced_at" field.
+func SubscriptionSyncedAtIn(vs ...time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldIn(FieldSubscriptionSyncedAt, vs...))
+}
+
+// SubscriptionSyncedAtNotIn applies the NotIn predicate on the "subscription_synced_at" field.
+func SubscriptionSyncedAtNotIn(vs ...time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldNotIn(FieldSubscriptionSyncedAt, vs...))
+}
+
+// SubscriptionSyncedAtGT applies the GT predicate on the "subscription_synced_at" field.
+func SubscriptionSyncedAtGT(v time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldGT(FieldSubscriptionSyncedAt, v))
+}
+
+// SubscriptionSyncedAtGTE applies the GTE predicate on the "subscription_synced_at" field.
+func SubscriptionSyncedAtGTE(v time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldGTE(FieldSubscriptionSyncedAt, v))
+}
+
+// SubscriptionSyncedAtLT applies the LT predicate on the "subscription_synced_at" field.
+func SubscriptionSyncedAtLT(v time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldLT(FieldSubscriptionSyncedAt, v))
+}
+
+// SubscriptionSyncedAtLTE applies the LTE predicate on the "subscription_synced_at" field.
+func SubscriptionSyncedAtLTE(v time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldLTE(FieldSubscriptionSyncedAt, v))
+}
+
+// SubscriptionSyncedAtIsNil applies the IsNil predicate on the "subscription_synced_at" field.
+func SubscriptionSyncedAtIsNil() predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldIsNull(FieldSubscriptionSyncedAt))
+}
+
+// SubscriptionSyncedAtNotNil applies the NotNil predicate on the "subscription_synced_at" field.
+func SubscriptionSyncedAtNotNil() predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldNotNull(FieldSubscriptionSyncedAt))
 }
 
 // StateEQ applies the EQ predicate on the "state" field.

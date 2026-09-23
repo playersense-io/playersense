@@ -37,6 +37,16 @@ type BillingAccount struct {
 	// class=none
 	StripeSubscriptionID *string `json:"stripe_subscription_id,omitempty"`
 	// class=none
+	SubscriptionStatus *string `json:"subscription_status,omitempty"`
+	// class=none
+	SubscriptionInterval *billingaccount.SubscriptionInterval `json:"subscription_interval,omitempty"`
+	// class=none
+	SubscriptionPeriodEnd *time.Time `json:"subscription_period_end,omitempty"`
+	// class=none
+	SubscriptionCancelAtPeriodEnd bool `json:"subscription_cancel_at_period_end,omitempty"`
+	// class=none
+	SubscriptionSyncedAt *time.Time `json:"subscription_synced_at,omitempty"`
+	// class=none
 	State billingaccount.State `json:"state,omitempty"`
 	// class=none
 	StateChangedAt time.Time `json:"state_changed_at,omitempty"`
@@ -186,13 +196,13 @@ func (*BillingAccount) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case billingaccount.FieldEntitlementOverrides:
 			values[i] = new([]byte)
-		case billingaccount.FieldAutoTopupEnabled:
+		case billingaccount.FieldSubscriptionCancelAtPeriodEnd, billingaccount.FieldAutoTopupEnabled:
 			values[i] = new(sql.NullBool)
 		case billingaccount.FieldID, billingaccount.FieldOrganizationID, billingaccount.FieldPlanID, billingaccount.FieldBalanceMicros, billingaccount.FieldArrearsMicros, billingaccount.FieldAutoTopupThresholdMicros, billingaccount.FieldAutoTopupAmountMicros, billingaccount.FieldAutoTopupPendingAmountMicros, billingaccount.FieldAutoTopupDailyLimit, billingaccount.FieldAutoTopupWindowCount:
 			values[i] = new(sql.NullInt64)
-		case billingaccount.FieldStripeCustomerID, billingaccount.FieldStripeSubscriptionID, billingaccount.FieldState, billingaccount.FieldCurrency, billingaccount.FieldAutoTopupPendingKey, billingaccount.FieldAutoTopupLastError, billingaccount.FieldBillingEmail:
+		case billingaccount.FieldStripeCustomerID, billingaccount.FieldStripeSubscriptionID, billingaccount.FieldSubscriptionStatus, billingaccount.FieldSubscriptionInterval, billingaccount.FieldState, billingaccount.FieldCurrency, billingaccount.FieldAutoTopupPendingKey, billingaccount.FieldAutoTopupLastError, billingaccount.FieldBillingEmail:
 			values[i] = new(sql.NullString)
-		case billingaccount.FieldCreatedAt, billingaccount.FieldUpdatedAt, billingaccount.FieldStateChangedAt, billingaccount.FieldAutoTopupPendingAt, billingaccount.FieldAutoTopupRetryAfter, billingaccount.FieldAutoTopupRequestedAt, billingaccount.FieldAutoTopupWindowStartedAt:
+		case billingaccount.FieldCreatedAt, billingaccount.FieldUpdatedAt, billingaccount.FieldSubscriptionPeriodEnd, billingaccount.FieldSubscriptionSyncedAt, billingaccount.FieldStateChangedAt, billingaccount.FieldAutoTopupPendingAt, billingaccount.FieldAutoTopupRetryAfter, billingaccount.FieldAutoTopupRequestedAt, billingaccount.FieldAutoTopupWindowStartedAt:
 			values[i] = new(sql.NullTime)
 		case billingaccount.FieldUID:
 			values[i] = new(uuid.UUID)
@@ -260,6 +270,40 @@ func (_m *BillingAccount) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.StripeSubscriptionID = new(string)
 				*_m.StripeSubscriptionID = value.String
+			}
+		case billingaccount.FieldSubscriptionStatus:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field subscription_status", values[i])
+			} else if value.Valid {
+				_m.SubscriptionStatus = new(string)
+				*_m.SubscriptionStatus = value.String
+			}
+		case billingaccount.FieldSubscriptionInterval:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field subscription_interval", values[i])
+			} else if value.Valid {
+				_m.SubscriptionInterval = new(billingaccount.SubscriptionInterval)
+				*_m.SubscriptionInterval = billingaccount.SubscriptionInterval(value.String)
+			}
+		case billingaccount.FieldSubscriptionPeriodEnd:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field subscription_period_end", values[i])
+			} else if value.Valid {
+				_m.SubscriptionPeriodEnd = new(time.Time)
+				*_m.SubscriptionPeriodEnd = value.Time
+			}
+		case billingaccount.FieldSubscriptionCancelAtPeriodEnd:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field subscription_cancel_at_period_end", values[i])
+			} else if value.Valid {
+				_m.SubscriptionCancelAtPeriodEnd = value.Bool
+			}
+		case billingaccount.FieldSubscriptionSyncedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field subscription_synced_at", values[i])
+			} else if value.Valid {
+				_m.SubscriptionSyncedAt = new(time.Time)
+				*_m.SubscriptionSyncedAt = value.Time
 			}
 		case billingaccount.FieldState:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -483,6 +527,29 @@ func (_m *BillingAccount) String() string {
 	if v := _m.StripeSubscriptionID; v != nil {
 		builder.WriteString("stripe_subscription_id=")
 		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.SubscriptionStatus; v != nil {
+		builder.WriteString("subscription_status=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.SubscriptionInterval; v != nil {
+		builder.WriteString("subscription_interval=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.SubscriptionPeriodEnd; v != nil {
+		builder.WriteString("subscription_period_end=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("subscription_cancel_at_period_end=")
+	builder.WriteString(fmt.Sprintf("%v", _m.SubscriptionCancelAtPeriodEnd))
+	builder.WriteString(", ")
+	if v := _m.SubscriptionSyncedAt; v != nil {
+		builder.WriteString("subscription_synced_at=")
+		builder.WriteString(v.Format(time.ANSIC))
 	}
 	builder.WriteString(", ")
 	builder.WriteString("state=")
