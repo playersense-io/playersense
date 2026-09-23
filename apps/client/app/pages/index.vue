@@ -85,54 +85,96 @@ const revenueSeries = computed<MetricSeries[]>(() => [
 // --- Engagement and monetization -------------------------------------------------------
 
 const money = (value: number) => `$${writeFigure(value, { format: 'money' })}`
-const count = (value: number, decimals = 1) => writeFigure(value, { decimals })
 
-const facts = computed<Fact[]>(() => {
-  const days = now.value
-  const activeDays = total(days, 'active_players')
+interface Ratio {
+  key: string
+  label: string
+  value: number
+  previous: number
+  prefix?: string
+  unit?: string
+  format?: FigureFormat
+  decimals?: number
+  info?: string
+  description: string
+}
+
+// The per-player ratios behind the headline, each against the same ratio last period.
+function ratiosOf(days: OverviewDay[]) {
+  const active = total(days, 'active_players')
+  const sessions = total(days, 'sessions')
+  const playtime = total(days, 'playtime_ms')
   const revenue = dollars(total(days, 'revenue_micros'))
-  const payerDays = total(days, 'payers')
+  const payers = total(days, 'payers')
+  return {
+    sessions: sessions / active,
+    playtime: playtime / active / 60_000,
+    session: playtime / sessions / 60_000,
+    arpdau: revenue / active,
+    arppu: revenue / payers,
+    conversion: payers / active * 100
+  }
+}
+
+const ratios = computed<Ratio[]>(() => {
+  const current = ratiosOf(now.value)
+  const previous = ratiosOf(before.value)
   return [
     {
-      key: 'sessions-per-player',
+      key: 'sessions',
       label: 'Sessions per player',
-      value: count(total(days, 'sessions') / activeDays),
-      mono: true,
-      info: 'Sessions divided by active players, per day.'
+      value: current.sessions,
+      previous: previous.sessions,
+      info: 'Sessions divided by active players, per day.',
+      description: 'Per day'
     },
     {
-      key: 'playtime-per-player',
+      key: 'playtime',
       label: 'Playtime per player',
-      value: `${count(total(days, 'playtime_ms') / activeDays / 60_000, 0)} min`,
-      mono: true,
-      info: 'Minutes played per active player, per day.'
+      value: current.playtime,
+      previous: previous.playtime,
+      unit: 'min',
+      decimals: 0,
+      info: 'Minutes played per active player, per day.',
+      description: 'Per day'
     },
     {
-      key: 'session-length',
+      key: 'session',
       label: 'Average session',
-      value: `${count(total(days, 'playtime_ms') / total(days, 'sessions') / 60_000)} min`,
-      mono: true
+      value: current.session,
+      previous: previous.session,
+      unit: 'min',
+      description: 'Length'
     },
     {
       key: 'arpdau',
       label: 'ARPDAU',
-      value: money(revenue / activeDays),
-      mono: true,
-      info: 'Average revenue per daily active player: revenue divided by active players, summed by day.'
+      value: current.arpdau,
+      previous: previous.arpdau,
+      prefix: '$',
+      format: 'money',
+      info: 'Average revenue per daily active player: revenue divided by active players, summed by day.',
+      description: 'Per active player'
     },
     {
       key: 'arppu',
       label: 'ARPPU',
-      value: money(revenue / payerDays),
-      mono: true,
-      info: 'Average revenue per paying player, per day they paid.'
+      value: current.arppu,
+      previous: previous.arppu,
+      prefix: '$',
+      format: 'money',
+      info: 'Average revenue per paying player, per day they paid.',
+      description: 'Per paying player'
     },
     {
       key: 'conversion',
       label: 'Payer conversion',
-      value: `${count(payerDays / activeDays * 100, 2)}%`,
-      mono: true,
-      info: 'The share of each day\'s active players who made a verified purchase.'
+      value: current.conversion,
+      previous: previous.conversion,
+      unit: '%',
+      decimals: 2,
+      info: 'The share of each day\'s active players who made a verified purchase.',
+      description: 'Of active players'
     }
   ]
 })
@@ -209,43 +251,62 @@ const wallet = computed<Fact[]>(() => [
       </template>
     </PageHeader>
 
-    <!-- Headline -->
-    <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <Statistic
-        :compare="compare"
-        :previous="Math.round(average(before, 'active_players'))"
-        :value="Math.round(average(now, 'active_players'))"
-        compact
-        description="Daily average"
-        info="Players with at least one session, averaged over the days in the period."
-        label="Active players"
-      />
-      <Statistic
-        :compare="compare"
-        :previous="total(before, 'new_players')"
-        :value="total(now, 'new_players')"
-        compact
-        description="First seen in the period"
-        label="New players"
-      />
-      <Statistic
-        :compare="compare"
-        :previous="dollars(total(before, 'revenue_micros'))"
-        :value="dollars(total(now, 'revenue_micros'))"
-        description="Verified purchases, gross"
-        format="money"
-        info="Store receipts verified server-side, before platform fees and refunds."
-        label="Revenue"
-        prefix="$"
-      />
-      <Statistic
-        :compare="compare"
-        :previous="Math.round(average(before, 'payers'))"
-        :value="Math.round(average(now, 'payers'))"
-        compact
-        description="Daily average"
-        label="Paying players"
-      />
+    <!-- Headline: the four figures, then the per-player ratios that explain them. -->
+    <div class="flex flex-col gap-4">
+      <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <Statistic
+          :compare="compare"
+          :previous="Math.round(average(before, 'active_players'))"
+          :value="Math.round(average(now, 'active_players'))"
+          compact
+          description="Daily average"
+          info="Players with at least one session, averaged over the days in the period."
+          label="Active players"
+        />
+        <Statistic
+          :compare="compare"
+          :previous="total(before, 'new_players')"
+          :value="total(now, 'new_players')"
+          compact
+          description="First seen in the period"
+          label="New players"
+        />
+        <Statistic
+          :compare="compare"
+          :previous="dollars(total(before, 'revenue_micros'))"
+          :value="dollars(total(now, 'revenue_micros'))"
+          description="Verified purchases, gross"
+          format="money"
+          info="Store receipts verified server-side, before platform fees and refunds."
+          label="Revenue"
+          prefix="$"
+        />
+        <Statistic
+          :compare="compare"
+          :previous="Math.round(average(before, 'payers'))"
+          :value="Math.round(average(now, 'payers'))"
+          compact
+          description="Daily average"
+          label="Paying players"
+        />
+      </div>
+
+      <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <Statistic
+          v-for="ratio in ratios"
+          :key="ratio.key"
+          :compare="compare"
+          :decimals="ratio.decimals"
+          :description="ratio.description"
+          :format="ratio.format"
+          :info="ratio.info"
+          :label="ratio.label"
+          :prefix="ratio.prefix"
+          :previous="ratio.previous"
+          :unit="ratio.unit"
+          :value="ratio.value"
+        />
+      </div>
     </div>
 
     <!-- Trends, one full-width row each: a period of days reads better wide than halved. -->
@@ -278,15 +339,6 @@ const wallet = computed<Fact[]>(() => [
         type="bar"
       />
     </div>
-
-    <!-- Engagement and monetization -->
-    <PageSection
-      :divided="false"
-      description="Per player and per day, over the period."
-      title="Engagement and monetization"
-    >
-      <FactGrid :columns="6" :facts="facts" label="Engagement and monetization" />
-    </PageSection>
 
     <!-- Projects, and where the players are -->
     <div class="grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
