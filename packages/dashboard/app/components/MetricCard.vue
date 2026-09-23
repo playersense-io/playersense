@@ -25,7 +25,7 @@ import type { MetricOption, MetricView, SegmentedOption } from '../utils/compone
  * card is, its name and its sentence, which do not depend on the answer.
  */
 import { type FigureFormat, formatFigure, type WrittenFigureOptions } from '../utils/format'
-import { colorOf, type MetricChartType, type MetricSeries } from '../utils/metric-chart'
+import { colorOf, type MetricChartType, type MetricMark, type MetricSeries } from '../utils/metric-chart'
 import { TREND_ICONS, TREND_TONES, trendOf } from '../utils/trend'
 
 const props = withDefaults(
@@ -59,6 +59,8 @@ const props = withDefaults(
     /** The chart's height in pixels; the table takes the same. */
     height?: number
     loading?: boolean
+    /** Moments and spans drawn behind the chart: when something happened to the figure. */
+    marks?: readonly MetricMark[]
   }>(),
   {
     title: '',
@@ -77,7 +79,8 @@ const props = withDefaults(
     type: 'line',
     categoryLabel: 'Period',
     height: 256,
-    loading: false
+    loading: false,
+    marks: () => []
   }
 )
 
@@ -317,6 +320,7 @@ const chartLabel = computed(() => {
           :height="height"
           :hidden="hidden"
           :label="chartLabel"
+          :marks="marks"
           :series="series"
           :titles="titles"
           :type="type"

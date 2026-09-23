@@ -53,6 +53,26 @@ export interface MetricChartInput {
   format?: WrittenFigureOptions
   /** Off under `prefers-reduced-motion`. */
   animate?: boolean
+  /** Moments and spans drawn behind the series: when something happened to the figure. */
+  marks?: readonly MetricMark[]
+}
+
+/**
+ * Something that happened on the chart's axis rather than in its data: an event that ran, a
+ * release that shipped. A line where it began, and a wash over the span it lasted, so the
+ * reader sees the figure move under it rather than being told it did.
+ */
+export interface MetricMark {
+  /** The category it begins on. */
+  from: number
+  /** The category it ends on. Absent, or equal to `from`, is a moment: a line and no wash. */
+  to?: number
+  /** Written along the line, small. Absent draws the line alone. */
+  label?: string
+  /** A palette slot. Ink when absent, for a mark that is not one of the series. */
+  tone?: MetricTone
+  /** A wash with no line: a span somebody should see, not a moment somebody should find. */
+  quiet?: boolean
 }
 
 export interface MetricPalette {
@@ -381,6 +401,45 @@ export function buildMetricOption(input: MetricChartInput, palette: MetricPalett
       axisPointer: { show: false }
     },
 
-    series
+    series: input.marks?.length ? [...series, marksSeries(input.marks, palette)] : series
+  }
+}
+
+/**
+ * The marks as a series of their own with no data, so they stay when the reader switches a
+ * series off in the legend, and are left out of the tooltip, which lists the input's series.
+ * Silent, so the pointer reads the figures through them.
+ */
+function marksSeries(marks: readonly MetricMark[], palette: MetricPalette): LineSeriesOption {
+  const colour = (mark: MetricMark) => (mark.tone === undefined || mark.tone === 'muted' ? palette.ink : palette.series[mark.tone - 1] ?? palette.ink)
+  return {
+    type: 'line',
+    name: '',
+    data: [],
+    silent: true,
+    z: 0,
+    markArea: {
+      silent: true,
+      data: marks
+        .filter(mark => mark.to !== undefined && mark.to > mark.from)
+        .map(mark => [
+          { xAxis: mark.from, itemStyle: { color: alpha(colour(mark), mark.tone === undefined || mark.quiet ? 0.05 : 0.12) } },
+          { xAxis: mark.to! }
+        ]) as never
+    },
+    markLine: {
+      silent: true,
+      symbol: ['none', 'none'],
+      animation: false,
+      data: marks
+        .filter(mark => !mark.quiet)
+        .map(mark => ({
+          xAxis: mark.from,
+          lineStyle: { color: alpha(colour(mark), 0.85), width: 1, type: 'solid' },
+          label: mark.label
+            ? { show: true, formatter: mark.label, position: 'insideEndTop', color: colour(mark), fontFamily: SANS, fontSize: 10, fontWeight: 500 }
+            : { show: false }
+        })) as never
+    }
   }
 }

@@ -32,6 +32,9 @@ export default defineNuxtConfig({
       'DatasetComponent',
       'GridComponent',
       'LegendComponent',
+      // A chart's marks: the line where an event began and the wash over the days it ran.
+      'MarkAreaComponent',
+      'MarkLineComponent',
       'TitleComponent',
       'TooltipComponent'
     ]

@@ -11,7 +11,7 @@
  */
 
 import type { WrittenFigureOptions } from '../utils/format'
-import { buildMetricOption, type MetricChartType, type MetricSeries } from '../utils/metric-chart'
+import { buildMetricOption, type MetricChartType, type MetricMark, type MetricSeries } from '../utils/metric-chart'
 
 const props = withDefaults(
   defineProps<{
@@ -27,6 +27,8 @@ const props = withDefaults(
     height?: number
     /** What a screen reader is told the picture is. The table is what it reads instead. */
     label?: string
+    /** Moments and spans drawn behind the series. */
+    marks?: readonly MetricMark[]
   }>(),
   {
     titles: undefined,
@@ -34,7 +36,8 @@ const props = withDefaults(
     hidden: () => [],
     format: () => ({}),
     height: 256,
-    label: ''
+    label: '',
+    marks: () => []
   }
 )
 
@@ -50,6 +53,7 @@ const option = computed<ECOption>(() =>
       hidden: props.hidden,
       format: props.format,
       animate: motion.value !== 'reduce',
+      marks: props.marks,
       ...(props.titles === undefined ? {} : { titles: props.titles })
     },
     palette.value
