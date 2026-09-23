@@ -206,10 +206,13 @@ status/legal links, signup/login entry. **Must not contain privileged admin logi
       (ADR 0039): `GET …/billing` carries `month` — the exact tracked players this month (not a
       peak), what they cost, what is still queued (minutes old at most), the rate card and the band the
       next player lands in — and `arrears_micros`, usage the wallet could not cover. Show arrears
-      prominently. **Show `live` as the balance** (ADR 0044): the ledger settles every few minutes,
-      and `live` is the ledger minus what is queued, with its own promo / purchased / owed split —
-      the headline number, with a small "includes $X of usage not yet on your statement" line from
-      `live.pending`. The lot list and statement are the ledger's and may trail `live` by minutes.
+      prominently. **The headline is `live.available_micros`** (ADR 0044) — or `live.owed_micros`
+      when it is not zero: the ledger settles every few minutes, and `live` takes off what is
+      queued, with its own promo / purchased / owed split. Add a small "includes $X of usage not yet
+      on your statement" line from `live.pending`. Do **not** headline `live.balance_micros`: it is
+      the ledger total minus pending, so it still counts lapsed promo credit until the janitor
+      writes it off (§55.3) — show it only beside `ledger_balance_micros` as the explained number.
+      The lot list and statement are the ledger's and may trail `live` by minutes.
       Paying (ADR 0040): "Add credit" is `POST …/billing/top-ups` → redirect the browser to the
       returned `url`; "Manage cards" is `POST …/billing/portal` → redirect likewise. On return
       (`?checkout=success`) do **not** show the credit as arrived — poll `GET …/billing` for a few

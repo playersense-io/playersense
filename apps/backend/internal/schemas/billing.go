@@ -380,13 +380,17 @@ type DrawOut struct {
 // split is projected with the same spending order the drain will apply — promotional credit soonest to
 // expire first, then purchased oldest first — so it is what the statement will say once the queue is
 // written.
+//
+// Show AvailableMicros — or OwedMicros, when it is not zero — as the headline. BalanceMicros is the
+// ledger's running total minus pending, so like ledger_balance_micros it still counts promotional
+// credit that has lapsed and the janitor has not yet written off (§55.3): explainable, not headline.
 type LiveBalanceOut struct {
-	BalanceMicros   int64  `json:"balance_micros" doc:"The headline: credit minus what is owed, after pending usage"`
+	BalanceMicros   int64  `json:"balance_micros" doc:"The ledger total minus pending usage; counts lapsed promo credit until it is written off, so not the headline"`
 	Balance         string `json:"balance"`
-	AvailableMicros int64  `json:"available_micros" doc:"Credit left to spend, after pending usage"`
+	AvailableMicros int64  `json:"available_micros" doc:"The headline: credit left to spend, after pending usage"`
 	PromoMicros     int64  `json:"promo_micros"`
 	PurchasedMicros int64  `json:"purchased_micros"`
-	OwedMicros      int64  `json:"owed_micros" doc:"Arrears plus pending usage the credit does not cover"`
+	OwedMicros      int64  `json:"owed_micros" doc:"Arrears plus pending usage the credit does not cover; the headline when not zero"`
 	PendingMicros   int64  `json:"pending_micros" doc:"Usage counted and not yet on the statement — minutes old at most"`
 	Pending         string `json:"pending"`
 }

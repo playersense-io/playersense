@@ -52,7 +52,11 @@ is priced by one card.
 `GET /v1/organizations/{org}/billing` adds `live`: the ledger balance minus pending usage, with pending
 spent in the wallet's own order — promo first, then the oldest purchase — so its promo and purchased
 figures are what the wallet will hold once the queue settles, and anything past the credit shows as
-owed. It is one indexed sum over the account's few unsettled rows, read when the page is read. No
+owed. Its `available_micros` — or `owed_micros`, when an account owes — is the headline; the
+promo, purchased and available figures skip lapsed credit, as the spend path does. `balance_micros`
+is the ledger total minus pending, so like `ledger_balance_micros` it still counts promotional credit
+that has lapsed and not yet been written off (project.md §55.3): the explained number, not the
+headline. It is one indexed sum over the account's few unsettled rows, read when the page is read. No
 second copy of the balance in Valkey: a cache of money that disagreed with the ledger would be a bug
 with no owner.
 

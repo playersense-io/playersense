@@ -93,3 +93,22 @@ func TestTheBalanceAStudioSeesIncludesUsageNotYetSettled(t *testing.T) {
 		t.Errorf("live = %+v; want $55 pending, −$15, $15 owed", l)
 	}
 }
+
+// The headline skips lapsed credit, as the spend path does (§55.3): a promo past its date covers none
+// of the queue, however long the janitor takes to write it off.
+func TestTheLiveHeadlineNeverCountsLapsedCredit(t *testing.T) {
+	w := newWallet(t)
+	now := time.Now().UTC()
+	w.grant(t, map[string]any{
+		"kind": wallet.Promo, "amount_micros": dollars(100),
+		"granted_at": now.AddDate(0, 0, -100), "expires_at": now.AddDate(0, 0, -1),
+		"description": "Expired trial",
+	})
+	w.grant(t, map[string]any{"kind": wallet.Purchase, "amount_micros": dollars(30), "description": "Top-up"})
+	w.queue(t, dollars(10))
+
+	l := w.live(t).Live
+	if l.AvailableMicros != dollars(20) || l.PromoMicros != 0 || l.PurchasedMicros != dollars(20) || l.OwedMicros != 0 {
+		t.Errorf("live = %+v; want $20 available, all of it purchased — the lapsed promo covers nothing", l)
+	}
+}

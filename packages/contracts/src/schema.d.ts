@@ -1739,18 +1739,18 @@ export interface components {
         readonly LiveBalanceOut: {
             /**
              * Format: int64
-             * @description Credit left to spend, after pending usage
+             * @description The headline: credit left to spend, after pending usage
              */
             readonly available_micros: number;
             readonly balance: string;
             /**
              * Format: int64
-             * @description The headline: credit minus what is owed, after pending usage
+             * @description The ledger total minus pending usage; counts lapsed promo credit until it is written off, so not the headline
              */
             readonly balance_micros: number;
             /**
              * Format: int64
-             * @description Arrears plus pending usage the credit does not cover
+             * @description Arrears plus pending usage the credit does not cover; the headline when not zero
              */
             readonly owed_micros: number;
             readonly pending: string;
