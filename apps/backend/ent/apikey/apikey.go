@@ -36,6 +36,16 @@ const (
 	FieldRevokedAt = "revoked_at"
 	// FieldEnvironmentID holds the string denoting the environment_id field in the database.
 	FieldEnvironmentID = "environment_id"
+	// FieldCreatedBy holds the string denoting the created_by field in the database.
+	FieldCreatedBy = "created_by"
+	// FieldRevokedBy holds the string denoting the revoked_by field in the database.
+	FieldRevokedBy = "revoked_by"
+	// FieldRolledAt holds the string denoting the rolled_at field in the database.
+	FieldRolledAt = "rolled_at"
+	// FieldReplacedBy holds the string denoting the replaced_by field in the database.
+	FieldReplacedBy = "replaced_by"
+	// FieldExpiresAt holds the string denoting the expires_at field in the database.
+	FieldExpiresAt = "expires_at"
 	// EdgeEnvironment holds the string denoting the environment edge name in mutations.
 	EdgeEnvironment = "environment"
 	// EdgeAuditEvents holds the string denoting the audit_events edge name in mutations.
@@ -80,6 +90,11 @@ var Columns = []string{
 	FieldLastUsedAt,
 	FieldRevokedAt,
 	FieldEnvironmentID,
+	FieldCreatedBy,
+	FieldRevokedBy,
+	FieldRolledAt,
+	FieldReplacedBy,
+	FieldExpiresAt,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -107,6 +122,14 @@ var (
 	SecretHashValidator func(string) error
 	// NameValidator is a validator for the "name" field. It is called by the builders before save.
 	NameValidator func(string) error
+	// DefaultCreatedBy holds the default value on creation for the "created_by" field.
+	DefaultCreatedBy string
+	// CreatedByValidator is a validator for the "created_by" field. It is called by the builders before save.
+	CreatedByValidator func(string) error
+	// DefaultRevokedBy holds the default value on creation for the "revoked_by" field.
+	DefaultRevokedBy string
+	// RevokedByValidator is a validator for the "revoked_by" field. It is called by the builders before save.
+	RevokedByValidator func(string) error
 )
 
 // Kind defines the type for the "kind" enum field.
@@ -189,6 +212,31 @@ func ByRevokedAt(opts ...sql.OrderTermOption) OrderOption {
 // ByEnvironmentID orders the results by the environment_id field.
 func ByEnvironmentID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldEnvironmentID, opts...).ToFunc()
+}
+
+// ByCreatedBy orders the results by the created_by field.
+func ByCreatedBy(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCreatedBy, opts...).ToFunc()
+}
+
+// ByRevokedBy orders the results by the revoked_by field.
+func ByRevokedBy(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRevokedBy, opts...).ToFunc()
+}
+
+// ByRolledAt orders the results by the rolled_at field.
+func ByRolledAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRolledAt, opts...).ToFunc()
+}
+
+// ByReplacedBy orders the results by the replaced_by field.
+func ByReplacedBy(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldReplacedBy, opts...).ToFunc()
+}
+
+// ByExpiresAt orders the results by the expires_at field.
+func ByExpiresAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldExpiresAt, opts...).ToFunc()
 }
 
 // ByEnvironmentField orders the results by environment field.

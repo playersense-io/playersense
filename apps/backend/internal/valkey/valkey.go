@@ -256,3 +256,58 @@ func (c *Client) Mark(ctx context.Context, keys []string, ttl time.Duration) err
 	}
 	return nil
 }
+
+// AddHourlyCounts adds counts into one hash and records last-use times into another, in one round
+// trip: HINCRBY per field, an expiry on the counts, and HSET of the times.
+func (c *Client) AddHourlyCounts(ctx context.Context, countsKey string, counts map[string]int64, ttl time.Duration,
+	lastKey string, last map[string]string,
+) error {
+	if !c.Ready() {
+		return ErrUnavailable
+	}
+	cmds := make(vk.Commands, 0, len(counts)+3)
+	for field, n := range counts {
+		cmds = append(cmds, c.client.B().Hincrby().Key(countsKey).Field(field).Increment(n).Build())
+	}
+	cmds = append(cmds, c.client.B().Pexpire().Key(countsKey).Milliseconds(ttl.Milliseconds()).Build())
+	if len(last) > 0 {
+		set := c.client.B().Hset().Key(lastKey).FieldValue()
+		for field, v := range last {
+			set = set.FieldValue(field, v)
+		}
+		cmds = append(cmds, set.Build())
+		cmds = append(cmds, c.client.B().Pexpire().Key(lastKey).Milliseconds((30 * 24 * time.Hour).Milliseconds()).Build())
+	}
+	for _, result := range c.client.DoMulti(ctx, cmds...) {
+		if err := result.Error(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// HashFields reads the same fields from several hashes in one round trip: out[i][j] is field j of
+// hash i, empty when absent.
+func (c *Client) HashFields(ctx context.Context, keys, fields []string) ([][]string, error) {
+	out := make([][]string, len(keys))
+	if !c.Ready() {
+		return out, ErrUnavailable
+	}
+	cmds := make(vk.Commands, len(keys))
+	for i, key := range keys {
+		cmds[i] = c.client.B().Hmget().Key(key).Field(fields...).Build()
+	}
+	for i, result := range c.client.DoMulti(ctx, cmds...) {
+		values, err := result.ToArray()
+		if err != nil && !vk.IsValkeyNil(err) {
+			return out, err
+		}
+		out[i] = make([]string, len(fields))
+		for j, v := range values {
+			if s, err := v.ToString(); err == nil {
+				out[i][j] = s
+			}
+		}
+	}
+	return out, nil
+}

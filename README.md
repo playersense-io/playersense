@@ -138,6 +138,22 @@ The last owner of an organization cannot be removed or demoted, by either door.
 Removing a member **deletes** the row, unlike a revoked key or an archived flag: a membership is
 not a record of what happened, it is a live grant of access to player data.
 
+**API keys**:
+
+```
+GET    POST                 /v1/organizations/{org}/projects/{project}/keys              key.read, key.create
+              DELETE        /v1/organizations/{org}/projects/{project}/keys/{key_id}     key.revoke
+       POST                 …/keys/{key_id}/roll        a replacement, shown once; the old one after grace_hours
+GET                         …/keys/{key_id}/usage       requests by hour, up to 48
+```
+
+Each key says who minted and who revoked it. Requests are counted as they authenticate, at one
+atomic add in the process; a flusher writes the counts to Valkey by the hour every fifteen seconds,
+which is where the list's 24-hour sparkline comes from, and `last_used_at` to PostgreSQL at most
+every five minutes per key. A rolled key stops at once, or after a grace of up to a week so a fleet
+of servers can move over; an SDK key is inside shipped builds, so rolling one with no grace stops
+every build that carries it.
+
 **A project's settings**:
 
 ```

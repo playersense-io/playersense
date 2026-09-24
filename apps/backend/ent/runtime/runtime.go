@@ -107,6 +107,18 @@ func init() {
 	apikeyDescName := apikeyFields[3].Descriptor()
 	// apikey.NameValidator is a validator for the "name" field. It is called by the builders before save.
 	apikey.NameValidator = apikeyDescName.Validators[0].(func(string) error)
+	// apikeyDescCreatedBy is the schema descriptor for created_by field.
+	apikeyDescCreatedBy := apikeyFields[7].Descriptor()
+	// apikey.DefaultCreatedBy holds the default value on creation for the created_by field.
+	apikey.DefaultCreatedBy = apikeyDescCreatedBy.Default.(string)
+	// apikey.CreatedByValidator is a validator for the "created_by" field. It is called by the builders before save.
+	apikey.CreatedByValidator = apikeyDescCreatedBy.Validators[0].(func(string) error)
+	// apikeyDescRevokedBy is the schema descriptor for revoked_by field.
+	apikeyDescRevokedBy := apikeyFields[8].Descriptor()
+	// apikey.DefaultRevokedBy holds the default value on creation for the revoked_by field.
+	apikey.DefaultRevokedBy = apikeyDescRevokedBy.Default.(string)
+	// apikey.RevokedByValidator is a validator for the "revoked_by" field. It is called by the builders before save.
+	apikey.RevokedByValidator = apikeyDescRevokedBy.Validators[0].(func(string) error)
 	archivemanifestMixin := schema.ArchiveManifest{}.Mixin()
 	archivemanifestMixinFields0 := archivemanifestMixin[0].Fields()
 	_ = archivemanifestMixinFields0

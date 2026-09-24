@@ -2041,6 +2041,46 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/v1/organizations/{org}/projects/{project}/keys/{key_id}/roll": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Replace a key
+         * @description Mints a key of the same kind, environment and name, shown once, and retires this one: at once, or after grace_hours so a fleet of servers can be moved over without an outage. An SDK key is inside shipped builds, so rolling one with no grace stops every build that carries it.
+         */
+        readonly post: operations["post_v1_organizations_by_org_projects_by_project_keys_by_key_id_roll"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/organizations/{org}/projects/{project}/keys/{key_id}/usage": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * A key's requests by hour
+         * @description Up to the last 48 hours, counted as requests are authenticated, and when it was last used.
+         */
+        readonly get: operations["get_v1_organizations_by_org_projects_by_project_keys_by_key_id_usage"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/v1/organizations/{org}/projects/{project}/liveops-events": {
         readonly parameters: {
             readonly query?: never;
@@ -2440,8 +2480,15 @@ export interface components {
         readonly APIKeyCreatedOut: {
             /** Format: date-time */
             readonly created_at: string;
+            readonly created_by?: string;
             /** @description Which environment the key is scoped to */
             readonly environment: string;
+            /**
+             * Format: date-time
+             * @description When a rolled key stops working
+             */
+            readonly expires_at?: string | null;
+            readonly hourly?: readonly number[];
             readonly id: string;
             /** @description project, reporting or server */
             readonly kind: string;
@@ -2450,8 +2497,16 @@ export interface components {
             readonly name?: string;
             /** @description The public half of the key; not a secret */
             readonly public_id: string;
+            /** @description The key that took its place */
+            readonly replaced_by?: string | null;
             /** Format: date-time */
             readonly revoked_at?: string | null;
+            readonly revoked_by?: string;
+            /**
+             * Format: date-time
+             * @description When another key took its place
+             */
+            readonly rolled_at?: string | null;
             /** @description The full key. Shown once and never again */
             readonly secret: string;
         };
@@ -2461,8 +2516,15 @@ export interface components {
         readonly APIKeyOut: {
             /** Format: date-time */
             readonly created_at: string;
+            readonly created_by?: string;
             /** @description Which environment the key is scoped to */
             readonly environment: string;
+            /**
+             * Format: date-time
+             * @description When a rolled key stops working
+             */
+            readonly expires_at?: string | null;
+            readonly hourly?: readonly number[];
             readonly id: string;
             /** @description project, reporting or server */
             readonly kind: string;
@@ -2471,8 +2533,16 @@ export interface components {
             readonly name?: string;
             /** @description The public half of the key; not a secret */
             readonly public_id: string;
+            /** @description The key that took its place */
+            readonly replaced_by?: string | null;
             /** Format: date-time */
             readonly revoked_at?: string | null;
+            readonly revoked_by?: string;
+            /**
+             * Format: date-time
+             * @description When another key took its place
+             */
+            readonly rolled_at?: string | null;
         };
         readonly AcceptInvitationIn: {
             /** @description The organization to join, for an invitation already waiting for your verified address */
@@ -3975,6 +4045,25 @@ export interface components {
             /** Format: date-time */
             readonly to: string;
         };
+        readonly KeyHourOut: {
+            /** Format: date-time */
+            readonly hour: string;
+            /** Format: int64 */
+            readonly requests: number;
+        };
+        readonly KeyUsageOut: {
+            /**
+             * Format: date-time
+             * @description The first hour
+             */
+            readonly from: string;
+            readonly hours: readonly components["schemas"]["KeyHourOut"][];
+            readonly key_id: string;
+            /** Format: date-time */
+            readonly last_used_at?: string | null;
+            /** Format: int64 */
+            readonly total: number;
+        };
         readonly LedgerEntryOut: {
             readonly amount: string;
             /**
@@ -5150,6 +5239,10 @@ export interface components {
             readonly permissions: readonly string[];
             /** @description An owner or admin role. Its permissions are computed, and it cannot be created */
             readonly system: boolean;
+        };
+        readonly RolledAPIKeyOut: {
+            readonly key: components["schemas"]["APIKeyCreatedOut"];
+            readonly replaced: components["schemas"]["APIKeyOut"];
         };
         readonly SDK: {
             /** @description unity, unreal, godot, ios, android, javascript… */
@@ -15764,6 +15857,185 @@ export interface operations {
             };
             /** @description That key is already revoked */
             readonly 409: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly post_v1_organizations_by_org_projects_by_project_keys_by_key_id_roll: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly org: string;
+                readonly project: string;
+                /** @description The key to replace */
+                readonly key_id: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": {
+                    /**
+                     * Format: int64
+                     * @description How long the old key keeps working, 0 to 168; 0 stops it at once
+                     */
+                    readonly grace_hours?: number;
+                };
+            };
+        };
+        readonly responses: {
+            /** @description Created */
+            readonly 201: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["RolledAPIKeyOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not do that */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The organization, project or key does not exist */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The key is already revoked or rolled */
+            readonly 409: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly get_v1_organizations_by_org_projects_by_project_keys_by_key_id_usage: {
+        readonly parameters: {
+            readonly query?: {
+                /** @description Up to 48 */
+                readonly hours?: number;
+            };
+            readonly header?: never;
+            readonly path: {
+                readonly org: string;
+                readonly project: string;
+                readonly key_id: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["KeyUsageOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not do that */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The organization, project or key does not exist */
+            readonly 404: {
                 headers: {
                     readonly [name: string]: unknown;
                 };

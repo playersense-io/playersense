@@ -6,6 +6,7 @@ import (
 	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
 	"entgo.io/ent/schema/index"
+	"github.com/google/uuid"
 
 	"playersense.dev/backend/internal/dataclass"
 )
@@ -46,6 +47,17 @@ func (APIKey) Fields() []ent.Field {
 		field.Time("last_used_at").Optional().Nillable().Comment(dataclass.None),
 		field.Time("revoked_at").Optional().Nillable().Comment(dataclass.None),
 		field.Int("environment_id").Comment(dataclass.None),
+
+		// Who minted it and who revoked it, as the audit log names an actor.
+		field.String("created_by").MaxLen(254).Default("").Immutable().Comment(dataclass.None),
+		field.String("revoked_by").MaxLen(254).Default("").Comment(dataclass.None),
+
+		// A rolled key was replaced by another of its kind and environment. It stops at
+		// expires_at: at once, or after a grace so a server fleet can be moved over without
+		// an outage.
+		field.Time("rolled_at").Optional().Nillable().Comment(dataclass.None),
+		field.UUID("replaced_by", uuid.UUID{}).Optional().Nillable().Comment(dataclass.None),
+		field.Time("expires_at").Optional().Nillable().Comment(dataclass.None),
 	}
 }
 

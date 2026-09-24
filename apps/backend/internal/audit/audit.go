@@ -66,6 +66,7 @@ const (
 
 	KeyCreated Action = "key.create"
 	KeyRevoked Action = "key.revoke"
+	KeyRolled  Action = "key.roll"
 
 	MemberInvited       Action = "member.invite"
 	MemberJoined        Action = "member.join"

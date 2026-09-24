@@ -14785,6 +14785,268 @@
         }
       }
     },
+    "/v1/organizations/{org}/projects/{project}/keys/{key_id}/roll": {
+      "post": {
+        "tags": [
+          "api-keys"
+        ],
+        "summary": "Replace a key",
+        "description": "Mints a key of the same kind, environment and name, shown once, and retires this one: at once, or after grace_hours so a fleet of servers can be moved over without an outage. An SDK key is inside shipped builds, so rolling one with no grace stops every build that carries it.",
+        "operationId": "post_v1_organizations_by_org_projects_by_project_keys_by_key_id_roll",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "project",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "key_id",
+            "in": "path",
+            "description": "The key to replace",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "grace_hours": {
+                    "type": "integer",
+                    "format": "int64",
+                    "description": "How long the old key keeps working, 0 to 168; 0 stops it at once",
+                    "minimum": 0,
+                    "maximum": 168
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RolledAPIKeyOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not do that",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The organization, project or key does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The key is already revoked or rolled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/organizations/{org}/projects/{project}/keys/{key_id}/usage": {
+      "get": {
+        "tags": [
+          "api-keys"
+        ],
+        "summary": "A key's requests by hour",
+        "description": "Up to the last 48 hours, counted as requests are authenticated, and when it was last used.",
+        "operationId": "get_v1_organizations_by_org_projects_by_project_keys_by_key_id_usage",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "project",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "key_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "hours",
+            "in": "query",
+            "description": "Up to 48",
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "default": "24",
+              "minimum": 1,
+              "maximum": 48
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KeyUsageOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not do that",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The organization, project or key does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/organizations/{org}/projects/{project}/liveops-events": {
       "get": {
         "tags": [
@@ -17477,9 +17739,27 @@
             "type": "string",
             "format": "date-time"
           },
+          "created_by": {
+            "type": "string"
+          },
           "environment": {
             "type": "string",
             "description": "Which environment the key is scoped to"
+          },
+          "expires_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When a rolled key stops working"
+          },
+          "hourly": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            }
           },
           "id": {
             "type": "string"
@@ -17502,12 +17782,30 @@
             "type": "string",
             "description": "The public half of the key; not a secret"
           },
+          "replaced_by": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The key that took its place"
+          },
           "revoked_at": {
             "type": [
               "string",
               "null"
             ],
             "format": "date-time"
+          },
+          "revoked_by": {
+            "type": "string"
+          },
+          "rolled_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When another key took its place"
           },
           "secret": {
             "type": "string",
@@ -17544,9 +17842,27 @@
             "type": "string",
             "format": "date-time"
           },
+          "created_by": {
+            "type": "string"
+          },
           "environment": {
             "type": "string",
             "description": "Which environment the key is scoped to"
+          },
+          "expires_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When a rolled key stops working"
+          },
+          "hourly": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            }
           },
           "id": {
             "type": "string"
@@ -17569,12 +17885,30 @@
             "type": "string",
             "description": "The public half of the key; not a secret"
           },
+          "replaced_by": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The key that took its place"
+          },
           "revoked_at": {
             "type": [
               "string",
               "null"
             ],
             "format": "date-time"
+          },
+          "revoked_by": {
+            "type": "string"
+          },
+          "rolled_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When another key took its place"
           }
         },
         "required": [
@@ -21773,6 +22107,59 @@
           "to"
         ]
       },
+      "KeyHourOut": {
+        "type": "object",
+        "properties": {
+          "hour": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "requests": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "hour",
+          "requests"
+        ]
+      },
+      "KeyUsageOut": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The first hour"
+          },
+          "hours": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KeyHourOut"
+            }
+          },
+          "key_id": {
+            "type": "string"
+          },
+          "last_used_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "from",
+          "hours",
+          "key_id",
+          "total"
+        ]
+      },
       "LedgerEntryOut": {
         "type": "object",
         "properties": {
@@ -25225,6 +25612,21 @@
           "name",
           "permissions",
           "system"
+        ]
+      },
+      "RolledAPIKeyOut": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "$ref": "#/components/schemas/APIKeyCreatedOut"
+          },
+          "replaced": {
+            "$ref": "#/components/schemas/APIKeyOut"
+          }
+        },
+        "required": [
+          "key",
+          "replaced"
         ]
       },
       "SDK": {

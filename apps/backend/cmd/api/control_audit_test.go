@@ -80,6 +80,8 @@ func TestEveryMutatingRouteDecidesAboutAudit(t *testing.T) {
 		"POST /v1/organizations/{org}/projects/{project}/privacy/erasures": audit.PrivacyErasure,
 		"POST /v1/organizations/{org}/projects/{project}/privacy/exports":  audit.PrivacyExport,
 
+		"POST /v1/organizations/{org}/projects/{project}/keys/{key_id}/roll": audit.KeyRolled,
+
 		"POST /v1/organizations/{org}/projects/{project}/funnels":            audit.FunnelWritten,
 		"PUT /v1/organizations/{org}/projects/{project}/funnels/{funnel}":    audit.FunnelWritten,
 		"DELETE /v1/organizations/{org}/projects/{project}/funnels/{funnel}": audit.FunnelDeleted,

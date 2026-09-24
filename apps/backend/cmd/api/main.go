@@ -31,6 +31,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	muzak "muzak.dev/framework"
 
@@ -359,6 +360,8 @@ func build(settings config.Settings, overrides ...muzak.RouterOption) (*muzak.Ap
 			valkey.NewRateLimitStorage(cache), true, !settings.RateLimitDisabled)),
 		// The same counters, read by the operations console's rate-limit page.
 		muzak.WithSingleton(valkey.NewRateLimitStorage(cache)),
+		// Requests per key per hour, for the keys page, at one atomic add per request.
+		muzak.WithSingleton(core.NewKeyUsage(cache, db, slog.Default(), 15*time.Second)),
 	}
 
 	// Appended last, so a later declaration of the same type wins.

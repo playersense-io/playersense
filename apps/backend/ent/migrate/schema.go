@@ -21,6 +21,11 @@ var (
 		{Name: "name", Type: field.TypeString, Nullable: true, Size: 120, Comment: "class=none"},
 		{Name: "last_used_at", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
 		{Name: "revoked_at", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
+		{Name: "created_by", Type: field.TypeString, Size: 254, Comment: "class=none", Default: ""},
+		{Name: "revoked_by", Type: field.TypeString, Size: 254, Comment: "class=none", Default: ""},
+		{Name: "rolled_at", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
+		{Name: "replaced_by", Type: field.TypeUUID, Nullable: true, Comment: "class=none"},
+		{Name: "expires_at", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
 		{Name: "environment_id", Type: field.TypeInt, Comment: "class=none"},
 	}
 	// APIKeysTable holds the schema information for the "api_keys" table.
@@ -31,7 +36,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "api_keys_environments_api_keys",
-				Columns:    []*schema.Column{APIKeysColumns[10]},
+				Columns:    []*schema.Column{APIKeysColumns[15]},
 				RefColumns: []*schema.Column{EnvironmentsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},

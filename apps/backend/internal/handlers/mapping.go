@@ -89,5 +89,10 @@ func apiKeyOut(key *ent.APIKey, environment string) schemas.APIKeyOut {
 		CreatedAt:   key.CreatedAt,
 		LastUsedAt:  key.LastUsedAt,
 		RevokedAt:   key.RevokedAt,
+		CreatedBy:   key.CreatedBy,
+		RevokedBy:   key.RevokedBy,
+		RolledAt:    key.RolledAt,
+		ReplacedBy:  key.ReplacedBy,
+		ExpiresAt:   key.ExpiresAt,
 	}
 }

@@ -101,6 +101,31 @@ func EnvironmentID(v int) predicate.APIKey {
 	return predicate.APIKey(sql.FieldEQ(FieldEnvironmentID, v))
 }
 
+// CreatedBy applies equality check predicate on the "created_by" field. It's identical to CreatedByEQ.
+func CreatedBy(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldEQ(FieldCreatedBy, v))
+}
+
+// RevokedBy applies equality check predicate on the "revoked_by" field. It's identical to RevokedByEQ.
+func RevokedBy(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldEQ(FieldRevokedBy, v))
+}
+
+// RolledAt applies equality check predicate on the "rolled_at" field. It's identical to RolledAtEQ.
+func RolledAt(v time.Time) predicate.APIKey {
+	return predicate.APIKey(sql.FieldEQ(FieldRolledAt, v))
+}
+
+// ReplacedBy applies equality check predicate on the "replaced_by" field. It's identical to ReplacedByEQ.
+func ReplacedBy(v uuid.UUID) predicate.APIKey {
+	return predicate.APIKey(sql.FieldEQ(FieldReplacedBy, v))
+}
+
+// ExpiresAt applies equality check predicate on the "expires_at" field. It's identical to ExpiresAtEQ.
+func ExpiresAt(v time.Time) predicate.APIKey {
+	return predicate.APIKey(sql.FieldEQ(FieldExpiresAt, v))
+}
+
 // UIDEQ applies the EQ predicate on the "uid" field.
 func UIDEQ(v uuid.UUID) predicate.APIKey {
 	return predicate.APIKey(sql.FieldEQ(FieldUID, v))
@@ -564,6 +589,286 @@ func EnvironmentIDIn(vs ...int) predicate.APIKey {
 // EnvironmentIDNotIn applies the NotIn predicate on the "environment_id" field.
 func EnvironmentIDNotIn(vs ...int) predicate.APIKey {
 	return predicate.APIKey(sql.FieldNotIn(FieldEnvironmentID, vs...))
+}
+
+// CreatedByEQ applies the EQ predicate on the "created_by" field.
+func CreatedByEQ(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldEQ(FieldCreatedBy, v))
+}
+
+// CreatedByNEQ applies the NEQ predicate on the "created_by" field.
+func CreatedByNEQ(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldNEQ(FieldCreatedBy, v))
+}
+
+// CreatedByIn applies the In predicate on the "created_by" field.
+func CreatedByIn(vs ...string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldIn(FieldCreatedBy, vs...))
+}
+
+// CreatedByNotIn applies the NotIn predicate on the "created_by" field.
+func CreatedByNotIn(vs ...string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldNotIn(FieldCreatedBy, vs...))
+}
+
+// CreatedByGT applies the GT predicate on the "created_by" field.
+func CreatedByGT(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldGT(FieldCreatedBy, v))
+}
+
+// CreatedByGTE applies the GTE predicate on the "created_by" field.
+func CreatedByGTE(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldGTE(FieldCreatedBy, v))
+}
+
+// CreatedByLT applies the LT predicate on the "created_by" field.
+func CreatedByLT(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldLT(FieldCreatedBy, v))
+}
+
+// CreatedByLTE applies the LTE predicate on the "created_by" field.
+func CreatedByLTE(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldLTE(FieldCreatedBy, v))
+}
+
+// CreatedByContains applies the Contains predicate on the "created_by" field.
+func CreatedByContains(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldContains(FieldCreatedBy, v))
+}
+
+// CreatedByHasPrefix applies the HasPrefix predicate on the "created_by" field.
+func CreatedByHasPrefix(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldHasPrefix(FieldCreatedBy, v))
+}
+
+// CreatedByHasSuffix applies the HasSuffix predicate on the "created_by" field.
+func CreatedByHasSuffix(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldHasSuffix(FieldCreatedBy, v))
+}
+
+// CreatedByEqualFold applies the EqualFold predicate on the "created_by" field.
+func CreatedByEqualFold(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldEqualFold(FieldCreatedBy, v))
+}
+
+// CreatedByContainsFold applies the ContainsFold predicate on the "created_by" field.
+func CreatedByContainsFold(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldContainsFold(FieldCreatedBy, v))
+}
+
+// RevokedByEQ applies the EQ predicate on the "revoked_by" field.
+func RevokedByEQ(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldEQ(FieldRevokedBy, v))
+}
+
+// RevokedByNEQ applies the NEQ predicate on the "revoked_by" field.
+func RevokedByNEQ(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldNEQ(FieldRevokedBy, v))
+}
+
+// RevokedByIn applies the In predicate on the "revoked_by" field.
+func RevokedByIn(vs ...string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldIn(FieldRevokedBy, vs...))
+}
+
+// RevokedByNotIn applies the NotIn predicate on the "revoked_by" field.
+func RevokedByNotIn(vs ...string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldNotIn(FieldRevokedBy, vs...))
+}
+
+// RevokedByGT applies the GT predicate on the "revoked_by" field.
+func RevokedByGT(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldGT(FieldRevokedBy, v))
+}
+
+// RevokedByGTE applies the GTE predicate on the "revoked_by" field.
+func RevokedByGTE(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldGTE(FieldRevokedBy, v))
+}
+
+// RevokedByLT applies the LT predicate on the "revoked_by" field.
+func RevokedByLT(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldLT(FieldRevokedBy, v))
+}
+
+// RevokedByLTE applies the LTE predicate on the "revoked_by" field.
+func RevokedByLTE(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldLTE(FieldRevokedBy, v))
+}
+
+// RevokedByContains applies the Contains predicate on the "revoked_by" field.
+func RevokedByContains(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldContains(FieldRevokedBy, v))
+}
+
+// RevokedByHasPrefix applies the HasPrefix predicate on the "revoked_by" field.
+func RevokedByHasPrefix(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldHasPrefix(FieldRevokedBy, v))
+}
+
+// RevokedByHasSuffix applies the HasSuffix predicate on the "revoked_by" field.
+func RevokedByHasSuffix(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldHasSuffix(FieldRevokedBy, v))
+}
+
+// RevokedByEqualFold applies the EqualFold predicate on the "revoked_by" field.
+func RevokedByEqualFold(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldEqualFold(FieldRevokedBy, v))
+}
+
+// RevokedByContainsFold applies the ContainsFold predicate on the "revoked_by" field.
+func RevokedByContainsFold(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldContainsFold(FieldRevokedBy, v))
+}
+
+// RolledAtEQ applies the EQ predicate on the "rolled_at" field.
+func RolledAtEQ(v time.Time) predicate.APIKey {
+	return predicate.APIKey(sql.FieldEQ(FieldRolledAt, v))
+}
+
+// RolledAtNEQ applies the NEQ predicate on the "rolled_at" field.
+func RolledAtNEQ(v time.Time) predicate.APIKey {
+	return predicate.APIKey(sql.FieldNEQ(FieldRolledAt, v))
+}
+
+// RolledAtIn applies the In predicate on the "rolled_at" field.
+func RolledAtIn(vs ...time.Time) predicate.APIKey {
+	return predicate.APIKey(sql.FieldIn(FieldRolledAt, vs...))
+}
+
+// RolledAtNotIn applies the NotIn predicate on the "rolled_at" field.
+func RolledAtNotIn(vs ...time.Time) predicate.APIKey {
+	return predicate.APIKey(sql.FieldNotIn(FieldRolledAt, vs...))
+}
+
+// RolledAtGT applies the GT predicate on the "rolled_at" field.
+func RolledAtGT(v time.Time) predicate.APIKey {
+	return predicate.APIKey(sql.FieldGT(FieldRolledAt, v))
+}
+
+// RolledAtGTE applies the GTE predicate on the "rolled_at" field.
+func RolledAtGTE(v time.Time) predicate.APIKey {
+	return predicate.APIKey(sql.FieldGTE(FieldRolledAt, v))
+}
+
+// RolledAtLT applies the LT predicate on the "rolled_at" field.
+func RolledAtLT(v time.Time) predicate.APIKey {
+	return predicate.APIKey(sql.FieldLT(FieldRolledAt, v))
+}
+
+// RolledAtLTE applies the LTE predicate on the "rolled_at" field.
+func RolledAtLTE(v time.Time) predicate.APIKey {
+	return predicate.APIKey(sql.FieldLTE(FieldRolledAt, v))
+}
+
+// RolledAtIsNil applies the IsNil predicate on the "rolled_at" field.
+func RolledAtIsNil() predicate.APIKey {
+	return predicate.APIKey(sql.FieldIsNull(FieldRolledAt))
+}
+
+// RolledAtNotNil applies the NotNil predicate on the "rolled_at" field.
+func RolledAtNotNil() predicate.APIKey {
+	return predicate.APIKey(sql.FieldNotNull(FieldRolledAt))
+}
+
+// ReplacedByEQ applies the EQ predicate on the "replaced_by" field.
+func ReplacedByEQ(v uuid.UUID) predicate.APIKey {
+	return predicate.APIKey(sql.FieldEQ(FieldReplacedBy, v))
+}
+
+// ReplacedByNEQ applies the NEQ predicate on the "replaced_by" field.
+func ReplacedByNEQ(v uuid.UUID) predicate.APIKey {
+	return predicate.APIKey(sql.FieldNEQ(FieldReplacedBy, v))
+}
+
+// ReplacedByIn applies the In predicate on the "replaced_by" field.
+func ReplacedByIn(vs ...uuid.UUID) predicate.APIKey {
+	return predicate.APIKey(sql.FieldIn(FieldReplacedBy, vs...))
+}
+
+// ReplacedByNotIn applies the NotIn predicate on the "replaced_by" field.
+func ReplacedByNotIn(vs ...uuid.UUID) predicate.APIKey {
+	return predicate.APIKey(sql.FieldNotIn(FieldReplacedBy, vs...))
+}
+
+// ReplacedByGT applies the GT predicate on the "replaced_by" field.
+func ReplacedByGT(v uuid.UUID) predicate.APIKey {
+	return predicate.APIKey(sql.FieldGT(FieldReplacedBy, v))
+}
+
+// ReplacedByGTE applies the GTE predicate on the "replaced_by" field.
+func ReplacedByGTE(v uuid.UUID) predicate.APIKey {
+	return predicate.APIKey(sql.FieldGTE(FieldReplacedBy, v))
+}
+
+// ReplacedByLT applies the LT predicate on the "replaced_by" field.
+func ReplacedByLT(v uuid.UUID) predicate.APIKey {
+	return predicate.APIKey(sql.FieldLT(FieldReplacedBy, v))
+}
+
+// ReplacedByLTE applies the LTE predicate on the "replaced_by" field.
+func ReplacedByLTE(v uuid.UUID) predicate.APIKey {
+	return predicate.APIKey(sql.FieldLTE(FieldReplacedBy, v))
+}
+
+// ReplacedByIsNil applies the IsNil predicate on the "replaced_by" field.
+func ReplacedByIsNil() predicate.APIKey {
+	return predicate.APIKey(sql.FieldIsNull(FieldReplacedBy))
+}
+
+// ReplacedByNotNil applies the NotNil predicate on the "replaced_by" field.
+func ReplacedByNotNil() predicate.APIKey {
+	return predicate.APIKey(sql.FieldNotNull(FieldReplacedBy))
+}
+
+// ExpiresAtEQ applies the EQ predicate on the "expires_at" field.
+func ExpiresAtEQ(v time.Time) predicate.APIKey {
+	return predicate.APIKey(sql.FieldEQ(FieldExpiresAt, v))
+}
+
+// ExpiresAtNEQ applies the NEQ predicate on the "expires_at" field.
+func ExpiresAtNEQ(v time.Time) predicate.APIKey {
+	return predicate.APIKey(sql.FieldNEQ(FieldExpiresAt, v))
+}
+
+// ExpiresAtIn applies the In predicate on the "expires_at" field.
+func ExpiresAtIn(vs ...time.Time) predicate.APIKey {
+	return predicate.APIKey(sql.FieldIn(FieldExpiresAt, vs...))
+}
+
+// ExpiresAtNotIn applies the NotIn predicate on the "expires_at" field.
+func ExpiresAtNotIn(vs ...time.Time) predicate.APIKey {
+	return predicate.APIKey(sql.FieldNotIn(FieldExpiresAt, vs...))
+}
+
+// ExpiresAtGT applies the GT predicate on the "expires_at" field.
+func ExpiresAtGT(v time.Time) predicate.APIKey {
+	return predicate.APIKey(sql.FieldGT(FieldExpiresAt, v))
+}
+
+// ExpiresAtGTE applies the GTE predicate on the "expires_at" field.
+func ExpiresAtGTE(v time.Time) predicate.APIKey {
+	return predicate.APIKey(sql.FieldGTE(FieldExpiresAt, v))
+}
+
+// ExpiresAtLT applies the LT predicate on the "expires_at" field.
+func ExpiresAtLT(v time.Time) predicate.APIKey {
+	return predicate.APIKey(sql.FieldLT(FieldExpiresAt, v))
+}
+
+// ExpiresAtLTE applies the LTE predicate on the "expires_at" field.
+func ExpiresAtLTE(v time.Time) predicate.APIKey {
+	return predicate.APIKey(sql.FieldLTE(FieldExpiresAt, v))
+}
+
+// ExpiresAtIsNil applies the IsNil predicate on the "expires_at" field.
+func ExpiresAtIsNil() predicate.APIKey {
+	return predicate.APIKey(sql.FieldIsNull(FieldExpiresAt))
+}
+
+// ExpiresAtNotNil applies the NotNil predicate on the "expires_at" field.
+func ExpiresAtNotNil() predicate.APIKey {
+	return predicate.APIKey(sql.FieldNotNull(FieldExpiresAt))
 }
 
 // HasEnvironment applies the HasEdge predicate on the "environment" edge.

@@ -14,6 +14,7 @@ import (
 	"playersense.dev/backend/internal/core"
 	"playersense.dev/backend/internal/identity"
 	"playersense.dev/backend/internal/schemas"
+	"playersense.dev/backend/internal/valkey"
 )
 
 // Health is the liveness probe.
@@ -199,6 +200,7 @@ func CreateAPIKey(ctx *muzak.Context, in schemas.CreateAPIKeyIn) (schemas.APIKey
 		SetSecretHash(generated.Hash).
 		SetName(in.Name).
 		SetEnvironmentID(env.ID).
+		SetCreatedBy(actorOf(ctx).Label).
 		Save(ctx.Context())
 	if err != nil {
 		_ = tx.Rollback()
@@ -253,8 +255,23 @@ func ListAPIKeys(ctx *muzak.Context, in schemas.ProjectParams) (schemas.APIKeyLi
 		return schemas.APIKeyListOut{}, core.AsHTTPError(err)
 	}
 	out := schemas.APIKeyListOut{Keys: make([]schemas.APIKeyOut, 0, len(keys))}
+	publicIDs := make([]string, len(keys))
+	for i, key := range keys {
+		publicIDs[i] = key.PublicID
+	}
+	// The last day's requests, from the counts core.KeyUsage keeps. A figure on a chart, so a
+	// cache that cannot answer leaves it out rather than failing the list.
+	series, last, err := core.ReadKeyUsage(ctx.Context(), muzak.From[*valkey.Client](ctx), publicIDs, 24, nowUTC())
+	if err != nil {
+		ctx.Logger().Warn("could not read key usage", "error", err)
+	}
 	for _, key := range keys {
-		out.Keys = append(out.Keys, apiKeyOut(key, byID[key.EnvironmentID]))
+		one := apiKeyOut(key, byID[key.EnvironmentID])
+		one.Hourly = series[key.PublicID]
+		if at, found := last[key.PublicID]; found && (one.LastUsedAt == nil || at.After(*one.LastUsedAt)) {
+			one.LastUsedAt = &at
+		}
+		out.Keys = append(out.Keys, one)
 	}
 	return out, nil
 }
@@ -280,7 +297,8 @@ func RevokeAPIKey(ctx *muzak.Context, in schemas.RevokeAPIKeyIn) (schemas.APIKey
 	if err != nil {
 		return schemas.APIKeyOut{}, core.AsHTTPError(err)
 	}
-	updated, err := tx.APIKey.UpdateOneID(key.ID).SetRevokedAt(nowUTC()).Save(ctx.Context())
+	updated, err := tx.APIKey.UpdateOneID(key.ID).SetRevokedAt(nowUTC()).SetRevokedBy(actorOf(ctx).Label).
+		Save(ctx.Context())
 	if err != nil {
 		_ = tx.Rollback()
 		return schemas.APIKeyOut{}, core.AsHTTPError(err)

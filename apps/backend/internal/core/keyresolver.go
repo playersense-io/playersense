@@ -35,6 +35,15 @@ type Tenant struct {
 
 	KeyKind     string `json:"key_kind"`
 	KeyPublicID string `json:"key_public_id"`
+
+	// KeyExpiresAt is when a rolled key stops, carried so a cached entry stops with it rather
+	// than when the cache happens to expire.
+	KeyExpiresAt *time.Time `json:"key_expires_at,omitempty"`
+}
+
+// expired reports whether the key this tenant came from has reached its end.
+func (t *Tenant) expired(now time.Time) bool {
+	return t != nil && t.KeyExpiresAt != nil && !now.Before(*t.KeyExpiresAt)
 }
 
 // ErrUnknownKey reports a credential that resolves to nothing usable.
@@ -115,11 +124,17 @@ func (r *KeyResolver) Resolve(ctx context.Context, presented string) (*Tenant, e
 
 	// Tier 1: this process. Survives everything else being unreachable.
 	if entry, ok := r.readLocal(cacheKey); ok {
+		if entry.tenant.expired(time.Now()) {
+			return nil, ErrUnknownKey
+		}
 		return entry.tenant, entry.err
 	}
 
 	// Tier 2: Valkey, shared across instances.
 	if tenant, err, ok := r.readCache(ctx, cacheKey); ok {
+		if tenant.expired(time.Now()) {
+			return nil, ErrUnknownKey
+		}
 		r.writeLocal(cacheKey, tenant, err)
 		return tenant, err
 	}
@@ -257,7 +272,7 @@ func (r *KeyResolver) verify(ctx context.Context, publicID, private string) (*Te
 		// what stops an outage from looking like a fleet of bad credentials.
 		return nil, err
 	}
-	if key.RevokedAt != nil {
+	if key.RevokedAt != nil || (key.ExpiresAt != nil && !time.Now().Before(*key.ExpiresAt)) {
 		return nil, ErrUnknownKey
 	}
 
@@ -295,8 +310,9 @@ func (r *KeyResolver) verify(ctx context.Context, publicID, private string) (*Te
 		PolicyTier:    string(proj.PolicyTier),
 		RetentionTier: proj.RetentionDays,
 
-		KeyKind:     string(key.Kind),
-		KeyPublicID: key.PublicID,
+		KeyKind:      string(key.Kind),
+		KeyPublicID:  key.PublicID,
+		KeyExpiresAt: key.ExpiresAt,
 	}, nil
 }
 
@@ -332,6 +348,9 @@ func requireKind(ctx *muzak.Context, kind string) (*Tenant, error) {
 	}
 	if tenant.KeyKind != kind {
 		return nil, muzak.Forbidden("this endpoint needs a " + kind + " key")
+	}
+	if usage, found := muzak.TryFrom[*KeyUsage](ctx); found {
+		usage.Touch(tenant.KeyPublicID)
 	}
 	return tenant, nil
 }

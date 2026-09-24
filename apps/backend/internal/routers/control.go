@@ -205,5 +205,21 @@ func Keys() *muzak.Router {
 		core.Require(authz.KeyRevoke),
 		muzak.WithResponseDoc(http.StatusConflict, "That key is already revoked"))
 
+	r.Post("/organizations/{org}/projects/{project}/keys/{key_id}/roll", handlers.RollAPIKey,
+		muzak.Summary("Replace a key"),
+		muzak.Description("Mints a key of the same kind, environment and name, shown once, and retires "+
+			"this one: at once, or after grace_hours so a fleet of servers can be moved over without "+
+			"an outage. An SDK key is inside shipped builds, so rolling one with no grace stops every "+
+			"build that carries it."),
+		core.Require(authz.KeyCreate, authz.KeyRevoke),
+		muzak.Status(http.StatusCreated),
+		muzak.WithResponseDoc(http.StatusConflict, "The key is already revoked or rolled"))
+
+	r.Get("/organizations/{org}/projects/{project}/keys/{key_id}/usage", handlers.ReadKeyUsage,
+		muzak.Summary("A key's requests by hour"),
+		muzak.Description("Up to the last 48 hours, counted as requests are authenticated, and when "+
+			"it was last used."),
+		core.Require(authz.KeyRead))
+
 	return r
 }

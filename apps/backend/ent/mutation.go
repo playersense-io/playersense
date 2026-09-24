@@ -114,6 +114,11 @@ type APIKeyMutation struct {
 	name                      *string
 	last_used_at              *time.Time
 	revoked_at                *time.Time
+	created_by                *string
+	revoked_by                *string
+	rolled_at                 *time.Time
+	replaced_by               *uuid.UUID
+	expires_at                *time.Time
 	clearedFields             map[string]struct{}
 	environment               *int
 	clearedenvironment        bool
@@ -631,6 +636,225 @@ func (m *APIKeyMutation) ResetEnvironmentID() {
 	m.environment = nil
 }
 
+// SetCreatedBy sets the "created_by" field.
+func (m *APIKeyMutation) SetCreatedBy(s string) {
+	m.created_by = &s
+}
+
+// CreatedBy returns the value of the "created_by" field in the mutation.
+func (m *APIKeyMutation) CreatedBy() (r string, exists bool) {
+	v := m.created_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedBy returns the old "created_by" field's value of the APIKey entity.
+// If the APIKey object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeyMutation) OldCreatedBy(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedBy: %w", err)
+	}
+	return oldValue.CreatedBy, nil
+}
+
+// ResetCreatedBy resets all changes to the "created_by" field.
+func (m *APIKeyMutation) ResetCreatedBy() {
+	m.created_by = nil
+}
+
+// SetRevokedBy sets the "revoked_by" field.
+func (m *APIKeyMutation) SetRevokedBy(s string) {
+	m.revoked_by = &s
+}
+
+// RevokedBy returns the value of the "revoked_by" field in the mutation.
+func (m *APIKeyMutation) RevokedBy() (r string, exists bool) {
+	v := m.revoked_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRevokedBy returns the old "revoked_by" field's value of the APIKey entity.
+// If the APIKey object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeyMutation) OldRevokedBy(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRevokedBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRevokedBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRevokedBy: %w", err)
+	}
+	return oldValue.RevokedBy, nil
+}
+
+// ResetRevokedBy resets all changes to the "revoked_by" field.
+func (m *APIKeyMutation) ResetRevokedBy() {
+	m.revoked_by = nil
+}
+
+// SetRolledAt sets the "rolled_at" field.
+func (m *APIKeyMutation) SetRolledAt(t time.Time) {
+	m.rolled_at = &t
+}
+
+// RolledAt returns the value of the "rolled_at" field in the mutation.
+func (m *APIKeyMutation) RolledAt() (r time.Time, exists bool) {
+	v := m.rolled_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRolledAt returns the old "rolled_at" field's value of the APIKey entity.
+// If the APIKey object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeyMutation) OldRolledAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRolledAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRolledAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRolledAt: %w", err)
+	}
+	return oldValue.RolledAt, nil
+}
+
+// ClearRolledAt clears the value of the "rolled_at" field.
+func (m *APIKeyMutation) ClearRolledAt() {
+	m.rolled_at = nil
+	m.clearedFields[apikey.FieldRolledAt] = struct{}{}
+}
+
+// RolledAtCleared returns if the "rolled_at" field was cleared in this mutation.
+func (m *APIKeyMutation) RolledAtCleared() bool {
+	_, ok := m.clearedFields[apikey.FieldRolledAt]
+	return ok
+}
+
+// ResetRolledAt resets all changes to the "rolled_at" field.
+func (m *APIKeyMutation) ResetRolledAt() {
+	m.rolled_at = nil
+	delete(m.clearedFields, apikey.FieldRolledAt)
+}
+
+// SetReplacedBy sets the "replaced_by" field.
+func (m *APIKeyMutation) SetReplacedBy(u uuid.UUID) {
+	m.replaced_by = &u
+}
+
+// ReplacedBy returns the value of the "replaced_by" field in the mutation.
+func (m *APIKeyMutation) ReplacedBy() (r uuid.UUID, exists bool) {
+	v := m.replaced_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReplacedBy returns the old "replaced_by" field's value of the APIKey entity.
+// If the APIKey object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeyMutation) OldReplacedBy(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReplacedBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReplacedBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReplacedBy: %w", err)
+	}
+	return oldValue.ReplacedBy, nil
+}
+
+// ClearReplacedBy clears the value of the "replaced_by" field.
+func (m *APIKeyMutation) ClearReplacedBy() {
+	m.replaced_by = nil
+	m.clearedFields[apikey.FieldReplacedBy] = struct{}{}
+}
+
+// ReplacedByCleared returns if the "replaced_by" field was cleared in this mutation.
+func (m *APIKeyMutation) ReplacedByCleared() bool {
+	_, ok := m.clearedFields[apikey.FieldReplacedBy]
+	return ok
+}
+
+// ResetReplacedBy resets all changes to the "replaced_by" field.
+func (m *APIKeyMutation) ResetReplacedBy() {
+	m.replaced_by = nil
+	delete(m.clearedFields, apikey.FieldReplacedBy)
+}
+
+// SetExpiresAt sets the "expires_at" field.
+func (m *APIKeyMutation) SetExpiresAt(t time.Time) {
+	m.expires_at = &t
+}
+
+// ExpiresAt returns the value of the "expires_at" field in the mutation.
+func (m *APIKeyMutation) ExpiresAt() (r time.Time, exists bool) {
+	v := m.expires_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExpiresAt returns the old "expires_at" field's value of the APIKey entity.
+// If the APIKey object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeyMutation) OldExpiresAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExpiresAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExpiresAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExpiresAt: %w", err)
+	}
+	return oldValue.ExpiresAt, nil
+}
+
+// ClearExpiresAt clears the value of the "expires_at" field.
+func (m *APIKeyMutation) ClearExpiresAt() {
+	m.expires_at = nil
+	m.clearedFields[apikey.FieldExpiresAt] = struct{}{}
+}
+
+// ExpiresAtCleared returns if the "expires_at" field was cleared in this mutation.
+func (m *APIKeyMutation) ExpiresAtCleared() bool {
+	_, ok := m.clearedFields[apikey.FieldExpiresAt]
+	return ok
+}
+
+// ResetExpiresAt resets all changes to the "expires_at" field.
+func (m *APIKeyMutation) ResetExpiresAt() {
+	m.expires_at = nil
+	delete(m.clearedFields, apikey.FieldExpiresAt)
+}
+
 // ClearEnvironment clears the "environment" edge to the Environment entity.
 func (m *APIKeyMutation) ClearEnvironment() {
 	m.clearedenvironment = true
@@ -800,7 +1024,7 @@ func (m *APIKeyMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *APIKeyMutation) Fields() []string {
-	fields := make([]string, 0, 10)
+	fields := make([]string, 0, 15)
 	if m.uid != nil {
 		fields = append(fields, apikey.FieldUID)
 	}
@@ -831,6 +1055,21 @@ func (m *APIKeyMutation) Fields() []string {
 	if m.environment != nil {
 		fields = append(fields, apikey.FieldEnvironmentID)
 	}
+	if m.created_by != nil {
+		fields = append(fields, apikey.FieldCreatedBy)
+	}
+	if m.revoked_by != nil {
+		fields = append(fields, apikey.FieldRevokedBy)
+	}
+	if m.rolled_at != nil {
+		fields = append(fields, apikey.FieldRolledAt)
+	}
+	if m.replaced_by != nil {
+		fields = append(fields, apikey.FieldReplacedBy)
+	}
+	if m.expires_at != nil {
+		fields = append(fields, apikey.FieldExpiresAt)
+	}
 	return fields
 }
 
@@ -859,6 +1098,16 @@ func (m *APIKeyMutation) Field(name string) (ent.Value, bool) {
 		return m.RevokedAt()
 	case apikey.FieldEnvironmentID:
 		return m.EnvironmentID()
+	case apikey.FieldCreatedBy:
+		return m.CreatedBy()
+	case apikey.FieldRevokedBy:
+		return m.RevokedBy()
+	case apikey.FieldRolledAt:
+		return m.RolledAt()
+	case apikey.FieldReplacedBy:
+		return m.ReplacedBy()
+	case apikey.FieldExpiresAt:
+		return m.ExpiresAt()
 	}
 	return nil, false
 }
@@ -888,6 +1137,16 @@ func (m *APIKeyMutation) OldField(ctx context.Context, name string) (ent.Value, 
 		return m.OldRevokedAt(ctx)
 	case apikey.FieldEnvironmentID:
 		return m.OldEnvironmentID(ctx)
+	case apikey.FieldCreatedBy:
+		return m.OldCreatedBy(ctx)
+	case apikey.FieldRevokedBy:
+		return m.OldRevokedBy(ctx)
+	case apikey.FieldRolledAt:
+		return m.OldRolledAt(ctx)
+	case apikey.FieldReplacedBy:
+		return m.OldReplacedBy(ctx)
+	case apikey.FieldExpiresAt:
+		return m.OldExpiresAt(ctx)
 	}
 	return nil, fmt.Errorf("unknown APIKey field %s", name)
 }
@@ -967,6 +1226,41 @@ func (m *APIKeyMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetEnvironmentID(v)
 		return nil
+	case apikey.FieldCreatedBy:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedBy(v)
+		return nil
+	case apikey.FieldRevokedBy:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRevokedBy(v)
+		return nil
+	case apikey.FieldRolledAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRolledAt(v)
+		return nil
+	case apikey.FieldReplacedBy:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReplacedBy(v)
+		return nil
+	case apikey.FieldExpiresAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExpiresAt(v)
+		return nil
 	}
 	return fmt.Errorf("unknown APIKey field %s", name)
 }
@@ -1009,6 +1303,15 @@ func (m *APIKeyMutation) ClearedFields() []string {
 	if m.FieldCleared(apikey.FieldRevokedAt) {
 		fields = append(fields, apikey.FieldRevokedAt)
 	}
+	if m.FieldCleared(apikey.FieldRolledAt) {
+		fields = append(fields, apikey.FieldRolledAt)
+	}
+	if m.FieldCleared(apikey.FieldReplacedBy) {
+		fields = append(fields, apikey.FieldReplacedBy)
+	}
+	if m.FieldCleared(apikey.FieldExpiresAt) {
+		fields = append(fields, apikey.FieldExpiresAt)
+	}
 	return fields
 }
 
@@ -1031,6 +1334,15 @@ func (m *APIKeyMutation) ClearField(name string) error {
 		return nil
 	case apikey.FieldRevokedAt:
 		m.ClearRevokedAt()
+		return nil
+	case apikey.FieldRolledAt:
+		m.ClearRolledAt()
+		return nil
+	case apikey.FieldReplacedBy:
+		m.ClearReplacedBy()
+		return nil
+	case apikey.FieldExpiresAt:
+		m.ClearExpiresAt()
 		return nil
 	}
 	return fmt.Errorf("unknown APIKey nullable field %s", name)
@@ -1069,6 +1381,21 @@ func (m *APIKeyMutation) ResetField(name string) error {
 		return nil
 	case apikey.FieldEnvironmentID:
 		m.ResetEnvironmentID()
+		return nil
+	case apikey.FieldCreatedBy:
+		m.ResetCreatedBy()
+		return nil
+	case apikey.FieldRevokedBy:
+		m.ResetRevokedBy()
+		return nil
+	case apikey.FieldRolledAt:
+		m.ResetRolledAt()
+		return nil
+	case apikey.FieldReplacedBy:
+		m.ResetReplacedBy()
+		return nil
+	case apikey.FieldExpiresAt:
+		m.ResetExpiresAt()
 		return nil
 	}
 	return fmt.Errorf("unknown APIKey field %s", name)

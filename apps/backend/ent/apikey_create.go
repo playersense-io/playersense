@@ -134,6 +134,76 @@ func (_c *APIKeyCreate) SetEnvironmentID(v int) *APIKeyCreate {
 	return _c
 }
 
+// SetCreatedBy sets the "created_by" field.
+func (_c *APIKeyCreate) SetCreatedBy(v string) *APIKeyCreate {
+	_c.mutation.SetCreatedBy(v)
+	return _c
+}
+
+// SetNillableCreatedBy sets the "created_by" field if the given value is not nil.
+func (_c *APIKeyCreate) SetNillableCreatedBy(v *string) *APIKeyCreate {
+	if v != nil {
+		_c.SetCreatedBy(*v)
+	}
+	return _c
+}
+
+// SetRevokedBy sets the "revoked_by" field.
+func (_c *APIKeyCreate) SetRevokedBy(v string) *APIKeyCreate {
+	_c.mutation.SetRevokedBy(v)
+	return _c
+}
+
+// SetNillableRevokedBy sets the "revoked_by" field if the given value is not nil.
+func (_c *APIKeyCreate) SetNillableRevokedBy(v *string) *APIKeyCreate {
+	if v != nil {
+		_c.SetRevokedBy(*v)
+	}
+	return _c
+}
+
+// SetRolledAt sets the "rolled_at" field.
+func (_c *APIKeyCreate) SetRolledAt(v time.Time) *APIKeyCreate {
+	_c.mutation.SetRolledAt(v)
+	return _c
+}
+
+// SetNillableRolledAt sets the "rolled_at" field if the given value is not nil.
+func (_c *APIKeyCreate) SetNillableRolledAt(v *time.Time) *APIKeyCreate {
+	if v != nil {
+		_c.SetRolledAt(*v)
+	}
+	return _c
+}
+
+// SetReplacedBy sets the "replaced_by" field.
+func (_c *APIKeyCreate) SetReplacedBy(v uuid.UUID) *APIKeyCreate {
+	_c.mutation.SetReplacedBy(v)
+	return _c
+}
+
+// SetNillableReplacedBy sets the "replaced_by" field if the given value is not nil.
+func (_c *APIKeyCreate) SetNillableReplacedBy(v *uuid.UUID) *APIKeyCreate {
+	if v != nil {
+		_c.SetReplacedBy(*v)
+	}
+	return _c
+}
+
+// SetExpiresAt sets the "expires_at" field.
+func (_c *APIKeyCreate) SetExpiresAt(v time.Time) *APIKeyCreate {
+	_c.mutation.SetExpiresAt(v)
+	return _c
+}
+
+// SetNillableExpiresAt sets the "expires_at" field if the given value is not nil.
+func (_c *APIKeyCreate) SetNillableExpiresAt(v *time.Time) *APIKeyCreate {
+	if v != nil {
+		_c.SetExpiresAt(*v)
+	}
+	return _c
+}
+
 // SetID sets the "id" field.
 func (_c *APIKeyCreate) SetID(v int) *APIKeyCreate {
 	_c.mutation.SetID(v)
@@ -222,6 +292,14 @@ func (_c *APIKeyCreate) defaults() {
 		v := apikey.DefaultUpdatedAt()
 		_c.mutation.SetUpdatedAt(v)
 	}
+	if _, ok := _c.mutation.CreatedBy(); !ok {
+		v := apikey.DefaultCreatedBy
+		_c.mutation.SetCreatedBy(v)
+	}
+	if _, ok := _c.mutation.RevokedBy(); !ok {
+		v := apikey.DefaultRevokedBy
+		_c.mutation.SetRevokedBy(v)
+	}
 }
 
 // check runs all checks and user-defined validators on the builder.
@@ -266,6 +344,22 @@ func (_c *APIKeyCreate) check() error {
 	}
 	if _, ok := _c.mutation.EnvironmentID(); !ok {
 		return &ValidationError{Name: "environment_id", err: errors.New(`ent: missing required field "APIKey.environment_id"`)}
+	}
+	if _, ok := _c.mutation.CreatedBy(); !ok {
+		return &ValidationError{Name: "created_by", err: errors.New(`ent: missing required field "APIKey.created_by"`)}
+	}
+	if v, ok := _c.mutation.CreatedBy(); ok {
+		if err := apikey.CreatedByValidator(v); err != nil {
+			return &ValidationError{Name: "created_by", err: fmt.Errorf(`ent: validator failed for field "APIKey.created_by": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.RevokedBy(); !ok {
+		return &ValidationError{Name: "revoked_by", err: errors.New(`ent: missing required field "APIKey.revoked_by"`)}
+	}
+	if v, ok := _c.mutation.RevokedBy(); ok {
+		if err := apikey.RevokedByValidator(v); err != nil {
+			return &ValidationError{Name: "revoked_by", err: fmt.Errorf(`ent: validator failed for field "APIKey.revoked_by": %w`, err)}
+		}
 	}
 	if len(_c.mutation.EnvironmentIDs()) == 0 {
 		return &ValidationError{Name: "environment", err: errors.New(`ent: missing required edge "APIKey.environment"`)}
@@ -338,6 +432,26 @@ func (_c *APIKeyCreate) createSpec() (*APIKey, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.RevokedAt(); ok {
 		_spec.SetField(apikey.FieldRevokedAt, field.TypeTime, value)
 		_node.RevokedAt = &value
+	}
+	if value, ok := _c.mutation.CreatedBy(); ok {
+		_spec.SetField(apikey.FieldCreatedBy, field.TypeString, value)
+		_node.CreatedBy = value
+	}
+	if value, ok := _c.mutation.RevokedBy(); ok {
+		_spec.SetField(apikey.FieldRevokedBy, field.TypeString, value)
+		_node.RevokedBy = value
+	}
+	if value, ok := _c.mutation.RolledAt(); ok {
+		_spec.SetField(apikey.FieldRolledAt, field.TypeTime, value)
+		_node.RolledAt = &value
+	}
+	if value, ok := _c.mutation.ReplacedBy(); ok {
+		_spec.SetField(apikey.FieldReplacedBy, field.TypeUUID, value)
+		_node.ReplacedBy = &value
+	}
+	if value, ok := _c.mutation.ExpiresAt(); ok {
+		_spec.SetField(apikey.FieldExpiresAt, field.TypeTime, value)
+		_node.ExpiresAt = &value
 	}
 	if nodes := _c.mutation.EnvironmentIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
@@ -530,6 +644,72 @@ func (u *APIKeyUpsert) UpdateEnvironmentID() *APIKeyUpsert {
 	return u
 }
 
+// SetRevokedBy sets the "revoked_by" field.
+func (u *APIKeyUpsert) SetRevokedBy(v string) *APIKeyUpsert {
+	u.Set(apikey.FieldRevokedBy, v)
+	return u
+}
+
+// UpdateRevokedBy sets the "revoked_by" field to the value that was provided on create.
+func (u *APIKeyUpsert) UpdateRevokedBy() *APIKeyUpsert {
+	u.SetExcluded(apikey.FieldRevokedBy)
+	return u
+}
+
+// SetRolledAt sets the "rolled_at" field.
+func (u *APIKeyUpsert) SetRolledAt(v time.Time) *APIKeyUpsert {
+	u.Set(apikey.FieldRolledAt, v)
+	return u
+}
+
+// UpdateRolledAt sets the "rolled_at" field to the value that was provided on create.
+func (u *APIKeyUpsert) UpdateRolledAt() *APIKeyUpsert {
+	u.SetExcluded(apikey.FieldRolledAt)
+	return u
+}
+
+// ClearRolledAt clears the value of the "rolled_at" field.
+func (u *APIKeyUpsert) ClearRolledAt() *APIKeyUpsert {
+	u.SetNull(apikey.FieldRolledAt)
+	return u
+}
+
+// SetReplacedBy sets the "replaced_by" field.
+func (u *APIKeyUpsert) SetReplacedBy(v uuid.UUID) *APIKeyUpsert {
+	u.Set(apikey.FieldReplacedBy, v)
+	return u
+}
+
+// UpdateReplacedBy sets the "replaced_by" field to the value that was provided on create.
+func (u *APIKeyUpsert) UpdateReplacedBy() *APIKeyUpsert {
+	u.SetExcluded(apikey.FieldReplacedBy)
+	return u
+}
+
+// ClearReplacedBy clears the value of the "replaced_by" field.
+func (u *APIKeyUpsert) ClearReplacedBy() *APIKeyUpsert {
+	u.SetNull(apikey.FieldReplacedBy)
+	return u
+}
+
+// SetExpiresAt sets the "expires_at" field.
+func (u *APIKeyUpsert) SetExpiresAt(v time.Time) *APIKeyUpsert {
+	u.Set(apikey.FieldExpiresAt, v)
+	return u
+}
+
+// UpdateExpiresAt sets the "expires_at" field to the value that was provided on create.
+func (u *APIKeyUpsert) UpdateExpiresAt() *APIKeyUpsert {
+	u.SetExcluded(apikey.FieldExpiresAt)
+	return u
+}
+
+// ClearExpiresAt clears the value of the "expires_at" field.
+func (u *APIKeyUpsert) ClearExpiresAt() *APIKeyUpsert {
+	u.SetNull(apikey.FieldExpiresAt)
+	return u
+}
+
 // UpdateNewValues updates the mutable fields using the new values that were set on create except the ID field.
 // Using this option is equivalent to using:
 //
@@ -558,6 +738,9 @@ func (u *APIKeyUpsertOne) UpdateNewValues() *APIKeyUpsertOne {
 		}
 		if _, exists := u.create.mutation.PublicID(); exists {
 			s.SetIgnore(apikey.FieldPublicID)
+		}
+		if _, exists := u.create.mutation.CreatedBy(); exists {
+			s.SetIgnore(apikey.FieldCreatedBy)
 		}
 	}))
 	return u
@@ -692,6 +875,83 @@ func (u *APIKeyUpsertOne) SetEnvironmentID(v int) *APIKeyUpsertOne {
 func (u *APIKeyUpsertOne) UpdateEnvironmentID() *APIKeyUpsertOne {
 	return u.Update(func(s *APIKeyUpsert) {
 		s.UpdateEnvironmentID()
+	})
+}
+
+// SetRevokedBy sets the "revoked_by" field.
+func (u *APIKeyUpsertOne) SetRevokedBy(v string) *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.SetRevokedBy(v)
+	})
+}
+
+// UpdateRevokedBy sets the "revoked_by" field to the value that was provided on create.
+func (u *APIKeyUpsertOne) UpdateRevokedBy() *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.UpdateRevokedBy()
+	})
+}
+
+// SetRolledAt sets the "rolled_at" field.
+func (u *APIKeyUpsertOne) SetRolledAt(v time.Time) *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.SetRolledAt(v)
+	})
+}
+
+// UpdateRolledAt sets the "rolled_at" field to the value that was provided on create.
+func (u *APIKeyUpsertOne) UpdateRolledAt() *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.UpdateRolledAt()
+	})
+}
+
+// ClearRolledAt clears the value of the "rolled_at" field.
+func (u *APIKeyUpsertOne) ClearRolledAt() *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.ClearRolledAt()
+	})
+}
+
+// SetReplacedBy sets the "replaced_by" field.
+func (u *APIKeyUpsertOne) SetReplacedBy(v uuid.UUID) *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.SetReplacedBy(v)
+	})
+}
+
+// UpdateReplacedBy sets the "replaced_by" field to the value that was provided on create.
+func (u *APIKeyUpsertOne) UpdateReplacedBy() *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.UpdateReplacedBy()
+	})
+}
+
+// ClearReplacedBy clears the value of the "replaced_by" field.
+func (u *APIKeyUpsertOne) ClearReplacedBy() *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.ClearReplacedBy()
+	})
+}
+
+// SetExpiresAt sets the "expires_at" field.
+func (u *APIKeyUpsertOne) SetExpiresAt(v time.Time) *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.SetExpiresAt(v)
+	})
+}
+
+// UpdateExpiresAt sets the "expires_at" field to the value that was provided on create.
+func (u *APIKeyUpsertOne) UpdateExpiresAt() *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.UpdateExpiresAt()
+	})
+}
+
+// ClearExpiresAt clears the value of the "expires_at" field.
+func (u *APIKeyUpsertOne) ClearExpiresAt() *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.ClearExpiresAt()
 	})
 }
 
@@ -889,6 +1149,9 @@ func (u *APIKeyUpsertBulk) UpdateNewValues() *APIKeyUpsertBulk {
 			if _, exists := b.mutation.PublicID(); exists {
 				s.SetIgnore(apikey.FieldPublicID)
 			}
+			if _, exists := b.mutation.CreatedBy(); exists {
+				s.SetIgnore(apikey.FieldCreatedBy)
+			}
 		}
 	}))
 	return u
@@ -1023,6 +1286,83 @@ func (u *APIKeyUpsertBulk) SetEnvironmentID(v int) *APIKeyUpsertBulk {
 func (u *APIKeyUpsertBulk) UpdateEnvironmentID() *APIKeyUpsertBulk {
 	return u.Update(func(s *APIKeyUpsert) {
 		s.UpdateEnvironmentID()
+	})
+}
+
+// SetRevokedBy sets the "revoked_by" field.
+func (u *APIKeyUpsertBulk) SetRevokedBy(v string) *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.SetRevokedBy(v)
+	})
+}
+
+// UpdateRevokedBy sets the "revoked_by" field to the value that was provided on create.
+func (u *APIKeyUpsertBulk) UpdateRevokedBy() *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.UpdateRevokedBy()
+	})
+}
+
+// SetRolledAt sets the "rolled_at" field.
+func (u *APIKeyUpsertBulk) SetRolledAt(v time.Time) *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.SetRolledAt(v)
+	})
+}
+
+// UpdateRolledAt sets the "rolled_at" field to the value that was provided on create.
+func (u *APIKeyUpsertBulk) UpdateRolledAt() *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.UpdateRolledAt()
+	})
+}
+
+// ClearRolledAt clears the value of the "rolled_at" field.
+func (u *APIKeyUpsertBulk) ClearRolledAt() *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.ClearRolledAt()
+	})
+}
+
+// SetReplacedBy sets the "replaced_by" field.
+func (u *APIKeyUpsertBulk) SetReplacedBy(v uuid.UUID) *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.SetReplacedBy(v)
+	})
+}
+
+// UpdateReplacedBy sets the "replaced_by" field to the value that was provided on create.
+func (u *APIKeyUpsertBulk) UpdateReplacedBy() *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.UpdateReplacedBy()
+	})
+}
+
+// ClearReplacedBy clears the value of the "replaced_by" field.
+func (u *APIKeyUpsertBulk) ClearReplacedBy() *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.ClearReplacedBy()
+	})
+}
+
+// SetExpiresAt sets the "expires_at" field.
+func (u *APIKeyUpsertBulk) SetExpiresAt(v time.Time) *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.SetExpiresAt(v)
+	})
+}
+
+// UpdateExpiresAt sets the "expires_at" field to the value that was provided on create.
+func (u *APIKeyUpsertBulk) UpdateExpiresAt() *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.UpdateExpiresAt()
+	})
+}
+
+// ClearExpiresAt clears the value of the "expires_at" field.
+func (u *APIKeyUpsertBulk) ClearExpiresAt() *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.ClearExpiresAt()
 	})
 }
 

@@ -11,6 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/google/uuid"
 	"playersense.dev/backend/ent/apikey"
 	"playersense.dev/backend/ent/auditevent"
 	"playersense.dev/backend/ent/configversion"
@@ -122,6 +123,80 @@ func (_u *APIKeyUpdate) SetNillableEnvironmentID(v *int) *APIKeyUpdate {
 	if v != nil {
 		_u.SetEnvironmentID(*v)
 	}
+	return _u
+}
+
+// SetRevokedBy sets the "revoked_by" field.
+func (_u *APIKeyUpdate) SetRevokedBy(v string) *APIKeyUpdate {
+	_u.mutation.SetRevokedBy(v)
+	return _u
+}
+
+// SetNillableRevokedBy sets the "revoked_by" field if the given value is not nil.
+func (_u *APIKeyUpdate) SetNillableRevokedBy(v *string) *APIKeyUpdate {
+	if v != nil {
+		_u.SetRevokedBy(*v)
+	}
+	return _u
+}
+
+// SetRolledAt sets the "rolled_at" field.
+func (_u *APIKeyUpdate) SetRolledAt(v time.Time) *APIKeyUpdate {
+	_u.mutation.SetRolledAt(v)
+	return _u
+}
+
+// SetNillableRolledAt sets the "rolled_at" field if the given value is not nil.
+func (_u *APIKeyUpdate) SetNillableRolledAt(v *time.Time) *APIKeyUpdate {
+	if v != nil {
+		_u.SetRolledAt(*v)
+	}
+	return _u
+}
+
+// ClearRolledAt clears the value of the "rolled_at" field.
+func (_u *APIKeyUpdate) ClearRolledAt() *APIKeyUpdate {
+	_u.mutation.ClearRolledAt()
+	return _u
+}
+
+// SetReplacedBy sets the "replaced_by" field.
+func (_u *APIKeyUpdate) SetReplacedBy(v uuid.UUID) *APIKeyUpdate {
+	_u.mutation.SetReplacedBy(v)
+	return _u
+}
+
+// SetNillableReplacedBy sets the "replaced_by" field if the given value is not nil.
+func (_u *APIKeyUpdate) SetNillableReplacedBy(v *uuid.UUID) *APIKeyUpdate {
+	if v != nil {
+		_u.SetReplacedBy(*v)
+	}
+	return _u
+}
+
+// ClearReplacedBy clears the value of the "replaced_by" field.
+func (_u *APIKeyUpdate) ClearReplacedBy() *APIKeyUpdate {
+	_u.mutation.ClearReplacedBy()
+	return _u
+}
+
+// SetExpiresAt sets the "expires_at" field.
+func (_u *APIKeyUpdate) SetExpiresAt(v time.Time) *APIKeyUpdate {
+	_u.mutation.SetExpiresAt(v)
+	return _u
+}
+
+// SetNillableExpiresAt sets the "expires_at" field if the given value is not nil.
+func (_u *APIKeyUpdate) SetNillableExpiresAt(v *time.Time) *APIKeyUpdate {
+	if v != nil {
+		_u.SetExpiresAt(*v)
+	}
+	return _u
+}
+
+// ClearExpiresAt clears the value of the "expires_at" field.
+func (_u *APIKeyUpdate) ClearExpiresAt() *APIKeyUpdate {
+	_u.mutation.ClearExpiresAt()
 	return _u
 }
 
@@ -261,6 +336,11 @@ func (_u *APIKeyUpdate) check() error {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "APIKey.name": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.RevokedBy(); ok {
+		if err := apikey.RevokedByValidator(v); err != nil {
+			return &ValidationError{Name: "revoked_by", err: fmt.Errorf(`ent: validator failed for field "APIKey.revoked_by": %w`, err)}
+		}
+	}
 	if _u.mutation.EnvironmentCleared() && len(_u.mutation.EnvironmentIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "APIKey.environment"`)
 	}
@@ -302,6 +382,27 @@ func (_u *APIKeyUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.RevokedAtCleared() {
 		_spec.ClearField(apikey.FieldRevokedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.RevokedBy(); ok {
+		_spec.SetField(apikey.FieldRevokedBy, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.RolledAt(); ok {
+		_spec.SetField(apikey.FieldRolledAt, field.TypeTime, value)
+	}
+	if _u.mutation.RolledAtCleared() {
+		_spec.ClearField(apikey.FieldRolledAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.ReplacedBy(); ok {
+		_spec.SetField(apikey.FieldReplacedBy, field.TypeUUID, value)
+	}
+	if _u.mutation.ReplacedByCleared() {
+		_spec.ClearField(apikey.FieldReplacedBy, field.TypeUUID)
+	}
+	if value, ok := _u.mutation.ExpiresAt(); ok {
+		_spec.SetField(apikey.FieldExpiresAt, field.TypeTime, value)
+	}
+	if _u.mutation.ExpiresAtCleared() {
+		_spec.ClearField(apikey.FieldExpiresAt, field.TypeTime)
 	}
 	if _u.mutation.EnvironmentCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -536,6 +637,80 @@ func (_u *APIKeyUpdateOne) SetNillableEnvironmentID(v *int) *APIKeyUpdateOne {
 	return _u
 }
 
+// SetRevokedBy sets the "revoked_by" field.
+func (_u *APIKeyUpdateOne) SetRevokedBy(v string) *APIKeyUpdateOne {
+	_u.mutation.SetRevokedBy(v)
+	return _u
+}
+
+// SetNillableRevokedBy sets the "revoked_by" field if the given value is not nil.
+func (_u *APIKeyUpdateOne) SetNillableRevokedBy(v *string) *APIKeyUpdateOne {
+	if v != nil {
+		_u.SetRevokedBy(*v)
+	}
+	return _u
+}
+
+// SetRolledAt sets the "rolled_at" field.
+func (_u *APIKeyUpdateOne) SetRolledAt(v time.Time) *APIKeyUpdateOne {
+	_u.mutation.SetRolledAt(v)
+	return _u
+}
+
+// SetNillableRolledAt sets the "rolled_at" field if the given value is not nil.
+func (_u *APIKeyUpdateOne) SetNillableRolledAt(v *time.Time) *APIKeyUpdateOne {
+	if v != nil {
+		_u.SetRolledAt(*v)
+	}
+	return _u
+}
+
+// ClearRolledAt clears the value of the "rolled_at" field.
+func (_u *APIKeyUpdateOne) ClearRolledAt() *APIKeyUpdateOne {
+	_u.mutation.ClearRolledAt()
+	return _u
+}
+
+// SetReplacedBy sets the "replaced_by" field.
+func (_u *APIKeyUpdateOne) SetReplacedBy(v uuid.UUID) *APIKeyUpdateOne {
+	_u.mutation.SetReplacedBy(v)
+	return _u
+}
+
+// SetNillableReplacedBy sets the "replaced_by" field if the given value is not nil.
+func (_u *APIKeyUpdateOne) SetNillableReplacedBy(v *uuid.UUID) *APIKeyUpdateOne {
+	if v != nil {
+		_u.SetReplacedBy(*v)
+	}
+	return _u
+}
+
+// ClearReplacedBy clears the value of the "replaced_by" field.
+func (_u *APIKeyUpdateOne) ClearReplacedBy() *APIKeyUpdateOne {
+	_u.mutation.ClearReplacedBy()
+	return _u
+}
+
+// SetExpiresAt sets the "expires_at" field.
+func (_u *APIKeyUpdateOne) SetExpiresAt(v time.Time) *APIKeyUpdateOne {
+	_u.mutation.SetExpiresAt(v)
+	return _u
+}
+
+// SetNillableExpiresAt sets the "expires_at" field if the given value is not nil.
+func (_u *APIKeyUpdateOne) SetNillableExpiresAt(v *time.Time) *APIKeyUpdateOne {
+	if v != nil {
+		_u.SetExpiresAt(*v)
+	}
+	return _u
+}
+
+// ClearExpiresAt clears the value of the "expires_at" field.
+func (_u *APIKeyUpdateOne) ClearExpiresAt() *APIKeyUpdateOne {
+	_u.mutation.ClearExpiresAt()
+	return _u
+}
+
 // SetEnvironment sets the "environment" edge to the Environment entity.
 func (_u *APIKeyUpdateOne) SetEnvironment(v *Environment) *APIKeyUpdateOne {
 	return _u.SetEnvironmentID(v.ID)
@@ -685,6 +860,11 @@ func (_u *APIKeyUpdateOne) check() error {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "APIKey.name": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.RevokedBy(); ok {
+		if err := apikey.RevokedByValidator(v); err != nil {
+			return &ValidationError{Name: "revoked_by", err: fmt.Errorf(`ent: validator failed for field "APIKey.revoked_by": %w`, err)}
+		}
+	}
 	if _u.mutation.EnvironmentCleared() && len(_u.mutation.EnvironmentIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "APIKey.environment"`)
 	}
@@ -743,6 +923,27 @@ func (_u *APIKeyUpdateOne) sqlSave(ctx context.Context) (_node *APIKey, err erro
 	}
 	if _u.mutation.RevokedAtCleared() {
 		_spec.ClearField(apikey.FieldRevokedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.RevokedBy(); ok {
+		_spec.SetField(apikey.FieldRevokedBy, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.RolledAt(); ok {
+		_spec.SetField(apikey.FieldRolledAt, field.TypeTime, value)
+	}
+	if _u.mutation.RolledAtCleared() {
+		_spec.ClearField(apikey.FieldRolledAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.ReplacedBy(); ok {
+		_spec.SetField(apikey.FieldReplacedBy, field.TypeUUID, value)
+	}
+	if _u.mutation.ReplacedByCleared() {
+		_spec.ClearField(apikey.FieldReplacedBy, field.TypeUUID)
+	}
+	if value, ok := _u.mutation.ExpiresAt(); ok {
+		_spec.SetField(apikey.FieldExpiresAt, field.TypeTime, value)
+	}
+	if _u.mutation.ExpiresAtCleared() {
+		_spec.ClearField(apikey.FieldExpiresAt, field.TypeTime)
 	}
 	if _u.mutation.EnvironmentCleared() {
 		edge := &sqlgraph.EdgeSpec{

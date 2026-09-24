@@ -130,6 +130,16 @@ type APIKeyOut struct {
 	CreatedAt   time.Time  `json:"created_at"`
 	LastUsedAt  *time.Time `json:"last_used_at,omitzero"`
 	RevokedAt   *time.Time `json:"revoked_at,omitzero"`
+
+	CreatedBy  string     `json:"created_by,omitzero"`
+	RevokedBy  string     `json:"revoked_by,omitzero"`
+	RolledAt   *time.Time `json:"rolled_at,omitzero" doc:"When another key took its place"`
+	ReplacedBy *uuid.UUID `json:"replaced_by,omitzero" doc:"The key that took its place"`
+	ExpiresAt  *time.Time `json:"expires_at,omitzero" doc:"When a rolled key stops working"`
+
+	// Hourly is requests over the last 24 hours, an hour at a time, oldest first. Filled on the
+	// list, where the page draws it.
+	Hourly []int64 `json:"hourly,omitzero"`
 }
 
 // APIKeyListOut is a page of keys.
@@ -175,6 +185,55 @@ type RevokeAPIKeyIn struct {
 func (in *RevokeAPIKeyIn) Validate(v *muzak.Validation) {
 	v.String(&in.OrgSlug).Trim().Lower().Required().MaxLen(64)
 	v.String(&in.ProjectSlug).Trim().Lower().Required().MaxLen(64)
+}
+
+// RollAPIKeyIn replaces a key with a new one of its kind and environment.
+type RollAPIKeyIn struct {
+	OrgSlug     string    `path:"org"`
+	ProjectSlug string    `path:"project"`
+	KeyID       uuid.UUID `path:"key_id" doc:"The key to replace"`
+	GraceHours  int       `json:"grace_hours,omitzero" doc:"How long the old key keeps working, 0 to 168; 0 stops it at once"`
+}
+
+func (in *RollAPIKeyIn) Validate(v *muzak.Validation) {
+	v.String(&in.OrgSlug).Trim().Lower().Required().MaxLen(64)
+	v.String(&in.ProjectSlug).Trim().Lower().Required().MaxLen(64)
+	v.Number(&in.GraceHours).Min(0).Max(168)
+}
+
+// RolledAPIKeyOut is the new key, shown once, and the one it replaced.
+type RolledAPIKeyOut struct {
+	Key      APIKeyCreatedOut `json:"key"`
+	Replaced APIKeyOut        `json:"replaced"`
+}
+
+// KeyUsageParams reads one key's usage.
+type KeyUsageParams struct {
+	OrgSlug     string    `path:"org"`
+	ProjectSlug string    `path:"project"`
+	KeyID       uuid.UUID `path:"key_id"`
+	Hours       int       `query:"hours,omitzero" default:"24" doc:"Up to 48"`
+}
+
+func (in *KeyUsageParams) Validate(v *muzak.Validation) {
+	v.String(&in.OrgSlug).Trim().Lower().Required().MaxLen(64)
+	v.String(&in.ProjectSlug).Trim().Lower().Required().MaxLen(64)
+	v.Number(&in.Hours).Min(1).Max(48)
+}
+
+// KeyUsageOut is one key's requests by hour.
+type KeyUsageOut struct {
+	KeyID      uuid.UUID    `json:"key_id"`
+	From       time.Time    `json:"from" doc:"The first hour"`
+	Hours      []KeyHourOut `json:"hours"`
+	Total      int64        `json:"total"`
+	LastUsedAt *time.Time   `json:"last_used_at,omitzero"`
+}
+
+// KeyHourOut is one hour's requests.
+type KeyHourOut struct {
+	Hour     time.Time `json:"hour"`
+	Requests int64     `json:"requests"`
 }
 
 // ---- meta -------------------------------------------------------------------
