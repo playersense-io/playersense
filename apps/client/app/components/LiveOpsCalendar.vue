@@ -408,23 +408,24 @@ const clipped = (bar: Bar) => ({ start: bar.start < from.value, end: bar.end > w
         <div class="flex border-b border-line">
           <div class="w-11 flex-none" />
           <div :style="columns" class="grid flex-1">
-            <!-- A day is a button: choosing it starts a new event on it. -->
+            <!-- A day is a button: choosing it starts a new event on it, as its tooltip says. -->
             <button
               v-for="day in days"
               :key="day.at"
               :aria-label="`New event on ${new Date(day.at).toLocaleDateString('en', { weekday: 'long', month: 'long', day: 'numeric' })}`"
               :class="[day.weekend ? 'bg-warning/6' : '', day.today ? 'text-primary' : 'text-ink']"
-              class="group relative flex cursor-pointer items-baseline justify-center gap-1 border-l border-line/60 py-1.5 transition-colors duration-150 hover:bg-primary/8 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary"
+              class="flex cursor-pointer items-baseline justify-center gap-1 border-l border-line/60 py-1.5 transition-colors duration-150 hover:bg-primary/8 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary"
               type="button"
               @click="emit('create', day.at)"
             >
               <span v-if="day.month" class="text-[10px] font-semibold tracking-wide text-ink/50 uppercase">{{ day.month }}</span>
               <span :class="[compact ? 'text-xs' : 'text-sm', day.today ? 'rounded-full bg-primary px-1.5 text-on-primary' : '']" class="font-medium">{{ day.day }}</span>
               <span v-if="!compact && !day.month" class="text-[10px] tracking-wide text-ink/45 uppercase">{{ day.weekday }}</span>
-              <Icon
-                aria-hidden="true"
-                class="absolute top-0.5 right-0.5 text-xs text-primary opacity-0 transition-opacity duration-150 group-hover:opacity-100"
-                name="material-symbols:add"
+              <v-tooltip
+                :text="`Create an event on ${new Date(day.at).toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' })}`"
+                activator="parent"
+                location="top"
+                open-delay="300"
               />
             </button>
           </div>
