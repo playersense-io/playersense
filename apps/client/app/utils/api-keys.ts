@@ -67,7 +67,9 @@ export interface ApiKeyDef {
   revoked_by?: string
   /** Requests it made in the last 24 hours, an hour at a time: a sample figure. */
   hourly: number[]
-  /** The key that replaced it, when it was rolled: it keeps working until it is revoked. */
+  /** When it was rolled: a new key of the same kind and environment took its place, and it stopped working. */
+  rolled_at?: string | null
+  /** The key that took its place. */
   replaced_by?: string
 }
 
@@ -196,7 +198,7 @@ export function seedApiKeys(): ApiKeyDef[] {
     key('server-exporter', 'server', 'production', { name: 'Nightly export job (old)', created_at: ago(260 * DAY_MS), created_by: 'lena@starfall.games', last_used_at: ago(118 * DAY_MS), revoked_at: null, rate: 0 }),
     key('reporting-looker', 'reporting', 'production', { name: 'Looker dashboards', created_at: ago(96 * DAY_MS), created_by: 'lena@starfall.games', last_used_at: ago(52 * MINUTE_MS), revoked_at: null, rate: 44 }),
     key('reporting-notebook', 'reporting', 'production', { name: 'Data team notebooks', created_at: ago(33 * DAY_MS), created_by: 'ada@starfall.games', last_used_at: null, revoked_at: null, rate: 0 }),
-    { ...key('sdk-live-1', 'project', 'production', { name: 'Release builds (1.x)', created_at: ago(310 * DAY_MS), created_by: 'deniz@starfall.games', last_used_at: ago(2 * DAY_MS), revoked_at: null, rate: 90 }), replaced_by: releaseV2.id },
+    { ...key('sdk-live-1', 'project', 'production', { name: 'Release builds (1.x)', created_at: ago(310 * DAY_MS), created_by: 'deniz@starfall.games', last_used_at: ago(142 * DAY_MS), revoked_at: null, rate: 0 }), rolled_at: ago(142 * DAY_MS), replaced_by: releaseV2.id },
     key('server-leaked', 'server', 'production', { name: 'Contractor sandbox', created_at: ago(200 * DAY_MS), created_by: 'deniz@starfall.games', last_used_at: ago(71 * DAY_MS), revoked_at: ago(70 * DAY_MS), revoked_by: 'deniz@starfall.games', rate: 0 })
   ]
 }

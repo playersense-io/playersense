@@ -14,7 +14,9 @@ const time = computed(() => now.value.getTime())
 
 const DAY = 86_400_000
 
-const active = computed(() => keys.value.filter(key => !key.revoked_at))
+/* Revoked and rolled keys work no more, and are not listed. A key saved before rolling had its
+   own date is rolled when something replaced it. */
+const active = computed(() => keys.value.filter(key => !key.revoked_at && !key.rolled_at && !key.replaced_by))
 const countOf = (kind: ApiKeyKind) => active.value.filter(key => key.kind === kind).length
 const requestsOf = (key: ApiKeyDef) => key.hourly.reduce((sum, value) => sum + value, 0)
 
@@ -53,11 +55,6 @@ interface Finding {
 const findings = computed<Finding[]>(() => {
   const out: Finding[] = []
   for (const key of active.value) {
-    const replacement = key.replaced_by ? keys.value.find(entry => entry.id === key.replaced_by) : null
-    if (replacement && !replacement.revoked_at) {
-      out.push({ key, icon: 'material-symbols:autorenew', text: `${key.name} was replaced by ${replacement.name} and still works. It was last used ${key.last_used_at ? relativeWords(Date.parse(key.last_used_at), time.value) : 'never'}: revoke it once nothing uses it.` })
-      continue
-    }
     const age = time.value - Date.parse(key.created_at)
     if (!key.last_used_at && age > 14 * DAY) {
       out.push({ key, icon: 'material-symbols:schedule-outline', text: `${key.name} was made ${relativeWords(Date.parse(key.created_at), time.value)} and has never been used. A key nobody uses is only a key somebody can leak.` })
@@ -249,7 +246,6 @@ function confirmRevoke() {
             <span class="flex min-w-0 flex-col">
               <span class="flex items-center gap-2">
                 <span class="truncate text-[13px] text-ink">{{ item.name }}</span>
-                <span v-if="item.replaced_by" class="rounded-full bg-warning/12 px-1.5 text-[10px] leading-4 font-medium text-warning">Replaced</span>
               </span>
               <span class="flex items-center gap-1">
                 <span class="truncate font-mono text-[11px] text-ink/45">{{ item.public_id }}</span>

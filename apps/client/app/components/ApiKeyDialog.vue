@@ -3,8 +3,8 @@
 // its environment and a name. Then the key itself, shown this once, with where it goes and
 // how: only a digest of its private half is kept, so nobody can show it again, us included.
 //
-// Rolling a key opens the same dialog with the old key's kind, environment and name; the
-// old key keeps working beside the new one until it is revoked.
+// Rolling a key opens the same dialog with the old key's kind, environment and name, and the
+// new key takes its place: the old one stops working the moment the new one is made.
 const props = defineProps<{
   /** The kind to start on, from a kind's own Create button. */
   kind?: ApiKeyKind
@@ -79,7 +79,7 @@ const ids = { name: useId() }
           </h2>
           <p class="m-0 text-xs text-ink/60">
             <template v-if="replaces">
-              A new key of the same kind and environment. The old one keeps working until you revoke it: deploy the new one first.
+              A new key of the same kind and environment takes its place. {{ replaces.name }} stops working the moment the new one is made.
             </template>
             <template v-else>
               A key is one kind in one environment. Make one for each place it goes, so each can be revoked alone.
@@ -89,6 +89,10 @@ const ids = { name: useId() }
 
         <div class="overflow-y-auto">
           <form class="flex flex-col gap-5 p-5" @submit.prevent="submit">
+            <p v-if="replaces && replaces.kind === 'project'" class="m-0 flex items-start gap-2 rounded-(--ps-radius) bg-warning/8 px-3 py-2.5 text-xs leading-5 text-ink/80 ring-1 ring-warning/20 ring-inset">
+              <Icon aria-hidden="true" class="mt-0.5 flex-none text-sm text-warning" name="material-symbols:warning-outline" />
+              <span>Builds already out carry {{ replaces.name }}. Rolled, it stops working for them at once: they send no events and fetch no config until players update to a build with the new key.</span>
+            </p>
             <div class="flex flex-col gap-1.5">
               <span class="text-xs font-medium text-ink">Kind</span>
               <ChoiceList
@@ -202,7 +206,7 @@ const ids = { name: useId() }
             </div>
 
             <p v-if="replaces" class="m-0 text-[11px] leading-4 text-ink/55">
-              {{ replaces.name }} still works. Once the new key is deployed and in use, revoke the old one from the list: it is marked there until you do.
+              {{ replaces.name }} was rolled and no longer works. Put the new key wherever the old one was.
             </p>
           </div>
         </div>

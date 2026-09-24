@@ -40,7 +40,9 @@ export function useApiKeys() {
       revoked_at: null,
       hourly: Array.from({ length: 24 }, () => 0)
     }
-    stored.value = [key, ...keys.value.map(entry => (entry.id === replaces ? { ...entry, replaced_by: key.id } : entry))]
+    /* Rolling retires the key it replaces: it stops working the moment the new one exists. */
+    const now = new Date().toISOString()
+    stored.value = [key, ...keys.value.map(entry => (entry.id === replaces ? { ...entry, rolled_at: now, replaced_by: key.id } : entry))]
     return { key, secret }
   }
 
