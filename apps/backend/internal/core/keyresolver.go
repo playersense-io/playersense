@@ -151,7 +151,13 @@ func (r *KeyResolver) EvictPublicID(ctx context.Context, publicID string, ttl ti
 }
 
 func (r *KeyResolver) tombstoneKey(publicID string) string {
-	return r.cache.Key("apikey", "revoked", publicID)
+	return RevokedKey(r.cache, publicID)
+}
+
+// RevokedKey is where a revoked key's tombstone lives, for a process that revokes keys without a
+// resolver of its own: the worker, when it carries out a project's deletion.
+func RevokedKey(cache *valkey.Client, publicID string) string {
+	return cache.Key("apikey", "revoked", publicID)
 }
 
 func (r *KeyResolver) readLocal(cacheKey string) (localEntry, bool) {

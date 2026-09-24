@@ -86,6 +86,41 @@ func RetentionDays(v uint16) predicate.Project {
 	return predicate.Project(sql.FieldEQ(FieldRetentionDays, v))
 }
 
+// RetentionChangedAt applies equality check predicate on the "retention_changed_at" field. It's identical to RetentionChangedAtEQ.
+func RetentionChangedAt(v time.Time) predicate.Project {
+	return predicate.Project(sql.FieldEQ(FieldRetentionChangedAt, v))
+}
+
+// RetentionPurgeUntil applies equality check predicate on the "retention_purge_until" field. It's identical to RetentionPurgeUntilEQ.
+func RetentionPurgeUntil(v time.Time) predicate.Project {
+	return predicate.Project(sql.FieldEQ(FieldRetentionPurgeUntil, v))
+}
+
+// RetentionPurgedAt applies equality check predicate on the "retention_purged_at" field. It's identical to RetentionPurgedAtEQ.
+func RetentionPurgedAt(v time.Time) predicate.Project {
+	return predicate.Project(sql.FieldEQ(FieldRetentionPurgedAt, v))
+}
+
+// DeletionAt applies equality check predicate on the "deletion_at" field. It's identical to DeletionAtEQ.
+func DeletionAt(v time.Time) predicate.Project {
+	return predicate.Project(sql.FieldEQ(FieldDeletionAt, v))
+}
+
+// DeletionRequestedBy applies equality check predicate on the "deletion_requested_by" field. It's identical to DeletionRequestedByEQ.
+func DeletionRequestedBy(v string) predicate.Project {
+	return predicate.Project(sql.FieldEQ(FieldDeletionRequestedBy, v))
+}
+
+// DeletedAt applies equality check predicate on the "deleted_at" field. It's identical to DeletedAtEQ.
+func DeletedAt(v time.Time) predicate.Project {
+	return predicate.Project(sql.FieldEQ(FieldDeletedAt, v))
+}
+
+// DeletionPurgedAt applies equality check predicate on the "deletion_purged_at" field. It's identical to DeletionPurgedAtEQ.
+func DeletionPurgedAt(v time.Time) predicate.Project {
+	return predicate.Project(sql.FieldEQ(FieldDeletionPurgedAt, v))
+}
+
 // OrganizationID applies equality check predicate on the "organization_id" field. It's identical to OrganizationIDEQ.
 func OrganizationID(v int) predicate.Project {
 	return predicate.Project(sql.FieldEQ(FieldOrganizationID, v))
@@ -399,6 +434,371 @@ func RetentionDaysLT(v uint16) predicate.Project {
 // RetentionDaysLTE applies the LTE predicate on the "retention_days" field.
 func RetentionDaysLTE(v uint16) predicate.Project {
 	return predicate.Project(sql.FieldLTE(FieldRetentionDays, v))
+}
+
+// RetentionChangedAtEQ applies the EQ predicate on the "retention_changed_at" field.
+func RetentionChangedAtEQ(v time.Time) predicate.Project {
+	return predicate.Project(sql.FieldEQ(FieldRetentionChangedAt, v))
+}
+
+// RetentionChangedAtNEQ applies the NEQ predicate on the "retention_changed_at" field.
+func RetentionChangedAtNEQ(v time.Time) predicate.Project {
+	return predicate.Project(sql.FieldNEQ(FieldRetentionChangedAt, v))
+}
+
+// RetentionChangedAtIn applies the In predicate on the "retention_changed_at" field.
+func RetentionChangedAtIn(vs ...time.Time) predicate.Project {
+	return predicate.Project(sql.FieldIn(FieldRetentionChangedAt, vs...))
+}
+
+// RetentionChangedAtNotIn applies the NotIn predicate on the "retention_changed_at" field.
+func RetentionChangedAtNotIn(vs ...time.Time) predicate.Project {
+	return predicate.Project(sql.FieldNotIn(FieldRetentionChangedAt, vs...))
+}
+
+// RetentionChangedAtGT applies the GT predicate on the "retention_changed_at" field.
+func RetentionChangedAtGT(v time.Time) predicate.Project {
+	return predicate.Project(sql.FieldGT(FieldRetentionChangedAt, v))
+}
+
+// RetentionChangedAtGTE applies the GTE predicate on the "retention_changed_at" field.
+func RetentionChangedAtGTE(v time.Time) predicate.Project {
+	return predicate.Project(sql.FieldGTE(FieldRetentionChangedAt, v))
+}
+
+// RetentionChangedAtLT applies the LT predicate on the "retention_changed_at" field.
+func RetentionChangedAtLT(v time.Time) predicate.Project {
+	return predicate.Project(sql.FieldLT(FieldRetentionChangedAt, v))
+}
+
+// RetentionChangedAtLTE applies the LTE predicate on the "retention_changed_at" field.
+func RetentionChangedAtLTE(v time.Time) predicate.Project {
+	return predicate.Project(sql.FieldLTE(FieldRetentionChangedAt, v))
+}
+
+// RetentionChangedAtIsNil applies the IsNil predicate on the "retention_changed_at" field.
+func RetentionChangedAtIsNil() predicate.Project {
+	return predicate.Project(sql.FieldIsNull(FieldRetentionChangedAt))
+}
+
+// RetentionChangedAtNotNil applies the NotNil predicate on the "retention_changed_at" field.
+func RetentionChangedAtNotNil() predicate.Project {
+	return predicate.Project(sql.FieldNotNull(FieldRetentionChangedAt))
+}
+
+// RetentionPurgeUntilEQ applies the EQ predicate on the "retention_purge_until" field.
+func RetentionPurgeUntilEQ(v time.Time) predicate.Project {
+	return predicate.Project(sql.FieldEQ(FieldRetentionPurgeUntil, v))
+}
+
+// RetentionPurgeUntilNEQ applies the NEQ predicate on the "retention_purge_until" field.
+func RetentionPurgeUntilNEQ(v time.Time) predicate.Project {
+	return predicate.Project(sql.FieldNEQ(FieldRetentionPurgeUntil, v))
+}
+
+// RetentionPurgeUntilIn applies the In predicate on the "retention_purge_until" field.
+func RetentionPurgeUntilIn(vs ...time.Time) predicate.Project {
+	return predicate.Project(sql.FieldIn(FieldRetentionPurgeUntil, vs...))
+}
+
+// RetentionPurgeUntilNotIn applies the NotIn predicate on the "retention_purge_until" field.
+func RetentionPurgeUntilNotIn(vs ...time.Time) predicate.Project {
+	return predicate.Project(sql.FieldNotIn(FieldRetentionPurgeUntil, vs...))
+}
+
+// RetentionPurgeUntilGT applies the GT predicate on the "retention_purge_until" field.
+func RetentionPurgeUntilGT(v time.Time) predicate.Project {
+	return predicate.Project(sql.FieldGT(FieldRetentionPurgeUntil, v))
+}
+
+// RetentionPurgeUntilGTE applies the GTE predicate on the "retention_purge_until" field.
+func RetentionPurgeUntilGTE(v time.Time) predicate.Project {
+	return predicate.Project(sql.FieldGTE(FieldRetentionPurgeUntil, v))
+}
+
+// RetentionPurgeUntilLT applies the LT predicate on the "retention_purge_until" field.
+func RetentionPurgeUntilLT(v time.Time) predicate.Project {
+	return predicate.Project(sql.FieldLT(FieldRetentionPurgeUntil, v))
+}
+
+// RetentionPurgeUntilLTE applies the LTE predicate on the "retention_purge_until" field.
+func RetentionPurgeUntilLTE(v time.Time) predicate.Project {
+	return predicate.Project(sql.FieldLTE(FieldRetentionPurgeUntil, v))
+}
+
+// RetentionPurgeUntilIsNil applies the IsNil predicate on the "retention_purge_until" field.
+func RetentionPurgeUntilIsNil() predicate.Project {
+	return predicate.Project(sql.FieldIsNull(FieldRetentionPurgeUntil))
+}
+
+// RetentionPurgeUntilNotNil applies the NotNil predicate on the "retention_purge_until" field.
+func RetentionPurgeUntilNotNil() predicate.Project {
+	return predicate.Project(sql.FieldNotNull(FieldRetentionPurgeUntil))
+}
+
+// RetentionPurgedAtEQ applies the EQ predicate on the "retention_purged_at" field.
+func RetentionPurgedAtEQ(v time.Time) predicate.Project {
+	return predicate.Project(sql.FieldEQ(FieldRetentionPurgedAt, v))
+}
+
+// RetentionPurgedAtNEQ applies the NEQ predicate on the "retention_purged_at" field.
+func RetentionPurgedAtNEQ(v time.Time) predicate.Project {
+	return predicate.Project(sql.FieldNEQ(FieldRetentionPurgedAt, v))
+}
+
+// RetentionPurgedAtIn applies the In predicate on the "retention_purged_at" field.
+func RetentionPurgedAtIn(vs ...time.Time) predicate.Project {
+	return predicate.Project(sql.FieldIn(FieldRetentionPurgedAt, vs...))
+}
+
+// RetentionPurgedAtNotIn applies the NotIn predicate on the "retention_purged_at" field.
+func RetentionPurgedAtNotIn(vs ...time.Time) predicate.Project {
+	return predicate.Project(sql.FieldNotIn(FieldRetentionPurgedAt, vs...))
+}
+
+// RetentionPurgedAtGT applies the GT predicate on the "retention_purged_at" field.
+func RetentionPurgedAtGT(v time.Time) predicate.Project {
+	return predicate.Project(sql.FieldGT(FieldRetentionPurgedAt, v))
+}
+
+// RetentionPurgedAtGTE applies the GTE predicate on the "retention_purged_at" field.
+func RetentionPurgedAtGTE(v time.Time) predicate.Project {
+	return predicate.Project(sql.FieldGTE(FieldRetentionPurgedAt, v))
+}
+
+// RetentionPurgedAtLT applies the LT predicate on the "retention_purged_at" field.
+func RetentionPurgedAtLT(v time.Time) predicate.Project {
+	return predicate.Project(sql.FieldLT(FieldRetentionPurgedAt, v))
+}
+
+// RetentionPurgedAtLTE applies the LTE predicate on the "retention_purged_at" field.
+func RetentionPurgedAtLTE(v time.Time) predicate.Project {
+	return predicate.Project(sql.FieldLTE(FieldRetentionPurgedAt, v))
+}
+
+// RetentionPurgedAtIsNil applies the IsNil predicate on the "retention_purged_at" field.
+func RetentionPurgedAtIsNil() predicate.Project {
+	return predicate.Project(sql.FieldIsNull(FieldRetentionPurgedAt))
+}
+
+// RetentionPurgedAtNotNil applies the NotNil predicate on the "retention_purged_at" field.
+func RetentionPurgedAtNotNil() predicate.Project {
+	return predicate.Project(sql.FieldNotNull(FieldRetentionPurgedAt))
+}
+
+// DeletionAtEQ applies the EQ predicate on the "deletion_at" field.
+func DeletionAtEQ(v time.Time) predicate.Project {
+	return predicate.Project(sql.FieldEQ(FieldDeletionAt, v))
+}
+
+// DeletionAtNEQ applies the NEQ predicate on the "deletion_at" field.
+func DeletionAtNEQ(v time.Time) predicate.Project {
+	return predicate.Project(sql.FieldNEQ(FieldDeletionAt, v))
+}
+
+// DeletionAtIn applies the In predicate on the "deletion_at" field.
+func DeletionAtIn(vs ...time.Time) predicate.Project {
+	return predicate.Project(sql.FieldIn(FieldDeletionAt, vs...))
+}
+
+// DeletionAtNotIn applies the NotIn predicate on the "deletion_at" field.
+func DeletionAtNotIn(vs ...time.Time) predicate.Project {
+	return predicate.Project(sql.FieldNotIn(FieldDeletionAt, vs...))
+}
+
+// DeletionAtGT applies the GT predicate on the "deletion_at" field.
+func DeletionAtGT(v time.Time) predicate.Project {
+	return predicate.Project(sql.FieldGT(FieldDeletionAt, v))
+}
+
+// DeletionAtGTE applies the GTE predicate on the "deletion_at" field.
+func DeletionAtGTE(v time.Time) predicate.Project {
+	return predicate.Project(sql.FieldGTE(FieldDeletionAt, v))
+}
+
+// DeletionAtLT applies the LT predicate on the "deletion_at" field.
+func DeletionAtLT(v time.Time) predicate.Project {
+	return predicate.Project(sql.FieldLT(FieldDeletionAt, v))
+}
+
+// DeletionAtLTE applies the LTE predicate on the "deletion_at" field.
+func DeletionAtLTE(v time.Time) predicate.Project {
+	return predicate.Project(sql.FieldLTE(FieldDeletionAt, v))
+}
+
+// DeletionAtIsNil applies the IsNil predicate on the "deletion_at" field.
+func DeletionAtIsNil() predicate.Project {
+	return predicate.Project(sql.FieldIsNull(FieldDeletionAt))
+}
+
+// DeletionAtNotNil applies the NotNil predicate on the "deletion_at" field.
+func DeletionAtNotNil() predicate.Project {
+	return predicate.Project(sql.FieldNotNull(FieldDeletionAt))
+}
+
+// DeletionRequestedByEQ applies the EQ predicate on the "deletion_requested_by" field.
+func DeletionRequestedByEQ(v string) predicate.Project {
+	return predicate.Project(sql.FieldEQ(FieldDeletionRequestedBy, v))
+}
+
+// DeletionRequestedByNEQ applies the NEQ predicate on the "deletion_requested_by" field.
+func DeletionRequestedByNEQ(v string) predicate.Project {
+	return predicate.Project(sql.FieldNEQ(FieldDeletionRequestedBy, v))
+}
+
+// DeletionRequestedByIn applies the In predicate on the "deletion_requested_by" field.
+func DeletionRequestedByIn(vs ...string) predicate.Project {
+	return predicate.Project(sql.FieldIn(FieldDeletionRequestedBy, vs...))
+}
+
+// DeletionRequestedByNotIn applies the NotIn predicate on the "deletion_requested_by" field.
+func DeletionRequestedByNotIn(vs ...string) predicate.Project {
+	return predicate.Project(sql.FieldNotIn(FieldDeletionRequestedBy, vs...))
+}
+
+// DeletionRequestedByGT applies the GT predicate on the "deletion_requested_by" field.
+func DeletionRequestedByGT(v string) predicate.Project {
+	return predicate.Project(sql.FieldGT(FieldDeletionRequestedBy, v))
+}
+
+// DeletionRequestedByGTE applies the GTE predicate on the "deletion_requested_by" field.
+func DeletionRequestedByGTE(v string) predicate.Project {
+	return predicate.Project(sql.FieldGTE(FieldDeletionRequestedBy, v))
+}
+
+// DeletionRequestedByLT applies the LT predicate on the "deletion_requested_by" field.
+func DeletionRequestedByLT(v string) predicate.Project {
+	return predicate.Project(sql.FieldLT(FieldDeletionRequestedBy, v))
+}
+
+// DeletionRequestedByLTE applies the LTE predicate on the "deletion_requested_by" field.
+func DeletionRequestedByLTE(v string) predicate.Project {
+	return predicate.Project(sql.FieldLTE(FieldDeletionRequestedBy, v))
+}
+
+// DeletionRequestedByContains applies the Contains predicate on the "deletion_requested_by" field.
+func DeletionRequestedByContains(v string) predicate.Project {
+	return predicate.Project(sql.FieldContains(FieldDeletionRequestedBy, v))
+}
+
+// DeletionRequestedByHasPrefix applies the HasPrefix predicate on the "deletion_requested_by" field.
+func DeletionRequestedByHasPrefix(v string) predicate.Project {
+	return predicate.Project(sql.FieldHasPrefix(FieldDeletionRequestedBy, v))
+}
+
+// DeletionRequestedByHasSuffix applies the HasSuffix predicate on the "deletion_requested_by" field.
+func DeletionRequestedByHasSuffix(v string) predicate.Project {
+	return predicate.Project(sql.FieldHasSuffix(FieldDeletionRequestedBy, v))
+}
+
+// DeletionRequestedByEqualFold applies the EqualFold predicate on the "deletion_requested_by" field.
+func DeletionRequestedByEqualFold(v string) predicate.Project {
+	return predicate.Project(sql.FieldEqualFold(FieldDeletionRequestedBy, v))
+}
+
+// DeletionRequestedByContainsFold applies the ContainsFold predicate on the "deletion_requested_by" field.
+func DeletionRequestedByContainsFold(v string) predicate.Project {
+	return predicate.Project(sql.FieldContainsFold(FieldDeletionRequestedBy, v))
+}
+
+// DeletedAtEQ applies the EQ predicate on the "deleted_at" field.
+func DeletedAtEQ(v time.Time) predicate.Project {
+	return predicate.Project(sql.FieldEQ(FieldDeletedAt, v))
+}
+
+// DeletedAtNEQ applies the NEQ predicate on the "deleted_at" field.
+func DeletedAtNEQ(v time.Time) predicate.Project {
+	return predicate.Project(sql.FieldNEQ(FieldDeletedAt, v))
+}
+
+// DeletedAtIn applies the In predicate on the "deleted_at" field.
+func DeletedAtIn(vs ...time.Time) predicate.Project {
+	return predicate.Project(sql.FieldIn(FieldDeletedAt, vs...))
+}
+
+// DeletedAtNotIn applies the NotIn predicate on the "deleted_at" field.
+func DeletedAtNotIn(vs ...time.Time) predicate.Project {
+	return predicate.Project(sql.FieldNotIn(FieldDeletedAt, vs...))
+}
+
+// DeletedAtGT applies the GT predicate on the "deleted_at" field.
+func DeletedAtGT(v time.Time) predicate.Project {
+	return predicate.Project(sql.FieldGT(FieldDeletedAt, v))
+}
+
+// DeletedAtGTE applies the GTE predicate on the "deleted_at" field.
+func DeletedAtGTE(v time.Time) predicate.Project {
+	return predicate.Project(sql.FieldGTE(FieldDeletedAt, v))
+}
+
+// DeletedAtLT applies the LT predicate on the "deleted_at" field.
+func DeletedAtLT(v time.Time) predicate.Project {
+	return predicate.Project(sql.FieldLT(FieldDeletedAt, v))
+}
+
+// DeletedAtLTE applies the LTE predicate on the "deleted_at" field.
+func DeletedAtLTE(v time.Time) predicate.Project {
+	return predicate.Project(sql.FieldLTE(FieldDeletedAt, v))
+}
+
+// DeletedAtIsNil applies the IsNil predicate on the "deleted_at" field.
+func DeletedAtIsNil() predicate.Project {
+	return predicate.Project(sql.FieldIsNull(FieldDeletedAt))
+}
+
+// DeletedAtNotNil applies the NotNil predicate on the "deleted_at" field.
+func DeletedAtNotNil() predicate.Project {
+	return predicate.Project(sql.FieldNotNull(FieldDeletedAt))
+}
+
+// DeletionPurgedAtEQ applies the EQ predicate on the "deletion_purged_at" field.
+func DeletionPurgedAtEQ(v time.Time) predicate.Project {
+	return predicate.Project(sql.FieldEQ(FieldDeletionPurgedAt, v))
+}
+
+// DeletionPurgedAtNEQ applies the NEQ predicate on the "deletion_purged_at" field.
+func DeletionPurgedAtNEQ(v time.Time) predicate.Project {
+	return predicate.Project(sql.FieldNEQ(FieldDeletionPurgedAt, v))
+}
+
+// DeletionPurgedAtIn applies the In predicate on the "deletion_purged_at" field.
+func DeletionPurgedAtIn(vs ...time.Time) predicate.Project {
+	return predicate.Project(sql.FieldIn(FieldDeletionPurgedAt, vs...))
+}
+
+// DeletionPurgedAtNotIn applies the NotIn predicate on the "deletion_purged_at" field.
+func DeletionPurgedAtNotIn(vs ...time.Time) predicate.Project {
+	return predicate.Project(sql.FieldNotIn(FieldDeletionPurgedAt, vs...))
+}
+
+// DeletionPurgedAtGT applies the GT predicate on the "deletion_purged_at" field.
+func DeletionPurgedAtGT(v time.Time) predicate.Project {
+	return predicate.Project(sql.FieldGT(FieldDeletionPurgedAt, v))
+}
+
+// DeletionPurgedAtGTE applies the GTE predicate on the "deletion_purged_at" field.
+func DeletionPurgedAtGTE(v time.Time) predicate.Project {
+	return predicate.Project(sql.FieldGTE(FieldDeletionPurgedAt, v))
+}
+
+// DeletionPurgedAtLT applies the LT predicate on the "deletion_purged_at" field.
+func DeletionPurgedAtLT(v time.Time) predicate.Project {
+	return predicate.Project(sql.FieldLT(FieldDeletionPurgedAt, v))
+}
+
+// DeletionPurgedAtLTE applies the LTE predicate on the "deletion_purged_at" field.
+func DeletionPurgedAtLTE(v time.Time) predicate.Project {
+	return predicate.Project(sql.FieldLTE(FieldDeletionPurgedAt, v))
+}
+
+// DeletionPurgedAtIsNil applies the IsNil predicate on the "deletion_purged_at" field.
+func DeletionPurgedAtIsNil() predicate.Project {
+	return predicate.Project(sql.FieldIsNull(FieldDeletionPurgedAt))
+}
+
+// DeletionPurgedAtNotNil applies the NotNil predicate on the "deletion_purged_at" field.
+func DeletionPurgedAtNotNil() predicate.Project {
+	return predicate.Project(sql.FieldNotNull(FieldDeletionPurgedAt))
 }
 
 // OrganizationIDEQ applies the EQ predicate on the "organization_id" field.

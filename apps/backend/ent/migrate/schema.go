@@ -1003,6 +1003,13 @@ var (
 		{Name: "slug", Type: field.TypeString, Size: 64, Comment: "class=none"},
 		{Name: "policy_tier", Type: field.TypeEnum, Comment: "class=none", Enums: []string{"standard", "child_directed", "kids_strict"}, Default: "standard"},
 		{Name: "retention_days", Type: field.TypeUint16, Comment: "class=none", Default: 30},
+		{Name: "retention_changed_at", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
+		{Name: "retention_purge_until", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
+		{Name: "retention_purged_at", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
+		{Name: "deletion_at", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
+		{Name: "deletion_requested_by", Type: field.TypeString, Size: 254, Comment: "class=none", Default: ""},
+		{Name: "deleted_at", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
+		{Name: "deletion_purged_at", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
 		{Name: "organization_id", Type: field.TypeInt, Comment: "class=none"},
 	}
 	// ProjectsTable holds the schema information for the "projects" table.
@@ -1013,7 +1020,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "projects_organizations_projects",
-				Columns:    []*schema.Column{ProjectsColumns[8]},
+				Columns:    []*schema.Column{ProjectsColumns[15]},
 				RefColumns: []*schema.Column{OrganizationsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -1022,7 +1029,7 @@ var (
 			{
 				Name:    "project_slug_organization_id",
 				Unique:  true,
-				Columns: []*schema.Column{ProjectsColumns[5], ProjectsColumns[8]},
+				Columns: []*schema.Column{ProjectsColumns[5], ProjectsColumns[15]},
 			},
 		},
 	}

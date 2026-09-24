@@ -35,6 +35,30 @@ func (Project) Fields() []ent.Field {
 		// Raw retention, from the discrete tiers §24 defines.
 		field.Uint16("retention_days").Default(30).Comment(dataclass.None),
 
+		// When the tier last changed. Ingestion stamps the tier on every row it writes, so a
+		// change reaches new rows as the key cache turns over (minutes), and rows already
+		// written keep the tier they were stamped with.
+		field.Time("retention_changed_at").Optional().Nillable().Comment(dataclass.None),
+
+		// A lowered tier is enforced on rows already written, too: the worker deletes raw rows
+		// older than it, a pass a day, until retention_purge_until, after which no row stamped
+		// with the old tier can remain. Nil when there is nothing to enforce.
+		field.Time("retention_purge_until").Optional().Nillable().Comment(dataclass.None),
+		field.Time("retention_purged_at").Optional().Nillable().Comment(dataclass.None),
+
+		// Deletion asked for: the project goes at this moment, and can be kept until then.
+		// Thirty days, because a deletion is not undoable and the person who asked is not
+		// always the person who would have said no.
+		field.Time("deletion_at").Optional().Nillable().Comment(dataclass.None),
+		field.String("deletion_requested_by").MaxLen(254).Default("").Comment(dataclass.None),
+
+		// When the worker carried the deletion out: keys revoked, analytics and archive gone.
+		// The row stays, because usage and invoices name it.
+		field.Time("deleted_at").Optional().Nillable().Comment(dataclass.None),
+		// And when its data went: an hour after deleted_at, so batches already queued when the
+		// keys were revoked have landed and go with the rest.
+		field.Time("deletion_purged_at").Optional().Nillable().Comment(dataclass.None),
+
 		field.Int("organization_id").Comment(dataclass.None),
 	}
 }

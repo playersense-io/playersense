@@ -58,7 +58,11 @@ type Action string
 const (
 	OrganizationCreated Action = "organization.create"
 
-	ProjectCreated Action = "project.create"
+	ProjectCreated           Action = "project.create"
+	ProjectUpdated           Action = "project.update"
+	RetentionSet             Action = "project.retention"
+	ProjectDeletionScheduled Action = "project.delete"
+	ProjectDeletionCancelled Action = "project.keep"
 
 	KeyCreated Action = "key.create"
 	KeyRevoked Action = "key.revoke"

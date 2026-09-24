@@ -191,7 +191,7 @@ type StorageProjectOut struct {
 type JobsParams struct {
 	From   string `query:"from,omitzero" doc:"YYYY-MM-DD. Defaults to seven days ago"`
 	To     string `query:"to,omitzero" doc:"YYYY-MM-DD. Defaults to today"`
-	Job    string `query:"job,omitzero" doc:"Only this job's runs: derivation, erasure, export, archive_expiry, usage_meter or credit_expiry"`
+	Job    string `query:"job,omitzero" doc:"Only this job's runs: derivation, erasure, export, project_deletion, retention_enforce, archive_expiry, usage_meter or credit_expiry"`
 	Failed bool   `query:"failed,omitzero" doc:"Only runs that failed"`
 }
 
@@ -199,7 +199,8 @@ func (in *JobsParams) Validate(v *muzak.Validation) {
 	v.String(&in.From).Trim().MaxLen(10)
 	v.String(&in.To).Trim().MaxLen(10)
 	v.String(&in.Job).Trim().Lower().
-		OneOf("", "derivation", "erasure", "export", "archive_expiry", "usage_meter", "credit_expiry")
+		OneOf("", "derivation", "erasure", "export", "project_deletion", "retention_enforce",
+			"archive_expiry", "usage_meter", "credit_expiry")
 }
 
 // JobsOut is the worker's jobs: how each has been running, its recent passes, and the requests

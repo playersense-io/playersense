@@ -154,7 +154,7 @@ func ListProjects(ctx *muzak.Context, _ schemas.OrganizationParams) (schemas.Pro
 	principal := muzak.From[*core.Principal](ctx)
 
 	projects, err := db.Client.Project.Query().
-		Where(project.OrganizationID(principal.Organization.ID)).
+		Where(project.OrganizationID(principal.Organization.ID), project.DeletedAtIsNil()).
 		Order(ent.Asc(project.FieldSlug)).
 		All(ctx.Context())
 	if err != nil {
@@ -168,25 +168,6 @@ func ListProjects(ctx *muzak.Context, _ schemas.OrganizationParams) (schemas.Pro
 		out.Projects = append(out.Projects, projectOut(proj, nil))
 	}
 	return out, nil
-}
-
-// ReadProject returns one project with its environments.
-//
-// The project comes from the principal, which already refused it as "no such project" if this
-// member cannot reach it.
-func ReadProject(ctx *muzak.Context, _ schemas.ProjectParams) (schemas.ProjectOut, error) {
-	db := muzak.From[*core.DB](ctx)
-	principal := muzak.From[*core.Principal](ctx)
-	proj := principal.Project
-
-	envs, err := db.Client.Environment.Query().
-		Where(environment.ProjectID(proj.ID)).
-		Order(ent.Asc(environment.FieldKind)).
-		All(ctx.Context())
-	if err != nil {
-		return schemas.ProjectOut{}, core.AsHTTPError(err)
-	}
-	return projectOut(proj, envs), nil
 }
 
 // ---- API keys ---------------------------------------------------------------

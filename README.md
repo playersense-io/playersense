@@ -138,10 +138,27 @@ The last owner of an organization cannot be removed or demoted, by either door.
 Removing a member **deletes** the row, unlike a revoked key or an archived flag: a membership is
 not a record of what happened, it is a live grant of access to player data.
 
+**A project's settings**:
+
+```
+GET    PATCH                /v1/organizations/{org}/projects/{project}             the name; project.update
+       PUT                  /v1/organizations/{org}/projects/{project}/retention   project.update
+       POST   DELETE        /v1/organizations/{org}/projects/{project}/deletion    project.delete
+GET                         /v1/organizations/{org}/projects/{project}/apps        platforms and SDKs seen
+```
+
+Retention is one of 7, 30, 90, 180 or 365 days, at most the policy tier's cap (365, child-directed
+90, kids strict 30) and the plan's `max_raw_retention_days`. New rows take a change within the key
+cache's five minutes. A raised tier brings nothing back; a lowered one is enforced on rows already
+written by the worker, which deletes raw rows older than it once a day until no row stamped with the
+old tier can remain. A deletion waits thirty days and can be cancelled until then; when due, the
+worker revokes the project's keys and hides it, and an hour later deletes its analytics from every
+ClickHouse table and hands its archive to the expiry sweep. Its usage and invoices stay.
+
 **The audit log** — `audit.read`, which only OWNER and ADMIN hold among the seeded six:
 
 ```
-GET                         /v1/organizations/{org}/audit
+GET                         /v1/organizations/{org}/audit    ?action&target_type&target_id&actor&from&to&before
 ```
 
 Every route that changes something writes an entry: memberships, roles, project

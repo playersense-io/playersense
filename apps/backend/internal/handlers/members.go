@@ -743,7 +743,7 @@ func projectIDs(ctx context.Context, db *core.DB, orgID int, slugs []string) ([]
 		return nil, nil
 	}
 	rows, err := db.Client.Project.Query().
-		Where(project.SlugIn(slugs...), project.OrganizationID(orgID)).
+		Where(project.SlugIn(slugs...), project.OrganizationID(orgID), project.DeletedAtIsNil()).
 		All(ctx)
 	if err != nil {
 		return nil, core.AsHTTPError(err)

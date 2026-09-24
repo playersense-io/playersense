@@ -183,3 +183,59 @@ func (in *RevokeAPIKeyIn) Validate(v *muzak.Validation) {
 type HealthOut struct {
 	Status string `json:"status"`
 }
+
+// UpdateProjectIn renames a project. The slug and the policy tier are fixed at creation.
+type UpdateProjectIn struct {
+	OrgSlug     string `path:"org"`
+	ProjectSlug string `path:"project"`
+	Name        string `json:"name"`
+}
+
+func (in *UpdateProjectIn) Validate(v *muzak.Validation) {
+	v.String(&in.OrgSlug).Trim().Lower().Required().MaxLen(64)
+	v.String(&in.ProjectSlug).Trim().Lower().Required().MaxLen(64)
+	v.String(&in.Name).Trim().Required().MinLen(1).MaxLen(120)
+}
+
+// SetRetentionIn changes a project's raw retention tier.
+type SetRetentionIn struct {
+	OrgSlug       string `path:"org"`
+	ProjectSlug   string `path:"project"`
+	RetentionDays uint16 `json:"retention_days" doc:"7, 30, 90, 180 or 365, at most the policy tier's and the plan's"`
+}
+
+func (in *SetRetentionIn) Validate(v *muzak.Validation) {
+	v.String(&in.OrgSlug).Trim().Lower().Required().MaxLen(64)
+	v.String(&in.ProjectSlug).Trim().Lower().Required().MaxLen(64)
+	v.Number(&in.RetentionDays).OneOf(7, 30, 90, 180, 365)
+}
+
+// ProjectSettingsOut is a project as its settings page shows it.
+type ProjectSettingsOut struct {
+	ProjectOut
+
+	// RetentionCap is the longest tier this project may choose: the lower of its policy tier's
+	// cap and its plan's max_raw_retention_days.
+	RetentionCap        int        `json:"retention_cap"`
+	RetentionChangedAt  *time.Time `json:"retention_changed_at,omitzero"`
+	RetentionPurgeUntil *time.Time `json:"retention_purge_until,omitzero" doc:"While a lowered tier is still being enforced on rows written before it"`
+
+	DeletionAt          *time.Time `json:"deletion_at,omitzero" doc:"When the project is deleted; absent unless asked for"`
+	DeletionRequestedBy string     `json:"deletion_requested_by,omitzero"`
+}
+
+// ProjectAppsOut is where a project's events come from.
+type ProjectAppsOut struct {
+	Apps []ProjectAppOut `json:"apps"`
+}
+
+// ProjectAppOut is one platform and SDK a project's events arrived from.
+type ProjectAppOut struct {
+	Platform   string    `json:"platform"`
+	SDK        string    `json:"sdk"`
+	FirstSeen  time.Time `json:"first_seen"`
+	LastSeen   time.Time `json:"last_seen"`
+	Events     uint64    `json:"events"`
+	AppVersion string    `json:"app_version" doc:"The newest build seen"`
+	SDKVersion string    `json:"sdk_version"`
+}

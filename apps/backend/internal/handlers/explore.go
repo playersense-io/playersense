@@ -238,7 +238,7 @@ func ProjectsOverview(ctx *muzak.Context, in schemas.ProjectsOverviewParams) (sc
 	}
 
 	projects, err := db.Client.Project.Query().
-		Where(projectpkg.OrganizationID(principal.Organization.ID)).
+		Where(projectpkg.OrganizationID(principal.Organization.ID), projectpkg.DeletedAtIsNil()).
 		Order(ent.Asc(projectpkg.FieldSlug)).
 		All(ctx.Context())
 	if err != nil {

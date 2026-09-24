@@ -61,6 +61,7 @@ import (
 	"playersense.dev/backend/internal/jobs"
 	"playersense.dev/backend/internal/metering"
 	"playersense.dev/backend/internal/pgdb"
+	"playersense.dev/backend/internal/projects"
 	"playersense.dev/backend/internal/retention"
 	"playersense.dev/backend/internal/routers"
 	"playersense.dev/backend/internal/scheduler"
@@ -293,6 +294,10 @@ func newJanitor(settings config.Settings, db *chdb.SQL, deps dependencies, log *
 			Log: log,
 		},
 		Credit: scheduler.CreditExpiry(deps.db, log, settings.CreditExpiryMaxLots),
+
+		// Scheduled project deletions, and lowered retention enforced on rows already written.
+		Deletion:  &projects.Deletion{DB: deps.db, CH: db, Cache: deps.cache, Log: log},
+		Retention: &projects.Retention{DB: deps.db, CH: db, Log: log},
 
 		// A row per job per pass, for the operations console's retention jobs page.
 		Recorder: jobs.NewClickHouse(db, log),

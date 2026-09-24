@@ -35,6 +35,20 @@ type Project struct {
 	// class=none
 	RetentionDays uint16 `json:"retention_days,omitempty"`
 	// class=none
+	RetentionChangedAt *time.Time `json:"retention_changed_at,omitempty"`
+	// class=none
+	RetentionPurgeUntil *time.Time `json:"retention_purge_until,omitempty"`
+	// class=none
+	RetentionPurgedAt *time.Time `json:"retention_purged_at,omitempty"`
+	// class=none
+	DeletionAt *time.Time `json:"deletion_at,omitempty"`
+	// class=none
+	DeletionRequestedBy string `json:"deletion_requested_by,omitempty"`
+	// class=none
+	DeletedAt *time.Time `json:"deleted_at,omitempty"`
+	// class=none
+	DeletionPurgedAt *time.Time `json:"deletion_purged_at,omitempty"`
+	// class=none
 	OrganizationID int `json:"organization_id,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the ProjectQuery when eager-loading is set.
@@ -168,9 +182,9 @@ func (*Project) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case project.FieldID, project.FieldRetentionDays, project.FieldOrganizationID:
 			values[i] = new(sql.NullInt64)
-		case project.FieldName, project.FieldSlug, project.FieldPolicyTier:
+		case project.FieldName, project.FieldSlug, project.FieldPolicyTier, project.FieldDeletionRequestedBy:
 			values[i] = new(sql.NullString)
-		case project.FieldCreatedAt, project.FieldUpdatedAt:
+		case project.FieldCreatedAt, project.FieldUpdatedAt, project.FieldRetentionChangedAt, project.FieldRetentionPurgeUntil, project.FieldRetentionPurgedAt, project.FieldDeletionAt, project.FieldDeletedAt, project.FieldDeletionPurgedAt:
 			values[i] = new(sql.NullTime)
 		case project.FieldUID:
 			values[i] = new(uuid.UUID)
@@ -236,6 +250,54 @@ func (_m *Project) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field retention_days", values[i])
 			} else if value.Valid {
 				_m.RetentionDays = uint16(value.Int64)
+			}
+		case project.FieldRetentionChangedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field retention_changed_at", values[i])
+			} else if value.Valid {
+				_m.RetentionChangedAt = new(time.Time)
+				*_m.RetentionChangedAt = value.Time
+			}
+		case project.FieldRetentionPurgeUntil:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field retention_purge_until", values[i])
+			} else if value.Valid {
+				_m.RetentionPurgeUntil = new(time.Time)
+				*_m.RetentionPurgeUntil = value.Time
+			}
+		case project.FieldRetentionPurgedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field retention_purged_at", values[i])
+			} else if value.Valid {
+				_m.RetentionPurgedAt = new(time.Time)
+				*_m.RetentionPurgedAt = value.Time
+			}
+		case project.FieldDeletionAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field deletion_at", values[i])
+			} else if value.Valid {
+				_m.DeletionAt = new(time.Time)
+				*_m.DeletionAt = value.Time
+			}
+		case project.FieldDeletionRequestedBy:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field deletion_requested_by", values[i])
+			} else if value.Valid {
+				_m.DeletionRequestedBy = value.String
+			}
+		case project.FieldDeletedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field deleted_at", values[i])
+			} else if value.Valid {
+				_m.DeletedAt = new(time.Time)
+				*_m.DeletedAt = value.Time
+			}
+		case project.FieldDeletionPurgedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field deletion_purged_at", values[i])
+			} else if value.Valid {
+				_m.DeletionPurgedAt = new(time.Time)
+				*_m.DeletionPurgedAt = value.Time
 			}
 		case project.FieldOrganizationID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -349,6 +411,39 @@ func (_m *Project) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("retention_days=")
 	builder.WriteString(fmt.Sprintf("%v", _m.RetentionDays))
+	builder.WriteString(", ")
+	if v := _m.RetentionChangedAt; v != nil {
+		builder.WriteString("retention_changed_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := _m.RetentionPurgeUntil; v != nil {
+		builder.WriteString("retention_purge_until=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := _m.RetentionPurgedAt; v != nil {
+		builder.WriteString("retention_purged_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := _m.DeletionAt; v != nil {
+		builder.WriteString("deletion_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("deletion_requested_by=")
+	builder.WriteString(_m.DeletionRequestedBy)
+	builder.WriteString(", ")
+	if v := _m.DeletedAt; v != nil {
+		builder.WriteString("deleted_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := _m.DeletionPurgedAt; v != nil {
+		builder.WriteString("deletion_purged_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("organization_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.OrganizationID))

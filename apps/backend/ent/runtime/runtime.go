@@ -1652,6 +1652,12 @@ func init() {
 	projectDescRetentionDays := projectFields[3].Descriptor()
 	// project.DefaultRetentionDays holds the default value on creation for the retention_days field.
 	project.DefaultRetentionDays = projectDescRetentionDays.Default.(uint16)
+	// projectDescDeletionRequestedBy is the schema descriptor for deletion_requested_by field.
+	projectDescDeletionRequestedBy := projectFields[8].Descriptor()
+	// project.DefaultDeletionRequestedBy holds the default value on creation for the deletion_requested_by field.
+	project.DefaultDeletionRequestedBy = projectDescDeletionRequestedBy.Default.(string)
+	// project.DeletionRequestedByValidator is a validator for the "deletion_requested_by" field. It is called by the builders before save.
+	project.DeletionRequestedByValidator = projectDescDeletionRequestedBy.Validators[0].(func(string) error)
 	ratecardMixin := schema.RateCard{}.Mixin()
 	ratecardHooks := schema.RateCard{}.Hooks()
 	ratecard.Hooks[0] = ratecardHooks[0]

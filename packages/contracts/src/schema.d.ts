@@ -1297,7 +1297,11 @@ export interface paths {
         readonly delete?: never;
         readonly options?: never;
         readonly head?: never;
-        readonly patch?: never;
+        /**
+         * Rename a project
+         * @description The slug, the ids and the policy tier are fixed at creation; the name is the one thing that changes, and links that carry the slug keep working.
+         */
+        readonly patch: operations["patch_v1_organizations_by_org_projects_by_project"];
         readonly trace?: never;
     };
     readonly "/v1/organizations/{org}/projects/{project}/analytics/{environment}/cohorts/query": {
@@ -1620,6 +1624,26 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/v1/organizations/{org}/projects/{project}/apps": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * Where a project's events come from
+         * @description Each platform and SDK, when first and last seen, how many events, and the newest build and SDK version, across every environment.
+         */
+        readonly get: operations["get_v1_organizations_by_org_projects_by_project_apps"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/v1/organizations/{org}/projects/{project}/config/{environment}/draft": {
         readonly parameters: {
             readonly query?: never;
@@ -1715,6 +1739,27 @@ export interface paths {
          */
         readonly post: operations["post_v1_organizations_by_org_projects_by_project_config_by_environment_versions_by_version_rollback"];
         readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/organizations/{org}/projects/{project}/deletion": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Delete a project in thirty days
+         * @description Events are collected until then and it can be kept at any point before. Then its keys stop working and its analytics and archive are deleted; its usage and invoices stay, because they are the organization's.
+         */
+        readonly post: operations["post_v1_organizations_by_org_projects_by_project_deletion"];
+        /** Keep a project that was to be deleted */
+        readonly delete: operations["delete_v1_organizations_by_org_projects_by_project_deletion"];
         readonly options?: never;
         readonly head?: never;
         readonly patch?: never;
@@ -2037,6 +2082,26 @@ export interface paths {
         readonly post?: never;
         /** Archive a LiveOps event */
         readonly delete: operations["delete_v1_organizations_by_org_projects_by_project_liveops_events_by_key"];
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/organizations/{org}/projects/{project}/retention": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        /**
+         * Change how long raw events are kept
+         * @description One of 7, 30, 90, 180 or 365 days, at most the policy tier's cap and the plan's max_raw_retention_days. New rows take it within minutes. A raised tier does not bring back what already expired; a lowered one is enforced on rows written before it too, by the worker, within a day.
+         */
+        readonly put: operations["put_v1_organizations_by_org_projects_by_project_retention"];
+        readonly post?: never;
+        readonly delete?: never;
         readonly options?: never;
         readonly head?: never;
         readonly patch?: never;
@@ -4633,6 +4698,22 @@ export interface components {
             /** Format: int64 */
             readonly value: number;
         };
+        readonly ProjectAppOut: {
+            /** @description The newest build seen */
+            readonly app_version: string;
+            /** Format: int64 */
+            readonly events: number;
+            /** Format: date-time */
+            readonly first_seen: string;
+            /** Format: date-time */
+            readonly last_seen: string;
+            readonly platform: string;
+            readonly sdk: string;
+            readonly sdk_version: string;
+        };
+        readonly ProjectAppsOut: {
+            readonly apps: readonly components["schemas"]["ProjectAppOut"][];
+        };
         readonly ProjectCountersOut: {
             readonly counters: readonly components["schemas"]["LiveCounterOut"][];
             readonly project_id: string;
@@ -4681,6 +4762,37 @@ export interface components {
         readonly ProjectRefOut: {
             readonly id: string;
             readonly name: string;
+            readonly slug: string;
+        };
+        readonly ProjectSettingsOut: {
+            /** Format: date-time */
+            readonly created_at: string;
+            /**
+             * Format: date-time
+             * @description When the project is deleted; absent unless asked for
+             */
+            readonly deletion_at?: string | null;
+            readonly deletion_requested_by?: string;
+            readonly environments?: readonly components["schemas"]["EnvironmentOut"][];
+            readonly id: string;
+            readonly name: string;
+            readonly notes?: readonly string[];
+            /** @description standard, child_directed or kids_strict */
+            readonly policy_tier: string;
+            /** Format: int64 */
+            readonly retention_cap: number;
+            /** Format: date-time */
+            readonly retention_changed_at?: string | null;
+            /**
+             * Format: int32
+             * @description Raw event retention, in days
+             */
+            readonly retention_days: number;
+            /**
+             * Format: date-time
+             * @description While a lowered tier is still being enforced on rows written before it
+             */
+            readonly retention_purge_until?: string | null;
             readonly slug: string;
         };
         readonly ProjectsOverviewOut: {
@@ -6082,8 +6194,8 @@ export interface operations {
                 readonly from?: string;
                 /** @description YYYY-MM-DD. Defaults to today */
                 readonly to?: string;
-                /** @description Only this job's runs: derivation, erasure, export, archive_expiry, usage_meter or credit_expiry */
-                readonly job?: "" | "derivation" | "erasure" | "export" | "archive_expiry" | "usage_meter" | "credit_expiry";
+                /** @description Only this job's runs: derivation, erasure, export, project_deletion, retention_enforce, archive_expiry, usage_meter or credit_expiry */
+                readonly job?: "" | "derivation" | "erasure" | "export" | "project_deletion" | "retention_enforce" | "archive_expiry" | "usage_meter" | "credit_expiry";
                 /** @description Only runs that failed */
                 readonly failed?: boolean;
             };
@@ -11352,7 +11464,90 @@ export interface operations {
                     readonly [name: string]: unknown;
                 };
                 content: {
-                    readonly "application/json": components["schemas"]["ProjectOut"];
+                    readonly "application/json": components["schemas"]["ProjectSettingsOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not do that */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The organization or project does not exist */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly patch_v1_organizations_by_org_projects_by_project: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly org: string;
+                readonly project: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": {
+                    readonly name: string;
+                };
+            };
+        };
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ProjectSettingsOut"];
                 };
             };
             /** @description No usable sign-in was presented */
@@ -12791,6 +12986,85 @@ export interface operations {
             };
         };
     };
+    readonly get_v1_organizations_by_org_projects_by_project_apps: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                /** @description The organization's slug */
+                readonly org: string;
+                /** @description The project's slug */
+                readonly project: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ProjectAppsOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not do that */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The organization or project does not exist */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The facts could not be read */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     readonly get_v1_organizations_by_org_projects_by_project_config_by_environment_draft: {
         readonly parameters: {
             readonly query?: never;
@@ -13176,6 +13450,182 @@ export interface operations {
                 };
             };
             /** @description The environment already serves that version */
+            readonly 409: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly post_v1_organizations_by_org_projects_by_project_deletion: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                /** @description The organization's slug */
+                readonly org: string;
+                /** @description The project's slug */
+                readonly project: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ProjectSettingsOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not do that */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The organization or project does not exist */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description It is already to be deleted */
+            readonly 409: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly delete_v1_organizations_by_org_projects_by_project_deletion: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                /** @description The organization's slug */
+                readonly org: string;
+                /** @description The project's slug */
+                readonly project: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ProjectSettingsOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not do that */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The organization or project does not exist */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description It is not to be deleted */
             readonly 409: {
                 headers: {
                     readonly [name: string]: unknown;
@@ -15684,6 +16134,94 @@ export interface operations {
                 };
             };
             /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly put_v1_organizations_by_org_projects_by_project_retention: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly org: string;
+                readonly project: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": {
+                    /**
+                     * Format: int32
+                     * @description 7, 30, 90, 180 or 365, at most the policy tier's and the plan's
+                     * @enum {integer}
+                     */
+                    readonly retention_days?: 7 | 30 | 90 | 180 | 365;
+                };
+            };
+        };
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ProjectSettingsOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not do that */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The organization or project does not exist */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not a tier, or above what this project may keep */
             readonly 422: {
                 headers: {
                     readonly [name: string]: unknown;

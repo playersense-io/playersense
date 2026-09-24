@@ -286,7 +286,7 @@ func (p *Principal) enterProject(ctx *muzak.Context, db *DB) error {
 	}
 
 	proj, err := db.Client.Project.Query().
-		Where(project.Slug(slug), project.OrganizationID(p.Organization.ID)).
+		Where(project.Slug(slug), project.OrganizationID(p.Organization.ID), project.DeletedAtIsNil()).
 		Only(ctx.Context())
 	if err != nil {
 		if ent.IsNotFound(err) {

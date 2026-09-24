@@ -115,6 +115,104 @@ func (_c *ProjectCreate) SetNillableRetentionDays(v *uint16) *ProjectCreate {
 	return _c
 }
 
+// SetRetentionChangedAt sets the "retention_changed_at" field.
+func (_c *ProjectCreate) SetRetentionChangedAt(v time.Time) *ProjectCreate {
+	_c.mutation.SetRetentionChangedAt(v)
+	return _c
+}
+
+// SetNillableRetentionChangedAt sets the "retention_changed_at" field if the given value is not nil.
+func (_c *ProjectCreate) SetNillableRetentionChangedAt(v *time.Time) *ProjectCreate {
+	if v != nil {
+		_c.SetRetentionChangedAt(*v)
+	}
+	return _c
+}
+
+// SetRetentionPurgeUntil sets the "retention_purge_until" field.
+func (_c *ProjectCreate) SetRetentionPurgeUntil(v time.Time) *ProjectCreate {
+	_c.mutation.SetRetentionPurgeUntil(v)
+	return _c
+}
+
+// SetNillableRetentionPurgeUntil sets the "retention_purge_until" field if the given value is not nil.
+func (_c *ProjectCreate) SetNillableRetentionPurgeUntil(v *time.Time) *ProjectCreate {
+	if v != nil {
+		_c.SetRetentionPurgeUntil(*v)
+	}
+	return _c
+}
+
+// SetRetentionPurgedAt sets the "retention_purged_at" field.
+func (_c *ProjectCreate) SetRetentionPurgedAt(v time.Time) *ProjectCreate {
+	_c.mutation.SetRetentionPurgedAt(v)
+	return _c
+}
+
+// SetNillableRetentionPurgedAt sets the "retention_purged_at" field if the given value is not nil.
+func (_c *ProjectCreate) SetNillableRetentionPurgedAt(v *time.Time) *ProjectCreate {
+	if v != nil {
+		_c.SetRetentionPurgedAt(*v)
+	}
+	return _c
+}
+
+// SetDeletionAt sets the "deletion_at" field.
+func (_c *ProjectCreate) SetDeletionAt(v time.Time) *ProjectCreate {
+	_c.mutation.SetDeletionAt(v)
+	return _c
+}
+
+// SetNillableDeletionAt sets the "deletion_at" field if the given value is not nil.
+func (_c *ProjectCreate) SetNillableDeletionAt(v *time.Time) *ProjectCreate {
+	if v != nil {
+		_c.SetDeletionAt(*v)
+	}
+	return _c
+}
+
+// SetDeletionRequestedBy sets the "deletion_requested_by" field.
+func (_c *ProjectCreate) SetDeletionRequestedBy(v string) *ProjectCreate {
+	_c.mutation.SetDeletionRequestedBy(v)
+	return _c
+}
+
+// SetNillableDeletionRequestedBy sets the "deletion_requested_by" field if the given value is not nil.
+func (_c *ProjectCreate) SetNillableDeletionRequestedBy(v *string) *ProjectCreate {
+	if v != nil {
+		_c.SetDeletionRequestedBy(*v)
+	}
+	return _c
+}
+
+// SetDeletedAt sets the "deleted_at" field.
+func (_c *ProjectCreate) SetDeletedAt(v time.Time) *ProjectCreate {
+	_c.mutation.SetDeletedAt(v)
+	return _c
+}
+
+// SetNillableDeletedAt sets the "deleted_at" field if the given value is not nil.
+func (_c *ProjectCreate) SetNillableDeletedAt(v *time.Time) *ProjectCreate {
+	if v != nil {
+		_c.SetDeletedAt(*v)
+	}
+	return _c
+}
+
+// SetDeletionPurgedAt sets the "deletion_purged_at" field.
+func (_c *ProjectCreate) SetDeletionPurgedAt(v time.Time) *ProjectCreate {
+	_c.mutation.SetDeletionPurgedAt(v)
+	return _c
+}
+
+// SetNillableDeletionPurgedAt sets the "deletion_purged_at" field if the given value is not nil.
+func (_c *ProjectCreate) SetNillableDeletionPurgedAt(v *time.Time) *ProjectCreate {
+	if v != nil {
+		_c.SetDeletionPurgedAt(*v)
+	}
+	return _c
+}
+
 // SetOrganizationID sets the "organization_id" field.
 func (_c *ProjectCreate) SetOrganizationID(v int) *ProjectCreate {
 	_c.mutation.SetOrganizationID(v)
@@ -322,6 +420,10 @@ func (_c *ProjectCreate) defaults() {
 		v := project.DefaultRetentionDays
 		_c.mutation.SetRetentionDays(v)
 	}
+	if _, ok := _c.mutation.DeletionRequestedBy(); !ok {
+		v := project.DefaultDeletionRequestedBy
+		_c.mutation.SetDeletionRequestedBy(v)
+	}
 }
 
 // check runs all checks and user-defined validators on the builder.
@@ -361,6 +463,14 @@ func (_c *ProjectCreate) check() error {
 	}
 	if _, ok := _c.mutation.RetentionDays(); !ok {
 		return &ValidationError{Name: "retention_days", err: errors.New(`ent: missing required field "Project.retention_days"`)}
+	}
+	if _, ok := _c.mutation.DeletionRequestedBy(); !ok {
+		return &ValidationError{Name: "deletion_requested_by", err: errors.New(`ent: missing required field "Project.deletion_requested_by"`)}
+	}
+	if v, ok := _c.mutation.DeletionRequestedBy(); ok {
+		if err := project.DeletionRequestedByValidator(v); err != nil {
+			return &ValidationError{Name: "deletion_requested_by", err: fmt.Errorf(`ent: validator failed for field "Project.deletion_requested_by": %w`, err)}
+		}
 	}
 	if _, ok := _c.mutation.OrganizationID(); !ok {
 		return &ValidationError{Name: "organization_id", err: errors.New(`ent: missing required field "Project.organization_id"`)}
@@ -428,6 +538,34 @@ func (_c *ProjectCreate) createSpec() (*Project, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.RetentionDays(); ok {
 		_spec.SetField(project.FieldRetentionDays, field.TypeUint16, value)
 		_node.RetentionDays = value
+	}
+	if value, ok := _c.mutation.RetentionChangedAt(); ok {
+		_spec.SetField(project.FieldRetentionChangedAt, field.TypeTime, value)
+		_node.RetentionChangedAt = &value
+	}
+	if value, ok := _c.mutation.RetentionPurgeUntil(); ok {
+		_spec.SetField(project.FieldRetentionPurgeUntil, field.TypeTime, value)
+		_node.RetentionPurgeUntil = &value
+	}
+	if value, ok := _c.mutation.RetentionPurgedAt(); ok {
+		_spec.SetField(project.FieldRetentionPurgedAt, field.TypeTime, value)
+		_node.RetentionPurgedAt = &value
+	}
+	if value, ok := _c.mutation.DeletionAt(); ok {
+		_spec.SetField(project.FieldDeletionAt, field.TypeTime, value)
+		_node.DeletionAt = &value
+	}
+	if value, ok := _c.mutation.DeletionRequestedBy(); ok {
+		_spec.SetField(project.FieldDeletionRequestedBy, field.TypeString, value)
+		_node.DeletionRequestedBy = value
+	}
+	if value, ok := _c.mutation.DeletedAt(); ok {
+		_spec.SetField(project.FieldDeletedAt, field.TypeTime, value)
+		_node.DeletedAt = &value
+	}
+	if value, ok := _c.mutation.DeletionPurgedAt(); ok {
+		_spec.SetField(project.FieldDeletionPurgedAt, field.TypeTime, value)
+		_node.DeletionPurgedAt = &value
 	}
 	if nodes := _c.mutation.OrganizationIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
@@ -696,6 +834,126 @@ func (u *ProjectUpsert) AddRetentionDays(v uint16) *ProjectUpsert {
 	return u
 }
 
+// SetRetentionChangedAt sets the "retention_changed_at" field.
+func (u *ProjectUpsert) SetRetentionChangedAt(v time.Time) *ProjectUpsert {
+	u.Set(project.FieldRetentionChangedAt, v)
+	return u
+}
+
+// UpdateRetentionChangedAt sets the "retention_changed_at" field to the value that was provided on create.
+func (u *ProjectUpsert) UpdateRetentionChangedAt() *ProjectUpsert {
+	u.SetExcluded(project.FieldRetentionChangedAt)
+	return u
+}
+
+// ClearRetentionChangedAt clears the value of the "retention_changed_at" field.
+func (u *ProjectUpsert) ClearRetentionChangedAt() *ProjectUpsert {
+	u.SetNull(project.FieldRetentionChangedAt)
+	return u
+}
+
+// SetRetentionPurgeUntil sets the "retention_purge_until" field.
+func (u *ProjectUpsert) SetRetentionPurgeUntil(v time.Time) *ProjectUpsert {
+	u.Set(project.FieldRetentionPurgeUntil, v)
+	return u
+}
+
+// UpdateRetentionPurgeUntil sets the "retention_purge_until" field to the value that was provided on create.
+func (u *ProjectUpsert) UpdateRetentionPurgeUntil() *ProjectUpsert {
+	u.SetExcluded(project.FieldRetentionPurgeUntil)
+	return u
+}
+
+// ClearRetentionPurgeUntil clears the value of the "retention_purge_until" field.
+func (u *ProjectUpsert) ClearRetentionPurgeUntil() *ProjectUpsert {
+	u.SetNull(project.FieldRetentionPurgeUntil)
+	return u
+}
+
+// SetRetentionPurgedAt sets the "retention_purged_at" field.
+func (u *ProjectUpsert) SetRetentionPurgedAt(v time.Time) *ProjectUpsert {
+	u.Set(project.FieldRetentionPurgedAt, v)
+	return u
+}
+
+// UpdateRetentionPurgedAt sets the "retention_purged_at" field to the value that was provided on create.
+func (u *ProjectUpsert) UpdateRetentionPurgedAt() *ProjectUpsert {
+	u.SetExcluded(project.FieldRetentionPurgedAt)
+	return u
+}
+
+// ClearRetentionPurgedAt clears the value of the "retention_purged_at" field.
+func (u *ProjectUpsert) ClearRetentionPurgedAt() *ProjectUpsert {
+	u.SetNull(project.FieldRetentionPurgedAt)
+	return u
+}
+
+// SetDeletionAt sets the "deletion_at" field.
+func (u *ProjectUpsert) SetDeletionAt(v time.Time) *ProjectUpsert {
+	u.Set(project.FieldDeletionAt, v)
+	return u
+}
+
+// UpdateDeletionAt sets the "deletion_at" field to the value that was provided on create.
+func (u *ProjectUpsert) UpdateDeletionAt() *ProjectUpsert {
+	u.SetExcluded(project.FieldDeletionAt)
+	return u
+}
+
+// ClearDeletionAt clears the value of the "deletion_at" field.
+func (u *ProjectUpsert) ClearDeletionAt() *ProjectUpsert {
+	u.SetNull(project.FieldDeletionAt)
+	return u
+}
+
+// SetDeletionRequestedBy sets the "deletion_requested_by" field.
+func (u *ProjectUpsert) SetDeletionRequestedBy(v string) *ProjectUpsert {
+	u.Set(project.FieldDeletionRequestedBy, v)
+	return u
+}
+
+// UpdateDeletionRequestedBy sets the "deletion_requested_by" field to the value that was provided on create.
+func (u *ProjectUpsert) UpdateDeletionRequestedBy() *ProjectUpsert {
+	u.SetExcluded(project.FieldDeletionRequestedBy)
+	return u
+}
+
+// SetDeletedAt sets the "deleted_at" field.
+func (u *ProjectUpsert) SetDeletedAt(v time.Time) *ProjectUpsert {
+	u.Set(project.FieldDeletedAt, v)
+	return u
+}
+
+// UpdateDeletedAt sets the "deleted_at" field to the value that was provided on create.
+func (u *ProjectUpsert) UpdateDeletedAt() *ProjectUpsert {
+	u.SetExcluded(project.FieldDeletedAt)
+	return u
+}
+
+// ClearDeletedAt clears the value of the "deleted_at" field.
+func (u *ProjectUpsert) ClearDeletedAt() *ProjectUpsert {
+	u.SetNull(project.FieldDeletedAt)
+	return u
+}
+
+// SetDeletionPurgedAt sets the "deletion_purged_at" field.
+func (u *ProjectUpsert) SetDeletionPurgedAt(v time.Time) *ProjectUpsert {
+	u.Set(project.FieldDeletionPurgedAt, v)
+	return u
+}
+
+// UpdateDeletionPurgedAt sets the "deletion_purged_at" field to the value that was provided on create.
+func (u *ProjectUpsert) UpdateDeletionPurgedAt() *ProjectUpsert {
+	u.SetExcluded(project.FieldDeletionPurgedAt)
+	return u
+}
+
+// ClearDeletionPurgedAt clears the value of the "deletion_purged_at" field.
+func (u *ProjectUpsert) ClearDeletionPurgedAt() *ProjectUpsert {
+	u.SetNull(project.FieldDeletionPurgedAt)
+	return u
+}
+
 // SetOrganizationID sets the "organization_id" field.
 func (u *ProjectUpsert) SetOrganizationID(v int) *ProjectUpsert {
 	u.Set(project.FieldOrganizationID, v)
@@ -825,6 +1083,146 @@ func (u *ProjectUpsertOne) AddRetentionDays(v uint16) *ProjectUpsertOne {
 func (u *ProjectUpsertOne) UpdateRetentionDays() *ProjectUpsertOne {
 	return u.Update(func(s *ProjectUpsert) {
 		s.UpdateRetentionDays()
+	})
+}
+
+// SetRetentionChangedAt sets the "retention_changed_at" field.
+func (u *ProjectUpsertOne) SetRetentionChangedAt(v time.Time) *ProjectUpsertOne {
+	return u.Update(func(s *ProjectUpsert) {
+		s.SetRetentionChangedAt(v)
+	})
+}
+
+// UpdateRetentionChangedAt sets the "retention_changed_at" field to the value that was provided on create.
+func (u *ProjectUpsertOne) UpdateRetentionChangedAt() *ProjectUpsertOne {
+	return u.Update(func(s *ProjectUpsert) {
+		s.UpdateRetentionChangedAt()
+	})
+}
+
+// ClearRetentionChangedAt clears the value of the "retention_changed_at" field.
+func (u *ProjectUpsertOne) ClearRetentionChangedAt() *ProjectUpsertOne {
+	return u.Update(func(s *ProjectUpsert) {
+		s.ClearRetentionChangedAt()
+	})
+}
+
+// SetRetentionPurgeUntil sets the "retention_purge_until" field.
+func (u *ProjectUpsertOne) SetRetentionPurgeUntil(v time.Time) *ProjectUpsertOne {
+	return u.Update(func(s *ProjectUpsert) {
+		s.SetRetentionPurgeUntil(v)
+	})
+}
+
+// UpdateRetentionPurgeUntil sets the "retention_purge_until" field to the value that was provided on create.
+func (u *ProjectUpsertOne) UpdateRetentionPurgeUntil() *ProjectUpsertOne {
+	return u.Update(func(s *ProjectUpsert) {
+		s.UpdateRetentionPurgeUntil()
+	})
+}
+
+// ClearRetentionPurgeUntil clears the value of the "retention_purge_until" field.
+func (u *ProjectUpsertOne) ClearRetentionPurgeUntil() *ProjectUpsertOne {
+	return u.Update(func(s *ProjectUpsert) {
+		s.ClearRetentionPurgeUntil()
+	})
+}
+
+// SetRetentionPurgedAt sets the "retention_purged_at" field.
+func (u *ProjectUpsertOne) SetRetentionPurgedAt(v time.Time) *ProjectUpsertOne {
+	return u.Update(func(s *ProjectUpsert) {
+		s.SetRetentionPurgedAt(v)
+	})
+}
+
+// UpdateRetentionPurgedAt sets the "retention_purged_at" field to the value that was provided on create.
+func (u *ProjectUpsertOne) UpdateRetentionPurgedAt() *ProjectUpsertOne {
+	return u.Update(func(s *ProjectUpsert) {
+		s.UpdateRetentionPurgedAt()
+	})
+}
+
+// ClearRetentionPurgedAt clears the value of the "retention_purged_at" field.
+func (u *ProjectUpsertOne) ClearRetentionPurgedAt() *ProjectUpsertOne {
+	return u.Update(func(s *ProjectUpsert) {
+		s.ClearRetentionPurgedAt()
+	})
+}
+
+// SetDeletionAt sets the "deletion_at" field.
+func (u *ProjectUpsertOne) SetDeletionAt(v time.Time) *ProjectUpsertOne {
+	return u.Update(func(s *ProjectUpsert) {
+		s.SetDeletionAt(v)
+	})
+}
+
+// UpdateDeletionAt sets the "deletion_at" field to the value that was provided on create.
+func (u *ProjectUpsertOne) UpdateDeletionAt() *ProjectUpsertOne {
+	return u.Update(func(s *ProjectUpsert) {
+		s.UpdateDeletionAt()
+	})
+}
+
+// ClearDeletionAt clears the value of the "deletion_at" field.
+func (u *ProjectUpsertOne) ClearDeletionAt() *ProjectUpsertOne {
+	return u.Update(func(s *ProjectUpsert) {
+		s.ClearDeletionAt()
+	})
+}
+
+// SetDeletionRequestedBy sets the "deletion_requested_by" field.
+func (u *ProjectUpsertOne) SetDeletionRequestedBy(v string) *ProjectUpsertOne {
+	return u.Update(func(s *ProjectUpsert) {
+		s.SetDeletionRequestedBy(v)
+	})
+}
+
+// UpdateDeletionRequestedBy sets the "deletion_requested_by" field to the value that was provided on create.
+func (u *ProjectUpsertOne) UpdateDeletionRequestedBy() *ProjectUpsertOne {
+	return u.Update(func(s *ProjectUpsert) {
+		s.UpdateDeletionRequestedBy()
+	})
+}
+
+// SetDeletedAt sets the "deleted_at" field.
+func (u *ProjectUpsertOne) SetDeletedAt(v time.Time) *ProjectUpsertOne {
+	return u.Update(func(s *ProjectUpsert) {
+		s.SetDeletedAt(v)
+	})
+}
+
+// UpdateDeletedAt sets the "deleted_at" field to the value that was provided on create.
+func (u *ProjectUpsertOne) UpdateDeletedAt() *ProjectUpsertOne {
+	return u.Update(func(s *ProjectUpsert) {
+		s.UpdateDeletedAt()
+	})
+}
+
+// ClearDeletedAt clears the value of the "deleted_at" field.
+func (u *ProjectUpsertOne) ClearDeletedAt() *ProjectUpsertOne {
+	return u.Update(func(s *ProjectUpsert) {
+		s.ClearDeletedAt()
+	})
+}
+
+// SetDeletionPurgedAt sets the "deletion_purged_at" field.
+func (u *ProjectUpsertOne) SetDeletionPurgedAt(v time.Time) *ProjectUpsertOne {
+	return u.Update(func(s *ProjectUpsert) {
+		s.SetDeletionPurgedAt(v)
+	})
+}
+
+// UpdateDeletionPurgedAt sets the "deletion_purged_at" field to the value that was provided on create.
+func (u *ProjectUpsertOne) UpdateDeletionPurgedAt() *ProjectUpsertOne {
+	return u.Update(func(s *ProjectUpsert) {
+		s.UpdateDeletionPurgedAt()
+	})
+}
+
+// ClearDeletionPurgedAt clears the value of the "deletion_purged_at" field.
+func (u *ProjectUpsertOne) ClearDeletionPurgedAt() *ProjectUpsertOne {
+	return u.Update(func(s *ProjectUpsert) {
+		s.ClearDeletionPurgedAt()
 	})
 }
 
@@ -1125,6 +1523,146 @@ func (u *ProjectUpsertBulk) AddRetentionDays(v uint16) *ProjectUpsertBulk {
 func (u *ProjectUpsertBulk) UpdateRetentionDays() *ProjectUpsertBulk {
 	return u.Update(func(s *ProjectUpsert) {
 		s.UpdateRetentionDays()
+	})
+}
+
+// SetRetentionChangedAt sets the "retention_changed_at" field.
+func (u *ProjectUpsertBulk) SetRetentionChangedAt(v time.Time) *ProjectUpsertBulk {
+	return u.Update(func(s *ProjectUpsert) {
+		s.SetRetentionChangedAt(v)
+	})
+}
+
+// UpdateRetentionChangedAt sets the "retention_changed_at" field to the value that was provided on create.
+func (u *ProjectUpsertBulk) UpdateRetentionChangedAt() *ProjectUpsertBulk {
+	return u.Update(func(s *ProjectUpsert) {
+		s.UpdateRetentionChangedAt()
+	})
+}
+
+// ClearRetentionChangedAt clears the value of the "retention_changed_at" field.
+func (u *ProjectUpsertBulk) ClearRetentionChangedAt() *ProjectUpsertBulk {
+	return u.Update(func(s *ProjectUpsert) {
+		s.ClearRetentionChangedAt()
+	})
+}
+
+// SetRetentionPurgeUntil sets the "retention_purge_until" field.
+func (u *ProjectUpsertBulk) SetRetentionPurgeUntil(v time.Time) *ProjectUpsertBulk {
+	return u.Update(func(s *ProjectUpsert) {
+		s.SetRetentionPurgeUntil(v)
+	})
+}
+
+// UpdateRetentionPurgeUntil sets the "retention_purge_until" field to the value that was provided on create.
+func (u *ProjectUpsertBulk) UpdateRetentionPurgeUntil() *ProjectUpsertBulk {
+	return u.Update(func(s *ProjectUpsert) {
+		s.UpdateRetentionPurgeUntil()
+	})
+}
+
+// ClearRetentionPurgeUntil clears the value of the "retention_purge_until" field.
+func (u *ProjectUpsertBulk) ClearRetentionPurgeUntil() *ProjectUpsertBulk {
+	return u.Update(func(s *ProjectUpsert) {
+		s.ClearRetentionPurgeUntil()
+	})
+}
+
+// SetRetentionPurgedAt sets the "retention_purged_at" field.
+func (u *ProjectUpsertBulk) SetRetentionPurgedAt(v time.Time) *ProjectUpsertBulk {
+	return u.Update(func(s *ProjectUpsert) {
+		s.SetRetentionPurgedAt(v)
+	})
+}
+
+// UpdateRetentionPurgedAt sets the "retention_purged_at" field to the value that was provided on create.
+func (u *ProjectUpsertBulk) UpdateRetentionPurgedAt() *ProjectUpsertBulk {
+	return u.Update(func(s *ProjectUpsert) {
+		s.UpdateRetentionPurgedAt()
+	})
+}
+
+// ClearRetentionPurgedAt clears the value of the "retention_purged_at" field.
+func (u *ProjectUpsertBulk) ClearRetentionPurgedAt() *ProjectUpsertBulk {
+	return u.Update(func(s *ProjectUpsert) {
+		s.ClearRetentionPurgedAt()
+	})
+}
+
+// SetDeletionAt sets the "deletion_at" field.
+func (u *ProjectUpsertBulk) SetDeletionAt(v time.Time) *ProjectUpsertBulk {
+	return u.Update(func(s *ProjectUpsert) {
+		s.SetDeletionAt(v)
+	})
+}
+
+// UpdateDeletionAt sets the "deletion_at" field to the value that was provided on create.
+func (u *ProjectUpsertBulk) UpdateDeletionAt() *ProjectUpsertBulk {
+	return u.Update(func(s *ProjectUpsert) {
+		s.UpdateDeletionAt()
+	})
+}
+
+// ClearDeletionAt clears the value of the "deletion_at" field.
+func (u *ProjectUpsertBulk) ClearDeletionAt() *ProjectUpsertBulk {
+	return u.Update(func(s *ProjectUpsert) {
+		s.ClearDeletionAt()
+	})
+}
+
+// SetDeletionRequestedBy sets the "deletion_requested_by" field.
+func (u *ProjectUpsertBulk) SetDeletionRequestedBy(v string) *ProjectUpsertBulk {
+	return u.Update(func(s *ProjectUpsert) {
+		s.SetDeletionRequestedBy(v)
+	})
+}
+
+// UpdateDeletionRequestedBy sets the "deletion_requested_by" field to the value that was provided on create.
+func (u *ProjectUpsertBulk) UpdateDeletionRequestedBy() *ProjectUpsertBulk {
+	return u.Update(func(s *ProjectUpsert) {
+		s.UpdateDeletionRequestedBy()
+	})
+}
+
+// SetDeletedAt sets the "deleted_at" field.
+func (u *ProjectUpsertBulk) SetDeletedAt(v time.Time) *ProjectUpsertBulk {
+	return u.Update(func(s *ProjectUpsert) {
+		s.SetDeletedAt(v)
+	})
+}
+
+// UpdateDeletedAt sets the "deleted_at" field to the value that was provided on create.
+func (u *ProjectUpsertBulk) UpdateDeletedAt() *ProjectUpsertBulk {
+	return u.Update(func(s *ProjectUpsert) {
+		s.UpdateDeletedAt()
+	})
+}
+
+// ClearDeletedAt clears the value of the "deleted_at" field.
+func (u *ProjectUpsertBulk) ClearDeletedAt() *ProjectUpsertBulk {
+	return u.Update(func(s *ProjectUpsert) {
+		s.ClearDeletedAt()
+	})
+}
+
+// SetDeletionPurgedAt sets the "deletion_purged_at" field.
+func (u *ProjectUpsertBulk) SetDeletionPurgedAt(v time.Time) *ProjectUpsertBulk {
+	return u.Update(func(s *ProjectUpsert) {
+		s.SetDeletionPurgedAt(v)
+	})
+}
+
+// UpdateDeletionPurgedAt sets the "deletion_purged_at" field to the value that was provided on create.
+func (u *ProjectUpsertBulk) UpdateDeletionPurgedAt() *ProjectUpsertBulk {
+	return u.Update(func(s *ProjectUpsert) {
+		s.UpdateDeletionPurgedAt()
+	})
+}
+
+// ClearDeletionPurgedAt clears the value of the "deletion_purged_at" field.
+func (u *ProjectUpsertBulk) ClearDeletionPurgedAt() *ProjectUpsertBulk {
+	return u.Update(func(s *ProjectUpsert) {
+		s.ClearDeletionPurgedAt()
 	})
 }
 

@@ -30,6 +30,20 @@ const (
 	FieldPolicyTier = "policy_tier"
 	// FieldRetentionDays holds the string denoting the retention_days field in the database.
 	FieldRetentionDays = "retention_days"
+	// FieldRetentionChangedAt holds the string denoting the retention_changed_at field in the database.
+	FieldRetentionChangedAt = "retention_changed_at"
+	// FieldRetentionPurgeUntil holds the string denoting the retention_purge_until field in the database.
+	FieldRetentionPurgeUntil = "retention_purge_until"
+	// FieldRetentionPurgedAt holds the string denoting the retention_purged_at field in the database.
+	FieldRetentionPurgedAt = "retention_purged_at"
+	// FieldDeletionAt holds the string denoting the deletion_at field in the database.
+	FieldDeletionAt = "deletion_at"
+	// FieldDeletionRequestedBy holds the string denoting the deletion_requested_by field in the database.
+	FieldDeletionRequestedBy = "deletion_requested_by"
+	// FieldDeletedAt holds the string denoting the deleted_at field in the database.
+	FieldDeletedAt = "deleted_at"
+	// FieldDeletionPurgedAt holds the string denoting the deletion_purged_at field in the database.
+	FieldDeletionPurgedAt = "deletion_purged_at"
 	// FieldOrganizationID holds the string denoting the organization_id field in the database.
 	FieldOrganizationID = "organization_id"
 	// EdgeOrganization holds the string denoting the organization edge name in mutations.
@@ -136,6 +150,13 @@ var Columns = []string{
 	FieldSlug,
 	FieldPolicyTier,
 	FieldRetentionDays,
+	FieldRetentionChangedAt,
+	FieldRetentionPurgeUntil,
+	FieldRetentionPurgedAt,
+	FieldDeletionAt,
+	FieldDeletionRequestedBy,
+	FieldDeletedAt,
+	FieldDeletionPurgedAt,
 	FieldOrganizationID,
 }
 
@@ -164,6 +185,10 @@ var (
 	SlugValidator func(string) error
 	// DefaultRetentionDays holds the default value on creation for the "retention_days" field.
 	DefaultRetentionDays uint16
+	// DefaultDeletionRequestedBy holds the default value on creation for the "deletion_requested_by" field.
+	DefaultDeletionRequestedBy string
+	// DeletionRequestedByValidator is a validator for the "deletion_requested_by" field. It is called by the builders before save.
+	DeletionRequestedByValidator func(string) error
 )
 
 // PolicyTier defines the type for the "policy_tier" enum field.
@@ -234,6 +259,41 @@ func ByPolicyTier(opts ...sql.OrderTermOption) OrderOption {
 // ByRetentionDays orders the results by the retention_days field.
 func ByRetentionDays(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldRetentionDays, opts...).ToFunc()
+}
+
+// ByRetentionChangedAt orders the results by the retention_changed_at field.
+func ByRetentionChangedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRetentionChangedAt, opts...).ToFunc()
+}
+
+// ByRetentionPurgeUntil orders the results by the retention_purge_until field.
+func ByRetentionPurgeUntil(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRetentionPurgeUntil, opts...).ToFunc()
+}
+
+// ByRetentionPurgedAt orders the results by the retention_purged_at field.
+func ByRetentionPurgedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRetentionPurgedAt, opts...).ToFunc()
+}
+
+// ByDeletionAt orders the results by the deletion_at field.
+func ByDeletionAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDeletionAt, opts...).ToFunc()
+}
+
+// ByDeletionRequestedBy orders the results by the deletion_requested_by field.
+func ByDeletionRequestedBy(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDeletionRequestedBy, opts...).ToFunc()
+}
+
+// ByDeletedAt orders the results by the deleted_at field.
+func ByDeletedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDeletedAt, opts...).ToFunc()
+}
+
+// ByDeletionPurgedAt orders the results by the deletion_purged_at field.
+func ByDeletionPurgedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDeletionPurgedAt, opts...).ToFunc()
 }
 
 // ByOrganizationID orders the results by the organization_id field.

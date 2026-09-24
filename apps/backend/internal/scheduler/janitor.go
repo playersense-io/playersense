@@ -13,6 +13,7 @@ import (
 	"playersense.dev/backend/internal/jobs"
 	"playersense.dev/backend/internal/metering"
 	"playersense.dev/backend/internal/pgdb"
+	"playersense.dev/backend/internal/projects"
 	"playersense.dev/backend/internal/retention"
 	"playersense.dev/backend/internal/wallet"
 )
@@ -77,6 +78,12 @@ type JanitorOptions struct {
 	// never overspent, because the spend path refuses a lapsed lot on its own.
 	Meter  *metering.Meter
 	Credit *creditExpiry
+
+	// Deletion carries out scheduled project deletions and Retention enforces a lowered raw
+	// retention on rows already written. Both before archive expiry, so a deleted project's
+	// objects are expired in the pass that hands them over.
+	Deletion  *projects.Deletion
+	Retention *projects.Retention
 
 	// Recorder keeps a row per job per pass for the operations console (job_runs). Nil keeps
 	// none.
@@ -156,7 +163,7 @@ func NewJanitor(log *slog.Logger, opts JanitorOptions) (*Janitor, error) {
 		opts.Every = DefaultJanitorEvery
 	}
 	if opts.Sweeper == nil && opts.Purger == nil && opts.Exporter == nil &&
-		opts.Meter == nil && opts.Credit == nil {
+		opts.Meter == nil && opts.Credit == nil && opts.Deletion == nil && opts.Retention == nil {
 		return nil, errors.New("the janitor has no jobs configured")
 	}
 	if log == nil {
@@ -315,6 +322,26 @@ func (j *Janitor) Run(ctx context.Context) error {
 		})
 		if err != nil {
 			problems = append(problems, fmt.Errorf("export: %w", err))
+		}
+	}
+
+	// Then deletions somebody scheduled thirty days ago, and retention somebody lowered.
+	if j.opts.Deletion != nil {
+		err := jobs.Time(ctx, rec, jobs.ProjectDeletion, j.now, func() (map[string]int64, error) {
+			done, err := j.opts.Deletion.Run(ctx, j.now())
+			return map[string]int64{"closed": int64(done.Closed), "purged": int64(done.Purged)}, err
+		})
+		if err != nil {
+			problems = append(problems, fmt.Errorf("project deletion: %w", err))
+		}
+	}
+	if j.opts.Retention != nil {
+		err := jobs.Time(ctx, rec, jobs.RetentionEnforce, j.now, func() (map[string]int64, error) {
+			done, err := j.opts.Retention.Run(ctx, j.now())
+			return map[string]int64{"projects": int64(done.Projects)}, err
+		})
+		if err != nil {
+			problems = append(problems, fmt.Errorf("retention: %w", err))
 		}
 	}
 

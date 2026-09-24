@@ -93,6 +93,140 @@ func (_u *ProjectUpdate) AddRetentionDays(v int16) *ProjectUpdate {
 	return _u
 }
 
+// SetRetentionChangedAt sets the "retention_changed_at" field.
+func (_u *ProjectUpdate) SetRetentionChangedAt(v time.Time) *ProjectUpdate {
+	_u.mutation.SetRetentionChangedAt(v)
+	return _u
+}
+
+// SetNillableRetentionChangedAt sets the "retention_changed_at" field if the given value is not nil.
+func (_u *ProjectUpdate) SetNillableRetentionChangedAt(v *time.Time) *ProjectUpdate {
+	if v != nil {
+		_u.SetRetentionChangedAt(*v)
+	}
+	return _u
+}
+
+// ClearRetentionChangedAt clears the value of the "retention_changed_at" field.
+func (_u *ProjectUpdate) ClearRetentionChangedAt() *ProjectUpdate {
+	_u.mutation.ClearRetentionChangedAt()
+	return _u
+}
+
+// SetRetentionPurgeUntil sets the "retention_purge_until" field.
+func (_u *ProjectUpdate) SetRetentionPurgeUntil(v time.Time) *ProjectUpdate {
+	_u.mutation.SetRetentionPurgeUntil(v)
+	return _u
+}
+
+// SetNillableRetentionPurgeUntil sets the "retention_purge_until" field if the given value is not nil.
+func (_u *ProjectUpdate) SetNillableRetentionPurgeUntil(v *time.Time) *ProjectUpdate {
+	if v != nil {
+		_u.SetRetentionPurgeUntil(*v)
+	}
+	return _u
+}
+
+// ClearRetentionPurgeUntil clears the value of the "retention_purge_until" field.
+func (_u *ProjectUpdate) ClearRetentionPurgeUntil() *ProjectUpdate {
+	_u.mutation.ClearRetentionPurgeUntil()
+	return _u
+}
+
+// SetRetentionPurgedAt sets the "retention_purged_at" field.
+func (_u *ProjectUpdate) SetRetentionPurgedAt(v time.Time) *ProjectUpdate {
+	_u.mutation.SetRetentionPurgedAt(v)
+	return _u
+}
+
+// SetNillableRetentionPurgedAt sets the "retention_purged_at" field if the given value is not nil.
+func (_u *ProjectUpdate) SetNillableRetentionPurgedAt(v *time.Time) *ProjectUpdate {
+	if v != nil {
+		_u.SetRetentionPurgedAt(*v)
+	}
+	return _u
+}
+
+// ClearRetentionPurgedAt clears the value of the "retention_purged_at" field.
+func (_u *ProjectUpdate) ClearRetentionPurgedAt() *ProjectUpdate {
+	_u.mutation.ClearRetentionPurgedAt()
+	return _u
+}
+
+// SetDeletionAt sets the "deletion_at" field.
+func (_u *ProjectUpdate) SetDeletionAt(v time.Time) *ProjectUpdate {
+	_u.mutation.SetDeletionAt(v)
+	return _u
+}
+
+// SetNillableDeletionAt sets the "deletion_at" field if the given value is not nil.
+func (_u *ProjectUpdate) SetNillableDeletionAt(v *time.Time) *ProjectUpdate {
+	if v != nil {
+		_u.SetDeletionAt(*v)
+	}
+	return _u
+}
+
+// ClearDeletionAt clears the value of the "deletion_at" field.
+func (_u *ProjectUpdate) ClearDeletionAt() *ProjectUpdate {
+	_u.mutation.ClearDeletionAt()
+	return _u
+}
+
+// SetDeletionRequestedBy sets the "deletion_requested_by" field.
+func (_u *ProjectUpdate) SetDeletionRequestedBy(v string) *ProjectUpdate {
+	_u.mutation.SetDeletionRequestedBy(v)
+	return _u
+}
+
+// SetNillableDeletionRequestedBy sets the "deletion_requested_by" field if the given value is not nil.
+func (_u *ProjectUpdate) SetNillableDeletionRequestedBy(v *string) *ProjectUpdate {
+	if v != nil {
+		_u.SetDeletionRequestedBy(*v)
+	}
+	return _u
+}
+
+// SetDeletedAt sets the "deleted_at" field.
+func (_u *ProjectUpdate) SetDeletedAt(v time.Time) *ProjectUpdate {
+	_u.mutation.SetDeletedAt(v)
+	return _u
+}
+
+// SetNillableDeletedAt sets the "deleted_at" field if the given value is not nil.
+func (_u *ProjectUpdate) SetNillableDeletedAt(v *time.Time) *ProjectUpdate {
+	if v != nil {
+		_u.SetDeletedAt(*v)
+	}
+	return _u
+}
+
+// ClearDeletedAt clears the value of the "deleted_at" field.
+func (_u *ProjectUpdate) ClearDeletedAt() *ProjectUpdate {
+	_u.mutation.ClearDeletedAt()
+	return _u
+}
+
+// SetDeletionPurgedAt sets the "deletion_purged_at" field.
+func (_u *ProjectUpdate) SetDeletionPurgedAt(v time.Time) *ProjectUpdate {
+	_u.mutation.SetDeletionPurgedAt(v)
+	return _u
+}
+
+// SetNillableDeletionPurgedAt sets the "deletion_purged_at" field if the given value is not nil.
+func (_u *ProjectUpdate) SetNillableDeletionPurgedAt(v *time.Time) *ProjectUpdate {
+	if v != nil {
+		_u.SetDeletionPurgedAt(*v)
+	}
+	return _u
+}
+
+// ClearDeletionPurgedAt clears the value of the "deletion_purged_at" field.
+func (_u *ProjectUpdate) ClearDeletionPurgedAt() *ProjectUpdate {
+	_u.mutation.ClearDeletionPurgedAt()
+	return _u
+}
+
 // SetOrganizationID sets the "organization_id" field.
 func (_u *ProjectUpdate) SetOrganizationID(v int) *ProjectUpdate {
 	_u.mutation.SetOrganizationID(v)
@@ -495,6 +629,11 @@ func (_u *ProjectUpdate) check() error {
 			return &ValidationError{Name: "slug", err: fmt.Errorf(`ent: validator failed for field "Project.slug": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.DeletionRequestedBy(); ok {
+		if err := project.DeletionRequestedByValidator(v); err != nil {
+			return &ValidationError{Name: "deletion_requested_by", err: fmt.Errorf(`ent: validator failed for field "Project.deletion_requested_by": %w`, err)}
+		}
+	}
 	if _u.mutation.OrganizationCleared() && len(_u.mutation.OrganizationIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "Project.organization"`)
 	}
@@ -527,6 +666,45 @@ func (_u *ProjectUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.AddedRetentionDays(); ok {
 		_spec.AddField(project.FieldRetentionDays, field.TypeUint16, value)
+	}
+	if value, ok := _u.mutation.RetentionChangedAt(); ok {
+		_spec.SetField(project.FieldRetentionChangedAt, field.TypeTime, value)
+	}
+	if _u.mutation.RetentionChangedAtCleared() {
+		_spec.ClearField(project.FieldRetentionChangedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.RetentionPurgeUntil(); ok {
+		_spec.SetField(project.FieldRetentionPurgeUntil, field.TypeTime, value)
+	}
+	if _u.mutation.RetentionPurgeUntilCleared() {
+		_spec.ClearField(project.FieldRetentionPurgeUntil, field.TypeTime)
+	}
+	if value, ok := _u.mutation.RetentionPurgedAt(); ok {
+		_spec.SetField(project.FieldRetentionPurgedAt, field.TypeTime, value)
+	}
+	if _u.mutation.RetentionPurgedAtCleared() {
+		_spec.ClearField(project.FieldRetentionPurgedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.DeletionAt(); ok {
+		_spec.SetField(project.FieldDeletionAt, field.TypeTime, value)
+	}
+	if _u.mutation.DeletionAtCleared() {
+		_spec.ClearField(project.FieldDeletionAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.DeletionRequestedBy(); ok {
+		_spec.SetField(project.FieldDeletionRequestedBy, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.DeletedAt(); ok {
+		_spec.SetField(project.FieldDeletedAt, field.TypeTime, value)
+	}
+	if _u.mutation.DeletedAtCleared() {
+		_spec.ClearField(project.FieldDeletedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.DeletionPurgedAt(); ok {
+		_spec.SetField(project.FieldDeletionPurgedAt, field.TypeTime, value)
+	}
+	if _u.mutation.DeletionPurgedAtCleared() {
+		_spec.ClearField(project.FieldDeletionPurgedAt, field.TypeTime)
 	}
 	if _u.mutation.OrganizationCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -1037,6 +1215,140 @@ func (_u *ProjectUpdateOne) AddRetentionDays(v int16) *ProjectUpdateOne {
 	return _u
 }
 
+// SetRetentionChangedAt sets the "retention_changed_at" field.
+func (_u *ProjectUpdateOne) SetRetentionChangedAt(v time.Time) *ProjectUpdateOne {
+	_u.mutation.SetRetentionChangedAt(v)
+	return _u
+}
+
+// SetNillableRetentionChangedAt sets the "retention_changed_at" field if the given value is not nil.
+func (_u *ProjectUpdateOne) SetNillableRetentionChangedAt(v *time.Time) *ProjectUpdateOne {
+	if v != nil {
+		_u.SetRetentionChangedAt(*v)
+	}
+	return _u
+}
+
+// ClearRetentionChangedAt clears the value of the "retention_changed_at" field.
+func (_u *ProjectUpdateOne) ClearRetentionChangedAt() *ProjectUpdateOne {
+	_u.mutation.ClearRetentionChangedAt()
+	return _u
+}
+
+// SetRetentionPurgeUntil sets the "retention_purge_until" field.
+func (_u *ProjectUpdateOne) SetRetentionPurgeUntil(v time.Time) *ProjectUpdateOne {
+	_u.mutation.SetRetentionPurgeUntil(v)
+	return _u
+}
+
+// SetNillableRetentionPurgeUntil sets the "retention_purge_until" field if the given value is not nil.
+func (_u *ProjectUpdateOne) SetNillableRetentionPurgeUntil(v *time.Time) *ProjectUpdateOne {
+	if v != nil {
+		_u.SetRetentionPurgeUntil(*v)
+	}
+	return _u
+}
+
+// ClearRetentionPurgeUntil clears the value of the "retention_purge_until" field.
+func (_u *ProjectUpdateOne) ClearRetentionPurgeUntil() *ProjectUpdateOne {
+	_u.mutation.ClearRetentionPurgeUntil()
+	return _u
+}
+
+// SetRetentionPurgedAt sets the "retention_purged_at" field.
+func (_u *ProjectUpdateOne) SetRetentionPurgedAt(v time.Time) *ProjectUpdateOne {
+	_u.mutation.SetRetentionPurgedAt(v)
+	return _u
+}
+
+// SetNillableRetentionPurgedAt sets the "retention_purged_at" field if the given value is not nil.
+func (_u *ProjectUpdateOne) SetNillableRetentionPurgedAt(v *time.Time) *ProjectUpdateOne {
+	if v != nil {
+		_u.SetRetentionPurgedAt(*v)
+	}
+	return _u
+}
+
+// ClearRetentionPurgedAt clears the value of the "retention_purged_at" field.
+func (_u *ProjectUpdateOne) ClearRetentionPurgedAt() *ProjectUpdateOne {
+	_u.mutation.ClearRetentionPurgedAt()
+	return _u
+}
+
+// SetDeletionAt sets the "deletion_at" field.
+func (_u *ProjectUpdateOne) SetDeletionAt(v time.Time) *ProjectUpdateOne {
+	_u.mutation.SetDeletionAt(v)
+	return _u
+}
+
+// SetNillableDeletionAt sets the "deletion_at" field if the given value is not nil.
+func (_u *ProjectUpdateOne) SetNillableDeletionAt(v *time.Time) *ProjectUpdateOne {
+	if v != nil {
+		_u.SetDeletionAt(*v)
+	}
+	return _u
+}
+
+// ClearDeletionAt clears the value of the "deletion_at" field.
+func (_u *ProjectUpdateOne) ClearDeletionAt() *ProjectUpdateOne {
+	_u.mutation.ClearDeletionAt()
+	return _u
+}
+
+// SetDeletionRequestedBy sets the "deletion_requested_by" field.
+func (_u *ProjectUpdateOne) SetDeletionRequestedBy(v string) *ProjectUpdateOne {
+	_u.mutation.SetDeletionRequestedBy(v)
+	return _u
+}
+
+// SetNillableDeletionRequestedBy sets the "deletion_requested_by" field if the given value is not nil.
+func (_u *ProjectUpdateOne) SetNillableDeletionRequestedBy(v *string) *ProjectUpdateOne {
+	if v != nil {
+		_u.SetDeletionRequestedBy(*v)
+	}
+	return _u
+}
+
+// SetDeletedAt sets the "deleted_at" field.
+func (_u *ProjectUpdateOne) SetDeletedAt(v time.Time) *ProjectUpdateOne {
+	_u.mutation.SetDeletedAt(v)
+	return _u
+}
+
+// SetNillableDeletedAt sets the "deleted_at" field if the given value is not nil.
+func (_u *ProjectUpdateOne) SetNillableDeletedAt(v *time.Time) *ProjectUpdateOne {
+	if v != nil {
+		_u.SetDeletedAt(*v)
+	}
+	return _u
+}
+
+// ClearDeletedAt clears the value of the "deleted_at" field.
+func (_u *ProjectUpdateOne) ClearDeletedAt() *ProjectUpdateOne {
+	_u.mutation.ClearDeletedAt()
+	return _u
+}
+
+// SetDeletionPurgedAt sets the "deletion_purged_at" field.
+func (_u *ProjectUpdateOne) SetDeletionPurgedAt(v time.Time) *ProjectUpdateOne {
+	_u.mutation.SetDeletionPurgedAt(v)
+	return _u
+}
+
+// SetNillableDeletionPurgedAt sets the "deletion_purged_at" field if the given value is not nil.
+func (_u *ProjectUpdateOne) SetNillableDeletionPurgedAt(v *time.Time) *ProjectUpdateOne {
+	if v != nil {
+		_u.SetDeletionPurgedAt(*v)
+	}
+	return _u
+}
+
+// ClearDeletionPurgedAt clears the value of the "deletion_purged_at" field.
+func (_u *ProjectUpdateOne) ClearDeletionPurgedAt() *ProjectUpdateOne {
+	_u.mutation.ClearDeletionPurgedAt()
+	return _u
+}
+
 // SetOrganizationID sets the "organization_id" field.
 func (_u *ProjectUpdateOne) SetOrganizationID(v int) *ProjectUpdateOne {
 	_u.mutation.SetOrganizationID(v)
@@ -1452,6 +1764,11 @@ func (_u *ProjectUpdateOne) check() error {
 			return &ValidationError{Name: "slug", err: fmt.Errorf(`ent: validator failed for field "Project.slug": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.DeletionRequestedBy(); ok {
+		if err := project.DeletionRequestedByValidator(v); err != nil {
+			return &ValidationError{Name: "deletion_requested_by", err: fmt.Errorf(`ent: validator failed for field "Project.deletion_requested_by": %w`, err)}
+		}
+	}
 	if _u.mutation.OrganizationCleared() && len(_u.mutation.OrganizationIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "Project.organization"`)
 	}
@@ -1501,6 +1818,45 @@ func (_u *ProjectUpdateOne) sqlSave(ctx context.Context) (_node *Project, err er
 	}
 	if value, ok := _u.mutation.AddedRetentionDays(); ok {
 		_spec.AddField(project.FieldRetentionDays, field.TypeUint16, value)
+	}
+	if value, ok := _u.mutation.RetentionChangedAt(); ok {
+		_spec.SetField(project.FieldRetentionChangedAt, field.TypeTime, value)
+	}
+	if _u.mutation.RetentionChangedAtCleared() {
+		_spec.ClearField(project.FieldRetentionChangedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.RetentionPurgeUntil(); ok {
+		_spec.SetField(project.FieldRetentionPurgeUntil, field.TypeTime, value)
+	}
+	if _u.mutation.RetentionPurgeUntilCleared() {
+		_spec.ClearField(project.FieldRetentionPurgeUntil, field.TypeTime)
+	}
+	if value, ok := _u.mutation.RetentionPurgedAt(); ok {
+		_spec.SetField(project.FieldRetentionPurgedAt, field.TypeTime, value)
+	}
+	if _u.mutation.RetentionPurgedAtCleared() {
+		_spec.ClearField(project.FieldRetentionPurgedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.DeletionAt(); ok {
+		_spec.SetField(project.FieldDeletionAt, field.TypeTime, value)
+	}
+	if _u.mutation.DeletionAtCleared() {
+		_spec.ClearField(project.FieldDeletionAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.DeletionRequestedBy(); ok {
+		_spec.SetField(project.FieldDeletionRequestedBy, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.DeletedAt(); ok {
+		_spec.SetField(project.FieldDeletedAt, field.TypeTime, value)
+	}
+	if _u.mutation.DeletedAtCleared() {
+		_spec.ClearField(project.FieldDeletedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.DeletionPurgedAt(); ok {
+		_spec.SetField(project.FieldDeletionPurgedAt, field.TypeTime, value)
+	}
+	if _u.mutation.DeletionPurgedAtCleared() {
+		_spec.ClearField(project.FieldDeletionPurgedAt, field.TypeTime)
 	}
 	if _u.mutation.OrganizationCleared() {
 		edge := &sqlgraph.EdgeSpec{

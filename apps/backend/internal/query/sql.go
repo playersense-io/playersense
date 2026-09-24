@@ -86,6 +86,9 @@ const (
 	// factExperiments is each flag arm's outcomes by exposure day (00019).
 	factExperiments Fact = "experiment_daily"
 
+	// factApps is each platform and SDK a project's events came from (00022).
+	factApps Fact = "project_apps"
+
 	// factPlayerDays is the device-day fact, read here for one device at a time.
 	factPlayerDays Fact = "player_activity_daily"
 	// factPlayers and factAccounts are the lifetime facts, read directly rather than through

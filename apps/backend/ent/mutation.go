@@ -29764,6 +29764,13 @@ type ProjectMutation struct {
 	policy_tier            *project.PolicyTier
 	retention_days         *uint16
 	addretention_days      *int16
+	retention_changed_at   *time.Time
+	retention_purge_until  *time.Time
+	retention_purged_at    *time.Time
+	deletion_at            *time.Time
+	deletion_requested_by  *string
+	deleted_at             *time.Time
+	deletion_purged_at     *time.Time
 	clearedFields          map[string]struct{}
 	organization           *int
 	clearedorganization    bool
@@ -30173,6 +30180,336 @@ func (m *ProjectMutation) AddedRetentionDays() (r int16, exists bool) {
 func (m *ProjectMutation) ResetRetentionDays() {
 	m.retention_days = nil
 	m.addretention_days = nil
+}
+
+// SetRetentionChangedAt sets the "retention_changed_at" field.
+func (m *ProjectMutation) SetRetentionChangedAt(t time.Time) {
+	m.retention_changed_at = &t
+}
+
+// RetentionChangedAt returns the value of the "retention_changed_at" field in the mutation.
+func (m *ProjectMutation) RetentionChangedAt() (r time.Time, exists bool) {
+	v := m.retention_changed_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRetentionChangedAt returns the old "retention_changed_at" field's value of the Project entity.
+// If the Project object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProjectMutation) OldRetentionChangedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRetentionChangedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRetentionChangedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRetentionChangedAt: %w", err)
+	}
+	return oldValue.RetentionChangedAt, nil
+}
+
+// ClearRetentionChangedAt clears the value of the "retention_changed_at" field.
+func (m *ProjectMutation) ClearRetentionChangedAt() {
+	m.retention_changed_at = nil
+	m.clearedFields[project.FieldRetentionChangedAt] = struct{}{}
+}
+
+// RetentionChangedAtCleared returns if the "retention_changed_at" field was cleared in this mutation.
+func (m *ProjectMutation) RetentionChangedAtCleared() bool {
+	_, ok := m.clearedFields[project.FieldRetentionChangedAt]
+	return ok
+}
+
+// ResetRetentionChangedAt resets all changes to the "retention_changed_at" field.
+func (m *ProjectMutation) ResetRetentionChangedAt() {
+	m.retention_changed_at = nil
+	delete(m.clearedFields, project.FieldRetentionChangedAt)
+}
+
+// SetRetentionPurgeUntil sets the "retention_purge_until" field.
+func (m *ProjectMutation) SetRetentionPurgeUntil(t time.Time) {
+	m.retention_purge_until = &t
+}
+
+// RetentionPurgeUntil returns the value of the "retention_purge_until" field in the mutation.
+func (m *ProjectMutation) RetentionPurgeUntil() (r time.Time, exists bool) {
+	v := m.retention_purge_until
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRetentionPurgeUntil returns the old "retention_purge_until" field's value of the Project entity.
+// If the Project object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProjectMutation) OldRetentionPurgeUntil(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRetentionPurgeUntil is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRetentionPurgeUntil requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRetentionPurgeUntil: %w", err)
+	}
+	return oldValue.RetentionPurgeUntil, nil
+}
+
+// ClearRetentionPurgeUntil clears the value of the "retention_purge_until" field.
+func (m *ProjectMutation) ClearRetentionPurgeUntil() {
+	m.retention_purge_until = nil
+	m.clearedFields[project.FieldRetentionPurgeUntil] = struct{}{}
+}
+
+// RetentionPurgeUntilCleared returns if the "retention_purge_until" field was cleared in this mutation.
+func (m *ProjectMutation) RetentionPurgeUntilCleared() bool {
+	_, ok := m.clearedFields[project.FieldRetentionPurgeUntil]
+	return ok
+}
+
+// ResetRetentionPurgeUntil resets all changes to the "retention_purge_until" field.
+func (m *ProjectMutation) ResetRetentionPurgeUntil() {
+	m.retention_purge_until = nil
+	delete(m.clearedFields, project.FieldRetentionPurgeUntil)
+}
+
+// SetRetentionPurgedAt sets the "retention_purged_at" field.
+func (m *ProjectMutation) SetRetentionPurgedAt(t time.Time) {
+	m.retention_purged_at = &t
+}
+
+// RetentionPurgedAt returns the value of the "retention_purged_at" field in the mutation.
+func (m *ProjectMutation) RetentionPurgedAt() (r time.Time, exists bool) {
+	v := m.retention_purged_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRetentionPurgedAt returns the old "retention_purged_at" field's value of the Project entity.
+// If the Project object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProjectMutation) OldRetentionPurgedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRetentionPurgedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRetentionPurgedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRetentionPurgedAt: %w", err)
+	}
+	return oldValue.RetentionPurgedAt, nil
+}
+
+// ClearRetentionPurgedAt clears the value of the "retention_purged_at" field.
+func (m *ProjectMutation) ClearRetentionPurgedAt() {
+	m.retention_purged_at = nil
+	m.clearedFields[project.FieldRetentionPurgedAt] = struct{}{}
+}
+
+// RetentionPurgedAtCleared returns if the "retention_purged_at" field was cleared in this mutation.
+func (m *ProjectMutation) RetentionPurgedAtCleared() bool {
+	_, ok := m.clearedFields[project.FieldRetentionPurgedAt]
+	return ok
+}
+
+// ResetRetentionPurgedAt resets all changes to the "retention_purged_at" field.
+func (m *ProjectMutation) ResetRetentionPurgedAt() {
+	m.retention_purged_at = nil
+	delete(m.clearedFields, project.FieldRetentionPurgedAt)
+}
+
+// SetDeletionAt sets the "deletion_at" field.
+func (m *ProjectMutation) SetDeletionAt(t time.Time) {
+	m.deletion_at = &t
+}
+
+// DeletionAt returns the value of the "deletion_at" field in the mutation.
+func (m *ProjectMutation) DeletionAt() (r time.Time, exists bool) {
+	v := m.deletion_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDeletionAt returns the old "deletion_at" field's value of the Project entity.
+// If the Project object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProjectMutation) OldDeletionAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDeletionAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDeletionAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDeletionAt: %w", err)
+	}
+	return oldValue.DeletionAt, nil
+}
+
+// ClearDeletionAt clears the value of the "deletion_at" field.
+func (m *ProjectMutation) ClearDeletionAt() {
+	m.deletion_at = nil
+	m.clearedFields[project.FieldDeletionAt] = struct{}{}
+}
+
+// DeletionAtCleared returns if the "deletion_at" field was cleared in this mutation.
+func (m *ProjectMutation) DeletionAtCleared() bool {
+	_, ok := m.clearedFields[project.FieldDeletionAt]
+	return ok
+}
+
+// ResetDeletionAt resets all changes to the "deletion_at" field.
+func (m *ProjectMutation) ResetDeletionAt() {
+	m.deletion_at = nil
+	delete(m.clearedFields, project.FieldDeletionAt)
+}
+
+// SetDeletionRequestedBy sets the "deletion_requested_by" field.
+func (m *ProjectMutation) SetDeletionRequestedBy(s string) {
+	m.deletion_requested_by = &s
+}
+
+// DeletionRequestedBy returns the value of the "deletion_requested_by" field in the mutation.
+func (m *ProjectMutation) DeletionRequestedBy() (r string, exists bool) {
+	v := m.deletion_requested_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDeletionRequestedBy returns the old "deletion_requested_by" field's value of the Project entity.
+// If the Project object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProjectMutation) OldDeletionRequestedBy(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDeletionRequestedBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDeletionRequestedBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDeletionRequestedBy: %w", err)
+	}
+	return oldValue.DeletionRequestedBy, nil
+}
+
+// ResetDeletionRequestedBy resets all changes to the "deletion_requested_by" field.
+func (m *ProjectMutation) ResetDeletionRequestedBy() {
+	m.deletion_requested_by = nil
+}
+
+// SetDeletedAt sets the "deleted_at" field.
+func (m *ProjectMutation) SetDeletedAt(t time.Time) {
+	m.deleted_at = &t
+}
+
+// DeletedAt returns the value of the "deleted_at" field in the mutation.
+func (m *ProjectMutation) DeletedAt() (r time.Time, exists bool) {
+	v := m.deleted_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDeletedAt returns the old "deleted_at" field's value of the Project entity.
+// If the Project object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProjectMutation) OldDeletedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDeletedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDeletedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDeletedAt: %w", err)
+	}
+	return oldValue.DeletedAt, nil
+}
+
+// ClearDeletedAt clears the value of the "deleted_at" field.
+func (m *ProjectMutation) ClearDeletedAt() {
+	m.deleted_at = nil
+	m.clearedFields[project.FieldDeletedAt] = struct{}{}
+}
+
+// DeletedAtCleared returns if the "deleted_at" field was cleared in this mutation.
+func (m *ProjectMutation) DeletedAtCleared() bool {
+	_, ok := m.clearedFields[project.FieldDeletedAt]
+	return ok
+}
+
+// ResetDeletedAt resets all changes to the "deleted_at" field.
+func (m *ProjectMutation) ResetDeletedAt() {
+	m.deleted_at = nil
+	delete(m.clearedFields, project.FieldDeletedAt)
+}
+
+// SetDeletionPurgedAt sets the "deletion_purged_at" field.
+func (m *ProjectMutation) SetDeletionPurgedAt(t time.Time) {
+	m.deletion_purged_at = &t
+}
+
+// DeletionPurgedAt returns the value of the "deletion_purged_at" field in the mutation.
+func (m *ProjectMutation) DeletionPurgedAt() (r time.Time, exists bool) {
+	v := m.deletion_purged_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDeletionPurgedAt returns the old "deletion_purged_at" field's value of the Project entity.
+// If the Project object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProjectMutation) OldDeletionPurgedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDeletionPurgedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDeletionPurgedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDeletionPurgedAt: %w", err)
+	}
+	return oldValue.DeletionPurgedAt, nil
+}
+
+// ClearDeletionPurgedAt clears the value of the "deletion_purged_at" field.
+func (m *ProjectMutation) ClearDeletionPurgedAt() {
+	m.deletion_purged_at = nil
+	m.clearedFields[project.FieldDeletionPurgedAt] = struct{}{}
+}
+
+// DeletionPurgedAtCleared returns if the "deletion_purged_at" field was cleared in this mutation.
+func (m *ProjectMutation) DeletionPurgedAtCleared() bool {
+	_, ok := m.clearedFields[project.FieldDeletionPurgedAt]
+	return ok
+}
+
+// ResetDeletionPurgedAt resets all changes to the "deletion_purged_at" field.
+func (m *ProjectMutation) ResetDeletionPurgedAt() {
+	m.deletion_purged_at = nil
+	delete(m.clearedFields, project.FieldDeletionPurgedAt)
 }
 
 // SetOrganizationID sets the "organization_id" field.
@@ -30758,7 +31095,7 @@ func (m *ProjectMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ProjectMutation) Fields() []string {
-	fields := make([]string, 0, 8)
+	fields := make([]string, 0, 15)
 	if m.uid != nil {
 		fields = append(fields, project.FieldUID)
 	}
@@ -30779,6 +31116,27 @@ func (m *ProjectMutation) Fields() []string {
 	}
 	if m.retention_days != nil {
 		fields = append(fields, project.FieldRetentionDays)
+	}
+	if m.retention_changed_at != nil {
+		fields = append(fields, project.FieldRetentionChangedAt)
+	}
+	if m.retention_purge_until != nil {
+		fields = append(fields, project.FieldRetentionPurgeUntil)
+	}
+	if m.retention_purged_at != nil {
+		fields = append(fields, project.FieldRetentionPurgedAt)
+	}
+	if m.deletion_at != nil {
+		fields = append(fields, project.FieldDeletionAt)
+	}
+	if m.deletion_requested_by != nil {
+		fields = append(fields, project.FieldDeletionRequestedBy)
+	}
+	if m.deleted_at != nil {
+		fields = append(fields, project.FieldDeletedAt)
+	}
+	if m.deletion_purged_at != nil {
+		fields = append(fields, project.FieldDeletionPurgedAt)
 	}
 	if m.organization != nil {
 		fields = append(fields, project.FieldOrganizationID)
@@ -30805,6 +31163,20 @@ func (m *ProjectMutation) Field(name string) (ent.Value, bool) {
 		return m.PolicyTier()
 	case project.FieldRetentionDays:
 		return m.RetentionDays()
+	case project.FieldRetentionChangedAt:
+		return m.RetentionChangedAt()
+	case project.FieldRetentionPurgeUntil:
+		return m.RetentionPurgeUntil()
+	case project.FieldRetentionPurgedAt:
+		return m.RetentionPurgedAt()
+	case project.FieldDeletionAt:
+		return m.DeletionAt()
+	case project.FieldDeletionRequestedBy:
+		return m.DeletionRequestedBy()
+	case project.FieldDeletedAt:
+		return m.DeletedAt()
+	case project.FieldDeletionPurgedAt:
+		return m.DeletionPurgedAt()
 	case project.FieldOrganizationID:
 		return m.OrganizationID()
 	}
@@ -30830,6 +31202,20 @@ func (m *ProjectMutation) OldField(ctx context.Context, name string) (ent.Value,
 		return m.OldPolicyTier(ctx)
 	case project.FieldRetentionDays:
 		return m.OldRetentionDays(ctx)
+	case project.FieldRetentionChangedAt:
+		return m.OldRetentionChangedAt(ctx)
+	case project.FieldRetentionPurgeUntil:
+		return m.OldRetentionPurgeUntil(ctx)
+	case project.FieldRetentionPurgedAt:
+		return m.OldRetentionPurgedAt(ctx)
+	case project.FieldDeletionAt:
+		return m.OldDeletionAt(ctx)
+	case project.FieldDeletionRequestedBy:
+		return m.OldDeletionRequestedBy(ctx)
+	case project.FieldDeletedAt:
+		return m.OldDeletedAt(ctx)
+	case project.FieldDeletionPurgedAt:
+		return m.OldDeletionPurgedAt(ctx)
 	case project.FieldOrganizationID:
 		return m.OldOrganizationID(ctx)
 	}
@@ -30890,6 +31276,55 @@ func (m *ProjectMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetRetentionDays(v)
 		return nil
+	case project.FieldRetentionChangedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRetentionChangedAt(v)
+		return nil
+	case project.FieldRetentionPurgeUntil:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRetentionPurgeUntil(v)
+		return nil
+	case project.FieldRetentionPurgedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRetentionPurgedAt(v)
+		return nil
+	case project.FieldDeletionAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDeletionAt(v)
+		return nil
+	case project.FieldDeletionRequestedBy:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDeletionRequestedBy(v)
+		return nil
+	case project.FieldDeletedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDeletedAt(v)
+		return nil
+	case project.FieldDeletionPurgedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDeletionPurgedAt(v)
+		return nil
 	case project.FieldOrganizationID:
 		v, ok := value.(int)
 		if !ok {
@@ -30941,7 +31376,26 @@ func (m *ProjectMutation) AddField(name string, value ent.Value) error {
 // ClearedFields returns all nullable fields that were cleared during this
 // mutation.
 func (m *ProjectMutation) ClearedFields() []string {
-	return nil
+	var fields []string
+	if m.FieldCleared(project.FieldRetentionChangedAt) {
+		fields = append(fields, project.FieldRetentionChangedAt)
+	}
+	if m.FieldCleared(project.FieldRetentionPurgeUntil) {
+		fields = append(fields, project.FieldRetentionPurgeUntil)
+	}
+	if m.FieldCleared(project.FieldRetentionPurgedAt) {
+		fields = append(fields, project.FieldRetentionPurgedAt)
+	}
+	if m.FieldCleared(project.FieldDeletionAt) {
+		fields = append(fields, project.FieldDeletionAt)
+	}
+	if m.FieldCleared(project.FieldDeletedAt) {
+		fields = append(fields, project.FieldDeletedAt)
+	}
+	if m.FieldCleared(project.FieldDeletionPurgedAt) {
+		fields = append(fields, project.FieldDeletionPurgedAt)
+	}
+	return fields
 }
 
 // FieldCleared returns a boolean indicating if a field with the given name was
@@ -30954,6 +31408,26 @@ func (m *ProjectMutation) FieldCleared(name string) bool {
 // ClearField clears the value of the field with the given name. It returns an
 // error if the field is not defined in the schema.
 func (m *ProjectMutation) ClearField(name string) error {
+	switch name {
+	case project.FieldRetentionChangedAt:
+		m.ClearRetentionChangedAt()
+		return nil
+	case project.FieldRetentionPurgeUntil:
+		m.ClearRetentionPurgeUntil()
+		return nil
+	case project.FieldRetentionPurgedAt:
+		m.ClearRetentionPurgedAt()
+		return nil
+	case project.FieldDeletionAt:
+		m.ClearDeletionAt()
+		return nil
+	case project.FieldDeletedAt:
+		m.ClearDeletedAt()
+		return nil
+	case project.FieldDeletionPurgedAt:
+		m.ClearDeletionPurgedAt()
+		return nil
+	}
 	return fmt.Errorf("unknown Project nullable field %s", name)
 }
 
@@ -30981,6 +31455,27 @@ func (m *ProjectMutation) ResetField(name string) error {
 		return nil
 	case project.FieldRetentionDays:
 		m.ResetRetentionDays()
+		return nil
+	case project.FieldRetentionChangedAt:
+		m.ResetRetentionChangedAt()
+		return nil
+	case project.FieldRetentionPurgeUntil:
+		m.ResetRetentionPurgeUntil()
+		return nil
+	case project.FieldRetentionPurgedAt:
+		m.ResetRetentionPurgedAt()
+		return nil
+	case project.FieldDeletionAt:
+		m.ResetDeletionAt()
+		return nil
+	case project.FieldDeletionRequestedBy:
+		m.ResetDeletionRequestedBy()
+		return nil
+	case project.FieldDeletedAt:
+		m.ResetDeletedAt()
+		return nil
+	case project.FieldDeletionPurgedAt:
+		m.ResetDeletionPurgedAt()
 		return nil
 	case project.FieldOrganizationID:
 		m.ResetOrganizationID()

@@ -94,6 +94,41 @@ func Projects() *muzak.Router {
 		// project outside the member's access.
 		muzak.Needs(core.ResolveUser))
 
+	r.Patch("/organizations/{org}/projects/{project}", handlers.UpdateProject,
+		muzak.Summary("Rename a project"),
+		muzak.Description("The slug, the ids and the policy tier are fixed at creation; the name is "+
+			"the one thing that changes, and links that carry the slug keep working."),
+		core.Require(authz.ProjectUpdate))
+
+	r.Put("/organizations/{org}/projects/{project}/retention", handlers.SetRetention,
+		muzak.Summary("Change how long raw events are kept"),
+		muzak.Description("One of 7, 30, 90, 180 or 365 days, at most the policy tier's cap and the "+
+			"plan's max_raw_retention_days. New rows take it within minutes. A raised tier does "+
+			"not bring back what already expired; a lowered one is enforced on rows written before "+
+			"it too, by the worker, within a day."),
+		core.Require(authz.ProjectUpdate),
+		muzak.WithResponseDoc(http.StatusUnprocessableEntity, "Not a tier, or above what this project may keep"))
+
+	r.Post("/organizations/{org}/projects/{project}/deletion", handlers.ScheduleDeletion,
+		muzak.Summary("Delete a project in thirty days"),
+		muzak.Description("Events are collected until then and it can be kept at any point before. "+
+			"Then its keys stop working and its analytics and archive are deleted; its usage and "+
+			"invoices stay, because they are the organization's."),
+		core.Require(authz.ProjectDelete),
+		muzak.WithResponseDoc(http.StatusConflict, "It is already to be deleted"))
+
+	r.Delete("/organizations/{org}/projects/{project}/deletion", handlers.CancelDeletion,
+		muzak.Summary("Keep a project that was to be deleted"),
+		core.Require(authz.ProjectDelete),
+		muzak.WithResponseDoc(http.StatusConflict, "It is not to be deleted"))
+
+	r.Get("/organizations/{org}/projects/{project}/apps", handlers.ListProjectApps,
+		muzak.Summary("Where a project's events come from"),
+		muzak.Description("Each platform and SDK, when first and last seen, how many events, and the "+
+			"newest build and SDK version, across every environment."),
+		muzak.Needs(core.ResolveUser),
+		muzak.WithResponseDoc(http.StatusServiceUnavailable, "The facts could not be read"))
+
 	return r
 }
 
