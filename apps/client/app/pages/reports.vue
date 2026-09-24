@@ -9,7 +9,6 @@
 import { type Connection, type Edge, type Node, useVueFlow, VueFlow } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
 import { ControlButton, Controls } from '@vue-flow/controls'
-import { MiniMap } from '@vue-flow/minimap'
 
 definePageMeta({ layout: 'canvas' })
 
@@ -17,7 +16,7 @@ const route = useRoute()
 const router = useRouter()
 
 const { reports, reportById, create, save, duplicate, remove } = useReports()
-const { screenToFlowCoordinate, fitView, removeNodes, dimensions } = useVueFlow()
+const { screenToFlowCoordinate, fitView, removeNodes } = useVueFlow()
 
 // --- Which report -------------------------------------------------------------------------
 
@@ -49,7 +48,9 @@ const selectedId = ref<string | null>(null)
 
 /* A deep copy with no reactivity left in it. `structuredClone` refuses the proxies a node's
    settings pick up once they have been edited; the settings are JSON, so JSON copies them. */
-const plain = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T
+function plain<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T
+}
 
 function load(id: string) {
   const entry = reportById(id)
@@ -410,14 +411,6 @@ const ids = { name: useId(), description: useId() }
               <Icon aria-hidden="true" name="material-symbols:auto-awesome-mosaic-outline" />
             </ControlButton>
           </Controls>
-          <MiniMap
-            v-if="dimensions.width > 900"
-            :height="96"
-            :width="150"
-            pannable
-            position="bottom-right"
-            zoomable
-          />
 
           <template #node-report="nodeProps">
             <ReportFlowNode

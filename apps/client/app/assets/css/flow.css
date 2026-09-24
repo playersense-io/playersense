@@ -4,7 +4,6 @@
 @import "@vue-flow/core/dist/style.css";
 @import "@vue-flow/core/dist/theme-default.css";
 @import "@vue-flow/controls/dist/style.css";
-@import "@vue-flow/minimap/dist/style.css";
 
 .ps-flow {
   background: rgb(var(--v-theme-background));
@@ -106,24 +105,6 @@
 .ps-flow .vue-flow__controls-button svg {
   max-height: 12px;
   max-width: 12px;
-}
-
-/* The map in the corner. */
-.ps-flow .vue-flow__minimap {
-  background: rgb(var(--v-theme-surface));
-  border: 1px solid var(--color-line);
-  border-radius: var(--ps-radius);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
-  overflow: hidden;
-}
-
-.ps-flow .vue-flow__minimap-mask {
-  fill: rgba(var(--v-theme-on-surface), 0.06);
-}
-
-.ps-flow .vue-flow__minimap-node {
-  fill: rgba(var(--v-theme-on-surface), 0.18);
-  stroke: none;
 }
 
 /* The corner attribution is kept, quietly. */
