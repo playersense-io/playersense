@@ -1,7 +1,7 @@
 <script setup lang="ts">
-// Billing > Wallet: the credit the balance is made of, lot by lot, and every movement of it.
-// A lot is a top-up or a promotion; usage is taken from the oldest first, and only a
-// promotion can expire, so the lot that expires soonest is the one worth seeing first.
+// Billing > Wallet: the credit the balance is made of, lot by lot, and every movement of it,
+// each a table. A lot is a top-up or a promotion; usage is taken from the oldest first, and
+// only a promotion can expire, so an expiry coming up is drawn in the warning ink.
 const { billing, balance } = useBilling()
 
 defineEmits<{ topUp: [] }>()
@@ -9,17 +9,82 @@ defineEmits<{ topUp: [] }>()
 const now = Date.now()
 const DAY = 86_400_000
 
-const lots = computed(() => [...billing.value.lots]
-  .filter(lot => lot.remaining_micros > 0)
-  .sort((a, b) => (a.expires_at ? Date.parse(a.expires_at) : Infinity) - (b.expires_at ? Date.parse(b.expires_at) : Infinity) || Date.parse(a.granted_at) - Date.parse(b.granted_at)))
+// --- Credit, lot by lot ----------------------------------------------------------------------
 
-const spentLots = computed(() => billing.value.lots.filter(lot => lot.remaining_micros <= 0).length)
+type LotState = 'available' | 'spent' | 'expired'
+
+const LOT_STATES: Record<LotState, { label: string, tone: BadgeTone }> = {
+  available: { label: 'Available', tone: 'success' },
+  spent: { label: 'Spent', tone: 'neutral' },
+  expired: { label: 'Expired', tone: 'warning' }
+}
+
+const LOT_KINDS: Record<CreditLot['kind'], { label: string, tone: string }> = {
+  purchase: { label: 'Bought', tone: 'primary' },
+  promo: { label: 'Promotion', tone: 'chart-6' }
+}
+
+function stateOf(lot: CreditLot): LotState {
+  if (lot.expires_at && Date.parse(lot.expires_at) <= now) return 'expired'
+  return lot.remaining_micros > 0 ? 'available' : 'spent'
+}
 
 function expiry(lot: CreditLot) {
-  if (!lot.expires_at) return { text: 'Never expires', soon: false }
+  if (!lot.expires_at) return { text: 'Never', soon: false }
   const days = Math.ceil((Date.parse(lot.expires_at) - now) / DAY)
-  return { text: days <= 0 ? 'Expires today' : `Expires in ${days} ${days === 1 ? 'day' : 'days'}`, soon: days <= 30 }
+  if (days <= 0) return { text: `Expired ${formatDate(lot.expires_at)}`, soon: false }
+  return { text: `In ${days} ${days === 1 ? 'day' : 'days'}`, soon: days <= 30 && lot.remaining_micros > 0 }
 }
+
+const LOT_COLUMNS: DataTableColumn<CreditLot>[] = [
+  { key: 'description', title: 'Credit', fixed: true, value: lot => lot.description ?? '' },
+  { key: 'state', title: 'Status', width: 130, skeleton: 'pill', value: lot => LOT_STATES[stateOf(lot)].label },
+  { key: 'remaining_micros', title: 'Left', align: 'end', mono: true, width: 200 },
+  { key: 'amount_micros', title: 'Of', align: 'end', mono: true, width: 130 },
+  { key: 'granted_at', title: 'Added', mono: true, width: 140, value: lot => Date.parse(lot.granted_at) },
+  { key: 'expires_at', title: 'Expires', width: 160, value: lot => (lot.expires_at ? Date.parse(lot.expires_at) : Number.MAX_SAFE_INTEGER) }
+]
+
+const lotColumns = ref(defaultColumnState(LOT_COLUMNS))
+/* Oldest first: the order usage spends them in. */
+const lotSortBy = ref<DataTableSort[]>([{ key: 'granted_at', order: 'asc' }])
+
+const lotQuery = ref('')
+const lotFilters = ref<Record<string, string[]>>({ kind: [], state: [] })
+
+const LOT_FILTER_GROUPS: FilterGroup[] = [
+  { key: 'kind', label: 'Kind', options: (Object.keys(LOT_KINDS) as CreditLot['kind'][]).map(kind => ({ value: kind, label: LOT_KINDS[kind].label })) },
+  { key: 'state', label: 'Status', options: (Object.keys(LOT_STATES) as LotState[]).map(state => ({ value: state, label: LOT_STATES[state].label })) }
+]
+
+const lotActiveFilters = computed<ActiveFilter[]>(() => [
+  ...(lotFilters.value.kind ?? []).map(kind => ({ key: `kind:${kind}`, label: `Kind: ${LOT_KINDS[kind as CreditLot['kind']].label}` })),
+  ...(lotFilters.value.state ?? []).map(state => ({ key: `state:${state}`, label: `Status: ${LOT_STATES[state as LotState].label}` })),
+  ...(lotQuery.value.trim() ? [{ key: 'search', label: `“${lotQuery.value.trim()}”` }] : [])
+])
+
+function removeLotFilter(key: string) {
+  if (key === 'search') {
+    lotQuery.value = ''
+    return
+  }
+  const [group, value] = key.split(':') as [string, string]
+  lotFilters.value = { ...lotFilters.value, [group]: (lotFilters.value[group] ?? []).filter(entry => entry !== value) }
+}
+
+function clearLotFilters() {
+  lotQuery.value = ''
+  lotFilters.value = { kind: [], state: [] }
+}
+
+const lots = computed(() => {
+  const needle = lotQuery.value.trim().toLowerCase()
+  const kinds = lotFilters.value.kind ?? []
+  const states = lotFilters.value.state ?? []
+  return billing.value.lots.filter(lot => (!kinds.length || kinds.includes(lot.kind))
+    && (!states.length || states.includes(stateOf(lot)))
+    && (!needle || (lot.description ?? '').toLowerCase().includes(needle)))
+})
 
 // --- The ledger ------------------------------------------------------------------------------
 
@@ -73,71 +138,94 @@ function exportLedger() {
 
 <template>
   <div class="flex flex-col gap-6">
-    <SectionCard description="What the balance is made of. Usage is taken from the oldest credit first; bought credit never expires, a promotion can." title="Credit">
+    <SectionCard :padded="false" description="What the balance is made of. Usage is taken from the oldest credit first; bought credit never expires, a promotion can." title="Credit">
       <template #actions>
         <span class="font-mono text-sm text-ink">{{ writeMicros(balance) }}</span>
       </template>
 
-      <ul v-if="lots.length" class="m-0 flex list-none flex-col divide-y divide-line p-0">
-        <li v-for="lot in lots" :key="lot.id" class="flex flex-wrap items-center gap-x-6 gap-y-3 py-3.5 first:pt-0 last:pb-0">
-          <span class="flex min-w-48 flex-1 items-center gap-3">
+      <TableToolbar :filters="lotActiveFilters" @clear="clearLotFilters" @remove="removeLotFilter">
+        <SearchField
+          v-model="lotQuery"
+          class="w-56"
+          label="Search credit"
+          placeholder="Description"
+        />
+        <FilterMenu v-model="lotFilters" :groups="LOT_FILTER_GROUPS" />
+        <DataTableColumnsMenu v-model="lotColumns" :columns="LOT_COLUMNS" />
+      </TableToolbar>
+
+      <DataTable
+        v-model:column-state="lotColumns"
+        v-model:sort-by="lotSortBy"
+        :columns="LOT_COLUMNS"
+        :items="lots"
+        empty-description="No credit matches these filters."
+        empty-title="Nothing matches."
+        label="Credit"
+      >
+        <template v-if="!billing.lots.length" #empty>
+          <EmptyState
+            description="Top up to keep collecting past the plan's allowance. Usage is taken from the wallet every day."
+            icon="material-symbols:account-balance-wallet-outline"
+            title="The wallet is empty."
+          >
+            <template #actions>
+              <v-btn
+                class="text-xs font-medium"
+                color="primary"
+                size="small"
+                variant="flat"
+                @click="$emit('topUp')"
+              >
+                Top up
+              </v-btn>
+            </template>
+          </EmptyState>
+        </template>
+        <template #cell.description="{ item }">
+          <span class="flex min-w-0 items-center gap-3">
             <span
-              :style="{ color: `rgb(var(--v-theme-${lot.kind === 'promo' ? 'chart-6' : 'primary'}))`, background: `rgba(var(--v-theme-${lot.kind === 'promo' ? 'chart-6' : 'primary'}), 0.1)` }"
+              :style="{ color: `rgb(var(--v-theme-${item.kind === 'promo' ? 'chart-6' : 'primary'}))`, background: `rgba(var(--v-theme-${item.kind === 'promo' ? 'chart-6' : 'primary'}), 0.1)` }"
               aria-hidden="true"
-              class="flex size-8 flex-none items-center justify-center rounded-(--ps-radius) text-base"
+              class="flex size-7 flex-none items-center justify-center rounded-(--ps-radius-small) text-sm"
             >
-              <Icon :name="lot.kind === 'promo' ? 'material-symbols:featured-seasonal-and-gifts-outline' : 'material-symbols:account-balance-wallet-outline'" />
+              <Icon :name="item.kind === 'promo' ? 'material-symbols:featured-seasonal-and-gifts-outline' : 'material-symbols:account-balance-wallet-outline'" />
             </span>
             <span class="flex min-w-0 flex-col">
-              <span class="truncate text-sm text-ink">{{ lot.description ?? (lot.kind === 'promo' ? 'Promotion' : 'Top-up') }}</span>
-              <span class="text-[11px] text-ink/55">{{ lot.kind === 'promo' ? 'Granted' : 'Bought' }} {{ formatDate(lot.granted_at) }}</span>
+              <span class="truncate text-ink">{{ item.description ?? LOT_KINDS[item.kind].label }}</span>
+              <span class="truncate text-[11px] text-ink/50">{{ LOT_KINDS[item.kind].label }}</span>
             </span>
           </span>
-
-          <span class="flex w-56 flex-col gap-1.5">
-            <span class="flex items-baseline justify-between gap-2 text-[11px] text-ink/55">
-              <span><span class="font-mono text-xs text-ink">{{ writeMicros(lot.remaining_micros) }}</span> left</span>
-              <span class="font-mono">of {{ writeMicros(lot.amount_micros) }}</span>
+        </template>
+        <template #cell.state="{ item }">
+          <StatusBadge :label="LOT_STATES[stateOf(item)].label" :tone="LOT_STATES[stateOf(item)].tone" />
+        </template>
+        <template #cell.remaining_micros="{ item }">
+          <span class="flex items-center justify-end gap-2.5">
+            <span aria-hidden="true" class="h-1.5 w-16 overflow-hidden rounded-full bg-ink/8">
+              <span :style="{ width: `${Math.round((item.remaining_micros / item.amount_micros) * 100)}%` }" class="block h-full rounded-full bg-primary" />
             </span>
-            <span class="h-1.5 overflow-hidden rounded-full bg-ink/8">
-              <span :style="{ width: `${Math.round((lot.remaining_micros / lot.amount_micros) * 100)}%` }" class="block h-full rounded-full bg-primary" />
-            </span>
+            <span :class="item.remaining_micros > 0 ? 'text-ink' : 'text-ink/45'">{{ writeMicros(item.remaining_micros) }}</span>
           </span>
-
-          <span :class="expiry(lot).soon ? 'text-warning' : 'text-ink/55'" class="flex w-36 items-center justify-end gap-1 text-[11px]">
+        </template>
+        <template #cell.amount_micros="{ item }">
+          <span class="text-ink/65">{{ writeMicros(item.amount_micros) }}</span>
+        </template>
+        <template #cell.granted_at="{ item }">
+          {{ formatDate(item.granted_at) }}
+        </template>
+        <template #cell.expires_at="{ item }">
+          <span :class="expiry(item).soon ? 'text-warning' : 'text-ink/60'" class="flex items-center gap-1 text-xs">
             <Icon
-              v-if="lot.expires_at"
+              v-if="expiry(item).soon"
               aria-hidden="true"
               class="text-sm"
               name="material-symbols:schedule-outline"
             />
-            {{ expiry(lot).text }}
+            {{ expiry(item).text }}
           </span>
-        </li>
-      </ul>
-
-      <EmptyState
-        v-else
-        description="Top up to keep collecting past the plan's allowance. Usage is taken from the wallet every day."
-        icon="material-symbols:account-balance-wallet-outline"
-        title="The wallet is empty."
-      >
-        <template #actions>
-          <v-btn
-            class="text-xs font-medium"
-            color="primary"
-            size="small"
-            variant="flat"
-            @click="$emit('topUp')"
-          >
-            Top up
-          </v-btn>
         </template>
-      </EmptyState>
-
-      <p v-if="spentLots" class="m-0 mt-4 border-t border-line pt-3 text-[11px] text-ink/50">
-        {{ spentLots }} earlier {{ spentLots === 1 ? 'lot is' : 'lots are' }} spent in full, and in the ledger below.
-      </p>
+      </DataTable>
     </SectionCard>
 
     <SectionCard :padded="false" description="Every movement of the wallet: top-ups, promotions, usage taken each day, the plan, refunds and credit that expired." title="Ledger">
