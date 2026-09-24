@@ -716,3 +716,30 @@ func TestAFlagsExposuresSaySplitByValueVersionAndBuild(t *testing.T) {
 
 	get[schemas.FlagExposureOut](t, r.member, r.analytics()+"/flags/never_read/exposures", r.yesterdayOnly(), http.StatusNotFound)
 }
+
+// TestTheOverviewListsEveryReadableProject.
+func TestTheOverviewListsEveryReadableProject(t *testing.T) {
+	r := newReporting(t, "standard")
+	r.seedCurve(t)
+
+	path := "/v1/organizations/" + r.project.OrgSlug + "/analytics/production/projects"
+	params := url.Values{
+		"from": {day(r.cohortDay())},
+		"to":   {day(r.cohortDay().AddDate(0, 0, returnOffset))},
+	}
+	out := get[schemas.ProjectsOverviewOut](t, r.member, path, params, http.StatusOK)
+	if len(out.Projects) != 1 || out.Projects[0].Slug != r.project.ProjectSlug {
+		t.Fatalf("projects %+v, want the seeded one", out.Projects)
+	}
+	p := out.Projects[0]
+	if p.PlayerDays == nil || *p.PlayerDays != totalInstalls+returners || p.NewPlayers != totalInstalls {
+		t.Fatalf("the project is %+v, want %d player-days and %d new players", p, totalInstalls+returners, totalInstalls)
+	}
+
+	// Somebody who may read no project's analytics sees an empty table rather than a refusal.
+	billing := r.join(t, "billing")
+	none := get[schemas.ProjectsOverviewOut](t, billing, path, params, http.StatusOK)
+	if len(none.Projects) != 0 {
+		t.Fatalf("a billing member sees %+v", none.Projects)
+	}
+}

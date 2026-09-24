@@ -750,3 +750,48 @@ type FlagAppVersionOut struct {
 	DefaultExposures uint64  `json:"default_exposures"`
 	Players          *uint64 `json:"players,omitzero"`
 }
+
+// ---- the organization's overview --------------------------------------------
+
+// ProjectsOverviewParams asks for every project's headline figures.
+type ProjectsOverviewParams struct {
+	OrgSlug     string `path:"org"`
+	Environment string `path:"environment" doc:"development, staging or production"`
+	AnalyticsRange
+}
+
+func (in *ProjectsOverviewParams) Validate(v *muzak.Validation) {
+	v.String(&in.OrgSlug).Trim().Lower().Required().MaxLen(64)
+	v.String(&in.Environment).Trim().Lower().Required().OneOf("development", "staging", "production")
+	in.validateRange(v)
+}
+
+// ProjectsOverviewOut is the Overview page's table of projects: every project the caller may read
+// analytics for, in one environment, over the range and the range before it.
+type ProjectsOverviewOut struct {
+	From     time.Time            `json:"from"`
+	To       time.Time            `json:"to"`
+	Projects []ProjectOverviewOut `json:"projects"`
+
+	SuppressedCells      int `json:"suppressed_cells"`
+	SuppressionThreshold int `json:"suppression_threshold"`
+}
+
+// ProjectOverviewOut is one project's sums over the range. The player figures are player-days,
+// each day's exact actives summed, so a daily average is a division by the days and sessions per
+// player per day is sessions over player-days.
+type ProjectOverviewOut struct {
+	Slug string `json:"slug"`
+	Name string `json:"name"`
+
+	PlayerDays         *uint64 `json:"player_days,omitzero"`
+	PreviousPlayerDays *uint64 `json:"previous_player_days,omitzero"`
+	NewPlayers         uint64  `json:"new_players"`
+	Sessions           uint64  `json:"sessions"`
+	PlaytimeMs         uint64  `json:"playtime_ms"`
+	Events             uint64  `json:"events"`
+
+	RevenueMicros         int64  `json:"revenue_micros"`
+	PreviousRevenueMicros int64  `json:"previous_revenue_micros"`
+	PayerDays             uint64 `json:"payer_days"`
+}

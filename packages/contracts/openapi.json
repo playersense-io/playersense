@@ -2381,6 +2381,131 @@
         }
       }
     },
+    "/v1/organizations/{org}/analytics/{environment}/projects": {
+      "get": {
+        "tags": [
+          "reporting"
+        ],
+        "summary": "Compare every project's headline figures",
+        "description": "Active player-days, new players, sessions, playtime, events and revenue for each project you may read analytics for, over the range and the range before, from the exact daily metrics.",
+        "operationId": "get_v1_organizations_by_org_analytics_by_environment_projects",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "environment",
+            "in": "path",
+            "description": "development, staging or production",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "development",
+                "staging",
+                "production"
+              ]
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "description": "YYYY-MM-DD, inclusive. Defaults to six days before to",
+            "schema": {
+              "type": "string",
+              "maxLength": 10
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "description": "YYYY-MM-DD, inclusive. Defaults to today (UTC)",
+            "schema": {
+              "type": "string",
+              "maxLength": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectsOverviewOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not read this project's analytics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The organization, project or environment does not exist, or you cannot see it",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The facts could not be read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/organizations/{org}/audit": {
       "get": {
         "tags": [
@@ -13787,6 +13912,70 @@
           "slug"
         ]
       },
+      "ProjectOverviewOut": {
+        "type": "object",
+        "properties": {
+          "events": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "new_players": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "payer_days": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "player_days": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "playtime_ms": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "previous_player_days": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "previous_revenue_micros": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "revenue_micros": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "sessions": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "slug": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "events",
+          "name",
+          "new_players",
+          "payer_days",
+          "playtime_ms",
+          "previous_revenue_micros",
+          "revenue_micros",
+          "sessions",
+          "slug"
+        ]
+      },
       "ProjectRefOut": {
         "type": "object",
         "properties": {
@@ -13804,6 +13993,40 @@
           "id",
           "name",
           "slug"
+        ]
+      },
+      "ProjectsOverviewOut": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "projects": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectOverviewOut"
+            }
+          },
+          "suppressed_cells": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "suppression_threshold": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "to": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "from",
+          "projects",
+          "suppressed_cells",
+          "suppression_threshold",
+          "to"
         ]
       },
       "PurchaseOut": {

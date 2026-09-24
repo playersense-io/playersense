@@ -116,4 +116,13 @@ func explorer(r *muzak.Router, base string) {
 		core.Require(authz.AnalyticsRead),
 		muzak.WithResponseDoc(http.StatusNotFound, "No exposure of this flag in the range"),
 		unreadable)
+
+	// The organization's overview names no project, so it is not under base and has no
+	// permission guard: the handler keeps the projects the caller holds analytics.read on.
+	r.Get("/organizations/{org}/analytics/{environment}/projects", handlers.ProjectsOverview,
+		muzak.Summary("Compare every project's headline figures"),
+		muzak.Description("Active player-days, new players, sessions, playtime, events and revenue for "+
+			"each project you may read analytics for, over the range and the range before, from the "+
+			"exact daily metrics."),
+		unreadable)
 }

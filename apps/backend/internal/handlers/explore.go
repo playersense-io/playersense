@@ -6,6 +6,11 @@ import (
 
 	muzak "muzak.dev/framework"
 
+	"playersense.dev/backend/ent"
+	environmentpkg "playersense.dev/backend/ent/environment"
+	projectpkg "playersense.dev/backend/ent/project"
+	"playersense.dev/backend/internal/authz"
+	"playersense.dev/backend/internal/core"
 	"playersense.dev/backend/internal/query"
 	"playersense.dev/backend/internal/schemas"
 )
@@ -213,6 +218,66 @@ func FlagExposure(ctx *muzak.Context, in schemas.FlagExposureParams) (schemas.Fl
 	out, err := engine.FlagExposure(ctx.Context(), scope, in.Flag, w, in.Version)
 	if err != nil {
 		return schemas.FlagExposureOut{}, exploreFailed(err, "flag exposure")
+	}
+	return *out, nil
+}
+
+// ProjectsOverview reads every readable project's headline figures.
+//
+// analytics.read is a project permission, so the route has no guard of its own: the projects are
+// the organization's, kept to those the caller can reach and holds analytics.read on. Somebody who
+// holds it on none gets an empty table, which is what they may see.
+func ProjectsOverview(ctx *muzak.Context, in schemas.ProjectsOverviewParams) (schemas.ProjectsOverviewOut, error) {
+	db := muzak.From[*core.DB](ctx)
+	engine := muzak.From[*query.Engine](ctx)
+	principal := muzak.From[*core.Principal](ctx)
+
+	from, to, err := in.Resolve(time.Now())
+	if err != nil {
+		return schemas.ProjectsOverviewOut{}, err
+	}
+
+	projects, err := db.Client.Project.Query().
+		Where(projectpkg.OrganizationID(principal.Organization.ID)).
+		Order(ent.Asc(projectpkg.FieldSlug)).
+		All(ctx.Context())
+	if err != nil {
+		return schemas.ProjectsOverviewOut{}, core.AsHTTPError(err)
+	}
+	var readable []*ent.Project
+	var ids []int
+	for _, p := range projects {
+		if principal.Actor.Can(authz.AnalyticsRead, p.ID) {
+			readable = append(readable, p)
+			ids = append(ids, p.ID)
+		}
+	}
+	envs, err := db.Client.Environment.Query().
+		Where(environmentpkg.ProjectIDIn(ids...), environmentpkg.KindEQ(environmentpkg.Kind(in.Environment))).
+		All(ctx.Context())
+	if err != nil {
+		return schemas.ProjectsOverviewOut{}, core.AsHTTPError(err)
+	}
+	envOf := map[int]int{}
+	for _, env := range envs {
+		envOf[env.ProjectID] = env.ID
+	}
+
+	refs := make([]query.ProjectRef, 0, len(readable))
+	for _, p := range readable {
+		env, ok := envOf[p.ID]
+		if !ok {
+			continue
+		}
+		refs = append(refs, query.ProjectRef{Slug: p.Slug, Name: p.Name, Scope: query.Scope{
+			OrgSeq: uint32(principal.Organization.ID), ProjectSeq: uint32(p.ID),
+			EnvironmentSeq: uint16(env), PolicyTier: string(p.PolicyTier),
+		}})
+	}
+
+	out, err := engine.ProjectsOverview(ctx.Context(), refs, query.NewWindow(from, to))
+	if err != nil {
+		return schemas.ProjectsOverviewOut{}, exploreFailed(err, "overview")
 	}
 	return *out, nil
 }

@@ -412,6 +412,26 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/v1/organizations/{org}/analytics/{environment}/projects": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * Compare every project's headline figures
+         * @description Active player-days, new players, sessions, playtime, events and revenue for each project you may read analytics for, over the range and the range before, from the exact daily metrics.
+         */
+        readonly get: operations["get_v1_organizations_by_org_analytics_by_environment_projects"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/v1/organizations/{org}/audit": {
         readonly parameters: {
             readonly query?: never;
@@ -2834,10 +2854,43 @@ export interface components {
             readonly retention_days: number;
             readonly slug: string;
         };
+        readonly ProjectOverviewOut: {
+            /** Format: int64 */
+            readonly events: number;
+            readonly name: string;
+            /** Format: int64 */
+            readonly new_players: number;
+            /** Format: int64 */
+            readonly payer_days: number;
+            /** Format: int64 */
+            readonly player_days?: number | null;
+            /** Format: int64 */
+            readonly playtime_ms: number;
+            /** Format: int64 */
+            readonly previous_player_days?: number | null;
+            /** Format: int64 */
+            readonly previous_revenue_micros: number;
+            /** Format: int64 */
+            readonly revenue_micros: number;
+            /** Format: int64 */
+            readonly sessions: number;
+            readonly slug: string;
+        };
         readonly ProjectRefOut: {
             readonly id: string;
             readonly name: string;
             readonly slug: string;
+        };
+        readonly ProjectsOverviewOut: {
+            /** Format: date-time */
+            readonly from: string;
+            readonly projects: readonly components["schemas"]["ProjectOverviewOut"][];
+            /** Format: int64 */
+            readonly suppressed_cells: number;
+            /** Format: int64 */
+            readonly suppression_threshold: number;
+            /** Format: date-time */
+            readonly to: string;
         };
         readonly PurchaseOut: {
             readonly app_version: string;
@@ -5062,6 +5115,89 @@ export interface operations {
                 };
             };
             /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly get_v1_organizations_by_org_analytics_by_environment_projects: {
+        readonly parameters: {
+            readonly query?: {
+                /** @description YYYY-MM-DD, inclusive. Defaults to six days before to */
+                readonly from?: string;
+                /** @description YYYY-MM-DD, inclusive. Defaults to today (UTC) */
+                readonly to?: string;
+            };
+            readonly header?: never;
+            readonly path: {
+                readonly org: string;
+                /** @description development, staging or production */
+                readonly environment: "development" | "staging" | "production";
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ProjectsOverviewOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not read this project's analytics */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The organization, project or environment does not exist, or you cannot see it */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The facts could not be read */
             readonly 503: {
                 headers: {
                     readonly [name: string]: unknown;
