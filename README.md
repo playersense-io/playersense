@@ -219,8 +219,8 @@ A card is a plan's tiers from `effective_from` on. It cannot be changed, and it 
 a minute after it is published — chargers keep prices in memory for less than that, so every one of
 them has the card before it applies. A new price is a new card, and each player is priced at the card in force when they arrived. Tiers are
 player positions within a calendar month, inclusive, and the last is unbounded. The launch prices —
-$1.00 per 1,000 players to 100,000, $0.80 to 500,000, $0.70 to 1,000,000, $0.60 above, so a studio
-with 200,000 players a month and 10,000 included pays $170 — are data, loaded like this (`$TOKEN`
+$2.50 per 1,000 players to 100,000, $2.00 to 500,000, $1.75 to 1,000,000, $1.50 above, so a studio
+with 200,000 players a month and 10,000 included pays $425, and one with 500,000 pays $1,025 — are data, loaded like this (`$TOKEN`
 is `CONTROL_API_ADMIN_TOKEN`):
 
 ```bash
@@ -229,12 +229,12 @@ curl -X POST localhost:21080/v1/operator/plans -H "Authorization: Bearer $TOKEN"
   "entitlements": {"included_mau": 10000}, "operator": "you@playersense.dev"}'
 
 curl -X POST localhost:21080/v1/operator/plans/payg/rate-cards -H "Authorization: Bearer $TOKEN" -d '{
-  "mode": "graduated", "note": "launch prices: $1 per 1,000 players", "operator": "you@playersense.dev",
+  "mode": "graduated", "note": "launch prices: $2.50 per 1,000 players", "operator": "you@playersense.dev",
   "tiers": [
-    {"up_to": 100000,  "unit_price_micros": 1000},
-    {"up_to": 500000,  "unit_price_micros": 800},
-    {"up_to": 1000000, "unit_price_micros": 700},
-    {"unit_price_micros": 600}]}'
+    {"up_to": 100000,  "unit_price_micros": 2500},
+    {"up_to": 500000,  "unit_price_micros": 2000},
+    {"up_to": 1000000, "unit_price_micros": 1750},
+    {"unit_price_micros": 1500}]}'
 ```
 
 **Money reaches the wallet through Stripe**, and PlayerSense stores no card or billing details
@@ -335,7 +335,7 @@ invoices stay collectable. Invoice reminder emails are Stripe's Dashboard settin
 `is_default` is the plan every new organization is put on. With no default plan, organizations get no
 billing account and `billing-writer` warns that their players are not being billed. The included
 players are free and still hold positions: with 10,000 included, player 100,001 is still in the
-$0.0008 band.
+$0.002 band.
 
 And **the three tables a studio edits**:
 
