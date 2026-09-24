@@ -139,6 +139,11 @@ var (
 				Unique:  false,
 				Columns: []*schema.Column{AuditEventsColumns[10], AuditEventsColumns[4], AuditEventsColumns[2]},
 			},
+			{
+				Name:    "auditevent_organization_id_target_type_target_id",
+				Unique:  false,
+				Columns: []*schema.Column{AuditEventsColumns[10], AuditEventsColumns[5], AuditEventsColumns[6]},
+			},
 		},
 	}
 	// BillablePlayerColumns holds the columns for the "billable_player" table.

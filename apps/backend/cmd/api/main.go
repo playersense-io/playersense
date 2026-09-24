@@ -464,6 +464,7 @@ func build(settings config.Settings, overrides ...muzak.RouterOption) (*muzak.Ap
 	// (core.StaffReads, §104).
 	operator := muzak.NewRouter()
 	operator.Include(routers.OperatorStaff())
+	operator.Include(routers.OperatorCustomers())
 	operator.Include(routers.OperatorBilling())
 	operator.Include(routers.OperatorPricing())
 	operator.Include(routers.OperatorAnalytics())

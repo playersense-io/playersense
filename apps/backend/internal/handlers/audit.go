@@ -2,11 +2,15 @@ package handlers
 
 import (
 	"context"
+	"strconv"
+	"time"
 
 	muzak "muzak.dev/framework"
 
 	"playersense.dev/backend/ent"
 	"playersense.dev/backend/ent/auditevent"
+	"playersense.dev/backend/ent/predicate"
+	"playersense.dev/backend/ent/user"
 	"playersense.dev/backend/internal/audit"
 	"playersense.dev/backend/internal/core"
 	"playersense.dev/backend/internal/schemas"
@@ -24,34 +28,100 @@ import (
 // by action, because "who published" and "who changed a role" are different questions and the second
 // is buried under the first on a busy account.
 func ReadAudit(ctx *muzak.Context, in schemas.AuditParams) (schemas.AuditListOut, error) {
-	db := muzak.From[*core.DB](ctx)
 	org := muzak.From[*core.Principal](ctx).Organization
+	return auditOf(ctx.Context(), muzak.From[*core.DB](ctx), org.ID, in.AuditFilter)
+}
 
+// auditOf is one page of an organization's log, newest first, paged by id so a page never repeats
+// or skips an entry written while somebody reads.
+func auditOf(ctx context.Context, db *core.DB, orgID int, in schemas.AuditFilter) (schemas.AuditListOut, error) {
 	limit := in.Limit
 	if limit == 0 {
 		limit = 50
 	}
 
-	query := db.Client.AuditEvent.Query().
-		Where(auditevent.OrganizationID(org.ID)).
-		WithActorUser().
-		WithActorKey().
-		Order(ent.Desc(auditevent.FieldID)).
-		Limit(limit)
+	query := db.Client.AuditEvent.Query().Where(auditevent.OrganizationID(orgID))
 	if in.Action != "" {
 		query = query.Where(auditevent.Action(in.Action))
 	}
+	if in.TargetType != "" {
+		query = query.Where(auditevent.TargetType(in.TargetType))
+	}
+	if in.TargetID != "" {
+		query = query.Where(auditevent.TargetID(in.TargetID))
+	}
+	if in.Actor != "" {
+		// A person acted either signed in, which is an edge to their user, or as PlayerSense
+		// staff, which is only ever the label.
+		actor := []predicate.AuditEvent{auditevent.ActorLabel(audit.StaffActor(in.Actor).Label)}
+		person, err := db.Client.User.Query().Where(user.Email(in.Actor)).Only(ctx)
+		switch {
+		case err == nil:
+			actor = append(actor, auditevent.ActorUserID(person.ID))
+		case !ent.IsNotFound(err):
+			return schemas.AuditListOut{}, core.AsHTTPError(err)
+		}
+		query = query.Where(auditevent.Or(actor...))
+	}
+	if in.From != "" || in.To != "" {
+		from, to, err := dayRange(in.From, in.To)
+		if err != nil {
+			return schemas.AuditListOut{}, err
+		}
+		if !from.IsZero() {
+			query = query.Where(auditevent.CreatedAtGTE(from))
+		}
+		if !to.IsZero() {
+			query = query.Where(auditevent.CreatedAtLT(to))
+		}
+	}
+	if in.Before != "" {
+		id, err := strconv.Atoi(in.Before)
+		if err != nil {
+			return schemas.AuditListOut{}, muzak.BadRequest("before is not a cursor this API returned")
+		}
+		query = query.Where(auditevent.IDLT(id))
+	}
 
-	rows, err := query.All(ctx.Context())
+	rows, err := query.WithActorUser().WithActorKey().
+		Order(ent.Desc(auditevent.FieldID)).Limit(limit + 1).All(ctx)
 	if err != nil {
 		return schemas.AuditListOut{}, core.AsHTTPError(err)
 	}
 
 	out := schemas.AuditListOut{Events: make([]schemas.AuditEventOut, 0, len(rows))}
+	if len(rows) > limit {
+		rows = rows[:limit]
+		out.Next = strconv.Itoa(rows[len(rows)-1].ID)
+	}
 	for _, row := range rows {
 		out.Events = append(out.Events, auditEventOut(row))
 	}
 	return out, nil
+}
+
+// dayRange reads an optional inclusive pair of dates as a half-open range of instants: from the
+// start of from to the start of the day after to. Either may be absent, as a zero time.
+func dayRange(fromText, toText string) (time.Time, time.Time, error) {
+	var from, to time.Time
+	if fromText != "" {
+		day, err := time.Parse(time.DateOnly, fromText)
+		if err != nil {
+			return from, to, muzak.UnprocessableEntity("from is not a date: YYYY-MM-DD")
+		}
+		from = day
+	}
+	if toText != "" {
+		day, err := time.Parse(time.DateOnly, toText)
+		if err != nil {
+			return from, to, muzak.UnprocessableEntity("to is not a date: YYYY-MM-DD")
+		}
+		to = day.AddDate(0, 0, 1)
+	}
+	if !from.IsZero() && !to.IsZero() && !from.Before(to) {
+		return from, to, muzak.UnprocessableEntity("to is before from")
+	}
+	return from, to, nil
 }
 
 func auditEventOut(row *ent.AuditEvent) schemas.AuditEventOut {

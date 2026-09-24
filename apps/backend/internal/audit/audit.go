@@ -84,6 +84,10 @@ const (
 	PlanChanged    Action = "billing.plan"
 	CreditLimitSet Action = "billing.credit_limit"
 
+	// Staff changed what an organization may use: an entitlement override, its member limit or its
+	// automatic top-ups a day.
+	EntitlementsSet Action = "billing.entitlements"
+
 	// ADR 0045: an organization put on new terms, an invoice marked paid by a transfer Stripe did
 	// not see, and a credit note issued on an invoice.
 	ContractSet     Action = "billing.contract"

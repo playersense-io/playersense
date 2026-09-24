@@ -472,7 +472,7 @@ customer's valid sign-in reaches none of it. Each member holds some of four role
 platform: ingestion, the queue, ClickHouse, storage), **support** (one customer's records),
 **billing** (one customer's money, and the catalogue) and **admin** (all of it, and who is staff).
 
-A route that reaches one customer's records, or changes the catalogue, needs a ticket reference in
+A route that reaches one customer's records (the directory included), or changes the catalogue, needs a ticket reference in
 `X-Staff-Ticket` and writes a `staff_access` row (who, which customer, the ticket, when) before it
 runs; `TestEveryCustomerRouteAsksForATicket` fails for one that forgets. Changes to an account are also
 in the customer's audit log as **PlayerSense staff** with the verified address.
@@ -482,6 +482,16 @@ GET              /v1/operator/me              who you are to the console
 GET   POST       /v1/operator/staff           admin: who is staff, and adding somebody
       PUT        /v1/operator/staff/{id}      admin: their roles, or deactivating them
 GET              /v1/operator/staff-access    admin: every staff read of customer data
+GET              /v1/operator/organizations   find one: slug, name, id, sequence or a member's address
+GET              /v1/operator/organizations/{org}          its projects, members and account
+GET              /v1/operator/projects        find one: slug, name, id or the ingestion page's sequence
+GET              /v1/operator/projects/{id}   its environments, every key, 30 days of its meter
+GET   PUT        /v1/operator/organizations/{org}/entitlements   overrides, merged; null clears one
+GET              /v1/operator/organizations/{org}/billing        the wallet plus Stripe ids
+GET              /v1/operator/organizations/{org}/ledger         the statement, paged with before
+GET              /v1/operator/organizations/{org}/credit-lots    grants; all=true for spent ones
+GET              /v1/operator/organizations/{org}/usage          the customer's usage page
+GET              /v1/operator/organizations/{org}/audit          the customer's own log, filtered
 GET              /v1/operator/ingestion       ops: every tenant's events, bytes, batches, lag
 GET              /v1/operator/clickhouse      ops: replication, merges, mutations, parts, memory
 GET              /v1/operator/storage         ops: bytes on disk by table and project

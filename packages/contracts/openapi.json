@@ -762,6 +762,562 @@
         }
       }
     },
+    "/v1/operator/organizations": {
+      "get": {
+        "tags": [
+          "operator"
+        ],
+        "summary": "Find an organization",
+        "description": "By a slug prefix, part of its name, its id or sequence number, or the address of anyone in it; narrowed by plan, account state or how it pays. Newest first, each with its plan, live balance and how many projects and members it has.",
+        "operationId": "get_v1_operator_organizations",
+        "parameters": [
+          {
+            "name": "X-Staff-Ticket",
+            "in": "header",
+            "description": "A ticket reference for why this customer's data is being read: recorded in staff_access",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Staff-Note",
+            "in": "header",
+            "description": "An optional line beside the ticket",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "description": "A slug prefix, part of a name, an organization id or sequence number, or a member's address",
+            "schema": {
+              "type": "string",
+              "maxLength": 254
+            }
+          },
+          {
+            "name": "plan",
+            "in": "query",
+            "description": "A plan key",
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "description": "active, grace_period, restricted, suspended or canceled",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "",
+                "active",
+                "grace_period",
+                "restricted",
+                "suspended",
+                "canceled"
+              ]
+            }
+          },
+          {
+            "name": "collection",
+            "in": "query",
+            "description": "prepaid or invoiced",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "",
+                "prepaid",
+                "invoiced"
+              ]
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "description": "The next cursor of the previous page",
+            "schema": {
+              "type": "string",
+              "maxLength": 20
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Newest first, up to 200",
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "default": "50",
+              "minimum": 1,
+              "maximum": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperatorOrganizationListOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account is not staff, or lacks the role this needs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/operator/organizations/{org}": {
+      "get": {
+        "tags": [
+          "operator"
+        ],
+        "summary": "One organization",
+        "description": "Its projects, its members with their roles and when each was last seen, invitations outstanding, and its billing account's Stripe identity and terms.",
+        "operationId": "get_v1_operator_organizations_by_org",
+        "parameters": [
+          {
+            "name": "X-Staff-Ticket",
+            "in": "header",
+            "description": "A ticket reference for why this customer's data is being read: recorded in staff_access",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Staff-Note",
+            "in": "header",
+            "description": "An optional line beside the ticket",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "org",
+            "in": "path",
+            "description": "The organization's slug",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperatorOrganizationOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account is not staff, or lacks the role this needs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No organization has that slug",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/operator/organizations/{org}/audit": {
+      "get": {
+        "tags": [
+          "operator"
+        ],
+        "summary": "An organization's own audit log",
+        "description": "What its members, its keys and PlayerSense staff did to it, as the customer reads it: filter by action, target, actor or dates, newest first. Not staff_access, which is what staff read.",
+        "operationId": "get_v1_operator_organizations_by_org_audit",
+        "parameters": [
+          {
+            "name": "X-Staff-Ticket",
+            "in": "header",
+            "description": "A ticket reference for why this customer's data is being read: recorded in staff_access",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Staff-Note",
+            "in": "header",
+            "description": "An optional line beside the ticket",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "action",
+            "in": "query",
+            "description": "One action name, exactly",
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "target_type",
+            "in": "query",
+            "description": "segment, feature_flag, api_key, member...",
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "target_id",
+            "in": "query",
+            "description": "With target_type: one thing's history",
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            }
+          },
+          {
+            "name": "actor",
+            "in": "query",
+            "description": "A person's address: what they did, including as PlayerSense staff",
+            "schema": {
+              "type": "string",
+              "maxLength": 254
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "description": "YYYY-MM-DD, inclusive",
+            "schema": {
+              "type": "string",
+              "maxLength": 10
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "description": "YYYY-MM-DD, inclusive",
+            "schema": {
+              "type": "string",
+              "maxLength": 10
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "description": "The next cursor of the previous page",
+            "schema": {
+              "type": "string",
+              "maxLength": 20
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Newest first, up to 200",
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "default": "50",
+              "minimum": 1,
+              "maximum": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditListOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account is not staff, or lacks the role this needs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/operator/organizations/{org}/billing": {
+      "get": {
+        "tags": [
+          "operator"
+        ],
+        "summary": "An organization's wallet, as staff see it",
+        "description": "The customer's billing page, plus the account's Stripe customer and subscription, its overrides, and the automatic top-up in flight: the key sent to Stripe, when, and for how much.",
+        "operationId": "get_v1_operator_organizations_by_org_billing",
+        "parameters": [
+          {
+            "name": "X-Staff-Ticket",
+            "in": "header",
+            "description": "A ticket reference for why this customer's data is being read: recorded in staff_access",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Staff-Note",
+            "in": "header",
+            "description": "An optional line beside the ticket",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "org",
+            "in": "path",
+            "description": "The organization's slug",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperatorBillingOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account is not staff, or lacks the role this needs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No organization has that slug, or it has no billing account",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/operator/organizations/{org}/charges": {
       "post": {
         "tags": [
@@ -1260,6 +1816,114 @@
         }
       }
     },
+    "/v1/operator/organizations/{org}/credit-lots": {
+      "get": {
+        "tags": [
+          "operator"
+        ],
+        "summary": "An organization's grants",
+        "description": "Those with credit left, in the order they are spent; with all=true the spent and lapsed ones too. Each with the staff member who granted it or the payment that bought it, and its reference.",
+        "operationId": "get_v1_operator_organizations_by_org_credit_lots",
+        "parameters": [
+          {
+            "name": "X-Staff-Ticket",
+            "in": "header",
+            "description": "A ticket reference for why this customer's data is being read: recorded in staff_access",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Staff-Note",
+            "in": "header",
+            "description": "An optional line beside the ticket",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "all",
+            "in": "query",
+            "description": "Include spent and written-off grants, not only those with credit left",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperatorCreditLotsOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account is not staff, or lacks the role this needs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/operator/organizations/{org}/credits": {
       "post": {
         "tags": [
@@ -1411,6 +2075,269 @@
           },
           "422": {
             "description": "The amount is not positive, or an expiry was named for purchased credit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/operator/organizations/{org}/entitlements": {
+      "get": {
+        "tags": [
+          "operator"
+        ],
+        "summary": "What an organization may use",
+        "description": "The plan's allowances, the overrides set for this organization alone, and the two layered, which is what is enforced; with its member limit and automatic top-ups a day.",
+        "operationId": "get_v1_operator_organizations_by_org_entitlements",
+        "parameters": [
+          {
+            "name": "X-Staff-Ticket",
+            "in": "header",
+            "description": "A ticket reference for why this customer's data is being read: recorded in staff_access",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Staff-Note",
+            "in": "header",
+            "description": "An optional line beside the ticket",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "org",
+            "in": "path",
+            "description": "The organization's slug",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntitlementsOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account is not staff, or lacks the role this needs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No organization has that slug, or it has no billing account",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "operator"
+        ],
+        "summary": "Change what an organization may use",
+        "description": "Merged into what it has: a number sets that override, null clears it back to the plan's, and a name not sent is left alone. Enforced from the next player, and recorded in the organization's audit log with the previous values and the reason.",
+        "operationId": "put_v1_operator_organizations_by_org_entitlements",
+        "parameters": [
+          {
+            "name": "X-Staff-Ticket",
+            "in": "header",
+            "description": "A ticket reference for why this customer's data is being read: recorded in staff_access",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Staff-Note",
+            "in": "header",
+            "description": "An optional line beside the ticket",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "auto_topup_daily_limit": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "format": "int64",
+                    "description": "1 to 48"
+                  },
+                  "member_limit": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "format": "int64",
+                    "description": "1 to 10000"
+                  },
+                  "overrides": {
+                    "type": "object",
+                    "description": "Entitlement to amount; null clears it",
+                    "additionalProperties": {
+                      "type": "integer",
+                      "format": "int64"
+                    }
+                  },
+                  "reason": {
+                    "type": "string",
+                    "description": "Why, for the customer's audit log: the deal, the ticket's summary",
+                    "maxLength": 500
+                  }
+                },
+                "required": [
+                  "reason"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntitlementsOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account is not staff, or lacks the role this needs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No organization has that slug, or it has no billing account",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "An unknown entitlement, a negative amount, or nothing to change",
             "content": {
               "application/json": {
                 "schema": {
@@ -1865,6 +2792,127 @@
         }
       }
     },
+    "/v1/operator/organizations/{org}/ledger": {
+      "get": {
+        "tags": [
+          "operator"
+        ],
+        "summary": "An organization's statement",
+        "description": "Every movement of its wallet, newest first, paged with before.",
+        "operationId": "get_v1_operator_organizations_by_org_ledger",
+        "parameters": [
+          {
+            "name": "X-Staff-Ticket",
+            "in": "header",
+            "description": "A ticket reference for why this customer's data is being read: recorded in staff_access",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Staff-Note",
+            "in": "header",
+            "description": "An optional line beside the ticket",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Newest first, up to 200",
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "default": "50",
+              "minimum": 1,
+              "maximum": 200
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "description": "The next cursor of the previous page",
+            "schema": {
+              "type": "string",
+              "maxLength": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LedgerOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account is not staff, or lacks the role this needs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/operator/organizations/{org}/plan": {
       "put": {
         "tags": [
@@ -1964,6 +3012,124 @@
           },
           "422": {
             "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/operator/organizations/{org}/usage": {
+      "get": {
+        "tags": [
+          "operator"
+        ],
+        "summary": "An organization's usage",
+        "description": "The customer's usage page: tracked players, events and retained bytes by project and by day, with the plan's allowances. Defaults to the current month.",
+        "operationId": "get_v1_operator_organizations_by_org_usage",
+        "parameters": [
+          {
+            "name": "X-Staff-Ticket",
+            "in": "header",
+            "description": "A ticket reference for why this customer's data is being read: recorded in staff_access",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Staff-Note",
+            "in": "header",
+            "description": "An optional line beside the ticket",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "description": "YYYY-MM-DD. Defaults to the first of the current month",
+            "schema": {
+              "type": "string",
+              "maxLength": 10
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "description": "YYYY-MM-DD. Defaults to today",
+            "schema": {
+              "type": "string",
+              "maxLength": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsageOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account is not staff, or lacks the role this needs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The range is not two dates, ends before it starts, or is longer than 400 days",
             "content": {
               "application/json": {
                 "schema": {
@@ -2767,6 +3933,252 @@
           },
           "503": {
             "description": "Stripe could not be reached, or payments are not configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/operator/projects": {
+      "get": {
+        "tags": [
+          "operator"
+        ],
+        "summary": "Find a project",
+        "description": "By a slug prefix, part of its name, its id, or the sequence number the ingestion and storage pages show. Each with the organization it belongs to.",
+        "operationId": "get_v1_operator_projects",
+        "parameters": [
+          {
+            "name": "X-Staff-Ticket",
+            "in": "header",
+            "description": "A ticket reference for why this customer's data is being read: recorded in staff_access",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Staff-Note",
+            "in": "header",
+            "description": "An optional line beside the ticket",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "description": "A slug prefix, part of a name, a project id, or a project sequence number from the ingestion or storage pages",
+            "schema": {
+              "type": "string",
+              "maxLength": 120
+            }
+          },
+          {
+            "name": "policy_tier",
+            "in": "query",
+            "description": "standard, child_directed or kids_strict",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "",
+                "standard",
+                "child_directed",
+                "kids_strict"
+              ]
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "description": "The next cursor of the previous page",
+            "schema": {
+              "type": "string",
+              "maxLength": 20
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Newest first, up to 200",
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "default": "50",
+              "minimum": 1,
+              "maximum": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperatorProjectListOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account is not staff, or lacks the role this needs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/operator/projects/{project}": {
+      "get": {
+        "tags": [
+          "operator"
+        ],
+        "summary": "One project",
+        "description": "Its policy tier and retention, its environments and every key each has had (revoked ones included, never a secret), how much targeting it defines, and the last thirty days of its meter.",
+        "operationId": "get_v1_operator_projects_by_project",
+        "parameters": [
+          {
+            "name": "X-Staff-Ticket",
+            "in": "header",
+            "description": "A ticket reference for why this customer's data is being read: recorded in staff_access",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Staff-Note",
+            "in": "header",
+            "description": "An optional line beside the ticket",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "project",
+            "in": "path",
+            "description": "The project's id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 36
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperatorProjectOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account is not staff, or lacks the role this needs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No project has that id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
             "content": {
               "application/json": {
                 "schema": {
@@ -3724,6 +5136,60 @@
             }
           },
           {
+            "name": "target_type",
+            "in": "query",
+            "description": "segment, feature_flag, api_key, member...",
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "target_id",
+            "in": "query",
+            "description": "With target_type: one thing's history",
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            }
+          },
+          {
+            "name": "actor",
+            "in": "query",
+            "description": "A person's address: what they did, including as PlayerSense staff",
+            "schema": {
+              "type": "string",
+              "maxLength": 254
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "description": "YYYY-MM-DD, inclusive",
+            "schema": {
+              "type": "string",
+              "maxLength": 10
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "description": "YYYY-MM-DD, inclusive",
+            "schema": {
+              "type": "string",
+              "maxLength": 10
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "description": "The next cursor of the previous page",
+            "schema": {
+              "type": "string",
+              "maxLength": 20
+            }
+          },
+          {
             "name": "limit",
             "in": "query",
             "description": "Newest first, up to 200",
@@ -4257,6 +5723,15 @@
               "default": "50",
               "minimum": 1,
               "maximum": 200
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "description": "The next cursor of the previous page",
+            "schema": {
+              "type": "string",
+              "maxLength": 20
             }
           }
         ],
@@ -11772,6 +13247,10 @@
             "items": {
               "$ref": "#/components/schemas/AuditEventOut"
             }
+          },
+          "next": {
+            "type": "string",
+            "description": "Pass as before for the page after this one; absent on the last"
           }
         },
         "required": [
@@ -12876,6 +14355,64 @@
           "amount_micros",
           "kind",
           "lot"
+        ]
+      },
+      "EntitlementsOut": {
+        "type": "object",
+        "properties": {
+          "auto_topup_daily_limit": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Automatic charges allowed in any 24 hours"
+          },
+          "member_limit": {
+            "type": "integer",
+            "format": "int64",
+            "description": "How many members the organization may have"
+          },
+          "overrides": {
+            "type": "object",
+            "description": "What PlayerSense set for this organization alone",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          "plan": {
+            "type": "string"
+          },
+          "plan_entitlements": {
+            "type": "object",
+            "description": "What the plan includes",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          "resolved": {
+            "type": "object",
+            "description": "The two layered: what is enforced",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          "vocabulary": {
+            "type": "array",
+            "description": "Every entitlement an override may name",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "auto_topup_daily_limit",
+          "member_limit",
+          "overrides",
+          "plan",
+          "plan_entitlements",
+          "resolved",
+          "vocabulary"
         ]
       },
       "EnvironmentOut": {
@@ -14896,6 +16433,10 @@
             "items": {
               "$ref": "#/components/schemas/LedgerEntryOut"
             }
+          },
+          "next": {
+            "type": "string",
+            "description": "Pass as before for the page after this one; absent on the last"
           }
         },
         "required": [
@@ -15500,6 +17041,340 @@
           "day"
         ]
       },
+      "OperatorAccountOut": {
+        "type": "object",
+        "properties": {
+          "billing_email": {
+            "type": "string"
+          },
+          "collection": {
+            "type": "string"
+          },
+          "entitlement_overrides": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          "id": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          },
+          "state_changed_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "stripe_customer_id": {
+            "type": "string"
+          },
+          "stripe_subscription_id": {
+            "type": "string"
+          },
+          "subscription_interval": {
+            "type": "string"
+          },
+          "subscription_period_end": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "subscription_status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "collection",
+          "id",
+          "state",
+          "state_changed_at"
+        ]
+      },
+      "OperatorBillingOut": {
+        "type": "object",
+        "properties": {
+          "account": {
+            "$ref": "#/components/schemas/OperatorAccountOut"
+          },
+          "arrears": {
+            "type": "string"
+          },
+          "arrears_micros": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "auto_topup": {
+            "$ref": "#/components/schemas/AutoTopUpOut"
+          },
+          "auto_topup_pending_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "auto_topup_pending_key": {
+            "type": "string"
+          },
+          "auto_topup_pending_micros": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "available": {
+            "type": "string",
+            "description": "The same number, rendered"
+          },
+          "available_micros": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "collection": {
+            "type": "string",
+            "description": "prepaid or invoiced"
+          },
+          "contract": {
+            "description": "The terms in force; absent if the organization has never had a contract",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContractOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "credit_limit_micros": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Owing this much suspends ingestion at once"
+          },
+          "credit_limit_source": {
+            "type": "string",
+            "description": "usage (20% of the last 30 days' paid usage), floor (the minimum), or override (set by PlayerSense)"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "expiring_soon": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CreditLotOut"
+            }
+          },
+          "features": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "invoiced_through": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "ledger_balance_micros": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "live": {
+            "$ref": "#/components/schemas/LiveBalanceOut"
+          },
+          "lots": {
+            "type": "array",
+            "description": "Every grant with credit left, in the order it will be spent",
+            "items": {
+              "$ref": "#/components/schemas/CreditLotOut"
+            }
+          },
+          "month": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MonthUsageOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "plan": {
+            "$ref": "#/components/schemas/PlanOut"
+          },
+          "promo_micros": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "purchased_micros": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "receivable": {
+            "description": "What an invoiced organization owes and is not yet late on",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReceivableOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "state": {
+            "type": "string",
+            "description": "active, grace_period (owes; everything works), suspended (ingestion refused until paid), restricted or canceled"
+          },
+          "subscription": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SubscriptionOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "suspends_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "If still owing then, ingestion is suspended"
+          }
+        },
+        "required": [
+          "account",
+          "arrears",
+          "arrears_micros",
+          "auto_topup",
+          "available",
+          "available_micros",
+          "collection",
+          "credit_limit_micros",
+          "credit_limit_source",
+          "currency",
+          "features",
+          "ledger_balance_micros",
+          "live",
+          "plan",
+          "promo_micros",
+          "purchased_micros",
+          "state"
+        ]
+      },
+      "OperatorCreditLotOut": {
+        "type": "object",
+        "properties": {
+          "amount_micros": {
+            "type": "integer",
+            "format": "int64",
+            "description": "What was granted"
+          },
+          "description": {
+            "type": "string"
+          },
+          "expired": {
+            "type": "boolean"
+          },
+          "expires_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "granted_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "granted_by_staff": {
+            "type": "string",
+            "description": "The staff member's verified address, for a grant made in the console"
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "description": "purchase or promo"
+          },
+          "reference": {
+            "type": "string",
+            "description": "The idempotency key it was granted under"
+          },
+          "remaining": {
+            "type": "string"
+          },
+          "remaining_micros": {
+            "type": "integer",
+            "format": "int64",
+            "description": "What is left of it"
+          },
+          "stripe_reference": {
+            "type": "string",
+            "description": "The payment that bought it"
+          }
+        },
+        "required": [
+          "amount_micros",
+          "granted_at",
+          "id",
+          "kind",
+          "reference",
+          "remaining",
+          "remaining_micros"
+        ]
+      },
+      "OperatorCreditLotsOut": {
+        "type": "object",
+        "properties": {
+          "lots": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OperatorCreditLotOut"
+            }
+          }
+        },
+        "required": [
+          "lots"
+        ]
+      },
+      "OperatorEnvironmentOut": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "keys": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/APIKeyOut"
+            }
+          },
+          "kind": {
+            "type": "string"
+          },
+          "seq": {
+            "type": "integer",
+            "format": "int64",
+            "description": "environment_seq in ClickHouse"
+          }
+        },
+        "required": [
+          "id",
+          "keys",
+          "kind",
+          "seq"
+        ]
+      },
       "OperatorInvoiceOut": {
         "type": "object",
         "properties": {
@@ -15648,6 +17523,385 @@
           "invoices"
         ]
       },
+      "OperatorMemberOut": {
+        "type": "object",
+        "properties": {
+          "active": {
+            "type": "boolean",
+            "description": "false when their PlayerSense account is deactivated"
+          },
+          "all_projects": {
+            "type": "boolean"
+          },
+          "email": {
+            "type": "string"
+          },
+          "joined_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "last_seen_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "active",
+          "all_projects",
+          "email",
+          "joined_at",
+          "role"
+        ]
+      },
+      "OperatorOrganizationListOut": {
+        "type": "object",
+        "properties": {
+          "next": {
+            "type": "string",
+            "description": "Pass as before for the page after this one; absent on the last"
+          },
+          "organizations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OperatorOrganizationSummaryOut"
+            }
+          }
+        },
+        "required": [
+          "organizations"
+        ]
+      },
+      "OperatorOrganizationOut": {
+        "type": "object",
+        "properties": {
+          "account": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OperatorAccountOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "balance": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BalanceSummaryOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "id": {
+            "type": "string"
+          },
+          "member_limit": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "member_list": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OperatorMemberOut"
+            }
+          },
+          "members": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "pending_invitations": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "plan": {
+            "type": "string",
+            "description": "The plan key; absent with no billing account"
+          },
+          "project_list": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OperatorProjectRefOut"
+            }
+          },
+          "projects": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "seq": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The number the data plane knows it by"
+          },
+          "slug": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "created_at",
+          "id",
+          "member_limit",
+          "member_list",
+          "members",
+          "name",
+          "pending_invitations",
+          "project_list",
+          "projects",
+          "seq",
+          "slug"
+        ]
+      },
+      "OperatorOrganizationSummaryOut": {
+        "type": "object",
+        "properties": {
+          "balance": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BalanceSummaryOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "id": {
+            "type": "string"
+          },
+          "members": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "plan": {
+            "type": "string",
+            "description": "The plan key; absent with no billing account"
+          },
+          "projects": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "seq": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The number the data plane knows it by"
+          },
+          "slug": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "created_at",
+          "id",
+          "members",
+          "name",
+          "projects",
+          "seq",
+          "slug"
+        ]
+      },
+      "OperatorProjectListOut": {
+        "type": "object",
+        "properties": {
+          "next": {
+            "type": "string"
+          },
+          "projects": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OperatorProjectSummaryOut"
+            }
+          }
+        },
+        "required": [
+          "projects"
+        ]
+      },
+      "OperatorProjectOut": {
+        "type": "object",
+        "properties": {
+          "config_versions": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "days": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UsageDayOut"
+            }
+          },
+          "environments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OperatorEnvironmentOut"
+            }
+          },
+          "flags": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "id": {
+            "type": "string"
+          },
+          "liveops_events": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "organization": {
+            "$ref": "#/components/schemas/OrganizationRefOut"
+          },
+          "policy_tier": {
+            "type": "string"
+          },
+          "retention_days": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "segments": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "seq": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The number the data plane knows it by: project_seq in ClickHouse"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "usage_30d": {
+            "$ref": "#/components/schemas/UsageTotalsOut"
+          }
+        },
+        "required": [
+          "config_versions",
+          "created_at",
+          "days",
+          "environments",
+          "flags",
+          "id",
+          "liveops_events",
+          "name",
+          "organization",
+          "policy_tier",
+          "retention_days",
+          "segments",
+          "seq",
+          "slug",
+          "usage_30d"
+        ]
+      },
+      "OperatorProjectRefOut": {
+        "type": "object",
+        "properties": {
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "policy_tier": {
+            "type": "string"
+          },
+          "retention_days": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "seq": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The number the data plane knows it by: project_seq in ClickHouse"
+          },
+          "slug": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "created_at",
+          "id",
+          "name",
+          "policy_tier",
+          "retention_days",
+          "seq",
+          "slug"
+        ]
+      },
+      "OperatorProjectSummaryOut": {
+        "type": "object",
+        "properties": {
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "organization": {
+            "$ref": "#/components/schemas/OrganizationRefOut"
+          },
+          "policy_tier": {
+            "type": "string"
+          },
+          "retention_days": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "seq": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The number the data plane knows it by: project_seq in ClickHouse"
+          },
+          "slug": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "created_at",
+          "id",
+          "name",
+          "organization",
+          "policy_tier",
+          "retention_days",
+          "seq",
+          "slug"
+        ]
+      },
       "OrganizationListOut": {
         "type": "object",
         "properties": {
@@ -15685,6 +17939,21 @@
         "required": [
           "created_at",
           "id",
+          "name",
+          "slug"
+        ]
+      },
+      "OrganizationRefOut": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          }
+        },
+        "required": [
           "name",
           "slug"
         ]

@@ -67,6 +67,7 @@ func TestEveryMutatingRouteDecidesAboutAudit(t *testing.T) {
 		"POST /v1/operator/organizations/{org}/charges":     audit.CreditCharged,
 		"PUT /v1/operator/organizations/{org}/plan":         audit.PlanChanged,
 		"PUT /v1/operator/organizations/{org}/credit-limit": audit.CreditLimitSet,
+		"PUT /v1/operator/organizations/{org}/entitlements": audit.EntitlementsSet,
 
 		"PUT /v1/operator/organizations/{org}/contract":                            audit.ContractSet,
 		"POST /v1/operator/organizations/{org}/invoices/{invoice_id}/mark-paid":    audit.InvoicePaid,

@@ -186,6 +186,86 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/v1/operator/organizations": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * Find an organization
+         * @description By a slug prefix, part of its name, its id or sequence number, or the address of anyone in it; narrowed by plan, account state or how it pays. Newest first, each with its plan, live balance and how many projects and members it has.
+         */
+        readonly get: operations["get_v1_operator_organizations"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/operator/organizations/{org}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * One organization
+         * @description Its projects, its members with their roles and when each was last seen, invitations outstanding, and its billing account's Stripe identity and terms.
+         */
+        readonly get: operations["get_v1_operator_organizations_by_org"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/operator/organizations/{org}/audit": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * An organization's own audit log
+         * @description What its members, its keys and PlayerSense staff did to it, as the customer reads it: filter by action, target, actor or dates, newest first. Not staff_access, which is what staff read.
+         */
+        readonly get: operations["get_v1_operator_organizations_by_org_audit"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/operator/organizations/{org}/billing": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * An organization's wallet, as staff see it
+         * @description The customer's billing page, plus the account's Stripe customer and subscription, its overrides, and the automatic top-up in flight: the key sent to Stripe, when, and for how much.
+         */
+        readonly get: operations["get_v1_operator_organizations_by_org_billing"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/v1/operator/organizations/{org}/charges": {
         readonly parameters: {
             readonly query?: never;
@@ -246,6 +326,26 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/v1/operator/organizations/{org}/credit-lots": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * An organization's grants
+         * @description Those with credit left, in the order they are spent; with all=true the spent and lapsed ones too. Each with the staff member who granted it or the payment that bought it, and its reference.
+         */
+        readonly get: operations["get_v1_operator_organizations_by_org_credit_lots"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/v1/operator/organizations/{org}/credits": {
         readonly parameters: {
             readonly query?: never;
@@ -260,6 +360,30 @@ export interface paths {
          * @description A `promo` expires — ninety days unless `expires_at` names another date — and is spent before purchased credit. A `purchase` does not expire and cannot be given a date. `granted_at` backdates the grant, which decides where purchased credit sits in the spend queue. `reference` is the idempotency key: the same one twice grants once.
          */
         readonly post: operations["post_v1_operator_organizations_by_org_credits"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/operator/organizations/{org}/entitlements": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * What an organization may use
+         * @description The plan's allowances, the overrides set for this organization alone, and the two layered, which is what is enforced; with its member limit and automatic top-ups a day.
+         */
+        readonly get: operations["get_v1_operator_organizations_by_org_entitlements"];
+        /**
+         * Change what an organization may use
+         * @description Merged into what it has: a number sets that override, null clears it back to the plan's, and a name not sent is left alone. Enforced from the next player, and recorded in the organization's audit log with the previous values and the reason.
+         */
+        readonly put: operations["put_v1_operator_organizations_by_org_entitlements"];
+        readonly post?: never;
         readonly delete?: never;
         readonly options?: never;
         readonly head?: never;
@@ -326,6 +450,26 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/v1/operator/organizations/{org}/ledger": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * An organization's statement
+         * @description Every movement of its wallet, newest first, paged with before.
+         */
+        readonly get: operations["get_v1_operator_organizations_by_org_ledger"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/v1/operator/organizations/{org}/plan": {
         readonly parameters: {
             readonly query?: never;
@@ -339,6 +483,26 @@ export interface paths {
          * @description From the next player on. The month's count carries over, so the organization keeps its place in the bands and players already charged stay charged. Recorded in the organization's audit log.
          */
         readonly put: operations["put_v1_operator_organizations_by_org_plan"];
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/operator/organizations/{org}/usage": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * An organization's usage
+         * @description The customer's usage page: tracked players, events and retained bytes by project and by day, with the plan's allowances. Defaults to the current month.
+         */
+        readonly get: operations["get_v1_operator_organizations_by_org_usage"];
+        readonly put?: never;
         readonly post?: never;
         readonly delete?: never;
         readonly options?: never;
@@ -427,6 +591,46 @@ export interface paths {
          * @description Monthly and yearly prices in micros ($99 is 99000000). Creates the plan's Stripe Product the first time, and a Stripe Price per interval — Prices cannot be edited, so a changed amount is a new Price: new subscribers pay it, existing ones keep theirs until they change plan.
          */
         readonly put: operations["put_v1_operator_plans_by_plan_subscription"];
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/operator/projects": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * Find a project
+         * @description By a slug prefix, part of its name, its id, or the sequence number the ingestion and storage pages show. Each with the organization it belongs to.
+         */
+        readonly get: operations["get_v1_operator_projects"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/operator/projects/{project}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * One project
+         * @description Its policy tier and retention, its environments and every key each has had (revoked ones included, never a secret), how much targeting it defines, and the last thirty days of its meter.
+         */
+        readonly get: operations["get_v1_operator_projects_by_project"];
+        readonly put?: never;
         readonly post?: never;
         readonly delete?: never;
         readonly options?: never;
@@ -1728,6 +1932,8 @@ export interface components {
         };
         readonly AuditListOut: {
             readonly events: readonly components["schemas"]["AuditEventOut"][];
+            /** @description Pass as before for the page after this one; absent on the last */
+            readonly next?: string;
         };
         readonly AutoTopUpOut: {
             /** Format: int64 */
@@ -2128,6 +2334,33 @@ export interface components {
             readonly amount_micros: number;
             readonly kind: string;
             readonly lot: string;
+        };
+        readonly EntitlementsOut: {
+            /**
+             * Format: int64
+             * @description Automatic charges allowed in any 24 hours
+             */
+            readonly auto_topup_daily_limit: number;
+            /**
+             * Format: int64
+             * @description How many members the organization may have
+             */
+            readonly member_limit: number;
+            /** @description What PlayerSense set for this organization alone */
+            readonly overrides: {
+                readonly [key: string]: number;
+            };
+            readonly plan: string;
+            /** @description What the plan includes */
+            readonly plan_entitlements: {
+                readonly [key: string]: number;
+            };
+            /** @description The two layered: what is enforced */
+            readonly resolved: {
+                readonly [key: string]: number;
+            };
+            /** @description Every entitlement an override may name */
+            readonly vocabulary: readonly string[];
         };
         readonly EnvironmentOut: {
             readonly id: string;
@@ -2841,6 +3074,8 @@ export interface components {
         };
         readonly LedgerOut: {
             readonly entries: readonly components["schemas"]["LedgerEntryOut"][];
+            /** @description Pass as before for the page after this one; absent on the last */
+            readonly next?: string;
         };
         readonly LiveBalanceOut: {
             /**
@@ -3069,6 +3304,117 @@ export interface components {
             /** Format: int64 */
             readonly payers?: number | null;
         };
+        readonly OperatorAccountOut: {
+            readonly billing_email?: string;
+            readonly collection: string;
+            readonly entitlement_overrides?: {
+                readonly [key: string]: number;
+            };
+            readonly id: string;
+            readonly state: string;
+            /** Format: date-time */
+            readonly state_changed_at: string;
+            readonly stripe_customer_id?: string;
+            readonly stripe_subscription_id?: string;
+            readonly subscription_interval?: string;
+            /** Format: date-time */
+            readonly subscription_period_end?: string | null;
+            readonly subscription_status?: string;
+        };
+        readonly OperatorBillingOut: {
+            readonly account: components["schemas"]["OperatorAccountOut"];
+            readonly arrears: string;
+            /** Format: int64 */
+            readonly arrears_micros: number;
+            readonly auto_topup: components["schemas"]["AutoTopUpOut"];
+            /** Format: date-time */
+            readonly auto_topup_pending_at?: string | null;
+            readonly auto_topup_pending_key?: string;
+            /** Format: int64 */
+            readonly auto_topup_pending_micros?: number | null;
+            /** @description The same number, rendered */
+            readonly available: string;
+            /** Format: int64 */
+            readonly available_micros: number;
+            /** @description prepaid or invoiced */
+            readonly collection: string;
+            /** @description The terms in force; absent if the organization has never had a contract */
+            readonly contract?: components["schemas"]["ContractOut"] | null;
+            /**
+             * Format: int64
+             * @description Owing this much suspends ingestion at once
+             */
+            readonly credit_limit_micros: number;
+            /** @description usage (20% of the last 30 days' paid usage), floor (the minimum), or override (set by PlayerSense) */
+            readonly credit_limit_source: string;
+            readonly currency: string;
+            readonly expiring_soon?: readonly components["schemas"]["CreditLotOut"][];
+            readonly features: readonly string[];
+            /** Format: date-time */
+            readonly invoiced_through?: string | null;
+            /** Format: int64 */
+            readonly ledger_balance_micros: number;
+            readonly live: components["schemas"]["LiveBalanceOut"];
+            /** @description Every grant with credit left, in the order it will be spent */
+            readonly lots?: readonly components["schemas"]["CreditLotOut"][];
+            readonly month?: components["schemas"]["MonthUsageOut"] | null;
+            readonly plan: components["schemas"]["PlanOut"];
+            /** Format: int64 */
+            readonly promo_micros: number;
+            /** Format: int64 */
+            readonly purchased_micros: number;
+            /** @description What an invoiced organization owes and is not yet late on */
+            readonly receivable?: components["schemas"]["ReceivableOut"] | null;
+            /** @description active, grace_period (owes; everything works), suspended (ingestion refused until paid), restricted or canceled */
+            readonly state: string;
+            readonly subscription?: components["schemas"]["SubscriptionOut"] | null;
+            /**
+             * Format: date-time
+             * @description If still owing then, ingestion is suspended
+             */
+            readonly suspends_at?: string | null;
+        };
+        readonly OperatorCreditLotOut: {
+            /**
+             * Format: int64
+             * @description What was granted
+             */
+            readonly amount_micros: number;
+            readonly description?: string;
+            readonly expired?: boolean;
+            /** Format: date-time */
+            readonly expires_at?: string | null;
+            /** Format: date-time */
+            readonly granted_at: string;
+            /** @description The staff member's verified address, for a grant made in the console */
+            readonly granted_by_staff?: string;
+            readonly id: string;
+            /** @description purchase or promo */
+            readonly kind: string;
+            /** @description The idempotency key it was granted under */
+            readonly reference: string;
+            readonly remaining: string;
+            /**
+             * Format: int64
+             * @description What is left of it
+             */
+            readonly remaining_micros: number;
+            /** @description The payment that bought it */
+            readonly stripe_reference?: string;
+        };
+        readonly OperatorCreditLotsOut: {
+            readonly lots: readonly components["schemas"]["OperatorCreditLotOut"][];
+        };
+        readonly OperatorEnvironmentOut: {
+            readonly id: string;
+            readonly keys: readonly components["schemas"]["APIKeyOut"][];
+            readonly kind: string;
+            /**
+             * Format: int64
+             * @description environment_seq in ClickHouse
+             */
+            readonly seq: number;
+        };
         readonly OperatorInvoiceOut: {
             /** Format: int64 */
             readonly amount_paid_micros: number;
@@ -3125,6 +3471,130 @@ export interface components {
         readonly OperatorInvoicesOut: {
             readonly invoices: readonly components["schemas"]["OperatorInvoiceOut"][];
         };
+        readonly OperatorMemberOut: {
+            /** @description false when their PlayerSense account is deactivated */
+            readonly active: boolean;
+            readonly all_projects: boolean;
+            readonly email: string;
+            /** Format: date-time */
+            readonly joined_at: string;
+            /** Format: date-time */
+            readonly last_seen_at?: string | null;
+            readonly name?: string;
+            readonly role: string;
+        };
+        readonly OperatorOrganizationListOut: {
+            /** @description Pass as before for the page after this one; absent on the last */
+            readonly next?: string;
+            readonly organizations: readonly components["schemas"]["OperatorOrganizationSummaryOut"][];
+        };
+        readonly OperatorOrganizationOut: {
+            readonly account?: components["schemas"]["OperatorAccountOut"] | null;
+            readonly balance?: components["schemas"]["BalanceSummaryOut"] | null;
+            /** Format: date-time */
+            readonly created_at: string;
+            readonly id: string;
+            /** Format: int64 */
+            readonly member_limit: number;
+            readonly member_list: readonly components["schemas"]["OperatorMemberOut"][];
+            /** Format: int64 */
+            readonly members: number;
+            readonly name: string;
+            /** Format: int64 */
+            readonly pending_invitations: number;
+            /** @description The plan key; absent with no billing account */
+            readonly plan?: string;
+            readonly project_list: readonly components["schemas"]["OperatorProjectRefOut"][];
+            /** Format: int64 */
+            readonly projects: number;
+            /**
+             * Format: int64
+             * @description The number the data plane knows it by
+             */
+            readonly seq: number;
+            readonly slug: string;
+        };
+        readonly OperatorOrganizationSummaryOut: {
+            readonly balance?: components["schemas"]["BalanceSummaryOut"] | null;
+            /** Format: date-time */
+            readonly created_at: string;
+            readonly id: string;
+            /** Format: int64 */
+            readonly members: number;
+            readonly name: string;
+            /** @description The plan key; absent with no billing account */
+            readonly plan?: string;
+            /** Format: int64 */
+            readonly projects: number;
+            /**
+             * Format: int64
+             * @description The number the data plane knows it by
+             */
+            readonly seq: number;
+            readonly slug: string;
+        };
+        readonly OperatorProjectListOut: {
+            readonly next?: string;
+            readonly projects: readonly components["schemas"]["OperatorProjectSummaryOut"][];
+        };
+        readonly OperatorProjectOut: {
+            /** Format: int64 */
+            readonly config_versions: number;
+            /** Format: date-time */
+            readonly created_at: string;
+            readonly days: readonly components["schemas"]["UsageDayOut"][];
+            readonly environments: readonly components["schemas"]["OperatorEnvironmentOut"][];
+            /** Format: int64 */
+            readonly flags: number;
+            readonly id: string;
+            /** Format: int64 */
+            readonly liveops_events: number;
+            readonly name: string;
+            readonly organization: components["schemas"]["OrganizationRefOut"];
+            readonly policy_tier: string;
+            /** Format: int32 */
+            readonly retention_days: number;
+            /** Format: int64 */
+            readonly segments: number;
+            /**
+             * Format: int64
+             * @description The number the data plane knows it by: project_seq in ClickHouse
+             */
+            readonly seq: number;
+            readonly slug: string;
+            readonly usage_30d: components["schemas"]["UsageTotalsOut"];
+        };
+        readonly OperatorProjectRefOut: {
+            /** Format: date-time */
+            readonly created_at: string;
+            readonly id: string;
+            readonly name: string;
+            readonly policy_tier: string;
+            /** Format: int32 */
+            readonly retention_days: number;
+            /**
+             * Format: int64
+             * @description The number the data plane knows it by: project_seq in ClickHouse
+             */
+            readonly seq: number;
+            readonly slug: string;
+        };
+        readonly OperatorProjectSummaryOut: {
+            /** Format: date-time */
+            readonly created_at: string;
+            readonly id: string;
+            readonly name: string;
+            readonly organization: components["schemas"]["OrganizationRefOut"];
+            readonly policy_tier: string;
+            /** Format: int32 */
+            readonly retention_days: number;
+            /**
+             * Format: int64
+             * @description The number the data plane knows it by: project_seq in ClickHouse
+             */
+            readonly seq: number;
+            readonly slug: string;
+        };
         readonly OrganizationListOut: {
             readonly organizations: readonly components["schemas"]["OrganizationOut"][];
         };
@@ -3136,6 +3606,10 @@ export interface components {
             /** @description Display name */
             readonly name: string;
             /** @description URL-safe short name, unique across PlayerSense */
+            readonly slug: string;
+        };
+        readonly OrganizationRefOut: {
+            readonly name: string;
             readonly slug: string;
         };
         readonly PartitionOut: {
@@ -4563,6 +5037,342 @@ export interface operations {
             };
         };
     };
+    readonly get_v1_operator_organizations: {
+        readonly parameters: {
+            readonly query?: {
+                /** @description A slug prefix, part of a name, an organization id or sequence number, or a member's address */
+                readonly q?: string;
+                /** @description A plan key */
+                readonly plan?: string;
+                /** @description active, grace_period, restricted, suspended or canceled */
+                readonly state?: "" | "active" | "grace_period" | "restricted" | "suspended" | "canceled";
+                /** @description prepaid or invoiced */
+                readonly collection?: "" | "prepaid" | "invoiced";
+                /** @description The next cursor of the previous page */
+                readonly before?: string;
+                /** @description Newest first, up to 200 */
+                readonly limit?: number;
+            };
+            readonly header: {
+                /** @description A ticket reference for why this customer's data is being read: recorded in staff_access */
+                readonly "X-Staff-Ticket": string;
+                /** @description An optional line beside the ticket */
+                readonly "X-Staff-Note"?: string;
+            };
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["OperatorOrganizationListOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account is not staff, or lacks the role this needs */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly get_v1_operator_organizations_by_org: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description A ticket reference for why this customer's data is being read: recorded in staff_access */
+                readonly "X-Staff-Ticket": string;
+                /** @description An optional line beside the ticket */
+                readonly "X-Staff-Note"?: string;
+            };
+            readonly path: {
+                /** @description The organization's slug */
+                readonly org: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["OperatorOrganizationOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account is not staff, or lacks the role this needs */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No organization has that slug */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly get_v1_operator_organizations_by_org_audit: {
+        readonly parameters: {
+            readonly query?: {
+                /** @description One action name, exactly */
+                readonly action?: string;
+                /** @description segment, feature_flag, api_key, member... */
+                readonly target_type?: string;
+                /** @description With target_type: one thing's history */
+                readonly target_id?: string;
+                /** @description A person's address: what they did, including as PlayerSense staff */
+                readonly actor?: string;
+                /** @description YYYY-MM-DD, inclusive */
+                readonly from?: string;
+                /** @description YYYY-MM-DD, inclusive */
+                readonly to?: string;
+                /** @description The next cursor of the previous page */
+                readonly before?: string;
+                /** @description Newest first, up to 200 */
+                readonly limit?: number;
+            };
+            readonly header: {
+                /** @description A ticket reference for why this customer's data is being read: recorded in staff_access */
+                readonly "X-Staff-Ticket": string;
+                /** @description An optional line beside the ticket */
+                readonly "X-Staff-Note"?: string;
+            };
+            readonly path: {
+                readonly org: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["AuditListOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account is not staff, or lacks the role this needs */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly get_v1_operator_organizations_by_org_billing: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description A ticket reference for why this customer's data is being read: recorded in staff_access */
+                readonly "X-Staff-Ticket": string;
+                /** @description An optional line beside the ticket */
+                readonly "X-Staff-Note"?: string;
+            };
+            readonly path: {
+                /** @description The organization's slug */
+                readonly org: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["OperatorBillingOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account is not staff, or lacks the role this needs */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No organization has that slug, or it has no billing account */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     readonly post_v1_operator_organizations_by_org_charges: {
         readonly parameters: {
             readonly query?: never;
@@ -4894,6 +5704,81 @@ export interface operations {
             };
         };
     };
+    readonly get_v1_operator_organizations_by_org_credit_lots: {
+        readonly parameters: {
+            readonly query?: {
+                /** @description Include spent and written-off grants, not only those with credit left */
+                readonly all?: boolean;
+            };
+            readonly header: {
+                /** @description A ticket reference for why this customer's data is being read: recorded in staff_access */
+                readonly "X-Staff-Ticket": string;
+                /** @description An optional line beside the ticket */
+                readonly "X-Staff-Note"?: string;
+            };
+            readonly path: {
+                readonly org: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["OperatorCreditLotsOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account is not staff, or lacks the role this needs */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     readonly post_v1_operator_organizations_by_org_credits: {
         readonly parameters: {
             readonly query?: never;
@@ -4986,6 +5871,190 @@ export interface operations {
                 };
             };
             /** @description The amount is not positive, or an expiry was named for purchased credit */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly get_v1_operator_organizations_by_org_entitlements: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description A ticket reference for why this customer's data is being read: recorded in staff_access */
+                readonly "X-Staff-Ticket": string;
+                /** @description An optional line beside the ticket */
+                readonly "X-Staff-Note"?: string;
+            };
+            readonly path: {
+                /** @description The organization's slug */
+                readonly org: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["EntitlementsOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account is not staff, or lacks the role this needs */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No organization has that slug, or it has no billing account */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly put_v1_operator_organizations_by_org_entitlements: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description A ticket reference for why this customer's data is being read: recorded in staff_access */
+                readonly "X-Staff-Ticket": string;
+                /** @description An optional line beside the ticket */
+                readonly "X-Staff-Note"?: string;
+            };
+            readonly path: {
+                readonly org: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": {
+                    /**
+                     * Format: int64
+                     * @description 1 to 48
+                     */
+                    readonly auto_topup_daily_limit?: number | null;
+                    /**
+                     * Format: int64
+                     * @description 1 to 10000
+                     */
+                    readonly member_limit?: number | null;
+                    /** @description Entitlement to amount; null clears it */
+                    readonly overrides?: {
+                        readonly [key: string]: number;
+                    };
+                    /** @description Why, for the customer's audit log: the deal, the ticket's summary */
+                    readonly reason: string;
+                };
+            };
+        };
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["EntitlementsOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account is not staff, or lacks the role this needs */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No organization has that slug, or it has no billing account */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unknown entitlement, a negative amount, or nothing to change */
             readonly 422: {
                 headers: {
                     readonly [name: string]: unknown;
@@ -5299,6 +6368,83 @@ export interface operations {
             };
         };
     };
+    readonly get_v1_operator_organizations_by_org_ledger: {
+        readonly parameters: {
+            readonly query?: {
+                /** @description Newest first, up to 200 */
+                readonly limit?: number;
+                /** @description The next cursor of the previous page */
+                readonly before?: string;
+            };
+            readonly header: {
+                /** @description A ticket reference for why this customer's data is being read: recorded in staff_access */
+                readonly "X-Staff-Ticket": string;
+                /** @description An optional line beside the ticket */
+                readonly "X-Staff-Note"?: string;
+            };
+            readonly path: {
+                readonly org: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["LedgerOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account is not staff, or lacks the role this needs */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     readonly put_v1_operator_organizations_by_org_plan: {
         readonly parameters: {
             readonly query?: never;
@@ -5359,6 +6505,83 @@ export interface operations {
                 };
             };
             /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly get_v1_operator_organizations_by_org_usage: {
+        readonly parameters: {
+            readonly query?: {
+                /** @description YYYY-MM-DD. Defaults to the first of the current month */
+                readonly from?: string;
+                /** @description YYYY-MM-DD. Defaults to today */
+                readonly to?: string;
+            };
+            readonly header: {
+                /** @description A ticket reference for why this customer's data is being read: recorded in staff_access */
+                readonly "X-Staff-Ticket": string;
+                /** @description An optional line beside the ticket */
+                readonly "X-Staff-Note"?: string;
+            };
+            readonly path: {
+                readonly org: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["UsageOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account is not staff, or lacks the role this needs */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The range is not two dates, ends before it starts, or is longer than 400 days */
             readonly 422: {
                 headers: {
                     readonly [name: string]: unknown;
@@ -5913,6 +7136,167 @@ export interface operations {
                 };
             };
             /** @description Stripe could not be reached, or payments are not configured */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly get_v1_operator_projects: {
+        readonly parameters: {
+            readonly query?: {
+                /** @description A slug prefix, part of a name, a project id, or a project sequence number from the ingestion or storage pages */
+                readonly q?: string;
+                /** @description standard, child_directed or kids_strict */
+                readonly policy_tier?: "" | "standard" | "child_directed" | "kids_strict";
+                /** @description The next cursor of the previous page */
+                readonly before?: string;
+                /** @description Newest first, up to 200 */
+                readonly limit?: number;
+            };
+            readonly header: {
+                /** @description A ticket reference for why this customer's data is being read: recorded in staff_access */
+                readonly "X-Staff-Ticket": string;
+                /** @description An optional line beside the ticket */
+                readonly "X-Staff-Note"?: string;
+            };
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["OperatorProjectListOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account is not staff, or lacks the role this needs */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly get_v1_operator_projects_by_project: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description A ticket reference for why this customer's data is being read: recorded in staff_access */
+                readonly "X-Staff-Ticket": string;
+                /** @description An optional line beside the ticket */
+                readonly "X-Staff-Note"?: string;
+            };
+            readonly path: {
+                /** @description The project's id */
+                readonly project: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["OperatorProjectOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account is not staff, or lacks the role this needs */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No project has that id */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
             readonly 503: {
                 headers: {
                     readonly [name: string]: unknown;
@@ -6603,6 +7987,18 @@ export interface operations {
             readonly query?: {
                 /** @description One action name, exactly */
                 readonly action?: string;
+                /** @description segment, feature_flag, api_key, member... */
+                readonly target_type?: string;
+                /** @description With target_type: one thing's history */
+                readonly target_id?: string;
+                /** @description A person's address: what they did, including as PlayerSense staff */
+                readonly actor?: string;
+                /** @description YYYY-MM-DD, inclusive */
+                readonly from?: string;
+                /** @description YYYY-MM-DD, inclusive */
+                readonly to?: string;
+                /** @description The next cursor of the previous page */
+                readonly before?: string;
                 /** @description Newest first, up to 200 */
                 readonly limit?: number;
             };
@@ -7007,6 +8403,8 @@ export interface operations {
             readonly query?: {
                 /** @description Newest first, up to 200 */
                 readonly limit?: number;
+                /** @description The next cursor of the previous page */
+                readonly before?: string;
             };
             readonly header?: never;
             readonly path: {

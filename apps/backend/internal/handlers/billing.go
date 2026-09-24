@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	muzak "muzak.dev/framework"
@@ -53,22 +54,25 @@ import (
 // Both halves, because either alone is unreadable: 41,207 tracked players means nothing without the
 // 10,000 the plan allows, and the allowance means nothing without the number beside it.
 func ReadUsage(ctx *muzak.Context, in schemas.UsageParams) (schemas.UsageOut, error) {
-	db := muzak.From[*core.DB](ctx)
 	org := muzak.From[*core.Principal](ctx).Organization
+	return usageOf(ctx.Context(), muzak.From[*core.DB](ctx), org.ID, in.From, in.To)
+}
 
-	from, to, err := usageRange(in.From, in.To, nowUTC())
+// usageOf is one organization's usage over a range, for its own page and for the console.
+func usageOf(ctx context.Context, db *core.DB, orgID int, fromText, toText string) (schemas.UsageOut, error) {
+	from, to, err := usageRange(fromText, toText, nowUTC())
 	if err != nil {
 		return schemas.UsageOut{}, err
 	}
 
 	rows, err := db.Client.UsageDaily.Query().
 		Where(
-			usagedaily.OrganizationID(org.ID),
+			usagedaily.OrganizationID(orgID),
 			usagedaily.DayGTE(from),
 			usagedaily.DayLTE(to),
 		).
 		Order(ent.Asc(usagedaily.FieldDay)).
-		All(ctx.Context())
+		All(ctx)
 	if err != nil {
 		return schemas.UsageOut{}, core.AsHTTPError(err)
 	}
@@ -77,14 +81,14 @@ func ReadUsage(ctx *muzak.Context, in schemas.UsageParams) (schemas.UsageOut, er
 
 	// The plan's allowances with any per-account override applied, so a client draws one bar
 	// rather than layering two documents itself.
-	if account, err := accountOf(ctx.Context(), db, org.ID); err == nil {
+	if account, err := accountOf(ctx, db, orgID); err == nil {
 		out.Included = resolvedEntitlements(account)
 	} else if !ent.IsNotFound(err) {
 		return schemas.UsageOut{}, core.AsHTTPError(err)
 	}
 
 	projects, err := db.Client.Project.Query().
-		Where(project.OrganizationID(org.ID)).All(ctx.Context())
+		Where(project.OrganizationID(orgID)).All(ctx)
 	if err != nil {
 		return schemas.UsageOut{}, core.AsHTTPError(err)
 	}
@@ -224,21 +228,34 @@ func ReadLedger(ctx *muzak.Context, in schemas.LedgerParams) (schemas.LedgerOut,
 	if err != nil {
 		return schemas.LedgerOut{}, err
 	}
+	return ledgerOf(ctx.Context(), db, account.ID, in.Limit, in.Before)
+}
 
-	limit := in.Limit
+// ledgerOf is one page of an account's statement, newest first. before is the next cursor of the
+// previous page: the entries' ids are the ledger's order, so a page never repeats or skips a row
+// written while somebody reads.
+func ledgerOf(ctx context.Context, db *core.DB, accountID, limit int, before string) (schemas.LedgerOut, error) {
 	if limit == 0 {
 		limit = 50
 	}
-	rows, err := db.Client.LedgerEntry.Query().
-		Where(ledgerentry.AccountID(account.ID)).
-		Order(ent.Desc(ledgerentry.FieldID)).
-		Limit(limit).
-		All(ctx.Context())
+	q := db.Client.LedgerEntry.Query().Where(ledgerentry.AccountID(accountID))
+	if before != "" {
+		id, err := strconv.Atoi(before)
+		if err != nil {
+			return schemas.LedgerOut{}, muzak.BadRequest("before is not a cursor this API returned")
+		}
+		q = q.Where(ledgerentry.IDLT(id))
+	}
+	rows, err := q.Order(ent.Desc(ledgerentry.FieldID)).Limit(limit + 1).All(ctx)
 	if err != nil {
 		return schemas.LedgerOut{}, core.AsHTTPError(err)
 	}
 
 	out := schemas.LedgerOut{Entries: make([]schemas.LedgerEntryOut, 0, len(rows))}
+	if len(rows) > limit {
+		rows = rows[:limit]
+		out.Next = strconv.Itoa(rows[len(rows)-1].ID)
+	}
 	for _, row := range rows {
 		out.Entries = append(out.Entries, ledgerEntryOut(row))
 	}

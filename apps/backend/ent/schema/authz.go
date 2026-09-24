@@ -225,10 +225,12 @@ func (AuditEvent) Edges() []ent.Edge {
 func (AuditEvent) Indexes() []ent.Index {
 	return []ent.Index{
 		// The only query: one organisation's log, newest first, sometimes filtered to one
-		// action. Nothing reads these by actor across organisations, and an index that
+		// action or one target. Nothing reads these by actor across organisations, and an index that
 		// allowed it would be an index that invited it.
 		index.Fields("organization_id", "created_at"),
 		index.Fields("organization_id", "action", "created_at"),
+		// One thing's history: "everything that happened to this flag".
+		index.Fields("organization_id", "target_type", "target_id"),
 	}
 }
 

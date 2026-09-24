@@ -172,7 +172,8 @@ func TestEveryCustomerRouteAsksForATicket(t *testing.T) {
 		if !strings.HasPrefix(path, "/v1/operator/") {
 			continue
 		}
-		if !strings.Contains(path, "{org}") && !strings.Contains(path, "{project}") {
+		directory := path == "/v1/operator/organizations" || path == "/v1/operator/projects"
+		if !directory && !strings.Contains(path, "{org}") && !strings.Contains(path, "{project}") {
 			continue
 		}
 		for method, op := range ops {

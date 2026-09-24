@@ -214,6 +214,7 @@ type AutoTopUpOut struct {
 // LedgerOut is a statement.
 type LedgerOut struct {
 	Entries []LedgerEntryOut `json:"entries"`
+	Next    string           `json:"next,omitzero" doc:"Pass as before for the page after this one; absent on the last"`
 }
 
 // LedgerEntryOut is one movement of money.
@@ -233,11 +234,13 @@ type LedgerEntryOut struct {
 type LedgerParams struct {
 	OrgSlug string `path:"org"`
 	Limit   int    `query:"limit,omitzero" default:"50" doc:"Newest first, up to 200"`
+	Before  string `query:"before,omitzero" doc:"The next cursor of the previous page"`
 }
 
 func (in *LedgerParams) Validate(v *muzak.Validation) {
 	v.String(&in.OrgSlug).Trim().Lower().Required().MaxLen(64)
 	v.Number(&in.Limit).Min(1).Max(200)
+	v.String(&in.Before).Trim().MaxLen(20)
 }
 
 // SetAutoTopUpIn configures automatic charging.
