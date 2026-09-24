@@ -49,7 +49,6 @@ const lotColumns = ref(defaultColumnState(LOT_COLUMNS))
 /* Oldest first: the order usage spends them in. */
 const lotSortBy = ref<DataTableSort[]>([{ key: 'granted_at', order: 'asc' }])
 
-const lotQuery = ref('')
 const lotFilters = ref<Record<string, string[]>>({ kind: [], state: [] })
 
 const LOT_FILTER_GROUPS: FilterGroup[] = [
@@ -59,31 +58,23 @@ const LOT_FILTER_GROUPS: FilterGroup[] = [
 
 const lotActiveFilters = computed<ActiveFilter[]>(() => [
   ...(lotFilters.value.kind ?? []).map(kind => ({ key: `kind:${kind}`, label: `Kind: ${LOT_KINDS[kind as CreditLot['kind']].label}` })),
-  ...(lotFilters.value.state ?? []).map(state => ({ key: `state:${state}`, label: `Status: ${LOT_STATES[state as LotState].label}` })),
-  ...(lotQuery.value.trim() ? [{ key: 'search', label: `“${lotQuery.value.trim()}”` }] : [])
+  ...(lotFilters.value.state ?? []).map(state => ({ key: `state:${state}`, label: `Status: ${LOT_STATES[state as LotState].label}` }))
 ])
 
 function removeLotFilter(key: string) {
-  if (key === 'search') {
-    lotQuery.value = ''
-    return
-  }
   const [group, value] = key.split(':') as [string, string]
   lotFilters.value = { ...lotFilters.value, [group]: (lotFilters.value[group] ?? []).filter(entry => entry !== value) }
 }
 
 function clearLotFilters() {
-  lotQuery.value = ''
   lotFilters.value = { kind: [], state: [] }
 }
 
 const lots = computed(() => {
-  const needle = lotQuery.value.trim().toLowerCase()
   const kinds = lotFilters.value.kind ?? []
   const states = lotFilters.value.state ?? []
   return billing.value.lots.filter(lot => (!kinds.length || kinds.includes(lot.kind))
-    && (!states.length || states.includes(stateOf(lot)))
-    && (!needle || (lot.description ?? '').toLowerCase().includes(needle)))
+    && (!states.length || states.includes(stateOf(lot))))
 })
 
 // --- The ledger ------------------------------------------------------------------------------
@@ -99,7 +90,6 @@ const COLUMNS: DataTableColumn<LedgerEntry>[] = [
 const columns = ref(defaultColumnState(COLUMNS))
 const sortBy = ref<DataTableSort[]>([{ key: 'at', order: 'desc' }])
 
-const query = ref('')
 const filters = ref<Record<string, string[]>>({ kind: [] })
 
 const FILTER_GROUPS: FilterGroup[] = [
@@ -107,25 +97,20 @@ const FILTER_GROUPS: FilterGroup[] = [
 ]
 
 const activeFilters = computed<ActiveFilter[]>(() => [
-  ...(filters.value.kind ?? []).map(kind => ({ key: `kind:${kind}`, label: `Kind: ${LEDGER_KINDS[kind as LedgerKind].label}` })),
-  ...(query.value.trim() ? [{ key: 'search', label: `“${query.value.trim()}”` }] : [])
+  ...(filters.value.kind ?? []).map(kind => ({ key: `kind:${kind}`, label: `Kind: ${LEDGER_KINDS[kind as LedgerKind].label}` }))
 ])
 
 function removeFilter(key: string) {
-  if (key === 'search') query.value = ''
-  else filters.value = { kind: (filters.value.kind ?? []).filter(kind => `kind:${kind}` !== key) }
+  filters.value = { kind: (filters.value.kind ?? []).filter(kind => `kind:${kind}` !== key) }
 }
 
 function clearFilters() {
-  query.value = ''
   filters.value = { kind: [] }
 }
 
 const matched = computed(() => {
-  const needle = query.value.trim().toLowerCase()
   const kinds = filters.value.kind ?? []
-  return billing.value.ledger.filter(entry => (!kinds.length || kinds.includes(entry.kind))
-    && (!needle || entry.description.toLowerCase().includes(needle)))
+  return billing.value.ledger.filter(entry => !kinds.length || kinds.includes(entry.kind))
 })
 
 function exportLedger() {
@@ -144,12 +129,6 @@ function exportLedger() {
       </template>
 
       <TableToolbar :filters="lotActiveFilters" @clear="clearLotFilters" @remove="removeLotFilter">
-        <SearchField
-          v-model="lotQuery"
-          class="w-56"
-          label="Search credit"
-          placeholder="Description"
-        />
         <FilterMenu v-model="lotFilters" :groups="LOT_FILTER_GROUPS" />
         <DataTableColumnsMenu v-model="lotColumns" :columns="LOT_COLUMNS" />
       </TableToolbar>
@@ -230,12 +209,6 @@ function exportLedger() {
 
     <SectionCard :padded="false" description="Every movement of the wallet: top-ups, promotions, usage taken each day, the plan, refunds and credit that expired." title="Ledger">
       <TableToolbar :filters="activeFilters" @clear="clearFilters" @remove="removeFilter">
-        <SearchField
-          v-model="query"
-          class="w-56"
-          label="Search the ledger"
-          placeholder="Description"
-        />
         <FilterMenu v-model="filters" :groups="FILTER_GROUPS" />
         <DataTableColumnsMenu v-model="columns" :columns="COLUMNS" />
         <v-btn
