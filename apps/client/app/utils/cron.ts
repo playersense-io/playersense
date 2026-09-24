@@ -4,8 +4,10 @@
 // and checked before anything is sent.
 //
 // Each field takes `*`, a number, a list (1,15), a range (1-5) and a step (*/15, 1-30/5), as
-// the Go scheduler the worker uses does. Day names and month names are not taken: numbers
-// only, which is what the presets write and what a copied crontab line nearly always holds.
+// the Go scheduler the worker uses does, and the day and month fields take names too: SUN,
+// MON-FRI, JAN,JUL. The words are cronstrue's, the library most crontab tools use, in the
+// 24-hour clock the rest of the panel writes.
+import cronstrue from 'cronstrue'
 
 export interface CronFields {
   minutes: number[]
@@ -20,17 +22,28 @@ export interface CronFields {
 const RANGES: [number, number][] = [[0, 59], [0, 23], [1, 31], [1, 12], [0, 6]]
 const FIELD_NAMES = ['minute', 'hour', 'day of the month', 'month', 'day of the week']
 
+const MONTH_NAMES = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
+const DAY_NAMES = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']
+
+/* A month or day field with its names written as the numbers the rest of the parser reads. */
+function numbered(part: string, index: number): string {
+  if (index === 3) return part.replace(/[a-z]{3}/gi, name => String(MONTH_NAMES.indexOf(name.toUpperCase()) + 1 || name))
+  if (index === 4) return part.replace(/[a-z]{3}/gi, name => (DAY_NAMES.includes(name.toUpperCase()) ? String(DAY_NAMES.indexOf(name.toUpperCase())) : name))
+  return part
+}
+
 /** The fields, or why the expression is not one. */
 export function parseCron(expression: string): CronFields | string {
   const parts = expression.trim().split(/\s+/)
   if (parts.length !== 5) return 'Five fields: minute, hour, day of the month, month, day of the week.'
   const sets: number[][] = []
-  for (const [index, part] of parts.entries()) {
+  for (const [index, written] of parts.entries()) {
+    const part = numbered(written, index)
     const [low, high] = RANGES[index]!
     const values = new Set<number>()
     for (const piece of part.split(',')) {
       const match = /^(\*|\d+)(?:-(\d+))?(?:\/(\d+))?$/.exec(piece)
-      if (!match) return `The ${FIELD_NAMES[index]} field, "${part}", is not one cron reads.`
+      if (!match) return `The ${FIELD_NAMES[index]} field, "${written}", is not one cron reads.`
       const step = match[3] ? Number(match[3]) : 1
       let start = match[1] === '*' ? low : Number(match[1])
       let end = match[1] === '*' ? high : match[2] ? Number(match[2]) : match[3] ? high : start
@@ -56,11 +69,14 @@ export function parseCron(expression: string): CronFields | string {
 
 /** The presets a schedule is picked from, each a cron line and what it says. */
 export const CRON_PRESETS = [
+  { value: '*/5 * * * *', label: 'Every 5 minutes' },
   { value: '0 * * * *', label: 'Every hour' },
+  { value: '0 */2 * * *', label: 'Every 2 hours' },
   { value: '0 9 * * *', label: 'Every day at 09:00' },
   { value: '0 9 * * 1-5', label: 'Every weekday at 09:00' },
   { value: '0 9 * * 1', label: 'Every Monday at 09:00' },
-  { value: '0 9 1 * *', label: 'On the 1st of every month at 09:00' }
+  { value: '0 0 * * 0', label: 'Every Sunday at midnight' },
+  { value: '0 0 1 * *', label: 'On the 1st of every month at midnight' }
 ] as const
 
 export const CRON_TIMEZONES = [
@@ -74,39 +90,14 @@ export const CRON_TIMEZONES = [
   { value: 'Asia/Seoul', label: 'Seoul' }
 ] as const
 
-const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
-const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
-
-const pad = (value: number) => String(value).padStart(2, '0')
-const ordinal = (day: number) => `${day}${day % 10 === 1 && day !== 11 ? 'st' : day % 10 === 2 && day !== 12 ? 'nd' : day % 10 === 3 && day !== 13 ? 'rd' : 'th'}`
-const listed = (items: string[]) => (items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`)
-
-/** A cron line in words: "Every Monday at 09:00", "Every 15 minutes". */
+/** A cron line in words, cronstrue's: "At 09:00, only on Monday", "Every 5 minutes". */
 export function describeCron(expression: string): string {
-  const preset = CRON_PRESETS.find(entry => entry.value === expression.trim())
-  if (preset) return preset.label
-  const fields = parseCron(expression)
-  if (typeof fields === 'string') return 'Not a schedule yet'
-  const [minute, hour, day, month, weekday] = expression.trim().split(/\s+/) as [string, string, string, string, string]
-
-  let when: string
-  if (minute.startsWith('*/') && hour === '*') when = `Every ${minute.slice(2)} minutes`
-  else if (minute === '*' && hour === '*') when = 'Every minute'
-  else if (hour === '*') when = `Every hour at ${listed(fields.minutes.map(value => `:${pad(value)}`))}`
-  else if (hour.startsWith('*/')) when = `Every ${hour.slice(2)} hours at :${pad(fields.minutes[0] ?? 0)}`
-  else when = `at ${listed(fields.hours.flatMap(value => fields.minutes.slice(0, 2).map(entry => `${pad(value)}:${pad(entry)}`)).slice(0, 4))}`
-
-  const parts: string[] = []
-  if (weekday !== '*') {
-    const names = fields.weekdays.map(value => WEEKDAYS[value]!)
-    parts.push(fields.weekdays.join(',') === '1,2,3,4,5' ? 'every weekday' : `every ${listed(names)}`)
+  if (typeof parseCron(expression) === 'string') return 'Not a schedule yet'
+  try {
+    return cronstrue.toString(expression.trim(), { use24HourTimeFormat: true, verbose: false })
+  } catch {
+    return 'Not a schedule yet'
   }
-  if (day !== '*') parts.push(`on the ${listed(fields.days.map(ordinal))}`)
-  if (month !== '*') parts.push(`in ${listed(fields.months.map(value => MONTHS[value - 1]!))}`)
-
-  const daily = !parts.length && !when.startsWith('Every')
-  const text = daily ? `Every day ${when}` : when.startsWith('Every') ? [when, ...parts].join(', ') : `${parts.join(' ')} ${when}`
-  return text.charAt(0).toUpperCase() + text.slice(1)
 }
 
 /* A time's fields as a clock in a timezone reads them. */
