@@ -5323,6 +5323,277 @@
         }
       }
     },
+    "/v1/organizations/{org}/projects/{project}/analytics/{environment}/sessions": {
+      "get": {
+        "tags": [
+          "reporting"
+        ],
+        "summary": "Describe the game's sessions",
+        "description": "Sessions by day against the previous range, how long they lasted on a fixed ladder with the median and 90th percentile read off it, how they ended, by platform, and when they start by weekday and hour in the timezone asked for. A day is counted once it is over; complete_through says which is the last.",
+        "operationId": "get_v1_organizations_by_org_projects_by_project_analytics_by_environment_sessions",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "project",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "environment",
+            "in": "path",
+            "description": "development, staging or production",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "development",
+                "staging",
+                "production"
+              ]
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "description": "YYYY-MM-DD, inclusive. Defaults to six days before to",
+            "schema": {
+              "type": "string",
+              "maxLength": 10
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "description": "YYYY-MM-DD, inclusive. Defaults to today (UTC)",
+            "schema": {
+              "type": "string",
+              "maxLength": 10
+            }
+          },
+          {
+            "name": "tz",
+            "in": "query",
+            "description": "IANA timezone for the weekday-by-hour heatmap; defaults to UTC",
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionsOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not read this project's analytics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The organization, project or environment does not exist, or you cannot see it",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The facts could not be read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/organizations/{org}/projects/{project}/analytics/{environment}/sessions/recent": {
+      "get": {
+        "tags": [
+          "reporting"
+        ],
+        "summary": "List the newest sessions",
+        "description": "Today's sessions, newest first, and yesterday's when today has fewer than asked for: who played, on what, for how long, and whether the session is still going. Names players, so it needs player.read.",
+        "operationId": "get_v1_organizations_by_org_projects_by_project_analytics_by_environment_sessions_recent",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "project",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "environment",
+            "in": "path",
+            "description": "development, staging or production",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "development",
+                "staging",
+                "production"
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Newest first, up to 200",
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "default": "50",
+              "minimum": 1,
+              "maximum": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecentSessionsOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not read this project's analytics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The organization, project or environment does not exist, or you cannot see it",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The facts could not be read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/organizations/{org}/projects/{project}/config/{environment}/draft": {
       "get": {
         "tags": [
@@ -12202,6 +12473,20 @@
           "unbilled_micros"
         ]
       },
+      "RecentSessionsOut": {
+        "type": "object",
+        "properties": {
+          "sessions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SessionOut"
+            }
+          }
+        },
+        "required": [
+          "sessions"
+        ]
+      },
       "RoleListOut": {
         "type": "object",
         "properties": {
@@ -12414,6 +12699,307 @@
           "name",
           "rule",
           "updated_at"
+        ]
+      },
+      "SessionDayOut": {
+        "type": "object",
+        "properties": {
+          "active_players": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "day": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "duration_ms": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "playtime_ms": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "previous_duration_ms": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "previous_sessions": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "sessions": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "active_players",
+          "day",
+          "duration_ms",
+          "playtime_ms",
+          "previous_duration_ms",
+          "previous_sessions",
+          "sessions"
+        ]
+      },
+      "SessionLengthOut": {
+        "type": "object",
+        "properties": {
+          "from_ms": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "sessions": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "to_ms": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Absent on the last rung, which has no end"
+          }
+        },
+        "required": [
+          "from_ms",
+          "sessions"
+        ]
+      },
+      "SessionOut": {
+        "type": "object",
+        "properties": {
+          "app_version": {
+            "type": "string"
+          },
+          "country": {
+            "type": "string"
+          },
+          "duration_ms": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "events": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "install_id": {
+            "type": "string"
+          },
+          "last_event_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "outcome": {
+            "type": "string",
+            "description": "ended, timed_out, or open (an event in the last thirty minutes)"
+          },
+          "platform": {
+            "type": "string"
+          },
+          "player_id": {
+            "type": "string"
+          },
+          "playtime_ms": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "revenue_micros": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "session_id": {
+            "type": "string"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "app_version",
+          "duration_ms",
+          "events",
+          "install_id",
+          "last_event_at",
+          "outcome",
+          "platform",
+          "playtime_ms",
+          "session_id",
+          "started_at"
+        ]
+      },
+      "SessionOutcomeOut": {
+        "type": "object",
+        "properties": {
+          "outcome": {
+            "type": "string",
+            "description": "ended (a session_end arrived) or timed_out (none did; the SDK closed it)"
+          },
+          "sessions": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "outcome",
+          "sessions"
+        ]
+      },
+      "SessionPlatformOut": {
+        "type": "object",
+        "properties": {
+          "duration_ms": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "platform": {
+            "type": "string"
+          },
+          "player_days": {
+            "type": "integer",
+            "format": "int64",
+            "description": "By the platform players installed on"
+          },
+          "playtime_ms": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "sessions": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "duration_ms",
+          "platform",
+          "player_days",
+          "playtime_ms",
+          "sessions"
+        ]
+      },
+      "SessionTotalsOut": {
+        "type": "object",
+        "properties": {
+          "duration_ms": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "events": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "median_ms": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "p90_ms": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "player_days": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "playtime_ms": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "previous_duration_ms": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "previous_sessions": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "sessions": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "duration_ms",
+          "events",
+          "median_ms",
+          "p90_ms",
+          "player_days",
+          "playtime_ms",
+          "previous_duration_ms",
+          "previous_sessions",
+          "sessions"
+        ]
+      },
+      "SessionsOut": {
+        "type": "object",
+        "properties": {
+          "complete_through": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The last whole day the session facts hold"
+          },
+          "computed_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "days": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SessionDayOut"
+            }
+          },
+          "from": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "heatmap": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "format": "int64"
+              }
+            }
+          },
+          "lengths": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SessionLengthOut"
+            }
+          },
+          "outcomes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SessionOutcomeOut"
+            }
+          },
+          "platforms": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SessionPlatformOut"
+            }
+          },
+          "timezone": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/SessionTotalsOut"
+          }
+        },
+        "required": [
+          "days",
+          "from",
+          "heatmap",
+          "lengths",
+          "outcomes",
+          "platforms",
+          "timezone",
+          "to",
+          "totals"
         ]
       },
       "SubscriptionOut": {

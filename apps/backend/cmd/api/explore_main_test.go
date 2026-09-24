@@ -292,3 +292,106 @@ func (r *reporting) numbersOnly(t *testing.T) *testclient.Client {
 	}
 	return r.join(t, key)
 }
+
+// sessionEvents plays three sessions two days ago: five minutes that ended cleanly, forty seconds
+// the SDK had to close, and twenty minutes across midnight that ended cleanly the next day. Plus
+// one session going on right now.
+func (r *reporting) sessionEvents(t *testing.T) (now string) {
+	t.Helper()
+	d := time.Now().UTC().Truncate(24*time.Hour).AddDate(0, 0, -2)
+	a, b, c, live := uuid.NewString(), uuid.NewString(), uuid.NewString(), uuid.NewString()
+	ev := func(install, session, name string, at time.Time) rawEvent {
+		return rawEvent{install: install, session: session, name: name, platform: "ios", version: "2.7.1",
+			country: "TR", at: at, cohort: d, kind: "session", playtime: 1000}
+	}
+	r.insert(t, []rawEvent{
+		ev(a, "short", "session_start", d.Add(10*time.Hour)),
+		ev(a, "short", "level_complete", d.Add(10*time.Hour+4*time.Minute)),
+		ev(a, "short", "session_end", d.Add(10*time.Hour+5*time.Minute)),
+
+		ev(b, "brief", "session_start", d.Add(12*time.Hour)),
+		ev(b, "brief", "level_complete", d.Add(12*time.Hour+40*time.Second)),
+
+		ev(c, "late", "session_start", d.Add(23*time.Hour+50*time.Minute)),
+		ev(c, "late", "session_end", d.Add(24*time.Hour+10*time.Minute)),
+
+		ev(live, "live", "session_start", time.Now().UTC().Add(-10*time.Minute)),
+		ev(live, "live", "level_complete", time.Now().UTC().Add(-5*time.Minute)),
+	})
+	if got := r.waitForRows(t, 9); got != 9 {
+		t.Fatalf("seeded %d of 9 rows", got)
+	}
+	r.derive(t, d, time.Now().UTC())
+	return live
+}
+
+// TestTheSessionsPageMeasuresWholeSessions.
+//
+// The session across midnight is the one that matters: its rows are on two days, and it is one
+// session of twenty minutes counted on the day it started, not two short ones.
+func TestTheSessionsPageMeasuresWholeSessions(t *testing.T) {
+	r := newReporting(t, "standard")
+	r.sessionEvents(t)
+
+	d := time.Now().UTC().Truncate(24*time.Hour).AddDate(0, 0, -2)
+	out := get[schemas.SessionsOut](t, r.member, r.analytics()+"/sessions",
+		url.Values{"from": {day(d)}, "to": {day(d)}, "tz": {"Europe/Istanbul"}}, http.StatusOK)
+
+	if out.Totals.Sessions != 3 {
+		t.Fatalf("%d sessions on the day, want 3", out.Totals.Sessions)
+	}
+	rungs := map[uint64]uint64{}
+	for _, l := range out.Lengths {
+		rungs[l.FromMs] = l.Sessions
+	}
+	// 40 seconds, 5 minutes and 20 minutes, each on its own rung.
+	if rungs[30_000] != 1 || rungs[300_000] != 1 || rungs[1_200_000] != 1 {
+		t.Fatalf("lengths %+v, want one session from 30s, one from 5m and one from 20m", out.Lengths)
+	}
+	outcomes := map[string]uint64{}
+	for _, o := range out.Outcomes {
+		outcomes[o.Outcome] = o.Sessions
+	}
+	if outcomes["ended"] != 2 || outcomes["timed_out"] != 1 {
+		t.Fatalf("outcomes %+v, want 2 ended and 1 timed out", out.Outcomes)
+	}
+	if out.Totals.MedianMs < 300_000 || out.Totals.MedianMs > 600_000 {
+		t.Fatalf("the median session is %dms; the middle one lasted five minutes", out.Totals.MedianMs)
+	}
+
+	// Istanbul is three hours ahead, so the session begun at 23:50 UTC began at 02:50 the next
+	// morning there.
+	var starts uint64
+	for _, day := range out.Heatmap {
+		for _, n := range day {
+			starts += n
+		}
+	}
+	next := (int(d.Weekday()) + 6 + 1) % 7 // Monday first, and the day after
+	if starts != 3 || out.Heatmap[next][2] != 1 {
+		t.Fatalf("heatmap %v holds %d starts, want 3 with one at 02:00 the next day", out.Heatmap, starts)
+	}
+	if !out.CompleteThrough.Equal(d.AddDate(0, 0, 1)) && !out.CompleteThrough.Equal(d) {
+		t.Fatalf("complete through %s, want the last whole day seeded", out.CompleteThrough)
+	}
+}
+
+// TestRecentSessionsAreWholeAndSayWhichAreGoingOn.
+func TestRecentSessionsAreWholeAndSayWhichAreGoingOn(t *testing.T) {
+	r := newReporting(t, "standard")
+	live := r.sessionEvents(t)
+
+	out := get[schemas.RecentSessionsOut](t, r.member, r.analytics()+"/sessions/recent",
+		url.Values{"limit": {"10"}}, http.StatusOK)
+	if len(out.Sessions) == 0 || out.Sessions[0].InstallID != live || out.Sessions[0].Outcome != "open" {
+		t.Fatalf("the newest session is %+v, want the one going on now", out.Sessions)
+	}
+	for _, s := range out.Sessions {
+		if s.SessionID == "late" && (s.DurationMs != 20*60*1000 || s.Outcome != "ended") {
+			// Read from its second half alone it would have started after midnight.
+			t.Fatalf("the session across midnight is %+v, want 20 minutes that ended", s)
+		}
+	}
+
+	get[schemas.RecentSessionsOut](t, r.numbersOnly(t), r.analytics()+"/sessions/recent", nil, http.StatusForbidden)
+}

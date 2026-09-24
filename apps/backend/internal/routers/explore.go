@@ -48,4 +48,21 @@ func explorer(r *muzak.Router, base string) {
 			"on what, and every property. Names players, so it needs player.read."),
 		core.Require(authz.AnalyticsRead, authz.PlayerRead),
 		unreadable)
+
+	r.Get(base+"/sessions", handlers.Sessions,
+		muzak.Summary("Describe the game's sessions"),
+		muzak.Description("Sessions by day against the previous range, how long they lasted on a fixed "+
+			"ladder with the median and 90th percentile read off it, how they ended, by platform, and "+
+			"when they start by weekday and hour in the timezone asked for. A day is counted once it "+
+			"is over; complete_through says which is the last."),
+		core.Require(authz.AnalyticsRead),
+		unreadable)
+
+	r.Get(base+"/sessions/recent", handlers.RecentSessions,
+		muzak.Summary("List the newest sessions"),
+		muzak.Description("Today's sessions, newest first, and yesterday's when today has fewer than "+
+			"asked for: who played, on what, for how long, and whether the session is still going. "+
+			"Names players, so it needs player.read."),
+		core.Require(authz.AnalyticsRead, authz.PlayerRead),
+		unreadable)
 }

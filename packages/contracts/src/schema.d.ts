@@ -855,6 +855,46 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/v1/organizations/{org}/projects/{project}/analytics/{environment}/sessions": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * Describe the game's sessions
+         * @description Sessions by day against the previous range, how long they lasted on a fixed ladder with the median and 90th percentile read off it, how they ended, by platform, and when they start by weekday and hour in the timezone asked for. A day is counted once it is over; complete_through says which is the last.
+         */
+        readonly get: operations["get_v1_organizations_by_org_projects_by_project_analytics_by_environment_sessions"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/organizations/{org}/projects/{project}/analytics/{environment}/sessions/recent": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * List the newest sessions
+         * @description Today's sessions, newest first, and yesterday's when today has fewer than asked for: who played, on what, for how long, and whether the session is still going. Names players, so it needs player.read.
+         */
+        readonly get: operations["get_v1_organizations_by_org_projects_by_project_analytics_by_environment_sessions_recent"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/v1/organizations/{org}/projects/{project}/config/{environment}/draft": {
         readonly parameters: {
             readonly query?: never;
@@ -2572,6 +2612,9 @@ export interface components {
              */
             readonly unbilled_micros: number;
         };
+        readonly RecentSessionsOut: {
+            readonly sessions: readonly components["schemas"]["SessionOut"][];
+        };
         readonly RoleListOut: {
             readonly roles: readonly components["schemas"]["RoleOut"][];
         };
@@ -2649,6 +2692,115 @@ export interface components {
             readonly rule: string;
             /** Format: date-time */
             readonly updated_at: string;
+        };
+        readonly SessionDayOut: {
+            /** Format: int64 */
+            readonly active_players: number;
+            /** Format: date-time */
+            readonly day: string;
+            /** Format: int64 */
+            readonly duration_ms: number;
+            /** Format: int64 */
+            readonly playtime_ms: number;
+            /** Format: int64 */
+            readonly previous_duration_ms: number;
+            /** Format: int64 */
+            readonly previous_sessions: number;
+            /** Format: int64 */
+            readonly sessions: number;
+        };
+        readonly SessionLengthOut: {
+            /** Format: int64 */
+            readonly from_ms: number;
+            /** Format: int64 */
+            readonly sessions: number;
+            /**
+             * Format: int64
+             * @description Absent on the last rung, which has no end
+             */
+            readonly to_ms?: number;
+        };
+        readonly SessionOut: {
+            readonly app_version: string;
+            readonly country?: string;
+            /** Format: int64 */
+            readonly duration_ms: number;
+            /** Format: int64 */
+            readonly events: number;
+            readonly install_id: string;
+            /** Format: date-time */
+            readonly last_event_at: string;
+            /** @description ended, timed_out, or open (an event in the last thirty minutes) */
+            readonly outcome: string;
+            readonly platform: string;
+            readonly player_id?: string;
+            /** Format: int64 */
+            readonly playtime_ms: number;
+            /** Format: int64 */
+            readonly revenue_micros?: number;
+            readonly session_id: string;
+            /** Format: date-time */
+            readonly started_at: string;
+        };
+        readonly SessionOutcomeOut: {
+            /** @description ended (a session_end arrived) or timed_out (none did; the SDK closed it) */
+            readonly outcome: string;
+            /** Format: int64 */
+            readonly sessions: number;
+        };
+        readonly SessionPlatformOut: {
+            /** Format: int64 */
+            readonly duration_ms: number;
+            readonly platform: string;
+            /**
+             * Format: int64
+             * @description By the platform players installed on
+             */
+            readonly player_days: number;
+            /** Format: int64 */
+            readonly playtime_ms: number;
+            /** Format: int64 */
+            readonly sessions: number;
+        };
+        readonly SessionTotalsOut: {
+            /** Format: int64 */
+            readonly duration_ms: number;
+            /** Format: int64 */
+            readonly events: number;
+            /** Format: int64 */
+            readonly median_ms: number;
+            /** Format: int64 */
+            readonly p90_ms: number;
+            /** Format: int64 */
+            readonly player_days: number;
+            /** Format: int64 */
+            readonly playtime_ms: number;
+            /** Format: int64 */
+            readonly previous_duration_ms: number;
+            /** Format: int64 */
+            readonly previous_sessions: number;
+            /** Format: int64 */
+            readonly sessions: number;
+        };
+        readonly SessionsOut: {
+            /**
+             * Format: date-time
+             * @description The last whole day the session facts hold
+             */
+            readonly complete_through?: string;
+            /** Format: date-time */
+            readonly computed_at?: string;
+            readonly days: readonly components["schemas"]["SessionDayOut"][];
+            /** Format: date-time */
+            readonly from: string;
+            readonly heatmap: readonly (readonly number[])[];
+            readonly lengths: readonly components["schemas"]["SessionLengthOut"][];
+            readonly outcomes: readonly components["schemas"]["SessionOutcomeOut"][];
+            readonly platforms: readonly components["schemas"]["SessionPlatformOut"][];
+            readonly timezone: string;
+            /** Format: date-time */
+            readonly to: string;
+            readonly totals: components["schemas"]["SessionTotalsOut"];
         };
         readonly SubscriptionOut: {
             readonly cancel_at_period_end: boolean;
@@ -6663,6 +6815,174 @@ export interface operations {
                 };
             };
             /** @description The summaries could not be read */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly get_v1_organizations_by_org_projects_by_project_analytics_by_environment_sessions: {
+        readonly parameters: {
+            readonly query?: {
+                /** @description YYYY-MM-DD, inclusive. Defaults to six days before to */
+                readonly from?: string;
+                /** @description YYYY-MM-DD, inclusive. Defaults to today (UTC) */
+                readonly to?: string;
+                /** @description IANA timezone for the weekday-by-hour heatmap; defaults to UTC */
+                readonly tz?: string;
+            };
+            readonly header?: never;
+            readonly path: {
+                readonly org: string;
+                readonly project: string;
+                /** @description development, staging or production */
+                readonly environment: "development" | "staging" | "production";
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["SessionsOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not read this project's analytics */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The organization, project or environment does not exist, or you cannot see it */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The facts could not be read */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly get_v1_organizations_by_org_projects_by_project_analytics_by_environment_sessions_recent: {
+        readonly parameters: {
+            readonly query?: {
+                /** @description Newest first, up to 200 */
+                readonly limit?: number;
+            };
+            readonly header?: never;
+            readonly path: {
+                readonly org: string;
+                readonly project: string;
+                /** @description development, staging or production */
+                readonly environment: "development" | "staging" | "production";
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["RecentSessionsOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not read this project's analytics */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The organization, project or environment does not exist, or you cannot see it */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The facts could not be read */
             readonly 503: {
                 headers: {
                     readonly [name: string]: unknown;

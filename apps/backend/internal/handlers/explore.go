@@ -81,3 +81,36 @@ func EventOccurrences(ctx *muzak.Context, in schemas.EventOccurrencesParams) (sc
 	}
 	return *out, nil
 }
+
+// Sessions answers the Sessions page.
+func Sessions(ctx *muzak.Context, in schemas.SessionsParams) (schemas.SessionsOut, error) {
+	engine, scope, w, err := explore(ctx, in.Environment, in.AnalyticsRange)
+	if err != nil {
+		return schemas.SessionsOut{}, err
+	}
+	tz := time.UTC
+	if in.Timezone != "" {
+		if tz, err = time.LoadLocation(in.Timezone); err != nil {
+			return schemas.SessionsOut{}, muzak.BadRequest("tz is not an IANA timezone name")
+		}
+	}
+	out, err := engine.Sessions(ctx.Context(), scope, w, tz)
+	if err != nil {
+		return schemas.SessionsOut{}, exploreFailed(err, "session")
+	}
+	return *out, nil
+}
+
+// RecentSessions lists the newest sessions.
+func RecentSessions(ctx *muzak.Context, in schemas.RecentSessionsParams) (schemas.RecentSessionsOut, error) {
+	engine := muzak.From[*query.Engine](ctx)
+	scope, err := scopeForMember(ctx, in.Environment)
+	if err != nil {
+		return schemas.RecentSessionsOut{}, err
+	}
+	out, err := engine.RecentSessions(ctx.Context(), scope, in.Limit, time.Now())
+	if err != nil {
+		return schemas.RecentSessionsOut{}, exploreFailed(err, "session")
+	}
+	return *out, nil
+}

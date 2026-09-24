@@ -245,3 +245,130 @@ type EventOccurrenceOut struct {
 	Currency   string         `json:"currency,omitzero"`
 	Properties map[string]any `json:"properties,omitzero"`
 }
+
+// ---- sessions ---------------------------------------------------------------
+
+// SessionsParams asks for the Sessions page.
+type SessionsParams struct {
+	AnalyticsScope
+	AnalyticsRange
+
+	// Timezone lays out the heatmap: "when players play" is a question about the players' day,
+	// not UTC's. An IANA name.
+	Timezone string `query:"tz,omitzero" doc:"IANA timezone for the weekday-by-hour heatmap; defaults to UTC"`
+}
+
+func (in *SessionsParams) Validate(v *muzak.Validation) {
+	in.validateScope(v)
+	in.validateRange(v)
+	v.String(&in.Timezone).Trim().MaxLen(64)
+}
+
+// SessionsOut is the Sessions page.
+//
+// Built from sessions_daily, which counts a session once its day is over: CompleteThrough is the
+// last day it holds, and a day after it is absent rather than short.
+type SessionsOut struct {
+	From            time.Time `json:"from"`
+	To              time.Time `json:"to"`
+	CompleteThrough time.Time `json:"complete_through,omitzero" doc:"The last whole day the session facts hold"`
+	ComputedAt      time.Time `json:"computed_at,omitzero"`
+
+	Totals SessionTotalsOut `json:"totals"`
+	Days   []SessionDayOut  `json:"days"`
+
+	// Lengths is the whole ladder, from under 30 seconds to over four hours, so a chart can
+	// group it however it likes. Bucket i runs from FromMs up to ToMs; the last has no end.
+	Lengths   []SessionLengthOut   `json:"lengths"`
+	Outcomes  []SessionOutcomeOut  `json:"outcomes"`
+	Platforms []SessionPlatformOut `json:"platforms"`
+
+	// Heatmap is session starts by weekday (Monday first) and hour, in Timezone.
+	Heatmap  [7][24]uint64 `json:"heatmap"`
+	Timezone string        `json:"timezone"`
+}
+
+// SessionTotalsOut is the range against the range before it.
+type SessionTotalsOut struct {
+	Sessions           uint64 `json:"sessions"`
+	PreviousSessions   uint64 `json:"previous_sessions"`
+	DurationMs         uint64 `json:"duration_ms"`
+	PreviousDurationMs uint64 `json:"previous_duration_ms"`
+	PlaytimeMs         uint64 `json:"playtime_ms"`
+	Events             uint64 `json:"events"`
+
+	// PlayerDays is the sum of each day's active players, the denominator of sessions per
+	// player per day.
+	PlayerDays uint64 `json:"player_days"`
+
+	// MedianMs and P90Ms are read off the length ladder, interpolated inside the bucket they
+	// fall in, so they are as fine as the ladder and no finer.
+	MedianMs uint64 `json:"median_ms"`
+	P90Ms    uint64 `json:"p90_ms"`
+}
+
+// SessionDayOut is one day, and the matching day of the range before.
+type SessionDayOut struct {
+	Day                time.Time `json:"day"`
+	Sessions           uint64    `json:"sessions"`
+	DurationMs         uint64    `json:"duration_ms"`
+	PlaytimeMs         uint64    `json:"playtime_ms"`
+	ActivePlayers      uint64    `json:"active_players"`
+	PreviousSessions   uint64    `json:"previous_sessions"`
+	PreviousDurationMs uint64    `json:"previous_duration_ms"`
+}
+
+// SessionLengthOut is one rung of the length ladder.
+type SessionLengthOut struct {
+	FromMs   uint64 `json:"from_ms"`
+	ToMs     uint64 `json:"to_ms,omitzero" doc:"Absent on the last rung, which has no end"`
+	Sessions uint64 `json:"sessions"`
+}
+
+// SessionOutcomeOut is how many sessions ended which way.
+type SessionOutcomeOut struct {
+	Outcome  string `json:"outcome" doc:"ended (a session_end arrived) or timed_out (none did; the SDK closed it)"`
+	Sessions uint64 `json:"sessions"`
+}
+
+// SessionPlatformOut is one platform's sessions.
+type SessionPlatformOut struct {
+	Platform   string `json:"platform"`
+	Sessions   uint64 `json:"sessions"`
+	DurationMs uint64 `json:"duration_ms"`
+	PlaytimeMs uint64 `json:"playtime_ms"`
+	PlayerDays uint64 `json:"player_days" doc:"By the platform players installed on"`
+}
+
+// RecentSessionsParams asks for the newest sessions.
+type RecentSessionsParams struct {
+	AnalyticsScope
+	Limit int `query:"limit,omitzero" default:"50" doc:"Newest first, up to 200"`
+}
+
+func (in *RecentSessionsParams) Validate(v *muzak.Validation) {
+	in.validateScope(v)
+	v.Number(&in.Limit).Min(1).Max(200)
+}
+
+// RecentSessionsOut is the newest sessions, from today and yesterday.
+type RecentSessionsOut struct {
+	Sessions []SessionOut `json:"sessions"`
+}
+
+// SessionOut is one session as far as it has got.
+type SessionOut struct {
+	SessionID     string    `json:"session_id"`
+	InstallID     string    `json:"install_id"`
+	PlayerID      string    `json:"player_id,omitzero"`
+	Platform      string    `json:"platform"`
+	AppVersion    string    `json:"app_version"`
+	Country       string    `json:"country,omitzero"`
+	StartedAt     time.Time `json:"started_at"`
+	LastEventAt   time.Time `json:"last_event_at"`
+	DurationMs    uint64    `json:"duration_ms"`
+	Events        uint64    `json:"events"`
+	PlaytimeMs    uint64    `json:"playtime_ms"`
+	RevenueMicros int64     `json:"revenue_micros,omitzero"`
+	Outcome       string    `json:"outcome" doc:"ended, timed_out, or open (an event in the last thirty minutes)"`
+}
