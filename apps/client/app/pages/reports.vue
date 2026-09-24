@@ -483,7 +483,7 @@ const ids = { name: useId(), description: useId() }
     </div>
 
     <!-- The selected node, or the report. -->
-    <aside class="hidden w-80 flex-none border-l border-line bg-surface md:block" aria-label="Settings">
+    <aside class="hidden w-[22rem] flex-none border-l border-line bg-surface md:block" aria-label="Settings">
       <ReportInspector
         v-if="selectedGraph"
         :key="selectedGraph.id"

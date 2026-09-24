@@ -23,6 +23,19 @@ export type ReportRow = Record<string, Cell>
 
 export const isNumeric = (type: ColumnType) => type === 'number' || type === 'money' || type === 'percent'
 
+export const NUMERIC_TYPES: readonly ColumnType[] = ['number', 'money', 'percent']
+
+/** A column's type as a glyph, beside its name wherever a column is chosen. */
+export const COLUMN_TYPE_ICONS: Record<ColumnType, string> = {
+  string: 'material-symbols:text-fields',
+  number: 'material-symbols:tag',
+  money: 'material-symbols:attach-money',
+  percent: 'material-symbols:percent',
+  time: 'material-symbols:schedule',
+  country: 'material-symbols:public',
+  platform: 'material-symbols:devices'
+}
+
 // --- Sources ----------------------------------------------------------------------------------
 
 export type SourceKey = 'events' | 'players' | 'purchases' | 'sessions'
