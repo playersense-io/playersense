@@ -646,3 +646,107 @@ type PurchaseOut struct {
 	// FirstPurchase is whether this was the install's first purchase ever.
 	FirstPurchase bool `json:"first_purchase"`
 }
+
+// ---- flag exposures ---------------------------------------------------------
+
+// FlagExposureListParams asks how often every flag was read.
+type FlagExposureListParams struct {
+	AnalyticsScope
+	AnalyticsRange
+}
+
+func (in *FlagExposureListParams) Validate(v *muzak.Validation) {
+	in.validateScope(v)
+	in.validateRange(v)
+}
+
+// FlagExposureListOut is every flag the game read in the range.
+type FlagExposureListOut struct {
+	From  time.Time            `json:"from"`
+	To    time.Time            `json:"to"`
+	Flags []FlagExposureSumOut `json:"flags"`
+
+	SuppressedCells      int `json:"suppressed_cells"`
+	SuppressionThreshold int `json:"suppression_threshold"`
+}
+
+// FlagExposureSumOut is one flag's reads over the range, the range before, and by day.
+type FlagExposureSumOut struct {
+	Flag              string   `json:"flag"`
+	Exposures         uint64   `json:"exposures"`
+	PreviousExposures uint64   `json:"previous_exposures"`
+	Players           *uint64  `json:"players,omitzero"`
+	Daily             []uint64 `json:"daily" doc:"Exposures on each day of the range, in order"`
+}
+
+// FlagExposureParams asks about one flag.
+type FlagExposureParams struct {
+	AnalyticsScope
+	AnalyticsRange
+	Flag string `path:"flag"`
+
+	// Version narrows to one published config version, which is how a rollout is compared
+	// before and after a publish.
+	Version int `query:"version,omitzero" doc:"One config version; every version when absent"`
+}
+
+func (in *FlagExposureParams) Validate(v *muzak.Validation) {
+	in.validateScope(v)
+	in.validateRange(v)
+	v.String(&in.Flag).Trim().Required().MaxLen(128)
+	v.Number(&in.Version).Min(0)
+}
+
+// FlagExposureOut is one flag's insights: who saw which value, when, from which version and on
+// which build, and how many fell back to the game's own default because nothing was published.
+type FlagExposureOut struct {
+	Flag string    `json:"flag"`
+	From time.Time `json:"from"`
+	To   time.Time `json:"to"`
+
+	Exposures uint64 `json:"exposures"`
+	// DefaultShare is the share of exposures that got the game's own default, the players who
+	// are in no arm of anything.
+	DefaultShare float64 `json:"default_share"`
+
+	Values      []FlagValueOut      `json:"values"`
+	Days        []FlagValueDayOut   `json:"days"`
+	Versions    []FlagVersionOut    `json:"versions"`
+	AppVersions []FlagAppVersionOut `json:"app_versions"`
+
+	Approximate          bool `json:"approximate" doc:"Players are distinct counts from sketches"`
+	SuppressedCells      int  `json:"suppressed_cells"`
+	SuppressionThreshold int  `json:"suppression_threshold"`
+}
+
+// FlagValueOut is one value over the range.
+type FlagValueOut struct {
+	Value     string  `json:"value" doc:"As text, whatever type it was"`
+	Published bool    `json:"published" doc:"False for the game's own default"`
+	Exposures uint64  `json:"exposures"`
+	Players   *uint64 `json:"players,omitzero"`
+}
+
+// FlagValueDayOut is one value on one day.
+type FlagValueDayOut struct {
+	Day       time.Time `json:"day"`
+	Value     string    `json:"value"`
+	Published bool      `json:"published"`
+	Exposures uint64    `json:"exposures"`
+	Players   *uint64   `json:"players,omitzero"`
+}
+
+// FlagVersionOut is one config version's exposures.
+type FlagVersionOut struct {
+	ConfigVersion uint32  `json:"config_version"`
+	Exposures     uint64  `json:"exposures"`
+	Players       *uint64 `json:"players,omitzero"`
+}
+
+// FlagAppVersionOut is one build's exposures, and how many of them fell back to the default.
+type FlagAppVersionOut struct {
+	AppVersion       string  `json:"app_version"`
+	Exposures        uint64  `json:"exposures"`
+	DefaultExposures uint64  `json:"default_exposures"`
+	Players          *uint64 `json:"players,omitzero"`
+}

@@ -5189,6 +5189,293 @@
         }
       }
     },
+    "/v1/organizations/{org}/projects/{project}/analytics/{environment}/flags/exposures": {
+      "get": {
+        "tags": [
+          "reporting"
+        ],
+        "summary": "List how often every flag was read",
+        "description": "Each flag the game recorded an exposure for, with its exposures over the range and the range before, its players, and each day. An exposure is the first time a session read a flag under a config version (SDK protocol §14).",
+        "operationId": "get_v1_organizations_by_org_projects_by_project_analytics_by_environment_flags_exposures",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "project",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "environment",
+            "in": "path",
+            "description": "development, staging or production",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "development",
+                "staging",
+                "production"
+              ]
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "description": "YYYY-MM-DD, inclusive. Defaults to six days before to",
+            "schema": {
+              "type": "string",
+              "maxLength": 10
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "description": "YYYY-MM-DD, inclusive. Defaults to today (UTC)",
+            "schema": {
+              "type": "string",
+              "maxLength": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FlagExposureListOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not read this project's analytics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The organization, project or environment does not exist, or you cannot see it",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The facts could not be read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/organizations/{org}/projects/{project}/analytics/{environment}/flags/{flag}/exposures": {
+      "get": {
+        "tags": [
+          "reporting"
+        ],
+        "summary": "Describe who saw which value of a flag",
+        "description": "Exposures and players by value and day, by config version and by build, and the share that fell back to the game's own default because nothing was published.",
+        "operationId": "get_v1_organizations_by_org_projects_by_project_analytics_by_environment_flags_by_flag_exposures",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "project",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "environment",
+            "in": "path",
+            "description": "development, staging or production",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "development",
+                "staging",
+                "production"
+              ]
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "description": "YYYY-MM-DD, inclusive. Defaults to six days before to",
+            "schema": {
+              "type": "string",
+              "maxLength": 10
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "description": "YYYY-MM-DD, inclusive. Defaults to today (UTC)",
+            "schema": {
+              "type": "string",
+              "maxLength": 10
+            }
+          },
+          {
+            "name": "flag",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            }
+          },
+          {
+            "name": "version",
+            "in": "query",
+            "description": "One config version; every version when absent",
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FlagExposureOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not read this project's analytics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No exposure of this flag in the range",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The facts could not be read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/organizations/{org}/projects/{project}/analytics/{environment}/metrics/query": {
       "post": {
         "tags": [
@@ -11572,6 +11859,179 @@
           "op"
         ]
       },
+      "FlagAppVersionOut": {
+        "type": "object",
+        "properties": {
+          "app_version": {
+            "type": "string"
+          },
+          "default_exposures": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "exposures": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "players": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          }
+        },
+        "required": [
+          "app_version",
+          "default_exposures",
+          "exposures"
+        ]
+      },
+      "FlagExposureListOut": {
+        "type": "object",
+        "properties": {
+          "flags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FlagExposureSumOut"
+            }
+          },
+          "from": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "suppressed_cells": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "suppression_threshold": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "to": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "flags",
+          "from",
+          "suppressed_cells",
+          "suppression_threshold",
+          "to"
+        ]
+      },
+      "FlagExposureOut": {
+        "type": "object",
+        "properties": {
+          "app_versions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FlagAppVersionOut"
+            }
+          },
+          "approximate": {
+            "type": "boolean",
+            "description": "Players are distinct counts from sketches"
+          },
+          "days": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FlagValueDayOut"
+            }
+          },
+          "default_share": {
+            "type": "number",
+            "format": "double"
+          },
+          "exposures": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "flag": {
+            "type": "string"
+          },
+          "from": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "suppressed_cells": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "suppression_threshold": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "to": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "values": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FlagValueOut"
+            }
+          },
+          "versions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FlagVersionOut"
+            }
+          }
+        },
+        "required": [
+          "app_versions",
+          "approximate",
+          "days",
+          "default_share",
+          "exposures",
+          "flag",
+          "from",
+          "suppressed_cells",
+          "suppression_threshold",
+          "to",
+          "values",
+          "versions"
+        ]
+      },
+      "FlagExposureSumOut": {
+        "type": "object",
+        "properties": {
+          "daily": {
+            "type": "array",
+            "description": "Exposures on each day of the range, in order",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          "exposures": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "flag": {
+            "type": "string"
+          },
+          "players": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "previous_exposures": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "daily",
+          "exposures",
+          "flag",
+          "previous_exposures"
+        ]
+      },
       "FlagListOut": {
         "type": "object",
         "properties": {
@@ -11650,6 +12110,91 @@
           "rollout",
           "rules",
           "updated_at"
+        ]
+      },
+      "FlagValueDayOut": {
+        "type": "object",
+        "properties": {
+          "day": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "exposures": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "players": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "published": {
+            "type": "boolean"
+          },
+          "value": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "day",
+          "exposures",
+          "published",
+          "value"
+        ]
+      },
+      "FlagValueOut": {
+        "type": "object",
+        "properties": {
+          "exposures": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "players": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "published": {
+            "type": "boolean",
+            "description": "False for the game's own default"
+          },
+          "value": {
+            "type": "string",
+            "description": "As text, whatever type it was"
+          }
+        },
+        "required": [
+          "exposures",
+          "published",
+          "value"
+        ]
+      },
+      "FlagVersionOut": {
+        "type": "object",
+        "properties": {
+          "config_version": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "exposures": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "players": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          }
+        },
+        "required": [
+          "config_version",
+          "exposures"
         ]
       },
       "IngestBatchIn": {

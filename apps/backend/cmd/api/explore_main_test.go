@@ -656,3 +656,63 @@ func TestThePurchasesLedgerPagesNewestFirst(t *testing.T) {
 
 	get[schemas.PurchasesOut](t, r.numbersOnly(t), r.analytics()+"/purchases", nil, http.StatusForbidden)
 }
+
+// TestAFlagsExposuresSaySplitByValueVersionAndBuild.
+//
+// Six players read double_xp: four got true from version 3, and two on an old build got the
+// game's own default because it did not know the flag.
+func TestAFlagsExposuresSaySplitByValueVersionAndBuild(t *testing.T) {
+	r := newReporting(t, "standard")
+	at := yesterday().Add(9 * time.Hour)
+	var rows []rawEvent
+	for i := range 6 {
+		e := rawEvent{
+			install: uuid.NewString(), session: "s", name: "feature_exposure", kind: "exposure",
+			platform: "ios", version: "2.7.1", at: at.Add(time.Duration(i) * time.Minute),
+			strs:  map[string]string{"flag": "double_xp"},
+			ints:  map[string]int64{"config_version": 3},
+			bools: map[string]uint8{"published": 1, "value": 1},
+		}
+		if i >= 4 {
+			e.version = "2.5.0"
+			e.bools = map[string]uint8{"published": 0}
+		}
+		rows = append(rows, e)
+	}
+	r.insert(t, rows)
+	if got := r.waitForRows(t, len(rows)); got != len(rows) {
+		t.Fatalf("seeded %d of %d rows", got, len(rows))
+	}
+
+	list := get[schemas.FlagExposureListOut](t, r.member, r.analytics()+"/flags/exposures", r.yesterdayOnly(), http.StatusOK)
+	if len(list.Flags) != 1 || list.Flags[0].Exposures != 6 || list.Flags[0].Players == nil || *list.Flags[0].Players != 6 {
+		t.Fatalf("flags %+v, want double_xp read 6 times by 6 players", list.Flags)
+	}
+
+	out := get[schemas.FlagExposureOut](t, r.member, r.analytics()+"/flags/double_xp/exposures", r.yesterdayOnly(), http.StatusOK)
+	values := map[string]schemas.FlagValueOut{}
+	for _, v := range out.Values {
+		values[v.Value] = v
+	}
+	if values["true"].Exposures != 4 || !values["true"].Published {
+		t.Fatalf("values %+v, want true 4 times, published", out.Values)
+	}
+	if def := values[""]; def.Exposures != 2 || def.Published {
+		t.Fatalf("values %+v, want the default twice, unpublished", out.Values)
+	}
+	if out.DefaultShare < 0.33 || out.DefaultShare > 0.34 {
+		t.Fatalf("the default share is %v, want a third", out.DefaultShare)
+	}
+	builds := map[string]schemas.FlagAppVersionOut{}
+	for _, b := range out.AppVersions {
+		builds[b.AppVersion] = b
+	}
+	if old := builds["2.5.0"]; old.Exposures != 2 || old.DefaultExposures != 2 {
+		t.Fatalf("builds %+v, want 2.5.0 falling back both times", out.AppVersions)
+	}
+	if len(out.Versions) != 1 || out.Versions[0].ConfigVersion != 3 {
+		t.Fatalf("versions %+v, want version 3 alone", out.Versions)
+	}
+
+	get[schemas.FlagExposureOut](t, r.member, r.analytics()+"/flags/never_read/exposures", r.yesterdayOnly(), http.StatusNotFound)
+}

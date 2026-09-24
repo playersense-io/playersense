@@ -190,3 +190,29 @@ func Purchases(ctx *muzak.Context, in schemas.PurchasesParams) (schemas.Purchase
 	}
 	return *out, nil
 }
+
+// FlagExposures lists how often every flag was read.
+func FlagExposures(ctx *muzak.Context, in schemas.FlagExposureListParams) (schemas.FlagExposureListOut, error) {
+	engine, scope, w, err := explore(ctx, in.Environment, in.AnalyticsRange)
+	if err != nil {
+		return schemas.FlagExposureListOut{}, err
+	}
+	out, err := engine.FlagExposures(ctx.Context(), scope, w)
+	if err != nil {
+		return schemas.FlagExposureListOut{}, exploreFailed(err, "flag")
+	}
+	return *out, nil
+}
+
+// FlagExposure answers one flag's insights.
+func FlagExposure(ctx *muzak.Context, in schemas.FlagExposureParams) (schemas.FlagExposureOut, error) {
+	engine, scope, w, err := explore(ctx, in.Environment, in.AnalyticsRange)
+	if err != nil {
+		return schemas.FlagExposureOut{}, err
+	}
+	out, err := engine.FlagExposure(ctx.Context(), scope, in.Flag, w, in.Version)
+	if err != nil {
+		return schemas.FlagExposureOut{}, exploreFailed(err, "flag exposure")
+	}
+	return *out, nil
+}

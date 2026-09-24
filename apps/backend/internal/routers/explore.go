@@ -100,4 +100,20 @@ func explorer(r *muzak.Router, base string) {
 			"player.read."),
 		core.Require(authz.AnalyticsRead, authz.PlayerRead),
 		refused, unreadable)
+
+	r.Get(base+"/flags/exposures", handlers.FlagExposures,
+		muzak.Summary("List how often every flag was read"),
+		muzak.Description("Each flag the game recorded an exposure for, with its exposures over the "+
+			"range and the range before, its players, and each day. An exposure is the first time a "+
+			"session read a flag under a config version (SDK protocol §14)."),
+		core.Require(authz.AnalyticsRead),
+		unreadable)
+
+	r.Get(base+"/flags/{flag}/exposures", handlers.FlagExposure,
+		muzak.Summary("Describe who saw which value of a flag"),
+		muzak.Description("Exposures and players by value and day, by config version and by build, and "+
+			"the share that fell back to the game's own default because nothing was published."),
+		core.Require(authz.AnalyticsRead),
+		muzak.WithResponseDoc(http.StatusNotFound, "No exposure of this flag in the range"),
+		unreadable)
 }

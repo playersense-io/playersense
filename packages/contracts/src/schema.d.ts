@@ -835,6 +835,46 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/v1/organizations/{org}/projects/{project}/analytics/{environment}/flags/exposures": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * List how often every flag was read
+         * @description Each flag the game recorded an exposure for, with its exposures over the range and the range before, its players, and each day. An exposure is the first time a session read a flag under a config version (SDK protocol §14).
+         */
+        readonly get: operations["get_v1_organizations_by_org_projects_by_project_analytics_by_environment_flags_exposures"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/organizations/{org}/projects/{project}/analytics/{environment}/flags/{flag}/exposures": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * Describe who saw which value of a flag
+         * @description Exposures and players by value and day, by config version and by build, and the share that fell back to the game's own default because nothing was published.
+         */
+        readonly get: operations["get_v1_organizations_by_org_projects_by_project_analytics_by_environment_flags_by_flag_exposures"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/v1/organizations/{org}/projects/{project}/analytics/{environment}/metrics/query": {
         readonly parameters: {
             readonly query?: never;
@@ -2118,6 +2158,58 @@ export interface components {
             /** @description The value, for eq and ne */
             readonly value?: string;
         };
+        readonly FlagAppVersionOut: {
+            readonly app_version: string;
+            /** Format: int64 */
+            readonly default_exposures: number;
+            /** Format: int64 */
+            readonly exposures: number;
+            /** Format: int64 */
+            readonly players?: number | null;
+        };
+        readonly FlagExposureListOut: {
+            readonly flags: readonly components["schemas"]["FlagExposureSumOut"][];
+            /** Format: date-time */
+            readonly from: string;
+            /** Format: int64 */
+            readonly suppressed_cells: number;
+            /** Format: int64 */
+            readonly suppression_threshold: number;
+            /** Format: date-time */
+            readonly to: string;
+        };
+        readonly FlagExposureOut: {
+            readonly app_versions: readonly components["schemas"]["FlagAppVersionOut"][];
+            /** @description Players are distinct counts from sketches */
+            readonly approximate: boolean;
+            readonly days: readonly components["schemas"]["FlagValueDayOut"][];
+            /** Format: double */
+            readonly default_share: number;
+            /** Format: int64 */
+            readonly exposures: number;
+            readonly flag: string;
+            /** Format: date-time */
+            readonly from: string;
+            /** Format: int64 */
+            readonly suppressed_cells: number;
+            /** Format: int64 */
+            readonly suppression_threshold: number;
+            /** Format: date-time */
+            readonly to: string;
+            readonly values: readonly components["schemas"]["FlagValueOut"][];
+            readonly versions: readonly components["schemas"]["FlagVersionOut"][];
+        };
+        readonly FlagExposureSumOut: {
+            /** @description Exposures on each day of the range, in order */
+            readonly daily: readonly number[];
+            /** Format: int64 */
+            readonly exposures: number;
+            readonly flag: string;
+            /** Format: int64 */
+            readonly players?: number | null;
+            /** Format: int64 */
+            readonly previous_exposures: number;
+        };
         readonly FlagListOut: {
             readonly flags: readonly components["schemas"]["FlagOut"][];
         };
@@ -2148,6 +2240,34 @@ export interface components {
             readonly salt?: string;
             /** Format: date-time */
             readonly updated_at: string;
+        };
+        readonly FlagValueDayOut: {
+            /** Format: date-time */
+            readonly day: string;
+            /** Format: int64 */
+            readonly exposures: number;
+            /** Format: int64 */
+            readonly players?: number | null;
+            readonly published: boolean;
+            readonly value: string;
+        };
+        readonly FlagValueOut: {
+            /** Format: int64 */
+            readonly exposures: number;
+            /** Format: int64 */
+            readonly players?: number | null;
+            /** @description False for the game's own default */
+            readonly published: boolean;
+            /** @description As text, whatever type it was */
+            readonly value: string;
+        };
+        readonly FlagVersionOut: {
+            /** Format: int32 */
+            readonly config_version: number;
+            /** Format: int64 */
+            readonly exposures: number;
+            /** Format: int64 */
+            readonly players?: number | null;
         };
         readonly IngestBatchIn: {
             readonly app: components["schemas"]["App"];
@@ -6974,6 +7094,177 @@ export interface operations {
                 };
             };
             /** @description The facts cannot answer this question, and the body explains why */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The facts could not be read */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly get_v1_organizations_by_org_projects_by_project_analytics_by_environment_flags_exposures: {
+        readonly parameters: {
+            readonly query?: {
+                /** @description YYYY-MM-DD, inclusive. Defaults to six days before to */
+                readonly from?: string;
+                /** @description YYYY-MM-DD, inclusive. Defaults to today (UTC) */
+                readonly to?: string;
+            };
+            readonly header?: never;
+            readonly path: {
+                readonly org: string;
+                readonly project: string;
+                /** @description development, staging or production */
+                readonly environment: "development" | "staging" | "production";
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["FlagExposureListOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not read this project's analytics */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The organization, project or environment does not exist, or you cannot see it */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The facts could not be read */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly get_v1_organizations_by_org_projects_by_project_analytics_by_environment_flags_by_flag_exposures: {
+        readonly parameters: {
+            readonly query?: {
+                /** @description YYYY-MM-DD, inclusive. Defaults to six days before to */
+                readonly from?: string;
+                /** @description YYYY-MM-DD, inclusive. Defaults to today (UTC) */
+                readonly to?: string;
+                /** @description One config version; every version when absent */
+                readonly version?: number;
+            };
+            readonly header?: never;
+            readonly path: {
+                readonly org: string;
+                readonly project: string;
+                /** @description development, staging or production */
+                readonly environment: "development" | "staging" | "production";
+                readonly flag: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["FlagExposureOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not read this project's analytics */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No exposure of this flag in the range */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
             readonly 422: {
                 headers: {
                     readonly [name: string]: unknown;
