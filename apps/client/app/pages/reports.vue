@@ -8,7 +8,7 @@
 // row count are always the report as it stands. Reports save themselves in this browser.
 // A test run plays on the canvas as its events arrive: rows flow along the lines into the
 // node that is running, and every card says how far the run has got with it.
-import { type Connection, type Edge, type Node, useVueFlow, VueFlow } from '@vue-flow/core'
+import { type Connection, ConnectionMode, type Edge, type Node, useVueFlow, VueFlow } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
 import { ControlButton, Controls } from '@vue-flow/controls'
 
@@ -63,7 +63,10 @@ function lineOf(id: string, source: string, target: string, targetHandle: string
 function load(id: string) {
   const entry = reportById(id)
   nodes.value = (entry?.nodes ?? []).map(node => ({ id: node.id, type: 'report', position: { ...node.position }, data: plain(node.data) }))
-  edges.value = (entry?.edges ?? []).map(edge => lineOf(edge.id, edge.source, edge.target, edge.targetHandle ?? null))
+  /* A line the canvas would not let be drawn, saved before it said so, is left behind. */
+  edges.value = (entry?.edges ?? [])
+    .filter(edge => fits(edge.source, edge.target, edge.targetHandle ?? null))
+    .map(edge => lineOf(edge.id, edge.source, edge.target, edge.targetHandle ?? null))
   selectedId.value = null
   clearRun()
   savedShape = snapshot()
@@ -236,11 +239,25 @@ function reaches(from: string, to: string): boolean {
   return walk(from)
 }
 
-/* Rows go into rows, and time into time: a Schedule only into a delivery's top edge. */
+/*
+ * Rows go into rows, and time into time: a Schedule only into a delivery's top edge, and rows
+ * only into a node that takes them. The canvas joins an output to an input and nothing else
+ * (`ConnectionMode.Strict`); this says which of those make sense.
+ */
 function isValidConnection(connection: Connection) {
   if (connection.source === connection.target || reaches(connection.target, connection.source)) return false
-  const fromSchedule = nodes.value.find(node => node.id === connection.source)?.data.kind === 'schedule'
-  return fromSchedule === (connection.targetHandle === WHEN_HANDLE)
+  return fits(connection.source, connection.target, connection.targetHandle ?? null)
+}
+
+/* Whether a line from one node into another's handle joins things that go together. */
+function fits(source: string, target: string, handle: string | null) {
+  const from = nodes.value.find(node => node.id === source)
+  const to = nodes.value.find(node => node.id === target)
+  if (!from || !to) return false
+  if (from.data.kind === 'schedule') return handle === WHEN_HANDLE && Boolean(KINDS[to.data.kind].scheduled)
+  if (handle === WHEN_HANDLE || !KINDS[from.data.kind].output) return false
+  const inputs = KINDS[to.data.kind].inputs
+  return inputs === 2 ? handle === 'left' || handle === 'right' : inputs === 1
 }
 
 /* An input takes one line: a new one replaces what was there. A delivery has one schedule. */
@@ -577,6 +594,7 @@ const ids = { name: useId(), description: useId() }
           v-model:edges="edges"
           v-model:nodes="nodes"
           :default-edge-options="{ type: 'default' }"
+          :connection-mode="ConnectionMode.Strict"
           :is-valid-connection="isValidConnection"
           :max-zoom="1.5"
           :min-zoom="0.25"
