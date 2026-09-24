@@ -54,21 +54,6 @@ const impact = computed(() => selected.value?.impact ?? null)
 
 const goal = computed(() => event.value?.goal ?? null)
 
-const runExtent = computed(() => Math.max(0.05, ...runs.value.map(entry => (goal.value ? Math.abs(entry.impact.metrics[goal.value].comparison.lift) : 0))))
-
-/* Whether a repeating event is wearing off: its last windows against its first ones. */
-const wearing = computed(() => {
-  const metric = goal.value
-  if (!metric || runs.value.length < 4) return null
-  const ended = runs.value.filter(entry => !entry.impact.live)
-  const half = Math.floor(ended.length / 2)
-  const avg = (list: typeof ended) => list.reduce((sum, entry) => sum + entry.impact.metrics[metric].comparison.lift, 0) / Math.max(list.length, 1)
-  const early = avg(ended.slice(0, half))
-  const late = avg(ended.slice(half))
-  if (early <= 0 || late >= early * 0.8) return null
-  return { early, late }
-})
-
 const isRecurring = computed(() => (event.value ? event.value.schedule.mode !== 'once' : false))
 
 // --- The answer ---------------------------------------------------------------------------
@@ -235,7 +220,10 @@ const metricRows = computed(() => {
   }))
 })
 
-const metricExtent = computed(() => Math.max(0.05, ...metricRows.value.flatMap(row => [Math.abs(row.comparison.low), Math.abs(row.comparison.high)])))
+const metricDomain = computed<[number, number]>(() => [
+  Math.min(0, ...metricRows.value.map(row => row.comparison.low)),
+  Math.max(0.05, ...metricRows.value.map(row => row.comparison.high))
+])
 
 const OUTCOME_TEXT = { better: 'text-success', worse: 'text-error', unclear: 'text-ink/60' } as const
 
@@ -496,54 +484,20 @@ const activateWords = computed(() => (event.value
       </ul>
     </section>
 
-    <!-- Each window it ran, side by side: did it work every time, and is it wearing off. -->
-    <section v-if="runs.length > 1 && goal" class="flex flex-col gap-3">
-      <div class="flex flex-wrap items-end justify-between gap-2">
-        <div class="flex flex-col gap-0.5">
-          <h2 class="m-0 text-sm font-medium text-ink">
-            Each time it ran
-          </h2>
-          <p class="m-0 text-xs text-ink/60">
-            {{ LIVEOPS_METRICS[goal].label }} against expected, {{ isRhythm(event.schedule) ? 'a week of windows at a time' : 'window by window' }}. Choose one to read it below.
-          </p>
-        </div>
-        <span v-if="status.next" class="text-[11px] text-ink/50">Next: {{ windowWords(status.next) }}</span>
-      </div>
-      <div class="flex gap-2 overflow-x-auto pb-1">
-        <button
-          v-for="entry in runs"
-          :key="entry.run.start"
-          :aria-pressed="entry.run.start === selectedAt"
-          :class="entry.run.start === selectedAt ? 'border-primary bg-primary/5' : 'border-line bg-surface hover:bg-ink/3'"
-          class="flex w-32 flex-none cursor-pointer flex-col gap-2 rounded-(--ps-radius-large) border p-3 text-left transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-          type="button"
-          @click="selectedAt = entry.run.start"
-        >
-          <span class="flex items-center justify-between gap-1 text-[11px] text-ink/55">
-            <span class="truncate">{{ isRhythm(event.schedule) ? `Week of ${windowShort({ start: entry.run.start, end: entry.run.start + 60_000 })}` : windowShort(entry.run) }}</span>
-            <span v-if="entry.impact.live" class="size-1.5 flex-none rounded-full bg-success" aria-label="On now" />
-          </span>
-          <!-- The lift as a bar from a shared zero, so the row reads as a chart. -->
-          <span class="relative h-10 w-full">
-            <span aria-hidden="true" class="absolute inset-x-0 top-1/2 h-px bg-ink/15" />
-            <span
-              :class="outcomeOf(entry.impact.metrics[goal].comparison) === 'better' ? 'bg-success/70' : outcomeOf(entry.impact.metrics[goal].comparison) === 'worse' ? 'bg-error/70' : 'bg-ink/30'"
-              :style="entry.impact.metrics[goal].comparison.lift >= 0
-                ? { bottom: '50%', height: `${Math.max(2, Math.abs(entry.impact.metrics[goal].comparison.lift) / runExtent * 50)}%` }
-                : { top: '50%', height: `${Math.max(2, Math.abs(entry.impact.metrics[goal].comparison.lift) / runExtent * 50)}%` }"
-              aria-hidden="true"
-              class="absolute inset-x-3 rounded-[3px]"
-            />
-          </span>
-          <span :class="OUTCOME_TEXT[outcomeOf(entry.impact.metrics[goal].comparison)]" class="font-mono text-sm">{{ writeOpsLift(goal, entry.impact.metrics[goal].comparison) }}</span>
-        </button>
-      </div>
-      <p v-if="wearing" class="m-0 flex items-start gap-2 text-xs leading-5 text-ink/70">
-        <Icon aria-hidden="true" class="mt-0.5 flex-none text-sm text-warning" name="material-symbols:trending-down" />
-        Wearing off: its first windows lifted {{ LIVEOPS_METRICS[goal].label.toLowerCase() }} by {{ (wearing.early * 100).toFixed(0) }}% on average, its latest by {{ (wearing.late * 100).toFixed(0) }}%.
-        Players may be getting used to it: run it less often, or change what it gives.
-      </p>
-    </section>
+    <!-- Each window it ran, as a chart: did it work every time, and is it wearing off. -->
+    <SectionCard
+      v-if="runs.length > 1 && goal"
+      :description="`${LIVEOPS_METRICS[goal].label} against expected, ${isRhythm(event.schedule) ? 'a week of windows at a time' : 'window by window'}. Choose a column to read that window below.`"
+      title="Each time it ran"
+    >
+      <LiveOpsRuns
+        v-model="selectedAt"
+        :goal="goal"
+        :next="status.next"
+        :rhythm="isRhythm(event.schedule)"
+        :runs="runs"
+      />
+    </SectionCard>
 
     <div class="flex flex-col gap-6">
       <PageTabs v-model="tab" :tabs="TABS" label="Event views" />
@@ -619,7 +573,7 @@ const activateWords = computed(() => (event.value
                       Effect
                     </th>
                     <th class="w-56 px-5 py-2.5 font-normal">
-                      <span class="flex justify-between"><span>worse</span><span>no change</span><span>better</span></span>
+                      <span class="sr-only">Effect, drawn</span>
                     </th>
                     <th class="px-5 py-2.5 text-right font-normal">
                       After it
@@ -647,7 +601,7 @@ const activateWords = computed(() => (event.value
                       </span>
                     </td>
                     <td class="px-5 py-3">
-                      <LiftRange :comparison="row.comparison" :extent="metricExtent" />
+                      <EffectBar :comparison="row.comparison" :domain="metricDomain" />
                     </td>
                     <td class="px-5 py-3 text-right font-mono text-[11px]">
                       <span v-if="row.after" :class="OUTCOME_TEXT[outcomeOf(row.after)]">{{ writeOpsLift(row.key, row.after) }}</span>

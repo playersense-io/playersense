@@ -199,15 +199,18 @@ const RANK_COLUMNS: DataTableColumn<Ranked>[] = [
   { key: 'event', title: 'Event', fixed: true, minWidth: 240, value: entry => entry.event.name },
   { key: 'when', title: 'When', value: entry => entry.impact.occurrence.start },
   { key: 'goal', title: 'Meant to move', value: entry => LIVEOPS_METRICS[entry.goal].label },
-  { key: 'effect', title: 'Effect', align: 'end', value: entry => entry.impact.metrics[entry.goal].comparison.lift },
-  { key: 'range', title: 'Worse · no change · better', minWidth: 200, sortable: false },
+  { key: 'effect', title: 'Effect against expected', minWidth: 300, value: entry => entry.impact.metrics[entry.goal].comparison.lift },
   { key: 'after', title: 'After it', align: 'end', value: entry => entry.impact.metrics[entry.goal].after?.lift ?? 0 }
 ]
 
 const rankColumns = useLocalStorage('playersense.liveops.worked.columns', defaultColumnState(RANK_COLUMNS))
 const rankSort = ref<DataTableSort[]>([{ key: 'effect', order: 'desc' }])
 
-const rankExtent = computed(() => Math.max(0.05, ...ranked.value.flatMap(entry => [Math.abs(entry.impact.metrics[entry.goal].comparison.low), Math.abs(entry.impact.metrics[entry.goal].comparison.high)])))
+/* The scale the effect bars share: the lowest and highest the ranges reach. */
+const rankDomain = computed<[number, number]>(() => {
+  const all = ranked.value.map(entry => entry.impact.metrics[entry.goal].comparison)
+  return [Math.min(0, ...all.map(item => item.low)), Math.max(0.05, ...all.map(item => item.high))]
+})
 
 // --- The list -----------------------------------------------------------------------------
 
@@ -408,10 +411,10 @@ const router = useRouter()
           <span class="text-xs text-ink/65">{{ LIVEOPS_METRICS[item.goal].label }}</span>
         </template>
         <template #cell.effect="{ item }">
-          <span :class="OUTCOME_TEXT[outcomeOf(item.impact.metrics[item.goal].comparison)]" class="font-mono text-xs">{{ writeOpsLift(item.goal, item.impact.metrics[item.goal].comparison) }}</span>
-        </template>
-        <template #cell.range="{ item }">
-          <LiftRange :comparison="item.impact.metrics[item.goal].comparison" :extent="rankExtent" class="min-w-40" />
+          <span class="flex items-center gap-3">
+            <span :class="OUTCOME_TEXT[outcomeOf(item.impact.metrics[item.goal].comparison)]" class="w-16 flex-none text-right font-mono text-xs">{{ writeOpsLift(item.goal, item.impact.metrics[item.goal].comparison) }}</span>
+            <EffectBar :comparison="item.impact.metrics[item.goal].comparison" :domain="rankDomain" class="min-w-40 flex-1" />
+          </span>
         </template>
         <template #cell.after="{ item }">
           <span v-if="item.impact.metrics[item.goal].after && outcomeOf(item.impact.metrics[item.goal].after!) === 'worse'" class="font-mono text-[11px] text-warning">
