@@ -17,9 +17,9 @@ import (
 // are keyed on the device (§29.2), and the decision about which devices belong to this
 // person was made once, in subject.Resolve, against the only sources that can answer it.
 //
-// The session facts go first. They hold the device, the session id and the studio's player id,
-// so they are personal data, and none of them feeds a cohort rate, so where they fall in the
-// order does not matter.
+// The session and purchase facts go first. They hold the device and the studio's player id, so
+// they are personal data, and none of them feeds a cohort rate, so where they fall in the order
+// does not matter.
 //
 // `player_activity_daily` goes before `player_lifetime`, and the order is not arbitrary. The
 // first holds the numerators of every cohort rate and the second holds the denominators
@@ -31,7 +31,7 @@ import (
 // far easier to recognise while it lasts.
 // deviceTables are the ClickHouse tables keyed on the device, in the order they are purged.
 var deviceTables = []string{
-	"sessions",
+	"sessions", "purchases", "payers",
 	"player_activity_daily", "player_lifetime",
 }
 

@@ -145,10 +145,10 @@ func (f *fixture) insertEvent(t *testing.T, player string, install uuid.UUID, at
 		VALUES (1, ?, 1, toUUID(?), toUUID(?), toUUID(?),
 		        30, 'standard', ?, ?, ?,
 		        generateUUIDv4(), generateUUIDv4(), 'session-1', ?, toUUID(?),
-		        'level_completed', 'custom', 'ios', 'TR', '2.7.1', 'unity', '1.4.0',
+		        'gem_pack', 'purchase', 'ios', 'TR', '2.7.1', 'unity', '1.4.0',
 		        toDate(?), 'ios', 'TR', '2.7.1',
 		        1, '2026-01-15', 'authorized',
-		        0, '', 1000, 200)`,
+		        990000, 'USD', 1000, 200)`,
 		f.project, f.orgUID.String(), f.projectUID.String(), f.envUID.String(),
 		at, at, at, player, install.String(), at); err != nil {
 		t.Fatalf("seed event for %s: %v", player, err)
@@ -321,7 +321,9 @@ func TestAnErasureRemovesThePersonAndKeepsEveryoneElse(t *testing.T) {
 	// The device-keyed tables, which §61 names explicitly because they are easy to overlook:
 	// none holds events, every one holds a person. All are filled by the materialized views
 	// behind the insert above, so this is the production path rather than a fixture.
-	for _, table := range []string{"sessions", "player_lifetime", "player_activity_daily"} {
+	for _, table := range []string{
+		"sessions", "purchases", "payers", "player_lifetime", "player_activity_daily",
+	} {
 		if n := f.countDevice(t, table, f.installErased); n != 0 {
 			t.Errorf("%s still holds %d rows for the erased device, want 0", table, n)
 		}
