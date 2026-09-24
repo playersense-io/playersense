@@ -3,7 +3,10 @@
 // (layouts/canvas.vue). The parts on the left, the canvas in the middle, the selected
 // node's settings on the right, and under the canvas what comes out of it.
 //
-// A report is built by connecting parts: sources to steps to outputs. Every node runs as it
+// A report is built by connecting parts: sources to steps to outputs, between a Start and a
+// Finish that every report has and none can lose. Start's lines into the sources and the
+// outputs' lines into Finish are drawn for the report (utils/report-builder.ts, frameLines);
+// a Schedule joins Start's top edge and runs the whole report. Every node runs as it
 // is changed (utils/report-builder.ts, over sample rows), so the preview and each card's
 // row count are always the report as it stands. Reports save themselves in this browser.
 // A test run plays on the canvas as its events arrive: rows flow along the lines into the
@@ -60,17 +63,49 @@ function lineOf(id: string, source: string, target: string, targetHandle: string
   return { id, source, target, targetHandle, ...(targetHandle === WHEN_HANDLE ? { class: 'ps-edge-when' } : {}) }
 }
 
+/*
+ * The lines drawn by hand, with Start's and Finish's for the nodes there are now. One that is
+ * already on the canvas is kept as it is, so what a test run has drawn on it stays.
+ */
+function withFrame(current: Edge[]): Edge[] {
+  const kept = new Map(current.filter(isFrameLine).map(edge => [edge.id, edge]))
+  const byHand = current.filter(edge => !isFrameLine(edge))
+  return [
+    ...byHand,
+    ...frameLines(nodes.value, byHand).map(line => kept.get(line.id) ?? { ...line, class: 'ps-edge-frame', deletable: false, selectable: false, focusable: false })
+  ]
+}
+
+/* Only what was drawn by hand is the report's: Start's and Finish's lines follow from it. */
+const drawn = computed(() => edges.value.filter(edge => !isFrameLine(edge)))
+
+/*
+ * A report onto the canvas: its nodes, then its lines a tick later, once the canvas holds the
+ * nodes (Vue Flow drops a line whose ends it cannot find yet, as with any new node's). Nothing
+ * is saved in between, when the canvas has the nodes without their lines.
+ */
+let settling = false
+let loads = 0
+
 function load(id: string) {
   const entry = reportById(id)
-  nodes.value = (entry?.nodes ?? []).map(node => ({ id: node.id, type: 'report', position: { ...node.position }, data: plain(node.data) }))
-  /* A line the canvas would not let be drawn, saved before it said so, is left behind. */
-  edges.value = (entry?.edges ?? [])
-    .filter(edge => fits(edge.source, edge.target, edge.targetHandle ?? null))
-    .map(edge => lineOf(edge.id, edge.source, edge.target, edge.targetHandle ?? null))
+  const mine = ++loads
+  settling = true
+  nodes.value = (entry?.nodes ?? []).map(node => ({ id: node.id, type: 'report', position: { ...node.position }, data: plain(node.data), ...(isFrame(node.data.kind) ? { deletable: false } : {}) }))
+  edges.value = []
   selectedId.value = null
   clearRun()
-  savedShape = snapshot()
   fitPending = true
+  nextTick(() => {
+    /* Another report was opened meanwhile: its own load draws its lines. */
+    if (mine !== loads) return
+    /* A line the canvas would not let be drawn, saved before it said so, is left behind. */
+    edges.value = withFrame((entry?.edges ?? [])
+      .filter(edge => fits(edge.source, edge.target, edge.targetHandle ?? null))
+      .map(edge => lineOf(edge.id, edge.source, edge.target, edge.targetHandle ?? null)))
+    savedShape = snapshot()
+    settling = false
+  })
 }
 
 /*
@@ -92,7 +127,7 @@ function fit() {
  */
 const shape = computed(() => JSON.stringify({
   nodes: nodes.value.map(node => ({ id: node.id, position: { x: 0, y: 0 }, data: node.data })),
-  edges: edges.value.map(edge => ({ id: edge.id, source: edge.source, target: edge.target, targetHandle: edge.targetHandle ?? null }))
+  edges: drawn.value.map(edge => ({ id: edge.id, source: edge.source, target: edge.target, targetHandle: edge.targetHandle ?? null }))
 }))
 
 const day = Math.floor(Date.now() / 86_400_000) * 86_400_000
@@ -112,7 +147,7 @@ const results = computed(() => {
 function snapshot() {
   return JSON.stringify([
     nodes.value.map(node => [node.id, Math.round(node.position.x), Math.round(node.position.y), node.data]),
-    edges.value.map(edge => [edge.id, edge.source, edge.target, edge.targetHandle ?? null])
+    drawn.value.map(edge => [edge.id, edge.source, edge.target, edge.targetHandle ?? null])
   ])
 }
 let savedShape = ''
@@ -126,19 +161,26 @@ const persist = useDebounceFn(() => {
   if (!report.value) return
   save(report.value.id, {
     nodes: nodes.value.map(node => ({ id: node.id, position: { x: Math.round(node.position.x), y: Math.round(node.position.y) }, data: plain(node.data) })),
-    edges: edges.value.map(edge => ({ id: edge.id, source: edge.source, target: edge.target, targetHandle: edge.targetHandle ?? null }))
+    edges: drawn.value.map(edge => ({ id: edge.id, source: edge.source, target: edge.target, targetHandle: edge.targetHandle ?? null }))
   })
   saving.value = false
   lastSaved.value = new Date().toISOString()
 }, 500)
 
 watch([nodes, edges], () => {
+  if (settling) return
   const next = snapshot()
   if (next === savedShape) return
   savedShape = next
   saving.value = true
   persist()
 }, { deep: true })
+
+/* Start's and Finish's lines follow the nodes, a tick after them, like any line to a new node. */
+const frameShape = computed(() => frameLines(nodes.value, drawn.value).map(line => line.id).join(' '))
+watch(frameShape, () => nextTick(() => {
+  edges.value = withFrame(edges.value)
+}))
 
 // --- Changing nodes -----------------------------------------------------------------------
 
@@ -148,7 +190,7 @@ const selectedGraph = computed<GraphNode | null>(() => (selected.value ? { id: s
 /* What flows into the selected node: its (left) input's result. */
 const selectedInput = computed(() => {
   if (!selected.value) return null
-  const into = edges.value.filter(edge => edge.target === selected.value!.id)
+  const into = drawn.value.filter(edge => edge.target === selected.value!.id && edge.targetHandle !== WHEN_HANDLE)
   const first = into.find(edge => edge.targetHandle !== 'right') ?? into[0]
   return first ? results.value.get(first.source) ?? null : null
 })
@@ -185,11 +227,13 @@ function addNode(kind: NodeKind, seed: NodeConfig, position: { x: number, y: num
 /* A click in the palette: after the selected node when it can take one, else in the middle. */
 function addFromPalette(kind: NodeKind, seed: NodeConfig) {
   const from = selected.value
-  /* A Schedule clicked while a delivery is selected goes above it and runs it. */
-  if (kind === 'schedule' && from && KINDS[from.data.kind].scheduled) {
-    addNode(kind, seed, { x: from.position.x, y: from.position.y - 200 })
+  /* A Schedule goes above Start, over any it has already, and runs the report. */
+  const start = nodes.value.find(node => node.data.kind === 'start')
+  if (kind === 'schedule' && start) {
+    const above = edges.value.filter(edge => edge.target === start.id && edge.targetHandle === WHEN_HANDLE).length
+    addNode(kind, seed, { x: start.position.x, y: start.position.y - 200 - above * 170 })
     const schedule = selectedId.value!
-    connectNew(() => [...edges.value.filter(edge => !(edge.target === from.id && edge.targetHandle === WHEN_HANDLE)), lineOf(`e-${schedule}-${from.id}-when`, schedule, from.id, WHEN_HANDLE)])
+    connectNew(() => [...edges.value, lineOf(`e-${schedule}-${start.id}-when`, schedule, start.id, WHEN_HANDLE)])
     return
   }
   if (from && KINDS[from.data.kind].output && KINDS[kind].inputs > 0) {
@@ -220,8 +264,8 @@ function onDrop(event: DragEvent) {
 }
 
 function removeSelected() {
-  if (!selectedId.value) return
-  removeNodes([selectedId.value])
+  if (!selected.value || isFrame(selected.value.data.kind)) return
+  removeNodes([selected.value.id])
   selectedId.value = null
 }
 
@@ -245,6 +289,8 @@ function reaches(from: string, to: string): boolean {
  * (`ConnectionMode.Strict`); this says which of those make sense.
  */
 function isValidConnection(connection: Connection) {
+  /* Vue Flow asks about every line it is given, Start's and Finish's too: those are the report's own. */
+  if ('id' in connection && isFrameLine(connection as Connection & { id: string })) return true
   if (connection.source === connection.target || reaches(connection.target, connection.source)) return false
   return fits(connection.source, connection.target, connection.targetHandle ?? null)
 }
@@ -260,11 +306,12 @@ function fits(source: string, target: string, handle: string | null) {
   return inputs === 2 ? handle === 'left' || handle === 'right' : inputs === 1
 }
 
-/* An input takes one line: a new one replaces what was there. A delivery has one schedule. */
+/* An input takes one line: a new one replaces what was there. Start takes every Schedule. */
 function onConnect(connection: Connection) {
   const handle = connection.targetHandle ?? null
+  const replaces = (edge: Edge) => edge.target === connection.target && (edge.targetHandle ?? null) === handle && (handle !== WHEN_HANDLE || edge.source === connection.source)
   edges.value = [
-    ...edges.value.filter(edge => !(edge.target === connection.target && (edge.targetHandle ?? null) === handle)),
+    ...edges.value.filter(edge => !replaces(edge)),
     lineOf(`e-${connection.source}-${connection.target}${handle ? `-${handle}` : ''}`, connection.source, connection.target, handle)
   ]
 }
@@ -273,13 +320,37 @@ function onConnect(connection: Connection) {
 
 const clock = useNow({ interval: 60_000 })
 
-/* The schedule that runs a delivery, by its line into the delivery's top edge. */
-function scheduleOf(id: string): FlowNode | null {
-  const edge = edges.value.find(entry => entry.target === id && entry.targetHandle === WHEN_HANDLE)
-  return edge ? nodes.value.find(node => node.id === edge.source) ?? null : null
-}
+/* The Schedules that run the report, by their lines into Start's top edge. */
+const startSchedules = computed(() => {
+  const start = nodes.value.find(node => node.data.kind === 'start')
+  return start
+    ? edges.value
+        .filter(edge => edge.target === start.id && edge.targetHandle === WHEN_HANDLE)
+        .map(edge => nodes.value.find(node => node.id === edge.source))
+        .filter((node): node is FlowNode => Boolean(node))
+    : []
+})
 
-/* What each card says about time: a Schedule its next run, a delivery the schedule running it. */
+const cronWords = (node: FlowNode) => `${describeCron(node.data.config.cron ?? '')}${node.data.config.paused ? ', paused' : ''}`
+
+/* The outputs that lead to Finish: every one something feeds. */
+const finishing = computed(() => {
+  const finish = nodes.value.find(node => node.data.kind === 'finish')
+  const into = new Set(frameLines(nodes.value, drawn.value).filter(line => line.target === finish?.id).map(line => line.source))
+  return nodes.value.filter(node => into.has(node.id))
+})
+
+/* When the report runs, in words, or null when it runs only by hand. */
+const runsWhen = computed(() => {
+  const [first, ...rest] = startSchedules.value
+  if (!first) return null
+  return rest.length ? `${cronWords(first)}, and ${rest.length} more ${rest.length === 1 ? 'schedule' : 'schedules'}` : cronWords(first)
+})
+
+/*
+ * What each card says about time: a Schedule its next run; Start and every delivery when the
+ * report runs; Finish what it waits for.
+ */
 const timings = computed(() => {
   const out = new Map<string, string | null>()
   for (const node of nodes.value) {
@@ -287,19 +358,32 @@ const timings = computed(() => {
       const config = node.data.config
       const next = config.paused ? null : nextRuns(config.cron ?? '', config.timezone ?? 'UTC', clock.value.getTime(), 1)[0]
       out.set(node.id, config.paused ? 'Paused' : next ? `Next ${writeRun(next, config.timezone ?? 'UTC')}` : null)
-    } else if (KINDS[node.data.kind].scheduled) {
-      const schedule = scheduleOf(node.id)
-      out.set(node.id, schedule ? `${describeCron(schedule.data.config.cron ?? '')}${schedule.data.config.paused ? ', paused' : ''}` : null)
+    } else if (node.data.kind === 'start' || isDelivery(node.data.kind)) {
+      out.set(node.id, runsWhen.value)
+    } else if (node.data.kind === 'finish') {
+      const count = finishing.value.length
+      out.set(node.id, count ? `After ${count} ${count === 1 ? 'output' : 'outputs'}` : null)
     }
   }
   return out
 })
 
-/* The deliveries each Schedule runs, by name. */
-const drives = (id: string) => edges.value
-  .filter(edge => edge.source === id && edge.targetHandle === WHEN_HANDLE)
-  .map(edge => nodes.value.find(node => node.id === edge.target)?.data.title ?? '')
-  .filter(Boolean)
+/*
+ * What a node lists by name in its settings: for a Schedule on Start, the deliveries it sends;
+ * for Start, its Schedules; for Finish, the outputs it waits for.
+ */
+function drives(id: string): string[] {
+  const node = nodes.value.find(entry => entry.id === id)
+  if (!node) return []
+  if (node.data.kind === 'schedule') {
+    if (!startSchedules.value.some(entry => entry.id === id)) return []
+    const sent = nodes.value.filter(entry => isDelivery(entry.data.kind)).map(entry => entry.data.title)
+    return sent.length ? sent : ['The whole report']
+  }
+  if (node.data.kind === 'start') return startSchedules.value.map(cronWords)
+  if (node.data.kind === 'finish') return finishing.value.map(entry => entry.data.title)
+  return []
+}
 
 // --- Tidying ------------------------------------------------------------------------------
 
@@ -314,6 +398,8 @@ const drives = (id: string) => edges.value
 const TIDY_GAP = 44
 const SCHEDULE_GAP = 56
 const LOOSE_GAP = 96
+/* A card's width on the canvas (ReportFlowNode.vue, w-60). */
+const CARD_WIDTH = 240
 
 function tidy() {
   const depth = new Map<string, number>()
@@ -327,7 +413,9 @@ function tidy() {
     return value
   }
   /* Measured on the page: the card's own height, which zoom does not change. */
-  const heightOf = (node: FlowNode) => canvas.value?.querySelector<HTMLElement>(`.vue-flow__node[data-id="${CSS.escape(node.id)}"]`)?.offsetHeight || 120
+  const cardOf = (node: FlowNode) => canvas.value?.querySelector<HTMLElement>(`.vue-flow__node[data-id="${CSS.escape(node.id)}"]`)
+  const heightOf = (node: FlowNode) => cardOf(node)?.offsetHeight || 120
+  const widthOf = (node: FlowNode) => cardOf(node)?.offsetWidth || CARD_WIDTH
   const byPlace = (a: FlowNode, b: FlowNode) => depthOf(a.id) - depthOf(b.id) || a.position.y - b.position.y
 
   /* The delivery each Schedule sits above: of those it runs, the first by column, then height. */
@@ -342,14 +430,17 @@ function tidy() {
   }
 
   const touched = new Set(edges.value.flatMap(edge => [edge.source, edge.target]))
-  const loose = nodes.value.filter(node => !touched.has(node.id))
+  const loose = nodes.value.filter(node => !touched.has(node.id) && !isFrame(node.data.kind))
 
   const columns = new Map<number, FlowNode[]>()
   for (const node of nodes.value) {
-    if (node.data.kind === 'schedule' || !touched.has(node.id)) continue
+    if (node.data.kind === 'schedule' || node.data.kind === 'finish' || (!touched.has(node.id) && !isFrame(node.data.kind))) continue
     const column = depthOf(node.id)
     columns.set(column, [...(columns.get(column) ?? []), node])
   }
+  /* Finish closes the report: a column of its own after the last. */
+  const finish = nodes.value.find(node => node.data.kind === 'finish')
+  if (finish) columns.set(Math.max(0, ...columns.keys()) + 1, [finish])
 
   const placed = new Map<string, { x: number, y: number }>()
   for (const [column, members] of columns) {
@@ -362,7 +453,8 @@ function tidy() {
         placed.set(schedule.id, { x: column * 300, y })
         y += heightOf(schedule) + SCHEDULE_GAP
       }
-      placed.set(node.id, { x: column * 300, y })
+      /* Start and Finish are narrower than a card: centred in the column, under a Schedule. */
+      placed.set(node.id, { x: column * 300 + (isFrame(node.data.kind) ? (CARD_WIDTH - widthOf(node)) / 2 : 0), y })
       top ??= y
       bottom = y + heightOf(node)
       y = bottom + TIDY_GAP
@@ -460,7 +552,7 @@ const looks = computed(() => edges.value.map(edge => `${edge.id}:${lookOf(edge)}
 watch(looks, () => {
   edges.value = edges.value.map((edge) => {
     const look = lookOf(edge)
-    const classes = [edge.targetHandle === WHEN_HANDLE ? 'ps-edge-when' : '', look].filter(Boolean).join(' ')
+    const classes = [edge.targetHandle === WHEN_HANDLE ? 'ps-edge-when' : '', isFrameLine(edge) ? 'ps-edge-frame' : '', look].filter(Boolean).join(' ')
     return { ...edge, animated: look === 'ps-edge-flowing', class: classes || undefined }
   })
 })
@@ -637,14 +729,14 @@ const ids = { name: useId(), description: useId() }
         </div>
 
         <!-- An empty report: where to begin. -->
-        <div v-if="!nodes.length" class="pointer-events-none absolute inset-0 flex items-center justify-center p-6">
+        <div v-if="nodes.every(node => isFrame(node.data.kind))" class="pointer-events-none absolute inset-0 flex items-center justify-center p-6">
           <div class="pointer-events-auto flex max-w-md flex-col items-center gap-4 rounded-(--ps-radius-x-large) border border-line bg-surface p-6 text-center shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
             <span aria-hidden="true" class="flex size-10 items-center justify-center rounded-(--ps-radius-large) bg-primary/10 text-xl text-primary">
               <Icon name="material-symbols:account-tree-outline" />
             </span>
             <span class="flex flex-col gap-1">
               <span class="text-sm font-medium text-ink">Start with where the rows come from</span>
-              <span class="text-xs leading-5 text-ink/60">Pick a source, then add steps after it and end with a chart, a table or a file. Or drag parts from the left.</span>
+              <span class="text-xs leading-5 text-ink/60">Pick a source: it follows Start. Then add steps after it and end with a chart, a table or a file, which lead to Finish. Or drag parts from the left.</span>
             </span>
             <span class="flex flex-wrap justify-center gap-1.5">
               <v-btn
@@ -788,14 +880,14 @@ const ids = { name: useId(), description: useId() }
                   />
                   <span class="flex min-w-0 flex-col">
                     <span class="truncate text-xs text-ink">{{ describeCron(node.data.config.cron ?? '') }}</span>
-                    <span class="truncate text-[11px] text-ink/50">{{ timings.get(node.id) ?? 'Not set' }} · runs {{ drives(node.id).length || 'nothing' }}{{ drives(node.id).length ? (drives(node.id).length === 1 ? ' step' : ' steps') : '' }}</span>
+                    <span class="truncate text-[11px] text-ink/50">{{ timings.get(node.id) ?? 'Not set' }} · {{ drives(node.id).length ? 'runs the report' : 'not joined to Start' }}</span>
                   </span>
                 </button>
               </li>
             </ul>
             <p v-else class="m-0 flex items-start gap-2 rounded-(--ps-radius-small) bg-ink/4 px-3 py-2.5 text-xs leading-5 text-ink/70">
               <Icon aria-hidden="true" class="mt-0.5 flex-none text-base text-ink/45" name="material-symbols:schedule-outline" />
-              Runs only when you run it. Add a Schedule from the parts and connect it to a Notify or an Export to send it on its own.
+              Runs only when you run it. Add a Schedule from the parts: it joins Start's top edge and runs the report on its own.
             </p>
           </div>
 
@@ -836,7 +928,7 @@ const ids = { name: useId(), description: useId() }
 
           <div class="mt-auto flex flex-col gap-1 border-t border-line pt-4 text-[11px] leading-4 text-ink/50">
             <span><kbd class="rounded border border-line px-1 font-mono text-[10px]">Backspace</kbd> deletes what is selected.</span>
-            <span>Drag from a node's right edge to another's left edge to connect them, and from a Schedule's bottom edge to a delivery's top.</span>
+            <span>Drag from a node's right edge to another's left edge to connect them, and from a Schedule's bottom edge to Start's top. Start's and Finish's lines draw themselves.</span>
           </div>
         </div>
       </div>

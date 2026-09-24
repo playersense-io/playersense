@@ -6,7 +6,11 @@
 // Inputs are on the left and the output on the right. A join takes two inputs, labelled,
 // since which side is which decides the rows it keeps; an output has nothing after it.
 // Time runs down the page where rows run across: a Schedule's line leaves its bottom edge
-// and enters the top of the Notify and Export steps it runs, which say when that is.
+// and enters Start's top, and every Notify and Export says when that has it send.
+//
+// Start and Finish are drawn smaller, as the ends of the report rather than steps in it. The
+// lines that join them to the sources and the outputs are the report's own: their handles
+// take no line drawn by hand.
 //
 // During a test run a card shows where the run is with it: waiting, running (ringed, and
 // breathing), done with what came out and how long it took, or failed. A card the run does
@@ -18,7 +22,7 @@ const props = defineProps<{
   data: ReportNodeData
   selected?: boolean
   result?: NodeResult
-  /** For a Schedule, its next run; for a delivery, the schedule that runs it, in words. */
+  /** For a Schedule, its next run; for Start and a delivery, when the report runs; for Finish, what it waits for. */
   timing?: string | null
   /** Where a test run has got to with it, while one is shown. */
   run?: RunNode | null
@@ -27,6 +31,7 @@ const props = defineProps<{
 }>()
 
 const kind = computed(() => KINDS[props.data.kind])
+const framed = computed(() => isFrame(props.data.kind))
 const tone = computed(() => toneColour(familyTone(kind.value.family)))
 const icon = computed(() => (props.data.kind === 'source' ? SOURCES[props.data.config.source ?? 'purchases'].icon : kind.value.icon))
 const kindLabel = computed(() => (props.data.kind === 'source' ? `Source · ${SOURCES[props.data.config.source ?? 'purchases'].label}` : kind.value.label))
@@ -55,120 +60,173 @@ const answered = computed(() => {
 })
 
 const took = (ms: number) => (ms < 1000 ? `${ms} ms` : `${(ms / 1000).toFixed(1)} s`)
+
+/* Start's or Finish's one line: where the run is with it, or what it is waiting for. */
+const frameLine = computed(() => {
+  const start = props.data.kind === 'start'
+  switch (props.run?.state) {
+    case 'running': return start ? 'Starting…' : 'Finishing…'
+    case 'done': return start ? 'Started' : 'Done'
+    case 'failed':
+    case 'skipped': return props.run.error ?? 'Did not finish'
+    case 'queued': return start ? 'About to start' : 'Waiting for the outputs'
+    default: return props.timing ?? (start ? 'Runs when you run it' : 'Nothing leads to it yet')
+  }
+})
 </script>
 
 <template>
   <div
-    :class="[frame, idle ? 'opacity-45' : '']"
-    class="ps-report-node relative flex w-60 flex-col rounded-(--ps-radius-large) bg-surface shadow-[0_1px_2px_rgba(0,0,0,0.06)] transition-[box-shadow,opacity] duration-200"
+    :class="[frame, idle ? 'opacity-45' : '', framed ? 'w-48 rounded-full' : 'w-60 rounded-(--ps-radius-large)']"
+    class="ps-report-node relative flex flex-col bg-surface shadow-[0_1px_2px_rgba(0,0,0,0.06)] transition-[box-shadow,opacity] duration-200"
   >
-    <header class="flex items-center gap-2.5 px-3 pt-3 pb-2">
+    <!-- Start and Finish: a pill, with what it is and one line under it. -->
+    <div v-if="framed" class="flex items-center gap-2.5 py-2 pr-4 pl-2">
       <span
         :style="{ background: `color-mix(in srgb, ${tone} 14%, transparent)`, color: tone }"
         aria-hidden="true"
-        class="flex size-7 flex-none items-center justify-center rounded-(--ps-radius-small) text-base"
+        class="flex size-8 flex-none items-center justify-center rounded-full text-lg"
       >
         <Icon :name="icon" />
       </span>
       <span class="flex min-w-0 flex-1 flex-col">
         <span class="truncate text-[13px] leading-4 font-medium text-ink">{{ data.title }}</span>
-        <span class="truncate text-[10px] leading-4 text-ink/45">{{ kindLabel }}</span>
+        <span
+          :class="run?.state === 'running' ? 'font-medium text-primary' : run?.state === 'failed' ? 'text-error' : 'text-ink/50'"
+          class="truncate text-[10px] leading-4"
+        >{{ frameLine }}</span>
       </span>
-      <span v-if="run" class="flex size-4 flex-none items-center justify-center">
-        <v-progress-circular
-          v-if="run.state === 'running'"
-          aria-label="Running"
-          color="primary"
-          indeterminate
-          size="14"
-          width="2"
-        />
-        <Icon
-          v-else-if="run.state === 'done' && run.failed"
-          aria-label="Partly failed"
-          class="text-base text-error"
-          name="material-symbols:error-outline"
-        />
-        <Icon
-          v-else-if="run.state === 'done'"
-          aria-label="Done"
-          class="text-base text-success"
-          name="material-symbols:check-circle-outline"
-        />
-        <Icon
-          v-else-if="run.state === 'failed'"
-          aria-label="Failed"
-          class="text-base text-error"
-          name="material-symbols:cancel-outline"
-        />
-        <Icon
-          v-else-if="run.state === 'skipped'"
-          aria-label="Not run"
-          class="text-base text-ink/35"
-          name="material-symbols:block"
-        />
-        <Icon
-          v-else
-          aria-label="Waiting"
-          class="text-base text-ink/30"
-          name="material-symbols:hourglass-empty"
-        />
-      </span>
-    </header>
+      <v-progress-circular
+        v-if="run?.state === 'running'"
+        aria-label="Running"
+        color="primary"
+        indeterminate
+        size="14"
+        width="2"
+      />
+      <Icon
+        v-else-if="run?.state === 'done'"
+        aria-label="Done"
+        class="flex-none text-base text-success"
+        name="material-symbols:check-circle-outline"
+      />
+      <Icon
+        v-else-if="run?.state === 'failed'"
+        aria-label="Failed"
+        class="flex-none text-base text-error"
+        name="material-symbols:cancel-outline"
+      />
+    </div>
 
-    <ul class="m-0 flex list-none flex-col gap-0.5 px-3 pb-2.5 pl-[3.25rem]">
-      <li v-for="(line, index) in summary" :key="index" class="truncate text-[11px] leading-4 text-ink/65">
-        {{ line }}
-      </li>
-    </ul>
+    <template v-else>
+      <header class="flex items-center gap-2.5 px-3 pt-3 pb-2">
+        <span
+          :style="{ background: `color-mix(in srgb, ${tone} 14%, transparent)`, color: tone }"
+          aria-hidden="true"
+          class="flex size-7 flex-none items-center justify-center rounded-(--ps-radius-small) text-base"
+        >
+          <Icon :name="icon" />
+        </span>
+        <span class="flex min-w-0 flex-1 flex-col">
+          <span class="truncate text-[13px] leading-4 font-medium text-ink">{{ data.title }}</span>
+          <span class="truncate text-[10px] leading-4 text-ink/45">{{ kindLabel }}</span>
+        </span>
+        <span v-if="run" class="flex size-4 flex-none items-center justify-center">
+          <v-progress-circular
+            v-if="run.state === 'running'"
+            aria-label="Running"
+            color="primary"
+            indeterminate
+            size="14"
+            width="2"
+          />
+          <Icon
+            v-else-if="run.state === 'done' && run.failed"
+            aria-label="Partly failed"
+            class="text-base text-error"
+            name="material-symbols:error-outline"
+          />
+          <Icon
+            v-else-if="run.state === 'done'"
+            aria-label="Done"
+            class="text-base text-success"
+            name="material-symbols:check-circle-outline"
+          />
+          <Icon
+            v-else-if="run.state === 'failed'"
+            aria-label="Failed"
+            class="text-base text-error"
+            name="material-symbols:cancel-outline"
+          />
+          <Icon
+            v-else-if="run.state === 'skipped'"
+            aria-label="Not run"
+            class="text-base text-ink/35"
+            name="material-symbols:block"
+          />
+          <Icon
+            v-else
+            aria-label="Waiting"
+            class="text-base text-ink/30"
+            name="material-symbols:hourglass-empty"
+          />
+        </span>
+      </header>
 
-    <footer class="flex items-center gap-1.5 border-t border-line/70 px-3 py-1.5 text-[10px]">
-      <!-- A test run's progress, in place of what the card says otherwise. -->
-      <template v-if="run?.state === 'running'">
-        <span class="truncate font-medium text-primary">{{ KINDS[data.kind].family === 'source' ? 'Reading rows…' : run.sent || run.failed ? `${answered}…` : 'Running…' }}</span>
-      </template>
-      <template v-else-if="run?.state === 'queued'">
-        <span class="truncate text-ink/45">Waiting for its inputs</span>
-      </template>
-      <template v-else-if="run?.state === 'failed' || run?.state === 'skipped'">
+      <ul class="m-0 flex list-none flex-col gap-0.5 px-3 pb-2.5 pl-[3.25rem]">
+        <li v-for="(line, index) in summary" :key="index" class="truncate text-[11px] leading-4 text-ink/65">
+          {{ line }}
+        </li>
+      </ul>
+
+      <footer class="flex items-center gap-1.5 border-t border-line/70 px-3 py-1.5 text-[10px]">
+        <!-- A test run's progress, in place of what the card says otherwise. -->
+        <template v-if="run?.state === 'running'">
+          <span class="truncate font-medium text-primary">{{ KINDS[data.kind].family === 'source' ? 'Reading rows…' : run.sent || run.failed ? `${answered}…` : 'Running…' }}</span>
+        </template>
+        <template v-else-if="run?.state === 'queued'">
+          <span class="truncate text-ink/45">Waiting for its inputs</span>
+        </template>
+        <template v-else-if="run?.state === 'failed' || run?.state === 'skipped'">
+          <Icon
+            aria-hidden="true"
+            class="flex-none text-xs"
+            :class="run.state === 'failed' ? 'text-error' : 'text-ink/40'"
+            name="material-symbols:error-outline"
+          />
+          <span :class="run.state === 'failed' ? 'text-error' : 'text-ink/50'" class="truncate">{{ run.error ?? 'Not run' }}</span>
+        </template>
+        <template v-else-if="run?.state === 'done'">
+          <span class="font-mono text-ink/70">{{ (run.rows ?? 0).toLocaleString('en') }}</span>
+          <span class="truncate text-ink/45">{{ run.rows === 1 ? 'row' : 'rows' }}<template v-if="isDelivery(data.kind)"> · <span :class="run.failed ? 'text-error' : 'text-success'">{{ answered }}</span></template></span>
+          <span class="ml-auto flex-none font-mono text-ink/45">{{ took(run.ms ?? 0) }}</span>
+        </template>
+        <template v-else-if="result?.error">
+          <Icon aria-hidden="true" class="flex-none text-xs text-warning" name="material-symbols:error-outline" />
+          <span class="truncate text-warning">{{ result.error }}</span>
+        </template>
+        <template v-else-if="data.kind === 'schedule'">
+          <Icon aria-hidden="true" class="flex-none text-xs text-ink/45" name="material-symbols:event-upcoming-outline" />
+          <span class="truncate text-ink/55">{{ timing ?? 'Not running' }}</span>
+        </template>
+        <template v-else-if="result">
+          <span class="font-mono text-ink/70">{{ rows.toLocaleString('en') }}</span>
+          <span class="text-ink/45">{{ rows === 1 ? 'row' : 'rows' }} · {{ result.columns.length }} columns</span>
+        </template>
+      </footer>
+
+      <!-- When a delivery runs: on the report's Schedules, or by hand. -->
+      <p v-if="isDelivery(data.kind)" class="m-0 flex items-center gap-1.5 border-t border-line/70 px-3 py-1.5 text-[10px]">
         <Icon
+          :class="timing ? '' : 'text-ink/35'"
+          :style="timing ? { color: toneColour(familyTone('trigger')) } : undefined"
           aria-hidden="true"
           class="flex-none text-xs"
-          :class="run.state === 'failed' ? 'text-error' : 'text-ink/40'"
-          name="material-symbols:error-outline"
+          name="material-symbols:schedule-outline"
         />
-        <span :class="run.state === 'failed' ? 'text-error' : 'text-ink/50'" class="truncate">{{ run.error ?? 'Not run' }}</span>
-      </template>
-      <template v-else-if="run?.state === 'done'">
-        <span class="font-mono text-ink/70">{{ (run.rows ?? 0).toLocaleString('en') }}</span>
-        <span class="truncate text-ink/45">{{ run.rows === 1 ? 'row' : 'rows' }}<template v-if="KINDS[data.kind].scheduled"> · <span :class="run.failed ? 'text-error' : 'text-success'">{{ answered }}</span></template></span>
-        <span class="ml-auto flex-none font-mono text-ink/45">{{ took(run.ms ?? 0) }}</span>
-      </template>
-      <template v-else-if="result?.error">
-        <Icon aria-hidden="true" class="flex-none text-xs text-warning" name="material-symbols:error-outline" />
-        <span class="truncate text-warning">{{ result.error }}</span>
-      </template>
-      <template v-else-if="data.kind === 'schedule'">
-        <Icon aria-hidden="true" class="flex-none text-xs text-ink/45" name="material-symbols:event-upcoming-outline" />
-        <span class="truncate text-ink/55">{{ timing ?? 'Not running' }}</span>
-      </template>
-      <template v-else-if="result">
-        <span class="font-mono text-ink/70">{{ rows.toLocaleString('en') }}</span>
-        <span class="text-ink/45">{{ rows === 1 ? 'row' : 'rows' }} · {{ result.columns.length }} columns</span>
-      </template>
-    </footer>
-
-    <!-- When a delivery runs: its schedule, or by hand. -->
-    <p v-if="kind.scheduled" class="m-0 flex items-center gap-1.5 border-t border-line/70 px-3 py-1.5 text-[10px]">
-      <Icon
-        :class="timing ? '' : 'text-ink/35'"
-        :style="timing ? { color: toneColour(familyTone('trigger')) } : undefined"
-        aria-hidden="true"
-        class="flex-none text-xs"
-        name="material-symbols:schedule-outline"
-      />
-      <span :class="timing ? 'text-ink/65' : 'text-ink/40'" class="truncate">{{ timing ?? 'Runs when you run it: connect a Schedule' }}</span>
-    </p>
+        <span :class="timing ? 'text-ink/65' : 'text-ink/40'" class="truncate">{{ timing ?? 'Runs when you run it' }}</span>
+      </p>
+    </template>
 
     <!-- Inputs. -->
     <template v-if="kind.inputs === 2">
@@ -192,7 +250,39 @@ const took = (ms: number) => (ms < 1000 ? `${ms} ms` : `${(ms / 1000).toFixed(1)
     <!-- The output. -->
     <Handle v-if="kind.output" :position="Position.Right" type="source" />
 
-    <!-- Time: out of a Schedule's bottom, into a delivery's top. -->
+    <!-- Start's and Finish's lines: into a source's left edge, out of an output's right. -->
+    <Handle
+      v-if="data.kind === 'start'"
+      :connectable="false"
+      :position="Position.Right"
+      class="ps-frame-handle"
+      type="source"
+    />
+    <Handle
+      v-if="data.kind === 'finish'"
+      :connectable="false"
+      :position="Position.Left"
+      class="ps-frame-handle"
+      type="target"
+    />
+    <Handle
+      v-if="data.kind === 'source'"
+      :id="START_HANDLE"
+      :connectable="false"
+      :position="Position.Left"
+      class="ps-frame-handle"
+      type="target"
+    />
+    <Handle
+      v-if="kind.family === 'output'"
+      :id="FINISH_HANDLE"
+      :connectable="false"
+      :position="Position.Right"
+      class="ps-frame-handle"
+      type="source"
+    />
+
+    <!-- Time: out of a Schedule's bottom, into Start's top. -->
     <Handle
       v-if="data.kind === 'schedule'"
       :id="WHEN_HANDLE"

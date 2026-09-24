@@ -10,9 +10,9 @@ const props = defineProps<{
   /** What flows in: the columns and rows of the node before it. Empty for a source. */
   input: NodeResult | null
   result: NodeResult | null
-  /** For a delivery, the schedule that runs it, in words; for a Schedule, nothing. */
+  /** For Start and a delivery, when the report runs, in words; for a Schedule, nothing. */
   timing?: string | null
-  /** For a Schedule, the deliveries it runs, by name. */
+  /** For a Schedule on Start, the deliveries it sends; for Start, its Schedules; for Finish, the outputs. */
   drives?: readonly string[]
 }>()
 
@@ -299,7 +299,7 @@ const ids = { title: useId(), newColumn: useId(), limit: useId(), target: useId(
         <span class="text-xs font-medium text-ink">{{ kind.label }}</span>
         <span class="text-[11px] leading-4 text-ink/55">{{ kind.note }}</span>
       </span>
-      <v-menu location="bottom end">
+      <v-menu v-if="!isFrame(data.kind)" location="bottom end">
         <template #activator="{ props: activator }">
           <v-btn
             v-bind="activator"
@@ -322,7 +322,55 @@ const ids = { title: useId(), newColumn: useId(), limit: useId(), target: useId(
     </header>
 
     <div class="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-4">
-      <div class="flex flex-col gap-1.5">
+      <!-- Start: when the report runs. -->
+      <template v-if="data.kind === 'start'">
+        <div class="flex flex-col gap-2">
+          <p class="m-0 text-[11px] font-semibold tracking-wide text-ink/45 uppercase">
+            Runs
+          </p>
+          <ul class="m-0 flex list-none flex-col gap-1 p-0">
+            <li class="flex items-center gap-2 text-xs text-ink/75">
+              <Icon aria-hidden="true" class="text-sm text-ink/45" name="material-symbols:play-arrow-outline" />
+              When you run it
+            </li>
+            <li v-for="name in drives" :key="name" class="flex items-center gap-2 text-xs text-ink/75">
+              <Icon aria-hidden="true" class="text-sm text-ink/45" name="material-symbols:schedule-outline" />
+              {{ name }}
+            </li>
+          </ul>
+          <p v-if="!drives?.length" class="m-0 flex items-start gap-2 rounded-(--ps-radius-small) bg-ink/4 px-3 py-2.5 text-xs leading-5 text-ink/70">
+            <Icon aria-hidden="true" class="mt-0.5 flex-none text-base text-ink/45" name="material-symbols:schedule-outline" />
+            To run it on its own, add a Schedule from the parts: it joins Start's top edge.
+          </p>
+        </div>
+        <p class="m-0 text-[11px] leading-4 text-ink/50">
+          Every source follows Start, so a run reads them all. Start is in every report and cannot be deleted.
+        </p>
+      </template>
+
+      <!-- Finish: what a run waits for. -->
+      <template v-else-if="data.kind === 'finish'">
+        <div class="flex flex-col gap-2">
+          <p class="m-0 text-[11px] font-semibold tracking-wide text-ink/45 uppercase">
+            Waits for <span class="font-mono font-normal">{{ drives?.length ?? 0 }}</span>
+          </p>
+          <ul v-if="drives?.length" class="m-0 flex list-none flex-col gap-1 p-0">
+            <li v-for="name in drives" :key="name" class="flex items-center gap-2 text-xs text-ink/75">
+              <Icon aria-hidden="true" class="text-sm text-ink/45" name="material-symbols:subdirectory-arrow-right" />
+              {{ name }}
+            </li>
+          </ul>
+          <p v-else class="m-0 flex items-start gap-2 rounded-(--ps-radius-small) bg-ink/4 px-3 py-2.5 text-xs leading-5 text-ink/70">
+            <Icon aria-hidden="true" class="mt-0.5 flex-none text-base text-ink/45" name="material-symbols:bar-chart" />
+            Nothing yet. Every chart, table, export and notify leads here on its own.
+          </p>
+        </div>
+        <p class="m-0 text-[11px] leading-4 text-ink/50">
+          A run ends here once every output is done. Finish is in every report and cannot be deleted.
+        </p>
+      </template>
+
+      <div v-else class="flex flex-col gap-1.5">
         <label :for="ids.title" class="text-xs text-ink/60">Name</label>
         <v-text-field
           :id="ids.title"
@@ -408,7 +456,7 @@ const ids = { title: useId(), newColumn: useId(), limit: useId(), target: useId(
           </ul>
           <p v-else class="m-0 flex items-start gap-2 rounded-(--ps-radius-small) bg-ink/4 px-3 py-2.5 text-xs leading-5 text-ink/70">
             <Icon aria-hidden="true" class="mt-0.5 flex-none text-base text-ink/45" name="material-symbols:schedule-outline" />
-            Nothing yet. Drag from its bottom edge to the top of a Notify or an Export.
+            Not running anything. Drag from its bottom edge to the top of Start.
           </p>
         </div>
       </template>
@@ -566,7 +614,7 @@ const ids = { title: useId(), newColumn: useId(), limit: useId(), target: useId(
           </p>
           <p class="m-0 flex items-start gap-2 rounded-(--ps-radius-small) bg-ink/4 px-3 py-2.5 text-xs leading-5 text-ink/70">
             <Icon aria-hidden="true" class="mt-0.5 flex-none text-base text-ink/45" name="material-symbols:schedule-outline" />
-            {{ timing ?? 'Only when you run it. Connect a Schedule to its top edge to send it on its own.' }}
+            {{ timing ?? 'Only when you run it. Join a Schedule to Start to send it on its own.' }}
           </p>
           <v-btn
             :disabled="!chosenChannels.length || Boolean(result?.error)"
@@ -1088,7 +1136,7 @@ const ids = { title: useId(), newColumn: useId(), limit: useId(), target: useId(
           <span class="text-xs text-ink/60">When</span>
           <p class="m-0 flex items-start gap-2 rounded-(--ps-radius-small) bg-ink/4 px-3 py-2.5 text-xs leading-5 text-ink/70">
             <Icon aria-hidden="true" class="mt-0.5 flex-none text-base text-ink/45" name="material-symbols:schedule-outline" />
-            {{ timing ?? 'Only when you run it. Connect a Schedule to its top edge to write it on its own.' }}
+            {{ timing ?? 'Only when you run it. Join a Schedule to Start to write it on its own.' }}
           </p>
         </div>
         <div class="flex flex-col gap-1.5">

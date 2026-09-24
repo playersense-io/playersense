@@ -90,6 +90,28 @@
   stroke-dasharray: 5 4;
 }
 
+/* Start's and Finish's lines: the report's own, so quieter than the lines drawn by hand. */
+.ps-flow .vue-flow__edge.ps-edge-frame .vue-flow__edge-path {
+  stroke: rgba(var(--v-theme-on-surface), 0.2);
+}
+
+/* Their handles take no line, so they are a dot on the edge rather than a ring to aim at. */
+.ps-flow .vue-flow__handle.ps-frame-handle {
+  background: rgba(var(--v-theme-on-surface), 0.25);
+  border: 0;
+  cursor: default;
+  height: 6px;
+  width: 6px;
+}
+
+.ps-flow .vue-flow__handle-left.ps-frame-handle {
+  left: -3px;
+}
+
+.ps-flow .vue-flow__handle-right.ps-frame-handle {
+  right: -3px;
+}
+
 /* A test run's lines: rows flowing into the node that is running, in the accent and moving
    (Vue Flow's own animation, its dashes marching towards the target); drawn over once they
    have arrived; faded when the run does not use them. */

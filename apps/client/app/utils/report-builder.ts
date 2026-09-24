@@ -108,8 +108,8 @@ export const RANGES = [
 
 // --- Nodes ------------------------------------------------------------------------------------
 
-export type NodeKind = 'schedule' | 'source' | 'filter' | 'join' | 'group' | 'formula' | 'sort' | 'chart' | 'table' | 'export' | 'notify'
-export type NodeFamily = 'trigger' | 'source' | 'step' | 'output'
+export type NodeKind = 'start' | 'finish' | 'schedule' | 'source' | 'filter' | 'join' | 'group' | 'formula' | 'sort' | 'chart' | 'table' | 'export' | 'notify'
+export type NodeFamily = 'frame' | 'trigger' | 'source' | 'step' | 'output'
 
 /** A Notify step's rule for when it sends: every run, when rows came out, or when a figure crosses a line. */
 export type NotifyWhen = 'always' | 'rows' | 'threshold'
@@ -181,12 +181,14 @@ export interface KindInfo {
   inputs: 0 | 1 | 2
   /** Whether anything can follow it. Outputs end a report. */
   output: boolean
-  /** Whether a Schedule can drive it: the deliveries, which take a line on their top edge. */
+  /** Whether a Schedule can drive it: Start, which takes Schedules' lines on its top edge. */
   scheduled?: boolean
 }
 
 export const KINDS: Record<NodeKind, KindInfo> = {
-  schedule: { label: 'Schedule', family: 'trigger', note: 'When the report runs: a cron line in a timezone. Connect it to the top of a Notify or an Export.', icon: 'material-symbols:schedule-outline', inputs: 0, output: false },
+  start: { label: 'Start', family: 'frame', note: 'Where every run begins: when you run it, and on each Schedule joined to its top edge. Every source follows it.', icon: 'material-symbols:play-circle-outline', inputs: 0, output: false, scheduled: true },
+  finish: { label: 'Finish', family: 'frame', note: 'Where every run ends, once everything the report makes is done. Every output leads to it.', icon: 'material-symbols:flag-outline', inputs: 0, output: false },
+  schedule: { label: 'Schedule', family: 'trigger', note: 'When the report runs: a cron line in a timezone. Connect it to the top of Start.', icon: 'material-symbols:schedule-outline', inputs: 0, output: false },
   source: { label: 'Source', family: 'source', note: 'Where the rows come from: events, players, purchases or sessions.', icon: 'material-symbols:database-outline', inputs: 0, output: true },
   filter: { label: 'Filter', family: 'step', note: 'Keeps the rows that match.', icon: 'material-symbols:filter-alt-outline', inputs: 1, output: true },
   join: { label: 'Join', family: 'step', note: 'Puts two sources side by side, player by player.', icon: 'material-symbols:join-inner', inputs: 2, output: true },
@@ -195,11 +197,18 @@ export const KINDS: Record<NodeKind, KindInfo> = {
   sort: { label: 'Sort', family: 'step', note: 'Orders the rows, and keeps the top ones.', icon: 'material-symbols:sort', inputs: 1, output: true },
   chart: { label: 'Chart', family: 'output', note: 'Draws the result as a line or bars.', icon: 'material-symbols:bar-chart', inputs: 1, output: false },
   table: { label: 'Table', family: 'output', note: 'Shows the result as a table.', icon: 'material-symbols:table-outline', inputs: 1, output: false },
-  export: { label: 'Export', family: 'output', note: 'Writes the result as a file: downloaded now, or delivered on a schedule.', icon: 'material-symbols:file-export-outline', inputs: 1, output: false, scheduled: true },
-  notify: { label: 'Notify', family: 'output', note: 'Tells notification channels: Slack, email, the one on call. The last step of a report that runs on its own.', icon: 'material-symbols:notifications-outline', inputs: 1, output: false, scheduled: true }
+  export: { label: 'Export', family: 'output', note: 'Writes the result as a file: downloaded now, or delivered on a schedule.', icon: 'material-symbols:file-export-outline', inputs: 1, output: false },
+  notify: { label: 'Notify', family: 'output', note: 'Tells notification channels: Slack, email, the one on call. The last step of a report that runs on its own.', icon: 'material-symbols:notifications-outline', inputs: 1, output: false }
 }
 
+/** Start and Finish: in every report, once each, and never deleted. */
+export const isFrame = (kind: NodeKind) => kind === 'start' || kind === 'finish'
+
+/** A Notify or an Export: what a run sends somewhere. */
+export const isDelivery = (kind: NodeKind) => kind === 'notify' || kind === 'export'
+
 export const FAMILIES: { key: NodeFamily, label: string, tone: number }[] = [
+  { key: 'frame', label: 'Start and finish', tone: 2 },
   { key: 'trigger', label: 'Triggers', tone: 4 },
   { key: 'source', label: 'Sources', tone: 1 },
   { key: 'step', label: 'Steps', tone: 6 },
@@ -219,6 +228,8 @@ export const PALETTE: { family: NodeFamily, items: { kind: NodeKind, label: stri
 /** A new node's settings: enough to show something the moment it is connected. */
 export function defaultConfig(kind: NodeKind, seed: NodeConfig = {}): NodeConfig {
   switch (kind) {
+    case 'start':
+    case 'finish': return { ...seed }
     case 'schedule': return { cron: '0 9 * * 1', timezone: 'UTC', paused: false, ...seed }
     case 'source': return { source: 'purchases', range: '30', event: '', ...seed }
     case 'filter': return { match: 'all', conditions: [], ...seed }
@@ -334,6 +345,10 @@ export function evaluateNotify(node: GraphNode, result: NodeResult, report: { id
 /** The line a Schedule draws to a delivery: into its top edge. */
 export const WHEN_HANDLE = 'when'
 
+/** The handles Start's and Finish's lines use: a source's left edge, an output's right. */
+export const START_HANDLE = 'start'
+export const FINISH_HANDLE = 'finish'
+
 export const SCHEDULES = {
   once: 'Once, now',
   daily: 'Every day at 06:00 UTC',
@@ -352,6 +367,8 @@ export interface GraphNode {
 export interface GraphEdge {
   id: string
   source: string
+  /** An output's `finish`, for its line to Finish; absent for every other line. */
+  sourceHandle?: string | null
   target: string
   /** A join's `left` or `right`; absent for every other input. */
   targetHandle?: string | null
@@ -362,6 +379,25 @@ export interface NodeResult {
   rows: ReportRow[]
   /** Why it has nothing: no input, a setting that no longer fits. */
   error?: string
+}
+
+/** Whether a line is one of Start's or Finish's, drawn for the report rather than by hand. */
+export const isFrameLine = (edge: { id: string }) => edge.id.startsWith('frame:')
+
+/**
+ * Start's and Finish's lines, which nobody draws: from Start into every source, and into
+ * Finish from every output that something feeds. An output on its own is not part of the
+ * report yet. Worked out from the nodes and the drawn lines each time, so they are never
+ * saved and never out of date.
+ */
+export function frameLines(nodes: readonly GraphNode[], drawn: readonly GraphEdge[]): GraphEdge[] {
+  const start = nodes.find(node => node.data.kind === 'start')
+  const finish = nodes.find(node => node.data.kind === 'finish')
+  const fed = (id: string) => drawn.some(edge => edge.target === id && edge.targetHandle !== WHEN_HANDLE && !isFrameLine(edge))
+  return [
+    ...(start ? nodes.filter(node => node.data.kind === 'source').map(node => ({ id: `frame:${start.id}:${node.id}`, source: start.id, target: node.id, targetHandle: START_HANDLE })) : []),
+    ...(finish ? nodes.filter(node => KINDS[node.data.kind].family === 'output' && fed(node.id)).map(node => ({ id: `frame:${node.id}:${finish.id}`, source: node.id, sourceHandle: FINISH_HANDLE, target: finish.id })) : [])
+  ]
 }
 
 /** Every node's result, running each once from the sources forward. */
@@ -401,6 +437,7 @@ const fail = (error: string): NodeResult => ({ columns: [], rows: [], error })
 
 function step(node: GraphNode, inputOf: (id: string, handle?: string) => NodeResult | null, now: number): NodeResult {
   const { kind, config } = node.data
+  if (kind === 'start' || kind === 'finish') return { columns: [], rows: [] }
   if (kind === 'schedule') {
     const parsed = parseCron(config.cron ?? '')
     return typeof parsed === 'string' ? fail(parsed) : { columns: [], rows: [] }
@@ -709,6 +746,8 @@ export function summaryOf(data: ReportNodeData, columns: readonly ReportColumn[]
     case 'chart': return [config.x ? `${label(config.y?.[0]) || '?'}${(config.y?.length ?? 0) > 1 ? ` and ${config.y!.length - 1} more` : ''} by ${label(config.x)}` : 'Not set up yet', config.chart === 'bar' ? 'Bars' : config.chart === 'area' ? 'Area' : 'Line']
     case 'table': return ['Every column']
     case 'export': return [`${(config.file ?? 'json').toUpperCase()} to ${DESTINATIONS[config.destination ?? 'download'].label}`]
+    case 'start':
+    case 'finish': return []
     case 'schedule': return [describeCron(config.cron ?? ''), config.paused ? 'Paused' : CRON_TIMEZONES.find(zone => zone.value === config.timezone)?.label ?? config.timezone ?? 'UTC']
     case 'notify': {
       const count = (config.channels ?? []).length

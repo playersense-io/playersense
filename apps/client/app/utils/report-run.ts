@@ -40,24 +40,35 @@ export function followRun(url: string, onEvent: (event: RunEvent) => void): Stop
 
 // --- What a run runs --------------------------------------------------------------------------
 
-const delivers = (node: GraphNode) => node.data.kind === 'notify' || node.data.kind === 'export'
+const delivers = (node: GraphNode) => isDelivery(node.data.kind)
 
 /* The lines rows run along into a node: every input but a Schedule's. */
 const inputsOf = (id: string, edges: readonly GraphEdge[]) => edges.filter(edge => edge.target === id && edge.targetHandle !== WHEN_HANDLE)
 
+/* Every line a run follows: those drawn, and Start's and Finish's. */
+const linesOf = (nodes: readonly GraphNode[], edges: readonly GraphEdge[]) => {
+  const drawn = edges.filter(edge => !isFrameLine(edge))
+  return [...drawn, ...frameLines(nodes, drawn)]
+}
+
 /**
- * The nodes a run runs, in an order that puts every node after its inputs: each delivery
- * (or only `focus`) and everything it reads from. A chart or a table nothing delivers is
- * left out, and so is a Schedule, since a test run is run by hand.
+ * The nodes a run runs, in an order that puts every node after its inputs: from Start,
+ * everything Finish waits for, which is every output and what it reads from. Only `focus`
+ * and what it reads from, when there is one. A Schedule is left out, since a test run is run
+ * by hand, and so is a step nothing reads from.
  */
-export function planRun(nodes: readonly GraphNode[], edges: readonly GraphEdge[], focus: string | null): string[] {
+export function planRun(nodes: readonly GraphNode[], drawn: readonly GraphEdge[], focus: string | null): string[] {
+  const edges = linesOf(nodes, drawn)
   const needed = new Set<string>()
   const visit = (id: string) => {
     if (needed.has(id)) return
     needed.add(id)
     for (const edge of inputsOf(id, edges)) visit(edge.source)
   }
-  for (const node of nodes) if (delivers(node) && (!focus || node.id === focus)) visit(node.id)
+  const finish = nodes.find(node => node.data.kind === 'finish')
+  if (focus) visit(focus)
+  else if (finish) visit(finish.id)
+  if (finish) needed.add(finish.id)
 
   const depth = new Map<string, number>()
   const depthOf = (id: string, trail = new Set<string>()): number => {
@@ -108,6 +119,8 @@ export interface SimulatedRun {
 
 /* How long a node of each kind takes on the server, roughly: reading rows is the slow part. */
 const WORK_MS: Record<NodeKind, [number, number]> = {
+  start: [150, 250],
+  finish: [150, 250],
   schedule: [0, 0],
   source: [700, 1100],
   filter: [350, 600],
@@ -129,8 +142,9 @@ const between = ([low, high]: [number, number]) => Math.round(low + Math.random(
  * is skipped. Returns a stop, after which nothing more is sent.
  */
 export function simulateRun(input: SimulatedRun, onEvent: (event: RunEvent) => void): StopFollowing {
-  const { run, nodes, edges, results } = input
-  const plan = planRun(nodes, edges, input.focus)
+  const { run, nodes, results } = input
+  const edges = linesOf(nodes, input.edges)
+  const plan = planRun(nodes, input.edges, input.focus)
   const inPlan = new Set(plan)
   const nodeOf = (id: string) => nodes.find(node => node.id === id)!
   const started = new Set<string>()
@@ -206,12 +220,27 @@ export function simulateRun(input: SimulatedRun, onEvent: (event: RunEvent) => v
     })
   }
 
+  function finish(id: string, missed: number) {
+    started.add(id)
+    const begun = Date.now()
+    onEvent({ type: 'node_started', run, node: id, at: begun })
+    later(between(WORK_MS.finish), () => {
+      if (missed) end(id, 'failed', { type: 'node_failed', run, node: id, error: `${missed} ${missed === 1 ? 'step' : 'steps'} before it did not finish` })
+      else end(id, 'done', { type: 'node_finished', run, node: id, rows: 0, ms: Date.now() - begun })
+    })
+  }
+
   function advance() {
     if (stopped) return
     for (const id of plan) {
       if (started.has(id)) continue
       const from = inputsOf(id, edges).map(edge => edge.source).filter(source => inPlan.has(source))
       const broken = from.find(source => ended.get(source) === 'failed' || ended.get(source) === 'skipped')
+      /* Finish always comes: once everything before it has ended, however that went. */
+      if (nodeOf(id).data.kind === 'finish') {
+        if (from.every(source => ended.has(source))) finish(id, from.filter(source => ended.get(source) !== 'done').length)
+        continue
+      }
       if (broken) {
         started.add(id)
         end(id, 'skipped', { type: 'node_skipped', run, node: id, reason: `${nodeOf(broken).data.title} did not finish` })

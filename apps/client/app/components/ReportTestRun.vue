@@ -24,14 +24,19 @@ const { channels } = useChannels()
 
 const at = Date.now()
 
-/* The schedule that runs a delivery, in words, or null for one that runs by hand. */
-function timingOf(id: string): string | null {
-  const edge = props.edges.find(entry => entry.target === id && entry.targetHandle === WHEN_HANDLE)
-  const schedule = edge ? props.nodes.find(node => node.id === edge.source) : null
-  if (!schedule) return null
-  const words = `${describeCron(schedule.data.config.cron ?? '')}, ${CRON_TIMEZONES.find(zone => zone.value === schedule.data.config.timezone)?.label ?? 'UTC'}`
-  return schedule.data.config.paused ? `${words}, paused` : words
-}
+/* When the report runs on its own, in words: its Schedules on Start. Null when only by hand. */
+const timing = computed(() => {
+  const start = props.nodes.find(node => node.data.kind === 'start')
+  const schedules = props.edges
+    .filter(entry => entry.target === start?.id && entry.targetHandle === WHEN_HANDLE)
+    .map(entry => props.nodes.find(node => node.id === entry.source))
+    .filter((node): node is GraphNode => Boolean(node))
+  if (!schedules.length) return null
+  return schedules.map((schedule) => {
+    const words = `${describeCron(schedule.data.config.cron ?? '')}, ${CRON_TIMEZONES.find(zone => zone.value === schedule.data.config.timezone)?.label ?? 'UTC'}`
+    return schedule.data.config.paused ? `${words}, paused` : words
+  }).join('; ')
+})
 
 interface Step {
   node: GraphNode
@@ -48,7 +53,7 @@ const steps = computed<Step[]>(() => props.nodes
     return {
       node,
       result,
-      timing: timingOf(node.id),
+      timing: timing.value,
       outcome: node.data.kind === 'notify' && result && !result.error ? evaluateNotify(node, result, props.report, at) : null,
       channels: (node.data.config.channels ?? []).map(id => channels.value.find(channel => channel.id === id)).filter((channel): channel is NotificationChannel => Boolean(channel))
     }

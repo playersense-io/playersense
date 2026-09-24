@@ -52,7 +52,7 @@ function seedRuns(template: ReportTemplate): ReportRun[] {
   const cron = schedule.data.config.cron ?? ''
   const zone = schedule.data.config.timezone ?? 'UTC'
   const times = nextRuns(cron, zone, now - 40 * 86_400_000, 60).filter(at => at < now).slice(-5)
-  const deliveries = template.nodes.filter(node => template.edges.some(edge => edge.source === schedule.id && edge.target === node.id))
+  const deliveries = template.nodes.filter(node => isDelivery(node.data.kind))
   return times.reverse().map((at, index) => {
     const quiet = template.key === 'revenue-alert' && index % 3 !== 0
     return {
@@ -90,6 +90,10 @@ function seedReports(): SavedReport[] {
 const OLD_SCHEDULES = { daily: '0 6 * * *', weekly: '0 6 * * 1', monthly: '0 6 1 * *' } as const
 
 function migrate(report: SavedReport): SavedReport {
+  return frame(scheduleNodes(report))
+}
+
+function scheduleNodes(report: SavedReport): SavedReport {
   const old = report.nodes.filter(node => node.data.kind === 'export' && node.data.config.schedule && node.data.config.schedule !== 'once')
   if (!old.length) return report
   const nodes = [...report.nodes]
@@ -104,6 +108,39 @@ function migrate(report: SavedReport): SavedReport {
     const { schedule: _schedule, ...config } = exporter.data.config
     nodes[nodes.indexOf(exporter)] = { ...exporter, data: { ...exporter.data, config } }
   }
+  return { ...report, nodes, edges }
+}
+
+/*
+ * A report from before every report had a Start and a Finish gets them: Start to the left of
+ * its sources, Finish to the right of everything. A Schedule that ran a delivery runs Start
+ * instead, and so the whole report, and moves above it.
+ */
+function frame(report: SavedReport): SavedReport {
+  const has = (kind: NodeKind) => report.nodes.some(node => node.data.kind === kind)
+  const stray = report.edges.filter(edge => edge.targetHandle === WHEN_HANDLE && report.nodes.find(node => node.id === edge.target)?.data.kind !== 'start')
+  if (has('start') && has('finish') && !stray.length) return report
+
+  const nodes = [...report.nodes]
+  const mean = (values: number[]) => (values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0)
+  const rows = nodes.filter(node => node.data.kind !== 'schedule')
+  const sources = nodes.filter(node => node.data.kind === 'source')
+  const newId = (base: string) => (nodes.some(node => node.id === base) ? `${base}-${Math.random().toString(36).slice(2, 6)}` : base)
+  const make = (kind: 'start' | 'finish', x: number, y: number): GraphNode => ({ id: newId(kind), position: { x: Math.round(x), y: Math.round(y) }, data: { kind, title: KINDS[kind].label, config: defaultConfig(kind) } })
+  if (!has('start')) nodes.push(make('start', (sources.length ? Math.min(...sources.map(node => node.position.x)) : 0) - 300, mean(sources.map(node => node.position.y))))
+  if (!has('finish')) {
+    const outputs = nodes.filter(node => KINDS[node.data.kind].family === 'output')
+    nodes.push(make('finish', (rows.length ? Math.max(...rows.map(node => node.position.x)) : 0) + 300, mean(outputs.map(node => node.position.y))))
+  }
+
+  const start = nodes.find(node => node.data.kind === 'start')!
+  const moved = [...new Set(stray.map(edge => edge.source))]
+  const edges = report.edges.filter(edge => !stray.includes(edge))
+  moved.forEach((id, index) => {
+    if (!edges.some(edge => edge.source === id && edge.target === start.id)) edges.push({ id: `e-${id}-${start.id}-when`, source: id, target: start.id, targetHandle: WHEN_HANDLE })
+    const at = nodes.findIndex(node => node.id === id)
+    if (at >= 0) nodes[at] = { ...nodes[at]!, position: { x: start.position.x, y: start.position.y - 200 - index * 170 } }
+  })
   return { ...report, nodes, edges }
 }
 
