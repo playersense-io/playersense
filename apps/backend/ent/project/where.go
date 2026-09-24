@@ -1005,6 +1005,29 @@ func HasSavedFunnelsWith(preds ...predicate.SavedFunnel) predicate.Project {
 	})
 }
 
+// HasEventDefinitions applies the HasEdge predicate on the "event_definitions" edge.
+func HasEventDefinitions() predicate.Project {
+	return predicate.Project(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, EventDefinitionsTable, EventDefinitionsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasEventDefinitionsWith applies the HasEdge predicate on the "event_definitions" edge with a given conditions (other predicates).
+func HasEventDefinitionsWith(preds ...predicate.EventDefinition) predicate.Project {
+	return predicate.Project(func(s *sql.Selector) {
+		step := newEventDefinitionsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // HasMemberAccess applies the HasEdge predicate on the "member_access" edge.
 func HasMemberAccess() predicate.Project {
 	return predicate.Project(func(s *sql.Selector) {

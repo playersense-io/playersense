@@ -3,6 +3,7 @@ package main
 import (
 	"net/http"
 	"testing"
+	"time"
 
 	"muzak.dev/framework/testclient"
 
@@ -54,4 +55,28 @@ func TestLabelsAreKeptUntilChanged(t *testing.T) {
 	if cleared.Goal != nil || len(cleared.Watch) != 1 || cleared.Description != "Double gems" {
 		t.Fatalf("cleared %+v", cleared)
 	}
+}
+
+// TestAnEventsWindowIsComparedWithTheWeeksBefore: the latest window that has begun is chosen, its
+// days run from two weeks before to today, and every metric has a series of that length.
+func TestAnEventsWindowIsComparedWithTheWeeksBefore(t *testing.T) {
+	a := newAuthoring(t)
+	client := a.client(t)
+	anchor := time.Now().UTC().Add(-50 * time.Hour).Format(time.RFC3339)
+	client.Post(a.base()+"/liveops-events", testclient.RawJSON(`{"key":"sale","kind":"offer","name":"Sale","payload":{},
+		"schedule":{"mode":"once","anchor":"`+anchor+`","duration":"24h"}}`)).AssertStatus(http.StatusCreated)
+	client.Post(a.base()+"/liveops-events", testclient.RawJSON(`{"key":"later","kind":"offer","name":"Later","payload":{},
+		"schedule":{"mode":"once","anchor":"2030-01-01T00:00:00Z","duration":"24h"}}`)).AssertStatus(http.StatusCreated)
+
+	impact := testclient.Decoded[schemas.EventImpactOut](client.Get(
+		a.analytics("production") + "/liveops-events/sale/impact").AssertStatus(http.StatusOK))
+	if len(impact.Occurrences) != 1 || impact.Live || impact.Method != "baseline" || len(impact.Days) < 15 {
+		t.Fatalf("impact %+v", impact)
+	}
+	for _, metric := range []string{"players", "revenue", "arpdau", "payer_conversion", "playtime_minutes"} {
+		if len(impact.Daily[metric].Actual) != len(impact.Days) {
+			t.Fatalf("%s has %d days, want %d", metric, len(impact.Daily[metric].Actual), len(impact.Days))
+		}
+	}
+	client.Get(a.analytics("production") + "/liveops-events/later/impact").AssertStatus(http.StatusNotFound)
 }

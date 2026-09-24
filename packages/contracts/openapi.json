@@ -9808,6 +9808,141 @@
         }
       }
     },
+    "/v1/organizations/{org}/projects/{project}/analytics/{environment}/liveops-events/{key}/impact": {
+      "get": {
+        "tags": [
+          "reporting"
+        ],
+        "summary": "What a LiveOps event's window did",
+        "description": "The project's days from two weeks before one of the event's windows to a week after it, each against the same weekday of the four weeks before, for players, new players, revenue, ARPDAU, payer conversion, sessions and playtime per player; and the window's mean against what was expected. About every player, not only the event's audience, until the SDK reports who was in it. From metrics_daily, so a day appears once the nightly derivation has built it.",
+        "operationId": "get_v1_organizations_by_org_projects_by_project_analytics_by_environment_liveops_events_by_key_impact",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "project",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "environment",
+            "in": "path",
+            "description": "development, staging or production",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "development",
+                "staging",
+                "production"
+              ]
+            }
+          },
+          {
+            "name": "key",
+            "in": "path",
+            "description": "The LiveOps event's key",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "at",
+            "in": "query",
+            "description": "The start of the window to read, as RFC 3339; defaults to the latest that has begun",
+            "schema": {
+              "type": "string",
+              "maxLength": 40
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventImpactOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not read this project's analytics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such event, or it has not been on in the last year",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The facts could not be read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/organizations/{org}/projects/{project}/analytics/{environment}/metrics/query": {
       "post": {
         "tags": [
@@ -10551,6 +10686,122 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/RevenueOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not read this project's analytics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The organization, project or environment does not exist, or you cannot see it",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The facts could not be read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/organizations/{org}/projects/{project}/analytics/{environment}/segments/reach": {
+      "get": {
+        "tags": [
+          "reporting"
+        ],
+        "summary": "How many players each segment holds",
+        "description": "Every active segment against one sample of the last week's installs (up to twenty thousand, read in key order, which is as good as random), evaluated with the evaluator config-api answers players with, and scaled to the week's players. A rule naming the game's own context, the build it runs now, the network or an account cannot be counted from what is stored and says which keys stop it.",
+        "operationId": "get_v1_organizations_by_org_projects_by_project_analytics_by_environment_segments_reach",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "project",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "environment",
+            "in": "path",
+            "description": "development, staging or production",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "development",
+                "staging",
+                "production"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SegmentReachOut"
                 }
               }
             }
@@ -11827,6 +12078,252 @@
           },
           "409": {
             "description": "It is not to be deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/organizations/{org}/projects/{project}/event-definitions": {
+      "get": {
+        "tags": [
+          "analytics"
+        ],
+        "summary": "What the project's events mean",
+        "description": "Every event described: its category and a sentence. The event catalogue carries the same on each event it lists.",
+        "operationId": "get_v1_organizations_by_org_projects_by_project_event_definitions",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "description": "The organization's slug",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "project",
+            "in": "path",
+            "description": "The project's slug",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventDefinitionListOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not do that",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The organization, project or funnel does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/organizations/{org}/projects/{project}/event-definitions/{name}": {
+      "put": {
+        "tags": [
+          "analytics"
+        ],
+        "summary": "Say what an event means",
+        "description": "Its category (session, progression, economy, engagement or custom) and a sentence, whether or not the game sends it yet: a tracking plan written before the build is a plan.",
+        "operationId": "put_v1_organizations_by_org_projects_by_project_event_definitions_by_name",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "project",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "name",
+            "in": "path",
+            "description": "The event name, exactly as the game sends it",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 96
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "category": {
+                    "type": "string",
+                    "description": "session, progression, economy, engagement or custom",
+                    "enum": [
+                      "session",
+                      "progression",
+                      "economy",
+                      "engagement",
+                      "custom"
+                    ]
+                  },
+                  "description": {
+                    "type": "string",
+                    "maxLength": 500
+                  }
+                },
+                "required": [
+                  "category"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventDefinitionOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not do that",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The organization, project or funnel does not exist",
             "content": {
               "application/json": {
                 "schema": {
@@ -19896,6 +20393,46 @@
           "to"
         ]
       },
+      "EventDefinitionListOut": {
+        "type": "object",
+        "properties": {
+          "definitions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EventDefinitionOut"
+            }
+          }
+        },
+        "required": [
+          "definitions"
+        ]
+      },
+      "EventDefinitionOut": {
+        "type": "object",
+        "properties": {
+          "category": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_by": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "category",
+          "name",
+          "updated_at"
+        ]
+      },
       "EventDetailOut": {
         "type": "object",
         "properties": {
@@ -19976,6 +20513,73 @@
           "to",
           "totals",
           "type"
+        ]
+      },
+      "EventImpactOut": {
+        "type": "object",
+        "properties": {
+          "computed_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "daily": {
+            "type": "object",
+            "description": "By metric: each day's figure and what was expected",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ImpactSeriesOut"
+            }
+          },
+          "days": {
+            "type": "array",
+            "description": "Two weeks before the window to a week after it, or to the last day built",
+            "items": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          "event": {
+            "type": "string"
+          },
+          "live": {
+            "type": "boolean",
+            "description": "The window is still on"
+          },
+          "method": {
+            "type": "string",
+            "description": "baseline: the project's days against the same weekdays of the four weeks before"
+          },
+          "metrics": {
+            "type": "object",
+            "description": "By metric: the window's mean, what was expected, and the difference",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/MetricImpactOut"
+            }
+          },
+          "occurrence": {
+            "$ref": "#/components/schemas/WindowOut"
+          },
+          "occurrences": {
+            "type": "array",
+            "description": "The latest windows that have begun, newest first, to choose between",
+            "items": {
+              "$ref": "#/components/schemas/WindowOut"
+            }
+          },
+          "suppression_threshold": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "daily",
+          "days",
+          "event",
+          "live",
+          "method",
+          "metrics",
+          "occurrence",
+          "occurrences",
+          "suppression_threshold"
         ]
       },
       "EventIntent": {
@@ -20140,6 +20744,13 @@
       "EventSummaryOut": {
         "type": "object",
         "properties": {
+          "category": {
+            "type": "string",
+            "description": "session, progression, economy, engagement or custom"
+          },
+          "description": {
+            "type": "string"
+          },
           "events": {
             "type": "integer",
             "format": "int64"
@@ -20183,6 +20794,7 @@
           }
         },
         "required": [
+          "category",
           "events",
           "first_seen",
           "last_seen",
@@ -21505,6 +22117,29 @@
           "event"
         ]
       },
+      "ImpactSeriesOut": {
+        "type": "object",
+        "properties": {
+          "actual": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "expected": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "format": "double"
+            }
+          }
+        },
+        "required": [
+          "actual",
+          "expected"
+        ]
+      },
       "IngestBatchIn": {
         "type": "object",
         "properties": {
@@ -22669,6 +23304,33 @@
           "progress",
           "table"
         ]
+      },
+      "MetricImpactOut": {
+        "type": "object",
+        "properties": {
+          "actual": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "expected": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "lift": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "actual over expected, less one: 0.12 is twelve percent up"
+          }
+        }
       },
       "MetricQueryIn": {
         "type": "object",
@@ -25989,6 +26651,85 @@
           "name",
           "rule",
           "updated_at"
+        ]
+      },
+      "SegmentReachOut": {
+        "type": "object",
+        "properties": {
+          "exact": {
+            "type": "boolean",
+            "description": "The sample was every install seen, so the shares are counts"
+          },
+          "sampled": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Installs the estimate was drawn from"
+          },
+          "segments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SegmentReachRow"
+            }
+          },
+          "since": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "suppression_threshold": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "weekly_players": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Players seen in the last seven days, from a sketch"
+          }
+        },
+        "required": [
+          "exact",
+          "sampled",
+          "segments",
+          "since",
+          "suppression_threshold",
+          "weekly_players"
+        ]
+      },
+      "SegmentReachRow": {
+        "type": "object",
+        "properties": {
+          "estimable": {
+            "type": "boolean"
+          },
+          "key": {
+            "type": "string"
+          },
+          "players": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "The share applied to the week's players; withheld under the threshold"
+          },
+          "share": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Of the last week's players, 0 to 1"
+          },
+          "unestimable": {
+            "type": "array",
+            "description": "The keys that stop it being estimated",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "estimable",
+          "key"
         ]
       },
       "ServerErrorOut": {

@@ -62,6 +62,8 @@ const (
 	EdgeExperiments = "experiments"
 	// EdgeSavedFunnels holds the string denoting the saved_funnels edge name in mutations.
 	EdgeSavedFunnels = "saved_funnels"
+	// EdgeEventDefinitions holds the string denoting the event_definitions edge name in mutations.
+	EdgeEventDefinitions = "event_definitions"
 	// EdgeMemberAccess holds the string denoting the member_access edge name in mutations.
 	EdgeMemberAccess = "member_access"
 	// EdgeUsageDaily holds the string denoting the usage_daily edge name in mutations.
@@ -124,6 +126,13 @@ const (
 	SavedFunnelsInverseTable = "saved_funnels"
 	// SavedFunnelsColumn is the table column denoting the saved_funnels relation/edge.
 	SavedFunnelsColumn = "project_id"
+	// EventDefinitionsTable is the table that holds the event_definitions relation/edge.
+	EventDefinitionsTable = "event_definitions"
+	// EventDefinitionsInverseTable is the table name for the EventDefinition entity.
+	// It exists in this package in order to avoid circular dependency with the "eventdefinition" package.
+	EventDefinitionsInverseTable = "event_definitions"
+	// EventDefinitionsColumn is the table column denoting the event_definitions relation/edge.
+	EventDefinitionsColumn = "project_id"
 	// MemberAccessTable is the table that holds the member_access relation/edge.
 	MemberAccessTable = "member_projects"
 	// MemberAccessInverseTable is the table name for the MemberProject entity.
@@ -406,6 +415,20 @@ func BySavedFunnels(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	}
 }
 
+// ByEventDefinitionsCount orders the results by event_definitions count.
+func ByEventDefinitionsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newEventDefinitionsStep(), opts...)
+	}
+}
+
+// ByEventDefinitions orders the results by event_definitions terms.
+func ByEventDefinitions(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newEventDefinitionsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
 // ByMemberAccessCount orders the results by member_access count.
 func ByMemberAccessCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -487,6 +510,13 @@ func newSavedFunnelsStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(SavedFunnelsInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, SavedFunnelsTable, SavedFunnelsColumn),
+	)
+}
+func newEventDefinitionsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(EventDefinitionsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, EventDefinitionsTable, EventDefinitionsColumn),
 	)
 }
 func newMemberAccessStep() *sqlgraph.Step {

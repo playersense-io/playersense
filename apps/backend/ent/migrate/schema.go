@@ -497,6 +497,40 @@ var (
 			},
 		},
 	}
+	// EventDefinitionsColumns holds the columns for the "event_definitions" table.
+	EventDefinitionsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
+		{Name: "uid", Type: field.TypeUUID, Unique: true, Comment: "class=none"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "updated_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "name", Type: field.TypeString, Size: 96, Comment: "class=none"},
+		{Name: "category", Type: field.TypeEnum, Comment: "class=none", Enums: []string{"session", "progression", "economy", "engagement", "custom"}, Default: "custom"},
+		{Name: "description", Type: field.TypeString, Size: 500, Comment: "class=none", Default: ""},
+		{Name: "created_by", Type: field.TypeString, Size: 254, Comment: "class=none", Default: ""},
+		{Name: "updated_by", Type: field.TypeString, Size: 254, Comment: "class=none", Default: ""},
+		{Name: "project_id", Type: field.TypeInt, Comment: "class=none"},
+	}
+	// EventDefinitionsTable holds the schema information for the "event_definitions" table.
+	EventDefinitionsTable = &schema.Table{
+		Name:       "event_definitions",
+		Columns:    EventDefinitionsColumns,
+		PrimaryKey: []*schema.Column{EventDefinitionsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "event_definitions_projects_event_definitions",
+				Columns:    []*schema.Column{EventDefinitionsColumns[9]},
+				RefColumns: []*schema.Column{ProjectsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "eventdefinition_project_id_name",
+				Unique:  true,
+				Columns: []*schema.Column{EventDefinitionsColumns[9], EventDefinitionsColumns[4]},
+			},
+		},
+	}
 	// ExperimentsColumns holds the columns for the "experiments" table.
 	ExperimentsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
@@ -1464,6 +1498,7 @@ var (
 		DataDeletionRequestsTable,
 		DataExportRequestsTable,
 		EnvironmentsTable,
+		EventDefinitionsTable,
 		ExperimentsTable,
 		FeatureFlagsTable,
 		InvitationsTable,
@@ -1508,6 +1543,7 @@ func init() {
 	ConfigVersionsTable.ForeignKeys[3].RefTable = UsersTable
 	CreditLotsTable.ForeignKeys[0].RefTable = BillingAccountsTable
 	EnvironmentsTable.ForeignKeys[0].RefTable = ProjectsTable
+	EventDefinitionsTable.ForeignKeys[0].RefTable = ProjectsTable
 	ExperimentsTable.ForeignKeys[0].RefTable = ProjectsTable
 	FeatureFlagsTable.ForeignKeys[0].RefTable = ProjectsTable
 	InvitationsTable.ForeignKeys[0].RefTable = OrganizationsTable

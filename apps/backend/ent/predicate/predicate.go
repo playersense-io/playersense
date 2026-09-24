@@ -39,6 +39,9 @@ type DataExportRequest func(*sql.Selector)
 // Environment is the predicate function for environment builders.
 type Environment func(*sql.Selector)
 
+// EventDefinition is the predicate function for eventdefinition builders.
+type EventDefinition func(*sql.Selector)
+
 // Experiment is the predicate function for experiment builders.
 type Experiment func(*sql.Selector)
 

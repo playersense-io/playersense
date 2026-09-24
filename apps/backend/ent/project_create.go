@@ -14,6 +14,7 @@ import (
 	"github.com/google/uuid"
 	"playersense.dev/backend/ent/configversion"
 	"playersense.dev/backend/ent/environment"
+	"playersense.dev/backend/ent/eventdefinition"
 	"playersense.dev/backend/ent/experiment"
 	"playersense.dev/backend/ent/featureflag"
 	"playersense.dev/backend/ent/liveopsevent"
@@ -333,6 +334,21 @@ func (_c *ProjectCreate) AddSavedFunnels(v ...*SavedFunnel) *ProjectCreate {
 		ids[i] = v[i].ID
 	}
 	return _c.AddSavedFunnelIDs(ids...)
+}
+
+// AddEventDefinitionIDs adds the "event_definitions" edge to the EventDefinition entity by IDs.
+func (_c *ProjectCreate) AddEventDefinitionIDs(ids ...int) *ProjectCreate {
+	_c.mutation.AddEventDefinitionIDs(ids...)
+	return _c
+}
+
+// AddEventDefinitions adds the "event_definitions" edges to the EventDefinition entity.
+func (_c *ProjectCreate) AddEventDefinitions(v ...*EventDefinition) *ProjectCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddEventDefinitionIDs(ids...)
 }
 
 // AddMemberAccesIDs adds the "member_access" edge to the MemberProject entity by IDs.
@@ -689,6 +705,22 @@ func (_c *ProjectCreate) createSpec() (*Project, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(savedfunnel.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.EventDefinitionsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.EventDefinitionsTable,
+			Columns: []string{project.EventDefinitionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(eventdefinition.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

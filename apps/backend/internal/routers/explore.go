@@ -149,6 +149,28 @@ func explorer(r *muzak.Router, base string) {
 		muzak.WithResponseDoc(http.StatusNotFound, "Nobody was exposed to this flag in the range"),
 		unreadable)
 
+	r.Get(base+"/segments/reach", handlers.SegmentReach,
+		muzak.Summary("How many players each segment holds"),
+		muzak.Description("Every active segment against one sample of the last week's installs (up to "+
+			"twenty thousand, read in key order, which is as good as random), evaluated with the "+
+			"evaluator config-api answers players with, and scaled to the week's players. A rule "+
+			"naming the game's own context, the build it runs now, the network or an account "+
+			"cannot be counted from what is stored and says which keys stop it."),
+		core.Require(authz.AnalyticsRead),
+		unreadable)
+
+	r.Get(base+"/liveops-events/{key}/impact", handlers.EventImpact,
+		muzak.Summary("What a LiveOps event's window did"),
+		muzak.Description("The project's days from two weeks before one of the event's windows to a week "+
+			"after it, each against the same weekday of the four weeks before, for players, new "+
+			"players, revenue, ARPDAU, payer conversion, sessions and playtime per player; and the "+
+			"window's mean against what was expected. About every player, not only the event's "+
+			"audience, until the SDK reports who was in it. From metrics_daily, so a day appears "+
+			"once the nightly derivation has built it."),
+		core.Require(authz.AnalyticsRead),
+		muzak.WithResponseDoc(http.StatusNotFound, "No such event, or it has not been on in the last year"),
+		unreadable)
+
 	r.Get(base+"/experiment-results/{experiment}", handlers.ExperimentResults,
 		muzak.Summary("An experiment's result"),
 		muzak.Description("Its flag's arms over the days it ran, each matched to the experiment's arm: "+

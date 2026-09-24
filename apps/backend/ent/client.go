@@ -26,6 +26,7 @@ import (
 	"playersense.dev/backend/ent/datadeletionrequest"
 	"playersense.dev/backend/ent/dataexportrequest"
 	"playersense.dev/backend/ent/environment"
+	"playersense.dev/backend/ent/eventdefinition"
 	"playersense.dev/backend/ent/experiment"
 	"playersense.dev/backend/ent/featureflag"
 	"playersense.dev/backend/ent/invitation"
@@ -81,6 +82,8 @@ type Client struct {
 	DataExportRequest *DataExportRequestClient
 	// Environment is the client for interacting with the Environment builders.
 	Environment *EnvironmentClient
+	// EventDefinition is the client for interacting with the EventDefinition builders.
+	EventDefinition *EventDefinitionClient
 	// Experiment is the client for interacting with the Experiment builders.
 	Experiment *ExperimentClient
 	// FeatureFlag is the client for interacting with the FeatureFlag builders.
@@ -151,6 +154,7 @@ func (c *Client) init() {
 	c.DataDeletionRequest = NewDataDeletionRequestClient(c.config)
 	c.DataExportRequest = NewDataExportRequestClient(c.config)
 	c.Environment = NewEnvironmentClient(c.config)
+	c.EventDefinition = NewEventDefinitionClient(c.config)
 	c.Experiment = NewExperimentClient(c.config)
 	c.FeatureFlag = NewFeatureFlagClient(c.config)
 	c.Invitation = NewInvitationClient(c.config)
@@ -278,6 +282,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		DataDeletionRequest: NewDataDeletionRequestClient(cfg),
 		DataExportRequest:   NewDataExportRequestClient(cfg),
 		Environment:         NewEnvironmentClient(cfg),
+		EventDefinition:     NewEventDefinitionClient(cfg),
 		Experiment:          NewExperimentClient(cfg),
 		FeatureFlag:         NewFeatureFlagClient(cfg),
 		Invitation:          NewInvitationClient(cfg),
@@ -332,6 +337,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		DataDeletionRequest: NewDataDeletionRequestClient(cfg),
 		DataExportRequest:   NewDataExportRequestClient(cfg),
 		Environment:         NewEnvironmentClient(cfg),
+		EventDefinition:     NewEventDefinitionClient(cfg),
 		Experiment:          NewExperimentClient(cfg),
 		FeatureFlag:         NewFeatureFlagClient(cfg),
 		Invitation:          NewInvitationClient(cfg),
@@ -387,11 +393,12 @@ func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.APIKey, c.ArchiveManifest, c.AuditEvent, c.BillablePlayer, c.BillingAccount,
 		c.BillingContract, c.ConfigVersion, c.CreditLot, c.DataDeletionRequest,
-		c.DataExportRequest, c.Environment, c.Experiment, c.FeatureFlag, c.Invitation,
-		c.Invoice, c.InvoiceLine, c.LedgerEntry, c.LiveOpsEvent, c.MemberProject,
-		c.MonthlyUsage, c.Organization, c.OrganizationMember, c.Plan, c.Project,
-		c.RateCard, c.Role, c.SavedFunnel, c.Segment, c.StaffAccess, c.StaffMember,
-		c.StripeEvent, c.UsageCharge, c.UsageDaily, c.User, c.VerifiedPurchase,
+		c.DataExportRequest, c.Environment, c.EventDefinition, c.Experiment,
+		c.FeatureFlag, c.Invitation, c.Invoice, c.InvoiceLine, c.LedgerEntry,
+		c.LiveOpsEvent, c.MemberProject, c.MonthlyUsage, c.Organization,
+		c.OrganizationMember, c.Plan, c.Project, c.RateCard, c.Role, c.SavedFunnel,
+		c.Segment, c.StaffAccess, c.StaffMember, c.StripeEvent, c.UsageCharge,
+		c.UsageDaily, c.User, c.VerifiedPurchase,
 	} {
 		n.Use(hooks...)
 	}
@@ -403,11 +410,12 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.APIKey, c.ArchiveManifest, c.AuditEvent, c.BillablePlayer, c.BillingAccount,
 		c.BillingContract, c.ConfigVersion, c.CreditLot, c.DataDeletionRequest,
-		c.DataExportRequest, c.Environment, c.Experiment, c.FeatureFlag, c.Invitation,
-		c.Invoice, c.InvoiceLine, c.LedgerEntry, c.LiveOpsEvent, c.MemberProject,
-		c.MonthlyUsage, c.Organization, c.OrganizationMember, c.Plan, c.Project,
-		c.RateCard, c.Role, c.SavedFunnel, c.Segment, c.StaffAccess, c.StaffMember,
-		c.StripeEvent, c.UsageCharge, c.UsageDaily, c.User, c.VerifiedPurchase,
+		c.DataExportRequest, c.Environment, c.EventDefinition, c.Experiment,
+		c.FeatureFlag, c.Invitation, c.Invoice, c.InvoiceLine, c.LedgerEntry,
+		c.LiveOpsEvent, c.MemberProject, c.MonthlyUsage, c.Organization,
+		c.OrganizationMember, c.Plan, c.Project, c.RateCard, c.Role, c.SavedFunnel,
+		c.Segment, c.StaffAccess, c.StaffMember, c.StripeEvent, c.UsageCharge,
+		c.UsageDaily, c.User, c.VerifiedPurchase,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -438,6 +446,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.DataExportRequest.mutate(ctx, m)
 	case *EnvironmentMutation:
 		return c.Environment.mutate(ctx, m)
+	case *EventDefinitionMutation:
+		return c.EventDefinition.mutate(ctx, m)
 	case *ExperimentMutation:
 		return c.Experiment.mutate(ctx, m)
 	case *FeatureFlagMutation:
@@ -2352,6 +2362,155 @@ func (c *EnvironmentClient) mutate(ctx context.Context, m *EnvironmentMutation) 
 		return (&EnvironmentDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown Environment mutation op: %q", m.Op())
+	}
+}
+
+// EventDefinitionClient is a client for the EventDefinition schema.
+type EventDefinitionClient struct {
+	config
+}
+
+// NewEventDefinitionClient returns a client for the EventDefinition from the given config.
+func NewEventDefinitionClient(c config) *EventDefinitionClient {
+	return &EventDefinitionClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `eventdefinition.Hooks(f(g(h())))`.
+func (c *EventDefinitionClient) Use(hooks ...Hook) {
+	c.hooks.EventDefinition = append(c.hooks.EventDefinition, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `eventdefinition.Intercept(f(g(h())))`.
+func (c *EventDefinitionClient) Intercept(interceptors ...Interceptor) {
+	c.inters.EventDefinition = append(c.inters.EventDefinition, interceptors...)
+}
+
+// Create returns a builder for creating a EventDefinition entity.
+func (c *EventDefinitionClient) Create() *EventDefinitionCreate {
+	mutation := newEventDefinitionMutation(c.config, OpCreate)
+	return &EventDefinitionCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of EventDefinition entities.
+func (c *EventDefinitionClient) CreateBulk(builders ...*EventDefinitionCreate) *EventDefinitionCreateBulk {
+	return &EventDefinitionCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *EventDefinitionClient) MapCreateBulk(slice any, setFunc func(*EventDefinitionCreate, int)) *EventDefinitionCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &EventDefinitionCreateBulk{err: fmt.Errorf("calling to EventDefinitionClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*EventDefinitionCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &EventDefinitionCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for EventDefinition.
+func (c *EventDefinitionClient) Update() *EventDefinitionUpdate {
+	mutation := newEventDefinitionMutation(c.config, OpUpdate)
+	return &EventDefinitionUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *EventDefinitionClient) UpdateOne(_m *EventDefinition) *EventDefinitionUpdateOne {
+	mutation := newEventDefinitionMutation(c.config, OpUpdateOne, withEventDefinition(_m))
+	return &EventDefinitionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *EventDefinitionClient) UpdateOneID(id int) *EventDefinitionUpdateOne {
+	mutation := newEventDefinitionMutation(c.config, OpUpdateOne, withEventDefinitionID(id))
+	return &EventDefinitionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for EventDefinition.
+func (c *EventDefinitionClient) Delete() *EventDefinitionDelete {
+	mutation := newEventDefinitionMutation(c.config, OpDelete)
+	return &EventDefinitionDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *EventDefinitionClient) DeleteOne(_m *EventDefinition) *EventDefinitionDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *EventDefinitionClient) DeleteOneID(id int) *EventDefinitionDeleteOne {
+	builder := c.Delete().Where(eventdefinition.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &EventDefinitionDeleteOne{builder}
+}
+
+// Query returns a query builder for EventDefinition.
+func (c *EventDefinitionClient) Query() *EventDefinitionQuery {
+	return &EventDefinitionQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeEventDefinition},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a EventDefinition entity by its id.
+func (c *EventDefinitionClient) Get(ctx context.Context, id int) (*EventDefinition, error) {
+	return c.Query().Where(eventdefinition.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *EventDefinitionClient) GetX(ctx context.Context, id int) *EventDefinition {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryProject queries the project edge of a EventDefinition.
+func (c *EventDefinitionClient) QueryProject(_m *EventDefinition) *ProjectQuery {
+	query := (&ProjectClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(eventdefinition.Table, eventdefinition.FieldID, id),
+			sqlgraph.To(project.Table, project.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, eventdefinition.ProjectTable, eventdefinition.ProjectColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *EventDefinitionClient) Hooks() []Hook {
+	return c.hooks.EventDefinition
+}
+
+// Interceptors returns the client interceptors.
+func (c *EventDefinitionClient) Interceptors() []Interceptor {
+	return c.inters.EventDefinition
+}
+
+func (c *EventDefinitionClient) mutate(ctx context.Context, m *EventDefinitionMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&EventDefinitionCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&EventDefinitionUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&EventDefinitionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&EventDefinitionDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown EventDefinition mutation op: %q", m.Op())
 	}
 }
 
@@ -4636,6 +4795,22 @@ func (c *ProjectClient) QuerySavedFunnels(_m *Project) *SavedFunnelQuery {
 	return query
 }
 
+// QueryEventDefinitions queries the event_definitions edge of a Project.
+func (c *ProjectClient) QueryEventDefinitions(_m *Project) *EventDefinitionQuery {
+	query := (&EventDefinitionClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(project.Table, project.FieldID, id),
+			sqlgraph.To(eventdefinition.Table, eventdefinition.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, project.EventDefinitionsTable, project.EventDefinitionsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // QueryMemberAccess queries the member_access edge of a Project.
 func (c *ProjectClient) QueryMemberAccess(_m *Project) *MemberProjectQuery {
 	query := (&MemberProjectClient{config: c.config}).Query()
@@ -6419,20 +6594,20 @@ type (
 	hooks struct {
 		APIKey, ArchiveManifest, AuditEvent, BillablePlayer, BillingAccount,
 		BillingContract, ConfigVersion, CreditLot, DataDeletionRequest,
-		DataExportRequest, Environment, Experiment, FeatureFlag, Invitation, Invoice,
-		InvoiceLine, LedgerEntry, LiveOpsEvent, MemberProject, MonthlyUsage,
-		Organization, OrganizationMember, Plan, Project, RateCard, Role, SavedFunnel,
-		Segment, StaffAccess, StaffMember, StripeEvent, UsageCharge, UsageDaily, User,
-		VerifiedPurchase []ent.Hook
+		DataExportRequest, Environment, EventDefinition, Experiment, FeatureFlag,
+		Invitation, Invoice, InvoiceLine, LedgerEntry, LiveOpsEvent, MemberProject,
+		MonthlyUsage, Organization, OrganizationMember, Plan, Project, RateCard, Role,
+		SavedFunnel, Segment, StaffAccess, StaffMember, StripeEvent, UsageCharge,
+		UsageDaily, User, VerifiedPurchase []ent.Hook
 	}
 	inters struct {
 		APIKey, ArchiveManifest, AuditEvent, BillablePlayer, BillingAccount,
 		BillingContract, ConfigVersion, CreditLot, DataDeletionRequest,
-		DataExportRequest, Environment, Experiment, FeatureFlag, Invitation, Invoice,
-		InvoiceLine, LedgerEntry, LiveOpsEvent, MemberProject, MonthlyUsage,
-		Organization, OrganizationMember, Plan, Project, RateCard, Role, SavedFunnel,
-		Segment, StaffAccess, StaffMember, StripeEvent, UsageCharge, UsageDaily, User,
-		VerifiedPurchase []ent.Interceptor
+		DataExportRequest, Environment, EventDefinition, Experiment, FeatureFlag,
+		Invitation, Invoice, InvoiceLine, LedgerEntry, LiveOpsEvent, MemberProject,
+		MonthlyUsage, Organization, OrganizationMember, Plan, Project, RateCard, Role,
+		SavedFunnel, Segment, StaffAccess, StaffMember, StripeEvent, UsageCharge,
+		UsageDaily, User, VerifiedPurchase []ent.Interceptor
 	}
 )
 

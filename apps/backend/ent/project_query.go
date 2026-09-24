@@ -15,6 +15,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"playersense.dev/backend/ent/configversion"
 	"playersense.dev/backend/ent/environment"
+	"playersense.dev/backend/ent/eventdefinition"
 	"playersense.dev/backend/ent/experiment"
 	"playersense.dev/backend/ent/featureflag"
 	"playersense.dev/backend/ent/liveopsevent"
@@ -30,21 +31,22 @@ import (
 // ProjectQuery is the builder for querying Project entities.
 type ProjectQuery struct {
 	config
-	ctx                *QueryContext
-	order              []project.OrderOption
-	inters             []Interceptor
-	predicates         []predicate.Project
-	withOrganization   *OrganizationQuery
-	withEnvironments   *EnvironmentQuery
-	withSegments       *SegmentQuery
-	withFeatureFlags   *FeatureFlagQuery
-	withLiveopsEvents  *LiveOpsEventQuery
-	withConfigVersions *ConfigVersionQuery
-	withExperiments    *ExperimentQuery
-	withSavedFunnels   *SavedFunnelQuery
-	withMemberAccess   *MemberProjectQuery
-	withUsageDaily     *UsageDailyQuery
-	modifiers          []func(*sql.Selector)
+	ctx                  *QueryContext
+	order                []project.OrderOption
+	inters               []Interceptor
+	predicates           []predicate.Project
+	withOrganization     *OrganizationQuery
+	withEnvironments     *EnvironmentQuery
+	withSegments         *SegmentQuery
+	withFeatureFlags     *FeatureFlagQuery
+	withLiveopsEvents    *LiveOpsEventQuery
+	withConfigVersions   *ConfigVersionQuery
+	withExperiments      *ExperimentQuery
+	withSavedFunnels     *SavedFunnelQuery
+	withEventDefinitions *EventDefinitionQuery
+	withMemberAccess     *MemberProjectQuery
+	withUsageDaily       *UsageDailyQuery
+	modifiers            []func(*sql.Selector)
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -250,6 +252,28 @@ func (_q *ProjectQuery) QuerySavedFunnels() *SavedFunnelQuery {
 			sqlgraph.From(project.Table, project.FieldID, selector),
 			sqlgraph.To(savedfunnel.Table, savedfunnel.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, project.SavedFunnelsTable, project.SavedFunnelsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryEventDefinitions chains the current query on the "event_definitions" edge.
+func (_q *ProjectQuery) QueryEventDefinitions() *EventDefinitionQuery {
+	query := (&EventDefinitionClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(project.Table, project.FieldID, selector),
+			sqlgraph.To(eventdefinition.Table, eventdefinition.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, project.EventDefinitionsTable, project.EventDefinitionsColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -488,21 +512,22 @@ func (_q *ProjectQuery) Clone() *ProjectQuery {
 		return nil
 	}
 	return &ProjectQuery{
-		config:             _q.config,
-		ctx:                _q.ctx.Clone(),
-		order:              append([]project.OrderOption{}, _q.order...),
-		inters:             append([]Interceptor{}, _q.inters...),
-		predicates:         append([]predicate.Project{}, _q.predicates...),
-		withOrganization:   _q.withOrganization.Clone(),
-		withEnvironments:   _q.withEnvironments.Clone(),
-		withSegments:       _q.withSegments.Clone(),
-		withFeatureFlags:   _q.withFeatureFlags.Clone(),
-		withLiveopsEvents:  _q.withLiveopsEvents.Clone(),
-		withConfigVersions: _q.withConfigVersions.Clone(),
-		withExperiments:    _q.withExperiments.Clone(),
-		withSavedFunnels:   _q.withSavedFunnels.Clone(),
-		withMemberAccess:   _q.withMemberAccess.Clone(),
-		withUsageDaily:     _q.withUsageDaily.Clone(),
+		config:               _q.config,
+		ctx:                  _q.ctx.Clone(),
+		order:                append([]project.OrderOption{}, _q.order...),
+		inters:               append([]Interceptor{}, _q.inters...),
+		predicates:           append([]predicate.Project{}, _q.predicates...),
+		withOrganization:     _q.withOrganization.Clone(),
+		withEnvironments:     _q.withEnvironments.Clone(),
+		withSegments:         _q.withSegments.Clone(),
+		withFeatureFlags:     _q.withFeatureFlags.Clone(),
+		withLiveopsEvents:    _q.withLiveopsEvents.Clone(),
+		withConfigVersions:   _q.withConfigVersions.Clone(),
+		withExperiments:      _q.withExperiments.Clone(),
+		withSavedFunnels:     _q.withSavedFunnels.Clone(),
+		withEventDefinitions: _q.withEventDefinitions.Clone(),
+		withMemberAccess:     _q.withMemberAccess.Clone(),
+		withUsageDaily:       _q.withUsageDaily.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -594,6 +619,17 @@ func (_q *ProjectQuery) WithSavedFunnels(opts ...func(*SavedFunnelQuery)) *Proje
 		opt(query)
 	}
 	_q.withSavedFunnels = query
+	return _q
+}
+
+// WithEventDefinitions tells the query-builder to eager-load the nodes that are connected to
+// the "event_definitions" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *ProjectQuery) WithEventDefinitions(opts ...func(*EventDefinitionQuery)) *ProjectQuery {
+	query := (&EventDefinitionClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withEventDefinitions = query
 	return _q
 }
 
@@ -697,7 +733,7 @@ func (_q *ProjectQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Proj
 	var (
 		nodes       = []*Project{}
 		_spec       = _q.querySpec()
-		loadedTypes = [10]bool{
+		loadedTypes = [11]bool{
 			_q.withOrganization != nil,
 			_q.withEnvironments != nil,
 			_q.withSegments != nil,
@@ -706,6 +742,7 @@ func (_q *ProjectQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Proj
 			_q.withConfigVersions != nil,
 			_q.withExperiments != nil,
 			_q.withSavedFunnels != nil,
+			_q.withEventDefinitions != nil,
 			_q.withMemberAccess != nil,
 			_q.withUsageDaily != nil,
 		}
@@ -783,6 +820,13 @@ func (_q *ProjectQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Proj
 		if err := _q.loadSavedFunnels(ctx, query, nodes,
 			func(n *Project) { n.Edges.SavedFunnels = []*SavedFunnel{} },
 			func(n *Project, e *SavedFunnel) { n.Edges.SavedFunnels = append(n.Edges.SavedFunnels, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withEventDefinitions; query != nil {
+		if err := _q.loadEventDefinitions(ctx, query, nodes,
+			func(n *Project) { n.Edges.EventDefinitions = []*EventDefinition{} },
+			func(n *Project, e *EventDefinition) { n.Edges.EventDefinitions = append(n.Edges.EventDefinitions, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -1027,6 +1071,36 @@ func (_q *ProjectQuery) loadSavedFunnels(ctx context.Context, query *SavedFunnel
 	}
 	query.Where(predicate.SavedFunnel(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(project.SavedFunnelsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.ProjectID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "project_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *ProjectQuery) loadEventDefinitions(ctx context.Context, query *EventDefinitionQuery, nodes []*Project, init func(*Project), assign func(*Project, *EventDefinition)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Project)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(eventdefinition.FieldProjectID)
+	}
+	query.Where(predicate.EventDefinition(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(project.EventDefinitionsColumn), fks...))
 	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {

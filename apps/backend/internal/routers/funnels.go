@@ -35,5 +35,16 @@ func SavedFunnels() *muzak.Router {
 	r.Delete(base+"/{funnel}", handlers.DeleteSavedFunnel,
 		muzak.Summary("Forget a saved funnel"),
 		core.Require(authz.AnalyticsRead), muzak.Status(http.StatusNoContent))
+	r.Get("/organizations/{org}/projects/{project}/event-definitions", handlers.ListEventDefinitions,
+		muzak.Summary("What the project's events mean"),
+		muzak.Description("Every event described: its category and a sentence. The event catalogue "+
+			"carries the same on each event it lists."),
+		core.Require(authz.AnalyticsRead))
+	r.Put("/organizations/{org}/projects/{project}/event-definitions/{name}", handlers.DefineEvent,
+		muzak.Summary("Say what an event means"),
+		muzak.Description("Its category (session, progression, economy, engagement or custom) and a "+
+			"sentence, whether or not the game sends it yet: a tracking plan written before the "+
+			"build is a plan."),
+		core.Require(authz.AnalyticsRead))
 	return r
 }

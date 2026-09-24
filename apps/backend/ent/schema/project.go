@@ -76,6 +76,7 @@ func (Project) Edges() []ent.Edge {
 		edge.To("config_versions", ConfigVersion.Type),
 		edge.To("experiments", Experiment.Type),
 		edge.To("saved_funnels", SavedFunnel.Type),
+		edge.To("event_definitions", EventDefinition.Type),
 
 		// Who can see this project, when a membership is not "all projects".
 		edge.To("member_access", MemberProject.Type),

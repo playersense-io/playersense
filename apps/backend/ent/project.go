@@ -74,13 +74,15 @@ type ProjectEdges struct {
 	Experiments []*Experiment `json:"experiments,omitempty"`
 	// SavedFunnels holds the value of the saved_funnels edge.
 	SavedFunnels []*SavedFunnel `json:"saved_funnels,omitempty"`
+	// EventDefinitions holds the value of the event_definitions edge.
+	EventDefinitions []*EventDefinition `json:"event_definitions,omitempty"`
 	// MemberAccess holds the value of the member_access edge.
 	MemberAccess []*MemberProject `json:"member_access,omitempty"`
 	// UsageDaily holds the value of the usage_daily edge.
 	UsageDaily []*UsageDaily `json:"usage_daily,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [10]bool
+	loadedTypes [11]bool
 }
 
 // OrganizationOrErr returns the Organization value or an error if the edge
@@ -157,10 +159,19 @@ func (e ProjectEdges) SavedFunnelsOrErr() ([]*SavedFunnel, error) {
 	return nil, &NotLoadedError{edge: "saved_funnels"}
 }
 
+// EventDefinitionsOrErr returns the EventDefinitions value or an error if the edge
+// was not loaded in eager-loading.
+func (e ProjectEdges) EventDefinitionsOrErr() ([]*EventDefinition, error) {
+	if e.loadedTypes[8] {
+		return e.EventDefinitions, nil
+	}
+	return nil, &NotLoadedError{edge: "event_definitions"}
+}
+
 // MemberAccessOrErr returns the MemberAccess value or an error if the edge
 // was not loaded in eager-loading.
 func (e ProjectEdges) MemberAccessOrErr() ([]*MemberProject, error) {
-	if e.loadedTypes[8] {
+	if e.loadedTypes[9] {
 		return e.MemberAccess, nil
 	}
 	return nil, &NotLoadedError{edge: "member_access"}
@@ -169,7 +180,7 @@ func (e ProjectEdges) MemberAccessOrErr() ([]*MemberProject, error) {
 // UsageDailyOrErr returns the UsageDaily value or an error if the edge
 // was not loaded in eager-loading.
 func (e ProjectEdges) UsageDailyOrErr() ([]*UsageDaily, error) {
-	if e.loadedTypes[9] {
+	if e.loadedTypes[10] {
 		return e.UsageDaily, nil
 	}
 	return nil, &NotLoadedError{edge: "usage_daily"}
@@ -356,6 +367,11 @@ func (_m *Project) QueryExperiments() *ExperimentQuery {
 // QuerySavedFunnels queries the "saved_funnels" edge of the Project entity.
 func (_m *Project) QuerySavedFunnels() *SavedFunnelQuery {
 	return NewProjectClient(_m.config).QuerySavedFunnels(_m)
+}
+
+// QueryEventDefinitions queries the "event_definitions" edge of the Project entity.
+func (_m *Project) QueryEventDefinitions() *EventDefinitionQuery {
+	return NewProjectClient(_m.config).QueryEventDefinitions(_m)
 }
 
 // QueryMemberAccess queries the "member_access" edge of the Project entity.

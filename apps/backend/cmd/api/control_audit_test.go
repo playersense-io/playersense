@@ -82,6 +82,8 @@ func TestEveryMutatingRouteDecidesAboutAudit(t *testing.T) {
 
 		"POST /v1/organizations/{org}/projects/{project}/keys/{key_id}/roll": audit.KeyRolled,
 
+		"PUT /v1/organizations/{org}/projects/{project}/event-definitions/{name}": audit.EventDefined,
+
 		"POST /v1/organizations/{org}/projects/{project}/funnels":            audit.FunnelWritten,
 		"PUT /v1/organizations/{org}/projects/{project}/funnels/{funnel}":    audit.FunnelWritten,
 		"DELETE /v1/organizations/{org}/projects/{project}/funnels/{funnel}": audit.FunnelDeleted,

@@ -24,6 +24,7 @@ import (
 	"playersense.dev/backend/ent/datadeletionrequest"
 	"playersense.dev/backend/ent/dataexportrequest"
 	"playersense.dev/backend/ent/environment"
+	"playersense.dev/backend/ent/eventdefinition"
 	"playersense.dev/backend/ent/experiment"
 	"playersense.dev/backend/ent/featureflag"
 	"playersense.dev/backend/ent/invitation"
@@ -73,6 +74,7 @@ const (
 	TypeDataDeletionRequest = "DataDeletionRequest"
 	TypeDataExportRequest   = "DataExportRequest"
 	TypeEnvironment         = "Environment"
+	TypeEventDefinition     = "EventDefinition"
 	TypeExperiment          = "Experiment"
 	TypeFeatureFlag         = "FeatureFlag"
 	TypeInvitation          = "Invitation"
@@ -15153,6 +15155,827 @@ func (m *EnvironmentMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown Environment edge %s", name)
+}
+
+// EventDefinitionMutation represents an operation that mutates the EventDefinition nodes in the graph.
+type EventDefinitionMutation struct {
+	config
+	op             Op
+	typ            string
+	id             *int
+	uid            *uuid.UUID
+	created_at     *time.Time
+	updated_at     *time.Time
+	name           *string
+	category       *eventdefinition.Category
+	description    *string
+	created_by     *string
+	updated_by     *string
+	clearedFields  map[string]struct{}
+	project        *int
+	clearedproject bool
+	done           bool
+	oldValue       func(context.Context) (*EventDefinition, error)
+	predicates     []predicate.EventDefinition
+}
+
+var _ ent.Mutation = (*EventDefinitionMutation)(nil)
+
+// eventdefinitionOption allows management of the mutation configuration using functional options.
+type eventdefinitionOption func(*EventDefinitionMutation)
+
+// newEventDefinitionMutation creates new mutation for the EventDefinition entity.
+func newEventDefinitionMutation(c config, op Op, opts ...eventdefinitionOption) *EventDefinitionMutation {
+	m := &EventDefinitionMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeEventDefinition,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withEventDefinitionID sets the ID field of the mutation.
+func withEventDefinitionID(id int) eventdefinitionOption {
+	return func(m *EventDefinitionMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *EventDefinition
+		)
+		m.oldValue = func(ctx context.Context) (*EventDefinition, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().EventDefinition.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withEventDefinition sets the old EventDefinition of the mutation.
+func withEventDefinition(node *EventDefinition) eventdefinitionOption {
+	return func(m *EventDefinitionMutation) {
+		m.oldValue = func(context.Context) (*EventDefinition, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m EventDefinitionMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m EventDefinitionMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of EventDefinition entities.
+func (m *EventDefinitionMutation) SetID(id int) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *EventDefinitionMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *EventDefinitionMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().EventDefinition.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetUID sets the "uid" field.
+func (m *EventDefinitionMutation) SetUID(u uuid.UUID) {
+	m.uid = &u
+}
+
+// UID returns the value of the "uid" field in the mutation.
+func (m *EventDefinitionMutation) UID() (r uuid.UUID, exists bool) {
+	v := m.uid
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUID returns the old "uid" field's value of the EventDefinition entity.
+// If the EventDefinition object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EventDefinitionMutation) OldUID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUID: %w", err)
+	}
+	return oldValue.UID, nil
+}
+
+// ResetUID resets all changes to the "uid" field.
+func (m *EventDefinitionMutation) ResetUID() {
+	m.uid = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *EventDefinitionMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *EventDefinitionMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the EventDefinition entity.
+// If the EventDefinition object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EventDefinitionMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *EventDefinitionMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *EventDefinitionMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *EventDefinitionMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the EventDefinition entity.
+// If the EventDefinition object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EventDefinitionMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *EventDefinitionMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetProjectID sets the "project_id" field.
+func (m *EventDefinitionMutation) SetProjectID(i int) {
+	m.project = &i
+}
+
+// ProjectID returns the value of the "project_id" field in the mutation.
+func (m *EventDefinitionMutation) ProjectID() (r int, exists bool) {
+	v := m.project
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProjectID returns the old "project_id" field's value of the EventDefinition entity.
+// If the EventDefinition object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EventDefinitionMutation) OldProjectID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProjectID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProjectID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProjectID: %w", err)
+	}
+	return oldValue.ProjectID, nil
+}
+
+// ResetProjectID resets all changes to the "project_id" field.
+func (m *EventDefinitionMutation) ResetProjectID() {
+	m.project = nil
+}
+
+// SetName sets the "name" field.
+func (m *EventDefinitionMutation) SetName(s string) {
+	m.name = &s
+}
+
+// Name returns the value of the "name" field in the mutation.
+func (m *EventDefinitionMutation) Name() (r string, exists bool) {
+	v := m.name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldName returns the old "name" field's value of the EventDefinition entity.
+// If the EventDefinition object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EventDefinitionMutation) OldName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldName: %w", err)
+	}
+	return oldValue.Name, nil
+}
+
+// ResetName resets all changes to the "name" field.
+func (m *EventDefinitionMutation) ResetName() {
+	m.name = nil
+}
+
+// SetCategory sets the "category" field.
+func (m *EventDefinitionMutation) SetCategory(e eventdefinition.Category) {
+	m.category = &e
+}
+
+// Category returns the value of the "category" field in the mutation.
+func (m *EventDefinitionMutation) Category() (r eventdefinition.Category, exists bool) {
+	v := m.category
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCategory returns the old "category" field's value of the EventDefinition entity.
+// If the EventDefinition object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EventDefinitionMutation) OldCategory(ctx context.Context) (v eventdefinition.Category, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCategory is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCategory requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCategory: %w", err)
+	}
+	return oldValue.Category, nil
+}
+
+// ResetCategory resets all changes to the "category" field.
+func (m *EventDefinitionMutation) ResetCategory() {
+	m.category = nil
+}
+
+// SetDescription sets the "description" field.
+func (m *EventDefinitionMutation) SetDescription(s string) {
+	m.description = &s
+}
+
+// Description returns the value of the "description" field in the mutation.
+func (m *EventDefinitionMutation) Description() (r string, exists bool) {
+	v := m.description
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDescription returns the old "description" field's value of the EventDefinition entity.
+// If the EventDefinition object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EventDefinitionMutation) OldDescription(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDescription is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDescription requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDescription: %w", err)
+	}
+	return oldValue.Description, nil
+}
+
+// ResetDescription resets all changes to the "description" field.
+func (m *EventDefinitionMutation) ResetDescription() {
+	m.description = nil
+}
+
+// SetCreatedBy sets the "created_by" field.
+func (m *EventDefinitionMutation) SetCreatedBy(s string) {
+	m.created_by = &s
+}
+
+// CreatedBy returns the value of the "created_by" field in the mutation.
+func (m *EventDefinitionMutation) CreatedBy() (r string, exists bool) {
+	v := m.created_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedBy returns the old "created_by" field's value of the EventDefinition entity.
+// If the EventDefinition object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EventDefinitionMutation) OldCreatedBy(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedBy: %w", err)
+	}
+	return oldValue.CreatedBy, nil
+}
+
+// ResetCreatedBy resets all changes to the "created_by" field.
+func (m *EventDefinitionMutation) ResetCreatedBy() {
+	m.created_by = nil
+}
+
+// SetUpdatedBy sets the "updated_by" field.
+func (m *EventDefinitionMutation) SetUpdatedBy(s string) {
+	m.updated_by = &s
+}
+
+// UpdatedBy returns the value of the "updated_by" field in the mutation.
+func (m *EventDefinitionMutation) UpdatedBy() (r string, exists bool) {
+	v := m.updated_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedBy returns the old "updated_by" field's value of the EventDefinition entity.
+// If the EventDefinition object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EventDefinitionMutation) OldUpdatedBy(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedBy: %w", err)
+	}
+	return oldValue.UpdatedBy, nil
+}
+
+// ResetUpdatedBy resets all changes to the "updated_by" field.
+func (m *EventDefinitionMutation) ResetUpdatedBy() {
+	m.updated_by = nil
+}
+
+// ClearProject clears the "project" edge to the Project entity.
+func (m *EventDefinitionMutation) ClearProject() {
+	m.clearedproject = true
+	m.clearedFields[eventdefinition.FieldProjectID] = struct{}{}
+}
+
+// ProjectCleared reports if the "project" edge to the Project entity was cleared.
+func (m *EventDefinitionMutation) ProjectCleared() bool {
+	return m.clearedproject
+}
+
+// ProjectIDs returns the "project" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// ProjectID instead. It exists only for internal usage by the builders.
+func (m *EventDefinitionMutation) ProjectIDs() (ids []int) {
+	if id := m.project; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetProject resets all changes to the "project" edge.
+func (m *EventDefinitionMutation) ResetProject() {
+	m.project = nil
+	m.clearedproject = false
+}
+
+// Where appends a list predicates to the EventDefinitionMutation builder.
+func (m *EventDefinitionMutation) Where(ps ...predicate.EventDefinition) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the EventDefinitionMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *EventDefinitionMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.EventDefinition, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *EventDefinitionMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *EventDefinitionMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (EventDefinition).
+func (m *EventDefinitionMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *EventDefinitionMutation) Fields() []string {
+	fields := make([]string, 0, 9)
+	if m.uid != nil {
+		fields = append(fields, eventdefinition.FieldUID)
+	}
+	if m.created_at != nil {
+		fields = append(fields, eventdefinition.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, eventdefinition.FieldUpdatedAt)
+	}
+	if m.project != nil {
+		fields = append(fields, eventdefinition.FieldProjectID)
+	}
+	if m.name != nil {
+		fields = append(fields, eventdefinition.FieldName)
+	}
+	if m.category != nil {
+		fields = append(fields, eventdefinition.FieldCategory)
+	}
+	if m.description != nil {
+		fields = append(fields, eventdefinition.FieldDescription)
+	}
+	if m.created_by != nil {
+		fields = append(fields, eventdefinition.FieldCreatedBy)
+	}
+	if m.updated_by != nil {
+		fields = append(fields, eventdefinition.FieldUpdatedBy)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *EventDefinitionMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case eventdefinition.FieldUID:
+		return m.UID()
+	case eventdefinition.FieldCreatedAt:
+		return m.CreatedAt()
+	case eventdefinition.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case eventdefinition.FieldProjectID:
+		return m.ProjectID()
+	case eventdefinition.FieldName:
+		return m.Name()
+	case eventdefinition.FieldCategory:
+		return m.Category()
+	case eventdefinition.FieldDescription:
+		return m.Description()
+	case eventdefinition.FieldCreatedBy:
+		return m.CreatedBy()
+	case eventdefinition.FieldUpdatedBy:
+		return m.UpdatedBy()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *EventDefinitionMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case eventdefinition.FieldUID:
+		return m.OldUID(ctx)
+	case eventdefinition.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case eventdefinition.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case eventdefinition.FieldProjectID:
+		return m.OldProjectID(ctx)
+	case eventdefinition.FieldName:
+		return m.OldName(ctx)
+	case eventdefinition.FieldCategory:
+		return m.OldCategory(ctx)
+	case eventdefinition.FieldDescription:
+		return m.OldDescription(ctx)
+	case eventdefinition.FieldCreatedBy:
+		return m.OldCreatedBy(ctx)
+	case eventdefinition.FieldUpdatedBy:
+		return m.OldUpdatedBy(ctx)
+	}
+	return nil, fmt.Errorf("unknown EventDefinition field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *EventDefinitionMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case eventdefinition.FieldUID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUID(v)
+		return nil
+	case eventdefinition.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case eventdefinition.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case eventdefinition.FieldProjectID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProjectID(v)
+		return nil
+	case eventdefinition.FieldName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetName(v)
+		return nil
+	case eventdefinition.FieldCategory:
+		v, ok := value.(eventdefinition.Category)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCategory(v)
+		return nil
+	case eventdefinition.FieldDescription:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDescription(v)
+		return nil
+	case eventdefinition.FieldCreatedBy:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedBy(v)
+		return nil
+	case eventdefinition.FieldUpdatedBy:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedBy(v)
+		return nil
+	}
+	return fmt.Errorf("unknown EventDefinition field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *EventDefinitionMutation) AddedFields() []string {
+	var fields []string
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *EventDefinitionMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *EventDefinitionMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown EventDefinition numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *EventDefinitionMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *EventDefinitionMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *EventDefinitionMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown EventDefinition nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *EventDefinitionMutation) ResetField(name string) error {
+	switch name {
+	case eventdefinition.FieldUID:
+		m.ResetUID()
+		return nil
+	case eventdefinition.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case eventdefinition.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case eventdefinition.FieldProjectID:
+		m.ResetProjectID()
+		return nil
+	case eventdefinition.FieldName:
+		m.ResetName()
+		return nil
+	case eventdefinition.FieldCategory:
+		m.ResetCategory()
+		return nil
+	case eventdefinition.FieldDescription:
+		m.ResetDescription()
+		return nil
+	case eventdefinition.FieldCreatedBy:
+		m.ResetCreatedBy()
+		return nil
+	case eventdefinition.FieldUpdatedBy:
+		m.ResetUpdatedBy()
+		return nil
+	}
+	return fmt.Errorf("unknown EventDefinition field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *EventDefinitionMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.project != nil {
+		edges = append(edges, eventdefinition.EdgeProject)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *EventDefinitionMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case eventdefinition.EdgeProject:
+		if id := m.project; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *EventDefinitionMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *EventDefinitionMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *EventDefinitionMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.clearedproject {
+		edges = append(edges, eventdefinition.EdgeProject)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *EventDefinitionMutation) EdgeCleared(name string) bool {
+	switch name {
+	case eventdefinition.EdgeProject:
+		return m.clearedproject
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *EventDefinitionMutation) ClearEdge(name string) error {
+	switch name {
+	case eventdefinition.EdgeProject:
+		m.ClearProject()
+		return nil
+	}
+	return fmt.Errorf("unknown EventDefinition unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *EventDefinitionMutation) ResetEdge(name string) error {
+	switch name {
+	case eventdefinition.EdgeProject:
+		m.ResetProject()
+		return nil
+	}
+	return fmt.Errorf("unknown EventDefinition edge %s", name)
 }
 
 // ExperimentMutation represents an operation that mutates the Experiment nodes in the graph.
@@ -30890,57 +31713,60 @@ func (m *PlanMutation) ResetEdge(name string) error {
 // ProjectMutation represents an operation that mutates the Project nodes in the graph.
 type ProjectMutation struct {
 	config
-	op                     Op
-	typ                    string
-	id                     *int
-	uid                    *uuid.UUID
-	created_at             *time.Time
-	updated_at             *time.Time
-	name                   *string
-	slug                   *string
-	policy_tier            *project.PolicyTier
-	retention_days         *uint16
-	addretention_days      *int16
-	retention_changed_at   *time.Time
-	retention_purge_until  *time.Time
-	retention_purged_at    *time.Time
-	deletion_at            *time.Time
-	deletion_requested_by  *string
-	deleted_at             *time.Time
-	deletion_purged_at     *time.Time
-	clearedFields          map[string]struct{}
-	organization           *int
-	clearedorganization    bool
-	environments           map[int]struct{}
-	removedenvironments    map[int]struct{}
-	clearedenvironments    bool
-	segments               map[int]struct{}
-	removedsegments        map[int]struct{}
-	clearedsegments        bool
-	feature_flags          map[int]struct{}
-	removedfeature_flags   map[int]struct{}
-	clearedfeature_flags   bool
-	liveops_events         map[int]struct{}
-	removedliveops_events  map[int]struct{}
-	clearedliveops_events  bool
-	config_versions        map[int]struct{}
-	removedconfig_versions map[int]struct{}
-	clearedconfig_versions bool
-	experiments            map[int]struct{}
-	removedexperiments     map[int]struct{}
-	clearedexperiments     bool
-	saved_funnels          map[int]struct{}
-	removedsaved_funnels   map[int]struct{}
-	clearedsaved_funnels   bool
-	member_access          map[int]struct{}
-	removedmember_access   map[int]struct{}
-	clearedmember_access   bool
-	usage_daily            map[int]struct{}
-	removedusage_daily     map[int]struct{}
-	clearedusage_daily     bool
-	done                   bool
-	oldValue               func(context.Context) (*Project, error)
-	predicates             []predicate.Project
+	op                       Op
+	typ                      string
+	id                       *int
+	uid                      *uuid.UUID
+	created_at               *time.Time
+	updated_at               *time.Time
+	name                     *string
+	slug                     *string
+	policy_tier              *project.PolicyTier
+	retention_days           *uint16
+	addretention_days        *int16
+	retention_changed_at     *time.Time
+	retention_purge_until    *time.Time
+	retention_purged_at      *time.Time
+	deletion_at              *time.Time
+	deletion_requested_by    *string
+	deleted_at               *time.Time
+	deletion_purged_at       *time.Time
+	clearedFields            map[string]struct{}
+	organization             *int
+	clearedorganization      bool
+	environments             map[int]struct{}
+	removedenvironments      map[int]struct{}
+	clearedenvironments      bool
+	segments                 map[int]struct{}
+	removedsegments          map[int]struct{}
+	clearedsegments          bool
+	feature_flags            map[int]struct{}
+	removedfeature_flags     map[int]struct{}
+	clearedfeature_flags     bool
+	liveops_events           map[int]struct{}
+	removedliveops_events    map[int]struct{}
+	clearedliveops_events    bool
+	config_versions          map[int]struct{}
+	removedconfig_versions   map[int]struct{}
+	clearedconfig_versions   bool
+	experiments              map[int]struct{}
+	removedexperiments       map[int]struct{}
+	clearedexperiments       bool
+	saved_funnels            map[int]struct{}
+	removedsaved_funnels     map[int]struct{}
+	clearedsaved_funnels     bool
+	event_definitions        map[int]struct{}
+	removedevent_definitions map[int]struct{}
+	clearedevent_definitions bool
+	member_access            map[int]struct{}
+	removedmember_access     map[int]struct{}
+	clearedmember_access     bool
+	usage_daily              map[int]struct{}
+	removedusage_daily       map[int]struct{}
+	clearedusage_daily       bool
+	done                     bool
+	oldValue                 func(context.Context) (*Project, error)
+	predicates               []predicate.Project
 }
 
 var _ ent.Mutation = (*ProjectMutation)(nil)
@@ -32090,6 +32916,60 @@ func (m *ProjectMutation) ResetSavedFunnels() {
 	m.removedsaved_funnels = nil
 }
 
+// AddEventDefinitionIDs adds the "event_definitions" edge to the EventDefinition entity by ids.
+func (m *ProjectMutation) AddEventDefinitionIDs(ids ...int) {
+	if m.event_definitions == nil {
+		m.event_definitions = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.event_definitions[ids[i]] = struct{}{}
+	}
+}
+
+// ClearEventDefinitions clears the "event_definitions" edge to the EventDefinition entity.
+func (m *ProjectMutation) ClearEventDefinitions() {
+	m.clearedevent_definitions = true
+}
+
+// EventDefinitionsCleared reports if the "event_definitions" edge to the EventDefinition entity was cleared.
+func (m *ProjectMutation) EventDefinitionsCleared() bool {
+	return m.clearedevent_definitions
+}
+
+// RemoveEventDefinitionIDs removes the "event_definitions" edge to the EventDefinition entity by IDs.
+func (m *ProjectMutation) RemoveEventDefinitionIDs(ids ...int) {
+	if m.removedevent_definitions == nil {
+		m.removedevent_definitions = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.event_definitions, ids[i])
+		m.removedevent_definitions[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedEventDefinitions returns the removed IDs of the "event_definitions" edge to the EventDefinition entity.
+func (m *ProjectMutation) RemovedEventDefinitionsIDs() (ids []int) {
+	for id := range m.removedevent_definitions {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// EventDefinitionsIDs returns the "event_definitions" edge IDs in the mutation.
+func (m *ProjectMutation) EventDefinitionsIDs() (ids []int) {
+	for id := range m.event_definitions {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetEventDefinitions resets all changes to the "event_definitions" edge.
+func (m *ProjectMutation) ResetEventDefinitions() {
+	m.event_definitions = nil
+	m.clearedevent_definitions = false
+	m.removedevent_definitions = nil
+}
+
 // AddMemberAccesIDs adds the "member_access" edge to the MemberProject entity by ids.
 func (m *ProjectMutation) AddMemberAccesIDs(ids ...int) {
 	if m.member_access == nil {
@@ -32623,7 +33503,7 @@ func (m *ProjectMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *ProjectMutation) AddedEdges() []string {
-	edges := make([]string, 0, 10)
+	edges := make([]string, 0, 11)
 	if m.organization != nil {
 		edges = append(edges, project.EdgeOrganization)
 	}
@@ -32647,6 +33527,9 @@ func (m *ProjectMutation) AddedEdges() []string {
 	}
 	if m.saved_funnels != nil {
 		edges = append(edges, project.EdgeSavedFunnels)
+	}
+	if m.event_definitions != nil {
+		edges = append(edges, project.EdgeEventDefinitions)
 	}
 	if m.member_access != nil {
 		edges = append(edges, project.EdgeMemberAccess)
@@ -32707,6 +33590,12 @@ func (m *ProjectMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case project.EdgeEventDefinitions:
+		ids := make([]ent.Value, 0, len(m.event_definitions))
+		for id := range m.event_definitions {
+			ids = append(ids, id)
+		}
+		return ids
 	case project.EdgeMemberAccess:
 		ids := make([]ent.Value, 0, len(m.member_access))
 		for id := range m.member_access {
@@ -32725,7 +33614,7 @@ func (m *ProjectMutation) AddedIDs(name string) []ent.Value {
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *ProjectMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 10)
+	edges := make([]string, 0, 11)
 	if m.removedenvironments != nil {
 		edges = append(edges, project.EdgeEnvironments)
 	}
@@ -32746,6 +33635,9 @@ func (m *ProjectMutation) RemovedEdges() []string {
 	}
 	if m.removedsaved_funnels != nil {
 		edges = append(edges, project.EdgeSavedFunnels)
+	}
+	if m.removedevent_definitions != nil {
+		edges = append(edges, project.EdgeEventDefinitions)
 	}
 	if m.removedmember_access != nil {
 		edges = append(edges, project.EdgeMemberAccess)
@@ -32802,6 +33694,12 @@ func (m *ProjectMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case project.EdgeEventDefinitions:
+		ids := make([]ent.Value, 0, len(m.removedevent_definitions))
+		for id := range m.removedevent_definitions {
+			ids = append(ids, id)
+		}
+		return ids
 	case project.EdgeMemberAccess:
 		ids := make([]ent.Value, 0, len(m.removedmember_access))
 		for id := range m.removedmember_access {
@@ -32820,7 +33718,7 @@ func (m *ProjectMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *ProjectMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 10)
+	edges := make([]string, 0, 11)
 	if m.clearedorganization {
 		edges = append(edges, project.EdgeOrganization)
 	}
@@ -32844,6 +33742,9 @@ func (m *ProjectMutation) ClearedEdges() []string {
 	}
 	if m.clearedsaved_funnels {
 		edges = append(edges, project.EdgeSavedFunnels)
+	}
+	if m.clearedevent_definitions {
+		edges = append(edges, project.EdgeEventDefinitions)
 	}
 	if m.clearedmember_access {
 		edges = append(edges, project.EdgeMemberAccess)
@@ -32874,6 +33775,8 @@ func (m *ProjectMutation) EdgeCleared(name string) bool {
 		return m.clearedexperiments
 	case project.EdgeSavedFunnels:
 		return m.clearedsaved_funnels
+	case project.EdgeEventDefinitions:
+		return m.clearedevent_definitions
 	case project.EdgeMemberAccess:
 		return m.clearedmember_access
 	case project.EdgeUsageDaily:
@@ -32920,6 +33823,9 @@ func (m *ProjectMutation) ResetEdge(name string) error {
 		return nil
 	case project.EdgeSavedFunnels:
 		m.ResetSavedFunnels()
+		return nil
+	case project.EdgeEventDefinitions:
+		m.ResetEventDefinitions()
 		return nil
 	case project.EdgeMemberAccess:
 		m.ResetMemberAccess()

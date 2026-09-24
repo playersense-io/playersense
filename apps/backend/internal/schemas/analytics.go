@@ -126,6 +126,11 @@ type EventSummaryOut struct {
 
 	// Properties is how many distinct property keys it carried in the range.
 	Properties int `json:"properties"`
+
+	// Category and Description are the studio's own words for it (event-definitions). An
+	// event nobody has described is custom, or session for the SDK's own session events.
+	Category    string `json:"category" doc:"session, progression, economy, engagement or custom"`
+	Description string `json:"description,omitzero"`
 }
 
 // EventDetailParams asks about one event.
@@ -1101,4 +1106,119 @@ type ExperimentDayOut struct {
 	Players          uint64    `json:"players"`
 	RevenuePerPlayer float64   `json:"revenue_per_player"`
 	PayerConversion  float64   `json:"payer_conversion"`
+}
+
+// ---- a LiveOps event's impact -------------------------------------------------
+
+// EventImpactParams reads what one LiveOps event's window did.
+type EventImpactParams struct {
+	AnalyticsScope
+	Key string `path:"key" doc:"The LiveOps event's key"`
+	At  string `query:"at,omitzero" doc:"The start of the window to read, as RFC 3339; defaults to the latest that has begun"`
+}
+
+func (in *EventImpactParams) Validate(v *muzak.Validation) {
+	in.validateScope(v)
+	v.String(&in.Key).Trim().Required().MaxLen(64)
+	v.String(&in.At).Trim().MaxLen(40)
+}
+
+// EventImpactOut compares the project's days while an event was on with what the weeks before it
+// say they would have been.
+//
+// The comparison is the project's own, weekday for weekday against the four weeks before the
+// window, carried forward: sound for a short event, weaker for a long one, and about every player
+// rather than only the event's audience until the SDK reports who was in it. Method says so.
+type EventImpactOut struct {
+	Event       string      `json:"event"`
+	Occurrence  WindowOut   `json:"occurrence"`
+	Occurrences []WindowOut `json:"occurrences" doc:"The latest windows that have begun, newest first, to choose between"`
+	Method      string      `json:"method" doc:"baseline: the project's days against the same weekdays of the four weeks before"`
+	Live        bool        `json:"live" doc:"The window is still on"`
+
+	Days    []time.Time                `json:"days" doc:"Two weeks before the window to a week after it, or to the last day built"`
+	Daily   map[string]ImpactSeriesOut `json:"daily" doc:"By metric: each day's figure and what was expected"`
+	Metrics map[string]MetricImpactOut `json:"metrics" doc:"By metric: the window's mean, what was expected, and the difference"`
+
+	ComputedAt           time.Time `json:"computed_at,omitzero"`
+	SuppressionThreshold int       `json:"suppression_threshold"`
+}
+
+// ImpactSeriesOut is one metric's days, null where a day is not built or too small to show.
+type ImpactSeriesOut struct {
+	Actual   []*float64 `json:"actual"`
+	Expected []*float64 `json:"expected"`
+}
+
+// MetricImpactOut is one metric over the window.
+type MetricImpactOut struct {
+	Actual   *float64 `json:"actual,omitzero"`
+	Expected *float64 `json:"expected,omitzero"`
+	Lift     *float64 `json:"lift,omitzero" doc:"actual over expected, less one: 0.12 is twelve percent up"`
+}
+
+// ---- segment reach ----------------------------------------------------------
+
+// SegmentReachParams asks for every segment's reach in one environment.
+type SegmentReachParams struct {
+	AnalyticsScope
+}
+
+func (in *SegmentReachParams) Validate(v *muzak.Validation) { in.validateScope(v) }
+
+// SegmentReachOut is how many of the last week's players each segment holds.
+type SegmentReachOut struct {
+	Since         time.Time         `json:"since"`
+	WeeklyPlayers uint64            `json:"weekly_players" doc:"Players seen in the last seven days, from a sketch"`
+	Sampled       int               `json:"sampled" doc:"Installs the estimate was drawn from"`
+	Exact         bool              `json:"exact" doc:"The sample was every install seen, so the shares are counts"`
+	Segments      []SegmentReachRow `json:"segments"`
+
+	SuppressionThreshold int `json:"suppression_threshold"`
+}
+
+// SegmentReachRow is one segment's reach, or why it cannot be estimated.
+type SegmentReachRow struct {
+	Key     string   `json:"key"`
+	Share   *float64 `json:"share,omitzero" doc:"Of the last week's players, 0 to 1"`
+	Players *uint64  `json:"players,omitzero" doc:"The share applied to the week's players; withheld under the threshold"`
+
+	// A rule naming something only known when the game asks (its own context, the build it is
+	// running now, the network) or about an account rather than an install cannot be counted
+	// from what is stored, and is said so rather than guessed.
+	Estimable   bool     `json:"estimable"`
+	Unestimable []string `json:"unestimable,omitzero" doc:"The keys that stop it being estimated"`
+}
+
+// ---- event definitions ------------------------------------------------------
+
+// EventDefinitionIn says what an event name means.
+type EventDefinitionIn struct {
+	OrgSlug     string `path:"org"`
+	ProjectSlug string `path:"project"`
+	Name        string `path:"name" doc:"The event name, exactly as the game sends it"`
+	Category    string `json:"category" doc:"session, progression, economy, engagement or custom"`
+	Description string `json:"description,omitzero"`
+}
+
+func (in *EventDefinitionIn) Validate(v *muzak.Validation) {
+	v.String(&in.OrgSlug).Trim().Lower().Required().MaxLen(64)
+	v.String(&in.ProjectSlug).Trim().Lower().Required().MaxLen(64)
+	v.String(&in.Name).Trim().Required().MaxLen(96)
+	v.String(&in.Category).Trim().Lower().Required().OneOf("session", "progression", "economy", "engagement", "custom")
+	v.String(&in.Description).Trim().MaxLen(500)
+}
+
+// EventDefinitionOut is one described event.
+type EventDefinitionOut struct {
+	Name        string    `json:"name"`
+	Category    string    `json:"category"`
+	Description string    `json:"description,omitzero"`
+	UpdatedBy   string    `json:"updated_by,omitzero"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+// EventDefinitionListOut is a project's described events.
+type EventDefinitionListOut struct {
+	Definitions []EventDefinitionOut `json:"definitions"`
 }

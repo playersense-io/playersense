@@ -8,6 +8,7 @@ import (
 
 	"playersense.dev/backend/ent"
 	environmentpkg "playersense.dev/backend/ent/environment"
+	"playersense.dev/backend/ent/eventdefinition"
 	projectpkg "playersense.dev/backend/ent/project"
 	"playersense.dev/backend/internal/authz"
 	"playersense.dev/backend/internal/core"
@@ -56,6 +57,26 @@ func EventCatalogue(ctx *muzak.Context, in schemas.EventCatalogueParams) (schema
 	out, err := engine.EventCatalogue(ctx.Context(), scope, w)
 	if err != nil {
 		return schemas.EventCatalogueOut{}, exploreFailed(err, "event")
+	}
+	// The studio's own words for each, from PostgreSQL: one query for the project's few hundred
+	// definitions at most, matched by name.
+	db := muzak.From[*core.DB](ctx)
+	defs, err := db.Client.EventDefinition.Query().
+		Where(eventdefinition.ProjectID(int(scope.ProjectSeq))).All(ctx.Context())
+	if err != nil {
+		return schemas.EventCatalogueOut{}, core.AsHTTPError(err)
+	}
+	byName := make(map[string]*ent.EventDefinition, len(defs))
+	for _, d := range defs {
+		byName[d.Name] = d
+	}
+	for i := range out.Events {
+		e := &out.Events[i]
+		if d, found := byName[e.Name]; found {
+			e.Category, e.Description = string(d.Category), d.Description
+		} else {
+			e.Category = defaultCategory(e.Name, e.Type)
+		}
 	}
 	return *out, nil
 }

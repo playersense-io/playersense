@@ -500,10 +500,21 @@ GET   …/analytics/{environment}/experiments/{flag}           each arm's outcom
 GET   …/analytics/{environment}/experiment-results/{id}      an experiment's arms over the days it ran
 POST  …/analytics/{environment}/funnels/query                a steps or progression funnel
 GET POST PUT DELETE …/funnels[/{id}]                          funnels saved by name, without a range
+GET   …/analytics/{environment}/segments/reach               each segment's share of last week's players
+GET   …/analytics/{environment}/liveops-events/{key}/impact  one window's days against the weeks before
+GET PUT …/event-definitions[/{name}]                          an event's category and description
 GET   /v1/organizations/{org}/analytics/{environment}/projects    every readable project, side by side
 ```
 
-`…` is `/v1/organizations/{org}/projects/{project}`. The pages that count need `analytics.read` and
+`…` is `/v1/organizations/{org}/projects/{project}`.
+
+**Segment reach** evaluates every segment, with the evaluator config-api answers players with, on
+one sample of up to twenty thousand of last week's installs read in key order (as good as random,
+since the key ends in a hash of the install), and scales it to the week's players. A rule naming
+the game's own context, the build it runs now, the network or an account cannot be counted from
+what is stored, and names the keys that stop it. **A LiveOps event's impact** compares the
+project's days around one of its windows with the same weekdays of the four weeks before; it is
+about every player, not only the event's audience, until the SDK reports who was in it. The pages that count need `analytics.read` and
 withhold any count of people under the suppression threshold, as the two queries do. The ones that
 name a player need **`player.read`** as well, so a studio can hand somebody the numbers without its
 players; Developer and Growth Manager are seeded with it. None of those is served for a

@@ -93,6 +93,7 @@ const (
 	ExperimentShipped   Action = "experiment.ship"
 
 	FunnelWritten Action = "funnel.write"
+	EventDefined  Action = "event.define"
 	FunnelDeleted Action = "funnel.delete"
 
 	CreditGranted  Action = "credit.grant"

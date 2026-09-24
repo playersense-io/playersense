@@ -13,6 +13,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"playersense.dev/backend/ent/configversion"
 	"playersense.dev/backend/ent/environment"
+	"playersense.dev/backend/ent/eventdefinition"
 	"playersense.dev/backend/ent/experiment"
 	"playersense.dev/backend/ent/featureflag"
 	"playersense.dev/backend/ent/liveopsevent"
@@ -351,6 +352,21 @@ func (_u *ProjectUpdate) AddSavedFunnels(v ...*SavedFunnel) *ProjectUpdate {
 	return _u.AddSavedFunnelIDs(ids...)
 }
 
+// AddEventDefinitionIDs adds the "event_definitions" edge to the EventDefinition entity by IDs.
+func (_u *ProjectUpdate) AddEventDefinitionIDs(ids ...int) *ProjectUpdate {
+	_u.mutation.AddEventDefinitionIDs(ids...)
+	return _u
+}
+
+// AddEventDefinitions adds the "event_definitions" edges to the EventDefinition entity.
+func (_u *ProjectUpdate) AddEventDefinitions(v ...*EventDefinition) *ProjectUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddEventDefinitionIDs(ids...)
+}
+
 // AddMemberAccesIDs adds the "member_access" edge to the MemberProject entity by IDs.
 func (_u *ProjectUpdate) AddMemberAccesIDs(ids ...int) *ProjectUpdate {
 	_u.mutation.AddMemberAccesIDs(ids...)
@@ -537,6 +553,27 @@ func (_u *ProjectUpdate) RemoveSavedFunnels(v ...*SavedFunnel) *ProjectUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveSavedFunnelIDs(ids...)
+}
+
+// ClearEventDefinitions clears all "event_definitions" edges to the EventDefinition entity.
+func (_u *ProjectUpdate) ClearEventDefinitions() *ProjectUpdate {
+	_u.mutation.ClearEventDefinitions()
+	return _u
+}
+
+// RemoveEventDefinitionIDs removes the "event_definitions" edge to EventDefinition entities by IDs.
+func (_u *ProjectUpdate) RemoveEventDefinitionIDs(ids ...int) *ProjectUpdate {
+	_u.mutation.RemoveEventDefinitionIDs(ids...)
+	return _u
+}
+
+// RemoveEventDefinitions removes "event_definitions" edges to EventDefinition entities.
+func (_u *ProjectUpdate) RemoveEventDefinitions(v ...*EventDefinition) *ProjectUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveEventDefinitionIDs(ids...)
 }
 
 // ClearMemberAccess clears all "member_access" edges to the MemberProject entity.
@@ -1050,6 +1087,51 @@ func (_u *ProjectUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.EventDefinitionsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.EventDefinitionsTable,
+			Columns: []string{project.EventDefinitionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(eventdefinition.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedEventDefinitionsIDs(); len(nodes) > 0 && !_u.mutation.EventDefinitionsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.EventDefinitionsTable,
+			Columns: []string{project.EventDefinitionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(eventdefinition.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.EventDefinitionsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.EventDefinitionsTable,
+			Columns: []string{project.EventDefinitionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(eventdefinition.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _u.mutation.MemberAccessCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
@@ -1473,6 +1555,21 @@ func (_u *ProjectUpdateOne) AddSavedFunnels(v ...*SavedFunnel) *ProjectUpdateOne
 	return _u.AddSavedFunnelIDs(ids...)
 }
 
+// AddEventDefinitionIDs adds the "event_definitions" edge to the EventDefinition entity by IDs.
+func (_u *ProjectUpdateOne) AddEventDefinitionIDs(ids ...int) *ProjectUpdateOne {
+	_u.mutation.AddEventDefinitionIDs(ids...)
+	return _u
+}
+
+// AddEventDefinitions adds the "event_definitions" edges to the EventDefinition entity.
+func (_u *ProjectUpdateOne) AddEventDefinitions(v ...*EventDefinition) *ProjectUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddEventDefinitionIDs(ids...)
+}
+
 // AddMemberAccesIDs adds the "member_access" edge to the MemberProject entity by IDs.
 func (_u *ProjectUpdateOne) AddMemberAccesIDs(ids ...int) *ProjectUpdateOne {
 	_u.mutation.AddMemberAccesIDs(ids...)
@@ -1659,6 +1756,27 @@ func (_u *ProjectUpdateOne) RemoveSavedFunnels(v ...*SavedFunnel) *ProjectUpdate
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveSavedFunnelIDs(ids...)
+}
+
+// ClearEventDefinitions clears all "event_definitions" edges to the EventDefinition entity.
+func (_u *ProjectUpdateOne) ClearEventDefinitions() *ProjectUpdateOne {
+	_u.mutation.ClearEventDefinitions()
+	return _u
+}
+
+// RemoveEventDefinitionIDs removes the "event_definitions" edge to EventDefinition entities by IDs.
+func (_u *ProjectUpdateOne) RemoveEventDefinitionIDs(ids ...int) *ProjectUpdateOne {
+	_u.mutation.RemoveEventDefinitionIDs(ids...)
+	return _u
+}
+
+// RemoveEventDefinitions removes "event_definitions" edges to EventDefinition entities.
+func (_u *ProjectUpdateOne) RemoveEventDefinitions(v ...*EventDefinition) *ProjectUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveEventDefinitionIDs(ids...)
 }
 
 // ClearMemberAccess clears all "member_access" edges to the MemberProject entity.
@@ -2195,6 +2313,51 @@ func (_u *ProjectUpdateOne) sqlSave(ctx context.Context) (_node *Project, err er
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(savedfunnel.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.EventDefinitionsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.EventDefinitionsTable,
+			Columns: []string{project.EventDefinitionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(eventdefinition.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedEventDefinitionsIDs(); len(nodes) > 0 && !_u.mutation.EventDefinitionsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.EventDefinitionsTable,
+			Columns: []string{project.EventDefinitionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(eventdefinition.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.EventDefinitionsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.EventDefinitionsTable,
+			Columns: []string{project.EventDefinitionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(eventdefinition.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

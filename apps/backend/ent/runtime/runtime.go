@@ -17,6 +17,7 @@ import (
 	"playersense.dev/backend/ent/datadeletionrequest"
 	"playersense.dev/backend/ent/dataexportrequest"
 	"playersense.dev/backend/ent/environment"
+	"playersense.dev/backend/ent/eventdefinition"
 	"playersense.dev/backend/ent/experiment"
 	"playersense.dev/backend/ent/featureflag"
 	"playersense.dev/backend/ent/invitation"
@@ -764,6 +765,61 @@ func init() {
 	environment.DefaultUpdatedAt = environmentDescUpdatedAt.Default.(func() time.Time)
 	// environment.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	environment.UpdateDefaultUpdatedAt = environmentDescUpdatedAt.UpdateDefault.(func() time.Time)
+	eventdefinitionMixin := schema.EventDefinition{}.Mixin()
+	eventdefinitionMixinFields0 := eventdefinitionMixin[0].Fields()
+	_ = eventdefinitionMixinFields0
+	eventdefinitionFields := schema.EventDefinition{}.Fields()
+	_ = eventdefinitionFields
+	// eventdefinitionDescUID is the schema descriptor for uid field.
+	eventdefinitionDescUID := eventdefinitionMixinFields0[1].Descriptor()
+	// eventdefinition.DefaultUID holds the default value on creation for the uid field.
+	eventdefinition.DefaultUID = eventdefinitionDescUID.Default.(func() uuid.UUID)
+	// eventdefinitionDescCreatedAt is the schema descriptor for created_at field.
+	eventdefinitionDescCreatedAt := eventdefinitionMixinFields0[2].Descriptor()
+	// eventdefinition.DefaultCreatedAt holds the default value on creation for the created_at field.
+	eventdefinition.DefaultCreatedAt = eventdefinitionDescCreatedAt.Default.(func() time.Time)
+	// eventdefinitionDescUpdatedAt is the schema descriptor for updated_at field.
+	eventdefinitionDescUpdatedAt := eventdefinitionMixinFields0[3].Descriptor()
+	// eventdefinition.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	eventdefinition.DefaultUpdatedAt = eventdefinitionDescUpdatedAt.Default.(func() time.Time)
+	// eventdefinition.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	eventdefinition.UpdateDefaultUpdatedAt = eventdefinitionDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// eventdefinitionDescName is the schema descriptor for name field.
+	eventdefinitionDescName := eventdefinitionFields[1].Descriptor()
+	// eventdefinition.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	eventdefinition.NameValidator = func() func(string) error {
+		validators := eventdefinitionDescName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(name string) error {
+			for _, fn := range fns {
+				if err := fn(name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// eventdefinitionDescDescription is the schema descriptor for description field.
+	eventdefinitionDescDescription := eventdefinitionFields[3].Descriptor()
+	// eventdefinition.DefaultDescription holds the default value on creation for the description field.
+	eventdefinition.DefaultDescription = eventdefinitionDescDescription.Default.(string)
+	// eventdefinition.DescriptionValidator is a validator for the "description" field. It is called by the builders before save.
+	eventdefinition.DescriptionValidator = eventdefinitionDescDescription.Validators[0].(func(string) error)
+	// eventdefinitionDescCreatedBy is the schema descriptor for created_by field.
+	eventdefinitionDescCreatedBy := eventdefinitionFields[4].Descriptor()
+	// eventdefinition.DefaultCreatedBy holds the default value on creation for the created_by field.
+	eventdefinition.DefaultCreatedBy = eventdefinitionDescCreatedBy.Default.(string)
+	// eventdefinition.CreatedByValidator is a validator for the "created_by" field. It is called by the builders before save.
+	eventdefinition.CreatedByValidator = eventdefinitionDescCreatedBy.Validators[0].(func(string) error)
+	// eventdefinitionDescUpdatedBy is the schema descriptor for updated_by field.
+	eventdefinitionDescUpdatedBy := eventdefinitionFields[5].Descriptor()
+	// eventdefinition.DefaultUpdatedBy holds the default value on creation for the updated_by field.
+	eventdefinition.DefaultUpdatedBy = eventdefinitionDescUpdatedBy.Default.(string)
+	// eventdefinition.UpdatedByValidator is a validator for the "updated_by" field. It is called by the builders before save.
+	eventdefinition.UpdatedByValidator = eventdefinitionDescUpdatedBy.Validators[0].(func(string) error)
 	experimentMixin := schema.Experiment{}.Mixin()
 	experimentMixinFields0 := experimentMixin[0].Fields()
 	_ = experimentMixinFields0

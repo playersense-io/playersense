@@ -23,6 +23,7 @@ import (
 	"playersense.dev/backend/ent/datadeletionrequest"
 	"playersense.dev/backend/ent/dataexportrequest"
 	"playersense.dev/backend/ent/environment"
+	"playersense.dev/backend/ent/eventdefinition"
 	"playersense.dev/backend/ent/experiment"
 	"playersense.dev/backend/ent/featureflag"
 	"playersense.dev/backend/ent/invitation"
@@ -118,6 +119,7 @@ func checkColumn(t, c string) error {
 			datadeletionrequest.Table: datadeletionrequest.ValidColumn,
 			dataexportrequest.Table:   dataexportrequest.ValidColumn,
 			environment.Table:         environment.ValidColumn,
+			eventdefinition.Table:     eventdefinition.ValidColumn,
 			experiment.Table:          experiment.ValidColumn,
 			featureflag.Table:         featureflag.ValidColumn,
 			invitation.Table:          invitation.ValidColumn,
