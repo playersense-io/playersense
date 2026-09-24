@@ -60,7 +60,7 @@ const ready = computed(() => check.value.compiles && changes.value.length > 0 &&
 const CHANGE_ICONS: Record<DraftChange['change'], string> = {
   added: 'material-symbols:add-circle-outline',
   changed: 'material-symbols:edit-outline',
-  removed: 'material-symbols:remove-circle-outline'
+  removed: 'material-symbols:do-not-disturb-on-outline'
 }
 
 function confirm() {
@@ -104,7 +104,7 @@ const noteId = useId()
 
         <section class="flex flex-col gap-2">
           <h3 class="m-0 flex items-center justify-between text-xs font-medium text-ink">
-            What {{ ENVIRONMENT_WHO[target].toLowerCase() }} will get
+            What {{ ENVIRONMENT_WHO_IN_SENTENCE[target] }} will get
             <span class="font-mono text-[11px] font-normal text-ink/45">v{{ nextVersion - 1 }} → v{{ nextVersion }}</span>
           </h3>
           <p v-if="!changes.length" class="m-0 rounded-(--ps-radius-small) bg-ink/4 px-3 py-2.5 text-xs text-ink/60">

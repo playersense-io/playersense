@@ -87,6 +87,13 @@ export const ENVIRONMENT_WHO: Record<EnvironmentKind, string> = {
   production: 'Every player'
 }
 
+/** The same words inside a sentence: "for your team's devices", "for QA and testers". */
+export const ENVIRONMENT_WHO_IN_SENTENCE: Record<EnvironmentKind, string> = {
+  development: 'your team\'s devices',
+  staging: 'QA and testers',
+  production: 'every player'
+}
+
 export const ENVIRONMENT_NOTES: Record<EnvironmentKind, string> = {
   development: 'Builds with a development key: the team\'s own devices and the editor.',
   staging: 'Builds with a staging key: QA, and testers outside the studio.',

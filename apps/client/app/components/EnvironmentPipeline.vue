@@ -2,7 +2,8 @@
 // Where the draft has reached, as three steps in the order a change travels: the team's own
 // devices, then testers, then every player. Each step says who sees it, one status (up to date,
 // or how many changes behind the draft it is) and, only when it is behind, the one thing to do
-// about it. Versions, publishers and notes are the history's to tell; here they were a second
+// about it. Any step with an earlier version can also be rolled back, one version by default or
+// to any before it, which is the way out when something went out wrong at that stage. Versions, publishers and notes are the history's to tell; here they were a second
 // and third line on every card that nobody could tell apart from the status.
 withDefaults(defineProps<{
   /** A strip at the top of a list: no version line under each status. */
@@ -13,7 +14,7 @@ withDefaults(defineProps<{
 
 const emit = defineEmits<{ publish: [environment: EnvironmentKind] }>()
 
-const { flags, segments, latest, draftCheck } = useLiveConfig()
+const { flags, segments, latest, historyOf, draftCheck } = useLiveConfig()
 
 const now = useNow({ interval: 60_000 })
 
@@ -28,8 +29,17 @@ const STEP_ICONS: Record<EnvironmentKind, string> = {
 const stages = computed(() => ENVIRONMENTS.map((environment) => {
   const version = latest(environment)
   const waiting = draftChanges(version, flags.value, segments.value).length
-  return { environment, version, waiting }
+  return { environment, version, waiting, canRollBack: historyOf(environment).length > 1 }
 }))
+
+/* The environment being rolled back, while its dialog is open. */
+const rollingBack = ref<EnvironmentKind | null>(null)
+const rollbackOpen = computed({
+  get: () => rollingBack.value !== null,
+  set: (value) => {
+    if (!value) rollingBack.value = null
+  }
+})
 </script>
 
 <template>
@@ -77,18 +87,34 @@ const stages = computed(() => ENVIRONMENTS.map((environment) => {
             v{{ stage.version.version }}, published {{ sinceWords(stage.version.published_at, now) }}
           </span>
         </div>
-        <v-btn
-          v-if="stage.waiting || !stage.version"
-          :color="stage.environment === 'production' ? 'primary' : 'neutral'"
-          :disabled="!check.compiles"
-          :variant="stage.environment === 'production' ? 'flat' : 'outlined'"
-          class="flex-none text-xs font-medium"
-          size="small"
-          @click="emit('publish', stage.environment)"
-        >
-          Publish
-        </v-btn>
+        <div class="flex flex-none items-center gap-1">
+          <v-btn
+            v-if="stage.canRollBack"
+            :aria-label="`Roll back ${ENVIRONMENT_LABELS[stage.environment]}`"
+            class="text-xs"
+            color="neutral"
+            prepend-icon="material-symbols:undo"
+            size="small"
+            variant="text"
+            @click="rollingBack = stage.environment"
+          >
+            Roll back
+          </v-btn>
+          <v-btn
+            v-if="stage.waiting || !stage.version"
+            :color="stage.environment === 'production' ? 'primary' : 'neutral'"
+            :disabled="!check.compiles"
+            :variant="stage.environment === 'production' ? 'flat' : 'outlined'"
+            class="text-xs font-medium"
+            size="small"
+            @click="emit('publish', stage.environment)"
+          >
+            Publish
+          </v-btn>
+        </div>
       </div>
     </li>
   </ol>
+
+  <RollbackDialog v-if="rollbackOpen && rollingBack" v-model="rollbackOpen" :environment="rollingBack" />
 </template>

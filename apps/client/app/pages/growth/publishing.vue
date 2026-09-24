@@ -114,7 +114,7 @@ const changeRows = computed<ChangeRow[]>(() => {
 const CHANGE_LOOK: Record<DraftChange['change'], { icon: string, tone: string, word: string }> = {
   added: { icon: 'material-symbols:add-circle-outline', tone: 'text-success', word: 'New' },
   changed: { icon: 'material-symbols:edit-outline', tone: 'text-warning', word: 'Edited' },
-  removed: { icon: 'material-symbols:remove-circle-outline', tone: 'text-error', word: 'Removed' }
+  removed: { icon: 'material-symbols:do-not-disturb-on-outline', tone: 'text-error', word: 'Removed' }
 }
 
 const flagName = (key: string) => flags.value.find(flag => flag.key === key)?.name ?? key
@@ -422,7 +422,12 @@ const restoreWords = computed(() => {
 
     <PublishDialog v-if="publishing" v-model="publishing" :environment="publishTo" />
 
-    <RollbackDialog v-if="rollbackOpen && rollingBack" v-model="rollbackOpen" :version="rollingBack" />
+    <RollbackDialog
+      v-if="rollbackOpen && rollingBack"
+      v-model="rollbackOpen"
+      :environment="rollingBack.environment"
+      :version="rollingBack"
+    />
 
     <v-dialog
       v-if="viewOpen"
