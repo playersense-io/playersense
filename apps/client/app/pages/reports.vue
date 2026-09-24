@@ -158,12 +158,23 @@ function newNodeId(kind: NodeKind) {
   return `${kind}-${Math.random().toString(36).slice(2, 8)}`
 }
 
+/*
+ * Lines to a node just added, drawn once the canvas holds the node. Vue Flow checks a line's
+ * ends as it arrives, and one given in the same tick as its node is dropped as pointing at
+ * nothing.
+ */
+function connectNew(next: () => Edge[]) {
+  nextTick(() => {
+    edges.value = next()
+  })
+}
+
 function addNode(kind: NodeKind, seed: NodeConfig, position: { x: number, y: number }, after?: string) {
   const config = defaultConfig(kind, seed)
   const node: FlowNode = { id: newNodeId(kind), type: 'report', position, data: { kind, title: defaultTitle(kind, config), config } }
   nodes.value = [...nodes.value, node]
   if (after && KINDS[kind].inputs > 0) {
-    edges.value = [...edges.value, { id: `e-${after}-${node.id}`, source: after, target: node.id, targetHandle: KINDS[kind].inputs === 2 ? 'left' : null }]
+    connectNew(() => [...edges.value, { id: `e-${after}-${node.id}`, source: after, target: node.id, targetHandle: KINDS[kind].inputs === 2 ? 'left' : null }])
   }
   selectedId.value = node.id
 }
@@ -175,7 +186,7 @@ function addFromPalette(kind: NodeKind, seed: NodeConfig) {
   if (kind === 'schedule' && from && KINDS[from.data.kind].scheduled) {
     addNode(kind, seed, { x: from.position.x, y: from.position.y - 200 })
     const schedule = selectedId.value!
-    edges.value = [...edges.value.filter(edge => !(edge.target === from.id && edge.targetHandle === WHEN_HANDLE)), lineOf(`e-${schedule}-${from.id}-when`, schedule, from.id, WHEN_HANDLE)]
+    connectNew(() => [...edges.value.filter(edge => !(edge.target === from.id && edge.targetHandle === WHEN_HANDLE)), lineOf(`e-${schedule}-${from.id}-when`, schedule, from.id, WHEN_HANDLE)])
     return
   }
   if (from && KINDS[from.data.kind].output && KINDS[kind].inputs > 0) {
@@ -275,7 +286,18 @@ const drives = (id: string) => edges.value
 
 // --- Tidying ------------------------------------------------------------------------------
 
-/* Every node in a column by how many steps it is from its source, in its current order. */
+/*
+ * Every node in a column by how many steps it is from its source, in its current order,
+ * stacked by its measured height so no card ever covers another. A Schedule joins the stack
+ * of the first delivery it runs, just above it, so its line goes straight down into it.
+ * Each column is centred on the rows alone, so a report's main line stays level. A node with
+ * no line to anything is set aside in rows under it all, as wide as the report, so what is
+ * not part of it yet reads as parts put down, not as part of the flow.
+ */
+const TIDY_GAP = 44
+const SCHEDULE_GAP = 56
+const LOOSE_GAP = 96
+
 function tidy() {
   const depth = new Map<string, number>()
   const depthOf = (id: string, trail = new Set<string>()): number => {
@@ -287,22 +309,63 @@ function tidy() {
     depth.set(id, value)
     return value
   }
+  /* Measured on the page: the card's own height, which zoom does not change. */
+  const heightOf = (node: FlowNode) => canvas.value?.querySelector<HTMLElement>(`.vue-flow__node[data-id="${CSS.escape(node.id)}"]`)?.offsetHeight || 120
+  const byPlace = (a: FlowNode, b: FlowNode) => depthOf(a.id) - depthOf(b.id) || a.position.y - b.position.y
+
+  /* The delivery each Schedule sits above: of those it runs, the first by column, then height. */
+  const anchors = new Map<string, FlowNode[]>()
+  for (const schedule of nodes.value.filter(node => node.data.kind === 'schedule')) {
+    const runs = edges.value
+      .filter(edge => edge.source === schedule.id && edge.targetHandle === WHEN_HANDLE)
+      .map(edge => nodes.value.find(node => node.id === edge.target))
+      .filter((node): node is FlowNode => Boolean(node))
+      .sort(byPlace)
+    if (runs[0]) anchors.set(runs[0].id, [...(anchors.get(runs[0].id) ?? []), schedule])
+  }
+
+  const touched = new Set(edges.value.flatMap(edge => [edge.source, edge.target]))
+  const loose = nodes.value.filter(node => !touched.has(node.id))
+
   const columns = new Map<number, FlowNode[]>()
   for (const node of nodes.value) {
-    if (node.data.kind === 'schedule') continue
+    if (node.data.kind === 'schedule' || !touched.has(node.id)) continue
     const column = depthOf(node.id)
     columns.set(column, [...(columns.get(column) ?? []), node])
   }
+
   const placed = new Map<string, { x: number, y: number }>()
   for (const [column, members] of columns) {
     members.sort((a, b) => a.position.y - b.position.y)
-    members.forEach((node, index) => placed.set(node.id, { x: column * 300, y: (index - (members.length - 1) / 2) * 190 }))
+    let y = 0
+    let top: number | null = null
+    let bottom = 0
+    for (const node of members) {
+      for (const schedule of anchors.get(node.id) ?? []) {
+        placed.set(schedule.id, { x: column * 300, y })
+        y += heightOf(schedule) + SCHEDULE_GAP
+      }
+      placed.set(node.id, { x: column * 300, y })
+      top ??= y
+      bottom = y + heightOf(node)
+      y = bottom + TIDY_GAP
+    }
+    const shift = ((top ?? 0) + bottom) / 2
+    for (const node of [...members, ...members.flatMap(entry => anchors.get(entry.id) ?? [])]) {
+      const at = placed.get(node.id)!
+      placed.set(node.id, { x: at.x, y: Math.round(at.y - shift) })
+    }
   }
-  /* A Schedule sits above the highest delivery it runs, in that column. */
-  for (const node of nodes.value.filter(entry => entry.data.kind === 'schedule')) {
-    const runs = edges.value.filter(edge => edge.source === node.id).map(edge => placed.get(edge.target)).filter((at): at is { x: number, y: number } => Boolean(at))
-    const top = runs.sort((a, b) => a.y - b.y)[0]
-    placed.set(node.id, top ? { x: top.x, y: top.y - 210 } : node.position)
+  /* The loose ones, in the order they sit on the canvas, left to right and a row at a time. */
+  const laid = nodes.value.filter(node => placed.has(node.id))
+  let rowY = laid.length ? Math.max(...laid.map(node => placed.get(node.id)!.y + heightOf(node))) + LOOSE_GAP : 0
+  const perRow = Math.max(columns.size, 4)
+  loose.sort((a, b) => a.position.y - b.position.y || a.position.x - b.position.x)
+  for (let start = 0; start < loose.length; start += perRow) {
+    const row = loose.slice(start, start + perRow)
+    row.sort((a, b) => a.position.x - b.position.x)
+    row.forEach((node, index) => placed.set(node.id, { x: index * 300, y: Math.round(rowY) }))
+    rowY += Math.max(...row.map(heightOf)) + TIDY_GAP
   }
   nodes.value = nodes.value.map(node => ({ ...node, position: placed.get(node.id) ?? node.position }))
   nextTick(() => fitView({ padding: 0.25, maxZoom: 1, duration: 300 }))
