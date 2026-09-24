@@ -39,11 +39,12 @@ const stages = computed(() => ENVIRONMENTS.map((environment) => {
       :key="stage.environment"
       class="relative flex min-w-0 flex-col gap-3 border-line p-4 not-last:border-b md:not-last:border-r md:not-last:border-b-0"
     >
-      <!-- The way a change travels, drawn between the steps. -->
+      <!-- The way a change travels, drawn on the line between the steps: centred on it, the line
+           being the last pixel of the step before, hence the half pixel. -->
       <Icon
         v-if="index > 0"
         aria-hidden="true"
-        class="absolute top-1/2 -left-2.5 hidden -translate-y-1/2 rounded-full bg-surface text-base text-ink/30 md:block"
+        class="absolute top-1/2 left-0 hidden -translate-x-[calc(50%+0.5px)] -translate-y-1/2 rounded-full bg-surface text-base text-ink/30 ring-1 ring-line md:block"
         name="material-symbols:chevron-right"
       />
 
@@ -61,12 +62,12 @@ const stages = computed(() => ENVIRONMENTS.map((environment) => {
         <div class="flex min-w-0 flex-col gap-0.5">
           <span
             :class="!stage.version ? 'text-ink/50' : stage.waiting ? 'text-warning' : 'text-success'"
-            class="flex items-center gap-1.5 text-[13px] font-medium"
+            class="flex items-center gap-1 text-xs"
           >
             <Icon
               :name="!stage.version ? 'material-symbols:info-outline' : stage.waiting ? 'material-symbols:schedule-outline' : 'material-symbols:check-circle-outline'"
               aria-hidden="true"
-              class="flex-none text-base"
+              class="flex-none text-sm"
             />
             <template v-if="!stage.version">Never published</template>
             <template v-else-if="stage.waiting">{{ stage.waiting }} {{ stage.waiting === 1 ? 'change' : 'changes' }} behind</template>
