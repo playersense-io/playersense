@@ -3,23 +3,22 @@ import type { Member, MemberRole } from '~/types'
 
 const { data: members, pending } = await useFetch<Member[]>('/api/members', { default: () => [] })
 
-// Matches the six seeded roles (apps/backend/internal/authz/roles.go). Assigning
-// owner/admin isn't a permission on its own backend route either — see project.md §55.1 —
-// so this select is a placeholder for that same rule.
-const ROLE_LABELS: Record<MemberRole, string> = {
-  owner: 'Owner',
-  admin: 'Admin',
-  liveops_manager: 'LiveOps Manager',
-  developer: 'Developer',
-  growth_manager: 'Growth Manager',
-  billing: 'Billing'
+// A role is a tag that opens the roles (MemberRoleTag), from the six seeded roles
+// (apps/backend/internal/authz/roles.go). A change is kept on this page until the members
+// route takes writes; assigning owner or admin is an owner's alone there (project.md §55.1).
+const changed = ref<Record<string, MemberRole>>({})
+const roleOf = (member: Member) => changed.value[member.username] ?? member.role
+
+function setRole(member: Member, role: MemberRole) {
+  changed.value = { ...changed.value, [member.username]: role }
 }
 
-const roles = (Object.keys(ROLE_LABELS) as MemberRole[]).map(role => ({ title: ROLE_LABELS[role], value: role }))
+const owners = computed(() => members.value.filter(member => roleOf(member) === 'owner').length)
+const lockOf = (member: Member) => (roleOf(member) === 'owner' && owners.value === 1 ? 'The only owner. Make somebody else an owner first.' : undefined)
 
 const COLUMNS: DataTableColumn<Member>[] = [
   { key: 'member', title: 'Member', fixed: true, value: member => member.name },
-  { key: 'role', title: 'Role', width: 220, value: member => ROLE_LABELS[member.role] }
+  { key: 'role', title: 'Role', width: 220, value: member => MEMBER_ROLE_ORDER.indexOf(roleOf(member)) }
 ]
 
 const columns = ref(defaultColumnState(COLUMNS))
@@ -43,7 +42,7 @@ function initials(name: string) {
     <PageHeader title="Members">
       <template #description>
         Who can reach <span class="font-medium text-ink">this organization</span> and what each
-        of them may do. Invite by email — 3 per address per hour, 30 per organization per hour,
+        of them may do. Invite by email: 3 per address per hour, 30 per organization per hour,
         and it fails closed.
       </template>
       <template #actions>
@@ -84,7 +83,7 @@ function initials(name: string) {
         <template #cell.member="{ item }">
           <span class="flex min-w-0 items-center gap-3">
             <span
-              :class="item.role === 'owner' ? 'border-primary/40 bg-primary/8 text-primary' : `
+              :class="roleOf(item) === 'owner' ? 'border-primary/40 bg-primary/8 text-primary' : `
                 border-line bg-ink/4 text-ink/70
               `"
               aria-hidden="true"
@@ -103,13 +102,11 @@ function initials(name: string) {
         </template>
 
         <template #cell.role="{ item }">
-          <v-select
-            :aria-label="`Role of ${item.name}`"
-            :items="roles"
-            :model-value="item.role"
-            density="comfortable"
-            hide-details
-            variant="outlined"
+          <MemberRoleTag
+            :label="`Role of ${item.name}`"
+            :locked="lockOf(item)"
+            :model-value="roleOf(item)"
+            @update:model-value="setRole(item, $event)"
           />
         </template>
 
