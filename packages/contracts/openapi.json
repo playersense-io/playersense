@@ -534,6 +534,152 @@
         }
       }
     },
+    "/v1/operator/clickhouse": {
+      "get": {
+        "tags": [
+          "operator"
+        ],
+        "summary": "The analytics node's health",
+        "description": "Replication queues, merges and unfinished mutations, active parts by table and disk (the hot and cold volumes), the partitions with the most parts, disk space, memory, and errors raised in the last day.",
+        "operationId": "get_v1_operator_clickhouse",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClickHouseHealthOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The operator token is missing or wrong",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ClickHouse could not be read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/operator/ingestion": {
+      "get": {
+        "tags": [
+          "operator"
+        ],
+        "summary": "Every tenant's ingestion",
+        "description": "Events, metered bytes, batches, players, events that arrived more than an hour late, and how long after the gateway accepted them analytics-writer stored them, by hour (or by minute for one day), with the hundred busiest projects and the last five minutes. Read from activity_1m and activity_1h.",
+        "operationId": "get_v1_operator_ingestion",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "description": "YYYY-MM-DD, inclusive. Defaults to six days before to",
+            "schema": {
+              "type": "string",
+              "maxLength": 10
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "description": "YYYY-MM-DD, inclusive. Defaults to today (UTC)",
+            "schema": {
+              "type": "string",
+              "maxLength": 10
+            }
+          },
+          {
+            "name": "interval",
+            "in": "query",
+            "description": "minute (the last day at most) or hour (default)",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "minute",
+                "hour"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestionOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The operator token is missing or wrong",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ClickHouse could not be read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/operator/organizations/{org}/charges": {
       "post": {
         "tags": [
@@ -2116,6 +2262,88 @@
           },
           "503": {
             "description": "Stripe could not be reached, or payments are not configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/operator/storage": {
+      "get": {
+        "tags": [
+          "operator"
+        ],
+        "summary": "Storage by table and by project",
+        "description": "Bytes on disk by table and volume, and each project's metered logical bytes over the range with its share, which is what §39's storage accounting apportions.",
+        "operationId": "get_v1_operator_storage",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "description": "YYYY-MM-DD, inclusive. Defaults to 29 days before to",
+            "schema": {
+              "type": "string",
+              "maxLength": 10
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "description": "YYYY-MM-DD, inclusive. Defaults to today (UTC)",
+            "schema": {
+              "type": "string",
+              "maxLength": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StorageOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The operator token is missing or wrong",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ClickHouse could not be read",
             "content": {
               "application/json": {
                 "schema": {
@@ -10735,6 +10963,89 @@
           "url"
         ]
       },
+      "ClickHouseHealthOut": {
+        "type": "object",
+        "properties": {
+          "checked_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "disks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DiskOut"
+            }
+          },
+          "errors": {
+            "type": "array",
+            "description": "Errors the server raised in the last day",
+            "items": {
+              "$ref": "#/components/schemas/ServerErrorOut"
+            }
+          },
+          "hotspots": {
+            "type": "array",
+            "description": "The partitions with the most parts, where merges are falling behind",
+            "items": {
+              "$ref": "#/components/schemas/PartitionOut"
+            }
+          },
+          "merges": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MergeOut"
+            }
+          },
+          "metrics": {
+            "type": "object",
+            "description": "Memory, and queries, merges and mutations running now",
+            "additionalProperties": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "mutations": {
+            "type": "array",
+            "description": "Unfinished ones: erasures and cohort-key repairs run as mutations",
+            "items": {
+              "$ref": "#/components/schemas/MutationOut"
+            }
+          },
+          "replicas": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReplicaOut"
+            }
+          },
+          "tables": {
+            "type": "array",
+            "description": "Active parts by table and disk: which data sits on the hot and the cold volume",
+            "items": {
+              "$ref": "#/components/schemas/TableOut"
+            }
+          },
+          "uptime_seconds": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "checked_at",
+          "disks",
+          "errors",
+          "hotspots",
+          "merges",
+          "metrics",
+          "mutations",
+          "replicas",
+          "tables",
+          "uptime_seconds",
+          "version"
+        ]
+      },
       "CohortQueryIn": {
         "type": "object",
         "properties": {
@@ -11418,6 +11729,31 @@
         },
         "required": [
           "platform"
+        ]
+      },
+      "DiskOut": {
+        "type": "object",
+        "properties": {
+          "free_bytes": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "total_bytes": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "free_bytes",
+          "name",
+          "path",
+          "total_bytes"
         ]
       },
       "DraftOut": {
@@ -12812,6 +13148,198 @@
           "sdk"
         ]
       },
+      "IngestionBucketOut": {
+        "type": "object",
+        "properties": {
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "batches": {
+            "type": "integer",
+            "format": "int64",
+            "description": "From a sketch"
+          },
+          "bytes": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The metered logical size (§39)"
+          },
+          "events": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "lag_ms_avg": {
+            "type": "number",
+            "format": "double"
+          },
+          "lag_ms_max": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "late_events": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Accepted more than an hour after they happened: a device's spool draining"
+          },
+          "players": {
+            "type": "integer",
+            "format": "int64",
+            "description": "From a sketch"
+          },
+          "purchases": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "sessions": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "at",
+          "batches",
+          "bytes",
+          "events",
+          "lag_ms_avg",
+          "lag_ms_max",
+          "late_events",
+          "players",
+          "purchases",
+          "sessions"
+        ]
+      },
+      "IngestionNowOut": {
+        "type": "object",
+        "properties": {
+          "events_per_minute": {
+            "type": "number",
+            "format": "double"
+          },
+          "lag_ms_avg": {
+            "type": "number",
+            "format": "double",
+            "description": "From the gateway accepting a row to analytics-writer storing it"
+          },
+          "lag_ms_max": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "last_minute": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The newest minute anything was stored for"
+          }
+        },
+        "required": [
+          "events_per_minute",
+          "lag_ms_avg",
+          "lag_ms_max"
+        ]
+      },
+      "IngestionOut": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "interval": {
+            "type": "string"
+          },
+          "now": {
+            "$ref": "#/components/schemas/IngestionNowOut"
+          },
+          "projects": {
+            "type": "array",
+            "description": "The hundred busiest projects over the range",
+            "items": {
+              "$ref": "#/components/schemas/IngestionProjectOut"
+            }
+          },
+          "series": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IngestionBucketOut"
+            }
+          },
+          "to": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "from",
+          "interval",
+          "now",
+          "projects",
+          "series",
+          "to"
+        ]
+      },
+      "IngestionProjectOut": {
+        "type": "object",
+        "properties": {
+          "batches": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "bytes": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "environment_seq": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "events": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "lag_ms_avg": {
+            "type": "number",
+            "format": "double"
+          },
+          "lag_ms_max": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "late_events": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "org_seq": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "organization": {
+            "type": "string"
+          },
+          "players": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "project": {
+            "type": "string"
+          },
+          "project_seq": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "batches",
+          "bytes",
+          "environment_seq",
+          "events",
+          "lag_ms_avg",
+          "lag_ms_max",
+          "late_events",
+          "org_seq",
+          "players",
+          "project_seq"
+        ]
+      },
       "InvitationCreatedOut": {
         "type": "object",
         "properties": {
@@ -13425,6 +13953,41 @@
           "role"
         ]
       },
+      "MergeOut": {
+        "type": "object",
+        "properties": {
+          "bytes": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "elapsed_seconds": {
+            "type": "number",
+            "format": "double"
+          },
+          "is_mutation": {
+            "type": "boolean"
+          },
+          "parts": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "progress": {
+            "type": "number",
+            "format": "double"
+          },
+          "table": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "bytes",
+          "elapsed_seconds",
+          "is_mutation",
+          "parts",
+          "progress",
+          "table"
+        ]
+      },
       "MetricQueryIn": {
         "type": "object",
         "properties": {
@@ -13659,6 +14222,38 @@
           "tracked_players"
         ]
       },
+      "MutationOut": {
+        "type": "object",
+        "properties": {
+          "command": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "id": {
+            "type": "string"
+          },
+          "latest_fail_reason": {
+            "type": "string"
+          },
+          "parts_to_do": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "table": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "command",
+          "created_at",
+          "id",
+          "parts_to_do",
+          "table"
+        ]
+      },
       "NewPayersOut": {
         "type": "object",
         "properties": {
@@ -13865,6 +14460,26 @@
           "id",
           "name",
           "slug"
+        ]
+      },
+      "PartitionOut": {
+        "type": "object",
+        "properties": {
+          "partition": {
+            "type": "string"
+          },
+          "parts": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "table": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "partition",
+          "parts",
+          "table"
         ]
       },
       "PendingInvitationListOut": {
@@ -14723,6 +15338,55 @@
           "sessions"
         ]
       },
+      "ReplicaOut": {
+        "type": "object",
+        "properties": {
+          "absolute_delay_seconds": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "active_replicas": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "inserts_in_queue": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "merges_in_queue": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "queue_size": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "read_only": {
+            "type": "boolean"
+          },
+          "session_expired": {
+            "type": "boolean"
+          },
+          "table": {
+            "type": "string"
+          },
+          "total_replicas": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "absolute_delay_seconds",
+          "active_replicas",
+          "inserts_in_queue",
+          "merges_in_queue",
+          "queue_size",
+          "read_only",
+          "session_expired",
+          "table",
+          "total_replicas"
+        ]
+      },
       "RevenueDayOut": {
         "type": "object",
         "properties": {
@@ -15154,6 +15818,31 @@
           "updated_at"
         ]
       },
+      "ServerErrorOut": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "last_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "message": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "count",
+          "last_at",
+          "message",
+          "name"
+        ]
+      },
       "SessionDayOut": {
         "type": "object",
         "properties": {
@@ -15486,6 +16175,82 @@
           "from_micros"
         ]
       },
+      "StorageOut": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "projects": {
+            "type": "array",
+            "description": "By metered logical bytes, the largest first",
+            "items": {
+              "$ref": "#/components/schemas/StorageProjectOut"
+            }
+          },
+          "tables": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TableOut"
+            }
+          },
+          "to": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "from",
+          "projects",
+          "tables",
+          "to"
+        ]
+      },
+      "StorageProjectOut": {
+        "type": "object",
+        "properties": {
+          "bytes": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "environment_seq": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "events": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "org_seq": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "organization": {
+            "type": "string"
+          },
+          "project": {
+            "type": "string"
+          },
+          "project_seq": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "share": {
+            "type": "number",
+            "format": "double",
+            "description": "Of all logical bytes over the range"
+          }
+        },
+        "required": [
+          "bytes",
+          "environment_seq",
+          "events",
+          "org_seq",
+          "project_seq",
+          "share"
+        ]
+      },
       "SubscriptionOut": {
         "type": "object",
         "properties": {
@@ -15512,6 +16277,51 @@
         "required": [
           "cancel_at_period_end",
           "status"
+        ]
+      },
+      "TableOut": {
+        "type": "object",
+        "properties": {
+          "bytes_on_disk": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "disk": {
+            "type": "string"
+          },
+          "last_modified": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "partitions": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "parts": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "rows": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "table": {
+            "type": "string"
+          },
+          "uncompressed_bytes": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "bytes_on_disk",
+          "disk",
+          "last_modified",
+          "partitions",
+          "parts",
+          "rows",
+          "table",
+          "uncompressed_bytes"
         ]
       },
       "TierIn": {

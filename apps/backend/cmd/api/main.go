@@ -46,6 +46,7 @@ import (
 	"playersense.dev/backend/internal/ingest"
 	"playersense.dev/backend/internal/liveconfig"
 	"playersense.dev/backend/internal/mail"
+	"playersense.dev/backend/internal/ops"
 	"playersense.dev/backend/internal/payments"
 	"playersense.dev/backend/internal/pgdb"
 	"playersense.dev/backend/internal/query"
@@ -299,6 +300,7 @@ func build(settings config.Settings, overrides ...muzak.RouterOption) (*muzak.Ap
 		muzak.WithSingleton(resolver),
 		muzak.WithSingleton(settings),
 		muzak.WithSingleton(engine),
+		muzak.WithSingleton(ops.New(ch)),
 		muzak.WithSingleton(store),
 		muzak.WithSingleton(liveStore),
 		muzak.WithSingleton(playerFacts),
@@ -463,6 +465,7 @@ func build(settings config.Settings, overrides ...muzak.RouterOption) (*muzak.Ap
 	operator := muzak.NewRouter()
 	operator.Include(routers.OperatorBilling())
 	operator.Include(routers.OperatorPricing())
+	operator.Include(routers.OperatorAnalytics())
 	app.Include(operator,
 		muzak.WithPrefix("/v1/operator"),
 		muzak.WithDependencies(core.RequireAdminToken(settings)),

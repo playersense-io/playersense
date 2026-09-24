@@ -126,6 +126,46 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/v1/operator/clickhouse": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * The analytics node's health
+         * @description Replication queues, merges and unfinished mutations, active parts by table and disk (the hot and cold volumes), the partitions with the most parts, disk space, memory, and errors raised in the last day.
+         */
+        readonly get: operations["get_v1_operator_clickhouse"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/operator/ingestion": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * Every tenant's ingestion
+         * @description Events, metered bytes, batches, players, events that arrived more than an hour late, and how long after the gateway accepted them analytics-writer stored them, by hour (or by minute for one day), with the hundred busiest projects and the last five minutes. Read from activity_1m and activity_1h.
+         */
+        readonly get: operations["get_v1_operator_ingestion"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/v1/operator/organizations/{org}/charges": {
         readonly parameters: {
             readonly query?: never;
@@ -367,6 +407,26 @@ export interface paths {
          * @description Monthly and yearly prices in micros ($99 is 99000000). Creates the plan's Stripe Product the first time, and a Stripe Price per interval — Prices cannot be edited, so a changed amount is a new Price: new subscribers pay it, existing ones keep theirs until they change plan.
          */
         readonly put: operations["put_v1_operator_plans_by_plan_subscription"];
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/operator/storage": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * Storage by table and by project
+         * @description Bytes on disk by table and volume, and each project's metered logical bytes over the range with its share, which is what §39's storage accounting apportions.
+         */
+        readonly get: operations["get_v1_operator_storage"];
+        readonly put?: never;
         readonly post?: never;
         readonly delete?: never;
         readonly options?: never;
@@ -1679,6 +1739,28 @@ export interface components {
             /** @description Stripe's hosted payment page; redirect the browser here */
             readonly url: string;
         };
+        readonly ClickHouseHealthOut: {
+            /** Format: date-time */
+            readonly checked_at: string;
+            readonly disks: readonly components["schemas"]["DiskOut"][];
+            /** @description Errors the server raised in the last day */
+            readonly errors: readonly components["schemas"]["ServerErrorOut"][];
+            /** @description The partitions with the most parts, where merges are falling behind */
+            readonly hotspots: readonly components["schemas"]["PartitionOut"][];
+            readonly merges: readonly components["schemas"]["MergeOut"][];
+            /** @description Memory, and queries, merges and mutations running now */
+            readonly metrics: {
+                readonly [key: string]: number;
+            };
+            /** @description Unfinished ones: erasures and cohort-key repairs run as mutations */
+            readonly mutations: readonly components["schemas"]["MutationOut"][];
+            readonly replicas: readonly components["schemas"]["ReplicaOut"][];
+            /** @description Active parts by table and disk: which data sits on the hot and the cold volume */
+            readonly tables: readonly components["schemas"]["TableOut"][];
+            /** Format: int64 */
+            readonly uptime_seconds: number;
+            readonly version: string;
+        };
         readonly CohortQueryIn: {
             /**
              * @description install (default) or player
@@ -1925,6 +2007,14 @@ export interface components {
             readonly os_version?: string;
             /** @description ios, android, windows, macos, linux, web, console */
             readonly platform: string;
+        };
+        readonly DiskOut: {
+            /** Format: int64 */
+            readonly free_bytes: number;
+            readonly name: string;
+            readonly path: string;
+            /** Format: int64 */
+            readonly total_bytes: number;
         };
         readonly DraftOut: {
             /** @description Whether a publish would succeed */
@@ -2403,6 +2493,91 @@ export interface components {
             readonly schema_version: number;
             readonly sdk: components["schemas"]["SDK"];
         };
+        readonly IngestionBucketOut: {
+            /** Format: date-time */
+            readonly at: string;
+            /**
+             * Format: int64
+             * @description From a sketch
+             */
+            readonly batches: number;
+            /**
+             * Format: int64
+             * @description The metered logical size (§39)
+             */
+            readonly bytes: number;
+            /** Format: int64 */
+            readonly events: number;
+            /** Format: double */
+            readonly lag_ms_avg: number;
+            /** Format: int32 */
+            readonly lag_ms_max: number;
+            /**
+             * Format: int64
+             * @description Accepted more than an hour after they happened: a device's spool draining
+             */
+            readonly late_events: number;
+            /**
+             * Format: int64
+             * @description From a sketch
+             */
+            readonly players: number;
+            /** Format: int64 */
+            readonly purchases: number;
+            /** Format: int64 */
+            readonly sessions: number;
+        };
+        readonly IngestionNowOut: {
+            /** Format: double */
+            readonly events_per_minute: number;
+            /**
+             * Format: double
+             * @description From the gateway accepting a row to analytics-writer storing it
+             */
+            readonly lag_ms_avg: number;
+            /** Format: int32 */
+            readonly lag_ms_max: number;
+            /**
+             * Format: date-time
+             * @description The newest minute anything was stored for
+             */
+            readonly last_minute?: string;
+        };
+        readonly IngestionOut: {
+            /** Format: date-time */
+            readonly from: string;
+            readonly interval: string;
+            readonly now: components["schemas"]["IngestionNowOut"];
+            /** @description The hundred busiest projects over the range */
+            readonly projects: readonly components["schemas"]["IngestionProjectOut"][];
+            readonly series: readonly components["schemas"]["IngestionBucketOut"][];
+            /** Format: date-time */
+            readonly to: string;
+        };
+        readonly IngestionProjectOut: {
+            /** Format: int64 */
+            readonly batches: number;
+            /** Format: int64 */
+            readonly bytes: number;
+            /** Format: int32 */
+            readonly environment_seq: number;
+            /** Format: int64 */
+            readonly events: number;
+            /** Format: double */
+            readonly lag_ms_avg: number;
+            /** Format: int32 */
+            readonly lag_ms_max: number;
+            /** Format: int64 */
+            readonly late_events: number;
+            /** Format: int32 */
+            readonly org_seq: number;
+            readonly organization?: string;
+            /** Format: int64 */
+            readonly players: number;
+            readonly project?: string;
+            /** Format: int32 */
+            readonly project_seq: number;
+        };
         readonly InvitationCreatedOut: {
             /** Format: date-time */
             readonly accepted_at?: string | null;
@@ -2626,6 +2801,18 @@ export interface components {
             readonly role: components["schemas"]["RoleOut"];
             readonly you?: boolean;
         };
+        readonly MergeOut: {
+            /** Format: int64 */
+            readonly bytes: number;
+            /** Format: double */
+            readonly elapsed_seconds: number;
+            readonly is_mutation: boolean;
+            /** Format: int64 */
+            readonly parts: number;
+            /** Format: double */
+            readonly progress: number;
+            readonly table: string;
+        };
         readonly MetricQueryIn: {
             /** @description Not accepted; scope comes from the key */
             readonly environment_id?: string;
@@ -2720,6 +2907,16 @@ export interface components {
             /** Format: int64 */
             readonly tracked_players: number;
         };
+        readonly MutationOut: {
+            readonly command: string;
+            /** Format: date-time */
+            readonly created_at: string;
+            readonly id: string;
+            readonly latest_fail_reason?: string;
+            /** Format: int64 */
+            readonly parts_to_do: number;
+            readonly table: string;
+        };
         readonly NewPayersOut: {
             /** Format: date-time */
             readonly day: string;
@@ -2794,6 +2991,12 @@ export interface components {
             readonly name: string;
             /** @description URL-safe short name, unique across PlayerSense */
             readonly slug: string;
+        };
+        readonly PartitionOut: {
+            readonly partition: string;
+            /** Format: int64 */
+            readonly parts: number;
+            readonly table: string;
         };
         readonly PendingInvitationListOut: {
             readonly invitations: readonly components["schemas"]["PendingInvitationOut"][];
@@ -3075,6 +3278,23 @@ export interface components {
         readonly RecentSessionsOut: {
             readonly sessions: readonly components["schemas"]["SessionOut"][];
         };
+        readonly ReplicaOut: {
+            /** Format: int64 */
+            readonly absolute_delay_seconds: number;
+            /** Format: int32 */
+            readonly active_replicas: number;
+            /** Format: int32 */
+            readonly inserts_in_queue: number;
+            /** Format: int32 */
+            readonly merges_in_queue: number;
+            /** Format: int32 */
+            readonly queue_size: number;
+            readonly read_only: boolean;
+            readonly session_expired: boolean;
+            readonly table: string;
+            /** Format: int32 */
+            readonly total_replicas: number;
+        };
         readonly RevenueDayOut: {
             readonly by_store?: {
                 readonly [key: string]: number;
@@ -3216,6 +3436,14 @@ export interface components {
             /** Format: date-time */
             readonly updated_at: string;
         };
+        readonly ServerErrorOut: {
+            /** Format: int64 */
+            readonly count: number;
+            /** Format: date-time */
+            readonly last_at: string;
+            readonly message: string;
+            readonly name: string;
+        };
         readonly SessionDayOut: {
             /** Format: int64 */
             readonly active_players: number;
@@ -3338,6 +3566,34 @@ export interface components {
              */
             readonly to_micros?: number;
         };
+        readonly StorageOut: {
+            /** Format: date-time */
+            readonly from: string;
+            /** @description By metered logical bytes, the largest first */
+            readonly projects: readonly components["schemas"]["StorageProjectOut"][];
+            readonly tables: readonly components["schemas"]["TableOut"][];
+            /** Format: date-time */
+            readonly to: string;
+        };
+        readonly StorageProjectOut: {
+            /** Format: int64 */
+            readonly bytes: number;
+            /** Format: int32 */
+            readonly environment_seq: number;
+            /** Format: int64 */
+            readonly events: number;
+            /** Format: int32 */
+            readonly org_seq: number;
+            readonly organization?: string;
+            readonly project?: string;
+            /** Format: int32 */
+            readonly project_seq: number;
+            /**
+             * Format: double
+             * @description Of all logical bytes over the range
+             */
+            readonly share: number;
+        };
         readonly SubscriptionOut: {
             readonly cancel_at_period_end: boolean;
             /** @description month or year */
@@ -3349,6 +3605,22 @@ export interface components {
             readonly period_end?: string | null;
             /** @description Stripe's: active, trialing, past_due, canceled, unpaid, … */
             readonly status: string;
+        };
+        readonly TableOut: {
+            /** Format: int64 */
+            readonly bytes_on_disk: number;
+            readonly disk: string;
+            /** Format: date-time */
+            readonly last_modified: string;
+            /** Format: int64 */
+            readonly partitions: number;
+            /** Format: int64 */
+            readonly parts: number;
+            /** Format: int64 */
+            readonly rows: number;
+            readonly table: string;
+            /** Format: int64 */
+            readonly uncompressed_bytes: number;
         };
         readonly TierIn: {
             /**
@@ -3907,6 +4179,116 @@ export interface operations {
                 };
             };
             /** @description The summaries could not be read */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly get_v1_operator_clickhouse: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ClickHouseHealthOut"];
+                };
+            };
+            /** @description The operator token is missing or wrong */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ClickHouse could not be read */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly get_v1_operator_ingestion: {
+        readonly parameters: {
+            readonly query?: {
+                /** @description YYYY-MM-DD, inclusive. Defaults to six days before to */
+                readonly from?: string;
+                /** @description YYYY-MM-DD, inclusive. Defaults to today (UTC) */
+                readonly to?: string;
+                /** @description minute (the last day at most) or hour (default) */
+                readonly interval?: "minute" | "hour";
+            };
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["IngestionOut"];
+                };
+            };
+            /** @description The operator token is missing or wrong */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ClickHouse could not be read */
             readonly 503: {
                 headers: {
                     readonly [name: string]: unknown;
@@ -5014,6 +5396,67 @@ export interface operations {
                 };
             };
             /** @description Stripe could not be reached, or payments are not configured */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly get_v1_operator_storage: {
+        readonly parameters: {
+            readonly query?: {
+                /** @description YYYY-MM-DD, inclusive. Defaults to 29 days before to */
+                readonly from?: string;
+                /** @description YYYY-MM-DD, inclusive. Defaults to today (UTC) */
+                readonly to?: string;
+            };
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["StorageOut"];
+                };
+            };
+            /** @description The operator token is missing or wrong */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ClickHouse could not be read */
             readonly 503: {
                 headers: {
                     readonly [name: string]: unknown;
