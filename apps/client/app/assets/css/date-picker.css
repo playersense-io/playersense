@@ -1,0 +1,86 @@
+/*
+ * Vuetify's month grid, set to the panel's scale (VDatePickerMonth.sass, VDatePickerControls.sass),
+ * wherever a date is chosen: DateTimeField and DateRangePicker put `ps-date-picker` on it. Global,
+ * because the markup is Vuetify's and both components draw it.
+ *
+ * Vuetify's days are 44px circles in the body face, which in a menu beside a column of times
+ * reads as a phone's calendar. Here a day is a 32px square with its number in the mono face, the
+ * weekdays are small capitals over them, the controls are a row a field's height, the day
+ * chosen is a solid square of the accent and today is outlined in it.
+ */
+.ps-date-picker {
+  font-family: var(--v-font-body);
+}
+
+.ps-date-picker .v-date-picker-controls {
+  --v-date-picker-controls-height: 44px;
+  padding: 6px 8px 2px 12px;
+  font-size: 12px;
+}
+
+.ps-date-picker .v-date-picker-controls .v-btn {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.ps-date-picker .v-date-picker-controls .v-btn--icon {
+  --v-btn-height: 28px;
+  width: 28px;
+  height: 28px;
+}
+
+.ps-date-picker .v-date-picker-month {
+  padding: 0 8px 8px;
+}
+
+.ps-date-picker .v-date-picker-month__day {
+  height: 36px;
+  padding: 1px;
+}
+
+.ps-date-picker .v-date-picker-month__weekday {
+  height: 24px;
+  color: rgba(var(--v-theme-on-surface), 0.45);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.ps-date-picker .v-date-picker-month__day .v-btn.v-date-picker-month__day-btn {
+  --v-btn-height: 32px;
+  --v-btn-size: 12px;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--ps-radius-small);
+  font-family: var(--font-mono);
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.ps-date-picker .v-date-picker-month__day .v-btn--variant-outlined {
+  border-width: 1px;
+  border-color: rgba(var(--v-theme-primary), 0.55);
+}
+
+.ps-date-picker .v-date-picker-month__day--selected .v-btn {
+  font-weight: 500;
+}
+
+.ps-date-picker .v-date-picker-month__day--adjacent {
+  opacity: 0.35;
+}
+
+/* The year and month grids a click on the title opens, in the same type. */
+.ps-date-picker .v-date-picker-years .v-btn,
+.ps-date-picker .v-date-picker-months .v-btn {
+  border-radius: var(--ps-radius-small);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0;
+}
+
+/* A range: the days between its ends washed in the accent, square, so a week reads as one band. */
+.ps-date-picker .v-date-picker-month__range-bg {
+  inset: 3px 0;
+}

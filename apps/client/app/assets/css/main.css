@@ -2,5 +2,6 @@
    the app's own files to what Tailwind scans, and the colours of a block of code. See packages/dashboard/app/assets/css. */
 @import "@playersense/dashboard/app/assets/css/dashboard.css";
 @import "./code.css";
+@import "./date-picker.css";
 
 @source "../../";
