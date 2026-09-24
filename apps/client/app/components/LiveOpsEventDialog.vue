@@ -68,10 +68,10 @@ watch(customKind, (value) => {
    the start and every preset (the next Friday, the next 1st) count from that day. */
 const now = props.startDay ? props.startDay - DAY : Date.now()
 
-/* The first day, at 10:00. */
+/* The first day, from midnight: an event starts at the top of its day unless it is set otherwise. */
 const nextHour = () => {
   const at = new Date(now + 24 * 3_600_000)
-  at.setHours(10, 0, 0, 0)
+  at.setHours(0, 0, 0, 0)
   return at.getTime()
 }
 
@@ -118,6 +118,28 @@ const preview = computed(() => {
   const anchor = Date.parse(schedule.value.anchor)
   return occurrencesOf(schedule.value, anchor, anchor + 12 * 366 * DAY).slice(0, 6)
 })
+
+/* How many windows, in words: "One window", "12 windows in all", "Repeats until stopped". */
+const windowCount = computed(() => {
+  if (problem.value) return ''
+  if (schedule.value.mode === 'once') return 'One window'
+  if (!schedule.value.until) return 'Repeats until stopped'
+  const anchor = Date.parse(schedule.value.anchor)
+  const count = occurrencesOf(schedule.value, anchor, Date.parse(schedule.value.until) + 400 * DAY).length
+  return `${count} ${count === 1 ? 'window' : 'windows'} in all`
+})
+
+/* A window's two ends for a row: "Fri 00:00" and "Sun, Sep 27, 23:59", the date only where it moves. */
+function windowEdges(window: Occurrence) {
+  const start = new Date(window.start)
+  const last = new Date(lastMinute(window))
+  const time = (date: Date) => date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+  const sameDay = start.toDateString() === last.toDateString()
+  return {
+    start: `${start.toLocaleDateString('en', { weekday: 'short' })} ${time(start)}`,
+    end: sameDay ? time(last) : `${last.toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' })}, ${time(last)}`
+  }
+}
 
 /* Which preset the draft is, when it is one, so the chip stays lit while it is edited within it. */
 const activePreset = computed(() => {
@@ -418,13 +440,10 @@ const SECTIONS = [
           <div class="grid gap-4 sm:grid-cols-[1.3fr_1fr_1fr]">
             <div class="flex flex-col gap-1.5">
               <label :for="ids.start" class="text-xs font-medium text-ink">{{ repeat.repeats ? 'First starts' : 'Starts' }}</label>
-              <v-text-field
+              <DateTimeField
                 :id="ids.start"
                 :model-value="repeat.start"
-                class="font-mono"
-                hide-details
-                type="datetime-local"
-                variant="outlined"
+                label="Starts"
                 @update:model-value="patchRepeat({ start: $event })"
               />
             </div>
@@ -529,16 +548,15 @@ const SECTIONS = [
               <span class="text-xs font-medium text-ink">Stops repeating</span>
               <div class="flex flex-wrap items-center gap-3">
                 <SegmentedControl v-model="endsModel" :options="ENDS" label="Stops repeating" />
-                <v-text-field
+                <DateTimeField
                   v-if="repeat.ends === 'on'"
                   :id="ids.until"
+                  :min="repeat.start.slice(0, 10)"
                   :model-value="repeat.until"
-                  aria-label="Last day a window may start"
-                  class="w-44 flex-none font-mono"
+                  class="w-60 flex-none"
+                  date-only
                   density="comfortable"
-                  hide-details
-                  type="date"
-                  variant="outlined"
+                  label="Last day a window may start"
                   @update:model-value="patchRepeat({ until: $event })"
                 />
                 <span v-if="repeat.ends === 'after'" class="flex items-center gap-2">
@@ -561,31 +579,47 @@ const SECTIONS = [
             </div>
           </div>
 
-          <!-- Read back: the sentence, and the dates it means. -->
-          <div :class="problem ? 'bg-error/6 ring-error/25' : 'bg-primary/5 ring-primary/15'" class="flex flex-col gap-3 rounded-(--ps-radius-large) p-4 ring-1 ring-inset">
-            <div class="flex items-start gap-2.5">
-              <Icon
-                :class="problem ? 'text-error' : 'text-primary'"
-                :name="problem ? 'material-symbols:error-outline' : 'material-symbols:event-repeat-outline'"
-                aria-hidden="true"
-                class="mt-0.5 flex-none text-base"
-              />
-              <div class="flex min-w-0 flex-col gap-0.5">
-                <span class="text-[13px] font-medium text-ink">{{ problem ?? scheduleWords(schedule) }}</span>
-                <span v-if="!problem" class="text-[11px] text-ink/55">
-                  {{ repeat.timezone }} clock. A window is on up to the minute its length runs out: three days from Jan 1, 00:00 are on until Jan 3, 23:59, and the break is counted from Jan 4, 00:00.
-                </span>
+          <!-- Read back: the schedule in a sentence, and the dates it means, a window a row. -->
+          <div :class="problem ? 'border-error/40' : 'border-line'" class="flex flex-col overflow-hidden rounded-(--ps-radius-large) border">
+            <header :class="problem ? 'bg-error/6' : 'bg-ink/2'" class="flex items-start justify-between gap-3 px-4 py-3">
+              <div class="flex min-w-0 items-start gap-2.5">
+                <Icon
+                  v-if="problem"
+                  aria-hidden="true"
+                  class="mt-0.5 flex-none text-base text-error"
+                  name="material-symbols:error-outline"
+                />
+                <div class="flex min-w-0 flex-col gap-0.5">
+                  <span class="text-[13px] font-medium text-ink">{{ problem ?? scheduleWords(schedule) }}</span>
+                  <span v-if="!problem" class="text-[11px] text-ink/50">{{ repeat.timezone }} clock · {{ windowCount }}</span>
+                </div>
               </div>
-            </div>
-            <ol v-if="preview.length" class="m-0 grid list-none gap-1 p-0 sm:grid-cols-2">
-              <li v-for="(window, index) in preview" :key="window.start" class="flex items-center gap-2 rounded-(--ps-radius-small) bg-surface px-2.5 py-1.5 ring-1 ring-line ring-inset">
-                <span class="w-4 flex-none text-right font-mono text-[10px] text-ink/40">{{ index + 1 }}</span>
-                <span class="truncate text-xs text-ink/80">{{ windowWords(window) }}</span>
+              <span v-if="!problem" class="flex flex-none cursor-help text-ink/40 transition-colors hover:text-ink/80">
+                <Icon aria-label="How a window ends" class="text-base" name="material-symbols:info-outline" />
+                <v-tooltip activator="parent" location="top" max-width="280">
+                  A window is on until its length runs out: three days from Jan 1, 00:00 are on until Jan 3, 23:59, and a break after it is counted from Jan 4, 00:00.
+                </v-tooltip>
+              </span>
+            </header>
+
+            <ol v-if="preview.length" class="m-0 flex list-none flex-col border-t border-line p-0">
+              <li v-for="window in preview" :key="window.start" class="flex items-center gap-3 border-b border-line/60 px-4 py-2 last:border-b-0">
+                <!-- The day it opens, as a leaf of a calendar. -->
+                <span class="flex w-10 flex-none flex-col items-center rounded-(--ps-radius-small) bg-ink/4 py-1 leading-none ring-1 ring-line ring-inset">
+                  <span class="text-[9px] font-semibold tracking-wide text-ink/50 uppercase">{{ new Date(window.start).toLocaleDateString('en', { month: 'short' }) }}</span>
+                  <span class="mt-0.5 font-mono text-sm text-ink">{{ new Date(window.start).getDate() }}</span>
+                </span>
+                <span class="flex min-w-0 flex-1 items-center gap-1.5 text-xs text-ink/80">
+                  <span class="truncate">{{ windowEdges(window).start }}</span>
+                  <Icon aria-hidden="true" class="flex-none text-sm text-ink/35" name="material-symbols:arrow-forward" />
+                  <span class="truncate">{{ windowEdges(window).end }}</span>
+                </span>
+                <span class="flex-none font-mono text-[11px] text-ink/45">{{ relativeWords(window.start, Date.now()) }}</span>
               </li>
             </ol>
-            <span v-if="preview.length === 6 && schedule.mode !== 'once'" class="text-[11px] text-ink/50">
-              {{ schedule.until ? `Last window starts by ${whenAt(Date.parse(schedule.until)).split(',')[0]}.` : 'And on, until somebody stops it.' }}
-            </span>
+            <footer v-if="preview.length === 6 && schedule.mode !== 'once'" class="border-t border-line/60 px-4 py-2 text-[11px] text-ink/50">
+              {{ schedule.until ? `The last window starts by ${whenAt(Date.parse(schedule.until)).split(',')[0]}.` : 'And on like this, until somebody stops it.' }}
+            </footer>
           </div>
         </section>
 
