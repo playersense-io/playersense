@@ -7,6 +7,10 @@
 // since which side is which decides the rows it keeps; an output has nothing after it.
 // Time runs down the page where rows run across: a Schedule's line leaves its bottom edge
 // and enters the top of the Notify and Export steps it runs, which say when that is.
+//
+// During a test run a card shows where the run is with it: waiting, running (ringed, and
+// breathing), done with what came out and how long it took, or failed. A card the run does
+// not need steps back.
 import { Handle, Position } from '@vue-flow/core'
 
 const props = defineProps<{
@@ -16,6 +20,10 @@ const props = defineProps<{
   result?: NodeResult
   /** For a Schedule, its next run; for a delivery, the schedule that runs it, in words. */
   timing?: string | null
+  /** Where a test run has got to with it, while one is shown. */
+  run?: RunNode | null
+  /** A test run is shown that does not run it. */
+  idle?: boolean
 }>()
 
 const kind = computed(() => KINDS[props.data.kind])
@@ -26,12 +34,33 @@ const kindLabel = computed(() => (props.data.kind === 'source' ? `Source · ${SO
 const summary = computed(() => summaryOf(props.data, props.result?.columns ?? []))
 
 const rows = computed(() => props.result?.rows.length ?? 0)
+
+const frame = computed(() => {
+  switch (props.run?.state) {
+    case 'running': return 'ps-node-running ring-2 ring-primary'
+    case 'done': return props.run.failed ? 'ring-2 ring-error/70' : 'ring-1 ring-success/60'
+    case 'failed': return 'ring-2 ring-error/70'
+    default: return props.selected ? 'ring-2 ring-primary' : 'ring-1 ring-line hover:ring-ink/25'
+  }
+})
+
+/* What a delivery answered, in a few words. */
+const answered = computed(() => {
+  const run = props.run
+  if (!run) return ''
+  if (run.quiet && !run.sent && !run.failed) return 'Quiet this run'
+  if (props.data.kind === 'export') return run.sent ? 'Written' : 'Writing'
+  const tried = run.sent + run.failed
+  return run.failed ? `${run.failed} of ${tried} failed` : `Sent to ${run.sent}`
+})
+
+const took = (ms: number) => (ms < 1000 ? `${ms} ms` : `${(ms / 1000).toFixed(1)} s`)
 </script>
 
 <template>
   <div
-    :class="selected ? 'ring-2 ring-primary' : 'ring-1 ring-line hover:ring-ink/25'"
-    class="ps-report-node relative flex w-60 flex-col rounded-(--ps-radius-large) bg-surface shadow-[0_1px_2px_rgba(0,0,0,0.06)] transition-shadow"
+    :class="[frame, idle ? 'opacity-45' : '']"
+    class="ps-report-node relative flex w-60 flex-col rounded-(--ps-radius-large) bg-surface shadow-[0_1px_2px_rgba(0,0,0,0.06)] transition-[box-shadow,opacity] duration-200"
   >
     <header class="flex items-center gap-2.5 px-3 pt-3 pb-2">
       <span
@@ -41,9 +70,49 @@ const rows = computed(() => props.result?.rows.length ?? 0)
       >
         <Icon :name="icon" />
       </span>
-      <span class="flex min-w-0 flex-col">
+      <span class="flex min-w-0 flex-1 flex-col">
         <span class="truncate text-[13px] leading-4 font-medium text-ink">{{ data.title }}</span>
         <span class="truncate text-[10px] leading-4 text-ink/45">{{ kindLabel }}</span>
+      </span>
+      <span v-if="run" class="flex size-4 flex-none items-center justify-center">
+        <v-progress-circular
+          v-if="run.state === 'running'"
+          aria-label="Running"
+          color="primary"
+          indeterminate
+          size="14"
+          width="2"
+        />
+        <Icon
+          v-else-if="run.state === 'done' && run.failed"
+          aria-label="Partly failed"
+          class="text-base text-error"
+          name="material-symbols:error-outline"
+        />
+        <Icon
+          v-else-if="run.state === 'done'"
+          aria-label="Done"
+          class="text-base text-success"
+          name="material-symbols:check-circle-outline"
+        />
+        <Icon
+          v-else-if="run.state === 'failed'"
+          aria-label="Failed"
+          class="text-base text-error"
+          name="material-symbols:cancel-outline"
+        />
+        <Icon
+          v-else-if="run.state === 'skipped'"
+          aria-label="Not run"
+          class="text-base text-ink/35"
+          name="material-symbols:block"
+        />
+        <Icon
+          v-else
+          aria-label="Waiting"
+          class="text-base text-ink/30"
+          name="material-symbols:hourglass-empty"
+        />
       </span>
     </header>
 
@@ -54,7 +123,28 @@ const rows = computed(() => props.result?.rows.length ?? 0)
     </ul>
 
     <footer class="flex items-center gap-1.5 border-t border-line/70 px-3 py-1.5 text-[10px]">
-      <template v-if="result?.error">
+      <!-- A test run's progress, in place of what the card says otherwise. -->
+      <template v-if="run?.state === 'running'">
+        <span class="truncate font-medium text-primary">{{ KINDS[data.kind].family === 'source' ? 'Reading rows…' : run.sent || run.failed ? `${answered}…` : 'Running…' }}</span>
+      </template>
+      <template v-else-if="run?.state === 'queued'">
+        <span class="truncate text-ink/45">Waiting for its inputs</span>
+      </template>
+      <template v-else-if="run?.state === 'failed' || run?.state === 'skipped'">
+        <Icon
+          aria-hidden="true"
+          class="flex-none text-xs"
+          :class="run.state === 'failed' ? 'text-error' : 'text-ink/40'"
+          name="material-symbols:error-outline"
+        />
+        <span :class="run.state === 'failed' ? 'text-error' : 'text-ink/50'" class="truncate">{{ run.error ?? 'Not run' }}</span>
+      </template>
+      <template v-else-if="run?.state === 'done'">
+        <span class="font-mono text-ink/70">{{ (run.rows ?? 0).toLocaleString('en') }}</span>
+        <span class="truncate text-ink/45">{{ run.rows === 1 ? 'row' : 'rows' }}<template v-if="KINDS[data.kind].scheduled"> · <span :class="run.failed ? 'text-error' : 'text-success'">{{ answered }}</span></template></span>
+        <span class="ml-auto flex-none font-mono text-ink/45">{{ took(run.ms ?? 0) }}</span>
+      </template>
+      <template v-else-if="result?.error">
         <Icon aria-hidden="true" class="flex-none text-xs text-warning" name="material-symbols:error-outline" />
         <span class="truncate text-warning">{{ result.error }}</span>
       </template>

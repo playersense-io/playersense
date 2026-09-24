@@ -3,7 +3,8 @@
 // is left to run on its own. Every delivery is shown with what it would do: a Notify with
 // whether its rule lets it send and why, and the message as each of its channels will show it;
 // an Export with the file it would write and where. Nothing leaves until Send is pressed; then
-// every channel is sent to, each answers, and the run is kept in the report's history.
+// the dialog steps aside and the run plays on the canvas (pages/reports.vue), and once it has
+// finished, what every channel answered is shown here.
 const props = defineProps<{
   report: { id: string, name: string }
   nodes: readonly GraphNode[]
@@ -11,12 +12,15 @@ const props = defineProps<{
   results: ReadonlyMap<string, NodeResult>
   /** One Notify only, from its own "Preview and send a test". */
   focus?: string | null
+  /** The run this dialog sent, once Send has been pressed. */
+  run?: LiveRun | null
 }>()
+
+const emit = defineEmits<{ send: [] }>()
 
 const open = defineModel<boolean>({ required: true })
 
-const { channels, send } = useChannels()
-const { addRun } = useReports()
+const { channels } = useChannels()
 
 const at = Date.now()
 
@@ -54,55 +58,16 @@ const steps = computed<Step[]>(() => props.nodes
 const showing = ref<Record<string, string>>({})
 const shownChannel = (step: Step) => step.channels.find(channel => channel.id === showing.value[step.node.id]) ?? step.channels[0] ?? null
 
-const fileOf = (step: Step) => `${fileSlug(props.report.name)}.${step.node.data.config.file ?? 'json'}`
-const destinationOf = (step: Step) => {
-  const config = step.node.data.config
-  const where = DESTINATIONS[config.destination ?? 'download']
-  return config.destination && config.destination !== 'download' ? `${config.target || where.target} (${where.label})` : 'a download here'
-}
+const fileOf = (step: Step) => exportFileOf(props.report.name, step.node.data.config)
+const destinationOf = (step: Step) => exportDestinationOf(step.node.data.config)
 
 // --- Sending ------------------------------------------------------------------------------
 
-const sending = ref(false)
-const answers = ref<Record<string, { ok: boolean, detail: string, ms: number }>>({})
-const sent = ref(false)
-
-async function sendAll() {
-  sending.value = true
-  answers.value = {}
-  const deliveries: RunDelivery[] = []
-  for (const step of steps.value) {
-    if (step.result?.error) continue
-    await new Promise(resolve => setTimeout(resolve, 350))
-    if (step.node.data.kind === 'export') {
-      const detail = `Wrote ${fileOf(step)}, ${step.result?.rows.length.toLocaleString('en')} rows, to ${destinationOf(step)}`
-      answers.value = { ...answers.value, [step.node.id]: { ok: true, detail, ms: 400 } }
-      deliveries.push({ node: step.node.id, title: step.node.data.title, kind: 'export', ok: true, detail })
-      continue
-    }
-    for (const channel of step.channels) {
-      if (!step.outcome?.send) {
-        deliveries.push({ node: step.node.id, title: step.node.data.title, kind: 'notify', channel: channel.id, ok: true, quiet: true, detail: step.outcome?.reason ?? 'Quiet' })
-        continue
-      }
-      const answer = send(channel, step.outcome.message.title, `${props.report.name} (test run)`, false)
-      answers.value = { ...answers.value, [`${step.node.id}:${channel.id}`]: answer }
-      deliveries.push({ node: step.node.id, title: step.node.data.title, kind: 'notify', channel: channel.id, ok: answer.ok, detail: answer.detail })
-    }
-  }
-  const tried = deliveries.filter(entry => !entry.quiet)
-  const failed = tried.filter(entry => !entry.ok).length
-  addRun(props.report.id, {
-    id: `run_${Math.random().toString(36).slice(2, 10)}`,
-    at: Date.now(),
-    trigger: 'test',
-    dry: false,
-    status: !tried.length ? 'quiet' : !failed ? 'succeeded' : failed === tried.length ? 'failed' : 'partial',
-    deliveries
-  })
-  sending.value = false
-  sent.value = true
-}
+/* What each delivery answered: an Export by its node, a Notify's channel by both. */
+const answers = computed<Record<string, RunDelivery>>(() => Object.fromEntries((props.run?.deliveries ?? [])
+  .filter(entry => !entry.quiet)
+  .map(entry => [entry.channel ? `${entry.node}:${entry.channel}` : entry.node, entry])))
+const sent = computed(() => Boolean(props.run?.finishedAt))
 
 const failures = computed(() => Object.values(answers.value).filter(answer => !answer.ok).length)
 const nothing = computed(() => !steps.value.length)
@@ -232,10 +197,10 @@ function stateOf(step: Step): { label: string, tone: BadgeTone } {
       <footer class="flex flex-wrap items-center justify-between gap-3 border-t border-line px-5 py-3">
         <span class="text-[11px] text-ink/55">
           <template v-if="sent">
-            {{ failures ? `Sent, with ${failures} ${failures === 1 ? 'channel' : 'channels'} failing. Fix ${failures === 1 ? 'it' : 'them'} under Notification channels.` : 'Sent. The run is in the report\'s history.' }}
+            {{ run?.status === 'stopped' ? 'Stopped before it finished. What it sent is in the report\'s history.' : failures ? `Sent, with ${failures} ${failures === 1 ? 'channel' : 'channels'} failing. Fix ${failures === 1 ? 'it' : 'them'} under Notification channels.` : 'Sent. The run is in the report\'s history.' }}
           </template>
           <template v-else>
-            Sending reaches the channels for real and is kept in the report's runs.
+            Sending runs it on the canvas, reaches the channels for real and is kept in the report's runs.
           </template>
         </span>
         <span class="flex items-center gap-2">
@@ -250,13 +215,12 @@ function stateOf(step: Step): { label: string, tone: BadgeTone } {
           </v-btn>
           <v-btn
             :disabled="nothing || steps.every(step => step.result?.error)"
-            :loading="sending"
             class="text-xs font-medium"
             color="primary"
             prepend-icon="material-symbols:send-outline"
             size="small"
             variant="flat"
-            @click="sendAll"
+            @click="emit('send')"
           >
             {{ sent ? 'Send again' : 'Send' }}
           </v-btn>

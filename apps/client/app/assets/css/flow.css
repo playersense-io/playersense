@@ -90,6 +90,53 @@
   stroke-dasharray: 5 4;
 }
 
+/* A test run's lines: rows flowing into the node that is running, in the accent and moving
+   (Vue Flow's own animation, its dashes marching towards the target); drawn over once they
+   have arrived; faded when the run does not use them. */
+.ps-flow .vue-flow__edge.ps-edge-flowing .vue-flow__edge-path {
+  stroke: rgb(var(--v-theme-primary));
+  stroke-dasharray: 6 4;
+  stroke-width: 2;
+}
+
+.ps-flow .vue-flow__edge.ps-edge-done .vue-flow__edge-path {
+  stroke: rgba(var(--v-theme-primary), 0.55);
+  stroke-width: 1.75;
+}
+
+.ps-flow .vue-flow__edge.ps-edge-idle .vue-flow__edge-path {
+  opacity: 0.35;
+}
+
+/* The node a run is on breathes, a ring of the accent swelling and fading around its own.
+   Tailwind's ring is a box-shadow too, so it is drawn here with the swell. */
+.ps-report-node.ps-node-running {
+  animation: ps-node-running 1.6s ease-in-out infinite;
+}
+
+@keyframes ps-node-running {
+  0%,
+  100% {
+    box-shadow: 0 0 0 2px rgb(var(--v-theme-primary)), 0 0 0 2px rgba(var(--v-theme-primary), 0.3);
+  }
+
+  50% {
+    box-shadow: 0 0 0 2px rgb(var(--v-theme-primary)), 0 0 0 10px rgba(var(--v-theme-primary), 0);
+  }
+}
+
+/* Without motion, the run still reads: the colours stay, the movement goes. */
+@media (prefers-reduced-motion: reduce) {
+  .ps-flow .vue-flow__edge.animated .vue-flow__edge-path {
+    animation: none;
+  }
+
+  .ps-report-node.ps-node-running {
+    animation: none;
+    box-shadow: 0 0 0 2px rgb(var(--v-theme-primary)), 0 0 0 6px rgba(var(--v-theme-primary), 0.18);
+  }
+}
+
 .ps-flow .vue-flow__connection-path {
   stroke: rgb(var(--v-theme-primary));
   stroke-dasharray: 4 3;

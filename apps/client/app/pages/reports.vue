@@ -6,6 +6,8 @@
 // A report is built by connecting parts: sources to steps to outputs. Every node runs as it
 // is changed (utils/report-builder.ts, over sample rows), so the preview and each card's
 // row count are always the report as it stands. Reports save themselves in this browser.
+// A test run plays on the canvas as its events arrive: rows flow along the lines into the
+// node that is running, and every card says how far the run has got with it.
 import { type Connection, type Edge, type Node, useVueFlow, VueFlow } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
 import { ControlButton, Controls } from '@vue-flow/controls'
@@ -16,6 +18,7 @@ const route = useRoute()
 const router = useRouter()
 
 const { reports, reportById, create, save, duplicate, remove } = useReports()
+const { run: liveRun, running: testRunning, start: startRun, stop: stopRun, clear: clearRun } = useReportRun()
 const { screenToFlowCoordinate, fitView, removeNodes } = useVueFlow()
 
 // --- Which report -------------------------------------------------------------------------
@@ -62,6 +65,7 @@ function load(id: string) {
   nodes.value = (entry?.nodes ?? []).map(node => ({ id: node.id, type: 'report', position: { ...node.position }, data: plain(node.data) }))
   edges.value = (entry?.edges ?? []).map(edge => lineOf(edge.id, edge.source, edge.target, edge.targetHandle ?? null))
   selectedId.value = null
+  clearRun()
   savedShape = snapshot()
   fitPending = true
 }
@@ -341,10 +345,46 @@ const runs = computed(() => report.value?.runs ?? [])
 const testing = ref(false)
 const testFocus = ref<string | null>(null)
 function openTest(focus: string | null = null) {
+  clearRun()
   testFocus.value = focus
   testing.value = true
 }
 const testGraph = computed(() => JSON.parse(shape.value) as { nodes: GraphNode[], edges: GraphEdge[] })
+
+/* Send steps the dialog aside, so the run can be watched on the canvas. */
+function sendTest() {
+  if (!report.value) return
+  testing.value = false
+  const graph = testGraph.value
+  startRun({ report: { id: report.value.id, name: report.value.name }, nodes: graph.nodes, edges: graph.edges, results: results.value, focus: testFocus.value })
+}
+
+/* The run on the canvas, once the stream has said which nodes it runs. */
+const shownRun = computed(() => (liveRun.value?.plan.length ? liveRun.value : null))
+
+/*
+ * A line during a run: rows flowing into the node that is running, drawn over once they
+ * have arrived, and stepping back when the run does not use it. Kept as one string, so the
+ * lines are only rewritten when one of them changes.
+ */
+function lookOf(edge: Edge): string {
+  const run = shownRun.value
+  if (!run) return ''
+  const from = run.nodes[edge.source]
+  const to = run.nodes[edge.target]
+  if (!from || !to || edge.targetHandle === WHEN_HANDLE) return 'ps-edge-idle'
+  if (to.state === 'running') return 'ps-edge-flowing'
+  return from.state === 'done' && to.state !== 'queued' ? 'ps-edge-done' : ''
+}
+const looks = computed(() => edges.value.map(edge => `${edge.id}:${lookOf(edge)}`).join(' '))
+watch(looks, () => {
+  edges.value = edges.value.map((edge) => {
+    const look = lookOf(edge)
+    const classes = [edge.targetHandle === WHEN_HANDLE ? 'ps-edge-when' : '', look].filter(Boolean).join(' ')
+    return { ...edge, animated: look === 'ps-edge-flowing', class: classes || undefined }
+  })
+})
+const titleOf = (id: string) => nodes.value.find(node => node.id === id)?.data.title ?? 'a step'
 
 const runStamp = (at: number) => new Date(at).toLocaleString('en', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })
 const problems = computed(() => nodes.value.filter(node => results.value.get(node.id)?.error))
@@ -387,7 +427,7 @@ const ids = { name: useId(), description: useId() }
             {{ problems.length }} to fix
           </span>
           <v-btn
-            :disabled="!outputs.some(node => node.data.kind === 'notify' || node.data.kind === 'export')"
+            :disabled="testRunning || !outputs.some(node => node.data.kind === 'notify' || node.data.kind === 'export')"
             class="text-xs font-medium"
             color="neutral"
             prepend-icon="material-symbols:play-arrow-outline"
@@ -494,12 +534,26 @@ const ids = { name: useId(), description: useId() }
             <ReportFlowNode
               :id="nodeProps.id"
               :data="nodeProps.data"
+              :idle="Boolean(shownRun) && !shownRun!.nodes[nodeProps.id]"
               :result="results.get(nodeProps.id)"
+              :run="shownRun?.nodes[nodeProps.id] ?? null"
               :selected="nodeProps.selected"
               :timing="timings.get(nodeProps.id) ?? null"
             />
           </template>
         </VueFlow>
+
+        <!-- A test run, as it plays. -->
+        <div v-if="liveRun" class="pointer-events-none absolute inset-x-0 top-3 z-10 flex justify-center">
+          <ReportRunBar
+            :run="liveRun"
+            :title-of="titleOf"
+            class="pointer-events-auto"
+            @dismiss="clearRun"
+            @results="testing = true"
+            @stop="stopRun"
+          />
+        </div>
 
         <!-- An empty report: where to begin. -->
         <div v-if="!nodes.length" class="pointer-events-none absolute inset-0 flex items-center justify-center p-6">
@@ -715,6 +769,8 @@ const ids = { name: useId(), description: useId() }
       :nodes="testGraph.nodes"
       :report="{ id: report.id, name: report.name }"
       :results="results"
+      :run="liveRun"
+      @send="sendTest"
     />
 
     <ConfirmDialog
