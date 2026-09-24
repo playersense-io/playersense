@@ -330,7 +330,12 @@ const SECTIONS = [
               <span class="text-xs font-medium text-ink">What your server receives</span>
               <span class="text-[11px] text-ink/50">An example body, {{ events.length ? 'for an event you chose' : 'for any event' }}. Every body has the same envelope; data is the event's own.</span>
             </span>
-            <GhostSelect v-model="exampleType" :options="EXAMPLE_OPTIONS" label="Example event" />
+            <GhostSelect
+              v-model="exampleType"
+              :options="EXAMPLE_OPTIONS"
+              label="Example event"
+              size="small"
+            />
           </div>
           <CodeBlock :code="example" :title="`${exampleType} · version ${version}`" class="max-h-96" />
         </div>

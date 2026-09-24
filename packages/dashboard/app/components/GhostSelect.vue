@@ -27,8 +27,14 @@ withDefaults(
     label: string
     /** Shown until something is chosen. */
     placeholder?: string
+    /**
+     * Small is for a select inside a card's body rather than its title: the label at the
+     * body's 0.75rem, and a shorter menu of compact rows, so a list of two dozen options
+     * does not open over half the screen.
+     */
+    size?: 'default' | 'small'
   }>(),
-  { placeholder: 'Choose' }
+  { placeholder: 'Choose', size: 'default' }
 )
 
 const model = defineModel<string>()
@@ -38,8 +44,8 @@ const open = ref(false)
 <template>
   <button
     :aria-label="label"
-    :class="open ? 'bg-ink/5' : ''"
-    class="group -ml-2 inline-flex h-(--ps-toolbar-height) max-w-[calc(100%+0.5rem)] items-center gap-1 rounded-(--ps-radius) px-2 text-sm font-medium text-ink transition-colors duration-150 hover:bg-ink/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+    :class="[open ? 'bg-ink/5' : '', size === 'small' ? 'h-7 text-xs' : 'h-(--ps-toolbar-height) text-sm']"
+    class="group -ml-2 inline-flex max-w-[calc(100%+0.5rem)] items-center gap-1 rounded-(--ps-radius) px-2 font-medium text-ink transition-colors duration-150 hover:bg-ink/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
     type="button"
   >
     <span class="truncate">
@@ -57,7 +63,12 @@ const open = ref(false)
       activator="parent"
       location="bottom start"
     >
-      <v-list class="max-h-[70vh]" min-width="208" nav>
+      <v-list
+        :class="size === 'small' ? 'ps-ghost-select--small max-h-72' : 'max-h-[70vh]'"
+        :density="size === 'small' ? 'compact' : undefined"
+        min-width="208"
+        nav
+      >
         <template v-for="(option, index) in options" :key="option.value">
           <v-list-subheader
             v-if="option.group && option.group !== options[index - 1]?.group"
@@ -80,3 +91,11 @@ const open = ref(false)
     </v-menu>
   </button>
 </template>
+
+<style scoped>
+/* The small menu's rows at the label's own size. The list is Vuetify's, so its title is
+   reached through it. */
+.ps-ghost-select--small :deep(.v-list-item-title) {
+  font-size: 0.75rem;
+}
+</style>
