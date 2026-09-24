@@ -11,6 +11,7 @@ const TABS: readonly SettingsTab[] = [
   { to: '/settings/data-retention', title: 'Data retention', scope: 'This project', icon: 'material-symbols:database-outline' },
   { to: '/settings/members', title: 'Members', scope: 'Organization', icon: 'material-symbols:group-outline' },
   { to: '/settings/api-keys', title: 'API keys', scope: 'This project', icon: 'material-symbols:vpn-key-outline' },
+  { to: '/settings/notifications', title: 'Notification channels', scope: 'This project', icon: 'material-symbols:notifications-outline' },
   { to: '/settings/billing', title: 'Billing', scope: 'Organization', icon: 'material-symbols:receipt-long-outline' },
   { to: '/settings/audit-log', title: 'Audit log', scope: 'Organization', icon: 'material-symbols:history' }
 ]

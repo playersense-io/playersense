@@ -1,6 +1,6 @@
 // The customer dashboard's screens, in the order the drawer shows them: folding groups,
 // each under one glyph, the way idenzy's drawer nests its screens. Settings is one drawer
-// item and six tabs: the rail inside the page moves between them, and the group still
+// item and seven tabs: the rail inside the page moves between them, and the group still
 // names each one for the breadcrumb and the tab title.
 export const NAV = defineNavigation({
   sections: [{
@@ -65,6 +65,7 @@ export const NAV = defineNavigation({
       { title: 'Data retention', to: '/settings/data-retention' },
       { title: 'Members', to: '/settings/members' },
       { title: 'API keys', to: '/settings/api-keys' },
+      { title: 'Notification channels', to: '/settings/notifications' },
       { title: 'Billing', to: '/settings/billing' },
       { title: 'Audit log', to: '/settings/audit-log' }
     ]
