@@ -328,11 +328,25 @@ func (e *Engine) playerDays(ctx context.Context, scope Scope, installs []string,
 //
 // device_id is after the event name in the sort key, so within each (day, event name) run the rows
 // are ordered by it and ClickHouse's key analysis finds the device's granules without a skip
-// index; PREWHERE then reads the device column alone before the rest.
+// index; PREWHERE then reads the device column alone before the rest. Still a granule per (day,
+// event name) at least, so the last day is read first and the week only when the day did not
+// fill the page, as an event's occurrences are.
 func (e *Engine) playerEvents(ctx context.Context, scope Scope, installs []string, now time.Time) ([]schemas.EventOccurrenceOut, error) {
-	b := rawOccurrences(scope)
-	b.gte("event_date", date(now.UTC().AddDate(0, 0, -6)))
-	deviceIn(b, scope, installs, true)
-	b.order("event_time DESC").withLimit(100)
-	return e.occurrences(ctx, b)
+	const page = 100
+	today := now.UTC().Truncate(24 * time.Hour)
+	var found []schemas.EventOccurrenceOut
+	for _, days := range []int{1, 6} {
+		b := rawOccurrences(scope)
+		b.gte("event_date", date(today.AddDate(0, 0, -days)))
+		deviceIn(b, scope, installs, true)
+		b.order("event_time DESC").withLimit(page)
+		var err error
+		if found, err = e.occurrences(ctx, b); err != nil {
+			return nil, err
+		}
+		if len(found) >= page {
+			break
+		}
+	}
+	return found, nil
 }
