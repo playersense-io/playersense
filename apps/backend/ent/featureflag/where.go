@@ -106,6 +106,21 @@ func Archived(v bool) predicate.FeatureFlag {
 	return predicate.FeatureFlag(sql.FieldEQ(FieldArchived, v))
 }
 
+// CreatedBy applies equality check predicate on the "created_by" field. It's identical to CreatedByEQ.
+func CreatedBy(v string) predicate.FeatureFlag {
+	return predicate.FeatureFlag(sql.FieldEQ(FieldCreatedBy, v))
+}
+
+// UpdatedBy applies equality check predicate on the "updated_by" field. It's identical to UpdatedByEQ.
+func UpdatedBy(v string) predicate.FeatureFlag {
+	return predicate.FeatureFlag(sql.FieldEQ(FieldUpdatedBy, v))
+}
+
+// GrantsValue applies equality check predicate on the "grants_value" field. It's identical to GrantsValueEQ.
+func GrantsValue(v bool) predicate.FeatureFlag {
+	return predicate.FeatureFlag(sql.FieldEQ(FieldGrantsValue, v))
+}
+
 // UIDEQ applies the EQ predicate on the "uid" field.
 func UIDEQ(v uuid.UUID) predicate.FeatureFlag {
 	return predicate.FeatureFlag(sql.FieldEQ(FieldUID, v))
@@ -574,6 +589,166 @@ func ArchivedEQ(v bool) predicate.FeatureFlag {
 // ArchivedNEQ applies the NEQ predicate on the "archived" field.
 func ArchivedNEQ(v bool) predicate.FeatureFlag {
 	return predicate.FeatureFlag(sql.FieldNEQ(FieldArchived, v))
+}
+
+// CreatedByEQ applies the EQ predicate on the "created_by" field.
+func CreatedByEQ(v string) predicate.FeatureFlag {
+	return predicate.FeatureFlag(sql.FieldEQ(FieldCreatedBy, v))
+}
+
+// CreatedByNEQ applies the NEQ predicate on the "created_by" field.
+func CreatedByNEQ(v string) predicate.FeatureFlag {
+	return predicate.FeatureFlag(sql.FieldNEQ(FieldCreatedBy, v))
+}
+
+// CreatedByIn applies the In predicate on the "created_by" field.
+func CreatedByIn(vs ...string) predicate.FeatureFlag {
+	return predicate.FeatureFlag(sql.FieldIn(FieldCreatedBy, vs...))
+}
+
+// CreatedByNotIn applies the NotIn predicate on the "created_by" field.
+func CreatedByNotIn(vs ...string) predicate.FeatureFlag {
+	return predicate.FeatureFlag(sql.FieldNotIn(FieldCreatedBy, vs...))
+}
+
+// CreatedByGT applies the GT predicate on the "created_by" field.
+func CreatedByGT(v string) predicate.FeatureFlag {
+	return predicate.FeatureFlag(sql.FieldGT(FieldCreatedBy, v))
+}
+
+// CreatedByGTE applies the GTE predicate on the "created_by" field.
+func CreatedByGTE(v string) predicate.FeatureFlag {
+	return predicate.FeatureFlag(sql.FieldGTE(FieldCreatedBy, v))
+}
+
+// CreatedByLT applies the LT predicate on the "created_by" field.
+func CreatedByLT(v string) predicate.FeatureFlag {
+	return predicate.FeatureFlag(sql.FieldLT(FieldCreatedBy, v))
+}
+
+// CreatedByLTE applies the LTE predicate on the "created_by" field.
+func CreatedByLTE(v string) predicate.FeatureFlag {
+	return predicate.FeatureFlag(sql.FieldLTE(FieldCreatedBy, v))
+}
+
+// CreatedByContains applies the Contains predicate on the "created_by" field.
+func CreatedByContains(v string) predicate.FeatureFlag {
+	return predicate.FeatureFlag(sql.FieldContains(FieldCreatedBy, v))
+}
+
+// CreatedByHasPrefix applies the HasPrefix predicate on the "created_by" field.
+func CreatedByHasPrefix(v string) predicate.FeatureFlag {
+	return predicate.FeatureFlag(sql.FieldHasPrefix(FieldCreatedBy, v))
+}
+
+// CreatedByHasSuffix applies the HasSuffix predicate on the "created_by" field.
+func CreatedByHasSuffix(v string) predicate.FeatureFlag {
+	return predicate.FeatureFlag(sql.FieldHasSuffix(FieldCreatedBy, v))
+}
+
+// CreatedByEqualFold applies the EqualFold predicate on the "created_by" field.
+func CreatedByEqualFold(v string) predicate.FeatureFlag {
+	return predicate.FeatureFlag(sql.FieldEqualFold(FieldCreatedBy, v))
+}
+
+// CreatedByContainsFold applies the ContainsFold predicate on the "created_by" field.
+func CreatedByContainsFold(v string) predicate.FeatureFlag {
+	return predicate.FeatureFlag(sql.FieldContainsFold(FieldCreatedBy, v))
+}
+
+// UpdatedByEQ applies the EQ predicate on the "updated_by" field.
+func UpdatedByEQ(v string) predicate.FeatureFlag {
+	return predicate.FeatureFlag(sql.FieldEQ(FieldUpdatedBy, v))
+}
+
+// UpdatedByNEQ applies the NEQ predicate on the "updated_by" field.
+func UpdatedByNEQ(v string) predicate.FeatureFlag {
+	return predicate.FeatureFlag(sql.FieldNEQ(FieldUpdatedBy, v))
+}
+
+// UpdatedByIn applies the In predicate on the "updated_by" field.
+func UpdatedByIn(vs ...string) predicate.FeatureFlag {
+	return predicate.FeatureFlag(sql.FieldIn(FieldUpdatedBy, vs...))
+}
+
+// UpdatedByNotIn applies the NotIn predicate on the "updated_by" field.
+func UpdatedByNotIn(vs ...string) predicate.FeatureFlag {
+	return predicate.FeatureFlag(sql.FieldNotIn(FieldUpdatedBy, vs...))
+}
+
+// UpdatedByGT applies the GT predicate on the "updated_by" field.
+func UpdatedByGT(v string) predicate.FeatureFlag {
+	return predicate.FeatureFlag(sql.FieldGT(FieldUpdatedBy, v))
+}
+
+// UpdatedByGTE applies the GTE predicate on the "updated_by" field.
+func UpdatedByGTE(v string) predicate.FeatureFlag {
+	return predicate.FeatureFlag(sql.FieldGTE(FieldUpdatedBy, v))
+}
+
+// UpdatedByLT applies the LT predicate on the "updated_by" field.
+func UpdatedByLT(v string) predicate.FeatureFlag {
+	return predicate.FeatureFlag(sql.FieldLT(FieldUpdatedBy, v))
+}
+
+// UpdatedByLTE applies the LTE predicate on the "updated_by" field.
+func UpdatedByLTE(v string) predicate.FeatureFlag {
+	return predicate.FeatureFlag(sql.FieldLTE(FieldUpdatedBy, v))
+}
+
+// UpdatedByContains applies the Contains predicate on the "updated_by" field.
+func UpdatedByContains(v string) predicate.FeatureFlag {
+	return predicate.FeatureFlag(sql.FieldContains(FieldUpdatedBy, v))
+}
+
+// UpdatedByHasPrefix applies the HasPrefix predicate on the "updated_by" field.
+func UpdatedByHasPrefix(v string) predicate.FeatureFlag {
+	return predicate.FeatureFlag(sql.FieldHasPrefix(FieldUpdatedBy, v))
+}
+
+// UpdatedByHasSuffix applies the HasSuffix predicate on the "updated_by" field.
+func UpdatedByHasSuffix(v string) predicate.FeatureFlag {
+	return predicate.FeatureFlag(sql.FieldHasSuffix(FieldUpdatedBy, v))
+}
+
+// UpdatedByEqualFold applies the EqualFold predicate on the "updated_by" field.
+func UpdatedByEqualFold(v string) predicate.FeatureFlag {
+	return predicate.FeatureFlag(sql.FieldEqualFold(FieldUpdatedBy, v))
+}
+
+// UpdatedByContainsFold applies the ContainsFold predicate on the "updated_by" field.
+func UpdatedByContainsFold(v string) predicate.FeatureFlag {
+	return predicate.FeatureFlag(sql.FieldContainsFold(FieldUpdatedBy, v))
+}
+
+// PurposeEQ applies the EQ predicate on the "purpose" field.
+func PurposeEQ(v Purpose) predicate.FeatureFlag {
+	return predicate.FeatureFlag(sql.FieldEQ(FieldPurpose, v))
+}
+
+// PurposeNEQ applies the NEQ predicate on the "purpose" field.
+func PurposeNEQ(v Purpose) predicate.FeatureFlag {
+	return predicate.FeatureFlag(sql.FieldNEQ(FieldPurpose, v))
+}
+
+// PurposeIn applies the In predicate on the "purpose" field.
+func PurposeIn(vs ...Purpose) predicate.FeatureFlag {
+	return predicate.FeatureFlag(sql.FieldIn(FieldPurpose, vs...))
+}
+
+// PurposeNotIn applies the NotIn predicate on the "purpose" field.
+func PurposeNotIn(vs ...Purpose) predicate.FeatureFlag {
+	return predicate.FeatureFlag(sql.FieldNotIn(FieldPurpose, vs...))
+}
+
+// GrantsValueEQ applies the EQ predicate on the "grants_value" field.
+func GrantsValueEQ(v bool) predicate.FeatureFlag {
+	return predicate.FeatureFlag(sql.FieldEQ(FieldGrantsValue, v))
+}
+
+// GrantsValueNEQ applies the NEQ predicate on the "grants_value" field.
+func GrantsValueNEQ(v bool) predicate.FeatureFlag {
+	return predicate.FeatureFlag(sql.FieldNEQ(FieldGrantsValue, v))
 }
 
 // HasProject applies the HasEdge predicate on the "project" edge.

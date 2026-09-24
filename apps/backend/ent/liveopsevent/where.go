@@ -106,6 +106,26 @@ func Salt(v string) predicate.LiveOpsEvent {
 	return predicate.LiveOpsEvent(sql.FieldEQ(FieldSalt, v))
 }
 
+// Description applies equality check predicate on the "description" field. It's identical to DescriptionEQ.
+func Description(v string) predicate.LiveOpsEvent {
+	return predicate.LiveOpsEvent(sql.FieldEQ(FieldDescription, v))
+}
+
+// Goal applies equality check predicate on the "goal" field. It's identical to GoalEQ.
+func Goal(v string) predicate.LiveOpsEvent {
+	return predicate.LiveOpsEvent(sql.FieldEQ(FieldGoal, v))
+}
+
+// CreatedBy applies equality check predicate on the "created_by" field. It's identical to CreatedByEQ.
+func CreatedBy(v string) predicate.LiveOpsEvent {
+	return predicate.LiveOpsEvent(sql.FieldEQ(FieldCreatedBy, v))
+}
+
+// UpdatedBy applies equality check predicate on the "updated_by" field. It's identical to UpdatedByEQ.
+func UpdatedBy(v string) predicate.LiveOpsEvent {
+	return predicate.LiveOpsEvent(sql.FieldEQ(FieldUpdatedBy, v))
+}
+
 // UIDEQ applies the EQ predicate on the "uid" field.
 func UIDEQ(v uuid.UUID) predicate.LiveOpsEvent {
 	return predicate.LiveOpsEvent(sql.FieldEQ(FieldUID, v))
@@ -604,6 +624,276 @@ func SaltEqualFold(v string) predicate.LiveOpsEvent {
 // SaltContainsFold applies the ContainsFold predicate on the "salt" field.
 func SaltContainsFold(v string) predicate.LiveOpsEvent {
 	return predicate.LiveOpsEvent(sql.FieldContainsFold(FieldSalt, v))
+}
+
+// DescriptionEQ applies the EQ predicate on the "description" field.
+func DescriptionEQ(v string) predicate.LiveOpsEvent {
+	return predicate.LiveOpsEvent(sql.FieldEQ(FieldDescription, v))
+}
+
+// DescriptionNEQ applies the NEQ predicate on the "description" field.
+func DescriptionNEQ(v string) predicate.LiveOpsEvent {
+	return predicate.LiveOpsEvent(sql.FieldNEQ(FieldDescription, v))
+}
+
+// DescriptionIn applies the In predicate on the "description" field.
+func DescriptionIn(vs ...string) predicate.LiveOpsEvent {
+	return predicate.LiveOpsEvent(sql.FieldIn(FieldDescription, vs...))
+}
+
+// DescriptionNotIn applies the NotIn predicate on the "description" field.
+func DescriptionNotIn(vs ...string) predicate.LiveOpsEvent {
+	return predicate.LiveOpsEvent(sql.FieldNotIn(FieldDescription, vs...))
+}
+
+// DescriptionGT applies the GT predicate on the "description" field.
+func DescriptionGT(v string) predicate.LiveOpsEvent {
+	return predicate.LiveOpsEvent(sql.FieldGT(FieldDescription, v))
+}
+
+// DescriptionGTE applies the GTE predicate on the "description" field.
+func DescriptionGTE(v string) predicate.LiveOpsEvent {
+	return predicate.LiveOpsEvent(sql.FieldGTE(FieldDescription, v))
+}
+
+// DescriptionLT applies the LT predicate on the "description" field.
+func DescriptionLT(v string) predicate.LiveOpsEvent {
+	return predicate.LiveOpsEvent(sql.FieldLT(FieldDescription, v))
+}
+
+// DescriptionLTE applies the LTE predicate on the "description" field.
+func DescriptionLTE(v string) predicate.LiveOpsEvent {
+	return predicate.LiveOpsEvent(sql.FieldLTE(FieldDescription, v))
+}
+
+// DescriptionContains applies the Contains predicate on the "description" field.
+func DescriptionContains(v string) predicate.LiveOpsEvent {
+	return predicate.LiveOpsEvent(sql.FieldContains(FieldDescription, v))
+}
+
+// DescriptionHasPrefix applies the HasPrefix predicate on the "description" field.
+func DescriptionHasPrefix(v string) predicate.LiveOpsEvent {
+	return predicate.LiveOpsEvent(sql.FieldHasPrefix(FieldDescription, v))
+}
+
+// DescriptionHasSuffix applies the HasSuffix predicate on the "description" field.
+func DescriptionHasSuffix(v string) predicate.LiveOpsEvent {
+	return predicate.LiveOpsEvent(sql.FieldHasSuffix(FieldDescription, v))
+}
+
+// DescriptionEqualFold applies the EqualFold predicate on the "description" field.
+func DescriptionEqualFold(v string) predicate.LiveOpsEvent {
+	return predicate.LiveOpsEvent(sql.FieldEqualFold(FieldDescription, v))
+}
+
+// DescriptionContainsFold applies the ContainsFold predicate on the "description" field.
+func DescriptionContainsFold(v string) predicate.LiveOpsEvent {
+	return predicate.LiveOpsEvent(sql.FieldContainsFold(FieldDescription, v))
+}
+
+// GoalEQ applies the EQ predicate on the "goal" field.
+func GoalEQ(v string) predicate.LiveOpsEvent {
+	return predicate.LiveOpsEvent(sql.FieldEQ(FieldGoal, v))
+}
+
+// GoalNEQ applies the NEQ predicate on the "goal" field.
+func GoalNEQ(v string) predicate.LiveOpsEvent {
+	return predicate.LiveOpsEvent(sql.FieldNEQ(FieldGoal, v))
+}
+
+// GoalIn applies the In predicate on the "goal" field.
+func GoalIn(vs ...string) predicate.LiveOpsEvent {
+	return predicate.LiveOpsEvent(sql.FieldIn(FieldGoal, vs...))
+}
+
+// GoalNotIn applies the NotIn predicate on the "goal" field.
+func GoalNotIn(vs ...string) predicate.LiveOpsEvent {
+	return predicate.LiveOpsEvent(sql.FieldNotIn(FieldGoal, vs...))
+}
+
+// GoalGT applies the GT predicate on the "goal" field.
+func GoalGT(v string) predicate.LiveOpsEvent {
+	return predicate.LiveOpsEvent(sql.FieldGT(FieldGoal, v))
+}
+
+// GoalGTE applies the GTE predicate on the "goal" field.
+func GoalGTE(v string) predicate.LiveOpsEvent {
+	return predicate.LiveOpsEvent(sql.FieldGTE(FieldGoal, v))
+}
+
+// GoalLT applies the LT predicate on the "goal" field.
+func GoalLT(v string) predicate.LiveOpsEvent {
+	return predicate.LiveOpsEvent(sql.FieldLT(FieldGoal, v))
+}
+
+// GoalLTE applies the LTE predicate on the "goal" field.
+func GoalLTE(v string) predicate.LiveOpsEvent {
+	return predicate.LiveOpsEvent(sql.FieldLTE(FieldGoal, v))
+}
+
+// GoalContains applies the Contains predicate on the "goal" field.
+func GoalContains(v string) predicate.LiveOpsEvent {
+	return predicate.LiveOpsEvent(sql.FieldContains(FieldGoal, v))
+}
+
+// GoalHasPrefix applies the HasPrefix predicate on the "goal" field.
+func GoalHasPrefix(v string) predicate.LiveOpsEvent {
+	return predicate.LiveOpsEvent(sql.FieldHasPrefix(FieldGoal, v))
+}
+
+// GoalHasSuffix applies the HasSuffix predicate on the "goal" field.
+func GoalHasSuffix(v string) predicate.LiveOpsEvent {
+	return predicate.LiveOpsEvent(sql.FieldHasSuffix(FieldGoal, v))
+}
+
+// GoalIsNil applies the IsNil predicate on the "goal" field.
+func GoalIsNil() predicate.LiveOpsEvent {
+	return predicate.LiveOpsEvent(sql.FieldIsNull(FieldGoal))
+}
+
+// GoalNotNil applies the NotNil predicate on the "goal" field.
+func GoalNotNil() predicate.LiveOpsEvent {
+	return predicate.LiveOpsEvent(sql.FieldNotNull(FieldGoal))
+}
+
+// GoalEqualFold applies the EqualFold predicate on the "goal" field.
+func GoalEqualFold(v string) predicate.LiveOpsEvent {
+	return predicate.LiveOpsEvent(sql.FieldEqualFold(FieldGoal, v))
+}
+
+// GoalContainsFold applies the ContainsFold predicate on the "goal" field.
+func GoalContainsFold(v string) predicate.LiveOpsEvent {
+	return predicate.LiveOpsEvent(sql.FieldContainsFold(FieldGoal, v))
+}
+
+// CreatedByEQ applies the EQ predicate on the "created_by" field.
+func CreatedByEQ(v string) predicate.LiveOpsEvent {
+	return predicate.LiveOpsEvent(sql.FieldEQ(FieldCreatedBy, v))
+}
+
+// CreatedByNEQ applies the NEQ predicate on the "created_by" field.
+func CreatedByNEQ(v string) predicate.LiveOpsEvent {
+	return predicate.LiveOpsEvent(sql.FieldNEQ(FieldCreatedBy, v))
+}
+
+// CreatedByIn applies the In predicate on the "created_by" field.
+func CreatedByIn(vs ...string) predicate.LiveOpsEvent {
+	return predicate.LiveOpsEvent(sql.FieldIn(FieldCreatedBy, vs...))
+}
+
+// CreatedByNotIn applies the NotIn predicate on the "created_by" field.
+func CreatedByNotIn(vs ...string) predicate.LiveOpsEvent {
+	return predicate.LiveOpsEvent(sql.FieldNotIn(FieldCreatedBy, vs...))
+}
+
+// CreatedByGT applies the GT predicate on the "created_by" field.
+func CreatedByGT(v string) predicate.LiveOpsEvent {
+	return predicate.LiveOpsEvent(sql.FieldGT(FieldCreatedBy, v))
+}
+
+// CreatedByGTE applies the GTE predicate on the "created_by" field.
+func CreatedByGTE(v string) predicate.LiveOpsEvent {
+	return predicate.LiveOpsEvent(sql.FieldGTE(FieldCreatedBy, v))
+}
+
+// CreatedByLT applies the LT predicate on the "created_by" field.
+func CreatedByLT(v string) predicate.LiveOpsEvent {
+	return predicate.LiveOpsEvent(sql.FieldLT(FieldCreatedBy, v))
+}
+
+// CreatedByLTE applies the LTE predicate on the "created_by" field.
+func CreatedByLTE(v string) predicate.LiveOpsEvent {
+	return predicate.LiveOpsEvent(sql.FieldLTE(FieldCreatedBy, v))
+}
+
+// CreatedByContains applies the Contains predicate on the "created_by" field.
+func CreatedByContains(v string) predicate.LiveOpsEvent {
+	return predicate.LiveOpsEvent(sql.FieldContains(FieldCreatedBy, v))
+}
+
+// CreatedByHasPrefix applies the HasPrefix predicate on the "created_by" field.
+func CreatedByHasPrefix(v string) predicate.LiveOpsEvent {
+	return predicate.LiveOpsEvent(sql.FieldHasPrefix(FieldCreatedBy, v))
+}
+
+// CreatedByHasSuffix applies the HasSuffix predicate on the "created_by" field.
+func CreatedByHasSuffix(v string) predicate.LiveOpsEvent {
+	return predicate.LiveOpsEvent(sql.FieldHasSuffix(FieldCreatedBy, v))
+}
+
+// CreatedByEqualFold applies the EqualFold predicate on the "created_by" field.
+func CreatedByEqualFold(v string) predicate.LiveOpsEvent {
+	return predicate.LiveOpsEvent(sql.FieldEqualFold(FieldCreatedBy, v))
+}
+
+// CreatedByContainsFold applies the ContainsFold predicate on the "created_by" field.
+func CreatedByContainsFold(v string) predicate.LiveOpsEvent {
+	return predicate.LiveOpsEvent(sql.FieldContainsFold(FieldCreatedBy, v))
+}
+
+// UpdatedByEQ applies the EQ predicate on the "updated_by" field.
+func UpdatedByEQ(v string) predicate.LiveOpsEvent {
+	return predicate.LiveOpsEvent(sql.FieldEQ(FieldUpdatedBy, v))
+}
+
+// UpdatedByNEQ applies the NEQ predicate on the "updated_by" field.
+func UpdatedByNEQ(v string) predicate.LiveOpsEvent {
+	return predicate.LiveOpsEvent(sql.FieldNEQ(FieldUpdatedBy, v))
+}
+
+// UpdatedByIn applies the In predicate on the "updated_by" field.
+func UpdatedByIn(vs ...string) predicate.LiveOpsEvent {
+	return predicate.LiveOpsEvent(sql.FieldIn(FieldUpdatedBy, vs...))
+}
+
+// UpdatedByNotIn applies the NotIn predicate on the "updated_by" field.
+func UpdatedByNotIn(vs ...string) predicate.LiveOpsEvent {
+	return predicate.LiveOpsEvent(sql.FieldNotIn(FieldUpdatedBy, vs...))
+}
+
+// UpdatedByGT applies the GT predicate on the "updated_by" field.
+func UpdatedByGT(v string) predicate.LiveOpsEvent {
+	return predicate.LiveOpsEvent(sql.FieldGT(FieldUpdatedBy, v))
+}
+
+// UpdatedByGTE applies the GTE predicate on the "updated_by" field.
+func UpdatedByGTE(v string) predicate.LiveOpsEvent {
+	return predicate.LiveOpsEvent(sql.FieldGTE(FieldUpdatedBy, v))
+}
+
+// UpdatedByLT applies the LT predicate on the "updated_by" field.
+func UpdatedByLT(v string) predicate.LiveOpsEvent {
+	return predicate.LiveOpsEvent(sql.FieldLT(FieldUpdatedBy, v))
+}
+
+// UpdatedByLTE applies the LTE predicate on the "updated_by" field.
+func UpdatedByLTE(v string) predicate.LiveOpsEvent {
+	return predicate.LiveOpsEvent(sql.FieldLTE(FieldUpdatedBy, v))
+}
+
+// UpdatedByContains applies the Contains predicate on the "updated_by" field.
+func UpdatedByContains(v string) predicate.LiveOpsEvent {
+	return predicate.LiveOpsEvent(sql.FieldContains(FieldUpdatedBy, v))
+}
+
+// UpdatedByHasPrefix applies the HasPrefix predicate on the "updated_by" field.
+func UpdatedByHasPrefix(v string) predicate.LiveOpsEvent {
+	return predicate.LiveOpsEvent(sql.FieldHasPrefix(FieldUpdatedBy, v))
+}
+
+// UpdatedByHasSuffix applies the HasSuffix predicate on the "updated_by" field.
+func UpdatedByHasSuffix(v string) predicate.LiveOpsEvent {
+	return predicate.LiveOpsEvent(sql.FieldHasSuffix(FieldUpdatedBy, v))
+}
+
+// UpdatedByEqualFold applies the EqualFold predicate on the "updated_by" field.
+func UpdatedByEqualFold(v string) predicate.LiveOpsEvent {
+	return predicate.LiveOpsEvent(sql.FieldEqualFold(FieldUpdatedBy, v))
+}
+
+// UpdatedByContainsFold applies the ContainsFold predicate on the "updated_by" field.
+func UpdatedByContainsFold(v string) predicate.LiveOpsEvent {
+	return predicate.LiveOpsEvent(sql.FieldContainsFold(FieldUpdatedBy, v))
 }
 
 // HasProject applies the HasEdge predicate on the "project" edge.

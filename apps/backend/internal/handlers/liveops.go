@@ -98,6 +98,8 @@ func CreateSegment(ctx *muzak.Context, in schemas.CreateSegmentIn) (schemas.Segm
 			SetName(in.Name).
 			SetDescription(in.Description).
 			SetRule(stored).
+			SetCreatedBy(actorOf(ctx).Label).
+			SetUpdatedBy(actorOf(ctx).Label).
 			Save(ctx.Context())
 		if err != nil {
 			return nil, asConflict(err, "a segment", in.Key)
@@ -136,6 +138,7 @@ func UpdateSegment(ctx *muzak.Context, in schemas.UpdateSegmentIn) (schemas.Segm
 			SetDescription(in.Description).
 			SetRule(stored).
 			SetArchived(archivedOr(in.Archived, row.Archived)).
+			SetUpdatedBy(actorOf(ctx).Label).
 			Save(ctx.Context())
 		if err != nil {
 			return nil, core.AsHTTPError(err)
@@ -251,6 +254,11 @@ func CreateFlag(ctx *muzak.Context, in schemas.CreateFlagIn) (schemas.FlagOut, e
 			SetRules(rules).
 			SetRollout(rolloutOrFull(in.Rollout)).
 			SetSalt(in.Salt).
+			SetCreatedBy(actorOf(ctx).Label).
+			SetUpdatedBy(actorOf(ctx).Label).
+			SetPurpose(featureflag.Purpose(strOr(in.Purpose, "config"))).
+			SetTags(tagsOf(in.Tags, nil)).
+			SetGrantsValue(boolOr(in.GrantsValue, false)).
 			Save(ctx.Context())
 		if err != nil {
 			return nil, asConflict(err, "a flag", in.Key)
@@ -308,6 +316,10 @@ func UpdateFlag(ctx *muzak.Context, in schemas.UpdateFlagIn) (schemas.FlagOut, e
 			SetRollout(rolloutOrFull(in.Rollout)).
 			SetSalt(in.Salt).
 			SetArchived(archivedOr(in.Archived, row.Archived)).
+			SetUpdatedBy(actorOf(ctx).Label).
+			SetPurpose(featureflag.Purpose(strOr(in.Purpose, string(row.Purpose)))).
+			SetTags(tagsOf(in.Tags, row.Tags)).
+			SetGrantsValue(boolOr(in.GrantsValue, row.GrantsValue)).
 			Save(ctx.Context())
 		if err != nil {
 			return nil, core.AsHTTPError(err)
@@ -422,6 +434,11 @@ func CreateLiveOpsEvent(ctx *muzak.Context, in schemas.CreateLiveOpsEventIn) (sc
 			SetPayload(payload).
 			SetRollout(rolloutOrFull(in.Rollout)).
 			SetSalt(in.Salt).
+			SetDescription(strOr(in.Description, "")).
+			SetNillableGoal(goalOf(in.Goal, nil)).
+			SetWatch(tagsOf(in.Watch, nil)).
+			SetCreatedBy(actorOf(ctx).Label).
+			SetUpdatedBy(actorOf(ctx).Label).
 			Save(ctx.Context())
 		if err != nil {
 			return nil, asConflict(err, "a LiveOps event", in.Key)
@@ -469,7 +486,13 @@ func UpdateLiveOpsEvent(ctx *muzak.Context, in schemas.UpdateLiveOpsEventIn) (sc
 	}
 
 	updated, err := inTx(ctx, func(tx *ent.Tx) (*ent.LiveOpsEvent, error) {
-		updated, err := tx.LiveOpsEvent.UpdateOneID(row.ID).
+		update := tx.LiveOpsEvent.UpdateOneID(row.ID)
+		if goal := goalOf(in.Goal, row.Goal); goal == nil {
+			update = update.ClearGoal()
+		} else {
+			update = update.SetGoal(*goal)
+		}
+		updated, err := update.
 			SetKind(in.Kind).
 			SetName(in.Name).
 			SetStatus(liveopsevent.Status(orDefault(in.Status, string(row.Status)))).
@@ -479,6 +502,9 @@ func UpdateLiveOpsEvent(ctx *muzak.Context, in schemas.UpdateLiveOpsEventIn) (sc
 			SetPayload(payload).
 			SetRollout(rolloutOrFull(in.Rollout)).
 			SetSalt(in.Salt).
+			SetDescription(strOr(in.Description, row.Description)).
+			SetWatch(tagsOf(in.Watch, row.Watch)).
+			SetUpdatedBy(actorOf(ctx).Label).
 			Save(ctx.Context())
 		if err != nil {
 			return nil, core.AsHTTPError(err)
@@ -938,6 +964,8 @@ func segmentOut(row *ent.Segment) schemas.SegmentOut {
 		Archived:    row.Archived,
 		CreatedAt:   row.CreatedAt,
 		UpdatedAt:   row.UpdatedAt,
+		CreatedBy:   row.CreatedBy,
+		UpdatedBy:   row.UpdatedBy,
 	}
 	// A rule that fails to marshal is not a reason to fail the read: the row is what a
 	// person needs in order to fix it, and an empty rule member with the key beside it is
@@ -962,6 +990,11 @@ func flagOut(row *ent.FeatureFlag) (schemas.FlagOut, error) {
 		Archived:    row.Archived,
 		CreatedAt:   row.CreatedAt,
 		UpdatedAt:   row.UpdatedAt,
+		CreatedBy:   row.CreatedBy,
+		UpdatedBy:   row.UpdatedBy,
+		Purpose:     string(row.Purpose),
+		Tags:        tagsOf(nil, row.Tags),
+		GrantsValue: row.GrantsValue,
 	}
 	for _, raw := range row.Rules {
 		variant, err := variantFrom(raw)
@@ -998,18 +1031,23 @@ func flagOut(row *ent.FeatureFlag) (schemas.FlagOut, error) {
 // makes them the dates a player will see rather than a second opinion about them.
 func liveOpsEventOut(row *ent.LiveOpsEvent, now time.Time) (schemas.LiveOpsEventOut, error) {
 	out := schemas.LiveOpsEventOut{
-		ID:        row.UID,
-		Key:       row.Key,
-		Kind:      row.Kind,
-		Name:      row.Name,
-		Status:    string(row.Status),
-		Schedule:  schemas.ScheduleFrom(row.Schedule),
-		Priority:  row.Priority,
-		Payload:   row.Payload,
-		Rollout:   row.Rollout,
-		Salt:      row.Salt,
-		CreatedAt: row.CreatedAt,
-		UpdatedAt: row.UpdatedAt,
+		ID:          row.UID,
+		Key:         row.Key,
+		Kind:        row.Kind,
+		Name:        row.Name,
+		Status:      string(row.Status),
+		Schedule:    schemas.ScheduleFrom(row.Schedule),
+		Priority:    row.Priority,
+		Payload:     row.Payload,
+		Rollout:     row.Rollout,
+		Salt:        row.Salt,
+		CreatedAt:   row.CreatedAt,
+		UpdatedAt:   row.UpdatedAt,
+		CreatedBy:   row.CreatedBy,
+		UpdatedBy:   row.UpdatedBy,
+		Description: row.Description,
+		Goal:        row.Goal,
+		Watch:       tagsOf(nil, row.Watch),
 	}
 	audience, err := ruleFrom(row.Audience)
 	if err != nil {
@@ -1043,3 +1081,40 @@ func liveOpsEventOut(row *ent.LiveOpsEvent, now time.Time) (schemas.LiveOpsEvent
 // Enough to see the pattern — a weekly event's next month, a monthly one's next quarter — and
 // few enough that the answer stays a glance rather than a scroll.
 const draftOccurrences = 5
+
+func strOr(v *string, fallback string) string {
+	if v == nil {
+		return fallback
+	}
+	return *v
+}
+
+func boolOr(v *bool, fallback bool) bool {
+	if v == nil {
+		return fallback
+	}
+	return *v
+}
+
+// tagsOf is the list written, or the one kept when none was sent, never null.
+func tagsOf(written, kept []string) []string {
+	if written != nil {
+		return written
+	}
+	if kept == nil {
+		return []string{}
+	}
+	return kept
+}
+
+// goalOf is the goal written, the one kept when none was sent, or none when it was cleared.
+func goalOf(written, kept *string) *string {
+	switch {
+	case written == nil:
+		return kept
+	case *written == "":
+		return nil
+	default:
+		return written
+	}
+}

@@ -39,6 +39,10 @@ type Segment struct {
 	Rule map[string]interface{} `json:"rule,omitempty"`
 	// class=none
 	Archived bool `json:"archived,omitempty"`
+	// class=none
+	CreatedBy string `json:"created_by,omitempty"`
+	// class=none
+	UpdatedBy string `json:"updated_by,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the SegmentQuery when eager-loading is set.
 	Edges        SegmentEdges `json:"edges"`
@@ -76,7 +80,7 @@ func (*Segment) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullBool)
 		case segment.FieldID, segment.FieldProjectID:
 			values[i] = new(sql.NullInt64)
-		case segment.FieldKey, segment.FieldName, segment.FieldDescription:
+		case segment.FieldKey, segment.FieldName, segment.FieldDescription, segment.FieldCreatedBy, segment.FieldUpdatedBy:
 			values[i] = new(sql.NullString)
 		case segment.FieldCreatedAt, segment.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -159,6 +163,18 @@ func (_m *Segment) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.Archived = value.Bool
 			}
+		case segment.FieldCreatedBy:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field created_by", values[i])
+			} else if value.Valid {
+				_m.CreatedBy = value.String
+			}
+		case segment.FieldUpdatedBy:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field updated_by", values[i])
+			} else if value.Valid {
+				_m.UpdatedBy = value.String
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -226,6 +242,12 @@ func (_m *Segment) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("archived=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Archived))
+	builder.WriteString(", ")
+	builder.WriteString("created_by=")
+	builder.WriteString(_m.CreatedBy)
+	builder.WriteString(", ")
+	builder.WriteString("updated_by=")
+	builder.WriteString(_m.UpdatedBy)
 	builder.WriteByte(')')
 	return builder.String()
 }

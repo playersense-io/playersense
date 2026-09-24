@@ -159,6 +159,68 @@ func (_c *FeatureFlagCreate) SetNillableArchived(v *bool) *FeatureFlagCreate {
 	return _c
 }
 
+// SetCreatedBy sets the "created_by" field.
+func (_c *FeatureFlagCreate) SetCreatedBy(v string) *FeatureFlagCreate {
+	_c.mutation.SetCreatedBy(v)
+	return _c
+}
+
+// SetNillableCreatedBy sets the "created_by" field if the given value is not nil.
+func (_c *FeatureFlagCreate) SetNillableCreatedBy(v *string) *FeatureFlagCreate {
+	if v != nil {
+		_c.SetCreatedBy(*v)
+	}
+	return _c
+}
+
+// SetUpdatedBy sets the "updated_by" field.
+func (_c *FeatureFlagCreate) SetUpdatedBy(v string) *FeatureFlagCreate {
+	_c.mutation.SetUpdatedBy(v)
+	return _c
+}
+
+// SetNillableUpdatedBy sets the "updated_by" field if the given value is not nil.
+func (_c *FeatureFlagCreate) SetNillableUpdatedBy(v *string) *FeatureFlagCreate {
+	if v != nil {
+		_c.SetUpdatedBy(*v)
+	}
+	return _c
+}
+
+// SetPurpose sets the "purpose" field.
+func (_c *FeatureFlagCreate) SetPurpose(v featureflag.Purpose) *FeatureFlagCreate {
+	_c.mutation.SetPurpose(v)
+	return _c
+}
+
+// SetNillablePurpose sets the "purpose" field if the given value is not nil.
+func (_c *FeatureFlagCreate) SetNillablePurpose(v *featureflag.Purpose) *FeatureFlagCreate {
+	if v != nil {
+		_c.SetPurpose(*v)
+	}
+	return _c
+}
+
+// SetTags sets the "tags" field.
+func (_c *FeatureFlagCreate) SetTags(v []string) *FeatureFlagCreate {
+	_c.mutation.SetTags(v)
+	return _c
+}
+
+// SetGrantsValue sets the "grants_value" field.
+func (_c *FeatureFlagCreate) SetGrantsValue(v bool) *FeatureFlagCreate {
+	_c.mutation.SetGrantsValue(v)
+	return _c
+}
+
+// SetNillableGrantsValue sets the "grants_value" field if the given value is not nil.
+func (_c *FeatureFlagCreate) SetNillableGrantsValue(v *bool) *FeatureFlagCreate {
+	if v != nil {
+		_c.SetGrantsValue(*v)
+	}
+	return _c
+}
+
 // SetID sets the "id" field.
 func (_c *FeatureFlagCreate) SetID(v int) *FeatureFlagCreate {
 	_c.mutation.SetID(v)
@@ -237,6 +299,26 @@ func (_c *FeatureFlagCreate) defaults() {
 		v := featureflag.DefaultArchived
 		_c.mutation.SetArchived(v)
 	}
+	if _, ok := _c.mutation.CreatedBy(); !ok {
+		v := featureflag.DefaultCreatedBy
+		_c.mutation.SetCreatedBy(v)
+	}
+	if _, ok := _c.mutation.UpdatedBy(); !ok {
+		v := featureflag.DefaultUpdatedBy
+		_c.mutation.SetUpdatedBy(v)
+	}
+	if _, ok := _c.mutation.Purpose(); !ok {
+		v := featureflag.DefaultPurpose
+		_c.mutation.SetPurpose(v)
+	}
+	if _, ok := _c.mutation.Tags(); !ok {
+		v := featureflag.DefaultTags
+		_c.mutation.SetTags(v)
+	}
+	if _, ok := _c.mutation.GrantsValue(); !ok {
+		v := featureflag.DefaultGrantsValue
+		_c.mutation.SetGrantsValue(v)
+	}
 }
 
 // check runs all checks and user-defined validators on the builder.
@@ -309,6 +391,33 @@ func (_c *FeatureFlagCreate) check() error {
 	}
 	if _, ok := _c.mutation.Archived(); !ok {
 		return &ValidationError{Name: "archived", err: errors.New(`ent: missing required field "FeatureFlag.archived"`)}
+	}
+	if _, ok := _c.mutation.CreatedBy(); !ok {
+		return &ValidationError{Name: "created_by", err: errors.New(`ent: missing required field "FeatureFlag.created_by"`)}
+	}
+	if v, ok := _c.mutation.CreatedBy(); ok {
+		if err := featureflag.CreatedByValidator(v); err != nil {
+			return &ValidationError{Name: "created_by", err: fmt.Errorf(`ent: validator failed for field "FeatureFlag.created_by": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.UpdatedBy(); !ok {
+		return &ValidationError{Name: "updated_by", err: errors.New(`ent: missing required field "FeatureFlag.updated_by"`)}
+	}
+	if v, ok := _c.mutation.UpdatedBy(); ok {
+		if err := featureflag.UpdatedByValidator(v); err != nil {
+			return &ValidationError{Name: "updated_by", err: fmt.Errorf(`ent: validator failed for field "FeatureFlag.updated_by": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.Purpose(); !ok {
+		return &ValidationError{Name: "purpose", err: errors.New(`ent: missing required field "FeatureFlag.purpose"`)}
+	}
+	if v, ok := _c.mutation.Purpose(); ok {
+		if err := featureflag.PurposeValidator(v); err != nil {
+			return &ValidationError{Name: "purpose", err: fmt.Errorf(`ent: validator failed for field "FeatureFlag.purpose": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.GrantsValue(); !ok {
+		return &ValidationError{Name: "grants_value", err: errors.New(`ent: missing required field "FeatureFlag.grants_value"`)}
 	}
 	if len(_c.mutation.ProjectIDs()) == 0 {
 		return &ValidationError{Name: "project", err: errors.New(`ent: missing required edge "FeatureFlag.project"`)}
@@ -393,6 +502,26 @@ func (_c *FeatureFlagCreate) createSpec() (*FeatureFlag, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Archived(); ok {
 		_spec.SetField(featureflag.FieldArchived, field.TypeBool, value)
 		_node.Archived = value
+	}
+	if value, ok := _c.mutation.CreatedBy(); ok {
+		_spec.SetField(featureflag.FieldCreatedBy, field.TypeString, value)
+		_node.CreatedBy = value
+	}
+	if value, ok := _c.mutation.UpdatedBy(); ok {
+		_spec.SetField(featureflag.FieldUpdatedBy, field.TypeString, value)
+		_node.UpdatedBy = value
+	}
+	if value, ok := _c.mutation.Purpose(); ok {
+		_spec.SetField(featureflag.FieldPurpose, field.TypeEnum, value)
+		_node.Purpose = value
+	}
+	if value, ok := _c.mutation.Tags(); ok {
+		_spec.SetField(featureflag.FieldTags, field.TypeJSON, value)
+		_node.Tags = value
+	}
+	if value, ok := _c.mutation.GrantsValue(); ok {
+		_spec.SetField(featureflag.FieldGrantsValue, field.TypeBool, value)
+		_node.GrantsValue = value
 	}
 	if nodes := _c.mutation.ProjectIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
@@ -577,6 +706,54 @@ func (u *FeatureFlagUpsert) UpdateArchived() *FeatureFlagUpsert {
 	return u
 }
 
+// SetUpdatedBy sets the "updated_by" field.
+func (u *FeatureFlagUpsert) SetUpdatedBy(v string) *FeatureFlagUpsert {
+	u.Set(featureflag.FieldUpdatedBy, v)
+	return u
+}
+
+// UpdateUpdatedBy sets the "updated_by" field to the value that was provided on create.
+func (u *FeatureFlagUpsert) UpdateUpdatedBy() *FeatureFlagUpsert {
+	u.SetExcluded(featureflag.FieldUpdatedBy)
+	return u
+}
+
+// SetPurpose sets the "purpose" field.
+func (u *FeatureFlagUpsert) SetPurpose(v featureflag.Purpose) *FeatureFlagUpsert {
+	u.Set(featureflag.FieldPurpose, v)
+	return u
+}
+
+// UpdatePurpose sets the "purpose" field to the value that was provided on create.
+func (u *FeatureFlagUpsert) UpdatePurpose() *FeatureFlagUpsert {
+	u.SetExcluded(featureflag.FieldPurpose)
+	return u
+}
+
+// SetTags sets the "tags" field.
+func (u *FeatureFlagUpsert) SetTags(v []string) *FeatureFlagUpsert {
+	u.Set(featureflag.FieldTags, v)
+	return u
+}
+
+// UpdateTags sets the "tags" field to the value that was provided on create.
+func (u *FeatureFlagUpsert) UpdateTags() *FeatureFlagUpsert {
+	u.SetExcluded(featureflag.FieldTags)
+	return u
+}
+
+// SetGrantsValue sets the "grants_value" field.
+func (u *FeatureFlagUpsert) SetGrantsValue(v bool) *FeatureFlagUpsert {
+	u.Set(featureflag.FieldGrantsValue, v)
+	return u
+}
+
+// UpdateGrantsValue sets the "grants_value" field to the value that was provided on create.
+func (u *FeatureFlagUpsert) UpdateGrantsValue() *FeatureFlagUpsert {
+	u.SetExcluded(featureflag.FieldGrantsValue)
+	return u
+}
+
 // UpdateNewValues updates the mutable fields using the new values that were set on create except the ID field.
 // Using this option is equivalent to using:
 //
@@ -605,6 +782,9 @@ func (u *FeatureFlagUpsertOne) UpdateNewValues() *FeatureFlagUpsertOne {
 		}
 		if _, exists := u.create.mutation.Kind(); exists {
 			s.SetIgnore(featureflag.FieldKind)
+		}
+		if _, exists := u.create.mutation.CreatedBy(); exists {
+			s.SetIgnore(featureflag.FieldCreatedBy)
 		}
 	}))
 	return u
@@ -767,6 +947,62 @@ func (u *FeatureFlagUpsertOne) SetArchived(v bool) *FeatureFlagUpsertOne {
 func (u *FeatureFlagUpsertOne) UpdateArchived() *FeatureFlagUpsertOne {
 	return u.Update(func(s *FeatureFlagUpsert) {
 		s.UpdateArchived()
+	})
+}
+
+// SetUpdatedBy sets the "updated_by" field.
+func (u *FeatureFlagUpsertOne) SetUpdatedBy(v string) *FeatureFlagUpsertOne {
+	return u.Update(func(s *FeatureFlagUpsert) {
+		s.SetUpdatedBy(v)
+	})
+}
+
+// UpdateUpdatedBy sets the "updated_by" field to the value that was provided on create.
+func (u *FeatureFlagUpsertOne) UpdateUpdatedBy() *FeatureFlagUpsertOne {
+	return u.Update(func(s *FeatureFlagUpsert) {
+		s.UpdateUpdatedBy()
+	})
+}
+
+// SetPurpose sets the "purpose" field.
+func (u *FeatureFlagUpsertOne) SetPurpose(v featureflag.Purpose) *FeatureFlagUpsertOne {
+	return u.Update(func(s *FeatureFlagUpsert) {
+		s.SetPurpose(v)
+	})
+}
+
+// UpdatePurpose sets the "purpose" field to the value that was provided on create.
+func (u *FeatureFlagUpsertOne) UpdatePurpose() *FeatureFlagUpsertOne {
+	return u.Update(func(s *FeatureFlagUpsert) {
+		s.UpdatePurpose()
+	})
+}
+
+// SetTags sets the "tags" field.
+func (u *FeatureFlagUpsertOne) SetTags(v []string) *FeatureFlagUpsertOne {
+	return u.Update(func(s *FeatureFlagUpsert) {
+		s.SetTags(v)
+	})
+}
+
+// UpdateTags sets the "tags" field to the value that was provided on create.
+func (u *FeatureFlagUpsertOne) UpdateTags() *FeatureFlagUpsertOne {
+	return u.Update(func(s *FeatureFlagUpsert) {
+		s.UpdateTags()
+	})
+}
+
+// SetGrantsValue sets the "grants_value" field.
+func (u *FeatureFlagUpsertOne) SetGrantsValue(v bool) *FeatureFlagUpsertOne {
+	return u.Update(func(s *FeatureFlagUpsert) {
+		s.SetGrantsValue(v)
+	})
+}
+
+// UpdateGrantsValue sets the "grants_value" field to the value that was provided on create.
+func (u *FeatureFlagUpsertOne) UpdateGrantsValue() *FeatureFlagUpsertOne {
+	return u.Update(func(s *FeatureFlagUpsert) {
+		s.UpdateGrantsValue()
 	})
 }
 
@@ -964,6 +1200,9 @@ func (u *FeatureFlagUpsertBulk) UpdateNewValues() *FeatureFlagUpsertBulk {
 			if _, exists := b.mutation.Kind(); exists {
 				s.SetIgnore(featureflag.FieldKind)
 			}
+			if _, exists := b.mutation.CreatedBy(); exists {
+				s.SetIgnore(featureflag.FieldCreatedBy)
+			}
 		}
 	}))
 	return u
@@ -1126,6 +1365,62 @@ func (u *FeatureFlagUpsertBulk) SetArchived(v bool) *FeatureFlagUpsertBulk {
 func (u *FeatureFlagUpsertBulk) UpdateArchived() *FeatureFlagUpsertBulk {
 	return u.Update(func(s *FeatureFlagUpsert) {
 		s.UpdateArchived()
+	})
+}
+
+// SetUpdatedBy sets the "updated_by" field.
+func (u *FeatureFlagUpsertBulk) SetUpdatedBy(v string) *FeatureFlagUpsertBulk {
+	return u.Update(func(s *FeatureFlagUpsert) {
+		s.SetUpdatedBy(v)
+	})
+}
+
+// UpdateUpdatedBy sets the "updated_by" field to the value that was provided on create.
+func (u *FeatureFlagUpsertBulk) UpdateUpdatedBy() *FeatureFlagUpsertBulk {
+	return u.Update(func(s *FeatureFlagUpsert) {
+		s.UpdateUpdatedBy()
+	})
+}
+
+// SetPurpose sets the "purpose" field.
+func (u *FeatureFlagUpsertBulk) SetPurpose(v featureflag.Purpose) *FeatureFlagUpsertBulk {
+	return u.Update(func(s *FeatureFlagUpsert) {
+		s.SetPurpose(v)
+	})
+}
+
+// UpdatePurpose sets the "purpose" field to the value that was provided on create.
+func (u *FeatureFlagUpsertBulk) UpdatePurpose() *FeatureFlagUpsertBulk {
+	return u.Update(func(s *FeatureFlagUpsert) {
+		s.UpdatePurpose()
+	})
+}
+
+// SetTags sets the "tags" field.
+func (u *FeatureFlagUpsertBulk) SetTags(v []string) *FeatureFlagUpsertBulk {
+	return u.Update(func(s *FeatureFlagUpsert) {
+		s.SetTags(v)
+	})
+}
+
+// UpdateTags sets the "tags" field to the value that was provided on create.
+func (u *FeatureFlagUpsertBulk) UpdateTags() *FeatureFlagUpsertBulk {
+	return u.Update(func(s *FeatureFlagUpsert) {
+		s.UpdateTags()
+	})
+}
+
+// SetGrantsValue sets the "grants_value" field.
+func (u *FeatureFlagUpsertBulk) SetGrantsValue(v bool) *FeatureFlagUpsertBulk {
+	return u.Update(func(s *FeatureFlagUpsert) {
+		s.SetGrantsValue(v)
+	})
+}
+
+// UpdateGrantsValue sets the "grants_value" field to the value that was provided on create.
+func (u *FeatureFlagUpsertBulk) UpdateGrantsValue() *FeatureFlagUpsertBulk {
+	return u.Update(func(s *FeatureFlagUpsert) {
+		s.UpdateGrantsValue()
 	})
 }
 

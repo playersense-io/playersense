@@ -53,6 +53,10 @@ func (Segment) Fields() []ent.Field {
 		// can explain — and §41's versions are immutable precisely so that history stays
 		// answerable.
 		field.Bool("archived").Default(false).Comment(dataclass.None),
+
+		// Who wrote it and who last changed it, as the audit log names an actor.
+		field.String("created_by").MaxLen(254).Default("").Immutable().Comment(dataclass.None),
+		field.String("updated_by").MaxLen(254).Default("").Comment(dataclass.None),
 	}
 }
 
@@ -114,6 +118,22 @@ func (FeatureFlag) Fields() []ent.Field {
 		field.String("salt").MaxLen(64).Default("").Comment(dataclass.None),
 
 		field.Bool("archived").Default(false).Comment(dataclass.None),
+
+		// Who wrote it and who last changed it, as the audit log names an actor.
+		field.String("created_by").MaxLen(254).Default("").Immutable().Comment(dataclass.None),
+		field.String("updated_by").MaxLen(254).Default("").Comment(dataclass.None),
+
+		// Why the flag exists, which decides when it should go: a release is removed once it
+		// is out, a kill switch and a remote value stay, and an experiment ends with a
+		// decision. Tags sort and group. Neither reaches a player.
+		field.Enum("purpose").Values("release", "kill_switch", "config", "experiment").
+			Default("config").Comment(dataclass.None),
+		field.Strings("tags").Default([]string{}).
+			Annotations(entsql.DefaultExpr("'[]'::jsonb")).Comment(dataclass.None),
+
+		// It grants currency, items, discounts or paid content, so a rule on a key the
+		// client can forge is worth a warning (ADR 0027).
+		field.Bool("grants_value").Default(false).Comment(dataclass.None),
 	}
 }
 
@@ -193,6 +213,16 @@ func (LiveOpsEvent) Fields() []ent.Field {
 
 		field.Int("rollout").Default(10000).Min(0).Max(10000).Comment(dataclass.None),
 		field.String("salt").MaxLen(64).Default("").Comment(dataclass.None),
+
+		// What it is for, in words; the metric it is meant to move; and the ones it must not
+		// hurt. They decide what its impact page compares, and nothing a player receives.
+		field.String("description").MaxLen(1000).Default("").Comment(dataclass.None),
+		field.String("goal").MaxLen(64).Optional().Nillable().Comment(dataclass.None),
+		field.Strings("watch").Default([]string{}).
+			Annotations(entsql.DefaultExpr("'[]'::jsonb")).Comment(dataclass.None),
+
+		field.String("created_by").MaxLen(254).Default("").Immutable().Comment(dataclass.None),
+		field.String("updated_by").MaxLen(254).Default("").Comment(dataclass.None),
 	}
 }
 

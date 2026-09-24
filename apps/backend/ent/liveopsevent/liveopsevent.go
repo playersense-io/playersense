@@ -44,6 +44,16 @@ const (
 	FieldRollout = "rollout"
 	// FieldSalt holds the string denoting the salt field in the database.
 	FieldSalt = "salt"
+	// FieldDescription holds the string denoting the description field in the database.
+	FieldDescription = "description"
+	// FieldGoal holds the string denoting the goal field in the database.
+	FieldGoal = "goal"
+	// FieldWatch holds the string denoting the watch field in the database.
+	FieldWatch = "watch"
+	// FieldCreatedBy holds the string denoting the created_by field in the database.
+	FieldCreatedBy = "created_by"
+	// FieldUpdatedBy holds the string denoting the updated_by field in the database.
+	FieldUpdatedBy = "updated_by"
 	// EdgeProject holds the string denoting the project edge name in mutations.
 	EdgeProject = "project"
 	// Table holds the table name of the liveopsevent in the database.
@@ -74,6 +84,11 @@ var Columns = []string{
 	FieldPayload,
 	FieldRollout,
 	FieldSalt,
+	FieldDescription,
+	FieldGoal,
+	FieldWatch,
+	FieldCreatedBy,
+	FieldUpdatedBy,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -113,6 +128,22 @@ var (
 	DefaultSalt string
 	// SaltValidator is a validator for the "salt" field. It is called by the builders before save.
 	SaltValidator func(string) error
+	// DefaultDescription holds the default value on creation for the "description" field.
+	DefaultDescription string
+	// DescriptionValidator is a validator for the "description" field. It is called by the builders before save.
+	DescriptionValidator func(string) error
+	// GoalValidator is a validator for the "goal" field. It is called by the builders before save.
+	GoalValidator func(string) error
+	// DefaultWatch holds the default value on creation for the "watch" field.
+	DefaultWatch []string
+	// DefaultCreatedBy holds the default value on creation for the "created_by" field.
+	DefaultCreatedBy string
+	// CreatedByValidator is a validator for the "created_by" field. It is called by the builders before save.
+	CreatedByValidator func(string) error
+	// DefaultUpdatedBy holds the default value on creation for the "updated_by" field.
+	DefaultUpdatedBy string
+	// UpdatedByValidator is a validator for the "updated_by" field. It is called by the builders before save.
+	UpdatedByValidator func(string) error
 )
 
 // Status defines the type for the "status" enum field.
@@ -204,6 +235,26 @@ func ByRollout(opts ...sql.OrderTermOption) OrderOption {
 // BySalt orders the results by the salt field.
 func BySalt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldSalt, opts...).ToFunc()
+}
+
+// ByDescription orders the results by the description field.
+func ByDescription(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDescription, opts...).ToFunc()
+}
+
+// ByGoal orders the results by the goal field.
+func ByGoal(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldGoal, opts...).ToFunc()
+}
+
+// ByCreatedBy orders the results by the created_by field.
+func ByCreatedBy(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCreatedBy, opts...).ToFunc()
+}
+
+// ByUpdatedBy orders the results by the updated_by field.
+func ByUpdatedBy(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldUpdatedBy, opts...).ToFunc()
 }
 
 // ByProjectField orders the results by project field.

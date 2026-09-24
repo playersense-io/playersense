@@ -97,6 +97,20 @@ func (_u *SegmentUpdate) SetNillableArchived(v *bool) *SegmentUpdate {
 	return _u
 }
 
+// SetUpdatedBy sets the "updated_by" field.
+func (_u *SegmentUpdate) SetUpdatedBy(v string) *SegmentUpdate {
+	_u.mutation.SetUpdatedBy(v)
+	return _u
+}
+
+// SetNillableUpdatedBy sets the "updated_by" field if the given value is not nil.
+func (_u *SegmentUpdate) SetNillableUpdatedBy(v *string) *SegmentUpdate {
+	if v != nil {
+		_u.SetUpdatedBy(*v)
+	}
+	return _u
+}
+
 // SetProject sets the "project" edge to the Project entity.
 func (_u *SegmentUpdate) SetProject(v *Project) *SegmentUpdate {
 	return _u.SetProjectID(v.ID)
@@ -161,6 +175,11 @@ func (_u *SegmentUpdate) check() error {
 			return &ValidationError{Name: "description", err: fmt.Errorf(`ent: validator failed for field "Segment.description": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.UpdatedBy(); ok {
+		if err := segment.UpdatedByValidator(v); err != nil {
+			return &ValidationError{Name: "updated_by", err: fmt.Errorf(`ent: validator failed for field "Segment.updated_by": %w`, err)}
+		}
+	}
 	if _u.mutation.ProjectCleared() && len(_u.mutation.ProjectIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "Segment.project"`)
 	}
@@ -193,6 +212,9 @@ func (_u *SegmentUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.Archived(); ok {
 		_spec.SetField(segment.FieldArchived, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.UpdatedBy(); ok {
+		_spec.SetField(segment.FieldUpdatedBy, field.TypeString, value)
 	}
 	if _u.mutation.ProjectCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -311,6 +333,20 @@ func (_u *SegmentUpdateOne) SetNillableArchived(v *bool) *SegmentUpdateOne {
 	return _u
 }
 
+// SetUpdatedBy sets the "updated_by" field.
+func (_u *SegmentUpdateOne) SetUpdatedBy(v string) *SegmentUpdateOne {
+	_u.mutation.SetUpdatedBy(v)
+	return _u
+}
+
+// SetNillableUpdatedBy sets the "updated_by" field if the given value is not nil.
+func (_u *SegmentUpdateOne) SetNillableUpdatedBy(v *string) *SegmentUpdateOne {
+	if v != nil {
+		_u.SetUpdatedBy(*v)
+	}
+	return _u
+}
+
 // SetProject sets the "project" edge to the Project entity.
 func (_u *SegmentUpdateOne) SetProject(v *Project) *SegmentUpdateOne {
 	return _u.SetProjectID(v.ID)
@@ -388,6 +424,11 @@ func (_u *SegmentUpdateOne) check() error {
 			return &ValidationError{Name: "description", err: fmt.Errorf(`ent: validator failed for field "Segment.description": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.UpdatedBy(); ok {
+		if err := segment.UpdatedByValidator(v); err != nil {
+			return &ValidationError{Name: "updated_by", err: fmt.Errorf(`ent: validator failed for field "Segment.updated_by": %w`, err)}
+		}
+	}
 	if _u.mutation.ProjectCleared() && len(_u.mutation.ProjectIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "Segment.project"`)
 	}
@@ -437,6 +478,9 @@ func (_u *SegmentUpdateOne) sqlSave(ctx context.Context) (_node *Segment, err er
 	}
 	if value, ok := _u.mutation.Archived(); ok {
 		_spec.SetField(segment.FieldArchived, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.UpdatedBy(); ok {
+		_spec.SetField(segment.FieldUpdatedBy, field.TypeString, value)
 	}
 	if _u.mutation.ProjectCleared() {
 		edge := &sqlgraph.EdgeSpec{

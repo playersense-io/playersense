@@ -166,6 +166,68 @@ func (_c *LiveOpsEventCreate) SetNillableSalt(v *string) *LiveOpsEventCreate {
 	return _c
 }
 
+// SetDescription sets the "description" field.
+func (_c *LiveOpsEventCreate) SetDescription(v string) *LiveOpsEventCreate {
+	_c.mutation.SetDescription(v)
+	return _c
+}
+
+// SetNillableDescription sets the "description" field if the given value is not nil.
+func (_c *LiveOpsEventCreate) SetNillableDescription(v *string) *LiveOpsEventCreate {
+	if v != nil {
+		_c.SetDescription(*v)
+	}
+	return _c
+}
+
+// SetGoal sets the "goal" field.
+func (_c *LiveOpsEventCreate) SetGoal(v string) *LiveOpsEventCreate {
+	_c.mutation.SetGoal(v)
+	return _c
+}
+
+// SetNillableGoal sets the "goal" field if the given value is not nil.
+func (_c *LiveOpsEventCreate) SetNillableGoal(v *string) *LiveOpsEventCreate {
+	if v != nil {
+		_c.SetGoal(*v)
+	}
+	return _c
+}
+
+// SetWatch sets the "watch" field.
+func (_c *LiveOpsEventCreate) SetWatch(v []string) *LiveOpsEventCreate {
+	_c.mutation.SetWatch(v)
+	return _c
+}
+
+// SetCreatedBy sets the "created_by" field.
+func (_c *LiveOpsEventCreate) SetCreatedBy(v string) *LiveOpsEventCreate {
+	_c.mutation.SetCreatedBy(v)
+	return _c
+}
+
+// SetNillableCreatedBy sets the "created_by" field if the given value is not nil.
+func (_c *LiveOpsEventCreate) SetNillableCreatedBy(v *string) *LiveOpsEventCreate {
+	if v != nil {
+		_c.SetCreatedBy(*v)
+	}
+	return _c
+}
+
+// SetUpdatedBy sets the "updated_by" field.
+func (_c *LiveOpsEventCreate) SetUpdatedBy(v string) *LiveOpsEventCreate {
+	_c.mutation.SetUpdatedBy(v)
+	return _c
+}
+
+// SetNillableUpdatedBy sets the "updated_by" field if the given value is not nil.
+func (_c *LiveOpsEventCreate) SetNillableUpdatedBy(v *string) *LiveOpsEventCreate {
+	if v != nil {
+		_c.SetUpdatedBy(*v)
+	}
+	return _c
+}
+
 // SetID sets the "id" field.
 func (_c *LiveOpsEventCreate) SetID(v int) *LiveOpsEventCreate {
 	_c.mutation.SetID(v)
@@ -243,6 +305,22 @@ func (_c *LiveOpsEventCreate) defaults() {
 	if _, ok := _c.mutation.Salt(); !ok {
 		v := liveopsevent.DefaultSalt
 		_c.mutation.SetSalt(v)
+	}
+	if _, ok := _c.mutation.Description(); !ok {
+		v := liveopsevent.DefaultDescription
+		_c.mutation.SetDescription(v)
+	}
+	if _, ok := _c.mutation.Watch(); !ok {
+		v := liveopsevent.DefaultWatch
+		_c.mutation.SetWatch(v)
+	}
+	if _, ok := _c.mutation.CreatedBy(); !ok {
+		v := liveopsevent.DefaultCreatedBy
+		_c.mutation.SetCreatedBy(v)
+	}
+	if _, ok := _c.mutation.UpdatedBy(); !ok {
+		v := liveopsevent.DefaultUpdatedBy
+		_c.mutation.SetUpdatedBy(v)
 	}
 }
 
@@ -323,6 +401,35 @@ func (_c *LiveOpsEventCreate) check() error {
 	if v, ok := _c.mutation.Salt(); ok {
 		if err := liveopsevent.SaltValidator(v); err != nil {
 			return &ValidationError{Name: "salt", err: fmt.Errorf(`ent: validator failed for field "LiveOpsEvent.salt": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.Description(); !ok {
+		return &ValidationError{Name: "description", err: errors.New(`ent: missing required field "LiveOpsEvent.description"`)}
+	}
+	if v, ok := _c.mutation.Description(); ok {
+		if err := liveopsevent.DescriptionValidator(v); err != nil {
+			return &ValidationError{Name: "description", err: fmt.Errorf(`ent: validator failed for field "LiveOpsEvent.description": %w`, err)}
+		}
+	}
+	if v, ok := _c.mutation.Goal(); ok {
+		if err := liveopsevent.GoalValidator(v); err != nil {
+			return &ValidationError{Name: "goal", err: fmt.Errorf(`ent: validator failed for field "LiveOpsEvent.goal": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.CreatedBy(); !ok {
+		return &ValidationError{Name: "created_by", err: errors.New(`ent: missing required field "LiveOpsEvent.created_by"`)}
+	}
+	if v, ok := _c.mutation.CreatedBy(); ok {
+		if err := liveopsevent.CreatedByValidator(v); err != nil {
+			return &ValidationError{Name: "created_by", err: fmt.Errorf(`ent: validator failed for field "LiveOpsEvent.created_by": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.UpdatedBy(); !ok {
+		return &ValidationError{Name: "updated_by", err: errors.New(`ent: missing required field "LiveOpsEvent.updated_by"`)}
+	}
+	if v, ok := _c.mutation.UpdatedBy(); ok {
+		if err := liveopsevent.UpdatedByValidator(v); err != nil {
+			return &ValidationError{Name: "updated_by", err: fmt.Errorf(`ent: validator failed for field "LiveOpsEvent.updated_by": %w`, err)}
 		}
 	}
 	if len(_c.mutation.ProjectIDs()) == 0 {
@@ -412,6 +519,26 @@ func (_c *LiveOpsEventCreate) createSpec() (*LiveOpsEvent, *sqlgraph.CreateSpec)
 	if value, ok := _c.mutation.Salt(); ok {
 		_spec.SetField(liveopsevent.FieldSalt, field.TypeString, value)
 		_node.Salt = value
+	}
+	if value, ok := _c.mutation.Description(); ok {
+		_spec.SetField(liveopsevent.FieldDescription, field.TypeString, value)
+		_node.Description = value
+	}
+	if value, ok := _c.mutation.Goal(); ok {
+		_spec.SetField(liveopsevent.FieldGoal, field.TypeString, value)
+		_node.Goal = &value
+	}
+	if value, ok := _c.mutation.Watch(); ok {
+		_spec.SetField(liveopsevent.FieldWatch, field.TypeJSON, value)
+		_node.Watch = value
+	}
+	if value, ok := _c.mutation.CreatedBy(); ok {
+		_spec.SetField(liveopsevent.FieldCreatedBy, field.TypeString, value)
+		_node.CreatedBy = value
+	}
+	if value, ok := _c.mutation.UpdatedBy(); ok {
+		_spec.SetField(liveopsevent.FieldUpdatedBy, field.TypeString, value)
+		_node.UpdatedBy = value
 	}
 	if nodes := _c.mutation.ProjectIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
@@ -626,6 +753,60 @@ func (u *LiveOpsEventUpsert) UpdateSalt() *LiveOpsEventUpsert {
 	return u
 }
 
+// SetDescription sets the "description" field.
+func (u *LiveOpsEventUpsert) SetDescription(v string) *LiveOpsEventUpsert {
+	u.Set(liveopsevent.FieldDescription, v)
+	return u
+}
+
+// UpdateDescription sets the "description" field to the value that was provided on create.
+func (u *LiveOpsEventUpsert) UpdateDescription() *LiveOpsEventUpsert {
+	u.SetExcluded(liveopsevent.FieldDescription)
+	return u
+}
+
+// SetGoal sets the "goal" field.
+func (u *LiveOpsEventUpsert) SetGoal(v string) *LiveOpsEventUpsert {
+	u.Set(liveopsevent.FieldGoal, v)
+	return u
+}
+
+// UpdateGoal sets the "goal" field to the value that was provided on create.
+func (u *LiveOpsEventUpsert) UpdateGoal() *LiveOpsEventUpsert {
+	u.SetExcluded(liveopsevent.FieldGoal)
+	return u
+}
+
+// ClearGoal clears the value of the "goal" field.
+func (u *LiveOpsEventUpsert) ClearGoal() *LiveOpsEventUpsert {
+	u.SetNull(liveopsevent.FieldGoal)
+	return u
+}
+
+// SetWatch sets the "watch" field.
+func (u *LiveOpsEventUpsert) SetWatch(v []string) *LiveOpsEventUpsert {
+	u.Set(liveopsevent.FieldWatch, v)
+	return u
+}
+
+// UpdateWatch sets the "watch" field to the value that was provided on create.
+func (u *LiveOpsEventUpsert) UpdateWatch() *LiveOpsEventUpsert {
+	u.SetExcluded(liveopsevent.FieldWatch)
+	return u
+}
+
+// SetUpdatedBy sets the "updated_by" field.
+func (u *LiveOpsEventUpsert) SetUpdatedBy(v string) *LiveOpsEventUpsert {
+	u.Set(liveopsevent.FieldUpdatedBy, v)
+	return u
+}
+
+// UpdateUpdatedBy sets the "updated_by" field to the value that was provided on create.
+func (u *LiveOpsEventUpsert) UpdateUpdatedBy() *LiveOpsEventUpsert {
+	u.SetExcluded(liveopsevent.FieldUpdatedBy)
+	return u
+}
+
 // UpdateNewValues updates the mutable fields using the new values that were set on create except the ID field.
 // Using this option is equivalent to using:
 //
@@ -651,6 +832,9 @@ func (u *LiveOpsEventUpsertOne) UpdateNewValues() *LiveOpsEventUpsertOne {
 		}
 		if _, exists := u.create.mutation.Key(); exists {
 			s.SetIgnore(liveopsevent.FieldKey)
+		}
+		if _, exists := u.create.mutation.CreatedBy(); exists {
+			s.SetIgnore(liveopsevent.FieldCreatedBy)
 		}
 	}))
 	return u
@@ -851,6 +1035,69 @@ func (u *LiveOpsEventUpsertOne) UpdateSalt() *LiveOpsEventUpsertOne {
 	})
 }
 
+// SetDescription sets the "description" field.
+func (u *LiveOpsEventUpsertOne) SetDescription(v string) *LiveOpsEventUpsertOne {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.SetDescription(v)
+	})
+}
+
+// UpdateDescription sets the "description" field to the value that was provided on create.
+func (u *LiveOpsEventUpsertOne) UpdateDescription() *LiveOpsEventUpsertOne {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.UpdateDescription()
+	})
+}
+
+// SetGoal sets the "goal" field.
+func (u *LiveOpsEventUpsertOne) SetGoal(v string) *LiveOpsEventUpsertOne {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.SetGoal(v)
+	})
+}
+
+// UpdateGoal sets the "goal" field to the value that was provided on create.
+func (u *LiveOpsEventUpsertOne) UpdateGoal() *LiveOpsEventUpsertOne {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.UpdateGoal()
+	})
+}
+
+// ClearGoal clears the value of the "goal" field.
+func (u *LiveOpsEventUpsertOne) ClearGoal() *LiveOpsEventUpsertOne {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.ClearGoal()
+	})
+}
+
+// SetWatch sets the "watch" field.
+func (u *LiveOpsEventUpsertOne) SetWatch(v []string) *LiveOpsEventUpsertOne {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.SetWatch(v)
+	})
+}
+
+// UpdateWatch sets the "watch" field to the value that was provided on create.
+func (u *LiveOpsEventUpsertOne) UpdateWatch() *LiveOpsEventUpsertOne {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.UpdateWatch()
+	})
+}
+
+// SetUpdatedBy sets the "updated_by" field.
+func (u *LiveOpsEventUpsertOne) SetUpdatedBy(v string) *LiveOpsEventUpsertOne {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.SetUpdatedBy(v)
+	})
+}
+
+// UpdateUpdatedBy sets the "updated_by" field to the value that was provided on create.
+func (u *LiveOpsEventUpsertOne) UpdateUpdatedBy() *LiveOpsEventUpsertOne {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.UpdateUpdatedBy()
+	})
+}
+
 // Exec executes the query.
 func (u *LiveOpsEventUpsertOne) Exec(ctx context.Context) error {
 	if len(u.create.conflict) == 0 {
@@ -1041,6 +1288,9 @@ func (u *LiveOpsEventUpsertBulk) UpdateNewValues() *LiveOpsEventUpsertBulk {
 			}
 			if _, exists := b.mutation.Key(); exists {
 				s.SetIgnore(liveopsevent.FieldKey)
+			}
+			if _, exists := b.mutation.CreatedBy(); exists {
+				s.SetIgnore(liveopsevent.FieldCreatedBy)
 			}
 		}
 	}))
@@ -1239,6 +1489,69 @@ func (u *LiveOpsEventUpsertBulk) SetSalt(v string) *LiveOpsEventUpsertBulk {
 func (u *LiveOpsEventUpsertBulk) UpdateSalt() *LiveOpsEventUpsertBulk {
 	return u.Update(func(s *LiveOpsEventUpsert) {
 		s.UpdateSalt()
+	})
+}
+
+// SetDescription sets the "description" field.
+func (u *LiveOpsEventUpsertBulk) SetDescription(v string) *LiveOpsEventUpsertBulk {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.SetDescription(v)
+	})
+}
+
+// UpdateDescription sets the "description" field to the value that was provided on create.
+func (u *LiveOpsEventUpsertBulk) UpdateDescription() *LiveOpsEventUpsertBulk {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.UpdateDescription()
+	})
+}
+
+// SetGoal sets the "goal" field.
+func (u *LiveOpsEventUpsertBulk) SetGoal(v string) *LiveOpsEventUpsertBulk {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.SetGoal(v)
+	})
+}
+
+// UpdateGoal sets the "goal" field to the value that was provided on create.
+func (u *LiveOpsEventUpsertBulk) UpdateGoal() *LiveOpsEventUpsertBulk {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.UpdateGoal()
+	})
+}
+
+// ClearGoal clears the value of the "goal" field.
+func (u *LiveOpsEventUpsertBulk) ClearGoal() *LiveOpsEventUpsertBulk {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.ClearGoal()
+	})
+}
+
+// SetWatch sets the "watch" field.
+func (u *LiveOpsEventUpsertBulk) SetWatch(v []string) *LiveOpsEventUpsertBulk {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.SetWatch(v)
+	})
+}
+
+// UpdateWatch sets the "watch" field to the value that was provided on create.
+func (u *LiveOpsEventUpsertBulk) UpdateWatch() *LiveOpsEventUpsertBulk {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.UpdateWatch()
+	})
+}
+
+// SetUpdatedBy sets the "updated_by" field.
+func (u *LiveOpsEventUpsertBulk) SetUpdatedBy(v string) *LiveOpsEventUpsertBulk {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.SetUpdatedBy(v)
+	})
+}
+
+// UpdateUpdatedBy sets the "updated_by" field to the value that was provided on create.
+func (u *LiveOpsEventUpsertBulk) UpdateUpdatedBy() *LiveOpsEventUpsertBulk {
+	return u.Update(func(s *LiveOpsEventUpsert) {
+		s.UpdateUpdatedBy()
 	})
 }
 

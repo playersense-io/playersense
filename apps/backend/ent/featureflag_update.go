@@ -152,6 +152,60 @@ func (_u *FeatureFlagUpdate) SetNillableArchived(v *bool) *FeatureFlagUpdate {
 	return _u
 }
 
+// SetUpdatedBy sets the "updated_by" field.
+func (_u *FeatureFlagUpdate) SetUpdatedBy(v string) *FeatureFlagUpdate {
+	_u.mutation.SetUpdatedBy(v)
+	return _u
+}
+
+// SetNillableUpdatedBy sets the "updated_by" field if the given value is not nil.
+func (_u *FeatureFlagUpdate) SetNillableUpdatedBy(v *string) *FeatureFlagUpdate {
+	if v != nil {
+		_u.SetUpdatedBy(*v)
+	}
+	return _u
+}
+
+// SetPurpose sets the "purpose" field.
+func (_u *FeatureFlagUpdate) SetPurpose(v featureflag.Purpose) *FeatureFlagUpdate {
+	_u.mutation.SetPurpose(v)
+	return _u
+}
+
+// SetNillablePurpose sets the "purpose" field if the given value is not nil.
+func (_u *FeatureFlagUpdate) SetNillablePurpose(v *featureflag.Purpose) *FeatureFlagUpdate {
+	if v != nil {
+		_u.SetPurpose(*v)
+	}
+	return _u
+}
+
+// SetTags sets the "tags" field.
+func (_u *FeatureFlagUpdate) SetTags(v []string) *FeatureFlagUpdate {
+	_u.mutation.SetTags(v)
+	return _u
+}
+
+// AppendTags appends value to the "tags" field.
+func (_u *FeatureFlagUpdate) AppendTags(v []string) *FeatureFlagUpdate {
+	_u.mutation.AppendTags(v)
+	return _u
+}
+
+// SetGrantsValue sets the "grants_value" field.
+func (_u *FeatureFlagUpdate) SetGrantsValue(v bool) *FeatureFlagUpdate {
+	_u.mutation.SetGrantsValue(v)
+	return _u
+}
+
+// SetNillableGrantsValue sets the "grants_value" field if the given value is not nil.
+func (_u *FeatureFlagUpdate) SetNillableGrantsValue(v *bool) *FeatureFlagUpdate {
+	if v != nil {
+		_u.SetGrantsValue(*v)
+	}
+	return _u
+}
+
 // SetProject sets the "project" edge to the Project entity.
 func (_u *FeatureFlagUpdate) SetProject(v *Project) *FeatureFlagUpdate {
 	return _u.SetProjectID(v.ID)
@@ -226,6 +280,16 @@ func (_u *FeatureFlagUpdate) check() error {
 			return &ValidationError{Name: "salt", err: fmt.Errorf(`ent: validator failed for field "FeatureFlag.salt": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.UpdatedBy(); ok {
+		if err := featureflag.UpdatedByValidator(v); err != nil {
+			return &ValidationError{Name: "updated_by", err: fmt.Errorf(`ent: validator failed for field "FeatureFlag.updated_by": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.Purpose(); ok {
+		if err := featureflag.PurposeValidator(v); err != nil {
+			return &ValidationError{Name: "purpose", err: fmt.Errorf(`ent: validator failed for field "FeatureFlag.purpose": %w`, err)}
+		}
+	}
 	if _u.mutation.ProjectCleared() && len(_u.mutation.ProjectIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "FeatureFlag.project"`)
 	}
@@ -280,6 +344,23 @@ func (_u *FeatureFlagUpdate) sqlSave(ctx context.Context) (_node int, err error)
 	}
 	if value, ok := _u.mutation.Archived(); ok {
 		_spec.SetField(featureflag.FieldArchived, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.UpdatedBy(); ok {
+		_spec.SetField(featureflag.FieldUpdatedBy, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Purpose(); ok {
+		_spec.SetField(featureflag.FieldPurpose, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.Tags(); ok {
+		_spec.SetField(featureflag.FieldTags, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedTags(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, featureflag.FieldTags, value)
+		})
+	}
+	if value, ok := _u.mutation.GrantsValue(); ok {
+		_spec.SetField(featureflag.FieldGrantsValue, field.TypeBool, value)
 	}
 	if _u.mutation.ProjectCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -451,6 +532,60 @@ func (_u *FeatureFlagUpdateOne) SetNillableArchived(v *bool) *FeatureFlagUpdateO
 	return _u
 }
 
+// SetUpdatedBy sets the "updated_by" field.
+func (_u *FeatureFlagUpdateOne) SetUpdatedBy(v string) *FeatureFlagUpdateOne {
+	_u.mutation.SetUpdatedBy(v)
+	return _u
+}
+
+// SetNillableUpdatedBy sets the "updated_by" field if the given value is not nil.
+func (_u *FeatureFlagUpdateOne) SetNillableUpdatedBy(v *string) *FeatureFlagUpdateOne {
+	if v != nil {
+		_u.SetUpdatedBy(*v)
+	}
+	return _u
+}
+
+// SetPurpose sets the "purpose" field.
+func (_u *FeatureFlagUpdateOne) SetPurpose(v featureflag.Purpose) *FeatureFlagUpdateOne {
+	_u.mutation.SetPurpose(v)
+	return _u
+}
+
+// SetNillablePurpose sets the "purpose" field if the given value is not nil.
+func (_u *FeatureFlagUpdateOne) SetNillablePurpose(v *featureflag.Purpose) *FeatureFlagUpdateOne {
+	if v != nil {
+		_u.SetPurpose(*v)
+	}
+	return _u
+}
+
+// SetTags sets the "tags" field.
+func (_u *FeatureFlagUpdateOne) SetTags(v []string) *FeatureFlagUpdateOne {
+	_u.mutation.SetTags(v)
+	return _u
+}
+
+// AppendTags appends value to the "tags" field.
+func (_u *FeatureFlagUpdateOne) AppendTags(v []string) *FeatureFlagUpdateOne {
+	_u.mutation.AppendTags(v)
+	return _u
+}
+
+// SetGrantsValue sets the "grants_value" field.
+func (_u *FeatureFlagUpdateOne) SetGrantsValue(v bool) *FeatureFlagUpdateOne {
+	_u.mutation.SetGrantsValue(v)
+	return _u
+}
+
+// SetNillableGrantsValue sets the "grants_value" field if the given value is not nil.
+func (_u *FeatureFlagUpdateOne) SetNillableGrantsValue(v *bool) *FeatureFlagUpdateOne {
+	if v != nil {
+		_u.SetGrantsValue(*v)
+	}
+	return _u
+}
+
 // SetProject sets the "project" edge to the Project entity.
 func (_u *FeatureFlagUpdateOne) SetProject(v *Project) *FeatureFlagUpdateOne {
 	return _u.SetProjectID(v.ID)
@@ -538,6 +673,16 @@ func (_u *FeatureFlagUpdateOne) check() error {
 			return &ValidationError{Name: "salt", err: fmt.Errorf(`ent: validator failed for field "FeatureFlag.salt": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.UpdatedBy(); ok {
+		if err := featureflag.UpdatedByValidator(v); err != nil {
+			return &ValidationError{Name: "updated_by", err: fmt.Errorf(`ent: validator failed for field "FeatureFlag.updated_by": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.Purpose(); ok {
+		if err := featureflag.PurposeValidator(v); err != nil {
+			return &ValidationError{Name: "purpose", err: fmt.Errorf(`ent: validator failed for field "FeatureFlag.purpose": %w`, err)}
+		}
+	}
 	if _u.mutation.ProjectCleared() && len(_u.mutation.ProjectIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "FeatureFlag.project"`)
 	}
@@ -609,6 +754,23 @@ func (_u *FeatureFlagUpdateOne) sqlSave(ctx context.Context) (_node *FeatureFlag
 	}
 	if value, ok := _u.mutation.Archived(); ok {
 		_spec.SetField(featureflag.FieldArchived, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.UpdatedBy(); ok {
+		_spec.SetField(featureflag.FieldUpdatedBy, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Purpose(); ok {
+		_spec.SetField(featureflag.FieldPurpose, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.Tags(); ok {
+		_spec.SetField(featureflag.FieldTags, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedTags(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, featureflag.FieldTags, value)
+		})
+	}
+	if value, ok := _u.mutation.GrantsValue(); ok {
+		_spec.SetField(featureflag.FieldGrantsValue, field.TypeBool, value)
 	}
 	if _u.mutation.ProjectCleared() {
 		edge := &sqlgraph.EdgeSpec{

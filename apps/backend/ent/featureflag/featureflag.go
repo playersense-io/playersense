@@ -42,6 +42,16 @@ const (
 	FieldSalt = "salt"
 	// FieldArchived holds the string denoting the archived field in the database.
 	FieldArchived = "archived"
+	// FieldCreatedBy holds the string denoting the created_by field in the database.
+	FieldCreatedBy = "created_by"
+	// FieldUpdatedBy holds the string denoting the updated_by field in the database.
+	FieldUpdatedBy = "updated_by"
+	// FieldPurpose holds the string denoting the purpose field in the database.
+	FieldPurpose = "purpose"
+	// FieldTags holds the string denoting the tags field in the database.
+	FieldTags = "tags"
+	// FieldGrantsValue holds the string denoting the grants_value field in the database.
+	FieldGrantsValue = "grants_value"
 	// EdgeProject holds the string denoting the project edge name in mutations.
 	EdgeProject = "project"
 	// Table holds the table name of the featureflag in the database.
@@ -71,6 +81,11 @@ var Columns = []string{
 	FieldRollout,
 	FieldSalt,
 	FieldArchived,
+	FieldCreatedBy,
+	FieldUpdatedBy,
+	FieldPurpose,
+	FieldTags,
+	FieldGrantsValue,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -112,6 +127,18 @@ var (
 	SaltValidator func(string) error
 	// DefaultArchived holds the default value on creation for the "archived" field.
 	DefaultArchived bool
+	// DefaultCreatedBy holds the default value on creation for the "created_by" field.
+	DefaultCreatedBy string
+	// CreatedByValidator is a validator for the "created_by" field. It is called by the builders before save.
+	CreatedByValidator func(string) error
+	// DefaultUpdatedBy holds the default value on creation for the "updated_by" field.
+	DefaultUpdatedBy string
+	// UpdatedByValidator is a validator for the "updated_by" field. It is called by the builders before save.
+	UpdatedByValidator func(string) error
+	// DefaultTags holds the default value on creation for the "tags" field.
+	DefaultTags []string
+	// DefaultGrantsValue holds the default value on creation for the "grants_value" field.
+	DefaultGrantsValue bool
 )
 
 // Kind defines the type for the "kind" enum field.
@@ -136,6 +163,34 @@ func KindValidator(k Kind) error {
 		return nil
 	default:
 		return fmt.Errorf("featureflag: invalid enum value for kind field: %q", k)
+	}
+}
+
+// Purpose defines the type for the "purpose" enum field.
+type Purpose string
+
+// PurposeConfig is the default value of the Purpose enum.
+const DefaultPurpose = PurposeConfig
+
+// Purpose values.
+const (
+	PurposeRelease    Purpose = "release"
+	PurposeKillSwitch Purpose = "kill_switch"
+	PurposeConfig     Purpose = "config"
+	PurposeExperiment Purpose = "experiment"
+)
+
+func (pu Purpose) String() string {
+	return string(pu)
+}
+
+// PurposeValidator is a validator for the "purpose" field enum values. It is called by the builders before save.
+func PurposeValidator(pu Purpose) error {
+	switch pu {
+	case PurposeRelease, PurposeKillSwitch, PurposeConfig, PurposeExperiment:
+		return nil
+	default:
+		return fmt.Errorf("featureflag: invalid enum value for purpose field: %q", pu)
 	}
 }
 
@@ -200,6 +255,26 @@ func BySalt(opts ...sql.OrderTermOption) OrderOption {
 // ByArchived orders the results by the archived field.
 func ByArchived(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldArchived, opts...).ToFunc()
+}
+
+// ByCreatedBy orders the results by the created_by field.
+func ByCreatedBy(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCreatedBy, opts...).ToFunc()
+}
+
+// ByUpdatedBy orders the results by the updated_by field.
+func ByUpdatedBy(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldUpdatedBy, opts...).ToFunc()
+}
+
+// ByPurpose orders the results by the purpose field.
+func ByPurpose(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPurpose, opts...).ToFunc()
+}
+
+// ByGrantsValue orders the results by the grants_value field.
+func ByGrantsValue(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldGrantsValue, opts...).ToFunc()
 }
 
 // ByProjectField orders the results by project field.

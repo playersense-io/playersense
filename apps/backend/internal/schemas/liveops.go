@@ -79,6 +79,8 @@ type SegmentOut struct {
 	Archived    bool           `json:"archived" doc:"An archived segment is left out of the next publish"`
 	CreatedAt   time.Time      `json:"created_at"`
 	UpdatedAt   time.Time      `json:"updated_at"`
+	CreatedBy   string         `json:"created_by,omitzero"`
+	UpdatedBy   string         `json:"updated_by,omitzero"`
 }
 
 // SegmentListOut is a project's segments.
@@ -156,6 +158,12 @@ type FlagOut struct {
 	Archived    bool           `json:"archived"`
 	CreatedAt   time.Time      `json:"created_at"`
 	UpdatedAt   time.Time      `json:"updated_at"`
+	CreatedBy   string         `json:"created_by,omitzero"`
+	UpdatedBy   string         `json:"updated_by,omitzero"`
+
+	Purpose     string   `json:"purpose" doc:"release, kill_switch, config or experiment: why it exists, which decides when it should go"`
+	Tags        []string `json:"tags"`
+	GrantsValue bool     `json:"grants_value" doc:"It grants currency, items, discounts or paid content"`
 }
 
 // VariantOut is one of a flag's ordered rules.
@@ -207,9 +215,12 @@ type CreateFlagIn struct {
 	// thing a studio sets on purpose before a launch.
 	Rollout *int   `json:"rollout,omitzero" doc:"Hundredths of a percent; defaults to 10000, the whole game"`
 	Salt    string `json:"salt,omitzero"`
+
+	FlagLabels
 }
 
 func (in *CreateFlagIn) Validate(v *muzak.Validation) {
+	in.FlagLabels.validate(v)
 	v.String(&in.OrgSlug).Trim().Lower().Required().MaxLen(64)
 	v.String(&in.ProjectSlug).Trim().Lower().Required().MaxLen(64)
 	v.String(&in.Key).Trim().Required().MinLen(2).MaxLen(64).
@@ -221,6 +232,25 @@ func (in *CreateFlagIn) Validate(v *muzak.Validation) {
 	v.String(&in.Salt).Trim().MaxLen(64)
 	for i := range in.Rules {
 		v.Nested(&in.Rules[i])
+	}
+}
+
+// FlagLabels is what a flag says about itself and never serves: why it exists, how it is
+// grouped, and whether it grants something of value. Pointers, so a write that does not send
+// them leaves them as they are.
+type FlagLabels struct {
+	Purpose     *string  `json:"purpose,omitzero" doc:"release, kill_switch, config or experiment; a new flag defaults to config"`
+	Tags        []string `json:"tags,omitzero" doc:"Up to 20; absent leaves them as they are"`
+	GrantsValue *bool    `json:"grants_value,omitzero"`
+}
+
+func (in *FlagLabels) validate(v *muzak.Validation) {
+	if in.Purpose != nil {
+		v.String(in.Purpose).Trim().Lower().OneOf("release", "kill_switch", "config", "experiment")
+	}
+	v.Slice(&in.Tags).MaxItems(20)
+	for i := range in.Tags {
+		v.String(&in.Tags[i]).As("tags").Trim().Required().MaxLen(40)
 	}
 }
 
@@ -245,9 +275,12 @@ type UpdateFlagIn struct {
 	// a flag quietly returning to the next publish is a value a shipped game starts reading
 	// again.
 	Archived *bool `json:"archived,omitzero" doc:"Absent leaves it as it is; false un-archives"`
+
+	FlagLabels
 }
 
 func (in *UpdateFlagIn) Validate(v *muzak.Validation) {
+	in.FlagLabels.validate(v)
 	v.String(&in.OrgSlug).Trim().Lower().Required().MaxLen(64)
 	v.String(&in.ProjectSlug).Trim().Lower().Required().MaxLen(64)
 	v.String(&in.Key).Trim().Required().MaxLen(64)
@@ -285,8 +318,41 @@ type LiveOpsEventOut struct {
 	// expansion the config path performs, so what is shown is what a player will get.
 	Occurrences []WindowOut `json:"occurrences,omitzero" doc:"The next few concrete windows this schedule produces"`
 
+	Description string   `json:"description,omitzero"`
+	Goal        *string  `json:"goal,omitzero" doc:"The metric it is meant to move"`
+	Watch       []string `json:"watch" doc:"The metrics it must not hurt"`
+
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
+	CreatedBy string    `json:"created_by,omitzero"`
+	UpdatedBy string    `json:"updated_by,omitzero"`
+}
+
+// LiveOpsMetrics is what an event's goal and watch can name: what its impact page can measure.
+var LiveOpsMetrics = []string{
+	"players", "new_players", "revenue", "arpdau", "payer_conversion",
+	"sessions_per_player", "playtime_minutes", "d1_retention",
+}
+
+// EventIntent is what an event is for: in words, the metric it should move, and the ones it must
+// not hurt. Pointers, so a write that does not send them leaves them as they are.
+type EventIntent struct {
+	Description *string  `json:"description,omitzero"`
+	Goal        *string  `json:"goal,omitzero" doc:"One of the metrics; empty clears it"`
+	Watch       []string `json:"watch,omitzero" doc:"Up to eight metrics; absent leaves them as they are"`
+}
+
+func (in *EventIntent) validate(v *muzak.Validation) {
+	if in.Description != nil {
+		v.String(in.Description).Trim().MaxLen(1000)
+	}
+	if in.Goal != nil {
+		v.String(in.Goal).Trim().Lower().OneOf(append([]string{""}, LiveOpsMetrics...)...)
+	}
+	v.Slice(&in.Watch).MaxItems(8)
+	for i := range in.Watch {
+		v.String(&in.Watch[i]).As("watch").Trim().Lower().OneOf(LiveOpsMetrics...)
+	}
 }
 
 // ScheduleOut is when an event is on.
@@ -360,9 +426,12 @@ type CreateLiveOpsEventIn struct {
 	Payload  jsontext.Value `json:"payload" doc:"Whatever the game needs. PlayerSense does not read it"`
 	Rollout  *int           `json:"rollout,omitzero"`
 	Salt     string         `json:"salt,omitzero"`
+
+	EventIntent
 }
 
 func (in *CreateLiveOpsEventIn) Validate(v *muzak.Validation) {
+	in.EventIntent.validate(v)
 	v.String(&in.OrgSlug).Trim().Lower().Required().MaxLen(64)
 	v.String(&in.ProjectSlug).Trim().Lower().Required().MaxLen(64)
 	v.String(&in.Key).Trim().Required().MinLen(2).MaxLen(64).
@@ -392,9 +461,12 @@ type UpdateLiveOpsEventIn struct {
 	Payload  jsontext.Value `json:"payload"`
 	Rollout  *int           `json:"rollout,omitzero"`
 	Salt     string         `json:"salt,omitzero"`
+
+	EventIntent
 }
 
 func (in *UpdateLiveOpsEventIn) Validate(v *muzak.Validation) {
+	in.EventIntent.validate(v)
 	v.String(&in.OrgSlug).Trim().Lower().Required().MaxLen(64)
 	v.String(&in.ProjectSlug).Trim().Lower().Required().MaxLen(64)
 	v.String(&in.Key).Trim().Required().MaxLen(64)

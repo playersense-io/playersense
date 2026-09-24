@@ -13284,6 +13284,9 @@
               "schema": {
                 "type": "object",
                 "properties": {
+                  "FlagLabels": {
+                    "$ref": "#/components/schemas/FlagLabels"
+                  },
                   "description": {
                     "type": "string",
                     "maxLength": 500
@@ -13337,6 +13340,7 @@
                   }
                 },
                 "required": [
+                  "FlagLabels",
                   "fallback",
                   "key",
                   "kind",
@@ -13585,6 +13589,9 @@
               "schema": {
                 "type": "object",
                 "properties": {
+                  "FlagLabels": {
+                    "$ref": "#/components/schemas/FlagLabels"
+                  },
                   "archived": {
                     "type": [
                       "boolean",
@@ -13626,6 +13633,7 @@
                   }
                 },
                 "required": [
+                  "FlagLabels",
                   "fallback",
                   "name"
                 ]
@@ -15184,6 +15192,9 @@
               "schema": {
                 "type": "object",
                 "properties": {
+                  "EventIntent": {
+                    "$ref": "#/components/schemas/EventIntent"
+                  },
                   "audience": {
                     "type": "string",
                     "format": "byte",
@@ -15246,6 +15257,7 @@
                   }
                 },
                 "required": [
+                  "EventIntent",
                   "key",
                   "kind",
                   "name",
@@ -15495,6 +15507,9 @@
               "schema": {
                 "type": "object",
                 "properties": {
+                  "EventIntent": {
+                    "$ref": "#/components/schemas/EventIntent"
+                  },
                   "audience": {
                     "type": "string",
                     "format": "byte"
@@ -15546,6 +15561,7 @@
                   }
                 },
                 "required": [
+                  "EventIntent",
                   "kind",
                   "name",
                   "payload",
@@ -19962,6 +19978,31 @@
           "type"
         ]
       },
+      "EventIntent": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "goal": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "One of the metrics; empty clears it"
+          },
+          "watch": {
+            "type": "array",
+            "description": "Up to eight metrics; absent leaves them as they are",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
       "EventOccurrenceOut": {
         "type": "object",
         "properties": {
@@ -20978,6 +21019,31 @@
           "previous_exposures"
         ]
       },
+      "FlagLabels": {
+        "type": "object",
+        "properties": {
+          "grants_value": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "purpose": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "release, kill_switch, config or experiment; a new flag defaults to config"
+          },
+          "tags": {
+            "type": "array",
+            "description": "Up to 20; absent leaves them as they are",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
       "FlagListOut": {
         "type": "object",
         "properties": {
@@ -21002,6 +21068,9 @@
             "type": "string",
             "format": "date-time"
           },
+          "created_by": {
+            "type": "string"
+          },
           "description": {
             "type": "string"
           },
@@ -21009,6 +21078,10 @@
             "type": "string",
             "format": "byte",
             "description": "What a player gets when no rule matches, and what the SDK uses offline"
+          },
+          "grants_value": {
+            "type": "boolean",
+            "description": "It grants currency, items, discounts or paid content"
           },
           "id": {
             "type": "string"
@@ -21023,6 +21096,10 @@
           },
           "name": {
             "type": "string"
+          },
+          "purpose": {
+            "type": "string",
+            "description": "release, kill_switch, config or experiment: why it exists, which decides when it should go"
           },
           "rollout": {
             "type": "integer",
@@ -21040,21 +21117,33 @@
             "type": "string",
             "description": "Changing it draws a fresh sample"
           },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
           "updated_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "updated_by": {
+            "type": "string"
           }
         },
         "required": [
           "archived",
           "created_at",
           "fallback",
+          "grants_value",
           "id",
           "key",
           "kind",
           "name",
+          "purpose",
           "rollout",
           "rules",
+          "tags",
           "updated_at"
         ]
       },
@@ -22324,6 +22413,19 @@
             "type": "string",
             "format": "date-time"
           },
+          "created_by": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "goal": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The metric it is meant to move"
+          },
           "id": {
             "type": "string"
           },
@@ -22372,6 +22474,16 @@
           "updated_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "updated_by": {
+            "type": "string"
+          },
+          "watch": {
+            "type": "array",
+            "description": "The metrics it must not hurt",
+            "items": {
+              "type": "string"
+            }
           }
         },
         "required": [
@@ -22385,7 +22497,8 @@
           "rollout",
           "schedule",
           "status",
-          "updated_at"
+          "updated_at",
+          "watch"
         ]
       },
       "MeOrganizationOut": {
@@ -25839,6 +25952,9 @@
             "type": "string",
             "format": "date-time"
           },
+          "created_by": {
+            "type": "string"
+          },
           "description": {
             "type": "string"
           },
@@ -25860,6 +25976,9 @@
           "updated_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "updated_by": {
+            "type": "string"
           }
         },
         "required": [

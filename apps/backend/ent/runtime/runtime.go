@@ -1016,6 +1016,26 @@ func init() {
 	featureflagDescArchived := featureflagFields[9].Descriptor()
 	// featureflag.DefaultArchived holds the default value on creation for the archived field.
 	featureflag.DefaultArchived = featureflagDescArchived.Default.(bool)
+	// featureflagDescCreatedBy is the schema descriptor for created_by field.
+	featureflagDescCreatedBy := featureflagFields[10].Descriptor()
+	// featureflag.DefaultCreatedBy holds the default value on creation for the created_by field.
+	featureflag.DefaultCreatedBy = featureflagDescCreatedBy.Default.(string)
+	// featureflag.CreatedByValidator is a validator for the "created_by" field. It is called by the builders before save.
+	featureflag.CreatedByValidator = featureflagDescCreatedBy.Validators[0].(func(string) error)
+	// featureflagDescUpdatedBy is the schema descriptor for updated_by field.
+	featureflagDescUpdatedBy := featureflagFields[11].Descriptor()
+	// featureflag.DefaultUpdatedBy holds the default value on creation for the updated_by field.
+	featureflag.DefaultUpdatedBy = featureflagDescUpdatedBy.Default.(string)
+	// featureflag.UpdatedByValidator is a validator for the "updated_by" field. It is called by the builders before save.
+	featureflag.UpdatedByValidator = featureflagDescUpdatedBy.Validators[0].(func(string) error)
+	// featureflagDescTags is the schema descriptor for tags field.
+	featureflagDescTags := featureflagFields[13].Descriptor()
+	// featureflag.DefaultTags holds the default value on creation for the tags field.
+	featureflag.DefaultTags = featureflagDescTags.Default.([]string)
+	// featureflagDescGrantsValue is the schema descriptor for grants_value field.
+	featureflagDescGrantsValue := featureflagFields[14].Descriptor()
+	// featureflag.DefaultGrantsValue holds the default value on creation for the grants_value field.
+	featureflag.DefaultGrantsValue = featureflagDescGrantsValue.Default.(bool)
 	invitationMixin := schema.Invitation{}.Mixin()
 	invitationMixinFields0 := invitationMixin[0].Fields()
 	_ = invitationMixinFields0
@@ -1379,6 +1399,32 @@ func init() {
 	liveopsevent.DefaultSalt = liveopseventDescSalt.Default.(string)
 	// liveopsevent.SaltValidator is a validator for the "salt" field. It is called by the builders before save.
 	liveopsevent.SaltValidator = liveopseventDescSalt.Validators[0].(func(string) error)
+	// liveopseventDescDescription is the schema descriptor for description field.
+	liveopseventDescDescription := liveopseventFields[11].Descriptor()
+	// liveopsevent.DefaultDescription holds the default value on creation for the description field.
+	liveopsevent.DefaultDescription = liveopseventDescDescription.Default.(string)
+	// liveopsevent.DescriptionValidator is a validator for the "description" field. It is called by the builders before save.
+	liveopsevent.DescriptionValidator = liveopseventDescDescription.Validators[0].(func(string) error)
+	// liveopseventDescGoal is the schema descriptor for goal field.
+	liveopseventDescGoal := liveopseventFields[12].Descriptor()
+	// liveopsevent.GoalValidator is a validator for the "goal" field. It is called by the builders before save.
+	liveopsevent.GoalValidator = liveopseventDescGoal.Validators[0].(func(string) error)
+	// liveopseventDescWatch is the schema descriptor for watch field.
+	liveopseventDescWatch := liveopseventFields[13].Descriptor()
+	// liveopsevent.DefaultWatch holds the default value on creation for the watch field.
+	liveopsevent.DefaultWatch = liveopseventDescWatch.Default.([]string)
+	// liveopseventDescCreatedBy is the schema descriptor for created_by field.
+	liveopseventDescCreatedBy := liveopseventFields[14].Descriptor()
+	// liveopsevent.DefaultCreatedBy holds the default value on creation for the created_by field.
+	liveopsevent.DefaultCreatedBy = liveopseventDescCreatedBy.Default.(string)
+	// liveopsevent.CreatedByValidator is a validator for the "created_by" field. It is called by the builders before save.
+	liveopsevent.CreatedByValidator = liveopseventDescCreatedBy.Validators[0].(func(string) error)
+	// liveopseventDescUpdatedBy is the schema descriptor for updated_by field.
+	liveopseventDescUpdatedBy := liveopseventFields[15].Descriptor()
+	// liveopsevent.DefaultUpdatedBy holds the default value on creation for the updated_by field.
+	liveopsevent.DefaultUpdatedBy = liveopseventDescUpdatedBy.Default.(string)
+	// liveopsevent.UpdatedByValidator is a validator for the "updated_by" field. It is called by the builders before save.
+	liveopsevent.UpdatedByValidator = liveopseventDescUpdatedBy.Validators[0].(func(string) error)
 	memberprojectMixin := schema.MemberProject{}.Mixin()
 	memberprojectMixinFields0 := memberprojectMixin[0].Fields()
 	_ = memberprojectMixinFields0
@@ -1916,6 +1962,18 @@ func init() {
 	segmentDescArchived := segmentFields[5].Descriptor()
 	// segment.DefaultArchived holds the default value on creation for the archived field.
 	segment.DefaultArchived = segmentDescArchived.Default.(bool)
+	// segmentDescCreatedBy is the schema descriptor for created_by field.
+	segmentDescCreatedBy := segmentFields[6].Descriptor()
+	// segment.DefaultCreatedBy holds the default value on creation for the created_by field.
+	segment.DefaultCreatedBy = segmentDescCreatedBy.Default.(string)
+	// segment.CreatedByValidator is a validator for the "created_by" field. It is called by the builders before save.
+	segment.CreatedByValidator = segmentDescCreatedBy.Validators[0].(func(string) error)
+	// segmentDescUpdatedBy is the schema descriptor for updated_by field.
+	segmentDescUpdatedBy := segmentFields[7].Descriptor()
+	// segment.DefaultUpdatedBy holds the default value on creation for the updated_by field.
+	segment.DefaultUpdatedBy = segmentDescUpdatedBy.Default.(string)
+	// segment.UpdatedByValidator is a validator for the "updated_by" field. It is called by the builders before save.
+	segment.UpdatedByValidator = segmentDescUpdatedBy.Validators[0].(func(string) error)
 	staffaccessMixin := schema.StaffAccess{}.Mixin()
 	staffaccessMixinFields0 := staffaccessMixin[0].Fields()
 	_ = staffaccessMixinFields0

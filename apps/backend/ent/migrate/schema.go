@@ -567,6 +567,11 @@ var (
 		{Name: "rollout", Type: field.TypeInt, Comment: "class=none", Default: 10000},
 		{Name: "salt", Type: field.TypeString, Size: 64, Comment: "class=none", Default: ""},
 		{Name: "archived", Type: field.TypeBool, Comment: "class=none", Default: false},
+		{Name: "created_by", Type: field.TypeString, Size: 254, Comment: "class=none", Default: ""},
+		{Name: "updated_by", Type: field.TypeString, Size: 254, Comment: "class=none", Default: ""},
+		{Name: "purpose", Type: field.TypeEnum, Comment: "class=none", Enums: []string{"release", "kill_switch", "config", "experiment"}, Default: "config"},
+		{Name: "tags", Type: field.TypeJSON, Comment: "class=none", Default: schema.Expr("'[]'::jsonb")},
+		{Name: "grants_value", Type: field.TypeBool, Comment: "class=none", Default: false},
 		{Name: "project_id", Type: field.TypeInt, Comment: "class=none"},
 	}
 	// FeatureFlagsTable holds the schema information for the "feature_flags" table.
@@ -577,7 +582,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "feature_flags_projects_feature_flags",
-				Columns:    []*schema.Column{FeatureFlagsColumns[13]},
+				Columns:    []*schema.Column{FeatureFlagsColumns[18]},
 				RefColumns: []*schema.Column{ProjectsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -586,7 +591,7 @@ var (
 			{
 				Name:    "featureflag_key_project_id",
 				Unique:  true,
-				Columns: []*schema.Column{FeatureFlagsColumns[4], FeatureFlagsColumns[13]},
+				Columns: []*schema.Column{FeatureFlagsColumns[4], FeatureFlagsColumns[18]},
 			},
 		},
 	}
@@ -823,6 +828,11 @@ var (
 		{Name: "payload", Type: field.TypeJSON, Comment: "class=none"},
 		{Name: "rollout", Type: field.TypeInt, Comment: "class=none", Default: 10000},
 		{Name: "salt", Type: field.TypeString, Size: 64, Comment: "class=none", Default: ""},
+		{Name: "description", Type: field.TypeString, Size: 1000, Comment: "class=none", Default: ""},
+		{Name: "goal", Type: field.TypeString, Nullable: true, Size: 64, Comment: "class=none"},
+		{Name: "watch", Type: field.TypeJSON, Comment: "class=none", Default: schema.Expr("'[]'::jsonb")},
+		{Name: "created_by", Type: field.TypeString, Size: 254, Comment: "class=none", Default: ""},
+		{Name: "updated_by", Type: field.TypeString, Size: 254, Comment: "class=none", Default: ""},
 		{Name: "project_id", Type: field.TypeInt, Comment: "class=none"},
 	}
 	// LiveopsEventsTable holds the schema information for the "liveops_events" table.
@@ -833,7 +843,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "liveops_events_projects_liveops_events",
-				Columns:    []*schema.Column{LiveopsEventsColumns[14]},
+				Columns:    []*schema.Column{LiveopsEventsColumns[19]},
 				RefColumns: []*schema.Column{ProjectsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -842,7 +852,7 @@ var (
 			{
 				Name:    "liveopsevent_key_project_id",
 				Unique:  true,
-				Columns: []*schema.Column{LiveopsEventsColumns[4], LiveopsEventsColumns[14]},
+				Columns: []*schema.Column{LiveopsEventsColumns[4], LiveopsEventsColumns[19]},
 			},
 		},
 	}
@@ -1156,6 +1166,8 @@ var (
 		{Name: "description", Type: field.TypeString, Size: 500, Comment: "class=none", Default: ""},
 		{Name: "rule", Type: field.TypeJSON, Comment: "class=none"},
 		{Name: "archived", Type: field.TypeBool, Comment: "class=none", Default: false},
+		{Name: "created_by", Type: field.TypeString, Size: 254, Comment: "class=none", Default: ""},
+		{Name: "updated_by", Type: field.TypeString, Size: 254, Comment: "class=none", Default: ""},
 		{Name: "project_id", Type: field.TypeInt, Comment: "class=none"},
 	}
 	// SegmentsTable holds the schema information for the "segments" table.
@@ -1166,7 +1178,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "segments_projects_segments",
-				Columns:    []*schema.Column{SegmentsColumns[9]},
+				Columns:    []*schema.Column{SegmentsColumns[11]},
 				RefColumns: []*schema.Column{ProjectsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -1175,7 +1187,7 @@ var (
 			{
 				Name:    "segment_key_project_id",
 				Unique:  true,
-				Columns: []*schema.Column{SegmentsColumns[4], SegmentsColumns[9]},
+				Columns: []*schema.Column{SegmentsColumns[4], SegmentsColumns[11]},
 			},
 		},
 	}

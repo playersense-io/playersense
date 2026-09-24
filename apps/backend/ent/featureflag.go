@@ -48,6 +48,16 @@ type FeatureFlag struct {
 	Salt string `json:"salt,omitempty"`
 	// class=none
 	Archived bool `json:"archived,omitempty"`
+	// class=none
+	CreatedBy string `json:"created_by,omitempty"`
+	// class=none
+	UpdatedBy string `json:"updated_by,omitempty"`
+	// class=none
+	Purpose featureflag.Purpose `json:"purpose,omitempty"`
+	// class=none
+	Tags []string `json:"tags,omitempty"`
+	// class=none
+	GrantsValue bool `json:"grants_value,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the FeatureFlagQuery when eager-loading is set.
 	Edges        FeatureFlagEdges `json:"edges"`
@@ -79,13 +89,13 @@ func (*FeatureFlag) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case featureflag.FieldFallback, featureflag.FieldRules:
+		case featureflag.FieldFallback, featureflag.FieldRules, featureflag.FieldTags:
 			values[i] = new([]byte)
-		case featureflag.FieldArchived:
+		case featureflag.FieldArchived, featureflag.FieldGrantsValue:
 			values[i] = new(sql.NullBool)
 		case featureflag.FieldID, featureflag.FieldProjectID, featureflag.FieldRollout:
 			values[i] = new(sql.NullInt64)
-		case featureflag.FieldKey, featureflag.FieldName, featureflag.FieldDescription, featureflag.FieldKind, featureflag.FieldSalt:
+		case featureflag.FieldKey, featureflag.FieldName, featureflag.FieldDescription, featureflag.FieldKind, featureflag.FieldSalt, featureflag.FieldCreatedBy, featureflag.FieldUpdatedBy, featureflag.FieldPurpose:
 			values[i] = new(sql.NullString)
 		case featureflag.FieldCreatedAt, featureflag.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -194,6 +204,38 @@ func (_m *FeatureFlag) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.Archived = value.Bool
 			}
+		case featureflag.FieldCreatedBy:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field created_by", values[i])
+			} else if value.Valid {
+				_m.CreatedBy = value.String
+			}
+		case featureflag.FieldUpdatedBy:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field updated_by", values[i])
+			} else if value.Valid {
+				_m.UpdatedBy = value.String
+			}
+		case featureflag.FieldPurpose:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field purpose", values[i])
+			} else if value.Valid {
+				_m.Purpose = featureflag.Purpose(value.String)
+			}
+		case featureflag.FieldTags:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field tags", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.Tags); err != nil {
+					return fmt.Errorf("unmarshal field tags: %w", err)
+				}
+			}
+		case featureflag.FieldGrantsValue:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field grants_value", values[i])
+			} else if value.Valid {
+				_m.GrantsValue = value.Bool
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -273,6 +315,21 @@ func (_m *FeatureFlag) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("archived=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Archived))
+	builder.WriteString(", ")
+	builder.WriteString("created_by=")
+	builder.WriteString(_m.CreatedBy)
+	builder.WriteString(", ")
+	builder.WriteString("updated_by=")
+	builder.WriteString(_m.UpdatedBy)
+	builder.WriteString(", ")
+	builder.WriteString("purpose=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Purpose))
+	builder.WriteString(", ")
+	builder.WriteString("tags=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Tags))
+	builder.WriteString(", ")
+	builder.WriteString("grants_value=")
+	builder.WriteString(fmt.Sprintf("%v", _m.GrantsValue))
 	builder.WriteByte(')')
 	return builder.String()
 }

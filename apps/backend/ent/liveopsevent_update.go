@@ -182,6 +182,66 @@ func (_u *LiveOpsEventUpdate) SetNillableSalt(v *string) *LiveOpsEventUpdate {
 	return _u
 }
 
+// SetDescription sets the "description" field.
+func (_u *LiveOpsEventUpdate) SetDescription(v string) *LiveOpsEventUpdate {
+	_u.mutation.SetDescription(v)
+	return _u
+}
+
+// SetNillableDescription sets the "description" field if the given value is not nil.
+func (_u *LiveOpsEventUpdate) SetNillableDescription(v *string) *LiveOpsEventUpdate {
+	if v != nil {
+		_u.SetDescription(*v)
+	}
+	return _u
+}
+
+// SetGoal sets the "goal" field.
+func (_u *LiveOpsEventUpdate) SetGoal(v string) *LiveOpsEventUpdate {
+	_u.mutation.SetGoal(v)
+	return _u
+}
+
+// SetNillableGoal sets the "goal" field if the given value is not nil.
+func (_u *LiveOpsEventUpdate) SetNillableGoal(v *string) *LiveOpsEventUpdate {
+	if v != nil {
+		_u.SetGoal(*v)
+	}
+	return _u
+}
+
+// ClearGoal clears the value of the "goal" field.
+func (_u *LiveOpsEventUpdate) ClearGoal() *LiveOpsEventUpdate {
+	_u.mutation.ClearGoal()
+	return _u
+}
+
+// SetWatch sets the "watch" field.
+func (_u *LiveOpsEventUpdate) SetWatch(v []string) *LiveOpsEventUpdate {
+	_u.mutation.SetWatch(v)
+	return _u
+}
+
+// AppendWatch appends value to the "watch" field.
+func (_u *LiveOpsEventUpdate) AppendWatch(v []string) *LiveOpsEventUpdate {
+	_u.mutation.AppendWatch(v)
+	return _u
+}
+
+// SetUpdatedBy sets the "updated_by" field.
+func (_u *LiveOpsEventUpdate) SetUpdatedBy(v string) *LiveOpsEventUpdate {
+	_u.mutation.SetUpdatedBy(v)
+	return _u
+}
+
+// SetNillableUpdatedBy sets the "updated_by" field if the given value is not nil.
+func (_u *LiveOpsEventUpdate) SetNillableUpdatedBy(v *string) *LiveOpsEventUpdate {
+	if v != nil {
+		_u.SetUpdatedBy(*v)
+	}
+	return _u
+}
+
 // SetProject sets the "project" edge to the Project entity.
 func (_u *LiveOpsEventUpdate) SetProject(v *Project) *LiveOpsEventUpdate {
 	return _u.SetProjectID(v.ID)
@@ -266,6 +326,21 @@ func (_u *LiveOpsEventUpdate) check() error {
 			return &ValidationError{Name: "salt", err: fmt.Errorf(`ent: validator failed for field "LiveOpsEvent.salt": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.Description(); ok {
+		if err := liveopsevent.DescriptionValidator(v); err != nil {
+			return &ValidationError{Name: "description", err: fmt.Errorf(`ent: validator failed for field "LiveOpsEvent.description": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.Goal(); ok {
+		if err := liveopsevent.GoalValidator(v); err != nil {
+			return &ValidationError{Name: "goal", err: fmt.Errorf(`ent: validator failed for field "LiveOpsEvent.goal": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.UpdatedBy(); ok {
+		if err := liveopsevent.UpdatedByValidator(v); err != nil {
+			return &ValidationError{Name: "updated_by", err: fmt.Errorf(`ent: validator failed for field "LiveOpsEvent.updated_by": %w`, err)}
+		}
+	}
 	if _u.mutation.ProjectCleared() && len(_u.mutation.ProjectIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "LiveOpsEvent.project"`)
 	}
@@ -324,6 +399,26 @@ func (_u *LiveOpsEventUpdate) sqlSave(ctx context.Context) (_node int, err error
 	}
 	if value, ok := _u.mutation.Salt(); ok {
 		_spec.SetField(liveopsevent.FieldSalt, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Description(); ok {
+		_spec.SetField(liveopsevent.FieldDescription, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Goal(); ok {
+		_spec.SetField(liveopsevent.FieldGoal, field.TypeString, value)
+	}
+	if _u.mutation.GoalCleared() {
+		_spec.ClearField(liveopsevent.FieldGoal, field.TypeString)
+	}
+	if value, ok := _u.mutation.Watch(); ok {
+		_spec.SetField(liveopsevent.FieldWatch, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedWatch(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, liveopsevent.FieldWatch, value)
+		})
+	}
+	if value, ok := _u.mutation.UpdatedBy(); ok {
+		_spec.SetField(liveopsevent.FieldUpdatedBy, field.TypeString, value)
 	}
 	if _u.mutation.ProjectCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -524,6 +619,66 @@ func (_u *LiveOpsEventUpdateOne) SetNillableSalt(v *string) *LiveOpsEventUpdateO
 	return _u
 }
 
+// SetDescription sets the "description" field.
+func (_u *LiveOpsEventUpdateOne) SetDescription(v string) *LiveOpsEventUpdateOne {
+	_u.mutation.SetDescription(v)
+	return _u
+}
+
+// SetNillableDescription sets the "description" field if the given value is not nil.
+func (_u *LiveOpsEventUpdateOne) SetNillableDescription(v *string) *LiveOpsEventUpdateOne {
+	if v != nil {
+		_u.SetDescription(*v)
+	}
+	return _u
+}
+
+// SetGoal sets the "goal" field.
+func (_u *LiveOpsEventUpdateOne) SetGoal(v string) *LiveOpsEventUpdateOne {
+	_u.mutation.SetGoal(v)
+	return _u
+}
+
+// SetNillableGoal sets the "goal" field if the given value is not nil.
+func (_u *LiveOpsEventUpdateOne) SetNillableGoal(v *string) *LiveOpsEventUpdateOne {
+	if v != nil {
+		_u.SetGoal(*v)
+	}
+	return _u
+}
+
+// ClearGoal clears the value of the "goal" field.
+func (_u *LiveOpsEventUpdateOne) ClearGoal() *LiveOpsEventUpdateOne {
+	_u.mutation.ClearGoal()
+	return _u
+}
+
+// SetWatch sets the "watch" field.
+func (_u *LiveOpsEventUpdateOne) SetWatch(v []string) *LiveOpsEventUpdateOne {
+	_u.mutation.SetWatch(v)
+	return _u
+}
+
+// AppendWatch appends value to the "watch" field.
+func (_u *LiveOpsEventUpdateOne) AppendWatch(v []string) *LiveOpsEventUpdateOne {
+	_u.mutation.AppendWatch(v)
+	return _u
+}
+
+// SetUpdatedBy sets the "updated_by" field.
+func (_u *LiveOpsEventUpdateOne) SetUpdatedBy(v string) *LiveOpsEventUpdateOne {
+	_u.mutation.SetUpdatedBy(v)
+	return _u
+}
+
+// SetNillableUpdatedBy sets the "updated_by" field if the given value is not nil.
+func (_u *LiveOpsEventUpdateOne) SetNillableUpdatedBy(v *string) *LiveOpsEventUpdateOne {
+	if v != nil {
+		_u.SetUpdatedBy(*v)
+	}
+	return _u
+}
+
 // SetProject sets the "project" edge to the Project entity.
 func (_u *LiveOpsEventUpdateOne) SetProject(v *Project) *LiveOpsEventUpdateOne {
 	return _u.SetProjectID(v.ID)
@@ -621,6 +776,21 @@ func (_u *LiveOpsEventUpdateOne) check() error {
 			return &ValidationError{Name: "salt", err: fmt.Errorf(`ent: validator failed for field "LiveOpsEvent.salt": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.Description(); ok {
+		if err := liveopsevent.DescriptionValidator(v); err != nil {
+			return &ValidationError{Name: "description", err: fmt.Errorf(`ent: validator failed for field "LiveOpsEvent.description": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.Goal(); ok {
+		if err := liveopsevent.GoalValidator(v); err != nil {
+			return &ValidationError{Name: "goal", err: fmt.Errorf(`ent: validator failed for field "LiveOpsEvent.goal": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.UpdatedBy(); ok {
+		if err := liveopsevent.UpdatedByValidator(v); err != nil {
+			return &ValidationError{Name: "updated_by", err: fmt.Errorf(`ent: validator failed for field "LiveOpsEvent.updated_by": %w`, err)}
+		}
+	}
 	if _u.mutation.ProjectCleared() && len(_u.mutation.ProjectIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "LiveOpsEvent.project"`)
 	}
@@ -696,6 +866,26 @@ func (_u *LiveOpsEventUpdateOne) sqlSave(ctx context.Context) (_node *LiveOpsEve
 	}
 	if value, ok := _u.mutation.Salt(); ok {
 		_spec.SetField(liveopsevent.FieldSalt, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Description(); ok {
+		_spec.SetField(liveopsevent.FieldDescription, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Goal(); ok {
+		_spec.SetField(liveopsevent.FieldGoal, field.TypeString, value)
+	}
+	if _u.mutation.GoalCleared() {
+		_spec.ClearField(liveopsevent.FieldGoal, field.TypeString)
+	}
+	if value, ok := _u.mutation.Watch(); ok {
+		_spec.SetField(liveopsevent.FieldWatch, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedWatch(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, liveopsevent.FieldWatch, value)
+		})
+	}
+	if value, ok := _u.mutation.UpdatedBy(); ok {
+		_spec.SetField(liveopsevent.FieldUpdatedBy, field.TypeString, value)
 	}
 	if _u.mutation.ProjectCleared() {
 		edge := &sqlgraph.EdgeSpec{

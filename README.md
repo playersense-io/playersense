@@ -408,6 +408,12 @@ flag's declared kind — so "segment `whales` does not exist" reaches the person
 rather than whoever presses publish three days later
 ([ADR 0034](docs/adr/0034-a-rule-is-validated-when-it-is-written.md)).
 
+**What a flag and an event say about themselves.** A flag has a `purpose` (release, kill switch,
+config or experiment), `tags` and `grants_value`; an event a `description`, the metric it is meant
+to move (`goal`) and the ones it must not hurt (`watch`). None of them reaches a player, a write that
+does not send them leaves them alone, and every flag, segment and event says who wrote it and who
+changed it last.
+
 **DELETE archives; it never deletes.** A published version holds each rule inlined, so the row is
 what still explains version 7. The next publish stops carrying it.
 

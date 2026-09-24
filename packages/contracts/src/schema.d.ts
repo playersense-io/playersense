@@ -3295,6 +3295,13 @@ export interface components {
             readonly totals: components["schemas"]["EventTotalsOut"];
             readonly type: string;
         };
+        readonly EventIntent: {
+            readonly description?: string | null;
+            /** @description One of the metrics; empty clears it */
+            readonly goal?: string | null;
+            /** @description Up to eight metrics; absent leaves them as they are */
+            readonly watch?: readonly string[];
+        };
         readonly EventOccurrenceOut: {
             readonly app_version: string;
             /** Format: date-time */
@@ -3647,6 +3654,13 @@ export interface components {
             /** Format: int64 */
             readonly previous_exposures: number;
         };
+        readonly FlagLabels: {
+            readonly grants_value?: boolean | null;
+            /** @description release, kill_switch, config or experiment; a new flag defaults to config */
+            readonly purpose?: string | null;
+            /** @description Up to 20; absent leaves them as they are */
+            readonly tags?: readonly string[];
+        };
         readonly FlagListOut: {
             readonly flags: readonly components["schemas"]["FlagOut"][];
         };
@@ -3654,18 +3668,23 @@ export interface components {
             readonly archived: boolean;
             /** Format: date-time */
             readonly created_at: string;
+            readonly created_by?: string;
             readonly description?: string;
             /**
              * Format: byte
              * @description What a player gets when no rule matches, and what the SDK uses offline
              */
             readonly fallback: string;
+            /** @description It grants currency, items, discounts or paid content */
+            readonly grants_value: boolean;
             readonly id: string;
             /** @description What the game reads. Immutable */
             readonly key: string;
             /** @description bool, string, number or json. Immutable */
             readonly kind: string;
             readonly name: string;
+            /** @description release, kill_switch, config or experiment: why it exists, which decides when it should go */
+            readonly purpose: string;
             /**
              * Format: int64
              * @description Hundredths of a percent: 2500 is 25%
@@ -3675,8 +3694,10 @@ export interface components {
             readonly rules: readonly components["schemas"]["VariantOut"][];
             /** @description Changing it draws a fresh sample */
             readonly salt?: string;
+            readonly tags: readonly string[];
             /** Format: date-time */
             readonly updated_at: string;
+            readonly updated_by?: string;
         };
         readonly FlagValueDayOut: {
             /** Format: date-time */
@@ -4138,6 +4159,10 @@ export interface components {
             readonly audience?: string;
             /** Format: date-time */
             readonly created_at: string;
+            readonly created_by?: string;
+            readonly description?: string;
+            /** @description The metric it is meant to move */
+            readonly goal?: string | null;
             readonly id: string;
             /** @description Immutable */
             readonly key: string;
@@ -4164,6 +4189,9 @@ export interface components {
             readonly status: string;
             /** Format: date-time */
             readonly updated_at: string;
+            readonly updated_by?: string;
+            /** @description The metrics it must not hurt */
+            readonly watch: readonly string[];
         };
         readonly MeOrganizationOut: {
             /** @description Null when your role may not read billing, or there is no billing account */
@@ -5319,6 +5347,7 @@ export interface components {
             readonly archived: boolean;
             /** Format: date-time */
             readonly created_at: string;
+            readonly created_by?: string;
             readonly description?: string;
             readonly id: string;
             /** @description The stable name rules refer to. Immutable */
@@ -5331,6 +5360,7 @@ export interface components {
             readonly rule: string;
             /** Format: date-time */
             readonly updated_at: string;
+            readonly updated_by?: string;
         };
         readonly ServerErrorOut: {
             /** Format: int64 */
@@ -14847,6 +14877,7 @@ export interface operations {
         readonly requestBody: {
             readonly content: {
                 readonly "application/json": {
+                    readonly FlagLabels: components["schemas"]["FlagLabels"];
                     readonly description?: string;
                     /**
                      * Format: byte
@@ -15041,6 +15072,7 @@ export interface operations {
         readonly requestBody: {
             readonly content: {
                 readonly "application/json": {
+                    readonly FlagLabels: components["schemas"]["FlagLabels"];
                     /** @description Absent leaves it as it is; false un-archives */
                     readonly archived?: boolean | null;
                     readonly description?: string;
@@ -16164,6 +16196,7 @@ export interface operations {
         readonly requestBody: {
             readonly content: {
                 readonly "application/json": {
+                    readonly EventIntent: components["schemas"]["EventIntent"];
                     /**
                      * Format: byte
                      * @description Absent means every player
@@ -16364,6 +16397,7 @@ export interface operations {
         readonly requestBody: {
             readonly content: {
                 readonly "application/json": {
+                    readonly EventIntent: components["schemas"]["EventIntent"];
                     /** Format: byte */
                     readonly audience?: string;
                     readonly kind: string;

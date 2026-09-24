@@ -51,6 +51,16 @@ type LiveOpsEvent struct {
 	Rollout int `json:"rollout,omitempty"`
 	// class=none
 	Salt string `json:"salt,omitempty"`
+	// class=none
+	Description string `json:"description,omitempty"`
+	// class=none
+	Goal *string `json:"goal,omitempty"`
+	// class=none
+	Watch []string `json:"watch,omitempty"`
+	// class=none
+	CreatedBy string `json:"created_by,omitempty"`
+	// class=none
+	UpdatedBy string `json:"updated_by,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the LiveOpsEventQuery when eager-loading is set.
 	Edges        LiveOpsEventEdges `json:"edges"`
@@ -82,11 +92,11 @@ func (*LiveOpsEvent) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case liveopsevent.FieldSchedule, liveopsevent.FieldAudience, liveopsevent.FieldPayload:
+		case liveopsevent.FieldSchedule, liveopsevent.FieldAudience, liveopsevent.FieldPayload, liveopsevent.FieldWatch:
 			values[i] = new([]byte)
 		case liveopsevent.FieldID, liveopsevent.FieldProjectID, liveopsevent.FieldPriority, liveopsevent.FieldRollout:
 			values[i] = new(sql.NullInt64)
-		case liveopsevent.FieldKey, liveopsevent.FieldKind, liveopsevent.FieldName, liveopsevent.FieldStatus, liveopsevent.FieldSalt:
+		case liveopsevent.FieldKey, liveopsevent.FieldKind, liveopsevent.FieldName, liveopsevent.FieldStatus, liveopsevent.FieldSalt, liveopsevent.FieldDescription, liveopsevent.FieldGoal, liveopsevent.FieldCreatedBy, liveopsevent.FieldUpdatedBy:
 			values[i] = new(sql.NullString)
 		case liveopsevent.FieldCreatedAt, liveopsevent.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -203,6 +213,39 @@ func (_m *LiveOpsEvent) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.Salt = value.String
 			}
+		case liveopsevent.FieldDescription:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field description", values[i])
+			} else if value.Valid {
+				_m.Description = value.String
+			}
+		case liveopsevent.FieldGoal:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field goal", values[i])
+			} else if value.Valid {
+				_m.Goal = new(string)
+				*_m.Goal = value.String
+			}
+		case liveopsevent.FieldWatch:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field watch", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.Watch); err != nil {
+					return fmt.Errorf("unmarshal field watch: %w", err)
+				}
+			}
+		case liveopsevent.FieldCreatedBy:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field created_by", values[i])
+			} else if value.Valid {
+				_m.CreatedBy = value.String
+			}
+		case liveopsevent.FieldUpdatedBy:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field updated_by", values[i])
+			} else if value.Valid {
+				_m.UpdatedBy = value.String
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -285,6 +328,23 @@ func (_m *LiveOpsEvent) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("salt=")
 	builder.WriteString(_m.Salt)
+	builder.WriteString(", ")
+	builder.WriteString("description=")
+	builder.WriteString(_m.Description)
+	builder.WriteString(", ")
+	if v := _m.Goal; v != nil {
+		builder.WriteString("goal=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	builder.WriteString("watch=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Watch))
+	builder.WriteString(", ")
+	builder.WriteString("created_by=")
+	builder.WriteString(_m.CreatedBy)
+	builder.WriteString(", ")
+	builder.WriteString("updated_by=")
+	builder.WriteString(_m.UpdatedBy)
 	builder.WriteByte(')')
 	return builder.String()
 }

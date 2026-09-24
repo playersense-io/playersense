@@ -16873,6 +16873,12 @@ type FeatureFlagMutation struct {
 	addrollout     *int
 	salt           *string
 	archived       *bool
+	created_by     *string
+	updated_by     *string
+	purpose        *featureflag.Purpose
+	tags           *[]string
+	appendtags     []string
+	grants_value   *bool
 	clearedFields  map[string]struct{}
 	project        *int
 	clearedproject bool
@@ -17503,6 +17509,201 @@ func (m *FeatureFlagMutation) ResetArchived() {
 	m.archived = nil
 }
 
+// SetCreatedBy sets the "created_by" field.
+func (m *FeatureFlagMutation) SetCreatedBy(s string) {
+	m.created_by = &s
+}
+
+// CreatedBy returns the value of the "created_by" field in the mutation.
+func (m *FeatureFlagMutation) CreatedBy() (r string, exists bool) {
+	v := m.created_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedBy returns the old "created_by" field's value of the FeatureFlag entity.
+// If the FeatureFlag object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *FeatureFlagMutation) OldCreatedBy(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedBy: %w", err)
+	}
+	return oldValue.CreatedBy, nil
+}
+
+// ResetCreatedBy resets all changes to the "created_by" field.
+func (m *FeatureFlagMutation) ResetCreatedBy() {
+	m.created_by = nil
+}
+
+// SetUpdatedBy sets the "updated_by" field.
+func (m *FeatureFlagMutation) SetUpdatedBy(s string) {
+	m.updated_by = &s
+}
+
+// UpdatedBy returns the value of the "updated_by" field in the mutation.
+func (m *FeatureFlagMutation) UpdatedBy() (r string, exists bool) {
+	v := m.updated_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedBy returns the old "updated_by" field's value of the FeatureFlag entity.
+// If the FeatureFlag object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *FeatureFlagMutation) OldUpdatedBy(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedBy: %w", err)
+	}
+	return oldValue.UpdatedBy, nil
+}
+
+// ResetUpdatedBy resets all changes to the "updated_by" field.
+func (m *FeatureFlagMutation) ResetUpdatedBy() {
+	m.updated_by = nil
+}
+
+// SetPurpose sets the "purpose" field.
+func (m *FeatureFlagMutation) SetPurpose(f featureflag.Purpose) {
+	m.purpose = &f
+}
+
+// Purpose returns the value of the "purpose" field in the mutation.
+func (m *FeatureFlagMutation) Purpose() (r featureflag.Purpose, exists bool) {
+	v := m.purpose
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPurpose returns the old "purpose" field's value of the FeatureFlag entity.
+// If the FeatureFlag object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *FeatureFlagMutation) OldPurpose(ctx context.Context) (v featureflag.Purpose, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPurpose is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPurpose requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPurpose: %w", err)
+	}
+	return oldValue.Purpose, nil
+}
+
+// ResetPurpose resets all changes to the "purpose" field.
+func (m *FeatureFlagMutation) ResetPurpose() {
+	m.purpose = nil
+}
+
+// SetTags sets the "tags" field.
+func (m *FeatureFlagMutation) SetTags(s []string) {
+	m.tags = &s
+	m.appendtags = nil
+}
+
+// Tags returns the value of the "tags" field in the mutation.
+func (m *FeatureFlagMutation) Tags() (r []string, exists bool) {
+	v := m.tags
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTags returns the old "tags" field's value of the FeatureFlag entity.
+// If the FeatureFlag object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *FeatureFlagMutation) OldTags(ctx context.Context) (v []string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTags is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTags requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTags: %w", err)
+	}
+	return oldValue.Tags, nil
+}
+
+// AppendTags adds s to the "tags" field.
+func (m *FeatureFlagMutation) AppendTags(s []string) {
+	m.appendtags = append(m.appendtags, s...)
+}
+
+// AppendedTags returns the list of values that were appended to the "tags" field in this mutation.
+func (m *FeatureFlagMutation) AppendedTags() ([]string, bool) {
+	if len(m.appendtags) == 0 {
+		return nil, false
+	}
+	return m.appendtags, true
+}
+
+// ResetTags resets all changes to the "tags" field.
+func (m *FeatureFlagMutation) ResetTags() {
+	m.tags = nil
+	m.appendtags = nil
+}
+
+// SetGrantsValue sets the "grants_value" field.
+func (m *FeatureFlagMutation) SetGrantsValue(b bool) {
+	m.grants_value = &b
+}
+
+// GrantsValue returns the value of the "grants_value" field in the mutation.
+func (m *FeatureFlagMutation) GrantsValue() (r bool, exists bool) {
+	v := m.grants_value
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGrantsValue returns the old "grants_value" field's value of the FeatureFlag entity.
+// If the FeatureFlag object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *FeatureFlagMutation) OldGrantsValue(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGrantsValue is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGrantsValue requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGrantsValue: %w", err)
+	}
+	return oldValue.GrantsValue, nil
+}
+
+// ResetGrantsValue resets all changes to the "grants_value" field.
+func (m *FeatureFlagMutation) ResetGrantsValue() {
+	m.grants_value = nil
+}
+
 // ClearProject clears the "project" edge to the Project entity.
 func (m *FeatureFlagMutation) ClearProject() {
 	m.clearedproject = true
@@ -17564,7 +17765,7 @@ func (m *FeatureFlagMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *FeatureFlagMutation) Fields() []string {
-	fields := make([]string, 0, 13)
+	fields := make([]string, 0, 18)
 	if m.uid != nil {
 		fields = append(fields, featureflag.FieldUID)
 	}
@@ -17604,6 +17805,21 @@ func (m *FeatureFlagMutation) Fields() []string {
 	if m.archived != nil {
 		fields = append(fields, featureflag.FieldArchived)
 	}
+	if m.created_by != nil {
+		fields = append(fields, featureflag.FieldCreatedBy)
+	}
+	if m.updated_by != nil {
+		fields = append(fields, featureflag.FieldUpdatedBy)
+	}
+	if m.purpose != nil {
+		fields = append(fields, featureflag.FieldPurpose)
+	}
+	if m.tags != nil {
+		fields = append(fields, featureflag.FieldTags)
+	}
+	if m.grants_value != nil {
+		fields = append(fields, featureflag.FieldGrantsValue)
+	}
 	return fields
 }
 
@@ -17638,6 +17854,16 @@ func (m *FeatureFlagMutation) Field(name string) (ent.Value, bool) {
 		return m.Salt()
 	case featureflag.FieldArchived:
 		return m.Archived()
+	case featureflag.FieldCreatedBy:
+		return m.CreatedBy()
+	case featureflag.FieldUpdatedBy:
+		return m.UpdatedBy()
+	case featureflag.FieldPurpose:
+		return m.Purpose()
+	case featureflag.FieldTags:
+		return m.Tags()
+	case featureflag.FieldGrantsValue:
+		return m.GrantsValue()
 	}
 	return nil, false
 }
@@ -17673,6 +17899,16 @@ func (m *FeatureFlagMutation) OldField(ctx context.Context, name string) (ent.Va
 		return m.OldSalt(ctx)
 	case featureflag.FieldArchived:
 		return m.OldArchived(ctx)
+	case featureflag.FieldCreatedBy:
+		return m.OldCreatedBy(ctx)
+	case featureflag.FieldUpdatedBy:
+		return m.OldUpdatedBy(ctx)
+	case featureflag.FieldPurpose:
+		return m.OldPurpose(ctx)
+	case featureflag.FieldTags:
+		return m.OldTags(ctx)
+	case featureflag.FieldGrantsValue:
+		return m.OldGrantsValue(ctx)
 	}
 	return nil, fmt.Errorf("unknown FeatureFlag field %s", name)
 }
@@ -17772,6 +18008,41 @@ func (m *FeatureFlagMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetArchived(v)
+		return nil
+	case featureflag.FieldCreatedBy:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedBy(v)
+		return nil
+	case featureflag.FieldUpdatedBy:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedBy(v)
+		return nil
+	case featureflag.FieldPurpose:
+		v, ok := value.(featureflag.Purpose)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPurpose(v)
+		return nil
+	case featureflag.FieldTags:
+		v, ok := value.([]string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTags(v)
+		return nil
+	case featureflag.FieldGrantsValue:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGrantsValue(v)
 		return nil
 	}
 	return fmt.Errorf("unknown FeatureFlag field %s", name)
@@ -17875,6 +18146,21 @@ func (m *FeatureFlagMutation) ResetField(name string) error {
 		return nil
 	case featureflag.FieldArchived:
 		m.ResetArchived()
+		return nil
+	case featureflag.FieldCreatedBy:
+		m.ResetCreatedBy()
+		return nil
+	case featureflag.FieldUpdatedBy:
+		m.ResetUpdatedBy()
+		return nil
+	case featureflag.FieldPurpose:
+		m.ResetPurpose()
+		return nil
+	case featureflag.FieldTags:
+		m.ResetTags()
+		return nil
+	case featureflag.FieldGrantsValue:
+		m.ResetGrantsValue()
 		return nil
 	}
 	return fmt.Errorf("unknown FeatureFlag field %s", name)
@@ -24129,6 +24415,12 @@ type LiveOpsEventMutation struct {
 	rollout        *int
 	addrollout     *int
 	salt           *string
+	description    *string
+	goal           *string
+	watch          *[]string
+	appendwatch    []string
+	created_by     *string
+	updated_by     *string
 	clearedFields  map[string]struct{}
 	project        *int
 	clearedproject bool
@@ -24800,6 +25092,214 @@ func (m *LiveOpsEventMutation) ResetSalt() {
 	m.salt = nil
 }
 
+// SetDescription sets the "description" field.
+func (m *LiveOpsEventMutation) SetDescription(s string) {
+	m.description = &s
+}
+
+// Description returns the value of the "description" field in the mutation.
+func (m *LiveOpsEventMutation) Description() (r string, exists bool) {
+	v := m.description
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDescription returns the old "description" field's value of the LiveOpsEvent entity.
+// If the LiveOpsEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LiveOpsEventMutation) OldDescription(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDescription is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDescription requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDescription: %w", err)
+	}
+	return oldValue.Description, nil
+}
+
+// ResetDescription resets all changes to the "description" field.
+func (m *LiveOpsEventMutation) ResetDescription() {
+	m.description = nil
+}
+
+// SetGoal sets the "goal" field.
+func (m *LiveOpsEventMutation) SetGoal(s string) {
+	m.goal = &s
+}
+
+// Goal returns the value of the "goal" field in the mutation.
+func (m *LiveOpsEventMutation) Goal() (r string, exists bool) {
+	v := m.goal
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGoal returns the old "goal" field's value of the LiveOpsEvent entity.
+// If the LiveOpsEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LiveOpsEventMutation) OldGoal(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGoal is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGoal requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGoal: %w", err)
+	}
+	return oldValue.Goal, nil
+}
+
+// ClearGoal clears the value of the "goal" field.
+func (m *LiveOpsEventMutation) ClearGoal() {
+	m.goal = nil
+	m.clearedFields[liveopsevent.FieldGoal] = struct{}{}
+}
+
+// GoalCleared returns if the "goal" field was cleared in this mutation.
+func (m *LiveOpsEventMutation) GoalCleared() bool {
+	_, ok := m.clearedFields[liveopsevent.FieldGoal]
+	return ok
+}
+
+// ResetGoal resets all changes to the "goal" field.
+func (m *LiveOpsEventMutation) ResetGoal() {
+	m.goal = nil
+	delete(m.clearedFields, liveopsevent.FieldGoal)
+}
+
+// SetWatch sets the "watch" field.
+func (m *LiveOpsEventMutation) SetWatch(s []string) {
+	m.watch = &s
+	m.appendwatch = nil
+}
+
+// Watch returns the value of the "watch" field in the mutation.
+func (m *LiveOpsEventMutation) Watch() (r []string, exists bool) {
+	v := m.watch
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldWatch returns the old "watch" field's value of the LiveOpsEvent entity.
+// If the LiveOpsEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LiveOpsEventMutation) OldWatch(ctx context.Context) (v []string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldWatch is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldWatch requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldWatch: %w", err)
+	}
+	return oldValue.Watch, nil
+}
+
+// AppendWatch adds s to the "watch" field.
+func (m *LiveOpsEventMutation) AppendWatch(s []string) {
+	m.appendwatch = append(m.appendwatch, s...)
+}
+
+// AppendedWatch returns the list of values that were appended to the "watch" field in this mutation.
+func (m *LiveOpsEventMutation) AppendedWatch() ([]string, bool) {
+	if len(m.appendwatch) == 0 {
+		return nil, false
+	}
+	return m.appendwatch, true
+}
+
+// ResetWatch resets all changes to the "watch" field.
+func (m *LiveOpsEventMutation) ResetWatch() {
+	m.watch = nil
+	m.appendwatch = nil
+}
+
+// SetCreatedBy sets the "created_by" field.
+func (m *LiveOpsEventMutation) SetCreatedBy(s string) {
+	m.created_by = &s
+}
+
+// CreatedBy returns the value of the "created_by" field in the mutation.
+func (m *LiveOpsEventMutation) CreatedBy() (r string, exists bool) {
+	v := m.created_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedBy returns the old "created_by" field's value of the LiveOpsEvent entity.
+// If the LiveOpsEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LiveOpsEventMutation) OldCreatedBy(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedBy: %w", err)
+	}
+	return oldValue.CreatedBy, nil
+}
+
+// ResetCreatedBy resets all changes to the "created_by" field.
+func (m *LiveOpsEventMutation) ResetCreatedBy() {
+	m.created_by = nil
+}
+
+// SetUpdatedBy sets the "updated_by" field.
+func (m *LiveOpsEventMutation) SetUpdatedBy(s string) {
+	m.updated_by = &s
+}
+
+// UpdatedBy returns the value of the "updated_by" field in the mutation.
+func (m *LiveOpsEventMutation) UpdatedBy() (r string, exists bool) {
+	v := m.updated_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedBy returns the old "updated_by" field's value of the LiveOpsEvent entity.
+// If the LiveOpsEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LiveOpsEventMutation) OldUpdatedBy(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedBy: %w", err)
+	}
+	return oldValue.UpdatedBy, nil
+}
+
+// ResetUpdatedBy resets all changes to the "updated_by" field.
+func (m *LiveOpsEventMutation) ResetUpdatedBy() {
+	m.updated_by = nil
+}
+
 // ClearProject clears the "project" edge to the Project entity.
 func (m *LiveOpsEventMutation) ClearProject() {
 	m.clearedproject = true
@@ -24861,7 +25361,7 @@ func (m *LiveOpsEventMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *LiveOpsEventMutation) Fields() []string {
-	fields := make([]string, 0, 14)
+	fields := make([]string, 0, 19)
 	if m.uid != nil {
 		fields = append(fields, liveopsevent.FieldUID)
 	}
@@ -24904,6 +25404,21 @@ func (m *LiveOpsEventMutation) Fields() []string {
 	if m.salt != nil {
 		fields = append(fields, liveopsevent.FieldSalt)
 	}
+	if m.description != nil {
+		fields = append(fields, liveopsevent.FieldDescription)
+	}
+	if m.goal != nil {
+		fields = append(fields, liveopsevent.FieldGoal)
+	}
+	if m.watch != nil {
+		fields = append(fields, liveopsevent.FieldWatch)
+	}
+	if m.created_by != nil {
+		fields = append(fields, liveopsevent.FieldCreatedBy)
+	}
+	if m.updated_by != nil {
+		fields = append(fields, liveopsevent.FieldUpdatedBy)
+	}
 	return fields
 }
 
@@ -24940,6 +25455,16 @@ func (m *LiveOpsEventMutation) Field(name string) (ent.Value, bool) {
 		return m.Rollout()
 	case liveopsevent.FieldSalt:
 		return m.Salt()
+	case liveopsevent.FieldDescription:
+		return m.Description()
+	case liveopsevent.FieldGoal:
+		return m.Goal()
+	case liveopsevent.FieldWatch:
+		return m.Watch()
+	case liveopsevent.FieldCreatedBy:
+		return m.CreatedBy()
+	case liveopsevent.FieldUpdatedBy:
+		return m.UpdatedBy()
 	}
 	return nil, false
 }
@@ -24977,6 +25502,16 @@ func (m *LiveOpsEventMutation) OldField(ctx context.Context, name string) (ent.V
 		return m.OldRollout(ctx)
 	case liveopsevent.FieldSalt:
 		return m.OldSalt(ctx)
+	case liveopsevent.FieldDescription:
+		return m.OldDescription(ctx)
+	case liveopsevent.FieldGoal:
+		return m.OldGoal(ctx)
+	case liveopsevent.FieldWatch:
+		return m.OldWatch(ctx)
+	case liveopsevent.FieldCreatedBy:
+		return m.OldCreatedBy(ctx)
+	case liveopsevent.FieldUpdatedBy:
+		return m.OldUpdatedBy(ctx)
 	}
 	return nil, fmt.Errorf("unknown LiveOpsEvent field %s", name)
 }
@@ -25084,6 +25619,41 @@ func (m *LiveOpsEventMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetSalt(v)
 		return nil
+	case liveopsevent.FieldDescription:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDescription(v)
+		return nil
+	case liveopsevent.FieldGoal:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGoal(v)
+		return nil
+	case liveopsevent.FieldWatch:
+		v, ok := value.([]string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetWatch(v)
+		return nil
+	case liveopsevent.FieldCreatedBy:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedBy(v)
+		return nil
+	case liveopsevent.FieldUpdatedBy:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedBy(v)
+		return nil
 	}
 	return fmt.Errorf("unknown LiveOpsEvent field %s", name)
 }
@@ -25140,7 +25710,11 @@ func (m *LiveOpsEventMutation) AddField(name string, value ent.Value) error {
 // ClearedFields returns all nullable fields that were cleared during this
 // mutation.
 func (m *LiveOpsEventMutation) ClearedFields() []string {
-	return nil
+	var fields []string
+	if m.FieldCleared(liveopsevent.FieldGoal) {
+		fields = append(fields, liveopsevent.FieldGoal)
+	}
+	return fields
 }
 
 // FieldCleared returns a boolean indicating if a field with the given name was
@@ -25153,6 +25727,11 @@ func (m *LiveOpsEventMutation) FieldCleared(name string) bool {
 // ClearField clears the value of the field with the given name. It returns an
 // error if the field is not defined in the schema.
 func (m *LiveOpsEventMutation) ClearField(name string) error {
+	switch name {
+	case liveopsevent.FieldGoal:
+		m.ClearGoal()
+		return nil
+	}
 	return fmt.Errorf("unknown LiveOpsEvent nullable field %s", name)
 }
 
@@ -25201,6 +25780,21 @@ func (m *LiveOpsEventMutation) ResetField(name string) error {
 		return nil
 	case liveopsevent.FieldSalt:
 		m.ResetSalt()
+		return nil
+	case liveopsevent.FieldDescription:
+		m.ResetDescription()
+		return nil
+	case liveopsevent.FieldGoal:
+		m.ResetGoal()
+		return nil
+	case liveopsevent.FieldWatch:
+		m.ResetWatch()
+		return nil
+	case liveopsevent.FieldCreatedBy:
+		m.ResetCreatedBy()
+		return nil
+	case liveopsevent.FieldUpdatedBy:
+		m.ResetUpdatedBy()
 		return nil
 	}
 	return fmt.Errorf("unknown LiveOpsEvent field %s", name)
@@ -35153,6 +35747,8 @@ type SegmentMutation struct {
 	description    *string
 	rule           *map[string]interface{}
 	archived       *bool
+	created_by     *string
+	updated_by     *string
 	clearedFields  map[string]struct{}
 	project        *int
 	clearedproject bool
@@ -35589,6 +36185,78 @@ func (m *SegmentMutation) ResetArchived() {
 	m.archived = nil
 }
 
+// SetCreatedBy sets the "created_by" field.
+func (m *SegmentMutation) SetCreatedBy(s string) {
+	m.created_by = &s
+}
+
+// CreatedBy returns the value of the "created_by" field in the mutation.
+func (m *SegmentMutation) CreatedBy() (r string, exists bool) {
+	v := m.created_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedBy returns the old "created_by" field's value of the Segment entity.
+// If the Segment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SegmentMutation) OldCreatedBy(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedBy: %w", err)
+	}
+	return oldValue.CreatedBy, nil
+}
+
+// ResetCreatedBy resets all changes to the "created_by" field.
+func (m *SegmentMutation) ResetCreatedBy() {
+	m.created_by = nil
+}
+
+// SetUpdatedBy sets the "updated_by" field.
+func (m *SegmentMutation) SetUpdatedBy(s string) {
+	m.updated_by = &s
+}
+
+// UpdatedBy returns the value of the "updated_by" field in the mutation.
+func (m *SegmentMutation) UpdatedBy() (r string, exists bool) {
+	v := m.updated_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedBy returns the old "updated_by" field's value of the Segment entity.
+// If the Segment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SegmentMutation) OldUpdatedBy(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedBy: %w", err)
+	}
+	return oldValue.UpdatedBy, nil
+}
+
+// ResetUpdatedBy resets all changes to the "updated_by" field.
+func (m *SegmentMutation) ResetUpdatedBy() {
+	m.updated_by = nil
+}
+
 // ClearProject clears the "project" edge to the Project entity.
 func (m *SegmentMutation) ClearProject() {
 	m.clearedproject = true
@@ -35650,7 +36318,7 @@ func (m *SegmentMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *SegmentMutation) Fields() []string {
-	fields := make([]string, 0, 9)
+	fields := make([]string, 0, 11)
 	if m.uid != nil {
 		fields = append(fields, segment.FieldUID)
 	}
@@ -35678,6 +36346,12 @@ func (m *SegmentMutation) Fields() []string {
 	if m.archived != nil {
 		fields = append(fields, segment.FieldArchived)
 	}
+	if m.created_by != nil {
+		fields = append(fields, segment.FieldCreatedBy)
+	}
+	if m.updated_by != nil {
+		fields = append(fields, segment.FieldUpdatedBy)
+	}
 	return fields
 }
 
@@ -35704,6 +36378,10 @@ func (m *SegmentMutation) Field(name string) (ent.Value, bool) {
 		return m.Rule()
 	case segment.FieldArchived:
 		return m.Archived()
+	case segment.FieldCreatedBy:
+		return m.CreatedBy()
+	case segment.FieldUpdatedBy:
+		return m.UpdatedBy()
 	}
 	return nil, false
 }
@@ -35731,6 +36409,10 @@ func (m *SegmentMutation) OldField(ctx context.Context, name string) (ent.Value,
 		return m.OldRule(ctx)
 	case segment.FieldArchived:
 		return m.OldArchived(ctx)
+	case segment.FieldCreatedBy:
+		return m.OldCreatedBy(ctx)
+	case segment.FieldUpdatedBy:
+		return m.OldUpdatedBy(ctx)
 	}
 	return nil, fmt.Errorf("unknown Segment field %s", name)
 }
@@ -35802,6 +36484,20 @@ func (m *SegmentMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetArchived(v)
+		return nil
+	case segment.FieldCreatedBy:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedBy(v)
+		return nil
+	case segment.FieldUpdatedBy:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedBy(v)
 		return nil
 	}
 	return fmt.Errorf("unknown Segment field %s", name)
@@ -35881,6 +36577,12 @@ func (m *SegmentMutation) ResetField(name string) error {
 		return nil
 	case segment.FieldArchived:
 		m.ResetArchived()
+		return nil
+	case segment.FieldCreatedBy:
+		m.ResetCreatedBy()
+		return nil
+	case segment.FieldUpdatedBy:
+		m.ResetUpdatedBy()
 		return nil
 	}
 	return fmt.Errorf("unknown Segment field %s", name)

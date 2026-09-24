@@ -118,6 +118,34 @@ func (_c *SegmentCreate) SetNillableArchived(v *bool) *SegmentCreate {
 	return _c
 }
 
+// SetCreatedBy sets the "created_by" field.
+func (_c *SegmentCreate) SetCreatedBy(v string) *SegmentCreate {
+	_c.mutation.SetCreatedBy(v)
+	return _c
+}
+
+// SetNillableCreatedBy sets the "created_by" field if the given value is not nil.
+func (_c *SegmentCreate) SetNillableCreatedBy(v *string) *SegmentCreate {
+	if v != nil {
+		_c.SetCreatedBy(*v)
+	}
+	return _c
+}
+
+// SetUpdatedBy sets the "updated_by" field.
+func (_c *SegmentCreate) SetUpdatedBy(v string) *SegmentCreate {
+	_c.mutation.SetUpdatedBy(v)
+	return _c
+}
+
+// SetNillableUpdatedBy sets the "updated_by" field if the given value is not nil.
+func (_c *SegmentCreate) SetNillableUpdatedBy(v *string) *SegmentCreate {
+	if v != nil {
+		_c.SetUpdatedBy(*v)
+	}
+	return _c
+}
+
 // SetID sets the "id" field.
 func (_c *SegmentCreate) SetID(v int) *SegmentCreate {
 	_c.mutation.SetID(v)
@@ -184,6 +212,14 @@ func (_c *SegmentCreate) defaults() {
 		v := segment.DefaultArchived
 		_c.mutation.SetArchived(v)
 	}
+	if _, ok := _c.mutation.CreatedBy(); !ok {
+		v := segment.DefaultCreatedBy
+		_c.mutation.SetCreatedBy(v)
+	}
+	if _, ok := _c.mutation.UpdatedBy(); !ok {
+		v := segment.DefaultUpdatedBy
+		_c.mutation.SetUpdatedBy(v)
+	}
 }
 
 // check runs all checks and user-defined validators on the builder.
@@ -229,6 +265,22 @@ func (_c *SegmentCreate) check() error {
 	}
 	if _, ok := _c.mutation.Archived(); !ok {
 		return &ValidationError{Name: "archived", err: errors.New(`ent: missing required field "Segment.archived"`)}
+	}
+	if _, ok := _c.mutation.CreatedBy(); !ok {
+		return &ValidationError{Name: "created_by", err: errors.New(`ent: missing required field "Segment.created_by"`)}
+	}
+	if v, ok := _c.mutation.CreatedBy(); ok {
+		if err := segment.CreatedByValidator(v); err != nil {
+			return &ValidationError{Name: "created_by", err: fmt.Errorf(`ent: validator failed for field "Segment.created_by": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.UpdatedBy(); !ok {
+		return &ValidationError{Name: "updated_by", err: errors.New(`ent: missing required field "Segment.updated_by"`)}
+	}
+	if v, ok := _c.mutation.UpdatedBy(); ok {
+		if err := segment.UpdatedByValidator(v); err != nil {
+			return &ValidationError{Name: "updated_by", err: fmt.Errorf(`ent: validator failed for field "Segment.updated_by": %w`, err)}
+		}
 	}
 	if len(_c.mutation.ProjectIDs()) == 0 {
 		return &ValidationError{Name: "project", err: errors.New(`ent: missing required edge "Segment.project"`)}
@@ -297,6 +349,14 @@ func (_c *SegmentCreate) createSpec() (*Segment, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Archived(); ok {
 		_spec.SetField(segment.FieldArchived, field.TypeBool, value)
 		_node.Archived = value
+	}
+	if value, ok := _c.mutation.CreatedBy(); ok {
+		_spec.SetField(segment.FieldCreatedBy, field.TypeString, value)
+		_node.CreatedBy = value
+	}
+	if value, ok := _c.mutation.UpdatedBy(); ok {
+		_spec.SetField(segment.FieldUpdatedBy, field.TypeString, value)
+		_node.UpdatedBy = value
 	}
 	if nodes := _c.mutation.ProjectIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
@@ -439,6 +499,18 @@ func (u *SegmentUpsert) UpdateArchived() *SegmentUpsert {
 	return u
 }
 
+// SetUpdatedBy sets the "updated_by" field.
+func (u *SegmentUpsert) SetUpdatedBy(v string) *SegmentUpsert {
+	u.Set(segment.FieldUpdatedBy, v)
+	return u
+}
+
+// UpdateUpdatedBy sets the "updated_by" field to the value that was provided on create.
+func (u *SegmentUpsert) UpdateUpdatedBy() *SegmentUpsert {
+	u.SetExcluded(segment.FieldUpdatedBy)
+	return u
+}
+
 // UpdateNewValues updates the mutable fields using the new values that were set on create except the ID field.
 // Using this option is equivalent to using:
 //
@@ -464,6 +536,9 @@ func (u *SegmentUpsertOne) UpdateNewValues() *SegmentUpsertOne {
 		}
 		if _, exists := u.create.mutation.Key(); exists {
 			s.SetIgnore(segment.FieldKey)
+		}
+		if _, exists := u.create.mutation.CreatedBy(); exists {
+			s.SetIgnore(segment.FieldCreatedBy)
 		}
 	}))
 	return u
@@ -577,6 +652,20 @@ func (u *SegmentUpsertOne) SetArchived(v bool) *SegmentUpsertOne {
 func (u *SegmentUpsertOne) UpdateArchived() *SegmentUpsertOne {
 	return u.Update(func(s *SegmentUpsert) {
 		s.UpdateArchived()
+	})
+}
+
+// SetUpdatedBy sets the "updated_by" field.
+func (u *SegmentUpsertOne) SetUpdatedBy(v string) *SegmentUpsertOne {
+	return u.Update(func(s *SegmentUpsert) {
+		s.SetUpdatedBy(v)
+	})
+}
+
+// UpdateUpdatedBy sets the "updated_by" field to the value that was provided on create.
+func (u *SegmentUpsertOne) UpdateUpdatedBy() *SegmentUpsertOne {
+	return u.Update(func(s *SegmentUpsert) {
+		s.UpdateUpdatedBy()
 	})
 }
 
@@ -771,6 +860,9 @@ func (u *SegmentUpsertBulk) UpdateNewValues() *SegmentUpsertBulk {
 			if _, exists := b.mutation.Key(); exists {
 				s.SetIgnore(segment.FieldKey)
 			}
+			if _, exists := b.mutation.CreatedBy(); exists {
+				s.SetIgnore(segment.FieldCreatedBy)
+			}
 		}
 	}))
 	return u
@@ -884,6 +976,20 @@ func (u *SegmentUpsertBulk) SetArchived(v bool) *SegmentUpsertBulk {
 func (u *SegmentUpsertBulk) UpdateArchived() *SegmentUpsertBulk {
 	return u.Update(func(s *SegmentUpsert) {
 		s.UpdateArchived()
+	})
+}
+
+// SetUpdatedBy sets the "updated_by" field.
+func (u *SegmentUpsertBulk) SetUpdatedBy(v string) *SegmentUpsertBulk {
+	return u.Update(func(s *SegmentUpsert) {
+		s.SetUpdatedBy(v)
+	})
+}
+
+// UpdateUpdatedBy sets the "updated_by" field to the value that was provided on create.
+func (u *SegmentUpsertBulk) UpdateUpdatedBy() *SegmentUpsertBulk {
+	return u.Update(func(s *SegmentUpsert) {
+		s.UpdateUpdatedBy()
 	})
 }
 
