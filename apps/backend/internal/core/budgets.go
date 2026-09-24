@@ -60,13 +60,13 @@ const (
 func IngestBudgets(tenant *Tenant, installID string, addr string) []ratelimit.Budget {
 	return []ratelimit.Budget{
 		{Quota: "device-burst", Subject: tenant.ProjectID + "|" + installID,
-			Window: BurstWindow, Limit: DeviceIngestBurst},
+			Window: BurstWindow, Limit: DeviceIngestBurst, Scope: tenant.ProjectID},
 		{Quota: "device-sustained", Subject: tenant.ProjectID + "|" + installID,
-			Window: SustainedWindow, Limit: DeviceIngestSustained},
+			Window: SustainedWindow, Limit: DeviceIngestSustained, Scope: tenant.ProjectID},
 		{Quota: "address-sustained", Subject: tenant.ProjectID + "|" + addr,
-			Window: SustainedWindow, Limit: AddressIngestSustained},
+			Window: SustainedWindow, Limit: AddressIngestSustained, Scope: tenant.ProjectID},
 		{Quota: "project-sustained", Subject: tenant.ProjectID,
-			Window: SustainedWindow, Limit: ProjectIngestSustained},
+			Window: SustainedWindow, Limit: ProjectIngestSustained, Scope: tenant.ProjectID},
 	}
 }
 
@@ -74,13 +74,13 @@ func IngestBudgets(tenant *Tenant, installID string, addr string) []ratelimit.Bu
 func ConfigBudgets(tenant *Tenant, installID string, addr string) []ratelimit.Budget {
 	return []ratelimit.Budget{
 		{Quota: "device-config-burst", Subject: tenant.ProjectID + "|" + installID,
-			Window: BurstWindow, Limit: DeviceConfigBurst},
+			Window: BurstWindow, Limit: DeviceConfigBurst, Scope: tenant.ProjectID},
 		{Quota: "device-config-sustained", Subject: tenant.ProjectID + "|" + installID,
-			Window: SustainedWindow, Limit: DeviceConfigSustained},
+			Window: SustainedWindow, Limit: DeviceConfigSustained, Scope: tenant.ProjectID},
 		{Quota: "address-config-sustained", Subject: tenant.ProjectID + "|" + addr,
-			Window: SustainedWindow, Limit: AddressConfigSustained},
+			Window: SustainedWindow, Limit: AddressConfigSustained, Scope: tenant.ProjectID},
 		{Quota: "project-config-sustained", Subject: tenant.ProjectID,
-			Window: SustainedWindow, Limit: ProjectConfigSustained},
+			Window: SustainedWindow, Limit: ProjectConfigSustained, Scope: tenant.ProjectID},
 	}
 }
 
@@ -129,9 +129,9 @@ const (
 func InvitationBudgets(orgSlug, email string) []ratelimit.Budget {
 	return []ratelimit.Budget{
 		{Quota: "invitation-address", Subject: strings.ToLower(strings.TrimSpace(email)),
-			Window: InvitationWindow, Limit: InvitationsPerAddress},
+			Window: InvitationWindow, Limit: InvitationsPerAddress, Scope: orgSlug},
 		{Quota: "invitation-organization", Subject: orgSlug,
-			Window: InvitationWindow, Limit: InvitationsPerOrganization},
+			Window: InvitationWindow, Limit: InvitationsPerOrganization, Scope: orgSlug},
 	}
 }
 
@@ -154,4 +154,32 @@ func ClientAddressOf(ctx *muzak.Context) string {
 		return "unknown"
 	}
 	return prefix.String()
+}
+
+// BudgetSpec is one budget as the operations console lists it: where it is counted, whose it is,
+// and its size.
+type BudgetSpec struct {
+	Path     string
+	Quota    string
+	Per      string
+	Window   time.Duration
+	Limit    int
+	FailOpen bool
+}
+
+// Budgets is every budget above, in the order a request is counted against them. The console
+// reads this rather than a copy, so the page cannot disagree with what is enforced.
+func Budgets() []BudgetSpec {
+	return []BudgetSpec{
+		{"ingest", "device-burst", "installation", BurstWindow, DeviceIngestBurst, true},
+		{"ingest", "device-sustained", "installation", SustainedWindow, DeviceIngestSustained, true},
+		{"ingest", "address-sustained", "address within a project", SustainedWindow, AddressIngestSustained, true},
+		{"ingest", "project-sustained", "project", SustainedWindow, ProjectIngestSustained, true},
+		{"config", "device-config-burst", "installation", BurstWindow, DeviceConfigBurst, true},
+		{"config", "device-config-sustained", "installation", SustainedWindow, DeviceConfigSustained, true},
+		{"config", "address-config-sustained", "address within a project", SustainedWindow, AddressConfigSustained, true},
+		{"config", "project-config-sustained", "project", SustainedWindow, ProjectConfigSustained, true},
+		{"invitations", "invitation-address", "invited address", InvitationWindow, InvitationsPerAddress, false},
+		{"invitations", "invitation-organization", "organization", InvitationWindow, InvitationsPerOrganization, false},
+	}
 }

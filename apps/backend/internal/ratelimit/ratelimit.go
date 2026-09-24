@@ -23,6 +23,7 @@
 package ratelimit
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"time"
@@ -46,6 +47,11 @@ type Budget struct {
 
 	Window time.Duration
 	Limit  int
+
+	// Scope is the project or organization the budget belongs to, which the operations
+	// console counts refusals under. Unlike Subject it is safe to keep: it names a customer,
+	// never a device or an address.
+	Scope string
 }
 
 // Limiter counts requests against budgets.
@@ -136,9 +142,20 @@ func (l *Limiter) Allow(ctx *muzak.Context, budgets ...Budget) error {
 		if result.Count <= budgets[i].Limit {
 			continue
 		}
+		l.record(ctx, budgets[i])
 		return refuse(ctx, budgets[i], result.Reset)
 	}
 	return nil
+}
+
+// record counts a refusal for the operations console (§56's rate-limit page), best effort: a
+// refusal that could not be counted is still a refusal, and the answer must not wait on it.
+func (l *Limiter) record(ctx *muzak.Context, budget Budget) {
+	write, cancel := context.WithTimeout(context.WithoutCancel(ctx.Context()), 250*time.Millisecond)
+	defer cancel()
+	if err := l.storage.RecordRefusal(write, budget.Quota, budget.Scope, time.Now()); err != nil {
+		ctx.Logger().Debug("could not count a rate-limit refusal", "quota", budget.Quota, "error", err)
+	}
 }
 
 // AllowOne is the single-budget case, which is most of them.

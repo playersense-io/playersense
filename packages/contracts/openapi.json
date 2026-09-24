@@ -4668,6 +4668,101 @@
         }
       }
     },
+    "/v1/operator/rate-limits": {
+      "get": {
+        "tags": [
+          "operator"
+        ],
+        "summary": "Who the limits refused",
+        "description": "Every budget on the ingestion and configuration paths and on invitations, with its size and whose it is; refusals by hour and by quota over the range; the fifty projects and organizations refused most; and, for one project, where its project-wide budgets stand in their current window. Never a device or an address. No overrides: docs/rate-limits.md §9 says why.",
+        "operationId": "get_v1_operator_rate_limits",
+        "parameters": [
+          {
+            "name": "hours",
+            "in": "query",
+            "description": "How far back refusals are read, up to a week",
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "default": "24",
+              "minimum": 1,
+              "maximum": 168
+            }
+          },
+          {
+            "name": "project",
+            "in": "query",
+            "description": "A project id: where its project-wide budgets stand right now",
+            "schema": {
+              "type": "string",
+              "maxLength": 36
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RateLimitsOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account is not staff, or lacks the role this needs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ClickHouse could not be read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/operator/staff": {
       "get": {
         "tags": [
@@ -14535,6 +14630,42 @@
           "dimension"
         ]
       },
+      "BudgetOut": {
+        "type": "object",
+        "properties": {
+          "fail_open": {
+            "type": "boolean",
+            "description": "Admits when Valkey cannot count"
+          },
+          "limit": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "path": {
+            "type": "string",
+            "description": "ingest, config or invitations"
+          },
+          "per": {
+            "type": "string",
+            "description": "Whose budget it is"
+          },
+          "quota": {
+            "type": "string"
+          },
+          "window_seconds": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "fail_open",
+          "limit",
+          "path",
+          "per",
+          "quota",
+          "window_seconds"
+        ]
+      },
       "CheckoutOut": {
         "type": "object",
         "properties": {
@@ -17813,6 +17944,33 @@
           "receivable_micros"
         ]
       },
+      "LiveCounterOut": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "limit": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "quota": {
+            "type": "string"
+          },
+          "reset_ms": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Until the window ends"
+          }
+        },
+        "required": [
+          "count",
+          "limit",
+          "quota",
+          "reset_ms"
+        ]
+      },
       "LiveOpsEventListOut": {
         "type": "object",
         "properties": {
@@ -19803,6 +19961,24 @@
           "value"
         ]
       },
+      "ProjectCountersOut": {
+        "type": "object",
+        "properties": {
+          "counters": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LiveCounterOut"
+            }
+          },
+          "project_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "counters",
+          "project_id"
+        ]
+      },
       "ProjectListOut": {
         "type": "object",
         "properties": {
@@ -20205,6 +20381,70 @@
           "cards"
         ]
       },
+      "RateLimitsOut": {
+        "type": "object",
+        "properties": {
+          "budgets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BudgetOut"
+            }
+          },
+          "counted_ok": {
+            "type": "boolean",
+            "description": "Valkey answered; when it does not, the SDK paths admit everything (fail open) and invitations are refused"
+          },
+          "from": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "project": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProjectCountersOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "series": {
+            "type": "array",
+            "description": "Refusals by hour and quota",
+            "items": {
+              "$ref": "#/components/schemas/RefusalHourOut"
+            }
+          },
+          "to": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "top": {
+            "type": "array",
+            "description": "The fifty projects and organizations refused most, by quota",
+            "items": {
+              "$ref": "#/components/schemas/RefusalScopeOut"
+            }
+          },
+          "totals": {
+            "type": "object",
+            "description": "Refusals over the range, by quota",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        },
+        "required": [
+          "budgets",
+          "counted_ok",
+          "from",
+          "series",
+          "to",
+          "top",
+          "totals"
+        ]
+      },
       "ReceivableOut": {
         "type": "object",
         "properties": {
@@ -20258,6 +20498,56 @@
         },
         "required": [
           "sessions"
+        ]
+      },
+      "RefusalHourOut": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "hour": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "quota": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "count",
+          "hour",
+          "quota"
+        ]
+      },
+      "RefusalScopeOut": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "organization": {
+            "type": "string",
+            "description": "The organization's slug"
+          },
+          "project": {
+            "type": "string",
+            "description": "The project's slug"
+          },
+          "quota": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string",
+            "description": "A project's id, or an organization's slug for invitations"
+          }
+        },
+        "required": [
+          "count",
+          "quota",
+          "scope"
         ]
       },
       "ReplicaOut": {

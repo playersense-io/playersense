@@ -14,6 +14,7 @@ import (
 	"playersense.dev/backend/ent/archivemanifest"
 	"playersense.dev/backend/ent/project"
 	"playersense.dev/backend/internal/chdb"
+	"playersense.dev/backend/internal/core"
 	"playersense.dev/backend/internal/jobs"
 	"playersense.dev/backend/internal/schemas"
 	"playersense.dev/backend/internal/staff"
@@ -138,4 +139,41 @@ func TestTheQueuePageNamesEveryWriter(t *testing.T) {
 		}
 	}
 	ops.Get("/v1/operator/queue?hours=500").AssertStatus(http.StatusUnprocessableEntity)
+}
+
+// TestARefusalIsCountedUnderItsProject: a looping device is refused, and the console sees its
+// project refused on that quota, with its name, and never the device.
+func TestARefusalIsCountedUnderItsProject(t *testing.T) {
+	f := newFixtureWithLimits(t)
+	f.publish(t, emptyInput(1))
+	refused := 0
+	for range core.DeviceConfigBurst * 3 {
+		if f.ask(t, install(7), nil).Status == http.StatusTooManyRequests {
+			refused++
+		}
+	}
+	if refused == 0 {
+		t.Fatal("never refused")
+	}
+
+	s := newStack(t)
+	ops, _ := s.staffClient(t, staff.Ops)
+	page := testclient.Decoded[schemas.RateLimitsOut](ops.Get(
+		"/v1/operator/rate-limits?hours=1&project=" + f.project.ProjectUID).AssertStatus(http.StatusOK))
+	if !page.CountedOK || len(page.Budgets) != len(core.Budgets()) || page.Totals["device-config-burst"] < int64(refused) {
+		t.Fatalf("page %+v, want at least %d device-config-burst refusals", page, refused)
+	}
+	var ours *schemas.RefusalScopeOut
+	for i := range page.Top {
+		if page.Top[i].Scope == f.project.ProjectUID && page.Top[i].Quota == "device-config-burst" {
+			ours = &page.Top[i]
+		}
+	}
+	if ours == nil || ours.Count < int64(refused) || ours.Project != f.project.ProjectSlug || ours.Organization != f.project.OrgSlug {
+		t.Fatalf("the project's refusals are %+v among %+v", ours, page.Top)
+	}
+	if page.Project == nil || len(page.Project.Counters) != 2 || page.Project.Counters[1].Count < 1 ||
+		page.Project.Counters[1].Limit != core.ProjectConfigSustained {
+		t.Fatalf("live counters %+v", page.Project)
+	}
 }

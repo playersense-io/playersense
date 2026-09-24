@@ -357,6 +357,8 @@ func build(settings config.Settings, overrides ...muzak.RouterOption) (*muzak.Ap
 		// when it is absent.
 		muzak.WithSingleton(ratelimit.New(
 			valkey.NewRateLimitStorage(cache), true, !settings.RateLimitDisabled)),
+		// The same counters, read by the operations console's rate-limit page.
+		muzak.WithSingleton(valkey.NewRateLimitStorage(cache)),
 	}
 
 	// Appended last, so a later declaration of the same type wins.

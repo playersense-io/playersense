@@ -718,6 +718,26 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/v1/operator/rate-limits": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * Who the limits refused
+         * @description Every budget on the ingestion and configuration paths and on invitations, with its size and whose it is; refusals by hour and by quota over the range; the fifty projects and organizations refused most; and, for one project, where its project-wide budgets stand in their current window. Never a device or an address. No overrides: docs/rate-limits.md §9 says why.
+         */
+        readonly get: operations["get_v1_operator_rate_limits"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/v1/operator/staff": {
         readonly parameters: {
             readonly query?: never;
@@ -2232,6 +2252,19 @@ export interface components {
             /** @description install_platform, install_country or first_app_version */
             readonly dimension: string;
         };
+        readonly BudgetOut: {
+            /** @description Admits when Valkey cannot count */
+            readonly fail_open: boolean;
+            /** Format: int64 */
+            readonly limit: number;
+            /** @description ingest, config or invitations */
+            readonly path: string;
+            /** @description Whose budget it is */
+            readonly per: string;
+            readonly quota: string;
+            /** Format: int64 */
+            readonly window_seconds: number;
+        };
         readonly CheckoutOut: {
             /** Format: date-time */
             readonly expires_at: string;
@@ -3403,6 +3436,18 @@ export interface components {
              */
             readonly receivable_micros: number;
         };
+        readonly LiveCounterOut: {
+            /** Format: int64 */
+            readonly count: number;
+            /** Format: int64 */
+            readonly limit: number;
+            readonly quota: string;
+            /**
+             * Format: int64
+             * @description Until the window ends
+             */
+            readonly reset_ms: number;
+        };
         readonly LiveOpsEventListOut: {
             readonly liveops_events: readonly components["schemas"]["LiveOpsEventOut"][];
         };
@@ -4072,6 +4117,10 @@ export interface components {
             /** Format: int64 */
             readonly value: number;
         };
+        readonly ProjectCountersOut: {
+            readonly counters: readonly components["schemas"]["LiveCounterOut"][];
+            readonly project_id: string;
+        };
         readonly ProjectListOut: {
             readonly projects: readonly components["schemas"]["ProjectOut"][];
         };
@@ -4208,6 +4257,24 @@ export interface components {
         readonly RateCardsOut: {
             readonly cards: readonly components["schemas"]["RateCardOut"][];
         };
+        readonly RateLimitsOut: {
+            readonly budgets: readonly components["schemas"]["BudgetOut"][];
+            /** @description Valkey answered; when it does not, the SDK paths admit everything (fail open) and invitations are refused */
+            readonly counted_ok: boolean;
+            /** Format: date-time */
+            readonly from: string;
+            readonly project?: components["schemas"]["ProjectCountersOut"] | null;
+            /** @description Refusals by hour and quota */
+            readonly series: readonly components["schemas"]["RefusalHourOut"][];
+            /** Format: date-time */
+            readonly to: string;
+            /** @description The fifty projects and organizations refused most, by quota */
+            readonly top: readonly components["schemas"]["RefusalScopeOut"][];
+            /** @description Refusals over the range, by quota */
+            readonly totals: {
+                readonly [key: string]: number;
+            };
+        };
         readonly ReceivableOut: {
             /**
              * Format: date-time
@@ -4237,6 +4304,24 @@ export interface components {
         };
         readonly RecentSessionsOut: {
             readonly sessions: readonly components["schemas"]["SessionOut"][];
+        };
+        readonly RefusalHourOut: {
+            /** Format: int64 */
+            readonly count: number;
+            /** Format: date-time */
+            readonly hour: string;
+            readonly quota: string;
+        };
+        readonly RefusalScopeOut: {
+            /** Format: int64 */
+            readonly count: number;
+            /** @description The organization's slug */
+            readonly organization?: string;
+            /** @description The project's slug */
+            readonly project?: string;
+            readonly quota: string;
+            /** @description A project's id, or an organization's slug for invitations */
+            readonly scope: string;
         };
         readonly ReplicaOut: {
             /** Format: int64 */
@@ -7964,6 +8049,76 @@ export interface operations {
                 };
                 content: {
                     readonly "application/json": components["schemas"]["QueueOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account is not staff, or lacks the role this needs */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ClickHouse could not be read */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly get_v1_operator_rate_limits: {
+        readonly parameters: {
+            readonly query?: {
+                /** @description How far back refusals are read, up to a week */
+                readonly hours?: number;
+                /** @description A project id: where its project-wide budgets stand right now */
+                readonly project?: string;
+            };
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["RateLimitsOut"];
                 };
             };
             /** @description No usable sign-in was presented */

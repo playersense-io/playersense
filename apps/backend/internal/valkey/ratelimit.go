@@ -3,6 +3,7 @@ package valkey
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	vk "github.com/valkey-io/valkey-go"
@@ -190,4 +191,96 @@ func (s *RateLimitStorage) IncrementMany(ctx context.Context, quotas, keys []str
 		out[i] = Counted{Count: int(count), Reset: time.Duration(ttl) * time.Millisecond}
 	}
 	return out, nil
+}
+
+// ---- what the operations console reads --------------------------------------
+
+// refusalRetention is how long an hour's refusals are kept: a week, the longest the console asks
+// for, and a day more so the oldest hour is whole.
+const refusalRetention = 8 * 24 * time.Hour
+
+func (s *RateLimitStorage) refusalKey(hour time.Time) string {
+	return s.client.Key("ratelimit-refused", hour.UTC().Format("2006010215"))
+}
+
+// RecordRefusal counts one refusal against its quota and scope in the hour it happened: a sorted
+// set per hour whose members are "quota|scope". The scope is the project or organization the
+// budget belongs to, never its subject, which can carry an installation identifier or an address.
+//
+// One round trip, and only on a refusal, so the path that admits requests pays nothing for it.
+func (s *RateLimitStorage) RecordRefusal(ctx context.Context, quota, scope string, at time.Time) error {
+	if !s.client.Ready() {
+		return ErrUnavailable
+	}
+	key := s.refusalKey(at)
+	c := s.client.client
+	for _, result := range c.DoMulti(ctx,
+		c.B().Zincrby().Key(key).Increment(1).Member(quota+"|"+scope).Build(),
+		c.B().Pexpire().Key(key).Milliseconds(refusalRetention.Milliseconds()).Build(),
+	) {
+		if err := result.Error(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// Refusal is one quota's refusals for one scope in one hour.
+type Refusal struct {
+	Hour  time.Time
+	Quota string
+	Scope string
+	Count int64
+}
+
+// Refusals reads every hour's refusals from `from` to `to`, in one round trip.
+func (s *RateLimitStorage) Refusals(ctx context.Context, from, to time.Time) ([]Refusal, error) {
+	if !s.client.Ready() {
+		return nil, ErrUnavailable
+	}
+	c := s.client.client
+	var hours []time.Time
+	cmds := make(vk.Commands, 0, 24)
+	for hour := from.UTC().Truncate(time.Hour); !hour.After(to); hour = hour.Add(time.Hour) {
+		hours = append(hours, hour)
+		cmds = append(cmds, c.B().Zrange().Key(s.refusalKey(hour)).Min("0").Max("-1").Withscores().Build())
+	}
+	var out []Refusal
+	for i, result := range c.DoMulti(ctx, cmds...) {
+		scores, err := result.AsZScores()
+		if err != nil {
+			if vk.IsValkeyNil(err) {
+				continue
+			}
+			return nil, err
+		}
+		for _, z := range scores {
+			quota, scope, _ := strings.Cut(z.Member, "|")
+			out = append(out, Refusal{Hour: hours[i], Quota: quota, Scope: scope, Count: int64(z.Score)})
+		}
+	}
+	return out, nil
+}
+
+// Peek reads a counter without counting: where one budget stands now and when its window ends.
+// Zero when no request has been counted in the current window.
+func (s *RateLimitStorage) Peek(ctx context.Context, quota, key string) (int, time.Duration, error) {
+	if !s.client.Ready() {
+		return 0, 0, ErrUnavailable
+	}
+	c := s.client.client
+	full := s.client.Key("ratelimit", quota, key)
+	results := c.DoMulti(ctx, c.B().Get().Key(full).Build(), c.B().Pttl().Key(full).Build())
+	count, err := results[0].AsInt64()
+	if err != nil {
+		if vk.IsValkeyNil(err) {
+			return 0, 0, nil
+		}
+		return 0, 0, err
+	}
+	ttl, err := results[1].AsInt64()
+	if err != nil {
+		return 0, 0, err
+	}
+	return int(count), time.Duration(max(ttl, 0)) * time.Millisecond, nil
 }

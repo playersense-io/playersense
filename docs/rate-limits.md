@@ -299,3 +299,27 @@ item that contradicts the code.
 **Concurrency limits**, as distinct from rate limits. A request in flight is not counted; only
 requests started are. `query-api`'s per-query resource bounds are what stops a slow query
 holding a connection, and they are the right tool for it.
+
+**Overrides.** The operations console reads these limits and does not change them. A limit that
+can be raised for one customer is a per-plan limit by another name, and the one budget sized to
+bite is the device's, which no customer should want raised.
+
+---
+
+## 10. What the operations console sees
+
+`GET /v1/operator/rate-limits` (ops role) lists every budget from the same table the code counts
+against (`core.Budgets`), so the page cannot disagree with what is enforced. Beside it, who was
+refused:
+
+- Every refusal increments `ratelimit-refused:<hour>`, a sorted set in Valkey whose members are
+  `quota|scope`, kept for eight days. One round trip, only on a refusal, so the admitting path
+  pays nothing for it.
+- The **scope** is the project's id on the SDK paths and the organization's slug on invitations.
+  Never the budget's subject, which carries an installation identifier or an address: the page
+  says which project a looping device belongs to, not which device it is.
+- With `project=<id>`, the page also reads where that project's two project-wide counters stand
+  in their current window, without counting.
+
+When Valkey cannot be read the page still lists the budgets and says `counted_ok: false`, which
+on the SDK paths means everything is being admitted (§5).

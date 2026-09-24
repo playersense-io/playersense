@@ -351,3 +351,70 @@ type ParkedBatchOut struct {
 	ProjectID  string    `json:"project_id"`
 	EventCount int       `json:"event_count"`
 }
+
+// ---- rate limits ------------------------------------------------------------
+
+// RateLimitsParams narrows the rate-limit page.
+type RateLimitsParams struct {
+	Hours   int    `query:"hours,omitzero" default:"24" doc:"How far back refusals are read, up to a week"`
+	Project string `query:"project,omitzero" doc:"A project id: where its project-wide budgets stand right now"`
+}
+
+func (in *RateLimitsParams) Validate(v *muzak.Validation) {
+	v.Number(&in.Hours).Min(1).Max(168)
+	v.String(&in.Project).Trim().Lower().MaxLen(36)
+}
+
+// RateLimitsOut is the limits on the SDK paths and the invitations, and who has been refused
+// (docs/rate-limits.md). There are no overrides: §9 of that document says why.
+type RateLimitsOut struct {
+	From      time.Time `json:"from"`
+	To        time.Time `json:"to"`
+	CountedOK bool      `json:"counted_ok" doc:"Valkey answered; when it does not, the SDK paths admit everything (fail open) and invitations are refused"`
+
+	Budgets []BudgetOut         `json:"budgets"`
+	Totals  map[string]int64    `json:"totals" doc:"Refusals over the range, by quota"`
+	Series  []RefusalHourOut    `json:"series" doc:"Refusals by hour and quota"`
+	Top     []RefusalScopeOut   `json:"top" doc:"The fifty projects and organizations refused most, by quota"`
+	Project *ProjectCountersOut `json:"project,omitzero"`
+}
+
+// BudgetOut is one limit.
+type BudgetOut struct {
+	Path          string `json:"path" doc:"ingest, config or invitations"`
+	Quota         string `json:"quota"`
+	Per           string `json:"per" doc:"Whose budget it is"`
+	WindowSeconds int64  `json:"window_seconds"`
+	Limit         int    `json:"limit"`
+	FailOpen      bool   `json:"fail_open" doc:"Admits when Valkey cannot count"`
+}
+
+// RefusalHourOut is one hour's refusals for one quota.
+type RefusalHourOut struct {
+	Hour  time.Time `json:"hour"`
+	Quota string    `json:"quota"`
+	Count int64     `json:"count"`
+}
+
+// RefusalScopeOut is one project's or organization's refusals for one quota.
+type RefusalScopeOut struct {
+	Quota        string `json:"quota"`
+	Scope        string `json:"scope" doc:"A project's id, or an organization's slug for invitations"`
+	Project      string `json:"project,omitzero" doc:"The project's slug"`
+	Organization string `json:"organization,omitzero" doc:"The organization's slug"`
+	Count        int64  `json:"count"`
+}
+
+// ProjectCountersOut is where one project's project-wide budgets stand in their current window.
+type ProjectCountersOut struct {
+	ProjectID string           `json:"project_id"`
+	Counters  []LiveCounterOut `json:"counters"`
+}
+
+// LiveCounterOut is one counter now.
+type LiveCounterOut struct {
+	Quota   string `json:"quota"`
+	Count   int    `json:"count"`
+	Limit   int    `json:"limit"`
+	ResetMs int64  `json:"reset_ms" doc:"Until the window ends"`
+}

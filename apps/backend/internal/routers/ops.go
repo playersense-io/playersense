@@ -46,6 +46,15 @@ func OperatorAnalytics() *muzak.Router {
 			"each dead-lettered over the window. From the NDJSON spool locally, and from Cloud "+
 			"Monitoring on Pub/Sub, where the numbers trail by a minute or two."))
 
+	r.Get("/rate-limits", handlers.OperatorRateLimits,
+		core.RequireStaff(staff.Ops),
+		muzak.Summary("Who the limits refused"),
+		muzak.Description("Every budget on the ingestion and configuration paths and on invitations, "+
+			"with its size and whose it is; refusals by hour and by quota over the range; the fifty "+
+			"projects and organizations refused most; and, for one project, where its project-wide "+
+			"budgets stand in their current window. Never a device or an address. No overrides: "+
+			"docs/rate-limits.md §9 says why."))
+
 	r.Get("/jobs", handlers.OperatorJobs,
 		core.RequireStaff(staff.Ops),
 		muzak.Summary("The worker's jobs"),
