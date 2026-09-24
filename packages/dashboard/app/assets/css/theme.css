@@ -627,16 +627,26 @@
 }
 
 /*
- * A menu is a card that floats, so it carries a card's edge and a shadow light enough
- * that the edge is what separates it from the page. Vuetify's own shadow is the Material
- * eight-step one, and on a page whose surfaces are a few percent apart it reads as a
- * smudge rather than a lift.
+ * A menu is a card that floats, in the card's own colour, so what sets it apart is its edge
+ * and its shadow. Both are a step stronger than a card's: a menu most often opens over a card
+ * or a dialog, the same surface it is made of, and with a card's hairline and a light shadow
+ * it sank into what it opened over. The edge is the ink at a sixth rather than the line
+ * colour, and the shadow is two, a close one that draws the rim and a wide one that lifts it.
+ * Dark needs the shadow far darker to show at all, since the page under it is nearly black.
+ * Vuetify's own shadow is the Material eight-step one, and reads as a smudge here.
  */
 .v-menu > .v-overlay__content > .v-list,
 .v-menu > .v-overlay__content > .v-card,
 .v-menu > .v-overlay__content > .v-sheet {
-  border: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
-  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.24);
+  border: thin solid rgba(var(--v-theme-on-surface), 0.16);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 12px 32px -6px rgba(0, 0, 0, 0.22);
+}
+
+.v-menu.v-theme--dark > .v-overlay__content > .v-list,
+.v-menu.v-theme--dark > .v-overlay__content > .v-card,
+.v-menu.v-theme--dark > .v-overlay__content > .v-sheet {
+  border-color: rgba(var(--v-theme-on-surface), 0.18);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5), 0 18px 44px -8px rgba(0, 0, 0, 0.75);
 }
 
 /* A menu's list is a nav list for the sake of the item, and takes the menu's inset over

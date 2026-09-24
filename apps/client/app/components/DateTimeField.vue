@@ -210,10 +210,6 @@ const shown = computed(() => {
   font-family: var(--v-font-body);
 }
 
-/* A menu over a form: the surface, solid, lifted as the panel's other menus are. */
-.ps-date-time-field__menu {
-  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.24) !important;
-}
 
 .ps-date-picker :deep(.v-date-picker-controls) {
   --v-date-picker-controls-height: 44px;
