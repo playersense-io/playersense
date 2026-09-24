@@ -85,6 +85,16 @@ func ActorKey(v string) predicate.DataDeletionRequest {
 	return predicate.DataDeletionRequest(sql.FieldEQ(FieldActorKey, v))
 }
 
+// RequestedBy applies equality check predicate on the "requested_by" field. It's identical to RequestedByEQ.
+func RequestedBy(v string) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldEQ(FieldRequestedBy, v))
+}
+
+// Reference applies equality check predicate on the "reference" field. It's identical to ReferenceEQ.
+func Reference(v string) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldEQ(FieldReference, v))
+}
+
 // TombstonedAt applies equality check predicate on the "tombstoned_at" field. It's identical to TombstonedAtEQ.
 func TombstonedAt(v time.Time) predicate.DataDeletionRequest {
 	return predicate.DataDeletionRequest(sql.FieldEQ(FieldTombstonedAt, v))
@@ -383,6 +393,136 @@ func ActorKeyEqualFold(v string) predicate.DataDeletionRequest {
 // ActorKeyContainsFold applies the ContainsFold predicate on the "actor_key" field.
 func ActorKeyContainsFold(v string) predicate.DataDeletionRequest {
 	return predicate.DataDeletionRequest(sql.FieldContainsFold(FieldActorKey, v))
+}
+
+// RequestedByEQ applies the EQ predicate on the "requested_by" field.
+func RequestedByEQ(v string) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldEQ(FieldRequestedBy, v))
+}
+
+// RequestedByNEQ applies the NEQ predicate on the "requested_by" field.
+func RequestedByNEQ(v string) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldNEQ(FieldRequestedBy, v))
+}
+
+// RequestedByIn applies the In predicate on the "requested_by" field.
+func RequestedByIn(vs ...string) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldIn(FieldRequestedBy, vs...))
+}
+
+// RequestedByNotIn applies the NotIn predicate on the "requested_by" field.
+func RequestedByNotIn(vs ...string) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldNotIn(FieldRequestedBy, vs...))
+}
+
+// RequestedByGT applies the GT predicate on the "requested_by" field.
+func RequestedByGT(v string) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldGT(FieldRequestedBy, v))
+}
+
+// RequestedByGTE applies the GTE predicate on the "requested_by" field.
+func RequestedByGTE(v string) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldGTE(FieldRequestedBy, v))
+}
+
+// RequestedByLT applies the LT predicate on the "requested_by" field.
+func RequestedByLT(v string) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldLT(FieldRequestedBy, v))
+}
+
+// RequestedByLTE applies the LTE predicate on the "requested_by" field.
+func RequestedByLTE(v string) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldLTE(FieldRequestedBy, v))
+}
+
+// RequestedByContains applies the Contains predicate on the "requested_by" field.
+func RequestedByContains(v string) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldContains(FieldRequestedBy, v))
+}
+
+// RequestedByHasPrefix applies the HasPrefix predicate on the "requested_by" field.
+func RequestedByHasPrefix(v string) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldHasPrefix(FieldRequestedBy, v))
+}
+
+// RequestedByHasSuffix applies the HasSuffix predicate on the "requested_by" field.
+func RequestedByHasSuffix(v string) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldHasSuffix(FieldRequestedBy, v))
+}
+
+// RequestedByEqualFold applies the EqualFold predicate on the "requested_by" field.
+func RequestedByEqualFold(v string) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldEqualFold(FieldRequestedBy, v))
+}
+
+// RequestedByContainsFold applies the ContainsFold predicate on the "requested_by" field.
+func RequestedByContainsFold(v string) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldContainsFold(FieldRequestedBy, v))
+}
+
+// ReferenceEQ applies the EQ predicate on the "reference" field.
+func ReferenceEQ(v string) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldEQ(FieldReference, v))
+}
+
+// ReferenceNEQ applies the NEQ predicate on the "reference" field.
+func ReferenceNEQ(v string) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldNEQ(FieldReference, v))
+}
+
+// ReferenceIn applies the In predicate on the "reference" field.
+func ReferenceIn(vs ...string) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldIn(FieldReference, vs...))
+}
+
+// ReferenceNotIn applies the NotIn predicate on the "reference" field.
+func ReferenceNotIn(vs ...string) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldNotIn(FieldReference, vs...))
+}
+
+// ReferenceGT applies the GT predicate on the "reference" field.
+func ReferenceGT(v string) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldGT(FieldReference, v))
+}
+
+// ReferenceGTE applies the GTE predicate on the "reference" field.
+func ReferenceGTE(v string) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldGTE(FieldReference, v))
+}
+
+// ReferenceLT applies the LT predicate on the "reference" field.
+func ReferenceLT(v string) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldLT(FieldReference, v))
+}
+
+// ReferenceLTE applies the LTE predicate on the "reference" field.
+func ReferenceLTE(v string) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldLTE(FieldReference, v))
+}
+
+// ReferenceContains applies the Contains predicate on the "reference" field.
+func ReferenceContains(v string) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldContains(FieldReference, v))
+}
+
+// ReferenceHasPrefix applies the HasPrefix predicate on the "reference" field.
+func ReferenceHasPrefix(v string) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldHasPrefix(FieldReference, v))
+}
+
+// ReferenceHasSuffix applies the HasSuffix predicate on the "reference" field.
+func ReferenceHasSuffix(v string) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldHasSuffix(FieldReference, v))
+}
+
+// ReferenceEqualFold applies the EqualFold predicate on the "reference" field.
+func ReferenceEqualFold(v string) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldEqualFold(FieldReference, v))
+}
+
+// ReferenceContainsFold applies the ContainsFold predicate on the "reference" field.
+func ReferenceContainsFold(v string) predicate.DataDeletionRequest {
+	return predicate.DataDeletionRequest(sql.FieldContainsFold(FieldReference, v))
 }
 
 // StatusEQ applies the EQ predicate on the "status" field.

@@ -82,3 +82,69 @@ type ExportOut struct {
 
 	FailureReason string `json:"failure_reason,omitzero"`
 }
+
+// ---- from the dashboard -----------------------------------------------------
+
+// PrivacyListParams lists a project's data-subject requests.
+type PrivacyListParams struct {
+	OrgSlug     string `path:"org"`
+	ProjectSlug string `path:"project"`
+	Kind        string `query:"kind,omitzero" doc:"erase or export"`
+	Player      string `query:"player,omitzero" doc:"One player's requests"`
+	Limit       int    `query:"limit,omitzero" default:"100" doc:"Newest first, up to 500"`
+}
+
+func (in *PrivacyListParams) Validate(v *muzak.Validation) {
+	v.String(&in.OrgSlug).Trim().Lower().Required().MaxLen(64)
+	v.String(&in.ProjectSlug).Trim().Lower().Required().MaxLen(64)
+	v.String(&in.Kind).Trim().Lower().OneOf("", "erase", "export")
+	v.String(&in.Player).Trim().MaxLen(128)
+	v.Number(&in.Limit).Min(1).Max(500)
+}
+
+// PrivacyListOut is a project's requests, newest first.
+type PrivacyListOut struct {
+	Requests []PrivacyRequestOut `json:"requests"`
+}
+
+// PrivacyRequestOut is one erasure or export, as the dashboard lists it.
+type PrivacyRequestOut struct {
+	ID          uuid.UUID  `json:"id"`
+	Kind        string     `json:"kind" doc:"erase or export"`
+	PlayerID    string     `json:"player_id" doc:"The actor key or install id it names"`
+	Status      string     `json:"status" doc:"An erasure: received, tombstoned, purging, completed or failed. An export: received, running, completed, failed or expired"`
+	RequestedBy string     `json:"requested_by,omitzero"`
+	Reference   string     `json:"reference,omitzero"`
+	RequestedAt time.Time  `json:"requested_at"`
+	CompletedAt *time.Time `json:"completed_at,omitzero"`
+	ExpiresAt   *time.Time `json:"expires_at,omitzero" doc:"An export's bundle is deleted then"`
+	Failure     string     `json:"failure_reason,omitzero"`
+	Download    string     `json:"download_path,omitzero" doc:"A completed export's bundle, on this API"`
+}
+
+// DashboardPrivacyIn is a member asking for one player's data to be erased or exported.
+type DashboardPrivacyIn struct {
+	OrgSlug     string `path:"org"`
+	ProjectSlug string `path:"project"`
+	PlayerID    string `json:"player_id" doc:"The actor key or install id the player is known by"`
+	Reference   string `json:"reference,omitzero" doc:"Why: a ticket, the player's message"`
+}
+
+func (in *DashboardPrivacyIn) Validate(v *muzak.Validation) {
+	v.String(&in.OrgSlug).Trim().Lower().Required().MaxLen(64)
+	v.String(&in.ProjectSlug).Trim().Lower().Required().MaxLen(64)
+	v.String(&in.PlayerID).Trim().Required().MaxLen(128)
+	v.String(&in.Reference).Trim().MaxLen(200)
+}
+
+// DashboardExportParams names one export on the dashboard.
+type DashboardExportParams struct {
+	OrgSlug     string    `path:"org"`
+	ProjectSlug string    `path:"project"`
+	RequestID   uuid.UUID `path:"request_id"`
+}
+
+func (in *DashboardExportParams) Validate(v *muzak.Validation) {
+	v.String(&in.OrgSlug).Trim().Lower().Required().MaxLen(64)
+	v.String(&in.ProjectSlug).Trim().Lower().Required().MaxLen(64)
+}

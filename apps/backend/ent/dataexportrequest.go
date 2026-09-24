@@ -32,6 +32,10 @@ type DataExportRequest struct {
 	// class=identifier
 	ActorKey string `json:"actor_key,omitempty"`
 	// class=none
+	RequestedBy string `json:"requested_by,omitempty"`
+	// class=none
+	Reference string `json:"reference,omitempty"`
+	// class=none
 	Status dataexportrequest.Status `json:"status,omitempty"`
 	// class=none
 	Bucket string `json:"bucket,omitempty"`
@@ -57,7 +61,7 @@ func (*DataExportRequest) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case dataexportrequest.FieldID, dataexportrequest.FieldProjectSeq, dataexportrequest.FieldObjectSizeBytes, dataexportrequest.FieldRowCount:
 			values[i] = new(sql.NullInt64)
-		case dataexportrequest.FieldActorKey, dataexportrequest.FieldStatus, dataexportrequest.FieldBucket, dataexportrequest.FieldObjectPath, dataexportrequest.FieldFailureReason:
+		case dataexportrequest.FieldActorKey, dataexportrequest.FieldRequestedBy, dataexportrequest.FieldReference, dataexportrequest.FieldStatus, dataexportrequest.FieldBucket, dataexportrequest.FieldObjectPath, dataexportrequest.FieldFailureReason:
 			values[i] = new(sql.NullString)
 		case dataexportrequest.FieldCreatedAt, dataexportrequest.FieldUpdatedAt, dataexportrequest.FieldExpiresAt, dataexportrequest.FieldCompletedAt:
 			values[i] = new(sql.NullTime)
@@ -119,6 +123,18 @@ func (_m *DataExportRequest) assignValues(columns []string, values []any) error 
 				return fmt.Errorf("unexpected type %T for field actor_key", values[i])
 			} else if value.Valid {
 				_m.ActorKey = value.String
+			}
+		case dataexportrequest.FieldRequestedBy:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field requested_by", values[i])
+			} else if value.Valid {
+				_m.RequestedBy = value.String
+			}
+		case dataexportrequest.FieldReference:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field reference", values[i])
+			} else if value.Valid {
+				_m.Reference = value.String
 			}
 		case dataexportrequest.FieldStatus:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -223,6 +239,12 @@ func (_m *DataExportRequest) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("actor_key=")
 	builder.WriteString(_m.ActorKey)
+	builder.WriteString(", ")
+	builder.WriteString("requested_by=")
+	builder.WriteString(_m.RequestedBy)
+	builder.WriteString(", ")
+	builder.WriteString("reference=")
+	builder.WriteString(_m.Reference)
 	builder.WriteString(", ")
 	builder.WriteString("status=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Status))

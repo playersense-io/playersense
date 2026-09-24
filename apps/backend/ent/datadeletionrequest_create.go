@@ -83,6 +83,34 @@ func (_c *DataDeletionRequestCreate) SetActorKey(v string) *DataDeletionRequestC
 	return _c
 }
 
+// SetRequestedBy sets the "requested_by" field.
+func (_c *DataDeletionRequestCreate) SetRequestedBy(v string) *DataDeletionRequestCreate {
+	_c.mutation.SetRequestedBy(v)
+	return _c
+}
+
+// SetNillableRequestedBy sets the "requested_by" field if the given value is not nil.
+func (_c *DataDeletionRequestCreate) SetNillableRequestedBy(v *string) *DataDeletionRequestCreate {
+	if v != nil {
+		_c.SetRequestedBy(*v)
+	}
+	return _c
+}
+
+// SetReference sets the "reference" field.
+func (_c *DataDeletionRequestCreate) SetReference(v string) *DataDeletionRequestCreate {
+	_c.mutation.SetReference(v)
+	return _c
+}
+
+// SetNillableReference sets the "reference" field if the given value is not nil.
+func (_c *DataDeletionRequestCreate) SetNillableReference(v *string) *DataDeletionRequestCreate {
+	if v != nil {
+		_c.SetReference(*v)
+	}
+	return _c
+}
+
 // SetStatus sets the "status" field.
 func (_c *DataDeletionRequestCreate) SetStatus(v datadeletionrequest.Status) *DataDeletionRequestCreate {
 	_c.mutation.SetStatus(v)
@@ -248,6 +276,14 @@ func (_c *DataDeletionRequestCreate) defaults() {
 		v := datadeletionrequest.DefaultUpdatedAt()
 		_c.mutation.SetUpdatedAt(v)
 	}
+	if _, ok := _c.mutation.RequestedBy(); !ok {
+		v := datadeletionrequest.DefaultRequestedBy
+		_c.mutation.SetRequestedBy(v)
+	}
+	if _, ok := _c.mutation.Reference(); !ok {
+		v := datadeletionrequest.DefaultReference
+		_c.mutation.SetReference(v)
+	}
 	if _, ok := _c.mutation.Status(); !ok {
 		v := datadeletionrequest.DefaultStatus
 		_c.mutation.SetStatus(v)
@@ -293,6 +329,22 @@ func (_c *DataDeletionRequestCreate) check() error {
 	if v, ok := _c.mutation.ActorKey(); ok {
 		if err := datadeletionrequest.ActorKeyValidator(v); err != nil {
 			return &ValidationError{Name: "actor_key", err: fmt.Errorf(`ent: validator failed for field "DataDeletionRequest.actor_key": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.RequestedBy(); !ok {
+		return &ValidationError{Name: "requested_by", err: errors.New(`ent: missing required field "DataDeletionRequest.requested_by"`)}
+	}
+	if v, ok := _c.mutation.RequestedBy(); ok {
+		if err := datadeletionrequest.RequestedByValidator(v); err != nil {
+			return &ValidationError{Name: "requested_by", err: fmt.Errorf(`ent: validator failed for field "DataDeletionRequest.requested_by": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.Reference(); !ok {
+		return &ValidationError{Name: "reference", err: errors.New(`ent: missing required field "DataDeletionRequest.reference"`)}
+	}
+	if v, ok := _c.mutation.Reference(); ok {
+		if err := datadeletionrequest.ReferenceValidator(v); err != nil {
+			return &ValidationError{Name: "reference", err: fmt.Errorf(`ent: validator failed for field "DataDeletionRequest.reference": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.Status(); !ok {
@@ -376,6 +428,14 @@ func (_c *DataDeletionRequestCreate) createSpec() (*DataDeletionRequest, *sqlgra
 	if value, ok := _c.mutation.ActorKey(); ok {
 		_spec.SetField(datadeletionrequest.FieldActorKey, field.TypeString, value)
 		_node.ActorKey = value
+	}
+	if value, ok := _c.mutation.RequestedBy(); ok {
+		_spec.SetField(datadeletionrequest.FieldRequestedBy, field.TypeString, value)
+		_node.RequestedBy = value
+	}
+	if value, ok := _c.mutation.Reference(); ok {
+		_spec.SetField(datadeletionrequest.FieldReference, field.TypeString, value)
+		_node.Reference = value
 	}
 	if value, ok := _c.mutation.Status(); ok {
 		_spec.SetField(datadeletionrequest.FieldStatus, field.TypeEnum, value)
@@ -512,6 +572,30 @@ func (u *DataDeletionRequestUpsert) SetActorKey(v string) *DataDeletionRequestUp
 // UpdateActorKey sets the "actor_key" field to the value that was provided on create.
 func (u *DataDeletionRequestUpsert) UpdateActorKey() *DataDeletionRequestUpsert {
 	u.SetExcluded(datadeletionrequest.FieldActorKey)
+	return u
+}
+
+// SetRequestedBy sets the "requested_by" field.
+func (u *DataDeletionRequestUpsert) SetRequestedBy(v string) *DataDeletionRequestUpsert {
+	u.Set(datadeletionrequest.FieldRequestedBy, v)
+	return u
+}
+
+// UpdateRequestedBy sets the "requested_by" field to the value that was provided on create.
+func (u *DataDeletionRequestUpsert) UpdateRequestedBy() *DataDeletionRequestUpsert {
+	u.SetExcluded(datadeletionrequest.FieldRequestedBy)
+	return u
+}
+
+// SetReference sets the "reference" field.
+func (u *DataDeletionRequestUpsert) SetReference(v string) *DataDeletionRequestUpsert {
+	u.Set(datadeletionrequest.FieldReference, v)
+	return u
+}
+
+// UpdateReference sets the "reference" field to the value that was provided on create.
+func (u *DataDeletionRequestUpsert) UpdateReference() *DataDeletionRequestUpsert {
+	u.SetExcluded(datadeletionrequest.FieldReference)
 	return u
 }
 
@@ -767,6 +851,34 @@ func (u *DataDeletionRequestUpsertOne) SetActorKey(v string) *DataDeletionReques
 func (u *DataDeletionRequestUpsertOne) UpdateActorKey() *DataDeletionRequestUpsertOne {
 	return u.Update(func(s *DataDeletionRequestUpsert) {
 		s.UpdateActorKey()
+	})
+}
+
+// SetRequestedBy sets the "requested_by" field.
+func (u *DataDeletionRequestUpsertOne) SetRequestedBy(v string) *DataDeletionRequestUpsertOne {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.SetRequestedBy(v)
+	})
+}
+
+// UpdateRequestedBy sets the "requested_by" field to the value that was provided on create.
+func (u *DataDeletionRequestUpsertOne) UpdateRequestedBy() *DataDeletionRequestUpsertOne {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.UpdateRequestedBy()
+	})
+}
+
+// SetReference sets the "reference" field.
+func (u *DataDeletionRequestUpsertOne) SetReference(v string) *DataDeletionRequestUpsertOne {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.SetReference(v)
+	})
+}
+
+// UpdateReference sets the "reference" field to the value that was provided on create.
+func (u *DataDeletionRequestUpsertOne) UpdateReference() *DataDeletionRequestUpsertOne {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.UpdateReference()
 	})
 }
 
@@ -1211,6 +1323,34 @@ func (u *DataDeletionRequestUpsertBulk) SetActorKey(v string) *DataDeletionReque
 func (u *DataDeletionRequestUpsertBulk) UpdateActorKey() *DataDeletionRequestUpsertBulk {
 	return u.Update(func(s *DataDeletionRequestUpsert) {
 		s.UpdateActorKey()
+	})
+}
+
+// SetRequestedBy sets the "requested_by" field.
+func (u *DataDeletionRequestUpsertBulk) SetRequestedBy(v string) *DataDeletionRequestUpsertBulk {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.SetRequestedBy(v)
+	})
+}
+
+// UpdateRequestedBy sets the "requested_by" field to the value that was provided on create.
+func (u *DataDeletionRequestUpsertBulk) UpdateRequestedBy() *DataDeletionRequestUpsertBulk {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.UpdateRequestedBy()
+	})
+}
+
+// SetReference sets the "reference" field.
+func (u *DataDeletionRequestUpsertBulk) SetReference(v string) *DataDeletionRequestUpsertBulk {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.SetReference(v)
+	})
+}
+
+// UpdateReference sets the "reference" field to the value that was provided on create.
+func (u *DataDeletionRequestUpsertBulk) UpdateReference() *DataDeletionRequestUpsertBulk {
+	return u.Update(func(s *DataDeletionRequestUpsert) {
+		s.UpdateReference()
 	})
 }
 

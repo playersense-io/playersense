@@ -27,6 +27,10 @@ const (
 	FieldProjectSeq = "project_seq"
 	// FieldActorKey holds the string denoting the actor_key field in the database.
 	FieldActorKey = "actor_key"
+	// FieldRequestedBy holds the string denoting the requested_by field in the database.
+	FieldRequestedBy = "requested_by"
+	// FieldReference holds the string denoting the reference field in the database.
+	FieldReference = "reference"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
 	// FieldBucket holds the string denoting the bucket field in the database.
@@ -56,6 +60,8 @@ var Columns = []string{
 	FieldProjectUID,
 	FieldProjectSeq,
 	FieldActorKey,
+	FieldRequestedBy,
+	FieldReference,
 	FieldStatus,
 	FieldBucket,
 	FieldObjectPath,
@@ -87,6 +93,14 @@ var (
 	UpdateDefaultUpdatedAt func() time.Time
 	// ActorKeyValidator is a validator for the "actor_key" field. It is called by the builders before save.
 	ActorKeyValidator func(string) error
+	// DefaultRequestedBy holds the default value on creation for the "requested_by" field.
+	DefaultRequestedBy string
+	// RequestedByValidator is a validator for the "requested_by" field. It is called by the builders before save.
+	RequestedByValidator func(string) error
+	// DefaultReference holds the default value on creation for the "reference" field.
+	DefaultReference string
+	// ReferenceValidator is a validator for the "reference" field. It is called by the builders before save.
+	ReferenceValidator func(string) error
 	// BucketValidator is a validator for the "bucket" field. It is called by the builders before save.
 	BucketValidator func(string) error
 	// ObjectPathValidator is a validator for the "object_path" field. It is called by the builders before save.
@@ -164,6 +178,16 @@ func ByProjectSeq(opts ...sql.OrderTermOption) OrderOption {
 // ByActorKey orders the results by the actor_key field.
 func ByActorKey(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldActorKey, opts...).ToFunc()
+}
+
+// ByRequestedBy orders the results by the requested_by field.
+func ByRequestedBy(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRequestedBy, opts...).ToFunc()
+}
+
+// ByReference orders the results by the reference field.
+func ByReference(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldReference, opts...).ToFunc()
 }
 
 // ByStatus orders the results by the status field.

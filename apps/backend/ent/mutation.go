@@ -11356,6 +11356,8 @@ type DataDeletionRequestMutation struct {
 	project_seq          *uint32
 	addproject_seq       *int32
 	actor_key            *string
+	requested_by         *string
+	reference            *string
 	status               *datadeletionrequest.Status
 	tombstoned_at        *time.Time
 	archive_cursor       *int
@@ -11712,6 +11714,78 @@ func (m *DataDeletionRequestMutation) OldActorKey(ctx context.Context) (v string
 // ResetActorKey resets all changes to the "actor_key" field.
 func (m *DataDeletionRequestMutation) ResetActorKey() {
 	m.actor_key = nil
+}
+
+// SetRequestedBy sets the "requested_by" field.
+func (m *DataDeletionRequestMutation) SetRequestedBy(s string) {
+	m.requested_by = &s
+}
+
+// RequestedBy returns the value of the "requested_by" field in the mutation.
+func (m *DataDeletionRequestMutation) RequestedBy() (r string, exists bool) {
+	v := m.requested_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRequestedBy returns the old "requested_by" field's value of the DataDeletionRequest entity.
+// If the DataDeletionRequest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DataDeletionRequestMutation) OldRequestedBy(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRequestedBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRequestedBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRequestedBy: %w", err)
+	}
+	return oldValue.RequestedBy, nil
+}
+
+// ResetRequestedBy resets all changes to the "requested_by" field.
+func (m *DataDeletionRequestMutation) ResetRequestedBy() {
+	m.requested_by = nil
+}
+
+// SetReference sets the "reference" field.
+func (m *DataDeletionRequestMutation) SetReference(s string) {
+	m.reference = &s
+}
+
+// Reference returns the value of the "reference" field in the mutation.
+func (m *DataDeletionRequestMutation) Reference() (r string, exists bool) {
+	v := m.reference
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReference returns the old "reference" field's value of the DataDeletionRequest entity.
+// If the DataDeletionRequest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DataDeletionRequestMutation) OldReference(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReference is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReference requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReference: %w", err)
+	}
+	return oldValue.Reference, nil
+}
+
+// ResetReference resets all changes to the "reference" field.
+func (m *DataDeletionRequestMutation) ResetReference() {
+	m.reference = nil
 }
 
 // SetStatus sets the "status" field.
@@ -12155,7 +12229,7 @@ func (m *DataDeletionRequestMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *DataDeletionRequestMutation) Fields() []string {
-	fields := make([]string, 0, 14)
+	fields := make([]string, 0, 16)
 	if m.uid != nil {
 		fields = append(fields, datadeletionrequest.FieldUID)
 	}
@@ -12173,6 +12247,12 @@ func (m *DataDeletionRequestMutation) Fields() []string {
 	}
 	if m.actor_key != nil {
 		fields = append(fields, datadeletionrequest.FieldActorKey)
+	}
+	if m.requested_by != nil {
+		fields = append(fields, datadeletionrequest.FieldRequestedBy)
+	}
+	if m.reference != nil {
+		fields = append(fields, datadeletionrequest.FieldReference)
 	}
 	if m.status != nil {
 		fields = append(fields, datadeletionrequest.FieldStatus)
@@ -12218,6 +12298,10 @@ func (m *DataDeletionRequestMutation) Field(name string) (ent.Value, bool) {
 		return m.ProjectSeq()
 	case datadeletionrequest.FieldActorKey:
 		return m.ActorKey()
+	case datadeletionrequest.FieldRequestedBy:
+		return m.RequestedBy()
+	case datadeletionrequest.FieldReference:
+		return m.Reference()
 	case datadeletionrequest.FieldStatus:
 		return m.Status()
 	case datadeletionrequest.FieldTombstonedAt:
@@ -12255,6 +12339,10 @@ func (m *DataDeletionRequestMutation) OldField(ctx context.Context, name string)
 		return m.OldProjectSeq(ctx)
 	case datadeletionrequest.FieldActorKey:
 		return m.OldActorKey(ctx)
+	case datadeletionrequest.FieldRequestedBy:
+		return m.OldRequestedBy(ctx)
+	case datadeletionrequest.FieldReference:
+		return m.OldReference(ctx)
 	case datadeletionrequest.FieldStatus:
 		return m.OldStatus(ctx)
 	case datadeletionrequest.FieldTombstonedAt:
@@ -12321,6 +12409,20 @@ func (m *DataDeletionRequestMutation) SetField(name string, value ent.Value) err
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetActorKey(v)
+		return nil
+	case datadeletionrequest.FieldRequestedBy:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRequestedBy(v)
+		return nil
+	case datadeletionrequest.FieldReference:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReference(v)
 		return nil
 	case datadeletionrequest.FieldStatus:
 		v, ok := value.(datadeletionrequest.Status)
@@ -12529,6 +12631,12 @@ func (m *DataDeletionRequestMutation) ResetField(name string) error {
 	case datadeletionrequest.FieldActorKey:
 		m.ResetActorKey()
 		return nil
+	case datadeletionrequest.FieldRequestedBy:
+		m.ResetRequestedBy()
+		return nil
+	case datadeletionrequest.FieldReference:
+		m.ResetReference()
+		return nil
 	case datadeletionrequest.FieldStatus:
 		m.ResetStatus()
 		return nil
@@ -12618,6 +12726,8 @@ type DataExportRequestMutation struct {
 	project_seq          *uint32
 	addproject_seq       *int32
 	actor_key            *string
+	requested_by         *string
+	reference            *string
 	status               *dataexportrequest.Status
 	bucket               *string
 	object_path          *string
@@ -12972,6 +13082,78 @@ func (m *DataExportRequestMutation) OldActorKey(ctx context.Context) (v string, 
 // ResetActorKey resets all changes to the "actor_key" field.
 func (m *DataExportRequestMutation) ResetActorKey() {
 	m.actor_key = nil
+}
+
+// SetRequestedBy sets the "requested_by" field.
+func (m *DataExportRequestMutation) SetRequestedBy(s string) {
+	m.requested_by = &s
+}
+
+// RequestedBy returns the value of the "requested_by" field in the mutation.
+func (m *DataExportRequestMutation) RequestedBy() (r string, exists bool) {
+	v := m.requested_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRequestedBy returns the old "requested_by" field's value of the DataExportRequest entity.
+// If the DataExportRequest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DataExportRequestMutation) OldRequestedBy(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRequestedBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRequestedBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRequestedBy: %w", err)
+	}
+	return oldValue.RequestedBy, nil
+}
+
+// ResetRequestedBy resets all changes to the "requested_by" field.
+func (m *DataExportRequestMutation) ResetRequestedBy() {
+	m.requested_by = nil
+}
+
+// SetReference sets the "reference" field.
+func (m *DataExportRequestMutation) SetReference(s string) {
+	m.reference = &s
+}
+
+// Reference returns the value of the "reference" field in the mutation.
+func (m *DataExportRequestMutation) Reference() (r string, exists bool) {
+	v := m.reference
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReference returns the old "reference" field's value of the DataExportRequest entity.
+// If the DataExportRequest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DataExportRequestMutation) OldReference(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReference is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReference requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReference: %w", err)
+	}
+	return oldValue.Reference, nil
+}
+
+// ResetReference resets all changes to the "reference" field.
+func (m *DataExportRequestMutation) ResetReference() {
+	m.reference = nil
 }
 
 // SetStatus sets the "status" field.
@@ -13401,7 +13583,7 @@ func (m *DataExportRequestMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *DataExportRequestMutation) Fields() []string {
-	fields := make([]string, 0, 14)
+	fields := make([]string, 0, 16)
 	if m.uid != nil {
 		fields = append(fields, dataexportrequest.FieldUID)
 	}
@@ -13419,6 +13601,12 @@ func (m *DataExportRequestMutation) Fields() []string {
 	}
 	if m.actor_key != nil {
 		fields = append(fields, dataexportrequest.FieldActorKey)
+	}
+	if m.requested_by != nil {
+		fields = append(fields, dataexportrequest.FieldRequestedBy)
+	}
+	if m.reference != nil {
+		fields = append(fields, dataexportrequest.FieldReference)
 	}
 	if m.status != nil {
 		fields = append(fields, dataexportrequest.FieldStatus)
@@ -13464,6 +13652,10 @@ func (m *DataExportRequestMutation) Field(name string) (ent.Value, bool) {
 		return m.ProjectSeq()
 	case dataexportrequest.FieldActorKey:
 		return m.ActorKey()
+	case dataexportrequest.FieldRequestedBy:
+		return m.RequestedBy()
+	case dataexportrequest.FieldReference:
+		return m.Reference()
 	case dataexportrequest.FieldStatus:
 		return m.Status()
 	case dataexportrequest.FieldBucket:
@@ -13501,6 +13693,10 @@ func (m *DataExportRequestMutation) OldField(ctx context.Context, name string) (
 		return m.OldProjectSeq(ctx)
 	case dataexportrequest.FieldActorKey:
 		return m.OldActorKey(ctx)
+	case dataexportrequest.FieldRequestedBy:
+		return m.OldRequestedBy(ctx)
+	case dataexportrequest.FieldReference:
+		return m.OldReference(ctx)
 	case dataexportrequest.FieldStatus:
 		return m.OldStatus(ctx)
 	case dataexportrequest.FieldBucket:
@@ -13567,6 +13763,20 @@ func (m *DataExportRequestMutation) SetField(name string, value ent.Value) error
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetActorKey(v)
+		return nil
+	case dataexportrequest.FieldRequestedBy:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRequestedBy(v)
+		return nil
+	case dataexportrequest.FieldReference:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReference(v)
 		return nil
 	case dataexportrequest.FieldStatus:
 		v, ok := value.(dataexportrequest.Status)
@@ -13762,6 +13972,12 @@ func (m *DataExportRequestMutation) ResetField(name string) error {
 		return nil
 	case dataexportrequest.FieldActorKey:
 		m.ResetActorKey()
+		return nil
+	case dataexportrequest.FieldRequestedBy:
+		m.ResetRequestedBy()
+		return nil
+	case dataexportrequest.FieldReference:
+		m.ResetReference()
 		return nil
 	case dataexportrequest.FieldStatus:
 		m.ResetStatus()

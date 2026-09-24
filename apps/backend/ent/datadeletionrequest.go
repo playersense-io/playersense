@@ -32,6 +32,10 @@ type DataDeletionRequest struct {
 	// class=identifier
 	ActorKey string `json:"actor_key,omitempty"`
 	// class=none
+	RequestedBy string `json:"requested_by,omitempty"`
+	// class=none
+	Reference string `json:"reference,omitempty"`
+	// class=none
 	Status datadeletionrequest.Status `json:"status,omitempty"`
 	// class=none
 	TombstonedAt *time.Time `json:"tombstoned_at,omitempty"`
@@ -57,7 +61,7 @@ func (*DataDeletionRequest) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case datadeletionrequest.FieldID, datadeletionrequest.FieldProjectSeq, datadeletionrequest.FieldArchiveCursor, datadeletionrequest.FieldDevicesDeleted, datadeletionrequest.FieldObjectsRedacted, datadeletionrequest.FieldPurchasesDeleted:
 			values[i] = new(sql.NullInt64)
-		case datadeletionrequest.FieldActorKey, datadeletionrequest.FieldStatus, datadeletionrequest.FieldFailureReason:
+		case datadeletionrequest.FieldActorKey, datadeletionrequest.FieldRequestedBy, datadeletionrequest.FieldReference, datadeletionrequest.FieldStatus, datadeletionrequest.FieldFailureReason:
 			values[i] = new(sql.NullString)
 		case datadeletionrequest.FieldCreatedAt, datadeletionrequest.FieldUpdatedAt, datadeletionrequest.FieldTombstonedAt, datadeletionrequest.FieldCompletedAt:
 			values[i] = new(sql.NullTime)
@@ -119,6 +123,18 @@ func (_m *DataDeletionRequest) assignValues(columns []string, values []any) erro
 				return fmt.Errorf("unexpected type %T for field actor_key", values[i])
 			} else if value.Valid {
 				_m.ActorKey = value.String
+			}
+		case datadeletionrequest.FieldRequestedBy:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field requested_by", values[i])
+			} else if value.Valid {
+				_m.RequestedBy = value.String
+			}
+		case datadeletionrequest.FieldReference:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field reference", values[i])
+			} else if value.Valid {
+				_m.Reference = value.String
 			}
 		case datadeletionrequest.FieldStatus:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -223,6 +239,12 @@ func (_m *DataDeletionRequest) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("actor_key=")
 	builder.WriteString(_m.ActorKey)
+	builder.WriteString(", ")
+	builder.WriteString("requested_by=")
+	builder.WriteString(_m.RequestedBy)
+	builder.WriteString(", ")
+	builder.WriteString("reference=")
+	builder.WriteString(_m.Reference)
 	builder.WriteString(", ")
 	builder.WriteString("status=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Status))

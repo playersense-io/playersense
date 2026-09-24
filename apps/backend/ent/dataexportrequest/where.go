@@ -85,6 +85,16 @@ func ActorKey(v string) predicate.DataExportRequest {
 	return predicate.DataExportRequest(sql.FieldEQ(FieldActorKey, v))
 }
 
+// RequestedBy applies equality check predicate on the "requested_by" field. It's identical to RequestedByEQ.
+func RequestedBy(v string) predicate.DataExportRequest {
+	return predicate.DataExportRequest(sql.FieldEQ(FieldRequestedBy, v))
+}
+
+// Reference applies equality check predicate on the "reference" field. It's identical to ReferenceEQ.
+func Reference(v string) predicate.DataExportRequest {
+	return predicate.DataExportRequest(sql.FieldEQ(FieldReference, v))
+}
+
 // Bucket applies equality check predicate on the "bucket" field. It's identical to BucketEQ.
 func Bucket(v string) predicate.DataExportRequest {
 	return predicate.DataExportRequest(sql.FieldEQ(FieldBucket, v))
@@ -383,6 +393,136 @@ func ActorKeyEqualFold(v string) predicate.DataExportRequest {
 // ActorKeyContainsFold applies the ContainsFold predicate on the "actor_key" field.
 func ActorKeyContainsFold(v string) predicate.DataExportRequest {
 	return predicate.DataExportRequest(sql.FieldContainsFold(FieldActorKey, v))
+}
+
+// RequestedByEQ applies the EQ predicate on the "requested_by" field.
+func RequestedByEQ(v string) predicate.DataExportRequest {
+	return predicate.DataExportRequest(sql.FieldEQ(FieldRequestedBy, v))
+}
+
+// RequestedByNEQ applies the NEQ predicate on the "requested_by" field.
+func RequestedByNEQ(v string) predicate.DataExportRequest {
+	return predicate.DataExportRequest(sql.FieldNEQ(FieldRequestedBy, v))
+}
+
+// RequestedByIn applies the In predicate on the "requested_by" field.
+func RequestedByIn(vs ...string) predicate.DataExportRequest {
+	return predicate.DataExportRequest(sql.FieldIn(FieldRequestedBy, vs...))
+}
+
+// RequestedByNotIn applies the NotIn predicate on the "requested_by" field.
+func RequestedByNotIn(vs ...string) predicate.DataExportRequest {
+	return predicate.DataExportRequest(sql.FieldNotIn(FieldRequestedBy, vs...))
+}
+
+// RequestedByGT applies the GT predicate on the "requested_by" field.
+func RequestedByGT(v string) predicate.DataExportRequest {
+	return predicate.DataExportRequest(sql.FieldGT(FieldRequestedBy, v))
+}
+
+// RequestedByGTE applies the GTE predicate on the "requested_by" field.
+func RequestedByGTE(v string) predicate.DataExportRequest {
+	return predicate.DataExportRequest(sql.FieldGTE(FieldRequestedBy, v))
+}
+
+// RequestedByLT applies the LT predicate on the "requested_by" field.
+func RequestedByLT(v string) predicate.DataExportRequest {
+	return predicate.DataExportRequest(sql.FieldLT(FieldRequestedBy, v))
+}
+
+// RequestedByLTE applies the LTE predicate on the "requested_by" field.
+func RequestedByLTE(v string) predicate.DataExportRequest {
+	return predicate.DataExportRequest(sql.FieldLTE(FieldRequestedBy, v))
+}
+
+// RequestedByContains applies the Contains predicate on the "requested_by" field.
+func RequestedByContains(v string) predicate.DataExportRequest {
+	return predicate.DataExportRequest(sql.FieldContains(FieldRequestedBy, v))
+}
+
+// RequestedByHasPrefix applies the HasPrefix predicate on the "requested_by" field.
+func RequestedByHasPrefix(v string) predicate.DataExportRequest {
+	return predicate.DataExportRequest(sql.FieldHasPrefix(FieldRequestedBy, v))
+}
+
+// RequestedByHasSuffix applies the HasSuffix predicate on the "requested_by" field.
+func RequestedByHasSuffix(v string) predicate.DataExportRequest {
+	return predicate.DataExportRequest(sql.FieldHasSuffix(FieldRequestedBy, v))
+}
+
+// RequestedByEqualFold applies the EqualFold predicate on the "requested_by" field.
+func RequestedByEqualFold(v string) predicate.DataExportRequest {
+	return predicate.DataExportRequest(sql.FieldEqualFold(FieldRequestedBy, v))
+}
+
+// RequestedByContainsFold applies the ContainsFold predicate on the "requested_by" field.
+func RequestedByContainsFold(v string) predicate.DataExportRequest {
+	return predicate.DataExportRequest(sql.FieldContainsFold(FieldRequestedBy, v))
+}
+
+// ReferenceEQ applies the EQ predicate on the "reference" field.
+func ReferenceEQ(v string) predicate.DataExportRequest {
+	return predicate.DataExportRequest(sql.FieldEQ(FieldReference, v))
+}
+
+// ReferenceNEQ applies the NEQ predicate on the "reference" field.
+func ReferenceNEQ(v string) predicate.DataExportRequest {
+	return predicate.DataExportRequest(sql.FieldNEQ(FieldReference, v))
+}
+
+// ReferenceIn applies the In predicate on the "reference" field.
+func ReferenceIn(vs ...string) predicate.DataExportRequest {
+	return predicate.DataExportRequest(sql.FieldIn(FieldReference, vs...))
+}
+
+// ReferenceNotIn applies the NotIn predicate on the "reference" field.
+func ReferenceNotIn(vs ...string) predicate.DataExportRequest {
+	return predicate.DataExportRequest(sql.FieldNotIn(FieldReference, vs...))
+}
+
+// ReferenceGT applies the GT predicate on the "reference" field.
+func ReferenceGT(v string) predicate.DataExportRequest {
+	return predicate.DataExportRequest(sql.FieldGT(FieldReference, v))
+}
+
+// ReferenceGTE applies the GTE predicate on the "reference" field.
+func ReferenceGTE(v string) predicate.DataExportRequest {
+	return predicate.DataExportRequest(sql.FieldGTE(FieldReference, v))
+}
+
+// ReferenceLT applies the LT predicate on the "reference" field.
+func ReferenceLT(v string) predicate.DataExportRequest {
+	return predicate.DataExportRequest(sql.FieldLT(FieldReference, v))
+}
+
+// ReferenceLTE applies the LTE predicate on the "reference" field.
+func ReferenceLTE(v string) predicate.DataExportRequest {
+	return predicate.DataExportRequest(sql.FieldLTE(FieldReference, v))
+}
+
+// ReferenceContains applies the Contains predicate on the "reference" field.
+func ReferenceContains(v string) predicate.DataExportRequest {
+	return predicate.DataExportRequest(sql.FieldContains(FieldReference, v))
+}
+
+// ReferenceHasPrefix applies the HasPrefix predicate on the "reference" field.
+func ReferenceHasPrefix(v string) predicate.DataExportRequest {
+	return predicate.DataExportRequest(sql.FieldHasPrefix(FieldReference, v))
+}
+
+// ReferenceHasSuffix applies the HasSuffix predicate on the "reference" field.
+func ReferenceHasSuffix(v string) predicate.DataExportRequest {
+	return predicate.DataExportRequest(sql.FieldHasSuffix(FieldReference, v))
+}
+
+// ReferenceEqualFold applies the EqualFold predicate on the "reference" field.
+func ReferenceEqualFold(v string) predicate.DataExportRequest {
+	return predicate.DataExportRequest(sql.FieldEqualFold(FieldReference, v))
+}
+
+// ReferenceContainsFold applies the ContainsFold predicate on the "reference" field.
+func ReferenceContainsFold(v string) predicate.DataExportRequest {
+	return predicate.DataExportRequest(sql.FieldContainsFold(FieldReference, v))
 }
 
 // StatusEQ applies the EQ predicate on the "status" field.

@@ -75,6 +75,11 @@ func (DataDeletionRequest) Fields() []ent.Field {
 		// identifier, which is what keeps §96's check honest about it.
 		field.String("actor_key").NotEmpty().MaxLen(128).Comment(dataclass.Identifier),
 
+		// Who asked, and why in their words: a member's address and a ticket, or the server
+		// key's label. Blank for a request made before these were kept.
+		field.String("requested_by").MaxLen(254).Default("").Comment(dataclass.None),
+		field.String("reference").MaxLen(200).Default("").Comment(dataclass.None),
+
 		field.Enum("status").
 			Values("received", "tombstoned", "purging", "completed", "failed").
 			Default("received").Comment(dataclass.None),
@@ -146,6 +151,10 @@ func (DataExportRequest) Fields() []ent.Field {
 		field.UUID("project_uid", uuid.UUID{}).Comment(dataclass.None),
 		field.Uint32("project_seq").Comment(dataclass.None),
 		field.String("actor_key").NotEmpty().MaxLen(128).Comment(dataclass.Identifier),
+
+		// Who asked, and why, as on an erasure.
+		field.String("requested_by").MaxLen(254).Default("").Comment(dataclass.None),
+		field.String("reference").MaxLen(200).Default("").Comment(dataclass.None),
 
 		field.Enum("status").
 			Values("received", "running", "completed", "failed", "expired").

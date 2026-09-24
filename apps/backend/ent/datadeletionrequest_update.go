@@ -84,6 +84,34 @@ func (_u *DataDeletionRequestUpdate) SetNillableActorKey(v *string) *DataDeletio
 	return _u
 }
 
+// SetRequestedBy sets the "requested_by" field.
+func (_u *DataDeletionRequestUpdate) SetRequestedBy(v string) *DataDeletionRequestUpdate {
+	_u.mutation.SetRequestedBy(v)
+	return _u
+}
+
+// SetNillableRequestedBy sets the "requested_by" field if the given value is not nil.
+func (_u *DataDeletionRequestUpdate) SetNillableRequestedBy(v *string) *DataDeletionRequestUpdate {
+	if v != nil {
+		_u.SetRequestedBy(*v)
+	}
+	return _u
+}
+
+// SetReference sets the "reference" field.
+func (_u *DataDeletionRequestUpdate) SetReference(v string) *DataDeletionRequestUpdate {
+	_u.mutation.SetReference(v)
+	return _u
+}
+
+// SetNillableReference sets the "reference" field if the given value is not nil.
+func (_u *DataDeletionRequestUpdate) SetNillableReference(v *string) *DataDeletionRequestUpdate {
+	if v != nil {
+		_u.SetReference(*v)
+	}
+	return _u
+}
+
 // SetStatus sets the "status" field.
 func (_u *DataDeletionRequestUpdate) SetStatus(v datadeletionrequest.Status) *DataDeletionRequestUpdate {
 	_u.mutation.SetStatus(v)
@@ -290,6 +318,16 @@ func (_u *DataDeletionRequestUpdate) check() error {
 			return &ValidationError{Name: "actor_key", err: fmt.Errorf(`ent: validator failed for field "DataDeletionRequest.actor_key": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.RequestedBy(); ok {
+		if err := datadeletionrequest.RequestedByValidator(v); err != nil {
+			return &ValidationError{Name: "requested_by", err: fmt.Errorf(`ent: validator failed for field "DataDeletionRequest.requested_by": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.Reference(); ok {
+		if err := datadeletionrequest.ReferenceValidator(v); err != nil {
+			return &ValidationError{Name: "reference", err: fmt.Errorf(`ent: validator failed for field "DataDeletionRequest.reference": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Status(); ok {
 		if err := datadeletionrequest.StatusValidator(v); err != nil {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "DataDeletionRequest.status": %w`, err)}
@@ -329,6 +367,12 @@ func (_u *DataDeletionRequestUpdate) sqlSave(ctx context.Context) (_node int, er
 	}
 	if value, ok := _u.mutation.ActorKey(); ok {
 		_spec.SetField(datadeletionrequest.FieldActorKey, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.RequestedBy(); ok {
+		_spec.SetField(datadeletionrequest.FieldRequestedBy, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Reference(); ok {
+		_spec.SetField(datadeletionrequest.FieldReference, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(datadeletionrequest.FieldStatus, field.TypeEnum, value)
@@ -446,6 +490,34 @@ func (_u *DataDeletionRequestUpdateOne) SetActorKey(v string) *DataDeletionReque
 func (_u *DataDeletionRequestUpdateOne) SetNillableActorKey(v *string) *DataDeletionRequestUpdateOne {
 	if v != nil {
 		_u.SetActorKey(*v)
+	}
+	return _u
+}
+
+// SetRequestedBy sets the "requested_by" field.
+func (_u *DataDeletionRequestUpdateOne) SetRequestedBy(v string) *DataDeletionRequestUpdateOne {
+	_u.mutation.SetRequestedBy(v)
+	return _u
+}
+
+// SetNillableRequestedBy sets the "requested_by" field if the given value is not nil.
+func (_u *DataDeletionRequestUpdateOne) SetNillableRequestedBy(v *string) *DataDeletionRequestUpdateOne {
+	if v != nil {
+		_u.SetRequestedBy(*v)
+	}
+	return _u
+}
+
+// SetReference sets the "reference" field.
+func (_u *DataDeletionRequestUpdateOne) SetReference(v string) *DataDeletionRequestUpdateOne {
+	_u.mutation.SetReference(v)
+	return _u
+}
+
+// SetNillableReference sets the "reference" field if the given value is not nil.
+func (_u *DataDeletionRequestUpdateOne) SetNillableReference(v *string) *DataDeletionRequestUpdateOne {
+	if v != nil {
+		_u.SetReference(*v)
 	}
 	return _u
 }
@@ -669,6 +741,16 @@ func (_u *DataDeletionRequestUpdateOne) check() error {
 			return &ValidationError{Name: "actor_key", err: fmt.Errorf(`ent: validator failed for field "DataDeletionRequest.actor_key": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.RequestedBy(); ok {
+		if err := datadeletionrequest.RequestedByValidator(v); err != nil {
+			return &ValidationError{Name: "requested_by", err: fmt.Errorf(`ent: validator failed for field "DataDeletionRequest.requested_by": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.Reference(); ok {
+		if err := datadeletionrequest.ReferenceValidator(v); err != nil {
+			return &ValidationError{Name: "reference", err: fmt.Errorf(`ent: validator failed for field "DataDeletionRequest.reference": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Status(); ok {
 		if err := datadeletionrequest.StatusValidator(v); err != nil {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "DataDeletionRequest.status": %w`, err)}
@@ -725,6 +807,12 @@ func (_u *DataDeletionRequestUpdateOne) sqlSave(ctx context.Context) (_node *Dat
 	}
 	if value, ok := _u.mutation.ActorKey(); ok {
 		_spec.SetField(datadeletionrequest.FieldActorKey, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.RequestedBy(); ok {
+		_spec.SetField(datadeletionrequest.FieldRequestedBy, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Reference(); ok {
+		_spec.SetField(datadeletionrequest.FieldReference, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(datadeletionrequest.FieldStatus, field.TypeEnum, value)

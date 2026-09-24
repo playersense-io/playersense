@@ -632,24 +632,36 @@ func init() {
 			return nil
 		}
 	}()
+	// datadeletionrequestDescRequestedBy is the schema descriptor for requested_by field.
+	datadeletionrequestDescRequestedBy := datadeletionrequestFields[3].Descriptor()
+	// datadeletionrequest.DefaultRequestedBy holds the default value on creation for the requested_by field.
+	datadeletionrequest.DefaultRequestedBy = datadeletionrequestDescRequestedBy.Default.(string)
+	// datadeletionrequest.RequestedByValidator is a validator for the "requested_by" field. It is called by the builders before save.
+	datadeletionrequest.RequestedByValidator = datadeletionrequestDescRequestedBy.Validators[0].(func(string) error)
+	// datadeletionrequestDescReference is the schema descriptor for reference field.
+	datadeletionrequestDescReference := datadeletionrequestFields[4].Descriptor()
+	// datadeletionrequest.DefaultReference holds the default value on creation for the reference field.
+	datadeletionrequest.DefaultReference = datadeletionrequestDescReference.Default.(string)
+	// datadeletionrequest.ReferenceValidator is a validator for the "reference" field. It is called by the builders before save.
+	datadeletionrequest.ReferenceValidator = datadeletionrequestDescReference.Validators[0].(func(string) error)
 	// datadeletionrequestDescArchiveCursor is the schema descriptor for archive_cursor field.
-	datadeletionrequestDescArchiveCursor := datadeletionrequestFields[5].Descriptor()
+	datadeletionrequestDescArchiveCursor := datadeletionrequestFields[7].Descriptor()
 	// datadeletionrequest.DefaultArchiveCursor holds the default value on creation for the archive_cursor field.
 	datadeletionrequest.DefaultArchiveCursor = datadeletionrequestDescArchiveCursor.Default.(int)
 	// datadeletionrequestDescFailureReason is the schema descriptor for failure_reason field.
-	datadeletionrequestDescFailureReason := datadeletionrequestFields[7].Descriptor()
+	datadeletionrequestDescFailureReason := datadeletionrequestFields[9].Descriptor()
 	// datadeletionrequest.FailureReasonValidator is a validator for the "failure_reason" field. It is called by the builders before save.
 	datadeletionrequest.FailureReasonValidator = datadeletionrequestDescFailureReason.Validators[0].(func(string) error)
 	// datadeletionrequestDescDevicesDeleted is the schema descriptor for devices_deleted field.
-	datadeletionrequestDescDevicesDeleted := datadeletionrequestFields[8].Descriptor()
+	datadeletionrequestDescDevicesDeleted := datadeletionrequestFields[10].Descriptor()
 	// datadeletionrequest.DefaultDevicesDeleted holds the default value on creation for the devices_deleted field.
 	datadeletionrequest.DefaultDevicesDeleted = datadeletionrequestDescDevicesDeleted.Default.(uint32)
 	// datadeletionrequestDescObjectsRedacted is the schema descriptor for objects_redacted field.
-	datadeletionrequestDescObjectsRedacted := datadeletionrequestFields[9].Descriptor()
+	datadeletionrequestDescObjectsRedacted := datadeletionrequestFields[11].Descriptor()
 	// datadeletionrequest.DefaultObjectsRedacted holds the default value on creation for the objects_redacted field.
 	datadeletionrequest.DefaultObjectsRedacted = datadeletionrequestDescObjectsRedacted.Default.(uint32)
 	// datadeletionrequestDescPurchasesDeleted is the schema descriptor for purchases_deleted field.
-	datadeletionrequestDescPurchasesDeleted := datadeletionrequestFields[10].Descriptor()
+	datadeletionrequestDescPurchasesDeleted := datadeletionrequestFields[12].Descriptor()
 	// datadeletionrequest.DefaultPurchasesDeleted holds the default value on creation for the purchases_deleted field.
 	datadeletionrequest.DefaultPurchasesDeleted = datadeletionrequestDescPurchasesDeleted.Default.(uint32)
 	dataexportrequestMixin := schema.DataExportRequest{}.Mixin()
@@ -689,24 +701,36 @@ func init() {
 			return nil
 		}
 	}()
+	// dataexportrequestDescRequestedBy is the schema descriptor for requested_by field.
+	dataexportrequestDescRequestedBy := dataexportrequestFields[3].Descriptor()
+	// dataexportrequest.DefaultRequestedBy holds the default value on creation for the requested_by field.
+	dataexportrequest.DefaultRequestedBy = dataexportrequestDescRequestedBy.Default.(string)
+	// dataexportrequest.RequestedByValidator is a validator for the "requested_by" field. It is called by the builders before save.
+	dataexportrequest.RequestedByValidator = dataexportrequestDescRequestedBy.Validators[0].(func(string) error)
+	// dataexportrequestDescReference is the schema descriptor for reference field.
+	dataexportrequestDescReference := dataexportrequestFields[4].Descriptor()
+	// dataexportrequest.DefaultReference holds the default value on creation for the reference field.
+	dataexportrequest.DefaultReference = dataexportrequestDescReference.Default.(string)
+	// dataexportrequest.ReferenceValidator is a validator for the "reference" field. It is called by the builders before save.
+	dataexportrequest.ReferenceValidator = dataexportrequestDescReference.Validators[0].(func(string) error)
 	// dataexportrequestDescBucket is the schema descriptor for bucket field.
-	dataexportrequestDescBucket := dataexportrequestFields[4].Descriptor()
+	dataexportrequestDescBucket := dataexportrequestFields[6].Descriptor()
 	// dataexportrequest.BucketValidator is a validator for the "bucket" field. It is called by the builders before save.
 	dataexportrequest.BucketValidator = dataexportrequestDescBucket.Validators[0].(func(string) error)
 	// dataexportrequestDescObjectPath is the schema descriptor for object_path field.
-	dataexportrequestDescObjectPath := dataexportrequestFields[5].Descriptor()
+	dataexportrequestDescObjectPath := dataexportrequestFields[7].Descriptor()
 	// dataexportrequest.ObjectPathValidator is a validator for the "object_path" field. It is called by the builders before save.
 	dataexportrequest.ObjectPathValidator = dataexportrequestDescObjectPath.Validators[0].(func(string) error)
 	// dataexportrequestDescObjectSizeBytes is the schema descriptor for object_size_bytes field.
-	dataexportrequestDescObjectSizeBytes := dataexportrequestFields[6].Descriptor()
+	dataexportrequestDescObjectSizeBytes := dataexportrequestFields[8].Descriptor()
 	// dataexportrequest.DefaultObjectSizeBytes holds the default value on creation for the object_size_bytes field.
 	dataexportrequest.DefaultObjectSizeBytes = dataexportrequestDescObjectSizeBytes.Default.(uint64)
 	// dataexportrequestDescRowCount is the schema descriptor for row_count field.
-	dataexportrequestDescRowCount := dataexportrequestFields[7].Descriptor()
+	dataexportrequestDescRowCount := dataexportrequestFields[9].Descriptor()
 	// dataexportrequest.DefaultRowCount holds the default value on creation for the row_count field.
 	dataexportrequest.DefaultRowCount = dataexportrequestDescRowCount.Default.(uint64)
 	// dataexportrequestDescFailureReason is the schema descriptor for failure_reason field.
-	dataexportrequestDescFailureReason := dataexportrequestFields[10].Descriptor()
+	dataexportrequestDescFailureReason := dataexportrequestFields[12].Descriptor()
 	// dataexportrequest.FailureReasonValidator is a validator for the "failure_reason" field. It is called by the builders before save.
 	dataexportrequest.FailureReasonValidator = dataexportrequestDescFailureReason.Validators[0].(func(string) error)
 	environmentMixin := schema.Environment{}.Mixin()

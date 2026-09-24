@@ -564,6 +564,19 @@ erasing a studio's player is not the same privilege as reading its aggregates:
 A server key rather than a reporting one, because erasing a studio's player is not the same
 privilege as reading its aggregates.
 
+The same requests from the dashboard, by a signed-in member with a reason, and the project's list
+of them:
+
+```
+GET                         /v1/organizations/{org}/projects/{project}/privacy                 privacy.read
+       POST                 /v1/organizations/{org}/projects/{project}/privacy/erasures        privacy.erase
+       POST                 /v1/organizations/{org}/projects/{project}/privacy/exports         privacy.export
+GET                         …/privacy/exports/{request_id}/download                            privacy.export
+```
+
+Each request records who asked and the reference they gave; the organization's audit log records
+that a request was made and by whom, never which player it names.
+
 ### analytics-writer — `:21082` (health probe only)
 
 ```bash

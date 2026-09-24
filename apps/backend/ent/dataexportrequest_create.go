@@ -83,6 +83,34 @@ func (_c *DataExportRequestCreate) SetActorKey(v string) *DataExportRequestCreat
 	return _c
 }
 
+// SetRequestedBy sets the "requested_by" field.
+func (_c *DataExportRequestCreate) SetRequestedBy(v string) *DataExportRequestCreate {
+	_c.mutation.SetRequestedBy(v)
+	return _c
+}
+
+// SetNillableRequestedBy sets the "requested_by" field if the given value is not nil.
+func (_c *DataExportRequestCreate) SetNillableRequestedBy(v *string) *DataExportRequestCreate {
+	if v != nil {
+		_c.SetRequestedBy(*v)
+	}
+	return _c
+}
+
+// SetReference sets the "reference" field.
+func (_c *DataExportRequestCreate) SetReference(v string) *DataExportRequestCreate {
+	_c.mutation.SetReference(v)
+	return _c
+}
+
+// SetNillableReference sets the "reference" field if the given value is not nil.
+func (_c *DataExportRequestCreate) SetNillableReference(v *string) *DataExportRequestCreate {
+	if v != nil {
+		_c.SetReference(*v)
+	}
+	return _c
+}
+
 // SetStatus sets the "status" field.
 func (_c *DataExportRequestCreate) SetStatus(v dataexportrequest.Status) *DataExportRequestCreate {
 	_c.mutation.SetStatus(v)
@@ -248,6 +276,14 @@ func (_c *DataExportRequestCreate) defaults() {
 		v := dataexportrequest.DefaultUpdatedAt()
 		_c.mutation.SetUpdatedAt(v)
 	}
+	if _, ok := _c.mutation.RequestedBy(); !ok {
+		v := dataexportrequest.DefaultRequestedBy
+		_c.mutation.SetRequestedBy(v)
+	}
+	if _, ok := _c.mutation.Reference(); !ok {
+		v := dataexportrequest.DefaultReference
+		_c.mutation.SetReference(v)
+	}
 	if _, ok := _c.mutation.Status(); !ok {
 		v := dataexportrequest.DefaultStatus
 		_c.mutation.SetStatus(v)
@@ -285,6 +321,22 @@ func (_c *DataExportRequestCreate) check() error {
 	if v, ok := _c.mutation.ActorKey(); ok {
 		if err := dataexportrequest.ActorKeyValidator(v); err != nil {
 			return &ValidationError{Name: "actor_key", err: fmt.Errorf(`ent: validator failed for field "DataExportRequest.actor_key": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.RequestedBy(); !ok {
+		return &ValidationError{Name: "requested_by", err: errors.New(`ent: missing required field "DataExportRequest.requested_by"`)}
+	}
+	if v, ok := _c.mutation.RequestedBy(); ok {
+		if err := dataexportrequest.RequestedByValidator(v); err != nil {
+			return &ValidationError{Name: "requested_by", err: fmt.Errorf(`ent: validator failed for field "DataExportRequest.requested_by": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.Reference(); !ok {
+		return &ValidationError{Name: "reference", err: errors.New(`ent: missing required field "DataExportRequest.reference"`)}
+	}
+	if v, ok := _c.mutation.Reference(); ok {
+		if err := dataexportrequest.ReferenceValidator(v); err != nil {
+			return &ValidationError{Name: "reference", err: fmt.Errorf(`ent: validator failed for field "DataExportRequest.reference": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.Status(); !ok {
@@ -372,6 +424,14 @@ func (_c *DataExportRequestCreate) createSpec() (*DataExportRequest, *sqlgraph.C
 	if value, ok := _c.mutation.ActorKey(); ok {
 		_spec.SetField(dataexportrequest.FieldActorKey, field.TypeString, value)
 		_node.ActorKey = value
+	}
+	if value, ok := _c.mutation.RequestedBy(); ok {
+		_spec.SetField(dataexportrequest.FieldRequestedBy, field.TypeString, value)
+		_node.RequestedBy = value
+	}
+	if value, ok := _c.mutation.Reference(); ok {
+		_spec.SetField(dataexportrequest.FieldReference, field.TypeString, value)
+		_node.Reference = value
 	}
 	if value, ok := _c.mutation.Status(); ok {
 		_spec.SetField(dataexportrequest.FieldStatus, field.TypeEnum, value)
@@ -508,6 +568,30 @@ func (u *DataExportRequestUpsert) SetActorKey(v string) *DataExportRequestUpsert
 // UpdateActorKey sets the "actor_key" field to the value that was provided on create.
 func (u *DataExportRequestUpsert) UpdateActorKey() *DataExportRequestUpsert {
 	u.SetExcluded(dataexportrequest.FieldActorKey)
+	return u
+}
+
+// SetRequestedBy sets the "requested_by" field.
+func (u *DataExportRequestUpsert) SetRequestedBy(v string) *DataExportRequestUpsert {
+	u.Set(dataexportrequest.FieldRequestedBy, v)
+	return u
+}
+
+// UpdateRequestedBy sets the "requested_by" field to the value that was provided on create.
+func (u *DataExportRequestUpsert) UpdateRequestedBy() *DataExportRequestUpsert {
+	u.SetExcluded(dataexportrequest.FieldRequestedBy)
+	return u
+}
+
+// SetReference sets the "reference" field.
+func (u *DataExportRequestUpsert) SetReference(v string) *DataExportRequestUpsert {
+	u.Set(dataexportrequest.FieldReference, v)
+	return u
+}
+
+// UpdateReference sets the "reference" field to the value that was provided on create.
+func (u *DataExportRequestUpsert) UpdateReference() *DataExportRequestUpsert {
+	u.SetExcluded(dataexportrequest.FieldReference)
 	return u
 }
 
@@ -763,6 +847,34 @@ func (u *DataExportRequestUpsertOne) SetActorKey(v string) *DataExportRequestUps
 func (u *DataExportRequestUpsertOne) UpdateActorKey() *DataExportRequestUpsertOne {
 	return u.Update(func(s *DataExportRequestUpsert) {
 		s.UpdateActorKey()
+	})
+}
+
+// SetRequestedBy sets the "requested_by" field.
+func (u *DataExportRequestUpsertOne) SetRequestedBy(v string) *DataExportRequestUpsertOne {
+	return u.Update(func(s *DataExportRequestUpsert) {
+		s.SetRequestedBy(v)
+	})
+}
+
+// UpdateRequestedBy sets the "requested_by" field to the value that was provided on create.
+func (u *DataExportRequestUpsertOne) UpdateRequestedBy() *DataExportRequestUpsertOne {
+	return u.Update(func(s *DataExportRequestUpsert) {
+		s.UpdateRequestedBy()
+	})
+}
+
+// SetReference sets the "reference" field.
+func (u *DataExportRequestUpsertOne) SetReference(v string) *DataExportRequestUpsertOne {
+	return u.Update(func(s *DataExportRequestUpsert) {
+		s.SetReference(v)
+	})
+}
+
+// UpdateReference sets the "reference" field to the value that was provided on create.
+func (u *DataExportRequestUpsertOne) UpdateReference() *DataExportRequestUpsertOne {
+	return u.Update(func(s *DataExportRequestUpsert) {
+		s.UpdateReference()
 	})
 }
 
@@ -1207,6 +1319,34 @@ func (u *DataExportRequestUpsertBulk) SetActorKey(v string) *DataExportRequestUp
 func (u *DataExportRequestUpsertBulk) UpdateActorKey() *DataExportRequestUpsertBulk {
 	return u.Update(func(s *DataExportRequestUpsert) {
 		s.UpdateActorKey()
+	})
+}
+
+// SetRequestedBy sets the "requested_by" field.
+func (u *DataExportRequestUpsertBulk) SetRequestedBy(v string) *DataExportRequestUpsertBulk {
+	return u.Update(func(s *DataExportRequestUpsert) {
+		s.SetRequestedBy(v)
+	})
+}
+
+// UpdateRequestedBy sets the "requested_by" field to the value that was provided on create.
+func (u *DataExportRequestUpsertBulk) UpdateRequestedBy() *DataExportRequestUpsertBulk {
+	return u.Update(func(s *DataExportRequestUpsert) {
+		s.UpdateRequestedBy()
+	})
+}
+
+// SetReference sets the "reference" field.
+func (u *DataExportRequestUpsertBulk) SetReference(v string) *DataExportRequestUpsertBulk {
+	return u.Update(func(s *DataExportRequestUpsert) {
+		s.SetReference(v)
+	})
+}
+
+// UpdateReference sets the "reference" field to the value that was provided on create.
+func (u *DataExportRequestUpsertBulk) UpdateReference() *DataExportRequestUpsertBulk {
+	return u.Update(func(s *DataExportRequestUpsert) {
+		s.UpdateReference()
 	})
 }
 

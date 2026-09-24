@@ -84,6 +84,34 @@ func (_u *DataExportRequestUpdate) SetNillableActorKey(v *string) *DataExportReq
 	return _u
 }
 
+// SetRequestedBy sets the "requested_by" field.
+func (_u *DataExportRequestUpdate) SetRequestedBy(v string) *DataExportRequestUpdate {
+	_u.mutation.SetRequestedBy(v)
+	return _u
+}
+
+// SetNillableRequestedBy sets the "requested_by" field if the given value is not nil.
+func (_u *DataExportRequestUpdate) SetNillableRequestedBy(v *string) *DataExportRequestUpdate {
+	if v != nil {
+		_u.SetRequestedBy(*v)
+	}
+	return _u
+}
+
+// SetReference sets the "reference" field.
+func (_u *DataExportRequestUpdate) SetReference(v string) *DataExportRequestUpdate {
+	_u.mutation.SetReference(v)
+	return _u
+}
+
+// SetNillableReference sets the "reference" field if the given value is not nil.
+func (_u *DataExportRequestUpdate) SetNillableReference(v *string) *DataExportRequestUpdate {
+	if v != nil {
+		_u.SetReference(*v)
+	}
+	return _u
+}
+
 // SetStatus sets the "status" field.
 func (_u *DataExportRequestUpdate) SetStatus(v dataexportrequest.Status) *DataExportRequestUpdate {
 	_u.mutation.SetStatus(v)
@@ -288,6 +316,16 @@ func (_u *DataExportRequestUpdate) check() error {
 			return &ValidationError{Name: "actor_key", err: fmt.Errorf(`ent: validator failed for field "DataExportRequest.actor_key": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.RequestedBy(); ok {
+		if err := dataexportrequest.RequestedByValidator(v); err != nil {
+			return &ValidationError{Name: "requested_by", err: fmt.Errorf(`ent: validator failed for field "DataExportRequest.requested_by": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.Reference(); ok {
+		if err := dataexportrequest.ReferenceValidator(v); err != nil {
+			return &ValidationError{Name: "reference", err: fmt.Errorf(`ent: validator failed for field "DataExportRequest.reference": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Status(); ok {
 		if err := dataexportrequest.StatusValidator(v); err != nil {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "DataExportRequest.status": %w`, err)}
@@ -337,6 +375,12 @@ func (_u *DataExportRequestUpdate) sqlSave(ctx context.Context) (_node int, err 
 	}
 	if value, ok := _u.mutation.ActorKey(); ok {
 		_spec.SetField(dataexportrequest.FieldActorKey, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.RequestedBy(); ok {
+		_spec.SetField(dataexportrequest.FieldRequestedBy, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Reference(); ok {
+		_spec.SetField(dataexportrequest.FieldReference, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(dataexportrequest.FieldStatus, field.TypeEnum, value)
@@ -454,6 +498,34 @@ func (_u *DataExportRequestUpdateOne) SetActorKey(v string) *DataExportRequestUp
 func (_u *DataExportRequestUpdateOne) SetNillableActorKey(v *string) *DataExportRequestUpdateOne {
 	if v != nil {
 		_u.SetActorKey(*v)
+	}
+	return _u
+}
+
+// SetRequestedBy sets the "requested_by" field.
+func (_u *DataExportRequestUpdateOne) SetRequestedBy(v string) *DataExportRequestUpdateOne {
+	_u.mutation.SetRequestedBy(v)
+	return _u
+}
+
+// SetNillableRequestedBy sets the "requested_by" field if the given value is not nil.
+func (_u *DataExportRequestUpdateOne) SetNillableRequestedBy(v *string) *DataExportRequestUpdateOne {
+	if v != nil {
+		_u.SetRequestedBy(*v)
+	}
+	return _u
+}
+
+// SetReference sets the "reference" field.
+func (_u *DataExportRequestUpdateOne) SetReference(v string) *DataExportRequestUpdateOne {
+	_u.mutation.SetReference(v)
+	return _u
+}
+
+// SetNillableReference sets the "reference" field if the given value is not nil.
+func (_u *DataExportRequestUpdateOne) SetNillableReference(v *string) *DataExportRequestUpdateOne {
+	if v != nil {
+		_u.SetReference(*v)
 	}
 	return _u
 }
@@ -675,6 +747,16 @@ func (_u *DataExportRequestUpdateOne) check() error {
 			return &ValidationError{Name: "actor_key", err: fmt.Errorf(`ent: validator failed for field "DataExportRequest.actor_key": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.RequestedBy(); ok {
+		if err := dataexportrequest.RequestedByValidator(v); err != nil {
+			return &ValidationError{Name: "requested_by", err: fmt.Errorf(`ent: validator failed for field "DataExportRequest.requested_by": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.Reference(); ok {
+		if err := dataexportrequest.ReferenceValidator(v); err != nil {
+			return &ValidationError{Name: "reference", err: fmt.Errorf(`ent: validator failed for field "DataExportRequest.reference": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Status(); ok {
 		if err := dataexportrequest.StatusValidator(v); err != nil {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "DataExportRequest.status": %w`, err)}
@@ -741,6 +823,12 @@ func (_u *DataExportRequestUpdateOne) sqlSave(ctx context.Context) (_node *DataE
 	}
 	if value, ok := _u.mutation.ActorKey(); ok {
 		_spec.SetField(dataexportrequest.FieldActorKey, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.RequestedBy(); ok {
+		_spec.SetField(dataexportrequest.FieldRequestedBy, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Reference(); ok {
+		_spec.SetField(dataexportrequest.FieldReference, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(dataexportrequest.FieldStatus, field.TypeEnum, value)

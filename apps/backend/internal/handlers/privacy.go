@@ -37,15 +37,25 @@ import (
 // is US-hosted and knows nothing about anyone's players.
 func SubmitErasure(ctx *muzak.Context, in schemas.ErasureIn) (schemas.ErasureOut, error) {
 	tenant := muzak.From[*core.Tenant](ctx)
-	db := muzak.From[*pgdb.DB](ctx)
-	cache := muzak.From[*valkey.Client](ctx)
-
 	projectUID, err := uuid.Parse(tenant.ProjectID)
 	if err != nil {
 		return schemas.ErasureOut{}, core.AsHTTPError(err)
 	}
+	req, err := submitErasure(ctx, projectUID, tenant.ProjectSeq, in.ActorKey, "key "+tenant.KeyPublicID, "")
+	if err != nil {
+		return schemas.ErasureOut{}, err
+	}
+	ctx.SetStatus(http.StatusAccepted)
+	return erasureOut(req), nil
+}
+
+// submitErasure records an erasure, or finds the open one for the same person, and raises the
+// tombstone. The one path for both doors: a server key, and a member on the dashboard.
+func submitErasure(ctx *muzak.Context, projectUID uuid.UUID, projectSeq uint32, actorKey, by, reference string) (*ent.DataDeletionRequest, error) {
+	db := muzak.From[*pgdb.DB](ctx)
+	cache, _ := muzak.TryFrom[*valkey.Client](ctx)
 	if !db.Ready() {
-		return schemas.ErasureOut{}, muzak.ServiceUnavailable(
+		return nil, muzak.ServiceUnavailable(
 			"the database is unavailable; the request was not recorded, so send it again")
 	}
 
@@ -56,16 +66,15 @@ func SubmitErasure(ctx *muzak.Context, in schemas.ErasureIn) (schemas.ErasureOut
 	existing, err := db.Client.DataDeletionRequest.Query().
 		Where(
 			datadeletionrequest.ProjectUID(projectUID),
-			datadeletionrequest.ActorKey(in.ActorKey),
+			datadeletionrequest.ActorKey(actorKey),
 			datadeletionrequest.StatusNEQ(datadeletionrequest.StatusCompleted),
 		).
 		First(ctx.Context())
 	switch {
 	case err == nil:
-		ctx.SetStatus(http.StatusAccepted)
-		return erasureOut(existing), nil
+		return existing, nil
 	case !ent.IsNotFound(err):
-		return schemas.ErasureOut{}, core.AsHTTPError(err)
+		return nil, core.AsHTTPError(err)
 	}
 
 	req, err := db.Client.DataDeletionRequest.Create().
@@ -74,11 +83,13 @@ func SubmitErasure(ctx *muzak.Context, in schemas.ErasureIn) (schemas.ErasureOut
 		// known: the worker that runs the purge is cell-local and the projects table is in
 		// another jurisdiction (§99). Without it the purge would have to scan every
 		// tenant's parts to find one project's rows.
-		SetProjectSeq(tenant.ProjectSeq).
-		SetActorKey(in.ActorKey).
+		SetProjectSeq(projectSeq).
+		SetActorKey(actorKey).
+		SetRequestedBy(by).
+		SetReference(reference).
 		Save(ctx.Context())
 	if err != nil {
-		return schemas.ErasureOut{}, core.AsHTTPError(err)
+		return nil, core.AsHTTPError(err)
 	}
 
 	// The tombstone goes up after the record and never before it. The two failure modes are
@@ -87,7 +98,7 @@ func SubmitErasure(ctx *muzak.Context, in schemas.ErasureIn) (schemas.ErasureOut
 	// anywhere to explain why. A cache that cannot answer is therefore not an error here —
 	// the purge is the guarantee and the tombstone is the fast path (§06).
 	if cache != nil && cache.Ready() {
-		if err := tombstone.Raise(ctx.Context(), cache, projectUID.String(), in.ActorKey,
+		if err := tombstone.Raise(ctx.Context(), cache, projectUID.String(), actorKey,
 			erasureTombstoneLease(ctx)); err != nil {
 			ctx.Logger().Warn("could not raise the erasure tombstone; the purge will remove the data anyway",
 				"request", req.UID, "error", err)
@@ -98,9 +109,7 @@ func SubmitErasure(ctx *muzak.Context, in schemas.ErasureIn) (schemas.ErasureOut
 			req = updated
 		}
 	}
-
-	ctx.SetStatus(http.StatusAccepted)
-	return erasureOut(req), nil
+	return req, nil
 }
 
 // ReadErasure reports where one erasure has got to.
@@ -134,15 +143,23 @@ func ReadErasure(ctx *muzak.Context, in schemas.PrivacyRequestParams) (schemas.E
 // SubmitExport asks for everything held about one actor (§101).
 func SubmitExport(ctx *muzak.Context, in schemas.ExportIn) (schemas.ExportOut, error) {
 	tenant := muzak.From[*core.Tenant](ctx)
-	db := muzak.From[*pgdb.DB](ctx)
-	settings := muzak.From[config.Settings](ctx)
-
 	projectUID, err := uuid.Parse(tenant.ProjectID)
 	if err != nil {
 		return schemas.ExportOut{}, core.AsHTTPError(err)
 	}
+	req, err := submitExport(ctx, projectUID, tenant.ProjectSeq, in.ActorKey, "key "+tenant.KeyPublicID, "")
+	if err != nil {
+		return schemas.ExportOut{}, err
+	}
+	ctx.SetStatus(http.StatusAccepted)
+	return exportOut(req, muzak.From[config.Settings](ctx)), nil
+}
+
+// submitExport records an export, or finds the open one for the same person.
+func submitExport(ctx *muzak.Context, projectUID uuid.UUID, projectSeq uint32, actorKey, by, reference string) (*ent.DataExportRequest, error) {
+	db := muzak.From[*pgdb.DB](ctx)
 	if !db.Ready() {
-		return schemas.ExportOut{}, muzak.ServiceUnavailable(
+		return nil, muzak.ServiceUnavailable(
 			"the database is unavailable; the request was not recorded, so send it again")
 	}
 
@@ -153,15 +170,15 @@ func SubmitExport(ctx *muzak.Context, in schemas.ExportIn) (schemas.ExportOut, e
 	open, err := db.Client.DataDeletionRequest.Query().
 		Where(
 			datadeletionrequest.ProjectUID(projectUID),
-			datadeletionrequest.ActorKey(in.ActorKey),
+			datadeletionrequest.ActorKey(actorKey),
 			datadeletionrequest.StatusNEQ(datadeletionrequest.StatusCompleted),
 		).
 		Exist(ctx.Context())
 	if err != nil {
-		return schemas.ExportOut{}, core.AsHTTPError(err)
+		return nil, core.AsHTTPError(err)
 	}
 	if open {
-		return schemas.ExportOut{}, muzak.Conflict(
+		return nil, muzak.Conflict(
 			"this actor has an erasure in progress, so there is nothing left to export; " +
 				"an access request has to be made before the erasure that answers it").
 			WithCode("erasure_in_progress")
@@ -170,7 +187,7 @@ func SubmitExport(ctx *muzak.Context, in schemas.ExportIn) (schemas.ExportOut, e
 	existing, err := db.Client.DataExportRequest.Query().
 		Where(
 			dataexportrequest.ProjectUID(projectUID),
-			dataexportrequest.ActorKey(in.ActorKey),
+			dataexportrequest.ActorKey(actorKey),
 			dataexportrequest.StatusIn(
 				dataexportrequest.StatusReceived,
 				dataexportrequest.StatusRunning,
@@ -179,23 +196,22 @@ func SubmitExport(ctx *muzak.Context, in schemas.ExportIn) (schemas.ExportOut, e
 		First(ctx.Context())
 	switch {
 	case err == nil:
-		ctx.SetStatus(http.StatusAccepted)
-		return exportOut(existing, settings), nil
+		return existing, nil
 	case !ent.IsNotFound(err):
-		return schemas.ExportOut{}, core.AsHTTPError(err)
+		return nil, core.AsHTTPError(err)
 	}
 
 	req, err := db.Client.DataExportRequest.Create().
 		SetProjectUID(projectUID).
-		SetProjectSeq(tenant.ProjectSeq).
-		SetActorKey(in.ActorKey).
+		SetProjectSeq(projectSeq).
+		SetActorKey(actorKey).
+		SetRequestedBy(by).
+		SetReference(reference).
 		Save(ctx.Context())
 	if err != nil {
-		return schemas.ExportOut{}, core.AsHTTPError(err)
+		return nil, core.AsHTTPError(err)
 	}
-
-	ctx.SetStatus(http.StatusAccepted)
-	return exportOut(req, settings), nil
+	return req, nil
 }
 
 // ReadExport reports whether a bundle is ready, and where to collect it.
@@ -215,12 +231,16 @@ func ReadExport(ctx *muzak.Context, in schemas.PrivacyRequestParams) (schemas.Ex
 // revocable in one place. A signed URL is a second credential with different lifetime rules
 // and no revocation, issued for an object that holds one named person's entire history.
 func DownloadExport(ctx *muzak.Context, in schemas.PrivacyRequestParams) (muzak.Empty, error) {
-	store := muzak.From[blobstore.Store](ctx)
-
 	req, err := findExport(ctx, in.RequestID)
 	if err != nil {
 		return muzak.Empty{}, err
 	}
+	return streamExport(ctx, req)
+}
+
+// streamExport writes one bundle to the response.
+func streamExport(ctx *muzak.Context, req *ent.DataExportRequest) (muzak.Empty, error) {
+	store := muzak.From[blobstore.Store](ctx)
 	if req.Status != dataexportrequest.StatusCompleted || req.ObjectPath == "" {
 		return muzak.Empty{}, muzak.Conflict(
 			"this export is " + string(req.Status) + "; there is nothing to download yet").

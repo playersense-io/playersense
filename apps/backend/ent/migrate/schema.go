@@ -395,6 +395,8 @@ var (
 		{Name: "project_uid", Type: field.TypeUUID, Comment: "class=none"},
 		{Name: "project_seq", Type: field.TypeUint32, Comment: "class=none"},
 		{Name: "actor_key", Type: field.TypeString, Size: 128, Comment: "class=identifier"},
+		{Name: "requested_by", Type: field.TypeString, Size: 254, Comment: "class=none", Default: ""},
+		{Name: "reference", Type: field.TypeString, Size: 200, Comment: "class=none", Default: ""},
 		{Name: "status", Type: field.TypeEnum, Comment: "class=none", Enums: []string{"received", "tombstoned", "purging", "completed", "failed"}, Default: "received"},
 		{Name: "tombstoned_at", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
 		{Name: "archive_cursor", Type: field.TypeInt, Comment: "class=none", Default: 0},
@@ -418,7 +420,7 @@ var (
 			{
 				Name:    "datadeletionrequest_status",
 				Unique:  false,
-				Columns: []*schema.Column{DataDeletionRequestsColumns[7]},
+				Columns: []*schema.Column{DataDeletionRequestsColumns[9]},
 			},
 		},
 	}
@@ -431,6 +433,8 @@ var (
 		{Name: "project_uid", Type: field.TypeUUID, Comment: "class=none"},
 		{Name: "project_seq", Type: field.TypeUint32, Comment: "class=none"},
 		{Name: "actor_key", Type: field.TypeString, Size: 128, Comment: "class=identifier"},
+		{Name: "requested_by", Type: field.TypeString, Size: 254, Comment: "class=none", Default: ""},
+		{Name: "reference", Type: field.TypeString, Size: 200, Comment: "class=none", Default: ""},
 		{Name: "status", Type: field.TypeEnum, Comment: "class=none", Enums: []string{"received", "running", "completed", "failed", "expired"}, Default: "received"},
 		{Name: "bucket", Type: field.TypeString, Nullable: true, Size: 255, Comment: "class=none"},
 		{Name: "object_path", Type: field.TypeString, Nullable: true, Size: 1024, Comment: "class=none"},
@@ -454,7 +458,7 @@ var (
 			{
 				Name:    "dataexportrequest_status",
 				Unique:  false,
-				Columns: []*schema.Column{DataExportRequestsColumns[7]},
+				Columns: []*schema.Column{DataExportRequestsColumns[9]},
 			},
 		},
 	}
