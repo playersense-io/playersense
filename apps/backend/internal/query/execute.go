@@ -21,6 +21,7 @@ type Engine struct {
 	ch     *chdb.Conn
 	cache  *Cache
 	limits Limits
+	raw    Limits
 	k      int
 }
 
@@ -32,7 +33,15 @@ func NewEngine(conn *chdb.Conn, limits Limits, threshold int) *Engine {
 	if threshold <= 0 {
 		threshold = DefaultThreshold
 	}
-	return &Engine{ch: conn, limits: limits, k: threshold}
+	return &Engine{ch: conn, limits: limits, raw: DefaultRawLimits(), k: threshold}
+}
+
+// WithRawLimits sets the ceilings for reads of events_raw itself.
+func (e *Engine) WithRawLimits(limits Limits) *Engine {
+	if limits.MaxRows > 0 {
+		e.raw = limits
+	}
+	return e
 }
 
 // WithCache attaches §58's result cache. An engine without one answers every query from
@@ -141,17 +150,29 @@ func (e *Engine) Run(ctx context.Context, scope Scope, q protocol.CohortQuery) (
 // refused by ClickHouse rather than served slowly, which is the behaviour §80's latency
 // targets actually need.
 func (e *Engine) bound(ctx context.Context) context.Context {
-	return clickhouse.Context(ctx, clickhouse.WithSettings(clickhouse.Settings{
-		"max_execution_time":   e.limits.seconds(),
-		"max_rows_to_read":     e.limits.MaxRowsToRead,
-		"max_bytes_to_read":    e.limits.MaxBytesToRead,
-		"max_result_rows":      uint64(e.limits.MaxRows),
+	return boundBy(ctx, e.limits, nil)
+}
+
+// boundBy attaches one set of limits, and any settings a particular read needs beside them.
+func boundBy(ctx context.Context, limits Limits, extra clickhouse.Settings) context.Context {
+	settings := clickhouse.Settings{
+		"max_execution_time":   limits.seconds(),
+		"max_rows_to_read":     limits.MaxRowsToRead,
+		"max_bytes_to_read":    limits.MaxBytesToRead,
+		"max_result_rows":      uint64(limits.MaxRows),
 		"result_overflow_mode": "throw",
 		// The credential this runs under is a reporting key, which reads and never writes
 		// (§52). Saying so to ClickHouse as well means a statement that somehow acquired a
 		// mutation is refused by the server rather than trusted to be harmless.
 		"readonly": 1,
-	}))
+	}
+	if limits.MaxMemoryUsage > 0 {
+		settings["max_memory_usage"] = limits.MaxMemoryUsage
+	}
+	for k, v := range extra {
+		settings[k] = v
+	}
+	return clickhouse.Context(ctx, clickhouse.WithSettings(settings))
 }
 
 type sizeKey struct {

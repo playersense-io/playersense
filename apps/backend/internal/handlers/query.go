@@ -55,6 +55,7 @@ func QueryMetrics(ctx *muzak.Context, in schemas.MetricQueryIn) (protocol.Metric
 // scopeOf builds the scope from a resolved reporting key (§69, Appendix C #3).
 func scopeOf(tenant *core.Tenant) query.Scope {
 	return query.Scope{
+		OrgSeq:         tenant.OrgSeq,
 		ProjectSeq:     tenant.ProjectSeq,
 		EnvironmentSeq: tenant.EnvironmentSeq,
 		PolicyTier:     tenant.PolicyTier,
@@ -71,7 +72,8 @@ func scopeOf(tenant *core.Tenant) query.Scope {
 // the access list already granted.
 func scopeForMember(ctx *muzak.Context, environment string) (query.Scope, error) {
 	db := muzak.From[*core.DB](ctx)
-	proj := muzak.From[*core.Principal](ctx).Project
+	principal := muzak.From[*core.Principal](ctx)
+	proj := principal.Project
 
 	env, err := db.Client.Environment.Query().
 		Where(environmentpkg.ProjectID(proj.ID),
@@ -86,6 +88,7 @@ func scopeForMember(ctx *muzak.Context, environment string) (query.Scope, error)
 	}
 
 	return query.Scope{
+		OrgSeq:         uint32(principal.Organization.ID),
 		ProjectSeq:     uint32(proj.ID),
 		EnvironmentSeq: uint16(env.ID),
 		PolicyTier:     string(proj.PolicyTier),

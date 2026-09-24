@@ -230,6 +230,19 @@ type Settings struct {
 	QueryMaxRowsToRead  uint64 `env:"QUERY_MAX_ROWS_TO_READ" default:"200000000"`
 	QueryMaxBytesToRead uint64 `env:"QUERY_MAX_BYTES_TO_READ" default:"4294967296"`
 
+	// QueryMaxMemoryUsage bounds what one dashboard statement may hold in memory. Above half of
+	// it, ClickHouse spills a GROUP BY or a sort to disk rather than growing, so a heavy question
+	// gets slower instead of taking the node's memory from ingestion.
+	QueryMaxMemoryUsage uint64 `env:"QUERY_MAX_MEMORY_USAGE" default:"2147483648"`
+
+	// The ceilings for the few reads that go to events_raw itself: a player's timeline, an event's
+	// latest occurrences, a funnel. Tighter than the summaries' on rows, looser on memory, because
+	// a funnel decides per player and a raw read has nothing pre-aggregated to lean on (§26, §31).
+	QueryRawMaxRowsToRead  uint64        `env:"QUERY_RAW_MAX_ROWS_TO_READ" default:"100000000"`
+	QueryRawMaxBytesToRead uint64        `env:"QUERY_RAW_MAX_BYTES_TO_READ" default:"8589934592"`
+	QueryRawMaxMemoryUsage uint64        `env:"QUERY_RAW_MAX_MEMORY_USAGE" default:"4294967296"`
+	QueryRawMaxExecution   time.Duration `env:"QUERY_RAW_MAX_EXECUTION_TIME" default:"20s"`
+
 	// ArchiveWriterAddr is where the archive writer serves its health probe. It has no API.
 	ArchiveWriterAddr string `env:"ARCHIVE_WRITER_ADDR" default:":21084"`
 

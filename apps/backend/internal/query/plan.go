@@ -17,6 +17,9 @@ import (
 // path that compiles a statement without them, because Compile cannot be called without a
 // Scope and every builder it creates is given one before anything else.
 type Scope struct {
+	// OrgSeq leads events_raw's sort key, so a raw read without it scans every tenant's
+	// granules for the day. The summaries are keyed on the project alone.
+	OrgSeq         uint32
 	ProjectSeq     uint32
 	EnvironmentSeq uint16
 
@@ -91,6 +94,11 @@ type Limits struct {
 	// actually protects the node: a query returning ten rows can still read the table.
 	MaxRowsToRead  uint64
 	MaxBytesToRead uint64
+
+	// MaxMemoryUsage bounds what the statement may hold. Zero leaves the server's own limit.
+	// ClickHouse spills a GROUP BY and a sort to disk from half of it
+	// (max_bytes_ratio_before_external_group_by), so reaching it is slow rather than fatal.
+	MaxMemoryUsage uint64
 }
 
 // DefaultLimits are the ceilings a cohort read runs under.
@@ -105,6 +113,20 @@ func DefaultLimits() Limits {
 		MaxExecutionTime: 10 * time.Second,
 		MaxRowsToRead:    200_000_000,
 		MaxBytesToRead:   4 << 30,
+		MaxMemoryUsage:   2 << 30,
+	}
+}
+
+// DefaultRawLimits are the ceilings for the reads that go to events_raw (§26: a player timeline,
+// an ad hoc question). Every one of them is also bounded by the tenant key prefix and a day
+// range in the statement itself; these are what hold if that was not enough.
+func DefaultRawLimits() Limits {
+	return Limits{
+		MaxRows:          50_000,
+		MaxExecutionTime: 20 * time.Second,
+		MaxRowsToRead:    100_000_000,
+		MaxBytesToRead:   8 << 30,
+		MaxMemoryUsage:   4 << 30,
 	}
 }
 

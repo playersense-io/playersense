@@ -116,5 +116,6 @@ func Analytics() *muzak.Router {
 			"The summaries cannot answer this question, and the body explains why"),
 		muzak.WithResponseDoc(http.StatusServiceUnavailable, "The summaries could not be read"))
 
+	explorer(r, base)
 	return r
 }

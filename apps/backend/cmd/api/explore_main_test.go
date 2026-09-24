@@ -1,0 +1,294 @@
+package main
+
+import (
+	"context"
+	"net/http"
+	"net/url"
+	"testing"
+	"time"
+
+	"github.com/google/uuid"
+	"muzak.dev/framework/testclient"
+
+	"playersense.dev/backend/internal/schemas"
+)
+
+// The explorer's pages, against the real stack: rows go into events_raw, every materialized
+// view behind it fires, the nightly derivation runs, and the answer comes back through the
+// dashboard's own routes with a signed-in person's credential.
+
+// rawEvent is one row as analytics-writer would have stored it.
+type rawEvent struct {
+	install  string
+	player   string
+	session  string
+	name     string
+	kind     string
+	platform string
+	country  string
+	version  string
+	at       time.Time
+	cohort   time.Time
+
+	revenue  int64
+	currency string
+	playtime uint64
+
+	strs  map[string]string
+	ints  map[string]int64
+	bools map[string]uint8
+}
+
+// insert writes rows straight into events_raw, for the same reason seedCurve does: the cohort day
+// is the server's ingest time, so a history can only be seeded by controlling it.
+func (r *reporting) insert(t *testing.T, rows []rawEvent) {
+	t.Helper()
+	conn, err := r.ch.DB()
+	if err != nil {
+		t.Fatalf("clickhouse: %v", err)
+	}
+	batch, err := conn.PrepareBatch(context.Background(), `INSERT INTO events_raw (
+		org_seq, project_seq, environment_seq, org_id, project_id, environment_id,
+		retention_tier, policy_tier, event_time, ingest_time, received_at,
+		event_id, batch_id, session_id, player_id, install_id,
+		event_name, event_type, platform, country_code, app_version, sdk_name, sdk_version,
+		cohort_date, install_platform, install_country, first_app_version,
+		consent_analytics, consent_policy_version, att_status,
+		props_string, props_int, props_float, props_bool,
+		revenue_micros, currency, playtime_ms, payload_bytes)`)
+	if err != nil {
+		t.Fatalf("prepare seed: %v", err)
+	}
+	for _, e := range rows {
+		var player *string
+		if e.player != "" {
+			player = &e.player
+		}
+		var currency *string
+		if e.currency != "" {
+			currency = &e.currency
+		}
+		kind := e.kind
+		if kind == "" {
+			kind = "custom"
+		}
+		cohort := e.cohort
+		if cohort.IsZero() {
+			cohort = e.at.Truncate(24 * time.Hour)
+		}
+		if err := batch.Append(
+			uint32(r.project.OrgSeq), uint32(r.project.ProjectSeq), uint16(r.project.EnvironmentID),
+			uuid.New(), uuid.MustParse(r.project.ProjectUID), uuid.New(),
+			uint16(30), "standard", e.at, e.at, e.at,
+			uuid.New(), uuid.New(), e.session, player, uuid.MustParse(e.install),
+			e.name, kind, e.platform, e.country, e.version, "unity", "1.4.0",
+			cohort, e.platform, e.country, e.version,
+			uint8(1), "2026-01-15", "not_determined",
+			orEmpty(e.strs), orEmptyInt(e.ints), map[string]float64{}, orEmptyBool(e.bools),
+			e.revenue, currency, e.playtime, uint32(256),
+		); err != nil {
+			t.Fatalf("append seed row: %v", err)
+		}
+	}
+	if err := batch.Send(); err != nil {
+		t.Fatalf("send seed: %v", err)
+	}
+}
+
+func orEmpty(m map[string]string) map[string]string {
+	if m == nil {
+		return map[string]string{}
+	}
+	return m
+}
+
+func orEmptyInt(m map[string]int64) map[string]int64 {
+	if m == nil {
+		return map[string]int64{}
+	}
+	return m
+}
+
+func orEmptyBool(m map[string]uint8) map[string]uint8 {
+	if m == nil {
+		return map[string]uint8{}
+	}
+	return m
+}
+
+// get reads one explorer page as the given client and decodes it.
+func get[T any](t *testing.T, client *testclient.Client, path string, params url.Values, want int) T {
+	t.Helper()
+	if len(params) > 0 {
+		path += "?" + params.Encode()
+	}
+	res := client.Get(path)
+	res.AssertStatus(want)
+	var out T
+	if want == http.StatusOK {
+		res.JSON(&out)
+	}
+	return out
+}
+
+// yesterday is a whole day in the past, so nothing a test posts now falls into it by accident.
+func yesterday() time.Time { return time.Now().UTC().Truncate(24*time.Hour).AddDate(0, 0, -1) }
+
+func day(t time.Time) string { return t.Format("2006-01-02") }
+
+// levelEvents is six players completing a level yesterday, four on iOS and two on Android, and two
+// players sending an event rare enough that its player count identifies them.
+func (r *reporting) levelEvents(t *testing.T) []string {
+	t.Helper()
+	at := yesterday().Add(10 * time.Hour)
+	installs := make([]string, 6)
+	var rows []rawEvent
+	for i := range installs {
+		installs[i] = uuid.NewString()
+		platform := "ios"
+		if i >= 4 {
+			platform = "android"
+		}
+		level := int64(3)
+		if i%2 == 1 {
+			level = 4
+		}
+		rows = append(rows, rawEvent{
+			install: installs[i], session: "s-" + installs[i][:8], name: "level_complete",
+			platform: platform, country: "TR", version: "2.7.1", at: at.Add(time.Duration(i) * time.Minute),
+			ints: map[string]int64{"level": level},
+		})
+	}
+	for _, install := range installs[:2] {
+		rows = append(rows, rawEvent{
+			install: install, name: "rare_event", platform: "ios", country: "TR", version: "2.7.1",
+			at: at.Add(time.Hour),
+		})
+	}
+	r.insert(t, rows)
+	if got := r.waitForRows(t, len(rows)); got != len(rows) {
+		t.Fatalf("seeded %d of %d rows", got, len(rows))
+	}
+	return installs
+}
+
+func (r *reporting) yesterdayOnly() url.Values {
+	return url.Values{"from": {day(yesterday())}, "to": {day(yesterday())}}
+}
+
+// TestTheEventCatalogueListsEveryEvent, with a count too thin to show withheld rather than
+// zeroed.
+func TestTheEventCatalogueListsEveryEvent(t *testing.T) {
+	r := newReporting(t, "standard")
+	r.levelEvents(t)
+
+	out := get[schemas.EventCatalogueOut](t, r.member, r.analytics()+"/events", r.yesterdayOnly(), http.StatusOK)
+	byName := map[string]schemas.EventSummaryOut{}
+	for _, e := range out.Events {
+		byName[e.Name] = e
+	}
+
+	level, ok := byName["level_complete"]
+	if !ok {
+		t.Fatalf("level_complete is missing from %+v", out.Events)
+	}
+	if level.Events != 6 || level.Players == nil || *level.Players != 6 || level.Properties != 1 {
+		t.Fatalf("level_complete: %+v, want 6 events by 6 players carrying 1 property", level)
+	}
+	if level.PreviousEvents != 0 {
+		t.Fatalf("level_complete has %d events the day before; it was sent once", level.PreviousEvents)
+	}
+
+	rare := byName["rare_event"]
+	if rare.Events != 2 || rare.Players != nil {
+		t.Fatalf("rare_event: %+v, want 2 events and its 2 players withheld", rare)
+	}
+	if out.SuppressedCells == 0 || out.SuppressionThreshold != 5 {
+		t.Fatalf("withheld %d cells under %d; the answer must say so", out.SuppressedCells, out.SuppressionThreshold)
+	}
+	if !out.Approximate {
+		t.Fatal("player counts from sketches are not marked approximate")
+	}
+}
+
+// TestAnEventsPageSplitsItAndDescribesItsProperties.
+func TestAnEventsPageSplitsItAndDescribesItsProperties(t *testing.T) {
+	r := newReporting(t, "standard")
+	r.levelEvents(t)
+
+	out := get[schemas.EventDetailOut](t, r.member, r.analytics()+"/events/level_complete", r.yesterdayOnly(), http.StatusOK)
+	if out.Totals.Events != 6 || out.Totals.Players == nil || *out.Totals.Players != 6 {
+		t.Fatalf("totals %+v, want 6 events by 6 players", out.Totals)
+	}
+	if len(out.Series) != 1 || out.Series[0].Events != 6 {
+		t.Fatalf("a one-day range at a day interval is %+v, want one bucket of 6", out.Series)
+	}
+
+	platforms := map[string]schemas.EventSliceOut{}
+	for _, s := range out.Breakdowns["platform"] {
+		platforms[s.Value] = s
+	}
+	if ios := platforms["ios"]; ios.Events != 4 || ios.Players != nil {
+		// Four is under the threshold of five, so the players are withheld; the count of
+		// events is a count of occurrences, not of people, and stays.
+		t.Fatalf("ios: %+v, want 4 events with the players withheld", ios)
+	}
+	if android := platforms["android"]; android.Events != 2 {
+		t.Fatalf("android: %+v, want 2 events", android)
+	}
+
+	if len(out.Properties) != 1 {
+		t.Fatalf("properties %+v, want level alone", out.Properties)
+	}
+	level := out.Properties[0]
+	if level.Key != "level" || level.Type != "int" || level.Occurrences != 6 || level.Fill != 1 || level.Distinct != 2 {
+		t.Fatalf("level: %+v, want an int on every occurrence with 2 distinct values", level)
+	}
+	shares := map[string]float64{}
+	for _, v := range level.Top {
+		shares[v.Value] = v.Share
+	}
+	if shares["3"] != 0.5 || shares["4"] != 0.5 {
+		t.Fatalf("level's top values %+v, want 3 and 4 half each", level.Top)
+	}
+
+	get[schemas.EventDetailOut](t, r.member, r.analytics()+"/events/never_sent", r.yesterdayOnly(), http.StatusNotFound)
+
+	long := url.Values{"from": {day(yesterday().AddDate(0, 0, -20))}, "to": {day(yesterday())}, "interval": {"hour"}}
+	get[schemas.EventDetailOut](t, r.member, r.analytics()+"/events/level_complete", long, http.StatusUnprocessableEntity)
+}
+
+// TestAnEventsOccurrencesNeedPlayerRead is the line between the numbers and the players.
+func TestAnEventsOccurrencesNeedPlayerRead(t *testing.T) {
+	r := newReporting(t, "standard")
+	installs := r.levelEvents(t)
+
+	out := get[schemas.EventOccurrencesOut](t, r.member, r.analytics()+"/events/level_complete/occurrences",
+		url.Values{"limit": {"3"}}, http.StatusOK)
+	if len(out.Occurrences) != 3 {
+		t.Fatalf("%d occurrences, want the newest 3", len(out.Occurrences))
+	}
+	newest := out.Occurrences[0]
+	if newest.InstallID != installs[5] || newest.Properties["level"] != float64(4) {
+		t.Fatalf("the newest occurrence is %+v, want the last install's level 4", newest)
+	}
+
+	numbers := r.numbersOnly(t)
+	get[schemas.EventOccurrencesOut](t, numbers, r.analytics()+"/events/level_complete/occurrences", nil, http.StatusForbidden)
+	// The same person still reads the aggregates.
+	get[schemas.EventCatalogueOut](t, numbers, r.analytics()+"/events", r.yesterdayOnly(), http.StatusOK)
+}
+
+// numbersOnly is a member whose role reads analytics and not players.
+func (r *reporting) numbersOnly(t *testing.T) *testclient.Client {
+	t.Helper()
+	const key = "numbers_only"
+	if _, err := r.db.Client.Role.Create().
+		SetOrganizationID(r.project.OrgSeq).
+		SetKey(key).SetName("Numbers only").
+		SetPermissions([]string{"analytics.read"}).
+		Save(context.Background()); err != nil {
+		t.Fatalf("create the role: %v", err)
+	}
+	return r.join(t, key)
+}

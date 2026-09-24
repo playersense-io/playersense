@@ -1,0 +1,51 @@
+package routers
+
+import (
+	"net/http"
+
+	muzak "muzak.dev/framework"
+
+	"playersense.dev/backend/internal/authz"
+	"playersense.dev/backend/internal/core"
+	"playersense.dev/backend/internal/handlers"
+)
+
+// explorer adds the dashboard's page reads to the analytics router (project.md §55).
+//
+// GET rather than §57's POST, because each is a page rather than a document: a range, a name, a
+// filter or two, all of which fit a query string a browser can bookmark.
+//
+// Two permissions, and the line between them is whether the answer names a player. The counts,
+// the splits and the curves need analytics.read and withhold any count of people below the
+// suppression threshold. Anything listing individual players, their identifiers or their events
+// needs player.read as well, which a studio can leave out of a role (authz.PlayerRead).
+func explorer(r *muzak.Router, base string) {
+	unreadable := muzak.WithResponseDoc(http.StatusServiceUnavailable, "The facts could not be read")
+	refused := muzak.WithResponseDoc(http.StatusUnprocessableEntity,
+		"The facts cannot answer this question, and the body explains why")
+
+	r.Get(base+"/events", handlers.EventCatalogue,
+		muzak.Summary("List every event the game sends"),
+		muzak.Description("Each event name the project has sent, with its count and players over the "+
+			"range and the range before it, when it was first and last accepted, and how many "+
+			"property keys it carried. Read from event_names, events_daily and "+
+			"event_properties_daily; nothing reads events_raw."),
+		core.Require(authz.AnalyticsRead),
+		unreadable)
+
+	r.Get(base+"/events/{name}", handlers.EventDetail,
+		muzak.Summary("Describe one event"),
+		muzak.Description("One event's series against the previous range, its split by the platform, "+
+			"country and build it arrived with, and what each of its properties held: how often it "+
+			"was filled, how many distinct values it had, and its most frequent ones."),
+		core.Require(authz.AnalyticsRead),
+		muzak.WithResponseDoc(http.StatusNotFound, "The project has never sent this event"),
+		refused, unreadable)
+
+	r.Get(base+"/events/{name}/occurrences", handlers.EventOccurrences,
+		muzak.Summary("List an event's latest occurrences"),
+		muzak.Description("The newest occurrences from the last seven days, whole: who sent them, "+
+			"on what, and every property. Names players, so it needs player.read."),
+		core.Require(authz.AnalyticsRead, authz.PlayerRead),
+		unreadable)
+}

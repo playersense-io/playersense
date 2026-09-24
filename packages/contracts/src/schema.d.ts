@@ -775,6 +775,66 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/v1/organizations/{org}/projects/{project}/analytics/{environment}/events": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * List every event the game sends
+         * @description Each event name the project has sent, with its count and players over the range and the range before it, when it was first and last accepted, and how many property keys it carried. Read from event_names, events_daily and event_properties_daily; nothing reads events_raw.
+         */
+        readonly get: operations["get_v1_organizations_by_org_projects_by_project_analytics_by_environment_events"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/organizations/{org}/projects/{project}/analytics/{environment}/events/{name}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * Describe one event
+         * @description One event's series against the previous range, its split by the platform, country and build it arrived with, and what each of its properties held: how often it was filled, how many distinct values it had, and its most frequent ones.
+         */
+        readonly get: operations["get_v1_organizations_by_org_projects_by_project_analytics_by_environment_events_by_name"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/organizations/{org}/projects/{project}/analytics/{environment}/events/{name}/occurrences": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * List an event's latest occurrences
+         * @description The newest occurrences from the last seven days, whole: who sent them, on what, and every property. Names players, so it needs player.read.
+         */
+        readonly get: operations["get_v1_organizations_by_org_projects_by_project_analytics_by_environment_events_by_name_occurrences"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/v1/organizations/{org}/projects/{project}/analytics/{environment}/metrics/query": {
         readonly parameters: {
             readonly query?: never;
@@ -1769,6 +1829,130 @@ export interface components {
             readonly sequence?: number;
             readonly session_id?: string;
         };
+        readonly EventBucketOut: {
+            /** Format: date-time */
+            readonly at: string;
+            /** Format: int64 */
+            readonly events: number;
+            /** Format: int64 */
+            readonly players?: number | null;
+            /** Format: int64 */
+            readonly previous_events: number;
+        };
+        readonly EventCatalogueOut: {
+            readonly approximate: boolean;
+            readonly events: readonly components["schemas"]["EventSummaryOut"][];
+            /** Format: date-time */
+            readonly from: string;
+            /** Format: int64 */
+            readonly suppressed_cells: number;
+            /** Format: int64 */
+            readonly suppression_threshold: number;
+            /** Format: date-time */
+            readonly to: string;
+        };
+        readonly EventDetailOut: {
+            readonly approximate: boolean;
+            readonly breakdowns: {
+                readonly [key: string]: readonly components["schemas"]["EventSliceOut"][];
+            };
+            /** Format: date-time */
+            readonly first_seen: string;
+            /** Format: date-time */
+            readonly from: string;
+            readonly interval: string;
+            /** Format: date-time */
+            readonly last_seen: string;
+            readonly name: string;
+            readonly properties: readonly components["schemas"]["EventPropertyOut"][];
+            /** @description Every bucket of the range, with the same bucket of the range before */
+            readonly series: readonly components["schemas"]["EventBucketOut"][];
+            /** Format: int64 */
+            readonly suppressed_cells: number;
+            /** Format: int64 */
+            readonly suppression_threshold: number;
+            /** Format: date-time */
+            readonly to: string;
+            readonly totals: components["schemas"]["EventTotalsOut"];
+            readonly type: string;
+        };
+        readonly EventOccurrenceOut: {
+            readonly app_version: string;
+            /** Format: date-time */
+            readonly at: string;
+            readonly country?: string;
+            readonly currency?: string;
+            readonly event_id: string;
+            readonly install_id: string;
+            readonly name: string;
+            readonly platform: string;
+            readonly player_id?: string;
+            readonly properties?: {
+                readonly [key: string]: unknown;
+            };
+            /** Format: date-time */
+            readonly received_at: string;
+            /** Format: int64 */
+            readonly revenue_micros?: number;
+            readonly session_id?: string;
+        };
+        readonly EventOccurrencesOut: {
+            readonly occurrences: readonly components["schemas"]["EventOccurrenceOut"][];
+        };
+        readonly EventPropertyOut: {
+            /**
+             * Format: int64
+             * @description Distinct values, from a sketch
+             */
+            readonly distinct: number;
+            /**
+             * Format: double
+             * @description The share of the event's occurrences that carried it
+             */
+            readonly fill: number;
+            readonly key: string;
+            /** Format: int64 */
+            readonly occurrences: number;
+            readonly top: readonly components["schemas"]["TopValueOut"][];
+            /** @description string, int, float or bool */
+            readonly type: string;
+        };
+        readonly EventSliceOut: {
+            /** Format: int64 */
+            readonly events: number;
+            /** Format: int64 */
+            readonly players?: number | null;
+            readonly value: string;
+        };
+        readonly EventSummaryOut: {
+            /** Format: int64 */
+            readonly events: number;
+            /** Format: date-time */
+            readonly first_seen: string;
+            /** Format: date-time */
+            readonly last_seen: string;
+            readonly name: string;
+            /** Format: int64 */
+            readonly players?: number | null;
+            /** Format: int64 */
+            readonly previous_events: number;
+            /** Format: int64 */
+            readonly previous_players?: number | null;
+            /** Format: int64 */
+            readonly properties: number;
+            /** @description custom, session, purchase or exposure, as ingest classified it */
+            readonly type: string;
+        };
+        readonly EventTotalsOut: {
+            /** Format: int64 */
+            readonly events: number;
+            /** Format: int64 */
+            readonly players?: number | null;
+            /** Format: int64 */
+            readonly previous_events: number;
+            /** Format: int64 */
+            readonly previous_players?: number | null;
+        };
         readonly ExcludedOut: {
             readonly key: string;
             /** @description segment, flag or liveops_event */
@@ -2505,6 +2689,16 @@ export interface components {
              * @description The last, inclusive; absent on the last band
              */
             readonly up_to?: number | null;
+        };
+        readonly TopValueOut: {
+            /** Format: int64 */
+            readonly count: number;
+            /**
+             * Format: double
+             * @description Of the property's occurrences
+             */
+            readonly share: number;
+            readonly value: string;
         };
         readonly UsageByProjectOut: {
             readonly project: components["schemas"]["ProjectRefOut"];
@@ -6130,6 +6324,260 @@ export interface operations {
                 };
             };
             /** @description The cohort facts could not be read */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly get_v1_organizations_by_org_projects_by_project_analytics_by_environment_events: {
+        readonly parameters: {
+            readonly query?: {
+                /** @description YYYY-MM-DD, inclusive. Defaults to six days before to */
+                readonly from?: string;
+                /** @description YYYY-MM-DD, inclusive. Defaults to today (UTC) */
+                readonly to?: string;
+            };
+            readonly header?: never;
+            readonly path: {
+                readonly org: string;
+                readonly project: string;
+                /** @description development, staging or production */
+                readonly environment: "development" | "staging" | "production";
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["EventCatalogueOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not read this project's analytics */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The organization, project or environment does not exist, or you cannot see it */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The facts could not be read */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly get_v1_organizations_by_org_projects_by_project_analytics_by_environment_events_by_name: {
+        readonly parameters: {
+            readonly query?: {
+                /** @description YYYY-MM-DD, inclusive. Defaults to six days before to */
+                readonly from?: string;
+                /** @description YYYY-MM-DD, inclusive. Defaults to today (UTC) */
+                readonly to?: string;
+                /** @description hour or day (default) */
+                readonly interval?: "hour" | "day";
+            };
+            readonly header?: never;
+            readonly path: {
+                readonly org: string;
+                readonly project: string;
+                /** @description development, staging or production */
+                readonly environment: "development" | "staging" | "production";
+                readonly name: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["EventDetailOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not read this project's analytics */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The project has never sent this event */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The facts cannot answer this question, and the body explains why */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The facts could not be read */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly get_v1_organizations_by_org_projects_by_project_analytics_by_environment_events_by_name_occurrences: {
+        readonly parameters: {
+            readonly query?: {
+                /** @description Newest first, up to 100 */
+                readonly limit?: number;
+            };
+            readonly header?: never;
+            readonly path: {
+                readonly org: string;
+                readonly project: string;
+                /** @description development, staging or production */
+                readonly environment: "development" | "staging" | "production";
+                readonly name: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["EventOccurrencesOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not read this project's analytics */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The organization, project or environment does not exist, or you cannot see it */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The facts could not be read */
             readonly 503: {
                 headers: {
                     readonly [name: string]: unknown;

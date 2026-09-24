@@ -4763,6 +4763,432 @@
         }
       }
     },
+    "/v1/organizations/{org}/projects/{project}/analytics/{environment}/events": {
+      "get": {
+        "tags": [
+          "reporting"
+        ],
+        "summary": "List every event the game sends",
+        "description": "Each event name the project has sent, with its count and players over the range and the range before it, when it was first and last accepted, and how many property keys it carried. Read from event_names, events_daily and event_properties_daily; nothing reads events_raw.",
+        "operationId": "get_v1_organizations_by_org_projects_by_project_analytics_by_environment_events",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "project",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "environment",
+            "in": "path",
+            "description": "development, staging or production",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "development",
+                "staging",
+                "production"
+              ]
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "description": "YYYY-MM-DD, inclusive. Defaults to six days before to",
+            "schema": {
+              "type": "string",
+              "maxLength": 10
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "description": "YYYY-MM-DD, inclusive. Defaults to today (UTC)",
+            "schema": {
+              "type": "string",
+              "maxLength": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventCatalogueOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not read this project's analytics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The organization, project or environment does not exist, or you cannot see it",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The facts could not be read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/organizations/{org}/projects/{project}/analytics/{environment}/events/{name}": {
+      "get": {
+        "tags": [
+          "reporting"
+        ],
+        "summary": "Describe one event",
+        "description": "One event's series against the previous range, its split by the platform, country and build it arrived with, and what each of its properties held: how often it was filled, how many distinct values it had, and its most frequent ones.",
+        "operationId": "get_v1_organizations_by_org_projects_by_project_analytics_by_environment_events_by_name",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "project",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "environment",
+            "in": "path",
+            "description": "development, staging or production",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "development",
+                "staging",
+                "production"
+              ]
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "description": "YYYY-MM-DD, inclusive. Defaults to six days before to",
+            "schema": {
+              "type": "string",
+              "maxLength": 10
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "description": "YYYY-MM-DD, inclusive. Defaults to today (UTC)",
+            "schema": {
+              "type": "string",
+              "maxLength": 10
+            }
+          },
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 96
+            }
+          },
+          {
+            "name": "interval",
+            "in": "query",
+            "description": "hour or day (default)",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "hour",
+                "day"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventDetailOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not read this project's analytics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The project has never sent this event",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The facts cannot answer this question, and the body explains why",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The facts could not be read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/organizations/{org}/projects/{project}/analytics/{environment}/events/{name}/occurrences": {
+      "get": {
+        "tags": [
+          "reporting"
+        ],
+        "summary": "List an event's latest occurrences",
+        "description": "The newest occurrences from the last seven days, whole: who sent them, on what, and every property. Names players, so it needs player.read.",
+        "operationId": "get_v1_organizations_by_org_projects_by_project_analytics_by_environment_events_by_name_occurrences",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "project",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "environment",
+            "in": "path",
+            "description": "development, staging or production",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "development",
+                "staging",
+                "production"
+              ]
+            }
+          },
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 96
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Newest first, up to 100",
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "default": "25",
+              "minimum": 1,
+              "maximum": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventOccurrencesOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not read this project's analytics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The organization, project or environment does not exist, or you cannot see it",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The facts could not be read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/organizations/{org}/projects/{project}/analytics/{environment}/metrics/query": {
       "post": {
         "tags": [
@@ -9711,6 +10137,375 @@
           "event_time"
         ]
       },
+      "EventBucketOut": {
+        "type": "object",
+        "properties": {
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "events": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "players": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "previous_events": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "at",
+          "events",
+          "previous_events"
+        ]
+      },
+      "EventCatalogueOut": {
+        "type": "object",
+        "properties": {
+          "approximate": {
+            "type": "boolean"
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EventSummaryOut"
+            }
+          },
+          "from": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "suppressed_cells": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "suppression_threshold": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "to": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "approximate",
+          "events",
+          "from",
+          "suppressed_cells",
+          "suppression_threshold",
+          "to"
+        ]
+      },
+      "EventDetailOut": {
+        "type": "object",
+        "properties": {
+          "approximate": {
+            "type": "boolean"
+          },
+          "breakdowns": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/EventSliceOut"
+              }
+            }
+          },
+          "first_seen": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "from": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "interval": {
+            "type": "string"
+          },
+          "last_seen": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "name": {
+            "type": "string"
+          },
+          "properties": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EventPropertyOut"
+            }
+          },
+          "series": {
+            "type": "array",
+            "description": "Every bucket of the range, with the same bucket of the range before",
+            "items": {
+              "$ref": "#/components/schemas/EventBucketOut"
+            }
+          },
+          "suppressed_cells": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "suppression_threshold": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "to": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/EventTotalsOut"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "approximate",
+          "breakdowns",
+          "first_seen",
+          "from",
+          "interval",
+          "last_seen",
+          "name",
+          "properties",
+          "series",
+          "suppressed_cells",
+          "suppression_threshold",
+          "to",
+          "totals",
+          "type"
+        ]
+      },
+      "EventOccurrenceOut": {
+        "type": "object",
+        "properties": {
+          "app_version": {
+            "type": "string"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "country": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "event_id": {
+            "type": "string"
+          },
+          "install_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "platform": {
+            "type": "string"
+          },
+          "player_id": {
+            "type": "string"
+          },
+          "properties": {
+            "type": "object",
+            "additionalProperties": {}
+          },
+          "received_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "revenue_micros": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "session_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "app_version",
+          "at",
+          "event_id",
+          "install_id",
+          "name",
+          "platform",
+          "received_at"
+        ]
+      },
+      "EventOccurrencesOut": {
+        "type": "object",
+        "properties": {
+          "occurrences": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EventOccurrenceOut"
+            }
+          }
+        },
+        "required": [
+          "occurrences"
+        ]
+      },
+      "EventPropertyOut": {
+        "type": "object",
+        "properties": {
+          "distinct": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Distinct values, from a sketch"
+          },
+          "fill": {
+            "type": "number",
+            "format": "double",
+            "description": "The share of the event's occurrences that carried it"
+          },
+          "key": {
+            "type": "string"
+          },
+          "occurrences": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "top": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TopValueOut"
+            }
+          },
+          "type": {
+            "type": "string",
+            "description": "string, int, float or bool"
+          }
+        },
+        "required": [
+          "distinct",
+          "fill",
+          "key",
+          "occurrences",
+          "top",
+          "type"
+        ]
+      },
+      "EventSliceOut": {
+        "type": "object",
+        "properties": {
+          "events": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "players": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "value": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "events",
+          "value"
+        ]
+      },
+      "EventSummaryOut": {
+        "type": "object",
+        "properties": {
+          "events": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "first_seen": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "last_seen": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "name": {
+            "type": "string"
+          },
+          "players": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "previous_events": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "previous_players": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "properties": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "type": {
+            "type": "string",
+            "description": "custom, session, purchase or exposure, as ingest classified it"
+          }
+        },
+        "required": [
+          "events",
+          "first_seen",
+          "last_seen",
+          "name",
+          "previous_events",
+          "properties",
+          "type"
+        ]
+      },
+      "EventTotalsOut": {
+        "type": "object",
+        "properties": {
+          "events": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "players": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "previous_events": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "previous_players": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          }
+        },
+        "required": [
+          "events",
+          "previous_events"
+        ]
+      },
       "ExcludedOut": {
         "type": "object",
         "properties": {
@@ -11699,6 +12494,28 @@
           "from",
           "unit_price",
           "unit_price_micros"
+        ]
+      },
+      "TopValueOut": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "share": {
+            "type": "number",
+            "format": "double",
+            "description": "Of the property's occurrences"
+          },
+          "value": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "count",
+          "share",
+          "value"
         ]
       },
       "UsageByProjectOut": {

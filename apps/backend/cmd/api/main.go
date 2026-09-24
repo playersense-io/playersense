@@ -175,7 +175,15 @@ func build(settings config.Settings, overrides ...muzak.RouterOption) (*muzak.Ap
 		MaxExecutionTime: settings.QueryMaxExecutionTime,
 		MaxRowsToRead:    settings.QueryMaxRowsToRead,
 		MaxBytesToRead:   settings.QueryMaxBytesToRead,
+		MaxMemoryUsage:   settings.QueryMaxMemoryUsage,
 	}, settings.QuerySuppressionK).
+		WithRawLimits(query.Limits{
+			MaxRows:          settings.QueryMaxRows,
+			MaxExecutionTime: settings.QueryRawMaxExecution,
+			MaxRowsToRead:    settings.QueryRawMaxRowsToRead,
+			MaxBytesToRead:   settings.QueryRawMaxBytesToRead,
+			MaxMemoryUsage:   settings.QueryRawMaxMemoryUsage,
+		}).
 		WithCache(query.NewCache(cache, settings.QueryCacheTTL, settings.QueryCacheSettledTTL))
 
 	liveStore := liveconfig.NewStore(func() *ent.Client { return db.Client }, settings.ConfigCacheTTL)
