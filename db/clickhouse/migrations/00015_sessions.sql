@@ -38,6 +38,8 @@ CREATE TABLE IF NOT EXISTS sessions
     device_id       UInt64                                              COMMENT 'class=identifier',
     session_key     UInt64                                              COMMENT 'class=identifier',
 
+    -- The installation the device_id hashes, kept so a session links to its player's page.
+    install_id      SimpleAggregateFunction(any, UUID)                  COMMENT 'class=identifier',
     session_id      SimpleAggregateFunction(any, String)                COMMENT 'class=identifier',
     -- The account the session was played under, if the player had signed in. anyLast() skips NULL,
     -- so one signed-in event is enough to name it.
@@ -78,6 +80,7 @@ SELECT
     e.event_date                                    AS activity_date,
     e.device_id                                     AS device_id,
     sipHash64(e.session_id)                         AS session_key,
+    any(e.install_id)                               AS install_id,
     any(e.session_id)                               AS session_id,
     anyLast(e.player_id)                            AS player_id,
     min(e.event_time)                               AS started_at,

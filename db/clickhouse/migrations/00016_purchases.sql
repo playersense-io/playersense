@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS purchases
     event_id        UUID                            COMMENT 'class=behavioural',
 
     device_id       UInt64                          COMMENT 'class=identifier',
+    install_id      UUID                            COMMENT 'class=identifier',
     player_id       Nullable(String)                COMMENT 'class=identifier',
     session_id      String                          COMMENT 'class=identifier',
 
@@ -76,6 +77,7 @@ SELECT
     e.event_time                                                        AS event_time,
     e.event_id                                                          AS event_id,
     e.device_id                                                         AS device_id,
+    e.install_id                                                        AS install_id,
     e.player_id                                                         AS player_id,
     e.session_id                                                        AS session_id,
     e.event_name                                                        AS event_name,
@@ -111,6 +113,7 @@ CREATE TABLE IF NOT EXISTS payers
     environment_seq   UInt16                                             COMMENT 'class=none',
     device_id         UInt64                                             COMMENT 'class=identifier',
 
+    install_id        SimpleAggregateFunction(any, UUID)                 COMMENT 'class=identifier',
     player_id         SimpleAggregateFunction(anyLast, Nullable(String)) COMMENT 'class=identifier',
     first_purchase_at SimpleAggregateFunction(min, DateTime64(3, 'UTC')) COMMENT 'class=financial',
     last_purchase_at  SimpleAggregateFunction(max, DateTime64(3, 'UTC')) COMMENT 'class=financial',
@@ -127,6 +130,7 @@ SELECT
     p.project_seq                AS project_seq,
     p.environment_seq            AS environment_seq,
     p.device_id                  AS device_id,
+    any(p.install_id)            AS install_id,
     anyLast(p.player_id)         AS player_id,
     min(p.event_time)            AS first_purchase_at,
     max(p.event_time)            AS last_purchase_at,

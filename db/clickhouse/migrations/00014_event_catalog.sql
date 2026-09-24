@@ -121,8 +121,9 @@ GROUP BY project_seq, environment_seq, dim_name, event_name, day, dim_value
 --
 -- Bounded twice over, because a property can be anything a studio chose to send, including a
 -- transaction id that is different on every row: distinct values is a uniqCombined(12) state
--- (about 3 KiB at most) and the top values a topK(10) state, so a high-cardinality property costs
--- the same as a low one.
+-- (about 3 KiB at most) and the top values an approx_top_k(10) state, which keeps a count beside
+-- each value so the explorer can show its share. A high-cardinality property costs the same as
+-- a low one.
 --
 -- Context properties (`ctx.` keys, §8.1 of the SDK protocol) are left out. They describe the
 -- player rather than the occurrence, they are copied onto every event of a batch, and cataloguing
@@ -138,7 +139,7 @@ CREATE TABLE IF NOT EXISTS event_properties_daily
 
     occurrences     SimpleAggregateFunction(sum, UInt64)    COMMENT 'class=derived',
     distinct_values AggregateFunction(uniqCombined(12), String) COMMENT 'class=derived',
-    top_values      AggregateFunction(topK(10), String)     COMMENT 'class=behavioural'
+    top_values      AggregateFunction(approx_top_k(10), String) COMMENT 'class=behavioural'
 )
 ENGINE = ReplicatedAggregatingMergeTree
 PARTITION BY toYYYYMM(day)
@@ -157,7 +158,7 @@ SELECT
     event_date                          AS day,
     count()                             AS occurrences,
     uniqCombinedState(12)(prop.3)       AS distinct_values,
-    topKState(10)(prop.3)               AS top_values
+    approx_top_kState(10)(prop.3)       AS top_values
 FROM events_raw
 ARRAY JOIN arrayFilter(p -> NOT startsWith(p.1, 'ctx.'), arrayConcat(
     arrayMap((k, v) -> (k, 'string', v),           mapKeys(props_string), mapValues(props_string)),
