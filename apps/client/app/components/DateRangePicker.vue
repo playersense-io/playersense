@@ -359,7 +359,22 @@ function cancel() {
  */
 .ps-range__picker :deep(.v-btn.v-date-picker-month__day-btn) {
   border-radius: 50%;
-  height: 36px;
-  width: 36px;
+  height: 32px;
+  width: 32px;
+}
+
+/*
+ * Every cell 4px smaller each way than Vuetify draws it, with nothing else changed. A column is
+ * a seventh of the month after its 12px sides, so each panel is 28px narrower (328 to 300); a
+ * row is its 2px padding around the content, so the cell is 40px rather than 44. The day's
+ * button above is 4px smaller to match, and the range band, drawn 2px in from the cell's top
+ * and bottom, stays 2px clear of the button either side, as it was.
+ */
+.ps-range__picker :deep(.v-date-picker) {
+  width: 300px;
+}
+
+.ps-range__picker :deep(.v-date-picker-month__day) {
+  height: 40px;
 }
 </style>
