@@ -495,42 +495,52 @@ const ids = { name: useId(), description: useId() }
       />
 
       <div v-else-if="report" class="flex h-full flex-col">
-        <header class="flex flex-col gap-0.5 border-b border-line p-4">
-          <span class="text-[11px] text-ink/50">Report</span>
-          <span class="text-[11px] leading-4 text-ink/60">Select a node to set it up. These are the report's own settings.</span>
+        <!-- The report's own settings, in the node inspector's shape and fields. -->
+        <header class="flex items-start gap-3 border-b border-line p-4">
+          <span aria-hidden="true" class="flex size-8 flex-none items-center justify-center rounded-(--ps-radius) bg-primary/10 text-base text-primary">
+            <Icon name="material-symbols:account-tree-outline" />
+          </span>
+          <span class="flex min-w-0 flex-1 flex-col gap-0.5">
+            <span class="text-xs font-medium text-ink">Report</span>
+            <span class="text-[11px] leading-4 text-ink/55">Its own settings. Select a node on the canvas to set that up instead.</span>
+          </span>
         </header>
         <div class="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-4">
           <div class="flex flex-col gap-1.5">
-            <label :for="ids.name" class="text-xs font-medium text-ink">Name</label>
+            <label :for="ids.name" class="text-xs text-ink/60">Name</label>
             <v-text-field
               :id="ids.name"
               :model-value="report.name"
-              density="compact"
+              density="comfortable"
               hide-details
               maxlength="80"
+              placeholder="Weekly revenue"
               variant="outlined"
-              @update:model-value="save(report.id, { name: String($event) })"
+              @update:model-value="save(report.id, { name: String($event ?? '') })"
             />
           </div>
           <div class="flex flex-col gap-1.5">
-            <label :for="ids.description" class="text-xs font-medium text-ink">Description <span class="font-normal text-ink/45">for the team</span></label>
+            <label :for="ids.description" class="text-xs text-ink/60">Description <span class="text-ink/40">for the team</span></label>
             <v-textarea
               :id="ids.description"
               :model-value="report.description"
               auto-grow
-              density="compact"
               hide-details
-              rows="2"
+              maxlength="500"
+              placeholder="What it answers, and who reads it"
+              rows="3"
               variant="outlined"
-              @update:model-value="save(report.id, { description: String($event) })"
+              @update:model-value="save(report.id, { description: String($event ?? '') })"
             />
           </div>
 
-          <div class="flex flex-col gap-2">
-            <span class="text-xs font-medium text-ink">What it produces <span class="font-normal text-ink/45">{{ outputs.length }}</span></span>
+          <div class="flex flex-col gap-2 border-t border-line pt-4">
+            <p class="m-0 text-[11px] font-semibold tracking-wide text-ink/45 uppercase">
+              Produces <span class="font-mono font-normal">{{ outputs.length }}</span>
+            </p>
             <ul v-if="outputs.length" class="m-0 flex list-none flex-col gap-1.5 p-0">
               <li v-for="node in outputs" :key="node.id">
-                <button class="flex w-full cursor-pointer items-start gap-2.5 rounded-(--ps-radius) border border-line px-2.5 py-2 text-left hover:bg-ink/3" type="button" @click="selectedId = node.id">
+                <button class="flex w-full cursor-pointer items-start gap-2.5 rounded-(--ps-radius) border border-line px-2.5 py-2 text-left transition-colors duration-150 hover:bg-ink/3" type="button" @click="selectedId = node.id">
                   <Icon :name="KINDS[node.data.kind].icon" aria-hidden="true" class="mt-0.5 flex-none text-base text-ink/55" />
                   <span class="flex min-w-0 flex-col">
                     <span class="truncate text-xs text-ink">{{ node.data.title }}</span>
@@ -539,17 +549,20 @@ const ids = { name: useId(), description: useId() }
                 </button>
               </li>
             </ul>
-            <p v-else class="m-0 text-[11px] leading-4 text-ink/50">
+            <p v-else class="m-0 flex items-center gap-2 rounded-(--ps-radius-small) bg-ink/4 px-3 py-2.5 text-xs text-ink/70">
+              <Icon aria-hidden="true" class="text-base text-ink/45" name="material-symbols:bar-chart" />
               Nothing yet. End the report with a chart, a table or an export.
             </p>
-            <p v-if="scheduled.length" class="m-0 flex items-start gap-2 rounded-(--ps-radius) bg-primary/6 px-3 py-2 text-[11px] leading-4 text-ink/75">
-              <Icon aria-hidden="true" class="mt-px flex-none text-sm text-primary" name="material-symbols:schedule-outline" />
-              {{ scheduled.length === 1 ? 'One export runs' : `${scheduled.length} exports run` }} on a schedule: {{ scheduled.map(node => `${node.data.title}, ${SCHEDULES[node.data.config.schedule ?? 'once'].replace(/^./, first => first.toLowerCase())}`).join('; ') }}.
+            <p v-if="scheduled.length" class="m-0 flex items-start gap-2 rounded-(--ps-radius-small) bg-primary/6 px-3 py-2.5 text-xs leading-5 text-ink/75">
+              <Icon aria-hidden="true" class="mt-0.5 flex-none text-base text-primary" name="material-symbols:schedule-outline" />
+              <span>{{ scheduled.length === 1 ? 'One export runs' : `${scheduled.length} exports run` }} on a schedule: {{ scheduled.map(node => `${node.data.title}, ${SCHEDULES[node.data.config.schedule ?? 'once'].replace(/^./, first => first.toLowerCase())}`).join('; ') }}.</span>
             </p>
           </div>
 
-          <div v-if="problems.length" class="flex flex-col gap-2">
-            <span class="text-xs font-medium text-ink">To fix <span class="font-normal text-ink/45">{{ problems.length }}</span></span>
+          <div v-if="problems.length" class="flex flex-col gap-2 border-t border-line pt-4">
+            <p class="m-0 text-[11px] font-semibold tracking-wide text-ink/45 uppercase">
+              To fix <span class="font-mono font-normal">{{ problems.length }}</span>
+            </p>
             <ul class="m-0 flex list-none flex-col gap-1 p-0">
               <li v-for="node in problems" :key="node.id">
                 <button class="flex w-full cursor-pointer items-start gap-2 text-left text-[11px] leading-4 text-ink/75 hover:text-ink" type="button" @click="selectedId = node.id">
