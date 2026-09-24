@@ -8907,6 +8907,8 @@ type ConfigVersionMutation struct {
 	document                 *map[string]interface{}
 	published_by_label       *string
 	note                     *string
+	rollback_of              *int
+	addrollback_of           *int
 	clearedFields            map[string]struct{}
 	project                  *int
 	clearedproject           bool
@@ -9467,6 +9469,76 @@ func (m *ConfigVersionMutation) ResetNote() {
 	m.note = nil
 }
 
+// SetRollbackOf sets the "rollback_of" field.
+func (m *ConfigVersionMutation) SetRollbackOf(i int) {
+	m.rollback_of = &i
+	m.addrollback_of = nil
+}
+
+// RollbackOf returns the value of the "rollback_of" field in the mutation.
+func (m *ConfigVersionMutation) RollbackOf() (r int, exists bool) {
+	v := m.rollback_of
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRollbackOf returns the old "rollback_of" field's value of the ConfigVersion entity.
+// If the ConfigVersion object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConfigVersionMutation) OldRollbackOf(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRollbackOf is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRollbackOf requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRollbackOf: %w", err)
+	}
+	return oldValue.RollbackOf, nil
+}
+
+// AddRollbackOf adds i to the "rollback_of" field.
+func (m *ConfigVersionMutation) AddRollbackOf(i int) {
+	if m.addrollback_of != nil {
+		*m.addrollback_of += i
+	} else {
+		m.addrollback_of = &i
+	}
+}
+
+// AddedRollbackOf returns the value that was added to the "rollback_of" field in this mutation.
+func (m *ConfigVersionMutation) AddedRollbackOf() (r int, exists bool) {
+	v := m.addrollback_of
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearRollbackOf clears the value of the "rollback_of" field.
+func (m *ConfigVersionMutation) ClearRollbackOf() {
+	m.rollback_of = nil
+	m.addrollback_of = nil
+	m.clearedFields[configversion.FieldRollbackOf] = struct{}{}
+}
+
+// RollbackOfCleared returns if the "rollback_of" field was cleared in this mutation.
+func (m *ConfigVersionMutation) RollbackOfCleared() bool {
+	_, ok := m.clearedFields[configversion.FieldRollbackOf]
+	return ok
+}
+
+// ResetRollbackOf resets all changes to the "rollback_of" field.
+func (m *ConfigVersionMutation) ResetRollbackOf() {
+	m.rollback_of = nil
+	m.addrollback_of = nil
+	delete(m.clearedFields, configversion.FieldRollbackOf)
+}
+
 // ClearProject clears the "project" edge to the Project entity.
 func (m *ConfigVersionMutation) ClearProject() {
 	m.clearedproject = true
@@ -9609,7 +9681,7 @@ func (m *ConfigVersionMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ConfigVersionMutation) Fields() []string {
-	fields := make([]string, 0, 11)
+	fields := make([]string, 0, 12)
 	if m.uid != nil {
 		fields = append(fields, configversion.FieldUID)
 	}
@@ -9643,6 +9715,9 @@ func (m *ConfigVersionMutation) Fields() []string {
 	if m.note != nil {
 		fields = append(fields, configversion.FieldNote)
 	}
+	if m.rollback_of != nil {
+		fields = append(fields, configversion.FieldRollbackOf)
+	}
 	return fields
 }
 
@@ -9673,6 +9748,8 @@ func (m *ConfigVersionMutation) Field(name string) (ent.Value, bool) {
 		return m.PublishedByLabel()
 	case configversion.FieldNote:
 		return m.Note()
+	case configversion.FieldRollbackOf:
+		return m.RollbackOf()
 	}
 	return nil, false
 }
@@ -9704,6 +9781,8 @@ func (m *ConfigVersionMutation) OldField(ctx context.Context, name string) (ent.
 		return m.OldPublishedByLabel(ctx)
 	case configversion.FieldNote:
 		return m.OldNote(ctx)
+	case configversion.FieldRollbackOf:
+		return m.OldRollbackOf(ctx)
 	}
 	return nil, fmt.Errorf("unknown ConfigVersion field %s", name)
 }
@@ -9790,6 +9869,13 @@ func (m *ConfigVersionMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetNote(v)
 		return nil
+	case configversion.FieldRollbackOf:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRollbackOf(v)
+		return nil
 	}
 	return fmt.Errorf("unknown ConfigVersion field %s", name)
 }
@@ -9801,6 +9887,9 @@ func (m *ConfigVersionMutation) AddedFields() []string {
 	if m.addversion != nil {
 		fields = append(fields, configversion.FieldVersion)
 	}
+	if m.addrollback_of != nil {
+		fields = append(fields, configversion.FieldRollbackOf)
+	}
 	return fields
 }
 
@@ -9811,6 +9900,8 @@ func (m *ConfigVersionMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
 	case configversion.FieldVersion:
 		return m.AddedVersion()
+	case configversion.FieldRollbackOf:
+		return m.AddedRollbackOf()
 	}
 	return nil, false
 }
@@ -9827,6 +9918,13 @@ func (m *ConfigVersionMutation) AddField(name string, value ent.Value) error {
 		}
 		m.AddVersion(v)
 		return nil
+	case configversion.FieldRollbackOf:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRollbackOf(v)
+		return nil
 	}
 	return fmt.Errorf("unknown ConfigVersion numeric field %s", name)
 }
@@ -9840,6 +9938,9 @@ func (m *ConfigVersionMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(configversion.FieldPublishedByKeyID) {
 		fields = append(fields, configversion.FieldPublishedByKeyID)
+	}
+	if m.FieldCleared(configversion.FieldRollbackOf) {
+		fields = append(fields, configversion.FieldRollbackOf)
 	}
 	return fields
 }
@@ -9860,6 +9961,9 @@ func (m *ConfigVersionMutation) ClearField(name string) error {
 		return nil
 	case configversion.FieldPublishedByKeyID:
 		m.ClearPublishedByKeyID()
+		return nil
+	case configversion.FieldRollbackOf:
+		m.ClearRollbackOf()
 		return nil
 	}
 	return fmt.Errorf("unknown ConfigVersion nullable field %s", name)
@@ -9901,6 +10005,9 @@ func (m *ConfigVersionMutation) ResetField(name string) error {
 		return nil
 	case configversion.FieldNote:
 		m.ResetNote()
+		return nil
+	case configversion.FieldRollbackOf:
+		m.ResetRollbackOf()
 		return nil
 	}
 	return fmt.Errorf("unknown ConfigVersion field %s", name)

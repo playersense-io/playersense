@@ -117,6 +117,34 @@ func LiveConfig() *muzak.Router {
 		muzak.WithResponseDoc(http.StatusUnprocessableEntity,
 			"The configuration does not compile; the message names the flag or event and why"))
 
+	r.Get("/organizations/{org}/projects/{project}/config/{environment}/versions",
+		handlers.ListConfigVersions,
+		muzak.Summary("An environment's published versions"),
+		muzak.Description("Newest first: who published each, when, why, what it carried, which one "+
+			"is being served, and which were rollbacks and of what."),
+		core.Require(authz.LiveOpsRead),
+		muzak.WithResponseDoc(http.StatusNotFound, "This project has no such environment"))
+
+	r.Get("/organizations/{org}/projects/{project}/config/{environment}/versions/{version}",
+		handlers.ReadConfigVersion,
+		muzak.Summary("One published version, with its document"),
+		muzak.Description("The compiled document exactly as the SDK received it, so what a player "+
+			"was served on a given day can be read rather than reconstructed."),
+		core.Require(authz.LiveOpsRead),
+		muzak.WithResponseDoc(http.StatusNotFound, "No such environment or version"))
+
+	r.Post("/organizations/{org}/projects/{project}/config/{environment}/versions/{version}/rollback",
+		handlers.RollbackConfig,
+		muzak.Summary("Go back to an earlier version"),
+		muzak.Description("Publishes that version's document again, unchanged, as the environment's "+
+			"next version, with the reason in its note. Nothing is deleted and the draft is left "+
+			"alone, so what was rolled back is still there to fix and publish. Needs what a publish "+
+			"needs, and is in the audit log as liveops.rollback."),
+		core.Require(authz.LiveOpsPublish),
+		muzak.Status(http.StatusCreated),
+		muzak.WithResponseDoc(http.StatusConflict, "The environment already serves that version"),
+		muzak.WithResponseDoc(http.StatusNotFound, "No such environment or version"))
+
 	return r
 }
 

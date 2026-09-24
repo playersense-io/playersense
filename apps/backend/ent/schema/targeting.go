@@ -261,6 +261,10 @@ func (ConfigVersion) Fields() []ent.Field {
 		field.Int("published_by_key_id").Optional().Nillable().Immutable().Comment(dataclass.None),
 		field.String("published_by_label").MaxLen(254).Default("").Immutable().Comment(dataclass.None),
 		field.String("note").MaxLen(500).Default("").Immutable().Comment(dataclass.None),
+
+		// A rollback is a publish of an earlier version's document, unchanged: this is the
+		// version it republished. Nothing is deleted, so the history reads forwards.
+		field.Int("rollback_of").Optional().Nillable().Immutable().Comment(dataclass.None),
 	}
 }
 

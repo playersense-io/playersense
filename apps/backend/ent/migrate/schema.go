@@ -297,6 +297,7 @@ var (
 		{Name: "document", Type: field.TypeJSON, Comment: "class=none"},
 		{Name: "published_by_label", Type: field.TypeString, Size: 254, Comment: "class=none", Default: ""},
 		{Name: "note", Type: field.TypeString, Size: 500, Comment: "class=none", Default: ""},
+		{Name: "rollback_of", Type: field.TypeInt, Nullable: true, Comment: "class=none"},
 		{Name: "published_by_key_id", Type: field.TypeInt, Nullable: true, Comment: "class=none"},
 		{Name: "environment_id", Type: field.TypeInt, Comment: "class=none"},
 		{Name: "project_id", Type: field.TypeInt, Comment: "class=none"},
@@ -310,25 +311,25 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "config_versions_api_keys_published_versions",
-				Columns:    []*schema.Column{ConfigVersionsColumns[8]},
+				Columns:    []*schema.Column{ConfigVersionsColumns[9]},
 				RefColumns: []*schema.Column{APIKeysColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "config_versions_environments_config_versions",
-				Columns:    []*schema.Column{ConfigVersionsColumns[9]},
+				Columns:    []*schema.Column{ConfigVersionsColumns[10]},
 				RefColumns: []*schema.Column{EnvironmentsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "config_versions_projects_config_versions",
-				Columns:    []*schema.Column{ConfigVersionsColumns[10]},
+				Columns:    []*schema.Column{ConfigVersionsColumns[11]},
 				RefColumns: []*schema.Column{ProjectsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "config_versions_users_published_versions",
-				Columns:    []*schema.Column{ConfigVersionsColumns[11]},
+				Columns:    []*schema.Column{ConfigVersionsColumns[12]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
@@ -337,7 +338,7 @@ var (
 			{
 				Name:    "configversion_version_environment_id",
 				Unique:  true,
-				Columns: []*schema.Column{ConfigVersionsColumns[4], ConfigVersionsColumns[9]},
+				Columns: []*schema.Column{ConfigVersionsColumns[4], ConfigVersionsColumns[10]},
 			},
 		},
 	}

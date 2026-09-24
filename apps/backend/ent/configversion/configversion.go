@@ -37,6 +37,8 @@ const (
 	FieldPublishedByLabel = "published_by_label"
 	// FieldNote holds the string denoting the note field in the database.
 	FieldNote = "note"
+	// FieldRollbackOf holds the string denoting the rollback_of field in the database.
+	FieldRollbackOf = "rollback_of"
 	// EdgeProject holds the string denoting the project edge name in mutations.
 	EdgeProject = "project"
 	// EdgeEnvironment holds the string denoting the environment edge name in mutations.
@@ -91,6 +93,7 @@ var Columns = []string{
 	FieldPublishedByKeyID,
 	FieldPublishedByLabel,
 	FieldNote,
+	FieldRollbackOf,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -180,6 +183,11 @@ func ByPublishedByLabel(opts ...sql.OrderTermOption) OrderOption {
 // ByNote orders the results by the note field.
 func ByNote(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldNote, opts...).ToFunc()
+}
+
+// ByRollbackOf orders the results by the rollback_of field.
+func ByRollbackOf(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRollbackOf, opts...).ToFunc()
 }
 
 // ByProjectField orders the results by project field.

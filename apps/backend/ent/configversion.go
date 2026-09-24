@@ -46,6 +46,8 @@ type ConfigVersion struct {
 	PublishedByLabel string `json:"published_by_label,omitempty"`
 	// class=none
 	Note string `json:"note,omitempty"`
+	// class=none
+	RollbackOf *int `json:"rollback_of,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the ConfigVersionQuery when eager-loading is set.
 	Edges        ConfigVersionEdges `json:"edges"`
@@ -118,7 +120,7 @@ func (*ConfigVersion) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case configversion.FieldDocument:
 			values[i] = new([]byte)
-		case configversion.FieldID, configversion.FieldProjectID, configversion.FieldEnvironmentID, configversion.FieldVersion, configversion.FieldPublishedByUserID, configversion.FieldPublishedByKeyID:
+		case configversion.FieldID, configversion.FieldProjectID, configversion.FieldEnvironmentID, configversion.FieldVersion, configversion.FieldPublishedByUserID, configversion.FieldPublishedByKeyID, configversion.FieldRollbackOf:
 			values[i] = new(sql.NullInt64)
 		case configversion.FieldPublishedByLabel, configversion.FieldNote:
 			values[i] = new(sql.NullString)
@@ -217,6 +219,13 @@ func (_m *ConfigVersion) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.Note = value.String
 			}
+		case configversion.FieldRollbackOf:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field rollback_of", values[i])
+			} else if value.Valid {
+				_m.RollbackOf = new(int)
+				*_m.RollbackOf = int(value.Int64)
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -309,6 +318,11 @@ func (_m *ConfigVersion) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("note=")
 	builder.WriteString(_m.Note)
+	builder.WriteString(", ")
+	if v := _m.RollbackOf; v != nil {
+		builder.WriteString("rollback_of=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteByte(')')
 	return builder.String()
 }

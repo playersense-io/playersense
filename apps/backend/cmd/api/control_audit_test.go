@@ -60,7 +60,8 @@ func TestEveryMutatingRouteDecidesAboutAudit(t *testing.T) {
 		"PUT /v1/organizations/{org}/projects/{project}/liveops-events/{key}":    audit.EventWritten,
 		"DELETE /v1/organizations/{org}/projects/{project}/liveops-events/{key}": audit.EventArchived,
 
-		"POST /v1/organizations/{org}/projects/{project}/config/{environment}/publish": audit.ConfigPublished,
+		"POST /v1/organizations/{org}/projects/{project}/config/{environment}/publish":                     audit.ConfigPublished,
+		"POST /v1/organizations/{org}/projects/{project}/config/{environment}/versions/{version}/rollback": audit.ConfigRolledBack,
 
 		"PUT /v1/organizations/{org}/billing/auto-topup":    audit.AutoTopUpSet,
 		"POST /v1/operator/organizations/{org}/credits":     audit.CreditGranted,

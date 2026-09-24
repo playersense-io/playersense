@@ -1640,6 +1640,66 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/v1/organizations/{org}/projects/{project}/config/{environment}/versions": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * An environment's published versions
+         * @description Newest first: who published each, when, why, what it carried, which one is being served, and which were rollbacks and of what.
+         */
+        readonly get: operations["get_v1_organizations_by_org_projects_by_project_config_by_environment_versions"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/organizations/{org}/projects/{project}/config/{environment}/versions/{version}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * One published version, with its document
+         * @description The compiled document exactly as the SDK received it, so what a player was served on a given day can be read rather than reconstructed.
+         */
+        readonly get: operations["get_v1_organizations_by_org_projects_by_project_config_by_environment_versions_by_version"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/organizations/{org}/projects/{project}/config/{environment}/versions/{version}/rollback": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Go back to an earlier version
+         * @description Publishes that version's document again, unchanged, as the environment's next version, with the reason in its note. Nothing is deleted and the draft is left alone, so what was rolled back is still there to fix and publish. Needs what a publish needs, and is in the audit log as liveops.rollback.
+         */
+        readonly post: operations["post_v1_organizations_by_org_projects_by_project_config_by_environment_versions_by_version_rollback"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/v1/organizations/{org}/projects/{project}/flags": {
         readonly parameters: {
             readonly query?: never;
@@ -2436,7 +2496,13 @@ export interface components {
             /** Format: int64 */
             readonly version: number;
         };
-        readonly ConfigVersionOut: {
+        readonly ConfigVersionDocumentOut: {
+            /** @description The version being served now */
+            readonly current?: boolean;
+            /** @description The compiled document, exactly as the SDK receives it */
+            readonly document: {
+                readonly [key: string]: unknown;
+            };
             readonly environment: string;
             /** Format: int64 */
             readonly flags: number;
@@ -2447,6 +2513,45 @@ export interface components {
             /** Format: date-time */
             readonly published_at: string;
             readonly published_by: string;
+            /**
+             * Format: int64
+             * @description A rollback: the earlier version this one republished, unchanged
+             */
+            readonly rollback_of?: number;
+            /** Format: int64 */
+            readonly version: number;
+        };
+        readonly ConfigVersionListOut: {
+            /**
+             * Format: int64
+             * @description The version being served; 0 before the first publish
+             */
+            readonly current: number;
+            /**
+             * Format: int64
+             * @description Pass as before for the page after this one; absent on the last
+             */
+            readonly next?: number;
+            readonly versions: readonly components["schemas"]["ConfigVersionOut"][];
+        };
+        readonly ConfigVersionOut: {
+            /** @description The version being served now */
+            readonly current?: boolean;
+            readonly environment: string;
+            /** Format: int64 */
+            readonly flags: number;
+            /** Format: int64 */
+            readonly liveops_events: number;
+            readonly needs_player_facts: boolean;
+            readonly note?: string;
+            /** Format: date-time */
+            readonly published_at: string;
+            readonly published_by: string;
+            /**
+             * Format: int64
+             * @description A rollback: the earlier version this one republished, unchanged
+             */
+            readonly rollback_of?: number;
             /** Format: int64 */
             readonly version: number;
         };
@@ -12404,6 +12509,267 @@ export interface operations {
                 };
             };
             /** @description The configuration does not compile; the message names the flag or event and why */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly get_v1_organizations_by_org_projects_by_project_config_by_environment_versions: {
+        readonly parameters: {
+            readonly query?: {
+                /** @description Versions below this one: the next cursor of the previous page */
+                readonly before?: number;
+                /** @description Newest first, up to 200 */
+                readonly limit?: number;
+            };
+            readonly header?: never;
+            readonly path: {
+                readonly org: string;
+                readonly project: string;
+                /** @description development, staging or production */
+                readonly environment: "development" | "staging" | "production";
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ConfigVersionListOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not do that */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This project has no such environment */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly get_v1_organizations_by_org_projects_by_project_config_by_environment_versions_by_version: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly org: string;
+                readonly project: string;
+                /** @description development, staging or production */
+                readonly environment: "development" | "staging" | "production";
+                readonly version: number;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ConfigVersionDocumentOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not do that */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No such environment or version */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly post_v1_organizations_by_org_projects_by_project_config_by_environment_versions_by_version_rollback: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly org: string;
+                readonly project: string;
+                /** @description development, staging or production */
+                readonly environment: "development" | "staging" | "production";
+                /** @description The version to go back to */
+                readonly version: number;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": {
+                    /** @description Why, for whoever reads the history next */
+                    readonly reason: string;
+                };
+            };
+        };
+        readonly responses: {
+            /** @description Created */
+            readonly 201: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ConfigVersionOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not do that */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No such environment or version */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The environment already serves that version */
+            readonly 409: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
             readonly 422: {
                 headers: {
                     readonly [name: string]: unknown;

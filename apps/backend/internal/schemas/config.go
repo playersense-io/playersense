@@ -109,4 +109,69 @@ type ConfigVersionOut struct {
 	PublishedBy string    `json:"published_by"`
 	PublishedAt time.Time `json:"published_at"`
 	Note        string    `json:"note,omitempty"`
+
+	RollbackOf int  `json:"rollback_of,omitzero" doc:"A rollback: the earlier version this one republished, unchanged"`
+	Current    bool `json:"current,omitzero" doc:"The version being served now"`
+}
+
+// ConfigVersionsParams pages an environment's published versions.
+type ConfigVersionsParams struct {
+	OrgSlug     string `path:"org"`
+	ProjectSlug string `path:"project"`
+	Environment string `path:"environment" doc:"development, staging or production"`
+	Before      int    `query:"before,omitzero" doc:"Versions below this one: the next cursor of the previous page"`
+	Limit       int    `query:"limit,omitzero" default:"50" doc:"Newest first, up to 200"`
+}
+
+func (in *ConfigVersionsParams) Validate(v *muzak.Validation) {
+	v.String(&in.OrgSlug).Trim().Lower().Required().MaxLen(64)
+	v.String(&in.ProjectSlug).Trim().Lower().Required().MaxLen(64)
+	v.String(&in.Environment).Trim().Lower().Required().OneOf("development", "staging", "production")
+	v.Number(&in.Before).Min(0)
+	v.Number(&in.Limit).Min(1).Max(200)
+}
+
+// ConfigVersionListOut is one page of an environment's history.
+type ConfigVersionListOut struct {
+	Current  int                `json:"current" doc:"The version being served; 0 before the first publish"`
+	Versions []ConfigVersionOut `json:"versions"`
+	Next     int                `json:"next,omitzero" doc:"Pass as before for the page after this one; absent on the last"`
+}
+
+// ConfigVersionParams names one published version.
+type ConfigVersionParams struct {
+	OrgSlug     string `path:"org"`
+	ProjectSlug string `path:"project"`
+	Environment string `path:"environment" doc:"development, staging or production"`
+	Version     int    `path:"version"`
+}
+
+func (in *ConfigVersionParams) Validate(v *muzak.Validation) {
+	v.String(&in.OrgSlug).Trim().Lower().Required().MaxLen(64)
+	v.String(&in.ProjectSlug).Trim().Lower().Required().MaxLen(64)
+	v.String(&in.Environment).Trim().Lower().Required().OneOf("development", "staging", "production")
+	v.Number(&in.Version).Min(1)
+}
+
+// ConfigVersionDocumentOut is one version with the document players were served.
+type ConfigVersionDocumentOut struct {
+	ConfigVersionOut
+	Document map[string]any `json:"document" doc:"The compiled document, exactly as the SDK receives it"`
+}
+
+// RollbackConfigIn puts an environment back on an earlier version.
+type RollbackConfigIn struct {
+	OrgSlug     string `path:"org"`
+	ProjectSlug string `path:"project"`
+	Environment string `path:"environment" doc:"development, staging or production"`
+	Version     int    `path:"version" doc:"The version to go back to"`
+	Reason      string `json:"reason" doc:"Why, for whoever reads the history next"`
+}
+
+func (in *RollbackConfigIn) Validate(v *muzak.Validation) {
+	v.String(&in.OrgSlug).Trim().Lower().Required().MaxLen(64)
+	v.String(&in.ProjectSlug).Trim().Lower().Required().MaxLen(64)
+	v.String(&in.Environment).Trim().Lower().Required().OneOf("development", "staging", "production")
+	v.Number(&in.Version).Min(1)
+	v.String(&in.Reason).Trim().Required().MaxLen(400)
 }

@@ -106,6 +106,11 @@ func Note(v string) predicate.ConfigVersion {
 	return predicate.ConfigVersion(sql.FieldEQ(FieldNote, v))
 }
 
+// RollbackOf applies equality check predicate on the "rollback_of" field. It's identical to RollbackOfEQ.
+func RollbackOf(v int) predicate.ConfigVersion {
+	return predicate.ConfigVersion(sql.FieldEQ(FieldRollbackOf, v))
+}
+
 // UIDEQ applies the EQ predicate on the "uid" field.
 func UIDEQ(v uuid.UUID) predicate.ConfigVersion {
 	return predicate.ConfigVersion(sql.FieldEQ(FieldUID, v))
@@ -494,6 +499,56 @@ func NoteEqualFold(v string) predicate.ConfigVersion {
 // NoteContainsFold applies the ContainsFold predicate on the "note" field.
 func NoteContainsFold(v string) predicate.ConfigVersion {
 	return predicate.ConfigVersion(sql.FieldContainsFold(FieldNote, v))
+}
+
+// RollbackOfEQ applies the EQ predicate on the "rollback_of" field.
+func RollbackOfEQ(v int) predicate.ConfigVersion {
+	return predicate.ConfigVersion(sql.FieldEQ(FieldRollbackOf, v))
+}
+
+// RollbackOfNEQ applies the NEQ predicate on the "rollback_of" field.
+func RollbackOfNEQ(v int) predicate.ConfigVersion {
+	return predicate.ConfigVersion(sql.FieldNEQ(FieldRollbackOf, v))
+}
+
+// RollbackOfIn applies the In predicate on the "rollback_of" field.
+func RollbackOfIn(vs ...int) predicate.ConfigVersion {
+	return predicate.ConfigVersion(sql.FieldIn(FieldRollbackOf, vs...))
+}
+
+// RollbackOfNotIn applies the NotIn predicate on the "rollback_of" field.
+func RollbackOfNotIn(vs ...int) predicate.ConfigVersion {
+	return predicate.ConfigVersion(sql.FieldNotIn(FieldRollbackOf, vs...))
+}
+
+// RollbackOfGT applies the GT predicate on the "rollback_of" field.
+func RollbackOfGT(v int) predicate.ConfigVersion {
+	return predicate.ConfigVersion(sql.FieldGT(FieldRollbackOf, v))
+}
+
+// RollbackOfGTE applies the GTE predicate on the "rollback_of" field.
+func RollbackOfGTE(v int) predicate.ConfigVersion {
+	return predicate.ConfigVersion(sql.FieldGTE(FieldRollbackOf, v))
+}
+
+// RollbackOfLT applies the LT predicate on the "rollback_of" field.
+func RollbackOfLT(v int) predicate.ConfigVersion {
+	return predicate.ConfigVersion(sql.FieldLT(FieldRollbackOf, v))
+}
+
+// RollbackOfLTE applies the LTE predicate on the "rollback_of" field.
+func RollbackOfLTE(v int) predicate.ConfigVersion {
+	return predicate.ConfigVersion(sql.FieldLTE(FieldRollbackOf, v))
+}
+
+// RollbackOfIsNil applies the IsNil predicate on the "rollback_of" field.
+func RollbackOfIsNil() predicate.ConfigVersion {
+	return predicate.ConfigVersion(sql.FieldIsNull(FieldRollbackOf))
+}
+
+// RollbackOfNotNil applies the NotNil predicate on the "rollback_of" field.
+func RollbackOfNotNil() predicate.ConfigVersion {
+	return predicate.ConfigVersion(sql.FieldNotNull(FieldRollbackOf))
 }
 
 // HasProject applies the HasEdge predicate on the "project" edge.
