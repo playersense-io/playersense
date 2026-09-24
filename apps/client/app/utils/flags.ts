@@ -106,12 +106,14 @@ export interface ConfigVersionDef {
   note: string
   flags: FlagDocument[]
   segments: { key: string, rule: TargetRule }[]
+  /** A rollback: the earlier version this one republished, unchanged. */
+  rollback_of?: number
 }
 
 export type AuditAction
   = | 'flag.create' | 'flag.write' | 'flag.archive' | 'flag.restore'
     | 'segment.create' | 'segment.write' | 'segment.archive' | 'segment.restore'
-    | 'liveops.publish' | 'draft.restore'
+    | 'liveops.publish' | 'liveops.rollback' | 'draft.restore'
 
 /** A decision, as the audit log records it (ADR 0037): who, what, and what it changed. */
 export interface ConfigAuditEntry {
@@ -402,6 +404,17 @@ export function draftChanges(version: ConfigVersionDef | null, flags: readonly F
     if (!segments.some(segment => segment.key === key && !segment.archived)) changes.push({ kind: 'segment', key, change: 'removed', lines: ['Archived'] })
   }
   return changes
+}
+
+/**
+ * What going from one published version to another changes, in the draft's terms: what a
+ * rollback to `to` would undo, line by line. The earlier version is read as if it were a draft,
+ * so it is described exactly as a publish would describe it.
+ */
+export function versionChanges(from: ConfigVersionDef | null, to: ConfigVersionDef, segmentName: (key: string) => string = key => key): DraftChange[] {
+  const flags = to.flags.map(flag => ({ ...flag, name: flag.key, archived: false }) as unknown as FlagDef)
+  const segments = to.segments.map(entry => ({ key: entry.key, rule: entry.rule, name: segmentName(entry.key), archived: false }) as unknown as SegmentDef)
+  return draftChanges(from, flags, segments)
 }
 
 /** Where one flag stands in one environment. */

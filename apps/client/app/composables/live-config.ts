@@ -206,6 +206,44 @@ export function useLiveConfig() {
   }
 
   /**
+   * Puts an environment back on an earlier version: that version's document, unchanged, published
+   * again as the environment's next one, with why in its note. Nothing is deleted and the draft is
+   * left alone, so what was rolled back shows as waiting there until it is fixed and published
+   * again. Refused without a reason, because the history is read at the moment something broke.
+   * Needs the same permission a publish does; the API route for it is still to be added.
+   */
+  function rollback(environment: EnvironmentKind, to: ConfigVersionDef, reason: string): string | null {
+    const current = latest(environment)
+    if (!current) return `Nothing has been published to ${ENVIRONMENT_LABELS[environment]} yet, so there is nothing to roll back.`
+    if (to.environment !== environment) return `v${to.version} was published to ${ENVIRONMENT_LABELS[to.environment]}, not ${ENVIRONMENT_LABELS[environment]}.`
+    if (to.version === current.version) return `${ENVIRONMENT_LABELS[environment]} already serves v${to.version}.`
+    if (!reason.trim()) return 'Say why, for whoever reads the history next.'
+    const changes = versionChanges(current, to, segmentName)
+    const version: ConfigVersionDef = {
+      environment,
+      version: current.version + 1,
+      published_at: new Date().toISOString(),
+      published_by: CURRENT_ACTOR,
+      note: `Rolled back to v${to.version}: ${reason.trim()}`,
+      flags: JSON.parse(JSON.stringify(to.flags)) as FlagDocument[],
+      segments: JSON.parse(JSON.stringify(to.segments)) as ConfigVersionDef['segments'],
+      rollback_of: to.version
+    }
+    write(
+      { versions: [...versions.value, version] },
+      {
+        action: 'liveops.rollback',
+        target: environment,
+        environment,
+        version: version.version,
+        note: reason.trim(),
+        changes: [`Back to v${to.version}`, ...changes.map(change => `${change.change === 'added' ? 'Brought back' : change.change === 'removed' ? 'Took out' : 'Undid a change to'} ${change.kind} ${change.key}`)]
+      }
+    )
+    return null
+  }
+
+  /**
    * Brings a published version back into the draft: each flag's rules, fallback and reach as they
    * were, flags that were not in it archived, flags that were restored. It is a set of ordinary
    * writes, which is all a rollback needs — the draft is then published like any other.
@@ -253,6 +291,7 @@ export function useLiveConfig() {
     usesOf,
     draftCheck,
     publish,
+    rollback,
     restoreDraft,
     reset
   }

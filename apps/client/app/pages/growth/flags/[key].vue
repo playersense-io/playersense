@@ -125,12 +125,12 @@ const TABS: PageTab[] = [
 const tab = useQueryChoice('tab', TABS.map(entry => entry.value), 'targeting')
 
 /**
- * This flag's own entries, and the publishes that changed what it serves: a publish that left it
- * as it was is somebody else's news.
+ * This flag's own entries, and the publishes and rollbacks that changed what it serves: one that
+ * left it as it was is somebody else's news.
  */
 const history = computed(() => audit.value.filter((entry) => {
   if (entry.target === key.value && entry.action.startsWith('flag.')) return true
-  if (entry.action !== 'liveops.publish' || !entry.environment) return false
+  if ((entry.action !== 'liveops.publish' && entry.action !== 'liveops.rollback') || !entry.environment) return false
   const list = historyOf(entry.environment)
   const at = list.findIndex(version => version.version === entry.version)
   if (at < 0) return false

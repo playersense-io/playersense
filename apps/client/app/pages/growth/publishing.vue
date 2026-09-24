@@ -10,8 +10,10 @@
 // environment, and the history of what was published and edited. What the draft compiles to
 // in detail is folded away at the foot, for whoever needs it.
 //
-// Rolling back is restoring an old version into the draft and publishing it: ordinary writes
-// rather than a mechanism of its own, and recorded like any other.
+// Rolling back is one step: an earlier version of an environment published again as its next
+// one, with a reason, leaving the draft alone so what was pulled back is still there to fix.
+// Restoring an old version into the draft is the other way back, for when the draft itself
+// should start again from it.
 //
 // Sample data (app/utils/flags-sample.ts). The API has no route yet to list an environment's
 // versions or read an old document back; this is what that route will return.
@@ -42,6 +44,15 @@ const status = computed(() => {
   }
   const production = behind.value.find(entry => entry.environment === 'production')!
   const names = late.map(entry => ENVIRONMENT_LABELS[entry.environment])
+  // Straight after a rollback, that is the news: players are on an older version on purpose.
+  if (production.version?.rollback_of && production.waiting) {
+    return {
+      tone: 'warning' as const,
+      icon: 'material-symbols:undo',
+      title: `Production was rolled back to v${production.version.rollback_of}`,
+      detail: `Players are on v${production.version.rollback_of} again. The ${production.waiting} ${production.waiting === 1 ? 'change' : 'changes'} rolled back ${production.waiting === 1 ? 'is' : 'are'} still in your draft: fix what went wrong, then publish again.`
+    }
+  }
   if (production.waiting) {
     return {
       tone: 'warning' as const,
@@ -142,7 +153,16 @@ const ENVIRONMENT_TONE: Record<EnvironmentKind, string> = {
   production: 'chart-1'
 }
 
-const edits = computed(() => audit.value.filter(entry => entry.action !== 'liveops.publish' && entry.action !== 'draft.restore').slice(0, 40))
+const edits = computed(() => audit.value.filter(entry => !['liveops.publish', 'liveops.rollback', 'draft.restore'].includes(entry.action)).slice(0, 40))
+
+/* A version to put its environment back on: the one-step undo for something that went out wrong. */
+const rollingBack = shallowRef<ConfigVersionDef | null>(null)
+const rollbackOpen = computed({
+  get: () => rollingBack.value !== null,
+  set: (value) => {
+    if (!value) rollingBack.value = null
+  }
+})
 
 const viewing = shallowRef<ConfigVersionDef | null>(null)
 const viewOpen = computed({
@@ -272,7 +292,7 @@ const restoreWords = computed(() => {
     </SectionCard>
 
     <!-- What was published and edited, everywhere, newest first. -->
-    <SectionCard :padded="false" description="Every publish to every environment, and every edit to the draft. Restore an old version to roll back to it." title="History">
+    <SectionCard :padded="false" description="Every publish to every environment, and every edit to the draft. Something went out wrong? Roll the environment back to an earlier version from its menu." title="History">
       <template #actions>
         <SegmentedControl v-model="historyView" :options="HISTORY_VIEWS" label="Show" />
       </template>
@@ -288,6 +308,16 @@ const restoreWords = computed(() => {
                 <Tag :label="ENVIRONMENT_LABELS[version.environment]" :tone="ENVIRONMENT_TONE[version.environment]" />
                 <span class="font-mono text-[11px] text-ink/55">v{{ version.version }}</span>
                 <StatusBadge v-if="version.current" label="Live" tone="success" />
+                <v-tooltip v-if="version.rollback_of" :text="`A rollback: v${version.rollback_of}, published again`" location="top">
+                  <template #activator="{ props: tip }">
+                    <Icon
+                      v-bind="tip"
+                      aria-label="Rollback"
+                      class="text-sm text-warning"
+                      name="material-symbols:undo"
+                    />
+                  </template>
+                </v-tooltip>
               </span>
               <span class="record-cell text-xs text-ink/80" data-label="What it was for">{{ version.note || 'No note' }}</span>
               <span class="record-cell flex flex-col" data-label="Published">
@@ -306,7 +336,14 @@ const restoreWords = computed(() => {
                       variant="text"
                     />
                   </template>
-                  <v-list min-width="200" nav>
+                  <v-list min-width="220" nav>
+                    <v-list-item
+                      v-if="!version.current"
+                      base-color="warning"
+                      prepend-icon="material-symbols:undo"
+                      :title="`Roll back ${ENVIRONMENT_LABELS[version.environment]} to v${version.version}`"
+                      @click="rollingBack = version"
+                    />
                     <v-list-item prepend-icon="material-symbols:history" title="Restore into the draft" @click="restoring = version" />
                     <v-list-item prepend-icon="material-symbols:data-object" title="View what it contained" @click="viewing = version" />
                   </v-list>
@@ -384,6 +421,8 @@ const restoreWords = computed(() => {
     </LayerCard>
 
     <PublishDialog v-if="publishing" v-model="publishing" :environment="publishTo" />
+
+    <RollbackDialog v-if="rollbackOpen && rollingBack" v-model="rollbackOpen" :version="rollingBack" />
 
     <v-dialog
       v-if="viewOpen"

@@ -23,6 +23,7 @@ const ACTIONS: Record<AuditAction, { verb: string, icon: string, tone: string }>
   'segment.archive': { verb: 'archived segment', icon: 'material-symbols:archive-outline', tone: 'text-error' },
   'segment.restore': { verb: 'restored segment', icon: 'material-symbols:unarchive-outline', tone: 'text-success' },
   'liveops.publish': { verb: 'published to', icon: 'material-symbols:publish', tone: 'text-primary' },
+  'liveops.rollback': { verb: 'rolled back', icon: 'material-symbols:undo', tone: 'text-warning' },
   'draft.restore': { verb: 'restored the draft from', icon: 'material-symbols:history', tone: 'text-warning' }
 }
 </script>
@@ -41,7 +42,7 @@ const ACTIONS: Record<AuditAction, { verb: string, icon: string, tone: string }>
         <p class="m-0 flex flex-wrap items-baseline gap-x-1.5 text-xs text-ink/70">
           <span class="font-medium text-ink">{{ entry.actor }}</span>
           {{ ACTIONS[entry.action].verb }}
-          <template v-if="entry.action === 'liveops.publish' || entry.action === 'draft.restore'">
+          <template v-if="entry.action === 'liveops.publish' || entry.action === 'liveops.rollback' || entry.action === 'draft.restore'">
             <span class="font-medium text-ink">{{ ENVIRONMENT_LABELS[entry.environment ?? 'production'] }}</span>
             <span class="font-mono text-[11px] text-ink/50">v{{ entry.version }}</span>
           </template>
