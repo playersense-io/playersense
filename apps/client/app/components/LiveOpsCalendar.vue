@@ -7,11 +7,12 @@
 // same days blur each other's result.
 //
 // A bar is placed to the hour, so a weekend that opens Friday at 18:00 starts three quarters
-// into Friday. A repeating event is a bar per window; one that opens every day or every few
-// hours is one bar across the days with a tick per window, because a two-hour happy hour drawn
-// thirty times is noise. Past windows are solid, the one on now is ringed, what is scheduled is
-// a tint, a draft is an outline and a paused event is hatched. Bars share a row where they do
-// not overlap, so a band is only as tall as what ran at once; a band folds to a strip.
+// into Friday. A one-off event is a bar with its name in it, packed into as few rows as run at
+// once. A recurring event is a row of its own: its name and schedule written once over it, and
+// each window a bar saying only what that window did, or when it opens; one that opens every
+// day or every few hours is a row of pills. Past windows are solid, the one on now is ringed,
+// what is coming is a tint with a clock, a draft is an outline and a paused event is hatched. A
+// band folds to a strip.
 //
 // Full screen is the same calendar in a dialog the size of the window: a month in view at
 // once, or two compact, with the bands given the height they need.
@@ -115,9 +116,23 @@ interface Bar {
   start: number
   end: number
   look: Look
-  /** Windows inside a rhythm bar, as shares of it. */
-  ticks: { left: number, width: number }[] | null
+  /** One of many short windows: a pill with no words in it, read from its row's label. */
+  pill?: boolean
   tip: { title: string, lines: string[], kind: string }
+}
+
+/**
+ * A recurring event's row: its name and schedule written once over it, and its windows under it,
+ * each saying only what that window did. A weekend event drawn as ten bars that each repeat its
+ * name was ten truncated names; drawn as a row, the name is read once and the bars carry figures.
+ */
+interface Series {
+  id: string
+  to: string
+  name: string
+  words: string
+  tone: number
+  bars: Bar[]
 }
 
 interface Band {
@@ -125,7 +140,10 @@ interface Band {
   label: string
   icon: string
   tone: number
+  /** One-off events, packed into as few rows as run at once. */
   lanes: Bar[][]
+  /** Recurring events, a row each. */
+  series: Series[]
   count: number
 }
 
@@ -194,52 +212,58 @@ function pack(bars: Bar[]): Bar[][] {
   return lanes
 }
 
+/* What a window of a recurring event says in its bar: its effect once it has run, or when it opens. */
+function seriesFigure(event: LiveOpsEventDef, window: Occurrence, look: Look): string {
+  if (look === 'scheduled') {
+    // A bar a weekend wide has room for "in 2d", not for "in 2 days".
+    const gap = window.start - now.value.getTime()
+    return gap >= 2 * DAY ? `in ${Math.round(gap / DAY)}d` : `in ${Math.max(1, Math.round(gap / 3_600_000))}h`
+  }
+  if ((look !== 'ended' && look !== 'live') || !event.goal) return figureOf(event, window, look)
+  const impact = sampleEventImpact(event, window, now.value.getTime())
+  return impact ? writeOpsLift(event.goal, impact.metrics[event.goal].comparison) : ''
+}
+
 const bands = computed<Band[]>(() => {
   const time = now.value.getTime()
-  const byKind = new Map<string, Bar[]>()
+  const byKind = new Map<string, { bars: Bar[], series: Series[] }>()
   const visible = props.events.filter(event => event.status !== 'archived' || servedWindows(event, from.value, windowEnd.value).length)
 
   for (const event of visible) {
     const look = kindLook(event.kind)
     const windows = occurrencesOf(event.schedule, from.value, windowEnd.value)
     if (!windows.length) continue
-    const list = byKind.get(event.kind) ?? []
-    const base = { tone: look.tone, to: `/growth/liveops/${event.key}` }
-
-    if (isRhythm(event.schedule)) {
-      const start = windows[0]!.start
-      const end = windows.at(-1)!.end
-      const length = end - start
-      const state = event.status === 'draft' ? 'draft' : event.status === 'paused' ? 'paused' : end <= time ? 'ended' : start <= time ? 'live' : 'scheduled'
-      list.push({
-        ...base,
-        id: `${event.key}:rhythm`,
+    const group = byKind.get(event.kind) ?? { bars: [], series: [] }
+    const rhythm = isRhythm(event.schedule)
+    const bars = windows.map((window): Bar => {
+      const state = lookOf(event, window)
+      return {
+        id: `${event.key}:${window.start}`,
+        to: `/growth/liveops/${event.key}?at=${window.start}`,
         name: event.name,
-        figure: scheduleWords(event.schedule).split(' for ')[0]!.replace('Every day at', 'daily'),
-        start,
-        end,
+        figure: rhythm ? '' : event.schedule.mode === 'once' ? figureOf(event, window, state) : seriesFigure(event, window, state),
+        tone: look.tone,
+        start: window.start,
+        end: window.end,
         look: state,
-        ticks: windows.map(window => ({ left: (window.start - start) / length, width: (window.end - window.start) / length })),
-        tip: { title: event.name, kind: `${look.label} · ${LOOK_WORDS[state]}`, lines: [scheduleWords(event.schedule), describeRule(event.audience) || 'Every player'] }
+        pill: rhythm,
+        tip: tipOf(event, window, state)
+      }
+    })
+
+    if (rhythm || (event.schedule.mode !== 'once' && windows.length > 1)) {
+      group.series.push({
+        id: event.key,
+        to: `/growth/liveops/${event.key}`,
+        name: event.name,
+        words: `${scheduleWords(event.schedule)}${event.status === 'paused' ? ', paused' : event.status === 'draft' ? ', draft' : ''}`,
+        tone: look.tone,
+        bars
       })
     } else {
-      for (const window of windows) {
-        const state = lookOf(event, window)
-        list.push({
-          ...base,
-          id: `${event.key}:${window.start}`,
-          to: `/growth/liveops/${event.key}?at=${window.start}`,
-          name: event.name,
-          figure: figureOf(event, window, state),
-          start: window.start,
-          end: window.end,
-          look: state,
-          ticks: null,
-          tip: tipOf(event, window, state)
-        })
-      }
+      group.bars.push(...bars)
     }
-    byKind.set(event.kind, list)
+    byKind.set(event.kind, group)
   }
 
   const order = (kind: string) => {
@@ -248,9 +272,17 @@ const bands = computed<Band[]>(() => {
   }
   const out: Band[] = [...byKind.entries()]
     .sort(([a], [b]) => order(a) - order(b) || a.localeCompare(b))
-    .map(([kind, bars]) => {
+    .map(([kind, group]) => {
       const look = kindLook(kind)
-      return { id: kind, label: look.lane, icon: look.icon, tone: look.tone, lanes: pack(bars), count: new Set(bars.map(bar => bar.id.split(':')[0])).size }
+      return {
+        id: kind,
+        label: look.lane,
+        icon: look.icon,
+        tone: look.tone,
+        lanes: pack(group.bars),
+        series: group.series,
+        count: new Set(group.bars.map(bar => bar.id.split(':')[0])).size + group.series.length
+      }
     })
 
   // The tests running on the same days, drawn plainer: they are here to be seen, not read.
@@ -269,12 +301,11 @@ const bands = computed<Band[]>(() => {
         start,
         end,
         look: (running ? 'live' : 'ended') as Look,
-        ticks: null,
         tip: { title: test.name, kind: `A/B test · ${EXPERIMENT_STATUS[test.status].label}`, lines: [whenWords(test), test.audience] }
       }
     })
     .filter(bar => bar.end > from.value && bar.start < windowEnd.value)
-  if (tests.length) out.push({ id: 'ab-tests', label: 'A/B tests', icon: 'material-symbols:science-outline', tone: 0, lanes: pack(tests), count: tests.length })
+  if (tests.length) out.push({ id: 'ab-tests', label: 'A/B tests', icon: 'material-symbols:science-outline', tone: 0, lanes: pack(tests), series: [], count: tests.length })
   return out
 })
 
@@ -287,21 +318,6 @@ function barStyle(bar: Bar) {
 }
 
 const clipped = (bar: Bar) => ({ start: bar.start < from.value, end: bar.end > windowEnd.value })
-
-/* A rhythm bar's ticks, placed against the part of it in view. */
-function tickStyle(bar: Bar, tick: { left: number, width: number }) {
-  const length = bar.end - bar.start
-  const shownStart = Math.max(bar.start, from.value)
-  const shownEnd = Math.min(bar.end, windowEnd.value)
-  const shown = shownEnd - shownStart
-  const start = bar.start + tick.left * length
-  return { left: `${((start - shownStart) / shown) * 100}%`, width: `max(${(tick.width * length / shown) * 100}%, 2px)` }
-}
-
-const hasTicksInView = (bar: Bar) => bar.ticks?.some((tick) => {
-  const start = bar.start + tick.left * (bar.end - bar.start)
-  return start < windowEnd.value && start >= from.value - DAY
-})
 </script>
 
 <template>
@@ -485,7 +501,7 @@ const hasTicksInView = (bar: Bar) => bar.ticks?.some((tick) => {
                 <div v-if="folded.includes(band.id)" class="relative flex h-full min-h-7 items-center">
                   <div class="relative h-2 w-full">
                     <span
-                      v-for="bar in band.lanes.flat()"
+                      v-for="bar in [...band.lanes.flat(), ...band.series.flatMap(line => line.bars)]"
                       :key="bar.id"
                       :style="barStyle(bar)"
                       class="ps-liveops-bar absolute inset-y-0 rounded-full"
@@ -521,15 +537,6 @@ const hasTicksInView = (bar: Bar) => bar.ticks?.some((tick) => {
                           :to="bar.to"
                           class="ps-liveops-bar absolute inset-y-0 flex min-w-0 items-center gap-1.5 overflow-hidden px-2 leading-none font-medium no-underline transition-[filter] hover:brightness-110"
                         >
-                          <template v-if="bar.ticks && hasTicksInView(bar)">
-                            <span
-                              v-for="(tick, tickIndex) in bar.ticks"
-                              :key="tickIndex"
-                              :style="tickStyle(bar, tick)"
-                              aria-hidden="true"
-                              class="ps-liveops-bar__tick absolute inset-y-[3px] rounded-[2px]"
-                            />
-                          </template>
                           <Icon
                             v-if="clipped(bar).start"
                             aria-hidden="true"
@@ -553,6 +560,64 @@ const hasTicksInView = (bar: Bar) => bar.ticks?.some((tick) => {
                         <span v-for="(line, lineIndex) in bar.tip.lines" :key="lineIndex" class="text-[11px] opacity-85">{{ line }}</span>
                       </div>
                     </v-tooltip>
+                  </div>
+
+                  <!-- A recurring event: its name once, then its windows, each with what it did. -->
+                  <!-- Framed with a ring rather than a border, so the bars keep the day columns' width. -->
+                  <div v-for="line in band.series" :key="line.id" class="flex flex-col gap-0.5 rounded-(--ps-radius-small) bg-surface/40 py-1 ring-1 ring-line ring-inset">
+                    <NuxtLink
+                      :class="compact ? 'h-3.5 text-[10px]' : 'h-4 text-[11px]'"
+                      :to="line.to"
+                      class="group relative flex min-w-0 items-center gap-1.5 self-start px-1.5 leading-none no-underline"
+                    >
+                      <Icon
+                        :style="{ color: toneColour(line.tone) }"
+                        aria-hidden="true"
+                        class="flex-none text-xs"
+                        name="material-symbols:event-repeat-outline"
+                      />
+                      <span class="truncate font-medium text-ink/85 transition-colors group-hover:text-primary">{{ line.name }}</span>
+                      <span class="truncate text-ink/45">{{ line.words }}</span>
+                    </NuxtLink>
+                    <div :class="compact ? 'h-3.5' : 'h-5'" class="relative">
+                      <template v-for="bar in line.bars" :key="bar.id">
+                        <span
+                          v-if="bar.pill"
+                          :class="LOOK_CLASS[bar.look]"
+                          :style="barStyle(bar)"
+                          aria-hidden="true"
+                          class="ps-liveops-bar ps-liveops-bar--pill absolute inset-y-1 rounded-full"
+                        />
+                        <v-tooltip
+                          v-else
+                          location="top"
+                          max-width="320"
+                          open-delay="150"
+                        >
+                          <template #activator="{ props: tip }">
+                            <NuxtLink
+                              v-bind="tip"
+                              :class="[
+                                LOOK_CLASS[bar.look],
+                                clipped(bar).start ? '' : 'rounded-l-(--ps-radius-small)',
+                                clipped(bar).end ? '' : 'rounded-r-(--ps-radius-small)'
+                              ]"
+                              :style="barStyle(bar)"
+                              :to="bar.to"
+                              class="ps-liveops-bar absolute inset-y-0 flex min-w-0 items-center justify-center gap-1 overflow-hidden px-1.5 font-mono text-[10.5px] leading-none font-medium no-underline transition-[filter] hover:brightness-110"
+                            >
+                              <span v-if="bar.look === 'live'" aria-hidden="true" class="ps-liveops-bar__pulse relative size-1.5 flex-none rounded-full" />
+                              <span v-if="!compact" class="relative truncate">{{ bar.figure }}</span>
+                            </NuxtLink>
+                          </template>
+                          <div class="flex flex-col gap-1 py-0.5">
+                            <span class="text-[10px] tracking-wide uppercase opacity-70">{{ bar.tip.kind }}</span>
+                            <span class="text-xs font-medium">{{ bar.tip.title }}</span>
+                            <span v-for="(tipLine, lineIndex) in bar.tip.lines" :key="lineIndex" class="text-[11px] opacity-85">{{ tipLine }}</span>
+                          </div>
+                        </v-tooltip>
+                      </template>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -623,16 +688,9 @@ const hasTicksInView = (bar: Bar) => bar.ticks?.some((tick) => {
   color: rgba(var(--v-theme-on-surface), 0.6);
 }
 
-/* A rhythm bar is a tint with its windows solid inside it. */
-.ps-liveops-bar:has(.ps-liveops-bar__tick).ps-liveops-bar--ended,
-.ps-liveops-bar:has(.ps-liveops-bar__tick).ps-liveops-bar--live {
-  background: color-mix(in srgb, var(--bar) 22%, rgb(var(--v-theme-surface)));
-  color: color-mix(in srgb, var(--bar) 60%, rgb(var(--v-theme-on-surface)));
-}
-
-.ps-liveops-bar__tick {
-  background: var(--bar);
-  opacity: 0.85;
+/* A pill is too small for a ring: the one on now is a solid pill with a halo of its colour. */
+.ps-liveops-bar--pill.ps-liveops-bar--live {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--bar) 35%, transparent);
 }
 
 .ps-liveops-bar__pulse {
