@@ -285,7 +285,6 @@ const payloadCode = computed(() => JSON.stringify(event.value?.payload ?? null, 
 
 // --- Actions ------------------------------------------------------------------------------
 
-const editing = ref(false)
 const pausing = ref(false)
 const pauseReason = ref('')
 const activating = ref(false)
@@ -356,7 +355,7 @@ const activateWords = computed(() => (event.value
           prepend-icon="material-symbols:edit-outline"
           size="small"
           variant="outlined"
-          @click="editing = true"
+          :to="`/growth/liveops/${event.key}/edit`"
         >
           Edit
         </v-btn>
@@ -729,8 +728,6 @@ const activateWords = computed(() => (event.value
         </ol>
       </SectionCard>
     </div>
-
-    <LiveOpsEventDialog v-if="editing" v-model="editing" :event="event" />
 
     <ConfirmDialog
       v-if="activating"

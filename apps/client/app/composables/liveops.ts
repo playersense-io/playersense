@@ -38,6 +38,8 @@ export function useLiveOps() {
   function keyProblem(key: string): string | null {
     if (key.length < 2) return 'A key needs two characters or more.'
     if (!KEY_PATTERN.test(key)) return 'Letters, digits, dots, dashes and underscores, starting with a letter or a digit.'
+    /* /growth/liveops/new is the page a new event is made on. */
+    if (key === 'new') return '"new" is kept for the page a new event is made on. Choose another key.'
     if (eventByKey(key)) return `An event with the key "${key}" already exists, archived ones included.`
     return null
   }

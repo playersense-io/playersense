@@ -273,16 +273,11 @@ const sortBy = ref<DataTableSort[]>([{ key: 'state', order: 'asc' }])
 const { segmentName } = useLiveConfig()
 const audienceWords = (rule: TargetRule) => describeRule(rule, segmentName) || 'Every player'
 
-const creating = ref(false)
-/* The day a new event starts on, when it was begun from a day on the calendar. */
-const creatingOn = ref<number | null>(null)
-
+/* A new event is a page of its own; from a day on the calendar, it starts on that day. */
 function createOn(day: number | null) {
-  creatingOn.value = day
-  creating.value = true
+  navigateTo({ path: '/growth/liveops/new', query: day === null ? {} : { day: String(day) } })
 }
 const calendarFull = ref(false)
-const router = useRouter()
 </script>
 
 <template>
@@ -514,12 +509,5 @@ const router = useRouter()
         />
       </v-card>
     </v-dialog>
-
-    <LiveOpsEventDialog
-      v-if="creating"
-      v-model="creating"
-      :start-day="creatingOn"
-      @saved="router.push(`/growth/liveops/${$event}`)"
-    />
   </div>
 </template>
