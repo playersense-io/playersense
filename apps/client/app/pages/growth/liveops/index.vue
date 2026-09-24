@@ -274,6 +274,13 @@ const { segmentName } = useLiveConfig()
 const audienceWords = (rule: TargetRule) => describeRule(rule, segmentName) || 'Every player'
 
 const creating = ref(false)
+/* The day a new event starts on, when it was begun from a day on the calendar. */
+const creatingOn = ref<number | null>(null)
+
+function createOn(day: number | null) {
+  creatingOn.value = day
+  creating.value = true
+}
 const calendarFull = ref(false)
 const router = useRouter()
 </script>
@@ -291,7 +298,7 @@ const router = useRouter()
           prepend-icon="material-symbols:add"
           size="small"
           variant="flat"
-          @click="creating = true"
+          @click="createOn(null)"
         >
           New event
         </v-btn>
@@ -359,7 +366,12 @@ const router = useRouter()
 
     <SectionCard :padded="false" description="Every event on the days it was on, in a band per kind, with the A/B tests running at the time and the whole game's day along the top. Hover a bar for what it did; select it for its results." title="Calendar">
       <div class="p-4">
-        <LiveOpsCalendar :events="events" :experiments="experiments" @expand="calendarFull = true" />
+        <LiveOpsCalendar
+          :events="events"
+          :experiments="experiments"
+          @create="createOn"
+          @expand="calendarFull = true"
+        />
       </div>
     </SectionCard>
 
@@ -498,10 +510,16 @@ const router = useRouter()
           class="min-h-0 flex-1"
           fullscreen
           @close="calendarFull = false"
+          @create="createOn"
         />
       </v-card>
     </v-dialog>
 
-    <LiveOpsEventDialog v-if="creating" v-model="creating" @saved="router.push(`/growth/liveops/${$event}`)" />
+    <LiveOpsEventDialog
+      v-if="creating"
+      v-model="creating"
+      :start-day="creatingOn"
+      @saved="router.push(`/growth/liveops/${$event}`)"
+    />
   </div>
 </template>

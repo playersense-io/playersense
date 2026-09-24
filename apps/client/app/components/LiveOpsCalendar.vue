@@ -11,7 +11,7 @@
 // once. A recurring event is a row of its own: its name and schedule written once over it, and
 // each window a bar saying only what that window did, or when it opens; one that opens every
 // day or every few hours is a row of pills. Past windows are solid, the one on now is ringed,
-// what is coming is a tint with a clock, a draft is an outline and a paused event is hatched. A
+// what is coming is a tint, a draft is an outline and a paused event is hatched. A
 // band folds to a strip.
 //
 // Full screen is the same calendar in a dialog the size of the window: a month in view at
@@ -25,7 +25,8 @@ const props = withDefaults(defineProps<{
   fullscreen: false
 })
 
-const emit = defineEmits<{ expand: [], close: [] }>()
+/** `create` is a day in the header chosen: a new event starting on it. */
+const emit = defineEmits<{ expand: [], close: [], create: [day: number] }>()
 
 const now = useNow({ interval: 60_000 })
 
@@ -133,6 +134,7 @@ interface Series {
   words: string
   tone: number
   bars: Bar[]
+  tip: Bar['tip']
 }
 
 interface Band {
@@ -258,7 +260,12 @@ const bands = computed<Band[]>(() => {
         name: event.name,
         words: `${scheduleWords(event.schedule)}${event.status === 'paused' ? ', paused' : event.status === 'draft' ? ', draft' : ''}`,
         tone: look.tone,
-        bars
+        bars,
+        tip: {
+          title: event.name,
+          kind: `${look.label} · repeats`,
+          lines: [scheduleWords(event.schedule), `${describeRule(event.audience) || 'Every player'}${event.rollout < FULL_ROLLOUT ? `, ${formatRollout(event.rollout)} of them` : ''}`]
+        }
       })
     } else {
       group.bars.push(...bars)
@@ -401,16 +408,25 @@ const clipped = (bar: Bar) => ({ start: bar.start < from.value, end: bar.end > w
         <div class="flex border-b border-line">
           <div class="w-11 flex-none" />
           <div :style="columns" class="grid flex-1">
-            <div
+            <!-- A day is a button: choosing it starts a new event on it. -->
+            <button
               v-for="day in days"
               :key="day.at"
+              :aria-label="`New event on ${new Date(day.at).toLocaleDateString('en', { weekday: 'long', month: 'long', day: 'numeric' })}`"
               :class="[day.weekend ? 'bg-warning/6' : '', day.today ? 'text-primary' : 'text-ink']"
-              class="flex items-baseline justify-center gap-1 border-l border-line/60 py-1.5"
+              class="group relative flex cursor-pointer items-baseline justify-center gap-1 border-l border-line/60 py-1.5 transition-colors duration-150 hover:bg-primary/8 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary"
+              type="button"
+              @click="emit('create', day.at)"
             >
               <span v-if="day.month" class="text-[10px] font-semibold tracking-wide text-ink/50 uppercase">{{ day.month }}</span>
               <span :class="[compact ? 'text-xs' : 'text-sm', day.today ? 'rounded-full bg-primary px-1.5 text-on-primary' : '']" class="font-medium">{{ day.day }}</span>
               <span v-if="!compact && !day.month" class="text-[10px] tracking-wide text-ink/45 uppercase">{{ day.weekday }}</span>
-            </div>
+              <Icon
+                aria-hidden="true"
+                class="absolute top-0.5 right-0.5 text-xs text-primary opacity-0 transition-opacity duration-150 group-hover:opacity-100"
+                name="material-symbols:add"
+              />
+            </button>
           </div>
         </div>
 
@@ -517,49 +533,51 @@ const clipped = (bar: Bar) => ({ start: bar.start < from.value, end: bar.end > w
                     :class="compact ? 'h-[18px]' : 'h-6'"
                     class="relative"
                   >
-                    <v-tooltip
+                    <NuxtLink
                       v-for="bar in lane"
                       :key="bar.id"
-                      location="top"
-                      max-width="320"
-                      open-delay="150"
+                      :class="[
+                        LOOK_CLASS[bar.look],
+                        compact ? 'text-[10.5px]' : 'text-xs',
+                        clipped(bar).start ? '' : 'rounded-l-(--ps-radius-small)',
+                        clipped(bar).end ? '' : 'rounded-r-(--ps-radius-small)'
+                      ]"
+                      :style="barStyle(bar)"
+                      :to="bar.to"
+                      class="ps-liveops-bar absolute inset-y-0 flex min-w-0 items-center gap-1.5 overflow-hidden px-2 leading-none font-medium no-underline transition-[filter] hover:brightness-110"
                     >
-                      <template #activator="{ props: tip }">
-                        <NuxtLink
-                          v-bind="tip"
-                          :class="[
-                            LOOK_CLASS[bar.look],
-                            compact ? 'text-[10.5px]' : 'text-xs',
-                            clipped(bar).start ? '' : 'rounded-l-(--ps-radius-small)',
-                            clipped(bar).end ? '' : 'rounded-r-(--ps-radius-small)'
-                          ]"
-                          :style="barStyle(bar)"
-                          :to="bar.to"
-                          class="ps-liveops-bar absolute inset-y-0 flex min-w-0 items-center gap-1.5 overflow-hidden px-2 leading-none font-medium no-underline transition-[filter] hover:brightness-110"
+                      <Icon
+                        v-if="clipped(bar).start"
+                        aria-hidden="true"
+                        class="relative flex-none text-sm opacity-80"
+                        name="material-symbols:chevron-left"
+                      />
+                      <!-- What it is and what it did, on the glyph only: the bar itself is a link, not a tooltip. -->
+                      <span
+                        :aria-label="`About ${bar.tip.title}`"
+                        class="relative flex flex-none cursor-help items-center opacity-70 transition-opacity hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none"
+                        role="img"
+                        tabindex="0"
+                        @click.prevent.stop
+                      >
+                        <Icon :class="compact ? 'text-[11px]' : 'text-[13px]'" aria-hidden="true" name="material-symbols:info-outline" />
+                        <v-tooltip
+                          activator="parent"
+                          location="top"
+                          max-width="320"
+                          open-delay="100"
                         >
-                          <Icon
-                            v-if="clipped(bar).start"
-                            aria-hidden="true"
-                            class="relative flex-none text-sm opacity-80"
-                            name="material-symbols:chevron-left"
-                          />
-                          <span v-if="bar.look === 'live'" aria-hidden="true" class="ps-liveops-bar__pulse relative size-1.5 flex-none rounded-full" />
-                          <Icon
-                            v-else-if="bar.look === 'scheduled' && !compact"
-                            aria-hidden="true"
-                            class="relative flex-none text-[13px]"
-                            name="material-symbols:schedule-outline"
-                          />
-                          <span class="relative min-w-6 truncate">{{ bar.name }}</span>
-                          <span v-if="bar.figure && !compact" class="relative min-w-0 shrink-[100] truncate font-mono text-[10.5px] font-normal opacity-80">{{ bar.figure }}</span>
-                        </NuxtLink>
-                      </template>
-                      <div class="flex flex-col gap-1 py-0.5">
-                        <span class="text-[10px] tracking-wide uppercase opacity-70">{{ bar.tip.kind }}</span>
-                        <span class="text-xs font-medium">{{ bar.tip.title }}</span>
-                        <span v-for="(line, lineIndex) in bar.tip.lines" :key="lineIndex" class="text-[11px] opacity-85">{{ line }}</span>
-                      </div>
-                    </v-tooltip>
+                          <div class="flex flex-col gap-1 py-0.5">
+                            <span class="text-[10px] tracking-wide uppercase opacity-70">{{ bar.tip.kind }}</span>
+                            <span class="text-xs font-medium">{{ bar.tip.title }}</span>
+                            <span v-for="(tipLine, lineIndex) in bar.tip.lines" :key="lineIndex" class="text-[11px] opacity-85">{{ tipLine }}</span>
+                          </div>
+                        </v-tooltip>
+                      </span>
+                      <span v-if="bar.look === 'live'" aria-hidden="true" class="ps-liveops-bar__pulse relative size-1.5 flex-none rounded-full" />
+                      <span class="relative min-w-6 truncate">{{ bar.name }}</span>
+                      <span v-if="bar.figure && !compact" class="relative min-w-0 shrink-[100] truncate font-mono text-[10.5px] font-normal opacity-80">{{ bar.figure }}</span>
+                    </NuxtLink>
                   </div>
 
                   <!-- A recurring event: its name once, then its windows, each with what it did. -->
@@ -576,12 +594,33 @@ const clipped = (bar: Bar) => ({ start: bar.start < from.value, end: bar.end > w
                       :to="line.to"
                       class="group relative flex min-w-0 items-center gap-1.5 self-start px-0.5 leading-none no-underline"
                     >
-                      <Icon
-                        :style="{ color: toneColour(line.tone) }"
-                        aria-hidden="true"
-                        class="flex-none text-xs"
-                        name="material-symbols:event-repeat-outline"
-                      />
+                      <!-- What it is and what it did, on the glyph only: the bar itself is a link, not a tooltip. -->
+                      <span
+                        :aria-label="`About ${line.tip.title}`"
+                        class="relative flex flex-none cursor-help items-center opacity-80 transition-opacity hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none"
+                        role="img"
+                        tabindex="0"
+                        @click.prevent.stop
+                      >
+                        <Icon
+                          :class="compact ? 'text-[11px]' : 'text-[13px]'"
+                          :style="{ color: toneColour(line.tone) }"
+                          aria-hidden="true"
+                          name="material-symbols:info-outline"
+                        />
+                        <v-tooltip
+                          activator="parent"
+                          location="top"
+                          max-width="320"
+                          open-delay="100"
+                        >
+                          <div class="flex flex-col gap-1 py-0.5">
+                            <span class="text-[10px] tracking-wide uppercase opacity-80">{{ line.tip.kind }}</span>
+                            <span class="text-xs font-medium">{{ line.tip.title }}</span>
+                            <span v-for="(tipLine, lineIndex) in line.tip.lines" :key="lineIndex" class="text-[11px] opacity-85">{{ tipLine }}</span>
+                          </div>
+                        </v-tooltip>
+                      </span>
                       <span class="truncate font-medium text-ink/85 transition-colors group-hover:text-primary">{{ line.name }}</span>
                       <span class="truncate text-ink/45">{{ line.words }}</span>
                     </NuxtLink>
@@ -594,34 +633,42 @@ const clipped = (bar: Bar) => ({ start: bar.start < from.value, end: bar.end > w
                           aria-hidden="true"
                           class="ps-liveops-bar ps-liveops-bar--pill absolute inset-y-1 rounded-full"
                         />
-                        <v-tooltip
+                        <NuxtLink
                           v-else
-                          location="top"
-                          max-width="320"
-                          open-delay="150"
+                          :class="[
+                            LOOK_CLASS[bar.look],
+                            clipped(bar).start ? '' : 'rounded-l-(--ps-radius-small)',
+                            clipped(bar).end ? '' : 'rounded-r-(--ps-radius-small)'
+                          ]"
+                          :style="barStyle(bar)"
+                          :to="bar.to"
+                          class="ps-liveops-bar absolute inset-y-0 flex min-w-0 items-center justify-center gap-1 overflow-hidden px-1.5 font-mono text-[10.5px] leading-none font-medium no-underline transition-[filter] hover:brightness-110"
                         >
-                          <template #activator="{ props: tip }">
-                            <NuxtLink
-                              v-bind="tip"
-                              :class="[
-                                LOOK_CLASS[bar.look],
-                                clipped(bar).start ? '' : 'rounded-l-(--ps-radius-small)',
-                                clipped(bar).end ? '' : 'rounded-r-(--ps-radius-small)'
-                              ]"
-                              :style="barStyle(bar)"
-                              :to="bar.to"
-                              class="ps-liveops-bar absolute inset-y-0 flex min-w-0 items-center justify-center gap-1 overflow-hidden px-1.5 font-mono text-[10.5px] leading-none font-medium no-underline transition-[filter] hover:brightness-110"
+                          <!-- What it is and what it did, on the glyph only: the bar itself is a link, not a tooltip. -->
+                          <span
+                            :aria-label="`About ${bar.tip.title}`"
+                            class="relative flex flex-none cursor-help items-center opacity-70 transition-opacity hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none"
+                            role="img"
+                            tabindex="0"
+                            @click.prevent.stop
+                          >
+                            <Icon :class="compact ? 'text-[11px]' : 'text-[13px]'" aria-hidden="true" name="material-symbols:info-outline" />
+                            <v-tooltip
+                              activator="parent"
+                              location="top"
+                              max-width="320"
+                              open-delay="100"
                             >
-                              <span v-if="bar.look === 'live'" aria-hidden="true" class="ps-liveops-bar__pulse relative size-1.5 flex-none rounded-full" />
-                              <span v-if="!compact" class="relative truncate">{{ bar.figure }}</span>
-                            </NuxtLink>
-                          </template>
-                          <div class="flex flex-col gap-1 py-0.5">
-                            <span class="text-[10px] tracking-wide uppercase opacity-70">{{ bar.tip.kind }}</span>
-                            <span class="text-xs font-medium">{{ bar.tip.title }}</span>
-                            <span v-for="(tipLine, lineIndex) in bar.tip.lines" :key="lineIndex" class="text-[11px] opacity-85">{{ tipLine }}</span>
-                          </div>
-                        </v-tooltip>
+                              <div class="flex flex-col gap-1 py-0.5">
+                                <span class="text-[10px] tracking-wide uppercase opacity-70">{{ bar.tip.kind }}</span>
+                                <span class="text-xs font-medium">{{ bar.tip.title }}</span>
+                                <span v-for="(tipLine, lineIndex) in bar.tip.lines" :key="lineIndex" class="text-[11px] opacity-85">{{ tipLine }}</span>
+                              </div>
+                            </v-tooltip>
+                          </span>
+                          <span v-if="bar.look === 'live'" aria-hidden="true" class="ps-liveops-bar__pulse relative size-1.5 flex-none rounded-full" />
+                          <span v-if="!compact" class="relative truncate">{{ bar.figure }}</span>
+                        </NuxtLink>
                       </template>
                     </div>
                   </div>
@@ -674,8 +721,8 @@ const clipped = (bar: Bar) => ({ start: bar.start < from.value, end: bar.end > w
   color: white;
 }
 
-/* Still to come: the kind's colour, lightly, with a hairline of it all round and a clock, so it
-   reads as the same event not yet here, and never as a draft's empty outline. */
+/* Still to come: the kind's colour, lightly, with a hairline of it all round, so it reads as the
+   same event not yet here, and never as a draft's empty outline. */
 .ps-liveops-bar--scheduled {
   background: color-mix(in srgb, var(--bar) 12%, rgb(var(--v-theme-surface)));
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bar) 45%, transparent);

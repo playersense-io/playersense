@@ -12,6 +12,8 @@ const open = defineModel<boolean>({ required: true })
 const props = defineProps<{
   /** The event being edited. Absent is a new one. */
   event?: LiveOpsEventDef | null
+  /** For a new event: the day it starts on, as a day on the calendar was chosen. */
+  startDay?: number | null
 }>()
 
 const emit = defineEmits<{ saved: [key: string] }>()
@@ -62,7 +64,11 @@ watch(customKind, (value) => {
 
 // --- When ---------------------------------------------------------------------------------
 
-const now = Date.now()
+/* The day before the first one offered: today, or the eve of the day chosen on the calendar, so
+   the start and every preset (the next Friday, the next 1st) count from that day. */
+const now = props.startDay ? props.startDay - DAY : Date.now()
+
+/* The first day, at 10:00. */
 const nextHour = () => {
   const at = new Date(now + 24 * 3_600_000)
   at.setHours(10, 0, 0, 0)
