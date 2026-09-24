@@ -5157,7 +5157,7 @@
             }
           },
           "422": {
-            "description": "The request could not be validated.",
+            "description": "The facts cannot answer this question, and the body explains why",
             "content": {
               "application/json": {
                 "schema": {
@@ -5302,6 +5302,330 @@
           },
           "503": {
             "description": "The summaries could not be read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/organizations/{org}/projects/{project}/analytics/{environment}/players": {
+      "get": {
+        "tags": [
+          "reporting"
+        ],
+        "summary": "List the game's players",
+        "description": "One page of installs, filtered by status, arrival platform or country, and whether they have paid, sorted by when they were last seen or by what they did. Each is one install (§29.2): a reinstall is a new one. Needs player.read, and is not served for a kids_strict project.",
+        "operationId": "get_v1_organizations_by_org_projects_by_project_analytics_by_environment_players",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "project",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "environment",
+            "in": "path",
+            "description": "development, staging or production",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "development",
+                "staging",
+                "production"
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "description": "active (seen within 7 days), lapsed (7 to 30) or churned (over 30)",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "active",
+                "lapsed",
+                "churned"
+              ]
+            }
+          },
+          {
+            "name": "platform",
+            "in": "query",
+            "description": "The platform the player installed on",
+            "schema": {
+              "type": "string",
+              "maxLength": 32
+            }
+          },
+          {
+            "name": "country",
+            "in": "query",
+            "description": "The country the player installed in",
+            "schema": {
+              "type": "string",
+              "maxLength": 8
+            }
+          },
+          {
+            "name": "spend",
+            "in": "query",
+            "description": "paying or never",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "paying",
+                "never"
+              ]
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "description": "last_seen (default), first_seen, revenue, playtime, sessions or active_days; newest or largest first",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "last_seen",
+                "first_seen",
+                "revenue",
+                "playtime",
+                "sessions",
+                "active_days"
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Up to 200",
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "default": "50",
+              "minimum": 1,
+              "maximum": 200
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Up to 10,000; narrow the filters to reach further",
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0,
+              "maximum": 10000
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlayerListOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not read this project's analytics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The organization, project or environment does not exist, or you cannot see it",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The facts cannot answer this question, and the body explains why",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The facts could not be read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/organizations/{org}/projects/{project}/analytics/{environment}/players/{id}": {
+      "get": {
+        "tags": [
+          "reporting"
+        ],
+        "summary": "Describe one player",
+        "description": "An install by its id, or a signed-in player by the id the game gave them, across every install they played on in the last ninety days: their life so far, each day of the last ninety, and their newest events.",
+        "operationId": "get_v1_organizations_by_org_projects_by_project_analytics_by_environment_players_by_id",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "project",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "environment",
+            "in": "path",
+            "description": "development, staging or production",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "development",
+                "staging",
+                "production"
+              ]
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "description": "An install id (a UUID) or the player id the game signed the player in with",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlayerProfileOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not read this project's analytics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such install or player in this project",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The facts cannot answer this question, and the body explains why",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The facts could not be read",
             "content": {
               "application/json": {
                 "schema": {
@@ -5562,7 +5886,7 @@
             }
           },
           "422": {
-            "description": "The request could not be validated.",
+            "description": "The facts cannot answer this question, and the body explains why",
             "content": {
               "application/json": {
                 "schema": {
@@ -12272,6 +12596,180 @@
         },
         "required": [
           "plans"
+        ]
+      },
+      "PlayerDayOut": {
+        "type": "object",
+        "properties": {
+          "day": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "events": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "playtime_ms": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "purchases": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "revenue_micros": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "sessions": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "day",
+          "events",
+          "playtime_ms",
+          "purchases",
+          "revenue_micros",
+          "sessions"
+        ]
+      },
+      "PlayerListOut": {
+        "type": "object",
+        "properties": {
+          "next_offset": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Absent on the last page"
+          },
+          "players": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlayerSummaryOut"
+            }
+          }
+        },
+        "required": [
+          "players"
+        ]
+      },
+      "PlayerProfileOut": {
+        "type": "object",
+        "properties": {
+          "days": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlayerDayOut"
+            }
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EventOccurrenceOut"
+            }
+          },
+          "id": {
+            "type": "string"
+          },
+          "installs": {
+            "type": "array",
+            "description": "The installs this profile covers",
+            "items": {
+              "type": "string"
+            }
+          },
+          "kind": {
+            "type": "string",
+            "description": "install or account"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/PlayerSummaryOut"
+          }
+        },
+        "required": [
+          "days",
+          "events",
+          "id",
+          "installs",
+          "kind",
+          "summary"
+        ]
+      },
+      "PlayerSummaryOut": {
+        "type": "object",
+        "properties": {
+          "active_days": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "app_version": {
+            "type": "string"
+          },
+          "country": {
+            "type": "string"
+          },
+          "first_purchase_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "first_seen": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "install_id": {
+            "type": "string"
+          },
+          "last_purchase_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "last_seen": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "platform": {
+            "type": "string"
+          },
+          "playtime_ms": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "purchases": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "revenue_micros": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "sessions": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "status": {
+            "type": "string",
+            "description": "active, lapsed or churned"
+          }
+        },
+        "required": [
+          "active_days",
+          "app_version",
+          "first_seen",
+          "install_id",
+          "last_seen",
+          "platform",
+          "playtime_ms",
+          "purchases",
+          "revenue_micros",
+          "sessions",
+          "status"
         ]
       },
       "PortalOut": {

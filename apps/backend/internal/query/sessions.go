@@ -252,6 +252,9 @@ func ladderQuantile(ladder []schemas.SessionLengthOut, q float64) uint64 {
 // each read is a couple of days' rows of one project, and grouping them by (device_id,
 // session_key) is what turns a session's partial rows into one.
 func (e *Engine) RecentSessions(ctx context.Context, scope Scope, limit int, now time.Time) (*schemas.RecentSessionsOut, error) {
+	if err := refuseKids(scope); err != nil {
+		return nil, err
+	}
 	today := now.UTC().Truncate(24 * time.Hour)
 	out := &schemas.RecentSessionsOut{}
 	for _, back := range []int{0, 1} {

@@ -855,6 +855,46 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/v1/organizations/{org}/projects/{project}/analytics/{environment}/players": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * List the game's players
+         * @description One page of installs, filtered by status, arrival platform or country, and whether they have paid, sorted by when they were last seen or by what they did. Each is one install (§29.2): a reinstall is a new one. Needs player.read, and is not served for a kids_strict project.
+         */
+        readonly get: operations["get_v1_organizations_by_org_projects_by_project_analytics_by_environment_players"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/organizations/{org}/projects/{project}/analytics/{environment}/players/{id}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * Describe one player
+         * @description An install by its id, or a signed-in player by the id the game gave them, across every install they played on in the last ninety days: their life so far, each day of the last ninety, and their newest events.
+         */
+        readonly get: operations["get_v1_organizations_by_org_projects_by_project_analytics_by_environment_players_by_id"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/v1/organizations/{org}/projects/{project}/analytics/{environment}/sessions": {
         readonly parameters: {
             readonly query?: never;
@@ -2537,6 +2577,64 @@ export interface components {
         };
         readonly PlansOut: {
             readonly plans: readonly components["schemas"]["PlanDetailOut"][];
+        };
+        readonly PlayerDayOut: {
+            /** Format: date-time */
+            readonly day: string;
+            /** Format: int64 */
+            readonly events: number;
+            /** Format: int64 */
+            readonly playtime_ms: number;
+            /** Format: int64 */
+            readonly purchases: number;
+            /** Format: int64 */
+            readonly revenue_micros: number;
+            /** Format: int64 */
+            readonly sessions: number;
+        };
+        readonly PlayerListOut: {
+            /**
+             * Format: int64
+             * @description Absent on the last page
+             */
+            readonly next_offset?: number;
+            readonly players: readonly components["schemas"]["PlayerSummaryOut"][];
+        };
+        readonly PlayerProfileOut: {
+            readonly days: readonly components["schemas"]["PlayerDayOut"][];
+            readonly events: readonly components["schemas"]["EventOccurrenceOut"][];
+            readonly id: string;
+            /** @description The installs this profile covers */
+            readonly installs: readonly string[];
+            /** @description install or account */
+            readonly kind: string;
+            readonly summary: components["schemas"]["PlayerSummaryOut"];
+        };
+        readonly PlayerSummaryOut: {
+            /** Format: int64 */
+            readonly active_days: number;
+            readonly app_version: string;
+            readonly country?: string;
+            /** Format: date-time */
+            readonly first_purchase_at?: string | null;
+            /** Format: date-time */
+            readonly first_seen: string;
+            readonly install_id: string;
+            /** Format: date-time */
+            readonly last_purchase_at?: string | null;
+            /** Format: date-time */
+            readonly last_seen: string;
+            readonly platform: string;
+            /** Format: int64 */
+            readonly playtime_ms: number;
+            /** Format: int64 */
+            readonly purchases: number;
+            /** Format: int64 */
+            readonly revenue_micros: number;
+            /** Format: int64 */
+            readonly sessions: number;
+            /** @description active, lapsed or churned */
+            readonly status: string;
         };
         readonly PortalOut: {
             /** @description Stripe's customer portal; redirect the browser here */
@@ -6720,7 +6818,7 @@ export interface operations {
                     readonly "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description The request could not be validated. */
+            /** @description The facts cannot answer this question, and the body explains why */
             readonly 422: {
                 headers: {
                     readonly [name: string]: unknown;
@@ -6815,6 +6913,181 @@ export interface operations {
                 };
             };
             /** @description The summaries could not be read */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly get_v1_organizations_by_org_projects_by_project_analytics_by_environment_players: {
+        readonly parameters: {
+            readonly query?: {
+                /** @description active (seen within 7 days), lapsed (7 to 30) or churned (over 30) */
+                readonly status?: "active" | "lapsed" | "churned";
+                /** @description The platform the player installed on */
+                readonly platform?: string;
+                /** @description The country the player installed in */
+                readonly country?: string;
+                /** @description paying or never */
+                readonly spend?: "paying" | "never";
+                /** @description last_seen (default), first_seen, revenue, playtime, sessions or active_days; newest or largest first */
+                readonly sort?: "last_seen" | "first_seen" | "revenue" | "playtime" | "sessions" | "active_days";
+                /** @description Up to 200 */
+                readonly limit?: number;
+                /** @description Up to 10,000; narrow the filters to reach further */
+                readonly offset?: number;
+            };
+            readonly header?: never;
+            readonly path: {
+                readonly org: string;
+                readonly project: string;
+                /** @description development, staging or production */
+                readonly environment: "development" | "staging" | "production";
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["PlayerListOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not read this project's analytics */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The organization, project or environment does not exist, or you cannot see it */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The facts cannot answer this question, and the body explains why */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The facts could not be read */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly get_v1_organizations_by_org_projects_by_project_analytics_by_environment_players_by_id: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly org: string;
+                readonly project: string;
+                /** @description development, staging or production */
+                readonly environment: "development" | "staging" | "production";
+                /** @description An install id (a UUID) or the player id the game signed the player in with */
+                readonly id: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["PlayerProfileOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not read this project's analytics */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No such install or player in this project */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The facts cannot answer this question, and the body explains why */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The facts could not be read */
             readonly 503: {
                 headers: {
                     readonly [name: string]: unknown;
@@ -6973,7 +7246,7 @@ export interface operations {
                     readonly "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description The request could not be validated. */
+            /** @description The facts cannot answer this question, and the body explains why */
             readonly 422: {
                 headers: {
                     readonly [name: string]: unknown;

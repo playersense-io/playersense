@@ -372,3 +372,107 @@ type SessionOut struct {
 	RevenueMicros int64     `json:"revenue_micros,omitzero"`
 	Outcome       string    `json:"outcome" doc:"ended, timed_out, or open (an event in the last thirty minutes)"`
 }
+
+// ---- players ----------------------------------------------------------------
+
+// Player statuses, by days since the player was last seen. Seven is where lifecycle_daily stops
+// calling a returner continuing (rollup.LapseDays), so a player the directory shows as lapsed and
+// the lifecycle chart would count as reactivated are the same player.
+const (
+	PlayerLapsedAfterDays  = 7
+	PlayerChurnedAfterDays = 30
+)
+
+// PlayerListParams filters and pages the directory.
+type PlayerListParams struct {
+	AnalyticsScope
+
+	Status   string `query:"status,omitzero" doc:"active (seen within 7 days), lapsed (7 to 30) or churned (over 30)"`
+	Platform string `query:"platform,omitzero" doc:"The platform the player installed on"`
+	Country  string `query:"country,omitzero" doc:"The country the player installed in"`
+	Spend    string `query:"spend,omitzero" doc:"paying or never"`
+	Sort     string `query:"sort,omitzero" doc:"last_seen (default), first_seen, revenue, playtime, sessions or active_days; newest or largest first"`
+	Limit    int    `query:"limit,omitzero" default:"50" doc:"Up to 200"`
+	Offset   int    `query:"offset,omitzero" doc:"Up to 10,000; narrow the filters to reach further"`
+}
+
+func (in *PlayerListParams) Validate(v *muzak.Validation) {
+	in.validateScope(v)
+	v.String(&in.Status).Trim().Lower().OneOf("active", "lapsed", "churned")
+	v.String(&in.Platform).Trim().Lower().MaxLen(32)
+	v.String(&in.Country).Trim().Upper().MaxLen(8)
+	v.String(&in.Spend).Trim().Lower().OneOf("paying", "never")
+	v.String(&in.Sort).Trim().Lower().OneOf("last_seen", "first_seen", "revenue", "playtime", "sessions", "active_days")
+	v.Number(&in.Limit).Min(1).Max(200)
+	v.Number(&in.Offset).Min(0).Max(10_000)
+}
+
+// PlayerListOut is one page of the directory.
+//
+// Keyed on the install (§29.2, ADR 0004): a reinstall is a new row, and a player with a phone
+// and a tablet is two. The attributes are the ones the install arrived with.
+type PlayerListOut struct {
+	Players    []PlayerSummaryOut `json:"players"`
+	NextOffset int                `json:"next_offset,omitzero" doc:"Absent on the last page"`
+}
+
+// PlayerSummaryOut is one install's life so far.
+type PlayerSummaryOut struct {
+	InstallID  string    `json:"install_id"`
+	Platform   string    `json:"platform"`
+	Country    string    `json:"country,omitzero"`
+	AppVersion string    `json:"app_version"`
+	FirstSeen  time.Time `json:"first_seen"`
+	LastSeen   time.Time `json:"last_seen"`
+	Status     string    `json:"status" doc:"active, lapsed or churned"`
+
+	ActiveDays    uint64 `json:"active_days"`
+	Sessions      uint64 `json:"sessions"`
+	PlaytimeMs    uint64 `json:"playtime_ms"`
+	RevenueMicros int64  `json:"revenue_micros"`
+	Purchases     uint64 `json:"purchases"`
+
+	FirstPurchaseAt *time.Time `json:"first_purchase_at,omitzero"`
+	LastPurchaseAt  *time.Time `json:"last_purchase_at,omitzero"`
+}
+
+// PlayerParams names one player: an install id, or the studio's own player id.
+type PlayerParams struct {
+	AnalyticsScope
+	ID string `path:"id" doc:"An install id (a UUID) or the player id the game signed the player in with"`
+}
+
+func (in *PlayerParams) Validate(v *muzak.Validation) {
+	in.validateScope(v)
+	v.String(&in.ID).Trim().Required().MaxLen(128)
+}
+
+// PlayerProfileOut is one player's page.
+//
+// An install is one device's life; an account is everything a signed-in player did, across every
+// install the account was seen on in the last ninety days. A reinstall without signing in is a new
+// install that nothing links back (ADR 0004), and the page cannot join what the game never said
+// was the same person.
+type PlayerProfileOut struct {
+	Kind     string   `json:"kind" doc:"install or account"`
+	ID       string   `json:"id"`
+	Installs []string `json:"installs" doc:"The installs this profile covers"`
+
+	Summary PlayerSummaryOut `json:"summary"`
+
+	// Days is every day with activity in the last ninety.
+	Days []PlayerDayOut `json:"days"`
+
+	// Events is the newest hundred events of the last seven days.
+	Events []EventOccurrenceOut `json:"events"`
+}
+
+// PlayerDayOut is one day of one player.
+type PlayerDayOut struct {
+	Day           time.Time `json:"day"`
+	Sessions      uint64    `json:"sessions"`
+	PlaytimeMs    uint64    `json:"playtime_ms"`
+	Events        uint64    `json:"events"`
+	RevenueMicros int64     `json:"revenue_micros"`
+	Purchases     uint64    `json:"purchases"`
+}

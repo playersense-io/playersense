@@ -34,6 +34,10 @@ type rawEvent struct {
 	currency string
 	playtime uint64
 
+	// retention is the row's raw retention tier in days; 30 when unset. A row older than its
+	// tier is expired by the first merge, so a test that needs history sets a longer one.
+	retention uint16
+
 	strs  map[string]string
 	ints  map[string]int64
 	bools map[string]uint8
@@ -72,6 +76,10 @@ func (r *reporting) insert(t *testing.T, rows []rawEvent) {
 		if kind == "" {
 			kind = "custom"
 		}
+		retention := e.retention
+		if retention == 0 {
+			retention = 30
+		}
 		cohort := e.cohort
 		if cohort.IsZero() {
 			cohort = e.at.Truncate(24 * time.Hour)
@@ -79,7 +87,7 @@ func (r *reporting) insert(t *testing.T, rows []rawEvent) {
 		if err := batch.Append(
 			uint32(r.project.OrgSeq), uint32(r.project.ProjectSeq), uint16(r.project.EnvironmentID),
 			uuid.New(), uuid.MustParse(r.project.ProjectUID), uuid.New(),
-			uint16(30), "standard", e.at, e.at, e.at,
+			retention, "standard", e.at, e.at, e.at,
 			uuid.New(), uuid.New(), e.session, player, uuid.MustParse(e.install),
 			e.name, kind, e.platform, e.country, e.version, "unity", "1.4.0",
 			cohort, e.platform, e.country, e.version,
@@ -394,4 +402,119 @@ func TestRecentSessionsAreWholeAndSayWhichAreGoingOn(t *testing.T) {
 	}
 
 	get[schemas.RecentSessionsOut](t, r.numbersOnly(t), r.analytics()+"/sessions/recent", nil, http.StatusForbidden)
+}
+
+// playerBase is five installs: two of one signed-in player, active yesterday; one lapsed ten days
+// ago; one churned forty days ago; and one that has paid.
+type playerBase struct {
+	hero, heroTablet, lapsed, churned, payer string
+}
+
+func (r *reporting) playerBase(t *testing.T) playerBase {
+	t.Helper()
+	today := time.Now().UTC().Truncate(24 * time.Hour)
+	p := playerBase{
+		hero: uuid.NewString(), heroTablet: uuid.NewString(),
+		lapsed: uuid.NewString(), churned: uuid.NewString(), payer: uuid.NewString(),
+	}
+	at := func(daysAgo int) time.Time { return today.AddDate(0, 0, -daysAgo).Add(9 * time.Hour) }
+	r.insert(t, []rawEvent{
+		{install: p.hero, player: "hero-1", session: "h1", name: "session_start", kind: "session",
+			platform: "ios", country: "TR", version: "2.7.1", at: at(1), playtime: 60_000},
+		{install: p.hero, player: "hero-1", session: "h1", name: "level_complete",
+			platform: "ios", country: "TR", version: "2.7.1", at: at(1).Add(time.Minute)},
+		{install: p.heroTablet, player: "hero-1", session: "h2", name: "session_start", kind: "session",
+			platform: "android", country: "TR", version: "2.7.1", at: at(1).Add(time.Hour)},
+		{install: p.lapsed, session: "l1", name: "session_start", kind: "session",
+			platform: "ios", country: "DE", version: "2.6.0", at: at(10)},
+		{install: p.churned, session: "c1", name: "session_start", kind: "session", retention: 400,
+			platform: "android", country: "DE", version: "2.5.0", at: at(40)},
+		{install: p.payer, session: "p1", name: "gem_pack", kind: "purchase",
+			platform: "ios", country: "US", version: "2.7.1", at: at(2), revenue: 990_000, currency: "USD"},
+	})
+	if got := r.waitForRows(t, 6); got < 5 {
+		t.Fatalf("seeded %d of 6 rows", got)
+	}
+	return p
+}
+
+func installsOf(out schemas.PlayerListOut) map[string]schemas.PlayerSummaryOut {
+	m := map[string]schemas.PlayerSummaryOut{}
+	for _, p := range out.Players {
+		m[p.InstallID] = p
+	}
+	return m
+}
+
+// TestThePlayerDirectoryFiltersFinishedPlayers.
+//
+// The filters apply to a device's whole life, which is only known once its partial rows are put
+// together; a filter on one partial row would find a player "lapsed" on a row from last month.
+func TestThePlayerDirectoryFiltersFinishedPlayers(t *testing.T) {
+	r := newReporting(t, "standard")
+	p := r.playerBase(t)
+	path := r.analytics() + "/players"
+
+	active := installsOf(get[schemas.PlayerListOut](t, r.member, path, url.Values{"status": {"active"}}, http.StatusOK))
+	if _, ok := active[p.hero]; !ok || len(active) != 3 {
+		t.Fatalf("active players %v, want the hero's two installs and the payer", active)
+	}
+	lapsed := installsOf(get[schemas.PlayerListOut](t, r.member, path, url.Values{"status": {"lapsed"}}, http.StatusOK))
+	if len(lapsed) != 1 || lapsed[p.lapsed].Status != "lapsed" || lapsed[p.lapsed].Country != "DE" {
+		t.Fatalf("lapsed players %v, want the one from Germany ten days ago", lapsed)
+	}
+	churned := installsOf(get[schemas.PlayerListOut](t, r.member, path, url.Values{"status": {"churned"}}, http.StatusOK))
+	if _, ok := churned[p.churned]; !ok || len(churned) != 1 {
+		t.Fatalf("churned players %v, want the one from forty days ago", churned)
+	}
+	paying := get[schemas.PlayerListOut](t, r.member, path, url.Values{"spend": {"paying"}}, http.StatusOK)
+	if len(paying.Players) != 1 || paying.Players[0].InstallID != p.payer || paying.Players[0].RevenueMicros != 990_000 {
+		t.Fatalf("paying players %+v, want the payer alone", paying.Players)
+	}
+
+	page := get[schemas.PlayerListOut](t, r.member, path, url.Values{"limit": {"2"}}, http.StatusOK)
+	if len(page.Players) != 2 || page.NextOffset != 2 {
+		t.Fatalf("a page of 2 of 5 is %+v", page)
+	}
+	rest := get[schemas.PlayerListOut](t, r.member, path, url.Values{"limit": {"10"}, "offset": {"2"}}, http.StatusOK)
+	if len(rest.Players) != 3 || rest.NextOffset != 0 {
+		t.Fatalf("the rest is %+v, want the last 3 and no next page", rest)
+	}
+
+	get[schemas.PlayerListOut](t, r.numbersOnly(t), path, nil, http.StatusForbidden)
+}
+
+// TestAPlayersPageIsAnInstallOrAnAccount.
+func TestAPlayersPageIsAnInstallOrAnAccount(t *testing.T) {
+	r := newReporting(t, "standard")
+	p := r.playerBase(t)
+
+	install := get[schemas.PlayerProfileOut](t, r.member, r.analytics()+"/players/"+p.hero, nil, http.StatusOK)
+	if install.Kind != "install" || install.Summary.Platform != "ios" || install.Summary.Sessions != 1 {
+		t.Fatalf("the install's page is %+v", install)
+	}
+	if len(install.Days) != 1 || len(install.Events) != 2 || install.Events[0].Name != "level_complete" {
+		t.Fatalf("the install's days %+v and events %+v, want one day and two events newest first",
+			install.Days, install.Events)
+	}
+
+	account := get[schemas.PlayerProfileOut](t, r.member, r.analytics()+"/players/hero-1", nil, http.StatusOK)
+	if account.Kind != "account" || len(account.Installs) != 2 || account.Summary.Sessions != 2 {
+		t.Fatalf("the account's page is %+v, want two installs and two sessions", account)
+	}
+	if len(account.Events) != 3 {
+		t.Fatalf("the account's events are %+v, want all three across both installs", account.Events)
+	}
+
+	get[schemas.PlayerProfileOut](t, r.member, r.analytics()+"/players/"+uuid.NewString(), nil, http.StatusNotFound)
+	get[schemas.PlayerProfileOut](t, r.member, r.analytics()+"/players/nobody", nil, http.StatusNotFound)
+}
+
+// TestNoPlayerIsListedOnAKidsProject is §98: the tier exists so that a child cannot be followed.
+func TestNoPlayerIsListedOnAKidsProject(t *testing.T) {
+	r := newReporting(t, "kids_strict")
+	for _, path := range []string{"/players", "/players/" + uuid.NewString(), "/sessions/recent",
+		"/events/session_start/occurrences"} {
+		get[struct{}](t, r.member, r.analytics()+path, nil, http.StatusUnprocessableEntity)
+	}
 }

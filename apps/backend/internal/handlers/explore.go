@@ -114,3 +114,34 @@ func RecentSessions(ctx *muzak.Context, in schemas.RecentSessionsParams) (schema
 	}
 	return *out, nil
 }
+
+// Players reads one page of the player directory.
+func Players(ctx *muzak.Context, in schemas.PlayerListParams) (schemas.PlayerListOut, error) {
+	engine := muzak.From[*query.Engine](ctx)
+	scope, err := scopeForMember(ctx, in.Environment)
+	if err != nil {
+		return schemas.PlayerListOut{}, err
+	}
+	out, err := engine.Players(ctx.Context(), scope, query.PlayerFilter{
+		Status: in.Status, Platform: in.Platform, Country: in.Country, Spend: in.Spend,
+		Sort: in.Sort, Limit: in.Limit, Offset: in.Offset,
+	}, time.Now())
+	if err != nil {
+		return schemas.PlayerListOut{}, exploreFailed(err, "player")
+	}
+	return *out, nil
+}
+
+// Player reads one player's page.
+func Player(ctx *muzak.Context, in schemas.PlayerParams) (schemas.PlayerProfileOut, error) {
+	engine := muzak.From[*query.Engine](ctx)
+	scope, err := scopeForMember(ctx, in.Environment)
+	if err != nil {
+		return schemas.PlayerProfileOut{}, err
+	}
+	out, err := engine.Player(ctx.Context(), scope, in.ID, time.Now())
+	if err != nil {
+		return schemas.PlayerProfileOut{}, exploreFailed(err, "player")
+	}
+	return *out, nil
+}

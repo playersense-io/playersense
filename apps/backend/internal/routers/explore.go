@@ -47,7 +47,7 @@ func explorer(r *muzak.Router, base string) {
 		muzak.Description("The newest occurrences from the last seven days, whole: who sent them, "+
 			"on what, and every property. Names players, so it needs player.read."),
 		core.Require(authz.AnalyticsRead, authz.PlayerRead),
-		unreadable)
+		refused, unreadable)
 
 	r.Get(base+"/sessions", handlers.Sessions,
 		muzak.Summary("Describe the game's sessions"),
@@ -64,5 +64,23 @@ func explorer(r *muzak.Router, base string) {
 			"asked for: who played, on what, for how long, and whether the session is still going. "+
 			"Names players, so it needs player.read."),
 		core.Require(authz.AnalyticsRead, authz.PlayerRead),
-		unreadable)
+		refused, unreadable)
+
+	r.Get(base+"/players", handlers.Players,
+		muzak.Summary("List the game's players"),
+		muzak.Description("One page of installs, filtered by status, arrival platform or country, and "+
+			"whether they have paid, sorted by when they were last seen or by what they did. Each is "+
+			"one install (§29.2): a reinstall is a new one. Needs player.read, and is not served for a "+
+			"kids_strict project."),
+		core.Require(authz.AnalyticsRead, authz.PlayerRead),
+		refused, unreadable)
+
+	r.Get(base+"/players/{id}", handlers.Player,
+		muzak.Summary("Describe one player"),
+		muzak.Description("An install by its id, or a signed-in player by the id the game gave them, "+
+			"across every install they played on in the last ninety days: their life so far, each "+
+			"day of the last ninety, and their newest events."),
+		core.Require(authz.AnalyticsRead, authz.PlayerRead),
+		muzak.WithResponseDoc(http.StatusNotFound, "No such install or player in this project"),
+		refused, unreadable)
 }

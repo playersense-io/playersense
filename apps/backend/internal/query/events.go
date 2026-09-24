@@ -348,6 +348,9 @@ func (e *Engine) eventProperties(ctx context.Context, scope Scope, name string, 
 // (org, project, environment, event_date, event_name, ...), so both reads touch exactly this
 // event's rows on those days and nothing else; the first is the common case and reads a day.
 func (e *Engine) EventOccurrences(ctx context.Context, scope Scope, name string, limit int, now time.Time) (*schemas.EventOccurrencesOut, error) {
+	if err := refuseKids(scope); err != nil {
+		return nil, err
+	}
 	today := now.UTC().Truncate(24 * time.Hour)
 	out := &schemas.EventOccurrencesOut{}
 	for _, days := range []int{1, 7} {
