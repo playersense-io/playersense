@@ -8797,6 +8797,11 @@
             "type": "string",
             "description": "Not accepted; scope comes from the key"
           },
+          "event": {
+            "type": "string",
+            "description": "The event, for metric=event",
+            "maxLength": 96
+          },
           "filters": {
             "type": "array",
             "items": {
@@ -8806,14 +8811,16 @@
           },
           "metric": {
             "type": "string",
-            "description": "retention, playtime, revenue, ltv, payer_conversion or bucket",
+            "description": "retention, playtime, sessions, revenue, ltv, payer_conversion, bucket or event",
             "enum": [
               "retention",
               "playtime",
+              "sessions",
               "revenue",
               "ltv",
               "payer_conversion",
-              "bucket"
+              "bucket",
+              "event"
             ]
           },
           "offsets": {
@@ -8857,7 +8864,7 @@
           },
           "grain": {
             "type": "string",
-            "description": "day (default) or week"
+            "description": "day (default), week or month"
           },
           "to": {
             "type": "string",
@@ -8920,11 +8927,19 @@
           "dim_value": {
             "type": "string"
           },
+          "events": {
+            "type": "integer",
+            "format": "int64"
+          },
           "payers": {
             "type": "integer",
             "format": "int64"
           },
           "players": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "players_cumulative": {
             "type": "integer",
             "format": "int64"
           },
@@ -8945,6 +8960,10 @@
             "format": "int64"
           },
           "revenue_micros_cumulative": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "sessions": {
             "type": "integer",
             "format": "int64"
           }

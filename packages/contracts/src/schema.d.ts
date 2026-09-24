@@ -1434,12 +1434,14 @@ export interface components {
             readonly cohort: components["schemas"]["CohortRange"];
             /** @description Not accepted; scope comes from the key */
             readonly environment_id?: string;
+            /** @description The event, for metric=event */
+            readonly event?: string;
             readonly filters?: readonly components["schemas"]["Filter"][];
             /**
-             * @description retention, playtime, revenue, ltv, payer_conversion or bucket
+             * @description retention, playtime, sessions, revenue, ltv, payer_conversion, bucket or event
              * @enum {string}
              */
-            readonly metric: "retention" | "playtime" | "revenue" | "ltv" | "payer_conversion" | "bucket";
+            readonly metric: "retention" | "playtime" | "sessions" | "revenue" | "ltv" | "payer_conversion" | "bucket" | "event";
             /** @description Which day-offsets to return */
             readonly offsets?: readonly number[];
             /** @description Not accepted; scope comes from the key */
@@ -1455,7 +1457,7 @@ export interface components {
         readonly CohortRange: {
             /** @description First cohort day, inclusive */
             readonly from: string;
-            /** @description day (default) or week */
+            /** @description day (default), week or month */
             readonly grain?: string;
             /** @description Last cohort day, inclusive */
             readonly to: string;
@@ -1479,9 +1481,13 @@ export interface components {
             readonly day_offset: number;
             readonly dim_value?: string;
             /** Format: int64 */
+            readonly events?: number;
+            /** Format: int64 */
             readonly payers?: number;
             /** Format: int64 */
             readonly players: number;
+            /** Format: int64 */
+            readonly players_cumulative?: number;
             /** Format: int64 */
             readonly playtime_ms?: number;
             /** Format: int64 */
@@ -1492,6 +1498,8 @@ export interface components {
             readonly revenue_micros?: number;
             /** Format: int64 */
             readonly revenue_micros_cumulative?: number;
+            /** Format: int64 */
+            readonly sessions?: number;
         };
         readonly ConfigEvent: {
             /** Format: int64 */

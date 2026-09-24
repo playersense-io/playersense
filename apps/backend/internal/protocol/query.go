@@ -20,7 +20,10 @@ import (
 //
 // It is part of the cache key (§58). Without it a deployment that changes what a metric
 // means would keep serving the old numbers from Valkey until every entry expired.
-const QuerySchemaVersion = 1
+//
+// 2: cohort rows carry sessions, series rows the lifecycle split, and the minute and hour
+// intervals for the whole project read the project's own tiers.
+const QuerySchemaVersion = 2
 
 // CohortQuery is one logical cohort question.
 //
@@ -28,9 +31,13 @@ const QuerySchemaVersion = 1
 // the key and from nowhere else (§76, §69, Appendix C #3). A body that could name a tenant
 // is a body somebody will eventually trust.
 type CohortQuery struct {
-	// Metric is what to measure: retention, playtime, revenue, ltv, payer_conversion or
-	// bucket.
-	Metric string `json:"metric" doc:"retention, playtime, revenue, ltv, payer_conversion or bucket"`
+	// Metric is what to measure: retention, playtime, sessions, revenue, ltv,
+	// payer_conversion, bucket or event.
+	Metric string `json:"metric" doc:"retention, playtime, sessions, revenue, ltv, payer_conversion, bucket or event"`
+
+	// Event names the event a metric=event query counts: how often each cohort did it at each
+	// offset, and what share of the cohort had done it at least once by then.
+	Event string `json:"event,omitzero" doc:"The event, for metric=event"`
 
 	// Basis is what a cohort is keyed on — install by default, player where the project
 	// has accounts (§29.2).
@@ -61,7 +68,7 @@ type CohortQuery struct {
 type CohortRange struct {
 	From  Day    `json:"from" doc:"First cohort day, inclusive"`
 	To    Day    `json:"to" doc:"Last cohort day, inclusive"`
-	Grain string `json:"grain,omitzero" doc:"day (default) or week"`
+	Grain string `json:"grain,omitzero" doc:"day (default), week or month"`
 }
 
 // Breakdown names the one dimension to split by.
@@ -165,10 +172,18 @@ type CohortRow struct {
 	// division and disagree about rounding.
 	Rate float64 `json:"rate"`
 
+	Sessions      uint64 `json:"sessions,omitzero"`
 	PlaytimeMs    uint64 `json:"playtime_ms,omitzero"`
 	RevenueMicros int64  `json:"revenue_micros,omitzero"`
 	Purchases     uint64 `json:"purchases,omitzero"`
 	Payers        uint64 `json:"payers,omitzero"`
+
+	// Events and PlayersCumulative answer metric=event. Players is then how many of the
+	// cohort did the event on this offset, Events how often, and PlayersCumulative how many
+	// had done it on any offset up to this one, which is what Rate is for that metric. The
+	// player counts are sketches above a few hundred and exact below.
+	Events            uint64 `json:"events,omitzero"`
+	PlayersCumulative uint64 `json:"players_cumulative,omitzero"`
 
 	// RevenueMicrosCumulative is the running sum over day_offset, which is what LTV is.
 	// Computed at read time because a cumulative value cannot live in a SummingMergeTree

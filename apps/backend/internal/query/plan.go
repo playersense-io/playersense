@@ -3,6 +3,7 @@ package query
 import (
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -53,6 +54,10 @@ type Plan struct {
 
 	Numerator   Statement
 	Denominator Statement
+
+	// EventOffsets is set for metric=event, whose numerator answers every requested offset in
+	// one row per cohort rather than one row per cell; see compileEventNumerator.
+	EventOffsets []int
 }
 
 // DefaultOffsets is §29.12's dense set: every day to 30, then 60, 90, 180 and 365.
@@ -124,6 +129,27 @@ func Compile(scope Scope, q protocol.CohortQuery, limits Limits) (*Plan, error) 
 	if err := checkPolicyTier(scope, q); err != nil {
 		return nil, err
 	}
+	if q.Basis == schemas.BasisPlayer {
+		// Accepted by the contract and, until this refusal, answered per install anyway: a
+		// studio asking for account-keyed cohorts was shown device-keyed ones under the name
+		// it asked for. The facts are keyed on the device (§29.2), and there is no
+		// account-keyed cohort fact to read instead.
+		return nil, refuse("basis",
+			"cohorts are kept per install (§29.2): a reinstall or a second device is a new "+
+				"member of a cohort. There is no account-keyed cohort fact, so basis=player "+
+				"cannot be answered; ask with basis=install or leave it out")
+	}
+	if q.Metric == schemas.MetricEvent {
+		if q.Event == "" {
+			return nil, refuse("event", "an event query needs the event it counts")
+		}
+		if dimension != "" {
+			return nil, refuse("breakdown",
+				"a cohort's events are kept for the cohort as a whole, not per %s: carrying every "+
+					"dimension for every event would multiply the fact by both. Split the cohort "+
+					"by %s with metric=retention, or count the event without the split", dimension, dimension)
+		}
+	}
 
 	plan := &Plan{
 		Metric:    q.Metric,
@@ -142,6 +168,9 @@ func Compile(scope Scope, q protocol.CohortQuery, limits Limits) (*Plan, error) 
 		plan.Fact = factLifetime
 	case q.Metric == schemas.MetricBucket:
 		plan.Fact = factBuckets
+	case q.Metric == schemas.MetricEvent:
+		plan.Fact = factCohortEvents
+		plan.EventOffsets = plan.Offsets
 	case dimension != "":
 		plan.Fact = factBreakdown
 	default:
@@ -236,6 +265,9 @@ func compileNumerator(scope Scope, q protocol.CohortQuery, plan *Plan, limits Li
 	if plan.Rolling {
 		return compileRolling(scope, q, plan, limits)
 	}
+	if plan.Fact == factCohortEvents {
+		return compileEventNumerator(scope, q, plan, limits)
+	}
 
 	b := from(plan.Fact)
 	b.column(cohortExpr(q.Cohort.Grain), "cohort_date").
@@ -245,22 +277,25 @@ func compileNumerator(scope Scope, q protocol.CohortQuery, plan *Plan, limits Li
 	case factBuckets:
 		b.column("toString(bucket_code)", "dim_value").
 			column("sum(players)", "players").
-			column("toUInt64(0)", "payers")
+			column("toUInt64(0)", "payers").
+			column("toUInt64(0)", "sessions")
 	case factBreakdown:
 		b.column("dim_value", "dim_value").
 			column("sum(returned_players)", "players").
-			column("sum(payers)", "payers")
+			column("sum(payers)", "payers").
+			column("sum(sessions)", "sessions")
 	default:
 		b.column("''", "dim_value").
 			column("sum(returned_players)", "players").
-			column("sum(payers)", "payers")
+			column("sum(payers)", "payers").
+			column("sum(sessions)", "sessions")
 	}
 	b.column("sum(playtime_ms)", "playtime_ms").
 		column("sum(revenue_micros)", "revenue_micros").
 		column("sum(purchases)", "purchases")
 
 	scopeAnd(b, scope)
-	b.between(cohortExpr(q.Cohort.Grain), day(q.Cohort.From), day(q.Cohort.To))
+	cohortRange(b, q)
 
 	switch plan.Fact {
 	case factBuckets:
@@ -304,17 +339,53 @@ func compileRolling(scope Scope, q protocol.CohortQuery, plan *Plan, limits Limi
 	}
 	b.column("count()", "players").
 		column("toUInt64(0)", "payers").
+		column("toUInt64(0)", "sessions").
 		column("toUInt64(0)", "playtime_ms").
 		column("toInt64(0)", "revenue_micros").
 		column("toUInt64(0)", "purchases")
 
 	scopeAnd(b, scope)
-	b.between(cohortExpr(q.Cohort.Grain), day(q.Cohort.From), day(q.Cohort.To))
+	cohortRange(b, q)
 	if plan.Dimension != "" {
 		applyFilters(b, lifetimeDimension(plan.Dimension), q.Filters)
 	}
 
 	b.groupOn("cohort_date", "day_offset", "dim_value").withLimit(limits.MaxRows)
+	return b.statement()
+}
+
+// compileEventNumerator counts one event across each cohort's days (00018).
+//
+// One row per cohort carrying three arrays, one entry per requested offset, rather than one row
+// per cell: "had done it by day N" is a distinct count over offsets 0..N, which is a merge of
+// the per-offset sketches and cannot be summed from per-offset rows afterwards. Each entry is
+// its own conditional merge over the same rows, so the whole curve is one scan.
+//
+// The offsets are written into the statement as integers. They were validated as 0..365 at the
+// contract, so there is nothing for them to carry but a number.
+func compileEventNumerator(scope Scope, q protocol.CohortQuery, plan *Plan, limits Limits) Statement {
+	at := make([]string, len(plan.Offsets))
+	events := make([]string, len(plan.Offsets))
+	by := make([]string, len(plan.Offsets))
+	for i, o := range plan.Offsets {
+		n := strconv.Itoa(o)
+		at[i] = "uniqCombinedMergeIf(12)(players, day_offset = " + n + ")"
+		events[i] = "sumIf(events, day_offset = " + n + ")"
+		by[i] = "uniqCombinedMergeIf(12)(players, day_offset <= " + n + ")"
+	}
+
+	b := from(factCohortEvents)
+	b.column(cohortExpr(q.Cohort.Grain), "cohort_date").
+		column("["+strings.Join(at, ", ")+"]", "players_at").
+		column("["+strings.Join(events, ", ")+"]", "events_at").
+		column("["+strings.Join(by, ", ")+"]", "players_by")
+
+	scopeAnd(b, scope)
+	b.eq("event_name", q.Event)
+	cohortRange(b, q)
+	b.between("day_offset", 0, plan.Offsets[len(plan.Offsets)-1])
+
+	b.groupOn("cohort_date").withLimit(limits.MaxRows)
 	return b.statement()
 }
 
@@ -345,7 +416,7 @@ func compileDenominator(scope Scope, q protocol.CohortQuery, plan *Plan, limits 
 		column("max(computed_at)", "computed_at")
 
 	scopeAnd(b, scope)
-	b.between(cohortExpr(q.Cohort.Grain), day(q.Cohort.From), day(q.Cohort.To))
+	cohortRange(b, q)
 	if dimension == "" {
 		b.eq("dim_name", "__total__")
 	} else {
@@ -376,12 +447,29 @@ func applyFilters(b *builder, column string, filters []protocol.Filter) {
 	}
 }
 
+// cohortRange bounds a statement to the requested cohort days.
+//
+// Qualified with the table, because the SELECT list names its bucketed day cohort_date too, and
+// ClickHouse resolves an unqualified name in WHERE to the alias before the column: a month asked
+// for from the 18th would be filtered on its bucket, the 1st, and match nothing.
+func cohortRange(b *builder, q protocol.CohortQuery) {
+	b.between(string(b.fact)+".cohort_date", day(q.Cohort.From), day(q.Cohort.To))
+}
+
 // cohortExpr buckets the cohort day to the requested grain.
+//
+// Only the grouping. The range is always on the cohort day itself, so from and to mean the same
+// days at every grain and a month asked for from the 18th holds the 18th onwards rather than
+// nothing, which is what filtering on the bucket did: the 18th's bucket is the 1st.
 func cohortExpr(grain string) string {
-	if grain == schemas.GrainWeek {
+	switch grain {
+	case schemas.GrainWeek:
 		return "toMonday(cohort_date)"
+	case schemas.GrainMonth:
+		return "toStartOfMonth(cohort_date)"
+	default:
+		return "cohort_date"
 	}
-	return "cohort_date"
 }
 
 // lifetimeDimension maps a sticky dimension onto player_lifetime_v's columns.

@@ -320,6 +320,12 @@ func (r *reporting) derive(t *testing.T, from, to time.Time) {
 		if err := r.rollups.DeriveMonth(ctx, m); err != nil {
 			t.Fatalf("derive metrics %s: %v", m, err)
 		}
+		if err := r.rollups.DeriveSessions(ctx, m); err != nil {
+			t.Fatalf("derive sessions %s: %v", m, err)
+		}
+		if err := r.rollups.DeriveLifecycle(ctx, m); err != nil {
+			t.Fatalf("derive lifecycle %s: %v", m, err)
+		}
 	}
 }
 
@@ -613,6 +619,93 @@ func TestARetentionCurveIsReadBackCorrectly(t *testing.T) {
 	}
 	if want := float64(returners) / float64(totalInstalls); d3.Rate != want {
 		t.Fatalf("day %d retention is %v, want %v", returnOffset, d3.Rate, want)
+	}
+}
+
+// TestAnEventCurveCountsTheShareThatHasDoneIt is metric=event against real data.
+//
+// Every seeded row is a session_start, so the cohort did it thirteen times on day 0 and seven on
+// day 3. "Had done it by day N" is a distinct count across the days, which is why it stays at
+// thirteen on day 3 rather than becoming twenty: the seven who came back had already done it.
+func TestAnEventCurveCountsTheShareThatHasDoneIt(t *testing.T) {
+	r := newReporting(t, "standard")
+	r.seedCurve(t)
+
+	day := r.cohortDay().Format("2006-01-02")
+	result := r.ask(t, map[string]any{
+		"metric":  "event",
+		"event":   "session_start",
+		"cohort":  map[string]any{"from": day, "to": day},
+		"offsets": []int{0, returnOffset, returnOffset + 1},
+	})
+
+	byOffset := map[int]protocol.CohortRow{}
+	for _, row := range result.Rows {
+		byOffset[row.DayOffset] = row
+	}
+	d0, d3, d4 := byOffset[0], byOffset[returnOffset], byOffset[returnOffset+1]
+	if d0.Players != totalInstalls || d0.Events != totalInstalls || d0.PlayersCumulative != totalInstalls {
+		t.Fatalf("day 0: %+v, want %d players, events and players so far", d0, totalInstalls)
+	}
+	if d3.Players != returners || d3.Events != returners || d3.PlayersCumulative != totalInstalls {
+		t.Fatalf("day %d: %+v, want %d players and events, %d so far", returnOffset, d3, returners, totalInstalls)
+	}
+	if d3.Rate != 1 {
+		t.Fatalf("day %d share is %v; everybody had done it on day 0", returnOffset, d3.Rate)
+	}
+	if d4.Players != 0 || d4.PlayersCumulative != totalInstalls {
+		t.Fatalf("day %d: %+v, want nobody that day and %d so far", returnOffset+1, d4, totalInstalls)
+	}
+}
+
+// TestSessionsPerInstallAreOnEveryCohortRow, whole and split.
+func TestSessionsPerInstallAreOnEveryCohortRow(t *testing.T) {
+	r := newReporting(t, "standard")
+	r.seedCurve(t)
+
+	whole := r.ask(t, r.retentionQuery(nil))
+	for _, row := range whole.Rows {
+		want := uint64(totalInstalls)
+		if row.DayOffset == returnOffset {
+			want = returners
+		}
+		if row.Sessions != want {
+			t.Errorf("day %d carries %d sessions, want %d", row.DayOffset, row.Sessions, want)
+		}
+	}
+
+	split := r.ask(t, r.retentionQuery(map[string]any{
+		"breakdown": map[string]any{"dimension": "install_platform"},
+	}))
+	for _, row := range split.Rows {
+		if row.DimValue == "ios" && row.DayOffset == 0 && row.Sessions != iosInstalls {
+			t.Errorf("iOS day 0 carries %d sessions, want %d", row.Sessions, iosInstalls)
+		}
+	}
+}
+
+// TestAMonthCohortHoldsTheDaysAskedFor.
+func TestAMonthCohortHoldsTheDaysAskedFor(t *testing.T) {
+	r := newReporting(t, "standard")
+	r.seedCurve(t)
+
+	day := r.cohortDay()
+	result := r.ask(t, r.retentionQuery(map[string]any{
+		"cohort": map[string]any{
+			"from": day.Format("2006-01-02"), "to": day.Format("2006-01-02"), "grain": "month",
+		},
+	}))
+	first := time.Date(day.Year(), day.Month(), 1, 0, 0, 0, 0, time.UTC)
+	if len(result.Rows) == 0 {
+		t.Fatal("a month cohort asked for from the seeded day came back empty")
+	}
+	for _, row := range result.Rows {
+		if !row.CohortDate.Equal(first) {
+			t.Errorf("a month cohort is keyed on %s, want %s", row.CohortDate.Format("2006-01-02"), first.Format("2006-01-02"))
+		}
+		if row.DayOffset == 0 && (row.Players != totalInstalls || row.CohortSize != totalInstalls) {
+			t.Errorf("the month's day 0 is %d of %d, want %d of %d", row.Players, row.CohortSize, totalInstalls, totalInstalls)
+		}
 	}
 }
 

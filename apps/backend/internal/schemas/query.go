@@ -36,6 +36,7 @@ const (
 	MetricLTV             = "ltv"
 	MetricPayerConversion = "payer_conversion"
 	MetricBucket          = "bucket"
+	MetricEvent           = "event"
 
 	RetentionClassic = "classic"
 	RetentionRolling = "rolling"
@@ -43,8 +44,9 @@ const (
 	BasisInstall = "install"
 	BasisPlayer  = "player"
 
-	GrainDay  = "day"
-	GrainWeek = "week"
+	GrainDay   = "day"
+	GrainWeek  = "week"
+	GrainMonth = "month"
 
 	BucketPlaytime = "playtime"
 	BucketSpend    = "spend"
@@ -52,8 +54,8 @@ const (
 
 // CohortMetrics is every metric the planner can resolve.
 var CohortMetrics = []string{
-	MetricRetention, MetricPlaytime, MetricRevenue,
-	MetricLTV, MetricPayerConversion, MetricBucket,
+	MetricRetention, MetricPlaytime, MetricSessions, MetricRevenue,
+	MetricLTV, MetricPayerConversion, MetricBucket, MetricEvent,
 }
 
 // CohortDimensions is the three sticky dimensions (§29.3). A dimension is sticky because it
@@ -89,7 +91,8 @@ const MaxFilters = 8
 func (in *CohortQueryIn) Validate(v *muzak.Validation) {
 	v.String(&in.Metric).Trim().Lower().Required().OneOf(CohortMetrics...)
 	v.String(&in.Basis).Trim().Lower().OneOf(BasisInstall, BasisPlayer)
-	v.String(&in.Cohort.Grain).As("cohort.grain").Trim().Lower().OneOf(GrainDay, GrainWeek)
+	v.String(&in.Cohort.Grain).As("cohort.grain").Trim().Lower().OneOf(GrainDay, GrainWeek, GrainMonth)
+	v.String(&in.Event).Trim().MaxLen(96)
 	v.String(&in.RetentionBasis).As("retention_basis").Trim().Lower().
 		OneOf(RetentionClassic, RetentionRolling)
 	v.String(&in.Bucket).Trim().Lower().OneOf(BucketPlaytime, BucketSpend)
@@ -168,6 +171,10 @@ func (in *CohortQueryIn) validateShape(v *muzak.Validation) {
 			v.Reject(&in.Breakdown.Dimension,
 				"a bucket is already a segmentation; it cannot also be broken down")
 		}
+	case MetricEvent:
+		if in.Event == "" {
+			v.Reject(&in.Event, "an event query needs the event it counts")
+		}
 	default:
 		if in.RetentionBasis != "" {
 			v.Reject(&in.RetentionBasis, "only a retention query has a basis")
@@ -175,6 +182,9 @@ func (in *CohortQueryIn) validateShape(v *muzak.Validation) {
 		if in.Bucket != "" {
 			v.Reject(&in.Bucket, "only a bucket query names a bucket")
 		}
+	}
+	if in.Metric != MetricEvent && in.Event != "" {
+		v.Reject(&in.Event, "only an event query names an event")
 	}
 }
 

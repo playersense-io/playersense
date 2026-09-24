@@ -1,6 +1,7 @@
 package query
 
 import (
+	"errors"
 	"regexp"
 	"strings"
 	"testing"
@@ -42,9 +43,20 @@ func everyShape() []protocol.CohortQuery {
 					Metric: metric, Cohort: window(),
 					RetentionBasis: basis, Bucket: bucket,
 				}
+				if metric == schemas.MetricEvent {
+					base.Event = "level_complete"
+				}
 				out = append(out, base)
+				for _, grain := range []string{schemas.GrainWeek, schemas.GrainMonth} {
+					grained := base
+					grained.Cohort.Grain = grain
+					out = append(out, grained)
+				}
 				if metric == schemas.MetricBucket {
 					continue // a bucket is already a segmentation (§29.11)
+				}
+				if metric == schemas.MetricEvent {
+					continue // a cohort's events are kept for the cohort as a whole
 				}
 				for _, dim := range schemas.CohortDimensions {
 					withBreakdown := base
@@ -302,6 +314,74 @@ func TestTheDenominatorIsWithinTheBreakdownValue(t *testing.T) {
 	for _, arg := range plan.Denominator.Args {
 		if arg == "__total__" {
 			t.Fatal("a broken-down query divided by the whole cohort's size")
+		}
+	}
+}
+
+// TestAnEventCurveIsOneScanPerCohort is metric=event's shape.
+//
+// "Had done it by day N" is a distinct count over offsets 0..N. It has to be merged from the
+// sketches in ClickHouse; per-offset rows summed afterwards would count a player once per day
+// they did it. So the numerator groups by cohort alone and carries one merge per offset.
+func TestAnEventCurveIsOneScanPerCohort(t *testing.T) {
+	plan, err := Compile(scope(), protocol.CohortQuery{
+		Metric: schemas.MetricEvent, Event: "level_complete", Cohort: window(),
+		Offsets: []int{0, 1, 7},
+	}, limits())
+	if err != nil {
+		t.Fatal(err)
+	}
+	sql := plan.Numerator.SQL
+	if plan.Fact != factCohortEvents {
+		t.Fatalf("an event curve read %s", plan.Fact)
+	}
+	for _, want := range []string{
+		"uniqCombinedMergeIf(12)(players, day_offset <= 7)",
+		"sumIf(events, day_offset = 1)",
+		"event_name = ?",
+		"GROUP BY cohort_date ORDER BY cohort_date",
+	} {
+		if !strings.Contains(sql, want) {
+			t.Errorf("the event numerator lacks %q:\n%s", want, sql)
+		}
+	}
+	if strings.Contains(plan.Denominator.SQL, "dim_name = ?") && plan.Denominator.Args[len(plan.Denominator.Args)-1] != "__total__" {
+		t.Errorf("an event curve is not measured against the whole cohort: %v", plan.Denominator.Args)
+	}
+}
+
+// TestQuestionsTheCohortFactsCannotAnswerAreRefused.
+func TestQuestionsTheCohortFactsCannotAnswerAreRefused(t *testing.T) {
+	cases := map[string]protocol.CohortQuery{
+		// Accepted and answered per install until this was refused: the name promised accounts.
+		"account-keyed cohorts": {Metric: schemas.MetricRetention, RetentionBasis: schemas.RetentionClassic,
+			Basis: schemas.BasisPlayer, Cohort: window()},
+		"an event split by platform": {Metric: schemas.MetricEvent, Event: "level_complete", Cohort: window(),
+			Breakdown: &protocol.Breakdown{Dimension: "install_platform"}},
+		"an event filtered by country": {Metric: schemas.MetricEvent, Event: "level_complete", Cohort: window(),
+			Filters: []protocol.Filter{{Field: "install_country", Op: "eq", Value: "TR"}}},
+		"an event with no name": {Metric: schemas.MetricEvent, Cohort: window()},
+	}
+	for name, q := range cases {
+		_, err := Compile(scope(), q, limits())
+		var refusal *Refusal
+		if !errors.As(err, &refusal) {
+			t.Errorf("%s: got %v, want a refusal", name, err)
+		}
+	}
+}
+
+// TestAMonthCohortStartsOnTheFirst.
+func TestAMonthCohortStartsOnTheFirst(t *testing.T) {
+	q := protocol.CohortQuery{Metric: schemas.MetricPlaytime, Cohort: window()}
+	q.Cohort.Grain = schemas.GrainMonth
+	plan, err := Compile(scope(), q, limits())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, stmt := range []Statement{plan.Numerator, plan.Denominator} {
+		if !strings.Contains(stmt.SQL, "toStartOfMonth(cohort_date) AS cohort_date") {
+			t.Errorf("a month cohort is not keyed on its first day:\n%s", stmt.SQL)
 		}
 	}
 }

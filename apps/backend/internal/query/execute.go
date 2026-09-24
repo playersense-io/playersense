@@ -80,7 +80,12 @@ func (e *Engine) Run(ctx context.Context, scope Scope, q protocol.CohortQuery) (
 	if err != nil {
 		return nil, fmt.Errorf("read the cohort sizes: %w", err)
 	}
-	measures, err := e.measures(ctx, plan)
+	var measures []measureRow
+	if plan.Fact == factCohortEvents {
+		measures, err = e.eventMeasures(ctx, plan)
+	} else {
+		measures, err = e.measures(ctx, plan)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("read the cohort facts: %w", err)
 	}
@@ -99,6 +104,9 @@ func (e *Engine) Run(ctx context.Context, scope Scope, q protocol.CohortQuery) (
 			DimValue:                m.dimValue,
 			Players:                 m.players,
 			Payers:                  m.payers,
+			Sessions:                m.sessions,
+			Events:                  m.events,
+			PlayersCumulative:       m.playersCumulative,
 			PlaytimeMs:              m.playtimeMs,
 			RevenueMicros:           m.revenueMicros,
 			Purchases:               m.purchases,
@@ -198,11 +206,16 @@ type measureRow struct {
 	dimValue      string
 	players       uint64
 	payers        uint64
+	sessions      uint64
 	playtimeMs    uint64
 	revenueMicros int64
 	purchases     uint64
 
 	revenueCumulative int64
+
+	// For metric=event only.
+	events            uint64
+	playersCumulative uint64
 }
 
 func (e *Engine) measures(ctx context.Context, plan *Plan) ([]measureRow, error) {
@@ -220,10 +233,47 @@ func (e *Engine) measures(ctx context.Context, plan *Plan) ([]measureRow, error)
 	for rows.Next() {
 		var m measureRow
 		if err := rows.Scan(&m.cohortDate, &m.dayOffset, &m.dimValue,
-			&m.players, &m.payers, &m.playtimeMs, &m.revenueMicros, &m.purchases); err != nil {
+			&m.players, &m.payers, &m.sessions, &m.playtimeMs, &m.revenueMicros, &m.purchases); err != nil {
 			return nil, err
 		}
 		out = append(out, m)
+	}
+	return out, rows.Err()
+}
+
+// eventMeasures unrolls compileEventNumerator's one row per cohort into one cell per offset.
+func (e *Engine) eventMeasures(ctx context.Context, plan *Plan) ([]measureRow, error) {
+	conn, err := e.ch.DB()
+	if err != nil {
+		return nil, err
+	}
+	rows, err := conn.Query(ctx, plan.Numerator.SQL, plan.Numerator.Args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []measureRow
+	for rows.Next() {
+		var (
+			cohortDate        time.Time
+			at, events, soFar []uint64
+		)
+		if err := rows.Scan(&cohortDate, &at, &events, &soFar); err != nil {
+			return nil, err
+		}
+		for i, o := range plan.EventOffsets {
+			if i >= len(at) || i >= len(events) || i >= len(soFar) {
+				break
+			}
+			out = append(out, measureRow{
+				cohortDate:        cohortDate,
+				dayOffset:         uint16(o),
+				players:           at[i],
+				events:            events[i],
+				playersCumulative: soFar[i],
+			})
+		}
 	}
 	return out, rows.Err()
 }
@@ -325,8 +375,12 @@ func rate(metric string, row protocol.CohortRow) float64 {
 		return 0
 	}
 	numerator := row.Players
-	if metric == schemas.MetricPayerConversion {
+	switch metric {
+	case schemas.MetricPayerConversion:
 		numerator = row.Payers
+	case schemas.MetricEvent:
+		// The share of the cohort that has done it at all by this offset.
+		numerator = row.PlayersCumulative
 	}
 	return float64(numerator) / float64(row.CohortSize)
 }

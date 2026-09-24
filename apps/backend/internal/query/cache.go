@@ -90,9 +90,9 @@ func (c *Cache) Put(ctx context.Context, key string, result *protocol.CohortResu
 // the client, so one cell cannot read another's answers.
 func (c *Cache) Key(scope Scope, q protocol.CohortQuery) string {
 	var sb strings.Builder
-	fmt.Fprintf(&sb, "v%d|p=%d|e=%d|m=%s|b=%s|rb=%s|bk=%s|g=%s|from=%s|to=%s",
+	fmt.Fprintf(&sb, "v%d|p=%d|e=%d|m=%s|ev=%s|b=%s|rb=%s|bk=%s|g=%s|from=%s|to=%s",
 		protocol.QuerySchemaVersion, scope.ProjectSeq, scope.EnvironmentSeq,
-		q.Metric, q.Basis, q.RetentionBasis, q.Bucket, q.Cohort.Grain,
+		q.Metric, q.Event, q.Basis, q.RetentionBasis, q.Bucket, q.Cohort.Grain,
 		day(q.Cohort.From), day(q.Cohort.To))
 	if q.Breakdown != nil {
 		fmt.Fprintf(&sb, "|dim=%s", q.Breakdown.Dimension)

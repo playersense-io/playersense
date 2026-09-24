@@ -47,7 +47,7 @@ func (s Suppression) Apply(rows []protocol.CohortRow) ([]protocol.CohortRow, int
 	suppressed := 0
 
 	for _, row := range rows {
-		if thin(row.CohortSize, k) || thin(row.Players, k) {
+		if thin(row.CohortSize, k) || thin(row.Players, k) || thin(row.PlayersCumulative, k) {
 			suppressed++
 			continue
 		}
