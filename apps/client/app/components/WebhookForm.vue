@@ -261,7 +261,7 @@ const SECTIONS = [
             {{ SECTIONS[1]!.title }}
           </h2>
           <p class="m-0 pl-8.5 text-xs text-ink/55">
-            What happens in the project, not every event a player sends: those stay in Analytics, and Exports hands them over in bulk.
+            What happens in the project, not every event a player sends: those stay in Analytics, and Report Builder hands them over in bulk.
           </p>
         </div>
         <WebhookEventPicker v-model="events" :version="version" />

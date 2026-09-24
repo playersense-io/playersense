@@ -336,7 +336,7 @@ const HOW_IT_WORKS = [
       <SectionCard
         v-else
         :padded="false"
-        description="Every event a destination can listen to, with what it means and what it carries. Raw analytics events are not among them: Exports hands those over in bulk."
+        description="Every event a destination can listen to, with what it means and what it carries. Raw analytics events are not among them: Report Builder hands those over in bulk."
         title="Event types"
       >
         <template #actions>

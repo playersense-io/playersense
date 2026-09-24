@@ -50,7 +50,7 @@ export const NAV = defineNavigation({
         children: [
           { title: 'Purchases', to: '/purchases' },
           { title: 'Webhooks', to: '/webhooks' },
-          { title: 'Exports', to: '/exports' }
+          { title: 'Report Builder', to: '/reports' }
         ]
       }
     ]
