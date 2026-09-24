@@ -99,7 +99,7 @@ func (s Subject) Known() bool { return len(s.Devices) > 0 || s.HotRows }
 //
 // The window comes from what ClickHouse still holds, and the archive expires on nearly the
 // same clock: an object's `delete_after` is its newest event plus the retention tier, and a
-// row's `expire_at` is its own event time plus the same tier. "Nearly" is the whole reason
+// row expires at its own event time plus the same tier. "Nearly" is the whole reason
 // for a margin — `ttl_only_drop_parts` keeps a day's rows until every row in the part has
 // expired, and an object is bounded by its newest event rather than by each row's own — so
 // the two edges do not line up to the second. Two days each way covers the difference

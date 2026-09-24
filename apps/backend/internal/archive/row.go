@@ -27,7 +27,7 @@ const SchemaVersion = 1
 //
 // Flat, and deliberately close to events_raw rather than to the SDK envelope: the archive is
 // the canonical raw copy, so it has to be able to rebuild the table (§35's "reprocessing").
-// The identity columns ClickHouse materializes — device_key, device_id, actor_key — are
+// The identity columns ClickHouse derives (device_key, device_id, actor_key) are
 // omitted because they are derivable, and a stored copy of a derived column is a second
 // definition waiting to disagree with the first.
 //

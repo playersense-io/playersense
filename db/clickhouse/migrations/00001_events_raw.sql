@@ -42,9 +42,14 @@ CREATE TABLE IF NOT EXISTS events_raw
     -- moment an anonymous player signs in, and cohorts follow the device (§29.2).
     -- Naming it device_id rather than actor_id is deliberate: a surrogate named after
     -- actor_key but derived from device_key is an invitation to assume they match.
-    device_key              String  MATERIALIZED toString(install_id) COMMENT 'class=identifier',
+    --
+    -- device_id is stored because the sort key needs it. The two keys are ALIAS: computed
+    -- when read, never stored. Stored, they were a 36-character copy of install_id and
+    -- another of player_id-or-install_id on every row, a third of what an event cost on disk,
+    -- and they compress badly because the sort key scatters a device's rows across event names.
+    device_key              String  ALIAS toString(install_id) COMMENT 'class=identifier',
     device_id               UInt64  MATERIALIZED sipHash64(project_seq, environment_seq, toString(install_id)) COMMENT 'class=identifier',
-    actor_key               String  MATERIALIZED ifNull(player_id, toString(install_id)) COMMENT 'class=identifier',
+    actor_key               String  ALIAS ifNull(player_id, toString(install_id)) COMMENT 'class=identifier',
 
     event_name              LowCardinality(String)      COMMENT 'class=behavioural',
     event_type              LowCardinality(String)      COMMENT 'class=behavioural',
@@ -78,22 +83,19 @@ CREATE TABLE IF NOT EXISTS events_raw
 
     payload_bytes           UInt32                      COMMENT 'class=none',
 
-    -- MATERIALIZED, never supplied by the writer. Left as a plain column it defaults to
-    -- the epoch on any insert that omits it, and `TTL expire_at DELETE` then expires
-    -- that row on the first merge — with ttl_only_drop_parts=1, whole parts.
-    --
-    -- Deriving it from event_time also makes it monotone with the partition key, which
-    -- is what ttl_only_drop_parts=1 needs: a part is dropped only when every row in it
-    -- has expired, so a TTL column unrelated to the partition key leaves mixed parts
-    -- that never fully expire.
-    expire_at DateTime MATERIALIZED toDateTime(event_time) + toIntervalDay(retention_tier) COMMENT 'class=none',
-
     INDEX idx_props mapKeys(props_string) TYPE bloom_filter(0.01) GRANULARITY 4
 )
 ENGINE = ReplicatedMergeTree
 PARTITION BY (retention_tier, toDate(event_time))
 ORDER BY (org_seq, project_seq, environment_seq, event_date, event_name, device_id, event_time)
-TTL expire_at DELETE
+-- The row expires its retention tier's days after it happened (§24).
+--
+-- An expression rather than a column. A column the writer never supplies has a default, and a
+-- plain one defaults to the epoch, which expires the row on the first merge; an expression has
+-- nothing to default and costs nothing to store. Derived from event_time, it is monotone with the
+-- partition key, which is what ttl_only_drop_parts=1 needs: a part is dropped only when every row
+-- in it has expired, and a TTL unrelated to the partition key leaves mixed parts that never do.
+TTL toDateTime(event_time) + toIntervalDay(retention_tier) DELETE
 SETTINGS ttl_only_drop_parts = 1
 -- +goose StatementEnd
 

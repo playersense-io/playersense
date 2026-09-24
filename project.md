@@ -1491,12 +1491,14 @@ CREATE TABLE events_raw
     -- device_key is the cohort key (§29.2) and actor_key drives player timelines.
     -- device_id is the surrogate for device_key, NOT for actor_key: the two diverge the
     -- moment an anonymous player signs in, and a surrogate named after actor_key but
-    -- derived from device_key is an invitation to assume they match.
-    device_key String MATERIALIZED toString(install_id),
+    -- derived from device_key is an invitation to assume they match. device_id is stored
+    -- because the sort key needs it; the two keys are computed when read (ALIAS), because
+    -- stored they were a third of what an event cost on disk.
+    device_key String ALIAS toString(install_id),
     device_id UInt64 MATERIALIZED
         sipHash64(project_seq, environment_seq, toString(install_id)),
-    actor_key String MATERIALIZED
-        if(player_id != '', player_id, toString(install_id)),
+    actor_key String ALIAS
+        ifNull(player_id, toString(install_id)),
 
     event_name LowCardinality(String),
     event_type LowCardinality(String),
@@ -1532,12 +1534,6 @@ CREATE TABLE events_raw
 
     payload_bytes UInt32,
 
-    -- MATERIALIZED, never supplied by the writer. As a plain column it defaults to the
-    -- epoch on any insert that omits it, and `TTL expire_at DELETE` then expires that
-    -- row on the first merge — with ttl_only_drop_parts = 1, whole parts at a time.
-    expire_at DateTime MATERIALIZED
-        toDateTime(event_time) + toIntervalDay(retention_tier),
-
     INDEX idx_props mapKeys(props_string) TYPE bloom_filter(0.01) GRANULARITY 4
 )
 ENGINE = ReplicatedMergeTree
@@ -1552,7 +1548,9 @@ ORDER BY
     device_id,
     event_time
 )
-TTL expire_at DELETE
+-- An expression, not a column: a column the writer never supplies has a default, and a
+-- plain one defaults to the epoch, which expires the row on the first merge.
+TTL toDateTime(event_time) + toIntervalDay(retention_tier) DELETE
 SETTINGS ttl_only_drop_parts = 1;
 ```
 
@@ -1569,7 +1567,7 @@ and CPU that §25's insert path needs. Partitioning by day with `ttl_only_drop_p
 expiry into a directory unlink. On bounded Stage 1 hardware this is the single largest
 operational difference in the schema.
 
-**`expire_at` is derived, not supplied.** Beyond the epoch-default trap above, deriving
+**Expiry is derived, not supplied.** Beyond the epoch-default trap above, deriving
 it from `event_time` makes it monotone with the partition key, which is what
 `ttl_only_drop_parts` needs: a part is dropped only when every row in it has expired, so
 a TTL column unrelated to the partition key leaves mixed parts that never fully expire.

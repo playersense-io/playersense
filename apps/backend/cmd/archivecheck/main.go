@@ -6,9 +6,9 @@
 // §66 states the same rule less gently: **never expire the only remaining raw copy of an
 // event.**
 //
-// Nothing enforces that ordering, and nothing can. `events_raw` carries
-// `TTL expire_at DELETE` with `ttl_only_drop_parts = 1`, which is a declarative instruction
-// to a background merge — there is no hook, no gate and no way to make a partition drop wait
+// Nothing enforces that ordering, and nothing can. `events_raw` expires a row at its event
+// time plus its retention tier, with `ttl_only_drop_parts = 1`, which is a declarative
+// instruction to a background merge — there is no hook, no gate and no way to make a partition drop wait
 // for an object in a bucket. The invariant is therefore held by *margin*: a day's events are
 // archived within minutes and expire after the project's retention tier, so the gap is weeks.
 //

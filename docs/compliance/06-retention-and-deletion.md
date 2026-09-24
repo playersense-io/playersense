@@ -7,8 +7,7 @@ plan's limits. It travels **on the message** to the writer and is stamped onto e
 a row's expiry is a property of the row rather than of a lookup that may have changed since.
 
 ```sql
-expire_at MATERIALIZED toDateTime(event_time) + toIntervalDay(retention_tier)
-TTL expire_at DELETE
+TTL toDateTime(event_time) + toIntervalDay(retention_tier) DELETE
 SETTINGS ttl_only_drop_parts = 1
 ```
 
@@ -22,9 +21,10 @@ With it, whole parts are dropped once every row in them has expired — which is
 `expire_at` was originally declared with no default. It therefore defaulted to the epoch,
 and `TTL expire_at DELETE` expired **every row** on the first merge.
 
-It was found by running it and noticing the table was empty. The fix is the `MATERIALIZED`
-expression above, and the lesson is that a TTL column without a computed default is a
-delete-everything statement with a delay on it.
+It was found by running it and noticing the table was empty. The fix was a `MATERIALIZED`
+expression; the TTL is now that expression itself, with no column to default at all. The
+lesson is that a TTL column without a computed default is a delete-everything statement with
+a delay on it.
 
 ## Policy tiers cap retention
 

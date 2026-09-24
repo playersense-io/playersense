@@ -34,17 +34,17 @@ ALTER TABLE events_raw MODIFY SETTING storage_policy = 'hot_cold'
 -- operational one about how much fits on the disk. A project on a 365-day tier keeps its
 -- data for a year either way; only the first week of it is on NVMe.
 --
--- expire_at is MATERIALIZED from event_time and the retention tier (§23), so the DELETE arm
--- is per row and unchanged. Raising the hot window later is an ALTER, and a cheap one: it
+-- The DELETE arm is the row's own event time plus its retention tier (00001), so it is per
+-- row and unchanged. Raising the hot window later is an ALTER, and a cheap one: it
 -- changes which volume future merges target rather than rewriting anything.
 ALTER TABLE events_raw MODIFY TTL
     toDateTime(event_time) + toIntervalDay(7) TO VOLUME 'cold',
-    expire_at DELETE
+    toDateTime(event_time) + toIntervalDay(retention_tier) DELETE
 -- +goose StatementEnd
 
 -- +goose Down
 -- +goose StatementBegin
-ALTER TABLE events_raw MODIFY TTL expire_at DELETE
+ALTER TABLE events_raw MODIFY TTL toDateTime(event_time) + toIntervalDay(retention_tier) DELETE
 -- +goose StatementEnd
 
 -- +goose StatementBegin
