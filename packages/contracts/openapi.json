@@ -534,6 +534,143 @@
         }
       }
     },
+    "/v1/operator/accounts": {
+      "get": {
+        "tags": [
+          "operator"
+        ],
+        "summary": "Accounts that need somebody",
+        "description": "Billing accounts in their grace period, restricted or suspended; with an invoice past due; whose last automatic top-up failed; or with a top-up sent to Stripe over an hour ago and no answer. Each with every reason it is listed. Narrow with reason.",
+        "operationId": "get_v1_operator_accounts",
+        "parameters": [
+          {
+            "name": "X-Staff-Ticket",
+            "in": "header",
+            "description": "A ticket reference for why this customer's data is being read: recorded in staff_access",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Staff-Note",
+            "in": "header",
+            "description": "An optional line beside the ticket",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "reason",
+            "in": "query",
+            "description": "Only one kind: state (not active), overdue (an invoice past due), auto_topup (the last one failed), stuck (a top-up sent to Stripe over an hour ago with no answer)",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "",
+                "state",
+                "overdue",
+                "auto_topup",
+                "stuck"
+              ]
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "description": "The next cursor of the previous page",
+            "schema": {
+              "type": "string",
+              "maxLength": 20
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Up to 200",
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "default": "50",
+              "minimum": 1,
+              "maximum": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountTriageOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account is not staff, or lacks the role this needs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No organization has that slug",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/operator/clickhouse": {
       "get": {
         "tags": [
@@ -4718,6 +4855,388 @@
           },
           "503": {
             "description": "ClickHouse could not be read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/operator/stripe-events": {
+      "get": {
+        "tags": [
+          "operator"
+        ],
+        "summary": "What Stripe told us",
+        "description": "Every webhook, newest first, with what became of it: processed, ignored with why, or failed with the error and how many times it was tried. Narrow by status, type or organization. The bodies are on each event, not in the list.",
+        "operationId": "get_v1_operator_stripe_events",
+        "parameters": [
+          {
+            "name": "X-Staff-Ticket",
+            "in": "header",
+            "description": "A ticket reference for why this customer's data is being read: recorded in staff_access",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Staff-Note",
+            "in": "header",
+            "description": "An optional line beside the ticket",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "description": "received, processed, ignored or failed",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "",
+                "received",
+                "processed",
+                "ignored",
+                "failed"
+              ]
+            }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "description": "One event type, exactly: invoice.paid",
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            }
+          },
+          {
+            "name": "org",
+            "in": "query",
+            "description": "One organization's slug",
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "description": "The next cursor of the previous page",
+            "schema": {
+              "type": "string",
+              "maxLength": 20
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Newest first, up to 200",
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "default": "50",
+              "minimum": 1,
+              "maximum": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StripeEventListOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account is not staff, or lacks the role this needs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No organization has that slug",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/operator/stripe-events/{event_id}": {
+      "get": {
+        "tags": [
+          "operator"
+        ],
+        "summary": "One Stripe event, with its body",
+        "operationId": "get_v1_operator_stripe_events_by_event_id",
+        "parameters": [
+          {
+            "name": "X-Staff-Ticket",
+            "in": "header",
+            "description": "A ticket reference for why this customer's data is being read: recorded in staff_access",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Staff-Note",
+            "in": "header",
+            "description": "An optional line beside the ticket",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StripeEventOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account is not staff, or lacks the role this needs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No event has that id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/operator/stripe-events/{event_id}/replay": {
+      "post": {
+        "tags": [
+          "operator"
+        ],
+        "summary": "Handle a Stripe event again",
+        "description": "From the body it arrived with, for after a handler is fixed: an event that failed, or was ignored and should not have been. Not signed again; it was verified when it arrived. Answered with what handling it did this time, a failure included.",
+        "operationId": "post_v1_operator_stripe_events_by_event_id_replay",
+        "parameters": [
+          {
+            "name": "X-Staff-Ticket",
+            "in": "header",
+            "description": "A ticket reference for why this customer's data is being read: recorded in staff_access",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Staff-Note",
+            "in": "header",
+            "description": "An optional line beside the ticket",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StripeReplayOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account is not staff, or lacks the role this needs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No event has that id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The event was processed; replaying it could only repeat it",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
             "content": {
               "application/json": {
                 "schema": {
@@ -13183,6 +13702,93 @@
           "role"
         ]
       },
+      "AccountTriageOut": {
+        "type": "object",
+        "properties": {
+          "accounts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AccountTriageRowOut"
+            }
+          },
+          "next": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "accounts"
+        ]
+      },
+      "AccountTriageRowOut": {
+        "type": "object",
+        "properties": {
+          "arrears_micros": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "auto_topup_last_error": {
+            "type": "string"
+          },
+          "auto_topup_pending_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "auto_topup_retry_after": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "collection": {
+            "type": "string"
+          },
+          "organization": {
+            "$ref": "#/components/schemas/OrganizationRefOut"
+          },
+          "overdue_since": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "plan": {
+            "type": "string"
+          },
+          "reasons": {
+            "type": "array",
+            "description": "state, overdue, auto_topup, stuck",
+            "items": {
+              "type": "string"
+            }
+          },
+          "receivable_micros": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "state": {
+            "type": "string"
+          },
+          "state_changed_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "arrears_micros",
+          "collection",
+          "organization",
+          "plan",
+          "reasons",
+          "receivable_micros",
+          "state",
+          "state_changed_at"
+        ]
+      },
       "App": {
         "type": "object",
         "properties": {
@@ -19867,6 +20473,108 @@
           "org_seq",
           "project_seq",
           "share"
+        ]
+      },
+      "StripeEventListOut": {
+        "type": "object",
+        "properties": {
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StripeEventOut"
+            }
+          },
+          "next": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "events"
+        ]
+      },
+      "StripeEventOut": {
+        "type": "object",
+        "properties": {
+          "api_version": {
+            "type": "string"
+          },
+          "attempts": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "error": {
+            "type": "string",
+            "description": "Why it failed, or why it was ignored"
+          },
+          "id": {
+            "type": "string"
+          },
+          "organization": {
+            "type": "string",
+            "description": "The slug of the organization it concerned, once known"
+          },
+          "payload": {
+            "type": "object",
+            "description": "The body as delivered; on one event, not in a list",
+            "additionalProperties": {}
+          },
+          "processed_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "received_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string"
+          },
+          "stripe_created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Stripe's clock: the order events happened in"
+          },
+          "stripe_event_id": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "attempts",
+          "id",
+          "received_at",
+          "status",
+          "stripe_created_at",
+          "stripe_event_id",
+          "type"
+        ]
+      },
+      "StripeReplayOut": {
+        "type": "object",
+        "properties": {
+          "credited": {
+            "type": "boolean"
+          },
+          "event": {
+            "$ref": "#/components/schemas/StripeEventOut"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "description": "processed, ignored, or duplicate when another delivery handled it first"
+          }
+        },
+        "required": [
+          "credited",
+          "event",
+          "status"
         ]
       },
       "SubscriptionOut": {

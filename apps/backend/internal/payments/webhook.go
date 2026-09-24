@@ -84,15 +84,55 @@ func (w *Webhooks) Receive(ctx context.Context, payload []byte, signature string
 	if err != nil {
 		return out, err
 	}
-	if row.Status == stripeevent.StatusProcessed || row.Status == stripeevent.StatusIgnored {
-		out.Status = "duplicate"
-		return out, nil
-	}
+	return w.process(ctx, row.ID, event, out, false)
+}
 
+// ErrAlreadyHandled is a replay of an event that was processed: running it again could only move
+// money twice.
+var ErrAlreadyHandled = errors.New("the event was processed; replaying it could only repeat it")
+
+// Replay handles a recorded event again, from the body it arrived with: after a handler is fixed,
+// over the events it failed or ignored. Not re-verified, since it was when it arrived and the row
+// is immutable. A processed event is refused.
+func (w *Webhooks) Replay(ctx context.Context, rowID int) (Outcome, error) {
+	row, err := w.DB.Client.StripeEvent.Get(ctx, rowID)
+	if err != nil {
+		return Outcome{}, err
+	}
+	out := Outcome{EventID: row.StripeEventID, Type: row.Type}
+	if row.Status == stripeevent.StatusProcessed {
+		return out, ErrAlreadyHandled
+	}
+	raw, err := json.Marshal(row.Payload)
+	if err != nil {
+		return out, fmt.Errorf("encode the stored body: %w", err)
+	}
+	var event stripe.Event
+	if err := json.Unmarshal(raw, &event); err != nil {
+		return out, fmt.Errorf("decode the stored body: %w", err)
+	}
+	return w.process(ctx, row.ID, event, out, true)
+}
+
+// process handles one recorded event, holding its row for the length of the transaction so a
+// redelivery and a replay arriving together handle it once: the second waits, then finds it done.
+// A delivery leaves an ignored event alone; a replay runs it again, which is what it is for.
+func (w *Webhooks) process(ctx context.Context, rowID int, event stripe.Event, out Outcome, replay bool) (Outcome, error) {
 	tx, err := w.DB.Client.Tx(ctx)
 	if err != nil {
 		return out, err
 	}
+	row, err := tx.StripeEvent.Query().Where(stripeevent.ID(rowID)).ForUpdate().Only(ctx)
+	if err != nil {
+		_ = tx.Rollback()
+		return out, err
+	}
+	if row.Status == stripeevent.StatusProcessed || (row.Status == stripeevent.StatusIgnored && !replay) {
+		_ = tx.Rollback()
+		out.Status = "duplicate"
+		return out, nil
+	}
+
 	result, err := w.handle(ctx, tx, event)
 	if err != nil {
 		_ = tx.Rollback()

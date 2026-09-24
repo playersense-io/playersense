@@ -492,6 +492,10 @@ GET              /v1/operator/organizations/{org}/ledger         the statement, 
 GET              /v1/operator/organizations/{org}/credit-lots    grants; all=true for spent ones
 GET              /v1/operator/organizations/{org}/usage          the customer's usage page
 GET              /v1/operator/organizations/{org}/audit          the customer's own log, filtered
+GET              /v1/operator/accounts        billing: accounts suspended, overdue, declined or stuck
+GET              /v1/operator/stripe-events   billing: every webhook and what became of it
+GET              /v1/operator/stripe-events/{id}          one, with its body
+POST             /v1/operator/stripe-events/{id}/replay   handle a failed or ignored one again
 GET              /v1/operator/ingestion       ops: every tenant's events, bytes, batches, lag
 GET              /v1/operator/clickhouse      ops: replication, merges, mutations, parts, memory
 GET              /v1/operator/storage         ops: bytes on disk by table and project

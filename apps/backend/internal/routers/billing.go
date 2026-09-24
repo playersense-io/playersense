@@ -208,5 +208,33 @@ func OperatorBilling() *muzak.Router {
 		muzak.WithResponseDoc(http.StatusUnprocessableEntity, "Not whole cents, or more than is owed"),
 		muzak.WithResponseDoc(http.StatusServiceUnavailable, "Stripe could not be reached"))
 
+	r.Get("/accounts", handlers.TriageAccounts,
+		core.RequireStaff(staff.Billing, staff.Support), core.StaffReads("billing.triage"),
+		muzak.Summary("Accounts that need somebody"),
+		muzak.Description("Billing accounts in their grace period, restricted or suspended; with an "+
+			"invoice past due; whose last automatic top-up failed; or with a top-up sent to Stripe "+
+			"over an hour ago and no answer. Each with every reason it is listed. Narrow with reason."))
+
+	r.Get("/stripe-events", handlers.ListStripeEvents,
+		core.RequireStaff(staff.Billing), core.StaffReads("billing.stripe_events"),
+		muzak.Summary("What Stripe told us"),
+		muzak.Description("Every webhook, newest first, with what became of it: processed, ignored "+
+			"with why, or failed with the error and how many times it was tried. Narrow by status, "+
+			"type or organization. The bodies are on each event, not in the list."))
+
+	r.Get("/stripe-events/{event_id}", handlers.ReadStripeEvent,
+		core.RequireStaff(staff.Billing), core.StaffReads("billing.stripe_event"),
+		muzak.Summary("One Stripe event, with its body"),
+		muzak.WithResponseDoc(http.StatusNotFound, "No event has that id"))
+
+	r.Post("/stripe-events/{event_id}/replay", handlers.ReplayStripeEvent,
+		core.RequireStaff(staff.Billing), core.StaffReads("billing.stripe_replay"),
+		muzak.Summary("Handle a Stripe event again"),
+		muzak.Description("From the body it arrived with, for after a handler is fixed: an event that "+
+			"failed, or was ignored and should not have been. Not signed again; it was verified when it "+
+			"arrived. Answered with what handling it did this time, a failure included."),
+		muzak.WithResponseDoc(http.StatusConflict, "The event was processed; replaying it could only repeat it"),
+		muzak.WithResponseDoc(http.StatusNotFound, "No event has that id"))
+
 	return r
 }

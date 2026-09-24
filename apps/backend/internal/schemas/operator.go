@@ -296,3 +296,100 @@ func (in *OperatorAuditIn) Validate(v *muzak.Validation) {
 	v.String(&in.Slug).Trim().Lower().Required().MaxLen(64)
 	in.AuditFilter.Validate(v)
 }
+
+// ---- accounts that need somebody ----------------------------------------------
+
+// AccountTriageIn lists the billing accounts that need a person.
+type AccountTriageIn struct {
+	StaffTicket
+	Reason string `query:"reason,omitzero" doc:"Only one kind: state (not active), overdue (an invoice past due), auto_topup (the last one failed), stuck (a top-up sent to Stripe over an hour ago with no answer)"`
+	Before string `query:"before,omitzero" doc:"The next cursor of the previous page"`
+	Limit  int    `query:"limit,omitzero" default:"50" doc:"Up to 200"`
+}
+
+func (in *AccountTriageIn) Validate(v *muzak.Validation) {
+	v.String(&in.Reason).Trim().Lower().OneOf("", "state", "overdue", "auto_topup", "stuck")
+	v.String(&in.Before).Trim().MaxLen(20)
+	v.Number(&in.Limit).Min(1).Max(200)
+}
+
+// AccountTriageOut is one page of accounts that need somebody.
+type AccountTriageOut struct {
+	Accounts []AccountTriageRowOut `json:"accounts"`
+	Next     string                `json:"next,omitzero"`
+}
+
+// AccountTriageRowOut is one account and every reason it is on the list.
+type AccountTriageRowOut struct {
+	Organization OrganizationRefOut `json:"organization"`
+	Plan         string             `json:"plan"`
+	Reasons      []string           `json:"reasons" doc:"state, overdue, auto_topup, stuck"`
+
+	State            string     `json:"state"`
+	StateChangedAt   time.Time  `json:"state_changed_at"`
+	Collection       string     `json:"collection"`
+	ArrearsMicros    int64      `json:"arrears_micros"`
+	ReceivableMicros int64      `json:"receivable_micros"`
+	OverdueSince     *time.Time `json:"overdue_since,omitzero"`
+
+	AutoTopUpLastError  string     `json:"auto_topup_last_error,omitzero"`
+	AutoTopUpRetryAfter *time.Time `json:"auto_topup_retry_after,omitzero"`
+	AutoTopUpPendingAt  *time.Time `json:"auto_topup_pending_at,omitzero"`
+}
+
+// ---- Stripe's events --------------------------------------------------------
+
+// StripeEventsIn lists the webhooks Stripe sent.
+type StripeEventsIn struct {
+	StaffTicket
+	Status string `query:"status,omitzero" doc:"received, processed, ignored or failed"`
+	Type   string `query:"type,omitzero" doc:"One event type, exactly: invoice.paid"`
+	Org    string `query:"org,omitzero" doc:"One organization's slug"`
+	Before string `query:"before,omitzero" doc:"The next cursor of the previous page"`
+	Limit  int    `query:"limit,omitzero" default:"50" doc:"Newest first, up to 200"`
+}
+
+func (in *StripeEventsIn) Validate(v *muzak.Validation) {
+	v.String(&in.Status).Trim().Lower().OneOf("", "received", "processed", "ignored", "failed")
+	v.String(&in.Type).Trim().MaxLen(128)
+	v.String(&in.Org).Trim().Lower().MaxLen(64)
+	v.String(&in.Before).Trim().MaxLen(20)
+	v.Number(&in.Limit).Min(1).Max(200)
+}
+
+// StripeEventListOut is one page of events.
+type StripeEventListOut struct {
+	Events []StripeEventOut `json:"events"`
+	Next   string           `json:"next,omitzero"`
+}
+
+// StripeEventOut is one webhook and what became of it.
+type StripeEventOut struct {
+	ID              uuid.UUID  `json:"id"`
+	StripeEventID   string     `json:"stripe_event_id"`
+	Type            string     `json:"type"`
+	APIVersion      string     `json:"api_version,omitzero"`
+	StripeCreatedAt time.Time  `json:"stripe_created_at" doc:"Stripe's clock: the order events happened in"`
+	ReceivedAt      time.Time  `json:"received_at"`
+	Status          string     `json:"status"`
+	Error           string     `json:"error,omitzero" doc:"Why it failed, or why it was ignored"`
+	Attempts        int        `json:"attempts"`
+	ProcessedAt     *time.Time `json:"processed_at,omitzero"`
+	Organization    string     `json:"organization,omitzero" doc:"The slug of the organization it concerned, once known"`
+
+	Payload map[string]any `json:"payload,omitzero" doc:"The body as delivered; on one event, not in a list"`
+}
+
+// StripeEventParams names one recorded event.
+type StripeEventParams struct {
+	StaffTicket
+	EventID uuid.UUID `path:"event_id"`
+}
+
+// StripeReplayOut is what running an event again did.
+type StripeReplayOut struct {
+	Status   string         `json:"status" doc:"processed, ignored, or duplicate when another delivery handled it first"`
+	Credited bool           `json:"credited"`
+	Reason   string         `json:"reason,omitzero"`
+	Event    StripeEventOut `json:"event"`
+}

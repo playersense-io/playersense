@@ -126,6 +126,26 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/v1/operator/accounts": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * Accounts that need somebody
+         * @description Billing accounts in their grace period, restricted or suspended; with an invoice past due; whose last automatic top-up failed; or with a top-up sent to Stripe over an hour ago and no answer. Each with every reason it is listed. Narrow with reason.
+         */
+        readonly get: operations["get_v1_operator_accounts"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/v1/operator/clickhouse": {
         readonly parameters: {
             readonly query?: never;
@@ -716,6 +736,63 @@ export interface paths {
         readonly get: operations["get_v1_operator_storage"];
         readonly put?: never;
         readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/operator/stripe-events": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * What Stripe told us
+         * @description Every webhook, newest first, with what became of it: processed, ignored with why, or failed with the error and how many times it was tried. Narrow by status, type or organization. The bodies are on each event, not in the list.
+         */
+        readonly get: operations["get_v1_operator_stripe_events"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/operator/stripe-events/{event_id}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** One Stripe event, with its body */
+        readonly get: operations["get_v1_operator_stripe_events_by_event_id"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/operator/stripe-events/{event_id}/replay": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Handle a Stripe event again
+         * @description From the body it arrived with, for after a handler is fixed: an event that failed, or was ignored and should not have been. Not signed again; it was verified when it arrived. Answered with what handling it did this time, a failure included.
+         */
+        readonly post: operations["post_v1_operator_stripe_events_by_event_id_replay"];
         readonly delete?: never;
         readonly options?: never;
         readonly head?: never;
@@ -1909,6 +1986,31 @@ export interface components {
             readonly organization: components["schemas"]["OrganizationOut"];
             readonly projects?: readonly components["schemas"]["ProjectRefOut"][];
             readonly role: components["schemas"]["RoleOut"];
+        };
+        readonly AccountTriageOut: {
+            readonly accounts: readonly components["schemas"]["AccountTriageRowOut"][];
+            readonly next?: string;
+        };
+        readonly AccountTriageRowOut: {
+            /** Format: int64 */
+            readonly arrears_micros: number;
+            readonly auto_topup_last_error?: string;
+            /** Format: date-time */
+            readonly auto_topup_pending_at?: string | null;
+            /** Format: date-time */
+            readonly auto_topup_retry_after?: string | null;
+            readonly collection: string;
+            readonly organization: components["schemas"]["OrganizationRefOut"];
+            /** Format: date-time */
+            readonly overdue_since?: string | null;
+            readonly plan: string;
+            /** @description state, overdue, auto_topup, stuck */
+            readonly reasons: readonly string[];
+            /** Format: int64 */
+            readonly receivable_micros: number;
+            readonly state: string;
+            /** Format: date-time */
+            readonly state_changed_at: string;
         };
         readonly App: {
             readonly build?: string;
@@ -4249,6 +4351,43 @@ export interface components {
              */
             readonly share: number;
         };
+        readonly StripeEventListOut: {
+            readonly events: readonly components["schemas"]["StripeEventOut"][];
+            readonly next?: string;
+        };
+        readonly StripeEventOut: {
+            readonly api_version?: string;
+            /** Format: int64 */
+            readonly attempts: number;
+            /** @description Why it failed, or why it was ignored */
+            readonly error?: string;
+            readonly id: string;
+            /** @description The slug of the organization it concerned, once known */
+            readonly organization?: string;
+            /** @description The body as delivered; on one event, not in a list */
+            readonly payload?: {
+                readonly [key: string]: unknown;
+            };
+            /** Format: date-time */
+            readonly processed_at?: string | null;
+            /** Format: date-time */
+            readonly received_at: string;
+            readonly status: string;
+            /**
+             * Format: date-time
+             * @description Stripe's clock: the order events happened in
+             */
+            readonly stripe_created_at: string;
+            readonly stripe_event_id: string;
+            readonly type: string;
+        };
+        readonly StripeReplayOut: {
+            readonly credited: boolean;
+            readonly event: components["schemas"]["StripeEventOut"];
+            readonly reason?: string;
+            /** @description processed, ignored, or duplicate when another delivery handled it first */
+            readonly status: string;
+        };
         readonly SubscriptionOut: {
             readonly cancel_at_period_end: boolean;
             /** @description month or year */
@@ -4834,6 +4973,92 @@ export interface operations {
                 };
             };
             /** @description The summaries could not be read */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly get_v1_operator_accounts: {
+        readonly parameters: {
+            readonly query?: {
+                /** @description Only one kind: state (not active), overdue (an invoice past due), auto_topup (the last one failed), stuck (a top-up sent to Stripe over an hour ago with no answer) */
+                readonly reason?: "" | "state" | "overdue" | "auto_topup" | "stuck";
+                /** @description The next cursor of the previous page */
+                readonly before?: string;
+                /** @description Up to 200 */
+                readonly limit?: number;
+            };
+            readonly header: {
+                /** @description A ticket reference for why this customer's data is being read: recorded in staff_access */
+                readonly "X-Staff-Ticket": string;
+                /** @description An optional line beside the ticket */
+                readonly "X-Staff-Note"?: string;
+            };
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["AccountTriageOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account is not staff, or lacks the role this needs */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No organization has that slug */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
             readonly 503: {
                 headers: {
                     readonly [name: string]: unknown;
@@ -7669,6 +7894,267 @@ export interface operations {
                 };
             };
             /** @description ClickHouse could not be read */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly get_v1_operator_stripe_events: {
+        readonly parameters: {
+            readonly query?: {
+                /** @description received, processed, ignored or failed */
+                readonly status?: "" | "received" | "processed" | "ignored" | "failed";
+                /** @description One event type, exactly: invoice.paid */
+                readonly type?: string;
+                /** @description One organization's slug */
+                readonly org?: string;
+                /** @description The next cursor of the previous page */
+                readonly before?: string;
+                /** @description Newest first, up to 200 */
+                readonly limit?: number;
+            };
+            readonly header: {
+                /** @description A ticket reference for why this customer's data is being read: recorded in staff_access */
+                readonly "X-Staff-Ticket": string;
+                /** @description An optional line beside the ticket */
+                readonly "X-Staff-Note"?: string;
+            };
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["StripeEventListOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account is not staff, or lacks the role this needs */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No organization has that slug */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly get_v1_operator_stripe_events_by_event_id: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description A ticket reference for why this customer's data is being read: recorded in staff_access */
+                readonly "X-Staff-Ticket": string;
+                /** @description An optional line beside the ticket */
+                readonly "X-Staff-Note"?: string;
+            };
+            readonly path: {
+                readonly event_id: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["StripeEventOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account is not staff, or lacks the role this needs */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No event has that id */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly post_v1_operator_stripe_events_by_event_id_replay: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description A ticket reference for why this customer's data is being read: recorded in staff_access */
+                readonly "X-Staff-Ticket": string;
+                /** @description An optional line beside the ticket */
+                readonly "X-Staff-Note"?: string;
+            };
+            readonly path: {
+                readonly event_id: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["StripeReplayOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account is not staff, or lacks the role this needs */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No event has that id */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The event was processed; replaying it could only repeat it */
+            readonly 409: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
             readonly 503: {
                 headers: {
                     readonly [name: string]: unknown;
