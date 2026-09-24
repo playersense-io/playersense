@@ -167,6 +167,7 @@ func (d *Deriver) DeriveMonth(ctx context.Context, m Month) error {
 				        any(install_platform) AS install_platform,
 				        any(install_country)  AS install_country,
 				        any(first_app_version) AS first_app_version,
+				        sum(sessions)         AS d_sessions,
 				        sum(playtime_ms)      AS d_playtime_ms,
 				        sum(revenue_micros)   AS d_revenue_micros,
 				        sum(purchases)        AS d_purchases
@@ -179,6 +180,7 @@ func (d *Deriver) DeriveMonth(ctx context.Context, m Month) error {
 				    project_seq, environment_seq, dim_name, dim_value, cohort_date,
 				    toUInt16(dateDiff('day', cohort_date, activity_date)) AS day_offset,
 				    count()                       AS returned_players,
+				    sum(d_sessions)               AS sessions,
 				    sum(d_playtime_ms)            AS playtime_ms,
 				    sum(d_revenue_micros)         AS revenue_micros,
 				    sum(d_purchases)              AS purchases,
