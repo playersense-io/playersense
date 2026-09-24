@@ -157,8 +157,6 @@ export interface WebhookDestination {
   version: string
   /** Sent with every delivery, for a gateway in front of the URL that wants its own token. */
   headers: WebhookHeader[]
-  /** At most this many deliveries a second; null sends as fast as they come. */
-  rate_limit: number | null
   secret: WebhookSecret
   created_at: string
   updated_at: string

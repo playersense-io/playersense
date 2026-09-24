@@ -60,7 +60,6 @@ export function seedWebhooks(): WebhookDestination[] {
       status: 'enabled',
       version: '2026-09-01',
       headers: [{ name: 'X-Gateway-Token', value: 'gw_live_8c1f', secret: true }],
-      rate_limit: 50,
       secret: { ...secret('grant', 12), previous: { value: idOf('whsec', seeded('grant-old'), 32), expires_at: new Date(Date.now() + 19 * HOUR_MS).toISOString() } },
       created_at: ago(214 * DAY_MS),
       updated_at: ago(5 * HOUR_MS),
@@ -83,7 +82,6 @@ export function seedWebhooks(): WebhookDestination[] {
       status: 'enabled',
       version: '2026-09-01',
       headers: [],
-      rate_limit: 10,
       secret: secret('staging', 90),
       created_at: ago(180 * DAY_MS),
       updated_at: ago(20 * DAY_MS),
@@ -91,7 +89,7 @@ export function seedWebhooks(): WebhookDestination[] {
       history: [
         { at: ago(180 * DAY_MS), actor: 'deniz@starfall.games', text: 'Created, listening to Purchases' },
         { at: ago(96 * DAY_MS), actor: 'deniz@starfall.games', text: 'Now also listening to Subscriptions' },
-        { at: ago(20 * DAY_MS), actor: 'deniz@starfall.games', text: 'Rate limit 10 a second' }
+        { at: ago(20 * DAY_MS), actor: 'deniz@starfall.games', text: 'Environments: Staging, Development' }
       ]
     },
     {
@@ -104,7 +102,6 @@ export function seedWebhooks(): WebhookDestination[] {
       status: 'enabled',
       version: '2026-04-15',
       headers: [],
-      rate_limit: null,
       secret: secret('opsbot', 140),
       created_at: ago(140 * DAY_MS),
       updated_at: ago(33 * DAY_MS),
@@ -124,7 +121,6 @@ export function seedWebhooks(): WebhookDestination[] {
       status: 'enabled',
       version: '2026-09-01',
       headers: [{ name: 'Authorization', value: 'Bearer pv_live_x81', secret: true }],
-      rate_limit: 5,
       secret: secret('privacy', 75),
       created_at: ago(75 * DAY_MS),
       updated_at: ago(75 * DAY_MS),
@@ -144,7 +140,6 @@ export function seedWebhooks(): WebhookDestination[] {
       disabled_reason: 'manual',
       version: '2025-11-01',
       headers: [],
-      rate_limit: null,
       secret: secret('rewards', 300),
       created_at: ago(320 * DAY_MS),
       updated_at: ago(190 * DAY_MS),

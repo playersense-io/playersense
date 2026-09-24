@@ -25,8 +25,6 @@ const events = ref<string[]>(base ? [...base.events] : [])
 const environments = ref<string[]>(base ? [...base.environments] : ['production'])
 const version = ref(base?.version ?? LATEST_VERSION)
 const headers = ref<WebhookHeader[]>(base ? base.headers.map(header => ({ ...header })) : [])
-const limited = ref(base ? base.rate_limit !== null : false)
-const rateLimit = ref(String(base?.rate_limit ?? 25))
 
 const urlTouched = ref(editing.value)
 const urlError = computed(() => (urlTouched.value ? urlProblem(url.value) : null))
@@ -49,7 +47,26 @@ const ENVIRONMENT_CHOICES = computed(() => ENVIRONMENTS.slice().reverse().map(va
   } as Record<EnvironmentKind, string>)[value]
 })))
 
-const VERSION_ITEMS = WEBHOOK_VERSIONS.map(entry => ({ value: entry.value, title: entry.value, subtitle: entry.note }))
+/* The example body: one of the events chosen, or any event while none is. */
+const exampleTypes = computed(() => {
+  const chosen = eventsOf(events.value)
+  return chosen.length ? chosen : WEBHOOK_EVENTS.map(entry => entry.type)
+})
+const EXAMPLE_OPTIONS = computed<GhostSelectOption[]>(() => exampleTypes.value.map(type => ({ value: type, label: type, group: WEBHOOK_GROUP[WEBHOOK_EVENT[type]!.group].label })))
+const pickedExample = ref<string | undefined>(undefined)
+const exampleType = computed({
+  get: () => (pickedExample.value && exampleTypes.value.includes(pickedExample.value) ? pickedExample.value : exampleTypes.value[0]!),
+  set: (value: string) => {
+    pickedExample.value = value
+  }
+})
+const example = computed(() => JSON.stringify(eventDocument(exampleType.value, {
+  id: 'evt_7kq2m9x4r8t3zb5n6p1w',
+  created: Date.parse('2026-09-24T14:03:11Z'),
+  environment: 'production',
+  version: version.value,
+  seed: exampleType.value
+}), null, 2))
 
 function addHeader() {
   headers.value = [...headers.value, { name: '', value: '', secret: false }]
@@ -75,12 +92,6 @@ const headerProblem = computed(() => {
   return null
 })
 
-const rateProblem = computed(() => {
-  if (!limited.value) return null
-  const value = Number(rateLimit.value)
-  return Number.isInteger(value) && value >= 1 && value <= 1000 ? null : 'A rate limit of 1 to 1,000 a second'
-})
-
 // --- Saving -------------------------------------------------------------------------------
 
 const missing = computed(() => {
@@ -92,7 +103,6 @@ const missing = computed(() => {
   if (!events.value.length) out.push({ section: 'what', text: 'At least one event to send' })
   if (!environments.value.length) out.push({ section: 'whose', text: 'At least one environment' })
   if (headerProblem.value) out.push({ section: 'how', text: headerProblem.value })
-  if (rateProblem.value) out.push({ section: 'how', text: rateProblem.value })
   return out
 })
 
@@ -106,8 +116,7 @@ function draft(): WebhookDraft {
     events: events.value.includes(EVERY_EVENT) ? [EVERY_EVENT] : WEBHOOK_EVENTS.map(entry => entry.type).filter(type => events.value.includes(type)),
     environments: ENVIRONMENTS.filter(value => environments.value.includes(value)).reverse(),
     version: version.value,
-    headers: headers.value.filter(header => header.name.trim()).map(header => ({ name: header.name.trim(), value: header.value, secret: Boolean(header.secret) })),
-    rate_limit: limited.value ? Number(rateLimit.value) : null
+    headers: headers.value.filter(header => header.name.trim()).map(header => ({ name: header.name.trim(), value: header.value, secret: Boolean(header.secret) }))
   }
 }
 
@@ -127,7 +136,7 @@ function save() {
 
 // --- Changes, and leaving with them -------------------------------------------------------
 
-const snapshot = () => JSON.stringify([url.value, name.value, description.value, events.value, environments.value, version.value, headers.value, limited.value, rateLimit.value])
+const snapshot = () => JSON.stringify([url.value, name.value, description.value, events.value, environments.value, version.value, headers.value])
 const initial = snapshot()
 const dirty = computed(() => snapshot() !== initial)
 const saved = ref(false)
@@ -172,7 +181,7 @@ function jump(section: string) {
   document.getElementById(`section-${section}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
-const ids = { url: useId(), name: useId(), description: useId(), version: useId(), rate: useId() }
+const ids = { url: useId(), name: useId(), description: useId() }
 
 const SECTIONS = [
   { id: 'where', number: 1, title: 'Where to send them' },
@@ -283,49 +292,47 @@ const SECTIONS = [
           {{ SECTIONS[3]!.title }}
         </h2>
 
-        <div class="grid gap-4 sm:grid-cols-2">
-          <div class="flex flex-col gap-1.5">
-            <label :for="ids.version" class="text-xs font-medium text-ink">Payload version</label>
-            <v-select
-              :id="ids.version"
-              v-model="version"
-              :items="VERSION_ITEMS"
-              class="font-mono"
-              hide-details
-              item-props
-              variant="outlined"
-            />
-            <span class="text-[11px] leading-4 text-ink/50">{{ WEBHOOK_VERSIONS.find(entry => entry.value === version)?.note }} The shape stays fixed until you move it on.</span>
+        <!-- The version: cards, the chosen one's payload under them. -->
+        <div class="flex flex-col gap-2">
+          <span class="flex flex-col gap-0.5">
+            <span class="text-xs font-medium text-ink">Payload version</span>
+            <span class="text-[11px] text-ink/50">The shape of every body sent here. It stays fixed until you move it on, so a new field never breaks your handler.</span>
+          </span>
+          <div class="grid gap-1.5 sm:grid-cols-3" role="radiogroup" aria-label="Payload version">
+            <button
+              v-for="(entry, index) in WEBHOOK_VERSIONS"
+              :key="entry.value"
+              :aria-checked="version === entry.value"
+              :class="version === entry.value ? 'border-primary bg-primary/6' : 'border-line bg-surface hover:bg-ink/3'"
+              class="flex cursor-pointer items-start gap-2.5 rounded-(--ps-radius-small) border px-3 py-2.5 text-left transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+              role="radio"
+              type="button"
+              @click="version = entry.value"
+            >
+              <span :class="version === entry.value ? 'border-primary' : 'border-ink/25'" aria-hidden="true" class="mt-0.5 flex size-3.5 flex-none items-center justify-center rounded-full border-2">
+                <span v-if="version === entry.value" class="size-1.5 rounded-full bg-primary" />
+              </span>
+              <span class="flex min-w-0 flex-col gap-0.5">
+                <span class="flex items-center gap-1.5">
+                  <span class="font-mono text-xs font-medium text-ink">{{ entry.value }}</span>
+                  <span v-if="index === 0" class="rounded-full bg-primary/10 px-1.5 text-[10px] leading-4 font-medium text-primary">Latest</span>
+                </span>
+                <span class="text-[11px] leading-4 text-ink/55">{{ entry.note.replace(/^Latest\. /, '') }}</span>
+              </span>
+            </button>
           </div>
-          <div class="flex flex-col gap-1.5">
-            <span class="text-xs font-medium text-ink">Rate limit</span>
-            <div class="flex items-center gap-3">
-              <v-switch
-                v-model="limited"
-                aria-label="Limit how fast events are sent"
-                color="primary"
-                density="compact"
-                hide-details
-                inset
-              />
-              <template v-if="limited">
-                <v-text-field
-                  :id="ids.rate"
-                  v-model="rateLimit"
-                  :error="Boolean(rateProblem)"
-                  aria-label="Deliveries a second"
-                  class="ps-webhook-number max-w-24"
-                  density="comfortable"
-                  hide-details
-                  inputmode="numeric"
-                  variant="outlined"
-                />
-                <span class="text-xs text-ink/60">a second</span>
-              </template>
-              <span v-else class="text-xs text-ink/60">As fast as they happen</span>
-            </div>
-            <span class="text-[11px] leading-4 text-ink/50">For a server that cannot take a burst: the rest wait their turn, nothing is dropped.</span>
+        </div>
+
+        <!-- What the server receives, for one of the events chosen, in the version chosen. -->
+        <div class="flex flex-col gap-2">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <span class="flex flex-col gap-0.5">
+              <span class="text-xs font-medium text-ink">What your server receives</span>
+              <span class="text-[11px] text-ink/50">An example body, {{ events.length ? 'for an event you chose' : 'for any event' }}. Every body has the same envelope; data is the event's own.</span>
+            </span>
+            <GhostSelect v-model="exampleType" :options="EXAMPLE_OPTIONS" label="Example event" />
           </div>
+          <CodeBlock :code="example" :title="`${exampleType} · version ${version}`" class="max-h-96" />
         </div>
 
         <!-- Headers of the studio's own, for a gateway in front of the URL. -->
@@ -452,7 +459,7 @@ const SECTIONS = [
               Version <span class="font-mono">{{ version }}</span>
             </dd>
             <dd class="m-0 text-[11px] text-ink/50">
-              {{ limited ? `At most ${rateLimit} a second` : 'No rate limit' }}{{ headers.filter(header => header.name.trim()).length ? ` · ${headers.filter(header => header.name.trim()).length} custom ${headers.filter(header => header.name.trim()).length === 1 ? 'header' : 'headers'}` : '' }}
+              {{ headers.filter(header => header.name.trim()).length ? `${headers.filter(header => header.name.trim()).length} custom ${headers.filter(header => header.name.trim()).length === 1 ? 'header' : 'headers'}` : 'No custom headers' }}
             </dd>
           </button>
         </dl>
@@ -528,9 +535,3 @@ const SECTIONS = [
     />
   </form>
 </template>
-
-<style scoped>
-.ps-webhook-number :deep(input) {
-  font-family: var(--font-mono);
-}
-</style>

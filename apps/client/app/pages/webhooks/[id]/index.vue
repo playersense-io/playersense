@@ -70,8 +70,8 @@ const facts = computed<Fact[]>(() => {
     { key: 'url', label: 'Endpoint URL', value: entry.url, mono: true, copy: entry.url },
     { key: 'environments', label: 'From', value: entry.environments.map(value => ENVIRONMENT_LABELS[value]).join(', ') },
     { key: 'version', label: 'Payload version', value: entry.version, mono: true, note: entry.version === LATEST_VERSION ? 'The latest' : `Latest is ${LATEST_VERSION}` },
-    { key: 'rate', label: 'Rate limit', value: entry.rate_limit ? `${entry.rate_limit} a second` : 'None' },
     { key: 'headers', label: 'Custom headers', value: entry.headers.length ? entry.headers.map(header => header.name).join(', ') : 'None', mono: entry.headers.length > 0 },
+    { key: 'created', label: 'Created', value: stamp(entry.created_at), note: `by ${entry.history[0]?.actor ?? entry.updated_by}` },
     { key: 'id', label: 'Destination id', value: entry.id, mono: true, copy: entry.id }
   ]
 })

@@ -12,15 +12,15 @@ const { sendTest } = useWebhooks()
 
 const types = computed(() => eventsOf(props.destination.events))
 const type = ref(types.value[0] ?? WEBHOOK_EVENTS[0]!.type)
-const environment = ref<EnvironmentKind>(props.destination.environments[0] ?? 'production')
+const environment = ref<string>(props.destination.environments[0] ?? 'production')
 
-const TYPE_ITEMS = computed(() => types.value.map(value => ({ value, title: value, subtitle: WEBHOOK_EVENT[value]?.summary })))
-const ENVIRONMENT_ITEMS = computed(() => props.destination.environments.map(value => ({ value, title: ENVIRONMENT_LABELS[value] })))
+const TYPE_OPTIONS = computed<GhostSelectOption[]>(() => types.value.map(value => ({ value, label: value, group: WEBHOOK_GROUP[WEBHOOK_EVENT[value]!.group].label })))
+const ENVIRONMENT_OPTIONS = computed<SegmentedOption[]>(() => props.destination.environments.map(value => ({ value, label: ENVIRONMENT_LABELS[value] })))
 
 const body = computed(() => JSON.stringify(eventDocument(type.value, {
   id: 'evt_test_…',
   created: Date.now(),
-  environment: WEBHOOK_EVENT[type.value]?.environments ? environment.value : 'production',
+  environment: WEBHOOK_EVENT[type.value]?.environments ? environment.value as EnvironmentKind : 'production',
   version: props.destination.version,
   seed: `test:${type.value}`
 }), null, 2))
@@ -32,11 +32,9 @@ async function send() {
   sending.value = true
   result.value = null
   await new Promise(resolve => setTimeout(resolve, 700))
-  result.value = sendTest(props.destination, type.value, WEBHOOK_EVENT[type.value]?.environments ? environment.value : 'production')
+  result.value = sendTest(props.destination, type.value, WEBHOOK_EVENT[type.value]?.environments ? environment.value as EnvironmentKind : 'production')
   sending.value = false
 }
-
-const ids = { type: useId(), environment: useId() }
 </script>
 
 <template>
@@ -53,31 +51,29 @@ const ids = { type: useId(), environment: useId() }
 
       <div class="overflow-y-auto">
         <div class="flex flex-col gap-4 p-5">
-          <div class="grid gap-4 sm:grid-cols-[minmax(0,1fr)_12rem]">
-            <div class="flex flex-col gap-1.5">
-              <label :for="ids.type" class="text-xs font-medium text-ink">Event</label>
-              <v-select
-                :id="ids.type"
+          <!-- The event, and whose it is as if from. -->
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <span class="flex min-w-0 flex-col">
+              <span class="text-[11px] text-ink/50">Event</span>
+              <GhostSelect
                 v-model="type"
-                :items="TYPE_ITEMS"
+                :options="TYPE_OPTIONS"
                 class="font-mono"
-                hide-details
-                item-props
-                variant="outlined"
+                label="Event"
               />
-            </div>
-            <div class="flex flex-col gap-1.5">
-              <label :for="ids.environment" class="text-xs font-medium text-ink">As if from</label>
-              <v-select
-                :id="ids.environment"
-                v-model="environment"
-                :disabled="!WEBHOOK_EVENT[type]?.environments || destination.environments.length < 2"
-                :items="ENVIRONMENT_ITEMS"
-                hide-details
-                variant="outlined"
-              />
-            </div>
+            </span>
+            <span v-if="destination.environments.length > 1 && WEBHOOK_EVENT[type]?.environments" class="flex flex-col items-end gap-1">
+              <span class="text-[11px] text-ink/50">As if from</span>
+              <SegmentedControl v-model="environment" :options="ENVIRONMENT_OPTIONS" label="As if from" />
+            </span>
+            <span v-else class="flex flex-col items-end">
+              <span class="text-[11px] text-ink/50">As if from</span>
+              <span class="text-xs text-ink/70">{{ ENVIRONMENT_LABELS[WEBHOOK_EVENT[type]?.environments ? environment as EnvironmentKind : 'production'] }}</span>
+            </span>
           </div>
+          <p class="-mt-2 mb-0 text-[11px] text-ink/55">
+            {{ WEBHOOK_EVENT[type]?.summary }}
+          </p>
 
           <!-- The answer, once it is in. -->
           <div

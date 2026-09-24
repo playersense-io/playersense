@@ -19,7 +19,7 @@ function stores() {
   return { stored: shared, tests: sharedTests, resends: sharedResends }
 }
 
-export type WebhookDraft = Pick<WebhookDestination, 'name' | 'description' | 'url' | 'events' | 'environments' | 'version' | 'headers' | 'rate_limit'>
+export type WebhookDraft = Pick<WebhookDestination, 'name' | 'description' | 'url' | 'events' | 'environments' | 'version' | 'headers'>
 
 /** The plan's cap on destinations (the max_webhook_endpoints entitlement). */
 export const WEBHOOK_LIMIT = 10
@@ -91,7 +91,6 @@ export function useWebhooks() {
     if (!sameJson(before.environments, next.environments)) changes.push(`Environments: ${next.environments.map(entry => ENVIRONMENT_LABELS[entry]).join(', ')}`)
     if (before.version !== next.version) changes.push(`Payload version ${before.version} → ${next.version}`)
     if (!sameJson(before.headers, next.headers)) changes.push('Headers changed')
-    if (before.rate_limit !== next.rate_limit) changes.push(next.rate_limit ? `Rate limit ${next.rate_limit} a second` : 'No rate limit')
     if (before.description !== next.description && !changes.length) changes.push('Description changed')
     write(id, entry => ({ ...entry, ...next }), changes.join('. ') || 'Saved with no change')
   }
