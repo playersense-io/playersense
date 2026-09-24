@@ -298,8 +298,15 @@ const initial = snapshot()
 const dirty = computed(() => snapshot() !== initial)
 const saved = ref(false)
 
-/* Leaving with changes asks first; the route asked for waits until the answer is yes. */
+/*
+ * Leaving with changes asks first; the route asked for waits until the answer is yes. The yes
+ * is a flag of its own, not a value of `leaving`: the dialog closes itself as it confirms,
+ * which clears `leaving`, and a yes kept there was gone before the route guard read it, so
+ * the question came back every time.
+ */
 const leaving = ref<string | null>(null)
+let leaveConfirmed = false
+
 const leaveOpen = computed({
   get: () => leaving.value !== null,
   set: (value) => {
@@ -308,7 +315,7 @@ const leaveOpen = computed({
 })
 
 onBeforeRouteLeave((to) => {
-  if (saved.value || !dirty.value || leaving.value === 'confirmed') return true
+  if (saved.value || !dirty.value || leaveConfirmed) return true
   leaving.value = to.fullPath
   return false
 })
@@ -317,7 +324,8 @@ const router = useRouter()
 
 function leave() {
   const to = leaving.value
-  leaving.value = 'confirmed'
+  leaveConfirmed = true
+  leaving.value = null
   if (to) router.push(to)
 }
 
