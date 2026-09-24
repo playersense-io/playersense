@@ -82,7 +82,7 @@ function exportLedger() {
         <li v-for="lot in lots" :key="lot.id" class="flex flex-wrap items-center gap-x-6 gap-y-3 py-3.5 first:pt-0 last:pb-0">
           <span class="flex min-w-48 flex-1 items-center gap-3">
             <span
-              :style="{ color: `rgb(var(--v-theme-${lot.kind === 'promo' ? 'chart-6' : 'primary'}))`, background: `rgb(var(--v-theme-${lot.kind === 'promo' ? 'chart-6' : 'primary'}) / 0.1)` }"
+              :style="{ color: `rgb(var(--v-theme-${lot.kind === 'promo' ? 'chart-6' : 'primary'}))`, background: `rgba(var(--v-theme-${lot.kind === 'promo' ? 'chart-6' : 'primary'}), 0.1)` }"
               aria-hidden="true"
               class="flex size-8 flex-none items-center justify-center rounded-(--ps-radius) text-base"
             >
