@@ -54,7 +54,7 @@ export default defineNuxtConfig({
     // selfhst is newer than it: its icons are named here, or they draw nothing.
     clientBundle: {
       scan: { globInclude: ['app/**/*.{vue,ts}'] },
-      icons: ['selfhst:steam']
+      icons: ['selfhst:steam', 'selfhst:slack', 'selfhst:discord', 'selfhst:microsoft-teams', 'selfhst:telegram']
     }
   },
 
