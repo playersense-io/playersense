@@ -1,7 +1,7 @@
 /*
  * Vuetify's month grid, set to the panel's scale (VDatePickerMonth.sass, VDatePickerControls.sass),
- * wherever a date is chosen: DateTimeField and DateRangePicker put `ps-date-picker` on it. Global,
- * because the markup is Vuetify's and both components draw it.
+ * wherever a single date is chosen: DateTimeField puts `ps-date-picker` on it. Global, because the
+ * markup is Vuetify's. DateRangePicker keeps Vuetify's own range layout and styles itself.
  *
  * Vuetify's days are 44px circles in the body face, which in a menu beside a column of times
  * reads as a phone's calendar. Here a day is a 32px square with its number in the mono face, the
@@ -78,9 +78,4 @@
   font-family: var(--font-mono);
   font-size: 12px;
   letter-spacing: 0;
-}
-
-/* A range: the days between its ends washed in the accent, square, so a week reads as one band. */
-.ps-date-picker .v-date-picker-month__range-bg {
-  inset: 3px 0;
 }

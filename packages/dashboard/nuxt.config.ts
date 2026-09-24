@@ -79,8 +79,10 @@ export default defineNuxtConfig({
       icons: { defaultSet: 'custom' },
 
       // Labs components the dashboards use, named rather than `true` so the bundle
-      // carries these and none of the rest: VHeatmap draws the week grid on Sessions.
-      labComponents: ['VHeatmap'],
+      // carries these and none of the rest: VHeatmap draws the week grid on Sessions, and
+      // VDateRangePicker is the only thing that draws two months as one control, for the
+      // range picker beside a page's filters.
+      labComponents: ['VHeatmap', 'VDateRangePicker'],
 
       // Every action is a text button, which has no fill of its own to change under a
       // finger; without the ripple a tap leaves only a hover overlay that looks stuck.
