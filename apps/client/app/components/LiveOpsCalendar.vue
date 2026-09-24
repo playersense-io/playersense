@@ -563,12 +563,18 @@ const clipped = (bar: Bar) => ({ start: bar.start < from.value, end: bar.end > w
                   </div>
 
                   <!-- A recurring event: its name once, then its windows, each with what it did. -->
-                  <!-- Framed with a ring rather than a border, so the bars keep the day columns' width. -->
-                  <div v-for="line in band.series" :key="line.id" class="flex flex-col gap-0.5 rounded-(--ps-radius-small) bg-surface/40 py-1 ring-1 ring-line ring-inset">
+                  <!-- Framed in its colour with an inset shadow, not a border, and its bars pulled back out of
+                       the padding, so they keep the day columns' width. -->
+                  <div
+                    v-for="line in band.series"
+                    :key="line.id"
+                    :style="{ boxShadow: `inset 0 0 0 1px color-mix(in srgb, ${toneColour(line.tone)} 45%, transparent)`, background: `color-mix(in srgb, ${toneColour(line.tone)} 5%, transparent)` }"
+                    class="flex flex-col gap-1 rounded-(--ps-radius-small) px-1.5 py-1.5"
+                  >
                     <NuxtLink
                       :class="compact ? 'h-3.5 text-[10px]' : 'h-4 text-[11px]'"
                       :to="line.to"
-                      class="group relative flex min-w-0 items-center gap-1.5 self-start px-1.5 leading-none no-underline"
+                      class="group relative flex min-w-0 items-center gap-1.5 self-start px-0.5 leading-none no-underline"
                     >
                       <Icon
                         :style="{ color: toneColour(line.tone) }"
@@ -579,7 +585,7 @@ const clipped = (bar: Bar) => ({ start: bar.start < from.value, end: bar.end > w
                       <span class="truncate font-medium text-ink/85 transition-colors group-hover:text-primary">{{ line.name }}</span>
                       <span class="truncate text-ink/45">{{ line.words }}</span>
                     </NuxtLink>
-                    <div :class="compact ? 'h-3.5' : 'h-5'" class="relative">
+                    <div :class="compact ? 'h-3.5' : 'h-5'" class="relative -mx-1.5">
                       <template v-for="bar in line.bars" :key="bar.id">
                         <span
                           v-if="bar.pill"
