@@ -18,6 +18,16 @@ export type RevenueFilters = Record<RevenueDimension, string[]>
 
 export const REVENUE_RANGE_DAYS: Record<RevenueRange, number> = { '7d': 7, '30d': 30, '90d': 90 }
 
+/** Any stretch of whole days: how many, and the start of the day after the last one (UTC). */
+export interface RevenueWindow {
+  days: number
+  end: number
+}
+
+/** A named range as the days it covers, ending today. */
+const windowOf = (range: RevenueRange | RevenueWindow, today: number): RevenueWindow =>
+  typeof range === 'string' ? { days: REVENUE_RANGE_DAYS[range], end: today } : range
+
 /**
  * Where a purchase is made: the store's name, the platform its mark is drawn for, what it
  * keeps of each sale, its share of transactions, and how readily it refunds: Google Play
@@ -199,9 +209,9 @@ function keep<T extends string>(all: readonly T[], chosen: readonly string[]): T
  * today, so a Halloween bundle on sale this month is new against the month before rather
  * than on sale in both; `scale` sets how the range compares, for a game that is growing.
  */
-function draw(range: RevenueRange, filters: RevenueFilters, end: number, today: number, salt: string, scale = 1) {
-  const days = REVENUE_RANGE_DAYS[range]
-  const random = seeded(`revenue:${salt}:${range}:${JSON.stringify(filters)}`)
+function draw(range: RevenueRange | RevenueWindow, filters: RevenueFilters, end: number, today: number, salt: string, scale = 1) {
+  const days = windowOf(range, today).days
+  const random = seeded(`revenue:${salt}:${typeof range === 'string' ? range : `${range.days}@${range.end}`}:${JSON.stringify(filters)}`)
   const stores = keep(STORE_KEYS, filters.store)
   const products = PRODUCTS.filter(product => !filters.product.length || filters.product.includes(product.id))
   const countries = COUNTRIES.filter(country => !filters.country.length || filters.country.includes(country.code))
@@ -251,10 +261,11 @@ function draw(range: RevenueRange, filters: RevenueFilters, end: number, today: 
   return { starts, daily, lines, total, products, countries, stores, installPull, storePull, random, days }
 }
 
-export function sampleRevenue(range: RevenueRange, filters: RevenueFilters): RevenueSample {
+export function sampleRevenue(range: RevenueRange | RevenueWindow, filters: RevenueFilters): RevenueSample {
   const today = Math.floor(Date.now() / DAY) * DAY
-  const now = draw(range, filters, today, today, 'now')
-  const before = draw(range, filters, today - REVENUE_RANGE_DAYS[range] * DAY, today, 'before', 0.93)
+  const window = windowOf(range, today)
+  const now = draw(window, filters, window.end, today, 'now')
+  const before = draw(window, filters, window.end - window.days * DAY, today, 'before', 0.93)
   const { random, days } = now
 
   // Payers repeat, and more over a longer range: about 2.7 purchases each in a week, 3.8 in
