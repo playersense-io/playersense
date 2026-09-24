@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import type { Balance } from '~/types'
-
 // The right-hand end of the app bar: what the organization has to spend and the way to
 // add to it, the docs, notifications and the theme.
 //
@@ -10,8 +8,10 @@ import type { Balance } from '~/types'
 // Docs are desktop only — on a phone the breadcrumb needs the row.
 const { mdAndUp } = useDisplay()
 
-// Not awaited: an async component in the bar would suspend the whole layout for a figure.
-const { data: balance } = useFetch<Balance>('/api/balance')
+// The sample wallet Billing keeps in this browser, so the bar and Billing agree until both
+// read GET /v1/users/me's `balance` (LiveBalanceOut).
+const { balance: available } = useBilling()
+const balance = computed(() => (import.meta.client ? { available_micros: available.value, owed_micros: 0 } : null))
 
 const dollars = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' })
 
@@ -56,7 +56,7 @@ const DOCS_URL = 'https://docs.playersense.io'
       color="primary"
       prepend-icon="material-symbols:add"
       size="small"
-      to="/settings/billing"
+      to="/settings/billing?topup=1"
       variant="flat"
     >
       Add funds
