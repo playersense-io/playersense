@@ -1,10 +1,11 @@
 <script setup lang="ts">
-// The draft and the three environments, left to right in the order a change travels: what each
-// one serves, since when, and how far behind the draft it is. The gap is counted in changes a
-// publish there would make, so "Production: 4 waiting" is a sentence a release manager can act
-// on — and the button beside it is the act.
+// Where the draft has reached, as three steps in the order a change travels: the team's own
+// devices, then testers, then every player. Each step says who sees it, one status (up to date,
+// or how many changes behind the draft it is) and, only when it is behind, the one thing to do
+// about it. Versions, publishers and notes are the history's to tell; here they were a second
+// and third line on every card that nobody could tell apart from the status.
 withDefaults(defineProps<{
-  /** Hide the publishers and notes, for a strip at the top of a list. */
+  /** A strip at the top of a list: no version line under each status. */
   compact?: boolean
 }>(), {
   compact: false
@@ -12,13 +13,17 @@ withDefaults(defineProps<{
 
 const emit = defineEmits<{ publish: [environment: EnvironmentKind] }>()
 
-const { flags, segments, audit, latest, draftCheck } = useLiveConfig()
+const { flags, segments, latest, draftCheck } = useLiveConfig()
 
 const now = useNow({ interval: 60_000 })
 
 const check = computed(() => draftCheck())
 
-const lastEdit = computed(() => audit.value.find(entry => entry.action !== 'liveops.publish' && entry.action !== 'draft.restore') ?? null)
+const STEP_ICONS: Record<EnvironmentKind, string> = {
+  development: 'material-symbols:code-blocks-outline',
+  staging: 'material-symbols:science-outline',
+  production: 'material-symbols:public'
+}
 
 const stages = computed(() => ENVIRONMENTS.map((environment) => {
   const version = latest(environment)
@@ -28,67 +33,61 @@ const stages = computed(() => ENVIRONMENTS.map((environment) => {
 </script>
 
 <template>
-  <div class="grid gap-2 lg:grid-cols-[minmax(0,0.9fr)_repeat(3,minmax(0,1fr))]">
-    <div class="flex min-w-0 flex-col gap-2 rounded-(--ps-radius-large) border border-dashed border-ink/20 bg-canvas p-4">
-      <div class="flex items-center justify-between gap-2">
-        <span class="flex items-center gap-1.5 text-xs font-medium text-ink">
-          <Icon aria-hidden="true" class="text-sm text-ink/50" name="material-symbols:edit-note-outline" />
-          Draft
-        </span>
-        <StatusBadge :label="check.compiles ? 'Compiles' : 'Does not compile'" :tone="check.compiles ? 'success' : 'error'" />
-      </div>
-      <p class="m-0 text-xs text-ink/60">
-        {{ check.flags }} flags · {{ segments.filter(entry => !entry.archived).length }} segments
-      </p>
-      <p v-if="lastEdit" class="m-0 truncate text-[11px] text-ink/45">
-        Edited {{ sinceWords(lastEdit.at, now) }}<template v-if="!compact">
-          by {{ lastEdit.actor }}
-        </template>
-      </p>
-      <p v-if="!check.compiles" class="m-0 text-[11px] leading-4 text-error">
-        {{ check.problem }}
-      </p>
-    </div>
-
-    <div
-      v-for="stage in stages"
+  <ol class="m-0 grid list-none gap-0 overflow-hidden rounded-(--ps-radius-x-large) border border-line bg-surface p-0 md:grid-cols-3">
+    <li
+      v-for="(stage, index) in stages"
       :key="stage.environment"
-      class="relative flex min-w-0 flex-col gap-2 rounded-(--ps-radius-large) border border-line bg-surface p-4"
+      class="relative flex min-w-0 flex-col gap-3 border-line p-4 not-last:border-b md:not-last:border-r md:not-last:border-b-0"
     >
+      <!-- The way a change travels, drawn between the steps. -->
       <Icon
+        v-if="index > 0"
         aria-hidden="true"
-        class="absolute top-1/2 -left-2.5 hidden -translate-y-1/2 rounded-full bg-canvas text-base text-ink/30 lg:block"
+        class="absolute top-1/2 -left-2.5 hidden -translate-y-1/2 rounded-full bg-surface text-base text-ink/30 md:block"
         name="material-symbols:chevron-right"
       />
-      <div class="flex items-center justify-between gap-2">
-        <span class="text-xs font-medium text-ink">{{ ENVIRONMENT_LABELS[stage.environment] }}</span>
-        <span v-if="stage.version" class="font-mono text-[11px] text-ink/50">v{{ stage.version.version }}</span>
+
+      <div class="flex items-center gap-2.5">
+        <span class="flex size-8 flex-none items-center justify-center rounded-(--ps-radius) bg-ink/5 text-base text-ink/60">
+          <Icon :name="STEP_ICONS[stage.environment]" aria-hidden="true" />
+        </span>
+        <span class="flex min-w-0 flex-col">
+          <span class="text-sm font-medium text-ink">{{ ENVIRONMENT_LABELS[stage.environment] }}</span>
+          <span class="truncate text-[11px] text-ink/50">{{ ENVIRONMENT_WHO[stage.environment] }}</span>
+        </span>
       </div>
-      <p class="m-0 flex items-center gap-1.5 text-xs" :class="stage.waiting ? 'text-ink/80' : 'text-ink/50'">
-        <span :class="stage.waiting ? 'bg-warning' : 'bg-success'" aria-hidden="true" class="size-1.5 flex-none rounded-full" />
-        {{ stage.waiting ? `${stage.waiting} ${stage.waiting === 1 ? 'change' : 'changes'} waiting` : 'Serves the draft' }}
-      </p>
-      <p v-if="stage.version" class="m-0 truncate text-[11px] text-ink/45">
-        {{ sinceWords(stage.version.published_at, now) }}<template v-if="!compact">
-          by {{ stage.version.published_by }}
-        </template>
-      </p>
-      <p v-else class="m-0 text-[11px] text-ink/45">
-        Never published
-      </p>
-      <p v-if="!compact && stage.version?.note" class="m-0 line-clamp-2 text-[11px] leading-4 text-ink/60">
-        “{{ stage.version.note }}”
-      </p>
-      <v-btn
-        :disabled="!stage.waiting || !check.compiles"
-        class="mt-auto self-start text-xs font-medium"
-        :color="stage.environment === 'production' ? 'primary' : 'neutral'"
-        size="small"
-        :variant="stage.environment === 'production' ? 'flat' : 'tonal'"
-        @click="emit('publish', stage.environment)"
-      >
-        Publish
-      </v-btn>
-    </div>
-  </div>
+
+      <div class="flex items-end justify-between gap-3">
+        <div class="flex min-w-0 flex-col gap-0.5">
+          <span
+            :class="!stage.version ? 'text-ink/50' : stage.waiting ? 'text-warning' : 'text-success'"
+            class="flex items-center gap-1.5 text-[13px] font-medium"
+          >
+            <Icon
+              :name="!stage.version ? 'material-symbols:info-outline' : stage.waiting ? 'material-symbols:schedule-outline' : 'material-symbols:check-circle-outline'"
+              aria-hidden="true"
+              class="flex-none text-base"
+            />
+            <template v-if="!stage.version">Never published</template>
+            <template v-else-if="stage.waiting">{{ stage.waiting }} {{ stage.waiting === 1 ? 'change' : 'changes' }} behind</template>
+            <template v-else>Up to date</template>
+          </span>
+          <span v-if="!compact && stage.version" class="truncate text-[11px] text-ink/45">
+            v{{ stage.version.version }}, published {{ sinceWords(stage.version.published_at, now) }}
+          </span>
+        </div>
+        <v-btn
+          v-if="stage.waiting || !stage.version"
+          :color="stage.environment === 'production' ? 'primary' : 'neutral'"
+          :disabled="!check.compiles"
+          :variant="stage.environment === 'production' ? 'flat' : 'outlined'"
+          class="flex-none text-xs font-medium"
+          size="small"
+          @click="emit('publish', stage.environment)"
+        >
+          Publish
+        </v-btn>
+      </div>
+    </li>
+  </ol>
 </template>

@@ -80,6 +80,13 @@ export const ENVIRONMENT_SHORT: Record<EnvironmentKind, string> = {
   production: 'Prod'
 }
 
+/** Who sees an environment, in the fewest words: what a founder needs to know about it. */
+export const ENVIRONMENT_WHO: Record<EnvironmentKind, string> = {
+  development: 'Your team\'s devices',
+  staging: 'QA and testers',
+  production: 'Every player'
+}
+
 export const ENVIRONMENT_NOTES: Record<EnvironmentKind, string> = {
   development: 'Builds with a development key: the team\'s own devices and the editor.',
   staging: 'Builds with a staging key: QA, and testers outside the studio.',

@@ -42,7 +42,7 @@ const options = computed<ChoiceOption[]>(() => ENVIRONMENTS.map((environment) =>
   return {
     value: environment,
     label: ENVIRONMENT_LABELS[environment],
-    note: `${version ? `v${version.version} now` : 'Never published'} · ${count ? `${count} ${count === 1 ? 'change' : 'changes'} waiting` : 'up to date'}`
+    note: `${ENVIRONMENT_WHO[environment]} · ${!version ? 'never published' : count ? `${count} ${count === 1 ? 'change' : 'changes'} behind` : 'up to date'}`
   }
 }))
 
@@ -82,11 +82,11 @@ const noteId = useId()
     <v-card border flat>
       <header class="flex flex-col gap-1 border-b border-line p-5">
         <h2 class="m-0 text-sm font-medium text-ink">
-          Publish the draft
+          Publish your changes
         </h2>
         <p class="m-0 text-xs leading-5 text-ink/60">
-          The environment starts serving the new version within a minute. Devices pick it up on
-          their next refresh: at launch, when the game returns to the foreground, or within 15 minutes.
+          Everything in your draft goes to the environment you choose. Its devices get it the next
+          time the game opens or comes back to the foreground, and within 15 minutes otherwise.
         </p>
       </header>
 
@@ -104,7 +104,7 @@ const noteId = useId()
 
         <section class="flex flex-col gap-2">
           <h3 class="m-0 flex items-center justify-between text-xs font-medium text-ink">
-            What changes in {{ ENVIRONMENT_LABELS[target] }}
+            What {{ ENVIRONMENT_WHO[target].toLowerCase() }} will get
             <span class="font-mono text-[11px] font-normal text-ink/45">v{{ nextVersion - 1 }} → v{{ nextVersion }}</span>
           </h3>
           <p v-if="!changes.length" class="m-0 rounded-(--ps-radius-small) bg-ink/4 px-3 py-2.5 text-xs text-ink/60">
@@ -156,8 +156,7 @@ const noteId = useId()
         </p>
       </div>
 
-      <footer class="flex items-center justify-between gap-2 border-t border-line px-5 py-3">
-        <span class="text-[11px] text-ink/45">{{ check.flags }} flags · {{ check.needsPlayerFacts ? 'reads player history' : 'no history lookups' }}</span>
+      <footer class="flex items-center justify-end gap-2 border-t border-line px-5 py-3">
         <div class="flex items-center gap-2">
           <v-btn
             class="text-xs font-medium"
@@ -176,7 +175,7 @@ const noteId = useId()
             variant="flat"
             @click="confirm"
           >
-            Publish to {{ ENVIRONMENT_LABELS[target] }} as v{{ nextVersion }}
+            Publish to {{ ENVIRONMENT_LABELS[target] }}
           </v-btn>
         </div>
       </footer>
