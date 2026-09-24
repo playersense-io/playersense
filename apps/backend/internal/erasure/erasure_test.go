@@ -318,11 +318,10 @@ func TestAnErasureRemovesThePersonAndKeepsEveryoneElse(t *testing.T) {
 		t.Errorf("%d events survive for the bystander, want 1 — an erasure is not a project wipe", n)
 	}
 
-	// The two device-keyed tables, which §61 names explicitly because they are easy to
-	// overlook: neither holds events, both hold a person. Both are filled by the
-	// materialized views behind the insert above, so this is the production path rather
-	// than a fixture.
-	for _, table := range []string{"player_lifetime", "player_activity_daily"} {
+	// The device-keyed tables, which §61 names explicitly because they are easy to overlook:
+	// none holds events, every one holds a person. All are filled by the materialized views
+	// behind the insert above, so this is the production path rather than a fixture.
+	for _, table := range []string{"sessions", "player_lifetime", "player_activity_daily"} {
 		if n := f.countDevice(t, table, f.installErased); n != 0 {
 			t.Errorf("%s still holds %d rows for the erased device, want 0", table, n)
 		}

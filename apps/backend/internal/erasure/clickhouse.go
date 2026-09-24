@@ -11,11 +11,15 @@ import (
 	"playersense.dev/backend/internal/subject"
 )
 
-// purgeDevices removes the two device-keyed tables' rows (§61).
+// purgeDevices removes the device-keyed tables' rows (§61).
 //
-// By identifier alone, with no predicate on the actor, because neither table has one: both
+// By identifier alone, with no predicate on the actor, because none of them has one: all
 // are keyed on the device (§29.2), and the decision about which devices belong to this
 // person was made once, in subject.Resolve, against the only sources that can answer it.
+//
+// The session facts go first. They hold the device, the session id and the studio's player id,
+// so they are personal data, and none of them feeds a cohort rate, so where they fall in the
+// order does not matter.
 //
 // `player_activity_daily` goes before `player_lifetime`, and the order is not arbitrary. The
 // first holds the numerators of every cohort rate and the second holds the denominators
@@ -25,11 +29,17 @@ import (
 // failure `cohortcheck`'s check 7 exists to catch, and the one that looks like a product bug
 // rather than an interrupted job. Both are repaired by the next derivation; one of them is
 // far easier to recognise while it lasts.
+// deviceTables are the ClickHouse tables keyed on the device, in the order they are purged.
+var deviceTables = []string{
+	"sessions",
+	"player_activity_daily", "player_lifetime",
+}
+
 func (p *Purger) purgeDevices(ctx context.Context, db *sql.DB, req *ent.DataDeletionRequest, s subject.Subject) error {
 	if len(s.Devices) == 0 {
 		return nil
 	}
-	for _, table := range []string{"player_activity_daily", "player_lifetime"} {
+	for _, table := range deviceTables {
 		for start := 0; start < len(s.Devices); start += subject.ChunkSize {
 			end := min(start+subject.ChunkSize, len(s.Devices))
 			batch := s.Devices[start:end]
