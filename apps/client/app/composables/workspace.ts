@@ -9,6 +9,8 @@
 export interface WorkspaceProject {
   id: string
   name: string
+  /** Set from the name at creation, and fixed after. */
+  slug: string
 }
 
 export interface WorkspaceOrganization {
@@ -21,15 +23,15 @@ const ORGANIZATIONS: WorkspaceOrganization[] = [{
   id: 'org_acme',
   name: 'Acme Games',
   projects: [
-    { id: 'prj_starfall', name: 'Starfall Tactics' },
-    { id: 'prj_moonrise', name: 'Moonrise Farm' },
-    { id: 'prj_pocketrally', name: 'Pocket Rally' }
+    { id: 'prj_starfall', name: 'Starfall Tactics', slug: 'starfall-tactics' },
+    { id: 'prj_moonrise', name: 'Moonrise Farm', slug: 'moonrise-farm' },
+    { id: 'prj_pocketrally', name: 'Pocket Rally', slug: 'pocket-rally' }
   ]
 }, {
   id: 'org_nova',
   name: 'Nova Interactive',
   projects: [
-    { id: 'prj_skyline', name: 'Skyline Drift' }
+    { id: 'prj_skyline', name: 'Skyline Drift', slug: 'skyline-drift' }
   ]
 }]
 
@@ -37,8 +39,11 @@ export function useWorkspace() {
   const organizationId = useState('workspace-organization', () => ORGANIZATIONS[0]!.id)
   const projectId = useState('workspace-project', () => ORGANIZATIONS[0]!.projects[0]!.id)
 
-  const organization = computed(() =>
-    ORGANIZATIONS.find(candidate => candidate.id === organizationId.value) ?? ORGANIZATIONS[0]!)
+  /* Projects under the names Settings > General last saved for them. */
+  const organization = computed(() => {
+    const found = ORGANIZATIONS.find(candidate => candidate.id === organizationId.value) ?? ORGANIZATIONS[0]!
+    return { ...found, projects: found.projects.map(entry => ({ ...entry, name: projectNameOf(entry.id, entry.name) })) }
+  })
 
   const project = computed(() =>
     organization.value.projects.find(candidate => candidate.id === projectId.value) ?? organization.value.projects[0]!)
