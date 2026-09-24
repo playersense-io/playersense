@@ -84,6 +84,9 @@ type RateCard func(*sql.Selector)
 // Role is the predicate function for role builders.
 type Role func(*sql.Selector)
 
+// SavedFunnel is the predicate function for savedfunnel builders.
+type SavedFunnel func(*sql.Selector)
+
 // Segment is the predicate function for segment builders.
 type Segment func(*sql.Selector)
 

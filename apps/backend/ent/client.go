@@ -41,6 +41,7 @@ import (
 	"playersense.dev/backend/ent/project"
 	"playersense.dev/backend/ent/ratecard"
 	"playersense.dev/backend/ent/role"
+	"playersense.dev/backend/ent/savedfunnel"
 	"playersense.dev/backend/ent/segment"
 	"playersense.dev/backend/ent/staffaccess"
 	"playersense.dev/backend/ent/staffmember"
@@ -110,6 +111,8 @@ type Client struct {
 	RateCard *RateCardClient
 	// Role is the client for interacting with the Role builders.
 	Role *RoleClient
+	// SavedFunnel is the client for interacting with the SavedFunnel builders.
+	SavedFunnel *SavedFunnelClient
 	// Segment is the client for interacting with the Segment builders.
 	Segment *SegmentClient
 	// StaffAccess is the client for interacting with the StaffAccess builders.
@@ -163,6 +166,7 @@ func (c *Client) init() {
 	c.Project = NewProjectClient(c.config)
 	c.RateCard = NewRateCardClient(c.config)
 	c.Role = NewRoleClient(c.config)
+	c.SavedFunnel = NewSavedFunnelClient(c.config)
 	c.Segment = NewSegmentClient(c.config)
 	c.StaffAccess = NewStaffAccessClient(c.config)
 	c.StaffMember = NewStaffMemberClient(c.config)
@@ -289,6 +293,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		Project:             NewProjectClient(cfg),
 		RateCard:            NewRateCardClient(cfg),
 		Role:                NewRoleClient(cfg),
+		SavedFunnel:         NewSavedFunnelClient(cfg),
 		Segment:             NewSegmentClient(cfg),
 		StaffAccess:         NewStaffAccessClient(cfg),
 		StaffMember:         NewStaffMemberClient(cfg),
@@ -342,6 +347,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		Project:             NewProjectClient(cfg),
 		RateCard:            NewRateCardClient(cfg),
 		Role:                NewRoleClient(cfg),
+		SavedFunnel:         NewSavedFunnelClient(cfg),
 		Segment:             NewSegmentClient(cfg),
 		StaffAccess:         NewStaffAccessClient(cfg),
 		StaffMember:         NewStaffMemberClient(cfg),
@@ -384,8 +390,8 @@ func (c *Client) Use(hooks ...Hook) {
 		c.DataExportRequest, c.Environment, c.Experiment, c.FeatureFlag, c.Invitation,
 		c.Invoice, c.InvoiceLine, c.LedgerEntry, c.LiveOpsEvent, c.MemberProject,
 		c.MonthlyUsage, c.Organization, c.OrganizationMember, c.Plan, c.Project,
-		c.RateCard, c.Role, c.Segment, c.StaffAccess, c.StaffMember, c.StripeEvent,
-		c.UsageCharge, c.UsageDaily, c.User, c.VerifiedPurchase,
+		c.RateCard, c.Role, c.SavedFunnel, c.Segment, c.StaffAccess, c.StaffMember,
+		c.StripeEvent, c.UsageCharge, c.UsageDaily, c.User, c.VerifiedPurchase,
 	} {
 		n.Use(hooks...)
 	}
@@ -400,8 +406,8 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.DataExportRequest, c.Environment, c.Experiment, c.FeatureFlag, c.Invitation,
 		c.Invoice, c.InvoiceLine, c.LedgerEntry, c.LiveOpsEvent, c.MemberProject,
 		c.MonthlyUsage, c.Organization, c.OrganizationMember, c.Plan, c.Project,
-		c.RateCard, c.Role, c.Segment, c.StaffAccess, c.StaffMember, c.StripeEvent,
-		c.UsageCharge, c.UsageDaily, c.User, c.VerifiedPurchase,
+		c.RateCard, c.Role, c.SavedFunnel, c.Segment, c.StaffAccess, c.StaffMember,
+		c.StripeEvent, c.UsageCharge, c.UsageDaily, c.User, c.VerifiedPurchase,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -462,6 +468,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.RateCard.mutate(ctx, m)
 	case *RoleMutation:
 		return c.Role.mutate(ctx, m)
+	case *SavedFunnelMutation:
+		return c.SavedFunnel.mutate(ctx, m)
 	case *SegmentMutation:
 		return c.Segment.mutate(ctx, m)
 	case *StaffAccessMutation:
@@ -4612,6 +4620,22 @@ func (c *ProjectClient) QueryExperiments(_m *Project) *ExperimentQuery {
 	return query
 }
 
+// QuerySavedFunnels queries the saved_funnels edge of a Project.
+func (c *ProjectClient) QuerySavedFunnels(_m *Project) *SavedFunnelQuery {
+	query := (&SavedFunnelClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(project.Table, project.FieldID, id),
+			sqlgraph.To(savedfunnel.Table, savedfunnel.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, project.SavedFunnelsTable, project.SavedFunnelsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // QueryMemberAccess queries the member_access edge of a Project.
 func (c *ProjectClient) QueryMemberAccess(_m *Project) *MemberProjectQuery {
 	query := (&MemberProjectClient{config: c.config}).Query()
@@ -5014,6 +5038,155 @@ func (c *RoleClient) mutate(ctx context.Context, m *RoleMutation) (Value, error)
 		return (&RoleDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown Role mutation op: %q", m.Op())
+	}
+}
+
+// SavedFunnelClient is a client for the SavedFunnel schema.
+type SavedFunnelClient struct {
+	config
+}
+
+// NewSavedFunnelClient returns a client for the SavedFunnel from the given config.
+func NewSavedFunnelClient(c config) *SavedFunnelClient {
+	return &SavedFunnelClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `savedfunnel.Hooks(f(g(h())))`.
+func (c *SavedFunnelClient) Use(hooks ...Hook) {
+	c.hooks.SavedFunnel = append(c.hooks.SavedFunnel, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `savedfunnel.Intercept(f(g(h())))`.
+func (c *SavedFunnelClient) Intercept(interceptors ...Interceptor) {
+	c.inters.SavedFunnel = append(c.inters.SavedFunnel, interceptors...)
+}
+
+// Create returns a builder for creating a SavedFunnel entity.
+func (c *SavedFunnelClient) Create() *SavedFunnelCreate {
+	mutation := newSavedFunnelMutation(c.config, OpCreate)
+	return &SavedFunnelCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of SavedFunnel entities.
+func (c *SavedFunnelClient) CreateBulk(builders ...*SavedFunnelCreate) *SavedFunnelCreateBulk {
+	return &SavedFunnelCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *SavedFunnelClient) MapCreateBulk(slice any, setFunc func(*SavedFunnelCreate, int)) *SavedFunnelCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &SavedFunnelCreateBulk{err: fmt.Errorf("calling to SavedFunnelClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*SavedFunnelCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &SavedFunnelCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for SavedFunnel.
+func (c *SavedFunnelClient) Update() *SavedFunnelUpdate {
+	mutation := newSavedFunnelMutation(c.config, OpUpdate)
+	return &SavedFunnelUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *SavedFunnelClient) UpdateOne(_m *SavedFunnel) *SavedFunnelUpdateOne {
+	mutation := newSavedFunnelMutation(c.config, OpUpdateOne, withSavedFunnel(_m))
+	return &SavedFunnelUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *SavedFunnelClient) UpdateOneID(id int) *SavedFunnelUpdateOne {
+	mutation := newSavedFunnelMutation(c.config, OpUpdateOne, withSavedFunnelID(id))
+	return &SavedFunnelUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for SavedFunnel.
+func (c *SavedFunnelClient) Delete() *SavedFunnelDelete {
+	mutation := newSavedFunnelMutation(c.config, OpDelete)
+	return &SavedFunnelDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *SavedFunnelClient) DeleteOne(_m *SavedFunnel) *SavedFunnelDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *SavedFunnelClient) DeleteOneID(id int) *SavedFunnelDeleteOne {
+	builder := c.Delete().Where(savedfunnel.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &SavedFunnelDeleteOne{builder}
+}
+
+// Query returns a query builder for SavedFunnel.
+func (c *SavedFunnelClient) Query() *SavedFunnelQuery {
+	return &SavedFunnelQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeSavedFunnel},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a SavedFunnel entity by its id.
+func (c *SavedFunnelClient) Get(ctx context.Context, id int) (*SavedFunnel, error) {
+	return c.Query().Where(savedfunnel.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *SavedFunnelClient) GetX(ctx context.Context, id int) *SavedFunnel {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryProject queries the project edge of a SavedFunnel.
+func (c *SavedFunnelClient) QueryProject(_m *SavedFunnel) *ProjectQuery {
+	query := (&ProjectClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(savedfunnel.Table, savedfunnel.FieldID, id),
+			sqlgraph.To(project.Table, project.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, savedfunnel.ProjectTable, savedfunnel.ProjectColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *SavedFunnelClient) Hooks() []Hook {
+	return c.hooks.SavedFunnel
+}
+
+// Interceptors returns the client interceptors.
+func (c *SavedFunnelClient) Interceptors() []Interceptor {
+	return c.inters.SavedFunnel
+}
+
+func (c *SavedFunnelClient) mutate(ctx context.Context, m *SavedFunnelMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&SavedFunnelCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&SavedFunnelUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&SavedFunnelUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&SavedFunnelDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown SavedFunnel mutation op: %q", m.Op())
 	}
 }
 
@@ -6248,8 +6421,8 @@ type (
 		BillingContract, ConfigVersion, CreditLot, DataDeletionRequest,
 		DataExportRequest, Environment, Experiment, FeatureFlag, Invitation, Invoice,
 		InvoiceLine, LedgerEntry, LiveOpsEvent, MemberProject, MonthlyUsage,
-		Organization, OrganizationMember, Plan, Project, RateCard, Role, Segment,
-		StaffAccess, StaffMember, StripeEvent, UsageCharge, UsageDaily, User,
+		Organization, OrganizationMember, Plan, Project, RateCard, Role, SavedFunnel,
+		Segment, StaffAccess, StaffMember, StripeEvent, UsageCharge, UsageDaily, User,
 		VerifiedPurchase []ent.Hook
 	}
 	inters struct {
@@ -6257,8 +6430,8 @@ type (
 		BillingContract, ConfigVersion, CreditLot, DataDeletionRequest,
 		DataExportRequest, Environment, Experiment, FeatureFlag, Invitation, Invoice,
 		InvoiceLine, LedgerEntry, LiveOpsEvent, MemberProject, MonthlyUsage,
-		Organization, OrganizationMember, Plan, Project, RateCard, Role, Segment,
-		StaffAccess, StaffMember, StripeEvent, UsageCharge, UsageDaily, User,
+		Organization, OrganizationMember, Plan, Project, RateCard, Role, SavedFunnel,
+		Segment, StaffAccess, StaffMember, StripeEvent, UsageCharge, UsageDaily, User,
 		VerifiedPurchase []ent.Interceptor
 	}
 )

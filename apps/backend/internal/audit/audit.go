@@ -87,6 +87,9 @@ const (
 	ExperimentConcluded Action = "experiment.conclude"
 	ExperimentShipped   Action = "experiment.ship"
 
+	FunnelWritten Action = "funnel.write"
+	FunnelDeleted Action = "funnel.delete"
+
 	CreditGranted  Action = "credit.grant"
 	CreditCharged  Action = "credit.charge"
 	AutoTopUpSet   Action = "billing.auto_topup"

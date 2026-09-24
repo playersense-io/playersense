@@ -582,6 +582,29 @@ func HasExperimentsWith(preds ...predicate.Experiment) predicate.Project {
 	})
 }
 
+// HasSavedFunnels applies the HasEdge predicate on the "saved_funnels" edge.
+func HasSavedFunnels() predicate.Project {
+	return predicate.Project(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, SavedFunnelsTable, SavedFunnelsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasSavedFunnelsWith applies the HasEdge predicate on the "saved_funnels" edge with a given conditions (other predicates).
+func HasSavedFunnelsWith(preds ...predicate.SavedFunnel) predicate.Project {
+	return predicate.Project(func(s *sql.Selector) {
+		step := newSavedFunnelsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // HasMemberAccess applies the HasEdge predicate on the "member_access" edge.
 func HasMemberAccess() predicate.Project {
 	return predicate.Project(func(s *sql.Selector) {

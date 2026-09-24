@@ -1095,6 +1095,40 @@ var (
 			},
 		},
 	}
+	// SavedFunnelsColumns holds the columns for the "saved_funnels" table.
+	SavedFunnelsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
+		{Name: "uid", Type: field.TypeUUID, Unique: true, Comment: "class=none"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "updated_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "name", Type: field.TypeString, Size: 120, Comment: "class=none"},
+		{Name: "description", Type: field.TypeString, Size: 500, Comment: "class=none", Default: ""},
+		{Name: "definition", Type: field.TypeJSON, Comment: "class=none"},
+		{Name: "created_by", Type: field.TypeString, Size: 254, Comment: "class=none", Default: ""},
+		{Name: "updated_by", Type: field.TypeString, Size: 254, Comment: "class=none", Default: ""},
+		{Name: "project_id", Type: field.TypeInt, Comment: "class=none"},
+	}
+	// SavedFunnelsTable holds the schema information for the "saved_funnels" table.
+	SavedFunnelsTable = &schema.Table{
+		Name:       "saved_funnels",
+		Columns:    SavedFunnelsColumns,
+		PrimaryKey: []*schema.Column{SavedFunnelsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "saved_funnels_projects_saved_funnels",
+				Columns:    []*schema.Column{SavedFunnelsColumns[9]},
+				RefColumns: []*schema.Column{ProjectsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "savedfunnel_project_id_name",
+				Unique:  true,
+				Columns: []*schema.Column{SavedFunnelsColumns[9], SavedFunnelsColumns[4]},
+			},
+		},
+	}
 	// SegmentsColumns holds the columns for the "segments" table.
 	SegmentsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
@@ -1417,6 +1451,7 @@ var (
 		ProjectsTable,
 		RateCardsTable,
 		RolesTable,
+		SavedFunnelsTable,
 		SegmentsTable,
 		StaffAccessTable,
 		StaffMembersTable,
@@ -1471,6 +1506,7 @@ func init() {
 	ProjectsTable.ForeignKeys[0].RefTable = OrganizationsTable
 	RateCardsTable.ForeignKeys[0].RefTable = PlansTable
 	RolesTable.ForeignKeys[0].RefTable = OrganizationsTable
+	SavedFunnelsTable.ForeignKeys[0].RefTable = ProjectsTable
 	SegmentsTable.ForeignKeys[0].RefTable = ProjectsTable
 	StaffAccessTable.Annotation = &entsql.Annotation{
 		Table: "staff_access",

@@ -58,13 +58,15 @@ type ProjectEdges struct {
 	ConfigVersions []*ConfigVersion `json:"config_versions,omitempty"`
 	// Experiments holds the value of the experiments edge.
 	Experiments []*Experiment `json:"experiments,omitempty"`
+	// SavedFunnels holds the value of the saved_funnels edge.
+	SavedFunnels []*SavedFunnel `json:"saved_funnels,omitempty"`
 	// MemberAccess holds the value of the member_access edge.
 	MemberAccess []*MemberProject `json:"member_access,omitempty"`
 	// UsageDaily holds the value of the usage_daily edge.
 	UsageDaily []*UsageDaily `json:"usage_daily,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [9]bool
+	loadedTypes [10]bool
 }
 
 // OrganizationOrErr returns the Organization value or an error if the edge
@@ -132,10 +134,19 @@ func (e ProjectEdges) ExperimentsOrErr() ([]*Experiment, error) {
 	return nil, &NotLoadedError{edge: "experiments"}
 }
 
+// SavedFunnelsOrErr returns the SavedFunnels value or an error if the edge
+// was not loaded in eager-loading.
+func (e ProjectEdges) SavedFunnelsOrErr() ([]*SavedFunnel, error) {
+	if e.loadedTypes[7] {
+		return e.SavedFunnels, nil
+	}
+	return nil, &NotLoadedError{edge: "saved_funnels"}
+}
+
 // MemberAccessOrErr returns the MemberAccess value or an error if the edge
 // was not loaded in eager-loading.
 func (e ProjectEdges) MemberAccessOrErr() ([]*MemberProject, error) {
-	if e.loadedTypes[7] {
+	if e.loadedTypes[8] {
 		return e.MemberAccess, nil
 	}
 	return nil, &NotLoadedError{edge: "member_access"}
@@ -144,7 +155,7 @@ func (e ProjectEdges) MemberAccessOrErr() ([]*MemberProject, error) {
 // UsageDailyOrErr returns the UsageDaily value or an error if the edge
 // was not loaded in eager-loading.
 func (e ProjectEdges) UsageDailyOrErr() ([]*UsageDaily, error) {
-	if e.loadedTypes[8] {
+	if e.loadedTypes[9] {
 		return e.UsageDaily, nil
 	}
 	return nil, &NotLoadedError{edge: "usage_daily"}
@@ -278,6 +289,11 @@ func (_m *Project) QueryConfigVersions() *ConfigVersionQuery {
 // QueryExperiments queries the "experiments" edge of the Project entity.
 func (_m *Project) QueryExperiments() *ExperimentQuery {
 	return NewProjectClient(_m.config).QueryExperiments(_m)
+}
+
+// QuerySavedFunnels queries the "saved_funnels" edge of the Project entity.
+func (_m *Project) QuerySavedFunnels() *SavedFunnelQuery {
+	return NewProjectClient(_m.config).QuerySavedFunnels(_m)
 }
 
 // QueryMemberAccess queries the "member_access" edge of the Project entity.

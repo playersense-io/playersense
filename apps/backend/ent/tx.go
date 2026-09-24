@@ -66,6 +66,8 @@ type Tx struct {
 	RateCard *RateCardClient
 	// Role is the client for interacting with the Role builders.
 	Role *RoleClient
+	// SavedFunnel is the client for interacting with the SavedFunnel builders.
+	SavedFunnel *SavedFunnelClient
 	// Segment is the client for interacting with the Segment builders.
 	Segment *SegmentClient
 	// StaffAccess is the client for interacting with the StaffAccess builders.
@@ -239,6 +241,7 @@ func (tx *Tx) init() {
 	tx.Project = NewProjectClient(tx.config)
 	tx.RateCard = NewRateCardClient(tx.config)
 	tx.Role = NewRoleClient(tx.config)
+	tx.SavedFunnel = NewSavedFunnelClient(tx.config)
 	tx.Segment = NewSegmentClient(tx.config)
 	tx.StaffAccess = NewStaffAccessClient(tx.config)
 	tx.StaffMember = NewStaffMemberClient(tx.config)

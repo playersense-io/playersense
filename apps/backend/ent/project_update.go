@@ -20,6 +20,7 @@ import (
 	"playersense.dev/backend/ent/organization"
 	"playersense.dev/backend/ent/predicate"
 	"playersense.dev/backend/ent/project"
+	"playersense.dev/backend/ent/savedfunnel"
 	"playersense.dev/backend/ent/segment"
 	"playersense.dev/backend/ent/usagedaily"
 )
@@ -201,6 +202,21 @@ func (_u *ProjectUpdate) AddExperiments(v ...*Experiment) *ProjectUpdate {
 	return _u.AddExperimentIDs(ids...)
 }
 
+// AddSavedFunnelIDs adds the "saved_funnels" edge to the SavedFunnel entity by IDs.
+func (_u *ProjectUpdate) AddSavedFunnelIDs(ids ...int) *ProjectUpdate {
+	_u.mutation.AddSavedFunnelIDs(ids...)
+	return _u
+}
+
+// AddSavedFunnels adds the "saved_funnels" edges to the SavedFunnel entity.
+func (_u *ProjectUpdate) AddSavedFunnels(v ...*SavedFunnel) *ProjectUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddSavedFunnelIDs(ids...)
+}
+
 // AddMemberAccesIDs adds the "member_access" edge to the MemberProject entity by IDs.
 func (_u *ProjectUpdate) AddMemberAccesIDs(ids ...int) *ProjectUpdate {
 	_u.mutation.AddMemberAccesIDs(ids...)
@@ -366,6 +382,27 @@ func (_u *ProjectUpdate) RemoveExperiments(v ...*Experiment) *ProjectUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveExperimentIDs(ids...)
+}
+
+// ClearSavedFunnels clears all "saved_funnels" edges to the SavedFunnel entity.
+func (_u *ProjectUpdate) ClearSavedFunnels() *ProjectUpdate {
+	_u.mutation.ClearSavedFunnels()
+	return _u
+}
+
+// RemoveSavedFunnelIDs removes the "saved_funnels" edge to SavedFunnel entities by IDs.
+func (_u *ProjectUpdate) RemoveSavedFunnelIDs(ids ...int) *ProjectUpdate {
+	_u.mutation.RemoveSavedFunnelIDs(ids...)
+	return _u
+}
+
+// RemoveSavedFunnels removes "saved_funnels" edges to SavedFunnel entities.
+func (_u *ProjectUpdate) RemoveSavedFunnels(v ...*SavedFunnel) *ProjectUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveSavedFunnelIDs(ids...)
 }
 
 // ClearMemberAccess clears all "member_access" edges to the MemberProject entity.
@@ -790,6 +827,51 @@ func (_u *ProjectUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.SavedFunnelsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.SavedFunnelsTable,
+			Columns: []string{project.SavedFunnelsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(savedfunnel.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedSavedFunnelsIDs(); len(nodes) > 0 && !_u.mutation.SavedFunnelsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.SavedFunnelsTable,
+			Columns: []string{project.SavedFunnelsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(savedfunnel.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.SavedFunnelsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.SavedFunnelsTable,
+			Columns: []string{project.SavedFunnelsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(savedfunnel.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _u.mutation.MemberAccessCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
@@ -1064,6 +1146,21 @@ func (_u *ProjectUpdateOne) AddExperiments(v ...*Experiment) *ProjectUpdateOne {
 	return _u.AddExperimentIDs(ids...)
 }
 
+// AddSavedFunnelIDs adds the "saved_funnels" edge to the SavedFunnel entity by IDs.
+func (_u *ProjectUpdateOne) AddSavedFunnelIDs(ids ...int) *ProjectUpdateOne {
+	_u.mutation.AddSavedFunnelIDs(ids...)
+	return _u
+}
+
+// AddSavedFunnels adds the "saved_funnels" edges to the SavedFunnel entity.
+func (_u *ProjectUpdateOne) AddSavedFunnels(v ...*SavedFunnel) *ProjectUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddSavedFunnelIDs(ids...)
+}
+
 // AddMemberAccesIDs adds the "member_access" edge to the MemberProject entity by IDs.
 func (_u *ProjectUpdateOne) AddMemberAccesIDs(ids ...int) *ProjectUpdateOne {
 	_u.mutation.AddMemberAccesIDs(ids...)
@@ -1229,6 +1326,27 @@ func (_u *ProjectUpdateOne) RemoveExperiments(v ...*Experiment) *ProjectUpdateOn
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveExperimentIDs(ids...)
+}
+
+// ClearSavedFunnels clears all "saved_funnels" edges to the SavedFunnel entity.
+func (_u *ProjectUpdateOne) ClearSavedFunnels() *ProjectUpdateOne {
+	_u.mutation.ClearSavedFunnels()
+	return _u
+}
+
+// RemoveSavedFunnelIDs removes the "saved_funnels" edge to SavedFunnel entities by IDs.
+func (_u *ProjectUpdateOne) RemoveSavedFunnelIDs(ids ...int) *ProjectUpdateOne {
+	_u.mutation.RemoveSavedFunnelIDs(ids...)
+	return _u
+}
+
+// RemoveSavedFunnels removes "saved_funnels" edges to SavedFunnel entities.
+func (_u *ProjectUpdateOne) RemoveSavedFunnels(v ...*SavedFunnel) *ProjectUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveSavedFunnelIDs(ids...)
 }
 
 // ClearMemberAccess clears all "member_access" edges to the MemberProject entity.
@@ -1676,6 +1794,51 @@ func (_u *ProjectUpdateOne) sqlSave(ctx context.Context) (_node *Project, err er
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(experiment.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.SavedFunnelsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.SavedFunnelsTable,
+			Columns: []string{project.SavedFunnelsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(savedfunnel.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedSavedFunnelsIDs(); len(nodes) > 0 && !_u.mutation.SavedFunnelsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.SavedFunnelsTable,
+			Columns: []string{project.SavedFunnelsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(savedfunnel.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.SavedFunnelsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.SavedFunnelsTable,
+			Columns: []string{project.SavedFunnelsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(savedfunnel.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

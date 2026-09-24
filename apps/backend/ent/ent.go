@@ -38,6 +38,7 @@ import (
 	"playersense.dev/backend/ent/project"
 	"playersense.dev/backend/ent/ratecard"
 	"playersense.dev/backend/ent/role"
+	"playersense.dev/backend/ent/savedfunnel"
 	"playersense.dev/backend/ent/segment"
 	"playersense.dev/backend/ent/staffaccess"
 	"playersense.dev/backend/ent/staffmember"
@@ -132,6 +133,7 @@ func checkColumn(t, c string) error {
 			project.Table:             project.ValidColumn,
 			ratecard.Table:            ratecard.ValidColumn,
 			role.Table:                role.ValidColumn,
+			savedfunnel.Table:         savedfunnel.ValidColumn,
 			segment.Table:             segment.ValidColumn,
 			staffaccess.Table:         staffaccess.ValidColumn,
 			staffmember.Table:         staffmember.ValidColumn,

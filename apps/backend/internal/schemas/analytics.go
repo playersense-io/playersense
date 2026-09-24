@@ -1,6 +1,7 @@
 package schemas
 
 import (
+	"github.com/google/uuid"
 	"strings"
 	"time"
 
@@ -833,13 +834,10 @@ type FunnelProgression struct {
 	Where    []FunnelCondition `json:"where,omitzero"`
 }
 
-// FunnelQueryIn is one funnel question (§31).
-type FunnelQueryIn struct {
-	AnalyticsScope
-
+// FunnelDefinition is what a funnel is, apart from when: the same for a question asked once and
+// for a funnel saved to be asked again.
+type FunnelDefinition struct {
 	Kind   string `json:"kind" doc:"steps or progression"`
-	From   string `json:"from" doc:"YYYY-MM-DD; players entering from this day"`
-	To     string `json:"to" doc:"YYYY-MM-DD; players entering up to this day"`
 	Window string `json:"window,omitzero" doc:"session, 1h, 1d (default), 7d or 30d"`
 
 	Steps       []FunnelStep       `json:"steps,omitzero" doc:"For kind=steps: two to eight steps, in order"`
@@ -849,11 +847,8 @@ type FunnelQueryIn struct {
 	Breakdown string `json:"breakdown,omitzero" doc:"install_platform, install_country or first_app_version"`
 }
 
-func (in *FunnelQueryIn) Validate(v *muzak.Validation) {
-	in.validateScope(v)
+func (in *FunnelDefinition) validate(v *muzak.Validation) {
 	v.String(&in.Kind).Trim().Lower().Required().OneOf("steps", "progression")
-	v.String(&in.From).Trim().Required().MaxLen(10)
-	v.String(&in.To).Trim().Required().MaxLen(10)
 	v.String(&in.Window).Trim().Lower().OneOf("session", "1h", "1d", "7d", "30d")
 	v.String(&in.Breakdown).Trim().Lower().OneOf(CohortDimensions...)
 
@@ -887,6 +882,84 @@ func (in *FunnelQueryIn) Validate(v *muzak.Validation) {
 			v.Reject(&in.Breakdown, "a progression funnel is not split")
 		}
 	}
+}
+
+// FunnelQueryIn is one funnel question (§31).
+type FunnelQueryIn struct {
+	AnalyticsScope
+
+	From string `json:"from" doc:"YYYY-MM-DD; players entering from this day"`
+	To   string `json:"to" doc:"YYYY-MM-DD; players entering up to this day"`
+
+	FunnelDefinition
+}
+
+func (in *FunnelQueryIn) Validate(v *muzak.Validation) {
+	in.validateScope(v)
+	v.String(&in.From).Trim().Required().MaxLen(10)
+	v.String(&in.To).Trim().Required().MaxLen(10)
+	in.FunnelDefinition.validate(v)
+}
+
+// SavedFunnelIn is a funnel kept by name, to be asked again.
+type SavedFunnelIn struct {
+	OrgSlug     string `path:"org"`
+	ProjectSlug string `path:"project"`
+	Name        string `json:"name"`
+	Description string `json:"description,omitzero"`
+	FunnelDefinition
+}
+
+func (in *SavedFunnelIn) Validate(v *muzak.Validation) {
+	v.String(&in.OrgSlug).Trim().Lower().Required().MaxLen(64)
+	v.String(&in.ProjectSlug).Trim().Lower().Required().MaxLen(64)
+	v.String(&in.Name).Trim().Required().MaxLen(120)
+	v.String(&in.Description).Trim().MaxLen(500)
+	in.FunnelDefinition.validate(v)
+}
+
+// SavedFunnelParams names one saved funnel.
+type SavedFunnelParams struct {
+	OrgSlug     string    `path:"org"`
+	ProjectSlug string    `path:"project"`
+	FunnelID    uuid.UUID `path:"funnel"`
+}
+
+func (in *SavedFunnelParams) Validate(v *muzak.Validation) {
+	v.String(&in.OrgSlug).Trim().Lower().Required().MaxLen(64)
+	v.String(&in.ProjectSlug).Trim().Lower().Required().MaxLen(64)
+}
+
+// UpdateSavedFunnelIn replaces a saved funnel.
+type UpdateSavedFunnelIn struct {
+	SavedFunnelParams
+	Name        string `json:"name"`
+	Description string `json:"description,omitzero"`
+	FunnelDefinition
+}
+
+func (in *UpdateSavedFunnelIn) Validate(v *muzak.Validation) {
+	in.SavedFunnelParams.Validate(v)
+	v.String(&in.Name).Trim().Required().MaxLen(120)
+	v.String(&in.Description).Trim().MaxLen(500)
+	in.FunnelDefinition.validate(v)
+}
+
+// SavedFunnelOut is one saved funnel.
+type SavedFunnelOut struct {
+	ID          uuid.UUID `json:"id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description,omitzero"`
+	FunnelDefinition
+	CreatedBy string    `json:"created_by,omitzero"`
+	UpdatedBy string    `json:"updated_by,omitzero"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// SavedFunnelListOut is a project's saved funnels, by name.
+type SavedFunnelListOut struct {
+	Funnels []SavedFunnelOut `json:"funnels"`
 }
 
 // FunnelOut answers a steps funnel.

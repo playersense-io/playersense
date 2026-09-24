@@ -22,6 +22,7 @@ import (
 	"playersense.dev/backend/ent/organization"
 	"playersense.dev/backend/ent/predicate"
 	"playersense.dev/backend/ent/project"
+	"playersense.dev/backend/ent/savedfunnel"
 	"playersense.dev/backend/ent/segment"
 	"playersense.dev/backend/ent/usagedaily"
 )
@@ -40,6 +41,7 @@ type ProjectQuery struct {
 	withLiveopsEvents  *LiveOpsEventQuery
 	withConfigVersions *ConfigVersionQuery
 	withExperiments    *ExperimentQuery
+	withSavedFunnels   *SavedFunnelQuery
 	withMemberAccess   *MemberProjectQuery
 	withUsageDaily     *UsageDailyQuery
 	modifiers          []func(*sql.Selector)
@@ -226,6 +228,28 @@ func (_q *ProjectQuery) QueryExperiments() *ExperimentQuery {
 			sqlgraph.From(project.Table, project.FieldID, selector),
 			sqlgraph.To(experiment.Table, experiment.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, project.ExperimentsTable, project.ExperimentsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QuerySavedFunnels chains the current query on the "saved_funnels" edge.
+func (_q *ProjectQuery) QuerySavedFunnels() *SavedFunnelQuery {
+	query := (&SavedFunnelClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(project.Table, project.FieldID, selector),
+			sqlgraph.To(savedfunnel.Table, savedfunnel.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, project.SavedFunnelsTable, project.SavedFunnelsColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -476,6 +500,7 @@ func (_q *ProjectQuery) Clone() *ProjectQuery {
 		withLiveopsEvents:  _q.withLiveopsEvents.Clone(),
 		withConfigVersions: _q.withConfigVersions.Clone(),
 		withExperiments:    _q.withExperiments.Clone(),
+		withSavedFunnels:   _q.withSavedFunnels.Clone(),
 		withMemberAccess:   _q.withMemberAccess.Clone(),
 		withUsageDaily:     _q.withUsageDaily.Clone(),
 		// clone intermediate query.
@@ -558,6 +583,17 @@ func (_q *ProjectQuery) WithExperiments(opts ...func(*ExperimentQuery)) *Project
 		opt(query)
 	}
 	_q.withExperiments = query
+	return _q
+}
+
+// WithSavedFunnels tells the query-builder to eager-load the nodes that are connected to
+// the "saved_funnels" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *ProjectQuery) WithSavedFunnels(opts ...func(*SavedFunnelQuery)) *ProjectQuery {
+	query := (&SavedFunnelClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withSavedFunnels = query
 	return _q
 }
 
@@ -661,7 +697,7 @@ func (_q *ProjectQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Proj
 	var (
 		nodes       = []*Project{}
 		_spec       = _q.querySpec()
-		loadedTypes = [9]bool{
+		loadedTypes = [10]bool{
 			_q.withOrganization != nil,
 			_q.withEnvironments != nil,
 			_q.withSegments != nil,
@@ -669,6 +705,7 @@ func (_q *ProjectQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Proj
 			_q.withLiveopsEvents != nil,
 			_q.withConfigVersions != nil,
 			_q.withExperiments != nil,
+			_q.withSavedFunnels != nil,
 			_q.withMemberAccess != nil,
 			_q.withUsageDaily != nil,
 		}
@@ -739,6 +776,13 @@ func (_q *ProjectQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Proj
 		if err := _q.loadExperiments(ctx, query, nodes,
 			func(n *Project) { n.Edges.Experiments = []*Experiment{} },
 			func(n *Project, e *Experiment) { n.Edges.Experiments = append(n.Edges.Experiments, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withSavedFunnels; query != nil {
+		if err := _q.loadSavedFunnels(ctx, query, nodes,
+			func(n *Project) { n.Edges.SavedFunnels = []*SavedFunnel{} },
+			func(n *Project, e *SavedFunnel) { n.Edges.SavedFunnels = append(n.Edges.SavedFunnels, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -953,6 +997,36 @@ func (_q *ProjectQuery) loadExperiments(ctx context.Context, query *ExperimentQu
 	}
 	query.Where(predicate.Experiment(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(project.ExperimentsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.ProjectID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "project_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *ProjectQuery) loadSavedFunnels(ctx context.Context, query *SavedFunnelQuery, nodes []*Project, init func(*Project), assign func(*Project, *SavedFunnel)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Project)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(savedfunnel.FieldProjectID)
+	}
+	query.Where(predicate.SavedFunnel(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(project.SavedFunnelsColumn), fks...))
 	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {

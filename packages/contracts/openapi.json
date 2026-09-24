@@ -9589,66 +9589,23 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "breakdown": {
-                    "type": "string",
-                    "description": "install_platform, install_country or first_app_version",
-                    "enum": [
-                      "install_platform",
-                      "install_country",
-                      "first_app_version"
-                    ]
+                  "FunnelDefinition": {
+                    "$ref": "#/components/schemas/FunnelDefinition"
                   },
                   "from": {
                     "type": "string",
                     "description": "YYYY-MM-DD; players entering from this day",
                     "maxLength": 10
                   },
-                  "kind": {
-                    "type": "string",
-                    "description": "steps or progression",
-                    "enum": [
-                      "steps",
-                      "progression"
-                    ]
-                  },
-                  "progression": {
-                    "description": "For kind=progression",
-                    "anyOf": [
-                      {
-                        "$ref": "#/components/schemas/FunnelProgression"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
-                  },
-                  "steps": {
-                    "type": "array",
-                    "description": "For kind=steps: two to eight steps, in order",
-                    "items": {
-                      "$ref": "#/components/schemas/FunnelStep"
-                    }
-                  },
                   "to": {
                     "type": "string",
                     "description": "YYYY-MM-DD; players entering up to this day",
                     "maxLength": 10
-                  },
-                  "window": {
-                    "type": "string",
-                    "description": "session, 1h, 1d (default), 7d or 30d",
-                    "enum": [
-                      "session",
-                      "1h",
-                      "1d",
-                      "7d",
-                      "30d"
-                    ]
                   }
                 },
                 "required": [
+                  "FunnelDefinition",
                   "from",
-                  "kind",
                   "to"
                 ]
               }
@@ -13380,6 +13337,599 @@
           },
           "409": {
             "description": "That flag is already archived",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/organizations/{org}/projects/{project}/funnels": {
+      "get": {
+        "tags": [
+          "analytics"
+        ],
+        "summary": "List saved funnels",
+        "operationId": "get_v1_organizations_by_org_projects_by_project_funnels",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "description": "The organization's slug",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "project",
+            "in": "path",
+            "description": "The project's slug",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedFunnelListOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not do that",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The organization, project or funnel does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "analytics"
+        ],
+        "summary": "Save a funnel",
+        "description": "The definition a funnel query takes, without its range: kind, window, steps or progression, and breakdown. Checked as the query checks it.",
+        "operationId": "post_v1_organizations_by_org_projects_by_project_funnels",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "project",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "FunnelDefinition": {
+                    "$ref": "#/components/schemas/FunnelDefinition"
+                  },
+                  "description": {
+                    "type": "string",
+                    "maxLength": 500
+                  },
+                  "name": {
+                    "type": "string",
+                    "maxLength": 120
+                  }
+                },
+                "required": [
+                  "FunnelDefinition",
+                  "name"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedFunnelOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not do that",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The organization, project or funnel does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The project already has a funnel by that name",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/organizations/{org}/projects/{project}/funnels/{funnel}": {
+      "get": {
+        "tags": [
+          "analytics"
+        ],
+        "summary": "One saved funnel",
+        "operationId": "get_v1_organizations_by_org_projects_by_project_funnels_by_funnel",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "project",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "funnel",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedFunnelOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not do that",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The organization, project or funnel does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "analytics"
+        ],
+        "summary": "Change a saved funnel",
+        "operationId": "put_v1_organizations_by_org_projects_by_project_funnels_by_funnel",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "project",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "funnel",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "FunnelDefinition": {
+                    "$ref": "#/components/schemas/FunnelDefinition"
+                  },
+                  "description": {
+                    "type": "string",
+                    "maxLength": 500
+                  },
+                  "name": {
+                    "type": "string",
+                    "maxLength": 120
+                  }
+                },
+                "required": [
+                  "FunnelDefinition",
+                  "name"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedFunnelOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not do that",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The organization, project or funnel does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The project already has a funnel by that name",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "analytics"
+        ],
+        "summary": "Forget a saved funnel",
+        "operationId": "delete_v1_organizations_by_org_projects_by_project_funnels_by_funnel",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "project",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "funnel",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not do that",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The organization, project or funnel does not exist",
             "content": {
               "application/json": {
                 "schema": {
@@ -19264,6 +19814,44 @@
           "day"
         ]
       },
+      "FunnelDefinition": {
+        "type": "object",
+        "properties": {
+          "breakdown": {
+            "type": "string",
+            "description": "install_platform, install_country or first_app_version"
+          },
+          "kind": {
+            "type": "string",
+            "description": "steps or progression"
+          },
+          "progression": {
+            "description": "For kind=progression",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FunnelProgression"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "steps": {
+            "type": "array",
+            "description": "For kind=steps: two to eight steps, in order",
+            "items": {
+              "$ref": "#/components/schemas/FunnelStep"
+            }
+          },
+          "window": {
+            "type": "string",
+            "description": "session, 1h, 1d (default), 7d or 30d"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
       "FunnelOut": {
         "type": "object",
         "properties": {
@@ -23360,6 +23948,85 @@
           "version"
         ]
       },
+      "SavedFunnelListOut": {
+        "type": "object",
+        "properties": {
+          "funnels": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SavedFunnelOut"
+            }
+          }
+        },
+        "required": [
+          "funnels"
+        ]
+      },
+      "SavedFunnelOut": {
+        "type": "object",
+        "properties": {
+          "breakdown": {
+            "type": "string",
+            "description": "install_platform, install_country or first_app_version"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "created_by": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "description": "steps or progression"
+          },
+          "name": {
+            "type": "string"
+          },
+          "progression": {
+            "description": "For kind=progression",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FunnelProgression"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "steps": {
+            "type": "array",
+            "description": "For kind=steps: two to eight steps, in order",
+            "items": {
+              "$ref": "#/components/schemas/FunnelStep"
+            }
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_by": {
+            "type": "string"
+          },
+          "window": {
+            "type": "string",
+            "description": "session, 1h, 1d (default), 7d or 30d"
+          }
+        },
+        "required": [
+          "created_at",
+          "id",
+          "kind",
+          "name",
+          "updated_at"
+        ]
+      },
       "ScheduleIn": {
         "type": "object",
         "properties": {
@@ -24589,6 +25256,9 @@
     },
     {
       "name": "experiments"
+    },
+    {
+      "name": "analytics"
     }
   ]
 }

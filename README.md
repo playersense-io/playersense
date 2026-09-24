@@ -460,6 +460,7 @@ GET   …/analytics/{environment}/flags/{flag}/exposures       one flag by value
 GET   …/analytics/{environment}/experiments/{flag}           each arm's outcomes over seven days
 GET   …/analytics/{environment}/experiment-results/{id}      an experiment's arms over the days it ran
 POST  …/analytics/{environment}/funnels/query                a steps or progression funnel
+GET POST PUT DELETE …/funnels[/{id}]                          funnels saved by name, without a range
 GET   /v1/organizations/{org}/analytics/{environment}/projects    every readable project, side by side
 ```
 

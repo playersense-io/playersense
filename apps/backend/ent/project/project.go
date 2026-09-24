@@ -46,6 +46,8 @@ const (
 	EdgeConfigVersions = "config_versions"
 	// EdgeExperiments holds the string denoting the experiments edge name in mutations.
 	EdgeExperiments = "experiments"
+	// EdgeSavedFunnels holds the string denoting the saved_funnels edge name in mutations.
+	EdgeSavedFunnels = "saved_funnels"
 	// EdgeMemberAccess holds the string denoting the member_access edge name in mutations.
 	EdgeMemberAccess = "member_access"
 	// EdgeUsageDaily holds the string denoting the usage_daily edge name in mutations.
@@ -101,6 +103,13 @@ const (
 	ExperimentsInverseTable = "experiments"
 	// ExperimentsColumn is the table column denoting the experiments relation/edge.
 	ExperimentsColumn = "project_id"
+	// SavedFunnelsTable is the table that holds the saved_funnels relation/edge.
+	SavedFunnelsTable = "saved_funnels"
+	// SavedFunnelsInverseTable is the table name for the SavedFunnel entity.
+	// It exists in this package in order to avoid circular dependency with the "savedfunnel" package.
+	SavedFunnelsInverseTable = "saved_funnels"
+	// SavedFunnelsColumn is the table column denoting the saved_funnels relation/edge.
+	SavedFunnelsColumn = "project_id"
 	// MemberAccessTable is the table that holds the member_access relation/edge.
 	MemberAccessTable = "member_projects"
 	// MemberAccessInverseTable is the table name for the MemberProject entity.
@@ -323,6 +332,20 @@ func ByExperiments(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	}
 }
 
+// BySavedFunnelsCount orders the results by saved_funnels count.
+func BySavedFunnelsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newSavedFunnelsStep(), opts...)
+	}
+}
+
+// BySavedFunnels orders the results by saved_funnels terms.
+func BySavedFunnels(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newSavedFunnelsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
 // ByMemberAccessCount orders the results by member_access count.
 func ByMemberAccessCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -397,6 +420,13 @@ func newExperimentsStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(ExperimentsInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, ExperimentsTable, ExperimentsColumn),
+	)
+}
+func newSavedFunnelsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(SavedFunnelsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, SavedFunnelsTable, SavedFunnelsColumn),
 	)
 }
 func newMemberAccessStep() *sqlgraph.Step {

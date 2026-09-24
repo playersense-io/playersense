@@ -321,6 +321,18 @@ func (f RoleFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error)
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.RoleMutation", m)
 }
 
+// The SavedFunnelFunc type is an adapter to allow the use of ordinary
+// function as SavedFunnel mutator.
+type SavedFunnelFunc func(context.Context, *ent.SavedFunnelMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f SavedFunnelFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.SavedFunnelMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SavedFunnelMutation", m)
+}
+
 // The SegmentFunc type is an adapter to allow the use of ordinary
 // function as Segment mutator.
 type SegmentFunc func(context.Context, *ent.SegmentMutation) (ent.Value, error)

@@ -40,6 +40,7 @@ import (
 	"playersense.dev/backend/ent/project"
 	"playersense.dev/backend/ent/ratecard"
 	"playersense.dev/backend/ent/role"
+	"playersense.dev/backend/ent/savedfunnel"
 	"playersense.dev/backend/ent/segment"
 	"playersense.dev/backend/ent/staffaccess"
 	"playersense.dev/backend/ent/staffmember"
@@ -87,6 +88,7 @@ const (
 	TypeProject             = "Project"
 	TypeRateCard            = "RateCard"
 	TypeRole                = "Role"
+	TypeSavedFunnel         = "SavedFunnel"
 	TypeSegment             = "Segment"
 	TypeStaffAccess         = "StaffAccess"
 	TypeStaffMember         = "StaffMember"
@@ -29783,6 +29785,9 @@ type ProjectMutation struct {
 	experiments            map[int]struct{}
 	removedexperiments     map[int]struct{}
 	clearedexperiments     bool
+	saved_funnels          map[int]struct{}
+	removedsaved_funnels   map[int]struct{}
+	clearedsaved_funnels   bool
 	member_access          map[int]struct{}
 	removedmember_access   map[int]struct{}
 	clearedmember_access   bool
@@ -30557,6 +30562,60 @@ func (m *ProjectMutation) ResetExperiments() {
 	m.removedexperiments = nil
 }
 
+// AddSavedFunnelIDs adds the "saved_funnels" edge to the SavedFunnel entity by ids.
+func (m *ProjectMutation) AddSavedFunnelIDs(ids ...int) {
+	if m.saved_funnels == nil {
+		m.saved_funnels = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.saved_funnels[ids[i]] = struct{}{}
+	}
+}
+
+// ClearSavedFunnels clears the "saved_funnels" edge to the SavedFunnel entity.
+func (m *ProjectMutation) ClearSavedFunnels() {
+	m.clearedsaved_funnels = true
+}
+
+// SavedFunnelsCleared reports if the "saved_funnels" edge to the SavedFunnel entity was cleared.
+func (m *ProjectMutation) SavedFunnelsCleared() bool {
+	return m.clearedsaved_funnels
+}
+
+// RemoveSavedFunnelIDs removes the "saved_funnels" edge to the SavedFunnel entity by IDs.
+func (m *ProjectMutation) RemoveSavedFunnelIDs(ids ...int) {
+	if m.removedsaved_funnels == nil {
+		m.removedsaved_funnels = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.saved_funnels, ids[i])
+		m.removedsaved_funnels[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedSavedFunnels returns the removed IDs of the "saved_funnels" edge to the SavedFunnel entity.
+func (m *ProjectMutation) RemovedSavedFunnelsIDs() (ids []int) {
+	for id := range m.removedsaved_funnels {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// SavedFunnelsIDs returns the "saved_funnels" edge IDs in the mutation.
+func (m *ProjectMutation) SavedFunnelsIDs() (ids []int) {
+	for id := range m.saved_funnels {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetSavedFunnels resets all changes to the "saved_funnels" edge.
+func (m *ProjectMutation) ResetSavedFunnels() {
+	m.saved_funnels = nil
+	m.clearedsaved_funnels = false
+	m.removedsaved_funnels = nil
+}
+
 // AddMemberAccesIDs adds the "member_access" edge to the MemberProject entity by ids.
 func (m *ProjectMutation) AddMemberAccesIDs(ids ...int) {
 	if m.member_access == nil {
@@ -30932,7 +30991,7 @@ func (m *ProjectMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *ProjectMutation) AddedEdges() []string {
-	edges := make([]string, 0, 9)
+	edges := make([]string, 0, 10)
 	if m.organization != nil {
 		edges = append(edges, project.EdgeOrganization)
 	}
@@ -30953,6 +31012,9 @@ func (m *ProjectMutation) AddedEdges() []string {
 	}
 	if m.experiments != nil {
 		edges = append(edges, project.EdgeExperiments)
+	}
+	if m.saved_funnels != nil {
+		edges = append(edges, project.EdgeSavedFunnels)
 	}
 	if m.member_access != nil {
 		edges = append(edges, project.EdgeMemberAccess)
@@ -31007,6 +31069,12 @@ func (m *ProjectMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case project.EdgeSavedFunnels:
+		ids := make([]ent.Value, 0, len(m.saved_funnels))
+		for id := range m.saved_funnels {
+			ids = append(ids, id)
+		}
+		return ids
 	case project.EdgeMemberAccess:
 		ids := make([]ent.Value, 0, len(m.member_access))
 		for id := range m.member_access {
@@ -31025,7 +31093,7 @@ func (m *ProjectMutation) AddedIDs(name string) []ent.Value {
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *ProjectMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 9)
+	edges := make([]string, 0, 10)
 	if m.removedenvironments != nil {
 		edges = append(edges, project.EdgeEnvironments)
 	}
@@ -31043,6 +31111,9 @@ func (m *ProjectMutation) RemovedEdges() []string {
 	}
 	if m.removedexperiments != nil {
 		edges = append(edges, project.EdgeExperiments)
+	}
+	if m.removedsaved_funnels != nil {
+		edges = append(edges, project.EdgeSavedFunnels)
 	}
 	if m.removedmember_access != nil {
 		edges = append(edges, project.EdgeMemberAccess)
@@ -31093,6 +31164,12 @@ func (m *ProjectMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case project.EdgeSavedFunnels:
+		ids := make([]ent.Value, 0, len(m.removedsaved_funnels))
+		for id := range m.removedsaved_funnels {
+			ids = append(ids, id)
+		}
+		return ids
 	case project.EdgeMemberAccess:
 		ids := make([]ent.Value, 0, len(m.removedmember_access))
 		for id := range m.removedmember_access {
@@ -31111,7 +31188,7 @@ func (m *ProjectMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *ProjectMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 9)
+	edges := make([]string, 0, 10)
 	if m.clearedorganization {
 		edges = append(edges, project.EdgeOrganization)
 	}
@@ -31132,6 +31209,9 @@ func (m *ProjectMutation) ClearedEdges() []string {
 	}
 	if m.clearedexperiments {
 		edges = append(edges, project.EdgeExperiments)
+	}
+	if m.clearedsaved_funnels {
+		edges = append(edges, project.EdgeSavedFunnels)
 	}
 	if m.clearedmember_access {
 		edges = append(edges, project.EdgeMemberAccess)
@@ -31160,6 +31240,8 @@ func (m *ProjectMutation) EdgeCleared(name string) bool {
 		return m.clearedconfig_versions
 	case project.EdgeExperiments:
 		return m.clearedexperiments
+	case project.EdgeSavedFunnels:
+		return m.clearedsaved_funnels
 	case project.EdgeMemberAccess:
 		return m.clearedmember_access
 	case project.EdgeUsageDaily:
@@ -31203,6 +31285,9 @@ func (m *ProjectMutation) ResetEdge(name string) error {
 		return nil
 	case project.EdgeExperiments:
 		m.ResetExperiments()
+		return nil
+	case project.EdgeSavedFunnels:
+		m.ResetSavedFunnels()
 		return nil
 	case project.EdgeMemberAccess:
 		m.ResetMemberAccess()
@@ -33193,6 +33278,827 @@ func (m *RoleMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown Role edge %s", name)
+}
+
+// SavedFunnelMutation represents an operation that mutates the SavedFunnel nodes in the graph.
+type SavedFunnelMutation struct {
+	config
+	op             Op
+	typ            string
+	id             *int
+	uid            *uuid.UUID
+	created_at     *time.Time
+	updated_at     *time.Time
+	name           *string
+	description    *string
+	definition     *map[string]interface{}
+	created_by     *string
+	updated_by     *string
+	clearedFields  map[string]struct{}
+	project        *int
+	clearedproject bool
+	done           bool
+	oldValue       func(context.Context) (*SavedFunnel, error)
+	predicates     []predicate.SavedFunnel
+}
+
+var _ ent.Mutation = (*SavedFunnelMutation)(nil)
+
+// savedfunnelOption allows management of the mutation configuration using functional options.
+type savedfunnelOption func(*SavedFunnelMutation)
+
+// newSavedFunnelMutation creates new mutation for the SavedFunnel entity.
+func newSavedFunnelMutation(c config, op Op, opts ...savedfunnelOption) *SavedFunnelMutation {
+	m := &SavedFunnelMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeSavedFunnel,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withSavedFunnelID sets the ID field of the mutation.
+func withSavedFunnelID(id int) savedfunnelOption {
+	return func(m *SavedFunnelMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *SavedFunnel
+		)
+		m.oldValue = func(ctx context.Context) (*SavedFunnel, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().SavedFunnel.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withSavedFunnel sets the old SavedFunnel of the mutation.
+func withSavedFunnel(node *SavedFunnel) savedfunnelOption {
+	return func(m *SavedFunnelMutation) {
+		m.oldValue = func(context.Context) (*SavedFunnel, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m SavedFunnelMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m SavedFunnelMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of SavedFunnel entities.
+func (m *SavedFunnelMutation) SetID(id int) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *SavedFunnelMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *SavedFunnelMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().SavedFunnel.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetUID sets the "uid" field.
+func (m *SavedFunnelMutation) SetUID(u uuid.UUID) {
+	m.uid = &u
+}
+
+// UID returns the value of the "uid" field in the mutation.
+func (m *SavedFunnelMutation) UID() (r uuid.UUID, exists bool) {
+	v := m.uid
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUID returns the old "uid" field's value of the SavedFunnel entity.
+// If the SavedFunnel object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SavedFunnelMutation) OldUID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUID: %w", err)
+	}
+	return oldValue.UID, nil
+}
+
+// ResetUID resets all changes to the "uid" field.
+func (m *SavedFunnelMutation) ResetUID() {
+	m.uid = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *SavedFunnelMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *SavedFunnelMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the SavedFunnel entity.
+// If the SavedFunnel object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SavedFunnelMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *SavedFunnelMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *SavedFunnelMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *SavedFunnelMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the SavedFunnel entity.
+// If the SavedFunnel object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SavedFunnelMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *SavedFunnelMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetProjectID sets the "project_id" field.
+func (m *SavedFunnelMutation) SetProjectID(i int) {
+	m.project = &i
+}
+
+// ProjectID returns the value of the "project_id" field in the mutation.
+func (m *SavedFunnelMutation) ProjectID() (r int, exists bool) {
+	v := m.project
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProjectID returns the old "project_id" field's value of the SavedFunnel entity.
+// If the SavedFunnel object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SavedFunnelMutation) OldProjectID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProjectID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProjectID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProjectID: %w", err)
+	}
+	return oldValue.ProjectID, nil
+}
+
+// ResetProjectID resets all changes to the "project_id" field.
+func (m *SavedFunnelMutation) ResetProjectID() {
+	m.project = nil
+}
+
+// SetName sets the "name" field.
+func (m *SavedFunnelMutation) SetName(s string) {
+	m.name = &s
+}
+
+// Name returns the value of the "name" field in the mutation.
+func (m *SavedFunnelMutation) Name() (r string, exists bool) {
+	v := m.name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldName returns the old "name" field's value of the SavedFunnel entity.
+// If the SavedFunnel object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SavedFunnelMutation) OldName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldName: %w", err)
+	}
+	return oldValue.Name, nil
+}
+
+// ResetName resets all changes to the "name" field.
+func (m *SavedFunnelMutation) ResetName() {
+	m.name = nil
+}
+
+// SetDescription sets the "description" field.
+func (m *SavedFunnelMutation) SetDescription(s string) {
+	m.description = &s
+}
+
+// Description returns the value of the "description" field in the mutation.
+func (m *SavedFunnelMutation) Description() (r string, exists bool) {
+	v := m.description
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDescription returns the old "description" field's value of the SavedFunnel entity.
+// If the SavedFunnel object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SavedFunnelMutation) OldDescription(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDescription is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDescription requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDescription: %w", err)
+	}
+	return oldValue.Description, nil
+}
+
+// ResetDescription resets all changes to the "description" field.
+func (m *SavedFunnelMutation) ResetDescription() {
+	m.description = nil
+}
+
+// SetDefinition sets the "definition" field.
+func (m *SavedFunnelMutation) SetDefinition(value map[string]interface{}) {
+	m.definition = &value
+}
+
+// Definition returns the value of the "definition" field in the mutation.
+func (m *SavedFunnelMutation) Definition() (r map[string]interface{}, exists bool) {
+	v := m.definition
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDefinition returns the old "definition" field's value of the SavedFunnel entity.
+// If the SavedFunnel object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SavedFunnelMutation) OldDefinition(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDefinition is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDefinition requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDefinition: %w", err)
+	}
+	return oldValue.Definition, nil
+}
+
+// ResetDefinition resets all changes to the "definition" field.
+func (m *SavedFunnelMutation) ResetDefinition() {
+	m.definition = nil
+}
+
+// SetCreatedBy sets the "created_by" field.
+func (m *SavedFunnelMutation) SetCreatedBy(s string) {
+	m.created_by = &s
+}
+
+// CreatedBy returns the value of the "created_by" field in the mutation.
+func (m *SavedFunnelMutation) CreatedBy() (r string, exists bool) {
+	v := m.created_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedBy returns the old "created_by" field's value of the SavedFunnel entity.
+// If the SavedFunnel object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SavedFunnelMutation) OldCreatedBy(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedBy: %w", err)
+	}
+	return oldValue.CreatedBy, nil
+}
+
+// ResetCreatedBy resets all changes to the "created_by" field.
+func (m *SavedFunnelMutation) ResetCreatedBy() {
+	m.created_by = nil
+}
+
+// SetUpdatedBy sets the "updated_by" field.
+func (m *SavedFunnelMutation) SetUpdatedBy(s string) {
+	m.updated_by = &s
+}
+
+// UpdatedBy returns the value of the "updated_by" field in the mutation.
+func (m *SavedFunnelMutation) UpdatedBy() (r string, exists bool) {
+	v := m.updated_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedBy returns the old "updated_by" field's value of the SavedFunnel entity.
+// If the SavedFunnel object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SavedFunnelMutation) OldUpdatedBy(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedBy: %w", err)
+	}
+	return oldValue.UpdatedBy, nil
+}
+
+// ResetUpdatedBy resets all changes to the "updated_by" field.
+func (m *SavedFunnelMutation) ResetUpdatedBy() {
+	m.updated_by = nil
+}
+
+// ClearProject clears the "project" edge to the Project entity.
+func (m *SavedFunnelMutation) ClearProject() {
+	m.clearedproject = true
+	m.clearedFields[savedfunnel.FieldProjectID] = struct{}{}
+}
+
+// ProjectCleared reports if the "project" edge to the Project entity was cleared.
+func (m *SavedFunnelMutation) ProjectCleared() bool {
+	return m.clearedproject
+}
+
+// ProjectIDs returns the "project" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// ProjectID instead. It exists only for internal usage by the builders.
+func (m *SavedFunnelMutation) ProjectIDs() (ids []int) {
+	if id := m.project; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetProject resets all changes to the "project" edge.
+func (m *SavedFunnelMutation) ResetProject() {
+	m.project = nil
+	m.clearedproject = false
+}
+
+// Where appends a list predicates to the SavedFunnelMutation builder.
+func (m *SavedFunnelMutation) Where(ps ...predicate.SavedFunnel) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the SavedFunnelMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *SavedFunnelMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.SavedFunnel, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *SavedFunnelMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *SavedFunnelMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (SavedFunnel).
+func (m *SavedFunnelMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *SavedFunnelMutation) Fields() []string {
+	fields := make([]string, 0, 9)
+	if m.uid != nil {
+		fields = append(fields, savedfunnel.FieldUID)
+	}
+	if m.created_at != nil {
+		fields = append(fields, savedfunnel.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, savedfunnel.FieldUpdatedAt)
+	}
+	if m.project != nil {
+		fields = append(fields, savedfunnel.FieldProjectID)
+	}
+	if m.name != nil {
+		fields = append(fields, savedfunnel.FieldName)
+	}
+	if m.description != nil {
+		fields = append(fields, savedfunnel.FieldDescription)
+	}
+	if m.definition != nil {
+		fields = append(fields, savedfunnel.FieldDefinition)
+	}
+	if m.created_by != nil {
+		fields = append(fields, savedfunnel.FieldCreatedBy)
+	}
+	if m.updated_by != nil {
+		fields = append(fields, savedfunnel.FieldUpdatedBy)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *SavedFunnelMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case savedfunnel.FieldUID:
+		return m.UID()
+	case savedfunnel.FieldCreatedAt:
+		return m.CreatedAt()
+	case savedfunnel.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case savedfunnel.FieldProjectID:
+		return m.ProjectID()
+	case savedfunnel.FieldName:
+		return m.Name()
+	case savedfunnel.FieldDescription:
+		return m.Description()
+	case savedfunnel.FieldDefinition:
+		return m.Definition()
+	case savedfunnel.FieldCreatedBy:
+		return m.CreatedBy()
+	case savedfunnel.FieldUpdatedBy:
+		return m.UpdatedBy()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *SavedFunnelMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case savedfunnel.FieldUID:
+		return m.OldUID(ctx)
+	case savedfunnel.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case savedfunnel.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case savedfunnel.FieldProjectID:
+		return m.OldProjectID(ctx)
+	case savedfunnel.FieldName:
+		return m.OldName(ctx)
+	case savedfunnel.FieldDescription:
+		return m.OldDescription(ctx)
+	case savedfunnel.FieldDefinition:
+		return m.OldDefinition(ctx)
+	case savedfunnel.FieldCreatedBy:
+		return m.OldCreatedBy(ctx)
+	case savedfunnel.FieldUpdatedBy:
+		return m.OldUpdatedBy(ctx)
+	}
+	return nil, fmt.Errorf("unknown SavedFunnel field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *SavedFunnelMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case savedfunnel.FieldUID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUID(v)
+		return nil
+	case savedfunnel.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case savedfunnel.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case savedfunnel.FieldProjectID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProjectID(v)
+		return nil
+	case savedfunnel.FieldName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetName(v)
+		return nil
+	case savedfunnel.FieldDescription:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDescription(v)
+		return nil
+	case savedfunnel.FieldDefinition:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDefinition(v)
+		return nil
+	case savedfunnel.FieldCreatedBy:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedBy(v)
+		return nil
+	case savedfunnel.FieldUpdatedBy:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedBy(v)
+		return nil
+	}
+	return fmt.Errorf("unknown SavedFunnel field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *SavedFunnelMutation) AddedFields() []string {
+	var fields []string
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *SavedFunnelMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *SavedFunnelMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown SavedFunnel numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *SavedFunnelMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *SavedFunnelMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *SavedFunnelMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown SavedFunnel nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *SavedFunnelMutation) ResetField(name string) error {
+	switch name {
+	case savedfunnel.FieldUID:
+		m.ResetUID()
+		return nil
+	case savedfunnel.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case savedfunnel.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case savedfunnel.FieldProjectID:
+		m.ResetProjectID()
+		return nil
+	case savedfunnel.FieldName:
+		m.ResetName()
+		return nil
+	case savedfunnel.FieldDescription:
+		m.ResetDescription()
+		return nil
+	case savedfunnel.FieldDefinition:
+		m.ResetDefinition()
+		return nil
+	case savedfunnel.FieldCreatedBy:
+		m.ResetCreatedBy()
+		return nil
+	case savedfunnel.FieldUpdatedBy:
+		m.ResetUpdatedBy()
+		return nil
+	}
+	return fmt.Errorf("unknown SavedFunnel field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *SavedFunnelMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.project != nil {
+		edges = append(edges, savedfunnel.EdgeProject)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *SavedFunnelMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case savedfunnel.EdgeProject:
+		if id := m.project; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *SavedFunnelMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *SavedFunnelMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *SavedFunnelMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.clearedproject {
+		edges = append(edges, savedfunnel.EdgeProject)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *SavedFunnelMutation) EdgeCleared(name string) bool {
+	switch name {
+	case savedfunnel.EdgeProject:
+		return m.clearedproject
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *SavedFunnelMutation) ClearEdge(name string) error {
+	switch name {
+	case savedfunnel.EdgeProject:
+		m.ClearProject()
+		return nil
+	}
+	return fmt.Errorf("unknown SavedFunnel unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *SavedFunnelMutation) ResetEdge(name string) error {
+	switch name {
+	case savedfunnel.EdgeProject:
+		m.ResetProject()
+		return nil
+	}
+	return fmt.Errorf("unknown SavedFunnel edge %s", name)
 }
 
 // SegmentMutation represents an operation that mutates the Segment nodes in the graph.

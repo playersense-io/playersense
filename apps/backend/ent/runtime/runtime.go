@@ -32,6 +32,7 @@ import (
 	"playersense.dev/backend/ent/project"
 	"playersense.dev/backend/ent/ratecard"
 	"playersense.dev/backend/ent/role"
+	"playersense.dev/backend/ent/savedfunnel"
 	"playersense.dev/backend/ent/schema"
 	"playersense.dev/backend/ent/segment"
 	"playersense.dev/backend/ent/staffaccess"
@@ -1753,6 +1754,61 @@ func init() {
 	roleDescSystem := roleFields[5].Descriptor()
 	// role.DefaultSystem holds the default value on creation for the system field.
 	role.DefaultSystem = roleDescSystem.Default.(bool)
+	savedfunnelMixin := schema.SavedFunnel{}.Mixin()
+	savedfunnelMixinFields0 := savedfunnelMixin[0].Fields()
+	_ = savedfunnelMixinFields0
+	savedfunnelFields := schema.SavedFunnel{}.Fields()
+	_ = savedfunnelFields
+	// savedfunnelDescUID is the schema descriptor for uid field.
+	savedfunnelDescUID := savedfunnelMixinFields0[1].Descriptor()
+	// savedfunnel.DefaultUID holds the default value on creation for the uid field.
+	savedfunnel.DefaultUID = savedfunnelDescUID.Default.(func() uuid.UUID)
+	// savedfunnelDescCreatedAt is the schema descriptor for created_at field.
+	savedfunnelDescCreatedAt := savedfunnelMixinFields0[2].Descriptor()
+	// savedfunnel.DefaultCreatedAt holds the default value on creation for the created_at field.
+	savedfunnel.DefaultCreatedAt = savedfunnelDescCreatedAt.Default.(func() time.Time)
+	// savedfunnelDescUpdatedAt is the schema descriptor for updated_at field.
+	savedfunnelDescUpdatedAt := savedfunnelMixinFields0[3].Descriptor()
+	// savedfunnel.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	savedfunnel.DefaultUpdatedAt = savedfunnelDescUpdatedAt.Default.(func() time.Time)
+	// savedfunnel.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	savedfunnel.UpdateDefaultUpdatedAt = savedfunnelDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// savedfunnelDescName is the schema descriptor for name field.
+	savedfunnelDescName := savedfunnelFields[1].Descriptor()
+	// savedfunnel.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	savedfunnel.NameValidator = func() func(string) error {
+		validators := savedfunnelDescName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(name string) error {
+			for _, fn := range fns {
+				if err := fn(name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// savedfunnelDescDescription is the schema descriptor for description field.
+	savedfunnelDescDescription := savedfunnelFields[2].Descriptor()
+	// savedfunnel.DefaultDescription holds the default value on creation for the description field.
+	savedfunnel.DefaultDescription = savedfunnelDescDescription.Default.(string)
+	// savedfunnel.DescriptionValidator is a validator for the "description" field. It is called by the builders before save.
+	savedfunnel.DescriptionValidator = savedfunnelDescDescription.Validators[0].(func(string) error)
+	// savedfunnelDescCreatedBy is the schema descriptor for created_by field.
+	savedfunnelDescCreatedBy := savedfunnelFields[4].Descriptor()
+	// savedfunnel.DefaultCreatedBy holds the default value on creation for the created_by field.
+	savedfunnel.DefaultCreatedBy = savedfunnelDescCreatedBy.Default.(string)
+	// savedfunnel.CreatedByValidator is a validator for the "created_by" field. It is called by the builders before save.
+	savedfunnel.CreatedByValidator = savedfunnelDescCreatedBy.Validators[0].(func(string) error)
+	// savedfunnelDescUpdatedBy is the schema descriptor for updated_by field.
+	savedfunnelDescUpdatedBy := savedfunnelFields[5].Descriptor()
+	// savedfunnel.DefaultUpdatedBy holds the default value on creation for the updated_by field.
+	savedfunnel.DefaultUpdatedBy = savedfunnelDescUpdatedBy.Default.(string)
+	// savedfunnel.UpdatedByValidator is a validator for the "updated_by" field. It is called by the builders before save.
+	savedfunnel.UpdatedByValidator = savedfunnelDescUpdatedBy.Validators[0].(func(string) error)
 	segmentMixin := schema.Segment{}.Mixin()
 	segmentMixinFields0 := segmentMixin[0].Fields()
 	_ = segmentMixinFields0
