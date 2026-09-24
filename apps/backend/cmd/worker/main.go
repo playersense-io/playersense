@@ -58,6 +58,7 @@ import (
 	"playersense.dev/backend/internal/config"
 	"playersense.dev/backend/internal/erasure"
 	"playersense.dev/backend/internal/export"
+	"playersense.dev/backend/internal/jobs"
 	"playersense.dev/backend/internal/metering"
 	"playersense.dev/backend/internal/pgdb"
 	"playersense.dev/backend/internal/retention"
@@ -196,6 +197,7 @@ func newScheduler(settings config.Settings, db *chdb.SQL, log *slog.Logger) (*sc
 		ActivityMonths:    settings.WorkerActivityMonths,
 		CohortMonths:      settings.WorkerCohortMonths,
 		LifetimeRetention: settings.WorkerLifetimeRetention,
+		Recorder:          jobs.NewClickHouse(db, log),
 	})
 }
 
@@ -291,6 +293,9 @@ func newJanitor(settings config.Settings, db *chdb.SQL, deps dependencies, log *
 			Log: log,
 		},
 		Credit: scheduler.CreditExpiry(deps.db, log, settings.CreditExpiryMaxLots),
+
+		// A row per job per pass, for the operations console's retention jobs page.
+		Recorder: jobs.NewClickHouse(db, log),
 	})
 }
 

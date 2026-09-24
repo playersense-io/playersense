@@ -3,6 +3,7 @@ package schemas
 import (
 	"time"
 
+	"github.com/google/uuid"
 	muzak "muzak.dev/framework"
 )
 
@@ -182,4 +183,131 @@ type StorageProjectOut struct {
 	Events         uint64  `json:"events"`
 	Bytes          uint64  `json:"bytes"`
 	Share          float64 `json:"share" doc:"Of all logical bytes over the range"`
+}
+
+// ---- the worker's jobs ------------------------------------------------------
+
+// JobsParams narrows the retention jobs page.
+type JobsParams struct {
+	From   string `query:"from,omitzero" doc:"YYYY-MM-DD. Defaults to seven days ago"`
+	To     string `query:"to,omitzero" doc:"YYYY-MM-DD. Defaults to today"`
+	Job    string `query:"job,omitzero" doc:"Only this job's runs: derivation, erasure, export, archive_expiry, usage_meter or credit_expiry"`
+	Failed bool   `query:"failed,omitzero" doc:"Only runs that failed"`
+}
+
+func (in *JobsParams) Validate(v *muzak.Validation) {
+	v.String(&in.From).Trim().MaxLen(10)
+	v.String(&in.To).Trim().MaxLen(10)
+	v.String(&in.Job).Trim().Lower().
+		OneOf("", "derivation", "erasure", "export", "archive_expiry", "usage_meter", "credit_expiry")
+}
+
+// JobsOut is the worker's jobs: how each has been running, its recent passes, and the requests
+// and objects waiting on them. Every failure is listed rather than the first, as the janitor
+// reports them.
+type JobsOut struct {
+	From time.Time `json:"from"`
+	To   time.Time `json:"to"`
+
+	Jobs   []JobSummaryOut `json:"jobs" doc:"One per job, including any that has not run in the range"`
+	Recent []JobRunOut     `json:"recent" doc:"The latest two hundred passes, newest first"`
+
+	Erasures ErasureQueueOut `json:"erasures"`
+	Exports  ExportQueueOut  `json:"exports"`
+	Archive  ArchiveQueueOut `json:"archive"`
+}
+
+// JobSummaryOut is how one job has been running over the range.
+type JobSummaryOut struct {
+	Job           string           `json:"job"`
+	Runs          uint64           `json:"runs"`
+	Failures      uint64           `json:"failures"`
+	LastRunAt     *time.Time       `json:"last_run_at,omitzero"`
+	LastOK        bool             `json:"last_ok"`
+	LastSuccessAt *time.Time       `json:"last_success_at,omitzero"`
+	LastFailureAt *time.Time       `json:"last_failure_at,omitzero"`
+	LastError     string           `json:"last_error,omitzero"`
+	AvgMs         float64          `json:"avg_ms"`
+	MaxMs         int64            `json:"max_ms"`
+	LastCounts    map[string]int64 `json:"last_counts,omitzero" doc:"What the latest pass did"`
+}
+
+// JobRunOut is one pass of one job.
+type JobRunOut struct {
+	Job        string           `json:"job"`
+	StartedAt  time.Time        `json:"started_at"`
+	FinishedAt time.Time        `json:"finished_at"`
+	Host       string           `json:"host"`
+	OK         bool             `json:"ok"`
+	Error      string           `json:"error,omitzero"`
+	Counts     map[string]int64 `json:"counts,omitzero"`
+}
+
+// ErasureQueueOut is §61's requests: how many are in each state, and the ones open or failed. No
+// player's identifier: the console needs to know that one is stuck, not whose it is.
+type ErasureQueueOut struct {
+	ByStatus map[string]int      `json:"by_status"`
+	Overdue  int                 `json:"overdue" doc:"Open past the one-month deadline"`
+	Open     []ErasureRequestOut `json:"open" doc:"Not completed, oldest first, up to a hundred"`
+}
+
+// ErasureRequestOut is one erasure, without whose it is.
+type ErasureRequestOut struct {
+	ID              uuid.UUID  `json:"id"`
+	ProjectUID      uuid.UUID  `json:"project_id"`
+	ProjectSeq      uint32     `json:"project_seq"`
+	Project         string     `json:"project,omitzero"`
+	Status          string     `json:"status"`
+	ReceivedAt      time.Time  `json:"received_at"`
+	DueAt           time.Time  `json:"due_at"`
+	TombstonedAt    *time.Time `json:"tombstoned_at,omitzero"`
+	UpdatedAt       time.Time  `json:"updated_at"`
+	FailureReason   string     `json:"failure_reason,omitzero"`
+	DevicesDeleted  uint32     `json:"devices_deleted"`
+	ObjectsRedacted uint32     `json:"objects_redacted"`
+}
+
+// ExportQueueOut is §101's requests.
+type ExportQueueOut struct {
+	ByStatus map[string]int     `json:"by_status"`
+	Open     []ExportRequestOut `json:"open" doc:"Received, running or failed, oldest first, up to a hundred"`
+}
+
+// ExportRequestOut is one export, without whose it is.
+type ExportRequestOut struct {
+	ID            uuid.UUID `json:"id"`
+	ProjectUID    uuid.UUID `json:"project_id"`
+	ProjectSeq    uint32    `json:"project_seq"`
+	Project       string    `json:"project,omitzero"`
+	Status        string    `json:"status"`
+	ReceivedAt    time.Time `json:"received_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
+	FailureReason string    `json:"failure_reason,omitzero"`
+}
+
+// ArchiveQueueOut is §60's expiry: what is due and not yet gone, and what could not be.
+type ArchiveQueueOut struct {
+	Due      int                 `json:"due" doc:"Durable objects past delete_after: the sweep's backlog"`
+	Deleting int                 `json:"deleting" doc:"Marked deleting; a pass stopped between the mark and the delete"`
+	Failed   int                 `json:"failed"`
+	Failures []ArchiveFailureOut `json:"failures" doc:"Failed objects, newest first, up to a hundred; each can be retried once its cause is fixed"`
+}
+
+// ArchiveFailureOut is one archive object the sweep could not expire.
+type ArchiveFailureOut struct {
+	ID            uuid.UUID `json:"id"`
+	ProjectUID    uuid.UUID `json:"project_id"`
+	Bucket        string    `json:"bucket"`
+	ObjectPath    string    `json:"object_path"`
+	DeleteAfter   time.Time `json:"delete_after"`
+	SizeBytes     uint64    `json:"size_bytes"`
+	FailureReason string    `json:"failure_reason,omitzero"`
+	UpdatedAt     time.Time `json:"updated_at"`
+}
+
+// RetryManifestIn hands a failed archive object back to the sweep.
+type RetryManifestIn struct {
+	StaffTicket
+	Project    string    `path:"project" doc:"The project's id"`
+	ManifestID uuid.UUID `path:"manifest_id"`
 }

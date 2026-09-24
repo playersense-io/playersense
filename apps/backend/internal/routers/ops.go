@@ -38,5 +38,22 @@ func OperatorAnalytics() *muzak.Router {
 		muzak.Description("Bytes on disk by table and volume, and each project's metered logical "+
 			"bytes over the range with its share, which is what §39's storage accounting apportions."))
 
+	r.Get("/jobs", handlers.OperatorJobs,
+		core.RequireStaff(staff.Ops),
+		muzak.Summary("The worker's jobs"),
+		muzak.Description("Each job's passes over the range (the nightly derivation, erasures, exports, "+
+			"archive expiry, the usage meter and credit expiry): runs, failures, the last error, how "+
+			"long they take and what the latest did; the latest two hundred passes; and what waits on "+
+			"them: erasures by state with those past their one-month deadline, exports, and archive "+
+			"objects due, stuck or failed. No player's identifier."))
+
+	r.Post("/projects/{project}/archive-manifests/{manifest_id}/retry", handlers.RetryArchiveManifest,
+		core.RequireStaff(staff.Ops), core.StaffReads("archive.retry"),
+		muzak.Summary("Hand a failed archive object back to the sweep"),
+		muzak.Description("For after its cause is fixed. The next pass tries it again and, if the cause "+
+			"is still there, fails it again with the reason."),
+		muzak.WithResponseDoc(http.StatusNotFound, "This project has no archive object with that id"),
+		muzak.WithResponseDoc(http.StatusConflict, "The object has not failed"))
+
 	return r
 }

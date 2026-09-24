@@ -837,6 +837,123 @@
         }
       }
     },
+    "/v1/operator/jobs": {
+      "get": {
+        "tags": [
+          "operator"
+        ],
+        "summary": "The worker's jobs",
+        "description": "Each job's passes over the range (the nightly derivation, erasures, exports, archive expiry, the usage meter and credit expiry): runs, failures, the last error, how long they take and what the latest did; the latest two hundred passes; and what waits on them: erasures by state with those past their one-month deadline, exports, and archive objects due, stuck or failed. No player's identifier.",
+        "operationId": "get_v1_operator_jobs",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "description": "YYYY-MM-DD. Defaults to seven days ago",
+            "schema": {
+              "type": "string",
+              "maxLength": 10
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "description": "YYYY-MM-DD. Defaults to today",
+            "schema": {
+              "type": "string",
+              "maxLength": 10
+            }
+          },
+          {
+            "name": "job",
+            "in": "query",
+            "description": "Only this job's runs: derivation, erasure, export, archive_expiry, usage_meter or credit_expiry",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "",
+                "derivation",
+                "erasure",
+                "export",
+                "archive_expiry",
+                "usage_meter",
+                "credit_expiry"
+              ]
+            }
+          },
+          {
+            "name": "failed",
+            "in": "query",
+            "description": "Only runs that failed",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobsOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account is not staff, or lacks the role this needs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ClickHouse could not be read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/operator/me": {
       "get": {
         "tags": [
@@ -4316,6 +4433,134 @@
           },
           "503": {
             "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/operator/projects/{project}/archive-manifests/{manifest_id}/retry": {
+      "post": {
+        "tags": [
+          "operator"
+        ],
+        "summary": "Hand a failed archive object back to the sweep",
+        "description": "For after its cause is fixed. The next pass tries it again and, if the cause is still there, fails it again with the reason.",
+        "operationId": "post_v1_operator_projects_by_project_archive_manifests_by_manifest_id_retry",
+        "parameters": [
+          {
+            "name": "X-Staff-Ticket",
+            "in": "header",
+            "description": "A ticket reference for why this customer's data is being read: recorded in staff_access",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Staff-Note",
+            "in": "header",
+            "description": "An optional line beside the ticket",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "project",
+            "in": "path",
+            "description": "The project's id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "manifest_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArchiveFailureOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account is not staff, or lacks the role this needs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "This project has no archive object with that id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The object has not failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ClickHouse could not be read",
             "content": {
               "application/json": {
                 "schema": {
@@ -13803,6 +14048,79 @@
           "version"
         ]
       },
+      "ArchiveFailureOut": {
+        "type": "object",
+        "properties": {
+          "bucket": {
+            "type": "string"
+          },
+          "delete_after": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "failure_reason": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "object_path": {
+            "type": "string"
+          },
+          "project_id": {
+            "type": "string"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "bucket",
+          "delete_after",
+          "id",
+          "object_path",
+          "project_id",
+          "size_bytes",
+          "updated_at"
+        ]
+      },
+      "ArchiveQueueOut": {
+        "type": "object",
+        "properties": {
+          "deleting": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Marked deleting; a pass stopped between the mark and the delete"
+          },
+          "due": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Durable objects past delete_after: the sweep's backlog"
+          },
+          "failed": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "failures": {
+            "type": "array",
+            "description": "Failed objects, newest first, up to a hundred; each can be retried once its cause is fixed",
+            "items": {
+              "$ref": "#/components/schemas/ArchiveFailureOut"
+            }
+          }
+        },
+        "required": [
+          "deleting",
+          "due",
+          "failed",
+          "failures"
+        ]
+      },
       "AuditEventOut": {
         "type": "object",
         "properties": {
@@ -15110,6 +15428,97 @@
           "status"
         ]
       },
+      "ErasureQueueOut": {
+        "type": "object",
+        "properties": {
+          "by_status": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          "open": {
+            "type": "array",
+            "description": "Not completed, oldest first, up to a hundred",
+            "items": {
+              "$ref": "#/components/schemas/ErasureRequestOut"
+            }
+          },
+          "overdue": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Open past the one-month deadline"
+          }
+        },
+        "required": [
+          "by_status",
+          "open",
+          "overdue"
+        ]
+      },
+      "ErasureRequestOut": {
+        "type": "object",
+        "properties": {
+          "devices_deleted": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "due_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "failure_reason": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "objects_redacted": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "project": {
+            "type": "string"
+          },
+          "project_id": {
+            "type": "string"
+          },
+          "project_seq": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "received_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string"
+          },
+          "tombstoned_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "devices_deleted",
+          "due_at",
+          "id",
+          "objects_redacted",
+          "project_id",
+          "project_seq",
+          "received_at",
+          "status",
+          "updated_at"
+        ]
+      },
       "ErrorBody": {
         "type": "object",
         "properties": {
@@ -15849,6 +16258,69 @@
           "request_id",
           "size_bytes",
           "status"
+        ]
+      },
+      "ExportQueueOut": {
+        "type": "object",
+        "properties": {
+          "by_status": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          "open": {
+            "type": "array",
+            "description": "Received, running or failed, oldest first, up to a hundred",
+            "items": {
+              "$ref": "#/components/schemas/ExportRequestOut"
+            }
+          }
+        },
+        "required": [
+          "by_status",
+          "open"
+        ]
+      },
+      "ExportRequestOut": {
+        "type": "object",
+        "properties": {
+          "failure_reason": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "project": {
+            "type": "string"
+          },
+          "project_id": {
+            "type": "string"
+          },
+          "project_seq": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "received_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "project_id",
+          "project_seq",
+          "received_at",
+          "status",
+          "updated_at"
         ]
       },
       "Filter": {
@@ -16990,6 +17462,157 @@
         },
         "required": [
           "invoices"
+        ]
+      },
+      "JobRunOut": {
+        "type": "object",
+        "properties": {
+          "counts": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          "error": {
+            "type": "string"
+          },
+          "finished_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "host": {
+            "type": "string"
+          },
+          "job": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "finished_at",
+          "host",
+          "job",
+          "ok",
+          "started_at"
+        ]
+      },
+      "JobSummaryOut": {
+        "type": "object",
+        "properties": {
+          "avg_ms": {
+            "type": "number",
+            "format": "double"
+          },
+          "failures": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "job": {
+            "type": "string"
+          },
+          "last_counts": {
+            "type": "object",
+            "description": "What the latest pass did",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          "last_error": {
+            "type": "string"
+          },
+          "last_failure_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "last_ok": {
+            "type": "boolean"
+          },
+          "last_run_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "last_success_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "max_ms": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "runs": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "avg_ms",
+          "failures",
+          "job",
+          "last_ok",
+          "max_ms",
+          "runs"
+        ]
+      },
+      "JobsOut": {
+        "type": "object",
+        "properties": {
+          "archive": {
+            "$ref": "#/components/schemas/ArchiveQueueOut"
+          },
+          "erasures": {
+            "$ref": "#/components/schemas/ErasureQueueOut"
+          },
+          "exports": {
+            "$ref": "#/components/schemas/ExportQueueOut"
+          },
+          "from": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "jobs": {
+            "type": "array",
+            "description": "One per job, including any that has not run in the range",
+            "items": {
+              "$ref": "#/components/schemas/JobSummaryOut"
+            }
+          },
+          "recent": {
+            "type": "array",
+            "description": "The latest two hundred passes, newest first",
+            "items": {
+              "$ref": "#/components/schemas/JobRunOut"
+            }
+          },
+          "to": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "archive",
+          "erasures",
+          "exports",
+          "from",
+          "jobs",
+          "recent",
+          "to"
         ]
       },
       "LedgerEntryOut": {

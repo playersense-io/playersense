@@ -10,6 +10,7 @@ import (
 
 	"playersense.dev/backend/internal/erasure"
 	"playersense.dev/backend/internal/export"
+	"playersense.dev/backend/internal/jobs"
 	"playersense.dev/backend/internal/metering"
 	"playersense.dev/backend/internal/pgdb"
 	"playersense.dev/backend/internal/retention"
@@ -76,6 +77,10 @@ type JanitorOptions struct {
 	// never overspent, because the spend path refuses a lapsed lot on its own.
 	Meter  *metering.Meter
 	Credit *creditExpiry
+
+	// Recorder keeps a row per job per pass for the operations console (job_runs). Nil keeps
+	// none.
+	Recorder jobs.Recorder
 }
 
 // creditExpiry writes off lapsed promotional credit.
@@ -257,88 +262,118 @@ func (j *Janitor) loop(ctx context.Context) {
 // job whose manual form takes a different path is a job whose manual form is untested.
 func (j *Janitor) Run(ctx context.Context) error {
 	var problems []error
+	rec := j.opts.Recorder
 
 	// Erasure first. It is the one with a deadline in law rather than in a contract, and
 	// the one whose delay is measured against a promise made to a person.
 	if j.opts.Purger != nil {
-		done, err := j.opts.Purger.Run(ctx, j.now())
-		j.stats.erased.Add(int64(done.Completed))
+		err := jobs.Time(ctx, rec, jobs.Erasure, j.now, func() (map[string]int64, error) {
+			done, err := j.opts.Purger.Run(ctx, j.now())
+			j.stats.erased.Add(int64(done.Completed))
+			if done.Considered > 0 {
+				j.log.Info("erasure pass",
+					"considered", done.Considered,
+					"completed", done.Completed,
+					"failed", done.Failed,
+					"devices", done.Devices,
+					"objects_redacted", done.Objects,
+					"purchases", done.Purchases,
+					"export_bundles_removed", done.Exports)
+			}
+			return map[string]int64{
+				"considered": int64(done.Considered), "completed": int64(done.Completed),
+				"failed": int64(done.Failed), "devices": int64(done.Devices),
+				"objects_redacted": int64(done.Objects), "purchases": int64(done.Purchases),
+				"export_bundles_removed": int64(done.Exports),
+			}, err
+		})
 		if err != nil {
 			problems = append(problems, fmt.Errorf("erasure: %w", err))
-		}
-		if done.Considered > 0 {
-			j.log.Info("erasure pass",
-				"considered", done.Considered,
-				"completed", done.Completed,
-				"failed", done.Failed,
-				"devices", done.Devices,
-				"objects_redacted", done.Objects,
-				"purchases", done.Purchases,
-				"export_bundles_removed", done.Exports)
 		}
 	}
 
 	// Then exports, which somebody is waiting for.
 	if j.opts.Exporter != nil {
-		done, err := j.opts.Exporter.Run(ctx, j.now())
-		j.stats.exported.Add(int64(done.Completed))
-		j.stats.collected.Add(int64(done.Expired))
+		err := jobs.Time(ctx, rec, jobs.Export, j.now, func() (map[string]int64, error) {
+			done, err := j.opts.Exporter.Run(ctx, j.now())
+			j.stats.exported.Add(int64(done.Completed))
+			j.stats.collected.Add(int64(done.Expired))
+			if done.Considered > 0 || done.Expired > 0 {
+				j.log.Info("export pass",
+					"considered", done.Considered,
+					"completed", done.Completed,
+					"failed", done.Failed,
+					"bundles_expired", done.Expired,
+					"rows", done.Rows,
+					"bytes", done.Bytes)
+			}
+			return map[string]int64{
+				"considered": int64(done.Considered), "completed": int64(done.Completed),
+				"failed": int64(done.Failed), "bundles_expired": int64(done.Expired),
+				"rows": int64(done.Rows), "bytes": int64(done.Bytes),
+			}, err
+		})
 		if err != nil {
 			problems = append(problems, fmt.Errorf("export: %w", err))
-		}
-		if done.Considered > 0 || done.Expired > 0 {
-			j.log.Info("export pass",
-				"considered", done.Considered,
-				"completed", done.Completed,
-				"failed", done.Failed,
-				"bundles_expired", done.Expired,
-				"rows", done.Rows,
-				"bytes", done.Bytes)
 		}
 	}
 
 	// Then expiry, which is over-retention while it waits but is not waiting on anyone.
 	if j.opts.Sweeper != nil {
-		done, err := j.opts.Sweeper.Run(ctx, j.now())
-		j.stats.expired.Add(int64(done.Deleted))
+		err := jobs.Time(ctx, rec, jobs.ArchiveExpiry, j.now, func() (map[string]int64, error) {
+			done, err := j.opts.Sweeper.Run(ctx, j.now())
+			j.stats.expired.Add(int64(done.Deleted))
+			if done.Due > 0 {
+				j.log.Info("archive expiry pass",
+					"due", done.Due,
+					"deleted", done.Deleted,
+					"failed", done.Failed,
+					"bytes_reclaimed", done.Bytes)
+			}
+			return map[string]int64{
+				"due": int64(done.Due), "deleted": int64(done.Deleted), "failed": int64(done.Failed),
+				"bytes_reclaimed": int64(done.Bytes),
+			}, err
+		})
 		if err != nil {
 			problems = append(problems, fmt.Errorf("archive expiry: %w", err))
-		}
-		if done.Due > 0 {
-			j.log.Info("archive expiry pass",
-				"due", done.Due,
-				"deleted", done.Deleted,
-				"failed", done.Failed,
-				"bytes_reclaimed", done.Bytes)
 		}
 	}
 
 	// Then the meter, which nobody is waiting on within the minute but which every usage page
 	// and every month close reads.
 	if j.opts.Meter != nil {
-		done, err := j.opts.Meter.Run(ctx)
-		j.stats.metered.Add(int64(done.Rows))
+		err := jobs.Time(ctx, rec, jobs.UsageMeter, j.now, func() (map[string]int64, error) {
+			done, err := j.opts.Meter.Run(ctx)
+			j.stats.metered.Add(int64(done.Rows))
+			if done.Rows > 0 || done.Finalled > 0 {
+				j.log.Info("usage meter pass",
+					"days", done.Days,
+					"rows", done.Rows,
+					"days_finalized", done.Finalled)
+			}
+			return map[string]int64{
+				"days": int64(done.Days), "rows": int64(done.Rows), "days_finalized": int64(done.Finalled),
+			}, err
+		})
 		if err != nil {
 			problems = append(problems, fmt.Errorf("usage meter: %w", err))
-		}
-		if done.Rows > 0 || done.Finalled > 0 {
-			j.log.Info("usage meter pass",
-				"days", done.Days,
-				"rows", done.Rows,
-				"days_finalized", done.Finalled)
 		}
 	}
 
 	// And credit expiry last, because it is the one job whose lateness costs nothing: a spend
 	// already refuses a lapsed lot, so all this pass moves is the number on a statement.
 	if j.opts.Credit != nil {
-		done, err := j.opts.Credit.Run(ctx, j.now())
-		j.stats.lapsed.Add(int64(done))
+		err := jobs.Time(ctx, rec, jobs.CreditExpiry, j.now, func() (map[string]int64, error) {
+			done, err := j.opts.Credit.Run(ctx, j.now())
+			j.stats.lapsed.Add(int64(done))
+			if done > 0 {
+				j.log.Info("credit expiry pass", "lots_written_off", done)
+			}
+			return map[string]int64{"lots_written_off": int64(done)}, err
+		})
 		if err != nil {
 			problems = append(problems, fmt.Errorf("credit expiry: %w", err))
-		}
-		if done > 0 {
-			j.log.Info("credit expiry pass", "lots_written_off", done)
 		}
 	}
 

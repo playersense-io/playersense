@@ -186,6 +186,26 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/v1/operator/jobs": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * The worker's jobs
+         * @description Each job's passes over the range (the nightly derivation, erasures, exports, archive expiry, the usage meter and credit expiry): runs, failures, the last error, how long they take and what the latest did; the latest two hundred passes; and what waits on them: erasures by state with those past their one-month deadline, exports, and archive objects due, stuck or failed. No player's identifier.
+         */
+        readonly get: operations["get_v1_operator_jobs"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/v1/operator/me": {
         readonly parameters: {
             readonly query?: never;
@@ -652,6 +672,26 @@ export interface paths {
         readonly get: operations["get_v1_operator_projects_by_project"];
         readonly put?: never;
         readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/operator/projects/{project}/archive-manifests/{manifest_id}/retry": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Hand a failed archive object back to the sweep
+         * @description For after its cause is fixed. The next pass tries it again and, if the cause is still there, fails it again with the reason.
+         */
+        readonly post: operations["post_v1_operator_projects_by_project_archive_manifests_by_manifest_id_retry"];
         readonly delete?: never;
         readonly options?: never;
         readonly head?: never;
@@ -2016,6 +2056,35 @@ export interface components {
             readonly build?: string;
             readonly version: string;
         };
+        readonly ArchiveFailureOut: {
+            readonly bucket: string;
+            /** Format: date-time */
+            readonly delete_after: string;
+            readonly failure_reason?: string;
+            readonly id: string;
+            readonly object_path: string;
+            readonly project_id: string;
+            /** Format: int64 */
+            readonly size_bytes: number;
+            /** Format: date-time */
+            readonly updated_at: string;
+        };
+        readonly ArchiveQueueOut: {
+            /**
+             * Format: int64
+             * @description Marked deleting; a pass stopped between the mark and the delete
+             */
+            readonly deleting: number;
+            /**
+             * Format: int64
+             * @description Durable objects past delete_after: the sweep's backlog
+             */
+            readonly due: number;
+            /** Format: int64 */
+            readonly failed: number;
+            /** @description Failed objects, newest first, up to a hundred; each can be retried once its cause is fixed */
+            readonly failures: readonly components["schemas"]["ArchiveFailureOut"][];
+        };
         readonly AuditEventOut: {
             /** @description A dotted name from the same family as the permissions: member.invite, liveops.publish */
             readonly action: string;
@@ -2499,6 +2568,39 @@ export interface components {
              */
             readonly tombstoned_at?: string | null;
         };
+        readonly ErasureQueueOut: {
+            readonly by_status: {
+                readonly [key: string]: number;
+            };
+            /** @description Not completed, oldest first, up to a hundred */
+            readonly open: readonly components["schemas"]["ErasureRequestOut"][];
+            /**
+             * Format: int64
+             * @description Open past the one-month deadline
+             */
+            readonly overdue: number;
+        };
+        readonly ErasureRequestOut: {
+            /** Format: int32 */
+            readonly devices_deleted: number;
+            /** Format: date-time */
+            readonly due_at: string;
+            readonly failure_reason?: string;
+            readonly id: string;
+            /** Format: int32 */
+            readonly objects_redacted: number;
+            readonly project?: string;
+            readonly project_id: string;
+            /** Format: int32 */
+            readonly project_seq: number;
+            /** Format: date-time */
+            readonly received_at: string;
+            readonly status: string;
+            /** Format: date-time */
+            readonly tombstoned_at?: string | null;
+            /** Format: date-time */
+            readonly updated_at: string;
+        };
         readonly ErrorBody: {
             readonly code: string;
             readonly details?: readonly components["schemas"]["ErrorDetail"][];
@@ -2758,6 +2860,26 @@ export interface components {
             readonly size_bytes: number;
             /** @description received, running, completed, failed or expired */
             readonly status: string;
+        };
+        readonly ExportQueueOut: {
+            readonly by_status: {
+                readonly [key: string]: number;
+            };
+            /** @description Received, running or failed, oldest first, up to a hundred */
+            readonly open: readonly components["schemas"]["ExportRequestOut"][];
+        };
+        readonly ExportRequestOut: {
+            readonly failure_reason?: string;
+            readonly id: string;
+            readonly project?: string;
+            readonly project_id: string;
+            /** Format: int32 */
+            readonly project_seq: number;
+            /** Format: date-time */
+            readonly received_at: string;
+            readonly status: string;
+            /** Format: date-time */
+            readonly updated_at: string;
         };
         readonly Filter: {
             /** @description A sticky cohort dimension */
@@ -3157,6 +3279,55 @@ export interface components {
         };
         readonly InvoicesOut: {
             readonly invoices: readonly components["schemas"]["InvoiceOut"][];
+        };
+        readonly JobRunOut: {
+            readonly counts?: {
+                readonly [key: string]: number;
+            };
+            readonly error?: string;
+            /** Format: date-time */
+            readonly finished_at: string;
+            readonly host: string;
+            readonly job: string;
+            readonly ok: boolean;
+            /** Format: date-time */
+            readonly started_at: string;
+        };
+        readonly JobSummaryOut: {
+            /** Format: double */
+            readonly avg_ms: number;
+            /** Format: int64 */
+            readonly failures: number;
+            readonly job: string;
+            /** @description What the latest pass did */
+            readonly last_counts?: {
+                readonly [key: string]: number;
+            };
+            readonly last_error?: string;
+            /** Format: date-time */
+            readonly last_failure_at?: string | null;
+            readonly last_ok: boolean;
+            /** Format: date-time */
+            readonly last_run_at?: string | null;
+            /** Format: date-time */
+            readonly last_success_at?: string | null;
+            /** Format: int64 */
+            readonly max_ms: number;
+            /** Format: int64 */
+            readonly runs: number;
+        };
+        readonly JobsOut: {
+            readonly archive: components["schemas"]["ArchiveQueueOut"];
+            readonly erasures: components["schemas"]["ErasureQueueOut"];
+            readonly exports: components["schemas"]["ExportQueueOut"];
+            /** Format: date-time */
+            readonly from: string;
+            /** @description One per job, including any that has not run in the range */
+            readonly jobs: readonly components["schemas"]["JobSummaryOut"][];
+            /** @description The latest two hundred passes, newest first */
+            readonly recent: readonly components["schemas"]["JobRunOut"][];
+            /** Format: date-time */
+            readonly to: string;
         };
         readonly LedgerEntryOut: {
             readonly amount: string;
@@ -5157,6 +5328,80 @@ export interface operations {
                 };
                 content: {
                     readonly "application/json": components["schemas"]["IngestionOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account is not staff, or lacks the role this needs */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ClickHouse could not be read */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly get_v1_operator_jobs: {
+        readonly parameters: {
+            readonly query?: {
+                /** @description YYYY-MM-DD. Defaults to seven days ago */
+                readonly from?: string;
+                /** @description YYYY-MM-DD. Defaults to today */
+                readonly to?: string;
+                /** @description Only this job's runs: derivation, erasure, export, archive_expiry, usage_meter or credit_expiry */
+                readonly job?: "" | "derivation" | "erasure" | "export" | "archive_expiry" | "usage_meter" | "credit_expiry";
+                /** @description Only runs that failed */
+                readonly failed?: boolean;
+            };
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["JobsOut"];
                 };
             };
             /** @description No usable sign-in was presented */
@@ -7522,6 +7767,98 @@ export interface operations {
                 };
             };
             /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly post_v1_operator_projects_by_project_archive_manifests_by_manifest_id_retry: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description A ticket reference for why this customer's data is being read: recorded in staff_access */
+                readonly "X-Staff-Ticket": string;
+                /** @description An optional line beside the ticket */
+                readonly "X-Staff-Note"?: string;
+            };
+            readonly path: {
+                /** @description The project's id */
+                readonly project: string;
+                readonly manifest_id: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ArchiveFailureOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account is not staff, or lacks the role this needs */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This project has no archive object with that id */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The object has not failed */
+            readonly 409: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ClickHouse could not be read */
             readonly 503: {
                 headers: {
                     readonly [name: string]: unknown;

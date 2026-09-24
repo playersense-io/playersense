@@ -112,9 +112,10 @@ func TestEveryMutatingRouteDecidesAboutAudit(t *testing.T) {
 
 		// Who is staff is not a customer's business, and each change is in staff_access with
 		// the admin who made it and a ticket.
-		"POST /v1/operator/stripe-events/{event_id}/replay": "recorded in staff_access; what it moves is on the ledger under Stripe's reference",
-		"POST /v1/operator/staff":                           "recorded in staff_access",
-		"PUT /v1/operator/staff/{staff_id}":                 "recorded in staff_access",
+		"POST /v1/operator/projects/{project}/archive-manifests/{manifest_id}/retry": "recorded in staff_access; the manifest keeps its own state",
+		"POST /v1/operator/stripe-events/{event_id}/replay":                          "recorded in staff_access; what it moves is on the ledger under Stripe's reference",
+		"POST /v1/operator/staff":                                                    "recorded in staff_access",
+		"PUT /v1/operator/staff/{staff_id}":                                          "recorded in staff_access",
 
 		// Payments (ADR 0040). Opening a Checkout page or the portal changes nothing on our side
 		// until Stripe reports a payment, and a payment is recorded better than a log line could:

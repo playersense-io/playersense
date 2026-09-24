@@ -34,6 +34,7 @@ import (
 	"time"
 
 	"playersense.dev/backend/internal/cohort"
+	"playersense.dev/backend/internal/jobs"
 	"playersense.dev/backend/internal/rollup"
 )
 
@@ -78,6 +79,9 @@ type Options struct {
 	//
 	// Thirteen covers the 365-day offset the dense set runs to, plus the current month.
 	CohortMonths int
+
+	// Recorder keeps a row per pass for the operations console (job_runs). Nil keeps none.
+	Recorder jobs.Recorder
 }
 
 // TimeOfDay is an hour and minute, in UTC.
@@ -283,6 +287,18 @@ func (s *Scheduler) loop(ctx context.Context) {
 // Exported so `worker once` and the tests drive exactly what the timer drives. A scheduled
 // job whose manual form takes a different path is a job whose manual form is untested.
 func (s *Scheduler) Run(ctx context.Context) error {
+	var counts map[string]int64
+	return jobs.Time(ctx, s.opts.Recorder, jobs.Derivation, s.now, func() (map[string]int64, error) {
+		err := s.derive(ctx, &counts)
+		return counts, err
+	})
+}
+
+// derive is one pass, reporting what it did into counts as it goes so a pass that fails part way
+// still says how far it got.
+func (s *Scheduler) derive(ctx context.Context, report *map[string]int64) error {
+	counts := map[string]int64{}
+	*report = counts
 	started := s.now()
 	asOf := started
 
@@ -316,6 +332,7 @@ func (s *Scheduler) Run(ctx context.Context) error {
 		if err := cohorts.DeriveSizes(ctx, m, asOf); err != nil {
 			return fmt.Errorf("cohort sizes for %s: %w", m, err)
 		}
+		counts["cohort_months"]++
 	}
 
 	// Then the facts, one activity month at a time, each month's three tables together.
@@ -332,6 +349,7 @@ func (s *Scheduler) Run(ctx context.Context) error {
 			return fmt.Errorf("backfill cohort keys for %s: %w", m, err)
 		}
 		if repaired.DeviceDays > 0 {
+			counts["backfilled_devices"] += int64(repaired.Devices)
 			s.stats.backfilled.Add(int64(repaired.Devices))
 			s.log.Warn("repaired device-days the writer could not stamp",
 				"month", m.String(),
@@ -361,6 +379,7 @@ func (s *Scheduler) Run(ctx context.Context) error {
 		if err := rollups.DeriveExperiments(ctx, m); err != nil {
 			return fmt.Errorf("experiments for %s: %w", m, err)
 		}
+		counts["activity_months"]++
 	}
 
 	// Last, and after the derivations rather than before them. A device pruned now was
@@ -373,6 +392,7 @@ func (s *Scheduler) Run(ctx context.Context) error {
 			return fmt.Errorf("prune player_lifetime: %w", err)
 		}
 		if pruned.Deleted > 0 {
+			counts["pruned_devices"] += int64(pruned.Deleted)
 			s.stats.pruned.Add(int64(pruned.Deleted))
 			s.log.Info("forgot devices that have not been seen in a long time",
 				"devices", pruned.Deleted, "unseen_for", s.opts.LifetimeRetention.String())
