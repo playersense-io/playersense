@@ -61,17 +61,23 @@ func Templates() []Template {
 			// Integrates the SDK and drafts configuration. No publish: shipping a
 			// change to live players is the irreversible half, and it is the one thing
 			// this role is deliberately short of.
+			//
+			// Individual players too: "is my phone's event arriving" is answered by one
+			// player's timeline and an event's latest occurrences, and it is the first thing
+			// somebody integrating the SDK asks.
 			Permissions: []Permission{
 				KeyRead, KeyCreate, KeyRevoke,
 				LiveOpsRead, LiveOpsWrite,
-				AnalyticsRead,
+				AnalyticsRead, PlayerRead,
 			},
 		},
 		{
 			Key: RoleGrowthManager, Name: "Growth Manager",
-			// Reads the numbers and sees what is scheduled, changes neither.
+			// Reads the numbers and sees what is scheduled, changes neither. Reads players
+			// as well, since finding the whales and the lapsed is most of the job; a studio
+			// that wants the numbers alone removes player.read.
 			Permissions: []Permission{
-				AnalyticsRead, LiveOpsRead,
+				AnalyticsRead, PlayerRead, LiveOpsRead,
 			},
 		},
 		{

@@ -67,6 +67,11 @@ const (
 	KeyRevoke Permission = "key.revoke"
 
 	AnalyticsRead Permission = "analytics.read"
+	// Reading one player rather than a crowd: a directory of installs, one player's timeline,
+	// the purchases ledger, the sessions and events as they arrive. Every answer names somebody
+	// by the identifier the game gave them, so it is a separate grant from the aggregates, and a
+	// studio can hand the numbers to somebody without handing over its players.
+	PlayerRead Permission = "player.read"
 
 	// Writing an event is reversible. Publishing one is not — players have already seen
 	// it — so the two are separate permissions, and that separation is what replaces the
@@ -106,6 +111,7 @@ var scopes = map[Permission]Scope{
 	KeyRevoke: ScopeProject,
 
 	AnalyticsRead: ScopeProject,
+	PlayerRead:    ScopeProject,
 
 	LiveOpsRead:    ScopeProject,
 	LiveOpsWrite:   ScopeProject,
@@ -135,6 +141,7 @@ var reads = map[Permission]bool{
 	AuditRead:     true,
 	KeyRead:       true,
 	AnalyticsRead: true,
+	PlayerRead:    true,
 	LiveOpsRead:   true,
 	PrivacyRead:   true,
 }
