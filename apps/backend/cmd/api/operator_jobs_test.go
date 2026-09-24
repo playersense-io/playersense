@@ -123,3 +123,19 @@ func TestAFailedArchiveObjectGoesBackToTheSweep(t *testing.T) {
 	ops.Post("/v1/operator/projects/" + otherProj.UID.String() + "/archive-manifests/" + m.UID.String() + "/retry").
 		AssertStatus(http.StatusNotFound)
 }
+
+// TestTheQueuePageNamesEveryWriter: each consumer group, read from the bus this deployment runs.
+func TestTheQueuePageNamesEveryWriter(t *testing.T) {
+	s := newStack(t)
+	ops, _ := s.staffClient(t, staff.Ops)
+	queue := testclient.Decoded[schemas.QueueOut](ops.Get("/v1/operator/queue").AssertStatus(http.StatusOK))
+	if queue.Bus == "" || len(queue.Groups) != 3 {
+		t.Fatalf("queue %+v", queue)
+	}
+	for _, g := range queue.Groups {
+		if g.Error != "" {
+			t.Fatalf("%s could not be read: %s", g.Group, g.Error)
+		}
+	}
+	ops.Get("/v1/operator/queue?hours=500").AssertStatus(http.StatusUnprocessableEntity)
+}

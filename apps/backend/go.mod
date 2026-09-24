@@ -3,6 +3,7 @@ module playersense.dev/backend
 go 1.27.0
 
 require (
+	cloud.google.com/go/monitoring v1.29.0
 	cloud.google.com/go/pubsub v1.51.1
 	cloud.google.com/go/storage v1.67.1
 	entgo.io/ent v0.14.6
@@ -16,6 +17,8 @@ require (
 	github.com/stripe/stripe-go/v85 v85.1.0
 	github.com/valkey-io/valkey-go v1.0.77
 	golang.org/x/crypto v0.57.0
+	google.golang.org/api v0.287.1
+	google.golang.org/protobuf v1.36.12
 	muzak.dev/framework v0.2.7
 )
 
@@ -27,7 +30,6 @@ require (
 	cloud.google.com/go/auth/oauth2adapt v0.2.8 // indirect
 	cloud.google.com/go/compute/metadata v0.9.0 // indirect
 	cloud.google.com/go/iam v1.11.0 // indirect
-	cloud.google.com/go/monitoring v1.29.0 // indirect
 	cloud.google.com/go/pubsub/v2 v2.6.0 // indirect
 	github.com/ClickHouse/ch-go v0.74.0 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp v1.33.0 // indirect
@@ -89,11 +91,9 @@ require (
 	golang.org/x/sys v0.48.0 // indirect
 	golang.org/x/text v0.42.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
-	google.golang.org/api v0.287.1 // indirect
 	google.golang.org/genproto v0.0.0-20260519071638-aa98bba5eb94 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260630182238-925bb5da69e7 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260831171406-18b4a7587f8a // indirect
 	google.golang.org/grpc v1.83.2 // indirect
-	google.golang.org/protobuf v1.36.12 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

@@ -311,3 +311,43 @@ type RetryManifestIn struct {
 	Project    string    `path:"project" doc:"The project's id"`
 	ManifestID uuid.UUID `path:"manifest_id"`
 }
+
+// ---- the queue --------------------------------------------------------------
+
+// QueueParams narrows the queue page.
+type QueueParams struct {
+	Hours int `query:"hours,omitzero" default:"24" doc:"How far back dead letters are counted, up to a week"`
+}
+
+func (in *QueueParams) Validate(v *muzak.Validation) {
+	v.Number(&in.Hours).Min(1).Max(168)
+}
+
+// QueueOut is how far behind each writer is.
+type QueueOut struct {
+	Bus       string          `json:"bus" doc:"local (the NDJSON spool) or pubsub"`
+	CheckedAt time.Time       `json:"checked_at"`
+	Groups    []QueueGroupOut `json:"groups"`
+}
+
+// QueueGroupOut is one consumer group: analytics-writer's, archive-writer's or billing-writer's.
+type QueueGroupOut struct {
+	Group        string           `json:"group"`
+	Messages     int64            `json:"messages" doc:"Batches not yet consumed"`
+	Bytes        int64            `json:"bytes"`
+	OldestUnread *time.Time       `json:"oldest_unread_at,omitzero" doc:"When the gateway accepted the oldest batch not yet consumed; absent when caught up"`
+	LagSeconds   int64            `json:"lag_seconds" doc:"How long that batch has waited"`
+	DeadLettered int64            `json:"dead_lettered" doc:"Batches parked over the window"`
+	Parked       []ParkedBatchOut `json:"parked,omitzero" doc:"The latest parked, newest first; the local bus only"`
+	Error        string           `json:"error,omitzero" doc:"Why this group could not be read; the others still are"`
+}
+
+// ParkedBatchOut is why one batch was dead-lettered, without its events.
+type ParkedBatchOut struct {
+	Reason     string    `json:"reason"`
+	FailedAt   time.Time `json:"failed_at"`
+	Attempts   int       `json:"attempts"`
+	DedupKey   string    `json:"dedup_key"`
+	ProjectID  string    `json:"project_id"`
+	EventCount int       `json:"event_count"`
+}

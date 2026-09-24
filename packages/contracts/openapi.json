@@ -4582,6 +4582,92 @@
         }
       }
     },
+    "/v1/operator/queue": {
+      "get": {
+        "tags": [
+          "operator"
+        ],
+        "summary": "How far behind each writer is",
+        "description": "For analytics-writer, archive-writer and billing-writer: batches and bytes not yet consumed, when the gateway accepted the oldest and how long it has waited, and what each dead-lettered over the window. From the NDJSON spool locally, and from Cloud Monitoring on Pub/Sub, where the numbers trail by a minute or two.",
+        "operationId": "get_v1_operator_queue",
+        "parameters": [
+          {
+            "name": "hours",
+            "in": "query",
+            "description": "How far back dead letters are counted, up to a week",
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "default": "24",
+              "minimum": 1,
+              "maximum": 168
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueueOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account is not staff, or lacks the role this needs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ClickHouse could not be read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/operator/staff": {
       "get": {
         "tags": [
@@ -19187,6 +19273,40 @@
           "slug"
         ]
       },
+      "ParkedBatchOut": {
+        "type": "object",
+        "properties": {
+          "attempts": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "dedup_key": {
+            "type": "string"
+          },
+          "event_count": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "failed_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "project_id": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "attempts",
+          "dedup_key",
+          "event_count",
+          "failed_at",
+          "project_id",
+          "reason"
+        ]
+      },
       "PartitionOut": {
         "type": "object",
         "properties": {
@@ -19940,6 +20060,83 @@
         "required": [
           "purchases",
           "verified"
+        ]
+      },
+      "QueueGroupOut": {
+        "type": "object",
+        "properties": {
+          "bytes": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "dead_lettered": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Batches parked over the window"
+          },
+          "error": {
+            "type": "string",
+            "description": "Why this group could not be read; the others still are"
+          },
+          "group": {
+            "type": "string"
+          },
+          "lag_seconds": {
+            "type": "integer",
+            "format": "int64",
+            "description": "How long that batch has waited"
+          },
+          "messages": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Batches not yet consumed"
+          },
+          "oldest_unread_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When the gateway accepted the oldest batch not yet consumed; absent when caught up"
+          },
+          "parked": {
+            "type": "array",
+            "description": "The latest parked, newest first; the local bus only",
+            "items": {
+              "$ref": "#/components/schemas/ParkedBatchOut"
+            }
+          }
+        },
+        "required": [
+          "bytes",
+          "dead_lettered",
+          "group",
+          "lag_seconds",
+          "messages"
+        ]
+      },
+      "QueueOut": {
+        "type": "object",
+        "properties": {
+          "bus": {
+            "type": "string",
+            "description": "local (the NDJSON spool) or pubsub"
+          },
+          "checked_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QueueGroupOut"
+            }
+          }
+        },
+        "required": [
+          "bus",
+          "checked_at",
+          "groups"
         ]
       },
       "RateCardOut": {

@@ -698,6 +698,26 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/v1/operator/queue": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * How far behind each writer is
+         * @description For analytics-writer, archive-writer and billing-writer: batches and bytes not yet consumed, when the gateway accepted the oldest and how long it has waited, and what each dead-lettered over the window. From the NDJSON spool locally, and from Cloud Monitoring on Pub/Sub, where the numbers trail by a minute or two.
+         */
+        readonly get: operations["get_v1_operator_queue"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/v1/operator/staff": {
         readonly parameters: {
             readonly query?: never;
@@ -3885,6 +3905,17 @@ export interface components {
             readonly name: string;
             readonly slug: string;
         };
+        readonly ParkedBatchOut: {
+            /** Format: int64 */
+            readonly attempts: number;
+            readonly dedup_key: string;
+            /** Format: int64 */
+            readonly event_count: number;
+            /** Format: date-time */
+            readonly failed_at: string;
+            readonly project_id: string;
+            readonly reason: string;
+        };
         readonly PartitionOut: {
             readonly partition: string;
             /** Format: int64 */
@@ -4121,6 +4152,42 @@ export interface components {
             readonly purchases: readonly components["schemas"]["PurchaseOut"][];
             /** @description Always false: these are purchases the game reported */
             readonly verified: boolean;
+        };
+        readonly QueueGroupOut: {
+            /** Format: int64 */
+            readonly bytes: number;
+            /**
+             * Format: int64
+             * @description Batches parked over the window
+             */
+            readonly dead_lettered: number;
+            /** @description Why this group could not be read; the others still are */
+            readonly error?: string;
+            readonly group: string;
+            /**
+             * Format: int64
+             * @description How long that batch has waited
+             */
+            readonly lag_seconds: number;
+            /**
+             * Format: int64
+             * @description Batches not yet consumed
+             */
+            readonly messages: number;
+            /**
+             * Format: date-time
+             * @description When the gateway accepted the oldest batch not yet consumed; absent when caught up
+             */
+            readonly oldest_unread_at?: string | null;
+            /** @description The latest parked, newest first; the local bus only */
+            readonly parked?: readonly components["schemas"]["ParkedBatchOut"][];
+        };
+        readonly QueueOut: {
+            /** @description local (the NDJSON spool) or pubsub */
+            readonly bus: string;
+            /** Format: date-time */
+            readonly checked_at: string;
+            readonly groups: readonly components["schemas"]["QueueGroupOut"][];
         };
         readonly RateCardOut: {
             /** Format: date-time */
@@ -7842,6 +7909,74 @@ export interface operations {
             };
             /** @description The object has not failed */
             readonly 409: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ClickHouse could not be read */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly get_v1_operator_queue: {
+        readonly parameters: {
+            readonly query?: {
+                /** @description How far back dead letters are counted, up to a week */
+                readonly hours?: number;
+            };
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["QueueOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account is not staff, or lacks the role this needs */
+            readonly 403: {
                 headers: {
                     readonly [name: string]: unknown;
                 };

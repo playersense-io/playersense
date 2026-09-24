@@ -301,6 +301,7 @@ func build(settings config.Settings, overrides ...muzak.RouterOption) (*muzak.Ap
 		muzak.WithSingleton(settings),
 		muzak.WithSingleton(engine),
 		muzak.WithSingleton(ops.New(ch)),
+		muzak.WithSingleton(backlogReader(settings)),
 		muzak.WithSingleton(store),
 		muzak.WithSingleton(liveStore),
 		muzak.WithSingleton(playerFacts),
@@ -545,4 +546,13 @@ func repoRoot() string {
 		}
 		dir = parent
 	}
+}
+
+// backlogReader reads the queue the writers consume, for the console's queue page: the spool the
+// local bus writes, or Pub/Sub's subscriptions through Cloud Monitoring.
+func backlogReader(settings config.Settings) eventbus.BacklogReader {
+	if settings.EventBus == "pubsub" {
+		return eventbus.NewPubSubBacklog(settings.PubSubProjectID, settings.PubSubTopic)
+	}
+	return eventbus.NewLocal(settings.EventBusDir)
 }

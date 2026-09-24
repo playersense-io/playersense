@@ -499,6 +499,7 @@ POST             /v1/operator/stripe-events/{id}/replay   handle a failed or ign
 GET              /v1/operator/ingestion       ops: every tenant's events, bytes, batches, lag
 GET              /v1/operator/clickhouse      ops: replication, merges, mutations, parts, memory
 GET              /v1/operator/storage         ops: bytes on disk by table and project
+GET              /v1/operator/queue           ops: each writer's unconsumed batches, their age, dead letters
 GET              /v1/operator/jobs            ops: every worker pass, its failures, and the erasure,
                                               export and archive queues waiting on them
 POST             /v1/operator/projects/{id}/archive-manifests/{m}/retry   hand a failed object back
