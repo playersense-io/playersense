@@ -25,15 +25,42 @@ const props = withDefaults(defineProps<{
   label: string
   /** A theme colour for the bars; the accent when absent. */
   tone?: string
+  /** While the rows are on their way: this many rows of bones, each at a row's height. */
+  loading?: boolean
+  /** How many rows to draw while loading. */
+  skeletonRows?: number
 }>(), {
-  tone: 'primary'
+  tone: 'primary',
+  loading: false,
+  skeletonRows: 6
 })
 
 const largest = computed(() => Math.max(0, ...props.rows.map(row => row.value)) || 1)
 </script>
 
 <template>
-  <ul :aria-label="label" class="m-0 flex list-none flex-col p-0">
+  <ul
+    v-if="loading"
+    :aria-label="`Loading ${label}`"
+    aria-busy="true"
+    class="m-0 flex list-none flex-col p-0"
+  >
+    <li
+      v-for="index in skeletonRows"
+      :key="index"
+      aria-hidden="true"
+      class="grid min-w-0 grid-cols-[minmax(0,11rem)_minmax(3rem,1fr)_auto] items-center gap-3 py-1.5 text-[13px]"
+    >
+      <!-- A line of the row's own text high, so a bone row is as tall as the row it stands for. -->
+      <span class="flex h-lh items-center gap-2">
+        <span class="ps-bone size-3.5 rounded-full!" />
+        <span :style="{ width: `${4 + (index * 37) % 4}rem` }" class="ps-bone h-3" />
+      </span>
+      <span :style="{ width: `${Math.max(14, 92 - index * 9)}%` }" class="ps-bone h-1.5 rounded-full!" />
+      <span class="ps-bone h-3 w-14" />
+    </li>
+  </ul>
+  <ul v-else :aria-label="label" class="m-0 flex list-none flex-col p-0">
     <li
       v-for="row in rows"
       :key="row.key"

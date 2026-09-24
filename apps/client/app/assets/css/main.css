@@ -3,5 +3,6 @@
 @import "@playersense/dashboard/app/assets/css/dashboard.css";
 @import "./code.css";
 @import "./date-picker.css";
+@import "./bone.css";
 
 @source "../../";

@@ -13,6 +13,8 @@ const props = defineProps<{
   values: readonly (readonly number[])[]
   /** What a cell counts: "session starts". */
   unit: string
+  /** While the counts are on their way: the four figures and the week as bones. */
+  loading?: boolean
 }>()
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -110,7 +112,29 @@ const facts = computed<Fact[]>(() => {
 </script>
 
 <template>
-  <div class="flex flex-col gap-5">
+  <!-- Loading: the four figures and a week of cells, at their own sizes, so nothing jumps. -->
+  <div
+    v-if="loading"
+    :aria-label="`Loading ${unit} by hour`"
+    aria-busy="true"
+    class="flex flex-col gap-5"
+  >
+    <div aria-hidden="true" class="grid grid-cols-2 gap-px overflow-hidden rounded-(--ps-radius) border border-line bg-line lg:grid-cols-4">
+      <div v-for="index in 4" :key="index" class="flex flex-col gap-2 bg-surface p-3">
+        <span class="ps-bone h-2.5 w-20" />
+        <span class="ps-bone h-4 w-28" />
+        <span class="ps-bone h-2.5 w-24" />
+      </div>
+    </div>
+    <div aria-hidden="true" class="grid items-center gap-1 [grid-template-columns:2rem_repeat(24,minmax(0,1fr))]">
+      <template v-for="row in 7" :key="row">
+        <span class="ps-bone h-2.5 w-6" />
+        <span v-for="hour in 24" :key="hour" class="ps-bone aspect-square rounded-[5px]!" />
+      </template>
+    </div>
+  </div>
+
+  <div v-else class="flex flex-col gap-5">
     <FactGrid :columns="4" :facts="facts" label="When players play, in words" />
 
     <div ref="box" class="ps-week-heatmap min-w-0">

@@ -8,6 +8,8 @@
 // shares side by side and how far apart they are.
 const props = defineProps<{
   packages: readonly PackageWeight[]
+  /** While the figures are on their way: the sentence, the bar and the rows as bones. */
+  loading?: boolean
 }>()
 
 const MEASURES: SegmentedOption[] = [
@@ -59,7 +61,53 @@ const summary = computed(() => {
 </script>
 
 <template>
-  <div class="flex flex-col">
+  <!-- Loading: every part in its own place and at its own size, so the card does not jump. -->
+  <div
+    v-if="loading"
+    aria-busy="true"
+    aria-label="Loading package weights"
+    class="flex flex-col"
+  >
+    <div aria-hidden="true" class="flex flex-col gap-3 border-b border-line px-5 py-4">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <span class="flex flex-col gap-1.5">
+          <span class="ps-bone h-3 w-[28rem] max-w-full" />
+          <span class="ps-bone h-3 w-64" />
+        </span>
+        <SegmentedControl
+          v-model="measureModel"
+          :options="MEASURES"
+          disabled
+          label="Weigh packages"
+        />
+      </div>
+      <span class="ps-bone h-3 w-full rounded-full!" />
+      <span class="flex flex-wrap gap-x-4 gap-y-1">
+        <span
+          v-for="index in 6"
+          :key="index"
+          :style="{ width: `${4 + (index * 3) % 4}rem` }"
+          class="ps-bone h-2.5"
+        />
+      </span>
+    </div>
+    <ul aria-hidden="true" class="m-0 flex list-none flex-col p-0">
+      <li v-for="index in 6" :key="index" class="grid grid-cols-[minmax(0,1fr)_14rem_14rem_10rem] items-center gap-3 border-b border-line/70 px-5 py-3.5 last:border-b-0">
+        <span class="flex items-center gap-2.5">
+          <span class="ps-bone size-2.5" />
+          <span class="flex flex-col gap-1.5">
+            <span :style="{ width: `${6 + (index * 5) % 5}rem` }" class="ps-bone h-3" />
+            <span class="ps-bone h-2.5 w-24" />
+          </span>
+        </span>
+        <span :style="{ width: `${Math.max(20, 90 - index * 13)}%` }" class="ps-bone h-1.5 rounded-full!" />
+        <span :style="{ width: `${Math.max(20, 80 - index * 9)}%` }" class="ps-bone h-1.5 rounded-full!" />
+        <span class="ps-bone ml-auto h-3 w-28" />
+      </li>
+    </ul>
+  </div>
+
+  <div v-else class="flex flex-col">
     <div class="flex flex-col gap-3 border-b border-line px-5 py-4">
       <div class="flex flex-wrap items-center justify-between gap-3">
         <p class="m-0 max-w-2xl text-xs leading-5 text-ink/65">

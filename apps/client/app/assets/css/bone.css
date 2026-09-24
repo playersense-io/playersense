@@ -1,0 +1,7 @@
+/* The panel's bone, still, as MetricSkeleton and KpiBoard draw theirs: the shape of something
+   on its way, in the place and at the size it will take. A plain element anywhere can be one. */
+.ps-bone {
+  background: var(--ps-skeleton-bone);
+  border-radius: var(--ps-radius-x-small);
+  display: block;
+}

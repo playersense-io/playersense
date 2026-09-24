@@ -292,20 +292,32 @@ function downloadLedger() {
 
     <!-- Which packages carry the shop: by how often they are bought, and by what they earn. -->
     <SectionCard :padded="false" description="Each package's share of every purchase beside its share of every dollar. Packages bought most are rarely the ones that earn most." title="Package weights">
-      <PackageWeights :packages="data.packages" />
+      <PackageWeights :loading="pending" :packages="data.packages" />
     </SectionCard>
 
     <!-- Where: every market in a row of its own, the list flowing into two columns on one scale. -->
     <SectionCard description="Where purchases are made, by revenue, with how many and what a purchase is worth there." title="Sales by country">
-      <ShareList :rows="countryRows" class="ps-country-columns" label="Sales by country" />
-      <p v-if="data.countries.length > 12" class="m-0 mt-2 text-[11px] text-ink/45">
+      <ShareList
+        :loading="pending"
+        :rows="countryRows"
+        :skeleton-rows="12"
+        class="ps-country-columns"
+        label="Sales by country"
+      />
+      <p v-if="!pending && data.countries.length > 12" class="m-0 mt-2 text-[11px] text-ink/45">
         And {{ data.countries.length - 12 }} more. Insights > Revenue breaks every country down in full.
       </p>
     </SectionCard>
 
     <div class="grid gap-5 lg:grid-cols-2">
       <SectionCard description="Where the purchases below were made." title="By store">
-        <ShareList :rows="storeRows" label="Purchases by store" tone="chart-6" />
+        <ShareList
+          :loading="pending"
+          :rows="storeRows"
+          :skeleton-rows="4"
+          label="Purchases by store"
+          tone="chart-6"
+        />
       </SectionCard>
       <MetricCard
         :categories="priceCategories"
@@ -321,7 +333,7 @@ function downloadLedger() {
     </div>
 
     <SectionCard description="Purchases in each hour of the week, by the player's own clock: when to open an offer so it is seen." title="When players buy">
-      <WeekHeatmap :values="data.week" unit="purchases" />
+      <WeekHeatmap :loading="pending" :values="data.week" unit="purchases" />
     </SectionCard>
 
     <!-- Every purchase, newest first. -->
