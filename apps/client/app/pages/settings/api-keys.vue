@@ -80,7 +80,6 @@ const filters = ref<Record<string, string[]>>({ environment: [] })
 const FILTER_GROUPS: FilterGroup[] = [
   { key: 'environment', label: 'Environment', options: ENVIRONMENTS.slice().reverse().map(value => ({ value, label: ENVIRONMENT_LABELS[value] })) }
 ]
-const showRevoked = ref(false)
 const query = ref('')
 
 const activeFilters = computed<ActiveFilter[]>(() => [
@@ -101,13 +100,11 @@ function clearFilters() {
 const shown = computed(() => {
   const needle = query.value.trim().toLowerCase()
   const environments = filters.value.environment ?? []
-  return keys.value.filter(key => (showRevoked.value || !key.revoked_at)
-    && (kindFilter.value === 'all' || key.kind === kindFilter.value)
+  /* A revoked key does nothing and can do nothing: it is not listed. */
+  return active.value.filter(key => (kindFilter.value === 'all' || key.kind === kindFilter.value)
     && (!environments.length || environments.includes(key.environment))
     && (!needle || key.name.toLowerCase().includes(needle) || key.public_id.includes(needle) || key.created_by.includes(needle)))
 })
-
-const revokedCount = computed(() => keys.value.length - active.value.length)
 
 const COLUMNS: DataTableColumn<ApiKeyDef>[] = [
   { key: 'name', title: 'Key', fixed: true, minWidth: 250, skeleton: 'identity' },
@@ -232,15 +229,6 @@ function confirmRevoke() {
           placeholder="Name or public id"
         />
         <FilterMenu v-model="filters" :groups="FILTER_GROUPS" />
-        <v-switch
-          v-model="showRevoked"
-          :label="`Revoked ${revokedCount}`"
-          class="flex-none"
-          color="primary"
-          density="compact"
-          hide-details
-          inset
-        />
       </TableToolbar>
 
       <DataTable
@@ -254,15 +242,14 @@ function confirmRevoke() {
         label="API keys"
       >
         <template #cell.name="{ item }">
-          <span :class="item.revoked_at ? 'opacity-55' : ''" class="flex min-w-0 items-center gap-3 py-1.5">
+          <span class="flex min-w-0 items-center gap-3 py-1.5">
             <span aria-hidden="true" class="flex size-8 flex-none items-center justify-center rounded-(--ps-radius) bg-ink/5 text-base text-ink/60">
-              <Icon :name="item.revoked_at ? 'material-symbols:key-off-outline' : API_KEY_KINDS[item.kind].icon" />
+              <Icon :name="API_KEY_KINDS[item.kind].icon" />
             </span>
             <span class="flex min-w-0 flex-col">
               <span class="flex items-center gap-2">
                 <span class="truncate text-[13px] text-ink">{{ item.name }}</span>
-                <StatusBadge v-if="item.revoked_at" :label="`Revoked ${stamp(item.revoked_at)}`" tone="neutral" />
-                <span v-else-if="item.replaced_by" class="rounded-full bg-warning/12 px-1.5 text-[10px] leading-4 font-medium text-warning">Replaced</span>
+                <span v-if="item.replaced_by" class="rounded-full bg-warning/12 px-1.5 text-[10px] leading-4 font-medium text-warning">Replaced</span>
               </span>
               <span class="flex items-center gap-1">
                 <span class="truncate font-mono text-[11px] text-ink/45">{{ item.public_id }}</span>
@@ -296,7 +283,6 @@ function confirmRevoke() {
         </template>
         <template #actions="{ item }">
           <v-btn
-            v-if="!item.revoked_at"
             :aria-label="`Actions for ${item.name}`"
             icon
             size="small"
