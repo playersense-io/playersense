@@ -271,7 +271,7 @@ the SDK wiring, and with `stripe listen` and the API running, `STRIPE_E2E=1 … 
 real automatic top-up and waits for Stripe's own webhook for it.
 
 **Plans are Stripe subscriptions** ([ADR 0042](docs/adr/0042-plans-are-stripe-subscriptions.md)).
-Enterprise — $99 a month or $999 a year — unlocks `premium_support`, `slack_reports` and `mcp_access`;
+Enterprise, $199 a month or $1,990 a year (ten months' price), unlocks `premium_support`, `slack_reports` and `mcp_access`;
 Free unlocks nothing. Staff set a plan's features with `PUT /v1/operator/plans/{plan}` and its prices
 with `PUT /v1/operator/plans/{plan}/subscription`, which creates the Stripe Product and Prices. A studio
 subscribes with `POST /v1/organizations/{org}/billing/subscription` (a Checkout URL) and manages or
@@ -286,7 +286,7 @@ curl -X POST localhost:21080/v1/operator/plans -H "Authorization: Bearer $TOKEN"
   "features": ["premium_support", "slack_reports", "mcp_access"]}'
 
 curl -X PUT localhost:21080/v1/operator/plans/enterprise/subscription -H "Authorization: Bearer $TOKEN" -d '{
-  "monthly_price_micros": 99000000, "yearly_price_micros": 999000000, "operator": "you@playersense.dev"}'
+  "monthly_price_micros": 199000000, "yearly_price_micros": 1990000000, "operator": "you@playersense.dev"}'
 ```
 
 Enterprise charges players only once it has a rate card of its own — publish one, the same as Free's or
