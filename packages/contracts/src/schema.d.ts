@@ -550,6 +550,26 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/v1/operator/overview": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * The console's front page
+         * @description One line of each area: the pipeline now and today, the node reduced to what should be zero, how far behind each writer is, the worker's last day, and, for billing and support staff, the accounts that need somebody. An area that cannot be read is named in errors while the rest still answer.
+         */
+        readonly get: operations["get_v1_operator_overview"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/v1/operator/plans": {
         readonly parameters: {
             readonly query?: never;
@@ -3950,6 +3970,74 @@ export interface components {
             readonly name: string;
             readonly slug: string;
         };
+        readonly OverviewBillingOut: {
+            /** Format: int64 */
+            readonly accounts_needing_attention: number;
+            /** Format: int64 */
+            readonly stripe_events_failed: number;
+            /** Format: int64 */
+            readonly suspended: number;
+        };
+        readonly OverviewClickHouseOut: {
+            /** Format: int64 */
+            readonly errors_today: number;
+            /** Format: int64 */
+            readonly failing_mutations: number;
+            /**
+             * Format: double
+             * @description Used over total on the fullest disk
+             */
+            readonly fullest_disk_ratio: number;
+            /** Format: int64 */
+            readonly max_replication_delay_seconds: number;
+            /** Format: int64 */
+            readonly most_parts_in_a_partition: number;
+            /** Format: int64 */
+            readonly read_only_replicas: number;
+            /** Format: int64 */
+            readonly replication_queue: number;
+            /** Format: int64 */
+            readonly unfinished_mutations: number;
+            readonly version: string;
+        };
+        readonly OverviewIngestionOut: {
+            /** Format: int64 */
+            readonly bytes_today: number;
+            /** Format: int64 */
+            readonly events_today: number;
+            /** Format: int64 */
+            readonly late_events_today: number;
+            readonly now: components["schemas"]["IngestionNowOut"];
+        };
+        readonly OverviewJobsOut: {
+            /** Format: int64 */
+            readonly archive_objects_failed: number;
+            /** Format: int64 */
+            readonly erasures_open: number;
+            /** Format: int64 */
+            readonly erasures_overdue: number;
+            /** @description Jobs whose latest pass failed */
+            readonly failing_now: readonly string[];
+            /** Format: int64 */
+            readonly failures_24h: number;
+            readonly latest: readonly components["schemas"]["JobSummaryOut"][];
+            /** @description Jobs with no pass in a day; the derivation runs nightly, so it appears here only when a night was missed */
+            readonly not_run_24h: readonly string[];
+        };
+        readonly OverviewOut: {
+            /** @description Present for billing and support staff */
+            readonly billing?: components["schemas"]["OverviewBillingOut"] | null;
+            /** Format: date-time */
+            readonly checked_at: string;
+            readonly clickhouse?: components["schemas"]["OverviewClickHouseOut"] | null;
+            /** @description Each area that could not be read, and why */
+            readonly errors?: {
+                readonly [key: string]: string;
+            };
+            readonly ingestion?: components["schemas"]["OverviewIngestionOut"] | null;
+            readonly jobs?: components["schemas"]["OverviewJobsOut"] | null;
+            readonly queue?: readonly components["schemas"]["QueueGroupOut"][];
+        };
         readonly ParkedBatchOut: {
             /** Format: int64 */
             readonly attempts: number;
@@ -7213,6 +7301,62 @@ export interface operations {
                 };
             };
             /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly get_v1_operator_overview: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["OverviewOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account is not staff, or lacks the role this needs */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ClickHouse could not be read */
             readonly 503: {
                 headers: {
                     readonly [name: string]: unknown;

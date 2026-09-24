@@ -37,7 +37,7 @@ func TriageAccounts(ctx *muzak.Context, in schemas.AccountTriageIn) (schemas.Acc
 	declined := billingaccount.AutoTopupLastErrorNEQ("")
 	stuck := billingaccount.AutoTopupPendingAtLT(now.Add(-stuckAfter))
 
-	var which predicate.BillingAccount
+	which := needsAttention(now)
 	switch in.Reason {
 	case "state":
 		which = troubled
@@ -47,8 +47,6 @@ func TriageAccounts(ctx *muzak.Context, in schemas.AccountTriageIn) (schemas.Acc
 		which = declined
 	case "stuck":
 		which = stuck
-	default:
-		which = billingaccount.Or(troubled, overdue, declined, stuck)
 	}
 	q := db.Client.BillingAccount.Query().Where(which)
 	if in.Before != "" {
@@ -99,6 +97,16 @@ func TriageAccounts(ctx *muzak.Context, in schemas.AccountTriageIn) (schemas.Acc
 		out.Accounts = append(out.Accounts, row)
 	}
 	return out, nil
+}
+
+// needsAttention is every reason an account is on the triage list.
+func needsAttention(now time.Time) predicate.BillingAccount {
+	return billingaccount.Or(
+		billingaccount.StateIn(billingaccount.StateGracePeriod, billingaccount.StateRestricted,
+			billingaccount.StateSuspended),
+		billingaccount.OverdueSinceNotNil(),
+		billingaccount.AutoTopupLastErrorNEQ(""),
+		billingaccount.AutoTopupPendingAtLT(now.Add(-stuckAfter)))
 }
 
 // ListStripeEvents is every webhook Stripe sent, newest first, narrowed by what became of it, its

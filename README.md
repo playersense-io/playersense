@@ -496,6 +496,7 @@ GET              /v1/operator/accounts        billing: accounts suspended, overd
 GET              /v1/operator/stripe-events   billing: every webhook and what became of it
 GET              /v1/operator/stripe-events/{id}          one, with its body
 POST             /v1/operator/stripe-events/{id}/replay   handle a failed or ignored one again
+GET              /v1/operator/overview        the front page: pipeline, node, queue, worker, and accounts
 GET              /v1/operator/ingestion       ops: every tenant's events, bytes, batches, lag
 GET              /v1/operator/clickhouse      ops: replication, merges, mutations, parts, memory
 GET              /v1/operator/storage         ops: bytes on disk by table and project

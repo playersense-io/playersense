@@ -38,6 +38,14 @@ func OperatorAnalytics() *muzak.Router {
 		muzak.Description("Bytes on disk by table and volume, and each project's metered logical "+
 			"bytes over the range with its share, which is what §39's storage accounting apportions."))
 
+	r.Get("/overview", handlers.OperatorOverview,
+		core.RequireStaff(staff.Ops, staff.Support, staff.Billing),
+		muzak.Summary("The console's front page"),
+		muzak.Description("One line of each area: the pipeline now and today, the node reduced to what "+
+			"should be zero, how far behind each writer is, the worker's last day, and, for billing "+
+			"and support staff, the accounts that need somebody. An area that cannot be read is named "+
+			"in errors while the rest still answer."))
+
 	r.Get("/queue", handlers.OperatorQueue,
 		core.RequireStaff(staff.Ops),
 		muzak.Summary("How far behind each writer is"),

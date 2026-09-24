@@ -418,3 +418,58 @@ type LiveCounterOut struct {
 	Limit   int    `json:"limit"`
 	ResetMs int64  `json:"reset_ms" doc:"Until the window ends"`
 }
+
+// ---- the overview -----------------------------------------------------------
+
+// OverviewOut is the console's front page: one line of each area, each read on its own so one that
+// cannot be read says so beside the rest.
+type OverviewOut struct {
+	CheckedAt time.Time `json:"checked_at"`
+
+	Ingestion  *OverviewIngestionOut  `json:"ingestion,omitzero"`
+	ClickHouse *OverviewClickHouseOut `json:"clickhouse,omitzero"`
+	Queue      []QueueGroupOut        `json:"queue,omitzero"`
+	Jobs       *OverviewJobsOut       `json:"jobs,omitzero"`
+	Billing    *OverviewBillingOut    `json:"billing,omitzero" doc:"Present for billing and support staff"`
+
+	Errors map[string]string `json:"errors,omitzero" doc:"Each area that could not be read, and why"`
+}
+
+// OverviewIngestionOut is the pipeline now and today.
+type OverviewIngestionOut struct {
+	Now         IngestionNowOut `json:"now"`
+	EventsToday uint64          `json:"events_today"`
+	BytesToday  uint64          `json:"bytes_today"`
+	LateToday   uint64          `json:"late_events_today"`
+}
+
+// OverviewClickHouseOut is the node, reduced to what should be zero.
+type OverviewClickHouseOut struct {
+	Version              string  `json:"version"`
+	ReadOnlyReplicas     int     `json:"read_only_replicas"`
+	MaxReplicationDelayS uint64  `json:"max_replication_delay_seconds"`
+	ReplicationQueue     uint64  `json:"replication_queue"`
+	UnfinishedMutations  int     `json:"unfinished_mutations"`
+	FailingMutations     int     `json:"failing_mutations"`
+	MostPartsInPartition uint64  `json:"most_parts_in_a_partition"`
+	ErrorsToday          uint64  `json:"errors_today"`
+	FullestDiskRatio     float64 `json:"fullest_disk_ratio" doc:"Used over total on the fullest disk"`
+}
+
+// OverviewJobsOut is the worker's last day.
+type OverviewJobsOut struct {
+	Failures      uint64          `json:"failures_24h"`
+	FailingNow    []string        `json:"failing_now" doc:"Jobs whose latest pass failed"`
+	NotRun        []string        `json:"not_run_24h" doc:"Jobs with no pass in a day; the derivation runs nightly, so it appears here only when a night was missed"`
+	ErasuresOpen  int             `json:"erasures_open"`
+	ErasuresLate  int             `json:"erasures_overdue"`
+	ArchiveFailed int             `json:"archive_objects_failed"`
+	Latest        []JobSummaryOut `json:"latest"`
+}
+
+// OverviewBillingOut is what needs somebody in billing.
+type OverviewBillingOut struct {
+	AccountsNeedingAttention int `json:"accounts_needing_attention"`
+	Suspended                int `json:"suspended"`
+	StripeEventsFailed       int `json:"stripe_events_failed"`
+}

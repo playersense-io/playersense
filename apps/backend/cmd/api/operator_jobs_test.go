@@ -177,3 +177,23 @@ func TestARefusalIsCountedUnderItsProject(t *testing.T) {
 		t.Fatalf("live counters %+v", page.Project)
 	}
 }
+
+// TestTheOverviewAnswersEachArea: every area on the front page is read, and the money line is only
+// for staff who handle money.
+func TestTheOverviewAnswersEachArea(t *testing.T) {
+	s := newStack(t)
+	ops, _ := s.staffClient(t, staff.Ops)
+	page := testclient.Decoded[schemas.OverviewOut](ops.Get("/v1/operator/overview").AssertStatus(http.StatusOK))
+	if len(page.Errors) != 0 {
+		t.Fatalf("areas could not be read: %v", page.Errors)
+	}
+	if page.Ingestion == nil || page.ClickHouse == nil || page.ClickHouse.Version == "" || len(page.Queue) != 3 ||
+		page.Jobs == nil || page.Billing != nil {
+		t.Fatalf("ops sees %+v", page)
+	}
+	billing, _ := s.staffClient(t, staff.Billing)
+	if got := testclient.Decoded[schemas.OverviewOut](billing.Get("/v1/operator/overview").
+		AssertStatus(http.StatusOK)); got.Billing == nil {
+		t.Fatalf("billing staff see no billing line: %+v", got)
+	}
+}

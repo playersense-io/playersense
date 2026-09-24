@@ -3415,6 +3415,68 @@
         }
       }
     },
+    "/v1/operator/overview": {
+      "get": {
+        "tags": [
+          "operator"
+        ],
+        "summary": "The console's front page",
+        "description": "One line of each area: the pipeline now and today, the node reduced to what should be zero, how far behind each writer is, the worker's last day, and, for billing and support staff, the accounts that need somebody. An area that cannot be read is named in errors while the rest still answer.",
+        "operationId": "get_v1_operator_overview",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OverviewOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account is not staff, or lacks the role this needs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ClickHouse could not be read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/operator/plans": {
       "get": {
         "tags": [
@@ -19429,6 +19491,222 @@
         "required": [
           "name",
           "slug"
+        ]
+      },
+      "OverviewBillingOut": {
+        "type": "object",
+        "properties": {
+          "accounts_needing_attention": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "stripe_events_failed": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "suspended": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "accounts_needing_attention",
+          "stripe_events_failed",
+          "suspended"
+        ]
+      },
+      "OverviewClickHouseOut": {
+        "type": "object",
+        "properties": {
+          "errors_today": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "failing_mutations": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "fullest_disk_ratio": {
+            "type": "number",
+            "format": "double",
+            "description": "Used over total on the fullest disk"
+          },
+          "max_replication_delay_seconds": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "most_parts_in_a_partition": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "read_only_replicas": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "replication_queue": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "unfinished_mutations": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "errors_today",
+          "failing_mutations",
+          "fullest_disk_ratio",
+          "max_replication_delay_seconds",
+          "most_parts_in_a_partition",
+          "read_only_replicas",
+          "replication_queue",
+          "unfinished_mutations",
+          "version"
+        ]
+      },
+      "OverviewIngestionOut": {
+        "type": "object",
+        "properties": {
+          "bytes_today": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "events_today": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "late_events_today": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "now": {
+            "$ref": "#/components/schemas/IngestionNowOut"
+          }
+        },
+        "required": [
+          "bytes_today",
+          "events_today",
+          "late_events_today",
+          "now"
+        ]
+      },
+      "OverviewJobsOut": {
+        "type": "object",
+        "properties": {
+          "archive_objects_failed": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "erasures_open": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "erasures_overdue": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "failing_now": {
+            "type": "array",
+            "description": "Jobs whose latest pass failed",
+            "items": {
+              "type": "string"
+            }
+          },
+          "failures_24h": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "latest": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/JobSummaryOut"
+            }
+          },
+          "not_run_24h": {
+            "type": "array",
+            "description": "Jobs with no pass in a day; the derivation runs nightly, so it appears here only when a night was missed",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "archive_objects_failed",
+          "erasures_open",
+          "erasures_overdue",
+          "failing_now",
+          "failures_24h",
+          "latest",
+          "not_run_24h"
+        ]
+      },
+      "OverviewOut": {
+        "type": "object",
+        "properties": {
+          "billing": {
+            "description": "Present for billing and support staff",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OverviewBillingOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "checked_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "clickhouse": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OverviewClickHouseOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "errors": {
+            "type": "object",
+            "description": "Each area that could not be read, and why",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "ingestion": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OverviewIngestionOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "jobs": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OverviewJobsOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "queue": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QueueGroupOut"
+            }
+          }
+        },
+        "required": [
+          "checked_at"
         ]
       },
       "ParkedBatchOut": {
