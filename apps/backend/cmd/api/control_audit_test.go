@@ -63,6 +63,15 @@ func TestEveryMutatingRouteDecidesAboutAudit(t *testing.T) {
 		"POST /v1/organizations/{org}/projects/{project}/config/{environment}/publish":                     audit.ConfigPublished,
 		"POST /v1/organizations/{org}/projects/{project}/config/{environment}/versions/{version}/rollback": audit.ConfigRolledBack,
 
+		"POST /v1/organizations/{org}/projects/{project}/experiments":                       audit.ExperimentWritten,
+		"PUT /v1/organizations/{org}/projects/{project}/experiments/{experiment}":           audit.ExperimentWritten,
+		"DELETE /v1/organizations/{org}/projects/{project}/experiments/{experiment}":        audit.ExperimentDeleted,
+		"POST /v1/organizations/{org}/projects/{project}/experiments/{experiment}/start":    audit.ExperimentStarted,
+		"PUT /v1/organizations/{org}/projects/{project}/experiments/{experiment}/traffic":   audit.ExperimentTraffic,
+		"POST /v1/organizations/{org}/projects/{project}/experiments/{experiment}/stop":     audit.ExperimentStopped,
+		"POST /v1/organizations/{org}/projects/{project}/experiments/{experiment}/conclude": audit.ExperimentConcluded,
+		"POST /v1/organizations/{org}/projects/{project}/experiments/{experiment}/ship":     audit.ExperimentShipped,
+
 		"PUT /v1/organizations/{org}/billing/auto-topup":    audit.AutoTopUpSet,
 		"POST /v1/operator/organizations/{org}/credits":     audit.CreditGranted,
 		"POST /v1/operator/organizations/{org}/charges":     audit.CreditCharged,

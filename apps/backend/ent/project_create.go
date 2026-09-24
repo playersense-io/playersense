@@ -14,6 +14,7 @@ import (
 	"github.com/google/uuid"
 	"playersense.dev/backend/ent/configversion"
 	"playersense.dev/backend/ent/environment"
+	"playersense.dev/backend/ent/experiment"
 	"playersense.dev/backend/ent/featureflag"
 	"playersense.dev/backend/ent/liveopsevent"
 	"playersense.dev/backend/ent/memberproject"
@@ -203,6 +204,21 @@ func (_c *ProjectCreate) AddConfigVersions(v ...*ConfigVersion) *ProjectCreate {
 		ids[i] = v[i].ID
 	}
 	return _c.AddConfigVersionIDs(ids...)
+}
+
+// AddExperimentIDs adds the "experiments" edge to the Experiment entity by IDs.
+func (_c *ProjectCreate) AddExperimentIDs(ids ...int) *ProjectCreate {
+	_c.mutation.AddExperimentIDs(ids...)
+	return _c
+}
+
+// AddExperiments adds the "experiments" edges to the Experiment entity.
+func (_c *ProjectCreate) AddExperiments(v ...*Experiment) *ProjectCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddExperimentIDs(ids...)
 }
 
 // AddMemberAccesIDs adds the "member_access" edge to the MemberProject entity by IDs.
@@ -487,6 +503,22 @@ func (_c *ProjectCreate) createSpec() (*Project, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(configversion.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.ExperimentsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.ExperimentsTable,
+			Columns: []string{project.ExperimentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experiment.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

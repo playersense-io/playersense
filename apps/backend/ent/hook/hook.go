@@ -141,6 +141,18 @@ func (f EnvironmentFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value,
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EnvironmentMutation", m)
 }
 
+// The ExperimentFunc type is an adapter to allow the use of ordinary
+// function as Experiment mutator.
+type ExperimentFunc func(context.Context, *ent.ExperimentMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ExperimentFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ExperimentMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ExperimentMutation", m)
+}
+
 // The FeatureFlagFunc type is an adapter to allow the use of ordinary
 // function as FeatureFlag mutator.
 type FeatureFlagFunc func(context.Context, *ent.FeatureFlagMutation) (ent.Value, error)

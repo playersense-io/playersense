@@ -102,6 +102,12 @@ func ServeConfig(ctx *muzak.Context, in schemas.ConfigIn) (protocol.ConfigRespon
 	if response.Flags == nil {
 		response.Flags = map[string]any{}
 	}
+	for flag, place := range result.Experiments {
+		if response.Experiments == nil {
+			response.Experiments = map[string]protocol.ConfigExperiment{}
+		}
+		response.Experiments[flag] = protocol.ConfigExperiment{Experiment: place.Experiment, Arm: place.Arm}
+	}
 
 	// An SDK polls, and most polls are identical. The tag covers the decision and not the
 	// clock — hashing ServerTimeMS would mean no two responses ever matched and this path

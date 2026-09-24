@@ -488,6 +488,61 @@ var (
 			},
 		},
 	}
+	// ExperimentsColumns holds the columns for the "experiments" table.
+	ExperimentsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
+		{Name: "uid", Type: field.TypeUUID, Unique: true, Comment: "class=none"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "updated_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "name", Type: field.TypeString, Size: 120, Comment: "class=none"},
+		{Name: "hypothesis", Type: field.TypeString, Size: 1000, Comment: "class=none", Default: ""},
+		{Name: "flag_key", Type: field.TypeString, Size: 64, Comment: "class=none"},
+		{Name: "audience", Type: field.TypeJSON, Comment: "class=none"},
+		{Name: "audience_label", Type: field.TypeString, Size: 200, Comment: "class=none", Default: ""},
+		{Name: "traffic", Type: field.TypeInt, Comment: "class=none", Default: 100},
+		{Name: "status", Type: field.TypeEnum, Comment: "class=none", Enums: []string{"draft", "running", "concluded", "stopped"}, Default: "draft"},
+		{Name: "primary_metric", Type: field.TypeString, Size: 64, Comment: "class=none"},
+		{Name: "guardrails", Type: field.TypeJSON, Comment: "class=none"},
+		{Name: "variants", Type: field.TypeJSON, Comment: "class=none"},
+		{Name: "planned_days", Type: field.TypeInt, Comment: "class=none", Default: 14},
+		{Name: "started_at", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
+		{Name: "ended_at", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
+		{Name: "winner", Type: field.TypeString, Nullable: true, Size: 64, Comment: "class=none"},
+		{Name: "shipped", Type: field.TypeBool, Comment: "class=none", Default: false},
+		{Name: "conclusion", Type: field.TypeString, Size: 2000, Comment: "class=none", Default: ""},
+		{Name: "created_by", Type: field.TypeString, Size: 254, Comment: "class=none", Default: ""},
+		{Name: "timeline", Type: field.TypeJSON, Comment: "class=none"},
+		{Name: "project_id", Type: field.TypeInt, Comment: "class=none"},
+	}
+	// ExperimentsTable holds the schema information for the "experiments" table.
+	ExperimentsTable = &schema.Table{
+		Name:       "experiments",
+		Columns:    ExperimentsColumns,
+		PrimaryKey: []*schema.Column{ExperimentsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "experiments_projects_experiments",
+				Columns:    []*schema.Column{ExperimentsColumns[22]},
+				RefColumns: []*schema.Column{ProjectsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "experiment_project_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{ExperimentsColumns[22], ExperimentsColumns[10]},
+			},
+			{
+				Name:    "experiment_project_id_flag_key",
+				Unique:  true,
+				Columns: []*schema.Column{ExperimentsColumns[22], ExperimentsColumns[6]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "status = 'running'",
+				},
+			},
+		},
+	}
 	// FeatureFlagsColumns holds the columns for the "feature_flags" table.
 	FeatureFlagsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
@@ -1347,6 +1402,7 @@ var (
 		DataDeletionRequestsTable,
 		DataExportRequestsTable,
 		EnvironmentsTable,
+		ExperimentsTable,
 		FeatureFlagsTable,
 		InvitationsTable,
 		InvoicesTable,
@@ -1389,6 +1445,7 @@ func init() {
 	ConfigVersionsTable.ForeignKeys[3].RefTable = UsersTable
 	CreditLotsTable.ForeignKeys[0].RefTable = BillingAccountsTable
 	EnvironmentsTable.ForeignKeys[0].RefTable = ProjectsTable
+	ExperimentsTable.ForeignKeys[0].RefTable = ProjectsTable
 	FeatureFlagsTable.ForeignKeys[0].RefTable = ProjectsTable
 	InvitationsTable.ForeignKeys[0].RefTable = OrganizationsTable
 	InvitationsTable.ForeignKeys[1].RefTable = RolesTable

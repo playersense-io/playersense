@@ -36,6 +36,8 @@ type Tx struct {
 	DataExportRequest *DataExportRequestClient
 	// Environment is the client for interacting with the Environment builders.
 	Environment *EnvironmentClient
+	// Experiment is the client for interacting with the Experiment builders.
+	Experiment *ExperimentClient
 	// FeatureFlag is the client for interacting with the FeatureFlag builders.
 	FeatureFlag *FeatureFlagClient
 	// Invitation is the client for interacting with the Invitation builders.
@@ -222,6 +224,7 @@ func (tx *Tx) init() {
 	tx.DataDeletionRequest = NewDataDeletionRequestClient(tx.config)
 	tx.DataExportRequest = NewDataExportRequestClient(tx.config)
 	tx.Environment = NewEnvironmentClient(tx.config)
+	tx.Experiment = NewExperimentClient(tx.config)
 	tx.FeatureFlag = NewFeatureFlagClient(tx.config)
 	tx.Invitation = NewInvitationClient(tx.config)
 	tx.Invoice = NewInvoiceClient(tx.config)

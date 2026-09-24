@@ -44,6 +44,8 @@ const (
 	EdgeLiveopsEvents = "liveops_events"
 	// EdgeConfigVersions holds the string denoting the config_versions edge name in mutations.
 	EdgeConfigVersions = "config_versions"
+	// EdgeExperiments holds the string denoting the experiments edge name in mutations.
+	EdgeExperiments = "experiments"
 	// EdgeMemberAccess holds the string denoting the member_access edge name in mutations.
 	EdgeMemberAccess = "member_access"
 	// EdgeUsageDaily holds the string denoting the usage_daily edge name in mutations.
@@ -92,6 +94,13 @@ const (
 	ConfigVersionsInverseTable = "config_versions"
 	// ConfigVersionsColumn is the table column denoting the config_versions relation/edge.
 	ConfigVersionsColumn = "project_id"
+	// ExperimentsTable is the table that holds the experiments relation/edge.
+	ExperimentsTable = "experiments"
+	// ExperimentsInverseTable is the table name for the Experiment entity.
+	// It exists in this package in order to avoid circular dependency with the "experiment" package.
+	ExperimentsInverseTable = "experiments"
+	// ExperimentsColumn is the table column denoting the experiments relation/edge.
+	ExperimentsColumn = "project_id"
 	// MemberAccessTable is the table that holds the member_access relation/edge.
 	MemberAccessTable = "member_projects"
 	// MemberAccessInverseTable is the table name for the MemberProject entity.
@@ -300,6 +309,20 @@ func ByConfigVersions(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	}
 }
 
+// ByExperimentsCount orders the results by experiments count.
+func ByExperimentsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newExperimentsStep(), opts...)
+	}
+}
+
+// ByExperiments orders the results by experiments terms.
+func ByExperiments(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newExperimentsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
 // ByMemberAccessCount orders the results by member_access count.
 func ByMemberAccessCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -367,6 +390,13 @@ func newConfigVersionsStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(ConfigVersionsInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, ConfigVersionsTable, ConfigVersionsColumn),
+	)
+}
+func newExperimentsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(ExperimentsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, ExperimentsTable, ExperimentsColumn),
 	)
 }
 func newMemberAccessStep() *sqlgraph.Step {

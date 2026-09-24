@@ -63,6 +63,11 @@ type ConfigResponse struct {
 	// holding a calendar.
 	Upcoming []ConfigEvent `json:"upcoming,omitempty"`
 
+	// Experiments names, by flag, the test and arm this player is in. An SDK puts the two on
+	// the flag's feature_exposure as `experiment` and `arm`, so the dashboard counts the arm
+	// it was put in rather than inferring it from the value. Absent for a player in no test.
+	Experiments map[string]ConfigExperiment `json:"experiments,omitempty"`
+
 	// ServerTimeMS is what the server thinks the time is.
 	//
 	// The SDK anchors every window against this rather than against the device clock. A
@@ -72,6 +77,12 @@ type ConfigResponse struct {
 	// Deliberately outside the ETag: it changes on every request, so hashing it would mean
 	// no two responses ever matched and the 304 path would never fire.
 	ServerTimeMS int64 `json:"server_time_ms"`
+}
+
+// ConfigExperiment is one player's place in one experiment.
+type ConfigExperiment struct {
+	Experiment string `json:"experiment"`
+	Arm        string `json:"arm"`
 }
 
 // ConfigEvent is one LiveOps event as a player sees it.

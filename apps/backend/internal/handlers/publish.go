@@ -170,6 +170,12 @@ func gatherConfig(ctx context.Context, db *core.DB, projectID int) (liveconfig.I
 	if err != nil {
 		return liveconfig.Input{}, err
 	}
+	// A running experiment is compiled into its flag, so starting or stopping one changes what
+	// the next publish serves and nothing before it.
+	splits, err := runningSplits(ctx, db, projectID)
+	if err != nil {
+		return liveconfig.Input{}, err
+	}
 	for _, row := range flags {
 		fallback, err := valueFrom(row.Fallback)
 		if err != nil {
@@ -177,7 +183,7 @@ func gatherConfig(ctx context.Context, db *core.DB, projectID int) (liveconfig.I
 		}
 		flag := liveconfig.Flag{
 			Key: row.Key, Kind: string(row.Kind), Fallback: fallback,
-			Rollout: row.Rollout, Salt: row.Salt,
+			Rollout: row.Rollout, Salt: row.Salt, Split: splits[row.Key],
 		}
 		for _, raw := range row.Rules {
 			variant, err := variantFrom(raw)

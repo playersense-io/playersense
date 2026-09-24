@@ -26,6 +26,7 @@ import (
 	"playersense.dev/backend/ent/datadeletionrequest"
 	"playersense.dev/backend/ent/dataexportrequest"
 	"playersense.dev/backend/ent/environment"
+	"playersense.dev/backend/ent/experiment"
 	"playersense.dev/backend/ent/featureflag"
 	"playersense.dev/backend/ent/invitation"
 	"playersense.dev/backend/ent/invoice"
@@ -79,6 +80,8 @@ type Client struct {
 	DataExportRequest *DataExportRequestClient
 	// Environment is the client for interacting with the Environment builders.
 	Environment *EnvironmentClient
+	// Experiment is the client for interacting with the Experiment builders.
+	Experiment *ExperimentClient
 	// FeatureFlag is the client for interacting with the FeatureFlag builders.
 	FeatureFlag *FeatureFlagClient
 	// Invitation is the client for interacting with the Invitation builders.
@@ -145,6 +148,7 @@ func (c *Client) init() {
 	c.DataDeletionRequest = NewDataDeletionRequestClient(c.config)
 	c.DataExportRequest = NewDataExportRequestClient(c.config)
 	c.Environment = NewEnvironmentClient(c.config)
+	c.Experiment = NewExperimentClient(c.config)
 	c.FeatureFlag = NewFeatureFlagClient(c.config)
 	c.Invitation = NewInvitationClient(c.config)
 	c.Invoice = NewInvoiceClient(c.config)
@@ -270,6 +274,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		DataDeletionRequest: NewDataDeletionRequestClient(cfg),
 		DataExportRequest:   NewDataExportRequestClient(cfg),
 		Environment:         NewEnvironmentClient(cfg),
+		Experiment:          NewExperimentClient(cfg),
 		FeatureFlag:         NewFeatureFlagClient(cfg),
 		Invitation:          NewInvitationClient(cfg),
 		Invoice:             NewInvoiceClient(cfg),
@@ -322,6 +327,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		DataDeletionRequest: NewDataDeletionRequestClient(cfg),
 		DataExportRequest:   NewDataExportRequestClient(cfg),
 		Environment:         NewEnvironmentClient(cfg),
+		Experiment:          NewExperimentClient(cfg),
 		FeatureFlag:         NewFeatureFlagClient(cfg),
 		Invitation:          NewInvitationClient(cfg),
 		Invoice:             NewInvoiceClient(cfg),
@@ -375,11 +381,11 @@ func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.APIKey, c.ArchiveManifest, c.AuditEvent, c.BillablePlayer, c.BillingAccount,
 		c.BillingContract, c.ConfigVersion, c.CreditLot, c.DataDeletionRequest,
-		c.DataExportRequest, c.Environment, c.FeatureFlag, c.Invitation, c.Invoice,
-		c.InvoiceLine, c.LedgerEntry, c.LiveOpsEvent, c.MemberProject, c.MonthlyUsage,
-		c.Organization, c.OrganizationMember, c.Plan, c.Project, c.RateCard, c.Role,
-		c.Segment, c.StaffAccess, c.StaffMember, c.StripeEvent, c.UsageCharge,
-		c.UsageDaily, c.User, c.VerifiedPurchase,
+		c.DataExportRequest, c.Environment, c.Experiment, c.FeatureFlag, c.Invitation,
+		c.Invoice, c.InvoiceLine, c.LedgerEntry, c.LiveOpsEvent, c.MemberProject,
+		c.MonthlyUsage, c.Organization, c.OrganizationMember, c.Plan, c.Project,
+		c.RateCard, c.Role, c.Segment, c.StaffAccess, c.StaffMember, c.StripeEvent,
+		c.UsageCharge, c.UsageDaily, c.User, c.VerifiedPurchase,
 	} {
 		n.Use(hooks...)
 	}
@@ -391,11 +397,11 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.APIKey, c.ArchiveManifest, c.AuditEvent, c.BillablePlayer, c.BillingAccount,
 		c.BillingContract, c.ConfigVersion, c.CreditLot, c.DataDeletionRequest,
-		c.DataExportRequest, c.Environment, c.FeatureFlag, c.Invitation, c.Invoice,
-		c.InvoiceLine, c.LedgerEntry, c.LiveOpsEvent, c.MemberProject, c.MonthlyUsage,
-		c.Organization, c.OrganizationMember, c.Plan, c.Project, c.RateCard, c.Role,
-		c.Segment, c.StaffAccess, c.StaffMember, c.StripeEvent, c.UsageCharge,
-		c.UsageDaily, c.User, c.VerifiedPurchase,
+		c.DataExportRequest, c.Environment, c.Experiment, c.FeatureFlag, c.Invitation,
+		c.Invoice, c.InvoiceLine, c.LedgerEntry, c.LiveOpsEvent, c.MemberProject,
+		c.MonthlyUsage, c.Organization, c.OrganizationMember, c.Plan, c.Project,
+		c.RateCard, c.Role, c.Segment, c.StaffAccess, c.StaffMember, c.StripeEvent,
+		c.UsageCharge, c.UsageDaily, c.User, c.VerifiedPurchase,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -426,6 +432,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.DataExportRequest.mutate(ctx, m)
 	case *EnvironmentMutation:
 		return c.Environment.mutate(ctx, m)
+	case *ExperimentMutation:
+		return c.Experiment.mutate(ctx, m)
 	case *FeatureFlagMutation:
 		return c.FeatureFlag.mutate(ctx, m)
 	case *InvitationMutation:
@@ -2336,6 +2344,155 @@ func (c *EnvironmentClient) mutate(ctx context.Context, m *EnvironmentMutation) 
 		return (&EnvironmentDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown Environment mutation op: %q", m.Op())
+	}
+}
+
+// ExperimentClient is a client for the Experiment schema.
+type ExperimentClient struct {
+	config
+}
+
+// NewExperimentClient returns a client for the Experiment from the given config.
+func NewExperimentClient(c config) *ExperimentClient {
+	return &ExperimentClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `experiment.Hooks(f(g(h())))`.
+func (c *ExperimentClient) Use(hooks ...Hook) {
+	c.hooks.Experiment = append(c.hooks.Experiment, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `experiment.Intercept(f(g(h())))`.
+func (c *ExperimentClient) Intercept(interceptors ...Interceptor) {
+	c.inters.Experiment = append(c.inters.Experiment, interceptors...)
+}
+
+// Create returns a builder for creating a Experiment entity.
+func (c *ExperimentClient) Create() *ExperimentCreate {
+	mutation := newExperimentMutation(c.config, OpCreate)
+	return &ExperimentCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Experiment entities.
+func (c *ExperimentClient) CreateBulk(builders ...*ExperimentCreate) *ExperimentCreateBulk {
+	return &ExperimentCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ExperimentClient) MapCreateBulk(slice any, setFunc func(*ExperimentCreate, int)) *ExperimentCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ExperimentCreateBulk{err: fmt.Errorf("calling to ExperimentClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ExperimentCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ExperimentCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Experiment.
+func (c *ExperimentClient) Update() *ExperimentUpdate {
+	mutation := newExperimentMutation(c.config, OpUpdate)
+	return &ExperimentUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ExperimentClient) UpdateOne(_m *Experiment) *ExperimentUpdateOne {
+	mutation := newExperimentMutation(c.config, OpUpdateOne, withExperiment(_m))
+	return &ExperimentUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ExperimentClient) UpdateOneID(id int) *ExperimentUpdateOne {
+	mutation := newExperimentMutation(c.config, OpUpdateOne, withExperimentID(id))
+	return &ExperimentUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Experiment.
+func (c *ExperimentClient) Delete() *ExperimentDelete {
+	mutation := newExperimentMutation(c.config, OpDelete)
+	return &ExperimentDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ExperimentClient) DeleteOne(_m *Experiment) *ExperimentDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ExperimentClient) DeleteOneID(id int) *ExperimentDeleteOne {
+	builder := c.Delete().Where(experiment.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ExperimentDeleteOne{builder}
+}
+
+// Query returns a query builder for Experiment.
+func (c *ExperimentClient) Query() *ExperimentQuery {
+	return &ExperimentQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeExperiment},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a Experiment entity by its id.
+func (c *ExperimentClient) Get(ctx context.Context, id int) (*Experiment, error) {
+	return c.Query().Where(experiment.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ExperimentClient) GetX(ctx context.Context, id int) *Experiment {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryProject queries the project edge of a Experiment.
+func (c *ExperimentClient) QueryProject(_m *Experiment) *ProjectQuery {
+	query := (&ProjectClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(experiment.Table, experiment.FieldID, id),
+			sqlgraph.To(project.Table, project.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, experiment.ProjectTable, experiment.ProjectColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *ExperimentClient) Hooks() []Hook {
+	return c.hooks.Experiment
+}
+
+// Interceptors returns the client interceptors.
+func (c *ExperimentClient) Interceptors() []Interceptor {
+	return c.inters.Experiment
+}
+
+func (c *ExperimentClient) mutate(ctx context.Context, m *ExperimentMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ExperimentCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ExperimentUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ExperimentUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ExperimentDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown Experiment mutation op: %q", m.Op())
 	}
 }
 
@@ -4439,6 +4596,22 @@ func (c *ProjectClient) QueryConfigVersions(_m *Project) *ConfigVersionQuery {
 	return query
 }
 
+// QueryExperiments queries the experiments edge of a Project.
+func (c *ProjectClient) QueryExperiments(_m *Project) *ExperimentQuery {
+	query := (&ExperimentClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(project.Table, project.FieldID, id),
+			sqlgraph.To(experiment.Table, experiment.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, project.ExperimentsTable, project.ExperimentsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // QueryMemberAccess queries the member_access edge of a Project.
 func (c *ProjectClient) QueryMemberAccess(_m *Project) *MemberProjectQuery {
 	query := (&MemberProjectClient{config: c.config}).Query()
@@ -6073,19 +6246,19 @@ type (
 	hooks struct {
 		APIKey, ArchiveManifest, AuditEvent, BillablePlayer, BillingAccount,
 		BillingContract, ConfigVersion, CreditLot, DataDeletionRequest,
-		DataExportRequest, Environment, FeatureFlag, Invitation, Invoice, InvoiceLine,
-		LedgerEntry, LiveOpsEvent, MemberProject, MonthlyUsage, Organization,
-		OrganizationMember, Plan, Project, RateCard, Role, Segment, StaffAccess,
-		StaffMember, StripeEvent, UsageCharge, UsageDaily, User,
+		DataExportRequest, Environment, Experiment, FeatureFlag, Invitation, Invoice,
+		InvoiceLine, LedgerEntry, LiveOpsEvent, MemberProject, MonthlyUsage,
+		Organization, OrganizationMember, Plan, Project, RateCard, Role, Segment,
+		StaffAccess, StaffMember, StripeEvent, UsageCharge, UsageDaily, User,
 		VerifiedPurchase []ent.Hook
 	}
 	inters struct {
 		APIKey, ArchiveManifest, AuditEvent, BillablePlayer, BillingAccount,
 		BillingContract, ConfigVersion, CreditLot, DataDeletionRequest,
-		DataExportRequest, Environment, FeatureFlag, Invitation, Invoice, InvoiceLine,
-		LedgerEntry, LiveOpsEvent, MemberProject, MonthlyUsage, Organization,
-		OrganizationMember, Plan, Project, RateCard, Role, Segment, StaffAccess,
-		StaffMember, StripeEvent, UsageCharge, UsageDaily, User,
+		DataExportRequest, Environment, Experiment, FeatureFlag, Invitation, Invoice,
+		InvoiceLine, LedgerEntry, LiveOpsEvent, MemberProject, MonthlyUsage,
+		Organization, OrganizationMember, Plan, Project, RateCard, Role, Segment,
+		StaffAccess, StaffMember, StripeEvent, UsageCharge, UsageDaily, User,
 		VerifiedPurchase []ent.Interceptor
 	}
 )

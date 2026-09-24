@@ -56,13 +56,15 @@ type ProjectEdges struct {
 	LiveopsEvents []*LiveOpsEvent `json:"liveops_events,omitempty"`
 	// ConfigVersions holds the value of the config_versions edge.
 	ConfigVersions []*ConfigVersion `json:"config_versions,omitempty"`
+	// Experiments holds the value of the experiments edge.
+	Experiments []*Experiment `json:"experiments,omitempty"`
 	// MemberAccess holds the value of the member_access edge.
 	MemberAccess []*MemberProject `json:"member_access,omitempty"`
 	// UsageDaily holds the value of the usage_daily edge.
 	UsageDaily []*UsageDaily `json:"usage_daily,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [8]bool
+	loadedTypes [9]bool
 }
 
 // OrganizationOrErr returns the Organization value or an error if the edge
@@ -121,10 +123,19 @@ func (e ProjectEdges) ConfigVersionsOrErr() ([]*ConfigVersion, error) {
 	return nil, &NotLoadedError{edge: "config_versions"}
 }
 
+// ExperimentsOrErr returns the Experiments value or an error if the edge
+// was not loaded in eager-loading.
+func (e ProjectEdges) ExperimentsOrErr() ([]*Experiment, error) {
+	if e.loadedTypes[6] {
+		return e.Experiments, nil
+	}
+	return nil, &NotLoadedError{edge: "experiments"}
+}
+
 // MemberAccessOrErr returns the MemberAccess value or an error if the edge
 // was not loaded in eager-loading.
 func (e ProjectEdges) MemberAccessOrErr() ([]*MemberProject, error) {
-	if e.loadedTypes[6] {
+	if e.loadedTypes[7] {
 		return e.MemberAccess, nil
 	}
 	return nil, &NotLoadedError{edge: "member_access"}
@@ -133,7 +144,7 @@ func (e ProjectEdges) MemberAccessOrErr() ([]*MemberProject, error) {
 // UsageDailyOrErr returns the UsageDaily value or an error if the edge
 // was not loaded in eager-loading.
 func (e ProjectEdges) UsageDailyOrErr() ([]*UsageDaily, error) {
-	if e.loadedTypes[7] {
+	if e.loadedTypes[8] {
 		return e.UsageDaily, nil
 	}
 	return nil, &NotLoadedError{edge: "usage_daily"}
@@ -262,6 +273,11 @@ func (_m *Project) QueryLiveopsEvents() *LiveOpsEventQuery {
 // QueryConfigVersions queries the "config_versions" edge of the Project entity.
 func (_m *Project) QueryConfigVersions() *ConfigVersionQuery {
 	return NewProjectClient(_m.config).QueryConfigVersions(_m)
+}
+
+// QueryExperiments queries the "experiments" edge of the Project entity.
+func (_m *Project) QueryExperiments() *ExperimentQuery {
+	return NewProjectClient(_m.config).QueryExperiments(_m)
 }
 
 // QueryMemberAccess queries the "member_access" edge of the Project entity.

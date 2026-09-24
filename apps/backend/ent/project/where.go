@@ -559,6 +559,29 @@ func HasConfigVersionsWith(preds ...predicate.ConfigVersion) predicate.Project {
 	})
 }
 
+// HasExperiments applies the HasEdge predicate on the "experiments" edge.
+func HasExperiments() predicate.Project {
+	return predicate.Project(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, ExperimentsTable, ExperimentsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasExperimentsWith applies the HasEdge predicate on the "experiments" edge with a given conditions (other predicates).
+func HasExperimentsWith(preds ...predicate.Experiment) predicate.Project {
+	return predicate.Project(func(s *sql.Selector) {
+		step := newExperimentsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // HasMemberAccess applies the HasEdge predicate on the "member_access" edge.
 func HasMemberAccess() predicate.Project {
 	return predicate.Project(func(s *sql.Selector) {

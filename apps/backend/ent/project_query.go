@@ -15,6 +15,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"playersense.dev/backend/ent/configversion"
 	"playersense.dev/backend/ent/environment"
+	"playersense.dev/backend/ent/experiment"
 	"playersense.dev/backend/ent/featureflag"
 	"playersense.dev/backend/ent/liveopsevent"
 	"playersense.dev/backend/ent/memberproject"
@@ -38,6 +39,7 @@ type ProjectQuery struct {
 	withFeatureFlags   *FeatureFlagQuery
 	withLiveopsEvents  *LiveOpsEventQuery
 	withConfigVersions *ConfigVersionQuery
+	withExperiments    *ExperimentQuery
 	withMemberAccess   *MemberProjectQuery
 	withUsageDaily     *UsageDailyQuery
 	modifiers          []func(*sql.Selector)
@@ -202,6 +204,28 @@ func (_q *ProjectQuery) QueryConfigVersions() *ConfigVersionQuery {
 			sqlgraph.From(project.Table, project.FieldID, selector),
 			sqlgraph.To(configversion.Table, configversion.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, project.ConfigVersionsTable, project.ConfigVersionsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryExperiments chains the current query on the "experiments" edge.
+func (_q *ProjectQuery) QueryExperiments() *ExperimentQuery {
+	query := (&ExperimentClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(project.Table, project.FieldID, selector),
+			sqlgraph.To(experiment.Table, experiment.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, project.ExperimentsTable, project.ExperimentsColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -451,6 +475,7 @@ func (_q *ProjectQuery) Clone() *ProjectQuery {
 		withFeatureFlags:   _q.withFeatureFlags.Clone(),
 		withLiveopsEvents:  _q.withLiveopsEvents.Clone(),
 		withConfigVersions: _q.withConfigVersions.Clone(),
+		withExperiments:    _q.withExperiments.Clone(),
 		withMemberAccess:   _q.withMemberAccess.Clone(),
 		withUsageDaily:     _q.withUsageDaily.Clone(),
 		// clone intermediate query.
@@ -522,6 +547,17 @@ func (_q *ProjectQuery) WithConfigVersions(opts ...func(*ConfigVersionQuery)) *P
 		opt(query)
 	}
 	_q.withConfigVersions = query
+	return _q
+}
+
+// WithExperiments tells the query-builder to eager-load the nodes that are connected to
+// the "experiments" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *ProjectQuery) WithExperiments(opts ...func(*ExperimentQuery)) *ProjectQuery {
+	query := (&ExperimentClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withExperiments = query
 	return _q
 }
 
@@ -625,13 +661,14 @@ func (_q *ProjectQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Proj
 	var (
 		nodes       = []*Project{}
 		_spec       = _q.querySpec()
-		loadedTypes = [8]bool{
+		loadedTypes = [9]bool{
 			_q.withOrganization != nil,
 			_q.withEnvironments != nil,
 			_q.withSegments != nil,
 			_q.withFeatureFlags != nil,
 			_q.withLiveopsEvents != nil,
 			_q.withConfigVersions != nil,
+			_q.withExperiments != nil,
 			_q.withMemberAccess != nil,
 			_q.withUsageDaily != nil,
 		}
@@ -695,6 +732,13 @@ func (_q *ProjectQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Proj
 		if err := _q.loadConfigVersions(ctx, query, nodes,
 			func(n *Project) { n.Edges.ConfigVersions = []*ConfigVersion{} },
 			func(n *Project, e *ConfigVersion) { n.Edges.ConfigVersions = append(n.Edges.ConfigVersions, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withExperiments; query != nil {
+		if err := _q.loadExperiments(ctx, query, nodes,
+			func(n *Project) { n.Edges.Experiments = []*Experiment{} },
+			func(n *Project, e *Experiment) { n.Edges.Experiments = append(n.Edges.Experiments, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -879,6 +923,36 @@ func (_q *ProjectQuery) loadConfigVersions(ctx context.Context, query *ConfigVer
 	}
 	query.Where(predicate.ConfigVersion(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(project.ConfigVersionsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.ProjectID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "project_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *ProjectQuery) loadExperiments(ctx context.Context, query *ExperimentQuery, nodes []*Project, init func(*Project), assign func(*Project, *Experiment)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Project)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(experiment.FieldProjectID)
+	}
+	query.Where(predicate.Experiment(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(project.ExperimentsColumn), fks...))
 	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {

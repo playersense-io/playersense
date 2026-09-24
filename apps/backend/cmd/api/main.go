@@ -415,6 +415,7 @@ func build(settings config.Settings, overrides ...muzak.RouterOption) (*muzak.Ap
 	api.Include(routers.Billing())
 	api.Include(routers.Authoring())
 	api.Include(routers.LiveConfig())
+	api.Include(routers.Experiments())
 
 	// The invitation routes the *invited* person uses, which name no organization: there
 	// is no membership yet, which is the whole point. Mounted in the same subtree so they

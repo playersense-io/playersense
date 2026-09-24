@@ -347,10 +347,27 @@ GET    POST                 /v1/organizations/{org}/projects/{project}/liveops-e
 GET    PUT    DELETE        /v1/organizations/{org}/projects/{project}/liveops-events/{key}
 GET                         /v1/organizations/{org}/projects/{project}/config/{environment}/draft
        POST                 /v1/organizations/{org}/projects/{project}/config/{environment}/publish
+GET                         /v1/organizations/{org}/projects/{project}/config/{environment}/versions
+GET                         /v1/organizations/{org}/projects/{project}/config/{environment}/versions/{v}
+       POST                 /v1/organizations/{org}/projects/{project}/config/{environment}/versions/{v}/rollback
+GET    POST                 /v1/organizations/{org}/projects/{project}/experiments
+GET    PUT    DELETE        /v1/organizations/{org}/projects/{project}/experiments/{id}
+       POST                 …/experiments/{id}/start, /stop, /conclude, /ship
+       PUT                  …/experiments/{id}/traffic
 ```
 
-Reads need `liveops.read`, writes `liveops.write`, and the last line alone needs
+Reads need `liveops.read`, writes `liveops.write`, and publishing and rolling back alone need
 `liveops.publish` — which is what lets a DEVELOPER draft a rollout and hold no power to ship it.
+
+**An experiment is its own record, compiled into its flag.** It names a flag, two to eight arms
+(each a value of the flag's kind, different from the others, weights adding to 100), the share
+of the audience let in and the metric it is judged on. While it runs, every publish compiles it
+into the flag as a split: one hash decides who is in the test and another which arm, so raising
+traffic only adds players. config-api tells the SDK the experiment and arm beside the value, and
+the SDK puts them on the flag's `feature_exposure` as `experiment` and `arm`, which is what
+`flag_assignments` counts; an SDK that predates this is counted by value. Stopping or concluding
+takes the split out of the next publish, and shipping makes the winner the flag's fallback.
+A rollback publishes an earlier version's document again as the next version, with the reason.
 
 **A write is checked as thoroughly as a publish.** The rule is parsed, every segment reference is
 resolved against the project, a cycle is refused, and every flag value is checked against the
@@ -441,6 +458,7 @@ GET   …/analytics/{environment}/purchases                    the ledger, a pag
 GET   …/analytics/{environment}/flags/exposures              every flag read in a range
 GET   …/analytics/{environment}/flags/{flag}/exposures       one flag by value, version and build
 GET   …/analytics/{environment}/experiments/{flag}           each arm's outcomes over seven days
+GET   …/analytics/{environment}/experiment-results/{id}      an experiment's arms over the days it ran
 POST  …/analytics/{environment}/funnels/query                a steps or progression funnel
 GET   /v1/organizations/{org}/analytics/{environment}/projects    every readable project, side by side
 ```

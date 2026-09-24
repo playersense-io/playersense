@@ -148,4 +148,14 @@ func explorer(r *muzak.Router, base string) {
 		core.Require(authz.AnalyticsRead),
 		muzak.WithResponseDoc(http.StatusNotFound, "Nobody was exposed to this flag in the range"),
 		unreadable)
+
+	r.Get(base+"/experiment-results/{experiment}", handlers.ExperimentResults,
+		muzak.Summary("An experiment's result"),
+		muzak.Description("Its flag's arms over the days it ran, each matched to the experiment's arm: "+
+			"by the arm id the SDK reported, or by the arm's value from an SDK that predates "+
+			"experiments. Players exposed to the flag in no arm are counted apart rather than "+
+			"mixed into the control. Absent result before it starts."),
+		core.Require(authz.AnalyticsRead),
+		muzak.WithResponseDoc(http.StatusNotFound, "No such experiment"),
+		unreadable)
 }

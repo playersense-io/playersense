@@ -79,6 +79,14 @@ const (
 	ConfigPublished  Action = "liveops.publish"
 	ConfigRolledBack Action = "liveops.rollback"
 
+	ExperimentWritten   Action = "experiment.write"
+	ExperimentDeleted   Action = "experiment.delete"
+	ExperimentStarted   Action = "experiment.start"
+	ExperimentTraffic   Action = "experiment.traffic"
+	ExperimentStopped   Action = "experiment.stop"
+	ExperimentConcluded Action = "experiment.conclude"
+	ExperimentShipped   Action = "experiment.ship"
+
 	CreditGranted  Action = "credit.grant"
 	CreditCharged  Action = "credit.charge"
 	AutoTopUpSet   Action = "billing.auto_topup"

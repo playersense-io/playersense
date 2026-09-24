@@ -40,6 +40,16 @@ type Result struct {
 
 	// Events are the LiveOps events on right now, highest priority first.
 	Events []ActiveEvent `json:"liveops_events"`
+
+	// Experiments names, by flag, the test and arm a player is in, for the SDK to put on the
+	// flag's exposure so the arm is counted as an arm rather than inferred from its value.
+	Experiments map[string]Assignment `json:"experiments,omitempty"`
+}
+
+// Assignment is one player's place in one experiment.
+type Assignment struct {
+	Experiment string `json:"experiment"`
+	Arm        string `json:"arm"`
 }
 
 // ActiveEvent is one event a player is inside, with the instants the SDK counts against.
@@ -75,7 +85,14 @@ func (d Document) Evaluate(at time.Time, projectID string, subject Subject) Resu
 	}
 
 	for _, flag := range d.Flags {
-		result.Flags[flag.Key] = flag.resolve(projectID, subject)
+		value, arm := flag.resolve(projectID, subject)
+		result.Flags[flag.Key] = value
+		if arm != "" {
+			if result.Experiments == nil {
+				result.Experiments = map[string]Assignment{}
+			}
+			result.Experiments[flag.Key] = Assignment{Experiment: flag.Split.Experiment, Arm: arm}
+		}
 	}
 
 	for _, event := range d.Events {
@@ -112,9 +129,18 @@ func (d Document) Evaluate(at time.Time, projectID string, subject Subject) Resu
 // next rule. It is the audience that was chosen; being outside the sample means the default,
 // not somebody else's variant — falling through would quietly enrol the control group into
 // whatever rule came next.
-func (f Flag) resolve(projectID string, subject Subject) any {
+//
+// An experiment on the flag comes before the rules, inside the flag's own rollout. The arm is
+// returned beside the value, empty for a player the test did not take in.
+func (f Flag) resolve(projectID string, subject Subject) (any, string) {
 	if !targeting.InRollout(f.Rollout, projectID, f.Key, subject.InstallID, f.Salt) {
-		return f.Fallback
+		return f.Fallback, ""
+	}
+
+	if f.Split != nil {
+		if arm, in := f.Split.assign(projectID, f.Key, f.Salt, subject); in {
+			return arm.Value, arm.ID
+		}
 	}
 
 	for i, variant := range f.Rules {
@@ -124,11 +150,31 @@ func (f Flag) resolve(projectID string, subject Subject) any {
 		// Salted with the rule's position as well as the flag, so two rules in one flag
 		// draw different samples rather than the same players twice.
 		if !targeting.InRollout(variant.Rollout, projectID, f.Key+"#"+itoa(i), subject.InstallID, f.Salt) {
-			return f.Fallback
+			return f.Fallback, ""
 		}
-		return variant.Value
+		return variant.Value, ""
 	}
-	return f.Fallback
+	return f.Fallback, ""
+}
+
+// assign places a player in the test and in an arm, or reports that the test did not take them.
+func (s Split) assign(projectID, flagKey, salt string, subject Subject) (Arm, bool) {
+	if len(s.Arms) == 0 || !s.Audience.Matches(subject.Context) {
+		return Arm{}, false
+	}
+	if !targeting.InRollout(s.Traffic, projectID, flagKey+"!"+s.Experiment, subject.InstallID, salt) {
+		return Arm{}, false
+	}
+	bucket := targeting.Bucket(projectID, flagKey+"~"+s.Experiment, subject.InstallID, salt)
+	for _, arm := range s.Arms {
+		if bucket < arm.Weight {
+			return arm, true
+		}
+		bucket -= arm.Weight
+	}
+	// Weights that do not reach Buckets are refused when compiled; the last arm takes any
+	// remainder rather than leaving a player half in the test.
+	return s.Arms[len(s.Arms)-1], true
 }
 
 // resolve decides whether a player is inside an event right now.

@@ -2817,6 +2817,10 @@ Properties:
 - rollout does not randomly change every app launch;
 - a version/salt change can intentionally reshuffle assignment.
 
+An experiment on a flag draws twice, against two keys: once for whether the player is in the
+test at all (the experiment's traffic), and once for which arm. Raising traffic from 10% to 50%
+therefore only adds players; nobody already in changes arm.
+
 ---
 
 ## 44. Feature exposure analytics
@@ -2833,6 +2837,12 @@ This connects experiments to:
 - game progression.
 
 Avoid sending a high-volume exposure event every frame/evaluation. SDKs should deduplicate exposure per session/config version where appropriate.
+
+When the config response names an experiment for a flag (`experiments: {flag: {experiment, arm}}`),
+the SDK puts both on that flag's exposure as the `experiment` and `arm` properties. The arm is then
+counted as reported rather than inferred from the value, which matters for a player the test did
+not take in: they are served the flag's usual answer, often the control arm's value, and are not
+in the control arm.
 
 ---
 

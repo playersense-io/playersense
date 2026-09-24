@@ -153,6 +153,14 @@ func Compile(in Input) (Document, error) {
 			})
 			doc.NeedsPlayerFacts = doc.NeedsPlayerFacts || audience.NeedsPlayerFacts()
 		}
+		if flag.Split != nil {
+			split, err := compileSplit(in.Segments, *flag.Split)
+			if err != nil {
+				return Document{}, fmt.Errorf("flag %q experiment: %w", flag.Key, err)
+			}
+			compiled.Split = &split
+			doc.NeedsPlayerFacts = doc.NeedsPlayerFacts || split.Audience.NeedsPlayerFacts()
+		}
 		doc.Flags = append(doc.Flags, compiled)
 	}
 
@@ -180,6 +188,33 @@ func Compile(in Input) (Document, error) {
 	}
 
 	return doc, nil
+}
+
+// compileSplit inlines an experiment's audience and checks its arms divide the test whole.
+func compileSplit(segments Segments, split Split) (Split, error) {
+	audience, err := segments.Inline(split.Audience)
+	if err != nil {
+		return Split{}, err
+	}
+	if err := audience.Validate(); err != nil {
+		return Split{}, err
+	}
+	if len(split.Arms) < 2 {
+		return Split{}, fmt.Errorf("an experiment needs at least two arms, not %d", len(split.Arms))
+	}
+	total := 0
+	for _, arm := range split.Arms {
+		if arm.Weight <= 0 {
+			return Split{}, fmt.Errorf("arm %q has no weight", arm.ID)
+		}
+		total += arm.Weight
+	}
+	if total != targeting.Buckets {
+		return Split{}, fmt.Errorf("the arms' weights add up to %d hundredths, not %d", total, targeting.Buckets)
+	}
+	split.Audience = audience
+	split.Traffic = clampRollout(split.Traffic)
+	return split, nil
 }
 
 // clampRollout keeps a percentage inside its range.

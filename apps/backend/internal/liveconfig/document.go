@@ -69,6 +69,34 @@ type Flag struct {
 
 	Rollout int    `json:"rollout"`
 	Salt    string `json:"salt,omitempty"`
+
+	// Split is the experiment running on this flag, when one is (§43, §44). It is decided
+	// before the rules: a player the test takes in is answered by their arm, and everybody
+	// else by the rules as usual.
+	Split *Split `json:"split,omitempty"`
+}
+
+// Split is an experiment dividing an audience between arms.
+//
+// Two draws, each against its own key, and the separation is the point. Traffic decides who is
+// in the test and the arm decides which variant, so raising traffic from 10% to 50% only adds
+// players: everybody already in stays in, and in the same arm.
+type Split struct {
+	Experiment string         `json:"experiment"`
+	Audience   targeting.Rule `json:"audience"`
+
+	// Traffic is hundredths of the audience let into the test.
+	Traffic int   `json:"traffic"`
+	Arms    []Arm `json:"arms"`
+}
+
+// Arm is one variant of an experiment.
+type Arm struct {
+	ID    string `json:"id"`
+	Value any    `json:"value"`
+
+	// Weight is hundredths of the test's players; an experiment's arms add up to Buckets.
+	Weight int `json:"weight"`
 }
 
 // Variant is one audience and the value it gets.

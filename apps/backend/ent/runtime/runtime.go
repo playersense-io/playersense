@@ -17,6 +17,7 @@ import (
 	"playersense.dev/backend/ent/datadeletionrequest"
 	"playersense.dev/backend/ent/dataexportrequest"
 	"playersense.dev/backend/ent/environment"
+	"playersense.dev/backend/ent/experiment"
 	"playersense.dev/backend/ent/featureflag"
 	"playersense.dev/backend/ent/invitation"
 	"playersense.dev/backend/ent/invoice"
@@ -726,6 +727,163 @@ func init() {
 	environment.DefaultUpdatedAt = environmentDescUpdatedAt.Default.(func() time.Time)
 	// environment.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	environment.UpdateDefaultUpdatedAt = environmentDescUpdatedAt.UpdateDefault.(func() time.Time)
+	experimentMixin := schema.Experiment{}.Mixin()
+	experimentMixinFields0 := experimentMixin[0].Fields()
+	_ = experimentMixinFields0
+	experimentFields := schema.Experiment{}.Fields()
+	_ = experimentFields
+	// experimentDescUID is the schema descriptor for uid field.
+	experimentDescUID := experimentMixinFields0[1].Descriptor()
+	// experiment.DefaultUID holds the default value on creation for the uid field.
+	experiment.DefaultUID = experimentDescUID.Default.(func() uuid.UUID)
+	// experimentDescCreatedAt is the schema descriptor for created_at field.
+	experimentDescCreatedAt := experimentMixinFields0[2].Descriptor()
+	// experiment.DefaultCreatedAt holds the default value on creation for the created_at field.
+	experiment.DefaultCreatedAt = experimentDescCreatedAt.Default.(func() time.Time)
+	// experimentDescUpdatedAt is the schema descriptor for updated_at field.
+	experimentDescUpdatedAt := experimentMixinFields0[3].Descriptor()
+	// experiment.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	experiment.DefaultUpdatedAt = experimentDescUpdatedAt.Default.(func() time.Time)
+	// experiment.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	experiment.UpdateDefaultUpdatedAt = experimentDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// experimentDescName is the schema descriptor for name field.
+	experimentDescName := experimentFields[1].Descriptor()
+	// experiment.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	experiment.NameValidator = func() func(string) error {
+		validators := experimentDescName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(name string) error {
+			for _, fn := range fns {
+				if err := fn(name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// experimentDescHypothesis is the schema descriptor for hypothesis field.
+	experimentDescHypothesis := experimentFields[2].Descriptor()
+	// experiment.DefaultHypothesis holds the default value on creation for the hypothesis field.
+	experiment.DefaultHypothesis = experimentDescHypothesis.Default.(string)
+	// experiment.HypothesisValidator is a validator for the "hypothesis" field. It is called by the builders before save.
+	experiment.HypothesisValidator = experimentDescHypothesis.Validators[0].(func(string) error)
+	// experimentDescFlagKey is the schema descriptor for flag_key field.
+	experimentDescFlagKey := experimentFields[3].Descriptor()
+	// experiment.FlagKeyValidator is a validator for the "flag_key" field. It is called by the builders before save.
+	experiment.FlagKeyValidator = func() func(string) error {
+		validators := experimentDescFlagKey.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(flag_key string) error {
+			for _, fn := range fns {
+				if err := fn(flag_key); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// experimentDescAudience is the schema descriptor for audience field.
+	experimentDescAudience := experimentFields[4].Descriptor()
+	// experiment.DefaultAudience holds the default value on creation for the audience field.
+	experiment.DefaultAudience = experimentDescAudience.Default.(map[string]interface{})
+	// experimentDescAudienceLabel is the schema descriptor for audience_label field.
+	experimentDescAudienceLabel := experimentFields[5].Descriptor()
+	// experiment.DefaultAudienceLabel holds the default value on creation for the audience_label field.
+	experiment.DefaultAudienceLabel = experimentDescAudienceLabel.Default.(string)
+	// experiment.AudienceLabelValidator is a validator for the "audience_label" field. It is called by the builders before save.
+	experiment.AudienceLabelValidator = experimentDescAudienceLabel.Validators[0].(func(string) error)
+	// experimentDescTraffic is the schema descriptor for traffic field.
+	experimentDescTraffic := experimentFields[6].Descriptor()
+	// experiment.DefaultTraffic holds the default value on creation for the traffic field.
+	experiment.DefaultTraffic = experimentDescTraffic.Default.(int)
+	// experiment.TrafficValidator is a validator for the "traffic" field. It is called by the builders before save.
+	experiment.TrafficValidator = func() func(int) error {
+		validators := experimentDescTraffic.Validators
+		fns := [...]func(int) error{
+			validators[0].(func(int) error),
+			validators[1].(func(int) error),
+		}
+		return func(traffic int) error {
+			for _, fn := range fns {
+				if err := fn(traffic); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// experimentDescPrimaryMetric is the schema descriptor for primary_metric field.
+	experimentDescPrimaryMetric := experimentFields[8].Descriptor()
+	// experiment.PrimaryMetricValidator is a validator for the "primary_metric" field. It is called by the builders before save.
+	experiment.PrimaryMetricValidator = func() func(string) error {
+		validators := experimentDescPrimaryMetric.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(primary_metric string) error {
+			for _, fn := range fns {
+				if err := fn(primary_metric); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// experimentDescGuardrails is the schema descriptor for guardrails field.
+	experimentDescGuardrails := experimentFields[9].Descriptor()
+	// experiment.DefaultGuardrails holds the default value on creation for the guardrails field.
+	experiment.DefaultGuardrails = experimentDescGuardrails.Default.([]string)
+	// experimentDescPlannedDays is the schema descriptor for planned_days field.
+	experimentDescPlannedDays := experimentFields[11].Descriptor()
+	// experiment.DefaultPlannedDays holds the default value on creation for the planned_days field.
+	experiment.DefaultPlannedDays = experimentDescPlannedDays.Default.(int)
+	// experiment.PlannedDaysValidator is a validator for the "planned_days" field. It is called by the builders before save.
+	experiment.PlannedDaysValidator = func() func(int) error {
+		validators := experimentDescPlannedDays.Validators
+		fns := [...]func(int) error{
+			validators[0].(func(int) error),
+			validators[1].(func(int) error),
+		}
+		return func(planned_days int) error {
+			for _, fn := range fns {
+				if err := fn(planned_days); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// experimentDescWinner is the schema descriptor for winner field.
+	experimentDescWinner := experimentFields[14].Descriptor()
+	// experiment.WinnerValidator is a validator for the "winner" field. It is called by the builders before save.
+	experiment.WinnerValidator = experimentDescWinner.Validators[0].(func(string) error)
+	// experimentDescShipped is the schema descriptor for shipped field.
+	experimentDescShipped := experimentFields[15].Descriptor()
+	// experiment.DefaultShipped holds the default value on creation for the shipped field.
+	experiment.DefaultShipped = experimentDescShipped.Default.(bool)
+	// experimentDescConclusion is the schema descriptor for conclusion field.
+	experimentDescConclusion := experimentFields[16].Descriptor()
+	// experiment.DefaultConclusion holds the default value on creation for the conclusion field.
+	experiment.DefaultConclusion = experimentDescConclusion.Default.(string)
+	// experiment.ConclusionValidator is a validator for the "conclusion" field. It is called by the builders before save.
+	experiment.ConclusionValidator = experimentDescConclusion.Validators[0].(func(string) error)
+	// experimentDescCreatedBy is the schema descriptor for created_by field.
+	experimentDescCreatedBy := experimentFields[17].Descriptor()
+	// experiment.DefaultCreatedBy holds the default value on creation for the created_by field.
+	experiment.DefaultCreatedBy = experimentDescCreatedBy.Default.(string)
+	// experiment.CreatedByValidator is a validator for the "created_by" field. It is called by the builders before save.
+	experiment.CreatedByValidator = experimentDescCreatedBy.Validators[0].(func(string) error)
+	// experimentDescTimeline is the schema descriptor for timeline field.
+	experimentDescTimeline := experimentFields[18].Descriptor()
+	// experiment.DefaultTimeline holds the default value on creation for the timeline field.
+	experiment.DefaultTimeline = experimentDescTimeline.Default.([]map[string]interface{})
 	featureflagMixin := schema.FeatureFlag{}.Mixin()
 	featureflagMixinFields0 := featureflagMixin[0].Fields()
 	_ = featureflagMixinFields0
