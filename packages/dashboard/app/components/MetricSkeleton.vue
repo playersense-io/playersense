@@ -10,8 +10,8 @@ import type { MetricSkeletonShape } from '../utils/components'
  * set of bars or a table and the switch that says which is hidden while it loads. The
  * well is what says something is coming and how tall it is; the groups inside give it a
  * rhythm, a heading and two lines each, so it reads as a page and not as a ruled box. The
- * groups are a fixed count spread over the height, so what gives between one card and the
- * next is the air between them and never the rhythm inside one.
+ * groups are as many as fit (three, fewer in a short card) spread over the height, so what
+ * gives between one card and the next is the air between them and never the rhythm inside one.
  *
  * Vuetify's loader is composed here rather than restyled: `types` registers the card's
  * own bones, and this file sizes the plain divs that come out. `boilerplate` is what
@@ -41,6 +41,14 @@ const props = withDefaults(
 const keys = computed(() => Math.min(Math.max(Math.round(props.count), 1), 6))
 
 /**
+ * How many groups the well holds: three where they fit, fewer in a short card. A group is
+ * 54px (a heading, two lines and the gaps between), the well's padding 40px, and the air
+ * between two groups at least 12px, so a 160px chart takes two and a 256px one takes three.
+ * Three in a short well run past its bottom and out of the card.
+ */
+const groups = computed(() => Math.min(Math.max(Math.floor((props.height - 40 + 12) / 66), 1), 3))
+
+/**
  * What each shape asks the loader for. A list or an `@n` here is laid out flat under the
  * loader's root, which is what lets the root's own gap and alignment reach the bones; a
  * single name would be wrapped in a box of that name first, with the root's gap between
@@ -55,7 +63,7 @@ const root = computed(() => {
     case 'legend':
       return `metric-key@${keys.value}`
     default:
-      return 'metric-group@3'
+      return `metric-group@${groups.value}`
   }
 })
 
@@ -175,8 +183,8 @@ const BONES = {
 
 .metric-skeleton .v-skeleton-loader__metric-control {
   border-radius: var(--ps-radius-x-small);
-  height: 1.75rem;
-  width: 3.375rem;
+  height: 2.25rem;
+  width: 4.375rem;
 }
 
 /*
@@ -237,6 +245,7 @@ const BONES = {
   border-radius: var(--ps-radius-small);
   box-sizing: border-box;
   height: var(--metric-skeleton-height);
+  overflow: hidden;
   padding: 1.25rem 1.5rem;
 }
 
