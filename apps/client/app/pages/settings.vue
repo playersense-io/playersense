@@ -7,13 +7,13 @@
 // organization's team and its money sit side by side, and a change on the wrong one is
 // invisible until afterwards.
 const TABS: readonly SettingsTab[] = [
-  { to: '/settings', title: 'General', scope: 'This project', icon: 'material-symbols:tune' },
-  { to: '/settings/data-retention', title: 'Data retention', scope: 'This project', icon: 'material-symbols:database-outline' },
-  { to: '/settings/members', title: 'Members', scope: 'Organization', icon: 'material-symbols:group-outline' },
-  { to: '/settings/api-keys', title: 'API keys', scope: 'This project', icon: 'material-symbols:vpn-key-outline' },
-  { to: '/settings/notifications', title: 'Notification channels', scope: 'This project', icon: 'material-symbols:notifications-outline' },
-  { to: '/settings/billing', title: 'Billing', scope: 'Organization', icon: 'material-symbols:receipt-long-outline' },
-  { to: '/settings/audit-log', title: 'Audit log', scope: 'Organization', icon: 'material-symbols:history' }
+  { to: '/settings', title: 'General', scope: 'This project', icon: 'lucide:sliders-horizontal' },
+  { to: '/settings/data-retention', title: 'Data retention', scope: 'This project', icon: 'lucide:database' },
+  { to: '/settings/members', title: 'Members', scope: 'Organization', icon: 'lucide:users' },
+  { to: '/settings/api-keys', title: 'API keys', scope: 'This project', icon: 'lucide:key-round' },
+  { to: '/settings/notifications', title: 'Notification channels', scope: 'This project', icon: 'lucide:bell' },
+  { to: '/settings/billing', title: 'Billing', scope: 'Organization', icon: 'lucide:receipt' },
+  { to: '/settings/audit-log', title: 'Audit log', scope: 'Organization', icon: 'lucide:history' }
 ]
 </script>
 
