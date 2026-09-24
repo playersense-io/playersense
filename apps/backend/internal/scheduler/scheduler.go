@@ -358,6 +358,9 @@ func (s *Scheduler) Run(ctx context.Context) error {
 		if err := rollups.DeriveLifecycle(ctx, m); err != nil {
 			return fmt.Errorf("daily lifecycle for %s: %w", m, err)
 		}
+		if err := rollups.DeriveExperiments(ctx, m); err != nil {
+			return fmt.Errorf("experiments for %s: %w", m, err)
+		}
 	}
 
 	// Last, and after the derivations rather than before them. A device pruned now was

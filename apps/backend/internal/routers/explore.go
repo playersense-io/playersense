@@ -137,4 +137,15 @@ func explorer(r *muzak.Router, base string) {
 		core.Require(authz.AnalyticsRead),
 		muzak.MaxBodySize(64<<10),
 		refused, unreadable)
+
+	r.Get(base+"/experiments/{flag}", handlers.Experiment,
+		muzak.Summary("Compare a flag's arms"),
+		muzak.Description("Players counted in the arm of their first exposure to the flag, in the range "+
+			"of exposure days, and measured over the seven days from it: day 1 and day 7 retention, "+
+			"payer conversion, and revenue, sessions and playtime per player, each with its sample "+
+			"size, mean and standard deviation. Built nightly from flag_assignments and "+
+			"player_activity_daily without a join."),
+		core.Require(authz.AnalyticsRead),
+		muzak.WithResponseDoc(http.StatusNotFound, "Nobody was exposed to this flag in the range"),
+		unreadable)
 }

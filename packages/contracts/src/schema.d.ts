@@ -915,6 +915,26 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/v1/organizations/{org}/projects/{project}/analytics/{environment}/experiments/{flag}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * Compare a flag's arms
+         * @description Players counted in the arm of their first exposure to the flag, in the range of exposure days, and measured over the seven days from it: day 1 and day 7 retention, payer conversion, and revenue, sessions and playtime per player, each with its sample size, mean and standard deviation. Built nightly from flag_assignments and player_activity_daily without a join.
+         */
+        readonly get: operations["get_v1_organizations_by_org_projects_by_project_analytics_by_environment_experiments_by_flag"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/v1/organizations/{org}/projects/{project}/analytics/{environment}/flags/exposures": {
         readonly parameters: {
             readonly query?: never;
@@ -2248,6 +2268,69 @@ export interface components {
             /** @description segment, flag or liveops_event */
             readonly kind: string;
             readonly reason: string;
+        };
+        readonly ExperimentDayOut: {
+            /** Format: date-time */
+            readonly day: string;
+            /** Format: double */
+            readonly payer_conversion: number;
+            /** Format: int64 */
+            readonly players: number;
+            readonly published: boolean;
+            /** Format: double */
+            readonly revenue_per_player: number;
+            readonly variant: string;
+        };
+        readonly ExperimentOut: {
+            /** Format: date-time */
+            readonly computed_at?: string;
+            readonly daily: readonly components["schemas"]["ExperimentDayOut"][];
+            /**
+             * Format: int64
+             * @description How many days from exposure each outcome is summed over
+             */
+            readonly days: number;
+            readonly flag: string;
+            /**
+             * Format: date-time
+             * @description The first exposure day counted
+             */
+            readonly from: string;
+            /** Format: int64 */
+            readonly suppressed_cells: number;
+            /** Format: int64 */
+            readonly suppression_threshold: number;
+            /**
+             * Format: date-time
+             * @description The last exposure day counted
+             */
+            readonly to: string;
+            readonly variants: readonly components["schemas"]["ExperimentVariantOut"][];
+        };
+        readonly ExperimentStatOut: {
+            /** Format: double */
+            readonly mean: number;
+            /** Format: int64 */
+            readonly n: number;
+            /** Format: double */
+            readonly sd: number;
+        };
+        readonly ExperimentVariantOut: {
+            readonly d1_retention?: components["schemas"]["ExperimentStatOut"] | null;
+            readonly d7_retention?: components["schemas"]["ExperimentStatOut"] | null;
+            /** Format: int64 */
+            readonly mature_players: number;
+            readonly payer_conversion: components["schemas"]["ExperimentStatOut"];
+            /** Format: int64 */
+            readonly players: number;
+            readonly playtime_minutes: components["schemas"]["ExperimentStatOut"];
+            /** @description False for the players who got the game's own default */
+            readonly published: boolean;
+            /** @description Micros over the seven days */
+            readonly revenue_per_player: components["schemas"]["ExperimentStatOut"];
+            readonly sessions_per_player: components["schemas"]["ExperimentStatOut"];
+            /** @description The flag's value, as text */
+            readonly variant: string;
         };
         readonly ExportIn: {
             /** @description The actor key or install_id the player is known by in this project */
@@ -7783,6 +7866,91 @@ export interface operations {
                 };
             };
             /** @description The facts cannot answer this question, and the body explains why */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The facts could not be read */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly get_v1_organizations_by_org_projects_by_project_analytics_by_environment_experiments_by_flag: {
+        readonly parameters: {
+            readonly query?: {
+                /** @description YYYY-MM-DD, inclusive. Defaults to six days before to */
+                readonly from?: string;
+                /** @description YYYY-MM-DD, inclusive. Defaults to today (UTC) */
+                readonly to?: string;
+            };
+            readonly header?: never;
+            readonly path: {
+                readonly org: string;
+                readonly project: string;
+                /** @description development, staging or production */
+                readonly environment: "development" | "staging" | "production";
+                readonly flag: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ExperimentOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not read this project's analytics */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Nobody was exposed to this flag in the range */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
             readonly 422: {
                 headers: {
                     readonly [name: string]: unknown;

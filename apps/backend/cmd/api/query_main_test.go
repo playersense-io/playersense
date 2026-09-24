@@ -326,6 +326,9 @@ func (r *reporting) derive(t *testing.T, from, to time.Time) {
 		if err := r.rollups.DeriveLifecycle(ctx, m); err != nil {
 			t.Fatalf("derive lifecycle %s: %v", m, err)
 		}
+		if err := r.rollups.DeriveExperiments(ctx, m); err != nil {
+			t.Fatalf("derive experiments %s: %v", m, err)
+		}
 	}
 }
 

@@ -883,3 +883,76 @@ func TestAFunnelTooWideIsRefused(t *testing.T) {
 		"steps": []map[string]any{{"event": "a"}, {"event": "b"}},
 	}, http.StatusUnprocessableEntity)
 }
+
+// TestAnExperimentComparesItsArmsWithoutAJoin.
+//
+// Twelve players met double_xp ten days ago, six of them getting true and six false. The true arm
+// came back the next day and a week later, and half of it paid; the false arm never came back.
+func TestAnExperimentComparesItsArmsWithoutAJoin(t *testing.T) {
+	r := newReporting(t, "standard")
+	d := time.Now().UTC().Truncate(24*time.Hour).AddDate(0, 0, -10)
+	var rows []rawEvent
+	for i := range 12 {
+		install := uuid.NewString()
+		arm := uint8(i % 2)
+		base := rawEvent{install: install, session: "s", platform: "ios", version: "2.7.1", cohort: d}
+		exposure := base
+		exposure.name, exposure.kind, exposure.at = "feature_exposure", "exposure", d.Add(9*time.Hour)
+		exposure.strs = map[string]string{"flag": "double_xp"}
+		exposure.ints = map[string]int64{"config_version": 3}
+		exposure.bools = map[string]uint8{"published": 1, "value": arm}
+		start := base
+		start.name, start.kind, start.at = "session_start", "session", d.Add(9*time.Hour)
+		rows = append(rows, exposure, start)
+		if arm == 1 {
+			for _, later := range []int{1, 7} {
+				back := start
+				back.at = d.AddDate(0, 0, later).Add(9 * time.Hour)
+				rows = append(rows, back)
+			}
+			if i < 6 {
+				buy := base
+				buy.name, buy.kind, buy.at = "gem_pack", "purchase", d.AddDate(0, 0, 2).Add(9*time.Hour)
+				buy.revenue, buy.currency = 990_000, "USD"
+				rows = append(rows, buy)
+			}
+		}
+	}
+	r.insert(t, rows)
+	if got := r.waitForRows(t, len(rows)); got != len(rows) {
+		t.Fatalf("seeded %d of %d rows", got, len(rows))
+	}
+	r.derive(t, d, time.Now().UTC())
+
+	out := get[schemas.ExperimentOut](t, r.member, r.analytics()+"/experiments/double_xp",
+		url.Values{"from": {day(d)}, "to": {day(d)}}, http.StatusOK)
+	arms := map[string]schemas.ExperimentVariantOut{}
+	for _, v := range out.Variants {
+		arms[v.Variant] = v
+	}
+	on, off := arms["true"], arms["false"]
+	if on.Players != 6 || off.Players != 6 || on.MaturePlayers != 6 {
+		t.Fatalf("arms %+v, want six mature players in each", out.Variants)
+	}
+	if on.D1Retention == nil || on.D1Retention.Mean != 1 || on.D7Retention == nil || on.D7Retention.Mean != 1 {
+		t.Fatalf("the true arm's retention is %+v and %+v, want everybody back on day 1 and 7", on.D1Retention, on.D7Retention)
+	}
+	if off.D1Retention == nil || off.D1Retention.Mean != 0 {
+		t.Fatalf("the false arm's day 1 retention is %+v, want nobody", off.D1Retention)
+	}
+	// i < 6 with i odd: three of the true arm paid 0.99 each.
+	if on.PayerConversion.Mean != 0.5 || on.RevenuePerPlayer.Mean != 495_000 {
+		t.Fatalf("the true arm converted %v and made %v a player, want 0.5 and 495000",
+			on.PayerConversion.Mean, on.RevenuePerPlayer.Mean)
+	}
+	if sd := on.RevenuePerPlayer.SD; sd < 542_000 || sd > 542_500 {
+		t.Fatalf("the true arm's revenue deviates by %v, want the sample deviation of three 0.99s and three zeros", sd)
+	}
+	if on.SessionsPerPlayer.Mean != 2 || off.SessionsPerPlayer.Mean != 1 {
+		t.Fatalf("sessions per player %v and %v, want 2 in the seven days for true and 1 for false",
+			on.SessionsPerPlayer.Mean, off.SessionsPerPlayer.Mean)
+	}
+
+	get[schemas.ExperimentOut](t, r.member, r.analytics()+"/experiments/never_run",
+		url.Values{"from": {day(d)}, "to": {day(d)}}, http.StatusNotFound)
+}

@@ -961,3 +961,71 @@ type FunnelAnswerOut struct {
 	Steps       *FunnelOut      `json:"steps,omitzero"`
 	Progression *ProgressionOut `json:"progression,omitzero"`
 }
+
+// ---- experiments ------------------------------------------------------------
+
+// ExperimentParams asks how a flag's arms compare, for players exposed in a range.
+type ExperimentParams struct {
+	AnalyticsScope
+	AnalyticsRange
+	Flag string `path:"flag"`
+}
+
+func (in *ExperimentParams) Validate(v *muzak.Validation) {
+	in.validateScope(v)
+	in.validateRange(v)
+	v.String(&in.Flag).Trim().Required().MaxLen(128)
+}
+
+// ExperimentOut compares a flag's arms: each player counted in the arm of their first exposure,
+// and measured over the seven days from it.
+type ExperimentOut struct {
+	Flag       string    `json:"flag"`
+	From       time.Time `json:"from" doc:"The first exposure day counted"`
+	To         time.Time `json:"to" doc:"The last exposure day counted"`
+	Days       int       `json:"days" doc:"How many days from exposure each outcome is summed over"`
+	ComputedAt time.Time `json:"computed_at,omitzero"`
+
+	Variants []ExperimentVariantOut `json:"variants"`
+	Daily    []ExperimentDayOut     `json:"daily"`
+
+	SuppressedCells      int `json:"suppressed_cells"`
+	SuppressionThreshold int `json:"suppression_threshold"`
+}
+
+// ExperimentVariantOut is one arm.
+type ExperimentVariantOut struct {
+	Variant   string `json:"variant" doc:"The flag's value, as text"`
+	Published bool   `json:"published" doc:"False for the players who got the game's own default"`
+	Players   uint64 `json:"players"`
+
+	// MaturePlayers were exposed long enough ago for all seven days to have happened.
+	MaturePlayers uint64 `json:"mature_players"`
+
+	// The two retention rates are over the players whose day 1 or day 7 had happened.
+	D1Retention *ExperimentStatOut `json:"d1_retention,omitzero"`
+	D7Retention *ExperimentStatOut `json:"d7_retention,omitzero"`
+
+	PayerConversion   ExperimentStatOut `json:"payer_conversion"`
+	RevenuePerPlayer  ExperimentStatOut `json:"revenue_per_player" doc:"Micros over the seven days"`
+	SessionsPerPlayer ExperimentStatOut `json:"sessions_per_player"`
+	PlaytimeMinutes   ExperimentStatOut `json:"playtime_minutes"`
+}
+
+// ExperimentStatOut is a metric's sample size, mean and standard deviation, which is what a
+// comparison between arms needs.
+type ExperimentStatOut struct {
+	N    uint64  `json:"n"`
+	Mean float64 `json:"mean"`
+	SD   float64 `json:"sd"`
+}
+
+// ExperimentDayOut is one arm's players exposed on one day.
+type ExperimentDayOut struct {
+	Day              time.Time `json:"day"`
+	Variant          string    `json:"variant"`
+	Published        bool      `json:"published"`
+	Players          uint64    `json:"players"`
+	RevenuePerPlayer float64   `json:"revenue_per_player"`
+	PayerConversion  float64   `json:"payer_conversion"`
+}

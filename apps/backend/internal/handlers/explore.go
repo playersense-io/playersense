@@ -307,3 +307,16 @@ func QueryFunnel(ctx *muzak.Context, in schemas.FunnelQueryIn) (schemas.FunnelAn
 	}
 	return out, nil
 }
+
+// Experiment compares a flag's arms.
+func Experiment(ctx *muzak.Context, in schemas.ExperimentParams) (schemas.ExperimentOut, error) {
+	engine, scope, w, err := explore(ctx, in.Environment, in.AnalyticsRange)
+	if err != nil {
+		return schemas.ExperimentOut{}, err
+	}
+	out, err := engine.Experiment(ctx.Context(), scope, in.Flag, w)
+	if err != nil {
+		return schemas.ExperimentOut{}, exploreFailed(err, "experiment")
+	}
+	return *out, nil
+}
