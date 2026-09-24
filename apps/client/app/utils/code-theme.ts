@@ -33,5 +33,8 @@ export const PANEL_CODE_THEME = {
 export const CODE_LANGUAGE_NAMES: Record<string, string> = {
   json: 'JSON',
   csharp: 'C#',
-  shellscript: 'Shell'
+  shellscript: 'Shell',
+  javascript: 'Node.js',
+  python: 'Python',
+  go: 'Go'
 }

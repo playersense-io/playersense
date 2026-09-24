@@ -41,7 +41,7 @@ export default defineNuxtConfig({
   // CodeBlock.vue colours it with the panel's own theme (utils/code-theme.ts), loaded at first
   // use; the module needs one bundled theme to start from, and the smallest is named here.
   shiki: {
-    bundledLangs: ['json', 'csharp', 'shellscript'],
+    bundledLangs: ['json', 'csharp', 'shellscript', 'javascript', 'python', 'go'],
     bundledThemes: ['min-dark'],
     defaultTheme: 'min-dark',
     defaultLang: 'json'

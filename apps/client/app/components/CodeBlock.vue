@@ -9,7 +9,7 @@
 // never waits to be read.
 const props = withDefaults(defineProps<{
   code: string
-  lang?: 'json' | 'csharp' | 'shellscript'
+  lang?: 'json' | 'csharp' | 'shellscript' | 'javascript' | 'python' | 'go'
   /** The band's label; the language's name when absent. */
   title?: string
   lineNumbers?: boolean
