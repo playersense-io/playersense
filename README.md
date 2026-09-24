@@ -46,7 +46,13 @@ go run ./apps/backend/cmd/migrate up ch       # clickhouse only
 go run ./apps/backend/cmd/migrate status      # which ClickHouse migrations are applied
 go run ./apps/backend/cmd/migrate verify      # §96 classification, across both
 go run ./apps/backend/cmd/migrate reset       # drop everything, Keeper metadata included
+go run ./apps/backend/cmd/migrate backfill events_daily sessions   # fill new rollups from history
 ```
+
+A materialized view only sees inserts made after it exists, so a rollup added by a migration starts
+empty. `backfill` runs each named view's own SELECT over the history already in `events_raw`, once,
+and fills anything chained from it the same way; it refuses a table that already holds rows, since
+running over those would count them twice. Stop analytics-writer while it runs.
 
 `verify` reads the live catalog rather than the schema files, which is what makes it proof
 rather than documentation. It used to also enforce §99's residency rule — no column
@@ -418,6 +424,57 @@ withheld. A time series also says which summary tier answered it and whether its
 exact or a sketch. A person and a key asking the same question get the same numbers and the same
 provenance — there is one planner, and a test compares the two answers row by row.
 
+#### The dashboard's pages
+
+Beside the two queries, one read per page, all under the same analytics path and all answered from
+facts built for them ([ADR 0046](docs/adr/0046-every-page-reads-a-fact-built-for-it.md)):
+
+```
+GET   …/analytics/{environment}/events                       every event, its counts, players, properties
+GET   …/analytics/{environment}/events/{name}                one event: series, splits, property values
+GET   …/analytics/{environment}/events/{name}/occurrences    its newest occurrences            player.read
+GET   …/analytics/{environment}/sessions                     lengths, endings, platforms, heatmap
+GET   …/analytics/{environment}/sessions/recent              the newest sessions               player.read
+GET   …/analytics/{environment}/players                      the directory of installs         player.read
+GET   …/analytics/{environment}/players/{id}                 an install, or an account by id   player.read
+GET   …/analytics/{environment}/revenue                      by day, product, store, country, price
+GET   …/analytics/{environment}/purchases                    the ledger, a page at a time      player.read
+GET   …/analytics/{environment}/flags/exposures              every flag read in a range
+GET   …/analytics/{environment}/flags/{flag}/exposures       one flag by value, version and build
+GET   …/analytics/{environment}/experiments/{flag}           each arm's outcomes over seven days
+POST  …/analytics/{environment}/funnels/query                a steps or progression funnel
+GET   /v1/organizations/{org}/analytics/{environment}/projects    every readable project, side by side
+```
+
+`…` is `/v1/organizations/{org}/projects/{project}`. The pages that count need `analytics.read` and
+withhold any count of people under the suppression threshold, as the two queries do. The ones that
+name a player need **`player.read`** as well, so a studio can hand somebody the numbers without its
+players; Developer and Growth Manager are seeded with it. None of those is served for a
+`kids_strict` project.
+
+`metrics/query` also reads the whole-project minute and hour tiers (`activity_1m`, `activity_1h`),
+splits a minute or hour series by `event_name`, and answers `continuing_players` and
+`reactivated_players` by day; `cohorts/query` answers `metric: "event"`, carries sessions on every
+row, and groups by the month.
+
+Nothing here joins. Each fact is built by a view that aggregates inside the insert block, or by the
+nightly derivation, and the questions that look like joins are answered by stamping, by a union
+grouped by device, or by two bounded statements. The few reads of `events_raw` (occurrences, a
+timeline, a funnel) run under tighter limits (`QUERY_RAW_*`), bounded by the sort key and a day
+range; a funnel reads only its step events and decides each player with `windowFunnel`. Every
+statement has a memory ceiling (`QUERY_MAX_MEMORY_USAGE`) and spills to disk before it; one that
+reaches any limit is answered 422 with what to narrow.
+
+#### The operations console
+
+```
+GET   /v1/operator/ingestion     every tenant's events, bytes, batches, late events and writer lag
+GET   /v1/operator/clickhouse    replication, merges, mutations, parts by table and disk, memory, errors
+GET   /v1/operator/storage       bytes on disk by table, and each project's metered bytes
+```
+
+Behind the operator token, like the rest of `/v1/operator`; aggregate only.
+
 #### Data-subject requests
 
 §101's surface, with
@@ -482,8 +539,9 @@ go run ./apps/backend/cmd/worker once   # one pass of each, then exit
 Two loops on two cadences, because §79's list is two kinds of work.
 
 **The derivation**, nightly at `WORKER_DERIVE_AT`. Rebuilds the cohort facts, their
-denominators, the behavioural buckets and the daily/monthly metrics — everything the
-reporting routes serve. Until it runs, every chart reads zero while ingestion is perfectly healthy.
+denominators, the behavioural buckets, the daily/monthly metrics, complete sessions by day, the
+lifecycle split of returning players and each experiment arm's outcomes: everything the
+reporting routes serve that a view cannot build. Until it runs, every chart reads zero while ingestion is perfectly healthy.
 
 Whole months, never a trailing window: each row of a cohort fact belongs to exactly one
 activity-month partition, and `REPLACE PARTITION` swaps a partition wholesale. Denominators

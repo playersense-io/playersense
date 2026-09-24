@@ -918,6 +918,14 @@ feature_exposures
 
 Not every dataset needs to exist on day one. The schema should grow from real dashboard requirements.
 
+They have grown from them since (ADR 0046). `sessions_final` is `sessions`, built as events arrive,
+with `sessions_daily` derived nightly once each session is over; `purchase_events` is `purchases`,
+with `payers` and `revenue_daily` chained from it; `feature_exposures` is `feature_exposures_daily`,
+with `flag_assignments` and `experiment_daily` behind experiments. The explorer adds `event_names`,
+`events_daily` and `event_properties_daily`; the whole-project realtime tiers are `activity_1m` and
+`activity_1h`; the cohort side gained `cohort_events_daily`, and the metrics side `lifecycle_daily`.
+`active_players_monthly` is `metrics_monthly`. None of them is read with a join.
+
 Two names from earlier drafts are deliberately absent. `player_first_seen` is subsumed by
 `player_lifetime`, because cohort assignment and rolling retention need the same row and
 splitting them buys nothing. `retention_cohort_daily` is subsumed by `cohort_metrics_daily`,

@@ -257,18 +257,20 @@ status/legal links, signup/login entry. **Must not contain privileged admin logi
       be linked to their prior history without the studio's own `actor_key` — surface this as an
       honest limit anywhere player lookup is offered (support tooling, data-subject requests),
       not as a bug.
-- [ ] **Sessions** — DAU/session counts are available from `metrics_daily`-backed queries;
-      session **duration percentiles are not** (needs `sessions_final`/§30 sessionization,
-      unbuilt per `docs/compliance/10-open-items.md`). Ship counts/totals only for v1.
-- [ ] **Realtime** — confirm whether `/metrics/query` supports a genuinely near-real-time
-      interval before committing to this page; it may be blocked on something not yet exposed.
+- [ ] **Sessions**: backend served: `GET …/sessions` (length ladder with median and p90, endings,
+      platforms, weekday-by-hour heatmap) and `GET …/sessions/recent` (ADR 0046). UI not wired.
+- [ ] **Realtime**: backend served: `metrics/query` at `interval=minute` reads `activity_1m`
+      (sessions included), and `group_by: ["event_name"]` gives the top events. UI not wired.
 
 ### Blocked on backend work not yet built
 Tracked as ground truth in `docs/compliance/10-open-items.md` and cross-checked against
 `apps/backend` (no matching internal package/handler/router exists for any of these):
-- [ ] **Events** (event explorer) — no raw-read query path exposed yet (§3.5, §31).
-- [ ] **Funnels** (§31) — not built server-side.
-- [ ] **Player timeline** — not built.
+- [ ] **Events** (event explorer): backend served: `GET …/events`, `…/events/{name}`,
+      `…/events/{name}/occurrences` (ADR 0046). UI not wired.
+- [ ] **Funnels** (§31): backend served: `POST …/funnels/query`, steps and progression. UI not wired;
+      saved funnels still live in the browser.
+- [ ] **Player timeline**: backend served: `GET …/players` and `…/players/{id}` (install or
+      account), behind `player.read`. UI not wired.
 - [ ] **Experiments** — no experiment/exposure concept in the backend at all: `grep -rli
       experiment apps/backend` only turns up comments in `internal/targeting/bucket.go` and
       `internal/liveconfig/evaluate.go` explaining the mechanism a future experiment would use.
@@ -337,10 +339,10 @@ frontend-only, and do the staff-identity item first — everything else depends 
       null and audit entries are self-asserted (`docs/compliance/10-open-items.md`). Decide:
       ship against the shared token as an interim step, or block on verified staff identity
       first (see §6).
-- [ ] Ingestion volume dashboard.
+- [ ] Ingestion volume dashboard: backend served: `GET /v1/operator/ingestion`.
 - [ ] Queue backlog view (Pub/Sub in production, the local NDJSON spool in dev).
-- [ ] ClickHouse health view.
-- [ ] Storage usage view.
+- [ ] ClickHouse health view: backend served: `GET /v1/operator/clickhouse`.
+- [ ] Storage usage view: backend served: `GET /v1/operator/storage`.
 - [ ] Retention jobs view — the worker's janitor loop (archive expiry, erasures, exports;
       README "worker" section) — surfaced per-job with failures visible (the janitor
       deliberately reports every failure rather than stopping at the first).
@@ -373,11 +375,13 @@ Track alongside the frontend work above; none of it blocks `landing`, but most o
 - [ ] Webhooks system (§90) — blocks `client`'s Webhooks page and `admin`'s failure inspection.
 - [ ] Purchase verification (§90) — blocks `client`'s Purchases page and `admin`'s debugging
       view.
-- [ ] Experiments + exposure analytics (§91) — blocks `client`'s Experiments page.
-- [ ] Event explorer / raw-read query path, funnels, player timeline (§3.5, §31) — blocks
-      `client`'s Events, Funnels, and Players pages.
-- [ ] Session duration percentiles / `sessions_final` sessionization (§30) — blocks the full
-      Sessions page.
+- [ ] Experiments (§91): the analytics exist (`GET …/flags/{flag}/exposures`,
+      `GET …/experiments/{flag}`, ADR 0046); an experiment as a record, with its hypothesis and
+      its arms, does not.
+- [x] ~~Event explorer / raw-read query path, funnels, player timeline (§3.5, §31)~~: built
+      (ADR 0046).
+- [x] ~~Session duration percentiles / `sessions_final` sessionization (§30)~~: built,
+      `sessions` and `sessions_daily`.
 - [x] ~~Stripe, as the wallet's funding source~~ — built (ADR 0040): Checkout top-ups, the
       customer portal for cards, signed webhooks, automatic top-up off-session, refunds and disputes
       taken back (never promo credit) and restored when a refund fails or a dispute is won. Still
@@ -389,7 +393,7 @@ Track alongside the frontend work above; none of it blocks `landing`, but most o
       whether `restricted` (a dashboard lock) is ever wanted.
 - [ ] Enterprise features — premium Slack support, the daily Slack report builder, the MCP server —
       each gated on `billing.HasFeature(plan.Features, …)` (ADR 0042).
-- [ ] Realtime metrics endpoint — confirm scope before `client`'s Realtime page is built.
+- [x] ~~Realtime metrics endpoint~~: `metrics/query` at a minute grain reads `activity_1m`.
 - [ ] A person-authenticated (not server-key) data-subject-rights route, if `client` is meant
       to expose export/erasure requests directly rather than delegating to a studio's own
       backend integration.
