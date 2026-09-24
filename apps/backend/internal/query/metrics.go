@@ -46,17 +46,33 @@ func CompileSeries(scope Scope, q protocol.MetricQuery, limits Limits) (*SeriesP
 
 	plan := &SeriesPlan{Metric: q.Metric, Interval: interval, Dimension: dimension}
 
+	// Which event a minute or hour question is about decides between the two realtime
+	// families: one event, or a split by event, reads the tiers keyed by event name; the whole
+	// project reads the tiers that carry the project total and never merges one sketch per
+	// event to rebuild it.
+	perEvent := q.EventName != "" || dimension == schemas.GroupEventName
+
 	switch interval {
 	case schemas.IntervalMinute:
-		plan.Fact, plan.Approximate = factEvents1m, true
+		plan.Fact, plan.Approximate = factActivity1m, true
+		if perEvent {
+			plan.Fact = factEvents1m
+		}
 	case schemas.IntervalHour:
-		plan.Fact, plan.Approximate = factEvents1h, true
+		plan.Fact, plan.Approximate = factActivity1h, true
+		if perEvent {
+			plan.Fact = factEvents1h
+		}
 	case schemas.IntervalMonth:
 		plan.Fact = factMetricsMonthly
 	default:
-		plan.Fact = factMetricsDaily
-		if dimension != "" {
+		switch {
+		case isLifecycleMetric(q.Metric):
+			plan.Fact = factLifecycle
+		case dimension != "":
 			plan.Fact = factMetricsBreakdown
+		default:
+			plan.Fact = factMetricsDaily
 		}
 	}
 
@@ -95,12 +111,23 @@ func seriesDimension(q protocol.MetricQuery) (string, error) {
 
 // realtimeMetrics are the measures the minute and hour tiers actually hold.
 //
-// Those tiers are materialized views over events_raw keyed by event name. They know how many
-// events happened and roughly how many devices sent them; they do not know whether a device
-// was new, because that is a property of the player rather than of the block being inserted.
+// Those tiers are materialized views over events_raw. They know how many events happened and
+// roughly how many devices sent them; they do not know whether a device was new, because that is
+// a property of the player rather than of the block being inserted. The whole-project tiers also
+// count session_start, so sessions is theirs alone.
 var realtimeMetrics = []string{
 	schemas.MetricActivePlayers, schemas.MetricEvents, schemas.MetricPlaytime,
-	schemas.MetricRevenue, schemas.MetricPurchases,
+	schemas.MetricRevenue, schemas.MetricPurchases, schemas.MetricSessions,
+}
+
+// isLifecycleMetric reports whether a metric is one of lifecycle_daily's splits.
+func isLifecycleMetric(metric string) bool {
+	return metric == schemas.MetricContinuingPlayers || metric == schemas.MetricReactivatedPlayers
+}
+
+// isRealtime reports whether a fact is one of the four minute and hour tiers.
+func isRealtime(f Fact) bool {
+	return f == factEvents1m || f == factEvents1h || f == factActivity1m || f == factActivity1h
 }
 
 // checkSeriesShape refuses a question the chosen tier cannot answer.
@@ -109,33 +136,65 @@ var realtimeMetrics = []string{
 // asks for this on the cohort side and the argument is identical here: a chart of zeros is
 // a claim about the game.
 func checkSeriesShape(q protocol.MetricQuery, plan *SeriesPlan) error {
-	realtime := plan.Fact == factEvents1m || plan.Fact == factEvents1h
+	realtime := isRealtime(plan.Fact)
+	perEvent := plan.Fact == factEvents1m || plan.Fact == factEvents1h
 
 	if realtime {
 		if !slices.Contains(realtimeMetrics, q.Metric) {
 			return refuse("metric",
 				"%q is not available at a %s grain: the realtime summaries are built from event "+
-					"blocks and cannot tell a new player from a returning one, or count a session. "+
-					"Ask for it at a day grain",
+					"blocks and cannot tell a new player from a returning one. Ask for it at a day grain",
 				q.Metric, plan.Interval)
 		}
-		if plan.Dimension != "" {
+		if perEvent && q.Metric == schemas.MetricSessions {
+			return refuse("metric",
+				"sessions are counted for the whole project at a %s grain; for one event, "+
+					"ask for events of session_start instead", plan.Interval)
+		}
+		if plan.Dimension != "" && plan.Dimension != schemas.GroupEventName {
 			return refuse("group_by",
 				"the realtime summaries are keyed by event name rather than by %s; "+
 					"a breakdown by %s is available at a day grain",
 				plan.Dimension, plan.Dimension)
 		}
-	} else if q.EventName != "" {
-		return refuse("event_name",
-			"a %s grain summarises every event together, so it cannot be narrowed to %q; "+
-				"use an hour or minute grain for one event",
-			plan.Interval, q.EventName)
+		if plan.Dimension == schemas.GroupEventName && q.EventName != "" {
+			return refuse("event_name",
+				"a series split by event already has one line per event; drop event_name, or drop "+
+					"the split to follow %q alone", q.EventName)
+		}
+	} else {
+		if q.EventName != "" {
+			return refuse("event_name",
+				"a %s grain summarises every event together, so it cannot be narrowed to %q; "+
+					"use an hour or minute grain for one event, or the events endpoint for its days",
+				plan.Interval, q.EventName)
+		}
+		if plan.Dimension == schemas.GroupEventName {
+			return refuse("group_by",
+				"a %s grain summarises every event together, so it cannot be split by event; "+
+					"use an hour or minute grain, or the events endpoint for each event's days",
+				plan.Interval)
+		}
 	}
 
-	if plan.Fact == factMetricsMonthly && q.Metric == schemas.MetricReturningPlayers {
-		return refuse("metric",
-			"returning players is a daily distinction: a player is new on the day they arrived "+
-				"and returning on every other day they appear. Ask for it at a day grain")
+	if plan.Fact == factMetricsMonthly {
+		if q.Metric == schemas.MetricReturningPlayers || isLifecycleMetric(q.Metric) {
+			return refuse("metric",
+				"%s is a daily distinction: a player is new on the day they arrived and "+
+					"returning on every other day they appear. Ask for it at a day grain", q.Metric)
+		}
+		if plan.Dimension != "" {
+			return refuse("group_by",
+				"a month's active players is a distinct count over the whole month, and that count "+
+					"is kept for the project as a whole rather than per %s. Ask for a day grain "+
+					"to split by it", plan.Dimension)
+		}
+	}
+
+	if plan.Fact == factLifecycle && plan.Dimension != "" {
+		return refuse("group_by",
+			"the lifecycle split is kept for the project as a whole rather than per %s",
+			plan.Dimension)
 	}
 	return nil
 }
@@ -150,7 +209,8 @@ func checkSeriesTier(scope Scope, q protocol.MetricQuery, plan *SeriesPlan) erro
 	switch scope.PolicyTier {
 	case "kids_strict":
 		switch {
-		case q.Metric == schemas.MetricNewPlayers || q.Metric == schemas.MetricReturningPlayers:
+		case q.Metric == schemas.MetricNewPlayers || q.Metric == schemas.MetricReturningPlayers ||
+			isLifecycleMetric(q.Metric):
 			return refuse("metric",
 				"this project is on the kids_strict collection tier, which stores no persistent "+
 					"identifier, so every player looks new every day and the new/returning split "+
@@ -171,12 +231,17 @@ func compileSeries(scope Scope, q protocol.MetricQuery, plan *SeriesPlan, limits
 
 	b := from(plan.Fact)
 	b.column(bucket, "bucket")
-	if plan.Dimension != "" {
-		b.column("dim_value", "dim_value")
-	} else {
+	switch plan.Dimension {
+	case "":
 		b.column("''", "dim_value")
+	case schemas.GroupEventName:
+		b.column("toString(event_name)", "dim_value")
+	default:
+		b.column("dim_value", "dim_value")
 	}
 
+	// Every tier answers the same eleven columns, zero where it has no such measure, so one
+	// scan reads them all and a chart drawing several measures makes one request.
 	switch plan.Fact {
 	case factEvents1m, factEvents1h:
 		// uniqMerge, so this is a sketch. The response says so rather than letting a
@@ -186,12 +251,24 @@ func compileSeries(scope Scope, q protocol.MetricQuery, plan *SeriesPlan, limits
 			column("toUInt64(0)", "returning_players").
 			column("toUInt64(0)", "sessions").
 			column("toUInt64(0)", "payers")
+	case factActivity1m, factActivity1h:
+		b.column("uniqCombinedMerge(14)(players)", "active_players").
+			column("toUInt64(0)", "new_players").
+			column("toUInt64(0)", "returning_players").
+			column("sum(sessions)", "sessions").
+			column("toUInt64(0)", "payers")
 	case factMetricsMonthly:
 		b.column("sum(active_players)", "active_players").
 			column("sum(new_players)", "new_players").
 			column("toUInt64(0)", "returning_players").
 			column("sum(sessions)", "sessions").
 			column("sum(payers)", "payers")
+	case factLifecycle:
+		b.column("sum(active_players)", "active_players").
+			column("sum(new_players)", "new_players").
+			column("sum(continuing_players + reactivated_players)", "returning_players").
+			column("toUInt64(0)", "sessions").
+			column("toUInt64(0)", "payers")
 	default:
 		b.column("sum(active_players)", "active_players").
 			column("sum(new_players)", "new_players").
@@ -199,10 +276,21 @@ func compileSeries(scope Scope, q protocol.MetricQuery, plan *SeriesPlan, limits
 			column("sum(sessions)", "sessions").
 			column("sum(payers)", "payers")
 	}
-	b.column("sum(playtime_ms)", "playtime_ms").
-		column("sum(events)", "events").
-		column("sum(revenue_micros)", "revenue_micros").
-		column("sum(purchases)", "purchases")
+	if plan.Fact == factLifecycle {
+		b.column("toUInt64(0)", "playtime_ms").
+			column("toUInt64(0)", "events").
+			column("toInt64(0)", "revenue_micros").
+			column("toUInt64(0)", "purchases").
+			column("sum(continuing_players)", "continuing_players").
+			column("sum(reactivated_players)", "reactivated_players")
+	} else {
+		b.column("sum(playtime_ms)", "playtime_ms").
+			column("sum(events)", "events").
+			column("sum(revenue_micros)", "revenue_micros").
+			column("sum(purchases)", "purchases").
+			column("toUInt64(0)", "continuing_players").
+			column("toUInt64(0)", "reactivated_players")
+	}
 
 	scopeAnd(b, scope)
 
@@ -226,9 +314,9 @@ func compileSeries(scope Scope, q protocol.MetricQuery, plan *SeriesPlan, limits
 // bucketColumn is the time key each tier is stored on.
 func bucketColumn(fact Fact) string {
 	switch fact {
-	case factEvents1m:
+	case factEvents1m, factActivity1m:
 		return "minute"
-	case factEvents1h:
+	case factEvents1h, factActivity1h:
 		return "hour"
 	case factMetricsMonthly:
 		return "month"
@@ -290,6 +378,10 @@ func seriesValue(metric string, row protocol.MetricRow) float64 {
 		return float64(row.Purchases)
 	case schemas.MetricPayers:
 		return float64(row.Payers)
+	case schemas.MetricContinuingPlayers:
+		return float64(row.ContinuingPlayers)
+	case schemas.MetricReactivatedPlayers:
+		return float64(row.ReactivatedPlayers)
 	default:
 		return float64(row.RevenueMicros)
 	}

@@ -366,7 +366,8 @@ func (e *Engine) RunSeries(ctx context.Context, scope Scope, q protocol.MetricQu
 		var r protocol.MetricRow
 		if err := rows.Scan(&r.Bucket, &r.DimValue,
 			&r.ActivePlayers, &r.NewPlayers, &r.ReturningPlayers, &r.Sessions, &r.Payers,
-			&r.PlaytimeMs, &r.Events, &r.RevenueMicros, &r.Purchases); err != nil {
+			&r.PlaytimeMs, &r.Events, &r.RevenueMicros, &r.Purchases,
+			&r.ContinuingPlayers, &r.ReactivatedPlayers); err != nil {
 			return nil, err
 		}
 		r.Value = seriesValue(plan.Metric, r)
@@ -406,6 +407,8 @@ func (e *Engine) derivedAt(ctx context.Context, plan *SeriesPlan) time.Time {
 		column = "metrics_daily"
 	case factMetricsMonthly:
 		column = "metrics_monthly"
+	case factLifecycle:
+		column = "lifecycle_daily"
 	default:
 		return time.Time{}
 	}

@@ -10594,7 +10594,7 @@
           },
           "group_by": {
             "type": "array",
-            "description": "At most one dimension",
+            "description": "At most one dimension; event_name on minute and hour intervals",
             "items": {
               "type": "string"
             },
@@ -10622,7 +10622,9 @@
               "events",
               "revenue",
               "purchases",
-              "payers"
+              "payers",
+              "continuing_players",
+              "reactivated_players"
             ]
           },
           "org_id": {
@@ -10695,6 +10697,10 @@
             "format": "date-time",
             "description": "Start of the interval, UTC"
           },
+          "continuing_players": {
+            "type": "integer",
+            "format": "int64"
+          },
           "dim_value": {
             "type": "string"
           },
@@ -10715,6 +10721,10 @@
             "format": "int64"
           },
           "purchases": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "reactivated_players": {
             "type": "integer",
             "format": "int64"
           },

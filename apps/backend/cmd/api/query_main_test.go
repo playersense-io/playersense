@@ -938,14 +938,41 @@ func TestARealtimeSeriesSaysItIsApproximate(t *testing.T) {
 		"to":       time.Now().UTC().Format("2006-01-02"),
 		"interval": "hour",
 	})
-	if result.Source != "events_1h" {
-		t.Fatalf("an hour grain read %s", result.Source)
+	// The whole project reads the tier that carries its total; one event reads the tier keyed
+	// by event name. Both are sketches.
+	if result.Source != "activity_1h" {
+		t.Fatalf("an hour grain for the whole project read %s", result.Source)
 	}
 	if !result.Approximate {
 		t.Fatal("a sketch-counted series did not say it was approximate")
 	}
 	if !result.ComputedAt.IsZero() {
 		t.Fatal("a continuously updated view reported a derivation time it does not have")
+	}
+
+	split := r.series(t, map[string]any{
+		"metric":   "events",
+		"from":     time.Now().UTC().Format("2006-01-02"),
+		"to":       time.Now().UTC().Format("2006-01-02"),
+		"interval": "hour",
+		"group_by": []string{"event_name"},
+	})
+	if split.Source != "events_1h" || !split.Approximate {
+		t.Fatalf("an hour grain split by event read %s (approximate=%v)", split.Source, split.Approximate)
+	}
+	var total float64
+	for _, row := range split.Rows {
+		if row.DimValue == "" {
+			t.Fatalf("a row of a split by event names no event: %+v", row)
+		}
+		total += row.Value
+	}
+	var whole float64
+	for _, row := range result.Rows {
+		whole += row.Value
+	}
+	if total != whole {
+		t.Fatalf("the events split by name sum to %v, and the whole project counted %v", total, whole)
 	}
 }
 

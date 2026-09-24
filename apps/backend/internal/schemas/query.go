@@ -210,6 +210,15 @@ const (
 	MetricPurchases        = "purchases"
 	MetricPayers           = "payers"
 
+	// The lifecycle split of a day's returners (lifecycle_daily): back within seven days of
+	// their previous visit, or after longer.
+	MetricContinuingPlayers  = "continuing_players"
+	MetricReactivatedPlayers = "reactivated_players"
+
+	// GroupEventName splits a minute or hour series by event, which is how those two tiers are
+	// keyed. It is not a player dimension, so it is accepted only there.
+	GroupEventName = "event_name"
+
 	IntervalMinute = "minute"
 	IntervalHour   = "hour"
 	IntervalDay    = "day"
@@ -225,7 +234,12 @@ var SeriesMetrics = []string{
 	MetricActivePlayers, MetricNewPlayers, MetricReturningPlayers,
 	MetricSessions, MetricPlaytime, MetricEvents,
 	MetricRevenue, MetricPurchases, MetricPayers,
+	MetricContinuingPlayers, MetricReactivatedPlayers,
 }
+
+// SeriesGroups is what a series may be split by: a sticky dimension on the daily tier, or the
+// event on the minute and hour tiers.
+var SeriesGroups = append(append([]string(nil), CohortDimensions...), GroupEventName)
 
 // Intervals is every output grain.
 var Intervals = []string{IntervalMinute, IntervalHour, IntervalDay, IntervalMonth}
@@ -261,7 +275,7 @@ func (in *MetricQueryIn) Validate(v *muzak.Validation) {
 			"the product of two dimensions recreates raw cardinality")
 	for i := range in.GroupBy {
 		v.String(&in.GroupBy[i]).As(fmt.Sprintf("group_by.%d", i)).
-			Trim().Lower().Required().OneOf(CohortDimensions...)
+			Trim().Lower().Required().OneOf(SeriesGroups...)
 	}
 
 	v.Slice(&in.Filters).MaxItems(MaxFilters)

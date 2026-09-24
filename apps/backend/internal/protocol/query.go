@@ -189,7 +189,8 @@ type CohortRow struct {
 // the key (§76, §69, Appendix C #3).
 type MetricQuery struct {
 	// Metric is what to plot: active_players, new_players, returning_players, sessions,
-	// playtime, events, revenue, purchases or payers.
+	// playtime, events, revenue, purchases, payers, continuing_players or
+	// reactivated_players.
 	Metric string `json:"metric" doc:"active_players, new_players, sessions, revenue…"`
 
 	// From and To bound the window, inclusive.
@@ -203,11 +204,12 @@ type MetricQuery struct {
 	// chart.
 	Interval string `json:"interval,omitzero" doc:"minute, hour, day (default) or month"`
 
-	// GroupBy splits the series by at most one sticky dimension.
+	// GroupBy splits the series by at most one sticky dimension, or by event_name on the
+	// minute and hour intervals, whose tiers are keyed by event.
 	//
 	// An array because §57's shape has one, and capped at a single entry for §29.13's
 	// reason: a summary carrying the product of its dimensions recreates raw cardinality.
-	GroupBy []string `json:"group_by,omitzero" doc:"At most one dimension"`
+	GroupBy []string `json:"group_by,omitzero" doc:"At most one dimension; event_name on minute and hour intervals"`
 
 	// EventName narrows to a single event, on the minute and hour tiers where the rollup
 	// is keyed by it.
@@ -263,4 +265,8 @@ type MetricRow struct {
 	RevenueMicros    int64  `json:"revenue_micros,omitzero"`
 	Purchases        uint64 `json:"purchases,omitzero"`
 	Payers           uint64 `json:"payers,omitzero"`
+
+	// The lifecycle split of returning players, present when the metric asked for one.
+	ContinuingPlayers  uint64 `json:"continuing_players,omitzero"`
+	ReactivatedPlayers uint64 `json:"reactivated_players,omitzero"`
 }

@@ -2095,7 +2095,7 @@ export interface components {
             readonly event_name?: string;
             readonly filters?: readonly components["schemas"]["Filter"][];
             readonly from: string;
-            /** @description At most one dimension */
+            /** @description At most one dimension; event_name on minute and hour intervals */
             readonly group_by?: readonly string[];
             /**
              * @description minute, hour, day (default) or month
@@ -2106,7 +2106,7 @@ export interface components {
              * @description active_players, new_players, sessions, revenue…
              * @enum {string}
              */
-            readonly metric: "active_players" | "new_players" | "returning_players" | "sessions" | "playtime" | "events" | "revenue" | "purchases" | "payers";
+            readonly metric: "active_players" | "new_players" | "returning_players" | "sessions" | "playtime" | "events" | "revenue" | "purchases" | "payers" | "continuing_players" | "reactivated_players";
             /** @description Not accepted; scope comes from the key */
             readonly org_id?: string;
             /** @description Not accepted; scope comes from the key */
@@ -2133,6 +2133,8 @@ export interface components {
              * @description Start of the interval, UTC
              */
             readonly bucket: string;
+            /** Format: int64 */
+            readonly continuing_players?: number;
             readonly dim_value?: string;
             /** Format: int64 */
             readonly events?: number;
@@ -2144,6 +2146,8 @@ export interface components {
             readonly playtime_ms?: number;
             /** Format: int64 */
             readonly purchases?: number;
+            /** Format: int64 */
+            readonly reactivated_players?: number;
             /** Format: int64 */
             readonly returning_players?: number;
             /** Format: int64 */
