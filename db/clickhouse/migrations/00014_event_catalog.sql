@@ -173,17 +173,17 @@ GROUP BY project_seq, environment_seq, event_name, property, value_type, day
 DROP VIEW IF EXISTS mv_event_properties_daily
 -- +goose StatementEnd
 -- +goose StatementBegin
-DROP TABLE IF EXISTS event_properties_daily
+DROP TABLE IF EXISTS event_properties_daily SYNC
 -- +goose StatementEnd
 -- +goose StatementBegin
 DROP VIEW IF EXISTS mv_events_daily
 -- +goose StatementEnd
 -- +goose StatementBegin
-DROP TABLE IF EXISTS events_daily
+DROP TABLE IF EXISTS events_daily SYNC
 -- +goose StatementEnd
 -- +goose StatementBegin
 DROP VIEW IF EXISTS mv_event_names
 -- +goose StatementEnd
 -- +goose StatementBegin
-DROP TABLE IF EXISTS event_names
+DROP TABLE IF EXISTS event_names SYNC
 -- +goose StatementEnd

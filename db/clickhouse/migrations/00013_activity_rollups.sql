@@ -140,11 +140,11 @@ GROUP BY project_seq, environment_seq, hour
 DROP VIEW IF EXISTS mv_activity_1h
 -- +goose StatementEnd
 -- +goose StatementBegin
-DROP TABLE IF EXISTS activity_1h
+DROP TABLE IF EXISTS activity_1h SYNC
 -- +goose StatementEnd
 -- +goose StatementBegin
 DROP VIEW IF EXISTS mv_activity_1m
 -- +goose StatementEnd
 -- +goose StatementBegin
-DROP TABLE IF EXISTS activity_1m
+DROP TABLE IF EXISTS activity_1m SYNC
 -- +goose StatementEnd
