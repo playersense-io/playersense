@@ -23,13 +23,37 @@ const COLUMNS: DataTableColumn<Member>[] = [
 
 const columns = ref(defaultColumnState(COLUMNS))
 
+const sortBy = ref<DataTableSort[]>([{ key: 'role', order: 'asc' }])
+
+// --- Narrowing: a search, and roles under Filter, as every list here does ---------------------
+
 const query = ref('')
+const filters = ref<Record<string, string[]>>({ role: [] })
+
+const FILTER_GROUPS: FilterGroup[] = [
+  { key: 'role', label: 'Role', options: MEMBER_ROLE_ORDER.map(role => ({ value: role, label: MEMBER_ROLES[role].label })) }
+]
+
+const activeFilters = computed<ActiveFilter[]>(() => [
+  ...(filters.value.role ?? []).map(role => ({ key: `role:${role}`, label: `Role: ${MEMBER_ROLES[role as MemberRole].label}` })),
+  ...(query.value.trim() ? [{ key: 'search', label: `“${query.value.trim()}”` }] : [])
+])
+
+function removeFilter(key: string) {
+  if (key === 'search') query.value = ''
+  else filters.value = { role: (filters.value.role ?? []).filter(role => `role:${role}` !== key) }
+}
+
+function clearFilters() {
+  query.value = ''
+  filters.value = { role: [] }
+}
 
 const matched = computed(() => {
   const needle = query.value.trim().toLowerCase()
-  return members.value.filter(member => !needle
-    || member.name.toLowerCase().includes(needle)
-    || member.username.toLowerCase().includes(needle))
+  const roles = filters.value.role ?? []
+  return members.value.filter(member => (!roles.length || roles.includes(roleOf(member)))
+    && (!needle || member.name.toLowerCase().includes(needle) || member.username.toLowerCase().includes(needle)))
 })
 
 function initials(name: string) {
@@ -58,24 +82,25 @@ function initials(name: string) {
       </template>
     </PageHeader>
 
-    <v-card border flat>
-      <div class="flex flex-wrap items-center justify-between gap-3 border-b border-line p-3">
+    <SectionCard :padded="false" description="Everyone in the organisation, and the role that decides what each may do. Click a role to change it." title="Members">
+      <TableToolbar :filters="activeFilters" @clear="clearFilters" @remove="removeFilter">
         <SearchField
           v-model="query"
-          class="w-full sm:w-64"
+          class="w-56"
           label="Search members"
-          placeholder="Search name or username"
+          placeholder="Name or username"
         />
+        <FilterMenu v-model="filters" :groups="FILTER_GROUPS" />
         <DataTableColumnsMenu v-model="columns" :columns="COLUMNS" />
-      </div>
+      </TableToolbar>
 
       <DataTable
         v-model:column-state="columns"
+        v-model:sort-by="sortBy"
         :columns="COLUMNS"
         :items="matched"
         :loading="pending"
-        :paged="false"
-        empty-description="No name or username on this team matches what you typed."
+        empty-description="No member matches these filters."
         empty-title="Nobody matches."
         item-value="username"
         label="Members"
@@ -131,6 +156,6 @@ function initials(name: string) {
           </v-btn>
         </template>
       </DataTable>
-    </v-card>
+    </SectionCard>
   </div>
 </template>
