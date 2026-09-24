@@ -11,6 +11,12 @@ const props = defineProps<{
   navigation: DashboardNavigation
   /** Suffix of every tab title: "Players · PlayerSense". */
   product: string
+  /**
+   * No content column: the page fills everything under the bar, edge to edge and exactly
+   * as tall as what is left of the window, for a workspace that scrolls and pans inside
+   * itself (a canvas) rather than a document that scrolls the window.
+   */
+  fluid?: boolean
 }>()
 
 provide(NAVIGATION_KEY, props.navigation)
@@ -110,7 +116,7 @@ watch(() => route.path, () => {
     <v-app-bar color="shell" flat height="56">
       <!-- The bar's contents sit in the page's own column, so the breadcrumb starts where
            the content starts and the actions end where it ends. -->
-      <div class="mx-auto flex w-full max-w-7xl items-center gap-4 px-4 md:px-6">
+      <div :class="fluid ? 'px-4' : 'mx-auto max-w-7xl px-4 md:px-6'" class="flex w-full items-center gap-4">
         <v-app-bar-nav-icon
           v-if="!mdAndUp"
           aria-label="Open navigation"
@@ -130,7 +136,10 @@ watch(() => route.path, () => {
     </v-app-bar>
 
     <v-main>
-      <div class="mx-auto w-full max-w-7xl p-4 md:p-6">
+      <div v-if="fluid" class="h-[calc(100dvh-56px)] w-full overflow-hidden">
+        <slot />
+      </div>
+      <div v-else class="mx-auto w-full max-w-7xl p-4 md:p-6">
         <slot />
       </div>
     </v-main>
