@@ -476,3 +476,173 @@ type PlayerDayOut struct {
 	RevenueMicros int64     `json:"revenue_micros"`
 	Purchases     uint64    `json:"purchases"`
 }
+
+// ---- revenue and purchases --------------------------------------------------
+
+// RevenueFilter narrows revenue by what was bought and where. Each is a comma-separated list.
+type RevenueFilter struct {
+	Store   string `query:"store,omitzero" doc:"Comma-separated stores: app_store, google_play, or what the game reported"`
+	Country string `query:"country,omitzero" doc:"Comma-separated ISO country codes"`
+	Product string `query:"product,omitzero" doc:"Comma-separated product ids"`
+}
+
+// Lists splits the filter into its values.
+func (f RevenueFilter) Lists() (stores, countries, products []string) {
+	return splitList(f.Store), splitList(f.Country), splitList(f.Product)
+}
+
+func (f *RevenueFilter) validateFilter(v *muzak.Validation) {
+	v.String(&f.Store).Trim().MaxLen(512)
+	v.String(&f.Country).Trim().Upper().MaxLen(512)
+	v.String(&f.Product).Trim().MaxLen(2048)
+}
+
+// RevenueParams asks for the Revenue page.
+type RevenueParams struct {
+	AnalyticsScope
+	AnalyticsRange
+	RevenueFilter
+	Timezone string `query:"tz,omitzero" doc:"IANA timezone for the weekday-by-hour heatmap; defaults to UTC"`
+}
+
+func (in *RevenueParams) Validate(v *muzak.Validation) {
+	in.validateScope(v)
+	in.validateRange(v)
+	in.validateFilter(v)
+	v.String(&in.Timezone).Trim().MaxLen(64)
+}
+
+// RevenueOut is the Revenue page.
+//
+// Revenue the game reported with TrackRevenue, not receipts verified with a store (§46 is not
+// built), and in the currency it was reported in: there is no conversion, so every figure that
+// sums money says which currencies went into it.
+type RevenueOut struct {
+	From       time.Time `json:"from"`
+	To         time.Time `json:"to"`
+	Verified   bool      `json:"verified" doc:"Always false: these are purchases the game reported, not store receipts"`
+	Currencies []string  `json:"currencies" doc:"Every currency summed into these figures"`
+
+	Totals RevenueTotalsOut `json:"totals"`
+	Days   []RevenueDayOut  `json:"days"`
+
+	Products  []RevenueSliceOut `json:"products"`
+	Stores    []RevenueSliceOut `json:"stores"`
+	Countries []RevenueSliceOut `json:"countries"`
+
+	PricePoints []PricePointOut `json:"price_points"`
+
+	// NewPayers is each day's first-time payers, and SpenderTiers splits everybody who bought in
+	// the range by what they have spent in their whole life. Neither follows the filters: both
+	// are about the payer, not about one product or store.
+	NewPayers    []NewPayersOut   `json:"new_payers"`
+	SpenderTiers []SpenderTierOut `json:"spender_tiers"`
+
+	// Heatmap is purchases by weekday (Monday first) and hour, in Timezone, unfiltered.
+	Heatmap  [7][24]uint64 `json:"heatmap"`
+	Timezone string        `json:"timezone"`
+
+	Approximate          bool `json:"approximate" doc:"Buyers are distinct counts from sketches"`
+	SuppressedCells      int  `json:"suppressed_cells"`
+	SuppressionThreshold int  `json:"suppression_threshold"`
+}
+
+// RevenueTotalsOut is the range against the range before it.
+type RevenueTotalsOut struct {
+	RevenueMicros         int64   `json:"revenue_micros"`
+	Purchases             uint64  `json:"purchases"`
+	Buyers                *uint64 `json:"buyers,omitzero"`
+	PreviousRevenueMicros int64   `json:"previous_revenue_micros"`
+	PreviousPurchases     uint64  `json:"previous_purchases"`
+	PreviousBuyers        *uint64 `json:"previous_buyers,omitzero"`
+}
+
+// RevenueDayOut is one day, and each store's share of it.
+//
+// A day whose buyers are too few to disclose carries no money: what two people spent is what two
+// people spent, whatever else is on the chart.
+type RevenueDayOut struct {
+	Day           time.Time        `json:"day"`
+	RevenueMicros int64            `json:"revenue_micros"`
+	Purchases     uint64           `json:"purchases"`
+	Withheld      bool             `json:"withheld,omitzero"`
+	ByStore       map[string]int64 `json:"by_store,omitzero"`
+}
+
+// RevenueSliceOut is one product, store or country. Slices bought by too few to disclose are
+// left out and counted in suppressed_cells.
+type RevenueSliceOut struct {
+	Key                   string `json:"key"`
+	RevenueMicros         int64  `json:"revenue_micros"`
+	Purchases             uint64 `json:"purchases"`
+	Buyers                uint64 `json:"buyers"`
+	PreviousRevenueMicros int64  `json:"previous_revenue_micros"`
+}
+
+// PricePointOut is how often one price was paid.
+type PricePointOut struct {
+	PriceMicros   int64  `json:"price_micros"`
+	Currency      string `json:"currency"`
+	Purchases     uint64 `json:"purchases"`
+	RevenueMicros int64  `json:"revenue_micros"`
+}
+
+// NewPayersOut is one day's first-time payers.
+type NewPayersOut struct {
+	Day    time.Time `json:"day"`
+	Payers *uint64   `json:"payers,omitzero"`
+}
+
+// SpenderTierOut is the payers whose lifetime spend falls in one band.
+type SpenderTierOut struct {
+	FromMicros    int64   `json:"from_micros"`
+	ToMicros      int64   `json:"to_micros,omitzero" doc:"Absent on the last band, which has no end"`
+	Payers        *uint64 `json:"payers,omitzero"`
+	RevenueMicros *int64  `json:"revenue_micros,omitzero"`
+}
+
+// PurchasesParams pages the purchases ledger.
+type PurchasesParams struct {
+	AnalyticsScope
+	AnalyticsRange
+	RevenueFilter
+	Limit int `query:"limit,omitzero" default:"50" doc:"Newest first, up to 200"`
+
+	// Before is the cursor a previous page returned, so paging is stable while purchases keep
+	// arriving.
+	Before string `query:"before,omitzero" doc:"The next cursor of the previous page"`
+}
+
+func (in *PurchasesParams) Validate(v *muzak.Validation) {
+	in.validateScope(v)
+	in.validateRange(v)
+	in.validateFilter(v)
+	v.Number(&in.Limit).Min(1).Max(200)
+	v.String(&in.Before).Trim().MaxLen(96)
+}
+
+// PurchasesOut is one page of the ledger.
+type PurchasesOut struct {
+	Purchases []PurchaseOut `json:"purchases"`
+	Next      string        `json:"next,omitzero" doc:"Pass as before for the next page; absent on the last"`
+	Verified  bool          `json:"verified" doc:"Always false: these are purchases the game reported"`
+}
+
+// PurchaseOut is one purchase the game reported.
+type PurchaseOut struct {
+	EventID       string    `json:"event_id"`
+	At            time.Time `json:"at"`
+	InstallID     string    `json:"install_id"`
+	PlayerID      string    `json:"player_id,omitzero"`
+	SessionID     string    `json:"session_id,omitzero"`
+	ProductID     string    `json:"product_id"`
+	Store         string    `json:"store"`
+	RevenueMicros int64     `json:"revenue_micros"`
+	Currency      string    `json:"currency"`
+	Platform      string    `json:"platform"`
+	Country       string    `json:"country,omitzero"`
+	AppVersion    string    `json:"app_version"`
+
+	// FirstPurchase is whether this was the install's first purchase ever.
+	FirstPurchase bool `json:"first_purchase"`
+}

@@ -110,6 +110,7 @@ type Statement struct {
 type builder struct {
 	fact  Fact
 	inner *builder
+	final bool
 
 	columns  []string
 	prewhere []string
@@ -161,6 +162,13 @@ func (b *builder) eq(column string, value any) *builder {
 func (b *builder) notEq(column string, value any) *builder {
 	b.where = append(b.where, column+" != ?")
 	b.args = append(b.args, value)
+	return b
+}
+
+// deduplicated reads a ReplacingMergeTree as its merged result (FINAL), so a row inserted twice
+// is read once however far its parts have merged.
+func (b *builder) deduplicated() *builder {
+	b.final = true
 	return b
 }
 
@@ -273,6 +281,9 @@ func (b *builder) statement() Statement {
 		args = append(args, inner.Args...)
 	} else {
 		sb.WriteString(string(b.fact))
+		if b.final {
+			sb.WriteString(" FINAL")
+		}
 	}
 	if len(b.prewhere) > 0 {
 		sb.WriteString(" PREWHERE ")

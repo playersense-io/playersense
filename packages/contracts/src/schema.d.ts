@@ -895,6 +895,46 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/v1/organizations/{org}/projects/{project}/analytics/{environment}/purchases": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * List purchases
+         * @description The purchases ledger, newest first, a page at a time: what was bought, where, for how much, by whom, and whether it was their first. Names players, so it needs player.read.
+         */
+        readonly get: operations["get_v1_organizations_by_org_projects_by_project_analytics_by_environment_purchases"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/organizations/{org}/projects/{project}/analytics/{environment}/revenue": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * Describe the game's revenue
+         * @description Revenue, purchases and buyers against the previous range, by day and store, by product, store and country, by price, the day's first-time payers, spender tiers by lifetime spend, and purchases by weekday and hour. Revenue the game reported, in the currencies it reported, not receipts verified with a store.
+         */
+        readonly get: operations["get_v1_organizations_by_org_projects_by_project_analytics_by_environment_revenue"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/v1/organizations/{org}/projects/{project}/analytics/{environment}/sessions": {
         readonly parameters: {
             readonly query?: never;
@@ -2454,6 +2494,12 @@ export interface components {
             /** Format: int64 */
             readonly tracked_players: number;
         };
+        readonly NewPayersOut: {
+            /** Format: date-time */
+            readonly day: string;
+            /** Format: int64 */
+            readonly payers?: number | null;
+        };
         readonly OperatorInvoiceOut: {
             /** Format: int64 */
             readonly amount_paid_micros: number;
@@ -2640,6 +2686,15 @@ export interface components {
             /** @description Stripe's customer portal; redirect the browser here */
             readonly url: string;
         };
+        readonly PricePointOut: {
+            readonly currency: string;
+            /** Format: int64 */
+            readonly price_micros: number;
+            /** Format: int64 */
+            readonly purchases: number;
+            /** Format: int64 */
+            readonly revenue_micros: number;
+        };
         readonly ProjectListOut: {
             readonly projects: readonly components["schemas"]["ProjectOut"][];
         };
@@ -2663,6 +2718,30 @@ export interface components {
             readonly id: string;
             readonly name: string;
             readonly slug: string;
+        };
+        readonly PurchaseOut: {
+            readonly app_version: string;
+            /** Format: date-time */
+            readonly at: string;
+            readonly country?: string;
+            readonly currency: string;
+            readonly event_id: string;
+            readonly first_purchase: boolean;
+            readonly install_id: string;
+            readonly platform: string;
+            readonly player_id?: string;
+            readonly product_id: string;
+            /** Format: int64 */
+            readonly revenue_micros: number;
+            readonly session_id?: string;
+            readonly store: string;
+        };
+        readonly PurchasesOut: {
+            /** @description Pass as before for the next page; absent on the last */
+            readonly next?: string;
+            readonly purchases: readonly components["schemas"]["PurchaseOut"][];
+            /** @description Always false: these are purchases the game reported */
+            readonly verified: boolean;
         };
         readonly RateCardOut: {
             /** Format: date-time */
@@ -2712,6 +2791,69 @@ export interface components {
         };
         readonly RecentSessionsOut: {
             readonly sessions: readonly components["schemas"]["SessionOut"][];
+        };
+        readonly RevenueDayOut: {
+            readonly by_store?: {
+                readonly [key: string]: number;
+            };
+            /** Format: date-time */
+            readonly day: string;
+            /** Format: int64 */
+            readonly purchases: number;
+            /** Format: int64 */
+            readonly revenue_micros: number;
+            readonly withheld?: boolean;
+        };
+        readonly RevenueOut: {
+            /** @description Buyers are distinct counts from sketches */
+            readonly approximate: boolean;
+            readonly countries: readonly components["schemas"]["RevenueSliceOut"][];
+            /** @description Every currency summed into these figures */
+            readonly currencies: readonly string[];
+            readonly days: readonly components["schemas"]["RevenueDayOut"][];
+            /** Format: date-time */
+            readonly from: string;
+            readonly heatmap: readonly (readonly number[])[];
+            readonly new_payers: readonly components["schemas"]["NewPayersOut"][];
+            readonly price_points: readonly components["schemas"]["PricePointOut"][];
+            readonly products: readonly components["schemas"]["RevenueSliceOut"][];
+            readonly spender_tiers: readonly components["schemas"]["SpenderTierOut"][];
+            readonly stores: readonly components["schemas"]["RevenueSliceOut"][];
+            /** Format: int64 */
+            readonly suppressed_cells: number;
+            /** Format: int64 */
+            readonly suppression_threshold: number;
+            readonly timezone: string;
+            /** Format: date-time */
+            readonly to: string;
+            readonly totals: components["schemas"]["RevenueTotalsOut"];
+            /** @description Always false: these are purchases the game reported, not store receipts */
+            readonly verified: boolean;
+        };
+        readonly RevenueSliceOut: {
+            /** Format: int64 */
+            readonly buyers: number;
+            readonly key: string;
+            /** Format: int64 */
+            readonly previous_revenue_micros: number;
+            /** Format: int64 */
+            readonly purchases: number;
+            /** Format: int64 */
+            readonly revenue_micros: number;
+        };
+        readonly RevenueTotalsOut: {
+            /** Format: int64 */
+            readonly buyers?: number | null;
+            /** Format: int64 */
+            readonly previous_buyers?: number | null;
+            /** Format: int64 */
+            readonly previous_purchases: number;
+            /** Format: int64 */
+            readonly previous_revenue_micros: number;
+            /** Format: int64 */
+            readonly purchases: number;
+            /** Format: int64 */
+            readonly revenue_micros: number;
         };
         readonly RoleListOut: {
             readonly roles: readonly components["schemas"]["RoleOut"][];
@@ -2899,6 +3041,19 @@ export interface components {
             /** Format: date-time */
             readonly to: string;
             readonly totals: components["schemas"]["SessionTotalsOut"];
+        };
+        readonly SpenderTierOut: {
+            /** Format: int64 */
+            readonly from_micros: number;
+            /** Format: int64 */
+            readonly payers?: number | null;
+            /** Format: int64 */
+            readonly revenue_micros?: number | null;
+            /**
+             * Format: int64
+             * @description Absent on the last band, which has no end
+             */
+            readonly to_micros?: number;
         };
         readonly SubscriptionOut: {
             readonly cancel_at_period_end: boolean;
@@ -7079,6 +7234,192 @@ export interface operations {
                 };
             };
             /** @description The facts cannot answer this question, and the body explains why */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The facts could not be read */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly get_v1_organizations_by_org_projects_by_project_analytics_by_environment_purchases: {
+        readonly parameters: {
+            readonly query?: {
+                /** @description YYYY-MM-DD, inclusive. Defaults to six days before to */
+                readonly from?: string;
+                /** @description YYYY-MM-DD, inclusive. Defaults to today (UTC) */
+                readonly to?: string;
+                /** @description Comma-separated stores: app_store, google_play, or what the game reported */
+                readonly store?: string;
+                /** @description Comma-separated ISO country codes */
+                readonly country?: string;
+                /** @description Comma-separated product ids */
+                readonly product?: string;
+                /** @description Newest first, up to 200 */
+                readonly limit?: number;
+                /** @description The next cursor of the previous page */
+                readonly before?: string;
+            };
+            readonly header?: never;
+            readonly path: {
+                readonly org: string;
+                readonly project: string;
+                /** @description development, staging or production */
+                readonly environment: "development" | "staging" | "production";
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["PurchasesOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not read this project's analytics */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The organization, project or environment does not exist, or you cannot see it */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The facts cannot answer this question, and the body explains why */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The facts could not be read */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly get_v1_organizations_by_org_projects_by_project_analytics_by_environment_revenue: {
+        readonly parameters: {
+            readonly query?: {
+                /** @description YYYY-MM-DD, inclusive. Defaults to six days before to */
+                readonly from?: string;
+                /** @description YYYY-MM-DD, inclusive. Defaults to today (UTC) */
+                readonly to?: string;
+                /** @description Comma-separated stores: app_store, google_play, or what the game reported */
+                readonly store?: string;
+                /** @description Comma-separated ISO country codes */
+                readonly country?: string;
+                /** @description Comma-separated product ids */
+                readonly product?: string;
+                /** @description IANA timezone for the weekday-by-hour heatmap; defaults to UTC */
+                readonly tz?: string;
+            };
+            readonly header?: never;
+            readonly path: {
+                readonly org: string;
+                readonly project: string;
+                /** @description development, staging or production */
+                readonly environment: "development" | "staging" | "production";
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["RevenueOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not read this project's analytics */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The organization, project or environment does not exist, or you cannot see it */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
             readonly 422: {
                 headers: {
                     readonly [name: string]: unknown;

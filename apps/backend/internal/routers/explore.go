@@ -83,4 +83,21 @@ func explorer(r *muzak.Router, base string) {
 		core.Require(authz.AnalyticsRead, authz.PlayerRead),
 		muzak.WithResponseDoc(http.StatusNotFound, "No such install or player in this project"),
 		refused, unreadable)
+
+	r.Get(base+"/revenue", handlers.Revenue,
+		muzak.Summary("Describe the game's revenue"),
+		muzak.Description("Revenue, purchases and buyers against the previous range, by day and store, "+
+			"by product, store and country, by price, the day's first-time payers, spender tiers by "+
+			"lifetime spend, and purchases by weekday and hour. Revenue the game reported, in the "+
+			"currencies it reported, not receipts verified with a store."),
+		core.Require(authz.AnalyticsRead),
+		unreadable)
+
+	r.Get(base+"/purchases", handlers.Purchases,
+		muzak.Summary("List purchases"),
+		muzak.Description("The purchases ledger, newest first, a page at a time: what was bought, "+
+			"where, for how much, by whom, and whether it was their first. Names players, so it needs "+
+			"player.read."),
+		core.Require(authz.AnalyticsRead, authz.PlayerRead),
+		refused, unreadable)
 }

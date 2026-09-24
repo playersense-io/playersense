@@ -88,11 +88,9 @@ func Sessions(ctx *muzak.Context, in schemas.SessionsParams) (schemas.SessionsOu
 	if err != nil {
 		return schemas.SessionsOut{}, err
 	}
-	tz := time.UTC
-	if in.Timezone != "" {
-		if tz, err = time.LoadLocation(in.Timezone); err != nil {
-			return schemas.SessionsOut{}, muzak.BadRequest("tz is not an IANA timezone name")
-		}
+	tz, err := timezone(in.Timezone)
+	if err != nil {
+		return schemas.SessionsOut{}, err
 	}
 	out, err := engine.Sessions(ctx.Context(), scope, w, tz)
 	if err != nil {
@@ -142,6 +140,53 @@ func Player(ctx *muzak.Context, in schemas.PlayerParams) (schemas.PlayerProfileO
 	out, err := engine.Player(ctx.Context(), scope, in.ID, time.Now())
 	if err != nil {
 		return schemas.PlayerProfileOut{}, exploreFailed(err, "player")
+	}
+	return *out, nil
+}
+
+// timezone reads an optional IANA name, UTC when absent.
+func timezone(name string) (*time.Location, error) {
+	if name == "" {
+		return time.UTC, nil
+	}
+	tz, err := time.LoadLocation(name)
+	if err != nil {
+		return nil, muzak.BadRequest("tz is not an IANA timezone name")
+	}
+	return tz, nil
+}
+
+func revenueFilter(f schemas.RevenueFilter) query.RevenueFilter {
+	stores, countries, products := f.Lists()
+	return query.RevenueFilter{Stores: stores, Countries: countries, Products: products}
+}
+
+// Revenue answers the Revenue page.
+func Revenue(ctx *muzak.Context, in schemas.RevenueParams) (schemas.RevenueOut, error) {
+	engine, scope, w, err := explore(ctx, in.Environment, in.AnalyticsRange)
+	if err != nil {
+		return schemas.RevenueOut{}, err
+	}
+	tz, err := timezone(in.Timezone)
+	if err != nil {
+		return schemas.RevenueOut{}, err
+	}
+	out, err := engine.Revenue(ctx.Context(), scope, w, revenueFilter(in.RevenueFilter), tz)
+	if err != nil {
+		return schemas.RevenueOut{}, exploreFailed(err, "revenue")
+	}
+	return *out, nil
+}
+
+// Purchases reads one page of the purchases ledger.
+func Purchases(ctx *muzak.Context, in schemas.PurchasesParams) (schemas.PurchasesOut, error) {
+	engine, scope, w, err := explore(ctx, in.Environment, in.AnalyticsRange)
+	if err != nil {
+		return schemas.PurchasesOut{}, err
+	}
+	out, err := engine.Purchases(ctx.Context(), scope, w, revenueFilter(in.RevenueFilter), in.Limit, in.Before)
+	if err != nil {
+		return schemas.PurchasesOut{}, exploreFailed(err, "purchase")
 	}
 	return *out, nil
 }

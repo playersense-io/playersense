@@ -518,3 +518,141 @@ func TestNoPlayerIsListedOnAKidsProject(t *testing.T) {
 		get[struct{}](t, r.member, r.analytics()+path, nil, http.StatusUnprocessableEntity)
 	}
 }
+
+// purchasesYesterday is six iOS players buying gems yesterday, one of them twice, and two Android
+// players buying a starter pack, which is too few to show on its own.
+func (r *reporting) purchasesYesterday(t *testing.T) (repeat string) {
+	t.Helper()
+	at := yesterday().Add(9 * time.Hour)
+	var rows []rawEvent
+	for i := range 6 {
+		install := uuid.NewString()
+		if i == 0 {
+			repeat = install
+		}
+		rows = append(rows, rawEvent{
+			install: install, name: "purchase", kind: "purchase", platform: "ios", country: "US",
+			version: "2.7.1", at: at.Add(time.Duration(i) * time.Minute),
+			revenue: 4_990_000, currency: "USD", strs: map[string]string{"product_id": "gems_100"},
+		})
+	}
+	rows = append(rows, rawEvent{
+		install: repeat, name: "purchase", kind: "purchase", platform: "ios", country: "US",
+		version: "2.7.1", at: at.Add(2 * time.Hour),
+		revenue: 4_990_000, currency: "USD", strs: map[string]string{"product_id": "gems_100"},
+	})
+	for i := range 2 {
+		rows = append(rows, rawEvent{
+			install: uuid.NewString(), name: "purchase", kind: "purchase", platform: "android",
+			country: "BR", version: "2.7.1", at: at.Add(time.Duration(30+i) * time.Minute),
+			revenue: 990_000, currency: "USD", strs: map[string]string{"product_id": "starter"},
+		})
+	}
+	r.insert(t, rows)
+	if got := r.waitForRows(t, len(rows)); got != len(rows) {
+		t.Fatalf("seeded %d of %d rows", got, len(rows))
+	}
+	return repeat
+}
+
+// TestTheRevenuePageSumsWhatWasBoughtAndWithholdsTheFew.
+func TestTheRevenuePageSumsWhatWasBoughtAndWithholdsTheFew(t *testing.T) {
+	r := newReporting(t, "standard")
+	r.purchasesYesterday(t)
+
+	out := get[schemas.RevenueOut](t, r.member, r.analytics()+"/revenue", r.yesterdayOnly(), http.StatusOK)
+	if want := int64(7*4_990_000 + 2*990_000); out.Totals.RevenueMicros != want || out.Totals.Purchases != 9 {
+		t.Fatalf("totals %+v, want %d micros over 9 purchases", out.Totals, want)
+	}
+	if out.Totals.Buyers == nil || *out.Totals.Buyers != 8 {
+		t.Fatalf("buyers %v, want 8", out.Totals.Buyers)
+	}
+	if out.Verified || len(out.Currencies) != 1 || out.Currencies[0] != "USD" {
+		t.Fatalf("verified=%v currencies=%v, want reported revenue in USD alone", out.Verified, out.Currencies)
+	}
+
+	stores := map[string]schemas.RevenueSliceOut{}
+	for _, s := range out.Stores {
+		stores[s.Key] = s
+	}
+	if stores["app_store"].Buyers != 6 || stores["app_store"].Purchases != 7 {
+		t.Fatalf("app_store %+v, want 7 purchases by 6 buyers", stores["app_store"])
+	}
+	if _, shown := stores["google_play"]; shown || out.SuppressedCells == 0 {
+		t.Fatalf("google_play was bought by two players and is shown: %+v", out.Stores)
+	}
+
+	var newPayers uint64
+	for _, d := range out.NewPayers {
+		if d.Payers != nil {
+			newPayers += *d.Payers
+		}
+	}
+	if newPayers != 8 {
+		t.Fatalf("new payers %+v, want 8 yesterday", out.NewPayers)
+	}
+	// Six spent 4.99 once and one of them twice: five in the 1-5 band... and the repeat buyer at
+	// 9.98 in the 5-20 band, which is one person and so withheld. The two Android players spent
+	// 0.99, under the first band, and are withheld too.
+	if tier := out.SpenderTiers[1]; tier.Payers == nil || *tier.Payers != 5 {
+		t.Fatalf("the 1-5 band is %+v, want 5 payers", tier)
+	}
+	if out.SpenderTiers[2].Payers != nil || out.SpenderTiers[0].Payers != nil {
+		t.Fatalf("single and double payers are shown: %+v", out.SpenderTiers)
+	}
+
+	var bought uint64
+	for _, day := range out.Heatmap {
+		for _, n := range day {
+			bought += n
+		}
+	}
+	if bought != 9 {
+		t.Fatalf("the heatmap holds %d purchases, want 9", bought)
+	}
+
+	gems := get[schemas.RevenueOut](t, r.member, r.analytics()+"/revenue",
+		url.Values{"from": {day(yesterday())}, "to": {day(yesterday())}, "product": {"gems_100"}}, http.StatusOK)
+	if gems.Totals.Purchases != 7 {
+		t.Fatalf("filtered to gems_100 the page holds %d purchases, want 7", gems.Totals.Purchases)
+	}
+}
+
+// TestThePurchasesLedgerPagesNewestFirst.
+func TestThePurchasesLedgerPagesNewestFirst(t *testing.T) {
+	r := newReporting(t, "standard")
+	repeat := r.purchasesYesterday(t)
+
+	seen := map[string]bool{}
+	var firsts, repeats int
+	params := r.yesterdayOnly()
+	params.Set("limit", "4")
+	var previous time.Time
+	for page := 0; page < 5; page++ {
+		out := get[schemas.PurchasesOut](t, r.member, r.analytics()+"/purchases", params, http.StatusOK)
+		for _, p := range out.Purchases {
+			if seen[p.EventID] {
+				t.Fatalf("purchase %s appears on two pages", p.EventID)
+			}
+			seen[p.EventID] = true
+			if !previous.IsZero() && p.At.After(previous) {
+				t.Fatalf("the ledger is not newest first: %s after %s", p.At, previous)
+			}
+			previous = p.At
+			if p.FirstPurchase {
+				firsts++
+			} else if p.InstallID == repeat {
+				repeats++
+			}
+		}
+		if out.Next == "" {
+			break
+		}
+		params.Set("before", out.Next)
+	}
+	if len(seen) != 9 || firsts != 8 || repeats != 1 {
+		t.Fatalf("read %d purchases, %d firsts and %d repeats; want 9, 8 and 1", len(seen), firsts, repeats)
+	}
+
+	get[schemas.PurchasesOut](t, r.numbersOnly(t), r.analytics()+"/purchases", nil, http.StatusForbidden)
+}

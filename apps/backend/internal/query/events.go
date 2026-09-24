@@ -211,7 +211,7 @@ func (e *Engine) EventDetail(ctx context.Context, scope Scope, name string, w Wi
 	s.column("toString(dim_name)", "dim").
 		column("toString(dim_value)", "value").
 		column("sum(events)", "n").
-		column("uniqCombinedMerge(14)(players)", "players")
+		column("uniqCombinedMerge(14)(players)", "pl")
 	scopeAnd(s, scope)
 	s.and("dim_name != ?", "__total__").eq("event_name", name).between("day", date(w.From), date(w.To))
 	s.group("dim", "value").order("dim", "n DESC", "value").withLimit(3000)
@@ -259,13 +259,13 @@ func (e *Engine) eventSeries(ctx context.Context, scope Scope, name string, w Wi
 	if interval == "hour" {
 		step = time.Hour
 		b = from(factEvents1h)
-		b.column("hour", "at").column("sum(events)", "n").column("uniqMerge(players)", "players")
+		b.column("hour", "at").column("sum(events)", "n").column("uniqMerge(players)", "pl")
 		scopeAnd(b, scope)
 		b.eq("event_name", name).gte("hour", timestamp(prev.From)).lt("hour", timestamp(w.end()))
 	} else {
 		b = from(factEventsDaily)
 		b.column("toDateTime(day, 'UTC')", "at").column("sum(events)", "n").
-			column("uniqCombinedMerge(14)(players)", "players")
+			column("uniqCombinedMerge(14)(players)", "pl")
 		scopeAnd(b, scope)
 		b.eq("dim_name", "__total__").eq("event_name", name).between("day", date(prev.From), date(w.To))
 	}

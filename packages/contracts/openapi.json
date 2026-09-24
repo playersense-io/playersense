@@ -5647,6 +5647,358 @@
         }
       }
     },
+    "/v1/organizations/{org}/projects/{project}/analytics/{environment}/purchases": {
+      "get": {
+        "tags": [
+          "reporting"
+        ],
+        "summary": "List purchases",
+        "description": "The purchases ledger, newest first, a page at a time: what was bought, where, for how much, by whom, and whether it was their first. Names players, so it needs player.read.",
+        "operationId": "get_v1_organizations_by_org_projects_by_project_analytics_by_environment_purchases",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "project",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "environment",
+            "in": "path",
+            "description": "development, staging or production",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "development",
+                "staging",
+                "production"
+              ]
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "description": "YYYY-MM-DD, inclusive. Defaults to six days before to",
+            "schema": {
+              "type": "string",
+              "maxLength": 10
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "description": "YYYY-MM-DD, inclusive. Defaults to today (UTC)",
+            "schema": {
+              "type": "string",
+              "maxLength": 10
+            }
+          },
+          {
+            "name": "store",
+            "in": "query",
+            "description": "Comma-separated stores: app_store, google_play, or what the game reported",
+            "schema": {
+              "type": "string",
+              "maxLength": 512
+            }
+          },
+          {
+            "name": "country",
+            "in": "query",
+            "description": "Comma-separated ISO country codes",
+            "schema": {
+              "type": "string",
+              "maxLength": 512
+            }
+          },
+          {
+            "name": "product",
+            "in": "query",
+            "description": "Comma-separated product ids",
+            "schema": {
+              "type": "string",
+              "maxLength": 2048
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Newest first, up to 200",
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "default": "50",
+              "minimum": 1,
+              "maximum": 200
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "description": "The next cursor of the previous page",
+            "schema": {
+              "type": "string",
+              "maxLength": 96
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PurchasesOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not read this project's analytics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The organization, project or environment does not exist, or you cannot see it",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The facts cannot answer this question, and the body explains why",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The facts could not be read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/organizations/{org}/projects/{project}/analytics/{environment}/revenue": {
+      "get": {
+        "tags": [
+          "reporting"
+        ],
+        "summary": "Describe the game's revenue",
+        "description": "Revenue, purchases and buyers against the previous range, by day and store, by product, store and country, by price, the day's first-time payers, spender tiers by lifetime spend, and purchases by weekday and hour. Revenue the game reported, in the currencies it reported, not receipts verified with a store.",
+        "operationId": "get_v1_organizations_by_org_projects_by_project_analytics_by_environment_revenue",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "project",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "environment",
+            "in": "path",
+            "description": "development, staging or production",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "development",
+                "staging",
+                "production"
+              ]
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "description": "YYYY-MM-DD, inclusive. Defaults to six days before to",
+            "schema": {
+              "type": "string",
+              "maxLength": 10
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "description": "YYYY-MM-DD, inclusive. Defaults to today (UTC)",
+            "schema": {
+              "type": "string",
+              "maxLength": 10
+            }
+          },
+          {
+            "name": "store",
+            "in": "query",
+            "description": "Comma-separated stores: app_store, google_play, or what the game reported",
+            "schema": {
+              "type": "string",
+              "maxLength": 512
+            }
+          },
+          {
+            "name": "country",
+            "in": "query",
+            "description": "Comma-separated ISO country codes",
+            "schema": {
+              "type": "string",
+              "maxLength": 512
+            }
+          },
+          {
+            "name": "product",
+            "in": "query",
+            "description": "Comma-separated product ids",
+            "schema": {
+              "type": "string",
+              "maxLength": 2048
+            }
+          },
+          {
+            "name": "tz",
+            "in": "query",
+            "description": "IANA timezone for the weekday-by-hour heatmap; defaults to UTC",
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevenueOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not read this project's analytics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The organization, project or environment does not exist, or you cannot see it",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The facts could not be read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/organizations/{org}/projects/{project}/analytics/{environment}/sessions": {
       "get": {
         "tags": [
@@ -12213,6 +12565,25 @@
           "tracked_players"
         ]
       },
+      "NewPayersOut": {
+        "type": "object",
+        "properties": {
+          "day": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "payers": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          }
+        },
+        "required": [
+          "day"
+        ]
+      },
       "OperatorInvoiceOut": {
         "type": "object",
         "properties": {
@@ -12784,6 +13155,32 @@
           "url"
         ]
       },
+      "PricePointOut": {
+        "type": "object",
+        "properties": {
+          "currency": {
+            "type": "string"
+          },
+          "price_micros": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "purchases": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "revenue_micros": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "currency",
+          "price_micros",
+          "purchases",
+          "revenue_micros"
+        ]
+      },
       "ProjectListOut": {
         "type": "object",
         "properties": {
@@ -12862,6 +13259,87 @@
           "id",
           "name",
           "slug"
+        ]
+      },
+      "PurchaseOut": {
+        "type": "object",
+        "properties": {
+          "app_version": {
+            "type": "string"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "country": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "event_id": {
+            "type": "string"
+          },
+          "first_purchase": {
+            "type": "boolean"
+          },
+          "install_id": {
+            "type": "string"
+          },
+          "platform": {
+            "type": "string"
+          },
+          "player_id": {
+            "type": "string"
+          },
+          "product_id": {
+            "type": "string"
+          },
+          "revenue_micros": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "session_id": {
+            "type": "string"
+          },
+          "store": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "app_version",
+          "at",
+          "currency",
+          "event_id",
+          "first_purchase",
+          "install_id",
+          "platform",
+          "product_id",
+          "revenue_micros",
+          "store"
+        ]
+      },
+      "PurchasesOut": {
+        "type": "object",
+        "properties": {
+          "next": {
+            "type": "string",
+            "description": "Pass as before for the next page; absent on the last"
+          },
+          "purchases": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PurchaseOut"
+            }
+          },
+          "verified": {
+            "type": "boolean",
+            "description": "Always false: these are purchases the game reported"
+          }
+        },
+        "required": [
+          "purchases",
+          "verified"
         ]
       },
       "RateCardOut": {
@@ -12983,6 +13461,223 @@
         },
         "required": [
           "sessions"
+        ]
+      },
+      "RevenueDayOut": {
+        "type": "object",
+        "properties": {
+          "by_store": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          "day": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "purchases": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "revenue_micros": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "withheld": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "day",
+          "purchases",
+          "revenue_micros"
+        ]
+      },
+      "RevenueOut": {
+        "type": "object",
+        "properties": {
+          "approximate": {
+            "type": "boolean",
+            "description": "Buyers are distinct counts from sketches"
+          },
+          "countries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RevenueSliceOut"
+            }
+          },
+          "currencies": {
+            "type": "array",
+            "description": "Every currency summed into these figures",
+            "items": {
+              "type": "string"
+            }
+          },
+          "days": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RevenueDayOut"
+            }
+          },
+          "from": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "heatmap": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "format": "int64"
+              }
+            }
+          },
+          "new_payers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NewPayersOut"
+            }
+          },
+          "price_points": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PricePointOut"
+            }
+          },
+          "products": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RevenueSliceOut"
+            }
+          },
+          "spender_tiers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SpenderTierOut"
+            }
+          },
+          "stores": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RevenueSliceOut"
+            }
+          },
+          "suppressed_cells": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "suppression_threshold": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "timezone": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/RevenueTotalsOut"
+          },
+          "verified": {
+            "type": "boolean",
+            "description": "Always false: these are purchases the game reported, not store receipts"
+          }
+        },
+        "required": [
+          "approximate",
+          "countries",
+          "currencies",
+          "days",
+          "from",
+          "heatmap",
+          "new_payers",
+          "price_points",
+          "products",
+          "spender_tiers",
+          "stores",
+          "suppressed_cells",
+          "suppression_threshold",
+          "timezone",
+          "to",
+          "totals",
+          "verified"
+        ]
+      },
+      "RevenueSliceOut": {
+        "type": "object",
+        "properties": {
+          "buyers": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "key": {
+            "type": "string"
+          },
+          "previous_revenue_micros": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "purchases": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "revenue_micros": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "buyers",
+          "key",
+          "previous_revenue_micros",
+          "purchases",
+          "revenue_micros"
+        ]
+      },
+      "RevenueTotalsOut": {
+        "type": "object",
+        "properties": {
+          "buyers": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "previous_buyers": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "previous_purchases": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "previous_revenue_micros": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "purchases": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "revenue_micros": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "previous_purchases",
+          "previous_revenue_micros",
+          "purchases",
+          "revenue_micros"
         ]
       },
       "RoleListOut": {
@@ -13498,6 +14193,37 @@
           "timezone",
           "to",
           "totals"
+        ]
+      },
+      "SpenderTierOut": {
+        "type": "object",
+        "properties": {
+          "from_micros": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "payers": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "revenue_micros": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "to_micros": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Absent on the last band, which has no end"
+          }
+        },
+        "required": [
+          "from_micros"
         ]
       },
       "SubscriptionOut": {
