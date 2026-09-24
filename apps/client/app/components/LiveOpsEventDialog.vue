@@ -161,7 +161,11 @@ const UNITS: { value: RepeatUnit, one: string, many: string }[] = [
   { value: 'years', one: 'year', many: 'years' }
 ]
 const UNIT_ITEMS = computed(() => UNITS.map(unit => ({ value: unit.value, title: repeat.value.every === 1 ? unit.one : unit.many })))
-const LENGTH_ITEMS = computed(() => (['minutes', 'hours', 'days'] as const).map(value => ({ value, title: repeat.value.length === 1 ? value.slice(0, -1) : value })))
+/* A unit in a dropdown is a label, so it is capitalised: "Hours", or "Hour" for one. */
+const LENGTH_ITEMS = computed(() => (['minutes', 'hours', 'days'] as const).map((value) => {
+  const word = repeat.value.length === 1 ? value.slice(0, -1) : value
+  return { value, title: word.charAt(0).toUpperCase() + word.slice(1) }
+}))
 
 const countable = computed(() => ['hours', 'days', 'weeks'].includes(repeat.value.unit))
 
@@ -648,23 +652,25 @@ const SECTIONS = [
               The share of that audience who get it. The rest are held back, always the same players, and they are what its effect is measured against:
               holding back 5 to 10% gives the cleanest answer an event can have.
             </span>
-            <div class="mt-1 flex flex-wrap items-center gap-3">
-              <RolloutField v-model="rollout" label="Event rollout" class="min-w-0 flex-1" />
+            <RolloutField v-model="rollout" class="mt-1" label="Event rollout" />
+            <!-- What the share means, and the one-click way to the share that measures best. -->
+            <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+              <span class="text-[11px] text-ink/55">
+                <template v-if="rollout === FULL_ROLLOUT">Everybody in the audience gets it; its effect is read against their own weeks before.</template>
+                <template v-else>{{ formatRollout(rollout) }} get it and {{ formatRollout(FULL_ROLLOUT - rollout) }} are held back to measure it against.</template>
+              </span>
               <v-btn
                 v-if="rollout === FULL_ROLLOUT"
-                class="text-xs"
-                color="neutral"
+                class="-my-1 text-xs"
+                color="primary"
+                density="comfortable"
                 size="small"
-                variant="outlined"
+                variant="text"
                 @click="rollout = 9000"
               >
                 Hold back 10%
               </v-btn>
             </div>
-            <span class="text-[11px] text-ink/55">
-              <template v-if="rollout === FULL_ROLLOUT">Everybody in the audience gets it; its effect is read against their own weeks before.</template>
-              <template v-else>{{ formatRollout(rollout) }} get it and {{ formatRollout(FULL_ROLLOUT - rollout) }} are held back to measure it against.</template>
-            </span>
           </div>
         </section>
 
