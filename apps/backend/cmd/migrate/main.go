@@ -8,6 +8,7 @@
 //	migrate down      roll back the most recent ClickHouse migration
 //	migrate reset     drop every ClickHouse object, including its Keeper metadata
 //	migrate verify    §96 classification, across both
+//	migrate backfill  fill new, empty rollups from the history already in events_raw
 //
 // Two databases. **PostgreSQL** holds accounts, projects, keys, billing and the records
 // that name a player — purchases, deletion requests, exports, archive manifests.
@@ -113,8 +114,17 @@ func run() error {
 	case "verify":
 		return verify(ctx, settings)
 
+	case "backfill":
+		// Its own clock: a backfill reads the whole of events_raw, and two minutes is a
+		// migration's budget rather than a scan's.
+		long, stop := context.WithTimeout(context.Background(), 6*time.Hour)
+		defer stop()
+		return withClickHouse(settings, func(db *sql.DB) error {
+			return backfill(long, db, flag.Args()[1:])
+		})
+
 	default:
-		return fmt.Errorf("unknown command %q; want up, postgres, status, down, reset or verify", target)
+		return fmt.Errorf("unknown command %q; want up, postgres, status, down, reset, verify or backfill", target)
 	}
 }
 
