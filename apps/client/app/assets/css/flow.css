@@ -1,0 +1,138 @@
+/* Vue Flow, for Report Builder's canvas: its own stylesheets, then its parts in the panel's
+   colours, light and dark alike, since every colour here is a theme variable. Its default
+   node look is not used: a report's nodes draw themselves (ReportFlowNode.vue). */
+@import "@vue-flow/core/dist/style.css";
+@import "@vue-flow/core/dist/theme-default.css";
+@import "@vue-flow/controls/dist/style.css";
+@import "@vue-flow/minimap/dist/style.css";
+
+.ps-flow {
+  background: rgb(var(--v-theme-background));
+  --vf-handle: rgb(var(--v-theme-surface));
+  --vf-connection-path: rgb(var(--v-theme-primary));
+}
+
+/* The dots: a presentation attribute on the SVG, which a rule outranks. */
+.ps-flow .vue-flow__background circle {
+  fill: rgba(var(--v-theme-on-surface), 0.16);
+}
+
+/* A report's node carries its own frame; Vue Flow's wrapper adds nothing to it. */
+.ps-flow .vue-flow__node-report {
+  background: transparent;
+  border: 0;
+  border-radius: var(--ps-radius-large);
+  box-shadow: none;
+  padding: 0;
+}
+
+.ps-flow .vue-flow__node-report.selected,
+.ps-flow .vue-flow__node-report:focus,
+.ps-flow .vue-flow__node-report:focus-visible {
+  box-shadow: none;
+  outline: none;
+}
+
+/* Handles: a ring on the card's edge that fills with the accent when it can take a line. */
+.ps-flow .vue-flow__handle {
+  background: rgb(var(--v-theme-surface));
+  border: 2px solid rgba(var(--v-theme-on-surface), 0.3);
+  height: 11px;
+  min-height: 0;
+  min-width: 0;
+  transition: border-color 150ms, background-color 150ms;
+  width: 11px;
+}
+
+.ps-flow .vue-flow__handle:hover,
+.ps-flow .vue-flow__handle.connectingfrom,
+.ps-flow .vue-flow__handle.connectionindicator:hover {
+  background: rgb(var(--v-theme-primary));
+  border-color: rgb(var(--v-theme-primary));
+}
+
+.ps-flow .vue-flow__handle-left {
+  left: -6px;
+}
+
+.ps-flow .vue-flow__handle-right {
+  right: -6px;
+}
+
+/* Lines. */
+.ps-flow .vue-flow__edge-path {
+  stroke: rgba(var(--v-theme-on-surface), 0.32);
+  stroke-width: 1.5;
+}
+
+.ps-flow .vue-flow__edge.selected .vue-flow__edge-path,
+.ps-flow .vue-flow__edge:focus .vue-flow__edge-path,
+.ps-flow .vue-flow__edge:hover .vue-flow__edge-path {
+  stroke: rgb(var(--v-theme-primary));
+}
+
+.ps-flow .vue-flow__connection-path {
+  stroke: rgb(var(--v-theme-primary));
+  stroke-dasharray: 4 3;
+  stroke-width: 1.5;
+}
+
+/* Zoom buttons: the panel's own small control, not Vue Flow's white squares. */
+.ps-flow .vue-flow__controls {
+  background: rgb(var(--v-theme-surface));
+  border: 1px solid var(--color-line);
+  border-radius: var(--ps-radius);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+}
+
+.ps-flow .vue-flow__controls-button {
+  background: rgb(var(--v-theme-surface));
+  border-bottom: 1px solid var(--color-line);
+  color: rgba(var(--v-theme-on-surface), 0.7);
+  fill: rgba(var(--v-theme-on-surface), 0.7);
+  height: 28px;
+  width: 28px;
+}
+
+.ps-flow .vue-flow__controls-button:last-child {
+  border-bottom: 0;
+}
+
+.ps-flow .vue-flow__controls-button:hover {
+  background: rgba(var(--v-theme-on-surface), 0.05);
+}
+
+.ps-flow .vue-flow__controls-button svg {
+  max-height: 12px;
+  max-width: 12px;
+}
+
+/* The map in the corner. */
+.ps-flow .vue-flow__minimap {
+  background: rgb(var(--v-theme-surface));
+  border: 1px solid var(--color-line);
+  border-radius: var(--ps-radius);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+}
+
+.ps-flow .vue-flow__minimap-mask {
+  fill: rgba(var(--v-theme-on-surface), 0.06);
+}
+
+.ps-flow .vue-flow__minimap-node {
+  fill: rgba(var(--v-theme-on-surface), 0.18);
+  stroke: none;
+}
+
+/* The corner attribution is kept, quietly. */
+.ps-flow .vue-flow__attribution {
+  background: transparent;
+  color: rgba(var(--v-theme-on-surface), 0.35);
+  font-size: 9px;
+}
+
+.ps-flow .vue-flow__attribution a {
+  color: inherit;
+}
