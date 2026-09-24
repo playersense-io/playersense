@@ -39,6 +39,7 @@ import (
 	"playersense.dev/backend/ent/role"
 	"playersense.dev/backend/ent/segment"
 	"playersense.dev/backend/ent/staffaccess"
+	"playersense.dev/backend/ent/staffmember"
 	"playersense.dev/backend/ent/stripeevent"
 	"playersense.dev/backend/ent/usagecharge"
 	"playersense.dev/backend/ent/usagedaily"
@@ -131,6 +132,7 @@ func checkColumn(t, c string) error {
 			role.Table:                role.ValidColumn,
 			segment.Table:             segment.ValidColumn,
 			staffaccess.Table:         staffaccess.ValidColumn,
+			staffmember.Table:         staffmember.ValidColumn,
 			stripeevent.Table:         stripeevent.ValidColumn,
 			usagecharge.Table:         usagecharge.ValidColumn,
 			usagedaily.Table:          usagedaily.ValidColumn,

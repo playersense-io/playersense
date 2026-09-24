@@ -102,8 +102,8 @@ func Grant(ctx context.Context, tx *ent.Tx, in GrantRequest) (*ent.CreditLot, bo
 	if in.StripeReference != "" {
 		create = create.SetStripeReference(in.StripeReference)
 	}
-	if in.GrantedByUserID != 0 {
-		create = create.SetGrantedByUserID(in.GrantedByUserID)
+	if in.GrantedByStaff != "" {
+		create = create.SetGrantedByStaff(in.GrantedByStaff)
 	}
 
 	lot, err := create.Save(ctx)
@@ -145,8 +145,10 @@ type GrantRequest struct {
 
 	Description     string
 	StripeReference string
-	GrantedByUserID int
-	Key             string
+	// GrantedByStaff is the verified address of the staff member granting it; empty for credit
+	// a payment created.
+	GrantedByStaff string
+	Key            string
 }
 
 func (in GrantRequest) validate() error {

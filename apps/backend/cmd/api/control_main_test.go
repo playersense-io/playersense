@@ -150,12 +150,6 @@ func TestControlPlaneIsGuarded(t *testing.T) {
 	anon.Get("/v1/organizations", testclient.Header("Authorization", "Bearer hailhydra")).
 		AssertStatus(http.StatusUnauthorized)
 
-	// And the one that used to work. A shared secret cannot say who is asking, so it
-	// cannot be the credential on an API where the answer depends on who that is.
-	anon.Get("/v1/organizations",
-		testclient.Header("Authorization", "Bearer "+testSettings(t).AdminToken)).
-		AssertStatus(http.StatusUnauthorized)
-
 	newClient(t).Get("/v1/organizations").AssertStatus(http.StatusOK)
 }
 

@@ -2,6 +2,7 @@ package main
 
 import (
 	"net/http"
+	"playersense.dev/backend/internal/staff"
 	"strings"
 	"testing"
 	"time"
@@ -53,8 +54,7 @@ func newWalletWith(t *testing.T, stripe *paymentstest.Gateway) *money {
 
 	return &money{
 		stack: s, owner: owner, slug: slug,
-		operator: testclient.New(t, s.app,
-			testclient.WithHeader("Authorization", "Bearer "+s.settings.AdminToken)),
+		operator: staffOnly(s.staffClient(t, staff.Admin)),
 	}
 }
 
@@ -71,11 +71,6 @@ func (w *money) grant(t *testing.T, body map[string]any) creditGrantedOut {
 	t.Helper()
 	if _, named := body["reference"]; !named {
 		body["reference"] = unique("ref")
-	}
-	// Required, and self-asserted: the shared operator token cannot say who is holding it, so the
-	// audit entry carries this name and says it is unverified.
-	if _, named := body["operator"]; !named {
-		body["operator"] = "ada@playersense.dev"
 	}
 	return testclient.Decoded[creditGrantedOut](
 		w.operator.Post(w.admin()+"/credits", testclient.JSON(body)).
@@ -138,7 +133,7 @@ func TestCreditIsSpentPromoFirstThenOldestPurchase(t *testing.T) {
 	charged := testclient.Decoded[creditChargedOut](
 		w.operator.Post(w.admin()+"/charges", testclient.JSON(map[string]any{
 			"amount_micros": dollars(150), "description": "March usage",
-			"kind": "usage", "reference": unique("charge"), "operator": "ada@playersense.dev",
+			"kind": "usage", "reference": unique("charge"),
 		})).AssertStatus(http.StatusOK))
 
 	if len(charged.Draws) != 3 {
@@ -208,7 +203,7 @@ func TestAPromoExpiresInNinetyDaysUnlessAnotherDateIsNamed(t *testing.T) {
 	}
 	refused := w.operator.Post(w.admin()+"/credits", testclient.JSON(map[string]any{
 		"kind": wallet.Purchase, "amount_micros": dollars(25),
-		"expires_at": chosen, "reference": unique("ref"), "operator": "ada@playersense.dev",
+		"expires_at": chosen, "reference": unique("ref"),
 	})).AssertStatus(http.StatusUnprocessableEntity)
 	if !strings.Contains(refused.String(), "does not expire") {
 		t.Errorf("the refusal does not say why: %s", refused)
@@ -219,7 +214,6 @@ func TestAPromoExpiresInNinetyDaysUnlessAnotherDateIsNamed(t *testing.T) {
 	w.operator.Post(w.admin()+"/credits", testclient.JSON(map[string]any{
 		"kind": wallet.Promo, "amount_micros": dollars(10),
 		"expires_at": now.AddDate(0, 0, -1), "reference": unique("ref"),
-		"operator": "ada@playersense.dev",
 	})).AssertStatus(http.StatusUnprocessableEntity)
 }
 
@@ -305,7 +299,6 @@ func TestLapsedCreditLeavesTheBalanceAndStaysOnTheStatement(t *testing.T) {
 	// safe: the spend path checks the lots rather than the number.
 	refused := w.operator.Post(w.admin()+"/charges", testclient.JSON(map[string]any{
 		"amount_micros": dollars(100), "description": "Usage", "reference": unique("charge"),
-		"operator": "ada@playersense.dev",
 	})).AssertStatus(http.StatusConflict)
 	for _, want := range []string{"$30.00", "$100.00"} {
 		if !strings.Contains(refused.String(), want) {
@@ -324,7 +317,6 @@ func TestGrantingTwiceWithOneReferenceGrantsOnce(t *testing.T) {
 	body := map[string]any{
 		"kind": wallet.Promo, "amount_micros": dollars(100),
 		"description": "Launch credit", "reference": unique("ref"),
-		"operator": "ada@playersense.dev",
 	}
 
 	first := w.grant(t, body)
@@ -355,19 +347,16 @@ func TestACustomerCannotGrantThemselvesCredit(t *testing.T) {
 	// The owner holds every permission in the vocabulary.
 	w.client(t).Post(w.admin()+"/credits", testclient.JSON(map[string]any{
 		"kind": wallet.Promo, "amount_micros": dollars(1000), "reference": unique("ref"),
-		"operator": "ada@playersense.dev",
-	})).AssertStatus(http.StatusUnauthorized)
+	})).AssertStatus(http.StatusForbidden)
 
 	// Nor charge anybody, including themselves.
 	w.client(t).Post(w.admin()+"/charges", testclient.JSON(map[string]any{
 		"amount_micros": dollars(1), "description": "x", "reference": unique("c"),
-		"operator": "ada@playersense.dev",
-	})).AssertStatus(http.StatusUnauthorized)
+	})).AssertStatus(http.StatusForbidden)
 
 	// And no credential at all is refused before anything is read.
 	newAnonClient(t).Post(w.admin()+"/credits", testclient.JSON(map[string]any{
 		"kind": wallet.Promo, "amount_micros": dollars(1), "reference": unique("ref"),
-		"operator": "ada@playersense.dev",
 	})).AssertStatus(http.StatusUnauthorized)
 
 	if balance := w.read(t); balance.AvailableMicros != 0 {

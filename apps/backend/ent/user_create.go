@@ -14,7 +14,6 @@ import (
 	"github.com/google/uuid"
 	"playersense.dev/backend/ent/auditevent"
 	"playersense.dev/backend/ent/configversion"
-	"playersense.dev/backend/ent/creditlot"
 	"playersense.dev/backend/ent/invitation"
 	"playersense.dev/backend/ent/organizationmember"
 	"playersense.dev/backend/ent/user"
@@ -200,21 +199,6 @@ func (_c *UserCreate) AddSentInvitations(v ...*Invitation) *UserCreate {
 		ids[i] = v[i].ID
 	}
 	return _c.AddSentInvitationIDs(ids...)
-}
-
-// AddGrantedCreditIDs adds the "granted_credits" edge to the CreditLot entity by IDs.
-func (_c *UserCreate) AddGrantedCreditIDs(ids ...int) *UserCreate {
-	_c.mutation.AddGrantedCreditIDs(ids...)
-	return _c
-}
-
-// AddGrantedCredits adds the "granted_credits" edges to the CreditLot entity.
-func (_c *UserCreate) AddGrantedCredits(v ...*CreditLot) *UserCreate {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
-	}
-	return _c.AddGrantedCreditIDs(ids...)
 }
 
 // AddAuditEventIDs adds the "audit_events" edge to the AuditEvent entity by IDs.
@@ -454,22 +438,6 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(invitation.FieldID, field.TypeInt),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges = append(_spec.Edges, edge)
-	}
-	if nodes := _c.mutation.GrantedCreditsIDs(); len(nodes) > 0 {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
-			Inverse: false,
-			Table:   user.GrantedCreditsTable,
-			Columns: []string{user.GrantedCreditsColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(creditlot.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

@@ -15,7 +15,6 @@ import (
 	"entgo.io/ent/schema/field"
 	"playersense.dev/backend/ent/auditevent"
 	"playersense.dev/backend/ent/configversion"
-	"playersense.dev/backend/ent/creditlot"
 	"playersense.dev/backend/ent/invitation"
 	"playersense.dev/backend/ent/organizationmember"
 	"playersense.dev/backend/ent/predicate"
@@ -31,7 +30,6 @@ type UserQuery struct {
 	predicates            []predicate.User
 	withMemberships       *OrganizationMemberQuery
 	withSentInvitations   *InvitationQuery
-	withGrantedCredits    *CreditLotQuery
 	withAuditEvents       *AuditEventQuery
 	withPublishedVersions *ConfigVersionQuery
 	modifiers             []func(*sql.Selector)
@@ -108,28 +106,6 @@ func (_q *UserQuery) QuerySentInvitations() *InvitationQuery {
 			sqlgraph.From(user.Table, user.FieldID, selector),
 			sqlgraph.To(invitation.Table, invitation.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, user.SentInvitationsTable, user.SentInvitationsColumn),
-		)
-		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
-		return fromU, nil
-	}
-	return query
-}
-
-// QueryGrantedCredits chains the current query on the "granted_credits" edge.
-func (_q *UserQuery) QueryGrantedCredits() *CreditLotQuery {
-	query := (&CreditLotClient{config: _q.config}).Query()
-	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
-		if err := _q.prepareQuery(ctx); err != nil {
-			return nil, err
-		}
-		selector := _q.sqlQuery(ctx)
-		if err := selector.Err(); err != nil {
-			return nil, err
-		}
-		step := sqlgraph.NewStep(
-			sqlgraph.From(user.Table, user.FieldID, selector),
-			sqlgraph.To(creditlot.Table, creditlot.FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, user.GrantedCreditsTable, user.GrantedCreditsColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -375,7 +351,6 @@ func (_q *UserQuery) Clone() *UserQuery {
 		predicates:            append([]predicate.User{}, _q.predicates...),
 		withMemberships:       _q.withMemberships.Clone(),
 		withSentInvitations:   _q.withSentInvitations.Clone(),
-		withGrantedCredits:    _q.withGrantedCredits.Clone(),
 		withAuditEvents:       _q.withAuditEvents.Clone(),
 		withPublishedVersions: _q.withPublishedVersions.Clone(),
 		// clone intermediate query.
@@ -403,17 +378,6 @@ func (_q *UserQuery) WithSentInvitations(opts ...func(*InvitationQuery)) *UserQu
 		opt(query)
 	}
 	_q.withSentInvitations = query
-	return _q
-}
-
-// WithGrantedCredits tells the query-builder to eager-load the nodes that are connected to
-// the "granted_credits" edge. The optional arguments are used to configure the query builder of the edge.
-func (_q *UserQuery) WithGrantedCredits(opts ...func(*CreditLotQuery)) *UserQuery {
-	query := (&CreditLotClient{config: _q.config}).Query()
-	for _, opt := range opts {
-		opt(query)
-	}
-	_q.withGrantedCredits = query
 	return _q
 }
 
@@ -517,10 +481,9 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 	var (
 		nodes       = []*User{}
 		_spec       = _q.querySpec()
-		loadedTypes = [5]bool{
+		loadedTypes = [4]bool{
 			_q.withMemberships != nil,
 			_q.withSentInvitations != nil,
-			_q.withGrantedCredits != nil,
 			_q.withAuditEvents != nil,
 			_q.withPublishedVersions != nil,
 		}
@@ -557,13 +520,6 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 		if err := _q.loadSentInvitations(ctx, query, nodes,
 			func(n *User) { n.Edges.SentInvitations = []*Invitation{} },
 			func(n *User, e *Invitation) { n.Edges.SentInvitations = append(n.Edges.SentInvitations, e) }); err != nil {
-			return nil, err
-		}
-	}
-	if query := _q.withGrantedCredits; query != nil {
-		if err := _q.loadGrantedCredits(ctx, query, nodes,
-			func(n *User) { n.Edges.GrantedCredits = []*CreditLot{} },
-			func(n *User, e *CreditLot) { n.Edges.GrantedCredits = append(n.Edges.GrantedCredits, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -642,39 +598,6 @@ func (_q *UserQuery) loadSentInvitations(ctx context.Context, query *InvitationQ
 		node, ok := nodeids[*fk]
 		if !ok {
 			return fmt.Errorf(`unexpected referenced foreign-key "invited_by_id" returned %v for node %v`, *fk, n.ID)
-		}
-		assign(node, n)
-	}
-	return nil
-}
-func (_q *UserQuery) loadGrantedCredits(ctx context.Context, query *CreditLotQuery, nodes []*User, init func(*User), assign func(*User, *CreditLot)) error {
-	fks := make([]driver.Value, 0, len(nodes))
-	nodeids := make(map[int]*User)
-	for i := range nodes {
-		fks = append(fks, nodes[i].ID)
-		nodeids[nodes[i].ID] = nodes[i]
-		if init != nil {
-			init(nodes[i])
-		}
-	}
-	if len(query.ctx.Fields) > 0 {
-		query.ctx.AppendFieldOnce(creditlot.FieldGrantedByUserID)
-	}
-	query.Where(predicate.CreditLot(func(s *sql.Selector) {
-		s.Where(sql.InValues(s.C(user.GrantedCreditsColumn), fks...))
-	}))
-	neighbors, err := query.All(ctx)
-	if err != nil {
-		return err
-	}
-	for _, n := range neighbors {
-		fk := n.GrantedByUserID
-		if fk == nil {
-			return fmt.Errorf(`foreign-key "granted_by_user_id" is nil for node %v`, n.ID)
-		}
-		node, ok := nodeids[*fk]
-		if !ok {
-			return fmt.Errorf(`unexpected referenced foreign-key "granted_by_user_id" returned %v for node %v`, *fk, n.ID)
 		}
 		assign(node, n)
 	}

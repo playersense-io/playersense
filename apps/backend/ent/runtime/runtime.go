@@ -34,6 +34,7 @@ import (
 	"playersense.dev/backend/ent/schema"
 	"playersense.dev/backend/ent/segment"
 	"playersense.dev/backend/ent/staffaccess"
+	"playersense.dev/backend/ent/staffmember"
 	"playersense.dev/backend/ent/stripeevent"
 	"playersense.dev/backend/ent/usagecharge"
 	"playersense.dev/backend/ent/usagedaily"
@@ -568,6 +569,12 @@ func init() {
 	creditlotDescStripeReference := creditlotFields[8].Descriptor()
 	// creditlot.StripeReferenceValidator is a validator for the "stripe_reference" field. It is called by the builders before save.
 	creditlot.StripeReferenceValidator = creditlotDescStripeReference.Validators[0].(func(string) error)
+	// creditlotDescGrantedByStaff is the schema descriptor for granted_by_staff field.
+	creditlotDescGrantedByStaff := creditlotFields[9].Descriptor()
+	// creditlot.DefaultGrantedByStaff holds the default value on creation for the granted_by_staff field.
+	creditlot.DefaultGrantedByStaff = creditlotDescGrantedByStaff.Default.(string)
+	// creditlot.GrantedByStaffValidator is a validator for the "granted_by_staff" field. It is called by the builders before save.
+	creditlot.GrantedByStaffValidator = creditlotDescGrantedByStaff.Validators[0].(func(string) error)
 	// creditlotDescIdempotencyKey is the schema descriptor for idempotency_key field.
 	creditlotDescIdempotencyKey := creditlotFields[10].Descriptor()
 	// creditlot.IdempotencyKeyValidator is a validator for the "idempotency_key" field. It is called by the builders before save.
@@ -1732,6 +1739,75 @@ func init() {
 	staffaccess.DefaultIP = staffaccessDescIP.Default.(string)
 	// staffaccess.IPValidator is a validator for the "ip" field. It is called by the builders before save.
 	staffaccess.IPValidator = staffaccessDescIP.Validators[0].(func(string) error)
+	staffmemberMixin := schema.StaffMember{}.Mixin()
+	staffmemberMixinFields0 := staffmemberMixin[0].Fields()
+	_ = staffmemberMixinFields0
+	staffmemberFields := schema.StaffMember{}.Fields()
+	_ = staffmemberFields
+	// staffmemberDescUID is the schema descriptor for uid field.
+	staffmemberDescUID := staffmemberMixinFields0[1].Descriptor()
+	// staffmember.DefaultUID holds the default value on creation for the uid field.
+	staffmember.DefaultUID = staffmemberDescUID.Default.(func() uuid.UUID)
+	// staffmemberDescCreatedAt is the schema descriptor for created_at field.
+	staffmemberDescCreatedAt := staffmemberMixinFields0[2].Descriptor()
+	// staffmember.DefaultCreatedAt holds the default value on creation for the created_at field.
+	staffmember.DefaultCreatedAt = staffmemberDescCreatedAt.Default.(func() time.Time)
+	// staffmemberDescUpdatedAt is the schema descriptor for updated_at field.
+	staffmemberDescUpdatedAt := staffmemberMixinFields0[3].Descriptor()
+	// staffmember.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	staffmember.DefaultUpdatedAt = staffmemberDescUpdatedAt.Default.(func() time.Time)
+	// staffmember.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	staffmember.UpdateDefaultUpdatedAt = staffmemberDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// staffmemberDescEmail is the schema descriptor for email field.
+	staffmemberDescEmail := staffmemberFields[0].Descriptor()
+	// staffmember.EmailValidator is a validator for the "email" field. It is called by the builders before save.
+	staffmember.EmailValidator = func() func(string) error {
+		validators := staffmemberDescEmail.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(email string) error {
+			for _, fn := range fns {
+				if err := fn(email); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// staffmemberDescName is the schema descriptor for name field.
+	staffmemberDescName := staffmemberFields[1].Descriptor()
+	// staffmember.DefaultName holds the default value on creation for the name field.
+	staffmember.DefaultName = staffmemberDescName.Default.(string)
+	// staffmember.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	staffmember.NameValidator = staffmemberDescName.Validators[0].(func(string) error)
+	// staffmemberDescRoles is the schema descriptor for roles field.
+	staffmemberDescRoles := staffmemberFields[2].Descriptor()
+	// staffmember.DefaultRoles holds the default value on creation for the roles field.
+	staffmember.DefaultRoles = staffmemberDescRoles.Default.([]string)
+	// staffmemberDescActive is the schema descriptor for active field.
+	staffmemberDescActive := staffmemberFields[3].Descriptor()
+	// staffmember.DefaultActive holds the default value on creation for the active field.
+	staffmember.DefaultActive = staffmemberDescActive.Default.(bool)
+	// staffmemberDescCreatedBy is the schema descriptor for created_by field.
+	staffmemberDescCreatedBy := staffmemberFields[5].Descriptor()
+	// staffmember.CreatedByValidator is a validator for the "created_by" field. It is called by the builders before save.
+	staffmember.CreatedByValidator = func() func(string) error {
+		validators := staffmemberDescCreatedBy.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(created_by string) error {
+			for _, fn := range fns {
+				if err := fn(created_by); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
 	stripeeventMixin := schema.StripeEvent{}.Mixin()
 	stripeeventMixinFields0 := stripeeventMixin[0].Fields()
 	_ = stripeeventMixinFields0

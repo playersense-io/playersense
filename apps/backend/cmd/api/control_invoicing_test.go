@@ -39,7 +39,6 @@ type invoiceOut struct {
 
 func (w *money) contract(t *testing.T, body map[string]any) *testclient.Response {
 	t.Helper()
-	body["operator"] = "ada@playersense.dev"
 	return w.operator.Put(w.admin()+"/contract", testclient.JSON(body))
 }
 
@@ -162,7 +161,6 @@ func TestAnInvoicedContractFromContractToPaidInvoice(t *testing.T) {
 	var credited invoiceOut
 	w.operator.Post(path+"/credit-notes", testclient.JSON(map[string]any{
 		"amount_micros": dollars(20), "reason": "Outage on the 12th", "reference": unique("cn"),
-		"operator": "ada@playersense.dev",
 	})).AssertStatus(http.StatusOK).JSON(&credited)
 	if credited.AmountRemainingMicros != inv.TotalMicros-dollars(20) {
 		t.Errorf("remaining %d after a $20 credit, want %d", credited.AmountRemainingMicros, inv.TotalMicros-dollars(20))
@@ -171,10 +169,10 @@ func TestAnInvoicedContractFromContractToPaidInvoice(t *testing.T) {
 	reference := unique("wire")
 	var paid invoiceOut
 	w.operator.Post(path+"/mark-paid", testclient.JSON(map[string]any{
-		"reference": reference, "operator": "ada@playersense.dev",
+		"reference": reference,
 	})).AssertStatus(http.StatusOK).JSON(&paid)
 	w.operator.Post(path+"/mark-paid", testclient.JSON(map[string]any{
-		"reference": reference, "operator": "ada@playersense.dev",
+		"reference": reference,
 	})).AssertStatus(http.StatusOK)
 	if paid.Status != "paid" || paid.AmountRemainingMicros != 0 {
 		t.Errorf("after marking paid: %+v", paid)
@@ -206,8 +204,8 @@ func TestAnInvoicedContractFromContractToPaidInvoice(t *testing.T) {
 	}
 	// Nobody but staff.
 	w.client(t).Put(w.admin()+"/contract", testclient.JSON(map[string]any{
-		"collection": "prepaid", "operator": "x@y.z",
-	})).AssertStatus(http.StatusUnauthorized)
+		"collection": "prepaid",
+	})).AssertStatus(http.StatusForbidden)
 }
 
 // A live subscription and a contract would be two bills for one plan.

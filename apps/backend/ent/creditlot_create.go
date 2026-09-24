@@ -14,7 +14,6 @@ import (
 	"github.com/google/uuid"
 	"playersense.dev/backend/ent/billingaccount"
 	"playersense.dev/backend/ent/creditlot"
-	"playersense.dev/backend/ent/user"
 )
 
 // CreditLotCreate is the builder for creating a CreditLot entity.
@@ -161,16 +160,16 @@ func (_c *CreditLotCreate) SetNillableStripeReference(v *string) *CreditLotCreat
 	return _c
 }
 
-// SetGrantedByUserID sets the "granted_by_user_id" field.
-func (_c *CreditLotCreate) SetGrantedByUserID(v int) *CreditLotCreate {
-	_c.mutation.SetGrantedByUserID(v)
+// SetGrantedByStaff sets the "granted_by_staff" field.
+func (_c *CreditLotCreate) SetGrantedByStaff(v string) *CreditLotCreate {
+	_c.mutation.SetGrantedByStaff(v)
 	return _c
 }
 
-// SetNillableGrantedByUserID sets the "granted_by_user_id" field if the given value is not nil.
-func (_c *CreditLotCreate) SetNillableGrantedByUserID(v *int) *CreditLotCreate {
+// SetNillableGrantedByStaff sets the "granted_by_staff" field if the given value is not nil.
+func (_c *CreditLotCreate) SetNillableGrantedByStaff(v *string) *CreditLotCreate {
 	if v != nil {
-		_c.SetGrantedByUserID(*v)
+		_c.SetGrantedByStaff(*v)
 	}
 	return _c
 }
@@ -190,25 +189,6 @@ func (_c *CreditLotCreate) SetID(v int) *CreditLotCreate {
 // SetAccount sets the "account" edge to the BillingAccount entity.
 func (_c *CreditLotCreate) SetAccount(v *BillingAccount) *CreditLotCreate {
 	return _c.SetAccountID(v.ID)
-}
-
-// SetGrantedByID sets the "granted_by" edge to the User entity by ID.
-func (_c *CreditLotCreate) SetGrantedByID(id int) *CreditLotCreate {
-	_c.mutation.SetGrantedByID(id)
-	return _c
-}
-
-// SetNillableGrantedByID sets the "granted_by" edge to the User entity by ID if the given value is not nil.
-func (_c *CreditLotCreate) SetNillableGrantedByID(id *int) *CreditLotCreate {
-	if id != nil {
-		_c = _c.SetGrantedByID(*id)
-	}
-	return _c
-}
-
-// SetGrantedBy sets the "granted_by" edge to the User entity.
-func (_c *CreditLotCreate) SetGrantedBy(v *User) *CreditLotCreate {
-	return _c.SetGrantedByID(v.ID)
 }
 
 // Mutation returns the CreditLotMutation object of the builder.
@@ -269,6 +249,10 @@ func (_c *CreditLotCreate) defaults() {
 	if _, ok := _c.mutation.Description(); !ok {
 		v := creditlot.DefaultDescription
 		_c.mutation.SetDescription(v)
+	}
+	if _, ok := _c.mutation.GrantedByStaff(); !ok {
+		v := creditlot.DefaultGrantedByStaff
+		_c.mutation.SetGrantedByStaff(v)
 	}
 }
 
@@ -332,6 +316,14 @@ func (_c *CreditLotCreate) check() error {
 	if v, ok := _c.mutation.StripeReference(); ok {
 		if err := creditlot.StripeReferenceValidator(v); err != nil {
 			return &ValidationError{Name: "stripe_reference", err: fmt.Errorf(`ent: validator failed for field "CreditLot.stripe_reference": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.GrantedByStaff(); !ok {
+		return &ValidationError{Name: "granted_by_staff", err: errors.New(`ent: missing required field "CreditLot.granted_by_staff"`)}
+	}
+	if v, ok := _c.mutation.GrantedByStaff(); ok {
+		if err := creditlot.GrantedByStaffValidator(v); err != nil {
+			return &ValidationError{Name: "granted_by_staff", err: fmt.Errorf(`ent: validator failed for field "CreditLot.granted_by_staff": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.IdempotencyKey(); !ok {
@@ -422,6 +414,10 @@ func (_c *CreditLotCreate) createSpec() (*CreditLot, *sqlgraph.CreateSpec) {
 		_spec.SetField(creditlot.FieldStripeReference, field.TypeString, value)
 		_node.StripeReference = &value
 	}
+	if value, ok := _c.mutation.GrantedByStaff(); ok {
+		_spec.SetField(creditlot.FieldGrantedByStaff, field.TypeString, value)
+		_node.GrantedByStaff = value
+	}
 	if value, ok := _c.mutation.IdempotencyKey(); ok {
 		_spec.SetField(creditlot.FieldIdempotencyKey, field.TypeString, value)
 		_node.IdempotencyKey = value
@@ -441,23 +437,6 @@ func (_c *CreditLotCreate) createSpec() (*CreditLot, *sqlgraph.CreateSpec) {
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_node.AccountID = nodes[0]
-		_spec.Edges = append(_spec.Edges, edge)
-	}
-	if nodes := _c.mutation.GrantedByIDs(); len(nodes) > 0 {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2O,
-			Inverse: true,
-			Table:   creditlot.GrantedByTable,
-			Columns: []string{creditlot.GrantedByColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_node.GrantedByUserID = &nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec
@@ -589,8 +568,8 @@ func (u *CreditLotUpsertOne) UpdateNewValues() *CreditLotUpsertOne {
 		if _, exists := u.create.mutation.StripeReference(); exists {
 			s.SetIgnore(creditlot.FieldStripeReference)
 		}
-		if _, exists := u.create.mutation.GrantedByUserID(); exists {
-			s.SetIgnore(creditlot.FieldGrantedByUserID)
+		if _, exists := u.create.mutation.GrantedByStaff(); exists {
+			s.SetIgnore(creditlot.FieldGrantedByStaff)
 		}
 		if _, exists := u.create.mutation.IdempotencyKey(); exists {
 			s.SetIgnore(creditlot.FieldIdempotencyKey)
@@ -873,8 +852,8 @@ func (u *CreditLotUpsertBulk) UpdateNewValues() *CreditLotUpsertBulk {
 			if _, exists := b.mutation.StripeReference(); exists {
 				s.SetIgnore(creditlot.FieldStripeReference)
 			}
-			if _, exists := b.mutation.GrantedByUserID(); exists {
-				s.SetIgnore(creditlot.FieldGrantedByUserID)
+			if _, exists := b.mutation.GrantedByStaff(); exists {
+				s.SetIgnore(creditlot.FieldGrantedByStaff)
 			}
 			if _, exists := b.mutation.IdempotencyKey(); exists {
 				s.SetIgnore(creditlot.FieldIdempotencyKey)

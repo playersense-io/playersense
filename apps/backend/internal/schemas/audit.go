@@ -19,8 +19,7 @@ type AuditEventOut struct {
 	Action string    `json:"action" doc:"A dotted name from the same family as the permissions: member.invite, liveops.publish"`
 
 	// Actor is who did it, rendered. A name and address when a person did it, the key's label when
-	// a credential did, and a self-asserted operator name when PlayerSense staff did — which says
-	// so, because the shared operator token cannot prove who was holding it.
+	// a credential did, and "PlayerSense staff" with their verified address when our staff did.
 	Actor      string `json:"actor"`
 	ActorEmail string `json:"actor_email,omitzero" doc:"Present only when a signed-in person did it"`
 

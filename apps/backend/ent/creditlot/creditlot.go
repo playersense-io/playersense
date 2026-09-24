@@ -40,14 +40,12 @@ const (
 	FieldDescription = "description"
 	// FieldStripeReference holds the string denoting the stripe_reference field in the database.
 	FieldStripeReference = "stripe_reference"
-	// FieldGrantedByUserID holds the string denoting the granted_by_user_id field in the database.
-	FieldGrantedByUserID = "granted_by_user_id"
+	// FieldGrantedByStaff holds the string denoting the granted_by_staff field in the database.
+	FieldGrantedByStaff = "granted_by_staff"
 	// FieldIdempotencyKey holds the string denoting the idempotency_key field in the database.
 	FieldIdempotencyKey = "idempotency_key"
 	// EdgeAccount holds the string denoting the account edge name in mutations.
 	EdgeAccount = "account"
-	// EdgeGrantedBy holds the string denoting the granted_by edge name in mutations.
-	EdgeGrantedBy = "granted_by"
 	// Table holds the table name of the creditlot in the database.
 	Table = "credit_lots"
 	// AccountTable is the table that holds the account relation/edge.
@@ -57,13 +55,6 @@ const (
 	AccountInverseTable = "billing_accounts"
 	// AccountColumn is the table column denoting the account relation/edge.
 	AccountColumn = "account_id"
-	// GrantedByTable is the table that holds the granted_by relation/edge.
-	GrantedByTable = "credit_lots"
-	// GrantedByInverseTable is the table name for the User entity.
-	// It exists in this package in order to avoid circular dependency with the "user" package.
-	GrantedByInverseTable = "users"
-	// GrantedByColumn is the table column denoting the granted_by relation/edge.
-	GrantedByColumn = "granted_by_user_id"
 )
 
 // Columns holds all SQL columns for creditlot fields.
@@ -81,7 +72,7 @@ var Columns = []string{
 	FieldGrantedAt,
 	FieldDescription,
 	FieldStripeReference,
-	FieldGrantedByUserID,
+	FieldGrantedByStaff,
 	FieldIdempotencyKey,
 }
 
@@ -120,6 +111,10 @@ var (
 	DescriptionValidator func(string) error
 	// StripeReferenceValidator is a validator for the "stripe_reference" field. It is called by the builders before save.
 	StripeReferenceValidator func(string) error
+	// DefaultGrantedByStaff holds the default value on creation for the "granted_by_staff" field.
+	DefaultGrantedByStaff string
+	// GrantedByStaffValidator is a validator for the "granted_by_staff" field. It is called by the builders before save.
+	GrantedByStaffValidator func(string) error
 	// IdempotencyKeyValidator is a validator for the "idempotency_key" field. It is called by the builders before save.
 	IdempotencyKeyValidator func(string) error
 )
@@ -215,9 +210,9 @@ func ByStripeReference(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldStripeReference, opts...).ToFunc()
 }
 
-// ByGrantedByUserID orders the results by the granted_by_user_id field.
-func ByGrantedByUserID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldGrantedByUserID, opts...).ToFunc()
+// ByGrantedByStaff orders the results by the granted_by_staff field.
+func ByGrantedByStaff(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldGrantedByStaff, opts...).ToFunc()
 }
 
 // ByIdempotencyKey orders the results by the idempotency_key field.
@@ -231,24 +226,10 @@ func ByAccountField(field string, opts ...sql.OrderTermOption) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newAccountStep(), sql.OrderByField(field, opts...))
 	}
 }
-
-// ByGrantedByField orders the results by granted_by field.
-func ByGrantedByField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newGrantedByStep(), sql.OrderByField(field, opts...))
-	}
-}
 func newAccountStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(AccountInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.M2O, true, AccountTable, AccountColumn),
-	)
-}
-func newGrantedByStep() *sqlgraph.Step {
-	return sqlgraph.NewStep(
-		sqlgraph.From(Table, FieldID),
-		sqlgraph.To(GrantedByInverseTable, FieldID),
-		sqlgraph.Edge(sqlgraph.M2O, true, GrantedByTable, GrantedByColumn),
 	)
 }

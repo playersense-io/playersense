@@ -131,7 +131,6 @@ func (User) Edges() []ent.Edge {
 	return []ent.Edge{
 		edge.To("memberships", OrganizationMember.Type),
 		edge.To("sent_invitations", Invitation.Type),
-		edge.To("granted_credits", CreditLot.Type),
 		edge.To("audit_events", AuditEvent.Type),
 		edge.To("published_versions", ConfigVersion.Type),
 	}

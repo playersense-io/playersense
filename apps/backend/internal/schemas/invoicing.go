@@ -16,6 +16,8 @@ import (
 // rather than at the first dollar owed. `prepaid` moves it back, and issues a final invoice for
 // everything not yet billed.
 type SetContractIn struct {
+	StaffTicket
+
 	OrgSlug string `path:"org"`
 
 	Collection string `json:"collection" doc:"invoiced or prepaid"`
@@ -38,8 +40,6 @@ type SetContractIn struct {
 
 	PONumber string `json:"po_number,omitzero" doc:"Printed on every invoice"`
 	Memo     string `json:"memo,omitzero" doc:"The invoice footer"`
-
-	Operator string `json:"operator" doc:"Your own address. Recorded in the customer's audit log as self-asserted"`
 }
 
 func (in *SetContractIn) Validate(v *muzak.Validation) {
@@ -53,7 +53,6 @@ func (in *SetContractIn) Validate(v *muzak.Validation) {
 	v.String(&in.BillingEmail).Trim().Lower().Email().MaxLen(254)
 	v.String(&in.PONumber).Trim().MaxLen(140)
 	v.String(&in.Memo).Trim().MaxLen(500)
-	v.String(&in.Operator).Trim().Lower().Required().Email().MaxLen(254)
 }
 
 // ContractOut is the terms an organization is on.
@@ -141,29 +140,30 @@ type OperatorInvoiceOut struct {
 
 // MarkInvoicePaidIn records a payment Stripe did not see: a wire, a cheque.
 type MarkInvoicePaidIn struct {
+	StaffTicket
+
 	OrgSlug   string    `path:"org"`
 	InvoiceID uuid.UUID `path:"invoice_id"`
 
 	// Reference is the idempotency key: the bank's reference for the transfer.
 	Reference string `json:"reference" doc:"The transfer's reference; the same one twice marks it paid once"`
-	Operator  string `json:"operator"`
 }
 
 func (in *MarkInvoicePaidIn) Validate(v *muzak.Validation) {
 	v.String(&in.OrgSlug).Trim().Lower().Required().MaxLen(64)
 	v.String(&in.Reference).Trim().Required().MinLen(4).MaxLen(200)
-	v.String(&in.Operator).Trim().Lower().Required().Email().MaxLen(254)
 }
 
 // CreditInvoiceIn lowers what an open invoice asks for.
 type CreditInvoiceIn struct {
+	StaffTicket
+
 	OrgSlug   string    `path:"org"`
 	InvoiceID uuid.UUID `path:"invoice_id"`
 
 	AmountMicros int64  `json:"amount_micros" doc:"Whole cents, at most what is still owed on it"`
 	Reason       string `json:"reason" doc:"Printed on the credit note"`
 	Reference    string `json:"reference" doc:"An idempotency key: the same one twice credits once"`
-	Operator     string `json:"operator"`
 }
 
 func (in *CreditInvoiceIn) Validate(v *muzak.Validation) {
@@ -171,5 +171,4 @@ func (in *CreditInvoiceIn) Validate(v *muzak.Validation) {
 	v.Number(&in.AmountMicros).Min(1).Max(float64(MaxGrant))
 	v.String(&in.Reason).Trim().Required().MinLen(3).MaxLen(500)
 	v.String(&in.Reference).Trim().Required().MinLen(4).MaxLen(200)
-	v.String(&in.Operator).Trim().Lower().Required().Email().MaxLen(254)
 }

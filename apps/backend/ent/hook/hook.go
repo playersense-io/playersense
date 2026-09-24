@@ -333,6 +333,18 @@ func (f StaffAccessFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value,
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.StaffAccessMutation", m)
 }
 
+// The StaffMemberFunc type is an adapter to allow the use of ordinary
+// function as StaffMember mutator.
+type StaffMemberFunc func(context.Context, *ent.StaffMemberMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f StaffMemberFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.StaffMemberMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.StaffMemberMutation", m)
+}
+
 // The StripeEventFunc type is an adapter to allow the use of ordinary
 // function as StripeEvent mutator.
 type StripeEventFunc func(context.Context, *ent.StripeEventMutation) (ent.Value, error)

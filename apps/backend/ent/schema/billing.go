@@ -559,8 +559,11 @@ func (CreditLot) Fields() []ent.Field {
 		field.String("stripe_reference").MaxLen(255).Optional().Nillable().Immutable().
 			Comment(dataclass.None),
 
-		// Who granted it. Null for one created by a payment rather than by a person.
-		field.Int("granted_by_user_id").Optional().Nillable().Immutable().Comment(dataclass.None),
+		// The staff member who granted it, by the address their verified sign-in carried.
+		// Empty for one created by a payment rather than by a person. A string rather than an
+		// edge, for StaffAccess's reason: staff are not users of any organization, and the
+		// record of who granted credit has to outlive the staff member's row.
+		field.String("granted_by_staff").MaxLen(254).Default("").Immutable().Comment(dataclass.None),
 
 		// The same protection the ledger has, for the same reason: a grant retried after a
 		// timeout must not become two lots. Derived from what happened — the payment intent,
@@ -574,8 +577,6 @@ func (CreditLot) Edges() []ent.Edge {
 	return []ent.Edge{
 		edge.From("account", BillingAccount.Type).Ref("credit_lots").
 			Field("account_id").Unique().Required().Immutable(),
-		edge.From("granted_by", User.Type).Ref("granted_credits").
-			Field("granted_by_user_id").Unique().Immutable(),
 	}
 }
 

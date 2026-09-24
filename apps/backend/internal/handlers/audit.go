@@ -155,10 +155,16 @@ func (a auditing) forOrganization(id int) auditing {
 	return a
 }
 
-// byOperator replaces the actor with a self-asserted operator name.
-func (a auditing) byOperator(asserted string) auditing {
-	a.actor = audit.OperatorActor(asserted)
+// byStaff replaces the actor with the signed-in PlayerSense staff member, whose address the
+// console's sign-in verified.
+func (a auditing) byStaff(ctx *muzak.Context) auditing {
+	a.actor = audit.StaffActor(staffEmail(ctx))
 	return a
+}
+
+// staffEmail is the verified address of the staff member making this request.
+func staffEmail(ctx *muzak.Context) string {
+	return muzak.From[*core.StaffPrincipal](ctx).Email
 }
 
 // inTx runs one write and its audit entry as a single transaction.

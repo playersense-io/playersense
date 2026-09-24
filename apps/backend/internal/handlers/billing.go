@@ -44,8 +44,7 @@ import (
 //
 // A studio that could grant itself promotional credit would be a studio on an unlimited plan.
 // `billing.manage` is the widest thing a customer holds and it configures automatic charging; putting
-// money in the wallet is an operator action, behind the shared operator token until §56's admin
-// console and the staff-access model exist to do it properly.
+// money in the wallet is a staff action, behind the console's staff sign-in (core.ResolveStaff).
 
 // ---- usage ------------------------------------------------------------------
 
@@ -364,12 +363,9 @@ func SetAutoTopUp(ctx *muzak.Context, in schemas.SetAutoTopUpIn) (schemas.Billin
 
 // GrantCredit puts credit in an organization's wallet.
 //
-// §56's console does not exist and neither does the staff-access model behind it, so this is guarded
-// by the shared operator token — which cannot say *who* granted the credit, and the lot's
-// `granted_by_user_id` is therefore null on this path. That is a real gap rather than a detail: "who
-// gave this account $100" is the first question asked when an account has $100 nobody expected, and
-// today the answer is in the request log or nowhere. It is recorded in
-// docs/compliance/10-open-items.md beside the audit log it needs.
+// The staff member who grants it is on the lot (granted_by_staff), in the customer's audit log, and in
+// staff_access with the ticket: "who gave this account $100" is the first question asked when an
+// account has $100 nobody expected.
 func GrantCredit(ctx *muzak.Context, in schemas.GrantCreditIn) (schemas.CreditGrantedOut, error) {
 	db := muzak.From[*core.DB](ctx)
 
@@ -396,6 +392,7 @@ func GrantCredit(ctx *muzak.Context, in schemas.GrantCreditIn) (schemas.CreditGr
 		GrantedAt:       grantedAt,
 		Description:     in.Description,
 		StripeReference: in.StripeReference,
+		GrantedByStaff:  staffEmail(ctx),
 		Key:             "operator:" + in.Reference,
 	})
 	if err != nil {
@@ -408,7 +405,7 @@ func GrantCredit(ctx *muzak.Context, in schemas.GrantCreditIn) (schemas.CreditGr
 	// key is for.
 	if granted {
 		if err := auditFor(ctx).forOrganization(account.OrganizationID).
-			byOperator(in.Operator).
+			byStaff(ctx).
 			record(ctx.Context(), tx, audit.CreditGranted, "credit_lot", lot.UID.String(),
 				map[string]any{
 					"kind":          in.Kind,
@@ -479,7 +476,7 @@ func ChargeCredit(ctx *muzak.Context, in schemas.ChargeCreditIn) (schemas.Credit
 
 	if result.Applied {
 		if err := auditFor(ctx).forOrganization(account.OrganizationID).
-			byOperator(in.Operator).
+			byStaff(ctx).
 			record(ctx.Context(), tx, audit.CreditCharged, "billing_account", in.OrgSlug,
 				map[string]any{
 					"amount_micros": in.AmountMicros,

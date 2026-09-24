@@ -13,6 +13,7 @@ import (
 	"playersense.dev/backend/internal/audit"
 	"playersense.dev/backend/internal/authz"
 	"playersense.dev/backend/internal/firebase/fbtest"
+	"playersense.dev/backend/internal/staff"
 	"playersense.dev/backend/internal/testsupport"
 	"playersense.dev/backend/internal/wallet"
 )
@@ -100,14 +101,18 @@ func TestEveryMutatingRouteDecidesAboutAudit(t *testing.T) {
 		"POST /v1/privacy/erasures": "recorded in data_deletion_requests, with a status machine and counts",
 		"POST /v1/privacy/exports":  "recorded in data_export_requests, with a status machine and an expiry",
 
-		// The catalogue belongs to no organization, and this log is an organization's. A rate
-		// card keeps a better record than an entry would: it is immutable, carries who published
-		// it and why, and the list of cards *is* the price history (ADR 0039). A plan's name and
-		// allowances are the one mutable part, and a staff-side log for them waits on §56's
-		// staff identities — recorded in docs/compliance/10-open-items.md.
-		"POST /v1/operator/plans":                   "the catalogue, not an organization's account",
-		"PUT /v1/operator/plans/{plan}":             "the catalogue; a staff log waits on §56",
+		// The catalogue belongs to no organization, and this log is an organization's. Each of
+		// these is recorded in staff_access instead, with the verified staff member and a ticket;
+		// a rate card also carries who published it and why, and the list of cards *is* the
+		// price history (ADR 0039).
+		"POST /v1/operator/plans":                   "the catalogue; recorded in staff_access",
+		"PUT /v1/operator/plans/{plan}":             "the catalogue; recorded in staff_access",
 		"POST /v1/operator/plans/{plan}/rate-cards": "an immutable card that records who published it and why",
+
+		// Who is staff is not a customer's business, and each change is in staff_access with
+		// the admin who made it and a ticket.
+		"POST /v1/operator/staff":           "recorded in staff_access",
+		"PUT /v1/operator/staff/{staff_id}": "recorded in staff_access",
 
 		// Payments (ADR 0040). Opening a Checkout page or the portal changes nothing on our side
 		// until Stripe reports a payment, and a payment is recorded better than a log line could:
@@ -269,46 +274,29 @@ func TestAnAuditEntryCannotBeChanged(t *testing.T) {
 	}
 }
 
-// TestAnOperatorGrantSaysItIsSelfAsserted is the honest half of the gap ADR 0036 left open.
+// TestAStaffGrantNamesTheVerifiedStaffMember is the gap ADR 0036 left open, closed.
 //
-// The shared operator token cannot prove who is holding it. Requiring a name gets one into the log;
-// labelling it self-asserted stops the log being read as proof. Both matter: the entry is useful and
-// it does not overstate itself.
-func TestAnOperatorGrantSaysItIsSelfAsserted(t *testing.T) {
+// The shared operator token could not prove who was holding it, so a grant carried a name the caller
+// typed and said it was self-asserted. A staff member now signs in, and the entry names the address
+// their verified sign-in carried.
+func TestAStaffGrantNamesTheVerifiedStaffMember(t *testing.T) {
 	a := newAuditing(t)
 	testsupport.SeedBillingAccount(t, a.db, a.organization(t, a.slug).ID)
 
-	operator := testclient.New(t, a.app,
-		testclient.WithHeader("Authorization", "Bearer "+a.settings.AdminToken))
-
+	operator, who := a.staffClient(t, staff.Billing)
 	operator.Post("/v1/operator/organizations/"+a.slug+"/credits",
 		testclient.JSON(map[string]any{
 			"kind": wallet.Promo, "amount_micros": 100_000_000,
 			"description": "Launch credit", "reference": unique("ref"),
-			"operator": "ada@playersense.dev",
 		})).AssertStatus(http.StatusCreated)
 
 	entry := a.find(t, audit.CreditGranted)
-	if !strings.Contains(entry.Actor, "ada@playersense.dev") {
-		t.Errorf("the entry does not name the operator: %q", entry.Actor)
+	if entry.Actor != "PlayerSense staff "+strings.ToLower(who.Email) {
+		t.Errorf("the entry names %q, want the staff member who signed in", entry.Actor)
 	}
-	if !strings.Contains(entry.Actor, "self-asserted") {
-		t.Errorf("the entry does not say the name is unverified: %q", entry.Actor)
-	}
-	// And no user edge, because there is no verified person behind it.
 	if entry.ActorEmail != "" {
-		t.Errorf("actor_email = %q; an operator action has no verified person", entry.ActorEmail)
+		t.Errorf("actor_email = %q; staff are not users of the organization", entry.ActorEmail)
 	}
-	if entry.Metadata["amount_micros"] != float64(100_000_000) {
-		t.Errorf("the entry does not say how much: %v", entry.Metadata)
-	}
-
-	// The name is required, so the alternative — an entry reading "operator (unidentified)" on
-	// every credit grant in the product — is not reachable by leaving a field out.
-	operator.Post("/v1/operator/organizations/"+a.slug+"/credits",
-		testclient.JSON(map[string]any{
-			"kind": wallet.Promo, "amount_micros": 1_000_000, "reference": unique("ref"),
-		})).AssertStatus(http.StatusUnprocessableEntity)
 }
 
 // TestAFailedActionIsNotLogged is the other half of an audit log being trustworthy.

@@ -111,9 +111,9 @@ func StripeReference(v string) predicate.CreditLot {
 	return predicate.CreditLot(sql.FieldEQ(FieldStripeReference, v))
 }
 
-// GrantedByUserID applies equality check predicate on the "granted_by_user_id" field. It's identical to GrantedByUserIDEQ.
-func GrantedByUserID(v int) predicate.CreditLot {
-	return predicate.CreditLot(sql.FieldEQ(FieldGrantedByUserID, v))
+// GrantedByStaff applies equality check predicate on the "granted_by_staff" field. It's identical to GrantedByStaffEQ.
+func GrantedByStaff(v string) predicate.CreditLot {
+	return predicate.CreditLot(sql.FieldEQ(FieldGrantedByStaff, v))
 }
 
 // IdempotencyKey applies equality check predicate on the "idempotency_key" field. It's identical to IdempotencyKeyEQ.
@@ -656,34 +656,69 @@ func StripeReferenceContainsFold(v string) predicate.CreditLot {
 	return predicate.CreditLot(sql.FieldContainsFold(FieldStripeReference, v))
 }
 
-// GrantedByUserIDEQ applies the EQ predicate on the "granted_by_user_id" field.
-func GrantedByUserIDEQ(v int) predicate.CreditLot {
-	return predicate.CreditLot(sql.FieldEQ(FieldGrantedByUserID, v))
+// GrantedByStaffEQ applies the EQ predicate on the "granted_by_staff" field.
+func GrantedByStaffEQ(v string) predicate.CreditLot {
+	return predicate.CreditLot(sql.FieldEQ(FieldGrantedByStaff, v))
 }
 
-// GrantedByUserIDNEQ applies the NEQ predicate on the "granted_by_user_id" field.
-func GrantedByUserIDNEQ(v int) predicate.CreditLot {
-	return predicate.CreditLot(sql.FieldNEQ(FieldGrantedByUserID, v))
+// GrantedByStaffNEQ applies the NEQ predicate on the "granted_by_staff" field.
+func GrantedByStaffNEQ(v string) predicate.CreditLot {
+	return predicate.CreditLot(sql.FieldNEQ(FieldGrantedByStaff, v))
 }
 
-// GrantedByUserIDIn applies the In predicate on the "granted_by_user_id" field.
-func GrantedByUserIDIn(vs ...int) predicate.CreditLot {
-	return predicate.CreditLot(sql.FieldIn(FieldGrantedByUserID, vs...))
+// GrantedByStaffIn applies the In predicate on the "granted_by_staff" field.
+func GrantedByStaffIn(vs ...string) predicate.CreditLot {
+	return predicate.CreditLot(sql.FieldIn(FieldGrantedByStaff, vs...))
 }
 
-// GrantedByUserIDNotIn applies the NotIn predicate on the "granted_by_user_id" field.
-func GrantedByUserIDNotIn(vs ...int) predicate.CreditLot {
-	return predicate.CreditLot(sql.FieldNotIn(FieldGrantedByUserID, vs...))
+// GrantedByStaffNotIn applies the NotIn predicate on the "granted_by_staff" field.
+func GrantedByStaffNotIn(vs ...string) predicate.CreditLot {
+	return predicate.CreditLot(sql.FieldNotIn(FieldGrantedByStaff, vs...))
 }
 
-// GrantedByUserIDIsNil applies the IsNil predicate on the "granted_by_user_id" field.
-func GrantedByUserIDIsNil() predicate.CreditLot {
-	return predicate.CreditLot(sql.FieldIsNull(FieldGrantedByUserID))
+// GrantedByStaffGT applies the GT predicate on the "granted_by_staff" field.
+func GrantedByStaffGT(v string) predicate.CreditLot {
+	return predicate.CreditLot(sql.FieldGT(FieldGrantedByStaff, v))
 }
 
-// GrantedByUserIDNotNil applies the NotNil predicate on the "granted_by_user_id" field.
-func GrantedByUserIDNotNil() predicate.CreditLot {
-	return predicate.CreditLot(sql.FieldNotNull(FieldGrantedByUserID))
+// GrantedByStaffGTE applies the GTE predicate on the "granted_by_staff" field.
+func GrantedByStaffGTE(v string) predicate.CreditLot {
+	return predicate.CreditLot(sql.FieldGTE(FieldGrantedByStaff, v))
+}
+
+// GrantedByStaffLT applies the LT predicate on the "granted_by_staff" field.
+func GrantedByStaffLT(v string) predicate.CreditLot {
+	return predicate.CreditLot(sql.FieldLT(FieldGrantedByStaff, v))
+}
+
+// GrantedByStaffLTE applies the LTE predicate on the "granted_by_staff" field.
+func GrantedByStaffLTE(v string) predicate.CreditLot {
+	return predicate.CreditLot(sql.FieldLTE(FieldGrantedByStaff, v))
+}
+
+// GrantedByStaffContains applies the Contains predicate on the "granted_by_staff" field.
+func GrantedByStaffContains(v string) predicate.CreditLot {
+	return predicate.CreditLot(sql.FieldContains(FieldGrantedByStaff, v))
+}
+
+// GrantedByStaffHasPrefix applies the HasPrefix predicate on the "granted_by_staff" field.
+func GrantedByStaffHasPrefix(v string) predicate.CreditLot {
+	return predicate.CreditLot(sql.FieldHasPrefix(FieldGrantedByStaff, v))
+}
+
+// GrantedByStaffHasSuffix applies the HasSuffix predicate on the "granted_by_staff" field.
+func GrantedByStaffHasSuffix(v string) predicate.CreditLot {
+	return predicate.CreditLot(sql.FieldHasSuffix(FieldGrantedByStaff, v))
+}
+
+// GrantedByStaffEqualFold applies the EqualFold predicate on the "granted_by_staff" field.
+func GrantedByStaffEqualFold(v string) predicate.CreditLot {
+	return predicate.CreditLot(sql.FieldEqualFold(FieldGrantedByStaff, v))
+}
+
+// GrantedByStaffContainsFold applies the ContainsFold predicate on the "granted_by_staff" field.
+func GrantedByStaffContainsFold(v string) predicate.CreditLot {
+	return predicate.CreditLot(sql.FieldContainsFold(FieldGrantedByStaff, v))
 }
 
 // IdempotencyKeyEQ applies the EQ predicate on the "idempotency_key" field.
@@ -766,29 +801,6 @@ func HasAccount() predicate.CreditLot {
 func HasAccountWith(preds ...predicate.BillingAccount) predicate.CreditLot {
 	return predicate.CreditLot(func(s *sql.Selector) {
 		step := newAccountStep()
-		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
-			for _, p := range preds {
-				p(s)
-			}
-		})
-	})
-}
-
-// HasGrantedBy applies the HasEdge predicate on the "granted_by" edge.
-func HasGrantedBy() predicate.CreditLot {
-	return predicate.CreditLot(func(s *sql.Selector) {
-		step := sqlgraph.NewStep(
-			sqlgraph.From(Table, FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, true, GrantedByTable, GrantedByColumn),
-		)
-		sqlgraph.HasNeighbors(s, step)
-	})
-}
-
-// HasGrantedByWith applies the HasEdge predicate on the "granted_by" edge with a given conditions (other predicates).
-func HasGrantedByWith(preds ...predicate.User) predicate.CreditLot {
-	return predicate.CreditLot(func(s *sql.Selector) {
-		step := newGrantedByStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

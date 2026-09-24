@@ -137,14 +137,14 @@ func SetContract(ctx *muzak.Context, in schemas.SetContractIn) (schemas.BillingO
 			SetMinimumCommitmentMicros(in.MinimumCommitmentMicros).
 			SetPoNumber(in.PONumber).
 			SetMemo(in.Memo).
-			SetOperator(in.Operator)
+			SetOperator(staffEmail(ctx))
 		if in.CreditLimitMicros != nil {
 			contract = contract.SetCreditLimitMicros(*in.CreditLimitMicros)
 		}
 		if _, err := contract.Save(ctx.Context()); err != nil {
 			return none, err
 		}
-		return none, auditFor(ctx).forOrganization(org.ID).byOperator(in.Operator).
+		return none, auditFor(ctx).forOrganization(org.ID).byStaff(ctx).
 			record(ctx.Context(), tx, audit.ContractSet, "billing_account", org.Slug, map[string]any{
 				"collection":                in.Collection,
 				"was_collection":            string(was),
@@ -246,7 +246,7 @@ func operatorCustomer(ctx *muzak.Context, account *ent.BillingAccount, org *ent.
 }
 
 // ListOperatorInvoices is an organization's invoices as staff see them, drafts and failures included.
-func ListOperatorInvoices(ctx *muzak.Context, in schemas.OrganizationParams) (schemas.OperatorInvoicesOut, error) {
+func ListOperatorInvoices(ctx *muzak.Context, in schemas.OperatorOrganizationParams) (schemas.OperatorInvoicesOut, error) {
 	db := muzak.From[*core.DB](ctx)
 	account, err := accountBySlug(ctx.Context(), db, in.Slug)
 	if err != nil {
@@ -291,7 +291,7 @@ func MarkInvoicePaid(ctx *muzak.Context, in schemas.MarkInvoicePaidIn) (schemas.
 		if _, _, err := payments.ApplyInvoice(ctx.Context(), tx, issued, nowUTC()); err != nil {
 			return none, err
 		}
-		return none, auditFor(ctx).forOrganization(account.OrganizationID).byOperator(in.Operator).
+		return none, auditFor(ctx).forOrganization(account.OrganizationID).byStaff(ctx).
 			record(ctx.Context(), tx, audit.InvoicePaid, "invoice", row.UID.String(), map[string]any{
 				"number": issued.Number, "reference": in.Reference,
 				"amount_micros": issued.AmountPaid * billing.CentMicros,
@@ -336,7 +336,7 @@ func CreditInvoice(ctx *muzak.Context, in schemas.CreditInvoiceIn) (schemas.Oper
 		if err != nil || !applied {
 			return none, err
 		}
-		return none, auditFor(ctx).forOrganization(account.OrganizationID).byOperator(in.Operator).
+		return none, auditFor(ctx).forOrganization(account.OrganizationID).byStaff(ctx).
 			record(ctx.Context(), tx, audit.InvoiceCredited, "invoice", row.UID.String(), map[string]any{
 				"credit_note": note.ID, "amount_micros": in.AmountMicros, "reason": in.Reason,
 				"reference": in.Reference,

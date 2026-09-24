@@ -12,7 +12,7 @@ import (
 	"playersense.dev/backend/internal/schemas"
 )
 
-// The operations console's analytics (§56), behind the operator token.
+// The operations console's analytics (§56), behind a signed-in staff member.
 
 // operatorRange reads a range, defaulting to the last days days.
 func operatorRange(from, to string, days int) (time.Time, time.Time, error) {

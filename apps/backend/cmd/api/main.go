@@ -455,21 +455,25 @@ func build(settings config.Settings, overrides ...muzak.RouterOption) (*muzak.Ap
 			"A sign-in could not be verified right now; the credential is not necessarily bad"),
 	)
 
-	// The operator surface, behind the shared token rather than a person.
+	// The operations console's surface (§56), behind a signed-in PlayerSense staff member.
 	//
-	// Its own subtree because its credential is different in kind: everything above
-	// resolves a signed-in person and checks that person's permissions, and this is one
-	// secret that says "PlayerSense staff" and nothing more. §56's console and the
-	// staff-access model are what replace it; until then the router's own comment carries
-	// the cost of the difference.
+	// Its own subtree because its credential is different in kind: everything above resolves a
+	// customer and checks their permissions in one organization, and this resolves somebody in
+	// staff_members and checks their staff role. Each route names the roles it needs, and a route
+	// that reaches one customer's records demands a ticket and writes staff_access first
+	// (core.StaffReads, §104).
 	operator := muzak.NewRouter()
+	operator.Include(routers.OperatorStaff())
 	operator.Include(routers.OperatorBilling())
 	operator.Include(routers.OperatorPricing())
 	operator.Include(routers.OperatorAnalytics())
 	app.Include(operator,
 		muzak.WithPrefix("/v1/operator"),
-		muzak.WithDependencies(core.RequireAdminToken(settings)),
-		muzak.WithResponseDoc(http.StatusUnauthorized, "The operator token is missing or wrong"),
+		muzak.Needs(core.ResolveStaff),
+		muzak.WithResponseDoc(http.StatusUnauthorized, "No usable sign-in was presented"),
+		muzak.WithResponseDoc(http.StatusForbidden, "This account is not staff, or lacks the role this needs"),
+		muzak.WithResponseDoc(http.StatusServiceUnavailable,
+			"A sign-in could not be verified right now; the credential is not necessarily bad"),
 	)
 
 	return app, nil

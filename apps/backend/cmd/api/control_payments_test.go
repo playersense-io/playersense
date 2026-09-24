@@ -207,13 +207,13 @@ func TestEnterpriseIsPricedPublishedAndSubscribedTo(t *testing.T) {
 	operator := w.operator
 	key := unique("enterprise")
 	operator.Post("/v1/operator/plans", testclient.JSON(map[string]any{
-		"key": key, "name": "Enterprise", "operator": "ada@playersense.dev",
+		"key": key, "name": "Enterprise",
 		"features": []string{"premium_support", "slack_reports", "mcp_access"},
 	})).AssertStatus(http.StatusCreated)
 
 	priced := testclient.Decoded[schemas.PlanDetailOut](operator.Put("/v1/operator/plans/"+key+"/subscription",
 		testclient.JSON(map[string]any{
-			"monthly_price_micros": dollars(99), "yearly_price_micros": dollars(999), "operator": "ada@playersense.dev",
+			"monthly_price_micros": dollars(99), "yearly_price_micros": dollars(999),
 		})).AssertStatus(http.StatusOK))
 	if !priced.Subscribable || len(priced.Intervals) != 2 || priced.MonthlyPriceMicros != dollars(99) ||
 		priced.YearlyPriceMicros != dollars(999) || len(priced.Features) != 3 {
@@ -253,19 +253,17 @@ func TestSubscriptionInputsThatCannotWorkAreRefused(t *testing.T) {
 	w := newWalletWith(t, paymentstest.New())
 	key := unique("monthly")
 	w.operator.Post("/v1/operator/plans", testclient.JSON(map[string]any{
-		"key": key, "name": "Monthly only", "operator": "ada@playersense.dev",
+		"key": key, "name": "Monthly only",
 	})).AssertStatus(http.StatusCreated)
 	w.operator.Put("/v1/operator/plans/"+key+"/subscription", testclient.JSON(map[string]any{
-		"monthly_price_micros": dollars(10), "operator": "ada@playersense.dev",
+		"monthly_price_micros": dollars(10),
 	})).AssertStatus(http.StatusOK)
 
 	w.client(t).Post(w.base()+"/billing/subscription",
 		testclient.JSON(map[string]any{"plan": key, "interval": "year"})).AssertStatus(http.StatusUnprocessableEntity)
-	w.operator.Put("/v1/operator/plans/"+key+"/subscription", testclient.JSON(map[string]any{
-		"operator": "ada@playersense.dev",
-	})).AssertStatus(http.StatusUnprocessableEntity)
+	w.operator.Put("/v1/operator/plans/"+key+"/subscription", testclient.JSON(map[string]any{})).AssertStatus(http.StatusUnprocessableEntity)
 	w.operator.Put("/v1/operator/plans/"+key, testclient.JSON(map[string]any{
-		"features": []string{"mcp_acess"}, "operator": "ada@playersense.dev",
+		"features": []string{"mcp_acess"},
 	})).AssertStatus(http.StatusUnprocessableEntity)
 }
 
@@ -280,7 +278,7 @@ func TestStaffCanSetAndClearAnOrganizationsCreditLimit(t *testing.T) {
 		CreditLimitSource string `json:"credit_limit_source"`
 	}
 	w.operator.Put(path, testclient.JSON(map[string]any{
-		"credit_limit_micros": dollars(2_000), "operator": "ada@playersense.dev",
+		"credit_limit_micros": dollars(2_000),
 	})).AssertStatus(http.StatusOK).JSON(&set)
 	if set.CreditLimitMicros != dollars(2_000) || set.CreditLimitSource != "override" {
 		t.Errorf("after setting: %+v", set)
@@ -290,7 +288,7 @@ func TestStaffCanSetAndClearAnOrganizationsCreditLimit(t *testing.T) {
 		CreditLimitMicros int64  `json:"credit_limit_micros"`
 		CreditLimitSource string `json:"credit_limit_source"`
 	}
-	w.operator.Put(path, testclient.JSON(map[string]any{"operator": "ada@playersense.dev"})).
+	w.operator.Put(path, testclient.JSON(map[string]any{})).
 		AssertStatus(http.StatusOK).JSON(&cleared)
 	if cleared.CreditLimitSource == "override" {
 		t.Errorf("after clearing: %+v; want the rule again", cleared)
@@ -303,6 +301,6 @@ func TestStaffCanSetAndClearAnOrganizationsCreditLimit(t *testing.T) {
 		t.Errorf("credit limit changes logged = %d (%v), want 2", n, err)
 	}
 	// Nobody but staff.
-	w.client(t).Put(path, testclient.JSON(map[string]any{"credit_limit_micros": 1, "operator": "x@y.z"})).
-		AssertStatus(http.StatusUnauthorized)
+	w.client(t).Put(path, testclient.JSON(map[string]any{"credit_limit_micros": 1})).
+		AssertStatus(http.StatusForbidden)
 }

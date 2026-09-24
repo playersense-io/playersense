@@ -554,7 +554,17 @@
             }
           },
           "401": {
-            "description": "The operator token is missing or wrong",
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account is not staff, or lacks the role this needs",
             "content": {
               "application/json": {
                 "schema": {
@@ -638,7 +648,17 @@
             }
           },
           "401": {
-            "description": "The operator token is missing or wrong",
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account is not staff, or lacks the role this needs",
             "content": {
               "application/json": {
                 "schema": {
@@ -680,6 +700,68 @@
         }
       }
     },
+    "/v1/operator/me": {
+      "get": {
+        "tags": [
+          "operator"
+        ],
+        "summary": "The signed-in staff member",
+        "description": "Who you are to the console, and which roles you hold. Any active staff member may read it.",
+        "operationId": "get_v1_operator_me",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffMemberOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account is not staff, or lacks the role this needs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/operator/organizations/{org}/charges": {
       "post": {
         "tags": [
@@ -689,6 +771,23 @@
         "description": "Consumes promotional credit first, soonest to expire first, then purchased credit oldest first. Refused whole rather than partly when there is not enough. One ledger entry for the charge, however many grants paid for it — the response says which.",
         "operationId": "post_v1_operator_organizations_by_org_charges",
         "parameters": [
+          {
+            "name": "X-Staff-Ticket",
+            "in": "header",
+            "description": "A ticket reference for why this customer's data is being read: recorded in staff_access",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Staff-Note",
+            "in": "header",
+            "description": "An optional line beside the ticket",
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "org",
             "in": "path",
@@ -727,12 +826,6 @@
                       "adjustment"
                     ]
                   },
-                  "operator": {
-                    "type": "string",
-                    "format": "email",
-                    "description": "Your own address. Recorded in the customer's audit log as self-asserted",
-                    "maxLength": 254
-                  },
                   "reference": {
                     "type": "string",
                     "description": "An idempotency key derived from what happened",
@@ -742,7 +835,6 @@
                 },
                 "required": [
                   "description",
-                  "operator",
                   "reference"
                 ]
               }
@@ -761,7 +853,17 @@
             }
           },
           "401": {
-            "description": "The operator token is missing or wrong",
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account is not staff, or lacks the role this needs",
             "content": {
               "application/json": {
                 "schema": {
@@ -800,6 +902,16 @@
               }
             }
           },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "default": {
             "description": "An unexpected error occurred.",
             "content": {
@@ -822,6 +934,23 @@
         "description": "From now (ADR 0045). `invoiced` bills it monthly: usage its credit does not cover, the platform fee (prorated in a part month) and any top-up to the minimum commitment go on one Stripe invoice, due `terms_days` after it is sent; ingestion is suspended `overdue_grace_days` after a missed due date, or at once when what it owes, billed or not, reaches `credit_limit_micros`. It needs a credit limit and a billing email, and no live subscription. `prepaid` moves it back, closing what is unbilled on a final invoice. Terms are never edited: each call is a new contract. Recorded in the organization's audit log.",
         "operationId": "put_v1_operator_organizations_by_org_contract",
         "parameters": [
+          {
+            "name": "X-Staff-Ticket",
+            "in": "header",
+            "description": "A ticket reference for why this customer's data is being read: recorded in staff_access",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Staff-Note",
+            "in": "header",
+            "description": "An optional line beside the ticket",
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "org",
             "in": "path",
@@ -875,12 +1004,6 @@
                     "minimum": 0,
                     "maximum": 1000000000000
                   },
-                  "operator": {
-                    "type": "string",
-                    "format": "email",
-                    "description": "Your own address. Recorded in the customer's audit log as self-asserted",
-                    "maxLength": 254
-                  },
                   "overdue_grace_days": {
                     "type": [
                       "integer",
@@ -915,8 +1038,7 @@
                   }
                 },
                 "required": [
-                  "collection",
-                  "operator"
+                  "collection"
                 ]
               }
             }
@@ -934,7 +1056,17 @@
             }
           },
           "401": {
-            "description": "The operator token is missing or wrong",
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account is not staff, or lacks the role this needs",
             "content": {
               "application/json": {
                 "schema": {
@@ -1006,6 +1138,23 @@
         "operationId": "put_v1_operator_organizations_by_org_credit_limit",
         "parameters": [
           {
+            "name": "X-Staff-Ticket",
+            "in": "header",
+            "description": "A ticket reference for why this customer's data is being read: recorded in staff_access",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Staff-Note",
+            "in": "header",
+            "description": "An optional line beside the ticket",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "org",
             "in": "path",
             "required": true,
@@ -1031,16 +1180,8 @@
                     "description": "Exact limit in micros; omit to return to 20% of paid usage with the floor",
                     "minimum": 0,
                     "maximum": 1000000000000
-                  },
-                  "operator": {
-                    "type": "string",
-                    "format": "email",
-                    "maxLength": 254
                   }
-                },
-                "required": [
-                  "operator"
-                ]
+                }
               }
             }
           }
@@ -1057,7 +1198,17 @@
             }
           },
           "401": {
-            "description": "The operator token is missing or wrong",
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account is not staff, or lacks the role this needs",
             "content": {
               "application/json": {
                 "schema": {
@@ -1078,6 +1229,16 @@
           },
           "422": {
             "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
             "content": {
               "application/json": {
                 "schema": {
@@ -1108,6 +1269,23 @@
         "description": "A `promo` expires — ninety days unless `expires_at` names another date — and is spent before purchased credit. A `purchase` does not expire and cannot be given a date. `granted_at` backdates the grant, which decides where purchased credit sits in the spend queue. `reference` is the idempotency key: the same one twice grants once.",
         "operationId": "post_v1_operator_organizations_by_org_credits",
         "parameters": [
+          {
+            "name": "X-Staff-Ticket",
+            "in": "header",
+            "description": "A ticket reference for why this customer's data is being read: recorded in staff_access",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Staff-Note",
+            "in": "header",
+            "description": "An optional line beside the ticket",
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "org",
             "in": "path",
@@ -1161,12 +1339,6 @@
                       "promo"
                     ]
                   },
-                  "operator": {
-                    "type": "string",
-                    "format": "email",
-                    "description": "Your own address. Recorded in the customer's audit log as self-asserted",
-                    "maxLength": 254
-                  },
                   "reference": {
                     "type": "string",
                     "description": "An idempotency key derived from what happened: a payment intent, a ticket id",
@@ -1180,7 +1352,6 @@
                 },
                 "required": [
                   "kind",
-                  "operator",
                   "reference"
                 ]
               }
@@ -1209,7 +1380,17 @@
             }
           },
           "401": {
-            "description": "The operator token is missing or wrong",
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account is not staff, or lacks the role this needs",
             "content": {
               "application/json": {
                 "schema": {
@@ -1230,6 +1411,16 @@
           },
           "422": {
             "description": "The amount is not positive, or an expiry was named for purchased credit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
             "content": {
               "application/json": {
                 "schema": {
@@ -1261,6 +1452,23 @@
         "operationId": "get_v1_operator_organizations_by_org_invoices",
         "parameters": [
           {
+            "name": "X-Staff-Ticket",
+            "in": "header",
+            "description": "A ticket reference for why this customer's data is being read: recorded in staff_access",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Staff-Note",
+            "in": "header",
+            "description": "An optional line beside the ticket",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "org",
             "in": "path",
             "description": "The organization's slug",
@@ -1283,7 +1491,17 @@
             }
           },
           "401": {
-            "description": "The operator token is missing or wrong",
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account is not staff, or lacks the role this needs",
             "content": {
               "application/json": {
                 "schema": {
@@ -1304,6 +1522,16 @@
           },
           "422": {
             "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
             "content": {
               "application/json": {
                 "schema": {
@@ -1334,6 +1562,23 @@
         "description": "Issues a Stripe credit note lowering what the invoice asks for, and what the organization owes with it. Whole cents, at most what is still owed.",
         "operationId": "post_v1_operator_organizations_by_org_invoices_by_invoice_id_credit_notes",
         "parameters": [
+          {
+            "name": "X-Staff-Ticket",
+            "in": "header",
+            "description": "A ticket reference for why this customer's data is being read: recorded in staff_access",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Staff-Note",
+            "in": "header",
+            "description": "An optional line beside the ticket",
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "org",
             "in": "path",
@@ -1366,11 +1611,6 @@
                     "minimum": 1,
                     "maximum": 1000000000000
                   },
-                  "operator": {
-                    "type": "string",
-                    "format": "email",
-                    "maxLength": 254
-                  },
                   "reason": {
                     "type": "string",
                     "description": "Printed on the credit note",
@@ -1385,7 +1625,6 @@
                   }
                 },
                 "required": [
-                  "operator",
                   "reason",
                   "reference"
                 ]
@@ -1405,7 +1644,17 @@
             }
           },
           "401": {
-            "description": "The operator token is missing or wrong",
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account is not staff, or lacks the role this needs",
             "content": {
               "application/json": {
                 "schema": {
@@ -1477,6 +1726,23 @@
         "operationId": "post_v1_operator_organizations_by_org_invoices_by_invoice_id_mark_paid",
         "parameters": [
           {
+            "name": "X-Staff-Ticket",
+            "in": "header",
+            "description": "A ticket reference for why this customer's data is being read: recorded in staff_access",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Staff-Note",
+            "in": "header",
+            "description": "An optional line beside the ticket",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "org",
             "in": "path",
             "required": true,
@@ -1501,11 +1767,6 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "operator": {
-                    "type": "string",
-                    "format": "email",
-                    "maxLength": 254
-                  },
                   "reference": {
                     "type": "string",
                     "description": "The transfer's reference; the same one twice marks it paid once",
@@ -1514,7 +1775,6 @@
                   }
                 },
                 "required": [
-                  "operator",
                   "reference"
                 ]
               }
@@ -1533,7 +1793,17 @@
             }
           },
           "401": {
-            "description": "The operator token is missing or wrong",
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account is not staff, or lacks the role this needs",
             "content": {
               "application/json": {
                 "schema": {
@@ -1605,6 +1875,23 @@
         "operationId": "put_v1_operator_organizations_by_org_plan",
         "parameters": [
           {
+            "name": "X-Staff-Ticket",
+            "in": "header",
+            "description": "A ticket reference for why this customer's data is being read: recorded in staff_access",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Staff-Note",
+            "in": "header",
+            "description": "An optional line beside the ticket",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "org",
             "in": "path",
             "required": true,
@@ -1621,11 +1908,6 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "operator": {
-                    "type": "string",
-                    "format": "email",
-                    "maxLength": 254
-                  },
                   "plan": {
                     "type": "string",
                     "description": "The plan's key",
@@ -1633,7 +1915,6 @@
                   }
                 },
                 "required": [
-                  "operator",
                   "plan"
                 ]
               }
@@ -1652,7 +1933,17 @@
             }
           },
           "401": {
-            "description": "The operator token is missing or wrong",
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account is not staff, or lacks the role this needs",
             "content": {
               "application/json": {
                 "schema": {
@@ -1673,6 +1964,16 @@
           },
           "422": {
             "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
             "content": {
               "application/json": {
                 "schema": {
@@ -1714,7 +2015,27 @@
             }
           },
           "401": {
-            "description": "The operator token is missing or wrong",
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account is not staff, or lacks the role this needs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
             "content": {
               "application/json": {
                 "schema": {
@@ -1742,12 +2063,78 @@
         "summary": "Add a plan",
         "description": "A plan charges nothing for players until a rate card is published for it. `is_default` makes it the plan new organizations are put on, and unsets the previous default in the same transaction.",
         "operationId": "post_v1_operator_plans",
+        "parameters": [
+          {
+            "name": "X-Staff-Ticket",
+            "in": "header",
+            "description": "A ticket reference for why this customer's data is being read: recorded in staff_access",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Staff-Note",
+            "in": "header",
+            "description": "An optional line beside the ticket",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CreatePlanIn"
+                "type": "object",
+                "properties": {
+                  "description": {
+                    "type": "string",
+                    "maxLength": 500
+                  },
+                  "entitlements": {
+                    "type": "object",
+                    "description": "included_mau, included_events, … — the closed vocabulary",
+                    "additionalProperties": {
+                      "type": "integer",
+                      "format": "int64"
+                    }
+                  },
+                  "features": {
+                    "type": "array",
+                    "description": "premium_support, slack_reports, mcp_access — the closed vocabulary",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "is_default": {
+                    "type": "boolean",
+                    "description": "The plan new organizations are put on; at most one"
+                  },
+                  "key": {
+                    "type": "string",
+                    "description": "Lowercase, permanent: accounts and snapshots refer to it",
+                    "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+                    "minLength": 2,
+                    "maxLength": 64
+                  },
+                  "monthly_price_micros": {
+                    "type": "integer",
+                    "format": "int64",
+                    "description": "Stored and shown; not yet charged",
+                    "minimum": 0,
+                    "maximum": 1000000000000
+                  },
+                  "name": {
+                    "type": "string",
+                    "maxLength": 120
+                  }
+                },
+                "required": [
+                  "key",
+                  "name"
+                ]
               }
             }
           }
@@ -1764,7 +2151,17 @@
             }
           },
           "401": {
-            "description": "The operator token is missing or wrong",
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account is not staff, or lacks the role this needs",
             "content": {
               "application/json": {
                 "schema": {
@@ -1785,6 +2182,16 @@
           },
           "422": {
             "description": "An entitlement is misspelled or negative",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
             "content": {
               "application/json": {
                 "schema": {
@@ -1815,6 +2222,23 @@
         "description": "Absent fields are left alone. Not its prices — publish a rate card for that. Withdrawing a plan stops it being sold; accounts on it stay.",
         "operationId": "put_v1_operator_plans_by_plan",
         "parameters": [
+          {
+            "name": "X-Staff-Ticket",
+            "in": "header",
+            "description": "A ticket reference for why this customer's data is being read: recorded in staff_access",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Staff-Note",
+            "in": "header",
+            "description": "An optional line beside the ticket",
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "plan",
             "in": "path",
@@ -1884,16 +2308,8 @@
                     ],
                     "minLength": 1,
                     "maxLength": 120
-                  },
-                  "operator": {
-                    "type": "string",
-                    "format": "email",
-                    "maxLength": 254
                   }
-                },
-                "required": [
-                  "operator"
-                ]
+                }
               }
             }
           }
@@ -1910,7 +2326,17 @@
             }
           },
           "401": {
-            "description": "The operator token is missing or wrong",
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account is not staff, or lacks the role this needs",
             "content": {
               "application/json": {
                 "schema": {
@@ -1931,6 +2357,16 @@
           },
           "422": {
             "description": "An entitlement is misspelled or negative",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
             "content": {
               "application/json": {
                 "schema": {
@@ -1983,7 +2419,17 @@
             }
           },
           "401": {
-            "description": "The operator token is missing or wrong",
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account is not staff, or lacks the role this needs",
             "content": {
               "application/json": {
                 "schema": {
@@ -2012,6 +2458,16 @@
               }
             }
           },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "default": {
             "description": "An unexpected error occurred.",
             "content": {
@@ -2032,6 +2488,23 @@
         "description": "Tiers are player positions within a calendar month, lowest first, the last one unbounded; `unit_price_micros` is per player ($0.0005 is 500). `effective_from` defaults to now and cannot be in the past. Cards are never edited: publish another to change a price.",
         "operationId": "post_v1_operator_plans_by_plan_rate_cards",
         "parameters": [
+          {
+            "name": "X-Staff-Ticket",
+            "in": "header",
+            "description": "A ticket reference for why this customer's data is being read: recorded in staff_access",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Staff-Note",
+            "in": "header",
+            "description": "An optional line beside the ticket",
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "plan",
             "in": "path",
@@ -2079,12 +2552,6 @@
                     "description": "Why the price changed, for whoever asks next",
                     "maxLength": 500
                   },
-                  "operator": {
-                    "type": "string",
-                    "format": "email",
-                    "description": "Your own address. Stored on the card as self-asserted",
-                    "maxLength": 254
-                  },
                   "tiers": {
                     "type": "array",
                     "description": "Lowest band first",
@@ -2095,9 +2562,7 @@
                     "maxItems": 20
                   }
                 },
-                "required": [
-                  "operator"
-                ]
+                "required": []
               }
             }
           }
@@ -2114,7 +2579,17 @@
             }
           },
           "401": {
-            "description": "The operator token is missing or wrong",
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account is not staff, or lacks the role this needs",
             "content": {
               "application/json": {
                 "schema": {
@@ -2153,6 +2628,16 @@
               }
             }
           },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "default": {
             "description": "An unexpected error occurred.",
             "content": {
@@ -2175,6 +2660,23 @@
         "description": "Monthly and yearly prices in micros ($99 is 99000000). Creates the plan's Stripe Product the first time, and a Stripe Price per interval — Prices cannot be edited, so a changed amount is a new Price: new subscribers pay it, existing ones keep theirs until they change plan.",
         "operationId": "put_v1_operator_plans_by_plan_subscription",
         "parameters": [
+          {
+            "name": "X-Staff-Ticket",
+            "in": "header",
+            "description": "A ticket reference for why this customer's data is being read: recorded in staff_access",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Staff-Note",
+            "in": "header",
+            "description": "An optional line beside the ticket",
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "plan",
             "in": "path",
@@ -2199,11 +2701,6 @@
                     "minimum": 0,
                     "maximum": 1000000000000
                   },
-                  "operator": {
-                    "type": "string",
-                    "format": "email",
-                    "maxLength": 254
-                  },
                   "yearly_price_micros": {
                     "type": "integer",
                     "format": "int64",
@@ -2212,9 +2709,7 @@
                     "maximum": 1000000000000
                   }
                 },
-                "required": [
-                  "operator"
-                ]
+                "required": []
               }
             }
           }
@@ -2231,7 +2726,17 @@
             }
           },
           "401": {
-            "description": "The operator token is missing or wrong",
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account is not staff, or lacks the role this needs",
             "content": {
               "application/json": {
                 "schema": {
@@ -2262,6 +2767,453 @@
           },
           "503": {
             "description": "Stripe could not be reached, or payments are not configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/operator/staff": {
+      "get": {
+        "tags": [
+          "operator"
+        ],
+        "summary": "List staff",
+        "description": "Everybody who is, or was, PlayerSense staff, with their roles, who added them and when they left: the access review §104 asks for.",
+        "operationId": "get_v1_operator_staff",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffListOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account is not staff, or lacks the role this needs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "operator"
+        ],
+        "summary": "Give somebody the console",
+        "description": "Roles are ops, support, billing and admin. They sign in with the address given here, which Firebase must have verified.",
+        "operationId": "post_v1_operator_staff",
+        "parameters": [
+          {
+            "name": "X-Staff-Ticket",
+            "in": "header",
+            "description": "A ticket reference for why this customer's data is being read: recorded in staff_access",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Staff-Note",
+            "in": "header",
+            "description": "An optional line beside the ticket",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "maxLength": 254
+                  },
+                  "name": {
+                    "type": "string",
+                    "maxLength": 120
+                  },
+                  "roles": {
+                    "type": "array",
+                    "description": "At least one of ops, support, billing, admin",
+                    "items": {
+                      "type": "string"
+                    },
+                    "minItems": 1,
+                    "maxItems": 4
+                  }
+                },
+                "required": [
+                  "email",
+                  "roles"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffMemberOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account is not staff, or lacks the role this needs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "That address is already staff",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/operator/staff-access": {
+      "get": {
+        "tags": [
+          "operator"
+        ],
+        "summary": "Read what staff read",
+        "description": "Every staff read of a customer's data and every change to who is staff, newest first: who, which customer, the ticket, and when. Filter by staff member, organization or action.",
+        "operationId": "get_v1_operator_staff_access",
+        "parameters": [
+          {
+            "name": "staff",
+            "in": "query",
+            "description": "One staff member's address",
+            "schema": {
+              "type": "string",
+              "maxLength": 254
+            }
+          },
+          {
+            "name": "org",
+            "in": "query",
+            "description": "One organization's slug",
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "action",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "description": "The next cursor of the previous page",
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Newest first, up to 200",
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "default": "50",
+              "minimum": 1,
+              "maximum": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffAccessOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account is not staff, or lacks the role this needs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/operator/staff/{staff_id}": {
+      "put": {
+        "tags": [
+          "operator"
+        ],
+        "summary": "Change a staff member",
+        "description": "Their name, their roles, or whether they may sign in. Deactivating keeps the row for the access review. You cannot deactivate yourself, and the last active admin cannot stop being one.",
+        "operationId": "put_v1_operator_staff_by_staff_id",
+        "parameters": [
+          {
+            "name": "X-Staff-Ticket",
+            "in": "header",
+            "description": "A ticket reference for why this customer's data is being read: recorded in staff_access",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Staff-Note",
+            "in": "header",
+            "description": "An optional line beside the ticket",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "staff_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "active": {
+                    "type": [
+                      "boolean",
+                      "null"
+                    ],
+                    "description": "false deactivates; the row stays for the access review"
+                  },
+                  "name": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "roles": {
+                    "type": "array",
+                    "description": "Replaces every role; at least one",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffMemberOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account is not staff, or lacks the role this needs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "An unknown role, yourself deactivated, or no admin left",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
             "content": {
               "application/json": {
                 "schema": {
@@ -2323,7 +3275,17 @@
             }
           },
           "401": {
-            "description": "The operator token is missing or wrong",
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account is not staff, or lacks the role this needs",
             "content": {
               "application/json": {
                 "schema": {
@@ -11690,62 +12652,6 @@
           "slug"
         ]
       },
-      "CreatePlanIn": {
-        "type": "object",
-        "properties": {
-          "description": {
-            "type": "string",
-            "maxLength": 500
-          },
-          "entitlements": {
-            "type": "object",
-            "description": "included_mau, included_events, … — the closed vocabulary",
-            "additionalProperties": {
-              "type": "integer",
-              "format": "int64"
-            }
-          },
-          "features": {
-            "type": "array",
-            "description": "premium_support, slack_reports, mcp_access — the closed vocabulary",
-            "items": {
-              "type": "string"
-            }
-          },
-          "is_default": {
-            "type": "boolean",
-            "description": "The plan new organizations are put on; at most one"
-          },
-          "key": {
-            "type": "string",
-            "description": "Lowercase, permanent: accounts and snapshots refer to it",
-            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
-            "minLength": 2,
-            "maxLength": 64
-          },
-          "monthly_price_micros": {
-            "type": "integer",
-            "format": "int64",
-            "description": "Stored and shown; not yet charged",
-            "minimum": 0,
-            "maximum": 1000000000000
-          },
-          "name": {
-            "type": "string",
-            "maxLength": 120
-          },
-          "operator": {
-            "type": "string",
-            "format": "email",
-            "maxLength": 254
-          }
-        },
-        "required": [
-          "key",
-          "name",
-          "operator"
-        ]
-      },
       "CreditChargedOut": {
         "type": "object",
         "properties": {
@@ -15547,7 +16453,7 @@
           },
           "created_by": {
             "type": "string",
-            "description": "Self-asserted; operator views only"
+            "description": "The staff member who published it; operator views only"
           },
           "currency": {
             "type": "string"
@@ -16494,6 +17400,128 @@
         },
         "required": [
           "from_micros"
+        ]
+      },
+      "StaffAccessEntryOut": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "id": {
+            "type": "string"
+          },
+          "ip": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          },
+          "organization": {
+            "type": "string",
+            "description": "Its slug, or empty for a read that named no customer"
+          },
+          "project": {
+            "type": "string",
+            "description": "Its slug"
+          },
+          "staff_email": {
+            "type": "string"
+          },
+          "ticket": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "action",
+          "at",
+          "id",
+          "staff_email",
+          "ticket"
+        ]
+      },
+      "StaffAccessOut": {
+        "type": "object",
+        "properties": {
+          "entries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StaffAccessEntryOut"
+            }
+          },
+          "next": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "entries"
+        ]
+      },
+      "StaffListOut": {
+        "type": "object",
+        "properties": {
+          "staff": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StaffMemberOut"
+            }
+          }
+        },
+        "required": [
+          "staff"
+        ]
+      },
+      "StaffMemberOut": {
+        "type": "object",
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "created_by": {
+            "type": "string"
+          },
+          "deactivated_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "email": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "roles": {
+            "type": "array",
+            "description": "ops, support, billing or admin",
+            "items": {
+              "type": "string"
+            }
+          },
+          "you": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "active",
+          "created_at",
+          "created_by",
+          "email",
+          "id",
+          "roles"
         ]
       },
       "StorageOut": {

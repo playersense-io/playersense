@@ -42,6 +42,7 @@ import (
 	"playersense.dev/backend/ent/role"
 	"playersense.dev/backend/ent/segment"
 	"playersense.dev/backend/ent/staffaccess"
+	"playersense.dev/backend/ent/staffmember"
 	"playersense.dev/backend/ent/stripeevent"
 	"playersense.dev/backend/ent/usagecharge"
 	"playersense.dev/backend/ent/usagedaily"
@@ -110,6 +111,8 @@ type Client struct {
 	Segment *SegmentClient
 	// StaffAccess is the client for interacting with the StaffAccess builders.
 	StaffAccess *StaffAccessClient
+	// StaffMember is the client for interacting with the StaffMember builders.
+	StaffMember *StaffMemberClient
 	// StripeEvent is the client for interacting with the StripeEvent builders.
 	StripeEvent *StripeEventClient
 	// UsageCharge is the client for interacting with the UsageCharge builders.
@@ -158,6 +161,7 @@ func (c *Client) init() {
 	c.Role = NewRoleClient(c.config)
 	c.Segment = NewSegmentClient(c.config)
 	c.StaffAccess = NewStaffAccessClient(c.config)
+	c.StaffMember = NewStaffMemberClient(c.config)
 	c.StripeEvent = NewStripeEventClient(c.config)
 	c.UsageCharge = NewUsageChargeClient(c.config)
 	c.UsageDaily = NewUsageDailyClient(c.config)
@@ -282,6 +286,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		Role:                NewRoleClient(cfg),
 		Segment:             NewSegmentClient(cfg),
 		StaffAccess:         NewStaffAccessClient(cfg),
+		StaffMember:         NewStaffMemberClient(cfg),
 		StripeEvent:         NewStripeEventClient(cfg),
 		UsageCharge:         NewUsageChargeClient(cfg),
 		UsageDaily:          NewUsageDailyClient(cfg),
@@ -333,6 +338,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		Role:                NewRoleClient(cfg),
 		Segment:             NewSegmentClient(cfg),
 		StaffAccess:         NewStaffAccessClient(cfg),
+		StaffMember:         NewStaffMemberClient(cfg),
 		StripeEvent:         NewStripeEventClient(cfg),
 		UsageCharge:         NewUsageChargeClient(cfg),
 		UsageDaily:          NewUsageDailyClient(cfg),
@@ -372,8 +378,8 @@ func (c *Client) Use(hooks ...Hook) {
 		c.DataExportRequest, c.Environment, c.FeatureFlag, c.Invitation, c.Invoice,
 		c.InvoiceLine, c.LedgerEntry, c.LiveOpsEvent, c.MemberProject, c.MonthlyUsage,
 		c.Organization, c.OrganizationMember, c.Plan, c.Project, c.RateCard, c.Role,
-		c.Segment, c.StaffAccess, c.StripeEvent, c.UsageCharge, c.UsageDaily, c.User,
-		c.VerifiedPurchase,
+		c.Segment, c.StaffAccess, c.StaffMember, c.StripeEvent, c.UsageCharge,
+		c.UsageDaily, c.User, c.VerifiedPurchase,
 	} {
 		n.Use(hooks...)
 	}
@@ -388,8 +394,8 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.DataExportRequest, c.Environment, c.FeatureFlag, c.Invitation, c.Invoice,
 		c.InvoiceLine, c.LedgerEntry, c.LiveOpsEvent, c.MemberProject, c.MonthlyUsage,
 		c.Organization, c.OrganizationMember, c.Plan, c.Project, c.RateCard, c.Role,
-		c.Segment, c.StaffAccess, c.StripeEvent, c.UsageCharge, c.UsageDaily, c.User,
-		c.VerifiedPurchase,
+		c.Segment, c.StaffAccess, c.StaffMember, c.StripeEvent, c.UsageCharge,
+		c.UsageDaily, c.User, c.VerifiedPurchase,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -452,6 +458,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Segment.mutate(ctx, m)
 	case *StaffAccessMutation:
 		return c.StaffAccess.mutate(ctx, m)
+	case *StaffMemberMutation:
+		return c.StaffMember.mutate(ctx, m)
 	case *StripeEventMutation:
 		return c.StripeEvent.mutate(ctx, m)
 	case *UsageChargeMutation:
@@ -1852,22 +1860,6 @@ func (c *CreditLotClient) QueryAccount(_m *CreditLot) *BillingAccountQuery {
 			sqlgraph.From(creditlot.Table, creditlot.FieldID, id),
 			sqlgraph.To(billingaccount.Table, billingaccount.FieldID),
 			sqlgraph.Edge(sqlgraph.M2O, true, creditlot.AccountTable, creditlot.AccountColumn),
-		)
-		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
-		return fromV, nil
-	}
-	return query
-}
-
-// QueryGrantedBy queries the granted_by edge of a CreditLot.
-func (c *CreditLotClient) QueryGrantedBy(_m *CreditLot) *UserQuery {
-	query := (&UserClient{config: c.config}).Query()
-	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
-		id := _m.ID
-		step := sqlgraph.NewStep(
-			sqlgraph.From(creditlot.Table, creditlot.FieldID, id),
-			sqlgraph.To(user.Table, user.FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, true, creditlot.GrantedByTable, creditlot.GrantedByColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -5134,6 +5126,139 @@ func (c *StaffAccessClient) mutate(ctx context.Context, m *StaffAccessMutation) 
 	}
 }
 
+// StaffMemberClient is a client for the StaffMember schema.
+type StaffMemberClient struct {
+	config
+}
+
+// NewStaffMemberClient returns a client for the StaffMember from the given config.
+func NewStaffMemberClient(c config) *StaffMemberClient {
+	return &StaffMemberClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `staffmember.Hooks(f(g(h())))`.
+func (c *StaffMemberClient) Use(hooks ...Hook) {
+	c.hooks.StaffMember = append(c.hooks.StaffMember, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `staffmember.Intercept(f(g(h())))`.
+func (c *StaffMemberClient) Intercept(interceptors ...Interceptor) {
+	c.inters.StaffMember = append(c.inters.StaffMember, interceptors...)
+}
+
+// Create returns a builder for creating a StaffMember entity.
+func (c *StaffMemberClient) Create() *StaffMemberCreate {
+	mutation := newStaffMemberMutation(c.config, OpCreate)
+	return &StaffMemberCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of StaffMember entities.
+func (c *StaffMemberClient) CreateBulk(builders ...*StaffMemberCreate) *StaffMemberCreateBulk {
+	return &StaffMemberCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *StaffMemberClient) MapCreateBulk(slice any, setFunc func(*StaffMemberCreate, int)) *StaffMemberCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &StaffMemberCreateBulk{err: fmt.Errorf("calling to StaffMemberClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*StaffMemberCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &StaffMemberCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for StaffMember.
+func (c *StaffMemberClient) Update() *StaffMemberUpdate {
+	mutation := newStaffMemberMutation(c.config, OpUpdate)
+	return &StaffMemberUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *StaffMemberClient) UpdateOne(_m *StaffMember) *StaffMemberUpdateOne {
+	mutation := newStaffMemberMutation(c.config, OpUpdateOne, withStaffMember(_m))
+	return &StaffMemberUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *StaffMemberClient) UpdateOneID(id int) *StaffMemberUpdateOne {
+	mutation := newStaffMemberMutation(c.config, OpUpdateOne, withStaffMemberID(id))
+	return &StaffMemberUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for StaffMember.
+func (c *StaffMemberClient) Delete() *StaffMemberDelete {
+	mutation := newStaffMemberMutation(c.config, OpDelete)
+	return &StaffMemberDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *StaffMemberClient) DeleteOne(_m *StaffMember) *StaffMemberDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *StaffMemberClient) DeleteOneID(id int) *StaffMemberDeleteOne {
+	builder := c.Delete().Where(staffmember.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &StaffMemberDeleteOne{builder}
+}
+
+// Query returns a query builder for StaffMember.
+func (c *StaffMemberClient) Query() *StaffMemberQuery {
+	return &StaffMemberQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeStaffMember},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a StaffMember entity by its id.
+func (c *StaffMemberClient) Get(ctx context.Context, id int) (*StaffMember, error) {
+	return c.Query().Where(staffmember.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *StaffMemberClient) GetX(ctx context.Context, id int) *StaffMember {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *StaffMemberClient) Hooks() []Hook {
+	return c.hooks.StaffMember
+}
+
+// Interceptors returns the client interceptors.
+func (c *StaffMemberClient) Interceptors() []Interceptor {
+	return c.inters.StaffMember
+}
+
+func (c *StaffMemberClient) mutate(ctx context.Context, m *StaffMemberMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&StaffMemberCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&StaffMemberUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&StaffMemberUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&StaffMemberDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown StaffMember mutation op: %q", m.Op())
+	}
+}
+
 // StripeEventClient is a client for the StripeEvent schema.
 type StripeEventClient struct {
 	config
@@ -5753,22 +5878,6 @@ func (c *UserClient) QuerySentInvitations(_m *User) *InvitationQuery {
 	return query
 }
 
-// QueryGrantedCredits queries the granted_credits edge of a User.
-func (c *UserClient) QueryGrantedCredits(_m *User) *CreditLotQuery {
-	query := (&CreditLotClient{config: c.config}).Query()
-	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
-		id := _m.ID
-		step := sqlgraph.NewStep(
-			sqlgraph.From(user.Table, user.FieldID, id),
-			sqlgraph.To(creditlot.Table, creditlot.FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, user.GrantedCreditsTable, user.GrantedCreditsColumn),
-		)
-		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
-		return fromV, nil
-	}
-	return query
-}
-
 // QueryAuditEvents queries the audit_events edge of a User.
 func (c *UserClient) QueryAuditEvents(_m *User) *AuditEventQuery {
 	query := (&AuditEventClient{config: c.config}).Query()
@@ -5967,7 +6076,8 @@ type (
 		DataExportRequest, Environment, FeatureFlag, Invitation, Invoice, InvoiceLine,
 		LedgerEntry, LiveOpsEvent, MemberProject, MonthlyUsage, Organization,
 		OrganizationMember, Plan, Project, RateCard, Role, Segment, StaffAccess,
-		StripeEvent, UsageCharge, UsageDaily, User, VerifiedPurchase []ent.Hook
+		StaffMember, StripeEvent, UsageCharge, UsageDaily, User,
+		VerifiedPurchase []ent.Hook
 	}
 	inters struct {
 		APIKey, ArchiveManifest, AuditEvent, BillablePlayer, BillingAccount,
@@ -5975,7 +6085,8 @@ type (
 		DataExportRequest, Environment, FeatureFlag, Invitation, Invoice, InvoiceLine,
 		LedgerEntry, LiveOpsEvent, MemberProject, MonthlyUsage, Organization,
 		OrganizationMember, Plan, Project, RateCard, Role, Segment, StaffAccess,
-		StripeEvent, UsageCharge, UsageDaily, User, VerifiedPurchase []ent.Interceptor
+		StaffMember, StripeEvent, UsageCharge, UsageDaily, User,
+		VerifiedPurchase []ent.Interceptor
 	}
 )
 

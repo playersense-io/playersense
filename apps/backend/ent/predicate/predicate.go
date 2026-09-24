@@ -87,6 +87,9 @@ type Segment func(*sql.Selector)
 // StaffAccess is the predicate function for staffaccess builders.
 type StaffAccess func(*sql.Selector)
 
+// StaffMember is the predicate function for staffmember builders.
+type StaffMember func(*sql.Selector)
+
 // StripeEvent is the predicate function for stripeevent builders.
 type StripeEvent func(*sql.Selector)
 

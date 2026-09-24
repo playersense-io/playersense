@@ -157,8 +157,8 @@ rollout moved from 10% to 100%" were never in the request. Forgetting one fails 
 route is either recorded or exempt with a reason
 ([ADR 0037](docs/adr/0037-an-audit-log-records-decisions-not-requests.md)).
 
-Operator actions carry a **self-asserted** name, labelled as such: the shared token cannot say who is
-holding it, so the entry is evidence of what happened and not of who did it.
+Actions PlayerSense staff take on an account are entered as **PlayerSense staff** with the address
+their verified sign-in carried (see *The operations console* below).
 
 **Usage, the wallet and the plan** — `billing.read`, except the last, which needs `billing.manage`:
 
@@ -181,17 +181,16 @@ promo is the only credit that can be lost, so spending a customer's own money wh
 ticks down is charging them for something they were already given. A promo lasts ninety days unless
 somebody names another date; purchased credit never expires and cannot be given a date.
 
-**Putting credit in a wallet is an operator action**, behind the shared operator token rather than any
-customer permission — an owner holding everything still cannot grant themselves credit:
+**Putting credit in a wallet is a staff action**, behind the operations console's sign-in rather than
+any customer permission, so an owner holding everything still cannot grant themselves credit:
 
 ```
        POST                 /v1/operator/organizations/{org}/credits
        POST                 /v1/operator/organizations/{org}/charges
 ```
 
-`reference` on both is the idempotency key: the same one twice grants or charges once. `operator` is
-required and is the name that reaches the customer's audit log — self-asserted, and the entry says so,
-because a shared token cannot prove who was holding it.
+`reference` on both is the idempotency key: the same one twice grants or charges once. The staff
+member who acted is on the lot, in the customer's audit log and in `staff_access` with the ticket.
 
 The **usage meter** runs on the worker, deriving each day from `metrics_daily` — the same fact the
 dashboard's DAU comes from, so an invoice and a chart are two readings of one number. A day is
@@ -220,16 +219,16 @@ a minute after it is published — chargers keep prices in memory for less than 
 them has the card before it applies. A new price is a new card, and each player is priced at the card in force when they arrived. Tiers are
 player positions within a calendar month, inclusive, and the last is unbounded. The launch prices —
 $2.50 per 1,000 players to 100,000, $2.00 to 500,000, $1.75 to 1,000,000, $1.50 above, so a studio
-with 200,000 players a month and 10,000 included pays $425, and one with 500,000 pays $1,025 — are data, loaded like this (`$TOKEN`
-is `CONTROL_API_ADMIN_TOKEN`):
+with 200,000 players a month and 10,000 included pays $425, and one with 500,000 pays $1,025 — are data, loaded like this (`$TOKEN` is a staff
+member's Firebase ID token and `$TICKET` the change's ticket reference):
 
 ```bash
-curl -X POST localhost:21080/v1/operator/plans -H "Authorization: Bearer $TOKEN" -d '{
+curl -X POST localhost:21080/v1/operator/plans -H "Authorization: Bearer $TOKEN" -H "X-Staff-Ticket: $TICKET" -d '{
   "key": "payg", "name": "Pay as you go", "is_default": true,
-  "entitlements": {"included_mau": 10000}, "operator": "you@playersense.dev"}'
+  "entitlements": {"included_mau": 10000}}'
 
-curl -X POST localhost:21080/v1/operator/plans/payg/rate-cards -H "Authorization: Bearer $TOKEN" -d '{
-  "mode": "graduated", "note": "launch prices: $2.50 per 1,000 players", "operator": "you@playersense.dev",
+curl -X POST localhost:21080/v1/operator/plans/payg/rate-cards -H "Authorization: Bearer $TOKEN" -H "X-Staff-Ticket: $TICKET" -d '{
+  "mode": "graduated", "note": "launch prices: $2.50 per 1,000 players",
   "tiers": [
     {"up_to": 100000,  "unit_price_micros": 2500},
     {"up_to": 500000,  "unit_price_micros": 2000},
@@ -280,13 +279,13 @@ and, when it ends, back to the default. The subscription is billed to the card; 
 from the wallet on every plan.
 
 ```bash
-curl -X POST localhost:21080/v1/operator/plans -H "Authorization: Bearer $TOKEN" -d '{
-  "key": "enterprise", "name": "Enterprise", "operator": "you@playersense.dev",
+curl -X POST localhost:21080/v1/operator/plans -H "Authorization: Bearer $TOKEN" -H "X-Staff-Ticket: $TICKET" -d '{
+  "key": "enterprise", "name": "Enterprise",
   "entitlements": {"included_mau": 10000},
   "features": ["premium_support", "slack_reports", "mcp_access"]}'
 
-curl -X PUT localhost:21080/v1/operator/plans/enterprise/subscription -H "Authorization: Bearer $TOKEN" -d '{
-  "monthly_price_micros": 199000000, "yearly_price_micros": 1990000000, "operator": "you@playersense.dev"}'
+curl -X PUT localhost:21080/v1/operator/plans/enterprise/subscription -H "Authorization: Bearer $TOKEN" -H "X-Staff-Ticket: $TICKET" -d '{
+  "monthly_price_micros": 199000000, "yearly_price_micros": 1990000000}'
 ```
 
 Enterprise charges players only once it has a rate card of its own — publish one, the same as Free's or
@@ -322,11 +321,11 @@ GET    /v1/organizations/{org}/billing/invoices/{invoice_id}                bill
 ```
 
 ```bash
-curl -X PUT localhost:21080/v1/operator/organizations/$ORG/contract -H "Authorization: Bearer $TOKEN" -d '{
+curl -X PUT localhost:21080/v1/operator/organizations/$ORG/contract -H "Authorization: Bearer $TOKEN" -H "X-Staff-Ticket: $TICKET" -d '{
   "collection": "invoiced", "terms_days": 30, "overdue_grace_days": 14,
   "platform_fee_micros": 2000000000, "minimum_commitment_micros": 5000000000,
   "credit_limit_micros": 20000000000, "billing_email": "ap@publisher.example",
-  "po_number": "PO-4471", "operator": "you@playersense.dev"}'
+  "po_number": "PO-4471"}'
 ```
 
 Moving an organization back to `prepaid` issues a final invoice for everything unbilled; its open
@@ -467,13 +466,33 @@ reaches any limit is answered 422 with what to narrow.
 
 #### The operations console
 
+Everything under `/v1/operator` is for PlayerSense staff (§56, §104). Staff sign in with the same
+Firebase project as customers, and are staff because an active row in `staff_members` says so; a
+customer's valid sign-in reaches none of it. Each member holds some of four roles: **ops** (the
+platform: ingestion, the queue, ClickHouse, storage), **support** (one customer's records),
+**billing** (one customer's money, and the catalogue) and **admin** (all of it, and who is staff).
+
+A route that reaches one customer's records, or changes the catalogue, needs a ticket reference in
+`X-Staff-Ticket` and writes a `staff_access` row (who, which customer, the ticket, when) before it
+runs; `TestEveryCustomerRouteAsksForATicket` fails for one that forgets. Changes to an account are also
+in the customer's audit log as **PlayerSense staff** with the verified address.
+
 ```
-GET   /v1/operator/ingestion     every tenant's events, bytes, batches, late events and writer lag
-GET   /v1/operator/clickhouse    replication, merges, mutations, parts by table and disk, memory, errors
-GET   /v1/operator/storage       bytes on disk by table, and each project's metered bytes
+GET              /v1/operator/me              who you are to the console
+GET   POST       /v1/operator/staff           admin: who is staff, and adding somebody
+      PUT        /v1/operator/staff/{id}      admin: their roles, or deactivating them
+GET              /v1/operator/staff-access    admin: every staff read of customer data
+GET              /v1/operator/ingestion       ops: every tenant's events, bytes, batches, lag
+GET              /v1/operator/clickhouse      ops: replication, merges, mutations, parts, memory
+GET              /v1/operator/storage         ops: bytes on disk by table and project
 ```
 
-Behind the operator token, like the rest of `/v1/operator`; aggregate only.
+The first admin is added from the command line, since nobody exists yet to add them:
+
+```bash
+go run ./apps/backend/cmd/staff add you@playersense.dev --roles admin
+go run ./apps/backend/cmd/staff list
+```
 
 #### Data-subject requests
 

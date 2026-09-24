@@ -7,27 +7,8 @@ import (
 	muzak "muzak.dev/framework"
 
 	"playersense.dev/backend/ent"
-	"playersense.dev/backend/internal/config"
 	"playersense.dev/backend/internal/pgdb"
 )
-
-// RequireAdminToken guards a surface with one shared secret.
-//
-// It no longer guards the control API. That was the placeholder while there was no sign-in,
-// and a shared secret cannot answer "who is asking" — so on an API where the answer decides
-// what comes back, the credential was also deciding that every caller was the same person and
-// saw everything. [ResolveUser] replaced it.
-//
-// What it is still for is the shared-secret case the framework's own guard names: an internal
-// console or a webhook receiver, where there is genuinely one caller and no user to resolve.
-// It has no caller today, which is worth saying plainly rather than leaving somebody to find
-// out by grepping.
-//
-// The comparison is constant time, so response timing does not reveal how much of the
-// supplied token was correct.
-func RequireAdminToken(settings config.Settings) muzak.Guard {
-	return muzak.RequireBearerToken(settings.AdminToken)
-}
 
 // ErrNotFound reports a lookup that matched nothing.
 var ErrNotFound = errors.New("not found")

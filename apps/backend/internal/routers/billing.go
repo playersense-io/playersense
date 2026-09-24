@@ -8,6 +8,7 @@ import (
 	"playersense.dev/backend/internal/authz"
 	"playersense.dev/backend/internal/core"
 	"playersense.dev/backend/internal/handlers"
+	"playersense.dev/backend/internal/staff"
 )
 
 // Billing returns what an organization can see and change about its own account.
@@ -133,27 +134,18 @@ func StripeWebhooks() *muzak.Router {
 
 // OperatorBilling returns the credit surface PlayerSense staff use.
 //
-// # Why this is guarded by a shared secret, which everything else stopped being
-//
-// §56's admin console does not exist, and neither does the staff-access model behind it. The choice
-// was between leaving the wallet unfillable — a wallet nothing can put credit in is a wallet — and
-// putting it behind the operator token the configuration already carries. The second, with the cost
-// stated rather than hidden:
-//
-// **A shared secret cannot say who acted.** `CreditLot.granted_by_user_id` is null on this path, so
-// "who gave this account $100" has no answer inside the product. That is the first question anybody
-// asks when an account has credit nobody expected, and it is recorded as an open item beside the
-// audit log it needs rather than left for somebody to discover.
-//
-// The mitigations that do hold: every grant needs a caller-supplied `reference`, which is both the
-// idempotency key and something a person has to be able to explain; nothing here is reachable with a
-// customer's credential at any permission; and the ledger records the movement even though it cannot
-// record the mover.
+// Behind a signed-in staff member with the billing role (core.RequireStaff), and every route names a
+// ticket and writes staff_access before it runs (core.StaffReads). "Who gave this account $100" is
+// answered three times over: the lot carries the staff member's verified address, the customer's
+// audit log names them, and staff_access has the ticket. Every grant also needs a caller-supplied
+// `reference`, which is the idempotency key and something a person has to be able to explain, and
+// nothing here is reachable with a customer's credential at any permission.
 func OperatorBilling() *muzak.Router {
 	r := muzak.NewRouter(muzak.WithTags("operator"),
 		muzak.WithResponseDoc(http.StatusNotFound, "No organization has that slug"))
 
 	r.Post("/organizations/{org}/credits", handlers.GrantCredit,
+		core.RequireStaff(staff.Billing), core.StaffReads("billing.credit"),
 		muzak.Summary("Add credit to an organization's wallet"),
 		muzak.Description("A `promo` expires — ninety days unless `expires_at` names another "+
 			"date — and is spent before purchased credit. A `purchase` does not expire and "+
@@ -167,6 +159,7 @@ func OperatorBilling() *muzak.Router {
 			"The amount is not positive, or an expiry was named for purchased credit"))
 
 	r.Post("/organizations/{org}/charges", handlers.ChargeCredit,
+		core.RequireStaff(staff.Billing), core.StaffReads("billing.charge"),
 		muzak.Summary("Spend from an organization's wallet"),
 		muzak.Description("Consumes promotional credit first, soonest to expire first, then "+
 			"purchased credit oldest first. Refused whole rather than partly when there is not "+
@@ -177,6 +170,7 @@ func OperatorBilling() *muzak.Router {
 		muzak.WithResponseDoc(http.StatusUnprocessableEntity, "The amount is not positive"))
 
 	r.Put("/organizations/{org}/contract", handlers.SetContract,
+		core.RequireStaff(staff.Billing), core.StaffReads("billing.contract"),
 		muzak.Summary("Put an organization on a contract"),
 		muzak.Description("From now (ADR 0045). `invoiced` bills it monthly: usage its credit does not "+
 			"cover, the platform fee (prorated in a part month) and any top-up to the minimum "+
@@ -191,12 +185,14 @@ func OperatorBilling() *muzak.Router {
 		muzak.WithResponseDoc(http.StatusServiceUnavailable, "Stripe could not be reached, or payments are not configured"))
 
 	r.Get("/organizations/{org}/invoices", handlers.ListOperatorInvoices,
+		core.RequireStaff(staff.Billing, staff.Support), core.StaffReads("billing.invoices"),
 		muzak.Summary("An organization's invoices, as staff see them"),
 		muzak.Description("Drafts and failed issues included, with why the last attempt did not issue, "+
 			"any difference between the month's usage and the dashboard's, and the ledger range each "+
 			"one bills."))
 
 	r.Post("/organizations/{org}/invoices/{invoice_id}/mark-paid", handlers.MarkInvoicePaid,
+		core.RequireStaff(staff.Billing), core.StaffReads("billing.invoice_paid"),
 		muzak.Summary("Record a wire Stripe did not see"),
 		muzak.Description("Marks an open invoice paid out of band at Stripe, and settles it here as "+
 			"Stripe's webhook would. `reference` is the transfer's; the same one twice marks it once."),
@@ -204,6 +200,7 @@ func OperatorBilling() *muzak.Router {
 		muzak.WithResponseDoc(http.StatusServiceUnavailable, "Stripe could not be reached"))
 
 	r.Post("/organizations/{org}/invoices/{invoice_id}/credit-notes", handlers.CreditInvoice,
+		core.RequireStaff(staff.Billing), core.StaffReads("billing.credit_note"),
 		muzak.Summary("Credit part of an open invoice"),
 		muzak.Description("Issues a Stripe credit note lowering what the invoice asks for, and what the "+
 			"organization owes with it. Whole cents, at most what is still owed."),

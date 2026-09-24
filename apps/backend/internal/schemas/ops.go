@@ -7,8 +7,8 @@ import (
 )
 
 // The operations console's analytics (project.md §56): ingestion across every tenant, the
-// ClickHouse node's health, and storage by table and by project. Behind the operator token, and
-// aggregate only: nothing here names a player.
+// ClickHouse node's health, and storage by table and by project. Behind a signed-in staff member,
+// and aggregate only: nothing here names a player.
 
 // IngestionParams asks for the fleet's ingestion over a range.
 type IngestionParams struct {

@@ -3315,10 +3315,10 @@ total is briefly overstated between midnight and the janitor's sweep and never o
 writes off each lapsed grant as its own statement line, because a customer asking where their $100
 went is asking about a specific grant.
 
-**Granting credit is not a customer's privilege at any permission.** It is an operator action, behind
-the shared operator token until §56's console and the staff-access model exist. The operator names
-themselves on the request and the customer's audit log records it — **self-asserted**, and labelled so,
-because a shared token cannot prove who was holding it (§55.4).
+**Granting credit is not a customer's privilege at any permission.** It is a staff action in §56's
+console: a signed-in staff member with the billing role, a ticket per request recorded in
+`staff_access`, and the customer's audit log naming the staff member by their verified address
+(§55.4).
 
 ---
 

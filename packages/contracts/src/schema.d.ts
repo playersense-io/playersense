@@ -166,6 +166,26 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/v1/operator/me": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * The signed-in staff member
+         * @description Who you are to the console, and which roles you hold. Any active staff member may read it.
+         */
+        readonly get: operations["get_v1_operator_me"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/v1/operator/organizations/{org}/charges": {
         readonly parameters: {
             readonly query?: never;
@@ -407,6 +427,70 @@ export interface paths {
          * @description Monthly and yearly prices in micros ($99 is 99000000). Creates the plan's Stripe Product the first time, and a Stripe Price per interval — Prices cannot be edited, so a changed amount is a new Price: new subscribers pay it, existing ones keep theirs until they change plan.
          */
         readonly put: operations["put_v1_operator_plans_by_plan_subscription"];
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/operator/staff": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * List staff
+         * @description Everybody who is, or was, PlayerSense staff, with their roles, who added them and when they left: the access review §104 asks for.
+         */
+        readonly get: operations["get_v1_operator_staff"];
+        readonly put?: never;
+        /**
+         * Give somebody the console
+         * @description Roles are ops, support, billing and admin. They sign in with the address given here, which Firebase must have verified.
+         */
+        readonly post: operations["post_v1_operator_staff"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/operator/staff-access": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * Read what staff read
+         * @description Every staff read of a customer's data and every change to who is staff, newest first: who, which customer, the ticket, and when. Filter by staff member, organization or action.
+         */
+        readonly get: operations["get_v1_operator_staff_access"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/operator/staff/{staff_id}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        /**
+         * Change a staff member
+         * @description Their name, their roles, or whether they may sign in. Deactivating keeps the row for the access review. You cannot deactivate yourself, and the last active admin cannot stop being one.
+         */
+        readonly put: operations["put_v1_operator_staff_by_staff_id"];
         readonly post?: never;
         readonly delete?: never;
         readonly options?: never;
@@ -1962,27 +2046,6 @@ export interface components {
             /** @description URL-safe short name; lower case letters, digits and hyphens */
             readonly slug: string;
         };
-        readonly CreatePlanIn: {
-            readonly description?: string;
-            /** @description included_mau, included_events, … — the closed vocabulary */
-            readonly entitlements?: {
-                readonly [key: string]: number;
-            };
-            /** @description premium_support, slack_reports, mcp_access — the closed vocabulary */
-            readonly features?: readonly string[];
-            /** @description The plan new organizations are put on; at most one */
-            readonly is_default?: boolean;
-            /** @description Lowercase, permanent: accounts and snapshots refer to it */
-            readonly key: string;
-            /**
-             * Format: int64
-             * @description Stored and shown; not yet charged
-             */
-            readonly monthly_price_micros?: number;
-            readonly name: string;
-            /** Format: email */
-            readonly operator: string;
-        };
         readonly CreditChargedOut: {
             /** Format: int64 */
             readonly amount_micros: number;
@@ -3315,7 +3378,7 @@ export interface components {
         readonly RateCardOut: {
             /** Format: date-time */
             readonly created_at: string;
-            /** @description Self-asserted; operator views only */
+            /** @description The staff member who published it; operator views only */
             readonly created_by?: string;
             readonly currency: string;
             /** Format: date-time */
@@ -3648,6 +3711,41 @@ export interface components {
              * @description Absent on the last band, which has no end
              */
             readonly to_micros?: number;
+        };
+        readonly StaffAccessEntryOut: {
+            readonly action: string;
+            /** Format: date-time */
+            readonly at: string;
+            readonly id: string;
+            readonly ip?: string;
+            readonly note?: string;
+            /** @description Its slug, or empty for a read that named no customer */
+            readonly organization?: string;
+            /** @description Its slug */
+            readonly project?: string;
+            readonly staff_email: string;
+            readonly ticket: string;
+        };
+        readonly StaffAccessOut: {
+            readonly entries: readonly components["schemas"]["StaffAccessEntryOut"][];
+            readonly next?: string;
+        };
+        readonly StaffListOut: {
+            readonly staff: readonly components["schemas"]["StaffMemberOut"][];
+        };
+        readonly StaffMemberOut: {
+            readonly active: boolean;
+            /** Format: date-time */
+            readonly created_at: string;
+            readonly created_by: string;
+            /** Format: date-time */
+            readonly deactivated_at?: string | null;
+            readonly email: string;
+            readonly id: string;
+            readonly name?: string;
+            /** @description ops, support, billing or admin */
+            readonly roles: readonly string[];
+            readonly you?: boolean;
         };
         readonly StorageOut: {
             /** Format: date-time */
@@ -4299,8 +4397,17 @@ export interface operations {
                     readonly "application/json": components["schemas"]["ClickHouseHealthOut"];
                 };
             };
-            /** @description The operator token is missing or wrong */
+            /** @description No usable sign-in was presented */
             readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account is not staff, or lacks the role this needs */
+            readonly 403: {
                 headers: {
                     readonly [name: string]: unknown;
                 };
@@ -4353,8 +4460,17 @@ export interface operations {
                     readonly "application/json": components["schemas"]["IngestionOut"];
                 };
             };
-            /** @description The operator token is missing or wrong */
+            /** @description No usable sign-in was presented */
             readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account is not staff, or lacks the role this needs */
+            readonly 403: {
                 headers: {
                     readonly [name: string]: unknown;
                 };
@@ -4391,10 +4507,71 @@ export interface operations {
             };
         };
     };
-    readonly post_v1_operator_organizations_by_org_charges: {
+    readonly get_v1_operator_me: {
         readonly parameters: {
             readonly query?: never;
             readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["StaffMemberOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account is not staff, or lacks the role this needs */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly post_v1_operator_organizations_by_org_charges: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description A ticket reference for why this customer's data is being read: recorded in staff_access */
+                readonly "X-Staff-Ticket": string;
+                /** @description An optional line beside the ticket */
+                readonly "X-Staff-Note"?: string;
+            };
             readonly path: {
                 readonly org: string;
             };
@@ -4412,11 +4589,6 @@ export interface operations {
                      * @enum {string}
                      */
                     readonly kind?: "usage" | "subscription" | "adjustment";
-                    /**
-                     * Format: email
-                     * @description Your own address. Recorded in the customer's audit log as self-asserted
-                     */
-                    readonly operator: string;
                     /** @description An idempotency key derived from what happened */
                     readonly reference: string;
                 };
@@ -4432,8 +4604,17 @@ export interface operations {
                     readonly "application/json": components["schemas"]["CreditChargedOut"];
                 };
             };
-            /** @description The operator token is missing or wrong */
+            /** @description No usable sign-in was presented */
             readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account is not staff, or lacks the role this needs */
+            readonly 403: {
                 headers: {
                     readonly [name: string]: unknown;
                 };
@@ -4468,6 +4649,15 @@ export interface operations {
                     readonly "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description An unexpected error occurred. */
             readonly default: {
                 headers: {
@@ -4482,7 +4672,12 @@ export interface operations {
     readonly put_v1_operator_organizations_by_org_contract: {
         readonly parameters: {
             readonly query?: never;
-            readonly header?: never;
+            readonly header: {
+                /** @description A ticket reference for why this customer's data is being read: recorded in staff_access */
+                readonly "X-Staff-Ticket": string;
+                /** @description An optional line beside the ticket */
+                readonly "X-Staff-Note"?: string;
+            };
             readonly path: {
                 readonly org: string;
             };
@@ -4514,11 +4709,6 @@ export interface operations {
                      */
                     readonly minimum_commitment_micros?: number;
                     /**
-                     * Format: email
-                     * @description Your own address. Recorded in the customer's audit log as self-asserted
-                     */
-                    readonly operator: string;
-                    /**
                      * Format: int64
                      * @description Days after a missed due date before ingestion is suspended. Defaults to 14
                      */
@@ -4548,8 +4738,17 @@ export interface operations {
                     readonly "application/json": components["schemas"]["BillingOut"];
                 };
             };
-            /** @description The operator token is missing or wrong */
+            /** @description No usable sign-in was presented */
             readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account is not staff, or lacks the role this needs */
+            readonly 403: {
                 headers: {
                     readonly [name: string]: unknown;
                 };
@@ -4607,7 +4806,12 @@ export interface operations {
     readonly put_v1_operator_organizations_by_org_credit_limit: {
         readonly parameters: {
             readonly query?: never;
-            readonly header?: never;
+            readonly header: {
+                /** @description A ticket reference for why this customer's data is being read: recorded in staff_access */
+                readonly "X-Staff-Ticket": string;
+                /** @description An optional line beside the ticket */
+                readonly "X-Staff-Note"?: string;
+            };
             readonly path: {
                 readonly org: string;
             };
@@ -4621,8 +4825,6 @@ export interface operations {
                      * @description Exact limit in micros; omit to return to 20% of paid usage with the floor
                      */
                     readonly credit_limit_micros?: number | null;
-                    /** Format: email */
-                    readonly operator: string;
                 };
             };
         };
@@ -4636,8 +4838,17 @@ export interface operations {
                     readonly "application/json": components["schemas"]["BillingOut"];
                 };
             };
-            /** @description The operator token is missing or wrong */
+            /** @description No usable sign-in was presented */
             readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account is not staff, or lacks the role this needs */
+            readonly 403: {
                 headers: {
                     readonly [name: string]: unknown;
                 };
@@ -4663,6 +4874,15 @@ export interface operations {
                     readonly "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description An unexpected error occurred. */
             readonly default: {
                 headers: {
@@ -4677,7 +4897,12 @@ export interface operations {
     readonly post_v1_operator_organizations_by_org_credits: {
         readonly parameters: {
             readonly query?: never;
-            readonly header?: never;
+            readonly header: {
+                /** @description A ticket reference for why this customer's data is being read: recorded in staff_access */
+                readonly "X-Staff-Ticket": string;
+                /** @description An optional line beside the ticket */
+                readonly "X-Staff-Note"?: string;
+            };
             readonly path: {
                 readonly org: string;
             };
@@ -4708,11 +4933,6 @@ export interface operations {
                      * @enum {string}
                      */
                     readonly kind: "purchase" | "promo";
-                    /**
-                     * Format: email
-                     * @description Your own address. Recorded in the customer's audit log as self-asserted
-                     */
-                    readonly operator: string;
                     /** @description An idempotency key derived from what happened: a payment intent, a ticket id */
                     readonly reference: string;
                     readonly stripe_reference?: string;
@@ -4738,8 +4958,17 @@ export interface operations {
                     readonly "application/json": components["schemas"]["CreditGrantedOut"];
                 };
             };
-            /** @description The operator token is missing or wrong */
+            /** @description No usable sign-in was presented */
             readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account is not staff, or lacks the role this needs */
+            readonly 403: {
                 headers: {
                     readonly [name: string]: unknown;
                 };
@@ -4765,6 +4994,15 @@ export interface operations {
                     readonly "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description An unexpected error occurred. */
             readonly default: {
                 headers: {
@@ -4779,7 +5017,12 @@ export interface operations {
     readonly get_v1_operator_organizations_by_org_invoices: {
         readonly parameters: {
             readonly query?: never;
-            readonly header?: never;
+            readonly header: {
+                /** @description A ticket reference for why this customer's data is being read: recorded in staff_access */
+                readonly "X-Staff-Ticket": string;
+                /** @description An optional line beside the ticket */
+                readonly "X-Staff-Note"?: string;
+            };
             readonly path: {
                 /** @description The organization's slug */
                 readonly org: string;
@@ -4797,8 +5040,17 @@ export interface operations {
                     readonly "application/json": components["schemas"]["OperatorInvoicesOut"];
                 };
             };
-            /** @description The operator token is missing or wrong */
+            /** @description No usable sign-in was presented */
             readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account is not staff, or lacks the role this needs */
+            readonly 403: {
                 headers: {
                     readonly [name: string]: unknown;
                 };
@@ -4824,6 +5076,15 @@ export interface operations {
                     readonly "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description An unexpected error occurred. */
             readonly default: {
                 headers: {
@@ -4838,7 +5099,12 @@ export interface operations {
     readonly post_v1_operator_organizations_by_org_invoices_by_invoice_id_credit_notes: {
         readonly parameters: {
             readonly query?: never;
-            readonly header?: never;
+            readonly header: {
+                /** @description A ticket reference for why this customer's data is being read: recorded in staff_access */
+                readonly "X-Staff-Ticket": string;
+                /** @description An optional line beside the ticket */
+                readonly "X-Staff-Note"?: string;
+            };
             readonly path: {
                 readonly org: string;
                 readonly invoice_id: string;
@@ -4853,8 +5119,6 @@ export interface operations {
                      * @description Whole cents, at most what is still owed on it
                      */
                     readonly amount_micros?: number;
-                    /** Format: email */
-                    readonly operator: string;
                     /** @description Printed on the credit note */
                     readonly reason: string;
                     /** @description An idempotency key: the same one twice credits once */
@@ -4872,8 +5136,17 @@ export interface operations {
                     readonly "application/json": components["schemas"]["OperatorInvoiceOut"];
                 };
             };
-            /** @description The operator token is missing or wrong */
+            /** @description No usable sign-in was presented */
             readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account is not staff, or lacks the role this needs */
+            readonly 403: {
                 headers: {
                     readonly [name: string]: unknown;
                 };
@@ -4931,7 +5204,12 @@ export interface operations {
     readonly post_v1_operator_organizations_by_org_invoices_by_invoice_id_mark_paid: {
         readonly parameters: {
             readonly query?: never;
-            readonly header?: never;
+            readonly header: {
+                /** @description A ticket reference for why this customer's data is being read: recorded in staff_access */
+                readonly "X-Staff-Ticket": string;
+                /** @description An optional line beside the ticket */
+                readonly "X-Staff-Note"?: string;
+            };
             readonly path: {
                 readonly org: string;
                 readonly invoice_id: string;
@@ -4941,8 +5219,6 @@ export interface operations {
         readonly requestBody: {
             readonly content: {
                 readonly "application/json": {
-                    /** Format: email */
-                    readonly operator: string;
                     /** @description The transfer's reference; the same one twice marks it paid once */
                     readonly reference: string;
                 };
@@ -4958,8 +5234,17 @@ export interface operations {
                     readonly "application/json": components["schemas"]["OperatorInvoiceOut"];
                 };
             };
-            /** @description The operator token is missing or wrong */
+            /** @description No usable sign-in was presented */
             readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account is not staff, or lacks the role this needs */
+            readonly 403: {
                 headers: {
                     readonly [name: string]: unknown;
                 };
@@ -5017,7 +5302,12 @@ export interface operations {
     readonly put_v1_operator_organizations_by_org_plan: {
         readonly parameters: {
             readonly query?: never;
-            readonly header?: never;
+            readonly header: {
+                /** @description A ticket reference for why this customer's data is being read: recorded in staff_access */
+                readonly "X-Staff-Ticket": string;
+                /** @description An optional line beside the ticket */
+                readonly "X-Staff-Note"?: string;
+            };
             readonly path: {
                 readonly org: string;
             };
@@ -5026,8 +5316,6 @@ export interface operations {
         readonly requestBody: {
             readonly content: {
                 readonly "application/json": {
-                    /** Format: email */
-                    readonly operator: string;
                     /** @description The plan's key */
                     readonly plan: string;
                 };
@@ -5043,8 +5331,17 @@ export interface operations {
                     readonly "application/json": components["schemas"]["BillingOut"];
                 };
             };
-            /** @description The operator token is missing or wrong */
+            /** @description No usable sign-in was presented */
             readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account is not staff, or lacks the role this needs */
+            readonly 403: {
                 headers: {
                     readonly [name: string]: unknown;
                 };
@@ -5063,6 +5360,15 @@ export interface operations {
             };
             /** @description The request could not be validated. */
             readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
                 headers: {
                     readonly [name: string]: unknown;
                 };
@@ -5099,8 +5405,26 @@ export interface operations {
                     readonly "application/json": components["schemas"]["PlansOut"];
                 };
             };
-            /** @description The operator token is missing or wrong */
+            /** @description No usable sign-in was presented */
             readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account is not staff, or lacks the role this needs */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
                 headers: {
                     readonly [name: string]: unknown;
                 };
@@ -5122,13 +5446,36 @@ export interface operations {
     readonly post_v1_operator_plans: {
         readonly parameters: {
             readonly query?: never;
-            readonly header?: never;
+            readonly header: {
+                /** @description A ticket reference for why this customer's data is being read: recorded in staff_access */
+                readonly "X-Staff-Ticket": string;
+                /** @description An optional line beside the ticket */
+                readonly "X-Staff-Note"?: string;
+            };
             readonly path?: never;
             readonly cookie?: never;
         };
         readonly requestBody: {
             readonly content: {
-                readonly "application/json": components["schemas"]["CreatePlanIn"];
+                readonly "application/json": {
+                    readonly description?: string;
+                    /** @description included_mau, included_events, … — the closed vocabulary */
+                    readonly entitlements?: {
+                        readonly [key: string]: number;
+                    };
+                    /** @description premium_support, slack_reports, mcp_access — the closed vocabulary */
+                    readonly features?: readonly string[];
+                    /** @description The plan new organizations are put on; at most one */
+                    readonly is_default?: boolean;
+                    /** @description Lowercase, permanent: accounts and snapshots refer to it */
+                    readonly key: string;
+                    /**
+                     * Format: int64
+                     * @description Stored and shown; not yet charged
+                     */
+                    readonly monthly_price_micros?: number;
+                    readonly name: string;
+                };
             };
         };
         readonly responses: {
@@ -5141,8 +5488,17 @@ export interface operations {
                     readonly "application/json": components["schemas"]["PlanDetailOut"];
                 };
             };
-            /** @description The operator token is missing or wrong */
+            /** @description No usable sign-in was presented */
             readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account is not staff, or lacks the role this needs */
+            readonly 403: {
                 headers: {
                     readonly [name: string]: unknown;
                 };
@@ -5168,6 +5524,15 @@ export interface operations {
                     readonly "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description An unexpected error occurred. */
             readonly default: {
                 headers: {
@@ -5182,7 +5547,12 @@ export interface operations {
     readonly put_v1_operator_plans_by_plan: {
         readonly parameters: {
             readonly query?: never;
-            readonly header?: never;
+            readonly header: {
+                /** @description A ticket reference for why this customer's data is being read: recorded in staff_access */
+                readonly "X-Staff-Ticket": string;
+                /** @description An optional line beside the ticket */
+                readonly "X-Staff-Note"?: string;
+            };
             readonly path: {
                 readonly plan: string;
             };
@@ -5205,8 +5575,6 @@ export interface operations {
                     /** Format: int64 */
                     readonly monthly_price_micros?: number | null;
                     readonly name?: string | null;
-                    /** Format: email */
-                    readonly operator: string;
                 };
             };
         };
@@ -5220,8 +5588,17 @@ export interface operations {
                     readonly "application/json": components["schemas"]["PlanDetailOut"];
                 };
             };
-            /** @description The operator token is missing or wrong */
+            /** @description No usable sign-in was presented */
             readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account is not staff, or lacks the role this needs */
+            readonly 403: {
                 headers: {
                     readonly [name: string]: unknown;
                 };
@@ -5240,6 +5617,15 @@ export interface operations {
             };
             /** @description An entitlement is misspelled or negative */
             readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
                 headers: {
                     readonly [name: string]: unknown;
                 };
@@ -5278,8 +5664,17 @@ export interface operations {
                     readonly "application/json": components["schemas"]["RateCardsOut"];
                 };
             };
-            /** @description The operator token is missing or wrong */
+            /** @description No usable sign-in was presented */
             readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account is not staff, or lacks the role this needs */
+            readonly 403: {
                 headers: {
                     readonly [name: string]: unknown;
                 };
@@ -5305,6 +5700,15 @@ export interface operations {
                     readonly "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description An unexpected error occurred. */
             readonly default: {
                 headers: {
@@ -5319,7 +5723,12 @@ export interface operations {
     readonly post_v1_operator_plans_by_plan_rate_cards: {
         readonly parameters: {
             readonly query?: never;
-            readonly header?: never;
+            readonly header: {
+                /** @description A ticket reference for why this customer's data is being read: recorded in staff_access */
+                readonly "X-Staff-Ticket": string;
+                /** @description An optional line beside the ticket */
+                readonly "X-Staff-Note"?: string;
+            };
             readonly path: {
                 readonly plan: string;
             };
@@ -5347,11 +5756,6 @@ export interface operations {
                     readonly mode?: "graduated" | "volume";
                     /** @description Why the price changed, for whoever asks next */
                     readonly note?: string;
-                    /**
-                     * Format: email
-                     * @description Your own address. Stored on the card as self-asserted
-                     */
-                    readonly operator: string;
                     /** @description Lowest band first */
                     readonly tiers?: readonly components["schemas"]["TierIn"][];
                 };
@@ -5367,8 +5771,17 @@ export interface operations {
                     readonly "application/json": components["schemas"]["RateCardOut"];
                 };
             };
-            /** @description The operator token is missing or wrong */
+            /** @description No usable sign-in was presented */
             readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account is not staff, or lacks the role this needs */
+            readonly 403: {
                 headers: {
                     readonly [name: string]: unknown;
                 };
@@ -5403,6 +5816,15 @@ export interface operations {
                     readonly "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description An unexpected error occurred. */
             readonly default: {
                 headers: {
@@ -5417,7 +5839,12 @@ export interface operations {
     readonly put_v1_operator_plans_by_plan_subscription: {
         readonly parameters: {
             readonly query?: never;
-            readonly header?: never;
+            readonly header: {
+                /** @description A ticket reference for why this customer's data is being read: recorded in staff_access */
+                readonly "X-Staff-Ticket": string;
+                /** @description An optional line beside the ticket */
+                readonly "X-Staff-Note"?: string;
+            };
             readonly path: {
                 readonly plan: string;
             };
@@ -5431,8 +5858,6 @@ export interface operations {
                      * @description $99 is 99000000; zero for no monthly price
                      */
                     readonly monthly_price_micros?: number;
-                    /** Format: email */
-                    readonly operator: string;
                     /**
                      * Format: int64
                      * @description $999 is 999000000; zero for no yearly price
@@ -5451,8 +5876,17 @@ export interface operations {
                     readonly "application/json": components["schemas"]["PlanDetailOut"];
                 };
             };
-            /** @description The operator token is missing or wrong */
+            /** @description No usable sign-in was presented */
             readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account is not staff, or lacks the role this needs */
+            readonly 403: {
                 headers: {
                     readonly [name: string]: unknown;
                 };
@@ -5498,6 +5932,308 @@ export interface operations {
             };
         };
     };
+    readonly get_v1_operator_staff: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["StaffListOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account is not staff, or lacks the role this needs */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly post_v1_operator_staff: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description A ticket reference for why this customer's data is being read: recorded in staff_access */
+                readonly "X-Staff-Ticket": string;
+                /** @description An optional line beside the ticket */
+                readonly "X-Staff-Note"?: string;
+            };
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": {
+                    /** Format: email */
+                    readonly email: string;
+                    readonly name?: string;
+                    /** @description At least one of ops, support, billing, admin */
+                    readonly roles: readonly string[];
+                };
+            };
+        };
+        readonly responses: {
+            /** @description Created */
+            readonly 201: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["StaffMemberOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account is not staff, or lacks the role this needs */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description That address is already staff */
+            readonly 409: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly get_v1_operator_staff_access: {
+        readonly parameters: {
+            readonly query?: {
+                /** @description One staff member's address */
+                readonly staff?: string;
+                /** @description One organization's slug */
+                readonly org?: string;
+                readonly action?: string;
+                /** @description The next cursor of the previous page */
+                readonly before?: string;
+                /** @description Newest first, up to 200 */
+                readonly limit?: number;
+            };
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["StaffAccessOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account is not staff, or lacks the role this needs */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly put_v1_operator_staff_by_staff_id: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description A ticket reference for why this customer's data is being read: recorded in staff_access */
+                readonly "X-Staff-Ticket": string;
+                /** @description An optional line beside the ticket */
+                readonly "X-Staff-Note"?: string;
+            };
+            readonly path: {
+                readonly staff_id: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": {
+                    /** @description false deactivates; the row stays for the access review */
+                    readonly active?: boolean | null;
+                    readonly name?: string | null;
+                    /** @description Replaces every role; at least one */
+                    readonly roles?: readonly string[];
+                };
+            };
+        };
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["StaffMemberOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account is not staff, or lacks the role this needs */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unknown role, yourself deactivated, or no admin left */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     readonly get_v1_operator_storage: {
         readonly parameters: {
             readonly query?: {
@@ -5521,8 +6257,17 @@ export interface operations {
                     readonly "application/json": components["schemas"]["StorageOut"];
                 };
             };
-            /** @description The operator token is missing or wrong */
+            /** @description No usable sign-in was presented */
             readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account is not staff, or lacks the role this needs */
+            readonly 403: {
                 headers: {
                     readonly [name: string]: unknown;
                 };

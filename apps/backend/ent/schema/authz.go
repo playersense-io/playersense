@@ -243,11 +243,10 @@ func (AuditEvent) Indexes() []ent.Index {
 // control. "debugging" typed into a box proves nothing and is what a log of reasons degrades
 // into within a month; a ticket number is checkable by somebody who was not there.
 //
-// # It has no caller yet
+// # Written before the read
 //
-// The admin console that will write these does not exist. Built now anyway, because the
-// alternative is a console built first and instrumented afterwards, and "afterwards" is how a
-// read that was never logged becomes a read nobody can rule out.
+// core.StaffReads writes the row before the handler runs, and refuses the request when it cannot,
+// so an operator route that reaches a customer cannot run unrecorded.
 type StaffAccess struct{ ent.Schema }
 
 func (StaffAccess) Mixin() []ent.Mixin { return []ent.Mixin{appendOnlyMixin{}} }

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"net/http"
+	"playersense.dev/backend/internal/staff"
 	"testing"
 	"time"
 
@@ -42,10 +43,9 @@ func newCatalogue(t *testing.T) *catalogue {
 	t.Helper()
 	s := newStack(t)
 	return &catalogue{
-		stack: s,
-		operator: testclient.New(t, s.app,
-			testclient.WithHeader("Authorization", "Bearer "+s.settings.AdminToken)),
-		anon: testclient.New(t, s.app),
+		stack:    s,
+		operator: staffOnly(s.staffClient(t, staff.Admin)),
+		anon:     testclient.New(t, s.app),
 	}
 }
 
@@ -57,14 +57,12 @@ func (c *catalogue) createPlan(t *testing.T, body map[string]any) schemas.PlanDe
 	if _, named := body["name"]; !named {
 		body["name"] = "Plan " + body["key"].(string)
 	}
-	body["operator"] = "ada@playersense.dev"
 	return testclient.Decoded[schemas.PlanDetailOut](
 		c.operator.Post("/v1/operator/plans", testclient.JSON(body)).AssertStatus(http.StatusCreated))
 }
 
 func (c *catalogue) publish(t *testing.T, planKey string, body map[string]any) *testclient.Response {
 	t.Helper()
-	body["operator"] = "ada@playersense.dev"
 	return c.operator.Post("/v1/operator/plans/"+planKey+"/rate-cards", testclient.JSON(body))
 }
 
@@ -181,11 +179,11 @@ func TestACardThatCouldMispriceIsRefused(t *testing.T) {
 
 	// And the catalogue's own typos.
 	c.operator.Post("/v1/operator/plans", testclient.JSON(map[string]any{
-		"key": unique("plan"), "name": "Typo", "operator": "ada@playersense.dev",
+		"key": unique("plan"), "name": "Typo",
 		"entitlements": map[string]int64{"included_maus": 1},
 	})).AssertStatus(http.StatusUnprocessableEntity)
 	c.operator.Post("/v1/operator/plans", testclient.JSON(map[string]any{
-		"key": key, "name": "Again", "operator": "ada@playersense.dev",
+		"key": key, "name": "Again",
 	})).AssertStatus(http.StatusConflict)
 }
 
@@ -254,7 +252,7 @@ func TestAssigningAPlanIsRecordedAndShowsTheMonth(t *testing.T) {
 	owner := person(t)
 	slug := c.createOrg(t, owner)
 	c.operator.Put("/v1/operator/organizations/"+slug+"/plan", testclient.JSON(map[string]any{
-		"plan": key, "operator": "ada@playersense.dev",
+		"plan": key,
 	})).AssertStatus(http.StatusOK)
 
 	org := c.organization(t, slug)
@@ -289,6 +287,6 @@ func TestTheCatalogueIsStaffOnly(t *testing.T) {
 
 	c.anon.Get("/v1/operator/plans").AssertStatus(http.StatusUnauthorized)
 	c.as(t, owner).Post("/v1/operator/plans", testclient.JSON(map[string]any{
-		"key": unique("plan"), "name": "Mine", "operator": "me@studio.example",
-	})).AssertStatus(http.StatusUnauthorized)
+		"key": unique("plan"), "name": "Mine",
+	})).AssertStatus(http.StatusForbidden)
 }

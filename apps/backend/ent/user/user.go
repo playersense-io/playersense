@@ -41,8 +41,6 @@ const (
 	EdgeMemberships = "memberships"
 	// EdgeSentInvitations holds the string denoting the sent_invitations edge name in mutations.
 	EdgeSentInvitations = "sent_invitations"
-	// EdgeGrantedCredits holds the string denoting the granted_credits edge name in mutations.
-	EdgeGrantedCredits = "granted_credits"
 	// EdgeAuditEvents holds the string denoting the audit_events edge name in mutations.
 	EdgeAuditEvents = "audit_events"
 	// EdgePublishedVersions holds the string denoting the published_versions edge name in mutations.
@@ -63,13 +61,6 @@ const (
 	SentInvitationsInverseTable = "invitations"
 	// SentInvitationsColumn is the table column denoting the sent_invitations relation/edge.
 	SentInvitationsColumn = "invited_by_id"
-	// GrantedCreditsTable is the table that holds the granted_credits relation/edge.
-	GrantedCreditsTable = "credit_lots"
-	// GrantedCreditsInverseTable is the table name for the CreditLot entity.
-	// It exists in this package in order to avoid circular dependency with the "creditlot" package.
-	GrantedCreditsInverseTable = "credit_lots"
-	// GrantedCreditsColumn is the table column denoting the granted_credits relation/edge.
-	GrantedCreditsColumn = "granted_by_user_id"
 	// AuditEventsTable is the table that holds the audit_events relation/edge.
 	AuditEventsTable = "audit_events"
 	// AuditEventsInverseTable is the table name for the AuditEvent entity.
@@ -228,20 +219,6 @@ func BySentInvitations(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	}
 }
 
-// ByGrantedCreditsCount orders the results by granted_credits count.
-func ByGrantedCreditsCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newGrantedCreditsStep(), opts...)
-	}
-}
-
-// ByGrantedCredits orders the results by granted_credits terms.
-func ByGrantedCredits(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newGrantedCreditsStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
-
 // ByAuditEventsCount orders the results by audit_events count.
 func ByAuditEventsCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -281,13 +258,6 @@ func newSentInvitationsStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(SentInvitationsInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, SentInvitationsTable, SentInvitationsColumn),
-	)
-}
-func newGrantedCreditsStep() *sqlgraph.Step {
-	return sqlgraph.NewStep(
-		sqlgraph.From(Table, FieldID),
-		sqlgraph.To(GrantedCreditsInverseTable, FieldID),
-		sqlgraph.Edge(sqlgraph.O2M, false, GrantedCreditsTable, GrantedCreditsColumn),
 	)
 }
 func newAuditEventsStep() *sqlgraph.Step {

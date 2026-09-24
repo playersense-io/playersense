@@ -15,19 +15,17 @@ import (
 	"playersense.dev/backend/ent/billingaccount"
 	"playersense.dev/backend/ent/creditlot"
 	"playersense.dev/backend/ent/predicate"
-	"playersense.dev/backend/ent/user"
 )
 
 // CreditLotQuery is the builder for querying CreditLot entities.
 type CreditLotQuery struct {
 	config
-	ctx           *QueryContext
-	order         []creditlot.OrderOption
-	inters        []Interceptor
-	predicates    []predicate.CreditLot
-	withAccount   *BillingAccountQuery
-	withGrantedBy *UserQuery
-	modifiers     []func(*sql.Selector)
+	ctx         *QueryContext
+	order       []creditlot.OrderOption
+	inters      []Interceptor
+	predicates  []predicate.CreditLot
+	withAccount *BillingAccountQuery
+	modifiers   []func(*sql.Selector)
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -79,28 +77,6 @@ func (_q *CreditLotQuery) QueryAccount() *BillingAccountQuery {
 			sqlgraph.From(creditlot.Table, creditlot.FieldID, selector),
 			sqlgraph.To(billingaccount.Table, billingaccount.FieldID),
 			sqlgraph.Edge(sqlgraph.M2O, true, creditlot.AccountTable, creditlot.AccountColumn),
-		)
-		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
-		return fromU, nil
-	}
-	return query
-}
-
-// QueryGrantedBy chains the current query on the "granted_by" edge.
-func (_q *CreditLotQuery) QueryGrantedBy() *UserQuery {
-	query := (&UserClient{config: _q.config}).Query()
-	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
-		if err := _q.prepareQuery(ctx); err != nil {
-			return nil, err
-		}
-		selector := _q.sqlQuery(ctx)
-		if err := selector.Err(); err != nil {
-			return nil, err
-		}
-		step := sqlgraph.NewStep(
-			sqlgraph.From(creditlot.Table, creditlot.FieldID, selector),
-			sqlgraph.To(user.Table, user.FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, true, creditlot.GrantedByTable, creditlot.GrantedByColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -295,13 +271,12 @@ func (_q *CreditLotQuery) Clone() *CreditLotQuery {
 		return nil
 	}
 	return &CreditLotQuery{
-		config:        _q.config,
-		ctx:           _q.ctx.Clone(),
-		order:         append([]creditlot.OrderOption{}, _q.order...),
-		inters:        append([]Interceptor{}, _q.inters...),
-		predicates:    append([]predicate.CreditLot{}, _q.predicates...),
-		withAccount:   _q.withAccount.Clone(),
-		withGrantedBy: _q.withGrantedBy.Clone(),
+		config:      _q.config,
+		ctx:         _q.ctx.Clone(),
+		order:       append([]creditlot.OrderOption{}, _q.order...),
+		inters:      append([]Interceptor{}, _q.inters...),
+		predicates:  append([]predicate.CreditLot{}, _q.predicates...),
+		withAccount: _q.withAccount.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -316,17 +291,6 @@ func (_q *CreditLotQuery) WithAccount(opts ...func(*BillingAccountQuery)) *Credi
 		opt(query)
 	}
 	_q.withAccount = query
-	return _q
-}
-
-// WithGrantedBy tells the query-builder to eager-load the nodes that are connected to
-// the "granted_by" edge. The optional arguments are used to configure the query builder of the edge.
-func (_q *CreditLotQuery) WithGrantedBy(opts ...func(*UserQuery)) *CreditLotQuery {
-	query := (&UserClient{config: _q.config}).Query()
-	for _, opt := range opts {
-		opt(query)
-	}
-	_q.withGrantedBy = query
 	return _q
 }
 
@@ -408,9 +372,8 @@ func (_q *CreditLotQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Cr
 	var (
 		nodes       = []*CreditLot{}
 		_spec       = _q.querySpec()
-		loadedTypes = [2]bool{
+		loadedTypes = [1]bool{
 			_q.withAccount != nil,
-			_q.withGrantedBy != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -440,12 +403,6 @@ func (_q *CreditLotQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Cr
 			return nil, err
 		}
 	}
-	if query := _q.withGrantedBy; query != nil {
-		if err := _q.loadGrantedBy(ctx, query, nodes, nil,
-			func(n *CreditLot, e *User) { n.Edges.GrantedBy = e }); err != nil {
-			return nil, err
-		}
-	}
 	return nodes, nil
 }
 
@@ -471,38 +428,6 @@ func (_q *CreditLotQuery) loadAccount(ctx context.Context, query *BillingAccount
 		nodes, ok := nodeids[n.ID]
 		if !ok {
 			return fmt.Errorf(`unexpected foreign-key "account_id" returned %v`, n.ID)
-		}
-		for i := range nodes {
-			assign(nodes[i], n)
-		}
-	}
-	return nil
-}
-func (_q *CreditLotQuery) loadGrantedBy(ctx context.Context, query *UserQuery, nodes []*CreditLot, init func(*CreditLot), assign func(*CreditLot, *User)) error {
-	ids := make([]int, 0, len(nodes))
-	nodeids := make(map[int][]*CreditLot)
-	for i := range nodes {
-		if nodes[i].GrantedByUserID == nil {
-			continue
-		}
-		fk := *nodes[i].GrantedByUserID
-		if _, ok := nodeids[fk]; !ok {
-			ids = append(ids, fk)
-		}
-		nodeids[fk] = append(nodeids[fk], nodes[i])
-	}
-	if len(ids) == 0 {
-		return nil
-	}
-	query.Where(user.IDIn(ids...))
-	neighbors, err := query.All(ctx)
-	if err != nil {
-		return err
-	}
-	for _, n := range neighbors {
-		nodes, ok := nodeids[n.ID]
-		if !ok {
-			return fmt.Errorf(`unexpected foreign-key "granted_by_user_id" returned %v`, n.ID)
 		}
 		for i := range nodes {
 			assign(nodes[i], n)
@@ -541,9 +466,6 @@ func (_q *CreditLotQuery) querySpec() *sqlgraph.QuerySpec {
 		}
 		if _q.withAccount != nil {
 			_spec.Node.AddColumnOnce(creditlot.FieldAccountID)
-		}
-		if _q.withGrantedBy != nil {
-			_spec.Node.AddColumnOnce(creditlot.FieldGrantedByUserID)
 		}
 	}
 	if ps := _q.predicates; len(ps) > 0 {

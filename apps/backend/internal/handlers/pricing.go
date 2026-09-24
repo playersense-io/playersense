@@ -27,9 +27,7 @@ import (
 
 // Plans, prices and the pricing page (ADR 0039).
 //
-// Staff edit the catalogue through the operator surface — behind the shared operator token until
-// §56's console and its staff identities exist, with the cost that implies stated on
-// routers.OperatorBilling. The pricing page reads the same rows through a public route, so a price
+// Staff edit the catalogue through the operator surface, signed in and with a ticket per change. The pricing page reads the same rows through a public route, so a price
 // published here is on the landing page the moment it takes effect, with nothing to redeploy.
 
 // ---- public -----------------------------------------------------------------
@@ -214,7 +212,7 @@ func PublishRateCard(ctx *muzak.Context, in schemas.PublishRateCardIn) (schemas.
 		SetTiers(card.Tiers).
 		SetEffectiveFrom(from).
 		SetNote(in.Note).
-		SetCreatedBy(in.Operator).
+		SetCreatedBy(staffEmail(ctx)).
 		Save(ctx.Context())
 	if err != nil {
 		if ent.IsConstraintError(err) {
@@ -270,7 +268,7 @@ func AssignPlan(ctx *muzak.Context, in schemas.AssignPlanIn) (schemas.BillingOut
 				return none, err
 			}
 		}
-		return none, auditFor(ctx).forOrganization(org.ID).byOperator(in.Operator).
+		return none, auditFor(ctx).forOrganization(org.ID).byStaff(ctx).
 			record(ctx.Context(), tx, audit.PlanChanged, "billing_account", org.Slug,
 				map[string]any{"plan": target.Key, "was_plan": previous})
 	})
@@ -411,7 +409,7 @@ func planOut(ctx context.Context, db *core.DB, p *ent.Plan, at time.Time, operat
 }
 
 // rateCardOut renders a card. `operator` decides whether who published it is shown: a
-// self-asserted staff address is an operator's business, not the pricing page's.
+// staff address is an operator's business, not the pricing page's.
 func rateCardOut(card *ent.RateCard, status string, operator bool) schemas.RateCardOut {
 	out := schemas.RateCardOut{
 		ID: card.UID, Meter: string(card.Meter), Mode: string(card.Mode),
@@ -625,7 +623,7 @@ func SetCreditLimit(ctx *muzak.Context, in schemas.SetCreditLimitIn) (schemas.Bi
 		if had {
 			meta["was_credit_limit_micros"] = previous
 		}
-		return none, auditFor(ctx).forOrganization(org.ID).byOperator(in.Operator).
+		return none, auditFor(ctx).forOrganization(org.ID).byStaff(ctx).
 			record(ctx.Context(), tx, audit.CreditLimitSet, "billing_account", org.Slug, meta)
 	})
 	if err != nil {

@@ -32,6 +32,8 @@ type TierIn struct {
 
 // PublishRateCardIn is a new price list for one plan.
 type PublishRateCardIn struct {
+	StaffTicket
+
 	PlanKey string `path:"plan"`
 
 	Meter string   `json:"meter,omitzero" default:"tracked_players" doc:"Only tracked_players today"`
@@ -44,10 +46,6 @@ type PublishRateCardIn struct {
 	EffectiveFrom *time.Time `json:"effective_from,omitzero" doc:"Defaults to now; refused if in the past"`
 
 	Note string `json:"note,omitzero" doc:"Why the price changed, for whoever asks next"`
-
-	// Operator is who is publishing it, self-asserted for the reason [GrantCreditIn.Operator]
-	// gives.
-	Operator string `json:"operator" doc:"Your own address. Stored on the card as self-asserted"`
 }
 
 func (in *PublishRateCardIn) Validate(v *muzak.Validation) {
@@ -56,7 +54,6 @@ func (in *PublishRateCardIn) Validate(v *muzak.Validation) {
 	v.String(&in.Mode).Trim().Lower().OneOf(string(billing.Graduated), string(billing.Volume))
 	v.Slice(&in.Tiers).MinItems(1).MaxItems(billing.MaxTiers)
 	v.String(&in.Note).Trim().MaxLen(500)
-	v.String(&in.Operator).Trim().Lower().Required().Email().MaxLen(254)
 }
 
 // Card is the input as the arithmetic reads it.
@@ -89,7 +86,7 @@ type RateCardOut struct {
 	Tiers         []TierOut `json:"tiers"`
 	EffectiveFrom time.Time `json:"effective_from"`
 	Note          string    `json:"note,omitzero"`
-	CreatedBy     string    `json:"created_by,omitzero" doc:"Self-asserted; operator views only"`
+	CreatedBy     string    `json:"created_by,omitzero" doc:"The staff member who published it; operator views only"`
 	CreatedAt     time.Time `json:"created_at"`
 
 	// Status says where the card sits in time: `current` prices new players now, `scheduled`
@@ -115,6 +112,8 @@ func (in *PlanParams) Validate(v *muzak.Validation) {
 
 // CreatePlanIn is a new plan. Its prices are published separately, as rate cards.
 type CreatePlanIn struct {
+	StaffTicket
+
 	Key         string `json:"key" doc:"Lowercase, permanent: accounts and snapshots refer to it"`
 	Name        string `json:"name"`
 	Description string `json:"description,omitzero"`
@@ -126,8 +125,6 @@ type CreatePlanIn struct {
 	IsDefault bool `json:"is_default,omitzero" doc:"The plan new organizations are put on; at most one"`
 
 	Features []string `json:"features,omitzero" doc:"premium_support, slack_reports, mcp_access — the closed vocabulary"`
-
-	Operator string `json:"operator"`
 }
 
 func (in *CreatePlanIn) Validate(v *muzak.Validation) {
@@ -135,13 +132,14 @@ func (in *CreatePlanIn) Validate(v *muzak.Validation) {
 	v.String(&in.Name).Trim().Required().MaxLen(120)
 	v.String(&in.Description).Trim().MaxLen(500)
 	v.Number(&in.MonthlyPriceMicros).Min(0).Max(float64(MaxGrant))
-	v.String(&in.Operator).Trim().Lower().Required().Email().MaxLen(254)
 }
 
 // UpdatePlanIn changes what a plan is called, what it includes, and whether it is sold.
 //
 // Pointers, so absent means unchanged. Not its prices: see [PublishRateCardIn].
 type UpdatePlanIn struct {
+	StaffTicket
+
 	PlanKey string `path:"plan"`
 
 	Name               *string          `json:"name,omitzero"`
@@ -151,8 +149,6 @@ type UpdatePlanIn struct {
 	Active             *bool            `json:"active,omitzero" doc:"Withdrawn plans are not sold; accounts on them stay"`
 	IsDefault          *bool            `json:"is_default,omitzero" doc:"true makes this the default and unsets the previous one"`
 	Features           []string         `json:"features,omitzero" doc:"Replaces the whole list when present"`
-
-	Operator string `json:"operator"`
 }
 
 func (in *UpdatePlanIn) Validate(v *muzak.Validation) {
@@ -160,7 +156,6 @@ func (in *UpdatePlanIn) Validate(v *muzak.Validation) {
 	v.String(&in.Name).Trim().MinLen(1).MaxLen(120)
 	v.String(&in.Description).Trim().MaxLen(500)
 	v.Number(&in.MonthlyPriceMicros).Min(0).Max(float64(MaxGrant))
-	v.String(&in.Operator).Trim().Lower().Required().Email().MaxLen(254)
 }
 
 // PlanDetailOut is a plan as staff and the pricing page see it.
@@ -195,15 +190,15 @@ type PlansOut struct {
 
 // AssignPlanIn moves an organization onto a plan.
 type AssignPlanIn struct {
-	OrgSlug  string `path:"org"`
-	Plan     string `json:"plan" doc:"The plan's key"`
-	Operator string `json:"operator"`
+	StaffTicket
+
+	OrgSlug string `path:"org"`
+	Plan    string `json:"plan" doc:"The plan's key"`
 }
 
 func (in *AssignPlanIn) Validate(v *muzak.Validation) {
 	v.String(&in.OrgSlug).Trim().Lower().Required().MaxLen(64)
 	v.String(&in.Plan).Trim().Lower().Required().MaxLen(64)
-	v.String(&in.Operator).Trim().Lower().Required().Email().MaxLen(254)
 }
 
 // ---- the month so far -------------------------------------------------------
@@ -233,19 +228,18 @@ type MonthUsageOut struct {
 
 // SetSubscriptionPricesIn sets what a plan's subscription costs, and creates the prices at Stripe.
 type SetSubscriptionPricesIn struct {
+	StaffTicket
+
 	PlanKey string `path:"plan"`
 
 	MonthlyPriceMicros int64 `json:"monthly_price_micros" doc:"$99 is 99000000; zero for no monthly price"`
 	YearlyPriceMicros  int64 `json:"yearly_price_micros" doc:"$999 is 999000000; zero for no yearly price"`
-
-	Operator string `json:"operator"`
 }
 
 func (in *SetSubscriptionPricesIn) Validate(v *muzak.Validation) {
 	v.String(&in.PlanKey).Trim().Lower().Required().MaxLen(64)
 	v.Number(&in.MonthlyPriceMicros).Min(0).Max(float64(MaxGrant))
 	v.Number(&in.YearlyPriceMicros).Min(0).Max(float64(MaxGrant))
-	v.String(&in.Operator).Trim().Lower().Required().Email().MaxLen(254)
 	if in.MonthlyPriceMicros%billing.CentMicros != 0 || in.YearlyPriceMicros%billing.CentMicros != 0 {
 		v.Reject(&in.MonthlyPriceMicros, "a subscription is charged in whole cents")
 	}
@@ -278,17 +272,16 @@ type SubscriptionOut struct {
 // SetCreditLimitIn sets an exact credit limit for one organization, or clears it back to the rule
 // (ADR 0043).
 type SetCreditLimitIn struct {
+	StaffTicket
+
 	OrgSlug string `path:"org"`
 
 	// CreditLimitMicros is the exact limit; absent (null) clears the override, so the limit follows
 	// the organization's spending again.
 	CreditLimitMicros *int64 `json:"credit_limit_micros,omitzero" doc:"Exact limit in micros; omit to return to 20% of paid usage with the floor"`
-
-	Operator string `json:"operator"`
 }
 
 func (in *SetCreditLimitIn) Validate(v *muzak.Validation) {
 	v.String(&in.OrgSlug).Trim().Lower().Required().MaxLen(64)
 	v.Number(&in.CreditLimitMicros).Min(0).Max(float64(MaxGrant))
-	v.String(&in.Operator).Trim().Lower().Required().Email().MaxLen(254)
 }

@@ -8,17 +8,21 @@ import (
 	"muzak.dev/framework/testclient"
 
 	"playersense.dev/backend/internal/schemas"
+	"playersense.dev/backend/internal/staff"
 )
 
 // TestTheOperationsConsoleSeesTheWholePlatform: ingestion across tenants, the node's health and
-// storage, behind the operator token and nothing else.
+// storage, behind a signed-in staff member with the ops role and nothing else.
 func TestTheOperationsConsoleSeesTheWholePlatform(t *testing.T) {
 	r := newReporting(t, "standard")
 	r.levelEvents(t)
 
 	settings := testSettings(t)
+	settings.FirebaseCertificateURL = r.google.URL
 	app := mustBuild(t, settings)
-	operator := testclient.New(t, app, testclient.WithHeader("Authorization", "Bearer "+settings.AdminToken))
+	engineer := person(t)
+	seedStaff(t, r.db, engineer, staff.Ops)
+	operator := testclient.New(t, app, testclient.WithHeader("Authorization", "Bearer "+r.google.Token(engineer)))
 
 	ingestion := get[schemas.IngestionOut](t, operator, "/v1/operator/ingestion", r.yesterdayOnly(), http.StatusOK)
 	var ours *schemas.IngestionProjectOut
@@ -58,8 +62,15 @@ func TestTheOperationsConsoleSeesTheWholePlatform(t *testing.T) {
 		t.Fatalf("storage %+v does not attribute bytes to the seeded project", storage.Projects)
 	}
 
-	// A person, however senior, is not the operator.
-	get[schemas.IngestionOut](t, r.member, "/v1/operator/ingestion", nil, http.StatusNotFound)
+	// A customer, however senior in their own organization, is not staff; and a staff member
+	// without the role is refused as well.
+	customer := testclient.New(t, app, testclient.WithHeader("Authorization", "Bearer "+r.google.Token(person(t))))
+	get[schemas.IngestionOut](t, customer, "/v1/operator/ingestion", nil, http.StatusForbidden)
+	billing := person(t)
+	seedStaff(t, r.db, billing, staff.Billing)
+	get[schemas.IngestionOut](t, testclient.New(t, app,
+		testclient.WithHeader("Authorization", "Bearer "+r.google.Token(billing))),
+		"/v1/operator/ingestion", nil, http.StatusForbidden)
 	anon := testclient.New(t, app)
 	get[schemas.IngestionOut](t, anon, "/v1/operator/ingestion", url.Values{}, http.StatusUnauthorized)
 }

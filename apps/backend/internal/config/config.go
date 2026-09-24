@@ -43,15 +43,6 @@ type Settings struct {
 	// for the endpoint the SDK is told to send batches to.
 	PublicURL string `env:"API_PUBLIC_URL" default:"http://localhost:21080"`
 
-	// AdminToken guards the API's operator surface. Marked secret so a malformed
-	// value never appears in a start-up error.
-	//
-	// It is no longer what guards the customer-facing routes: those resolve a signed-in
-	// person through Firebase and check that person's permissions. A shared secret cannot
-	// answer "who is asking", so it cannot be the credential on an API where the answer
-	// decides what comes back.
-	AdminToken string `env:"CONTROL_API_ADMIN_TOKEN" secret:"true" required:"true"`
-
 	// FirebaseProjectID is the Firebase project whose ID tokens this deployment accepts.
 	//
 	// Both the audience an ID token must name and, with the issuer prefix, where it must

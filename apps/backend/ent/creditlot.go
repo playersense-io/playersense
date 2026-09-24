@@ -12,7 +12,6 @@ import (
 	"github.com/google/uuid"
 	"playersense.dev/backend/ent/billingaccount"
 	"playersense.dev/backend/ent/creditlot"
-	"playersense.dev/backend/ent/user"
 )
 
 // CreditLot is the model entity for the CreditLot schema.
@@ -46,7 +45,7 @@ type CreditLot struct {
 	// class=none
 	StripeReference *string `json:"stripe_reference,omitempty"`
 	// class=none
-	GrantedByUserID *int `json:"granted_by_user_id,omitempty"`
+	GrantedByStaff string `json:"granted_by_staff,omitempty"`
 	// class=none
 	IdempotencyKey string `json:"idempotency_key,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
@@ -59,11 +58,9 @@ type CreditLot struct {
 type CreditLotEdges struct {
 	// Account holds the value of the account edge.
 	Account *BillingAccount `json:"account,omitempty"`
-	// GrantedBy holds the value of the granted_by edge.
-	GrantedBy *User `json:"granted_by,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [2]bool
+	loadedTypes [1]bool
 }
 
 // AccountOrErr returns the Account value or an error if the edge
@@ -77,25 +74,14 @@ func (e CreditLotEdges) AccountOrErr() (*BillingAccount, error) {
 	return nil, &NotLoadedError{edge: "account"}
 }
 
-// GrantedByOrErr returns the GrantedBy value or an error if the edge
-// was not loaded in eager-loading, or loaded but was not found.
-func (e CreditLotEdges) GrantedByOrErr() (*User, error) {
-	if e.GrantedBy != nil {
-		return e.GrantedBy, nil
-	} else if e.loadedTypes[1] {
-		return nil, &NotFoundError{label: user.Label}
-	}
-	return nil, &NotLoadedError{edge: "granted_by"}
-}
-
 // scanValues returns the types for scanning values from sql.Rows.
 func (*CreditLot) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case creditlot.FieldID, creditlot.FieldAccountID, creditlot.FieldAmountMicros, creditlot.FieldRemainingMicros, creditlot.FieldGrantedByUserID:
+		case creditlot.FieldID, creditlot.FieldAccountID, creditlot.FieldAmountMicros, creditlot.FieldRemainingMicros:
 			values[i] = new(sql.NullInt64)
-		case creditlot.FieldKind, creditlot.FieldCurrency, creditlot.FieldDescription, creditlot.FieldStripeReference, creditlot.FieldIdempotencyKey:
+		case creditlot.FieldKind, creditlot.FieldCurrency, creditlot.FieldDescription, creditlot.FieldStripeReference, creditlot.FieldGrantedByStaff, creditlot.FieldIdempotencyKey:
 			values[i] = new(sql.NullString)
 		case creditlot.FieldCreatedAt, creditlot.FieldUpdatedAt, creditlot.FieldExpiresAt, creditlot.FieldGrantedAt:
 			values[i] = new(sql.NullTime)
@@ -196,12 +182,11 @@ func (_m *CreditLot) assignValues(columns []string, values []any) error {
 				_m.StripeReference = new(string)
 				*_m.StripeReference = value.String
 			}
-		case creditlot.FieldGrantedByUserID:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
-				return fmt.Errorf("unexpected type %T for field granted_by_user_id", values[i])
+		case creditlot.FieldGrantedByStaff:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field granted_by_staff", values[i])
 			} else if value.Valid {
-				_m.GrantedByUserID = new(int)
-				*_m.GrantedByUserID = int(value.Int64)
+				_m.GrantedByStaff = value.String
 			}
 		case creditlot.FieldIdempotencyKey:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -225,11 +210,6 @@ func (_m *CreditLot) Value(name string) (ent.Value, error) {
 // QueryAccount queries the "account" edge of the CreditLot entity.
 func (_m *CreditLot) QueryAccount() *BillingAccountQuery {
 	return NewCreditLotClient(_m.config).QueryAccount(_m)
-}
-
-// QueryGrantedBy queries the "granted_by" edge of the CreditLot entity.
-func (_m *CreditLot) QueryGrantedBy() *UserQuery {
-	return NewCreditLotClient(_m.config).QueryGrantedBy(_m)
 }
 
 // Update returns a builder for updating this CreditLot.
@@ -295,10 +275,8 @@ func (_m *CreditLot) String() string {
 		builder.WriteString(*v)
 	}
 	builder.WriteString(", ")
-	if v := _m.GrantedByUserID; v != nil {
-		builder.WriteString("granted_by_user_id=")
-		builder.WriteString(fmt.Sprintf("%v", *v))
-	}
+	builder.WriteString("granted_by_staff=")
+	builder.WriteString(_m.GrantedByStaff)
 	builder.WriteString(", ")
 	builder.WriteString("idempotency_key=")
 	builder.WriteString(_m.IdempotencyKey)

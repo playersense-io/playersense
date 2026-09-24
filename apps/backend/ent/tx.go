@@ -68,6 +68,8 @@ type Tx struct {
 	Segment *SegmentClient
 	// StaffAccess is the client for interacting with the StaffAccess builders.
 	StaffAccess *StaffAccessClient
+	// StaffMember is the client for interacting with the StaffMember builders.
+	StaffMember *StaffMemberClient
 	// StripeEvent is the client for interacting with the StripeEvent builders.
 	StripeEvent *StripeEventClient
 	// UsageCharge is the client for interacting with the UsageCharge builders.
@@ -236,6 +238,7 @@ func (tx *Tx) init() {
 	tx.Role = NewRoleClient(tx.config)
 	tx.Segment = NewSegmentClient(tx.config)
 	tx.StaffAccess = NewStaffAccessClient(tx.config)
+	tx.StaffMember = NewStaffMemberClient(tx.config)
 	tx.StripeEvent = NewStripeEventClient(tx.config)
 	tx.UsageCharge = NewUsageChargeClient(tx.config)
 	tx.UsageDaily = NewUsageDailyClient(tx.config)

@@ -103,24 +103,17 @@ type Actor struct {
 	KeyID  int
 
 	// Label is the fallback, and the only thing an operator action has. It carries its own
-	// caveat where one applies — see [OperatorActor].
+	// caveat where one applies — see [StaffActor].
 	Label string
 }
 
-// OperatorActor names a PlayerSense operator who asserted their own identity.
+// StaffActor names a PlayerSense staff member acting on a customer's account.
 //
-// The shared operator token cannot say who is holding it, so the name comes from the request and is
-// **not verified**. The label says so, in the row, because an audit entry that read
-// `ada@playersense.dev` would be read as proof that Ada did it — and the only thing actually proved
-// is that somebody with the deployment's operator token typed Ada's address.
-//
-// What replaces this is a verified staff identity and §56's console. Until then the entry exists,
-// says what it is, and is better than the nothing it replaced.
-func OperatorActor(asserted string) Actor {
-	if asserted == "" {
-		return Actor{Label: "operator (unidentified)"}
-	}
-	return Actor{Label: "operator " + asserted + " (self-asserted)"}
+// Their address comes from the console's verified sign-in (core.ResolveStaff), and the label says
+// who they work for, because a studio reading its own log should be able to tell its colleagues'
+// changes from ours at a glance.
+func StaffActor(email string) Actor {
+	return Actor{Label: "PlayerSense staff " + email}
 }
 
 // Entry is one thing that happened.
