@@ -743,3 +743,143 @@ func TestTheOverviewListsEveryReadableProject(t *testing.T) {
 		t.Fatalf("a billing member sees %+v", none.Projects)
 	}
 }
+
+// funnelPlayers plays a three-step funnel yesterday: open_shop, view_item, buy_item.
+//
+// Six players open the shop; five view an item; three of those buy within the hour and one buys
+// two hours later; one views the wrong item. So in a one-hour window: 6 enter, 5 view, 3 buy; in
+// a one-day window 4 buy. Every player also climbs levels 1 to 3, and two of them reach 4.
+func (r *reporting) funnelPlayers(t *testing.T) {
+	t.Helper()
+	at := yesterday().Add(8 * time.Hour)
+	var rows []rawEvent
+	add := func(install, name string, offset time.Duration, strs map[string]string, ints map[string]int64) {
+		rows = append(rows, rawEvent{install: install, session: "s-" + install[:8], name: name,
+			platform: "ios", country: "TR", version: "2.7.1", at: at.Add(offset), strs: strs, ints: ints})
+	}
+	for i := range 6 {
+		install := uuid.NewString()
+		add(install, "open_shop", 0, nil, nil)
+		item := map[string]string{"item": "sword"}
+		if i == 5 {
+			item = map[string]string{"item": "shield"}
+		}
+		add(install, "view_item", time.Minute, item, nil)
+		switch {
+		case i < 3:
+			add(install, "buy_item", 10*time.Minute, nil, nil)
+		case i == 3:
+			add(install, "buy_item", 2*time.Hour, nil, nil)
+		}
+		top := int64(3)
+		if i < 2 {
+			top = 4
+		}
+		for level := int64(1); level <= top; level++ {
+			add(install, "level_complete", time.Duration(level)*time.Hour, nil, map[string]int64{"level": level})
+		}
+		// Everybody fails level 2 once before completing it.
+		add(install, "level_complete", 90*time.Minute, nil, map[string]int64{"level": 2})
+	}
+	r.insert(t, rows)
+	if got := r.waitForRows(t, len(rows)); got != len(rows) {
+		t.Fatalf("seeded %d of %d rows", got, len(rows))
+	}
+}
+
+func (r *reporting) funnel(t *testing.T, body map[string]any, want int) schemas.FunnelAnswerOut {
+	t.Helper()
+	res := r.member.Post(r.analytics()+"/funnels/query", testclient.JSON(body))
+	res.AssertStatus(want)
+	var out schemas.FunnelAnswerOut
+	if want == http.StatusOK {
+		res.JSON(&out)
+	}
+	return out
+}
+
+func counts(players []*uint64) []uint64 {
+	out := make([]uint64, len(players))
+	for i, p := range players {
+		if p != nil {
+			out[i] = *p
+		}
+	}
+	return out
+}
+
+// TestAFunnelCountsEachStepWithinItsWindow.
+func TestAFunnelCountsEachStepWithinItsWindow(t *testing.T) {
+	r := newReporting(t, "standard")
+	r.funnelPlayers(t)
+
+	steps := []map[string]any{
+		{"event": "open_shop"},
+		{"event": "view_item", "where": []map[string]any{{"property": "item", "value": "sword"}}},
+		{"event": "buy_item"},
+	}
+	ask := func(window string) *schemas.FunnelOut {
+		return r.funnel(t, map[string]any{
+			"kind": "steps", "from": day(yesterday()), "to": day(yesterday()),
+			"window": window, "steps": steps,
+		}, http.StatusOK).Steps
+	}
+
+	hour := ask("1h")
+	// 6 entered, 5 viewed a sword, and 3 bought inside the hour: 3 is under the threshold, so
+	// that count is withheld rather than shown.
+	if got := counts(hour.Total.Players); got[0] != 6 || got[1] != 5 || got[2] != 0 || hour.Total.Players[2] != nil {
+		t.Fatalf("an hour's funnel is %v, want 6, 5 and the last step withheld", got)
+	}
+	if hour.Total.Medians[1] == nil || *hour.Total.Medians[1] != 60 {
+		t.Fatalf("the median wait for a view is %v, want 60 seconds", hour.Total.Medians[1])
+	}
+
+	whole := ask("1d")
+	if got := counts(whole.Total.Players); got[0] != 6 || got[1] != 5 {
+		t.Fatalf("a day's funnel is %v, want 6 and 5 in", got)
+	}
+	if len(whole.Trend) != 1 || whole.Trend[0].Entered == nil || *whole.Trend[0].Entered != 6 {
+		t.Fatalf("the trend is %+v, want 6 entering yesterday", whole.Trend)
+	}
+
+	session := ask("session")
+	if got := counts(session.Total.Players); got[0] != 6 || got[1] != 5 {
+		t.Fatalf("a session's funnel is %v, want 6 and 5", got)
+	}
+}
+
+// TestAProgressionFunnelSaysHowFarAndHowHard.
+func TestAProgressionFunnelSaysHowFarAndHowHard(t *testing.T) {
+	r := newReporting(t, "standard")
+	r.funnelPlayers(t)
+
+	out := r.funnel(t, map[string]any{
+		"kind": "progression", "from": day(yesterday()), "to": day(yesterday()),
+		"progression": map[string]any{"event": "level_complete", "property": "level", "from": 1, "to": 4},
+	}, http.StatusOK).Progression
+
+	reached := map[int64]*uint64{}
+	tries := map[int64]*float64{}
+	for _, row := range out.Rows {
+		reached[row.Value], tries[row.Value] = row.Reached, row.Tries
+	}
+	if reached[1] == nil || *reached[1] != 6 || reached[3] == nil || *reached[3] != 6 {
+		t.Fatalf("levels 1 and 3 were reached by %v and %v, want 6 each", reached[1], reached[3])
+	}
+	if reached[4] != nil {
+		t.Fatalf("level 4 was reached by two players and is shown: %v", *reached[4])
+	}
+	if tries[2] == nil || *tries[2] != 2 || tries[1] == nil || *tries[1] != 1 {
+		t.Fatalf("tries %v and %v, want level 2 taking two tries and level 1 one", tries[2], tries[1])
+	}
+}
+
+// TestAFunnelTooWideIsRefused is §32: a funnel reads events one by one, so its range is bounded.
+func TestAFunnelTooWideIsRefused(t *testing.T) {
+	r := newReporting(t, "standard")
+	r.funnel(t, map[string]any{
+		"kind": "steps", "from": day(yesterday().AddDate(0, 0, -120)), "to": day(yesterday()),
+		"steps": []map[string]any{{"event": "a"}, {"event": "b"}},
+	}, http.StatusUnprocessableEntity)
+}

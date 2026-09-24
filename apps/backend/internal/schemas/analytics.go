@@ -795,3 +795,169 @@ type ProjectOverviewOut struct {
 	PreviousRevenueMicros int64  `json:"previous_revenue_micros"`
 	PayerDays             uint64 `json:"payer_days"`
 }
+
+// ---- funnels ----------------------------------------------------------------
+
+// Funnel windows: how long after entering a player may take to finish. A session window
+// requires every step inside one session.
+var FunnelWindows = map[string]int64{
+	"session": 0, "1h": 3600, "1d": 86400, "7d": 7 * 86400, "30d": 30 * 86400,
+}
+
+// Funnel bounds (§31, §32): what one exploratory funnel may ask of events_raw.
+const (
+	MaxFunnelSteps      = 8
+	MaxFunnelConditions = 4
+	MaxFunnelDays       = 90
+	MaxProgressionSpan  = 200
+)
+
+// FunnelCondition narrows a step to occurrences whose property holds a value, compared as text.
+type FunnelCondition struct {
+	Property string `json:"property"`
+	Value    string `json:"value"`
+}
+
+// FunnelStep is one event a player must do, in order.
+type FunnelStep struct {
+	Event string            `json:"event"`
+	Where []FunnelCondition `json:"where,omitzero"`
+}
+
+// FunnelProgression is one event whose numeric property climbs: a level, a chapter, a rank.
+type FunnelProgression struct {
+	Event    string            `json:"event"`
+	Property string            `json:"property" doc:"An integer property"`
+	From     int64             `json:"from"`
+	To       int64             `json:"to"`
+	Where    []FunnelCondition `json:"where,omitzero"`
+}
+
+// FunnelQueryIn is one funnel question (§31).
+type FunnelQueryIn struct {
+	AnalyticsScope
+
+	Kind   string `json:"kind" doc:"steps or progression"`
+	From   string `json:"from" doc:"YYYY-MM-DD; players entering from this day"`
+	To     string `json:"to" doc:"YYYY-MM-DD; players entering up to this day"`
+	Window string `json:"window,omitzero" doc:"session, 1h, 1d (default), 7d or 30d"`
+
+	Steps       []FunnelStep       `json:"steps,omitzero" doc:"For kind=steps: two to eight steps, in order"`
+	Progression *FunnelProgression `json:"progression,omitzero" doc:"For kind=progression"`
+
+	// Breakdown splits a steps funnel by one arrival dimension.
+	Breakdown string `json:"breakdown,omitzero" doc:"install_platform, install_country or first_app_version"`
+}
+
+func (in *FunnelQueryIn) Validate(v *muzak.Validation) {
+	in.validateScope(v)
+	v.String(&in.Kind).Trim().Lower().Required().OneOf("steps", "progression")
+	v.String(&in.From).Trim().Required().MaxLen(10)
+	v.String(&in.To).Trim().Required().MaxLen(10)
+	v.String(&in.Window).Trim().Lower().OneOf("session", "1h", "1d", "7d", "30d")
+	v.String(&in.Breakdown).Trim().Lower().OneOf(CohortDimensions...)
+
+	conditions := func(where *[]FunnelCondition, at string) {
+		v.Slice(where).As(at).MaxItems(MaxFunnelConditions)
+		for i := range *where {
+			v.String(&(*where)[i].Property).As(at + ".property").Trim().Required().MaxLen(64)
+			v.String(&(*where)[i].Value).As(at + ".value").MaxLen(256)
+		}
+	}
+	switch in.Kind {
+	case "steps":
+		v.Slice(&in.Steps).MinItems(2).MaxItems(MaxFunnelSteps)
+		for i := range in.Steps {
+			v.String(&in.Steps[i].Event).As("steps.event").Trim().Required().MaxLen(96)
+			conditions(&in.Steps[i].Where, "steps.where")
+		}
+	case "progression":
+		if in.Progression == nil {
+			v.Reject(&in.Progression, "a progression funnel needs its event, property and range")
+			return
+		}
+		p := in.Progression
+		v.String(&p.Event).As("progression.event").Trim().Required().MaxLen(96)
+		v.String(&p.Property).As("progression.property").Trim().Required().MaxLen(64)
+		if p.To <= p.From || p.To-p.From > MaxProgressionSpan {
+			v.Reject(&p.To, "to must be above from, by at most 200")
+		}
+		conditions(&p.Where, "progression.where")
+		if in.Breakdown != "" {
+			v.Reject(&in.Breakdown, "a progression funnel is not split")
+		}
+	}
+}
+
+// FunnelOut answers a steps funnel.
+type FunnelOut struct {
+	From   time.Time `json:"from"`
+	To     time.Time `json:"to"`
+	Window string    `json:"window"`
+
+	Total FunnelSeriesOut `json:"total"`
+
+	// Breakdown is the same funnel for each value of the dimension asked for, the values with
+	// too few entrants to disclose left out.
+	Breakdown []FunnelSeriesOut `json:"breakdown,omitzero"`
+
+	// Trend is entrants and converters by the day they entered.
+	Trend []FunnelDayOut `json:"trend"`
+
+	// TimeToConvert is converters by how long they took, on a fixed ladder of seconds.
+	TimeToConvert   []FunnelBucketOut `json:"time_to_convert"`
+	MedianToConvert *float64          `json:"median_to_convert_seconds,omitzero"`
+
+	SuppressedCells      int `json:"suppressed_cells"`
+	SuppressionThreshold int `json:"suppression_threshold"`
+}
+
+// FunnelSeriesOut is one funnel: how many reached each step, and the median wait for each.
+type FunnelSeriesOut struct {
+	Value   string     `json:"value,omitzero"`
+	Players []*uint64  `json:"players" doc:"Reached each step; absent where too few to disclose"`
+	Medians []*float64 `json:"median_wait_seconds" doc:"From the step before, for each step after the first"`
+}
+
+// FunnelDayOut is one entry day.
+type FunnelDayOut struct {
+	Day       time.Time `json:"day"`
+	Entered   *uint64   `json:"entered,omitzero"`
+	Converted *uint64   `json:"converted,omitzero"`
+}
+
+// FunnelBucketOut is one rung of the time-to-convert ladder.
+type FunnelBucketOut struct {
+	FromSeconds int64   `json:"from_seconds"`
+	ToSeconds   int64   `json:"to_seconds,omitzero" doc:"Absent on the last rung"`
+	Players     *uint64 `json:"players,omitzero"`
+}
+
+// ProgressionOut answers a progression funnel: how far players got up the ladder.
+type ProgressionOut struct {
+	From time.Time           `json:"from"`
+	To   time.Time           `json:"to"`
+	Rows []ProgressionRowOut `json:"rows"`
+
+	MedianToLast *float64 `json:"median_to_last_seconds,omitzero" doc:"From reaching the first value to reaching the last, for those who did"`
+
+	SuppressedCells      int `json:"suppressed_cells"`
+	SuppressionThreshold int `json:"suppression_threshold"`
+}
+
+// ProgressionRowOut is one value of the ladder.
+type ProgressionRowOut struct {
+	Value int64 `json:"value"`
+
+	// Reached is how many got at least this far; Tries how many occurrences at this value per
+	// player who had one, which is how hard a level is.
+	Reached *uint64  `json:"reached,omitzero"`
+	Tries   *float64 `json:"tries,omitzero"`
+}
+
+// FunnelAnswerOut is a funnel's answer, whichever kind was asked.
+type FunnelAnswerOut struct {
+	Kind        string          `json:"kind"`
+	Steps       *FunnelOut      `json:"steps,omitzero"`
+	Progression *ProgressionOut `json:"progression,omitzero"`
+}

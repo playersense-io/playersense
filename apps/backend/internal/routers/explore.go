@@ -125,4 +125,16 @@ func explorer(r *muzak.Router, base string) {
 			"each project you may read analytics for, over the range and the range before, from the "+
 			"exact daily metrics."),
 		unreadable)
+
+	r.Post(base+"/funnels/query", handlers.QueryFunnel,
+		muzak.Summary("Answer a funnel"),
+		muzak.Description("A steps funnel (two to eight events in order, within a window or one "+
+			"session, optionally split by an arrival dimension) or a progression funnel (how far up "+
+			"an integer property players climbed). Read from the step events alone, each player "+
+			"decided in one pass over at most a thousand of their events, over at most ninety days "+
+			"of entries, and cached. A funnel that would read more than one question may is refused "+
+			"with what to narrow."),
+		core.Require(authz.AnalyticsRead),
+		muzak.MaxBodySize(64<<10),
+		refused, unreadable)
 }

@@ -5601,6 +5601,195 @@
         }
       }
     },
+    "/v1/organizations/{org}/projects/{project}/analytics/{environment}/funnels/query": {
+      "post": {
+        "tags": [
+          "reporting"
+        ],
+        "summary": "Answer a funnel",
+        "description": "A steps funnel (two to eight events in order, within a window or one session, optionally split by an arrival dimension) or a progression funnel (how far up an integer property players climbed). Read from the step events alone, each player decided in one pass over at most a thousand of their events, over at most ninety days of entries, and cached. A funnel that would read more than one question may is refused with what to narrow.",
+        "operationId": "post_v1_organizations_by_org_projects_by_project_analytics_by_environment_funnels_query",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "project",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "environment",
+            "in": "path",
+            "description": "development, staging or production",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "development",
+                "staging",
+                "production"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "breakdown": {
+                    "type": "string",
+                    "description": "install_platform, install_country or first_app_version",
+                    "enum": [
+                      "install_platform",
+                      "install_country",
+                      "first_app_version"
+                    ]
+                  },
+                  "from": {
+                    "type": "string",
+                    "description": "YYYY-MM-DD; players entering from this day",
+                    "maxLength": 10
+                  },
+                  "kind": {
+                    "type": "string",
+                    "description": "steps or progression",
+                    "enum": [
+                      "steps",
+                      "progression"
+                    ]
+                  },
+                  "progression": {
+                    "description": "For kind=progression",
+                    "anyOf": [
+                      {
+                        "$ref": "#/components/schemas/FunnelProgression"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "steps": {
+                    "type": "array",
+                    "description": "For kind=steps: two to eight steps, in order",
+                    "items": {
+                      "$ref": "#/components/schemas/FunnelStep"
+                    }
+                  },
+                  "to": {
+                    "type": "string",
+                    "description": "YYYY-MM-DD; players entering up to this day",
+                    "maxLength": 10
+                  },
+                  "window": {
+                    "type": "string",
+                    "description": "session, 1h, 1d (default), 7d or 30d",
+                    "enum": [
+                      "session",
+                      "1h",
+                      "1d",
+                      "7d",
+                      "30d"
+                    ]
+                  }
+                },
+                "required": [
+                  "from",
+                  "kind",
+                  "to"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FunnelAnswerOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not read this project's analytics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The organization, project or environment does not exist, or you cannot see it",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The facts cannot answer this question, and the body explains why",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The facts could not be read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/organizations/{org}/projects/{project}/analytics/{environment}/metrics/query": {
       "post": {
         "tags": [
@@ -12322,6 +12511,241 @@
           "exposures"
         ]
       },
+      "FunnelAnswerOut": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "progression": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProgressionOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "steps": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FunnelOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "FunnelBucketOut": {
+        "type": "object",
+        "properties": {
+          "from_seconds": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "players": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "to_seconds": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Absent on the last rung"
+          }
+        },
+        "required": [
+          "from_seconds"
+        ]
+      },
+      "FunnelCondition": {
+        "type": "object",
+        "properties": {
+          "property": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "property",
+          "value"
+        ]
+      },
+      "FunnelDayOut": {
+        "type": "object",
+        "properties": {
+          "converted": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "day": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "entered": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          }
+        },
+        "required": [
+          "day"
+        ]
+      },
+      "FunnelOut": {
+        "type": "object",
+        "properties": {
+          "breakdown": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FunnelSeriesOut"
+            }
+          },
+          "from": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "median_to_convert_seconds": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "suppressed_cells": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "suppression_threshold": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "time_to_convert": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FunnelBucketOut"
+            }
+          },
+          "to": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "total": {
+            "$ref": "#/components/schemas/FunnelSeriesOut"
+          },
+          "trend": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FunnelDayOut"
+            }
+          },
+          "window": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "from",
+          "suppressed_cells",
+          "suppression_threshold",
+          "time_to_convert",
+          "to",
+          "total",
+          "trend",
+          "window"
+        ]
+      },
+      "FunnelProgression": {
+        "type": "object",
+        "properties": {
+          "event": {
+            "type": "string"
+          },
+          "from": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "property": {
+            "type": "string",
+            "description": "An integer property"
+          },
+          "to": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "where": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FunnelCondition"
+            }
+          }
+        },
+        "required": [
+          "event",
+          "from",
+          "property",
+          "to"
+        ]
+      },
+      "FunnelSeriesOut": {
+        "type": "object",
+        "properties": {
+          "median_wait_seconds": {
+            "type": "array",
+            "description": "From the step before, for each step after the first",
+            "items": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "players": {
+            "type": "array",
+            "description": "Reached each step; absent where too few to disclose",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          "value": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "median_wait_seconds",
+          "players"
+        ]
+      },
+      "FunnelStep": {
+        "type": "object",
+        "properties": {
+          "event": {
+            "type": "string"
+          },
+          "where": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FunnelCondition"
+            }
+          }
+        },
+        "required": [
+          "event"
+        ]
+      },
       "IngestBatchIn": {
         "type": "object",
         "properties": {
@@ -13849,6 +14273,74 @@
           "price_micros",
           "purchases",
           "revenue_micros"
+        ]
+      },
+      "ProgressionOut": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "median_to_last_seconds": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "From reaching the first value to reaching the last, for those who did"
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProgressionRowOut"
+            }
+          },
+          "suppressed_cells": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "suppression_threshold": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "to": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "from",
+          "rows",
+          "suppressed_cells",
+          "suppression_threshold",
+          "to"
+        ]
+      },
+      "ProgressionRowOut": {
+        "type": "object",
+        "properties": {
+          "reached": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "tries": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "value": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "value"
         ]
       },
       "ProjectListOut": {

@@ -200,3 +200,51 @@ func (c *Cache) SeriesTTL(q protocol.MetricQuery, interval string, now time.Time
 	}
 	return c.Settled
 }
+
+// ---- the explorer's pages ----------------------------------------------------
+
+// pageKey is a cache key for an explorer answer: the kind, the tenant, the schema version and
+// the question's canonical parts, hashed for the same reasons Key hashes.
+func (c *Cache) pageKey(kind string, scope Scope, parts ...string) string {
+	sb := fmt.Sprintf("v%d|p=%d|e=%d|%s", protocol.QuerySchemaVersion, scope.ProjectSeq,
+		scope.EnvironmentSeq, strings.Join(parts, "|"))
+	sum := sha256.Sum256([]byte(sb))
+	return c.client.Key(kind, hex.EncodeToString(sum[:16]))
+}
+
+// cached reads an explorer answer, or reports a miss.
+func cached[T any](ctx context.Context, c *Cache, key string) (*T, bool) {
+	if c == nil || c.client == nil {
+		return nil, false
+	}
+	raw, err := c.client.Get(ctx, key)
+	if err != nil || len(raw) == 0 {
+		return nil, false
+	}
+	var out T
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return nil, false
+	}
+	return &out, true
+}
+
+// keep stores an explorer answer.
+func keep[T any](ctx context.Context, c *Cache, key string, v *T, ttl time.Duration) {
+	if c == nil || c.client == nil {
+		return
+	}
+	raw, err := json.Marshal(v)
+	if err != nil {
+		return
+	}
+	_ = c.client.Set(ctx, key, raw, ttl)
+}
+
+// rawTTL is how long an answer read from events_raw may be reused: briefly while its window
+// reaches the last two days, where events are still arriving, and for the settled lifetime after.
+func (c *Cache) rawTTL(to, now time.Time) time.Duration {
+	if !to.Before(now.UTC().Truncate(24*time.Hour).AddDate(0, 0, -2)) {
+		return c.Fresh
+	}
+	return c.Settled
+}

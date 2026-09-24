@@ -281,3 +281,29 @@ func ProjectsOverview(ctx *muzak.Context, in schemas.ProjectsOverviewParams) (sc
 	}
 	return *out, nil
 }
+
+// QueryFunnel answers one funnel, from events_raw under the raw limits (§31).
+func QueryFunnel(ctx *muzak.Context, in schemas.FunnelQueryIn) (schemas.FunnelAnswerOut, error) {
+	engine := muzak.From[*query.Engine](ctx)
+	scope, err := scopeForMember(ctx, in.Environment)
+	if err != nil {
+		return schemas.FunnelAnswerOut{}, err
+	}
+	from, to, err := schemas.AnalyticsRange{From: in.From, To: in.To}.Resolve(time.Now())
+	if err != nil {
+		return schemas.FunnelAnswerOut{}, err
+	}
+
+	out := schemas.FunnelAnswerOut{Kind: in.Kind}
+	if in.Kind == "progression" {
+		out.Progression, err = engine.Progression(ctx.Context(), scope, from, to, *in.Progression, time.Now())
+	} else {
+		out.Steps, err = engine.Funnel(ctx.Context(), scope, query.FunnelQuery{
+			From: from, To: to, Window: in.Window, Steps: in.Steps, Breakdown: in.Breakdown,
+		}, time.Now())
+	}
+	if err != nil {
+		return schemas.FunnelAnswerOut{}, exploreFailed(err, "funnel")
+	}
+	return out, nil
+}

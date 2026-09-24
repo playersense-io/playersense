@@ -895,6 +895,26 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/v1/organizations/{org}/projects/{project}/analytics/{environment}/funnels/query": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Answer a funnel
+         * @description A steps funnel (two to eight events in order, within a window or one session, optionally split by an arrival dimension) or a progression funnel (how far up an integer property players climbed). Read from the step events alone, each player decided in one pass over at most a thousand of their events, over at most ninety days of entries, and cached. A funnel that would read more than one question may is refused with what to narrow.
+         */
+        readonly post: operations["post_v1_organizations_by_org_projects_by_project_analytics_by_environment_funnels_query"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/v1/organizations/{org}/projects/{project}/analytics/{environment}/metrics/query": {
         readonly parameters: {
             readonly query?: never;
@@ -2289,6 +2309,72 @@ export interface components {
             /** Format: int64 */
             readonly players?: number | null;
         };
+        readonly FunnelAnswerOut: {
+            readonly kind: string;
+            readonly progression?: components["schemas"]["ProgressionOut"] | null;
+            readonly steps?: components["schemas"]["FunnelOut"] | null;
+        };
+        readonly FunnelBucketOut: {
+            /** Format: int64 */
+            readonly from_seconds: number;
+            /** Format: int64 */
+            readonly players?: number | null;
+            /**
+             * Format: int64
+             * @description Absent on the last rung
+             */
+            readonly to_seconds?: number;
+        };
+        readonly FunnelCondition: {
+            readonly property: string;
+            readonly value: string;
+        };
+        readonly FunnelDayOut: {
+            /** Format: int64 */
+            readonly converted?: number | null;
+            /** Format: date-time */
+            readonly day: string;
+            /** Format: int64 */
+            readonly entered?: number | null;
+        };
+        readonly FunnelOut: {
+            readonly breakdown?: readonly components["schemas"]["FunnelSeriesOut"][];
+            /** Format: date-time */
+            readonly from: string;
+            /** Format: double */
+            readonly median_to_convert_seconds?: number | null;
+            /** Format: int64 */
+            readonly suppressed_cells: number;
+            /** Format: int64 */
+            readonly suppression_threshold: number;
+            readonly time_to_convert: readonly components["schemas"]["FunnelBucketOut"][];
+            /** Format: date-time */
+            readonly to: string;
+            readonly total: components["schemas"]["FunnelSeriesOut"];
+            readonly trend: readonly components["schemas"]["FunnelDayOut"][];
+            readonly window: string;
+        };
+        readonly FunnelProgression: {
+            readonly event: string;
+            /** Format: int64 */
+            readonly from: number;
+            /** @description An integer property */
+            readonly property: string;
+            /** Format: int64 */
+            readonly to: number;
+            readonly where?: readonly components["schemas"]["FunnelCondition"][];
+        };
+        readonly FunnelSeriesOut: {
+            /** @description From the step before, for each step after the first */
+            readonly median_wait_seconds: readonly number[];
+            /** @description Reached each step; absent where too few to disclose */
+            readonly players: readonly number[];
+            readonly value?: string;
+        };
+        readonly FunnelStep: {
+            readonly event: string;
+            readonly where?: readonly components["schemas"]["FunnelCondition"][];
+        };
         readonly IngestBatchIn: {
             readonly app: components["schemas"]["App"];
             /**
@@ -2834,6 +2920,30 @@ export interface components {
             readonly purchases: number;
             /** Format: int64 */
             readonly revenue_micros: number;
+        };
+        readonly ProgressionOut: {
+            /** Format: date-time */
+            readonly from: string;
+            /**
+             * Format: double
+             * @description From reaching the first value to reaching the last, for those who did
+             */
+            readonly median_to_last_seconds?: number | null;
+            readonly rows: readonly components["schemas"]["ProgressionRowOut"][];
+            /** Format: int64 */
+            readonly suppressed_cells: number;
+            /** Format: int64 */
+            readonly suppression_threshold: number;
+            /** Format: date-time */
+            readonly to: string;
+        };
+        readonly ProgressionRowOut: {
+            /** Format: int64 */
+            readonly reached?: number | null;
+            /** Format: double */
+            readonly tries?: number | null;
+            /** Format: int64 */
+            readonly value: number;
         };
         readonly ProjectListOut: {
             readonly projects: readonly components["schemas"]["ProjectOut"][];
@@ -7401,6 +7511,113 @@ export interface operations {
                 };
             };
             /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The facts could not be read */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly post_v1_organizations_by_org_projects_by_project_analytics_by_environment_funnels_query: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly org: string;
+                readonly project: string;
+                /** @description development, staging or production */
+                readonly environment: "development" | "staging" | "production";
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": {
+                    /**
+                     * @description install_platform, install_country or first_app_version
+                     * @enum {string}
+                     */
+                    readonly breakdown?: "install_platform" | "install_country" | "first_app_version";
+                    /** @description YYYY-MM-DD; players entering from this day */
+                    readonly from: string;
+                    /**
+                     * @description steps or progression
+                     * @enum {string}
+                     */
+                    readonly kind: "steps" | "progression";
+                    /** @description For kind=progression */
+                    readonly progression?: components["schemas"]["FunnelProgression"] | null;
+                    /** @description For kind=steps: two to eight steps, in order */
+                    readonly steps?: readonly components["schemas"]["FunnelStep"][];
+                    /** @description YYYY-MM-DD; players entering up to this day */
+                    readonly to: string;
+                    /**
+                     * @description session, 1h, 1d (default), 7d or 30d
+                     * @enum {string}
+                     */
+                    readonly window?: "session" | "1h" | "1d" | "7d" | "30d";
+                };
+            };
+        };
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["FunnelAnswerOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not read this project's analytics */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The organization, project or environment does not exist, or you cannot see it */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The facts cannot answer this question, and the body explains why */
             readonly 422: {
                 headers: {
                     readonly [name: string]: unknown;

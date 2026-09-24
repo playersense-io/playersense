@@ -95,7 +95,7 @@ func (e *Engine) readWith(ctx context.Context, stmt Statement, scan func(driver.
 	}
 	rows, err := conn.Query(ctx, stmt.SQL, stmt.Args...)
 	if err != nil {
-		return err
+		return overLimit(err)
 	}
 	defer rows.Close()
 	for rows.Next() {
@@ -103,7 +103,35 @@ func (e *Engine) readWith(ctx context.Context, stmt Statement, scan func(driver.
 			return err
 		}
 	}
-	return rows.Err()
+	return overLimit(rows.Err())
+}
+
+// The ClickHouse errors that mean a statement reached one of its limits rather than failed.
+const (
+	codeTimeout         = 159
+	codeTooManyRows     = 158
+	codeTooManyBytes    = 307
+	codeTooManyRowsOrBy = 396
+	codeMemoryLimit     = 241
+)
+
+// overLimit turns a statement that reached its limits into a refusal the caller can act on.
+//
+// That is a fact about the question, not an outage: the same request will fail the same way on
+// retry, so answering 503 would invite exactly the retries that make it worse. It is refused with
+// what to change instead, which is §32's intent for every query that could be expensive.
+func overLimit(err error) error {
+	var ex *clickhouse.Exception
+	if !errors.As(err, &ex) {
+		return err
+	}
+	switch ex.Code {
+	case codeTimeout, codeTooManyRows, codeTooManyBytes, codeTooManyRowsOrBy, codeMemoryLimit:
+		return refuse("range",
+			"answering this reads more than one question is allowed to (%s); narrow the range, "+
+				"the events or the filters", ex.Name)
+	}
+	return err
 }
 
 // ErrNotFound is a thing the page names that the project has never sent: an event name, a
