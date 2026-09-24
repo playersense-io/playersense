@@ -40,6 +40,11 @@ func (c *Client) Name() string { return "valkey" }
 
 // Start dials Valkey.
 func (c *Client) Start(ctx context.Context) error {
+	// Once, as pgdb.DB.Start is and for its reason: a second start would replace an open
+	// client without closing it.
+	if c.client != nil {
+		return nil
+	}
 	opt, err := parseDSN(c.dsn)
 	if err != nil {
 		return err

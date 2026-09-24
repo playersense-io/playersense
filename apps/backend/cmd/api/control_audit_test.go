@@ -86,6 +86,7 @@ func TestEveryMutatingRouteDecidesAboutAudit(t *testing.T) {
 		"POST /v1/metrics/query": "a read; POST only because the query is a document",
 		"POST /v1/organizations/{org}/projects/{project}/analytics/{environment}/cohorts/query": "a read",
 		"POST /v1/organizations/{org}/projects/{project}/analytics/{environment}/metrics/query": "a read",
+		"POST /v1/organizations/{org}/projects/{project}/analytics/{environment}/funnels/query": "a read",
 		"POST /v1/config": "a read; POST only because the player's context is a document",
 
 		// The SDK path. A batch is player data arriving, not a decision somebody made about

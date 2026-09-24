@@ -64,8 +64,16 @@ func New(dsn string) *DB { return &DB{dsn: dsn} }
 // Name identifies the component in start-up and shutdown logs.
 func (d *DB) Name() string { return "postgres" }
 
-// Start dials the database.
+// Start dials the database, once.
+//
+// A second Start while the pool is open is a no-op. One *DB is often a singleton of more than one
+// application in a process (the tests build two over one database), and each application starts
+// its lifecycle components; opening a fresh pool each time replaced the open one without closing
+// it, and every test that did so left its connections behind until the server refused new ones.
 func (d *DB) Start(ctx context.Context) error {
+	if d.db != nil {
+		return nil
+	}
 	db, err := open(ctx, d.dsn, "database")
 	if err != nil {
 		return err

@@ -35,6 +35,11 @@ func (c *Conn) Name() string { return "clickhouse" }
 
 // Start dials ClickHouse.
 func (c *Conn) Start(ctx context.Context) error {
+	// Once, as pgdb.DB.Start is and for its reason: a second start would replace an open
+	// connection without closing it.
+	if c.conn != nil {
+		return nil
+	}
 	opts, err := clickhouse.ParseDSN(c.dsn)
 	if err != nil {
 		return fmt.Errorf("parse CLICKHOUSE_DSN: %w", err)
@@ -95,6 +100,10 @@ func (s *SQL) Name() string { return "clickhouse-sql" }
 
 // Start opens the pool and verifies it answers.
 func (s *SQL) Start(ctx context.Context) error {
+	// Once, as Conn.Start is.
+	if s.db != nil {
+		return nil
+	}
 	opts, err := clickhouse.ParseDSN(s.dsn)
 	if err != nil {
 		return fmt.Errorf("parse CLICKHOUSE_DSN: %w", err)
