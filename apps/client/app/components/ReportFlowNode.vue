@@ -5,6 +5,8 @@
 //
 // Inputs are on the left and the output on the right. A join takes two inputs, labelled,
 // since which side is which decides the rows it keeps; an output has nothing after it.
+// Time runs down the page where rows run across: a Schedule's line leaves its bottom edge
+// and enters the top of the Notify and Export steps it runs, which say when that is.
 import { Handle, Position } from '@vue-flow/core'
 
 const props = defineProps<{
@@ -12,6 +14,8 @@ const props = defineProps<{
   data: ReportNodeData
   selected?: boolean
   result?: NodeResult
+  /** For a Schedule, its next run; for a delivery, the schedule that runs it, in words. */
+  timing?: string | null
 }>()
 
 const kind = computed(() => KINDS[props.data.kind])
@@ -54,11 +58,27 @@ const rows = computed(() => props.result?.rows.length ?? 0)
         <Icon aria-hidden="true" class="flex-none text-xs text-warning" name="material-symbols:error-outline" />
         <span class="truncate text-warning">{{ result.error }}</span>
       </template>
+      <template v-else-if="data.kind === 'schedule'">
+        <Icon aria-hidden="true" class="flex-none text-xs text-ink/45" name="material-symbols:event-upcoming-outline" />
+        <span class="truncate text-ink/55">{{ timing ?? 'Not running' }}</span>
+      </template>
       <template v-else-if="result">
         <span class="font-mono text-ink/70">{{ rows.toLocaleString('en') }}</span>
         <span class="text-ink/45">{{ rows === 1 ? 'row' : 'rows' }} · {{ result.columns.length }} columns</span>
       </template>
     </footer>
+
+    <!-- When a delivery runs: its schedule, or by hand. -->
+    <p v-if="kind.scheduled" class="m-0 flex items-center gap-1.5 border-t border-line/70 px-3 py-1.5 text-[10px]">
+      <Icon
+        :class="timing ? '' : 'text-ink/35'"
+        :style="timing ? { color: toneColour(familyTone('trigger')) } : undefined"
+        aria-hidden="true"
+        class="flex-none text-xs"
+        name="material-symbols:schedule-outline"
+      />
+      <span :class="timing ? 'text-ink/65' : 'text-ink/40'" class="truncate">{{ timing ?? 'Runs when you run it: connect a Schedule' }}</span>
+    </p>
 
     <!-- Inputs. -->
     <template v-if="kind.inputs === 2">
@@ -81,5 +101,21 @@ const rows = computed(() => props.result?.rows.length ?? 0)
 
     <!-- The output. -->
     <Handle v-if="kind.output" :position="Position.Right" type="source" />
+
+    <!-- Time: out of a Schedule's bottom, into a delivery's top. -->
+    <Handle
+      v-if="data.kind === 'schedule'"
+      :id="WHEN_HANDLE"
+      :position="Position.Bottom"
+      class="ps-when-handle"
+      type="source"
+    />
+    <Handle
+      v-if="kind.scheduled"
+      :id="WHEN_HANDLE"
+      :position="Position.Top"
+      class="ps-when-handle"
+      type="target"
+    />
   </div>
 </template>

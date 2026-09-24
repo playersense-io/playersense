@@ -52,10 +52,15 @@ function plain<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T
 }
 
+/* A line on the canvas: a Schedule's into a delivery's top edge is drawn as time, dashed. */
+function lineOf(id: string, source: string, target: string, targetHandle: string | null): Edge {
+  return { id, source, target, targetHandle, ...(targetHandle === WHEN_HANDLE ? { class: 'ps-edge-when' } : {}) }
+}
+
 function load(id: string) {
   const entry = reportById(id)
   nodes.value = (entry?.nodes ?? []).map(node => ({ id: node.id, type: 'report', position: { ...node.position }, data: plain(node.data) }))
-  edges.value = (entry?.edges ?? []).map(edge => ({ id: edge.id, source: edge.source, target: edge.target, targetHandle: edge.targetHandle ?? null }))
+  edges.value = (entry?.edges ?? []).map(edge => lineOf(edge.id, edge.source, edge.target, edge.targetHandle ?? null))
   selectedId.value = null
   savedShape = snapshot()
   fitPending = true
@@ -162,6 +167,13 @@ function addNode(kind: NodeKind, seed: NodeConfig, position: { x: number, y: num
 /* A click in the palette: after the selected node when it can take one, else in the middle. */
 function addFromPalette(kind: NodeKind, seed: NodeConfig) {
   const from = selected.value
+  /* A Schedule clicked while a delivery is selected goes above it and runs it. */
+  if (kind === 'schedule' && from && KINDS[from.data.kind].scheduled) {
+    addNode(kind, seed, { x: from.position.x, y: from.position.y - 200 })
+    const schedule = selectedId.value!
+    edges.value = [...edges.value.filter(edge => !(edge.target === from.id && edge.targetHandle === WHEN_HANDLE)), lineOf(`e-${schedule}-${from.id}-when`, schedule, from.id, WHEN_HANDLE)]
+    return
+  }
   if (from && KINDS[from.data.kind].output && KINDS[kind].inputs > 0) {
     const taken = (y: number) => nodes.value.some(node => Math.abs(node.position.x - (from.position.x + 300)) < 120 && Math.abs(node.position.y - y) < 100)
     let y = from.position.y
@@ -209,18 +221,53 @@ function reaches(from: string, to: string): boolean {
   return walk(from)
 }
 
+/* Rows go into rows, and time into time: a Schedule only into a delivery's top edge. */
 function isValidConnection(connection: Connection) {
-  return connection.source !== connection.target && !reaches(connection.target, connection.source)
+  if (connection.source === connection.target || reaches(connection.target, connection.source)) return false
+  const fromSchedule = nodes.value.find(node => node.id === connection.source)?.data.kind === 'schedule'
+  return fromSchedule === (connection.targetHandle === WHEN_HANDLE)
 }
 
-/* An input takes one line: a new one replaces what was there. */
+/* An input takes one line: a new one replaces what was there. A delivery has one schedule. */
 function onConnect(connection: Connection) {
   const handle = connection.targetHandle ?? null
   edges.value = [
     ...edges.value.filter(edge => !(edge.target === connection.target && (edge.targetHandle ?? null) === handle)),
-    { id: `e-${connection.source}-${connection.target}${handle ? `-${handle}` : ''}`, source: connection.source, target: connection.target, targetHandle: handle }
+    lineOf(`e-${connection.source}-${connection.target}${handle ? `-${handle}` : ''}`, connection.source, connection.target, handle)
   ]
 }
+
+// --- Time ---------------------------------------------------------------------------------
+
+const clock = useNow({ interval: 60_000 })
+
+/* The schedule that runs a delivery, by its line into the delivery's top edge. */
+function scheduleOf(id: string): FlowNode | null {
+  const edge = edges.value.find(entry => entry.target === id && entry.targetHandle === WHEN_HANDLE)
+  return edge ? nodes.value.find(node => node.id === edge.source) ?? null : null
+}
+
+/* What each card says about time: a Schedule its next run, a delivery the schedule running it. */
+const timings = computed(() => {
+  const out = new Map<string, string | null>()
+  for (const node of nodes.value) {
+    if (node.data.kind === 'schedule') {
+      const config = node.data.config
+      const next = config.paused ? null : nextRuns(config.cron ?? '', config.timezone ?? 'UTC', clock.value.getTime(), 1)[0]
+      out.set(node.id, config.paused ? 'Paused' : next ? `Next ${writeRun(next, config.timezone ?? 'UTC')}` : null)
+    } else if (KINDS[node.data.kind].scheduled) {
+      const schedule = scheduleOf(node.id)
+      out.set(node.id, schedule ? `${describeCron(schedule.data.config.cron ?? '')}${schedule.data.config.paused ? ', paused' : ''}` : null)
+    }
+  }
+  return out
+})
+
+/* The deliveries each Schedule runs, by name. */
+const drives = (id: string) => edges.value
+  .filter(edge => edge.source === id && edge.targetHandle === WHEN_HANDLE)
+  .map(edge => nodes.value.find(node => node.id === edge.target)?.data.title ?? '')
+  .filter(Boolean)
 
 // --- Tidying ------------------------------------------------------------------------------
 
@@ -231,13 +278,14 @@ function tidy() {
     if (depth.has(id)) return depth.get(id)!
     if (trail.has(id)) return 0
     trail.add(id)
-    const into = edges.value.filter(edge => edge.target === id)
+    const into = edges.value.filter(edge => edge.target === id && edge.targetHandle !== WHEN_HANDLE)
     const value = into.length ? Math.max(...into.map(edge => depthOf(edge.source, trail))) + 1 : 0
     depth.set(id, value)
     return value
   }
   const columns = new Map<number, FlowNode[]>()
   for (const node of nodes.value) {
+    if (node.data.kind === 'schedule') continue
     const column = depthOf(node.id)
     columns.set(column, [...(columns.get(column) ?? []), node])
   }
@@ -245,6 +293,12 @@ function tidy() {
   for (const [column, members] of columns) {
     members.sort((a, b) => a.position.y - b.position.y)
     members.forEach((node, index) => placed.set(node.id, { x: column * 300, y: (index - (members.length - 1) / 2) * 190 }))
+  }
+  /* A Schedule sits above the highest delivery it runs, in that column. */
+  for (const node of nodes.value.filter(entry => entry.data.kind === 'schedule')) {
+    const runs = edges.value.filter(edge => edge.source === node.id).map(edge => placed.get(edge.target)).filter((at): at is { x: number, y: number } => Boolean(at))
+    const top = runs.sort((a, b) => a.y - b.y)[0]
+    placed.set(node.id, top ? { x: top.x, y: top.y - 210 } : node.position)
   }
   nodes.value = nodes.value.map(node => ({ ...node, position: placed.get(node.id) ?? node.position }))
   nextTick(() => fitView({ padding: 0.25, maxZoom: 1, duration: 300 }))
@@ -279,7 +333,20 @@ function confirmDelete() {
 // --- What it produces ---------------------------------------------------------------------
 
 const outputs = computed(() => nodes.value.filter(node => KINDS[node.data.kind].family === 'output'))
-const scheduled = computed(() => outputs.value.filter(node => node.data.kind === 'export' && node.data.config.schedule && node.data.config.schedule !== 'once'))
+const schedules = computed(() => nodes.value.filter(node => node.data.kind === 'schedule'))
+const runs = computed(() => report.value?.runs ?? [])
+
+// --- Testing ------------------------------------------------------------------------------
+
+const testing = ref(false)
+const testFocus = ref<string | null>(null)
+function openTest(focus: string | null = null) {
+  testFocus.value = focus
+  testing.value = true
+}
+const testGraph = computed(() => JSON.parse(shape.value) as { nodes: GraphNode[], edges: GraphEdge[] })
+
+const runStamp = (at: number) => new Date(at).toLocaleString('en', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })
 const problems = computed(() => nodes.value.filter(node => results.value.get(node.id)?.error))
 
 /* The preview follows the selection; with none, it shows the first output. */
@@ -319,6 +386,17 @@ const ids = { name: useId(), description: useId() }
             <Icon aria-hidden="true" class="text-sm" name="material-symbols:error-outline" />
             {{ problems.length }} to fix
           </span>
+          <v-btn
+            :disabled="!outputs.some(node => node.data.kind === 'notify' || node.data.kind === 'export')"
+            class="text-xs font-medium"
+            color="neutral"
+            prepend-icon="material-symbols:play-arrow-outline"
+            size="small"
+            variant="outlined"
+            @click="openTest()"
+          >
+            Test run
+          </v-btn>
           <v-btn
             class="text-xs"
             color="neutral"
@@ -418,6 +496,7 @@ const ids = { name: useId(), description: useId() }
               :data="nodeProps.data"
               :result="results.get(nodeProps.id)"
               :selected="nodeProps.selected"
+              :timing="timings.get(nodeProps.id) ?? null"
             />
           </template>
         </VueFlow>
@@ -490,7 +569,10 @@ const ids = { name: useId(), description: useId() }
         :input="selectedInput"
         :node="selectedGraph"
         :result="results.get(selectedGraph.id) ?? null"
+        :drives="drives(selectedGraph.id)"
+        :timing="timings.get(selectedGraph.id) ?? null"
         @remove="removeSelected"
+        @test="openTest(selectedGraph.id)"
         @update="updateNode(selectedGraph.id, $event)"
       />
 
@@ -553,9 +635,53 @@ const ids = { name: useId(), description: useId() }
               <Icon aria-hidden="true" class="text-base text-ink/45" name="material-symbols:bar-chart" />
               Nothing yet. End the report with a chart, a table or an export.
             </p>
-            <p v-if="scheduled.length" class="m-0 flex items-start gap-2 rounded-(--ps-radius-small) bg-primary/6 px-3 py-2.5 text-xs leading-5 text-ink/75">
-              <Icon aria-hidden="true" class="mt-0.5 flex-none text-base text-primary" name="material-symbols:schedule-outline" />
-              <span>{{ scheduled.length === 1 ? 'One export runs' : `${scheduled.length} exports run` }} on a schedule: {{ scheduled.map(node => `${node.data.title}, ${SCHEDULES[node.data.config.schedule ?? 'once'].replace(/^./, first => first.toLowerCase())}`).join('; ') }}.</span>
+          </div>
+
+          <!-- When it runs. -->
+          <div class="flex flex-col gap-2 border-t border-line pt-4">
+            <p class="m-0 text-[11px] font-semibold tracking-wide text-ink/45 uppercase">
+              Schedule
+            </p>
+            <ul v-if="schedules.length" class="m-0 flex list-none flex-col gap-1.5 p-0">
+              <li v-for="node in schedules" :key="node.id">
+                <button class="flex w-full cursor-pointer items-start gap-2.5 rounded-(--ps-radius) border border-line px-2.5 py-2 text-left transition-colors duration-150 hover:bg-ink/3" type="button" @click="selectedId = node.id">
+                  <Icon
+                    :style="{ color: toneColour(familyTone('trigger')) }"
+                    aria-hidden="true"
+                    class="mt-0.5 flex-none text-base"
+                    name="material-symbols:schedule-outline"
+                  />
+                  <span class="flex min-w-0 flex-col">
+                    <span class="truncate text-xs text-ink">{{ describeCron(node.data.config.cron ?? '') }}</span>
+                    <span class="truncate text-[11px] text-ink/50">{{ timings.get(node.id) ?? 'Not set' }} · runs {{ drives(node.id).length || 'nothing' }}{{ drives(node.id).length ? (drives(node.id).length === 1 ? ' step' : ' steps') : '' }}</span>
+                  </span>
+                </button>
+              </li>
+            </ul>
+            <p v-else class="m-0 flex items-start gap-2 rounded-(--ps-radius-small) bg-ink/4 px-3 py-2.5 text-xs leading-5 text-ink/70">
+              <Icon aria-hidden="true" class="mt-0.5 flex-none text-base text-ink/45" name="material-symbols:schedule-outline" />
+              Runs only when you run it. Add a Schedule from the parts and connect it to a Notify or an Export to send it on its own.
+            </p>
+          </div>
+
+          <!-- What it has done. -->
+          <div class="flex flex-col gap-2 border-t border-line pt-4">
+            <p class="flex items-center justify-between gap-2 text-[11px] font-semibold tracking-wide text-ink/45 uppercase">
+              <span>Runs <span class="font-mono font-normal">{{ runs.length }}</span></span>
+            </p>
+            <ol v-if="runs.length" class="m-0 flex list-none flex-col p-0">
+              <li v-for="run in runs.slice(0, 8)" :key="run.id" class="flex items-center gap-2 border-t border-line/60 py-2 first:border-t-0">
+                <span class="flex min-w-0 flex-1 flex-col">
+                  <span class="text-xs text-ink">{{ runStamp(run.at) }}</span>
+                  <span class="truncate text-[11px] text-ink/50">
+                    {{ run.trigger === 'test' ? 'Test run' : 'On schedule' }} · {{ run.status === 'quiet' ? 'its rule kept it quiet' : `${run.deliveries.filter(entry => !entry.quiet && entry.ok).length} of ${run.deliveries.filter(entry => !entry.quiet).length} sent` }}{{ run.deliveries.some(entry => !entry.ok) ? ` · ${run.deliveries.find(entry => !entry.ok)!.detail}` : '' }}
+                  </span>
+                </span>
+                <StatusBadge :label="RUN_STATUS[run.status].label" :tone="RUN_STATUS[run.status].tone" />
+              </li>
+            </ol>
+            <p v-else class="m-0 text-xs text-ink/55">
+              No runs yet. Test run sends it once now; a Schedule sends it from then on.
             </p>
           </div>
 
@@ -575,11 +701,21 @@ const ids = { name: useId(), description: useId() }
 
           <div class="mt-auto flex flex-col gap-1 border-t border-line pt-4 text-[11px] leading-4 text-ink/50">
             <span><kbd class="rounded border border-line px-1 font-mono text-[10px]">Backspace</kbd> deletes what is selected.</span>
-            <span>Drag from a node's right edge to another's left edge to connect them.</span>
+            <span>Drag from a node's right edge to another's left edge to connect them, and from a Schedule's bottom edge to a delivery's top.</span>
           </div>
         </div>
       </div>
     </aside>
+
+    <ReportTestRun
+      v-if="testing && report"
+      v-model="testing"
+      :edges="testGraph.edges"
+      :focus="testFocus"
+      :nodes="testGraph.nodes"
+      :report="{ id: report.id, name: report.name }"
+      :results="results"
+    />
 
     <ConfirmDialog
       v-if="deleting && report"

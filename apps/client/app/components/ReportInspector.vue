@@ -10,11 +10,17 @@ const props = defineProps<{
   /** What flows in: the columns and rows of the node before it. Empty for a source. */
   input: NodeResult | null
   result: NodeResult | null
+  /** For a delivery, the schedule that runs it, in words; for a Schedule, nothing. */
+  timing?: string | null
+  /** For a Schedule, the deliveries it runs, by name. */
+  drives?: readonly string[]
 }>()
 
 const emit = defineEmits<{
   update: [patch: Partial<ReportNodeData>]
   remove: []
+  /** Preview a Notify's message and send it as a test. */
+  test: []
 }>()
 
 const data = computed(() => props.node.data)
@@ -176,12 +182,11 @@ const CHART_OPTIONS: SegmentedOption[] = [
   { value: 'area', label: 'Area' }
 ]
 const FILE_OPTIONS: SegmentedOption[] = [
+  { value: 'json', label: 'JSON' },
   { value: 'csv', label: 'CSV' },
-  { value: 'parquet', label: 'Parquet' },
-  { value: 'json', label: 'JSON' }
+  { value: 'parquet', label: 'Parquet' }
 ]
 const DESTINATION_OPTIONS = computed<ChoiceOption[]>(() => (Object.entries(DESTINATIONS) as [keyof typeof DESTINATIONS, typeof DESTINATIONS[keyof typeof DESTINATIONS]][]).map(([value, info]) => ({ value, label: info.label, note: info.note })))
-const SCHEDULE_ITEMS = (Object.entries(SCHEDULES) as [string, string][]).map(([value, title]) => ({ value, title }))
 
 const limitText = computed({
   get: () => (config.value.limit ? String(config.value.limit) : ''),
@@ -193,18 +198,91 @@ const limitText = computed({
 
 const figures = computed(() => config.value.y ?? [])
 
-/* The result as a file, now: what a download destination does. */
+/*
+ * The result as a file, now: what a download destination does. JSON is an array of rows keyed
+ * by column, CSV the rows under a header; Parquet is columnar and binary, written by the
+ * server, so it is only offered once reports run there.
+ */
 const downloaded = ref(false)
+const file = computed(() => config.value.file ?? 'json')
 function downloadNow() {
   const result = props.result
-  if (!result || result.error) return
-  const header = result.columns.map(column => column.key)
-  const rows = result.rows.map(row => result.columns.map(column => row[column.key] ?? null))
-  downloadCsv(fileSlug(data.value.title || 'report'), [header, ...rows])
+  if (!result || result.error || file.value === 'parquet') return
+  const slug = fileSlug(data.value.title || 'report')
+  if (file.value === 'csv') {
+    const header = result.columns.map(column => column.key)
+    downloadCsv(slug, [header, ...result.rows.map(row => result.columns.map(column => row[column.key] ?? null))])
+  } else {
+    const body = JSON.stringify(result.rows.map(row => Object.fromEntries(result.columns.map(column => [column.key, row[column.key] ?? null]))), null, 2)
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(new Blob([body], { type: 'application/json' }))
+    link.download = `${slug}.json`
+    link.click()
+    URL.revokeObjectURL(link.href)
+  }
   downloaded.value = true
 }
 
-const ids = { title: useId(), newColumn: useId(), limit: useId(), target: useId() }
+// --- Schedule -----------------------------------------------------------------------------
+
+const PRESET_ITEMS = [...CRON_PRESETS.map(entry => ({ value: entry.value, title: entry.label })), { value: 'custom', title: 'Custom cron' }]
+const TIMEZONE_ITEMS = CRON_TIMEZONES.map(zone => ({ value: zone.value, title: zone.label }))
+
+/* The cron line as typed, kept apart so a half-typed line is not thrown away. */
+const cronText = ref(config.value.cron ?? '')
+const cronProblem = computed(() => {
+  const parsed = parseCron(cronText.value)
+  return typeof parsed === 'string' ? parsed : null
+})
+const preset = computed(() => (CRON_PRESETS.some(entry => entry.value === cronText.value.trim()) ? cronText.value.trim() : 'custom'))
+
+function setCron(text: string) {
+  cronText.value = text
+  if (typeof parseCron(text) !== 'string') {
+    const renamed = data.value.title === describeCron(config.value.cron ?? '') || data.value.title === KINDS.schedule.label
+    emit('update', { config: { ...config.value, cron: text.trim() }, ...(renamed ? { title: describeCron(text) } : {}) })
+  }
+}
+
+function choosePreset(value: string) {
+  if (value !== 'custom') setCron(value)
+}
+
+const now = useNow({ interval: 60_000 })
+const upcoming = computed(() => (config.value.paused || cronProblem.value ? [] : nextRuns(config.value.cron ?? '', config.value.timezone ?? 'UTC', now.value.getTime(), 5)))
+
+const paused = computed({
+  get: () => Boolean(config.value.paused),
+  set: (value: boolean) => set({ paused: value })
+})
+
+// --- Notify -------------------------------------------------------------------------------
+
+const { channels } = useChannels()
+const chosenChannels = computed(() => config.value.channels ?? [])
+
+function toggleChannel(id: string) {
+  set({ channels: chosenChannels.value.includes(id) ? chosenChannels.value.filter(entry => entry !== id) : [...chosenChannels.value, id] })
+}
+
+const WHEN_OPTIONS = computed<ChoiceOption[]>(() => (Object.keys(NOTIFY_WHEN) as NotifyWhen[]).map(value => ({ value, label: NOTIFY_WHEN[value].label, note: NOTIFY_WHEN[value].note })))
+const INCLUDE_OPTIONS: SegmentedOption[] = (Object.keys(NOTIFY_INCLUDE) as NotifyInclude[]).map(value => ({ value, label: NOTIFY_INCLUDE[value].label }))
+const SEVERITY_OPTIONS: SegmentedOption[] = (Object.keys(SEVERITIES) as Severity[]).map(value => ({ value, label: SEVERITIES[value].label }))
+const THRESHOLD_OPS = [{ value: 'lt', title: 'is under' }, { value: 'gt', title: 'is over' }]
+
+const threshold = computed<NotifyThreshold>(() => config.value.threshold ?? { column: '', op: 'lt', value: '' })
+const pagesSomeone = computed(() => chosenChannels.value.some(id => channels.value.find(channel => channel.id === id)?.type === 'pagerduty'))
+
+/* A variable as it is written in a message. Built, not typed, so no template reads it as its own. */
+const braced = (key: string) => `${'{'.repeat(2)}${key}${'}'.repeat(2)}`
+
+/* A variable clicked is added to the end of the message. */
+function insertVariable(name: string) {
+  const key = name.includes('<column>') ? name.replace('<column>', columns.value.find(column => isNumeric(column.type))?.key ?? 'column') : name
+  set({ body: `${(config.value.body ?? '').trimEnd()} {{${key}}}`.trim() })
+}
+
+const ids = { title: useId(), newColumn: useId(), limit: useId(), target: useId(), cron: useId(), subject: useId(), body: useId() }
 </script>
 
 <template>
@@ -257,8 +335,255 @@ const ids = { title: useId(), newColumn: useId(), limit: useId(), target: useId(
         />
       </div>
 
+      <!-- Schedule. -->
+      <template v-if="data.kind === 'schedule'">
+        <div class="flex flex-col gap-1.5">
+          <span class="text-xs text-ink/60">Runs</span>
+          <v-select
+            :items="PRESET_ITEMS"
+            :model-value="preset"
+            v-bind="FIELD_MENU"
+            aria-label="Runs"
+            density="comfortable"
+            hide-details
+            variant="outlined"
+            @update:model-value="choosePreset(str($event))"
+          />
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label :for="ids.cron" class="text-xs text-ink/60">Cron <span class="text-ink/40">minute hour day month weekday</span></label>
+          <v-text-field
+            :id="ids.cron"
+            :error="Boolean(cronProblem)"
+            :model-value="cronText"
+            class="ps-report-mono"
+            density="comfortable"
+            hide-details
+            placeholder="0 9 * * 1"
+            spellcheck="false"
+            variant="outlined"
+            @update:model-value="setCron(str($event))"
+          />
+          <span :class="cronProblem ? 'text-error' : 'text-ink/55'" class="text-[11px] leading-4">{{ cronProblem ?? describeCron(cronText) }}</span>
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <span class="text-xs text-ink/60">Timezone</span>
+          <v-select
+            :items="TIMEZONE_ITEMS"
+            :model-value="config.timezone ?? 'UTC'"
+            v-bind="FIELD_MENU"
+            aria-label="Timezone"
+            density="comfortable"
+            hide-details
+            variant="outlined"
+            @update:model-value="set({ timezone: str($event) })"
+          />
+        </div>
+        <SwitchRow v-model="paused" label="Paused" note="Nothing it runs is sent until it is resumed." />
+
+        <div class="flex flex-col gap-2 border-t border-line pt-4">
+          <p class="m-0 text-[11px] font-semibold tracking-wide text-ink/45 uppercase">
+            Next runs
+          </p>
+          <ol v-if="upcoming.length" class="m-0 flex list-none flex-col p-0">
+            <li v-for="(at, index) in upcoming" :key="at" class="flex items-center justify-between gap-2 border-t border-line/60 py-1.5 text-xs first:border-t-0">
+              <span :class="index ? 'text-ink/65' : 'font-medium text-ink'">{{ writeRun(at, config.timezone ?? 'UTC') }}</span>
+              <span class="text-[11px] text-ink/40">{{ relativeWords(at, now.getTime()) }}</span>
+            </li>
+          </ol>
+          <p v-else class="m-0 text-xs text-ink/55">
+            {{ config.paused ? 'Paused: nothing runs until it is resumed.' : 'Set a schedule that fires to see when.' }}
+          </p>
+        </div>
+
+        <div class="flex flex-col gap-2 border-t border-line pt-4">
+          <p class="m-0 text-[11px] font-semibold tracking-wide text-ink/45 uppercase">
+            Runs
+          </p>
+          <ul v-if="drives?.length" class="m-0 flex list-none flex-col gap-1 p-0">
+            <li v-for="name in drives" :key="name" class="flex items-center gap-2 text-xs text-ink/75">
+              <Icon aria-hidden="true" class="text-sm text-ink/45" name="material-symbols:subdirectory-arrow-right" />
+              {{ name }}
+            </li>
+          </ul>
+          <p v-else class="m-0 flex items-start gap-2 rounded-(--ps-radius-small) bg-ink/4 px-3 py-2.5 text-xs leading-5 text-ink/70">
+            <Icon aria-hidden="true" class="mt-0.5 flex-none text-base text-ink/45" name="material-symbols:schedule-outline" />
+            Nothing yet. Drag from its bottom edge to the top of a Notify or an Export.
+          </p>
+        </div>
+      </template>
+
+      <!-- Notify. -->
+      <template v-else-if="data.kind === 'notify'">
+        <div class="flex flex-col gap-2">
+          <span class="flex items-center justify-between gap-2">
+            <span class="text-xs text-ink/60">Send to</span>
+            <NuxtLink class="text-[11px] text-primary no-underline hover:underline" to="/settings/notifications">Manage channels</NuxtLink>
+          </span>
+          <div class="flex flex-col gap-1.5" role="group" aria-label="Send to">
+            <button
+              v-for="channel in channels"
+              :key="channel.id"
+              :aria-pressed="chosenChannels.includes(channel.id)"
+              :class="chosenChannels.includes(channel.id) ? 'border-primary bg-primary/6' : 'border-line bg-surface hover:bg-ink/3'"
+              class="flex cursor-pointer items-center gap-2.5 rounded-(--ps-radius-small) border px-2.5 py-2 text-left transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+              type="button"
+              @click="toggleChannel(channel.id)"
+            >
+              <span
+                :class="chosenChannels.includes(channel.id) ? 'border-primary bg-primary text-white' : 'border-ink/25'"
+                aria-hidden="true"
+                class="flex size-3.5 flex-none items-center justify-center rounded-(--ps-radius-x-small) border-2"
+              >
+                <Icon v-if="chosenChannels.includes(channel.id)" class="text-[11px]" name="material-symbols:check" />
+              </span>
+              <ChannelMark :type="channel.type" size="small" />
+              <span class="flex min-w-0 flex-1 flex-col">
+                <span :class="channel.enabled ? 'text-ink' : 'text-ink/45'" class="truncate text-xs">{{ channel.name }}</span>
+                <span class="truncate text-[10px] text-ink/45">{{ targetWords(channel) }}</span>
+              </span>
+              <span v-if="statusOf(channel) === 'failing' || statusOf(channel) === 'off'" :class="statusOf(channel) === 'failing' ? 'text-error' : 'text-ink/45'" class="flex-none text-[10px]">
+                {{ CHANNEL_STATUS[statusOf(channel)].label }}
+              </span>
+            </button>
+          </div>
+          <p v-if="!channels.length" class="m-0 text-xs text-ink/55">
+            No channels yet. Add one under Settings, Notification channels.
+          </p>
+        </div>
+
+        <div class="flex flex-col gap-1.5">
+          <span class="text-xs text-ink/60">Send</span>
+          <ChoiceList
+            :model-value="config.when ?? 'always'"
+            :options="WHEN_OPTIONS"
+            label="Send"
+            @update:model-value="set({ when: ($event ?? 'always') as NotifyWhen })"
+          />
+        </div>
+
+        <div v-if="config.when === 'threshold'" class="flex flex-col gap-2">
+          <span class="text-xs text-ink/60">When the first row's</span>
+          <ReportColumnPicker
+            :columns="columns"
+            :model-value="threshold.column"
+            :types="NUMERIC_TYPES"
+            label="Figure to watch"
+            @update:model-value="set({ threshold: { ...threshold, column: $event } })"
+          />
+          <div class="flex items-center gap-2">
+            <v-select
+              :items="THRESHOLD_OPS"
+              :model-value="threshold.op"
+              v-bind="FIELD_MENU"
+              aria-label="Crosses"
+              class="w-32 flex-none"
+              density="comfortable"
+              hide-details
+              variant="outlined"
+              @update:model-value="set({ threshold: { ...threshold, op: $event === 'gt' ? 'gt' : 'lt' } })"
+            />
+            <v-text-field
+              :model-value="threshold.value"
+              :prefix="typeOf(threshold.column) === 'money' ? '$' : undefined"
+              aria-label="The line"
+              class="ps-report-mono min-w-0 flex-1"
+              density="comfortable"
+              hide-details
+              inputmode="decimal"
+              placeholder="500"
+              variant="outlined"
+              @update:model-value="set({ threshold: { ...threshold, value: str($event) } })"
+            />
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-2 border-t border-line pt-4">
+          <p class="m-0 text-[11px] font-semibold tracking-wide text-ink/45 uppercase">
+            Message
+          </p>
+          <div class="flex flex-col gap-1.5">
+            <label :for="ids.subject" class="text-xs text-ink/60">Subject</label>
+            <v-text-field
+              :id="ids.subject"
+              :model-value="config.subject"
+              density="comfortable"
+              hide-details
+              placeholder="{{report}}"
+              variant="outlined"
+              @update:model-value="set({ subject: str($event) })"
+            />
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <label :for="ids.body" class="text-xs text-ink/60">Message</label>
+            <v-textarea
+              :id="ids.body"
+              :model-value="config.body"
+              auto-grow
+              hide-details
+              placeholder="What happened, and what to do about it"
+              rows="3"
+              variant="outlined"
+              @update:model-value="set({ body: str($event) })"
+            />
+            <span class="flex flex-wrap gap-1">
+              <button
+                v-for="variable in MESSAGE_VARIABLES"
+                :key="variable.key"
+                :title="variable.note"
+                class="rounded-(--ps-radius-x-small) bg-ink/5 px-1.5 font-mono text-[10px] leading-5 text-ink/65 hover:bg-ink/8 hover:text-ink"
+                type="button"
+                @click="insertVariable(variable.key)"
+                v-text="braced(variable.key)"
+              />
+            </span>
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <span class="text-xs text-ink/60">With it</span>
+            <SegmentedControl
+              :model-value="config.include ?? 'rows'"
+              :options="INCLUDE_OPTIONS"
+              label="With it"
+              stretch
+              @update:model-value="set({ include: $event as NotifyInclude })"
+            />
+          </div>
+          <div v-if="pagesSomeone" class="flex flex-col gap-1.5">
+            <span class="text-xs text-ink/60">Pages as</span>
+            <SegmentedControl
+              :model-value="config.severity ?? 'warning'"
+              :options="SEVERITY_OPTIONS"
+              label="Pages as"
+              stretch
+              @update:model-value="set({ severity: $event as Severity })"
+            />
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-2 border-t border-line pt-4">
+          <p class="m-0 text-[11px] font-semibold tracking-wide text-ink/45 uppercase">
+            When it runs
+          </p>
+          <p class="m-0 flex items-start gap-2 rounded-(--ps-radius-small) bg-ink/4 px-3 py-2.5 text-xs leading-5 text-ink/70">
+            <Icon aria-hidden="true" class="mt-0.5 flex-none text-base text-ink/45" name="material-symbols:schedule-outline" />
+            {{ timing ?? 'Only when you run it. Connect a Schedule to its top edge to send it on its own.' }}
+          </p>
+          <v-btn
+            :disabled="!chosenChannels.length || Boolean(result?.error)"
+            block
+            class="text-xs font-medium"
+            color="neutral"
+            prepend-icon="material-symbols:visibility-outline"
+            variant="outlined"
+            @click="emit('test')"
+          >
+            Preview and send a test
+          </v-btn>
+        </div>
+      </template>
+
       <!-- Source. -->
-      <template v-if="data.kind === 'source'">
+      <template v-else-if="data.kind === 'source'">
         <div class="flex flex-col gap-1.5">
           <span class="text-xs text-ink/60">Rows from</span>
           <div class="grid grid-cols-2 gap-1.5" role="radiogroup" aria-label="Rows from">
@@ -730,7 +1055,7 @@ const ids = { title: useId(), newColumn: useId(), limit: useId(), target: useId(
         <div class="flex flex-col gap-1.5">
           <span class="text-xs text-ink/60">File</span>
           <SegmentedControl
-            :model-value="config.file ?? 'csv'"
+            :model-value="config.file ?? 'json'"
             :options="FILE_OPTIONS"
             label="File"
             stretch
@@ -761,20 +1086,14 @@ const ids = { title: useId(), newColumn: useId(), limit: useId(), target: useId(
         </div>
         <div class="flex flex-col gap-1.5">
           <span class="text-xs text-ink/60">When</span>
-          <v-select
-            :items="SCHEDULE_ITEMS"
-            :model-value="config.schedule ?? 'once'"
-            v-bind="FIELD_MENU"
-            aria-label="When"
-            density="comfortable"
-            hide-details
-            variant="outlined"
-            @update:model-value="set({ schedule: str($event) as NodeConfig['schedule'] })"
-          />
+          <p class="m-0 flex items-start gap-2 rounded-(--ps-radius-small) bg-ink/4 px-3 py-2.5 text-xs leading-5 text-ink/70">
+            <Icon aria-hidden="true" class="mt-0.5 flex-none text-base text-ink/45" name="material-symbols:schedule-outline" />
+            {{ timing ?? 'Only when you run it. Connect a Schedule to its top edge to write it on its own.' }}
+          </p>
         </div>
-        <div v-if="(config.destination ?? 'download') === 'download'" class="flex flex-col gap-1.5">
+        <div class="flex flex-col gap-1.5">
           <v-btn
-            :disabled="!result || Boolean(result.error)"
+            :disabled="!result || Boolean(result.error) || file === 'parquet'"
             block
             class="text-xs font-medium"
             color="primary"
@@ -782,9 +1101,9 @@ const ids = { title: useId(), newColumn: useId(), limit: useId(), target: useId(
             variant="flat"
             @click="downloadNow"
           >
-            Download {{ result && !result.error ? `${result.rows.length.toLocaleString('en')} rows` : '' }}
+            Download {{ file.toUpperCase() }}{{ result && !result.error ? `, ${result.rows.length.toLocaleString('en')} rows` : '' }}
           </v-btn>
-          <span class="text-[11px] leading-4 text-ink/50">{{ downloaded ? 'Downloaded as CSV from the sample rows.' : 'Downloads as CSV from the sample rows here; Parquet and JSON once reports run on the server.' }}</span>
+          <span class="text-[11px] leading-4 text-ink/50">{{ file === 'parquet' ? 'Parquet is written by the server once reports run there; choose JSON or CSV to download from here now.' : downloaded ? `Downloaded as ${file.toUpperCase()} from the sample rows.` : `The sample rows as ${file.toUpperCase()}, now. On its schedule, the full result goes to ${DESTINATIONS[config.destination ?? 'download'].label}.` }}</span>
         </div>
       </template>
 

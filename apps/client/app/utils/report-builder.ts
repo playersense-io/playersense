@@ -108,8 +108,15 @@ export const RANGES = [
 
 // --- Nodes ------------------------------------------------------------------------------------
 
-export type NodeKind = 'source' | 'filter' | 'join' | 'group' | 'formula' | 'sort' | 'chart' | 'table' | 'export'
-export type NodeFamily = 'source' | 'step' | 'output'
+export type NodeKind = 'schedule' | 'source' | 'filter' | 'join' | 'group' | 'formula' | 'sort' | 'chart' | 'table' | 'export' | 'notify'
+export type NodeFamily = 'trigger' | 'source' | 'step' | 'output'
+
+/** A Notify step's rule for when it sends: every run, when rows came out, or when a figure crosses a line. */
+export type NotifyWhen = 'always' | 'rows' | 'threshold'
+export interface NotifyThreshold { column: string, op: 'gt' | 'lt', value: string }
+
+/** What a notification carries besides its words. */
+export type NotifyInclude = 'summary' | 'rows' | 'file'
 
 export type FilterOp = 'is' | 'is_not' | 'gt' | 'lt' | 'contains' | 'within'
 export interface FilterCondition { column: string, op: FilterOp, value: string }
@@ -139,10 +146,23 @@ export interface NodeConfig {
   chart?: 'line' | 'bar' | 'area'
   x?: string
   y?: string[]
-  file?: 'csv' | 'parquet' | 'json'
+  file?: 'json' | 'csv' | 'parquet'
   destination?: 'download' | 'email' | 's3' | 'bigquery' | 'gcs'
   target?: string
+  /** Before schedules were nodes, an export carried one of these; read once, to migrate it. */
   schedule?: 'once' | 'daily' | 'weekly' | 'monthly'
+  /** A Schedule's cron line, its timezone, and whether it is paused. */
+  cron?: string
+  timezone?: string
+  paused?: boolean
+  /** A Notify's channels, when it sends, what it says and carries. */
+  channels?: string[]
+  when?: NotifyWhen
+  threshold?: NotifyThreshold
+  subject?: string
+  body?: string
+  include?: NotifyInclude
+  severity?: Severity
 }
 
 export interface ReportNodeData {
@@ -161,9 +181,12 @@ export interface KindInfo {
   inputs: 0 | 1 | 2
   /** Whether anything can follow it. Outputs end a report. */
   output: boolean
+  /** Whether a Schedule can drive it: the deliveries, which take a line on their top edge. */
+  scheduled?: boolean
 }
 
 export const KINDS: Record<NodeKind, KindInfo> = {
+  schedule: { label: 'Schedule', family: 'trigger', note: 'When the report runs: a cron line in a timezone. Connect it to the top of a Notify or an Export.', icon: 'material-symbols:schedule-outline', inputs: 0, output: false },
   source: { label: 'Source', family: 'source', note: 'Where the rows come from: events, players, purchases or sessions.', icon: 'material-symbols:database-outline', inputs: 0, output: true },
   filter: { label: 'Filter', family: 'step', note: 'Keeps the rows that match.', icon: 'material-symbols:filter-alt-outline', inputs: 1, output: true },
   join: { label: 'Join', family: 'step', note: 'Puts two sources side by side, player by player.', icon: 'material-symbols:join-inner', inputs: 2, output: true },
@@ -172,10 +195,12 @@ export const KINDS: Record<NodeKind, KindInfo> = {
   sort: { label: 'Sort', family: 'step', note: 'Orders the rows, and keeps the top ones.', icon: 'material-symbols:sort', inputs: 1, output: true },
   chart: { label: 'Chart', family: 'output', note: 'Draws the result as a line or bars.', icon: 'material-symbols:bar-chart', inputs: 1, output: false },
   table: { label: 'Table', family: 'output', note: 'Shows the result as a table.', icon: 'material-symbols:table-outline', inputs: 1, output: false },
-  export: { label: 'Export', family: 'output', note: 'Sends the result as a file: now, or every day or week.', icon: 'material-symbols:file-export-outline', inputs: 1, output: false }
+  export: { label: 'Export', family: 'output', note: 'Writes the result as a file: downloaded now, or delivered on a schedule.', icon: 'material-symbols:file-export-outline', inputs: 1, output: false, scheduled: true },
+  notify: { label: 'Notify', family: 'output', note: 'Tells notification channels: Slack, email, the one on call. The last step of a report that runs on its own.', icon: 'material-symbols:notifications-outline', inputs: 1, output: false, scheduled: true }
 }
 
 export const FAMILIES: { key: NodeFamily, label: string, tone: number }[] = [
+  { key: 'trigger', label: 'Triggers', tone: 4 },
   { key: 'source', label: 'Sources', tone: 1 },
   { key: 'step', label: 'Steps', tone: 6 },
   { key: 'output', label: 'Outputs', tone: 3 }
@@ -185,14 +210,16 @@ export const familyTone = (family: NodeFamily) => FAMILIES.find(entry => entry.k
 
 /** The palette's entries: a source per kind of data, then every step and output. */
 export const PALETTE: { family: NodeFamily, items: { kind: NodeKind, label: string, note: string, icon: string, config?: NodeConfig }[] }[] = [
+  { family: 'trigger', items: [{ kind: 'schedule', label: KINDS.schedule.label, note: KINDS.schedule.note, icon: KINDS.schedule.icon }] },
   { family: 'source', items: SOURCE_KEYS.map(key => ({ kind: 'source' as const, label: SOURCES[key].label, note: SOURCES[key].note, icon: SOURCES[key].icon, config: { source: key } })) },
   { family: 'step', items: (['filter', 'join', 'group', 'formula', 'sort'] as const).map(kind => ({ kind, label: KINDS[kind].label, note: KINDS[kind].note, icon: KINDS[kind].icon })) },
-  { family: 'output', items: (['chart', 'table', 'export'] as const).map(kind => ({ kind, label: KINDS[kind].label, note: KINDS[kind].note, icon: KINDS[kind].icon })) }
+  { family: 'output', items: (['chart', 'table', 'export', 'notify'] as const).map(kind => ({ kind, label: KINDS[kind].label, note: KINDS[kind].note, icon: KINDS[kind].icon })) }
 ]
 
 /** A new node's settings: enough to show something the moment it is connected. */
 export function defaultConfig(kind: NodeKind, seed: NodeConfig = {}): NodeConfig {
   switch (kind) {
+    case 'schedule': return { cron: '0 9 * * 1', timezone: 'UTC', paused: false, ...seed }
     case 'source': return { source: 'purchases', range: '30', event: '', ...seed }
     case 'filter': return { match: 'all', conditions: [], ...seed }
     case 'join': return { mode: 'inner', ...seed }
@@ -201,7 +228,8 @@ export function defaultConfig(kind: NodeKind, seed: NodeConfig = {}): NodeConfig
     case 'sort': return { column: '', order: 'desc', limit: 10, ...seed }
     case 'chart': return { chart: 'line', x: '', y: [], ...seed }
     case 'table': return { ...seed }
-    case 'export': return { file: 'csv', destination: 'download', target: '', schedule: 'once', ...seed }
+    case 'export': return { file: 'json', destination: 'download', target: '', ...seed }
+    case 'notify': return { channels: [], when: 'always', threshold: { column: '', op: 'lt', value: '' }, subject: '{{report}}', body: '{{rows}} rows on {{date}}.', include: 'rows', severity: 'warning', ...seed }
   }
 }
 
@@ -234,6 +262,77 @@ export const DESTINATIONS = {
   gcs: { label: 'Google Cloud Storage', note: 'Written to a bucket of yours, through a service account you grant.', target: 'gs://your-bucket/playersense/' },
   bigquery: { label: 'BigQuery', note: 'Loaded into a table of yours, replaced on every run.', target: 'project.dataset.table' }
 } as const
+
+// --- Notifying ------------------------------------------------------------------------------
+
+export const NOTIFY_WHEN: Record<NotifyWhen, { label: string, note: string }> = {
+  always: { label: 'Every run', note: 'Whatever came out, even nothing.' },
+  rows: { label: 'When there are rows', note: 'Quiet when the report comes out empty: nothing refunded, no country over the line.' },
+  threshold: { label: 'When a figure crosses a line', note: 'An alert: the first row\'s figure against a line you set.' }
+}
+
+export const NOTIFY_INCLUDE: Record<NotifyInclude, { label: string, note: string }> = {
+  summary: { label: 'Words only', note: 'The subject and the message.' },
+  rows: { label: 'Top rows', note: 'The first five rows, as a small table.' },
+  file: { label: 'File attached', note: 'Every row, as a CSV, where the channel takes files.' }
+}
+
+/** A Notify's rule in words: "Every run", "When revenue is under 500". */
+export function notifyWhenWords(config: NodeConfig, label: (key?: string) => string = key => key ?? ''): string {
+  if (config.when !== 'threshold') return NOTIFY_WHEN[config.when ?? 'always'].label
+  const threshold = config.threshold
+  if (!threshold?.column) return 'When a figure crosses a line'
+  return `When ${label(threshold.column)} is ${threshold.op === 'gt' ? 'over' : 'under'} ${threshold.value || '?'}`
+}
+
+export interface NotifyOutcome {
+  /** Whether it sends on this run, and if not, why not. */
+  send: boolean
+  reason: string
+  message: NotificationMessage
+}
+
+/**
+ * What a Notify step does with a run's result: whether its rule lets it send, and the
+ * message it sends, with the variables filled in from the rows it received.
+ */
+export function evaluateNotify(node: GraphNode, result: NodeResult, report: { id: string, name: string }, at: number): NotifyOutcome {
+  const config = node.data.config
+  const context = { report: report.name, columns: result.columns, rows: result.rows, at }
+  let send = true
+  let reason = 'Sends on every run.'
+  if (config.when === 'rows') {
+    send = result.rows.length > 0
+    reason = send ? `${result.rows.length.toLocaleString('en')} rows came out, so it sends.` : 'No rows came out, so it stays quiet.'
+  }
+  if (config.when === 'threshold' && config.threshold) {
+    const column = result.columns.find(entry => entry.key === config.threshold!.column)
+    const value = Number(result.rows[0]?.[config.threshold.column])
+    const line = Number(config.threshold.value)
+    const crossed = Number.isFinite(value) && (config.threshold.op === 'gt' ? value > line : value < line)
+    send = crossed
+    const written = column ? writeCell(Number.isFinite(value) ? value : null, column.type) : '–'
+    const name = column?.label ?? config.threshold.column
+    reason = `${name.charAt(0).toUpperCase()}${name.slice(1)} is ${written}, ${crossed ? '' : 'not '}${config.threshold.op === 'gt' ? 'over' : 'under'} ${config.threshold.value}: ${crossed ? 'it sends' : 'it stays quiet'}.`
+  }
+  const include = config.include ?? 'rows'
+  const shown = result.columns.slice(0, 5)
+  return {
+    send,
+    reason,
+    message: {
+      title: fillMessage(config.subject || '{{report}}', context),
+      body: fillMessage(config.body ?? '', context),
+      severity: config.severity ?? 'warning',
+      link: `https://app.playersense.io/reports?report=${report.id}`,
+      ...(include === 'rows' && result.rows.length ? { table: { columns: shown, rows: result.rows.slice(0, 5) } } : {}),
+      ...(include === 'file' ? { attachment: { name: `${fileSlug(report.name)}.csv`, rows: result.rows.length } } : {})
+    }
+  }
+}
+
+/** The line a Schedule draws to a delivery: into its top edge. */
+export const WHEN_HANDLE = 'when'
 
 export const SCHEDULES = {
   once: 'Once, now',
@@ -271,8 +370,9 @@ export function runReport(nodes: readonly GraphNode[], edges: readonly GraphEdge
   const visiting = new Set<string>()
   const byId = new Map(nodes.map(node => [node.id, node]))
 
+  /* A Schedule's line into a delivery's top edge is when it runs, not rows: never an input. */
   const inputOf = (id: string, handle?: string) => {
-    const edge = edges.find(entry => entry.target === id && (handle ? entry.targetHandle === handle : true))
+    const edge = edges.find(entry => entry.target === id && entry.targetHandle !== 'when' && (handle ? entry.targetHandle === handle : true))
     return edge ? run(edge.source) : null
   }
 
@@ -301,6 +401,10 @@ const fail = (error: string): NodeResult => ({ columns: [], rows: [], error })
 
 function step(node: GraphNode, inputOf: (id: string, handle?: string) => NodeResult | null, now: number): NodeResult {
   const { kind, config } = node.data
+  if (kind === 'schedule') {
+    const parsed = parseCron(config.cron ?? '')
+    return typeof parsed === 'string' ? fail(parsed) : { columns: [], rows: [] }
+  }
   if (kind === 'source') return sourceRows(config, now)
 
   if (kind === 'join') {
@@ -355,6 +459,13 @@ function step(node: GraphNode, inputOf: (id: string, handle?: string) => NodeRes
       if (config.column && !has(config.column)) return fail(`${config.column} is not a column here any more.`)
       const rows = config.column ? [...input.rows].sort((a, b) => compareCells(a[config.column!] ?? null, b[config.column!] ?? null) * (config.order === 'asc' ? 1 : -1)) : [...input.rows]
       return { columns: input.columns, rows: config.limit ? rows.slice(0, config.limit) : rows }
+    }
+    case 'notify': {
+      if (!(config.channels ?? []).length) return { ...input, error: 'Choose a channel to send to.' }
+      if (config.when === 'threshold' && (!config.threshold?.column || !has(config.threshold.column))) return { ...input, error: 'Choose the figure to watch.' }
+      const line = (config.threshold?.value ?? '').trim()
+      if (config.when === 'threshold' && (!line || !Number.isFinite(Number(line)))) return { ...input, error: 'Set the line the figure is watched against.' }
+      return input
     }
     case 'chart': {
       if (!config.x || !has(config.x)) return { ...input, error: 'Choose what runs along the bottom.' }
@@ -597,7 +708,12 @@ export function summaryOf(data: ReportNodeData, columns: readonly ReportColumn[]
     case 'sort': return [config.column ? `${label(config.column)}, ${config.order === 'asc' ? 'lowest first' : 'highest first'}` : 'As it comes', config.limit ? `Top ${config.limit}` : 'Every row']
     case 'chart': return [config.x ? `${label(config.y?.[0]) || '?'}${(config.y?.length ?? 0) > 1 ? ` and ${config.y!.length - 1} more` : ''} by ${label(config.x)}` : 'Not set up yet', config.chart === 'bar' ? 'Bars' : config.chart === 'area' ? 'Area' : 'Line']
     case 'table': return ['Every column']
-    case 'export': return [`${(config.file ?? 'csv').toUpperCase()} to ${DESTINATIONS[config.destination ?? 'download'].label}`, SCHEDULES[config.schedule ?? 'once']]
+    case 'export': return [`${(config.file ?? 'json').toUpperCase()} to ${DESTINATIONS[config.destination ?? 'download'].label}`]
+    case 'schedule': return [describeCron(config.cron ?? ''), config.paused ? 'Paused' : CRON_TIMEZONES.find(zone => zone.value === config.timezone)?.label ?? config.timezone ?? 'UTC']
+    case 'notify': {
+      const count = (config.channels ?? []).length
+      return [count ? `To ${count} ${count === 1 ? 'channel' : 'channels'}` : 'No channel yet', notifyWhenWords(config, label)]
+    }
   }
 }
 
@@ -622,16 +738,18 @@ export const TEMPLATES: ReportTemplate[] = [
   {
     key: 'weekly-revenue',
     name: 'Weekly revenue',
-    note: 'Verified purchases a week, with payers and revenue per payer, as a chart and a CSV every Monday.',
+    note: 'Verified purchases a week, with payers and revenue per payer: a chart, and every Monday a CSV to finance and a note in Slack.',
     nodes: [
+      node('monday', 1200, -200, 'schedule', { cron: '0 9 * * 1', timezone: 'Europe/Istanbul' }, 'Every Monday'),
       node('src', 0, 120, 'source', { source: 'purchases', range: '90' }),
       node('verified', 300, 120, 'filter', { conditions: [{ column: 'status', op: 'is', value: 'verified' }] }, 'Verified only'),
       node('week', 600, 120, 'group', { by: ['at'], bucket: 'week', metrics: [{ fn: 'sum', column: 'price', as: 'revenue' }, { fn: 'count_distinct', column: 'player_id', as: 'payers' }, { fn: 'count', column: '', as: 'purchases' }] }, 'By week'),
       node('arppu', 900, 120, 'formula', { name: 'per_payer', left: 'revenue', op: '/', right: 'payers', format: 'money' }, 'Revenue per payer'),
-      node('chart', 1200, 20, 'chart', { chart: 'bar', x: 'at', y: ['revenue'] }, 'Revenue a week'),
-      node('export', 1200, 240, 'export', { file: 'csv', destination: 'email', target: 'finance@starfall.games', schedule: 'weekly' }, 'To finance')
+      node('chart', 1200, 360, 'chart', { chart: 'bar', x: 'at', y: ['revenue'] }, 'Revenue a week'),
+      node('export', 1200, 0, 'export', { file: 'csv', destination: 'email', target: 'finance@starfall.games' }, 'CSV to finance'),
+      node('slack', 1200, 170, 'notify', { channels: ['ch_slack_liveops'], when: 'always', subject: '{{report}}: {{sum.revenue}} over the last weeks', body: 'Revenue per payer last week: {{first.per_payer}}.', include: 'rows', severity: 'info' }, 'Note in #live-ops')
     ],
-    edges: [edge('src', 'verified'), edge('verified', 'week'), edge('week', 'arppu'), edge('arppu', 'chart'), edge('arppu', 'export')]
+    edges: [edge('src', 'verified'), edge('verified', 'week'), edge('week', 'arppu'), edge('arppu', 'chart'), edge('arppu', 'export'), edge('arppu', 'slack'), edge('monday', 'export', WHEN_HANDLE), edge('monday', 'slack', WHEN_HANDLE)]
   },
   {
     key: 'top-countries',
@@ -665,12 +783,28 @@ export const TEMPLATES: ReportTemplate[] = [
   {
     key: 'refunds',
     name: 'Refunds for finance',
-    note: 'Every refunded purchase, as a CSV to finance every day. What Exports used to do, as a report.',
+    note: 'Every refunded purchase, as a file in the finance bucket every morning, and an email when there were any. What Exports used to do, as a report.',
     nodes: [
+      node('daily', 600, -80, 'schedule', { cron: '0 6 * * *', timezone: 'UTC' }, 'Every morning'),
       node('src', 0, 120, 'source', { source: 'purchases', range: '7' }),
       node('refunded', 300, 120, 'filter', { conditions: [{ column: 'status', op: 'is', value: 'refunded' }] }, 'Refunded'),
-      node('export', 600, 120, 'export', { file: 'csv', destination: 's3', target: 's3://starfall-finance/refunds/', schedule: 'daily' }, 'To the finance bucket')
+      node('export', 600, 120, 'export', { file: 'parquet', destination: 's3', target: 's3://starfall-finance/refunds/' }, 'To the finance bucket'),
+      node('email', 600, 300, 'notify', { channels: ['ch_email_finance'], when: 'rows', subject: '{{rows}} refunds in the last week', body: 'Refunded purchases up to {{date}}, every one of them attached.', include: 'file', severity: 'info' }, 'Email finance')
     ],
-    edges: [edge('src', 'refunded'), edge('refunded', 'export')]
+    edges: [edge('src', 'refunded'), edge('refunded', 'export'), edge('refunded', 'email'), edge('daily', 'export', WHEN_HANDLE), edge('daily', 'email', WHEN_HANDLE)]
+  },
+  {
+    key: 'revenue-alert',
+    name: 'Revenue alert',
+    note: 'Yesterday\'s revenue, checked every morning: under $500 and the one on call is paged and #alerts-revenue told.',
+    nodes: [
+      node('morning', 1200, -60, 'schedule', { cron: '0 10 * * *', timezone: 'Europe/Istanbul' }, 'Every morning at 10'),
+      node('src', 0, 140, 'source', { source: 'purchases', range: '7' }),
+      node('verified', 300, 140, 'filter', { conditions: [{ column: 'status', op: 'is', value: 'verified' }] }, 'Verified only'),
+      node('day', 600, 140, 'group', { by: ['at'], bucket: 'day', metrics: [{ fn: 'sum', column: 'price', as: 'revenue' }, { fn: 'count', column: '', as: 'purchases' }] }, 'By day'),
+      node('latest', 900, 140, 'sort', { column: 'at', order: 'desc', limit: 1 }, 'The latest day'),
+      node('alert', 1200, 140, 'notify', { channels: ['ch_slack_alerts', 'ch_pagerduty_oncall'], when: 'threshold', threshold: { column: 'revenue', op: 'lt', value: '500' }, subject: 'Revenue on {{first.at}} is {{first.revenue}}', body: 'Under the $500 a day line, from {{first.purchases}} purchases. Check the stores and the last release.', include: 'rows', severity: 'critical' }, 'Page on call')
+    ],
+    edges: [edge('src', 'verified'), edge('verified', 'day'), edge('day', 'latest'), edge('latest', 'alert'), edge('morning', 'alert', WHEN_HANDLE)]
   }
 ]

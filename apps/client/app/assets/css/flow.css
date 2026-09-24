@@ -58,6 +58,20 @@
   right: -6px;
 }
 
+/* Time's handles: a Schedule's bottom and a delivery's top, in the triggers' colour. */
+.ps-flow .vue-flow__handle.ps-when-handle {
+  border-color: rgb(var(--v-theme-chart-4));
+  border-radius: 3px;
+}
+
+.ps-flow .vue-flow__handle-top {
+  top: -6px;
+}
+
+.ps-flow .vue-flow__handle-bottom {
+  bottom: -6px;
+}
+
 /* Lines. */
 .ps-flow .vue-flow__edge-path {
   stroke: rgba(var(--v-theme-on-surface), 0.32);
@@ -68,6 +82,12 @@
 .ps-flow .vue-flow__edge:focus .vue-flow__edge-path,
 .ps-flow .vue-flow__edge:hover .vue-flow__edge-path {
   stroke: rgb(var(--v-theme-primary));
+}
+
+/* A Schedule's line: dashed, moving, in the triggers' colour, so time never reads as rows. */
+.ps-flow .vue-flow__edge.ps-edge-when .vue-flow__edge-path {
+  stroke: rgb(var(--v-theme-chart-4));
+  stroke-dasharray: 5 4;
 }
 
 .ps-flow .vue-flow__connection-path {
