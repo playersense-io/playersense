@@ -50,11 +50,15 @@
    * reads as an afterthought rather than as the controls for what is below, and the default
    * forty is a second header.
    *
-   * One token for all four, because the whole point of the row is that a field, a segmented
-   * control and two buttons of three different component families end up the same height.
-   * Four numbers in four files is four chances for one of them to drift.
+   * One token for the field and the two buttons, because the point of the row is that
+   * controls of different component families end up the same height: three numbers in
+   * three files is three chances for one of them to drift. The segmented control takes
+   * its own, a step lower, below.
    */
   --ps-toolbar-height: 36px;
+  /* A segmented control sits a step lower than the fields beside it, so a row of choices
+     reads as lighter than the search and menus it shares a line with. */
+  --ps-segmented-height: 32px;
 
   /* A scale of corners, for the things that nest: a menu inside a card, a row inside a
      menu, a segment inside its track. Controls no longer climb it — a button and a field

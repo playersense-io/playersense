@@ -3,10 +3,9 @@ import type { SegmentedOption } from '../utils/components'
 /**
  * A row of choices where exactly one is on: the period a chart covers, or which of two
  * views of it is showing. The chosen segment is lifted onto the surface and the rest sit
- * in the track, and the track is the height of the row it belongs to — the one over a
- * table, where it sits beside the search and the Filter and Columns menus. That is
- * `--ps-toolbar-height`, and taking it from there rather than restating it is what
- * keeps the four of them on one line.
+ * in the track, and the track is `--ps-segmented-height`, a step lower than the
+ * `--ps-toolbar-height` of the search and the Filter and Columns menus it can sit beside
+ * over a table; the row centres them on one line.
  *
  * A radio group, in ARIA's terms and the keyboard's: one tab stop, arrows to move, which
  * is what tells a screen reader these are one choice rather than three buttons, and what
@@ -114,10 +113,9 @@ function move(event: KeyboardEvent, from: number) {
 </template>
 
 <style scoped>
-/* The track is the height of the row it sits in, taken from the token the search field
-   and the two menu buttons beside it read. */
+/* The track's height is its own token, a step under the toolbar's. */
 .segmented {
-  height: var(--ps-toolbar-height);
+  height: var(--ps-segmented-height);
 }
 
 /*
@@ -138,7 +136,7 @@ function move(event: KeyboardEvent, from: number) {
  */
 .segmented__option {
   border-radius: calc(var(--ps-radius) - 2px);
-  height: calc(var(--ps-toolbar-height) - 4px);
+  height: calc(var(--ps-segmented-height) - 4px);
 }
 
 /*
