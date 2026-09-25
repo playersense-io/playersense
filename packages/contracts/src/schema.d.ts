@@ -106,6 +106,26 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/v1/logs": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Accept a batch of logs, exceptions and crashes
+         * @description Answers 202 once the batch has reached durable queueing, with how many records were stored and how many dropped. Text past its limit is cut rather than refused, so a long log line or a deep stack is kept. The body may be sent with Content-Encoding: gzip or zstd.
+         */
+        readonly post: operations["post_v1_logs"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/v1/metrics/query": {
         readonly parameters: {
             readonly query?: never;
@@ -2591,6 +2611,174 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/v1/organizations/{org}/projects/{project}/log-storage": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * Describe a project's log storage
+         * @description What the project keeps now, for how long, what it took in over the last thirty days, and what log storage has cost the organization this month.
+         */
+        readonly get: operations["get_v1_organizations_by_org_projects_by_project_log_storage"];
+        /**
+         * Change how long a project keeps its logs
+         * @description New records take the change within minutes. A shorter retention is enforced on older records too, and billing follows it at once.
+         */
+        readonly put: operations["put_v1_organizations_by_org_projects_by_project_log_storage"];
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/organizations/{org}/projects/{project}/logs/{environment}/histogram": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * Count records over time
+         * @description One bar per step across the range, about ninety of them, each split by level. From per-minute counts when the search is only levels and kinds, from the records otherwise.
+         */
+        readonly get: operations["get_v1_organizations_by_org_projects_by_project_logs_by_environment_histogram"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/organizations/{org}/projects/{project}/logs/{environment}/issues": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * List issues
+         * @description Every exception, crash and error log grouped into issues, with how often each happened in the range, to how many installs, and its trend.
+         */
+        readonly get: operations["get_v1_organizations_by_org_projects_by_project_logs_by_environment_issues"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/organizations/{org}/projects/{project}/logs/{environment}/issues/{issue}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * Describe one issue
+         * @description Its series over the range, where it happens (release, platform, OS, device, country) and its newest record.
+         */
+        readonly get: operations["get_v1_organizations_by_org_projects_by_project_logs_by_environment_issues_by_issue"];
+        /**
+         * Resolve, ignore or reopen an issue
+         * @description A resolved issue seen again afterwards is listed as regressed.
+         */
+        readonly put: operations["put_v1_organizations_by_org_projects_by_project_logs_by_environment_issues_by_issue"];
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/organizations/{org}/projects/{project}/logs/{environment}/records": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * List records, newest first
+         * @description One page of the records matching the search, newest first, with a cursor to the next. Each message is cut at 400 bytes; read the record for the whole of it.
+         */
+        readonly get: operations["get_v1_organizations_by_org_projects_by_project_logs_by_environment_records"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/organizations/{org}/projects/{project}/logs/{environment}/records/newer": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * Count records newer than the newest shown
+         * @description What the live view says is waiting above the page being read.
+         */
+        readonly get: operations["get_v1_organizations_by_org_projects_by_project_logs_by_environment_records_newer"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/organizations/{org}/projects/{project}/logs/{environment}/records/{record}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * Read one record whole
+         * @description The whole message, the stack, the breadcrumbs, the device and every attribute.
+         */
+        readonly get: operations["get_v1_organizations_by_org_projects_by_project_logs_by_environment_records_by_record"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/organizations/{org}/projects/{project}/logs/{environment}/summary": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * Describe the range
+         * @description Records, warnings, errors, exceptions, crashes and bytes, and the issues that happened, against the range before it.
+         */
+        readonly get: operations["get_v1_organizations_by_org_projects_by_project_logs_by_environment_summary"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/v1/organizations/{org}/projects/{project}/privacy": {
         readonly parameters: {
             readonly query?: never;
@@ -3873,6 +4061,14 @@ export interface components {
              * @description If still owing then, ingestion is suspended
              */
             readonly suspends_at?: string | null;
+        };
+        readonly Breadcrumb: {
+            /** Format: date-time */
+            readonly at: string;
+            /** @description scene, ui, network, log… */
+            readonly category?: string;
+            readonly level?: string;
+            readonly message?: string;
         };
         readonly Breakdown: {
             /** @description install_platform, install_country or first_app_version */
@@ -5166,6 +5362,33 @@ export interface components {
             readonly schema_version: number;
             readonly sdk: components["schemas"]["SDK"];
         };
+        readonly IngestLogsIn: {
+            readonly app: components["schemas"]["App"];
+            /**
+             * Format: uuid
+             * @description Stable across retries, so a redelivery is recognisable
+             */
+            readonly batch_id: string;
+            readonly consent: components["schemas"]["Consent"];
+            readonly device: components["schemas"]["LogDevice"];
+            /**
+             * @description development, staging or production
+             * @enum {string}
+             */
+            readonly environment?: "development" | "staging" | "production";
+            /**
+             * Format: uuid
+             * @description The installation this batch came from
+             */
+            readonly install_id: string;
+            readonly records: readonly components["schemas"]["LogRecord"][];
+            /**
+             * Format: int64
+             * @description The envelope version; currently 1
+             */
+            readonly schema_version: number;
+            readonly sdk: components["schemas"]["SDK"];
+        };
         readonly IngestionBucketOut: {
             /** Format: date-time */
             readonly at: string;
@@ -5537,6 +5760,366 @@ export interface components {
             readonly updated_by?: string;
             /** @description The metrics it must not hurt */
             readonly watch: readonly string[];
+        };
+        readonly LogBreadcrumbOut: {
+            /** Format: date-time */
+            readonly at: string;
+            readonly category?: string;
+            readonly level?: string;
+            readonly message?: string;
+        };
+        readonly LogBucketOut: {
+            /** Format: date-time */
+            readonly at: string;
+            /** Format: int64 */
+            readonly debug: number;
+            /** Format: int64 */
+            readonly error: number;
+            /** Format: int64 */
+            readonly fatal: number;
+            /** Format: int64 */
+            readonly info: number;
+            /** Format: int64 */
+            readonly trace: number;
+            /** Format: int64 */
+            readonly warn: number;
+        };
+        readonly LogDevice: {
+            readonly locale?: string;
+            /** @description The hardware model, such as iPhone15,2 or SM-S918B */
+            readonly model?: string;
+            readonly os_version?: string;
+            /** @description ios, android, windows, macos, linux, web, console */
+            readonly platform: string;
+        };
+        readonly LogEnvBytesOut: {
+            /** Format: int64 */
+            readonly bytes: number;
+            readonly environment: string;
+        };
+        readonly LogException: {
+            readonly frames?: readonly components["schemas"]["StackFrame"][];
+            /** @description Whether the game caught it */
+            readonly handled?: boolean;
+            /** @description The exception's class, such as NullReferenceException */
+            readonly type: string;
+            /** @description Its message */
+            readonly value?: string;
+        };
+        readonly LogFiguresOut: {
+            /**
+             * Format: int64
+             * @description Installs any issue reached, approximately
+             */
+            readonly affected_installs: number;
+            /** Format: int64 */
+            readonly bytes: number;
+            /** Format: int64 */
+            readonly crashes: number;
+            /**
+             * Format: int64
+             * @description error and fatal
+             */
+            readonly errors: number;
+            /** Format: int64 */
+            readonly exceptions: number;
+            /**
+             * Format: int64
+             * @description Issues that happened in the range
+             */
+            readonly issues: number;
+            /**
+             * Format: int64
+             * @description Issues first seen in the range
+             */
+            readonly new_issues: number;
+            /** Format: int64 */
+            readonly records: number;
+            /** Format: int64 */
+            readonly warnings: number;
+        };
+        readonly LogFrameOut: {
+            readonly file?: string;
+            readonly function?: string;
+            readonly in_app: boolean;
+            /** Format: int64 */
+            readonly line?: number;
+            readonly module?: string;
+        };
+        readonly LogHistogramOut: {
+            readonly buckets: readonly components["schemas"]["LogBucketOut"][];
+            /**
+             * Format: date-time
+             * @description The oldest moment the project's retention still holds
+             */
+            readonly earliest: string;
+            /** Format: date-time */
+            readonly from: string;
+            /** Format: int64 */
+            readonly step_seconds: number;
+            /** Format: date-time */
+            readonly to: string;
+            readonly totals: components["schemas"]["LogLevelCountsOut"];
+        };
+        readonly LogIssueDetailOut: {
+            /** @description release, platform, os, device and country: the five commonest of each */
+            readonly breakdown: {
+                readonly [key: string]: readonly components["schemas"]["LogShareOut"][];
+            };
+            readonly issue: components["schemas"]["LogIssueOut"];
+            /** @description The newest record of the issue in the range */
+            readonly latest?: components["schemas"]["LogRecordOut"] | null;
+            readonly series: readonly components["schemas"]["LogPointOut"][];
+            /** Format: int64 */
+            readonly step_seconds: number;
+        };
+        readonly LogIssueOut: {
+            readonly culprit?: string;
+            /**
+             * Format: int64
+             * @description Inside the range
+             */
+            readonly events: number;
+            readonly exception_type?: string;
+            readonly first_release?: string;
+            /** Format: date-time */
+            readonly first_seen: string;
+            readonly id: string;
+            /**
+             * Format: int64
+             * @description Inside the range
+             */
+            readonly installs: number;
+            /** @description log, exception or crash: the gravest of its records */
+            readonly kind: string;
+            readonly last_release?: string;
+            /** Format: date-time */
+            readonly last_seen: string;
+            readonly level: string;
+            /** Format: date-time */
+            readonly resolved_at?: string | null;
+            /** @description unresolved, resolved, ignored or regressed */
+            readonly status: string;
+            readonly title: string;
+            /**
+             * Format: int64
+             * @description Across everything retained
+             */
+            readonly total_events: number;
+            /** Format: int64 */
+            readonly total_installs: number;
+            /** @description Events across the range in equal bars */
+            readonly trend: readonly number[];
+            readonly updated_by?: string;
+        };
+        readonly LogIssueStateOut: {
+            readonly id: string;
+            /** Format: date-time */
+            readonly resolved_at?: string | null;
+            readonly status: string;
+            readonly updated_by?: string;
+        };
+        readonly LogIssuesOut: {
+            readonly issues: readonly components["schemas"]["LogIssueOut"][];
+            /** @description More issues matched than the list shows */
+            readonly truncated: boolean;
+        };
+        readonly LogLevelCountsOut: {
+            /** Format: int64 */
+            readonly debug: number;
+            /** Format: int64 */
+            readonly error: number;
+            /** Format: int64 */
+            readonly fatal: number;
+            /** Format: int64 */
+            readonly info: number;
+            /** Format: int64 */
+            readonly trace: number;
+            /** Format: int64 */
+            readonly warn: number;
+        };
+        readonly LogNewerOut: {
+            /** Format: int64 */
+            readonly count: number;
+        };
+        readonly LogPointOut: {
+            /** Format: date-time */
+            readonly at: string;
+            /** Format: int64 */
+            readonly value: number;
+        };
+        readonly LogRecord: {
+            readonly attributes?: {
+                readonly [key: string]: unknown;
+            };
+            readonly breadcrumbs?: readonly components["schemas"]["Breadcrumb"][];
+            readonly crash?: boolean;
+            readonly exception?: components["schemas"]["LogException"] | null;
+            readonly fingerprint?: readonly string[];
+            /** @description trace, debug, info, warn, error or fatal */
+            readonly level: string;
+            readonly logger?: string;
+            readonly message?: string;
+            readonly player_id?: string;
+            /** @description A UUID; derived from the batch when absent */
+            readonly record_id?: string;
+            readonly session_id?: string;
+            /**
+             * Format: date-time
+             * @description When it happened, on the device's clock
+             */
+            readonly time: string;
+        };
+        readonly LogRecordOut: {
+            readonly app_build?: string;
+            readonly app_version?: string;
+            /** Format: date-time */
+            readonly at: string;
+            readonly attributes: {
+                readonly [key: string]: string;
+            };
+            readonly breadcrumbs: readonly components["schemas"]["LogBreadcrumbOut"][];
+            readonly country_code?: string;
+            readonly culprit?: string;
+            readonly device_model?: string;
+            readonly exception_type?: string;
+            readonly exception_value?: string;
+            readonly frames: readonly components["schemas"]["LogFrameOut"][];
+            readonly handled: boolean;
+            readonly id: string;
+            readonly install_id: string;
+            /** @description The issue this record belongs to, when it belongs to one */
+            readonly issue?: string;
+            /** @description log, exception or crash */
+            readonly kind: string;
+            readonly level: string;
+            readonly logger?: string;
+            /** @description The first 400 bytes */
+            readonly message?: string;
+            readonly os_version?: string;
+            readonly platform?: string;
+            /** @description Only with player.read */
+            readonly player_id?: string;
+            /** Format: date-time */
+            readonly received_at: string;
+            readonly sdk?: string;
+            /** @description Only with player.read */
+            readonly session_id?: string;
+            /**
+             * Format: int32
+             * @description Billed bytes
+             */
+            readonly size: number;
+        };
+        readonly LogRecordSummaryOut: {
+            readonly app_version?: string;
+            /** Format: date-time */
+            readonly at: string;
+            readonly culprit?: string;
+            readonly exception_type?: string;
+            readonly exception_value?: string;
+            readonly id: string;
+            readonly install_id: string;
+            /** @description The issue this record belongs to, when it belongs to one */
+            readonly issue?: string;
+            /** @description log, exception or crash */
+            readonly kind: string;
+            readonly level: string;
+            readonly logger?: string;
+            /** @description The first 400 bytes */
+            readonly message?: string;
+            readonly platform?: string;
+            /** @description Only with player.read */
+            readonly player_id?: string;
+        };
+        readonly LogRecordsOut: {
+            /** @description Absent on the last page */
+            readonly next_cursor?: string;
+            readonly records: readonly components["schemas"]["LogRecordSummaryOut"][];
+        };
+        readonly LogShareOut: {
+            /** Format: int64 */
+            readonly count: number;
+            readonly value: string;
+        };
+        readonly LogStorageOut: {
+            /**
+             * Format: int64
+             * @description What logs have cost this month so far
+             */
+            readonly charged_micros: number;
+            readonly environments: readonly components["schemas"]["LogEnvBytesOut"][];
+            /**
+             * Format: double
+             * @description Gigabytes kept, times days, through yesterday
+             */
+            readonly gb_days: number;
+            /**
+             * Format: double
+             * @description GB-days over the month's days
+             */
+            readonly gb_months: number;
+            /**
+             * Format: double
+             * @description The free tier: GB-months kept at no charge
+             */
+            readonly included_gb_months: number;
+            /**
+             * Format: int64
+             * @description The free tier: bytes a month taken in at no charge
+             */
+            readonly included_ingest_bytes: number;
+            /**
+             * Format: int64
+             * @description A gigabyte taken in past the free tier
+             */
+            readonly ingest_price_per_gb_micros: number;
+            /** @description Bytes by the day they happened, over the last 30 days */
+            readonly ingested: readonly components["schemas"]["LogPointOut"][];
+            /**
+             * Format: int64
+             * @description Log bytes taken in this month, every project
+             */
+            readonly ingested_bytes: number;
+            /**
+             * Format: int64
+             * @description Log bytes held now, every environment
+             */
+            readonly kept_bytes: number;
+            /** Format: date-time */
+            readonly period_start: string;
+            /**
+             * Format: int64
+             * @description The month at its rate so far
+             */
+            readonly projected_micros: number;
+            /** Format: date-time */
+            readonly retention_changed_at?: string | null;
+            readonly retention_choices: readonly number[];
+            /** Format: int32 */
+            readonly retention_days: number;
+            /**
+             * Format: date-time
+             * @description While a lowered retention is still being enforced on older records
+             */
+            readonly retention_purge_until?: string | null;
+            /**
+             * Format: int64
+             * @description A gigabyte kept a 30-day month past the free tier
+             */
+            readonly storage_price_per_gb_month_micros: number;
+        };
+        readonly LogSummaryOut: {
+            readonly current: components["schemas"]["LogFiguresOut"];
+            readonly previous: components["schemas"]["LogFiguresOut"];
+        };
+        readonly LogsAccepted: {
+            /** Format: int64 */
+            readonly accepted: number;
+            readonly batch_id: string;
+            /** Format: int64 */
+            readonly dropped: number;
+            readonly reasons?: readonly string[];
         };
         readonly MeOrganizationOut: {
             /** @description Null when your role may not read billing, or there is no billing account */
@@ -7299,6 +7882,15 @@ export interface components {
              */
             readonly to_micros?: number;
         };
+        readonly StackFrame: {
+            readonly file?: string;
+            readonly function?: string;
+            readonly in_app?: boolean;
+            /** Format: int64 */
+            readonly line?: number;
+            /** @description The class, namespace or library */
+            readonly module?: string;
+        };
         readonly StaffAccessEntryOut: {
             readonly action: string;
             /** Format: date-time */
@@ -8219,6 +8811,93 @@ export interface operations {
                 };
             };
             /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly post_v1_logs: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["IngestLogsIn"];
+            };
+        };
+        readonly responses: {
+            /** @description Accepted */
+            readonly 202: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["LogsAccepted"];
+                };
+            };
+            /** @description The key is missing, unknown or revoked */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The key is scoped to another environment */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The batch exceeded the body limit, compressed or decoded */
+            readonly 413: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The Content-Encoding is not gzip or zstd */
+            readonly 415: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The batch could not be queued; retry with backoff */
             readonly 503: {
                 headers: {
                     readonly [name: string]: unknown;
@@ -10636,11 +11315,11 @@ export interface operations {
                      */
                     readonly effective_from?: string | null;
                     /**
-                     * @description Only tracked_players today
+                     * @description tracked_players (per player), log_ingest_mb (per megabyte taken in) or log_storage_gb_days (per gigabyte kept a day)
                      * @default tracked_players
                      * @enum {string}
                      */
-                    readonly meter?: "tracked_players";
+                    readonly meter?: "tracked_players" | "log_ingest_mb" | "log_storage_gb_days";
                     /**
                      * @description graduated (each band at its own price) or volume (the whole month at the band reached)
                      * @default graduated
@@ -20834,6 +21513,863 @@ export interface operations {
                 };
             };
             /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly get_v1_organizations_by_org_projects_by_project_log_storage: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly org: string;
+                readonly project: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["LogStorageOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not read this project's logs */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The organization, project or environment does not exist, or you cannot see it */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The logs could not be read */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly put_v1_organizations_by_org_projects_by_project_log_storage: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly org: string;
+                readonly project: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": {
+                    /**
+                     * Format: int32
+                     * @description 1, 3, 7, 14, 30, 60 or 90
+                     * @enum {integer}
+                     */
+                    readonly days?: 1 | 3 | 7 | 14 | 30 | 60 | 90;
+                };
+            };
+        };
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["LogStorageOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not read this project's logs */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The organization, project or environment does not exist, or you cannot see it */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly get_v1_organizations_by_org_projects_by_project_logs_by_environment_histogram: {
+        readonly parameters: {
+            readonly query?: {
+                /** @description RFC 3339, inclusive. Defaults to 24 hours before to */
+                readonly from?: string;
+                /** @description RFC 3339, exclusive. Defaults to now */
+                readonly to?: string;
+                /** @description Words, "phrases" and field:value filters: level:error,fatal logger:Net release:1.4.2 -word attr.region:eu */
+                readonly q?: string;
+            };
+            readonly header?: never;
+            readonly path: {
+                readonly org: string;
+                readonly project: string;
+                /** @description development, staging or production */
+                readonly environment: "development" | "staging" | "production";
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["LogHistogramOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not read this project's logs */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The organization, project or environment does not exist, or you cannot see it */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The logs could not be read */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly get_v1_organizations_by_org_projects_by_project_logs_by_environment_issues: {
+        readonly parameters: {
+            readonly query?: {
+                /** @description RFC 3339, inclusive. Defaults to 24 hours before to */
+                readonly from?: string;
+                /** @description RFC 3339, exclusive. Defaults to now */
+                readonly to?: string;
+                /** @description unresolved (the default), resolved, ignored or all */
+                readonly status?: "unresolved" | "resolved" | "ignored" | "all";
+                /** @description Words the issue's title, type or culprit contains */
+                readonly q?: string;
+                /** @description events (the default), installs, last_seen or first_seen */
+                readonly sort?: "events" | "installs" | "last_seen" | "first_seen";
+            };
+            readonly header?: never;
+            readonly path: {
+                readonly org: string;
+                readonly project: string;
+                /** @description development, staging or production */
+                readonly environment: "development" | "staging" | "production";
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["LogIssuesOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not read this project's logs */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The organization, project or environment does not exist, or you cannot see it */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The logs could not be read */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly get_v1_organizations_by_org_projects_by_project_logs_by_environment_issues_by_issue: {
+        readonly parameters: {
+            readonly query?: {
+                /** @description RFC 3339, inclusive. Defaults to 24 hours before to */
+                readonly from?: string;
+                /** @description RFC 3339, exclusive. Defaults to now */
+                readonly to?: string;
+            };
+            readonly header?: never;
+            readonly path: {
+                readonly org: string;
+                readonly project: string;
+                /** @description development, staging or production */
+                readonly environment: "development" | "staging" | "production";
+                /** @description The issue's id */
+                readonly issue: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["LogIssueDetailOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not read this project's logs */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No such issue in this environment */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The logs could not be read */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly put_v1_organizations_by_org_projects_by_project_logs_by_environment_issues_by_issue: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly org: string;
+                readonly project: string;
+                /** @description development, staging or production */
+                readonly environment: "development" | "staging" | "production";
+                readonly issue: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": {
+                    /**
+                     * @description unresolved, resolved or ignored
+                     * @enum {string}
+                     */
+                    readonly status: "unresolved" | "resolved" | "ignored";
+                };
+            };
+        };
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["LogIssueStateOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not read this project's logs */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The organization, project or environment does not exist, or you cannot see it */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly get_v1_organizations_by_org_projects_by_project_logs_by_environment_records: {
+        readonly parameters: {
+            readonly query?: {
+                /** @description RFC 3339, inclusive. Defaults to 24 hours before to */
+                readonly from?: string;
+                /** @description RFC 3339, exclusive. Defaults to now */
+                readonly to?: string;
+                /** @description Words, "phrases" and field:value filters: level:error,fatal logger:Net release:1.4.2 -word attr.region:eu */
+                readonly q?: string;
+                /** @description The next_cursor of the page before */
+                readonly cursor?: string;
+                /** @description Records per page, 1 to 500; 200 when absent */
+                readonly limit?: number;
+            };
+            readonly header?: never;
+            readonly path: {
+                readonly org: string;
+                readonly project: string;
+                /** @description development, staging or production */
+                readonly environment: "development" | "staging" | "production";
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["LogRecordsOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not read this project's logs */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The organization, project or environment does not exist, or you cannot see it */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The logs could not be read */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly get_v1_organizations_by_org_projects_by_project_logs_by_environment_records_newer: {
+        readonly parameters: {
+            readonly query: {
+                /** @description RFC 3339: the newest record already shown */
+                readonly since: string;
+                readonly q?: string;
+            };
+            readonly header?: never;
+            readonly path: {
+                readonly org: string;
+                readonly project: string;
+                /** @description development, staging or production */
+                readonly environment: "development" | "staging" | "production";
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["LogNewerOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not read this project's logs */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The organization, project or environment does not exist, or you cannot see it */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The logs could not be read */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly get_v1_organizations_by_org_projects_by_project_logs_by_environment_records_by_record: {
+        readonly parameters: {
+            readonly query: {
+                /** @description RFC 3339: the record's own time, as the list gave it */
+                readonly at: string;
+            };
+            readonly header?: never;
+            readonly path: {
+                readonly org: string;
+                readonly project: string;
+                /** @description development, staging or production */
+                readonly environment: "development" | "staging" | "production";
+                readonly record: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["LogRecordOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not read this project's logs */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No such record, or it is past the retention */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The logs could not be read */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly get_v1_organizations_by_org_projects_by_project_logs_by_environment_summary: {
+        readonly parameters: {
+            readonly query?: {
+                /** @description RFC 3339, inclusive. Defaults to 24 hours before to */
+                readonly from?: string;
+                /** @description RFC 3339, exclusive. Defaults to now */
+                readonly to?: string;
+            };
+            readonly header?: never;
+            readonly path: {
+                readonly org: string;
+                readonly project: string;
+                /** @description development, staging or production */
+                readonly environment: "development" | "staging" | "production";
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["LogSummaryOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not read this project's logs */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The organization, project or environment does not exist, or you cannot see it */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The logs could not be read */
             readonly 503: {
                 headers: {
                     readonly [name: string]: unknown;

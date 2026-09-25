@@ -452,6 +452,108 @@
         }
       }
     },
+    "/v1/logs": {
+      "post": {
+        "tags": [
+          "ingestion"
+        ],
+        "summary": "Accept a batch of logs, exceptions and crashes",
+        "description": "Answers 202 once the batch has reached durable queueing, with how many records were stored and how many dropped. Text past its limit is cut rather than refused, so a long log line or a deep stack is kept. The body may be sent with Content-Encoding: gzip or zstd.",
+        "operationId": "post_v1_logs",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IngestLogsIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogsAccepted"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The key is missing, unknown or revoked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key is scoped to another environment",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "The batch exceeded the body limit, compressed or decoded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "The Content-Encoding is not gzip or zstd",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The batch could not be queued; retry with backoff",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/metrics/query": {
       "post": {
         "tags": [
@@ -4016,10 +4118,12 @@
                   },
                   "meter": {
                     "type": "string",
-                    "description": "Only tracked_players today",
+                    "description": "tracked_players (per player), log_ingest_mb (per megabyte taken in) or log_storage_gb_days (per gigabyte kept a day)",
                     "default": "tracked_players",
                     "enum": [
-                      "tracked_players"
+                      "tracked_players",
+                      "log_ingest_mb",
+                      "log_storage_gb_days"
                     ]
                   },
                   "mode": {
@@ -18941,6 +19045,1408 @@
         }
       }
     },
+    "/v1/organizations/{org}/projects/{project}/log-storage": {
+      "get": {
+        "tags": [
+          "logs"
+        ],
+        "summary": "Describe a project's log storage",
+        "description": "What the project keeps now, for how long, what it took in over the last thirty days, and what log storage has cost the organization this month.",
+        "operationId": "get_v1_organizations_by_org_projects_by_project_log_storage",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "project",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogStorageOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not read this project's logs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The organization, project or environment does not exist, or you cannot see it",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The logs could not be read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "logs"
+        ],
+        "summary": "Change how long a project keeps its logs",
+        "description": "New records take the change within minutes. A shorter retention is enforced on older records too, and billing follows it at once.",
+        "operationId": "put_v1_organizations_by_org_projects_by_project_log_storage",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "project",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "days": {
+                    "type": "integer",
+                    "format": "int32",
+                    "description": "1, 3, 7, 14, 30, 60 or 90",
+                    "enum": [
+                      1,
+                      3,
+                      7,
+                      14,
+                      30,
+                      60,
+                      90
+                    ]
+                  }
+                },
+                "required": []
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogStorageOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not read this project's logs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The organization, project or environment does not exist, or you cannot see it",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/organizations/{org}/projects/{project}/logs/{environment}/histogram": {
+      "get": {
+        "tags": [
+          "logs"
+        ],
+        "summary": "Count records over time",
+        "description": "One bar per step across the range, about ninety of them, each split by level. From per-minute counts when the search is only levels and kinds, from the records otherwise.",
+        "operationId": "get_v1_organizations_by_org_projects_by_project_logs_by_environment_histogram",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "project",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "environment",
+            "in": "path",
+            "description": "development, staging or production",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "development",
+                "staging",
+                "production"
+              ]
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "description": "RFC 3339, inclusive. Defaults to 24 hours before to",
+            "schema": {
+              "type": "string",
+              "maxLength": 40
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "description": "RFC 3339, exclusive. Defaults to now",
+            "schema": {
+              "type": "string",
+              "maxLength": 40
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "description": "Words, \"phrases\" and field:value filters: level:error,fatal logger:Net release:1.4.2 -word attr.region:eu",
+            "schema": {
+              "type": "string",
+              "maxLength": 1000
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogHistogramOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not read this project's logs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The organization, project or environment does not exist, or you cannot see it",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The logs could not be read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/organizations/{org}/projects/{project}/logs/{environment}/issues": {
+      "get": {
+        "tags": [
+          "logs"
+        ],
+        "summary": "List issues",
+        "description": "Every exception, crash and error log grouped into issues, with how often each happened in the range, to how many installs, and its trend.",
+        "operationId": "get_v1_organizations_by_org_projects_by_project_logs_by_environment_issues",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "project",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "environment",
+            "in": "path",
+            "description": "development, staging or production",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "development",
+                "staging",
+                "production"
+              ]
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "description": "RFC 3339, inclusive. Defaults to 24 hours before to",
+            "schema": {
+              "type": "string",
+              "maxLength": 40
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "description": "RFC 3339, exclusive. Defaults to now",
+            "schema": {
+              "type": "string",
+              "maxLength": 40
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "description": "unresolved (the default), resolved, ignored or all",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "unresolved",
+                "resolved",
+                "ignored",
+                "all"
+              ]
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "description": "Words the issue's title, type or culprit contains",
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "description": "events (the default), installs, last_seen or first_seen",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "events",
+                "installs",
+                "last_seen",
+                "first_seen"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogIssuesOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not read this project's logs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The organization, project or environment does not exist, or you cannot see it",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The logs could not be read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/organizations/{org}/projects/{project}/logs/{environment}/issues/{issue}": {
+      "get": {
+        "tags": [
+          "logs"
+        ],
+        "summary": "Describe one issue",
+        "description": "Its series over the range, where it happens (release, platform, OS, device, country) and its newest record.",
+        "operationId": "get_v1_organizations_by_org_projects_by_project_logs_by_environment_issues_by_issue",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "project",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "environment",
+            "in": "path",
+            "description": "development, staging or production",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "development",
+                "staging",
+                "production"
+              ]
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "description": "RFC 3339, inclusive. Defaults to 24 hours before to",
+            "schema": {
+              "type": "string",
+              "maxLength": 40
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "description": "RFC 3339, exclusive. Defaults to now",
+            "schema": {
+              "type": "string",
+              "maxLength": 40
+            }
+          },
+          {
+            "name": "issue",
+            "in": "path",
+            "description": "The issue's id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]+$",
+              "maxLength": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogIssueDetailOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not read this project's logs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such issue in this environment",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The logs could not be read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "logs"
+        ],
+        "summary": "Resolve, ignore or reopen an issue",
+        "description": "A resolved issue seen again afterwards is listed as regressed.",
+        "operationId": "put_v1_organizations_by_org_projects_by_project_logs_by_environment_issues_by_issue",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "project",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "environment",
+            "in": "path",
+            "description": "development, staging or production",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "development",
+                "staging",
+                "production"
+              ]
+            }
+          },
+          {
+            "name": "issue",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]+$",
+              "maxLength": 20
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "description": "unresolved, resolved or ignored",
+                    "enum": [
+                      "unresolved",
+                      "resolved",
+                      "ignored"
+                    ]
+                  }
+                },
+                "required": [
+                  "status"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogIssueStateOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not read this project's logs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The organization, project or environment does not exist, or you cannot see it",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/organizations/{org}/projects/{project}/logs/{environment}/records": {
+      "get": {
+        "tags": [
+          "logs"
+        ],
+        "summary": "List records, newest first",
+        "description": "One page of the records matching the search, newest first, with a cursor to the next. Each message is cut at 400 bytes; read the record for the whole of it.",
+        "operationId": "get_v1_organizations_by_org_projects_by_project_logs_by_environment_records",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "project",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "environment",
+            "in": "path",
+            "description": "development, staging or production",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "development",
+                "staging",
+                "production"
+              ]
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "description": "RFC 3339, inclusive. Defaults to 24 hours before to",
+            "schema": {
+              "type": "string",
+              "maxLength": 40
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "description": "RFC 3339, exclusive. Defaults to now",
+            "schema": {
+              "type": "string",
+              "maxLength": 40
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "description": "Words, \"phrases\" and field:value filters: level:error,fatal logger:Net release:1.4.2 -word attr.region:eu",
+            "schema": {
+              "type": "string",
+              "maxLength": 1000
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "The next_cursor of the page before",
+            "schema": {
+              "type": "string",
+              "maxLength": 80
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Records per page, 1 to 500; 200 when absent",
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0,
+              "maximum": 500
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogRecordsOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not read this project's logs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The organization, project or environment does not exist, or you cannot see it",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The logs could not be read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/organizations/{org}/projects/{project}/logs/{environment}/records/newer": {
+      "get": {
+        "tags": [
+          "logs"
+        ],
+        "summary": "Count records newer than the newest shown",
+        "description": "What the live view says is waiting above the page being read.",
+        "operationId": "get_v1_organizations_by_org_projects_by_project_logs_by_environment_records_newer",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "project",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "environment",
+            "in": "path",
+            "description": "development, staging or production",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "development",
+                "staging",
+                "production"
+              ]
+            }
+          },
+          {
+            "name": "since",
+            "in": "query",
+            "description": "RFC 3339: the newest record already shown",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 40
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 1000
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogNewerOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not read this project's logs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The organization, project or environment does not exist, or you cannot see it",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The logs could not be read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/organizations/{org}/projects/{project}/logs/{environment}/records/{record}": {
+      "get": {
+        "tags": [
+          "logs"
+        ],
+        "summary": "Read one record whole",
+        "description": "The whole message, the stack, the breadcrumbs, the device and every attribute.",
+        "operationId": "get_v1_organizations_by_org_projects_by_project_logs_by_environment_records_by_record",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "project",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "environment",
+            "in": "path",
+            "description": "development, staging or production",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "development",
+                "staging",
+                "production"
+              ]
+            }
+          },
+          {
+            "name": "record",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "at",
+            "in": "query",
+            "description": "RFC 3339: the record's own time, as the list gave it",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 40
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogRecordOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not read this project's logs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or it is past the retention",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The logs could not be read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/organizations/{org}/projects/{project}/logs/{environment}/summary": {
+      "get": {
+        "tags": [
+          "logs"
+        ],
+        "summary": "Describe the range",
+        "description": "Records, warnings, errors, exceptions, crashes and bytes, and the issues that happened, against the range before it.",
+        "operationId": "get_v1_organizations_by_org_projects_by_project_logs_by_environment_summary",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "project",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "environment",
+            "in": "path",
+            "description": "development, staging or production",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "development",
+                "staging",
+                "production"
+              ]
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "description": "RFC 3339, inclusive. Defaults to 24 hours before to",
+            "schema": {
+              "type": "string",
+              "maxLength": 40
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "description": "RFC 3339, exclusive. Defaults to now",
+            "schema": {
+              "type": "string",
+              "maxLength": 40
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogSummaryOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not read this project's logs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The organization, project or environment does not exist, or you cannot see it",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The logs could not be read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/organizations/{org}/projects/{project}/privacy": {
       "get": {
         "tags": [
@@ -26392,6 +27898,28 @@
           "state"
         ]
       },
+      "Breadcrumb": {
+        "type": "object",
+        "properties": {
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "category": {
+            "type": "string",
+            "description": "scene, ui, network, log…"
+          },
+          "level": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "at"
+        ]
+      },
       "Breakdown": {
         "type": "object",
         "properties": {
@@ -30150,6 +31678,66 @@
           "sdk"
         ]
       },
+      "IngestLogsIn": {
+        "type": "object",
+        "properties": {
+          "app": {
+            "$ref": "#/components/schemas/App"
+          },
+          "batch_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Stable across retries, so a redelivery is recognisable"
+          },
+          "consent": {
+            "$ref": "#/components/schemas/Consent"
+          },
+          "device": {
+            "$ref": "#/components/schemas/LogDevice"
+          },
+          "environment": {
+            "type": "string",
+            "description": "development, staging or production",
+            "enum": [
+              "development",
+              "staging",
+              "production"
+            ]
+          },
+          "install_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The installation this batch came from"
+          },
+          "records": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LogRecord"
+            },
+            "minItems": 1
+          },
+          "schema_version": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The envelope version; currently 1",
+            "minimum": 1,
+            "maximum": 1
+          },
+          "sdk": {
+            "$ref": "#/components/schemas/SDK"
+          }
+        },
+        "required": [
+          "app",
+          "batch_id",
+          "consent",
+          "device",
+          "install_id",
+          "records",
+          "schema_version",
+          "sdk"
+        ]
+      },
       "IngestionBucketOut": {
         "type": "object",
         "properties": {
@@ -31120,6 +32708,927 @@
           "status",
           "updated_at",
           "watch"
+        ]
+      },
+      "LogBreadcrumbOut": {
+        "type": "object",
+        "properties": {
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "category": {
+            "type": "string"
+          },
+          "level": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "at"
+        ]
+      },
+      "LogBucketOut": {
+        "type": "object",
+        "properties": {
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "debug": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "error": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "fatal": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "info": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "trace": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "warn": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "at",
+          "debug",
+          "error",
+          "fatal",
+          "info",
+          "trace",
+          "warn"
+        ]
+      },
+      "LogDevice": {
+        "type": "object",
+        "properties": {
+          "locale": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string",
+            "description": "The hardware model, such as iPhone15,2 or SM-S918B"
+          },
+          "os_version": {
+            "type": "string"
+          },
+          "platform": {
+            "type": "string",
+            "description": "ios, android, windows, macos, linux, web, console"
+          }
+        },
+        "required": [
+          "platform"
+        ]
+      },
+      "LogEnvBytesOut": {
+        "type": "object",
+        "properties": {
+          "bytes": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "environment": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "bytes",
+          "environment"
+        ]
+      },
+      "LogException": {
+        "type": "object",
+        "properties": {
+          "frames": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StackFrame"
+            }
+          },
+          "handled": {
+            "type": "boolean",
+            "description": "Whether the game caught it"
+          },
+          "type": {
+            "type": "string",
+            "description": "The exception's class, such as NullReferenceException"
+          },
+          "value": {
+            "type": "string",
+            "description": "Its message"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "LogFiguresOut": {
+        "type": "object",
+        "properties": {
+          "affected_installs": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Installs any issue reached, approximately"
+          },
+          "bytes": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "crashes": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "errors": {
+            "type": "integer",
+            "format": "int64",
+            "description": "error and fatal"
+          },
+          "exceptions": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "issues": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Issues that happened in the range"
+          },
+          "new_issues": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Issues first seen in the range"
+          },
+          "records": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "warnings": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "affected_installs",
+          "bytes",
+          "crashes",
+          "errors",
+          "exceptions",
+          "issues",
+          "new_issues",
+          "records",
+          "warnings"
+        ]
+      },
+      "LogFrameOut": {
+        "type": "object",
+        "properties": {
+          "file": {
+            "type": "string"
+          },
+          "function": {
+            "type": "string"
+          },
+          "in_app": {
+            "type": "boolean"
+          },
+          "line": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "module": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "in_app"
+        ]
+      },
+      "LogHistogramOut": {
+        "type": "object",
+        "properties": {
+          "buckets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LogBucketOut"
+            }
+          },
+          "earliest": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The oldest moment the project's retention still holds"
+          },
+          "from": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "step_seconds": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "to": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/LogLevelCountsOut"
+          }
+        },
+        "required": [
+          "buckets",
+          "earliest",
+          "from",
+          "step_seconds",
+          "to",
+          "totals"
+        ]
+      },
+      "LogIssueDetailOut": {
+        "type": "object",
+        "properties": {
+          "breakdown": {
+            "type": "object",
+            "description": "release, platform, os, device and country: the five commonest of each",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/LogShareOut"
+              }
+            }
+          },
+          "issue": {
+            "$ref": "#/components/schemas/LogIssueOut"
+          },
+          "latest": {
+            "description": "The newest record of the issue in the range",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LogRecordOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "series": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LogPointOut"
+            }
+          },
+          "step_seconds": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "breakdown",
+          "issue",
+          "series",
+          "step_seconds"
+        ]
+      },
+      "LogIssueOut": {
+        "type": "object",
+        "properties": {
+          "culprit": {
+            "type": "string"
+          },
+          "events": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Inside the range"
+          },
+          "exception_type": {
+            "type": "string"
+          },
+          "first_release": {
+            "type": "string"
+          },
+          "first_seen": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "id": {
+            "type": "string"
+          },
+          "installs": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Inside the range"
+          },
+          "kind": {
+            "type": "string",
+            "description": "log, exception or crash: the gravest of its records"
+          },
+          "last_release": {
+            "type": "string"
+          },
+          "last_seen": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "level": {
+            "type": "string"
+          },
+          "resolved_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string",
+            "description": "unresolved, resolved, ignored or regressed"
+          },
+          "title": {
+            "type": "string"
+          },
+          "total_events": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Across everything retained"
+          },
+          "total_installs": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "trend": {
+            "type": "array",
+            "description": "Events across the range in equal bars",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          "updated_by": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "events",
+          "first_seen",
+          "id",
+          "installs",
+          "kind",
+          "last_seen",
+          "level",
+          "status",
+          "title",
+          "total_events",
+          "total_installs",
+          "trend"
+        ]
+      },
+      "LogIssueStateOut": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "resolved_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string"
+          },
+          "updated_by": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status"
+        ]
+      },
+      "LogIssuesOut": {
+        "type": "object",
+        "properties": {
+          "issues": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LogIssueOut"
+            }
+          },
+          "truncated": {
+            "type": "boolean",
+            "description": "More issues matched than the list shows"
+          }
+        },
+        "required": [
+          "issues",
+          "truncated"
+        ]
+      },
+      "LogLevelCountsOut": {
+        "type": "object",
+        "properties": {
+          "debug": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "error": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "fatal": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "info": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "trace": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "warn": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "debug",
+          "error",
+          "fatal",
+          "info",
+          "trace",
+          "warn"
+        ]
+      },
+      "LogNewerOut": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "count"
+        ]
+      },
+      "LogPointOut": {
+        "type": "object",
+        "properties": {
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "value": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "at",
+          "value"
+        ]
+      },
+      "LogRecord": {
+        "type": "object",
+        "properties": {
+          "attributes": {
+            "type": "object",
+            "additionalProperties": {}
+          },
+          "breadcrumbs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Breadcrumb"
+            }
+          },
+          "crash": {
+            "type": "boolean"
+          },
+          "exception": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LogException"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fingerprint": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "level": {
+            "type": "string",
+            "description": "trace, debug, info, warn, error or fatal"
+          },
+          "logger": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "player_id": {
+            "type": "string"
+          },
+          "record_id": {
+            "type": "string",
+            "description": "A UUID; derived from the batch when absent"
+          },
+          "session_id": {
+            "type": "string"
+          },
+          "time": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When it happened, on the device's clock"
+          }
+        },
+        "required": [
+          "level",
+          "time"
+        ]
+      },
+      "LogRecordOut": {
+        "type": "object",
+        "properties": {
+          "app_build": {
+            "type": "string"
+          },
+          "app_version": {
+            "type": "string"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "attributes": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "breadcrumbs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LogBreadcrumbOut"
+            }
+          },
+          "country_code": {
+            "type": "string"
+          },
+          "culprit": {
+            "type": "string"
+          },
+          "device_model": {
+            "type": "string"
+          },
+          "exception_type": {
+            "type": "string"
+          },
+          "exception_value": {
+            "type": "string"
+          },
+          "frames": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LogFrameOut"
+            }
+          },
+          "handled": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "install_id": {
+            "type": "string"
+          },
+          "issue": {
+            "type": "string",
+            "description": "The issue this record belongs to, when it belongs to one"
+          },
+          "kind": {
+            "type": "string",
+            "description": "log, exception or crash"
+          },
+          "level": {
+            "type": "string"
+          },
+          "logger": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string",
+            "description": "The first 400 bytes"
+          },
+          "os_version": {
+            "type": "string"
+          },
+          "platform": {
+            "type": "string"
+          },
+          "player_id": {
+            "type": "string",
+            "description": "Only with player.read"
+          },
+          "received_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "sdk": {
+            "type": "string"
+          },
+          "session_id": {
+            "type": "string",
+            "description": "Only with player.read"
+          },
+          "size": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Billed bytes"
+          }
+        },
+        "required": [
+          "at",
+          "attributes",
+          "breadcrumbs",
+          "frames",
+          "handled",
+          "id",
+          "install_id",
+          "kind",
+          "level",
+          "received_at",
+          "size"
+        ]
+      },
+      "LogRecordSummaryOut": {
+        "type": "object",
+        "properties": {
+          "app_version": {
+            "type": "string"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "culprit": {
+            "type": "string"
+          },
+          "exception_type": {
+            "type": "string"
+          },
+          "exception_value": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "install_id": {
+            "type": "string"
+          },
+          "issue": {
+            "type": "string",
+            "description": "The issue this record belongs to, when it belongs to one"
+          },
+          "kind": {
+            "type": "string",
+            "description": "log, exception or crash"
+          },
+          "level": {
+            "type": "string"
+          },
+          "logger": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string",
+            "description": "The first 400 bytes"
+          },
+          "platform": {
+            "type": "string"
+          },
+          "player_id": {
+            "type": "string",
+            "description": "Only with player.read"
+          }
+        },
+        "required": [
+          "at",
+          "id",
+          "install_id",
+          "kind",
+          "level"
+        ]
+      },
+      "LogRecordsOut": {
+        "type": "object",
+        "properties": {
+          "next_cursor": {
+            "type": "string",
+            "description": "Absent on the last page"
+          },
+          "records": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LogRecordSummaryOut"
+            }
+          }
+        },
+        "required": [
+          "records"
+        ]
+      },
+      "LogShareOut": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "value": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "count",
+          "value"
+        ]
+      },
+      "LogStorageOut": {
+        "type": "object",
+        "properties": {
+          "charged_micros": {
+            "type": "integer",
+            "format": "int64",
+            "description": "What logs have cost this month so far"
+          },
+          "environments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LogEnvBytesOut"
+            }
+          },
+          "gb_days": {
+            "type": "number",
+            "format": "double",
+            "description": "Gigabytes kept, times days, through yesterday"
+          },
+          "gb_months": {
+            "type": "number",
+            "format": "double",
+            "description": "GB-days over the month's days"
+          },
+          "included_gb_months": {
+            "type": "number",
+            "format": "double",
+            "description": "The free tier: GB-months kept at no charge"
+          },
+          "included_ingest_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The free tier: bytes a month taken in at no charge"
+          },
+          "ingest_price_per_gb_micros": {
+            "type": "integer",
+            "format": "int64",
+            "description": "A gigabyte taken in past the free tier"
+          },
+          "ingested": {
+            "type": "array",
+            "description": "Bytes by the day they happened, over the last 30 days",
+            "items": {
+              "$ref": "#/components/schemas/LogPointOut"
+            }
+          },
+          "ingested_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Log bytes taken in this month, every project"
+          },
+          "kept_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Log bytes held now, every environment"
+          },
+          "period_start": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "projected_micros": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The month at its rate so far"
+          },
+          "retention_changed_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "retention_choices": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          "retention_days": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "retention_purge_until": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "While a lowered retention is still being enforced on older records"
+          },
+          "storage_price_per_gb_month_micros": {
+            "type": "integer",
+            "format": "int64",
+            "description": "A gigabyte kept a 30-day month past the free tier"
+          }
+        },
+        "required": [
+          "charged_micros",
+          "environments",
+          "gb_days",
+          "gb_months",
+          "included_gb_months",
+          "included_ingest_bytes",
+          "ingest_price_per_gb_micros",
+          "ingested",
+          "ingested_bytes",
+          "kept_bytes",
+          "period_start",
+          "projected_micros",
+          "retention_choices",
+          "retention_days",
+          "storage_price_per_gb_month_micros"
+        ]
+      },
+      "LogSummaryOut": {
+        "type": "object",
+        "properties": {
+          "current": {
+            "$ref": "#/components/schemas/LogFiguresOut"
+          },
+          "previous": {
+            "$ref": "#/components/schemas/LogFiguresOut"
+          }
+        },
+        "required": [
+          "current",
+          "previous"
+        ]
+      },
+      "LogsAccepted": {
+        "type": "object",
+        "properties": {
+          "accepted": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "batch_id": {
+            "type": "string"
+          },
+          "dropped": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "reasons": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "accepted",
+          "batch_id",
+          "dropped"
         ]
       },
       "MeOrganizationOut": {
@@ -36464,6 +38973,28 @@
           "from_micros"
         ]
       },
+      "StackFrame": {
+        "type": "object",
+        "properties": {
+          "file": {
+            "type": "string"
+          },
+          "function": {
+            "type": "string"
+          },
+          "in_app": {
+            "type": "boolean"
+          },
+          "line": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "module": {
+            "type": "string",
+            "description": "The class, namespace or library"
+          }
+        }
+      },
       "StaffAccessEntryOut": {
         "type": "object",
         "properties": {
@@ -38094,6 +40625,10 @@
     {
       "name": "privacy",
       "description": "Erasing and exporting one player's data."
+    },
+    {
+      "name": "logs",
+      "description": "Cloud Logging: the game's logs, exceptions and crashes."
     },
     {
       "name": "reports"
