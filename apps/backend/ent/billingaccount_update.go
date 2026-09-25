@@ -17,8 +17,10 @@ import (
 	"playersense.dev/backend/ent/invoice"
 	"playersense.dev/backend/ent/ledgerentry"
 	"playersense.dev/backend/ent/monthlyusage"
+	"playersense.dev/backend/ent/paymentcard"
 	"playersense.dev/backend/ent/plan"
 	"playersense.dev/backend/ent/predicate"
+	"playersense.dev/backend/ent/receipt"
 	"playersense.dev/backend/ent/stripeevent"
 	"playersense.dev/backend/ent/usagecharge"
 )
@@ -635,6 +637,38 @@ func (_u *BillingAccountUpdate) SetEntitlementOverrides(v map[string]int64) *Bil
 	return _u
 }
 
+// SetInvoiceDetails sets the "invoice_details" field.
+func (_u *BillingAccountUpdate) SetInvoiceDetails(v map[string]interface{}) *BillingAccountUpdate {
+	_u.mutation.SetInvoiceDetails(v)
+	return _u
+}
+
+// ClearInvoiceDetails clears the value of the "invoice_details" field.
+func (_u *BillingAccountUpdate) ClearInvoiceDetails() *BillingAccountUpdate {
+	_u.mutation.ClearInvoiceDetails()
+	return _u
+}
+
+// SetCardsSyncedAt sets the "cards_synced_at" field.
+func (_u *BillingAccountUpdate) SetCardsSyncedAt(v time.Time) *BillingAccountUpdate {
+	_u.mutation.SetCardsSyncedAt(v)
+	return _u
+}
+
+// SetNillableCardsSyncedAt sets the "cards_synced_at" field if the given value is not nil.
+func (_u *BillingAccountUpdate) SetNillableCardsSyncedAt(v *time.Time) *BillingAccountUpdate {
+	if v != nil {
+		_u.SetCardsSyncedAt(*v)
+	}
+	return _u
+}
+
+// ClearCardsSyncedAt clears the value of the "cards_synced_at" field.
+func (_u *BillingAccountUpdate) ClearCardsSyncedAt() *BillingAccountUpdate {
+	_u.mutation.ClearCardsSyncedAt()
+	return _u
+}
+
 // SetPlan sets the "plan" edge to the Plan entity.
 func (_u *BillingAccountUpdate) SetPlan(v *Plan) *BillingAccountUpdate {
 	return _u.SetPlanID(v.ID)
@@ -743,6 +777,36 @@ func (_u *BillingAccountUpdate) AddUsageCharges(v ...*UsageCharge) *BillingAccou
 		ids[i] = v[i].ID
 	}
 	return _u.AddUsageChargeIDs(ids...)
+}
+
+// AddCardIDs adds the "cards" edge to the PaymentCard entity by IDs.
+func (_u *BillingAccountUpdate) AddCardIDs(ids ...int) *BillingAccountUpdate {
+	_u.mutation.AddCardIDs(ids...)
+	return _u
+}
+
+// AddCards adds the "cards" edges to the PaymentCard entity.
+func (_u *BillingAccountUpdate) AddCards(v ...*PaymentCard) *BillingAccountUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddCardIDs(ids...)
+}
+
+// AddReceiptIDs adds the "receipts" edge to the Receipt entity by IDs.
+func (_u *BillingAccountUpdate) AddReceiptIDs(ids ...int) *BillingAccountUpdate {
+	_u.mutation.AddReceiptIDs(ids...)
+	return _u
+}
+
+// AddReceipts adds the "receipts" edges to the Receipt entity.
+func (_u *BillingAccountUpdate) AddReceipts(v ...*Receipt) *BillingAccountUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddReceiptIDs(ids...)
 }
 
 // Mutation returns the BillingAccountMutation object of the builder.
@@ -901,6 +965,48 @@ func (_u *BillingAccountUpdate) RemoveUsageCharges(v ...*UsageCharge) *BillingAc
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveUsageChargeIDs(ids...)
+}
+
+// ClearCards clears all "cards" edges to the PaymentCard entity.
+func (_u *BillingAccountUpdate) ClearCards() *BillingAccountUpdate {
+	_u.mutation.ClearCards()
+	return _u
+}
+
+// RemoveCardIDs removes the "cards" edge to PaymentCard entities by IDs.
+func (_u *BillingAccountUpdate) RemoveCardIDs(ids ...int) *BillingAccountUpdate {
+	_u.mutation.RemoveCardIDs(ids...)
+	return _u
+}
+
+// RemoveCards removes "cards" edges to PaymentCard entities.
+func (_u *BillingAccountUpdate) RemoveCards(v ...*PaymentCard) *BillingAccountUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveCardIDs(ids...)
+}
+
+// ClearReceipts clears all "receipts" edges to the Receipt entity.
+func (_u *BillingAccountUpdate) ClearReceipts() *BillingAccountUpdate {
+	_u.mutation.ClearReceipts()
+	return _u
+}
+
+// RemoveReceiptIDs removes the "receipts" edge to Receipt entities by IDs.
+func (_u *BillingAccountUpdate) RemoveReceiptIDs(ids ...int) *BillingAccountUpdate {
+	_u.mutation.RemoveReceiptIDs(ids...)
+	return _u
+}
+
+// RemoveReceipts removes "receipts" edges to Receipt entities.
+func (_u *BillingAccountUpdate) RemoveReceipts(v ...*Receipt) *BillingAccountUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveReceiptIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -1220,6 +1326,18 @@ func (_u *BillingAccountUpdate) sqlSave(ctx context.Context) (_node int, err err
 	}
 	if value, ok := _u.mutation.EntitlementOverrides(); ok {
 		_spec.SetField(billingaccount.FieldEntitlementOverrides, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.InvoiceDetails(); ok {
+		_spec.SetField(billingaccount.FieldInvoiceDetails, field.TypeJSON, value)
+	}
+	if _u.mutation.InvoiceDetailsCleared() {
+		_spec.ClearField(billingaccount.FieldInvoiceDetails, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.CardsSyncedAt(); ok {
+		_spec.SetField(billingaccount.FieldCardsSyncedAt, field.TypeTime, value)
+	}
+	if _u.mutation.CardsSyncedAtCleared() {
+		_spec.ClearField(billingaccount.FieldCardsSyncedAt, field.TypeTime)
 	}
 	if _u.mutation.PlanCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -1558,6 +1676,96 @@ func (_u *BillingAccountUpdate) sqlSave(ctx context.Context) (_node int, err err
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(usagecharge.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.CardsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   billingaccount.CardsTable,
+			Columns: []string{billingaccount.CardsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(paymentcard.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedCardsIDs(); len(nodes) > 0 && !_u.mutation.CardsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   billingaccount.CardsTable,
+			Columns: []string{billingaccount.CardsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(paymentcard.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.CardsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   billingaccount.CardsTable,
+			Columns: []string{billingaccount.CardsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(paymentcard.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ReceiptsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   billingaccount.ReceiptsTable,
+			Columns: []string{billingaccount.ReceiptsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(receipt.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedReceiptsIDs(); len(nodes) > 0 && !_u.mutation.ReceiptsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   billingaccount.ReceiptsTable,
+			Columns: []string{billingaccount.ReceiptsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(receipt.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ReceiptsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   billingaccount.ReceiptsTable,
+			Columns: []string{billingaccount.ReceiptsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(receipt.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {
@@ -2184,6 +2392,38 @@ func (_u *BillingAccountUpdateOne) SetEntitlementOverrides(v map[string]int64) *
 	return _u
 }
 
+// SetInvoiceDetails sets the "invoice_details" field.
+func (_u *BillingAccountUpdateOne) SetInvoiceDetails(v map[string]interface{}) *BillingAccountUpdateOne {
+	_u.mutation.SetInvoiceDetails(v)
+	return _u
+}
+
+// ClearInvoiceDetails clears the value of the "invoice_details" field.
+func (_u *BillingAccountUpdateOne) ClearInvoiceDetails() *BillingAccountUpdateOne {
+	_u.mutation.ClearInvoiceDetails()
+	return _u
+}
+
+// SetCardsSyncedAt sets the "cards_synced_at" field.
+func (_u *BillingAccountUpdateOne) SetCardsSyncedAt(v time.Time) *BillingAccountUpdateOne {
+	_u.mutation.SetCardsSyncedAt(v)
+	return _u
+}
+
+// SetNillableCardsSyncedAt sets the "cards_synced_at" field if the given value is not nil.
+func (_u *BillingAccountUpdateOne) SetNillableCardsSyncedAt(v *time.Time) *BillingAccountUpdateOne {
+	if v != nil {
+		_u.SetCardsSyncedAt(*v)
+	}
+	return _u
+}
+
+// ClearCardsSyncedAt clears the value of the "cards_synced_at" field.
+func (_u *BillingAccountUpdateOne) ClearCardsSyncedAt() *BillingAccountUpdateOne {
+	_u.mutation.ClearCardsSyncedAt()
+	return _u
+}
+
 // SetPlan sets the "plan" edge to the Plan entity.
 func (_u *BillingAccountUpdateOne) SetPlan(v *Plan) *BillingAccountUpdateOne {
 	return _u.SetPlanID(v.ID)
@@ -2292,6 +2532,36 @@ func (_u *BillingAccountUpdateOne) AddUsageCharges(v ...*UsageCharge) *BillingAc
 		ids[i] = v[i].ID
 	}
 	return _u.AddUsageChargeIDs(ids...)
+}
+
+// AddCardIDs adds the "cards" edge to the PaymentCard entity by IDs.
+func (_u *BillingAccountUpdateOne) AddCardIDs(ids ...int) *BillingAccountUpdateOne {
+	_u.mutation.AddCardIDs(ids...)
+	return _u
+}
+
+// AddCards adds the "cards" edges to the PaymentCard entity.
+func (_u *BillingAccountUpdateOne) AddCards(v ...*PaymentCard) *BillingAccountUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddCardIDs(ids...)
+}
+
+// AddReceiptIDs adds the "receipts" edge to the Receipt entity by IDs.
+func (_u *BillingAccountUpdateOne) AddReceiptIDs(ids ...int) *BillingAccountUpdateOne {
+	_u.mutation.AddReceiptIDs(ids...)
+	return _u
+}
+
+// AddReceipts adds the "receipts" edges to the Receipt entity.
+func (_u *BillingAccountUpdateOne) AddReceipts(v ...*Receipt) *BillingAccountUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddReceiptIDs(ids...)
 }
 
 // Mutation returns the BillingAccountMutation object of the builder.
@@ -2450,6 +2720,48 @@ func (_u *BillingAccountUpdateOne) RemoveUsageCharges(v ...*UsageCharge) *Billin
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveUsageChargeIDs(ids...)
+}
+
+// ClearCards clears all "cards" edges to the PaymentCard entity.
+func (_u *BillingAccountUpdateOne) ClearCards() *BillingAccountUpdateOne {
+	_u.mutation.ClearCards()
+	return _u
+}
+
+// RemoveCardIDs removes the "cards" edge to PaymentCard entities by IDs.
+func (_u *BillingAccountUpdateOne) RemoveCardIDs(ids ...int) *BillingAccountUpdateOne {
+	_u.mutation.RemoveCardIDs(ids...)
+	return _u
+}
+
+// RemoveCards removes "cards" edges to PaymentCard entities.
+func (_u *BillingAccountUpdateOne) RemoveCards(v ...*PaymentCard) *BillingAccountUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveCardIDs(ids...)
+}
+
+// ClearReceipts clears all "receipts" edges to the Receipt entity.
+func (_u *BillingAccountUpdateOne) ClearReceipts() *BillingAccountUpdateOne {
+	_u.mutation.ClearReceipts()
+	return _u
+}
+
+// RemoveReceiptIDs removes the "receipts" edge to Receipt entities by IDs.
+func (_u *BillingAccountUpdateOne) RemoveReceiptIDs(ids ...int) *BillingAccountUpdateOne {
+	_u.mutation.RemoveReceiptIDs(ids...)
+	return _u
+}
+
+// RemoveReceipts removes "receipts" edges to Receipt entities.
+func (_u *BillingAccountUpdateOne) RemoveReceipts(v ...*Receipt) *BillingAccountUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveReceiptIDs(ids...)
 }
 
 // Where appends a list predicates to the BillingAccountUpdate builder.
@@ -2800,6 +3112,18 @@ func (_u *BillingAccountUpdateOne) sqlSave(ctx context.Context) (_node *BillingA
 	if value, ok := _u.mutation.EntitlementOverrides(); ok {
 		_spec.SetField(billingaccount.FieldEntitlementOverrides, field.TypeJSON, value)
 	}
+	if value, ok := _u.mutation.InvoiceDetails(); ok {
+		_spec.SetField(billingaccount.FieldInvoiceDetails, field.TypeJSON, value)
+	}
+	if _u.mutation.InvoiceDetailsCleared() {
+		_spec.ClearField(billingaccount.FieldInvoiceDetails, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.CardsSyncedAt(); ok {
+		_spec.SetField(billingaccount.FieldCardsSyncedAt, field.TypeTime, value)
+	}
+	if _u.mutation.CardsSyncedAtCleared() {
+		_spec.ClearField(billingaccount.FieldCardsSyncedAt, field.TypeTime)
+	}
 	if _u.mutation.PlanCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
@@ -3137,6 +3461,96 @@ func (_u *BillingAccountUpdateOne) sqlSave(ctx context.Context) (_node *BillingA
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(usagecharge.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.CardsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   billingaccount.CardsTable,
+			Columns: []string{billingaccount.CardsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(paymentcard.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedCardsIDs(); len(nodes) > 0 && !_u.mutation.CardsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   billingaccount.CardsTable,
+			Columns: []string{billingaccount.CardsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(paymentcard.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.CardsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   billingaccount.CardsTable,
+			Columns: []string{billingaccount.CardsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(paymentcard.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ReceiptsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   billingaccount.ReceiptsTable,
+			Columns: []string{billingaccount.ReceiptsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(receipt.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedReceiptsIDs(); len(nodes) > 0 && !_u.mutation.ReceiptsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   billingaccount.ReceiptsTable,
+			Columns: []string{billingaccount.ReceiptsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(receipt.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ReceiptsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   billingaccount.ReceiptsTable,
+			Columns: []string{billingaccount.ReceiptsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(receipt.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

@@ -29,9 +29,11 @@ import (
 	"playersense.dev/backend/ent/monthlyusage"
 	"playersense.dev/backend/ent/organization"
 	"playersense.dev/backend/ent/organizationmember"
+	"playersense.dev/backend/ent/paymentcard"
 	"playersense.dev/backend/ent/plan"
 	"playersense.dev/backend/ent/project"
 	"playersense.dev/backend/ent/ratecard"
+	"playersense.dev/backend/ent/receipt"
 	"playersense.dev/backend/ent/role"
 	"playersense.dev/backend/ent/savedfunnel"
 	"playersense.dev/backend/ent/schema"
@@ -1621,6 +1623,79 @@ func init() {
 	organizationmemberDescJoinedAt := organizationmemberFields[4].Descriptor()
 	// organizationmember.DefaultJoinedAt holds the default value on creation for the joined_at field.
 	organizationmember.DefaultJoinedAt = organizationmemberDescJoinedAt.Default.(func() time.Time)
+	paymentcardMixin := schema.PaymentCard{}.Mixin()
+	paymentcardMixinFields0 := paymentcardMixin[0].Fields()
+	_ = paymentcardMixinFields0
+	paymentcardFields := schema.PaymentCard{}.Fields()
+	_ = paymentcardFields
+	// paymentcardDescUID is the schema descriptor for uid field.
+	paymentcardDescUID := paymentcardMixinFields0[1].Descriptor()
+	// paymentcard.DefaultUID holds the default value on creation for the uid field.
+	paymentcard.DefaultUID = paymentcardDescUID.Default.(func() uuid.UUID)
+	// paymentcardDescCreatedAt is the schema descriptor for created_at field.
+	paymentcardDescCreatedAt := paymentcardMixinFields0[2].Descriptor()
+	// paymentcard.DefaultCreatedAt holds the default value on creation for the created_at field.
+	paymentcard.DefaultCreatedAt = paymentcardDescCreatedAt.Default.(func() time.Time)
+	// paymentcardDescUpdatedAt is the schema descriptor for updated_at field.
+	paymentcardDescUpdatedAt := paymentcardMixinFields0[3].Descriptor()
+	// paymentcard.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	paymentcard.DefaultUpdatedAt = paymentcardDescUpdatedAt.Default.(func() time.Time)
+	// paymentcard.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	paymentcard.UpdateDefaultUpdatedAt = paymentcardDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// paymentcardDescStripePaymentMethodID is the schema descriptor for stripe_payment_method_id field.
+	paymentcardDescStripePaymentMethodID := paymentcardFields[1].Descriptor()
+	// paymentcard.StripePaymentMethodIDValidator is a validator for the "stripe_payment_method_id" field. It is called by the builders before save.
+	paymentcard.StripePaymentMethodIDValidator = func() func(string) error {
+		validators := paymentcardDescStripePaymentMethodID.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(stripe_payment_method_id string) error {
+			for _, fn := range fns {
+				if err := fn(stripe_payment_method_id); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// paymentcardDescBrand is the schema descriptor for brand field.
+	paymentcardDescBrand := paymentcardFields[2].Descriptor()
+	// paymentcard.DefaultBrand holds the default value on creation for the brand field.
+	paymentcard.DefaultBrand = paymentcardDescBrand.Default.(string)
+	// paymentcard.BrandValidator is a validator for the "brand" field. It is called by the builders before save.
+	paymentcard.BrandValidator = paymentcardDescBrand.Validators[0].(func(string) error)
+	// paymentcardDescLast4 is the schema descriptor for last4 field.
+	paymentcardDescLast4 := paymentcardFields[3].Descriptor()
+	// paymentcard.DefaultLast4 holds the default value on creation for the last4 field.
+	paymentcard.DefaultLast4 = paymentcardDescLast4.Default.(string)
+	// paymentcard.Last4Validator is a validator for the "last4" field. It is called by the builders before save.
+	paymentcard.Last4Validator = paymentcardDescLast4.Validators[0].(func(string) error)
+	// paymentcardDescExpMonth is the schema descriptor for exp_month field.
+	paymentcardDescExpMonth := paymentcardFields[4].Descriptor()
+	// paymentcard.DefaultExpMonth holds the default value on creation for the exp_month field.
+	paymentcard.DefaultExpMonth = paymentcardDescExpMonth.Default.(int)
+	// paymentcardDescExpYear is the schema descriptor for exp_year field.
+	paymentcardDescExpYear := paymentcardFields[5].Descriptor()
+	// paymentcard.DefaultExpYear holds the default value on creation for the exp_year field.
+	paymentcard.DefaultExpYear = paymentcardDescExpYear.Default.(int)
+	// paymentcardDescFunding is the schema descriptor for funding field.
+	paymentcardDescFunding := paymentcardFields[6].Descriptor()
+	// paymentcard.DefaultFunding holds the default value on creation for the funding field.
+	paymentcard.DefaultFunding = paymentcardDescFunding.Default.(string)
+	// paymentcard.FundingValidator is a validator for the "funding" field. It is called by the builders before save.
+	paymentcard.FundingValidator = paymentcardDescFunding.Validators[0].(func(string) error)
+	// paymentcardDescCountry is the schema descriptor for country field.
+	paymentcardDescCountry := paymentcardFields[7].Descriptor()
+	// paymentcard.DefaultCountry holds the default value on creation for the country field.
+	paymentcard.DefaultCountry = paymentcardDescCountry.Default.(string)
+	// paymentcard.CountryValidator is a validator for the "country" field. It is called by the builders before save.
+	paymentcard.CountryValidator = paymentcardDescCountry.Validators[0].(func(string) error)
+	// paymentcardDescIsDefault is the schema descriptor for is_default field.
+	paymentcardDescIsDefault := paymentcardFields[8].Descriptor()
+	// paymentcard.DefaultIsDefault holds the default value on creation for the is_default field.
+	paymentcard.DefaultIsDefault = paymentcardDescIsDefault.Default.(bool)
 	planMixin := schema.Plan{}.Mixin()
 	planHooks := schema.Plan{}.Hooks()
 	plan.Hooks[0] = planHooks[0]
@@ -1827,6 +1902,77 @@ func init() {
 	ratecardDescCreatedBy := ratecardFields[7].Descriptor()
 	// ratecard.CreatedByValidator is a validator for the "created_by" field. It is called by the builders before save.
 	ratecard.CreatedByValidator = ratecardDescCreatedBy.Validators[0].(func(string) error)
+	receiptMixin := schema.Receipt{}.Mixin()
+	receiptMixinFields0 := receiptMixin[0].Fields()
+	_ = receiptMixinFields0
+	receiptFields := schema.Receipt{}.Fields()
+	_ = receiptFields
+	// receiptDescUID is the schema descriptor for uid field.
+	receiptDescUID := receiptMixinFields0[1].Descriptor()
+	// receipt.DefaultUID holds the default value on creation for the uid field.
+	receipt.DefaultUID = receiptDescUID.Default.(func() uuid.UUID)
+	// receiptDescCreatedAt is the schema descriptor for created_at field.
+	receiptDescCreatedAt := receiptMixinFields0[2].Descriptor()
+	// receipt.DefaultCreatedAt holds the default value on creation for the created_at field.
+	receipt.DefaultCreatedAt = receiptDescCreatedAt.Default.(func() time.Time)
+	// receiptDescUpdatedAt is the schema descriptor for updated_at field.
+	receiptDescUpdatedAt := receiptMixinFields0[3].Descriptor()
+	// receipt.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	receipt.DefaultUpdatedAt = receiptDescUpdatedAt.Default.(func() time.Time)
+	// receipt.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	receipt.UpdateDefaultUpdatedAt = receiptDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// receiptDescStripeInvoiceID is the schema descriptor for stripe_invoice_id field.
+	receiptDescStripeInvoiceID := receiptFields[1].Descriptor()
+	// receipt.StripeInvoiceIDValidator is a validator for the "stripe_invoice_id" field. It is called by the builders before save.
+	receipt.StripeInvoiceIDValidator = func() func(string) error {
+		validators := receiptDescStripeInvoiceID.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(stripe_invoice_id string) error {
+			for _, fn := range fns {
+				if err := fn(stripe_invoice_id); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// receiptDescNumber is the schema descriptor for number field.
+	receiptDescNumber := receiptFields[2].Descriptor()
+	// receipt.DefaultNumber holds the default value on creation for the number field.
+	receipt.DefaultNumber = receiptDescNumber.Default.(string)
+	// receipt.NumberValidator is a validator for the "number" field. It is called by the builders before save.
+	receipt.NumberValidator = receiptDescNumber.Validators[0].(func(string) error)
+	// receiptDescDescription is the schema descriptor for description field.
+	receiptDescDescription := receiptFields[4].Descriptor()
+	// receipt.DefaultDescription holds the default value on creation for the description field.
+	receipt.DefaultDescription = receiptDescDescription.Default.(string)
+	// receipt.DescriptionValidator is a validator for the "description" field. It is called by the builders before save.
+	receipt.DescriptionValidator = receiptDescDescription.Validators[0].(func(string) error)
+	// receiptDescTotalMicros is the schema descriptor for total_micros field.
+	receiptDescTotalMicros := receiptFields[6].Descriptor()
+	// receipt.DefaultTotalMicros holds the default value on creation for the total_micros field.
+	receipt.DefaultTotalMicros = receiptDescTotalMicros.Default.(int64)
+	// receiptDescCurrency is the schema descriptor for currency field.
+	receiptDescCurrency := receiptFields[7].Descriptor()
+	// receipt.DefaultCurrency holds the default value on creation for the currency field.
+	receipt.DefaultCurrency = receiptDescCurrency.Default.(string)
+	// receipt.CurrencyValidator is a validator for the "currency" field. It is called by the builders before save.
+	receipt.CurrencyValidator = receiptDescCurrency.Validators[0].(func(string) error)
+	// receiptDescHostedURL is the schema descriptor for hosted_url field.
+	receiptDescHostedURL := receiptFields[10].Descriptor()
+	// receipt.DefaultHostedURL holds the default value on creation for the hosted_url field.
+	receipt.DefaultHostedURL = receiptDescHostedURL.Default.(string)
+	// receipt.HostedURLValidator is a validator for the "hosted_url" field. It is called by the builders before save.
+	receipt.HostedURLValidator = receiptDescHostedURL.Validators[0].(func(string) error)
+	// receiptDescPdfURL is the schema descriptor for pdf_url field.
+	receiptDescPdfURL := receiptFields[11].Descriptor()
+	// receipt.DefaultPdfURL holds the default value on creation for the pdf_url field.
+	receipt.DefaultPdfURL = receiptDescPdfURL.Default.(string)
+	// receipt.PdfURLValidator is a validator for the "pdf_url" field. It is called by the builders before save.
+	receipt.PdfURLValidator = receiptDescPdfURL.Validators[0].(func(string) error)
 	roleMixin := schema.Role{}.Mixin()
 	roleHooks := schema.Role{}.Hooks()
 	role.Hooks[0] = roleHooks[0]

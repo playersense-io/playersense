@@ -149,6 +149,7 @@ func TestEveryMutatingRouteDecidesAboutAudit(t *testing.T) {
 		"POST /v1/organizations/{org}/billing/top-ups":      "opens a Stripe page; the payment is in stripe_events and the ledger",
 		"POST /v1/organizations/{org}/billing/portal":       "opens Stripe's portal; nothing here changes",
 		"POST /v1/organizations/{org}/billing/subscription": "opens a Stripe page; the plan changes by webhook",
+		"POST /v1/organizations/{org}/billing/cards":        "opens a Stripe page; the card arrives by webhook",
 		"PUT /v1/operator/plans/{plan}/subscription":        "the catalogue; the prices are Stripe objects that keep their own history",
 		"POST /v1/stripe/webhook":                           "Stripe's delivery, recorded whole in stripe_events",
 	}

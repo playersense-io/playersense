@@ -341,6 +341,13 @@ func (BillingAccount) Fields() []ent.Field {
 		// on — and not a branch in code, which is where a discount that outlives its deal
 		// comes from.
 		field.JSON("entitlement_overrides", map[string]int64{}).Default(map[string]int64{}).Comment(dataclass.None),
+
+		// The invoice details Stripe prints on every invoice (name, address, tax ids), as Stripe
+		// last described them. Stripe holds them and the customer portal edits them; this is a
+		// copy to show, refreshed by customer.updated and customer.tax_id.* and read back from
+		// Stripe the first time the page asks (cards_synced_at).
+		field.JSON("invoice_details", map[string]any{}).Optional().Comment(dataclass.None),
+		field.Time("cards_synced_at").Optional().Nillable().Comment(dataclass.None),
 	}
 }
 
@@ -368,6 +375,8 @@ func (BillingAccount) Edges() []ent.Edge {
 		edge.To("stripe_events", StripeEvent.Type),
 		edge.To("monthly_usage", MonthlyUsage.Type),
 		edge.To("usage_charges", UsageCharge.Type),
+		edge.To("cards", PaymentCard.Type),
+		edge.To("receipts", Receipt.Type),
 	}
 }
 

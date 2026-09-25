@@ -213,6 +213,8 @@ var (
 		{Name: "auto_topup_window_count", Type: field.TypeInt, Comment: "class=none", Default: 0},
 		{Name: "billing_email", Type: field.TypeString, Nullable: true, Size: 254, Comment: "class=none"},
 		{Name: "entitlement_overrides", Type: field.TypeJSON, Comment: "class=none"},
+		{Name: "invoice_details", Type: field.TypeJSON, Nullable: true, Comment: "class=none"},
+		{Name: "cards_synced_at", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
 		{Name: "organization_id", Type: field.TypeInt, Unique: true, Comment: "class=none"},
 		{Name: "plan_id", Type: field.TypeInt, Comment: "class=none"},
 	}
@@ -224,13 +226,13 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "billing_accounts_organizations_billing_account",
-				Columns:    []*schema.Column{BillingAccountsColumns[35]},
+				Columns:    []*schema.Column{BillingAccountsColumns[37]},
 				RefColumns: []*schema.Column{OrganizationsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "billing_accounts_plans_accounts",
-				Columns:    []*schema.Column{BillingAccountsColumns[36]},
+				Columns:    []*schema.Column{BillingAccountsColumns[38]},
 				RefColumns: []*schema.Column{PlansColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -1020,6 +1022,44 @@ var (
 			},
 		},
 	}
+	// PaymentCardsColumns holds the columns for the "payment_cards" table.
+	PaymentCardsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
+		{Name: "uid", Type: field.TypeUUID, Unique: true, Comment: "class=none"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "updated_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "stripe_payment_method_id", Type: field.TypeString, Unique: true, Size: 255, Comment: "class=none"},
+		{Name: "brand", Type: field.TypeString, Size: 32, Comment: "class=financial", Default: ""},
+		{Name: "last4", Type: field.TypeString, Size: 4, Comment: "class=financial", Default: ""},
+		{Name: "exp_month", Type: field.TypeInt, Comment: "class=financial", Default: 0},
+		{Name: "exp_year", Type: field.TypeInt, Comment: "class=financial", Default: 0},
+		{Name: "funding", Type: field.TypeString, Size: 16, Comment: "class=none", Default: ""},
+		{Name: "country", Type: field.TypeString, Size: 2, Comment: "class=none", Default: ""},
+		{Name: "is_default", Type: field.TypeBool, Comment: "class=none", Default: false},
+		{Name: "detached_at", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
+		{Name: "account_id", Type: field.TypeInt, Comment: "class=none"},
+	}
+	// PaymentCardsTable holds the schema information for the "payment_cards" table.
+	PaymentCardsTable = &schema.Table{
+		Name:       "payment_cards",
+		Columns:    PaymentCardsColumns,
+		PrimaryKey: []*schema.Column{PaymentCardsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "payment_cards_billing_accounts_cards",
+				Columns:    []*schema.Column{PaymentCardsColumns[13]},
+				RefColumns: []*schema.Column{BillingAccountsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "paymentcard_account_id_detached_at",
+				Unique:  false,
+				Columns: []*schema.Column{PaymentCardsColumns[13], PaymentCardsColumns[12]},
+			},
+		},
+	}
 	// PlansColumns holds the columns for the "plans" table.
 	PlansColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
@@ -1118,6 +1158,47 @@ var (
 				Name:    "ratecard_meter_effective_from_plan_id",
 				Unique:  true,
 				Columns: []*schema.Column{RateCardsColumns[3], RateCardsColumns[7], RateCardsColumns[10]},
+			},
+		},
+	}
+	// ReceiptsColumns holds the columns for the "receipts" table.
+	ReceiptsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
+		{Name: "uid", Type: field.TypeUUID, Unique: true, Comment: "class=none"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "updated_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "stripe_invoice_id", Type: field.TypeString, Unique: true, Size: 255, Comment: "class=none"},
+		{Name: "number", Type: field.TypeString, Size: 64, Comment: "class=none", Default: ""},
+		{Name: "kind", Type: field.TypeEnum, Comment: "class=none", Enums: []string{"top_up", "subscription"}},
+		{Name: "description", Type: field.TypeString, Size: 255, Comment: "class=none", Default: ""},
+		{Name: "status", Type: field.TypeEnum, Comment: "class=none", Enums: []string{"draft", "open", "paid", "void", "uncollectible"}},
+		{Name: "total_micros", Type: field.TypeInt64, Comment: "class=financial", Default: 0},
+		{Name: "currency", Type: field.TypeString, Size: 3, Comment: "class=financial", Default: "usd"},
+		{Name: "issued_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "paid_at", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
+		{Name: "hosted_url", Type: field.TypeString, Size: 1024, Comment: "class=none", Default: ""},
+		{Name: "pdf_url", Type: field.TypeString, Size: 1024, Comment: "class=none", Default: ""},
+		{Name: "stripe_updated_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "account_id", Type: field.TypeInt, Comment: "class=none"},
+	}
+	// ReceiptsTable holds the schema information for the "receipts" table.
+	ReceiptsTable = &schema.Table{
+		Name:       "receipts",
+		Columns:    ReceiptsColumns,
+		PrimaryKey: []*schema.Column{ReceiptsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "receipts_billing_accounts_receipts",
+				Columns:    []*schema.Column{ReceiptsColumns[16]},
+				RefColumns: []*schema.Column{BillingAccountsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "receipt_account_id_issued_at",
+				Unique:  false,
+				Columns: []*schema.Column{ReceiptsColumns[16], ReceiptsColumns[11]},
 			},
 		},
 	}
@@ -1510,9 +1591,11 @@ var (
 		MonthlyUsageTable,
 		OrganizationsTable,
 		OrganizationMembersTable,
+		PaymentCardsTable,
 		PlansTable,
 		ProjectsTable,
 		RateCardsTable,
+		ReceiptsTable,
 		RolesTable,
 		SavedFunnelsTable,
 		SegmentsTable,
@@ -1567,8 +1650,10 @@ func init() {
 	OrganizationMembersTable.ForeignKeys[0].RefTable = OrganizationsTable
 	OrganizationMembersTable.ForeignKeys[1].RefTable = RolesTable
 	OrganizationMembersTable.ForeignKeys[2].RefTable = UsersTable
+	PaymentCardsTable.ForeignKeys[0].RefTable = BillingAccountsTable
 	ProjectsTable.ForeignKeys[0].RefTable = OrganizationsTable
 	RateCardsTable.ForeignKeys[0].RefTable = PlansTable
+	ReceiptsTable.ForeignKeys[0].RefTable = BillingAccountsTable
 	RolesTable.ForeignKeys[0].RefTable = OrganizationsTable
 	SavedFunnelsTable.ForeignKeys[0].RefTable = ProjectsTable
 	SegmentsTable.ForeignKeys[0].RefTable = ProjectsTable

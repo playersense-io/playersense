@@ -1017,6 +1017,50 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/v1/organizations/{org}/billing/cards": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * The saved cards
+         * @description Brand, last four digits, expiry and which is the default, as Stripe describes them; never a card number. Read from Stripe the first time and with refresh=true, and kept current by its webhooks after that. Cards are managed in the billing portal.
+         */
+        readonly get: operations["get_v1_organizations_by_org_billing_cards"];
+        readonly put?: never;
+        /**
+         * Save a card
+         * @description Opens Stripe Checkout to save a card for automatic top-up without paying, and returns its URL. The card is listed when Stripe reports it, usually within seconds.
+         */
+        readonly post: operations["post_v1_organizations_by_org_billing_cards"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/organizations/{org}/billing/details": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * What the invoices print
+         * @description The name, email, address and tax ids Stripe prints on every invoice. Stripe holds them and the billing portal edits them; this is Stripe's own description, copied.
+         */
+        readonly get: operations["get_v1_organizations_by_org_billing_details"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/v1/organizations/{org}/billing/invoices": {
         readonly parameters: {
             readonly query?: never;
@@ -1088,6 +1132,26 @@ export interface paths {
          * @description Opens Stripe's customer portal and returns its URL: add, remove or choose the default card, and read receipts. The default card is the one automatic top-up charges.
          */
         readonly post: operations["post_v1_organizations_by_org_billing_portal"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/organizations/{org}/billing/receipts": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * Receipts for top-ups and the plan
+         * @description Every Stripe invoice for a top-up, automatic or by card, and for the plan's subscription, newest first, with Stripe's page and PDF for each. Usage invoices for an invoiced organization are under invoices.
+         */
+        readonly get: operations["get_v1_organizations_by_org_billing_receipts"];
+        readonly put?: never;
+        readonly post?: never;
         readonly delete?: never;
         readonly options?: never;
         readonly head?: never;
@@ -2849,6 +2913,32 @@ export interface components {
             /** Format: int64 */
             readonly window_seconds: number;
         };
+        readonly CardOut: {
+            /** Format: date-time */
+            readonly added_at: string;
+            /** @description visa, mastercard, amex... */
+            readonly brand: string;
+            /** Format: int64 */
+            readonly exp_month: number;
+            /** Format: int64 */
+            readonly exp_year: number;
+            readonly expired?: boolean;
+            /** @description credit, debit or prepaid */
+            readonly funding?: string;
+            /** @description Stripe's payment method id */
+            readonly id: string;
+            /** @description What automatic top-up charges */
+            readonly is_default: boolean;
+            readonly last4: string;
+        };
+        readonly CardsOut: {
+            readonly cards: readonly components["schemas"]["CardOut"][];
+            /**
+             * Format: date-time
+             * @description When Stripe was last asked directly; the webhooks keep it current after that
+             */
+            readonly synced_at?: string | null;
+        };
         readonly CheckoutOut: {
             /** Format: date-time */
             readonly expires_at: string;
@@ -4082,6 +4172,18 @@ export interface components {
             /** @description pending, accepted, revoked or expired */
             readonly status: string;
         };
+        readonly InvoiceDetailsOut: {
+            readonly address: readonly string[];
+            readonly country?: string;
+            readonly email?: string;
+            readonly name?: string;
+            /** @description The Stripe customer these belong to */
+            readonly stripe_customer?: string;
+            /** Format: date-time */
+            readonly synced_at?: string | null;
+            /** @description Type and value: eu_vat DE123456789 */
+            readonly tax_ids: readonly string[];
+        };
         readonly InvoiceLineOut: {
             /**
              * Format: int64
@@ -5258,6 +5360,30 @@ export interface components {
             readonly totals: {
                 readonly [key: string]: number;
             };
+        };
+        readonly ReceiptOut: {
+            readonly currency: string;
+            readonly description?: string;
+            /** @description Stripe's page for it */
+            readonly hosted_url?: string;
+            /** @description Stripe's invoice id */
+            readonly id: string;
+            /** Format: date-time */
+            readonly issued_at: string;
+            /** @description top_up or subscription */
+            readonly kind: string;
+            readonly number?: string;
+            /** Format: date-time */
+            readonly paid_at?: string | null;
+            readonly pdf_url?: string;
+            /** @description open, paid, void or uncollectible */
+            readonly status: string;
+            /** Format: int64 */
+            readonly total_micros: number;
+        };
+        readonly ReceiptsOut: {
+            readonly next?: string;
+            readonly receipts: readonly components["schemas"]["ReceiptOut"][];
         };
         readonly ReceivableOut: {
             /**
@@ -10468,6 +10594,241 @@ export interface operations {
             };
         };
     };
+    readonly get_v1_organizations_by_org_billing_cards: {
+        readonly parameters: {
+            readonly query?: {
+                /** @description Ask Stripe again rather than reading the copy the webhooks keep */
+                readonly refresh?: boolean;
+            };
+            readonly header?: never;
+            readonly path: {
+                readonly org: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["CardsOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not do that */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The organization does not exist */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A refresh was asked for and Stripe could not be reached */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly post_v1_organizations_by_org_billing_cards: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                /** @description The organization's slug */
+                readonly org: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["CheckoutOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not do that */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The organization does not exist */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Stripe could not be reached, or payments are not configured */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly get_v1_organizations_by_org_billing_details: {
+        readonly parameters: {
+            readonly query?: {
+                /** @description Ask Stripe again rather than reading the copy the webhooks keep */
+                readonly refresh?: boolean;
+            };
+            readonly header?: never;
+            readonly path: {
+                readonly org: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["InvoiceDetailsOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not do that */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The organization does not exist */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     readonly get_v1_organizations_by_org_billing_invoices: {
         readonly parameters: {
             readonly query?: never;
@@ -10761,6 +11122,87 @@ export interface operations {
                 };
             };
             /** @description Stripe could not be reached, or payments are not configured */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly get_v1_organizations_by_org_billing_receipts: {
+        readonly parameters: {
+            readonly query?: {
+                /** @description The next cursor of the previous page */
+                readonly before?: string;
+                /** @description Newest first, up to 200 */
+                readonly limit?: number;
+            };
+            readonly header?: never;
+            readonly path: {
+                readonly org: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ReceiptsOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not do that */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The organization does not exist */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
             readonly 503: {
                 headers: {
                     readonly [name: string]: unknown;

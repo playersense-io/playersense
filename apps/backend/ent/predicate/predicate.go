@@ -75,6 +75,9 @@ type Organization func(*sql.Selector)
 // OrganizationMember is the predicate function for organizationmember builders.
 type OrganizationMember func(*sql.Selector)
 
+// PaymentCard is the predicate function for paymentcard builders.
+type PaymentCard func(*sql.Selector)
+
 // Plan is the predicate function for plan builders.
 type Plan func(*sql.Selector)
 
@@ -83,6 +86,9 @@ type Project func(*sql.Selector)
 
 // RateCard is the predicate function for ratecard builders.
 type RateCard func(*sql.Selector)
+
+// Receipt is the predicate function for receipt builders.
+type Receipt func(*sql.Selector)
 
 // Role is the predicate function for role builders.
 type Role func(*sql.Selector)

@@ -94,6 +94,10 @@ type BillingAccount struct {
 	BillingEmail *string `json:"billing_email,omitempty"`
 	// class=none
 	EntitlementOverrides map[string]int64 `json:"entitlement_overrides,omitempty"`
+	// class=none
+	InvoiceDetails map[string]interface{} `json:"invoice_details,omitempty"`
+	// class=none
+	CardsSyncedAt *time.Time `json:"cards_synced_at,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the BillingAccountQuery when eager-loading is set.
 	Edges        BillingAccountEdges `json:"edges"`
@@ -120,9 +124,13 @@ type BillingAccountEdges struct {
 	MonthlyUsage []*MonthlyUsage `json:"monthly_usage,omitempty"`
 	// UsageCharges holds the value of the usage_charges edge.
 	UsageCharges []*UsageCharge `json:"usage_charges,omitempty"`
+	// Cards holds the value of the cards edge.
+	Cards []*PaymentCard `json:"cards,omitempty"`
+	// Receipts holds the value of the receipts edge.
+	Receipts []*Receipt `json:"receipts,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [9]bool
+	loadedTypes [11]bool
 }
 
 // OrganizationOrErr returns the Organization value or an error if the edge
@@ -210,12 +218,30 @@ func (e BillingAccountEdges) UsageChargesOrErr() ([]*UsageCharge, error) {
 	return nil, &NotLoadedError{edge: "usage_charges"}
 }
 
+// CardsOrErr returns the Cards value or an error if the edge
+// was not loaded in eager-loading.
+func (e BillingAccountEdges) CardsOrErr() ([]*PaymentCard, error) {
+	if e.loadedTypes[9] {
+		return e.Cards, nil
+	}
+	return nil, &NotLoadedError{edge: "cards"}
+}
+
+// ReceiptsOrErr returns the Receipts value or an error if the edge
+// was not loaded in eager-loading.
+func (e BillingAccountEdges) ReceiptsOrErr() ([]*Receipt, error) {
+	if e.loadedTypes[10] {
+		return e.Receipts, nil
+	}
+	return nil, &NotLoadedError{edge: "receipts"}
+}
+
 // scanValues returns the types for scanning values from sql.Rows.
 func (*BillingAccount) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case billingaccount.FieldEntitlementOverrides:
+		case billingaccount.FieldEntitlementOverrides, billingaccount.FieldInvoiceDetails:
 			values[i] = new([]byte)
 		case billingaccount.FieldSubscriptionCancelAtPeriodEnd, billingaccount.FieldAutoTopupEnabled:
 			values[i] = new(sql.NullBool)
@@ -223,7 +249,7 @@ func (*BillingAccount) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullInt64)
 		case billingaccount.FieldStripeCustomerID, billingaccount.FieldStripeSubscriptionID, billingaccount.FieldSubscriptionStatus, billingaccount.FieldSubscriptionInterval, billingaccount.FieldState, billingaccount.FieldCurrency, billingaccount.FieldCollection, billingaccount.FieldAutoTopupPendingKey, billingaccount.FieldAutoTopupLastError, billingaccount.FieldBillingEmail:
 			values[i] = new(sql.NullString)
-		case billingaccount.FieldCreatedAt, billingaccount.FieldUpdatedAt, billingaccount.FieldSubscriptionPeriodEnd, billingaccount.FieldSubscriptionSyncedAt, billingaccount.FieldStateChangedAt, billingaccount.FieldOverdueSince, billingaccount.FieldInvoicedThrough, billingaccount.FieldAutoTopupPendingAt, billingaccount.FieldAutoTopupRetryAfter, billingaccount.FieldAutoTopupRequestedAt, billingaccount.FieldAutoTopupWindowStartedAt:
+		case billingaccount.FieldCreatedAt, billingaccount.FieldUpdatedAt, billingaccount.FieldSubscriptionPeriodEnd, billingaccount.FieldSubscriptionSyncedAt, billingaccount.FieldStateChangedAt, billingaccount.FieldOverdueSince, billingaccount.FieldInvoicedThrough, billingaccount.FieldAutoTopupPendingAt, billingaccount.FieldAutoTopupRetryAfter, billingaccount.FieldAutoTopupRequestedAt, billingaccount.FieldAutoTopupWindowStartedAt, billingaccount.FieldCardsSyncedAt:
 			values[i] = new(sql.NullTime)
 		case billingaccount.FieldUID:
 			values[i] = new(uuid.UUID)
@@ -481,6 +507,21 @@ func (_m *BillingAccount) assignValues(columns []string, values []any) error {
 					return fmt.Errorf("unmarshal field entitlement_overrides: %w", err)
 				}
 			}
+		case billingaccount.FieldInvoiceDetails:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field invoice_details", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.InvoiceDetails); err != nil {
+					return fmt.Errorf("unmarshal field invoice_details: %w", err)
+				}
+			}
+		case billingaccount.FieldCardsSyncedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field cards_synced_at", values[i])
+			} else if value.Valid {
+				_m.CardsSyncedAt = new(time.Time)
+				*_m.CardsSyncedAt = value.Time
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -537,6 +578,16 @@ func (_m *BillingAccount) QueryMonthlyUsage() *MonthlyUsageQuery {
 // QueryUsageCharges queries the "usage_charges" edge of the BillingAccount entity.
 func (_m *BillingAccount) QueryUsageCharges() *UsageChargeQuery {
 	return NewBillingAccountClient(_m.config).QueryUsageCharges(_m)
+}
+
+// QueryCards queries the "cards" edge of the BillingAccount entity.
+func (_m *BillingAccount) QueryCards() *PaymentCardQuery {
+	return NewBillingAccountClient(_m.config).QueryCards(_m)
+}
+
+// QueryReceipts queries the "receipts" edge of the BillingAccount entity.
+func (_m *BillingAccount) QueryReceipts() *ReceiptQuery {
+	return NewBillingAccountClient(_m.config).QueryReceipts(_m)
 }
 
 // Update returns a builder for updating this BillingAccount.
@@ -699,6 +750,14 @@ func (_m *BillingAccount) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("entitlement_overrides=")
 	builder.WriteString(fmt.Sprintf("%v", _m.EntitlementOverrides))
+	builder.WriteString(", ")
+	builder.WriteString("invoice_details=")
+	builder.WriteString(fmt.Sprintf("%v", _m.InvoiceDetails))
+	builder.WriteString(", ")
+	if v := _m.CardsSyncedAt; v != nil {
+		builder.WriteString("cards_synced_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
 	builder.WriteByte(')')
 	return builder.String()
 }

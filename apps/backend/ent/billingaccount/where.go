@@ -216,6 +216,11 @@ func BillingEmail(v string) predicate.BillingAccount {
 	return predicate.BillingAccount(sql.FieldEQ(FieldBillingEmail, v))
 }
 
+// CardsSyncedAt applies equality check predicate on the "cards_synced_at" field. It's identical to CardsSyncedAtEQ.
+func CardsSyncedAt(v time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldEQ(FieldCardsSyncedAt, v))
+}
+
 // UIDEQ applies the EQ predicate on the "uid" field.
 func UIDEQ(v uuid.UUID) predicate.BillingAccount {
 	return predicate.BillingAccount(sql.FieldEQ(FieldUID, v))
@@ -1781,6 +1786,66 @@ func BillingEmailContainsFold(v string) predicate.BillingAccount {
 	return predicate.BillingAccount(sql.FieldContainsFold(FieldBillingEmail, v))
 }
 
+// InvoiceDetailsIsNil applies the IsNil predicate on the "invoice_details" field.
+func InvoiceDetailsIsNil() predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldIsNull(FieldInvoiceDetails))
+}
+
+// InvoiceDetailsNotNil applies the NotNil predicate on the "invoice_details" field.
+func InvoiceDetailsNotNil() predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldNotNull(FieldInvoiceDetails))
+}
+
+// CardsSyncedAtEQ applies the EQ predicate on the "cards_synced_at" field.
+func CardsSyncedAtEQ(v time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldEQ(FieldCardsSyncedAt, v))
+}
+
+// CardsSyncedAtNEQ applies the NEQ predicate on the "cards_synced_at" field.
+func CardsSyncedAtNEQ(v time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldNEQ(FieldCardsSyncedAt, v))
+}
+
+// CardsSyncedAtIn applies the In predicate on the "cards_synced_at" field.
+func CardsSyncedAtIn(vs ...time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldIn(FieldCardsSyncedAt, vs...))
+}
+
+// CardsSyncedAtNotIn applies the NotIn predicate on the "cards_synced_at" field.
+func CardsSyncedAtNotIn(vs ...time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldNotIn(FieldCardsSyncedAt, vs...))
+}
+
+// CardsSyncedAtGT applies the GT predicate on the "cards_synced_at" field.
+func CardsSyncedAtGT(v time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldGT(FieldCardsSyncedAt, v))
+}
+
+// CardsSyncedAtGTE applies the GTE predicate on the "cards_synced_at" field.
+func CardsSyncedAtGTE(v time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldGTE(FieldCardsSyncedAt, v))
+}
+
+// CardsSyncedAtLT applies the LT predicate on the "cards_synced_at" field.
+func CardsSyncedAtLT(v time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldLT(FieldCardsSyncedAt, v))
+}
+
+// CardsSyncedAtLTE applies the LTE predicate on the "cards_synced_at" field.
+func CardsSyncedAtLTE(v time.Time) predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldLTE(FieldCardsSyncedAt, v))
+}
+
+// CardsSyncedAtIsNil applies the IsNil predicate on the "cards_synced_at" field.
+func CardsSyncedAtIsNil() predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldIsNull(FieldCardsSyncedAt))
+}
+
+// CardsSyncedAtNotNil applies the NotNil predicate on the "cards_synced_at" field.
+func CardsSyncedAtNotNil() predicate.BillingAccount {
+	return predicate.BillingAccount(sql.FieldNotNull(FieldCardsSyncedAt))
+}
+
 // HasOrganization applies the HasEdge predicate on the "organization" edge.
 func HasOrganization() predicate.BillingAccount {
 	return predicate.BillingAccount(func(s *sql.Selector) {
@@ -1980,6 +2045,52 @@ func HasUsageCharges() predicate.BillingAccount {
 func HasUsageChargesWith(preds ...predicate.UsageCharge) predicate.BillingAccount {
 	return predicate.BillingAccount(func(s *sql.Selector) {
 		step := newUsageChargesStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasCards applies the HasEdge predicate on the "cards" edge.
+func HasCards() predicate.BillingAccount {
+	return predicate.BillingAccount(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, CardsTable, CardsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasCardsWith applies the HasEdge predicate on the "cards" edge with a given conditions (other predicates).
+func HasCardsWith(preds ...predicate.PaymentCard) predicate.BillingAccount {
+	return predicate.BillingAccount(func(s *sql.Selector) {
+		step := newCardsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasReceipts applies the HasEdge predicate on the "receipts" edge.
+func HasReceipts() predicate.BillingAccount {
+	return predicate.BillingAccount(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, ReceiptsTable, ReceiptsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasReceiptsWith applies the HasEdge predicate on the "receipts" edge with a given conditions (other predicates).
+func HasReceiptsWith(preds ...predicate.Receipt) predicate.BillingAccount {
+	return predicate.BillingAccount(func(s *sql.Selector) {
+		step := newReceiptsStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

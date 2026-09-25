@@ -201,6 +201,39 @@ type CreditNote struct {
 	AmountCents int64
 }
 
+// CustomerDetails is what Stripe holds about a customer that its invoices print, and the cards it
+// has saved, as Stripe describes them. Never a card number: brand, last four and expiry are all
+// Stripe gives out and all PlayerSense keeps.
+type CustomerDetails struct {
+	Name        string
+	Email       string
+	Address     []string // the lines, as an invoice prints them
+	Country     string
+	TaxIDs      []string // "eu_vat DE123456789"
+	DefaultCard string   // the payment method id, or empty
+	Cards       []Card
+}
+
+// Card is one saved card, as Stripe describes it.
+type Card struct {
+	ID       string
+	Brand    string
+	Last4    string
+	ExpMonth int
+	ExpYear  int
+	Funding  string
+	Country  string
+}
+
+// SetupCheckoutRequest opens Stripe's hosted page to save a card without paying.
+type SetupCheckoutRequest struct {
+	AccountUID string
+	Customer   string
+	Currency   string
+	SuccessURL string
+	CancelURL  string
+}
+
 // Gateway is the whole of what PlayerSense asks Stripe.
 //
 // An interface so the rules around it — idempotency, claims, the webhook — are tested without a
@@ -209,6 +242,14 @@ type Gateway interface {
 	CreateCustomer(ctx context.Context, in CustomerRequest) (string, error)
 	CreateCheckout(ctx context.Context, in CheckoutRequest) (Checkout, error)
 	CreatePortal(ctx context.Context, customer, returnURL string) (string, error)
+
+	// DescribeCustomer is the customer's invoice details and saved cards, for the first time the
+	// billing page asks and for a refresh; the webhooks keep them in step after that.
+	DescribeCustomer(ctx context.Context, customer string) (CustomerDetails, error)
+
+	// CreateSetupCheckout opens Stripe's hosted page to save a card, for automatic top-up,
+	// without charging it.
+	CreateSetupCheckout(ctx context.Context, in SetupCheckoutRequest) (Checkout, error)
 
 	// ChargeableCard is the payment method an off-session charge would use: the customer's
 	// default, or failing that the most recently saved card. Empty when there is none.
@@ -274,6 +315,14 @@ func (Disabled) CreateCustomer(context.Context, CustomerRequest) (string, error)
 }
 
 func (Disabled) CreateCheckout(context.Context, CheckoutRequest) (Checkout, error) {
+	return Checkout{}, ErrNotConfigured
+}
+
+func (Disabled) DescribeCustomer(context.Context, string) (CustomerDetails, error) {
+	return CustomerDetails{}, ErrNotConfigured
+}
+
+func (Disabled) CreateSetupCheckout(context.Context, SetupCheckoutRequest) (Checkout, error) {
 	return Checkout{}, ErrNotConfigured
 }
 

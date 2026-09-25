@@ -285,6 +285,18 @@ func (f OrganizationMemberFunc) Mutate(ctx context.Context, m ent.Mutation) (ent
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.OrganizationMemberMutation", m)
 }
 
+// The PaymentCardFunc type is an adapter to allow the use of ordinary
+// function as PaymentCard mutator.
+type PaymentCardFunc func(context.Context, *ent.PaymentCardMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f PaymentCardFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.PaymentCardMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.PaymentCardMutation", m)
+}
+
 // The PlanFunc type is an adapter to allow the use of ordinary
 // function as Plan mutator.
 type PlanFunc func(context.Context, *ent.PlanMutation) (ent.Value, error)
@@ -319,6 +331,18 @@ func (f RateCardFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, er
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.RateCardMutation", m)
+}
+
+// The ReceiptFunc type is an adapter to allow the use of ordinary
+// function as Receipt mutator.
+type ReceiptFunc func(context.Context, *ent.ReceiptMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ReceiptFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ReceiptMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ReceiptMutation", m)
 }
 
 // The RoleFunc type is an adapter to allow the use of ordinary

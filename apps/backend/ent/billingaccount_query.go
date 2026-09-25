@@ -20,8 +20,10 @@ import (
 	"playersense.dev/backend/ent/ledgerentry"
 	"playersense.dev/backend/ent/monthlyusage"
 	"playersense.dev/backend/ent/organization"
+	"playersense.dev/backend/ent/paymentcard"
 	"playersense.dev/backend/ent/plan"
 	"playersense.dev/backend/ent/predicate"
+	"playersense.dev/backend/ent/receipt"
 	"playersense.dev/backend/ent/stripeevent"
 	"playersense.dev/backend/ent/usagecharge"
 )
@@ -42,6 +44,8 @@ type BillingAccountQuery struct {
 	withStripeEvents  *StripeEventQuery
 	withMonthlyUsage  *MonthlyUsageQuery
 	withUsageCharges  *UsageChargeQuery
+	withCards         *PaymentCardQuery
+	withReceipts      *ReceiptQuery
 	modifiers         []func(*sql.Selector)
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
@@ -277,6 +281,50 @@ func (_q *BillingAccountQuery) QueryUsageCharges() *UsageChargeQuery {
 	return query
 }
 
+// QueryCards chains the current query on the "cards" edge.
+func (_q *BillingAccountQuery) QueryCards() *PaymentCardQuery {
+	query := (&PaymentCardClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(billingaccount.Table, billingaccount.FieldID, selector),
+			sqlgraph.To(paymentcard.Table, paymentcard.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, billingaccount.CardsTable, billingaccount.CardsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryReceipts chains the current query on the "receipts" edge.
+func (_q *BillingAccountQuery) QueryReceipts() *ReceiptQuery {
+	query := (&ReceiptClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(billingaccount.Table, billingaccount.FieldID, selector),
+			sqlgraph.To(receipt.Table, receipt.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, billingaccount.ReceiptsTable, billingaccount.ReceiptsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
 // First returns the first BillingAccount entity from the query.
 // Returns a *NotFoundError when no BillingAccount was found.
 func (_q *BillingAccountQuery) First(ctx context.Context) (*BillingAccount, error) {
@@ -478,6 +526,8 @@ func (_q *BillingAccountQuery) Clone() *BillingAccountQuery {
 		withStripeEvents:  _q.withStripeEvents.Clone(),
 		withMonthlyUsage:  _q.withMonthlyUsage.Clone(),
 		withUsageCharges:  _q.withUsageCharges.Clone(),
+		withCards:         _q.withCards.Clone(),
+		withReceipts:      _q.withReceipts.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -583,6 +633,28 @@ func (_q *BillingAccountQuery) WithUsageCharges(opts ...func(*UsageChargeQuery))
 	return _q
 }
 
+// WithCards tells the query-builder to eager-load the nodes that are connected to
+// the "cards" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *BillingAccountQuery) WithCards(opts ...func(*PaymentCardQuery)) *BillingAccountQuery {
+	query := (&PaymentCardClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withCards = query
+	return _q
+}
+
+// WithReceipts tells the query-builder to eager-load the nodes that are connected to
+// the "receipts" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *BillingAccountQuery) WithReceipts(opts ...func(*ReceiptQuery)) *BillingAccountQuery {
+	query := (&ReceiptClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withReceipts = query
+	return _q
+}
+
 // GroupBy is used to group vertices by one or more fields/columns.
 // It is often used with aggregate functions, like: count, max, mean, min, sum.
 //
@@ -661,7 +733,7 @@ func (_q *BillingAccountQuery) sqlAll(ctx context.Context, hooks ...queryHook) (
 	var (
 		nodes       = []*BillingAccount{}
 		_spec       = _q.querySpec()
-		loadedTypes = [9]bool{
+		loadedTypes = [11]bool{
 			_q.withOrganization != nil,
 			_q.withPlan != nil,
 			_q.withLedgerEntries != nil,
@@ -671,6 +743,8 @@ func (_q *BillingAccountQuery) sqlAll(ctx context.Context, hooks ...queryHook) (
 			_q.withStripeEvents != nil,
 			_q.withMonthlyUsage != nil,
 			_q.withUsageCharges != nil,
+			_q.withCards != nil,
+			_q.withReceipts != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -752,6 +826,20 @@ func (_q *BillingAccountQuery) sqlAll(ctx context.Context, hooks ...queryHook) (
 		if err := _q.loadUsageCharges(ctx, query, nodes,
 			func(n *BillingAccount) { n.Edges.UsageCharges = []*UsageCharge{} },
 			func(n *BillingAccount, e *UsageCharge) { n.Edges.UsageCharges = append(n.Edges.UsageCharges, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withCards; query != nil {
+		if err := _q.loadCards(ctx, query, nodes,
+			func(n *BillingAccount) { n.Edges.Cards = []*PaymentCard{} },
+			func(n *BillingAccount, e *PaymentCard) { n.Edges.Cards = append(n.Edges.Cards, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withReceipts; query != nil {
+		if err := _q.loadReceipts(ctx, query, nodes,
+			func(n *BillingAccount) { n.Edges.Receipts = []*Receipt{} },
+			func(n *BillingAccount, e *Receipt) { n.Edges.Receipts = append(n.Edges.Receipts, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -1014,6 +1102,66 @@ func (_q *BillingAccountQuery) loadUsageCharges(ctx context.Context, query *Usag
 	}
 	query.Where(predicate.UsageCharge(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(billingaccount.UsageChargesColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.AccountID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "account_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *BillingAccountQuery) loadCards(ctx context.Context, query *PaymentCardQuery, nodes []*BillingAccount, init func(*BillingAccount), assign func(*BillingAccount, *PaymentCard)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*BillingAccount)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(paymentcard.FieldAccountID)
+	}
+	query.Where(predicate.PaymentCard(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(billingaccount.CardsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.AccountID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "account_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *BillingAccountQuery) loadReceipts(ctx context.Context, query *ReceiptQuery, nodes []*BillingAccount, init func(*BillingAccount), assign func(*BillingAccount, *Receipt)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*BillingAccount)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(receipt.FieldAccountID)
+	}
+	query.Where(predicate.Receipt(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(billingaccount.ReceiptsColumn), fks...))
 	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {

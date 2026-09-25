@@ -6510,6 +6510,300 @@
         }
       }
     },
+    "/v1/organizations/{org}/billing/cards": {
+      "get": {
+        "tags": [
+          "billing"
+        ],
+        "summary": "The saved cards",
+        "description": "Brand, last four digits, expiry and which is the default, as Stripe describes them; never a card number. Read from Stripe the first time and with refresh=true, and kept current by its webhooks after that. Cards are managed in the billing portal.",
+        "operationId": "get_v1_organizations_by_org_billing_cards",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "refresh",
+            "in": "query",
+            "description": "Ask Stripe again rather than reading the copy the webhooks keep",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CardsOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not do that",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The organization does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A refresh was asked for and Stripe could not be reached",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "billing"
+        ],
+        "summary": "Save a card",
+        "description": "Opens Stripe Checkout to save a card for automatic top-up without paying, and returns its URL. The card is listed when Stripe reports it, usually within seconds.",
+        "operationId": "post_v1_organizations_by_org_billing_cards",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "description": "The organization's slug",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckoutOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not do that",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The organization does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Stripe could not be reached, or payments are not configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/organizations/{org}/billing/details": {
+      "get": {
+        "tags": [
+          "billing"
+        ],
+        "summary": "What the invoices print",
+        "description": "The name, email, address and tax ids Stripe prints on every invoice. Stripe holds them and the billing portal edits them; this is Stripe's own description, copied.",
+        "operationId": "get_v1_organizations_by_org_billing_details",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "refresh",
+            "in": "query",
+            "description": "Ask Stripe again rather than reading the copy the webhooks keep",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvoiceDetailsOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not do that",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The organization does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/organizations/{org}/billing/invoices": {
       "get": {
         "tags": [
@@ -6891,6 +7185,120 @@
           },
           "503": {
             "description": "Stripe could not be reached, or payments are not configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/organizations/{org}/billing/receipts": {
+      "get": {
+        "tags": [
+          "billing"
+        ],
+        "summary": "Receipts for top-ups and the plan",
+        "description": "Every Stripe invoice for a top-up, automatic or by card, and for the plan's subscription, newest first, with Stripe's page and PDF for each. Usage invoices for an invoiced organization are under invoices.",
+        "operationId": "get_v1_organizations_by_org_billing_receipts",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "description": "The next cursor of the previous page",
+            "schema": {
+              "type": "string",
+              "maxLength": 20
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Newest first, up to 200",
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "default": "50",
+              "minimum": 1,
+              "maximum": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReceiptsOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not do that",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The organization does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
             "content": {
               "application/json": {
                 "schema": {
@@ -19041,6 +19449,76 @@
           "window_seconds"
         ]
       },
+      "CardOut": {
+        "type": "object",
+        "properties": {
+          "added_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "brand": {
+            "type": "string",
+            "description": "visa, mastercard, amex..."
+          },
+          "exp_month": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "exp_year": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "expired": {
+            "type": "boolean"
+          },
+          "funding": {
+            "type": "string",
+            "description": "credit, debit or prepaid"
+          },
+          "id": {
+            "type": "string",
+            "description": "Stripe's payment method id"
+          },
+          "is_default": {
+            "type": "boolean",
+            "description": "What automatic top-up charges"
+          },
+          "last4": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "added_at",
+          "brand",
+          "exp_month",
+          "exp_year",
+          "id",
+          "is_default",
+          "last4"
+        ]
+      },
+      "CardsOut": {
+        "type": "object",
+        "properties": {
+          "cards": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CardOut"
+            }
+          },
+          "synced_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When Stripe was last asked directly; the webhooks keep it current after that"
+          }
+        },
+        "required": [
+          "cards"
+        ]
+      },
       "CheckoutOut": {
         "type": "object",
         "properties": {
@@ -22530,6 +23008,48 @@
           "status"
         ]
       },
+      "InvoiceDetailsOut": {
+        "type": "object",
+        "properties": {
+          "address": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "country": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "stripe_customer": {
+            "type": "string",
+            "description": "The Stripe customer these belong to"
+          },
+          "synced_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "tax_ids": {
+            "type": "array",
+            "description": "Type and value: eu_vat DE123456789",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "address",
+          "tax_ids"
+        ]
+      },
       "InvoiceLineOut": {
         "type": "object",
         "properties": {
@@ -25966,6 +26486,79 @@
           "to",
           "top",
           "totals"
+        ]
+      },
+      "ReceiptOut": {
+        "type": "object",
+        "properties": {
+          "currency": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "hosted_url": {
+            "type": "string",
+            "description": "Stripe's page for it"
+          },
+          "id": {
+            "type": "string",
+            "description": "Stripe's invoice id"
+          },
+          "issued_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "kind": {
+            "type": "string",
+            "description": "top_up or subscription"
+          },
+          "number": {
+            "type": "string"
+          },
+          "paid_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "pdf_url": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "description": "open, paid, void or uncollectible"
+          },
+          "total_micros": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "currency",
+          "id",
+          "issued_at",
+          "kind",
+          "status",
+          "total_micros"
+        ]
+      },
+      "ReceiptsOut": {
+        "type": "object",
+        "properties": {
+          "next": {
+            "type": "string"
+          },
+          "receipts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReceiptOut"
+            }
+          }
+        },
+        "required": [
+          "receipts"
         ]
       },
       "ReceivableOut": {

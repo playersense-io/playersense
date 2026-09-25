@@ -99,6 +99,86 @@ func (s *Stripe) CreatePortal(ctx context.Context, customer, returnURL string) (
 	return session.URL, nil
 }
 
+// DescribeCustomer reads a customer's invoice details, tax ids and saved cards: three requests,
+// made the first time the billing page asks and on a refresh, never per request.
+func (s *Stripe) DescribeCustomer(ctx context.Context, customer string) (CustomerDetails, error) {
+	c, err := s.client.V1Customers.Retrieve(ctx, customer, nil)
+	if err != nil {
+		return CustomerDetails{}, fmt.Errorf("read the stripe customer: %w", err)
+	}
+	out := DetailsOf(c)
+	for id, err := range s.client.V1TaxIDs.List(ctx, &stripe.TaxIDListParams{
+		Customer: stripe.String(customer),
+	}).All(ctx) {
+		if err != nil {
+			return out, fmt.Errorf("list the customer's tax ids: %w", err)
+		}
+		out.TaxIDs = append(out.TaxIDs, string(id.Type)+" "+id.Value)
+	}
+	for pm, err := range s.client.V1Customers.ListPaymentMethods(ctx, &stripe.CustomerListPaymentMethodsParams{
+		Customer: stripe.String(customer),
+		Type:     stripe.String(string(stripe.PaymentMethodTypeCard)),
+	}).All(ctx) {
+		if err != nil {
+			return out, fmt.Errorf("list the customer's cards: %w", err)
+		}
+		if card, ok := CardOf(pm); ok {
+			out.Cards = append(out.Cards, card)
+		}
+	}
+	return out, nil
+}
+
+// DetailsOf is a Stripe customer's invoice details, as an invoice prints them.
+func DetailsOf(c *stripe.Customer) CustomerDetails {
+	out := CustomerDetails{Name: c.Name, Email: c.Email}
+	if c.Address != nil {
+		for _, line := range []string{c.Address.Line1, c.Address.Line2,
+			strings.TrimSpace(c.Address.PostalCode + " " + c.Address.City), c.Address.State} {
+			if strings.TrimSpace(line) != "" {
+				out.Address = append(out.Address, strings.TrimSpace(line))
+			}
+		}
+		out.Country = c.Address.Country
+	}
+	if c.InvoiceSettings != nil && c.InvoiceSettings.DefaultPaymentMethod != nil {
+		out.DefaultCard = c.InvoiceSettings.DefaultPaymentMethod.ID
+	}
+	return out
+}
+
+// CardOf is a payment method's description, when it is a card.
+func CardOf(pm *stripe.PaymentMethod) (Card, bool) {
+	if pm == nil || pm.Card == nil {
+		return Card{}, false
+	}
+	return Card{ID: pm.ID, Brand: string(pm.Card.Brand), Last4: pm.Card.Last4,
+		ExpMonth: int(pm.Card.ExpMonth), ExpYear: int(pm.Card.ExpYear),
+		Funding: string(pm.Card.Funding), Country: pm.Card.Country}, true
+}
+
+// CreateSetupCheckout opens Checkout in setup mode: the card is saved for off-session use and
+// nothing is charged. It arrives as payment_method.attached.
+func (s *Stripe) CreateSetupCheckout(ctx context.Context, in SetupCheckoutRequest) (Checkout, error) {
+	session, err := s.client.V1CheckoutSessions.Create(ctx, &stripe.CheckoutSessionCreateParams{
+		Mode:               stripe.String(string(stripe.CheckoutSessionModeSetup)),
+		Customer:           stripe.String(in.Customer),
+		Currency:           stripe.String(in.Currency),
+		ClientReferenceID:  stripe.String(in.AccountUID),
+		SuccessURL:         stripe.String(in.SuccessURL),
+		CancelURL:          stripe.String(in.CancelURL),
+		PaymentMethodTypes: []*string{stripe.String("card")},
+		Metadata:           map[string]string{MetaAccount: in.AccountUID, MetaKind: "card_setup"},
+		SetupIntentData: &stripe.CheckoutSessionCreateSetupIntentDataParams{
+			Metadata: map[string]string{MetaAccount: in.AccountUID, MetaKind: "card_setup"},
+		},
+	})
+	if err != nil {
+		return Checkout{}, fmt.Errorf("create the setup session: %w", err)
+	}
+	return Checkout{ID: session.ID, URL: session.URL, ExpiresAt: time.Unix(session.ExpiresAt, 0).UTC()}, nil
+}
+
 // ChargeableCard asks Stripe which card an off-session charge would use.
 func (s *Stripe) ChargeableCard(ctx context.Context, customer string) (string, error) {
 	c, err := s.client.V1Customers.Retrieve(ctx, customer, nil)

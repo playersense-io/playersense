@@ -73,6 +73,7 @@ a record is never updated to match a drifting document, it is superseded by a ne
 | [0044](0044-usage-settles-when-it-matters.md) | Usage settles when it matters, and the balance a studio sees is live | Accepted |
 | [0045](0045-contracted-accounts-are-invoiced-monthly.md) | Contracted accounts are invoiced monthly, from the ledger | Accepted |
 | [0046](0046-every-page-reads-a-fact-built-for-it.md) | Every dashboard page reads a fact built for it, and none of them joins | Accepted |
+| [0047](0047-the-billing-page-shows-stripes-description.md) | The billing page shows Stripe's own description of cards, invoice details and receipts | Accepted |
 
 ## Template
 

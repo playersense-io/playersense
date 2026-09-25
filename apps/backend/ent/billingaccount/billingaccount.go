@@ -89,6 +89,10 @@ const (
 	FieldBillingEmail = "billing_email"
 	// FieldEntitlementOverrides holds the string denoting the entitlement_overrides field in the database.
 	FieldEntitlementOverrides = "entitlement_overrides"
+	// FieldInvoiceDetails holds the string denoting the invoice_details field in the database.
+	FieldInvoiceDetails = "invoice_details"
+	// FieldCardsSyncedAt holds the string denoting the cards_synced_at field in the database.
+	FieldCardsSyncedAt = "cards_synced_at"
 	// EdgeOrganization holds the string denoting the organization edge name in mutations.
 	EdgeOrganization = "organization"
 	// EdgePlan holds the string denoting the plan edge name in mutations.
@@ -107,6 +111,10 @@ const (
 	EdgeMonthlyUsage = "monthly_usage"
 	// EdgeUsageCharges holds the string denoting the usage_charges edge name in mutations.
 	EdgeUsageCharges = "usage_charges"
+	// EdgeCards holds the string denoting the cards edge name in mutations.
+	EdgeCards = "cards"
+	// EdgeReceipts holds the string denoting the receipts edge name in mutations.
+	EdgeReceipts = "receipts"
 	// Table holds the table name of the billingaccount in the database.
 	Table = "billing_accounts"
 	// OrganizationTable is the table that holds the organization relation/edge.
@@ -172,6 +180,20 @@ const (
 	UsageChargesInverseTable = "usage_charges"
 	// UsageChargesColumn is the table column denoting the usage_charges relation/edge.
 	UsageChargesColumn = "account_id"
+	// CardsTable is the table that holds the cards relation/edge.
+	CardsTable = "payment_cards"
+	// CardsInverseTable is the table name for the PaymentCard entity.
+	// It exists in this package in order to avoid circular dependency with the "paymentcard" package.
+	CardsInverseTable = "payment_cards"
+	// CardsColumn is the table column denoting the cards relation/edge.
+	CardsColumn = "account_id"
+	// ReceiptsTable is the table that holds the receipts relation/edge.
+	ReceiptsTable = "receipts"
+	// ReceiptsInverseTable is the table name for the Receipt entity.
+	// It exists in this package in order to avoid circular dependency with the "receipt" package.
+	ReceiptsInverseTable = "receipts"
+	// ReceiptsColumn is the table column denoting the receipts relation/edge.
+	ReceiptsColumn = "account_id"
 )
 
 // Columns holds all SQL columns for billingaccount fields.
@@ -213,6 +235,8 @@ var Columns = []string{
 	FieldAutoTopupWindowCount,
 	FieldBillingEmail,
 	FieldEntitlementOverrides,
+	FieldInvoiceDetails,
+	FieldCardsSyncedAt,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -559,6 +583,11 @@ func ByBillingEmail(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldBillingEmail, opts...).ToFunc()
 }
 
+// ByCardsSyncedAt orders the results by the cards_synced_at field.
+func ByCardsSyncedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCardsSyncedAt, opts...).ToFunc()
+}
+
 // ByOrganizationField orders the results by organization field.
 func ByOrganizationField(field string, opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -670,6 +699,34 @@ func ByUsageCharges(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newUsageChargesStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
+
+// ByCardsCount orders the results by cards count.
+func ByCardsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newCardsStep(), opts...)
+	}
+}
+
+// ByCards orders the results by cards terms.
+func ByCards(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newCardsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByReceiptsCount orders the results by receipts count.
+func ByReceiptsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newReceiptsStep(), opts...)
+	}
+}
+
+// ByReceipts orders the results by receipts terms.
+func ByReceipts(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newReceiptsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newOrganizationStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -731,5 +788,19 @@ func newUsageChargesStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(UsageChargesInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, UsageChargesTable, UsageChargesColumn),
+	)
+}
+func newCardsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(CardsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, CardsTable, CardsColumn),
+	)
+}
+func newReceiptsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(ReceiptsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, ReceiptsTable, ReceiptsColumn),
 	)
 }

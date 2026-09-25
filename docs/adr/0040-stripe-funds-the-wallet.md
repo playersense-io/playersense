@@ -1,6 +1,6 @@
 # 0040. Stripe funds the wallet, and PlayerSense stores no billing information
 
-**Status:** Accepted
+**Status:** Accepted; its "no billing information is stored here" is amended by [ADR 0047](0047-the-billing-page-shows-stripes-description.md)
 **Date:** 2026-09-23
 **Relates to:** project.md §40, §40.1; [ADR 0036](0036-a-wallet-is-lots-because-credit-expires.md), [ADR 0039](0039-players-are-charged-as-they-arrive.md)
 **Supersedes in part:** project.md §40's Stripe meters and invoices

@@ -60,12 +60,16 @@ type Tx struct {
 	Organization *OrganizationClient
 	// OrganizationMember is the client for interacting with the OrganizationMember builders.
 	OrganizationMember *OrganizationMemberClient
+	// PaymentCard is the client for interacting with the PaymentCard builders.
+	PaymentCard *PaymentCardClient
 	// Plan is the client for interacting with the Plan builders.
 	Plan *PlanClient
 	// Project is the client for interacting with the Project builders.
 	Project *ProjectClient
 	// RateCard is the client for interacting with the RateCard builders.
 	RateCard *RateCardClient
+	// Receipt is the client for interacting with the Receipt builders.
+	Receipt *ReceiptClient
 	// Role is the client for interacting with the Role builders.
 	Role *RoleClient
 	// SavedFunnel is the client for interacting with the SavedFunnel builders.
@@ -240,9 +244,11 @@ func (tx *Tx) init() {
 	tx.MonthlyUsage = NewMonthlyUsageClient(tx.config)
 	tx.Organization = NewOrganizationClient(tx.config)
 	tx.OrganizationMember = NewOrganizationMemberClient(tx.config)
+	tx.PaymentCard = NewPaymentCardClient(tx.config)
 	tx.Plan = NewPlanClient(tx.config)
 	tx.Project = NewProjectClient(tx.config)
 	tx.RateCard = NewRateCardClient(tx.config)
+	tx.Receipt = NewReceiptClient(tx.config)
 	tx.Role = NewRoleClient(tx.config)
 	tx.SavedFunnel = NewSavedFunnelClient(tx.config)
 	tx.Segment = NewSegmentClient(tx.config)

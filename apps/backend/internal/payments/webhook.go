@@ -216,6 +216,11 @@ func (w *Webhooks) handle(ctx context.Context, tx *ent.Tx, event stripe.Event) (
 	if result, matched, err := w.usageInvoice(ctx, tx, event); matched {
 		return result, err
 	}
+	// Cards, invoice details and receipts: copies of Stripe's own description, for showing
+	// (cards.go). Nothing here moves money.
+	if result, matched, err := w.describing(ctx, tx, event); matched {
+		return result, err
+	}
 	switch event.Type {
 	case "payment_intent.succeeded":
 		var pi stripe.PaymentIntent

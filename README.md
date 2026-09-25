@@ -269,14 +269,24 @@ curl -X POST localhost:21080/v1/operator/plans/payg/rate-cards -H "Authorization
     {"unit_price_micros": 1500}]}'
 ```
 
-**Money reaches the wallet through Stripe**, and PlayerSense stores no card or billing details
+**Money reaches the wallet through Stripe**, and PlayerSense never holds a card number
 ([ADR 0040](docs/adr/0040-stripe-funds-the-wallet.md)):
 
 ```
        POST                 /v1/organizations/{org}/billing/top-ups    → a Stripe Checkout URL
        POST                 /v1/organizations/{org}/billing/portal     → Stripe's customer portal URL
+GET    POST                 /v1/organizations/{org}/billing/cards      saved cards; POST → Checkout to save one
+GET                         /v1/organizations/{org}/billing/details    what the invoices print
+GET                         /v1/organizations/{org}/billing/receipts   top-up and subscription invoices
        POST                 /v1/stripe/webhook                         Stripe only; signature-verified
 ```
+
+Cards, invoice details and receipts are Stripe's, edited in Checkout and the customer portal; what
+PlayerSense keeps is Stripe's own description of them, for showing: a card's brand, last four digits,
+expiry and whether it is the default; the name, address and tax ids the invoices print; and each
+top-up's and subscription's invoice with its page and PDF. Read from Stripe the first time the page
+asks (and with `refresh=true`), then kept in step by `payment_method.*`, `customer.updated`,
+`customer.tax_id.*` and `invoice.*`.
 
 Both `billing.manage` routes return a URL to send the browser to. Nothing is credited by opening
 Checkout or by the browser coming back — only by Stripe's signed webhook, keyed on the PaymentIntent so
@@ -293,7 +303,7 @@ queue is worked every two seconds; at most 3 automatic charges per organization 
 To receive webhooks locally, forward them with the Stripe CLI and give the API the secret it prints:
 
 ```bash
-stripe listen --events customer.subscription.created,customer.subscription.updated,customer.subscription.deleted,payment_intent.succeeded,payment_intent.payment_failed,payment_intent.canceled,checkout.session.completed,checkout.session.async_payment_succeeded,refund.created,refund.updated,refund.failed,charge.dispute.created,charge.dispute.funds_withdrawn,charge.dispute.funds_reinstated,charge.dispute.closed,invoice.finalized,invoice.sent,invoice.paid,invoice.voided,invoice.marked_uncollectible,invoice.overdue,invoice_payment.paid,credit_note.created \
+stripe listen --events customer.subscription.created,customer.subscription.updated,customer.subscription.deleted,payment_intent.succeeded,payment_intent.payment_failed,payment_intent.canceled,checkout.session.completed,checkout.session.async_payment_succeeded,refund.created,refund.updated,refund.failed,charge.dispute.created,charge.dispute.funds_withdrawn,charge.dispute.funds_reinstated,charge.dispute.closed,invoice.finalized,invoice.sent,invoice.paid,invoice.voided,invoice.marked_uncollectible,invoice.overdue,invoice_payment.paid,credit_note.created,payment_method.attached,payment_method.updated,payment_method.automatically_updated,payment_method.detached,customer.updated,customer.tax_id.created,customer.tax_id.updated,customer.tax_id.deleted \
   --forward-to localhost:21080/v1/stripe/webhook
 STRIPE_WEBHOOK_SECRET=whsec_… go run ./apps/backend/cmd/api    # the secret `stripe listen` printed
 ```

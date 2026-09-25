@@ -19,7 +19,9 @@ import (
 	"playersense.dev/backend/ent/ledgerentry"
 	"playersense.dev/backend/ent/monthlyusage"
 	"playersense.dev/backend/ent/organization"
+	"playersense.dev/backend/ent/paymentcard"
 	"playersense.dev/backend/ent/plan"
+	"playersense.dev/backend/ent/receipt"
 	"playersense.dev/backend/ent/stripeevent"
 	"playersense.dev/backend/ent/usagecharge"
 )
@@ -512,6 +514,26 @@ func (_c *BillingAccountCreate) SetEntitlementOverrides(v map[string]int64) *Bil
 	return _c
 }
 
+// SetInvoiceDetails sets the "invoice_details" field.
+func (_c *BillingAccountCreate) SetInvoiceDetails(v map[string]interface{}) *BillingAccountCreate {
+	_c.mutation.SetInvoiceDetails(v)
+	return _c
+}
+
+// SetCardsSyncedAt sets the "cards_synced_at" field.
+func (_c *BillingAccountCreate) SetCardsSyncedAt(v time.Time) *BillingAccountCreate {
+	_c.mutation.SetCardsSyncedAt(v)
+	return _c
+}
+
+// SetNillableCardsSyncedAt sets the "cards_synced_at" field if the given value is not nil.
+func (_c *BillingAccountCreate) SetNillableCardsSyncedAt(v *time.Time) *BillingAccountCreate {
+	if v != nil {
+		_c.SetCardsSyncedAt(*v)
+	}
+	return _c
+}
+
 // SetID sets the "id" field.
 func (_c *BillingAccountCreate) SetID(v int) *BillingAccountCreate {
 	_c.mutation.SetID(v)
@@ -631,6 +653,36 @@ func (_c *BillingAccountCreate) AddUsageCharges(v ...*UsageCharge) *BillingAccou
 		ids[i] = v[i].ID
 	}
 	return _c.AddUsageChargeIDs(ids...)
+}
+
+// AddCardIDs adds the "cards" edge to the PaymentCard entity by IDs.
+func (_c *BillingAccountCreate) AddCardIDs(ids ...int) *BillingAccountCreate {
+	_c.mutation.AddCardIDs(ids...)
+	return _c
+}
+
+// AddCards adds the "cards" edges to the PaymentCard entity.
+func (_c *BillingAccountCreate) AddCards(v ...*PaymentCard) *BillingAccountCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddCardIDs(ids...)
+}
+
+// AddReceiptIDs adds the "receipts" edge to the Receipt entity by IDs.
+func (_c *BillingAccountCreate) AddReceiptIDs(ids ...int) *BillingAccountCreate {
+	_c.mutation.AddReceiptIDs(ids...)
+	return _c
+}
+
+// AddReceipts adds the "receipts" edges to the Receipt entity.
+func (_c *BillingAccountCreate) AddReceipts(v ...*Receipt) *BillingAccountCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddReceiptIDs(ids...)
 }
 
 // Mutation returns the BillingAccountMutation object of the builder.
@@ -1086,6 +1138,14 @@ func (_c *BillingAccountCreate) createSpec() (*BillingAccount, *sqlgraph.CreateS
 		_spec.SetField(billingaccount.FieldEntitlementOverrides, field.TypeJSON, value)
 		_node.EntitlementOverrides = value
 	}
+	if value, ok := _c.mutation.InvoiceDetails(); ok {
+		_spec.SetField(billingaccount.FieldInvoiceDetails, field.TypeJSON, value)
+		_node.InvoiceDetails = value
+	}
+	if value, ok := _c.mutation.CardsSyncedAt(); ok {
+		_spec.SetField(billingaccount.FieldCardsSyncedAt, field.TypeTime, value)
+		_node.CardsSyncedAt = &value
+	}
 	if nodes := _c.mutation.OrganizationIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2O,
@@ -1225,6 +1285,38 @@ func (_c *BillingAccountCreate) createSpec() (*BillingAccount, *sqlgraph.CreateS
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(usagecharge.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.CardsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   billingaccount.CardsTable,
+			Columns: []string{billingaccount.CardsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(paymentcard.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.ReceiptsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   billingaccount.ReceiptsTable,
+			Columns: []string{billingaccount.ReceiptsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(receipt.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {
@@ -1821,6 +1913,42 @@ func (u *BillingAccountUpsert) SetEntitlementOverrides(v map[string]int64) *Bill
 // UpdateEntitlementOverrides sets the "entitlement_overrides" field to the value that was provided on create.
 func (u *BillingAccountUpsert) UpdateEntitlementOverrides() *BillingAccountUpsert {
 	u.SetExcluded(billingaccount.FieldEntitlementOverrides)
+	return u
+}
+
+// SetInvoiceDetails sets the "invoice_details" field.
+func (u *BillingAccountUpsert) SetInvoiceDetails(v map[string]interface{}) *BillingAccountUpsert {
+	u.Set(billingaccount.FieldInvoiceDetails, v)
+	return u
+}
+
+// UpdateInvoiceDetails sets the "invoice_details" field to the value that was provided on create.
+func (u *BillingAccountUpsert) UpdateInvoiceDetails() *BillingAccountUpsert {
+	u.SetExcluded(billingaccount.FieldInvoiceDetails)
+	return u
+}
+
+// ClearInvoiceDetails clears the value of the "invoice_details" field.
+func (u *BillingAccountUpsert) ClearInvoiceDetails() *BillingAccountUpsert {
+	u.SetNull(billingaccount.FieldInvoiceDetails)
+	return u
+}
+
+// SetCardsSyncedAt sets the "cards_synced_at" field.
+func (u *BillingAccountUpsert) SetCardsSyncedAt(v time.Time) *BillingAccountUpsert {
+	u.Set(billingaccount.FieldCardsSyncedAt, v)
+	return u
+}
+
+// UpdateCardsSyncedAt sets the "cards_synced_at" field to the value that was provided on create.
+func (u *BillingAccountUpsert) UpdateCardsSyncedAt() *BillingAccountUpsert {
+	u.SetExcluded(billingaccount.FieldCardsSyncedAt)
+	return u
+}
+
+// ClearCardsSyncedAt clears the value of the "cards_synced_at" field.
+func (u *BillingAccountUpsert) ClearCardsSyncedAt() *BillingAccountUpsert {
+	u.SetNull(billingaccount.FieldCardsSyncedAt)
 	return u
 }
 
@@ -2508,6 +2636,48 @@ func (u *BillingAccountUpsertOne) SetEntitlementOverrides(v map[string]int64) *B
 func (u *BillingAccountUpsertOne) UpdateEntitlementOverrides() *BillingAccountUpsertOne {
 	return u.Update(func(s *BillingAccountUpsert) {
 		s.UpdateEntitlementOverrides()
+	})
+}
+
+// SetInvoiceDetails sets the "invoice_details" field.
+func (u *BillingAccountUpsertOne) SetInvoiceDetails(v map[string]interface{}) *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetInvoiceDetails(v)
+	})
+}
+
+// UpdateInvoiceDetails sets the "invoice_details" field to the value that was provided on create.
+func (u *BillingAccountUpsertOne) UpdateInvoiceDetails() *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateInvoiceDetails()
+	})
+}
+
+// ClearInvoiceDetails clears the value of the "invoice_details" field.
+func (u *BillingAccountUpsertOne) ClearInvoiceDetails() *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.ClearInvoiceDetails()
+	})
+}
+
+// SetCardsSyncedAt sets the "cards_synced_at" field.
+func (u *BillingAccountUpsertOne) SetCardsSyncedAt(v time.Time) *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetCardsSyncedAt(v)
+	})
+}
+
+// UpdateCardsSyncedAt sets the "cards_synced_at" field to the value that was provided on create.
+func (u *BillingAccountUpsertOne) UpdateCardsSyncedAt() *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateCardsSyncedAt()
+	})
+}
+
+// ClearCardsSyncedAt clears the value of the "cards_synced_at" field.
+func (u *BillingAccountUpsertOne) ClearCardsSyncedAt() *BillingAccountUpsertOne {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.ClearCardsSyncedAt()
 	})
 }
 
@@ -3361,6 +3531,48 @@ func (u *BillingAccountUpsertBulk) SetEntitlementOverrides(v map[string]int64) *
 func (u *BillingAccountUpsertBulk) UpdateEntitlementOverrides() *BillingAccountUpsertBulk {
 	return u.Update(func(s *BillingAccountUpsert) {
 		s.UpdateEntitlementOverrides()
+	})
+}
+
+// SetInvoiceDetails sets the "invoice_details" field.
+func (u *BillingAccountUpsertBulk) SetInvoiceDetails(v map[string]interface{}) *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetInvoiceDetails(v)
+	})
+}
+
+// UpdateInvoiceDetails sets the "invoice_details" field to the value that was provided on create.
+func (u *BillingAccountUpsertBulk) UpdateInvoiceDetails() *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateInvoiceDetails()
+	})
+}
+
+// ClearInvoiceDetails clears the value of the "invoice_details" field.
+func (u *BillingAccountUpsertBulk) ClearInvoiceDetails() *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.ClearInvoiceDetails()
+	})
+}
+
+// SetCardsSyncedAt sets the "cards_synced_at" field.
+func (u *BillingAccountUpsertBulk) SetCardsSyncedAt(v time.Time) *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.SetCardsSyncedAt(v)
+	})
+}
+
+// UpdateCardsSyncedAt sets the "cards_synced_at" field to the value that was provided on create.
+func (u *BillingAccountUpsertBulk) UpdateCardsSyncedAt() *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.UpdateCardsSyncedAt()
+	})
+}
+
+// ClearCardsSyncedAt clears the value of the "cards_synced_at" field.
+func (u *BillingAccountUpsertBulk) ClearCardsSyncedAt() *BillingAccountUpsertBulk {
+	return u.Update(func(s *BillingAccountUpsert) {
+		s.ClearCardsSyncedAt()
 	})
 }
 

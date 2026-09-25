@@ -98,6 +98,34 @@ func Billing() *muzak.Router {
 		core.Require(authz.BillingRead),
 		muzak.WithResponseDoc(http.StatusNotFound, "No such invoice"))
 
+	r.Get("/organizations/{org}/billing/cards", handlers.ListCards,
+		muzak.Summary("The saved cards"),
+		muzak.Description("Brand, last four digits, expiry and which is the default, as Stripe describes "+
+			"them; never a card number. Read from Stripe the first time and with refresh=true, and "+
+			"kept current by its webhooks after that. Cards are managed in the billing portal."),
+		core.Require(authz.BillingRead),
+		muzak.WithResponseDoc(http.StatusServiceUnavailable, "A refresh was asked for and Stripe could not be reached"))
+
+	r.Post("/organizations/{org}/billing/cards", handlers.AddCard,
+		muzak.Summary("Save a card"),
+		muzak.Description("Opens Stripe Checkout to save a card for automatic top-up without paying, and "+
+			"returns its URL. The card is listed when Stripe reports it, usually within seconds."),
+		core.Require(authz.BillingManage),
+		muzak.WithResponseDoc(http.StatusServiceUnavailable, "Stripe could not be reached, or payments are not configured"))
+
+	r.Get("/organizations/{org}/billing/details", handlers.ReadInvoiceDetails,
+		muzak.Summary("What the invoices print"),
+		muzak.Description("The name, email, address and tax ids Stripe prints on every invoice. Stripe "+
+			"holds them and the billing portal edits them; this is Stripe's own description, copied."),
+		core.Require(authz.BillingRead))
+
+	r.Get("/organizations/{org}/billing/receipts", handlers.ListReceipts,
+		muzak.Summary("Receipts for top-ups and the plan"),
+		muzak.Description("Every Stripe invoice for a top-up, automatic or by card, and for the plan's "+
+			"subscription, newest first, with Stripe's page and PDF for each. Usage invoices for an "+
+			"invoiced organization are under invoices."),
+		core.Require(authz.BillingRead))
+
 	r.Post("/organizations/{org}/billing/portal", handlers.OpenBillingPortal,
 		muzak.Summary("Manage cards and receipts"),
 		muzak.Description("Opens Stripe's customer portal and returns its URL: add, remove or choose "+

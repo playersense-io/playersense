@@ -40,10 +40,15 @@ type Gateway struct {
 	// so a test's pass over a shared database charges its own account and nobody else's.
 	Only string
 
-	Customers     map[string]string           // account uid → customer id
-	Charges       map[string]payments.Payment // idempotency key → the payment it made
-	requests      map[string]payments.OffSessionRequest
-	Checkouts     []payments.CheckoutRequest
+	Customers map[string]string           // account uid → customer id
+	Charges   map[string]payments.Payment // idempotency key → the payment it made
+	requests  map[string]payments.OffSessionRequest
+	Checkouts []payments.CheckoutRequest
+	Setups    []payments.SetupCheckoutRequest
+
+	// Details is what DescribeCustomer answers, by customer. Absent: a customer with the
+	// fake's Card, if any, and no details.
+	Details       map[string]payments.CustomerDetails
 	Subscriptions []payments.SubscriptionCheckoutRequest
 	Portals       int
 
@@ -96,6 +101,35 @@ func (g *Gateway) CreateCheckout(_ context.Context, in payments.CheckoutRequest)
 		return payments.Checkout{}, ErrTimeout
 	}
 	g.Checkouts = append(g.Checkouts, in)
+	id := "cs_test_" + uuid.NewString()[:12]
+	return payments.Checkout{ID: id, URL: "https://checkout.stripe.test/" + id,
+		ExpiresAt: time.Now().Add(24 * time.Hour).UTC()}, nil
+}
+
+func (g *Gateway) DescribeCustomer(_ context.Context, customer string) (payments.CustomerDetails, error) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.Down {
+		return payments.CustomerDetails{}, ErrTimeout
+	}
+	if d, found := g.Details[customer]; found {
+		return d, nil
+	}
+	if g.Card == "" || (g.Only != "" && customer != g.Only) {
+		return payments.CustomerDetails{}, nil
+	}
+	return payments.CustomerDetails{DefaultCard: g.Card, Cards: []payments.Card{{
+		ID: g.Card, Brand: "visa", Last4: "4242", ExpMonth: 12, ExpYear: 2030, Funding: "credit", Country: "US",
+	}}}, nil
+}
+
+func (g *Gateway) CreateSetupCheckout(_ context.Context, in payments.SetupCheckoutRequest) (payments.Checkout, error) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.Down {
+		return payments.Checkout{}, ErrTimeout
+	}
+	g.Setups = append(g.Setups, in)
 	id := "cs_test_" + uuid.NewString()[:12]
 	return payments.Checkout{ID: id, URL: "https://checkout.stripe.test/" + id,
 		ExpiresAt: time.Now().Add(24 * time.Hour).UTC()}, nil

@@ -48,3 +48,80 @@ type WebhookOut struct {
 	Received bool   `json:"received"`
 	Status   string `json:"status,omitzero"`
 }
+
+// ---- cards, invoice details and receipts --------------------------------------
+
+// CardsParams reads the saved cards.
+type CardsParams struct {
+	OrgSlug string `path:"org"`
+	Refresh bool   `query:"refresh,omitzero" doc:"Ask Stripe again rather than reading the copy the webhooks keep"`
+}
+
+func (in *CardsParams) Validate(v *muzak.Validation) {
+	v.String(&in.OrgSlug).Trim().Lower().Required().MaxLen(64)
+}
+
+// CardsOut is the organization's saved cards, as Stripe describes them.
+type CardsOut struct {
+	Cards    []CardOut  `json:"cards"`
+	SyncedAt *time.Time `json:"synced_at,omitzero" doc:"When Stripe was last asked directly; the webhooks keep it current after that"`
+}
+
+// CardOut is a saved card: never its number.
+type CardOut struct {
+	ID        string    `json:"id" doc:"Stripe's payment method id"`
+	Brand     string    `json:"brand" doc:"visa, mastercard, amex..."`
+	Last4     string    `json:"last4"`
+	ExpMonth  int       `json:"exp_month"`
+	ExpYear   int       `json:"exp_year"`
+	Funding   string    `json:"funding,omitzero" doc:"credit, debit or prepaid"`
+	IsDefault bool      `json:"is_default" doc:"What automatic top-up charges"`
+	Expired   bool      `json:"expired,omitzero"`
+	AddedAt   time.Time `json:"added_at"`
+}
+
+// InvoiceDetailsOut is what Stripe prints on the organization's invoices. Edited in the customer
+// portal; this is Stripe's own description, copied.
+type InvoiceDetailsOut struct {
+	Name     string     `json:"name,omitzero"`
+	Email    string     `json:"email,omitzero"`
+	Address  []string   `json:"address"`
+	Country  string     `json:"country,omitzero"`
+	TaxIDs   []string   `json:"tax_ids" doc:"Type and value: eu_vat DE123456789"`
+	Customer string     `json:"stripe_customer,omitzero" doc:"The Stripe customer these belong to"`
+	SyncedAt *time.Time `json:"synced_at,omitzero"`
+}
+
+// ReceiptsParams pages the receipts.
+type ReceiptsParams struct {
+	OrgSlug string `path:"org"`
+	Before  string `query:"before,omitzero" doc:"The next cursor of the previous page"`
+	Limit   int    `query:"limit,omitzero" default:"50" doc:"Newest first, up to 200"`
+}
+
+func (in *ReceiptsParams) Validate(v *muzak.Validation) {
+	v.String(&in.OrgSlug).Trim().Lower().Required().MaxLen(64)
+	v.String(&in.Before).Trim().MaxLen(20)
+	v.Number(&in.Limit).Min(1).Max(200)
+}
+
+// ReceiptsOut is one page of receipts.
+type ReceiptsOut struct {
+	Receipts []ReceiptOut `json:"receipts"`
+	Next     string       `json:"next,omitzero"`
+}
+
+// ReceiptOut is a Stripe invoice for a top-up or the plan's subscription.
+type ReceiptOut struct {
+	ID          string     `json:"id" doc:"Stripe's invoice id"`
+	Number      string     `json:"number,omitzero"`
+	Kind        string     `json:"kind" doc:"top_up or subscription"`
+	Status      string     `json:"status" doc:"open, paid, void or uncollectible"`
+	Description string     `json:"description,omitzero"`
+	TotalMicros int64      `json:"total_micros"`
+	Currency    string     `json:"currency"`
+	IssuedAt    time.Time  `json:"issued_at"`
+	PaidAt      *time.Time `json:"paid_at,omitzero"`
+	HostedURL   string     `json:"hosted_url,omitzero" doc:"Stripe's page for it"`
+	PDFURL      string     `json:"pdf_url,omitzero"`
+}
