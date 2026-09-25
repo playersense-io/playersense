@@ -45,6 +45,10 @@ import (
 	"playersense.dev/backend/ent/project"
 	"playersense.dev/backend/ent/ratecard"
 	"playersense.dev/backend/ent/receipt"
+	"playersense.dev/backend/ent/report"
+	"playersense.dev/backend/ent/reportexport"
+	"playersense.dev/backend/ent/reportrun"
+	"playersense.dev/backend/ent/reportrunevent"
 	"playersense.dev/backend/ent/role"
 	"playersense.dev/backend/ent/savedfunnel"
 	"playersense.dev/backend/ent/segment"
@@ -124,6 +128,14 @@ type Client struct {
 	RateCard *RateCardClient
 	// Receipt is the client for interacting with the Receipt builders.
 	Receipt *ReceiptClient
+	// Report is the client for interacting with the Report builders.
+	Report *ReportClient
+	// ReportExport is the client for interacting with the ReportExport builders.
+	ReportExport *ReportExportClient
+	// ReportRun is the client for interacting with the ReportRun builders.
+	ReportRun *ReportRunClient
+	// ReportRunEvent is the client for interacting with the ReportRunEvent builders.
+	ReportRunEvent *ReportRunEventClient
 	// Role is the client for interacting with the Role builders.
 	Role *RoleClient
 	// SavedFunnel is the client for interacting with the SavedFunnel builders.
@@ -185,6 +197,10 @@ func (c *Client) init() {
 	c.Project = NewProjectClient(c.config)
 	c.RateCard = NewRateCardClient(c.config)
 	c.Receipt = NewReceiptClient(c.config)
+	c.Report = NewReportClient(c.config)
+	c.ReportExport = NewReportExportClient(c.config)
+	c.ReportRun = NewReportRunClient(c.config)
+	c.ReportRunEvent = NewReportRunEventClient(c.config)
 	c.Role = NewRoleClient(c.config)
 	c.SavedFunnel = NewSavedFunnelClient(c.config)
 	c.Segment = NewSegmentClient(c.config)
@@ -317,6 +333,10 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		Project:             NewProjectClient(cfg),
 		RateCard:            NewRateCardClient(cfg),
 		Receipt:             NewReceiptClient(cfg),
+		Report:              NewReportClient(cfg),
+		ReportExport:        NewReportExportClient(cfg),
+		ReportRun:           NewReportRunClient(cfg),
+		ReportRunEvent:      NewReportRunEventClient(cfg),
 		Role:                NewRoleClient(cfg),
 		SavedFunnel:         NewSavedFunnelClient(cfg),
 		Segment:             NewSegmentClient(cfg),
@@ -376,6 +396,10 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		Project:             NewProjectClient(cfg),
 		RateCard:            NewRateCardClient(cfg),
 		Receipt:             NewReceiptClient(cfg),
+		Report:              NewReportClient(cfg),
+		ReportExport:        NewReportExportClient(cfg),
+		ReportRun:           NewReportRunClient(cfg),
+		ReportRunEvent:      NewReportRunEventClient(cfg),
 		Role:                NewRoleClient(cfg),
 		SavedFunnel:         NewSavedFunnelClient(cfg),
 		Segment:             NewSegmentClient(cfg),
@@ -421,9 +445,10 @@ func (c *Client) Use(hooks ...Hook) {
 		c.Experiment, c.FeatureFlag, c.Invitation, c.Invoice, c.InvoiceLine,
 		c.LedgerEntry, c.LiveOpsEvent, c.MemberProject, c.MonthlyUsage,
 		c.NotificationChannel, c.Organization, c.OrganizationMember, c.PaymentCard,
-		c.Plan, c.Project, c.RateCard, c.Receipt, c.Role, c.SavedFunnel, c.Segment,
-		c.StaffAccess, c.StaffMember, c.StripeEvent, c.UsageCharge, c.UsageDaily,
-		c.User, c.VerifiedPurchase,
+		c.Plan, c.Project, c.RateCard, c.Receipt, c.Report, c.ReportExport,
+		c.ReportRun, c.ReportRunEvent, c.Role, c.SavedFunnel, c.Segment, c.StaffAccess,
+		c.StaffMember, c.StripeEvent, c.UsageCharge, c.UsageDaily, c.User,
+		c.VerifiedPurchase,
 	} {
 		n.Use(hooks...)
 	}
@@ -439,9 +464,10 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.Experiment, c.FeatureFlag, c.Invitation, c.Invoice, c.InvoiceLine,
 		c.LedgerEntry, c.LiveOpsEvent, c.MemberProject, c.MonthlyUsage,
 		c.NotificationChannel, c.Organization, c.OrganizationMember, c.PaymentCard,
-		c.Plan, c.Project, c.RateCard, c.Receipt, c.Role, c.SavedFunnel, c.Segment,
-		c.StaffAccess, c.StaffMember, c.StripeEvent, c.UsageCharge, c.UsageDaily,
-		c.User, c.VerifiedPurchase,
+		c.Plan, c.Project, c.RateCard, c.Receipt, c.Report, c.ReportExport,
+		c.ReportRun, c.ReportRunEvent, c.Role, c.SavedFunnel, c.Segment, c.StaffAccess,
+		c.StaffMember, c.StripeEvent, c.UsageCharge, c.UsageDaily, c.User,
+		c.VerifiedPurchase,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -510,6 +536,14 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.RateCard.mutate(ctx, m)
 	case *ReceiptMutation:
 		return c.Receipt.mutate(ctx, m)
+	case *ReportMutation:
+		return c.Report.mutate(ctx, m)
+	case *ReportExportMutation:
+		return c.ReportExport.mutate(ctx, m)
+	case *ReportRunMutation:
+		return c.ReportRun.mutate(ctx, m)
+	case *ReportRunEventMutation:
+		return c.ReportRunEvent.mutate(ctx, m)
 	case *RoleMutation:
 		return c.Role.mutate(ctx, m)
 	case *SavedFunnelMutation:
@@ -5324,6 +5358,22 @@ func (c *ProjectClient) QueryNotificationChannels(_m *Project) *NotificationChan
 	return query
 }
 
+// QueryReports queries the reports edge of a Project.
+func (c *ProjectClient) QueryReports(_m *Project) *ReportQuery {
+	query := (&ReportClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(project.Table, project.FieldID, id),
+			sqlgraph.To(report.Table, report.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, project.ReportsTable, project.ReportsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // QueryMemberAccess queries the member_access edge of a Project.
 func (c *ProjectClient) QueryMemberAccess(_m *Project) *MemberProjectQuery {
 	query := (&MemberProjectClient{config: c.config}).Query()
@@ -5693,6 +5743,586 @@ func (c *ReceiptClient) mutate(ctx context.Context, m *ReceiptMutation) (Value, 
 		return (&ReceiptDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown Receipt mutation op: %q", m.Op())
+	}
+}
+
+// ReportClient is a client for the Report schema.
+type ReportClient struct {
+	config
+}
+
+// NewReportClient returns a client for the Report from the given config.
+func NewReportClient(c config) *ReportClient {
+	return &ReportClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `report.Hooks(f(g(h())))`.
+func (c *ReportClient) Use(hooks ...Hook) {
+	c.hooks.Report = append(c.hooks.Report, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `report.Intercept(f(g(h())))`.
+func (c *ReportClient) Intercept(interceptors ...Interceptor) {
+	c.inters.Report = append(c.inters.Report, interceptors...)
+}
+
+// Create returns a builder for creating a Report entity.
+func (c *ReportClient) Create() *ReportCreate {
+	mutation := newReportMutation(c.config, OpCreate)
+	return &ReportCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Report entities.
+func (c *ReportClient) CreateBulk(builders ...*ReportCreate) *ReportCreateBulk {
+	return &ReportCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ReportClient) MapCreateBulk(slice any, setFunc func(*ReportCreate, int)) *ReportCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ReportCreateBulk{err: fmt.Errorf("calling to ReportClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ReportCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ReportCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Report.
+func (c *ReportClient) Update() *ReportUpdate {
+	mutation := newReportMutation(c.config, OpUpdate)
+	return &ReportUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ReportClient) UpdateOne(_m *Report) *ReportUpdateOne {
+	mutation := newReportMutation(c.config, OpUpdateOne, withReport(_m))
+	return &ReportUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ReportClient) UpdateOneID(id int) *ReportUpdateOne {
+	mutation := newReportMutation(c.config, OpUpdateOne, withReportID(id))
+	return &ReportUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Report.
+func (c *ReportClient) Delete() *ReportDelete {
+	mutation := newReportMutation(c.config, OpDelete)
+	return &ReportDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ReportClient) DeleteOne(_m *Report) *ReportDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ReportClient) DeleteOneID(id int) *ReportDeleteOne {
+	builder := c.Delete().Where(report.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ReportDeleteOne{builder}
+}
+
+// Query returns a query builder for Report.
+func (c *ReportClient) Query() *ReportQuery {
+	return &ReportQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeReport},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a Report entity by its id.
+func (c *ReportClient) Get(ctx context.Context, id int) (*Report, error) {
+	return c.Query().Where(report.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ReportClient) GetX(ctx context.Context, id int) *Report {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryProject queries the project edge of a Report.
+func (c *ReportClient) QueryProject(_m *Report) *ProjectQuery {
+	query := (&ProjectClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(report.Table, report.FieldID, id),
+			sqlgraph.To(project.Table, project.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, report.ProjectTable, report.ProjectColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryRuns queries the runs edge of a Report.
+func (c *ReportClient) QueryRuns(_m *Report) *ReportRunQuery {
+	query := (&ReportRunClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(report.Table, report.FieldID, id),
+			sqlgraph.To(reportrun.Table, reportrun.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, report.RunsTable, report.RunsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *ReportClient) Hooks() []Hook {
+	return c.hooks.Report
+}
+
+// Interceptors returns the client interceptors.
+func (c *ReportClient) Interceptors() []Interceptor {
+	return c.inters.Report
+}
+
+func (c *ReportClient) mutate(ctx context.Context, m *ReportMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ReportCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ReportUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ReportUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ReportDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown Report mutation op: %q", m.Op())
+	}
+}
+
+// ReportExportClient is a client for the ReportExport schema.
+type ReportExportClient struct {
+	config
+}
+
+// NewReportExportClient returns a client for the ReportExport from the given config.
+func NewReportExportClient(c config) *ReportExportClient {
+	return &ReportExportClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `reportexport.Hooks(f(g(h())))`.
+func (c *ReportExportClient) Use(hooks ...Hook) {
+	c.hooks.ReportExport = append(c.hooks.ReportExport, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `reportexport.Intercept(f(g(h())))`.
+func (c *ReportExportClient) Intercept(interceptors ...Interceptor) {
+	c.inters.ReportExport = append(c.inters.ReportExport, interceptors...)
+}
+
+// Create returns a builder for creating a ReportExport entity.
+func (c *ReportExportClient) Create() *ReportExportCreate {
+	mutation := newReportExportMutation(c.config, OpCreate)
+	return &ReportExportCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of ReportExport entities.
+func (c *ReportExportClient) CreateBulk(builders ...*ReportExportCreate) *ReportExportCreateBulk {
+	return &ReportExportCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ReportExportClient) MapCreateBulk(slice any, setFunc func(*ReportExportCreate, int)) *ReportExportCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ReportExportCreateBulk{err: fmt.Errorf("calling to ReportExportClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ReportExportCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ReportExportCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for ReportExport.
+func (c *ReportExportClient) Update() *ReportExportUpdate {
+	mutation := newReportExportMutation(c.config, OpUpdate)
+	return &ReportExportUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ReportExportClient) UpdateOne(_m *ReportExport) *ReportExportUpdateOne {
+	mutation := newReportExportMutation(c.config, OpUpdateOne, withReportExport(_m))
+	return &ReportExportUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ReportExportClient) UpdateOneID(id int) *ReportExportUpdateOne {
+	mutation := newReportExportMutation(c.config, OpUpdateOne, withReportExportID(id))
+	return &ReportExportUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for ReportExport.
+func (c *ReportExportClient) Delete() *ReportExportDelete {
+	mutation := newReportExportMutation(c.config, OpDelete)
+	return &ReportExportDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ReportExportClient) DeleteOne(_m *ReportExport) *ReportExportDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ReportExportClient) DeleteOneID(id int) *ReportExportDeleteOne {
+	builder := c.Delete().Where(reportexport.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ReportExportDeleteOne{builder}
+}
+
+// Query returns a query builder for ReportExport.
+func (c *ReportExportClient) Query() *ReportExportQuery {
+	return &ReportExportQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeReportExport},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a ReportExport entity by its id.
+func (c *ReportExportClient) Get(ctx context.Context, id int) (*ReportExport, error) {
+	return c.Query().Where(reportexport.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ReportExportClient) GetX(ctx context.Context, id int) *ReportExport {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *ReportExportClient) Hooks() []Hook {
+	return c.hooks.ReportExport
+}
+
+// Interceptors returns the client interceptors.
+func (c *ReportExportClient) Interceptors() []Interceptor {
+	return c.inters.ReportExport
+}
+
+func (c *ReportExportClient) mutate(ctx context.Context, m *ReportExportMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ReportExportCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ReportExportUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ReportExportUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ReportExportDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown ReportExport mutation op: %q", m.Op())
+	}
+}
+
+// ReportRunClient is a client for the ReportRun schema.
+type ReportRunClient struct {
+	config
+}
+
+// NewReportRunClient returns a client for the ReportRun from the given config.
+func NewReportRunClient(c config) *ReportRunClient {
+	return &ReportRunClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `reportrun.Hooks(f(g(h())))`.
+func (c *ReportRunClient) Use(hooks ...Hook) {
+	c.hooks.ReportRun = append(c.hooks.ReportRun, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `reportrun.Intercept(f(g(h())))`.
+func (c *ReportRunClient) Intercept(interceptors ...Interceptor) {
+	c.inters.ReportRun = append(c.inters.ReportRun, interceptors...)
+}
+
+// Create returns a builder for creating a ReportRun entity.
+func (c *ReportRunClient) Create() *ReportRunCreate {
+	mutation := newReportRunMutation(c.config, OpCreate)
+	return &ReportRunCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of ReportRun entities.
+func (c *ReportRunClient) CreateBulk(builders ...*ReportRunCreate) *ReportRunCreateBulk {
+	return &ReportRunCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ReportRunClient) MapCreateBulk(slice any, setFunc func(*ReportRunCreate, int)) *ReportRunCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ReportRunCreateBulk{err: fmt.Errorf("calling to ReportRunClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ReportRunCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ReportRunCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for ReportRun.
+func (c *ReportRunClient) Update() *ReportRunUpdate {
+	mutation := newReportRunMutation(c.config, OpUpdate)
+	return &ReportRunUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ReportRunClient) UpdateOne(_m *ReportRun) *ReportRunUpdateOne {
+	mutation := newReportRunMutation(c.config, OpUpdateOne, withReportRun(_m))
+	return &ReportRunUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ReportRunClient) UpdateOneID(id int) *ReportRunUpdateOne {
+	mutation := newReportRunMutation(c.config, OpUpdateOne, withReportRunID(id))
+	return &ReportRunUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for ReportRun.
+func (c *ReportRunClient) Delete() *ReportRunDelete {
+	mutation := newReportRunMutation(c.config, OpDelete)
+	return &ReportRunDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ReportRunClient) DeleteOne(_m *ReportRun) *ReportRunDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ReportRunClient) DeleteOneID(id int) *ReportRunDeleteOne {
+	builder := c.Delete().Where(reportrun.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ReportRunDeleteOne{builder}
+}
+
+// Query returns a query builder for ReportRun.
+func (c *ReportRunClient) Query() *ReportRunQuery {
+	return &ReportRunQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeReportRun},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a ReportRun entity by its id.
+func (c *ReportRunClient) Get(ctx context.Context, id int) (*ReportRun, error) {
+	return c.Query().Where(reportrun.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ReportRunClient) GetX(ctx context.Context, id int) *ReportRun {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryReport queries the report edge of a ReportRun.
+func (c *ReportRunClient) QueryReport(_m *ReportRun) *ReportQuery {
+	query := (&ReportClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(reportrun.Table, reportrun.FieldID, id),
+			sqlgraph.To(report.Table, report.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, reportrun.ReportTable, reportrun.ReportColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *ReportRunClient) Hooks() []Hook {
+	return c.hooks.ReportRun
+}
+
+// Interceptors returns the client interceptors.
+func (c *ReportRunClient) Interceptors() []Interceptor {
+	return c.inters.ReportRun
+}
+
+func (c *ReportRunClient) mutate(ctx context.Context, m *ReportRunMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ReportRunCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ReportRunUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ReportRunUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ReportRunDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown ReportRun mutation op: %q", m.Op())
+	}
+}
+
+// ReportRunEventClient is a client for the ReportRunEvent schema.
+type ReportRunEventClient struct {
+	config
+}
+
+// NewReportRunEventClient returns a client for the ReportRunEvent from the given config.
+func NewReportRunEventClient(c config) *ReportRunEventClient {
+	return &ReportRunEventClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `reportrunevent.Hooks(f(g(h())))`.
+func (c *ReportRunEventClient) Use(hooks ...Hook) {
+	c.hooks.ReportRunEvent = append(c.hooks.ReportRunEvent, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `reportrunevent.Intercept(f(g(h())))`.
+func (c *ReportRunEventClient) Intercept(interceptors ...Interceptor) {
+	c.inters.ReportRunEvent = append(c.inters.ReportRunEvent, interceptors...)
+}
+
+// Create returns a builder for creating a ReportRunEvent entity.
+func (c *ReportRunEventClient) Create() *ReportRunEventCreate {
+	mutation := newReportRunEventMutation(c.config, OpCreate)
+	return &ReportRunEventCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of ReportRunEvent entities.
+func (c *ReportRunEventClient) CreateBulk(builders ...*ReportRunEventCreate) *ReportRunEventCreateBulk {
+	return &ReportRunEventCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ReportRunEventClient) MapCreateBulk(slice any, setFunc func(*ReportRunEventCreate, int)) *ReportRunEventCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ReportRunEventCreateBulk{err: fmt.Errorf("calling to ReportRunEventClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ReportRunEventCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ReportRunEventCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for ReportRunEvent.
+func (c *ReportRunEventClient) Update() *ReportRunEventUpdate {
+	mutation := newReportRunEventMutation(c.config, OpUpdate)
+	return &ReportRunEventUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ReportRunEventClient) UpdateOne(_m *ReportRunEvent) *ReportRunEventUpdateOne {
+	mutation := newReportRunEventMutation(c.config, OpUpdateOne, withReportRunEvent(_m))
+	return &ReportRunEventUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ReportRunEventClient) UpdateOneID(id int) *ReportRunEventUpdateOne {
+	mutation := newReportRunEventMutation(c.config, OpUpdateOne, withReportRunEventID(id))
+	return &ReportRunEventUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for ReportRunEvent.
+func (c *ReportRunEventClient) Delete() *ReportRunEventDelete {
+	mutation := newReportRunEventMutation(c.config, OpDelete)
+	return &ReportRunEventDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ReportRunEventClient) DeleteOne(_m *ReportRunEvent) *ReportRunEventDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ReportRunEventClient) DeleteOneID(id int) *ReportRunEventDeleteOne {
+	builder := c.Delete().Where(reportrunevent.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ReportRunEventDeleteOne{builder}
+}
+
+// Query returns a query builder for ReportRunEvent.
+func (c *ReportRunEventClient) Query() *ReportRunEventQuery {
+	return &ReportRunEventQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeReportRunEvent},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a ReportRunEvent entity by its id.
+func (c *ReportRunEventClient) Get(ctx context.Context, id int) (*ReportRunEvent, error) {
+	return c.Query().Where(reportrunevent.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ReportRunEventClient) GetX(ctx context.Context, id int) *ReportRunEvent {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *ReportRunEventClient) Hooks() []Hook {
+	return c.hooks.ReportRunEvent
+}
+
+// Interceptors returns the client interceptors.
+func (c *ReportRunEventClient) Interceptors() []Interceptor {
+	return c.inters.ReportRunEvent
+}
+
+func (c *ReportRunEventClient) mutate(ctx context.Context, m *ReportRunEventMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ReportRunEventCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ReportRunEventUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ReportRunEventUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ReportRunEventDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown ReportRunEvent mutation op: %q", m.Op())
 	}
 }
 
@@ -7259,9 +7889,10 @@ type (
 		DataDeletionRequest, DataExportRequest, Environment, EventDefinition,
 		Experiment, FeatureFlag, Invitation, Invoice, InvoiceLine, LedgerEntry,
 		LiveOpsEvent, MemberProject, MonthlyUsage, NotificationChannel, Organization,
-		OrganizationMember, PaymentCard, Plan, Project, RateCard, Receipt, Role,
-		SavedFunnel, Segment, StaffAccess, StaffMember, StripeEvent, UsageCharge,
-		UsageDaily, User, VerifiedPurchase []ent.Hook
+		OrganizationMember, PaymentCard, Plan, Project, RateCard, Receipt, Report,
+		ReportExport, ReportRun, ReportRunEvent, Role, SavedFunnel, Segment,
+		StaffAccess, StaffMember, StripeEvent, UsageCharge, UsageDaily, User,
+		VerifiedPurchase []ent.Hook
 	}
 	inters struct {
 		APIKey, ArchiveManifest, AuditEvent, BillablePlayer, BillingAccount,
@@ -7269,9 +7900,10 @@ type (
 		DataDeletionRequest, DataExportRequest, Environment, EventDefinition,
 		Experiment, FeatureFlag, Invitation, Invoice, InvoiceLine, LedgerEntry,
 		LiveOpsEvent, MemberProject, MonthlyUsage, NotificationChannel, Organization,
-		OrganizationMember, PaymentCard, Plan, Project, RateCard, Receipt, Role,
-		SavedFunnel, Segment, StaffAccess, StaffMember, StripeEvent, UsageCharge,
-		UsageDaily, User, VerifiedPurchase []ent.Interceptor
+		OrganizationMember, PaymentCard, Plan, Project, RateCard, Receipt, Report,
+		ReportExport, ReportRun, ReportRunEvent, Role, SavedFunnel, Segment,
+		StaffAccess, StaffMember, StripeEvent, UsageCharge, UsageDaily, User,
+		VerifiedPurchase []ent.Interceptor
 	}
 )
 

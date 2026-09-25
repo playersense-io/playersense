@@ -1280,6 +1280,148 @@ var (
 			},
 		},
 	}
+	// ReportsColumns holds the columns for the "reports" table.
+	ReportsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
+		{Name: "uid", Type: field.TypeUUID, Unique: true, Comment: "class=none"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "updated_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "name", Type: field.TypeString, Size: 120, Comment: "class=none"},
+		{Name: "description", Type: field.TypeString, Size: 1000, Comment: "class=none", Default: ""},
+		{Name: "environment", Type: field.TypeEnum, Comment: "class=none", Enums: []string{"development", "staging", "production"}, Default: "production"},
+		{Name: "graph", Type: field.TypeJSON, Comment: "class=none"},
+		{Name: "next_run_at", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
+		{Name: "created_by", Type: field.TypeString, Size: 254, Comment: "class=none", Default: ""},
+		{Name: "updated_by", Type: field.TypeString, Size: 254, Comment: "class=none", Default: ""},
+		{Name: "project_id", Type: field.TypeInt, Comment: "class=none"},
+	}
+	// ReportsTable holds the schema information for the "reports" table.
+	ReportsTable = &schema.Table{
+		Name:       "reports",
+		Columns:    ReportsColumns,
+		PrimaryKey: []*schema.Column{ReportsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "reports_projects_reports",
+				Columns:    []*schema.Column{ReportsColumns[11]},
+				RefColumns: []*schema.Column{ProjectsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "report_project_id",
+				Unique:  false,
+				Columns: []*schema.Column{ReportsColumns[11]},
+			},
+			{
+				Name:    "report_next_run_at",
+				Unique:  false,
+				Columns: []*schema.Column{ReportsColumns[8]},
+			},
+		},
+	}
+	// ReportExportsColumns holds the columns for the "report_exports" table.
+	ReportExportsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
+		{Name: "uid", Type: field.TypeUUID, Unique: true, Comment: "class=none"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "updated_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "run_id", Type: field.TypeInt, Comment: "class=none"},
+		{Name: "node", Type: field.TypeString, Size: 64, Comment: "class=none"},
+		{Name: "file_name", Type: field.TypeString, Size: 200, Comment: "class=none"},
+		{Name: "object_path", Type: field.TypeString, Size: 1024, Comment: "class=none"},
+		{Name: "content_type", Type: field.TypeString, Size: 64, Comment: "class=none"},
+		{Name: "size_bytes", Type: field.TypeInt64, Comment: "class=none"},
+		{Name: "rows", Type: field.TypeInt, Comment: "class=none"},
+		{Name: "expires_at", Type: field.TypeTime, Comment: "class=none"},
+	}
+	// ReportExportsTable holds the schema information for the "report_exports" table.
+	ReportExportsTable = &schema.Table{
+		Name:       "report_exports",
+		Columns:    ReportExportsColumns,
+		PrimaryKey: []*schema.Column{ReportExportsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "reportexport_run_id_node",
+				Unique:  true,
+				Columns: []*schema.Column{ReportExportsColumns[4], ReportExportsColumns[5]},
+			},
+			{
+				Name:    "reportexport_expires_at",
+				Unique:  false,
+				Columns: []*schema.Column{ReportExportsColumns[11]},
+			},
+		},
+	}
+	// ReportRunsColumns holds the columns for the "report_runs" table.
+	ReportRunsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
+		{Name: "uid", Type: field.TypeUUID, Unique: true, Comment: "class=none"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "updated_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "trigger", Type: field.TypeEnum, Comment: "class=none", Enums: []string{"schedule", "test"}},
+		{Name: "dry", Type: field.TypeBool, Comment: "class=none", Default: false},
+		{Name: "focus", Type: field.TypeString, Size: 64, Comment: "class=none", Default: ""},
+		{Name: "status", Type: field.TypeEnum, Comment: "class=none", Enums: []string{"running", "succeeded", "partial", "failed", "quiet", "stopped"}, Default: "running"},
+		{Name: "started_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "finished_at", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
+		{Name: "deliveries", Type: field.TypeJSON, Comment: "class=none"},
+		{Name: "cancel_requested", Type: field.TypeBool, Comment: "class=none", Default: false},
+		{Name: "requested_by", Type: field.TypeString, Size: 254, Comment: "class=none", Default: ""},
+		{Name: "error", Type: field.TypeString, Size: 500, Comment: "class=none", Default: ""},
+		{Name: "report_id", Type: field.TypeInt, Comment: "class=none"},
+	}
+	// ReportRunsTable holds the schema information for the "report_runs" table.
+	ReportRunsTable = &schema.Table{
+		Name:       "report_runs",
+		Columns:    ReportRunsColumns,
+		PrimaryKey: []*schema.Column{ReportRunsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "report_runs_reports_runs",
+				Columns:    []*schema.Column{ReportRunsColumns[14]},
+				RefColumns: []*schema.Column{ReportsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "reportrun_report_id_id",
+				Unique:  false,
+				Columns: []*schema.Column{ReportRunsColumns[14], ReportRunsColumns[0]},
+			},
+			{
+				Name:    "reportrun_status_started_at",
+				Unique:  false,
+				Columns: []*schema.Column{ReportRunsColumns[7], ReportRunsColumns[8]},
+			},
+		},
+	}
+	// ReportRunEventsColumns holds the columns for the "report_run_events" table.
+	ReportRunEventsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
+		{Name: "uid", Type: field.TypeUUID, Unique: true, Comment: "class=none"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "updated_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "run_id", Type: field.TypeInt, Comment: "class=none"},
+		{Name: "seq", Type: field.TypeInt, Comment: "class=none"},
+		{Name: "type", Type: field.TypeString, Size: 32, Comment: "class=none"},
+		{Name: "payload", Type: field.TypeJSON, Comment: "class=none"},
+	}
+	// ReportRunEventsTable holds the schema information for the "report_run_events" table.
+	ReportRunEventsTable = &schema.Table{
+		Name:       "report_run_events",
+		Columns:    ReportRunEventsColumns,
+		PrimaryKey: []*schema.Column{ReportRunEventsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "reportrunevent_run_id_seq",
+				Unique:  true,
+				Columns: []*schema.Column{ReportRunEventsColumns[4], ReportRunEventsColumns[5]},
+			},
+		},
+	}
 	// RolesColumns holds the columns for the "roles" table.
 	RolesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
@@ -1676,6 +1818,10 @@ var (
 		ProjectsTable,
 		RateCardsTable,
 		ReceiptsTable,
+		ReportsTable,
+		ReportExportsTable,
+		ReportRunsTable,
+		ReportRunEventsTable,
 		RolesTable,
 		SavedFunnelsTable,
 		SegmentsTable,
@@ -1735,6 +1881,8 @@ func init() {
 	ProjectsTable.ForeignKeys[0].RefTable = OrganizationsTable
 	RateCardsTable.ForeignKeys[0].RefTable = PlansTable
 	ReceiptsTable.ForeignKeys[0].RefTable = BillingAccountsTable
+	ReportsTable.ForeignKeys[0].RefTable = ProjectsTable
+	ReportRunsTable.ForeignKeys[0].RefTable = ReportsTable
 	RolesTable.ForeignKeys[0].RefTable = OrganizationsTable
 	SavedFunnelsTable.ForeignKeys[0].RefTable = ProjectsTable
 	SegmentsTable.ForeignKeys[0].RefTable = ProjectsTable

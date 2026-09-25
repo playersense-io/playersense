@@ -97,6 +97,8 @@ const (
 
 	ChannelWritten Action = "channel.write"
 	ChannelDeleted Action = "channel.delete"
+	ReportWritten  Action = "report.write"
+	ReportDeleted  Action = "report.delete"
 	FunnelDeleted  Action = "funnel.delete"
 
 	CreditGranted  Action = "credit.grant"

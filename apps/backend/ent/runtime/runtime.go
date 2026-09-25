@@ -36,6 +36,10 @@ import (
 	"playersense.dev/backend/ent/project"
 	"playersense.dev/backend/ent/ratecard"
 	"playersense.dev/backend/ent/receipt"
+	"playersense.dev/backend/ent/report"
+	"playersense.dev/backend/ent/reportexport"
+	"playersense.dev/backend/ent/reportrun"
+	"playersense.dev/backend/ent/reportrunevent"
 	"playersense.dev/backend/ent/role"
 	"playersense.dev/backend/ent/savedfunnel"
 	"playersense.dev/backend/ent/schema"
@@ -2093,6 +2097,168 @@ func init() {
 	receipt.DefaultPdfURL = receiptDescPdfURL.Default.(string)
 	// receipt.PdfURLValidator is a validator for the "pdf_url" field. It is called by the builders before save.
 	receipt.PdfURLValidator = receiptDescPdfURL.Validators[0].(func(string) error)
+	reportMixin := schema.Report{}.Mixin()
+	reportMixinFields0 := reportMixin[0].Fields()
+	_ = reportMixinFields0
+	reportFields := schema.Report{}.Fields()
+	_ = reportFields
+	// reportDescUID is the schema descriptor for uid field.
+	reportDescUID := reportMixinFields0[1].Descriptor()
+	// report.DefaultUID holds the default value on creation for the uid field.
+	report.DefaultUID = reportDescUID.Default.(func() uuid.UUID)
+	// reportDescCreatedAt is the schema descriptor for created_at field.
+	reportDescCreatedAt := reportMixinFields0[2].Descriptor()
+	// report.DefaultCreatedAt holds the default value on creation for the created_at field.
+	report.DefaultCreatedAt = reportDescCreatedAt.Default.(func() time.Time)
+	// reportDescUpdatedAt is the schema descriptor for updated_at field.
+	reportDescUpdatedAt := reportMixinFields0[3].Descriptor()
+	// report.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	report.DefaultUpdatedAt = reportDescUpdatedAt.Default.(func() time.Time)
+	// report.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	report.UpdateDefaultUpdatedAt = reportDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// reportDescName is the schema descriptor for name field.
+	reportDescName := reportFields[1].Descriptor()
+	// report.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	report.NameValidator = func() func(string) error {
+		validators := reportDescName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(name string) error {
+			for _, fn := range fns {
+				if err := fn(name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// reportDescDescription is the schema descriptor for description field.
+	reportDescDescription := reportFields[2].Descriptor()
+	// report.DefaultDescription holds the default value on creation for the description field.
+	report.DefaultDescription = reportDescDescription.Default.(string)
+	// report.DescriptionValidator is a validator for the "description" field. It is called by the builders before save.
+	report.DescriptionValidator = reportDescDescription.Validators[0].(func(string) error)
+	// reportDescCreatedBy is the schema descriptor for created_by field.
+	reportDescCreatedBy := reportFields[6].Descriptor()
+	// report.DefaultCreatedBy holds the default value on creation for the created_by field.
+	report.DefaultCreatedBy = reportDescCreatedBy.Default.(string)
+	// report.CreatedByValidator is a validator for the "created_by" field. It is called by the builders before save.
+	report.CreatedByValidator = reportDescCreatedBy.Validators[0].(func(string) error)
+	// reportDescUpdatedBy is the schema descriptor for updated_by field.
+	reportDescUpdatedBy := reportFields[7].Descriptor()
+	// report.DefaultUpdatedBy holds the default value on creation for the updated_by field.
+	report.DefaultUpdatedBy = reportDescUpdatedBy.Default.(string)
+	// report.UpdatedByValidator is a validator for the "updated_by" field. It is called by the builders before save.
+	report.UpdatedByValidator = reportDescUpdatedBy.Validators[0].(func(string) error)
+	reportexportMixin := schema.ReportExport{}.Mixin()
+	reportexportMixinFields0 := reportexportMixin[0].Fields()
+	_ = reportexportMixinFields0
+	reportexportFields := schema.ReportExport{}.Fields()
+	_ = reportexportFields
+	// reportexportDescUID is the schema descriptor for uid field.
+	reportexportDescUID := reportexportMixinFields0[1].Descriptor()
+	// reportexport.DefaultUID holds the default value on creation for the uid field.
+	reportexport.DefaultUID = reportexportDescUID.Default.(func() uuid.UUID)
+	// reportexportDescCreatedAt is the schema descriptor for created_at field.
+	reportexportDescCreatedAt := reportexportMixinFields0[2].Descriptor()
+	// reportexport.DefaultCreatedAt holds the default value on creation for the created_at field.
+	reportexport.DefaultCreatedAt = reportexportDescCreatedAt.Default.(func() time.Time)
+	// reportexportDescUpdatedAt is the schema descriptor for updated_at field.
+	reportexportDescUpdatedAt := reportexportMixinFields0[3].Descriptor()
+	// reportexport.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	reportexport.DefaultUpdatedAt = reportexportDescUpdatedAt.Default.(func() time.Time)
+	// reportexport.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	reportexport.UpdateDefaultUpdatedAt = reportexportDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// reportexportDescNode is the schema descriptor for node field.
+	reportexportDescNode := reportexportFields[1].Descriptor()
+	// reportexport.NodeValidator is a validator for the "node" field. It is called by the builders before save.
+	reportexport.NodeValidator = reportexportDescNode.Validators[0].(func(string) error)
+	// reportexportDescFileName is the schema descriptor for file_name field.
+	reportexportDescFileName := reportexportFields[2].Descriptor()
+	// reportexport.FileNameValidator is a validator for the "file_name" field. It is called by the builders before save.
+	reportexport.FileNameValidator = reportexportDescFileName.Validators[0].(func(string) error)
+	// reportexportDescObjectPath is the schema descriptor for object_path field.
+	reportexportDescObjectPath := reportexportFields[3].Descriptor()
+	// reportexport.ObjectPathValidator is a validator for the "object_path" field. It is called by the builders before save.
+	reportexport.ObjectPathValidator = reportexportDescObjectPath.Validators[0].(func(string) error)
+	// reportexportDescContentType is the schema descriptor for content_type field.
+	reportexportDescContentType := reportexportFields[4].Descriptor()
+	// reportexport.ContentTypeValidator is a validator for the "content_type" field. It is called by the builders before save.
+	reportexport.ContentTypeValidator = reportexportDescContentType.Validators[0].(func(string) error)
+	reportrunMixin := schema.ReportRun{}.Mixin()
+	reportrunMixinFields0 := reportrunMixin[0].Fields()
+	_ = reportrunMixinFields0
+	reportrunFields := schema.ReportRun{}.Fields()
+	_ = reportrunFields
+	// reportrunDescUID is the schema descriptor for uid field.
+	reportrunDescUID := reportrunMixinFields0[1].Descriptor()
+	// reportrun.DefaultUID holds the default value on creation for the uid field.
+	reportrun.DefaultUID = reportrunDescUID.Default.(func() uuid.UUID)
+	// reportrunDescCreatedAt is the schema descriptor for created_at field.
+	reportrunDescCreatedAt := reportrunMixinFields0[2].Descriptor()
+	// reportrun.DefaultCreatedAt holds the default value on creation for the created_at field.
+	reportrun.DefaultCreatedAt = reportrunDescCreatedAt.Default.(func() time.Time)
+	// reportrunDescUpdatedAt is the schema descriptor for updated_at field.
+	reportrunDescUpdatedAt := reportrunMixinFields0[3].Descriptor()
+	// reportrun.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	reportrun.DefaultUpdatedAt = reportrunDescUpdatedAt.Default.(func() time.Time)
+	// reportrun.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	reportrun.UpdateDefaultUpdatedAt = reportrunDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// reportrunDescDry is the schema descriptor for dry field.
+	reportrunDescDry := reportrunFields[2].Descriptor()
+	// reportrun.DefaultDry holds the default value on creation for the dry field.
+	reportrun.DefaultDry = reportrunDescDry.Default.(bool)
+	// reportrunDescFocus is the schema descriptor for focus field.
+	reportrunDescFocus := reportrunFields[3].Descriptor()
+	// reportrun.DefaultFocus holds the default value on creation for the focus field.
+	reportrun.DefaultFocus = reportrunDescFocus.Default.(string)
+	// reportrun.FocusValidator is a validator for the "focus" field. It is called by the builders before save.
+	reportrun.FocusValidator = reportrunDescFocus.Validators[0].(func(string) error)
+	// reportrunDescDeliveries is the schema descriptor for deliveries field.
+	reportrunDescDeliveries := reportrunFields[7].Descriptor()
+	// reportrun.DefaultDeliveries holds the default value on creation for the deliveries field.
+	reportrun.DefaultDeliveries = reportrunDescDeliveries.Default.([]map[string]interface{})
+	// reportrunDescCancelRequested is the schema descriptor for cancel_requested field.
+	reportrunDescCancelRequested := reportrunFields[8].Descriptor()
+	// reportrun.DefaultCancelRequested holds the default value on creation for the cancel_requested field.
+	reportrun.DefaultCancelRequested = reportrunDescCancelRequested.Default.(bool)
+	// reportrunDescRequestedBy is the schema descriptor for requested_by field.
+	reportrunDescRequestedBy := reportrunFields[9].Descriptor()
+	// reportrun.DefaultRequestedBy holds the default value on creation for the requested_by field.
+	reportrun.DefaultRequestedBy = reportrunDescRequestedBy.Default.(string)
+	// reportrun.RequestedByValidator is a validator for the "requested_by" field. It is called by the builders before save.
+	reportrun.RequestedByValidator = reportrunDescRequestedBy.Validators[0].(func(string) error)
+	// reportrunDescError is the schema descriptor for error field.
+	reportrunDescError := reportrunFields[10].Descriptor()
+	// reportrun.DefaultError holds the default value on creation for the error field.
+	reportrun.DefaultError = reportrunDescError.Default.(string)
+	// reportrun.ErrorValidator is a validator for the "error" field. It is called by the builders before save.
+	reportrun.ErrorValidator = reportrunDescError.Validators[0].(func(string) error)
+	reportruneventMixin := schema.ReportRunEvent{}.Mixin()
+	reportruneventMixinFields0 := reportruneventMixin[0].Fields()
+	_ = reportruneventMixinFields0
+	reportruneventFields := schema.ReportRunEvent{}.Fields()
+	_ = reportruneventFields
+	// reportruneventDescUID is the schema descriptor for uid field.
+	reportruneventDescUID := reportruneventMixinFields0[1].Descriptor()
+	// reportrunevent.DefaultUID holds the default value on creation for the uid field.
+	reportrunevent.DefaultUID = reportruneventDescUID.Default.(func() uuid.UUID)
+	// reportruneventDescCreatedAt is the schema descriptor for created_at field.
+	reportruneventDescCreatedAt := reportruneventMixinFields0[2].Descriptor()
+	// reportrunevent.DefaultCreatedAt holds the default value on creation for the created_at field.
+	reportrunevent.DefaultCreatedAt = reportruneventDescCreatedAt.Default.(func() time.Time)
+	// reportruneventDescUpdatedAt is the schema descriptor for updated_at field.
+	reportruneventDescUpdatedAt := reportruneventMixinFields0[3].Descriptor()
+	// reportrunevent.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	reportrunevent.DefaultUpdatedAt = reportruneventDescUpdatedAt.Default.(func() time.Time)
+	// reportrunevent.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	reportrunevent.UpdateDefaultUpdatedAt = reportruneventDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// reportruneventDescType is the schema descriptor for type field.
+	reportruneventDescType := reportruneventFields[2].Descriptor()
+	// reportrunevent.TypeValidator is a validator for the "type" field. It is called by the builders before save.
+	reportrunevent.TypeValidator = reportruneventDescType.Validators[0].(func(string) error)
 	roleMixin := schema.Role{}.Mixin()
 	roleHooks := schema.Role{}.Hooks()
 	role.Hooks[0] = roleHooks[0]

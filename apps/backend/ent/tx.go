@@ -74,6 +74,14 @@ type Tx struct {
 	RateCard *RateCardClient
 	// Receipt is the client for interacting with the Receipt builders.
 	Receipt *ReceiptClient
+	// Report is the client for interacting with the Report builders.
+	Report *ReportClient
+	// ReportExport is the client for interacting with the ReportExport builders.
+	ReportExport *ReportExportClient
+	// ReportRun is the client for interacting with the ReportRun builders.
+	ReportRun *ReportRunClient
+	// ReportRunEvent is the client for interacting with the ReportRunEvent builders.
+	ReportRunEvent *ReportRunEventClient
 	// Role is the client for interacting with the Role builders.
 	Role *RoleClient
 	// SavedFunnel is the client for interacting with the SavedFunnel builders.
@@ -255,6 +263,10 @@ func (tx *Tx) init() {
 	tx.Project = NewProjectClient(tx.config)
 	tx.RateCard = NewRateCardClient(tx.config)
 	tx.Receipt = NewReceiptClient(tx.config)
+	tx.Report = NewReportClient(tx.config)
+	tx.ReportExport = NewReportExportClient(tx.config)
+	tx.ReportRun = NewReportRunClient(tx.config)
+	tx.ReportRunEvent = NewReportRunEventClient(tx.config)
 	tx.Role = NewRoleClient(tx.config)
 	tx.SavedFunnel = NewSavedFunnelClient(tx.config)
 	tx.Segment = NewSegmentClient(tx.config)

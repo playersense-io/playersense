@@ -369,6 +369,54 @@ func (f ReceiptFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, err
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ReceiptMutation", m)
 }
 
+// The ReportFunc type is an adapter to allow the use of ordinary
+// function as Report mutator.
+type ReportFunc func(context.Context, *ent.ReportMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ReportFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ReportMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ReportMutation", m)
+}
+
+// The ReportExportFunc type is an adapter to allow the use of ordinary
+// function as ReportExport mutator.
+type ReportExportFunc func(context.Context, *ent.ReportExportMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ReportExportFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ReportExportMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ReportExportMutation", m)
+}
+
+// The ReportRunFunc type is an adapter to allow the use of ordinary
+// function as ReportRun mutator.
+type ReportRunFunc func(context.Context, *ent.ReportRunMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ReportRunFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ReportRunMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ReportRunMutation", m)
+}
+
+// The ReportRunEventFunc type is an adapter to allow the use of ordinary
+// function as ReportRunEvent mutator.
+type ReportRunEventFunc func(context.Context, *ent.ReportRunEventMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ReportRunEventFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ReportRunEventMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ReportRunEventMutation", m)
+}
+
 // The RoleFunc type is an adapter to allow the use of ordinary
 // function as Role mutator.
 type RoleFunc func(context.Context, *ent.RoleMutation) (ent.Value, error)

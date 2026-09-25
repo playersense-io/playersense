@@ -22,6 +22,7 @@ import (
 	"playersense.dev/backend/ent/notificationchannel"
 	"playersense.dev/backend/ent/organization"
 	"playersense.dev/backend/ent/project"
+	"playersense.dev/backend/ent/report"
 	"playersense.dev/backend/ent/savedfunnel"
 	"playersense.dev/backend/ent/segment"
 	"playersense.dev/backend/ent/usagedaily"
@@ -365,6 +366,21 @@ func (_c *ProjectCreate) AddNotificationChannels(v ...*NotificationChannel) *Pro
 		ids[i] = v[i].ID
 	}
 	return _c.AddNotificationChannelIDs(ids...)
+}
+
+// AddReportIDs adds the "reports" edge to the Report entity by IDs.
+func (_c *ProjectCreate) AddReportIDs(ids ...int) *ProjectCreate {
+	_c.mutation.AddReportIDs(ids...)
+	return _c
+}
+
+// AddReports adds the "reports" edges to the Report entity.
+func (_c *ProjectCreate) AddReports(v ...*Report) *ProjectCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddReportIDs(ids...)
 }
 
 // AddMemberAccesIDs adds the "member_access" edge to the MemberProject entity by IDs.
@@ -753,6 +769,22 @@ func (_c *ProjectCreate) createSpec() (*Project, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(notificationchannel.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.ReportsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.ReportsTable,
+			Columns: []string{project.ReportsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(report.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

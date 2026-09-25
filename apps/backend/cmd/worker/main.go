@@ -50,6 +50,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"time"
 
 	muzak "muzak.dev/framework"
 
@@ -59,9 +60,13 @@ import (
 	"playersense.dev/backend/internal/erasure"
 	"playersense.dev/backend/internal/export"
 	"playersense.dev/backend/internal/jobs"
+	"playersense.dev/backend/internal/mail"
 	"playersense.dev/backend/internal/metering"
+	"playersense.dev/backend/internal/notify"
 	"playersense.dev/backend/internal/pgdb"
 	"playersense.dev/backend/internal/projects"
+	"playersense.dev/backend/internal/query"
+	"playersense.dev/backend/internal/reports"
 	"playersense.dev/backend/internal/retention"
 	"playersense.dev/backend/internal/routers"
 	"playersense.dev/backend/internal/scheduler"
@@ -128,7 +133,17 @@ func once(settings config.Settings) error {
 	if err != nil {
 		return err
 	}
-	return errors.Join(sched.Run(ctx), janitor.Run(ctx))
+	conn := chdb.New(settings.ClickHouseDSN)
+	if err := conn.Start(ctx); err != nil {
+		return err
+	}
+	defer conn.Stop(ctx) //nolint:errcheck // the process is exiting
+	reportsDue, err := newReportScheduler(settings, conn, deps)
+	if err != nil {
+		return err
+	}
+	_, reportErr := reportsDue.Run(ctx, time.Now().UTC())
+	return errors.Join(sched.Run(ctx), janitor.Run(ctx), reportErr)
 }
 
 func build(settings config.Settings) (*muzak.App, error) {
@@ -144,6 +159,11 @@ func build(settings config.Settings) (*muzak.App, error) {
 		return nil, err
 	}
 	janitor, err := newJanitor(settings, db, deps, slog.Default())
+	if err != nil {
+		return nil, err
+	}
+	conn := chdb.New(settings.ClickHouseDSN)
+	reportsDue, err := newReportScheduler(settings, conn, deps)
 	if err != nil {
 		return nil, err
 	}
@@ -173,8 +193,11 @@ func build(settings config.Settings) (*muzak.App, error) {
 		muzak.WithSingleton(deps.cache),
 
 		// Registered after the pools they read through, so they are stopped before them.
+		muzak.WithSingleton(conn),
+
 		muzak.WithSingleton(sched),
 		muzak.WithSingleton(janitor),
+		muzak.WithSingleton(reportsDue),
 	)
 
 	app.Include(routers.Meta())
@@ -253,6 +276,21 @@ func newStore(settings config.Settings) (blobstore.Store, error) {
 	default:
 		return nil, fmt.Errorf("unknown ARCHIVE_STORE %q; want local or gcs", settings.ArchiveStore)
 	}
+}
+
+// newReportScheduler runs reports on their schedules: their sources read through the query
+// engine, their notifications sent through the same senders the API uses.
+func newReportScheduler(settings config.Settings, conn *chdb.Conn, deps dependencies) (*reports.Scheduler, error) {
+	mailer, err := mail.New(settings.MailSender, nil, settings.MailLogBody)
+	if err != nil {
+		return nil, err
+	}
+	return &reports.Scheduler{
+		Runner: &reports.Runner{DB: deps.db, Notify: notify.NewSender(mailer, settings.NotifyAllowPrivate),
+			Store: deps.store, Dashboard: settings.DashboardURL},
+		Engine: query.NewEngine(conn, query.DefaultLimits(), settings.QuerySuppressionK),
+		Every:  30 * time.Second,
+	}, nil
 }
 
 // newJanitor assembles §79's data-lifecycle jobs.

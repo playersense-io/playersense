@@ -44,6 +44,7 @@ import (
 	"playersense.dev/backend/internal/facts"
 	"playersense.dev/backend/internal/firebase"
 	"playersense.dev/backend/internal/geoip"
+	"playersense.dev/backend/internal/handlers"
 	"playersense.dev/backend/internal/ingest"
 	"playersense.dev/backend/internal/liveconfig"
 	"playersense.dev/backend/internal/mail"
@@ -53,6 +54,7 @@ import (
 	"playersense.dev/backend/internal/pgdb"
 	"playersense.dev/backend/internal/query"
 	"playersense.dev/backend/internal/ratelimit"
+	"playersense.dev/backend/internal/reports"
 	"playersense.dev/backend/internal/routers"
 	"playersense.dev/backend/internal/suspension"
 	"playersense.dev/backend/internal/transport"
@@ -161,6 +163,8 @@ func build(settings config.Settings, overrides ...muzak.RouterOption) (*muzak.Ap
 	if err != nil {
 		return nil, err
 	}
+
+	notifier := notify.NewSender(sender, settings.NotifyAllowPrivate)
 
 	store, err := newStore(settings)
 	if err != nil {
@@ -362,7 +366,10 @@ func build(settings config.Settings, overrides ...muzak.RouterOption) (*muzak.Ap
 		// The same counters, read by the operations console's rate-limit page.
 		muzak.WithSingleton(valkey.NewRateLimitStorage(cache)),
 		// Where reports notify: email, incoming webhooks, PagerDuty, signed webhooks.
-		muzak.WithSingleton(notify.NewSender(sender, settings.NotifyAllowPrivate)),
+		muzak.WithSingleton(notifier),
+		// Test runs of reports, four at a time in this process, followed on their streams.
+		muzak.WithSingleton(handlers.NewReportLauncher(&reports.Runner{DB: db, Notify: notifier, Store: store,
+			Dashboard: settings.DashboardURL}, settings.StreamSigningKey, 4)),
 		// Requests per key per hour, for the keys page, at one atomic add per request.
 		muzak.WithSingleton(core.NewKeyUsage(cache, db, slog.Default(), 15*time.Second)),
 	}
@@ -410,6 +417,7 @@ func build(settings config.Settings, overrides ...muzak.RouterOption) (*muzak.Ap
 	app.Include(routers.Config())
 	app.Include(routers.Cohorts())
 	app.Include(routers.Privacy())
+	app.Include(routers.ReportStreams(), muzak.WithPrefix("/v1"))
 
 	// ---- the dashboard ------------------------------------------------------
 
@@ -425,6 +433,7 @@ func build(settings config.Settings, overrides ...muzak.RouterOption) (*muzak.Ap
 	api.Include(routers.SavedFunnels())
 	api.Include(routers.PrivacyRequests())
 	api.Include(routers.Channels())
+	api.Include(routers.Reports())
 
 	// The invitation routes the *invited* person uses, which name no organization: there
 	// is no membership yet, which is the whole point. Mounted in the same subtree so they

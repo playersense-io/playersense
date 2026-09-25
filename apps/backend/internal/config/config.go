@@ -510,6 +510,11 @@ type Settings struct {
 	// customer's URL must be on the public internet (notify.NewClient).
 	NotifyAllowPrivate bool `env:"NOTIFY_ALLOW_PRIVATE" default:"false"`
 
+	// StreamSigningKey signs the tokens a report run's event stream is opened with, since a
+	// browser's EventSource cannot send an Authorization header. Every API instance must share
+	// it; empty makes each process draw its own, which is only right for a single process.
+	StreamSigningKey string `env:"STREAM_SIGNING_KEY" secret:"true"`
+
 	// CreditExpiryMaxLots bounds one pass of the wallet's expiry sweep.
 	//
 	// A pass writes two rows per lapsed lot inside one transaction, so the bound is about how

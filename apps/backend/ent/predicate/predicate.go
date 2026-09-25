@@ -96,6 +96,18 @@ type RateCard func(*sql.Selector)
 // Receipt is the predicate function for receipt builders.
 type Receipt func(*sql.Selector)
 
+// Report is the predicate function for report builders.
+type Report func(*sql.Selector)
+
+// ReportExport is the predicate function for reportexport builders.
+type ReportExport func(*sql.Selector)
+
+// ReportRun is the predicate function for reportrun builders.
+type ReportRun func(*sql.Selector)
+
+// ReportRunEvent is the predicate function for reportrunevent builders.
+type ReportRunEvent func(*sql.Selector)
+
 // Role is the predicate function for role builders.
 type Role func(*sql.Selector)
 

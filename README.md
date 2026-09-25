@@ -172,6 +172,35 @@ Every destination is reached through a client that refuses private and special-p
 after resolution and follows no redirects (`NOTIFY_ALLOW_PRIVATE=true` lifts that for a local
 receiver in development).
 
+**Reports**, the builder's graphs, run by hand or on a schedule:
+
+```
+GET    POST                 /v1/organizations/{org}/projects/{project}/reports
+       POST                 …/reports/preview                   every node over the project's rows; sends nothing
+GET    PUT    DELETE        …/reports/{id}
+GET    POST                 …/reports/{id}/runs                 POST runs it now, as a test (dry: sends nothing)
+GET                         …/reports/{id}/runs/{run}
+       POST                 …/reports/{id}/runs/{run}/cancel
+GET                         …/reports/{id}/runs/{run}/exports/{node}   a file it wrote, for seven days
+GET                         …/reports/{id}/runs/{run}/stream    its events, signed in
+GET                         /v1/report-runs/{run}/events?token=  its events, for a browser's EventSource
+```
+
+Sources (events, players, purchases, sessions) each read at most fifty thousand rows of the last
+7, 30 or 90 days from the fact built for them; filter, join (player by player), group, formula and
+sort run over those rows in memory the limit bounds; a Notify sends to channels every run, when rows
+came out, or when the first row's figure crosses a line, with `{{report}}`, `{{rows}}`, `{{date}}`,
+`{{first.column}}` and `{{sum.column}}` filled in; an Export writes CSV or JSON to download. A run is
+followed as server-sent events (`run_started`, `node_started`, `node_finished`, `node_failed`,
+`node_skipped`, `delivery`, `run_finished`), numbered so a dropped stream resumes from
+`Last-Event-ID`, and written to Postgres so a run in the worker streams the same. Because
+`EventSource` cannot send an Authorization header, starting a run returns a `stream_url` with an
+hour-long token signed by `STREAM_SIGNING_KEY`; a client that can send headers uses the signed-in
+stream instead. Schedules are five-field cron lines in a timezone, joined to Start; the worker claims
+a due report by moving its next run forward in one conditional update, so two workers never run one
+schedule twice, and marks a run whose process died as failed. Reading needs `reports.read`; changing
+and running need `reports.write`, and a preview or a run `analytics.read` and `player.read` as well.
+
 **A project's settings**:
 
 ```
