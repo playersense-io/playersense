@@ -194,7 +194,7 @@ func (w *Writer) insert(ctx context.Context, rows []row, token string) error {
 			attributes = map[string]string{}
 		}
 		if err := block.Append(
-			m.OrgSeq, m.ProjectSeq, m.EnvironmentSeq, retentionOf(m),
+			m.OrgSeq, m.ProjectSeq, m.EnvironmentSeq, m.RetentionTier,
 			rec.Time, b.ReceivedAt, r.id, rec.Severity, rec.Kind, rec.Logger,
 			rec.Message, rec.ExceptionType, rec.ExceptionValue, jsonOrEmpty(rec.Frames), jsonOrEmpty(rec.Breadcrumbs),
 			boolByte(rec.Handled), Culprit(rec),
@@ -209,15 +209,6 @@ func (w *Writer) insert(ctx context.Context, rows []row, token string) error {
 		return fmt.Errorf("insert logs: %w", err)
 	}
 	return nil
-}
-
-// retentionOf is the retention the gateway stamped, or the default for a message published
-// before it stamped one.
-func retentionOf(m *eventbus.Message) uint16 {
-	if m.RetentionTier == 0 {
-		return 14
-	}
-	return m.RetentionTier
 }
 
 func jsonOrEmpty[T any](items []T) string {

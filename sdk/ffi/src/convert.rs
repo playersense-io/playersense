@@ -110,7 +110,8 @@ pub unsafe fn properties(
     Ok((out, repaired))
 }
 
-/// Reads the configuration, honouring `struct_size` so an older binding keeps working.
+/// Reads the configuration. A `PsConfig` smaller than this build's is refused rather than read
+/// past its end: the binding and the library must agree on the struct (the ABI self-check).
 ///
 /// Zero means "leave the default" for every numeric field. Twenty-four fields is a lot to
 /// populate correctly, and a forgotten `flush_interval_ms` would otherwise clamp to the
