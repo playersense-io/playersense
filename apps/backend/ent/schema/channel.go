@@ -72,6 +72,9 @@ func (ChannelDelivery) Fields() []ent.Field {
 		field.Int("channel_id").Immutable().Comment(dataclass.None),
 		field.String("channel_name").MaxLen(120).Default("").Immutable().Comment(dataclass.None),
 		field.String("source").MaxLen(200).Default("").Immutable().Comment(dataclass.None),
+		// The notification rule that sent it, by id; empty for a report's send and a channel's
+		// test. By id rather than by the source's name, so a renamed rule keeps its history.
+		field.Int("rule_id").Optional().Nillable().Immutable().Comment(dataclass.None),
 		field.String("title").MaxLen(300).Default("").Immutable().Comment(dataclass.None),
 		field.Bool("ok").Immutable().Comment(dataclass.None),
 		field.String("detail").MaxLen(500).Default("").Immutable().Comment(dataclass.None),
@@ -84,6 +87,60 @@ func (ChannelDelivery) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("project_id", "id"),
 		index.Fields("channel_id", "id"),
+		index.Fields("rule_id", "created_at"),
 		index.Fields("created_at"),
+	}
+}
+
+// ChannelDeliveryHour is the delivery log rolled up by the hour: one row per project, hour,
+// channel, rule and source, incremented as each send is logged. The Activity page and each rule's
+// sparkline read these, a few hundred small rows for thirty days whatever the volume, rather than
+// scanning the log. Kept as long as the log is.
+//
+// A rule's sends are keyed by the rule and carry no source, so a renamed rule is one history. A
+// report's are keyed by its source. Tests are counted in their own column of the same row.
+type ChannelDeliveryHour struct{ ent.Schema }
+
+func (ChannelDeliveryHour) Annotations() []schema.Annotation {
+	return []schema.Annotation{withComments()}
+}
+
+func (ChannelDeliveryHour) Fields() []ent.Field {
+	return []ent.Field{
+		field.Int("id").Comment(dataclass.None),
+		field.Int("project_id").Immutable().Comment(dataclass.None),
+		field.Time("hour").Immutable().Comment(dataclass.None),
+		field.Int("channel_id").Immutable().Comment(dataclass.None),
+		// 0 for a send no rule made.
+		field.Int("rule_id").Default(0).Immutable().Comment(dataclass.None),
+		// A report's source; empty for a rule's send and for a test.
+		field.String("source").MaxLen(200).Default("").Immutable().Comment(dataclass.None),
+		// The channel's name at its latest send, for a channel deleted since.
+		field.String("channel_name").MaxLen(120).Default("").Comment(dataclass.None),
+		field.Int("delivered").Default(0).Comment(dataclass.None),
+		field.Int("failed").Default(0).Comment(dataclass.None),
+		field.Int("tests").Default(0).Comment(dataclass.None),
+		// Answer times, tests included, as a histogram: how many answered within 100 ms, 250 ms,
+		// 500 ms, 1 s, 2.5 s, 5 s, 10 s, and beyond. Enough for a median and a 95th percentile
+		// that add up across rows, which a stored percentile would not. Columns rather than an
+		// array, so a window's histogram is a SUM per column.
+		field.Int("lat_100").Default(0).Comment(dataclass.None),
+		field.Int("lat_250").Default(0).Comment(dataclass.None),
+		field.Int("lat_500").Default(0).Comment(dataclass.None),
+		field.Int("lat_1000").Default(0).Comment(dataclass.None),
+		field.Int("lat_2500").Default(0).Comment(dataclass.None),
+		field.Int("lat_5000").Default(0).Comment(dataclass.None),
+		field.Int("lat_10000").Default(0).Comment(dataclass.None),
+		field.Int("lat_over").Default(0).Comment(dataclass.None),
+		field.Time("last_at").Comment(dataclass.None),
+		field.Bool("last_ok").Comment(dataclass.None),
+	}
+}
+
+func (ChannelDeliveryHour) Indexes() []ent.Index {
+	return []ent.Index{
+		index.Fields("project_id", "hour", "channel_id", "rule_id", "source").Unique(),
+		index.Fields("rule_id", "hour"),
+		index.Fields("hour"),
 	}
 }

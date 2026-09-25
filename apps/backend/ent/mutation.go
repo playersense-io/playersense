@@ -20,6 +20,7 @@ import (
 	"playersense.dev/backend/ent/billingaccount"
 	"playersense.dev/backend/ent/billingcontract"
 	"playersense.dev/backend/ent/channeldelivery"
+	"playersense.dev/backend/ent/channeldeliveryhour"
 	"playersense.dev/backend/ent/configversion"
 	"playersense.dev/backend/ent/creditlot"
 	"playersense.dev/backend/ent/datadeletionrequest"
@@ -91,6 +92,7 @@ const (
 	TypeBillingAccount      = "BillingAccount"
 	TypeBillingContract     = "BillingContract"
 	TypeChannelDelivery     = "ChannelDelivery"
+	TypeChannelDeliveryHour = "ChannelDeliveryHour"
 	TypeConfigVersion       = "ConfigVersion"
 	TypeCreditLot           = "CreditLot"
 	TypeDataDeletionRequest = "DataDeletionRequest"
@@ -9593,6 +9595,8 @@ type ChannelDeliveryMutation struct {
 	addchannel_id  *int
 	channel_name   *string
 	source         *string
+	rule_id        *int
+	addrule_id     *int
 	title          *string
 	ok             *bool
 	detail         *string
@@ -10001,6 +10005,76 @@ func (m *ChannelDeliveryMutation) ResetSource() {
 	m.source = nil
 }
 
+// SetRuleID sets the "rule_id" field.
+func (m *ChannelDeliveryMutation) SetRuleID(i int) {
+	m.rule_id = &i
+	m.addrule_id = nil
+}
+
+// RuleID returns the value of the "rule_id" field in the mutation.
+func (m *ChannelDeliveryMutation) RuleID() (r int, exists bool) {
+	v := m.rule_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRuleID returns the old "rule_id" field's value of the ChannelDelivery entity.
+// If the ChannelDelivery object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelDeliveryMutation) OldRuleID(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRuleID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRuleID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRuleID: %w", err)
+	}
+	return oldValue.RuleID, nil
+}
+
+// AddRuleID adds i to the "rule_id" field.
+func (m *ChannelDeliveryMutation) AddRuleID(i int) {
+	if m.addrule_id != nil {
+		*m.addrule_id += i
+	} else {
+		m.addrule_id = &i
+	}
+}
+
+// AddedRuleID returns the value that was added to the "rule_id" field in this mutation.
+func (m *ChannelDeliveryMutation) AddedRuleID() (r int, exists bool) {
+	v := m.addrule_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearRuleID clears the value of the "rule_id" field.
+func (m *ChannelDeliveryMutation) ClearRuleID() {
+	m.rule_id = nil
+	m.addrule_id = nil
+	m.clearedFields[channeldelivery.FieldRuleID] = struct{}{}
+}
+
+// RuleIDCleared returns if the "rule_id" field was cleared in this mutation.
+func (m *ChannelDeliveryMutation) RuleIDCleared() bool {
+	_, ok := m.clearedFields[channeldelivery.FieldRuleID]
+	return ok
+}
+
+// ResetRuleID resets all changes to the "rule_id" field.
+func (m *ChannelDeliveryMutation) ResetRuleID() {
+	m.rule_id = nil
+	m.addrule_id = nil
+	delete(m.clearedFields, channeldelivery.FieldRuleID)
+}
+
 // SetTitle sets the "title" field.
 func (m *ChannelDeliveryMutation) SetTitle(s string) {
 	m.title = &s
@@ -10235,7 +10309,7 @@ func (m *ChannelDeliveryMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ChannelDeliveryMutation) Fields() []string {
-	fields := make([]string, 0, 12)
+	fields := make([]string, 0, 13)
 	if m.uid != nil {
 		fields = append(fields, channeldelivery.FieldUID)
 	}
@@ -10256,6 +10330,9 @@ func (m *ChannelDeliveryMutation) Fields() []string {
 	}
 	if m.source != nil {
 		fields = append(fields, channeldelivery.FieldSource)
+	}
+	if m.rule_id != nil {
+		fields = append(fields, channeldelivery.FieldRuleID)
 	}
 	if m.title != nil {
 		fields = append(fields, channeldelivery.FieldTitle)
@@ -10294,6 +10371,8 @@ func (m *ChannelDeliveryMutation) Field(name string) (ent.Value, bool) {
 		return m.ChannelName()
 	case channeldelivery.FieldSource:
 		return m.Source()
+	case channeldelivery.FieldRuleID:
+		return m.RuleID()
 	case channeldelivery.FieldTitle:
 		return m.Title()
 	case channeldelivery.FieldOk:
@@ -10327,6 +10406,8 @@ func (m *ChannelDeliveryMutation) OldField(ctx context.Context, name string) (en
 		return m.OldChannelName(ctx)
 	case channeldelivery.FieldSource:
 		return m.OldSource(ctx)
+	case channeldelivery.FieldRuleID:
+		return m.OldRuleID(ctx)
 	case channeldelivery.FieldTitle:
 		return m.OldTitle(ctx)
 	case channeldelivery.FieldOk:
@@ -10395,6 +10476,13 @@ func (m *ChannelDeliveryMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetSource(v)
 		return nil
+	case channeldelivery.FieldRuleID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRuleID(v)
+		return nil
 	case channeldelivery.FieldTitle:
 		v, ok := value.(string)
 		if !ok {
@@ -10444,6 +10532,9 @@ func (m *ChannelDeliveryMutation) AddedFields() []string {
 	if m.addchannel_id != nil {
 		fields = append(fields, channeldelivery.FieldChannelID)
 	}
+	if m.addrule_id != nil {
+		fields = append(fields, channeldelivery.FieldRuleID)
+	}
 	if m.addduration_ms != nil {
 		fields = append(fields, channeldelivery.FieldDurationMs)
 	}
@@ -10459,6 +10550,8 @@ func (m *ChannelDeliveryMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedProjectID()
 	case channeldelivery.FieldChannelID:
 		return m.AddedChannelID()
+	case channeldelivery.FieldRuleID:
+		return m.AddedRuleID()
 	case channeldelivery.FieldDurationMs:
 		return m.AddedDurationMs()
 	}
@@ -10484,6 +10577,13 @@ func (m *ChannelDeliveryMutation) AddField(name string, value ent.Value) error {
 		}
 		m.AddChannelID(v)
 		return nil
+	case channeldelivery.FieldRuleID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRuleID(v)
+		return nil
 	case channeldelivery.FieldDurationMs:
 		v, ok := value.(int)
 		if !ok {
@@ -10498,7 +10598,11 @@ func (m *ChannelDeliveryMutation) AddField(name string, value ent.Value) error {
 // ClearedFields returns all nullable fields that were cleared during this
 // mutation.
 func (m *ChannelDeliveryMutation) ClearedFields() []string {
-	return nil
+	var fields []string
+	if m.FieldCleared(channeldelivery.FieldRuleID) {
+		fields = append(fields, channeldelivery.FieldRuleID)
+	}
+	return fields
 }
 
 // FieldCleared returns a boolean indicating if a field with the given name was
@@ -10511,6 +10615,11 @@ func (m *ChannelDeliveryMutation) FieldCleared(name string) bool {
 // ClearField clears the value of the field with the given name. It returns an
 // error if the field is not defined in the schema.
 func (m *ChannelDeliveryMutation) ClearField(name string) error {
+	switch name {
+	case channeldelivery.FieldRuleID:
+		m.ClearRuleID()
+		return nil
+	}
 	return fmt.Errorf("unknown ChannelDelivery nullable field %s", name)
 }
 
@@ -10538,6 +10647,9 @@ func (m *ChannelDeliveryMutation) ResetField(name string) error {
 		return nil
 	case channeldelivery.FieldSource:
 		m.ResetSource()
+		return nil
+	case channeldelivery.FieldRuleID:
+		m.ResetRuleID()
 		return nil
 	case channeldelivery.FieldTitle:
 		m.ResetTitle()
@@ -10604,6 +10716,1775 @@ func (m *ChannelDeliveryMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *ChannelDeliveryMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown ChannelDelivery edge %s", name)
+}
+
+// ChannelDeliveryHourMutation represents an operation that mutates the ChannelDeliveryHour nodes in the graph.
+type ChannelDeliveryHourMutation struct {
+	config
+	op            Op
+	typ           string
+	id            *int
+	project_id    *int
+	addproject_id *int
+	hour          *time.Time
+	channel_id    *int
+	addchannel_id *int
+	rule_id       *int
+	addrule_id    *int
+	source        *string
+	channel_name  *string
+	delivered     *int
+	adddelivered  *int
+	failed        *int
+	addfailed     *int
+	tests         *int
+	addtests      *int
+	lat_100       *int
+	addlat_100    *int
+	lat_250       *int
+	addlat_250    *int
+	lat_500       *int
+	addlat_500    *int
+	lat_1000      *int
+	addlat_1000   *int
+	lat_2500      *int
+	addlat_2500   *int
+	lat_5000      *int
+	addlat_5000   *int
+	lat_10000     *int
+	addlat_10000  *int
+	lat_over      *int
+	addlat_over   *int
+	last_at       *time.Time
+	last_ok       *bool
+	clearedFields map[string]struct{}
+	done          bool
+	oldValue      func(context.Context) (*ChannelDeliveryHour, error)
+	predicates    []predicate.ChannelDeliveryHour
+}
+
+var _ ent.Mutation = (*ChannelDeliveryHourMutation)(nil)
+
+// channeldeliveryhourOption allows management of the mutation configuration using functional options.
+type channeldeliveryhourOption func(*ChannelDeliveryHourMutation)
+
+// newChannelDeliveryHourMutation creates new mutation for the ChannelDeliveryHour entity.
+func newChannelDeliveryHourMutation(c config, op Op, opts ...channeldeliveryhourOption) *ChannelDeliveryHourMutation {
+	m := &ChannelDeliveryHourMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeChannelDeliveryHour,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withChannelDeliveryHourID sets the ID field of the mutation.
+func withChannelDeliveryHourID(id int) channeldeliveryhourOption {
+	return func(m *ChannelDeliveryHourMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *ChannelDeliveryHour
+		)
+		m.oldValue = func(ctx context.Context) (*ChannelDeliveryHour, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().ChannelDeliveryHour.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withChannelDeliveryHour sets the old ChannelDeliveryHour of the mutation.
+func withChannelDeliveryHour(node *ChannelDeliveryHour) channeldeliveryhourOption {
+	return func(m *ChannelDeliveryHourMutation) {
+		m.oldValue = func(context.Context) (*ChannelDeliveryHour, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m ChannelDeliveryHourMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m ChannelDeliveryHourMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of ChannelDeliveryHour entities.
+func (m *ChannelDeliveryHourMutation) SetID(id int) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *ChannelDeliveryHourMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *ChannelDeliveryHourMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().ChannelDeliveryHour.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetProjectID sets the "project_id" field.
+func (m *ChannelDeliveryHourMutation) SetProjectID(i int) {
+	m.project_id = &i
+	m.addproject_id = nil
+}
+
+// ProjectID returns the value of the "project_id" field in the mutation.
+func (m *ChannelDeliveryHourMutation) ProjectID() (r int, exists bool) {
+	v := m.project_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProjectID returns the old "project_id" field's value of the ChannelDeliveryHour entity.
+// If the ChannelDeliveryHour object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelDeliveryHourMutation) OldProjectID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProjectID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProjectID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProjectID: %w", err)
+	}
+	return oldValue.ProjectID, nil
+}
+
+// AddProjectID adds i to the "project_id" field.
+func (m *ChannelDeliveryHourMutation) AddProjectID(i int) {
+	if m.addproject_id != nil {
+		*m.addproject_id += i
+	} else {
+		m.addproject_id = &i
+	}
+}
+
+// AddedProjectID returns the value that was added to the "project_id" field in this mutation.
+func (m *ChannelDeliveryHourMutation) AddedProjectID() (r int, exists bool) {
+	v := m.addproject_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetProjectID resets all changes to the "project_id" field.
+func (m *ChannelDeliveryHourMutation) ResetProjectID() {
+	m.project_id = nil
+	m.addproject_id = nil
+}
+
+// SetHour sets the "hour" field.
+func (m *ChannelDeliveryHourMutation) SetHour(t time.Time) {
+	m.hour = &t
+}
+
+// Hour returns the value of the "hour" field in the mutation.
+func (m *ChannelDeliveryHourMutation) Hour() (r time.Time, exists bool) {
+	v := m.hour
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldHour returns the old "hour" field's value of the ChannelDeliveryHour entity.
+// If the ChannelDeliveryHour object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelDeliveryHourMutation) OldHour(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldHour is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldHour requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldHour: %w", err)
+	}
+	return oldValue.Hour, nil
+}
+
+// ResetHour resets all changes to the "hour" field.
+func (m *ChannelDeliveryHourMutation) ResetHour() {
+	m.hour = nil
+}
+
+// SetChannelID sets the "channel_id" field.
+func (m *ChannelDeliveryHourMutation) SetChannelID(i int) {
+	m.channel_id = &i
+	m.addchannel_id = nil
+}
+
+// ChannelID returns the value of the "channel_id" field in the mutation.
+func (m *ChannelDeliveryHourMutation) ChannelID() (r int, exists bool) {
+	v := m.channel_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldChannelID returns the old "channel_id" field's value of the ChannelDeliveryHour entity.
+// If the ChannelDeliveryHour object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelDeliveryHourMutation) OldChannelID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldChannelID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldChannelID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldChannelID: %w", err)
+	}
+	return oldValue.ChannelID, nil
+}
+
+// AddChannelID adds i to the "channel_id" field.
+func (m *ChannelDeliveryHourMutation) AddChannelID(i int) {
+	if m.addchannel_id != nil {
+		*m.addchannel_id += i
+	} else {
+		m.addchannel_id = &i
+	}
+}
+
+// AddedChannelID returns the value that was added to the "channel_id" field in this mutation.
+func (m *ChannelDeliveryHourMutation) AddedChannelID() (r int, exists bool) {
+	v := m.addchannel_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetChannelID resets all changes to the "channel_id" field.
+func (m *ChannelDeliveryHourMutation) ResetChannelID() {
+	m.channel_id = nil
+	m.addchannel_id = nil
+}
+
+// SetRuleID sets the "rule_id" field.
+func (m *ChannelDeliveryHourMutation) SetRuleID(i int) {
+	m.rule_id = &i
+	m.addrule_id = nil
+}
+
+// RuleID returns the value of the "rule_id" field in the mutation.
+func (m *ChannelDeliveryHourMutation) RuleID() (r int, exists bool) {
+	v := m.rule_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRuleID returns the old "rule_id" field's value of the ChannelDeliveryHour entity.
+// If the ChannelDeliveryHour object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelDeliveryHourMutation) OldRuleID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRuleID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRuleID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRuleID: %w", err)
+	}
+	return oldValue.RuleID, nil
+}
+
+// AddRuleID adds i to the "rule_id" field.
+func (m *ChannelDeliveryHourMutation) AddRuleID(i int) {
+	if m.addrule_id != nil {
+		*m.addrule_id += i
+	} else {
+		m.addrule_id = &i
+	}
+}
+
+// AddedRuleID returns the value that was added to the "rule_id" field in this mutation.
+func (m *ChannelDeliveryHourMutation) AddedRuleID() (r int, exists bool) {
+	v := m.addrule_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetRuleID resets all changes to the "rule_id" field.
+func (m *ChannelDeliveryHourMutation) ResetRuleID() {
+	m.rule_id = nil
+	m.addrule_id = nil
+}
+
+// SetSource sets the "source" field.
+func (m *ChannelDeliveryHourMutation) SetSource(s string) {
+	m.source = &s
+}
+
+// Source returns the value of the "source" field in the mutation.
+func (m *ChannelDeliveryHourMutation) Source() (r string, exists bool) {
+	v := m.source
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSource returns the old "source" field's value of the ChannelDeliveryHour entity.
+// If the ChannelDeliveryHour object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelDeliveryHourMutation) OldSource(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSource is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSource requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSource: %w", err)
+	}
+	return oldValue.Source, nil
+}
+
+// ResetSource resets all changes to the "source" field.
+func (m *ChannelDeliveryHourMutation) ResetSource() {
+	m.source = nil
+}
+
+// SetChannelName sets the "channel_name" field.
+func (m *ChannelDeliveryHourMutation) SetChannelName(s string) {
+	m.channel_name = &s
+}
+
+// ChannelName returns the value of the "channel_name" field in the mutation.
+func (m *ChannelDeliveryHourMutation) ChannelName() (r string, exists bool) {
+	v := m.channel_name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldChannelName returns the old "channel_name" field's value of the ChannelDeliveryHour entity.
+// If the ChannelDeliveryHour object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelDeliveryHourMutation) OldChannelName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldChannelName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldChannelName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldChannelName: %w", err)
+	}
+	return oldValue.ChannelName, nil
+}
+
+// ResetChannelName resets all changes to the "channel_name" field.
+func (m *ChannelDeliveryHourMutation) ResetChannelName() {
+	m.channel_name = nil
+}
+
+// SetDelivered sets the "delivered" field.
+func (m *ChannelDeliveryHourMutation) SetDelivered(i int) {
+	m.delivered = &i
+	m.adddelivered = nil
+}
+
+// Delivered returns the value of the "delivered" field in the mutation.
+func (m *ChannelDeliveryHourMutation) Delivered() (r int, exists bool) {
+	v := m.delivered
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDelivered returns the old "delivered" field's value of the ChannelDeliveryHour entity.
+// If the ChannelDeliveryHour object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelDeliveryHourMutation) OldDelivered(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDelivered is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDelivered requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDelivered: %w", err)
+	}
+	return oldValue.Delivered, nil
+}
+
+// AddDelivered adds i to the "delivered" field.
+func (m *ChannelDeliveryHourMutation) AddDelivered(i int) {
+	if m.adddelivered != nil {
+		*m.adddelivered += i
+	} else {
+		m.adddelivered = &i
+	}
+}
+
+// AddedDelivered returns the value that was added to the "delivered" field in this mutation.
+func (m *ChannelDeliveryHourMutation) AddedDelivered() (r int, exists bool) {
+	v := m.adddelivered
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetDelivered resets all changes to the "delivered" field.
+func (m *ChannelDeliveryHourMutation) ResetDelivered() {
+	m.delivered = nil
+	m.adddelivered = nil
+}
+
+// SetFailed sets the "failed" field.
+func (m *ChannelDeliveryHourMutation) SetFailed(i int) {
+	m.failed = &i
+	m.addfailed = nil
+}
+
+// Failed returns the value of the "failed" field in the mutation.
+func (m *ChannelDeliveryHourMutation) Failed() (r int, exists bool) {
+	v := m.failed
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFailed returns the old "failed" field's value of the ChannelDeliveryHour entity.
+// If the ChannelDeliveryHour object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelDeliveryHourMutation) OldFailed(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFailed is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFailed requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFailed: %w", err)
+	}
+	return oldValue.Failed, nil
+}
+
+// AddFailed adds i to the "failed" field.
+func (m *ChannelDeliveryHourMutation) AddFailed(i int) {
+	if m.addfailed != nil {
+		*m.addfailed += i
+	} else {
+		m.addfailed = &i
+	}
+}
+
+// AddedFailed returns the value that was added to the "failed" field in this mutation.
+func (m *ChannelDeliveryHourMutation) AddedFailed() (r int, exists bool) {
+	v := m.addfailed
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetFailed resets all changes to the "failed" field.
+func (m *ChannelDeliveryHourMutation) ResetFailed() {
+	m.failed = nil
+	m.addfailed = nil
+}
+
+// SetTests sets the "tests" field.
+func (m *ChannelDeliveryHourMutation) SetTests(i int) {
+	m.tests = &i
+	m.addtests = nil
+}
+
+// Tests returns the value of the "tests" field in the mutation.
+func (m *ChannelDeliveryHourMutation) Tests() (r int, exists bool) {
+	v := m.tests
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTests returns the old "tests" field's value of the ChannelDeliveryHour entity.
+// If the ChannelDeliveryHour object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelDeliveryHourMutation) OldTests(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTests is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTests requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTests: %w", err)
+	}
+	return oldValue.Tests, nil
+}
+
+// AddTests adds i to the "tests" field.
+func (m *ChannelDeliveryHourMutation) AddTests(i int) {
+	if m.addtests != nil {
+		*m.addtests += i
+	} else {
+		m.addtests = &i
+	}
+}
+
+// AddedTests returns the value that was added to the "tests" field in this mutation.
+func (m *ChannelDeliveryHourMutation) AddedTests() (r int, exists bool) {
+	v := m.addtests
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetTests resets all changes to the "tests" field.
+func (m *ChannelDeliveryHourMutation) ResetTests() {
+	m.tests = nil
+	m.addtests = nil
+}
+
+// SetLat100 sets the "lat_100" field.
+func (m *ChannelDeliveryHourMutation) SetLat100(i int) {
+	m.lat_100 = &i
+	m.addlat_100 = nil
+}
+
+// Lat100 returns the value of the "lat_100" field in the mutation.
+func (m *ChannelDeliveryHourMutation) Lat100() (r int, exists bool) {
+	v := m.lat_100
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLat100 returns the old "lat_100" field's value of the ChannelDeliveryHour entity.
+// If the ChannelDeliveryHour object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelDeliveryHourMutation) OldLat100(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLat100 is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLat100 requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLat100: %w", err)
+	}
+	return oldValue.Lat100, nil
+}
+
+// AddLat100 adds i to the "lat_100" field.
+func (m *ChannelDeliveryHourMutation) AddLat100(i int) {
+	if m.addlat_100 != nil {
+		*m.addlat_100 += i
+	} else {
+		m.addlat_100 = &i
+	}
+}
+
+// AddedLat100 returns the value that was added to the "lat_100" field in this mutation.
+func (m *ChannelDeliveryHourMutation) AddedLat100() (r int, exists bool) {
+	v := m.addlat_100
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetLat100 resets all changes to the "lat_100" field.
+func (m *ChannelDeliveryHourMutation) ResetLat100() {
+	m.lat_100 = nil
+	m.addlat_100 = nil
+}
+
+// SetLat250 sets the "lat_250" field.
+func (m *ChannelDeliveryHourMutation) SetLat250(i int) {
+	m.lat_250 = &i
+	m.addlat_250 = nil
+}
+
+// Lat250 returns the value of the "lat_250" field in the mutation.
+func (m *ChannelDeliveryHourMutation) Lat250() (r int, exists bool) {
+	v := m.lat_250
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLat250 returns the old "lat_250" field's value of the ChannelDeliveryHour entity.
+// If the ChannelDeliveryHour object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelDeliveryHourMutation) OldLat250(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLat250 is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLat250 requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLat250: %w", err)
+	}
+	return oldValue.Lat250, nil
+}
+
+// AddLat250 adds i to the "lat_250" field.
+func (m *ChannelDeliveryHourMutation) AddLat250(i int) {
+	if m.addlat_250 != nil {
+		*m.addlat_250 += i
+	} else {
+		m.addlat_250 = &i
+	}
+}
+
+// AddedLat250 returns the value that was added to the "lat_250" field in this mutation.
+func (m *ChannelDeliveryHourMutation) AddedLat250() (r int, exists bool) {
+	v := m.addlat_250
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetLat250 resets all changes to the "lat_250" field.
+func (m *ChannelDeliveryHourMutation) ResetLat250() {
+	m.lat_250 = nil
+	m.addlat_250 = nil
+}
+
+// SetLat500 sets the "lat_500" field.
+func (m *ChannelDeliveryHourMutation) SetLat500(i int) {
+	m.lat_500 = &i
+	m.addlat_500 = nil
+}
+
+// Lat500 returns the value of the "lat_500" field in the mutation.
+func (m *ChannelDeliveryHourMutation) Lat500() (r int, exists bool) {
+	v := m.lat_500
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLat500 returns the old "lat_500" field's value of the ChannelDeliveryHour entity.
+// If the ChannelDeliveryHour object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelDeliveryHourMutation) OldLat500(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLat500 is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLat500 requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLat500: %w", err)
+	}
+	return oldValue.Lat500, nil
+}
+
+// AddLat500 adds i to the "lat_500" field.
+func (m *ChannelDeliveryHourMutation) AddLat500(i int) {
+	if m.addlat_500 != nil {
+		*m.addlat_500 += i
+	} else {
+		m.addlat_500 = &i
+	}
+}
+
+// AddedLat500 returns the value that was added to the "lat_500" field in this mutation.
+func (m *ChannelDeliveryHourMutation) AddedLat500() (r int, exists bool) {
+	v := m.addlat_500
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetLat500 resets all changes to the "lat_500" field.
+func (m *ChannelDeliveryHourMutation) ResetLat500() {
+	m.lat_500 = nil
+	m.addlat_500 = nil
+}
+
+// SetLat1000 sets the "lat_1000" field.
+func (m *ChannelDeliveryHourMutation) SetLat1000(i int) {
+	m.lat_1000 = &i
+	m.addlat_1000 = nil
+}
+
+// Lat1000 returns the value of the "lat_1000" field in the mutation.
+func (m *ChannelDeliveryHourMutation) Lat1000() (r int, exists bool) {
+	v := m.lat_1000
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLat1000 returns the old "lat_1000" field's value of the ChannelDeliveryHour entity.
+// If the ChannelDeliveryHour object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelDeliveryHourMutation) OldLat1000(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLat1000 is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLat1000 requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLat1000: %w", err)
+	}
+	return oldValue.Lat1000, nil
+}
+
+// AddLat1000 adds i to the "lat_1000" field.
+func (m *ChannelDeliveryHourMutation) AddLat1000(i int) {
+	if m.addlat_1000 != nil {
+		*m.addlat_1000 += i
+	} else {
+		m.addlat_1000 = &i
+	}
+}
+
+// AddedLat1000 returns the value that was added to the "lat_1000" field in this mutation.
+func (m *ChannelDeliveryHourMutation) AddedLat1000() (r int, exists bool) {
+	v := m.addlat_1000
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetLat1000 resets all changes to the "lat_1000" field.
+func (m *ChannelDeliveryHourMutation) ResetLat1000() {
+	m.lat_1000 = nil
+	m.addlat_1000 = nil
+}
+
+// SetLat2500 sets the "lat_2500" field.
+func (m *ChannelDeliveryHourMutation) SetLat2500(i int) {
+	m.lat_2500 = &i
+	m.addlat_2500 = nil
+}
+
+// Lat2500 returns the value of the "lat_2500" field in the mutation.
+func (m *ChannelDeliveryHourMutation) Lat2500() (r int, exists bool) {
+	v := m.lat_2500
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLat2500 returns the old "lat_2500" field's value of the ChannelDeliveryHour entity.
+// If the ChannelDeliveryHour object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelDeliveryHourMutation) OldLat2500(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLat2500 is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLat2500 requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLat2500: %w", err)
+	}
+	return oldValue.Lat2500, nil
+}
+
+// AddLat2500 adds i to the "lat_2500" field.
+func (m *ChannelDeliveryHourMutation) AddLat2500(i int) {
+	if m.addlat_2500 != nil {
+		*m.addlat_2500 += i
+	} else {
+		m.addlat_2500 = &i
+	}
+}
+
+// AddedLat2500 returns the value that was added to the "lat_2500" field in this mutation.
+func (m *ChannelDeliveryHourMutation) AddedLat2500() (r int, exists bool) {
+	v := m.addlat_2500
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetLat2500 resets all changes to the "lat_2500" field.
+func (m *ChannelDeliveryHourMutation) ResetLat2500() {
+	m.lat_2500 = nil
+	m.addlat_2500 = nil
+}
+
+// SetLat5000 sets the "lat_5000" field.
+func (m *ChannelDeliveryHourMutation) SetLat5000(i int) {
+	m.lat_5000 = &i
+	m.addlat_5000 = nil
+}
+
+// Lat5000 returns the value of the "lat_5000" field in the mutation.
+func (m *ChannelDeliveryHourMutation) Lat5000() (r int, exists bool) {
+	v := m.lat_5000
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLat5000 returns the old "lat_5000" field's value of the ChannelDeliveryHour entity.
+// If the ChannelDeliveryHour object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelDeliveryHourMutation) OldLat5000(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLat5000 is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLat5000 requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLat5000: %w", err)
+	}
+	return oldValue.Lat5000, nil
+}
+
+// AddLat5000 adds i to the "lat_5000" field.
+func (m *ChannelDeliveryHourMutation) AddLat5000(i int) {
+	if m.addlat_5000 != nil {
+		*m.addlat_5000 += i
+	} else {
+		m.addlat_5000 = &i
+	}
+}
+
+// AddedLat5000 returns the value that was added to the "lat_5000" field in this mutation.
+func (m *ChannelDeliveryHourMutation) AddedLat5000() (r int, exists bool) {
+	v := m.addlat_5000
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetLat5000 resets all changes to the "lat_5000" field.
+func (m *ChannelDeliveryHourMutation) ResetLat5000() {
+	m.lat_5000 = nil
+	m.addlat_5000 = nil
+}
+
+// SetLat10000 sets the "lat_10000" field.
+func (m *ChannelDeliveryHourMutation) SetLat10000(i int) {
+	m.lat_10000 = &i
+	m.addlat_10000 = nil
+}
+
+// Lat10000 returns the value of the "lat_10000" field in the mutation.
+func (m *ChannelDeliveryHourMutation) Lat10000() (r int, exists bool) {
+	v := m.lat_10000
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLat10000 returns the old "lat_10000" field's value of the ChannelDeliveryHour entity.
+// If the ChannelDeliveryHour object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelDeliveryHourMutation) OldLat10000(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLat10000 is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLat10000 requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLat10000: %w", err)
+	}
+	return oldValue.Lat10000, nil
+}
+
+// AddLat10000 adds i to the "lat_10000" field.
+func (m *ChannelDeliveryHourMutation) AddLat10000(i int) {
+	if m.addlat_10000 != nil {
+		*m.addlat_10000 += i
+	} else {
+		m.addlat_10000 = &i
+	}
+}
+
+// AddedLat10000 returns the value that was added to the "lat_10000" field in this mutation.
+func (m *ChannelDeliveryHourMutation) AddedLat10000() (r int, exists bool) {
+	v := m.addlat_10000
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetLat10000 resets all changes to the "lat_10000" field.
+func (m *ChannelDeliveryHourMutation) ResetLat10000() {
+	m.lat_10000 = nil
+	m.addlat_10000 = nil
+}
+
+// SetLatOver sets the "lat_over" field.
+func (m *ChannelDeliveryHourMutation) SetLatOver(i int) {
+	m.lat_over = &i
+	m.addlat_over = nil
+}
+
+// LatOver returns the value of the "lat_over" field in the mutation.
+func (m *ChannelDeliveryHourMutation) LatOver() (r int, exists bool) {
+	v := m.lat_over
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLatOver returns the old "lat_over" field's value of the ChannelDeliveryHour entity.
+// If the ChannelDeliveryHour object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelDeliveryHourMutation) OldLatOver(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLatOver is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLatOver requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLatOver: %w", err)
+	}
+	return oldValue.LatOver, nil
+}
+
+// AddLatOver adds i to the "lat_over" field.
+func (m *ChannelDeliveryHourMutation) AddLatOver(i int) {
+	if m.addlat_over != nil {
+		*m.addlat_over += i
+	} else {
+		m.addlat_over = &i
+	}
+}
+
+// AddedLatOver returns the value that was added to the "lat_over" field in this mutation.
+func (m *ChannelDeliveryHourMutation) AddedLatOver() (r int, exists bool) {
+	v := m.addlat_over
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetLatOver resets all changes to the "lat_over" field.
+func (m *ChannelDeliveryHourMutation) ResetLatOver() {
+	m.lat_over = nil
+	m.addlat_over = nil
+}
+
+// SetLastAt sets the "last_at" field.
+func (m *ChannelDeliveryHourMutation) SetLastAt(t time.Time) {
+	m.last_at = &t
+}
+
+// LastAt returns the value of the "last_at" field in the mutation.
+func (m *ChannelDeliveryHourMutation) LastAt() (r time.Time, exists bool) {
+	v := m.last_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastAt returns the old "last_at" field's value of the ChannelDeliveryHour entity.
+// If the ChannelDeliveryHour object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelDeliveryHourMutation) OldLastAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastAt: %w", err)
+	}
+	return oldValue.LastAt, nil
+}
+
+// ResetLastAt resets all changes to the "last_at" field.
+func (m *ChannelDeliveryHourMutation) ResetLastAt() {
+	m.last_at = nil
+}
+
+// SetLastOk sets the "last_ok" field.
+func (m *ChannelDeliveryHourMutation) SetLastOk(b bool) {
+	m.last_ok = &b
+}
+
+// LastOk returns the value of the "last_ok" field in the mutation.
+func (m *ChannelDeliveryHourMutation) LastOk() (r bool, exists bool) {
+	v := m.last_ok
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastOk returns the old "last_ok" field's value of the ChannelDeliveryHour entity.
+// If the ChannelDeliveryHour object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelDeliveryHourMutation) OldLastOk(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastOk is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastOk requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastOk: %w", err)
+	}
+	return oldValue.LastOk, nil
+}
+
+// ResetLastOk resets all changes to the "last_ok" field.
+func (m *ChannelDeliveryHourMutation) ResetLastOk() {
+	m.last_ok = nil
+}
+
+// Where appends a list predicates to the ChannelDeliveryHourMutation builder.
+func (m *ChannelDeliveryHourMutation) Where(ps ...predicate.ChannelDeliveryHour) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the ChannelDeliveryHourMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *ChannelDeliveryHourMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.ChannelDeliveryHour, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *ChannelDeliveryHourMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *ChannelDeliveryHourMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (ChannelDeliveryHour).
+func (m *ChannelDeliveryHourMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *ChannelDeliveryHourMutation) Fields() []string {
+	fields := make([]string, 0, 19)
+	if m.project_id != nil {
+		fields = append(fields, channeldeliveryhour.FieldProjectID)
+	}
+	if m.hour != nil {
+		fields = append(fields, channeldeliveryhour.FieldHour)
+	}
+	if m.channel_id != nil {
+		fields = append(fields, channeldeliveryhour.FieldChannelID)
+	}
+	if m.rule_id != nil {
+		fields = append(fields, channeldeliveryhour.FieldRuleID)
+	}
+	if m.source != nil {
+		fields = append(fields, channeldeliveryhour.FieldSource)
+	}
+	if m.channel_name != nil {
+		fields = append(fields, channeldeliveryhour.FieldChannelName)
+	}
+	if m.delivered != nil {
+		fields = append(fields, channeldeliveryhour.FieldDelivered)
+	}
+	if m.failed != nil {
+		fields = append(fields, channeldeliveryhour.FieldFailed)
+	}
+	if m.tests != nil {
+		fields = append(fields, channeldeliveryhour.FieldTests)
+	}
+	if m.lat_100 != nil {
+		fields = append(fields, channeldeliveryhour.FieldLat100)
+	}
+	if m.lat_250 != nil {
+		fields = append(fields, channeldeliveryhour.FieldLat250)
+	}
+	if m.lat_500 != nil {
+		fields = append(fields, channeldeliveryhour.FieldLat500)
+	}
+	if m.lat_1000 != nil {
+		fields = append(fields, channeldeliveryhour.FieldLat1000)
+	}
+	if m.lat_2500 != nil {
+		fields = append(fields, channeldeliveryhour.FieldLat2500)
+	}
+	if m.lat_5000 != nil {
+		fields = append(fields, channeldeliveryhour.FieldLat5000)
+	}
+	if m.lat_10000 != nil {
+		fields = append(fields, channeldeliveryhour.FieldLat10000)
+	}
+	if m.lat_over != nil {
+		fields = append(fields, channeldeliveryhour.FieldLatOver)
+	}
+	if m.last_at != nil {
+		fields = append(fields, channeldeliveryhour.FieldLastAt)
+	}
+	if m.last_ok != nil {
+		fields = append(fields, channeldeliveryhour.FieldLastOk)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *ChannelDeliveryHourMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case channeldeliveryhour.FieldProjectID:
+		return m.ProjectID()
+	case channeldeliveryhour.FieldHour:
+		return m.Hour()
+	case channeldeliveryhour.FieldChannelID:
+		return m.ChannelID()
+	case channeldeliveryhour.FieldRuleID:
+		return m.RuleID()
+	case channeldeliveryhour.FieldSource:
+		return m.Source()
+	case channeldeliveryhour.FieldChannelName:
+		return m.ChannelName()
+	case channeldeliveryhour.FieldDelivered:
+		return m.Delivered()
+	case channeldeliveryhour.FieldFailed:
+		return m.Failed()
+	case channeldeliveryhour.FieldTests:
+		return m.Tests()
+	case channeldeliveryhour.FieldLat100:
+		return m.Lat100()
+	case channeldeliveryhour.FieldLat250:
+		return m.Lat250()
+	case channeldeliveryhour.FieldLat500:
+		return m.Lat500()
+	case channeldeliveryhour.FieldLat1000:
+		return m.Lat1000()
+	case channeldeliveryhour.FieldLat2500:
+		return m.Lat2500()
+	case channeldeliveryhour.FieldLat5000:
+		return m.Lat5000()
+	case channeldeliveryhour.FieldLat10000:
+		return m.Lat10000()
+	case channeldeliveryhour.FieldLatOver:
+		return m.LatOver()
+	case channeldeliveryhour.FieldLastAt:
+		return m.LastAt()
+	case channeldeliveryhour.FieldLastOk:
+		return m.LastOk()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *ChannelDeliveryHourMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case channeldeliveryhour.FieldProjectID:
+		return m.OldProjectID(ctx)
+	case channeldeliveryhour.FieldHour:
+		return m.OldHour(ctx)
+	case channeldeliveryhour.FieldChannelID:
+		return m.OldChannelID(ctx)
+	case channeldeliveryhour.FieldRuleID:
+		return m.OldRuleID(ctx)
+	case channeldeliveryhour.FieldSource:
+		return m.OldSource(ctx)
+	case channeldeliveryhour.FieldChannelName:
+		return m.OldChannelName(ctx)
+	case channeldeliveryhour.FieldDelivered:
+		return m.OldDelivered(ctx)
+	case channeldeliveryhour.FieldFailed:
+		return m.OldFailed(ctx)
+	case channeldeliveryhour.FieldTests:
+		return m.OldTests(ctx)
+	case channeldeliveryhour.FieldLat100:
+		return m.OldLat100(ctx)
+	case channeldeliveryhour.FieldLat250:
+		return m.OldLat250(ctx)
+	case channeldeliveryhour.FieldLat500:
+		return m.OldLat500(ctx)
+	case channeldeliveryhour.FieldLat1000:
+		return m.OldLat1000(ctx)
+	case channeldeliveryhour.FieldLat2500:
+		return m.OldLat2500(ctx)
+	case channeldeliveryhour.FieldLat5000:
+		return m.OldLat5000(ctx)
+	case channeldeliveryhour.FieldLat10000:
+		return m.OldLat10000(ctx)
+	case channeldeliveryhour.FieldLatOver:
+		return m.OldLatOver(ctx)
+	case channeldeliveryhour.FieldLastAt:
+		return m.OldLastAt(ctx)
+	case channeldeliveryhour.FieldLastOk:
+		return m.OldLastOk(ctx)
+	}
+	return nil, fmt.Errorf("unknown ChannelDeliveryHour field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *ChannelDeliveryHourMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case channeldeliveryhour.FieldProjectID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProjectID(v)
+		return nil
+	case channeldeliveryhour.FieldHour:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetHour(v)
+		return nil
+	case channeldeliveryhour.FieldChannelID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetChannelID(v)
+		return nil
+	case channeldeliveryhour.FieldRuleID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRuleID(v)
+		return nil
+	case channeldeliveryhour.FieldSource:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSource(v)
+		return nil
+	case channeldeliveryhour.FieldChannelName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetChannelName(v)
+		return nil
+	case channeldeliveryhour.FieldDelivered:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDelivered(v)
+		return nil
+	case channeldeliveryhour.FieldFailed:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFailed(v)
+		return nil
+	case channeldeliveryhour.FieldTests:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTests(v)
+		return nil
+	case channeldeliveryhour.FieldLat100:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLat100(v)
+		return nil
+	case channeldeliveryhour.FieldLat250:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLat250(v)
+		return nil
+	case channeldeliveryhour.FieldLat500:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLat500(v)
+		return nil
+	case channeldeliveryhour.FieldLat1000:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLat1000(v)
+		return nil
+	case channeldeliveryhour.FieldLat2500:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLat2500(v)
+		return nil
+	case channeldeliveryhour.FieldLat5000:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLat5000(v)
+		return nil
+	case channeldeliveryhour.FieldLat10000:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLat10000(v)
+		return nil
+	case channeldeliveryhour.FieldLatOver:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLatOver(v)
+		return nil
+	case channeldeliveryhour.FieldLastAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastAt(v)
+		return nil
+	case channeldeliveryhour.FieldLastOk:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastOk(v)
+		return nil
+	}
+	return fmt.Errorf("unknown ChannelDeliveryHour field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *ChannelDeliveryHourMutation) AddedFields() []string {
+	var fields []string
+	if m.addproject_id != nil {
+		fields = append(fields, channeldeliveryhour.FieldProjectID)
+	}
+	if m.addchannel_id != nil {
+		fields = append(fields, channeldeliveryhour.FieldChannelID)
+	}
+	if m.addrule_id != nil {
+		fields = append(fields, channeldeliveryhour.FieldRuleID)
+	}
+	if m.adddelivered != nil {
+		fields = append(fields, channeldeliveryhour.FieldDelivered)
+	}
+	if m.addfailed != nil {
+		fields = append(fields, channeldeliveryhour.FieldFailed)
+	}
+	if m.addtests != nil {
+		fields = append(fields, channeldeliveryhour.FieldTests)
+	}
+	if m.addlat_100 != nil {
+		fields = append(fields, channeldeliveryhour.FieldLat100)
+	}
+	if m.addlat_250 != nil {
+		fields = append(fields, channeldeliveryhour.FieldLat250)
+	}
+	if m.addlat_500 != nil {
+		fields = append(fields, channeldeliveryhour.FieldLat500)
+	}
+	if m.addlat_1000 != nil {
+		fields = append(fields, channeldeliveryhour.FieldLat1000)
+	}
+	if m.addlat_2500 != nil {
+		fields = append(fields, channeldeliveryhour.FieldLat2500)
+	}
+	if m.addlat_5000 != nil {
+		fields = append(fields, channeldeliveryhour.FieldLat5000)
+	}
+	if m.addlat_10000 != nil {
+		fields = append(fields, channeldeliveryhour.FieldLat10000)
+	}
+	if m.addlat_over != nil {
+		fields = append(fields, channeldeliveryhour.FieldLatOver)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *ChannelDeliveryHourMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case channeldeliveryhour.FieldProjectID:
+		return m.AddedProjectID()
+	case channeldeliveryhour.FieldChannelID:
+		return m.AddedChannelID()
+	case channeldeliveryhour.FieldRuleID:
+		return m.AddedRuleID()
+	case channeldeliveryhour.FieldDelivered:
+		return m.AddedDelivered()
+	case channeldeliveryhour.FieldFailed:
+		return m.AddedFailed()
+	case channeldeliveryhour.FieldTests:
+		return m.AddedTests()
+	case channeldeliveryhour.FieldLat100:
+		return m.AddedLat100()
+	case channeldeliveryhour.FieldLat250:
+		return m.AddedLat250()
+	case channeldeliveryhour.FieldLat500:
+		return m.AddedLat500()
+	case channeldeliveryhour.FieldLat1000:
+		return m.AddedLat1000()
+	case channeldeliveryhour.FieldLat2500:
+		return m.AddedLat2500()
+	case channeldeliveryhour.FieldLat5000:
+		return m.AddedLat5000()
+	case channeldeliveryhour.FieldLat10000:
+		return m.AddedLat10000()
+	case channeldeliveryhour.FieldLatOver:
+		return m.AddedLatOver()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *ChannelDeliveryHourMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case channeldeliveryhour.FieldProjectID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddProjectID(v)
+		return nil
+	case channeldeliveryhour.FieldChannelID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddChannelID(v)
+		return nil
+	case channeldeliveryhour.FieldRuleID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRuleID(v)
+		return nil
+	case channeldeliveryhour.FieldDelivered:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddDelivered(v)
+		return nil
+	case channeldeliveryhour.FieldFailed:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddFailed(v)
+		return nil
+	case channeldeliveryhour.FieldTests:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTests(v)
+		return nil
+	case channeldeliveryhour.FieldLat100:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddLat100(v)
+		return nil
+	case channeldeliveryhour.FieldLat250:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddLat250(v)
+		return nil
+	case channeldeliveryhour.FieldLat500:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddLat500(v)
+		return nil
+	case channeldeliveryhour.FieldLat1000:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddLat1000(v)
+		return nil
+	case channeldeliveryhour.FieldLat2500:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddLat2500(v)
+		return nil
+	case channeldeliveryhour.FieldLat5000:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddLat5000(v)
+		return nil
+	case channeldeliveryhour.FieldLat10000:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddLat10000(v)
+		return nil
+	case channeldeliveryhour.FieldLatOver:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddLatOver(v)
+		return nil
+	}
+	return fmt.Errorf("unknown ChannelDeliveryHour numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *ChannelDeliveryHourMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *ChannelDeliveryHourMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *ChannelDeliveryHourMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown ChannelDeliveryHour nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *ChannelDeliveryHourMutation) ResetField(name string) error {
+	switch name {
+	case channeldeliveryhour.FieldProjectID:
+		m.ResetProjectID()
+		return nil
+	case channeldeliveryhour.FieldHour:
+		m.ResetHour()
+		return nil
+	case channeldeliveryhour.FieldChannelID:
+		m.ResetChannelID()
+		return nil
+	case channeldeliveryhour.FieldRuleID:
+		m.ResetRuleID()
+		return nil
+	case channeldeliveryhour.FieldSource:
+		m.ResetSource()
+		return nil
+	case channeldeliveryhour.FieldChannelName:
+		m.ResetChannelName()
+		return nil
+	case channeldeliveryhour.FieldDelivered:
+		m.ResetDelivered()
+		return nil
+	case channeldeliveryhour.FieldFailed:
+		m.ResetFailed()
+		return nil
+	case channeldeliveryhour.FieldTests:
+		m.ResetTests()
+		return nil
+	case channeldeliveryhour.FieldLat100:
+		m.ResetLat100()
+		return nil
+	case channeldeliveryhour.FieldLat250:
+		m.ResetLat250()
+		return nil
+	case channeldeliveryhour.FieldLat500:
+		m.ResetLat500()
+		return nil
+	case channeldeliveryhour.FieldLat1000:
+		m.ResetLat1000()
+		return nil
+	case channeldeliveryhour.FieldLat2500:
+		m.ResetLat2500()
+		return nil
+	case channeldeliveryhour.FieldLat5000:
+		m.ResetLat5000()
+		return nil
+	case channeldeliveryhour.FieldLat10000:
+		m.ResetLat10000()
+		return nil
+	case channeldeliveryhour.FieldLatOver:
+		m.ResetLatOver()
+		return nil
+	case channeldeliveryhour.FieldLastAt:
+		m.ResetLastAt()
+		return nil
+	case channeldeliveryhour.FieldLastOk:
+		m.ResetLastOk()
+		return nil
+	}
+	return fmt.Errorf("unknown ChannelDeliveryHour field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *ChannelDeliveryHourMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *ChannelDeliveryHourMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *ChannelDeliveryHourMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *ChannelDeliveryHourMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *ChannelDeliveryHourMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *ChannelDeliveryHourMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *ChannelDeliveryHourMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown ChannelDeliveryHour unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *ChannelDeliveryHourMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown ChannelDeliveryHour edge %s", name)
 }
 
 // ConfigVersionMutation represents an operation that mutates the ConfigVersion nodes in the graph.

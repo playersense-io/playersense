@@ -13,6 +13,7 @@ import (
 	"playersense.dev/backend/ent/billingaccount"
 	"playersense.dev/backend/ent/billingcontract"
 	"playersense.dev/backend/ent/channeldelivery"
+	"playersense.dev/backend/ent/channeldeliveryhour"
 	"playersense.dev/backend/ent/configversion"
 	"playersense.dev/backend/ent/creditlot"
 	"playersense.dev/backend/ent/datadeletionrequest"
@@ -553,25 +554,87 @@ func init() {
 	// channeldelivery.SourceValidator is a validator for the "source" field. It is called by the builders before save.
 	channeldelivery.SourceValidator = channeldeliveryDescSource.Validators[0].(func(string) error)
 	// channeldeliveryDescTitle is the schema descriptor for title field.
-	channeldeliveryDescTitle := channeldeliveryFields[4].Descriptor()
+	channeldeliveryDescTitle := channeldeliveryFields[5].Descriptor()
 	// channeldelivery.DefaultTitle holds the default value on creation for the title field.
 	channeldelivery.DefaultTitle = channeldeliveryDescTitle.Default.(string)
 	// channeldelivery.TitleValidator is a validator for the "title" field. It is called by the builders before save.
 	channeldelivery.TitleValidator = channeldeliveryDescTitle.Validators[0].(func(string) error)
 	// channeldeliveryDescDetail is the schema descriptor for detail field.
-	channeldeliveryDescDetail := channeldeliveryFields[6].Descriptor()
+	channeldeliveryDescDetail := channeldeliveryFields[7].Descriptor()
 	// channeldelivery.DefaultDetail holds the default value on creation for the detail field.
 	channeldelivery.DefaultDetail = channeldeliveryDescDetail.Default.(string)
 	// channeldelivery.DetailValidator is a validator for the "detail" field. It is called by the builders before save.
 	channeldelivery.DetailValidator = channeldeliveryDescDetail.Validators[0].(func(string) error)
 	// channeldeliveryDescTest is the schema descriptor for test field.
-	channeldeliveryDescTest := channeldeliveryFields[7].Descriptor()
+	channeldeliveryDescTest := channeldeliveryFields[8].Descriptor()
 	// channeldelivery.DefaultTest holds the default value on creation for the test field.
 	channeldelivery.DefaultTest = channeldeliveryDescTest.Default.(bool)
 	// channeldeliveryDescDurationMs is the schema descriptor for duration_ms field.
-	channeldeliveryDescDurationMs := channeldeliveryFields[8].Descriptor()
+	channeldeliveryDescDurationMs := channeldeliveryFields[9].Descriptor()
 	// channeldelivery.DefaultDurationMs holds the default value on creation for the duration_ms field.
 	channeldelivery.DefaultDurationMs = channeldeliveryDescDurationMs.Default.(int)
+	channeldeliveryhourFields := schema.ChannelDeliveryHour{}.Fields()
+	_ = channeldeliveryhourFields
+	// channeldeliveryhourDescRuleID is the schema descriptor for rule_id field.
+	channeldeliveryhourDescRuleID := channeldeliveryhourFields[4].Descriptor()
+	// channeldeliveryhour.DefaultRuleID holds the default value on creation for the rule_id field.
+	channeldeliveryhour.DefaultRuleID = channeldeliveryhourDescRuleID.Default.(int)
+	// channeldeliveryhourDescSource is the schema descriptor for source field.
+	channeldeliveryhourDescSource := channeldeliveryhourFields[5].Descriptor()
+	// channeldeliveryhour.DefaultSource holds the default value on creation for the source field.
+	channeldeliveryhour.DefaultSource = channeldeliveryhourDescSource.Default.(string)
+	// channeldeliveryhour.SourceValidator is a validator for the "source" field. It is called by the builders before save.
+	channeldeliveryhour.SourceValidator = channeldeliveryhourDescSource.Validators[0].(func(string) error)
+	// channeldeliveryhourDescChannelName is the schema descriptor for channel_name field.
+	channeldeliveryhourDescChannelName := channeldeliveryhourFields[6].Descriptor()
+	// channeldeliveryhour.DefaultChannelName holds the default value on creation for the channel_name field.
+	channeldeliveryhour.DefaultChannelName = channeldeliveryhourDescChannelName.Default.(string)
+	// channeldeliveryhour.ChannelNameValidator is a validator for the "channel_name" field. It is called by the builders before save.
+	channeldeliveryhour.ChannelNameValidator = channeldeliveryhourDescChannelName.Validators[0].(func(string) error)
+	// channeldeliveryhourDescDelivered is the schema descriptor for delivered field.
+	channeldeliveryhourDescDelivered := channeldeliveryhourFields[7].Descriptor()
+	// channeldeliveryhour.DefaultDelivered holds the default value on creation for the delivered field.
+	channeldeliveryhour.DefaultDelivered = channeldeliveryhourDescDelivered.Default.(int)
+	// channeldeliveryhourDescFailed is the schema descriptor for failed field.
+	channeldeliveryhourDescFailed := channeldeliveryhourFields[8].Descriptor()
+	// channeldeliveryhour.DefaultFailed holds the default value on creation for the failed field.
+	channeldeliveryhour.DefaultFailed = channeldeliveryhourDescFailed.Default.(int)
+	// channeldeliveryhourDescTests is the schema descriptor for tests field.
+	channeldeliveryhourDescTests := channeldeliveryhourFields[9].Descriptor()
+	// channeldeliveryhour.DefaultTests holds the default value on creation for the tests field.
+	channeldeliveryhour.DefaultTests = channeldeliveryhourDescTests.Default.(int)
+	// channeldeliveryhourDescLat100 is the schema descriptor for lat_100 field.
+	channeldeliveryhourDescLat100 := channeldeliveryhourFields[10].Descriptor()
+	// channeldeliveryhour.DefaultLat100 holds the default value on creation for the lat_100 field.
+	channeldeliveryhour.DefaultLat100 = channeldeliveryhourDescLat100.Default.(int)
+	// channeldeliveryhourDescLat250 is the schema descriptor for lat_250 field.
+	channeldeliveryhourDescLat250 := channeldeliveryhourFields[11].Descriptor()
+	// channeldeliveryhour.DefaultLat250 holds the default value on creation for the lat_250 field.
+	channeldeliveryhour.DefaultLat250 = channeldeliveryhourDescLat250.Default.(int)
+	// channeldeliveryhourDescLat500 is the schema descriptor for lat_500 field.
+	channeldeliveryhourDescLat500 := channeldeliveryhourFields[12].Descriptor()
+	// channeldeliveryhour.DefaultLat500 holds the default value on creation for the lat_500 field.
+	channeldeliveryhour.DefaultLat500 = channeldeliveryhourDescLat500.Default.(int)
+	// channeldeliveryhourDescLat1000 is the schema descriptor for lat_1000 field.
+	channeldeliveryhourDescLat1000 := channeldeliveryhourFields[13].Descriptor()
+	// channeldeliveryhour.DefaultLat1000 holds the default value on creation for the lat_1000 field.
+	channeldeliveryhour.DefaultLat1000 = channeldeliveryhourDescLat1000.Default.(int)
+	// channeldeliveryhourDescLat2500 is the schema descriptor for lat_2500 field.
+	channeldeliveryhourDescLat2500 := channeldeliveryhourFields[14].Descriptor()
+	// channeldeliveryhour.DefaultLat2500 holds the default value on creation for the lat_2500 field.
+	channeldeliveryhour.DefaultLat2500 = channeldeliveryhourDescLat2500.Default.(int)
+	// channeldeliveryhourDescLat5000 is the schema descriptor for lat_5000 field.
+	channeldeliveryhourDescLat5000 := channeldeliveryhourFields[15].Descriptor()
+	// channeldeliveryhour.DefaultLat5000 holds the default value on creation for the lat_5000 field.
+	channeldeliveryhour.DefaultLat5000 = channeldeliveryhourDescLat5000.Default.(int)
+	// channeldeliveryhourDescLat10000 is the schema descriptor for lat_10000 field.
+	channeldeliveryhourDescLat10000 := channeldeliveryhourFields[16].Descriptor()
+	// channeldeliveryhour.DefaultLat10000 holds the default value on creation for the lat_10000 field.
+	channeldeliveryhour.DefaultLat10000 = channeldeliveryhourDescLat10000.Default.(int)
+	// channeldeliveryhourDescLatOver is the schema descriptor for lat_over field.
+	channeldeliveryhourDescLatOver := channeldeliveryhourFields[17].Descriptor()
+	// channeldeliveryhour.DefaultLatOver holds the default value on creation for the lat_over field.
+	channeldeliveryhour.DefaultLatOver = channeldeliveryhourDescLatOver.Default.(int)
 	configversionMixin := schema.ConfigVersion{}.Mixin()
 	configversionMixinFields0 := configversionMixin[0].Fields()
 	_ = configversionMixinFields0

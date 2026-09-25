@@ -28,6 +28,8 @@ const (
 	FieldChannelName = "channel_name"
 	// FieldSource holds the string denoting the source field in the database.
 	FieldSource = "source"
+	// FieldRuleID holds the string denoting the rule_id field in the database.
+	FieldRuleID = "rule_id"
 	// FieldTitle holds the string denoting the title field in the database.
 	FieldTitle = "title"
 	// FieldOk holds the string denoting the ok field in the database.
@@ -52,6 +54,7 @@ var Columns = []string{
 	FieldChannelID,
 	FieldChannelName,
 	FieldSource,
+	FieldRuleID,
 	FieldTitle,
 	FieldOk,
 	FieldDetail,
@@ -141,6 +144,11 @@ func ByChannelName(opts ...sql.OrderTermOption) OrderOption {
 // BySource orders the results by the source field.
 func BySource(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldSource, opts...).ToFunc()
+}
+
+// ByRuleID orders the results by the rule_id field.
+func ByRuleID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRuleID, opts...).ToFunc()
 }
 
 // ByTitle orders the results by the title field.

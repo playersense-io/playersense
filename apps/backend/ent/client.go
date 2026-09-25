@@ -22,6 +22,7 @@ import (
 	"playersense.dev/backend/ent/billingaccount"
 	"playersense.dev/backend/ent/billingcontract"
 	"playersense.dev/backend/ent/channeldelivery"
+	"playersense.dev/backend/ent/channeldeliveryhour"
 	"playersense.dev/backend/ent/configversion"
 	"playersense.dev/backend/ent/creditlot"
 	"playersense.dev/backend/ent/datadeletionrequest"
@@ -93,6 +94,8 @@ type Client struct {
 	BillingContract *BillingContractClient
 	// ChannelDelivery is the client for interacting with the ChannelDelivery builders.
 	ChannelDelivery *ChannelDeliveryClient
+	// ChannelDeliveryHour is the client for interacting with the ChannelDeliveryHour builders.
+	ChannelDeliveryHour *ChannelDeliveryHourClient
 	// ConfigVersion is the client for interacting with the ConfigVersion builders.
 	ConfigVersion *ConfigVersionClient
 	// CreditLot is the client for interacting with the CreditLot builders.
@@ -207,6 +210,7 @@ func (c *Client) init() {
 	c.BillingAccount = NewBillingAccountClient(c.config)
 	c.BillingContract = NewBillingContractClient(c.config)
 	c.ChannelDelivery = NewChannelDeliveryClient(c.config)
+	c.ChannelDeliveryHour = NewChannelDeliveryHourClient(c.config)
 	c.ConfigVersion = NewConfigVersionClient(c.config)
 	c.CreditLot = NewCreditLotClient(c.config)
 	c.DataDeletionRequest = NewDataDeletionRequestClient(c.config)
@@ -354,6 +358,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		BillingAccount:      NewBillingAccountClient(cfg),
 		BillingContract:     NewBillingContractClient(cfg),
 		ChannelDelivery:     NewChannelDeliveryClient(cfg),
+		ChannelDeliveryHour: NewChannelDeliveryHourClient(cfg),
 		ConfigVersion:       NewConfigVersionClient(cfg),
 		CreditLot:           NewCreditLotClient(cfg),
 		DataDeletionRequest: NewDataDeletionRequestClient(cfg),
@@ -428,6 +433,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		BillingAccount:      NewBillingAccountClient(cfg),
 		BillingContract:     NewBillingContractClient(cfg),
 		ChannelDelivery:     NewChannelDeliveryClient(cfg),
+		ChannelDeliveryHour: NewChannelDeliveryHourClient(cfg),
 		ConfigVersion:       NewConfigVersionClient(cfg),
 		CreditLot:           NewCreditLotClient(cfg),
 		DataDeletionRequest: NewDataDeletionRequestClient(cfg),
@@ -506,17 +512,17 @@ func (c *Client) Close() error {
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.APIKey, c.ArchiveManifest, c.AuditEvent, c.BillablePlayer, c.BillingAccount,
-		c.BillingContract, c.ChannelDelivery, c.ConfigVersion, c.CreditLot,
-		c.DataDeletionRequest, c.DataExportRequest, c.Environment, c.EventDefinition,
-		c.Experiment, c.FeatureFlag, c.FxRate, c.Invitation, c.Invoice, c.InvoiceLine,
-		c.LedgerEntry, c.LiveOpsEvent, c.LogIssue, c.MemberProject, c.MonthlyUsage,
-		c.NotificationChannel, c.NotificationMark, c.NotificationOutbox,
-		c.NotificationRule, c.Organization, c.OrganizationMember, c.PaymentCard,
-		c.Plan, c.Project, c.PurchaseAttempt, c.PurchaseChange, c.PurchaseProvider,
-		c.RateCard, c.Receipt, c.Report, c.ReportExport, c.ReportRun, c.ReportRunEvent,
-		c.Role, c.SavedFunnel, c.Segment, c.StaffAccess, c.StaffMember, c.StripeEvent,
-		c.UsageCharge, c.UsageDaily, c.User, c.VerifiedPurchase, c.WebhookEndpoint,
-		c.WebhookOutbox, c.WebhookRetry,
+		c.BillingContract, c.ChannelDelivery, c.ChannelDeliveryHour, c.ConfigVersion,
+		c.CreditLot, c.DataDeletionRequest, c.DataExportRequest, c.Environment,
+		c.EventDefinition, c.Experiment, c.FeatureFlag, c.FxRate, c.Invitation,
+		c.Invoice, c.InvoiceLine, c.LedgerEntry, c.LiveOpsEvent, c.LogIssue,
+		c.MemberProject, c.MonthlyUsage, c.NotificationChannel, c.NotificationMark,
+		c.NotificationOutbox, c.NotificationRule, c.Organization, c.OrganizationMember,
+		c.PaymentCard, c.Plan, c.Project, c.PurchaseAttempt, c.PurchaseChange,
+		c.PurchaseProvider, c.RateCard, c.Receipt, c.Report, c.ReportExport,
+		c.ReportRun, c.ReportRunEvent, c.Role, c.SavedFunnel, c.Segment, c.StaffAccess,
+		c.StaffMember, c.StripeEvent, c.UsageCharge, c.UsageDaily, c.User,
+		c.VerifiedPurchase, c.WebhookEndpoint, c.WebhookOutbox, c.WebhookRetry,
 	} {
 		n.Use(hooks...)
 	}
@@ -527,17 +533,17 @@ func (c *Client) Use(hooks ...Hook) {
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.APIKey, c.ArchiveManifest, c.AuditEvent, c.BillablePlayer, c.BillingAccount,
-		c.BillingContract, c.ChannelDelivery, c.ConfigVersion, c.CreditLot,
-		c.DataDeletionRequest, c.DataExportRequest, c.Environment, c.EventDefinition,
-		c.Experiment, c.FeatureFlag, c.FxRate, c.Invitation, c.Invoice, c.InvoiceLine,
-		c.LedgerEntry, c.LiveOpsEvent, c.LogIssue, c.MemberProject, c.MonthlyUsage,
-		c.NotificationChannel, c.NotificationMark, c.NotificationOutbox,
-		c.NotificationRule, c.Organization, c.OrganizationMember, c.PaymentCard,
-		c.Plan, c.Project, c.PurchaseAttempt, c.PurchaseChange, c.PurchaseProvider,
-		c.RateCard, c.Receipt, c.Report, c.ReportExport, c.ReportRun, c.ReportRunEvent,
-		c.Role, c.SavedFunnel, c.Segment, c.StaffAccess, c.StaffMember, c.StripeEvent,
-		c.UsageCharge, c.UsageDaily, c.User, c.VerifiedPurchase, c.WebhookEndpoint,
-		c.WebhookOutbox, c.WebhookRetry,
+		c.BillingContract, c.ChannelDelivery, c.ChannelDeliveryHour, c.ConfigVersion,
+		c.CreditLot, c.DataDeletionRequest, c.DataExportRequest, c.Environment,
+		c.EventDefinition, c.Experiment, c.FeatureFlag, c.FxRate, c.Invitation,
+		c.Invoice, c.InvoiceLine, c.LedgerEntry, c.LiveOpsEvent, c.LogIssue,
+		c.MemberProject, c.MonthlyUsage, c.NotificationChannel, c.NotificationMark,
+		c.NotificationOutbox, c.NotificationRule, c.Organization, c.OrganizationMember,
+		c.PaymentCard, c.Plan, c.Project, c.PurchaseAttempt, c.PurchaseChange,
+		c.PurchaseProvider, c.RateCard, c.Receipt, c.Report, c.ReportExport,
+		c.ReportRun, c.ReportRunEvent, c.Role, c.SavedFunnel, c.Segment, c.StaffAccess,
+		c.StaffMember, c.StripeEvent, c.UsageCharge, c.UsageDaily, c.User,
+		c.VerifiedPurchase, c.WebhookEndpoint, c.WebhookOutbox, c.WebhookRetry,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -560,6 +566,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.BillingContract.mutate(ctx, m)
 	case *ChannelDeliveryMutation:
 		return c.ChannelDelivery.mutate(ctx, m)
+	case *ChannelDeliveryHourMutation:
+		return c.ChannelDeliveryHour.mutate(ctx, m)
 	case *ConfigVersionMutation:
 		return c.ConfigVersion.mutate(ctx, m)
 	case *CreditLotMutation:
@@ -1894,6 +1902,139 @@ func (c *ChannelDeliveryClient) mutate(ctx context.Context, m *ChannelDeliveryMu
 		return (&ChannelDeliveryDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown ChannelDelivery mutation op: %q", m.Op())
+	}
+}
+
+// ChannelDeliveryHourClient is a client for the ChannelDeliveryHour schema.
+type ChannelDeliveryHourClient struct {
+	config
+}
+
+// NewChannelDeliveryHourClient returns a client for the ChannelDeliveryHour from the given config.
+func NewChannelDeliveryHourClient(c config) *ChannelDeliveryHourClient {
+	return &ChannelDeliveryHourClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `channeldeliveryhour.Hooks(f(g(h())))`.
+func (c *ChannelDeliveryHourClient) Use(hooks ...Hook) {
+	c.hooks.ChannelDeliveryHour = append(c.hooks.ChannelDeliveryHour, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `channeldeliveryhour.Intercept(f(g(h())))`.
+func (c *ChannelDeliveryHourClient) Intercept(interceptors ...Interceptor) {
+	c.inters.ChannelDeliveryHour = append(c.inters.ChannelDeliveryHour, interceptors...)
+}
+
+// Create returns a builder for creating a ChannelDeliveryHour entity.
+func (c *ChannelDeliveryHourClient) Create() *ChannelDeliveryHourCreate {
+	mutation := newChannelDeliveryHourMutation(c.config, OpCreate)
+	return &ChannelDeliveryHourCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of ChannelDeliveryHour entities.
+func (c *ChannelDeliveryHourClient) CreateBulk(builders ...*ChannelDeliveryHourCreate) *ChannelDeliveryHourCreateBulk {
+	return &ChannelDeliveryHourCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ChannelDeliveryHourClient) MapCreateBulk(slice any, setFunc func(*ChannelDeliveryHourCreate, int)) *ChannelDeliveryHourCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ChannelDeliveryHourCreateBulk{err: fmt.Errorf("calling to ChannelDeliveryHourClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ChannelDeliveryHourCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ChannelDeliveryHourCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for ChannelDeliveryHour.
+func (c *ChannelDeliveryHourClient) Update() *ChannelDeliveryHourUpdate {
+	mutation := newChannelDeliveryHourMutation(c.config, OpUpdate)
+	return &ChannelDeliveryHourUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ChannelDeliveryHourClient) UpdateOne(_m *ChannelDeliveryHour) *ChannelDeliveryHourUpdateOne {
+	mutation := newChannelDeliveryHourMutation(c.config, OpUpdateOne, withChannelDeliveryHour(_m))
+	return &ChannelDeliveryHourUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ChannelDeliveryHourClient) UpdateOneID(id int) *ChannelDeliveryHourUpdateOne {
+	mutation := newChannelDeliveryHourMutation(c.config, OpUpdateOne, withChannelDeliveryHourID(id))
+	return &ChannelDeliveryHourUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for ChannelDeliveryHour.
+func (c *ChannelDeliveryHourClient) Delete() *ChannelDeliveryHourDelete {
+	mutation := newChannelDeliveryHourMutation(c.config, OpDelete)
+	return &ChannelDeliveryHourDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ChannelDeliveryHourClient) DeleteOne(_m *ChannelDeliveryHour) *ChannelDeliveryHourDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ChannelDeliveryHourClient) DeleteOneID(id int) *ChannelDeliveryHourDeleteOne {
+	builder := c.Delete().Where(channeldeliveryhour.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ChannelDeliveryHourDeleteOne{builder}
+}
+
+// Query returns a query builder for ChannelDeliveryHour.
+func (c *ChannelDeliveryHourClient) Query() *ChannelDeliveryHourQuery {
+	return &ChannelDeliveryHourQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeChannelDeliveryHour},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a ChannelDeliveryHour entity by its id.
+func (c *ChannelDeliveryHourClient) Get(ctx context.Context, id int) (*ChannelDeliveryHour, error) {
+	return c.Query().Where(channeldeliveryhour.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ChannelDeliveryHourClient) GetX(ctx context.Context, id int) *ChannelDeliveryHour {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *ChannelDeliveryHourClient) Hooks() []Hook {
+	return c.hooks.ChannelDeliveryHour
+}
+
+// Interceptors returns the client interceptors.
+func (c *ChannelDeliveryHourClient) Interceptors() []Interceptor {
+	return c.inters.ChannelDeliveryHour
+}
+
+func (c *ChannelDeliveryHourClient) mutate(ctx context.Context, m *ChannelDeliveryHourMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ChannelDeliveryHourCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ChannelDeliveryHourUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ChannelDeliveryHourUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ChannelDeliveryHourDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown ChannelDeliveryHour mutation op: %q", m.Op())
 	}
 }
 
@@ -9472,12 +9613,12 @@ func (c *WebhookRetryClient) mutate(ctx context.Context, m *WebhookRetryMutation
 type (
 	hooks struct {
 		APIKey, ArchiveManifest, AuditEvent, BillablePlayer, BillingAccount,
-		BillingContract, ChannelDelivery, ConfigVersion, CreditLot,
-		DataDeletionRequest, DataExportRequest, Environment, EventDefinition,
-		Experiment, FeatureFlag, FxRate, Invitation, Invoice, InvoiceLine, LedgerEntry,
-		LiveOpsEvent, LogIssue, MemberProject, MonthlyUsage, NotificationChannel,
-		NotificationMark, NotificationOutbox, NotificationRule, Organization,
-		OrganizationMember, PaymentCard, Plan, Project, PurchaseAttempt,
+		BillingContract, ChannelDelivery, ChannelDeliveryHour, ConfigVersion,
+		CreditLot, DataDeletionRequest, DataExportRequest, Environment,
+		EventDefinition, Experiment, FeatureFlag, FxRate, Invitation, Invoice,
+		InvoiceLine, LedgerEntry, LiveOpsEvent, LogIssue, MemberProject, MonthlyUsage,
+		NotificationChannel, NotificationMark, NotificationOutbox, NotificationRule,
+		Organization, OrganizationMember, PaymentCard, Plan, Project, PurchaseAttempt,
 		PurchaseChange, PurchaseProvider, RateCard, Receipt, Report, ReportExport,
 		ReportRun, ReportRunEvent, Role, SavedFunnel, Segment, StaffAccess,
 		StaffMember, StripeEvent, UsageCharge, UsageDaily, User, VerifiedPurchase,
@@ -9485,12 +9626,12 @@ type (
 	}
 	inters struct {
 		APIKey, ArchiveManifest, AuditEvent, BillablePlayer, BillingAccount,
-		BillingContract, ChannelDelivery, ConfigVersion, CreditLot,
-		DataDeletionRequest, DataExportRequest, Environment, EventDefinition,
-		Experiment, FeatureFlag, FxRate, Invitation, Invoice, InvoiceLine, LedgerEntry,
-		LiveOpsEvent, LogIssue, MemberProject, MonthlyUsage, NotificationChannel,
-		NotificationMark, NotificationOutbox, NotificationRule, Organization,
-		OrganizationMember, PaymentCard, Plan, Project, PurchaseAttempt,
+		BillingContract, ChannelDelivery, ChannelDeliveryHour, ConfigVersion,
+		CreditLot, DataDeletionRequest, DataExportRequest, Environment,
+		EventDefinition, Experiment, FeatureFlag, FxRate, Invitation, Invoice,
+		InvoiceLine, LedgerEntry, LiveOpsEvent, LogIssue, MemberProject, MonthlyUsage,
+		NotificationChannel, NotificationMark, NotificationOutbox, NotificationRule,
+		Organization, OrganizationMember, PaymentCard, Plan, Project, PurchaseAttempt,
 		PurchaseChange, PurchaseProvider, RateCard, Receipt, Report, ReportExport,
 		ReportRun, ReportRunEvent, Role, SavedFunnel, Segment, StaffAccess,
 		StaffMember, StripeEvent, UsageCharge, UsageDaily, User, VerifiedPurchase,

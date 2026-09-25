@@ -10,6 +10,7 @@ import (
 
 	"playersense.dev/backend/ent"
 	"playersense.dev/backend/ent/channeldelivery"
+	"playersense.dev/backend/ent/channeldeliveryhour"
 	"playersense.dev/backend/ent/environment"
 	"playersense.dev/backend/ent/project"
 	"playersense.dev/backend/ent/report"
@@ -205,6 +206,11 @@ func (s *Scheduler) Run(ctx context.Context, now time.Time) (PassResult, error) 
 		return out, err
 	}
 	out.Pruned += n
+	// Its hourly rollup goes with it: the Activity page never reaches further back than the log.
+	if _, err := db.ChannelDeliveryHour.Delete().
+		Where(channeldeliveryhour.HourLT(now.AddDate(0, 0, -DeliveryLogDays))).Exec(ctx); err != nil {
+		return out, err
+	}
 	old, err := db.ReportRun.Query().Where(reportrun.StartedAtLT(now.AddDate(0, 0, -RunEventDays))).IDs(ctx)
 	if err != nil {
 		return out, err

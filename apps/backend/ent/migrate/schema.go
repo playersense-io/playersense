@@ -304,6 +304,7 @@ var (
 		{Name: "channel_id", Type: field.TypeInt, Comment: "class=none"},
 		{Name: "channel_name", Type: field.TypeString, Size: 120, Comment: "class=none", Default: ""},
 		{Name: "source", Type: field.TypeString, Size: 200, Comment: "class=none", Default: ""},
+		{Name: "rule_id", Type: field.TypeInt, Nullable: true, Comment: "class=none"},
 		{Name: "title", Type: field.TypeString, Size: 300, Comment: "class=none", Default: ""},
 		{Name: "ok", Type: field.TypeBool, Comment: "class=none"},
 		{Name: "detail", Type: field.TypeString, Size: 500, Comment: "class=none", Default: ""},
@@ -327,9 +328,60 @@ var (
 				Columns: []*schema.Column{ChannelDeliveriesColumns[5], ChannelDeliveriesColumns[0]},
 			},
 			{
+				Name:    "channeldelivery_rule_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{ChannelDeliveriesColumns[8], ChannelDeliveriesColumns[2]},
+			},
+			{
 				Name:    "channeldelivery_created_at",
 				Unique:  false,
 				Columns: []*schema.Column{ChannelDeliveriesColumns[2]},
+			},
+		},
+	}
+	// ChannelDeliveryHoursColumns holds the columns for the "channel_delivery_hours" table.
+	ChannelDeliveryHoursColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
+		{Name: "project_id", Type: field.TypeInt, Comment: "class=none"},
+		{Name: "hour", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "channel_id", Type: field.TypeInt, Comment: "class=none"},
+		{Name: "rule_id", Type: field.TypeInt, Comment: "class=none", Default: 0},
+		{Name: "source", Type: field.TypeString, Size: 200, Comment: "class=none", Default: ""},
+		{Name: "channel_name", Type: field.TypeString, Size: 120, Comment: "class=none", Default: ""},
+		{Name: "delivered", Type: field.TypeInt, Comment: "class=none", Default: 0},
+		{Name: "failed", Type: field.TypeInt, Comment: "class=none", Default: 0},
+		{Name: "tests", Type: field.TypeInt, Comment: "class=none", Default: 0},
+		{Name: "lat_100", Type: field.TypeInt, Comment: "class=none", Default: 0},
+		{Name: "lat_250", Type: field.TypeInt, Comment: "class=none", Default: 0},
+		{Name: "lat_500", Type: field.TypeInt, Comment: "class=none", Default: 0},
+		{Name: "lat_1000", Type: field.TypeInt, Comment: "class=none", Default: 0},
+		{Name: "lat_2500", Type: field.TypeInt, Comment: "class=none", Default: 0},
+		{Name: "lat_5000", Type: field.TypeInt, Comment: "class=none", Default: 0},
+		{Name: "lat_10000", Type: field.TypeInt, Comment: "class=none", Default: 0},
+		{Name: "lat_over", Type: field.TypeInt, Comment: "class=none", Default: 0},
+		{Name: "last_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "last_ok", Type: field.TypeBool, Comment: "class=none"},
+	}
+	// ChannelDeliveryHoursTable holds the schema information for the "channel_delivery_hours" table.
+	ChannelDeliveryHoursTable = &schema.Table{
+		Name:       "channel_delivery_hours",
+		Columns:    ChannelDeliveryHoursColumns,
+		PrimaryKey: []*schema.Column{ChannelDeliveryHoursColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "channeldeliveryhour_project_id_hour_channel_id_rule_id_source",
+				Unique:  true,
+				Columns: []*schema.Column{ChannelDeliveryHoursColumns[1], ChannelDeliveryHoursColumns[2], ChannelDeliveryHoursColumns[3], ChannelDeliveryHoursColumns[4], ChannelDeliveryHoursColumns[5]},
+			},
+			{
+				Name:    "channeldeliveryhour_rule_id_hour",
+				Unique:  false,
+				Columns: []*schema.Column{ChannelDeliveryHoursColumns[4], ChannelDeliveryHoursColumns[2]},
+			},
+			{
+				Name:    "channeldeliveryhour_hour",
+				Unique:  false,
+				Columns: []*schema.Column{ChannelDeliveryHoursColumns[2]},
 			},
 		},
 	}
@@ -2203,6 +2255,7 @@ var (
 		BillingAccountsTable,
 		BillingContractsTable,
 		ChannelDeliveriesTable,
+		ChannelDeliveryHoursTable,
 		ConfigVersionsTable,
 		CreditLotsTable,
 		DataDeletionRequestsTable,

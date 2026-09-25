@@ -19,6 +19,7 @@ import (
 	"playersense.dev/backend/ent/billingaccount"
 	"playersense.dev/backend/ent/billingcontract"
 	"playersense.dev/backend/ent/channeldelivery"
+	"playersense.dev/backend/ent/channeldeliveryhour"
 	"playersense.dev/backend/ent/configversion"
 	"playersense.dev/backend/ent/creditlot"
 	"playersense.dev/backend/ent/datadeletionrequest"
@@ -134,6 +135,7 @@ func checkColumn(t, c string) error {
 			billingaccount.Table:      billingaccount.ValidColumn,
 			billingcontract.Table:     billingcontract.ValidColumn,
 			channeldelivery.Table:     channeldelivery.ValidColumn,
+			channeldeliveryhour.Table: channeldeliveryhour.ValidColumn,
 			configversion.Table:       configversion.ValidColumn,
 			creditlot.Table:           creditlot.ValidColumn,
 			datadeletionrequest.Table: datadeletionrequest.ValidColumn,

@@ -87,6 +87,9 @@ func (_u *ChannelDeliveryUpdate) sqlSave(ctx context.Context) (_node int, err er
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(channeldelivery.FieldUpdatedAt, field.TypeTime, value)
 	}
+	if _u.mutation.RuleIDCleared() {
+		_spec.ClearField(channeldelivery.FieldRuleID, field.TypeInt)
+	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{channeldelivery.Label}
@@ -195,6 +198,9 @@ func (_u *ChannelDeliveryUpdateOne) sqlSave(ctx context.Context) (_node *Channel
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(channeldelivery.FieldUpdatedAt, field.TypeTime, value)
+	}
+	if _u.mutation.RuleIDCleared() {
+		_spec.ClearField(channeldelivery.FieldRuleID, field.TypeInt)
 	}
 	_node = &ChannelDelivery{config: _u.config}
 	_spec.Assign = _node.assignValues

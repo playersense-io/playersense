@@ -34,6 +34,8 @@ type ChannelDelivery struct {
 	// class=none
 	Source string `json:"source,omitempty"`
 	// class=none
+	RuleID *int `json:"rule_id,omitempty"`
+	// class=none
 	Title string `json:"title,omitempty"`
 	// class=none
 	Ok bool `json:"ok,omitempty"`
@@ -53,7 +55,7 @@ func (*ChannelDelivery) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case channeldelivery.FieldOk, channeldelivery.FieldTest:
 			values[i] = new(sql.NullBool)
-		case channeldelivery.FieldID, channeldelivery.FieldProjectID, channeldelivery.FieldChannelID, channeldelivery.FieldDurationMs:
+		case channeldelivery.FieldID, channeldelivery.FieldProjectID, channeldelivery.FieldChannelID, channeldelivery.FieldRuleID, channeldelivery.FieldDurationMs:
 			values[i] = new(sql.NullInt64)
 		case channeldelivery.FieldChannelName, channeldelivery.FieldSource, channeldelivery.FieldTitle, channeldelivery.FieldDetail:
 			values[i] = new(sql.NullString)
@@ -123,6 +125,13 @@ func (_m *ChannelDelivery) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field source", values[i])
 			} else if value.Valid {
 				_m.Source = value.String
+			}
+		case channeldelivery.FieldRuleID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field rule_id", values[i])
+			} else if value.Valid {
+				_m.RuleID = new(int)
+				*_m.RuleID = int(value.Int64)
 			}
 		case channeldelivery.FieldTitle:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -210,6 +219,11 @@ func (_m *ChannelDelivery) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("source=")
 	builder.WriteString(_m.Source)
+	builder.WriteString(", ")
+	if v := _m.RuleID; v != nil {
+		builder.WriteString("rule_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("title=")
 	builder.WriteString(_m.Title)

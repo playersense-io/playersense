@@ -90,6 +90,11 @@ func Source(v string) predicate.ChannelDelivery {
 	return predicate.ChannelDelivery(sql.FieldEQ(FieldSource, v))
 }
 
+// RuleID applies equality check predicate on the "rule_id" field. It's identical to RuleIDEQ.
+func RuleID(v int) predicate.ChannelDelivery {
+	return predicate.ChannelDelivery(sql.FieldEQ(FieldRuleID, v))
+}
+
 // Title applies equality check predicate on the "title" field. It's identical to TitleEQ.
 func Title(v string) predicate.ChannelDelivery {
 	return predicate.ChannelDelivery(sql.FieldEQ(FieldTitle, v))
@@ -443,6 +448,56 @@ func SourceEqualFold(v string) predicate.ChannelDelivery {
 // SourceContainsFold applies the ContainsFold predicate on the "source" field.
 func SourceContainsFold(v string) predicate.ChannelDelivery {
 	return predicate.ChannelDelivery(sql.FieldContainsFold(FieldSource, v))
+}
+
+// RuleIDEQ applies the EQ predicate on the "rule_id" field.
+func RuleIDEQ(v int) predicate.ChannelDelivery {
+	return predicate.ChannelDelivery(sql.FieldEQ(FieldRuleID, v))
+}
+
+// RuleIDNEQ applies the NEQ predicate on the "rule_id" field.
+func RuleIDNEQ(v int) predicate.ChannelDelivery {
+	return predicate.ChannelDelivery(sql.FieldNEQ(FieldRuleID, v))
+}
+
+// RuleIDIn applies the In predicate on the "rule_id" field.
+func RuleIDIn(vs ...int) predicate.ChannelDelivery {
+	return predicate.ChannelDelivery(sql.FieldIn(FieldRuleID, vs...))
+}
+
+// RuleIDNotIn applies the NotIn predicate on the "rule_id" field.
+func RuleIDNotIn(vs ...int) predicate.ChannelDelivery {
+	return predicate.ChannelDelivery(sql.FieldNotIn(FieldRuleID, vs...))
+}
+
+// RuleIDGT applies the GT predicate on the "rule_id" field.
+func RuleIDGT(v int) predicate.ChannelDelivery {
+	return predicate.ChannelDelivery(sql.FieldGT(FieldRuleID, v))
+}
+
+// RuleIDGTE applies the GTE predicate on the "rule_id" field.
+func RuleIDGTE(v int) predicate.ChannelDelivery {
+	return predicate.ChannelDelivery(sql.FieldGTE(FieldRuleID, v))
+}
+
+// RuleIDLT applies the LT predicate on the "rule_id" field.
+func RuleIDLT(v int) predicate.ChannelDelivery {
+	return predicate.ChannelDelivery(sql.FieldLT(FieldRuleID, v))
+}
+
+// RuleIDLTE applies the LTE predicate on the "rule_id" field.
+func RuleIDLTE(v int) predicate.ChannelDelivery {
+	return predicate.ChannelDelivery(sql.FieldLTE(FieldRuleID, v))
+}
+
+// RuleIDIsNil applies the IsNil predicate on the "rule_id" field.
+func RuleIDIsNil() predicate.ChannelDelivery {
+	return predicate.ChannelDelivery(sql.FieldIsNull(FieldRuleID))
+}
+
+// RuleIDNotNil applies the NotNil predicate on the "rule_id" field.
+func RuleIDNotNil() predicate.ChannelDelivery {
+	return predicate.ChannelDelivery(sql.FieldNotNull(FieldRuleID))
 }
 
 // TitleEQ applies the EQ predicate on the "title" field.

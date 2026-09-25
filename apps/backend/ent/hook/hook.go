@@ -93,6 +93,18 @@ func (f ChannelDeliveryFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Va
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ChannelDeliveryMutation", m)
 }
 
+// The ChannelDeliveryHourFunc type is an adapter to allow the use of ordinary
+// function as ChannelDeliveryHour mutator.
+type ChannelDeliveryHourFunc func(context.Context, *ent.ChannelDeliveryHourMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ChannelDeliveryHourFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ChannelDeliveryHourMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ChannelDeliveryHourMutation", m)
+}
+
 // The ConfigVersionFunc type is an adapter to allow the use of ordinary
 // function as ConfigVersion mutator.
 type ConfigVersionFunc func(context.Context, *ent.ConfigVersionMutation) (ent.Value, error)

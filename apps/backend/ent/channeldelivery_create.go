@@ -105,6 +105,20 @@ func (_c *ChannelDeliveryCreate) SetNillableSource(v *string) *ChannelDeliveryCr
 	return _c
 }
 
+// SetRuleID sets the "rule_id" field.
+func (_c *ChannelDeliveryCreate) SetRuleID(v int) *ChannelDeliveryCreate {
+	_c.mutation.SetRuleID(v)
+	return _c
+}
+
+// SetNillableRuleID sets the "rule_id" field if the given value is not nil.
+func (_c *ChannelDeliveryCreate) SetNillableRuleID(v *int) *ChannelDeliveryCreate {
+	if v != nil {
+		_c.SetRuleID(*v)
+	}
+	return _c
+}
+
 // SetTitle sets the "title" field.
 func (_c *ChannelDeliveryCreate) SetTitle(v string) *ChannelDeliveryCreate {
 	_c.mutation.SetTitle(v)
@@ -365,6 +379,10 @@ func (_c *ChannelDeliveryCreate) createSpec() (*ChannelDelivery, *sqlgraph.Creat
 		_spec.SetField(channeldelivery.FieldSource, field.TypeString, value)
 		_node.Source = value
 	}
+	if value, ok := _c.mutation.RuleID(); ok {
+		_spec.SetField(channeldelivery.FieldRuleID, field.TypeInt, value)
+		_node.RuleID = &value
+	}
 	if value, ok := _c.mutation.Title(); ok {
 		_spec.SetField(channeldelivery.FieldTitle, field.TypeString, value)
 		_node.Title = value
@@ -483,6 +501,9 @@ func (u *ChannelDeliveryUpsertOne) UpdateNewValues() *ChannelDeliveryUpsertOne {
 		}
 		if _, exists := u.create.mutation.Source(); exists {
 			s.SetIgnore(channeldelivery.FieldSource)
+		}
+		if _, exists := u.create.mutation.RuleID(); exists {
+			s.SetIgnore(channeldelivery.FieldRuleID)
 		}
 		if _, exists := u.create.mutation.Title(); exists {
 			s.SetIgnore(channeldelivery.FieldTitle)
@@ -743,6 +764,9 @@ func (u *ChannelDeliveryUpsertBulk) UpdateNewValues() *ChannelDeliveryUpsertBulk
 			}
 			if _, exists := b.mutation.Source(); exists {
 				s.SetIgnore(channeldelivery.FieldSource)
+			}
+			if _, exists := b.mutation.RuleID(); exists {
+				s.SetIgnore(channeldelivery.FieldRuleID)
 			}
 			if _, exists := b.mutation.Title(); exists {
 				s.SetIgnore(channeldelivery.FieldTitle)

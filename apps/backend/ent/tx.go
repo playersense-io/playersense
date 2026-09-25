@@ -28,6 +28,8 @@ type Tx struct {
 	BillingContract *BillingContractClient
 	// ChannelDelivery is the client for interacting with the ChannelDelivery builders.
 	ChannelDelivery *ChannelDeliveryClient
+	// ChannelDeliveryHour is the client for interacting with the ChannelDeliveryHour builders.
+	ChannelDeliveryHour *ChannelDeliveryHourClient
 	// ConfigVersion is the client for interacting with the ConfigVersion builders.
 	ConfigVersion *ConfigVersionClient
 	// CreditLot is the client for interacting with the CreditLot builders.
@@ -262,6 +264,7 @@ func (tx *Tx) init() {
 	tx.BillingAccount = NewBillingAccountClient(tx.config)
 	tx.BillingContract = NewBillingContractClient(tx.config)
 	tx.ChannelDelivery = NewChannelDeliveryClient(tx.config)
+	tx.ChannelDeliveryHour = NewChannelDeliveryHourClient(tx.config)
 	tx.ConfigVersion = NewConfigVersionClient(tx.config)
 	tx.CreditLot = NewCreditLotClient(tx.config)
 	tx.DataDeletionRequest = NewDataDeletionRequestClient(tx.config)

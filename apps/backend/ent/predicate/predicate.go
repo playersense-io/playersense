@@ -27,6 +27,9 @@ type BillingContract func(*sql.Selector)
 // ChannelDelivery is the predicate function for channeldelivery builders.
 type ChannelDelivery func(*sql.Selector)
 
+// ChannelDeliveryHour is the predicate function for channeldeliveryhour builders.
+type ChannelDeliveryHour func(*sql.Selector)
+
 // ConfigVersion is the predicate function for configversion builders.
 type ConfigVersion func(*sql.Selector)
 
