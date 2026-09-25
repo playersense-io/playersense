@@ -5866,6 +5866,8 @@ export interface components {
             readonly breakdown: {
                 readonly [key: string]: readonly components["schemas"]["LogShareOut"][];
             };
+            /** Format: int64 */
+            readonly breakdown_total: number;
             readonly issue: components["schemas"]["LogIssueOut"];
             /** @description The newest record of the issue in the range */
             readonly latest?: components["schemas"]["LogRecordOut"] | null;

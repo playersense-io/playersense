@@ -9,7 +9,16 @@ export const NAV = defineNavigation({
       { title: 'Realtime', to: '/realtime', icon: 'material-symbols:bolt-outline' },
       // The game's own logs, exceptions and crashes: a place of its own rather than a corner of
       // Analytics, because it is read by the people who fix the game, not the ones who grow it.
-      { title: 'Cloud Logging', to: '/logs', icon: 'material-symbols:receipt-long-outline' },
+      // Two screens, so an issue's page sits under Issues in the breadcrumb.
+      {
+        id: 'logs',
+        title: 'Cloud Logging',
+        icon: 'material-symbols:receipt-long-outline',
+        children: [
+          { title: 'Logs', to: '/logs' },
+          { title: 'Issues', to: '/logs/issues' }
+        ]
+      },
       {
         id: 'analytics',
         title: 'Analytics',

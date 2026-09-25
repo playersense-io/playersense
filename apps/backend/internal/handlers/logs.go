@@ -466,10 +466,11 @@ func LogIssue(ctx *muzak.Context, in schemas.LogIssueParams) (schemas.LogIssueDe
 		out.Series = append(out.Series, schemas.LogPointOut{At: p.At, Value: p.Value})
 	}
 
-	shares, err := logs.Breakdown(ctx.Context(), lc.conn, lc.scope, r, fingerprint)
+	shares, whole, err := logs.Breakdown(ctx.Context(), lc.conn, lc.scope, r, fingerprint)
 	if err != nil {
 		return schemas.LogIssueDetailOut{}, logsUnavailable(err)
 	}
+	out.BreakdownTotal = whole
 	for name, list := range shares {
 		for _, share := range list {
 			out.Breakdown[name] = append(out.Breakdown[name], schemas.LogShareOut{Value: share.Value, Count: share.Count})

@@ -5,7 +5,7 @@ import type { IssueStatus } from '~/composables/logs'
 
 // One issue: every record of one bug. What it is and where it was thrown, how often it happened
 // across the range and to how many installs, which releases, platforms, devices and countries it
-// hits, and its newest record whole. Resolving says "fixed": the issue shows as regressed if it is
+// hits, and its events whole, newest first, one at a time. Resolving says "fixed": the issue shows as regressed if it is
 // seen again afterwards, which is the moment somebody needs to know.
 const route = useRoute()
 const path = useLogsPath()
@@ -37,13 +37,10 @@ const tick = new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric', hou
 const categories = computed(() => (detail.value?.series ?? []).map(point => tick.format(new Date(point.at))))
 const series = computed<MetricSeries[]>(() => [{ name: 'Events', data: (detail.value?.series ?? []).map(point => point.value), tone: issue.value?.kind === 'crash' ? 2 : 1 }])
 
-const BREAKDOWNS = [
-  { key: 'release', label: 'Release' },
-  { key: 'platform', label: 'Platform' },
-  { key: 'os', label: 'OS version' },
-  { key: 'device', label: 'Device' },
-  { key: 'country', label: 'Country' }
-]
+/* The explorer, narrowed to this issue and one more clause. */
+function openRecords(clauseText: string) {
+  void navigateTo({ path: '/logs', query: { ...explorerLink.value.query, q: `issue:${id.value} ${clauseText}` } })
+}
 
 const saving = ref(false)
 const failure = ref('')
@@ -171,20 +168,18 @@ const explorerLink = computed(() => ({ path: '/logs', query: { q: `issue:${id.va
           type="bar"
         />
 
-        <SectionCard description="The five commonest values of each, over the range." title="Where it happens">
-          <div class="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-            <div v-for="entry in BREAKDOWNS" :key="entry.key" class="flex flex-col gap-2">
-              <h3 class="m-0 text-xs font-medium text-ink/60">
-                {{ entry.label }}
-              </h3>
-              <BreakdownList :label="`Events by ${entry.label.toLowerCase()}`" :rows="(detail?.breakdown[entry.key] ?? []).map(share => ({ value: share.value || 'Unknown', count: share.count }))" />
-            </div>
-          </div>
+        <SectionCard :padded="false" description="Its events in the range, by release, platform, OS, device and country. A value is a filter on the issue's records." title="Where it happens">
+          <LogIssueTags :breakdown="detail?.breakdown ?? {}" :total="detail?.breakdown_total ?? issue.events" @filter="openRecords" />
         </SectionCard>
 
-        <SectionCard v-if="detail?.latest" :padded="false" title="Latest event">
-          <LogRecordPanel :issue-link="false" :record="detail.latest" @filter="(clauseText) => navigateTo({ path: '/logs', query: { q: `issue:${id} ${clauseText}` } })" />
-        </SectionCard>
+        <LogIssueEvents
+          :issue-id="id"
+          :latest="detail?.latest ?? null"
+          :path="path"
+          :range="range"
+          :total="issue.events"
+          @filter="openRecords"
+        />
       </template>
     </LoadState>
   </div>

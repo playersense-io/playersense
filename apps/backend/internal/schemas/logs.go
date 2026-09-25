@@ -361,7 +361,10 @@ type LogIssueDetailOut struct {
 	StepSeconds int64                    `json:"step_seconds"`
 	Series      []LogPointOut            `json:"series"`
 	Breakdown   map[string][]LogShareOut `json:"breakdown" doc:"release, platform, os, device and country: the five commonest of each"`
-	Latest      *LogRecordOut            `json:"latest,omitzero" doc:"The newest record of the issue in the range"`
+	// BreakdownTotal is the events the breakdown split, counted by the same query: each value's
+	// share is of this, so what the five do not cover is exactly the rest.
+	BreakdownTotal uint64        `json:"breakdown_total"`
+	Latest         *LogRecordOut `json:"latest,omitzero" doc:"The newest record of the issue in the range"`
 }
 
 // LogStorageOut is a project's log storage: what it keeps, for how long, and what that costs.

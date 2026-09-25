@@ -638,16 +638,18 @@ var breakdownColumns = []struct{ name, column string }{
 }
 
 // Breakdown splits an issue's events in a range by release, platform, OS, device and country, the
-// five most common values of each. Read from the records, which the fingerprint's bloom filter
-// narrows to the granules holding the issue.
-func Breakdown(ctx context.Context, conn driver.Conn, scope Scope, r Range, fingerprint uint64) (map[string][]Share, error) {
+// five most common values of each, and says how many events it split: the whole each value is a
+// share of, counted by the same query to the millisecond, so a page never shows a remainder that
+// is only the difference between two ways of counting. Read from the records, which the
+// fingerprint's bloom filter narrows to the granules holding the issue.
+func Breakdown(ctx context.Context, conn driver.Conn, scope Scope, r Range, fingerprint uint64) (map[string][]Share, uint64, error) {
 	out := map[string][]Share{}
 	parts := make([]string, 0, len(breakdownColumns))
 	for _, c := range breakdownColumns {
 		parts = append(parts, "('"+c.name+"', toString("+c.column+"))")
 	}
 	rows, err := conn.Query(bounded(ctx), `
-		SELECT tag.1 AS name, tag.2 AS value, count() AS n
+		SELECT tag.1 AS name, tag.2 AS value, count() AS n, sum(count()) OVER (PARTITION BY name) AS whole
 		FROM logs
 		ARRAY JOIN [`+strings.Join(parts, ", ")+`] AS tag
 		WHERE project_seq = ? AND environment_seq = ? AND fingerprint = ?
@@ -657,20 +659,23 @@ func Breakdown(ctx context.Context, conn driver.Conn, scope Scope, r Range, fing
 		LIMIT 5 BY name`,
 		scope.ProjectSeq, scope.EnvironmentSeq, fingerprint, at(r.From), at(r.To))
 	if err != nil {
-		return nil, fmt.Errorf("read an issue's breakdown: %w", err)
+		return nil, 0, fmt.Errorf("read an issue's breakdown: %w", err)
 	}
 	defer rows.Close()
+	var total uint64
 	for rows.Next() {
 		var (
-			name, value string
-			count       uint64
+			name, value  string
+			count, whole uint64
 		)
-		if err := rows.Scan(&name, &value, &count); err != nil {
-			return nil, err
+		if err := rows.Scan(&name, &value, &count, &whole); err != nil {
+			return nil, 0, err
 		}
+		// Every record carries every tag, so each tag's whole is the same number.
+		total = whole
 		out[name] = append(out[name], Share{Value: value, Count: count})
 	}
-	return out, rows.Err()
+	return out, total, rows.Err()
 }
 
 // ---- storage ---------------------------------------------------------------------------------

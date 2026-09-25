@@ -16,7 +16,13 @@ const props = withDefaults(defineProps<{
   closable?: boolean
   /** Links to the record's issue. Off on the issue's own page. */
   issueLink?: boolean
-}>(), { loading: false, error: '', closable: false, issueLink: true })
+  /**
+   * A page's width rather than a panel's: what was thrown, the stack and what came before in a
+   * main column, the context and attributes beside it, and no header of its own (the page has
+   * one). The issue page's event view.
+   */
+  wide?: boolean
+}>(), { loading: false, error: '', closable: false, issueLink: true, wide: false })
 
 const emit = defineEmits<{ close: [], filter: [clause: string] }>()
 
@@ -72,6 +78,20 @@ const facts = computed<Fact[]>(() => {
   return out
 })
 
+/* A breadcrumb's category as a glyph, so a trail of them scans by kind before it is read. Written
+   out in full so the icon bundle finds each name. */
+const CRUMB_ICONS: Record<string, string> = {
+  scene: 'material-symbols:landscape-2-outline',
+  navigation: 'material-symbols:landscape-2-outline',
+  ui: 'material-symbols:touch-app-outline',
+  input: 'material-symbols:touch-app-outline',
+  network: 'material-symbols:wifi',
+  http: 'material-symbols:wifi',
+  log: 'material-symbols:notes',
+  console: 'material-symbols:notes'
+}
+const crumbIcon = (category: string | undefined) => CRUMB_ICONS[(category ?? '').toLowerCase()] ?? 'material-symbols:circle-outline'
+
 const LEVEL_WORDS: Record<string, string> = { trace: 'Trace', debug: 'Debug', info: 'Info', warn: 'Warning', error: 'Error', fatal: 'Fatal' }
 
 const headline = computed(() => {
@@ -83,8 +103,8 @@ const headline = computed(() => {
 </script>
 
 <template>
-  <div class="flex min-h-0 flex-col">
-    <header class="flex flex-none items-start gap-3 border-b border-line px-4 py-3">
+  <div :class="wide ? '' : 'min-h-0'" class="flex flex-col">
+    <header v-if="!wide" class="flex flex-none items-start gap-3 border-b border-line px-4 py-3">
       <div class="flex min-w-0 flex-1 flex-col gap-1">
         <div class="flex flex-wrap items-center gap-2">
           <span
@@ -120,7 +140,7 @@ const headline = computed(() => {
       />
     </header>
 
-    <div class="min-h-0 flex-1 overflow-y-auto">
+    <div :class="wide ? '' : 'min-h-0 flex-1 overflow-y-auto'">
       <p v-if="error" class="m-0 p-4 text-xs text-error">
         {{ error }}
       </p>
@@ -133,123 +153,144 @@ const headline = computed(() => {
         />
       </div>
 
-      <div v-else-if="record" class="flex flex-col gap-5 p-4">
-        <!-- What it said. -->
-        <section v-if="record.message || record.exception_value" class="flex flex-col gap-1.5">
-          <h3 class="log-panel__heading">
-            {{ record.kind === 'log' ? 'Message' : 'What was thrown' }}
-          </h3>
-          <pre v-if="record.exception_value" class="log-panel__text">{{ record.exception_value }}</pre>
-          <pre v-if="record.message && record.message !== record.exception_value" class="log-panel__text">{{ record.message }}</pre>
-          <p v-if="record.culprit" class="m-0 font-mono text-[11px] text-ink/55">
-            in <span class="text-ink/80">{{ record.culprit }}</span>
-          </p>
-        </section>
-
-        <!-- Where it was thrown. -->
-        <section v-if="frames.length" class="flex flex-col gap-1.5">
-          <div class="flex items-center justify-between gap-2">
+      <div v-else-if="record" :class="wide ? 'lg:grid-cols-[minmax(0,1fr)_320px]' : ''" class="grid">
+        <!-- The main column: what it said, where it was thrown, what came before. -->
+        <div :class="wide ? 'gap-6 p-5' : 'gap-5 p-4 pb-0'" class="flex min-w-0 flex-col">
+          <section v-if="record.message || record.exception_value" class="flex flex-col gap-1.5">
             <h3 class="log-panel__heading">
-              Stack, innermost first
+              {{ record.kind === 'log' ? 'Message' : 'What was thrown' }}
             </h3>
-            <button
-              v-if="frames.some(frame => !frame.in_app) && frames.some(frame => frame.in_app)"
-              class="text-[11px] text-primary hover:underline"
-              type="button"
-              @click="showLibrary = !showLibrary"
-            >
-              {{ showLibrary ? 'Only the game\'s frames' : 'Every frame' }}
-            </button>
-          </div>
-          <ol class="m-0 flex list-none flex-col overflow-hidden rounded-(--ps-radius-small) border border-line p-0">
-            <li
-              v-for="(entry, index) in shownFrames"
-              :key="index"
-              :class="entry.frame?.in_app ? 'bg-primary/5' : ''"
-              class="flex items-baseline gap-2 border-b border-line px-2.5 py-1.5 font-mono text-[11px] last:border-b-0"
-            >
-              <template v-if="entry.frame">
-                <span :class="entry.frame.in_app ? 'text-ink' : 'text-ink/55'" class="min-w-0 flex-1 break-all">
-                  <span class="text-ink/45">{{ entry.frame.module ? `${entry.frame.module}.` : '' }}</span>{{ entry.frame.function || '?' }}
-                </span>
-                <span v-if="entry.frame.file" class="flex-none text-ink/45">{{ entry.frame.file }}<template v-if="entry.frame.line">:{{ entry.frame.line }}</template></span>
-              </template>
+            <pre v-if="record.exception_value" class="log-panel__text">{{ record.exception_value }}</pre>
+            <pre v-if="record.message && record.message !== record.exception_value" class="log-panel__text">{{ record.message }}</pre>
+            <p v-if="record.culprit" class="m-0 font-mono text-[11px] text-ink/55">
+              in <span class="text-ink/80">{{ record.culprit }}</span>
+            </p>
+          </section>
+
+          <section v-if="frames.length" class="flex flex-col gap-1.5">
+            <div class="flex items-center justify-between gap-2">
+              <h3 class="log-panel__heading">
+                Stack, innermost first
+              </h3>
               <button
-                v-else
-                class="text-ink/45 hover:text-primary"
+                v-if="frames.some(frame => !frame.in_app) && frames.some(frame => frame.in_app)"
+                class="text-[11px] text-primary hover:underline"
                 type="button"
-                @click="showLibrary = true"
+                @click="showLibrary = !showLibrary"
               >
-                {{ entry.folded }} engine or library {{ entry.folded === 1 ? 'frame' : 'frames' }}
+                {{ showLibrary ? 'Only the game\'s frames' : 'Every frame' }}
               </button>
-            </li>
-          </ol>
-        </section>
-
-        <!-- What happened before. -->
-        <section v-if="record.breadcrumbs.length" class="flex flex-col gap-1.5">
-          <h3 class="log-panel__heading">
-            Before it, oldest first
-          </h3>
-          <ol class="m-0 flex list-none flex-col gap-0 p-0">
-            <li v-for="(crumb, index) in record.breadcrumbs" :key="index" class="grid grid-cols-[64px_64px_minmax(0,1fr)] items-baseline gap-2 border-l-2 border-line py-1 pl-2.5 text-[11px]">
-              <span class="font-mono text-ink/45">{{ crumbClock.format(new Date(crumb.at)) }}</span>
-              <span class="truncate text-ink/55">{{ crumb.category || 'event' }}</span>
-              <span :class="crumb.level === 'error' || crumb.level === 'fatal' ? 'text-error' : crumb.level === 'warn' ? 'text-warning' : 'text-ink/80'" class="truncate font-mono">{{ crumb.message }}</span>
-            </li>
-          </ol>
-        </section>
-
-        <!-- On what. -->
-        <section class="flex flex-col gap-1.5">
-          <h3 class="log-panel__heading">
-            Context
-          </h3>
-          <dl class="m-0 grid grid-cols-[88px_minmax(0,1fr)] gap-x-3 gap-y-1 text-xs">
-            <template v-for="fact in facts" :key="fact.label">
-              <dt class="text-ink/50">
-                {{ fact.label }}
-              </dt>
-              <dd class="m-0 flex min-w-0 items-center gap-1">
+            </div>
+            <ol class="m-0 flex list-none flex-col overflow-hidden rounded-(--ps-radius-small) border border-line p-0">
+              <li
+                v-for="(entry, index) in shownFrames"
+                :key="index"
+                :class="entry.frame?.in_app ? 'bg-primary/5' : ''"
+                class="flex items-baseline gap-2 border-b border-line px-2.5 py-1.5 font-mono text-[11px] last:border-b-0"
+              >
+                <template v-if="entry.frame">
+                  <span v-if="wide" :class="entry.frame.in_app ? 'text-primary' : 'text-ink/30'" class="w-12 flex-none text-[10px]">{{ entry.frame.in_app ? 'game' : 'engine' }}</span>
+                  <span :class="entry.frame.in_app ? 'text-ink' : 'text-ink/55'" class="min-w-0 flex-1 break-all">
+                    <span class="text-ink/45">{{ entry.frame.module ? `${entry.frame.module}.` : '' }}</span>{{ entry.frame.function || '?' }}
+                  </span>
+                  <span v-if="entry.frame.file" class="flex-none text-ink/45">{{ entry.frame.file }}<template v-if="entry.frame.line">:{{ entry.frame.line }}</template></span>
+                </template>
                 <button
-                  v-if="fact.filter"
-                  :class="fact.mono ? 'font-mono text-[11px]' : ''"
-                  :title="`Show only records where ${fact.label.toLowerCase()} is ${fact.value}`"
-                  class="truncate text-left text-ink/85 hover:text-primary hover:underline"
+                  v-else
+                  class="text-ink/45 hover:text-primary"
                   type="button"
-                  @click="emit('filter', fact.filter)"
+                  @click="showLibrary = true"
                 >
-                  {{ fact.value }}
+                  {{ entry.folded }} engine or library {{ entry.folded === 1 ? 'frame' : 'frames' }}
                 </button>
-                <span v-else :class="fact.mono ? 'font-mono text-[11px]' : ''" class="truncate text-ink/85">{{ fact.value }}</span>
-                <CopyButton v-if="fact.copy" :label="`Copy the ${fact.label.toLowerCase()} id`" :value="fact.value" />
-              </dd>
-            </template>
-          </dl>
-        </section>
+              </li>
+            </ol>
+          </section>
 
-        <section v-if="attributes.length" class="flex flex-col gap-1.5">
-          <h3 class="log-panel__heading">
-            Attributes
-          </h3>
-          <dl class="m-0 grid grid-cols-[minmax(0,40%)_minmax(0,1fr)] gap-x-3 gap-y-1 text-xs">
-            <template v-for="[key, value] in attributes" :key="key">
-              <dt class="truncate font-mono text-[11px] text-ink/50">
-                {{ key }}
-              </dt>
-              <dd class="m-0 min-w-0">
-                <button
-                  :title="`Show only records where ${key} is ${value}`"
-                  class="max-w-full truncate text-left font-mono text-[11px] text-ink/85 hover:text-primary hover:underline"
-                  type="button"
-                  @click="emit('filter', clause(`attr.${key}`, value))"
-                >
-                  {{ value || '""' }}
-                </button>
-              </dd>
-            </template>
-          </dl>
-        </section>
+          <section v-if="record.breadcrumbs.length" class="flex flex-col gap-1.5">
+            <h3 class="log-panel__heading">
+              Before it, oldest first
+            </h3>
+            <!-- A timeline: a glyph per kind on a rule, the time, and what happened. -->
+            <ol class="m-0 flex list-none flex-col p-0">
+              <li
+                v-for="(crumb, index) in record.breadcrumbs"
+                :key="index"
+                class="relative grid grid-cols-[20px_60px_minmax(0,1fr)] items-center gap-2 py-1 text-[11px]"
+              >
+                <span aria-hidden="true" class="relative z-[1] flex size-5 items-center justify-center rounded-full border border-line bg-surface text-[11px] text-ink/50">
+                  <Icon :name="crumbIcon(crumb.category)" />
+                </span>
+                <span v-if="index < record.breadcrumbs.length - 1" aria-hidden="true" class="absolute top-1/2 left-[9.5px] h-full w-px bg-line" />
+                <span class="font-mono text-ink/45">{{ crumbClock.format(new Date(crumb.at)) }}</span>
+                <span class="flex min-w-0 items-baseline gap-2">
+                  <span class="flex-none text-ink/45">{{ crumb.category || 'event' }}</span>
+                  <span :class="crumb.level === 'error' || crumb.level === 'fatal' ? 'text-error' : crumb.level === 'warn' ? 'text-warning' : 'text-ink/80'" class="truncate font-mono">{{ crumb.message }}</span>
+                </span>
+              </li>
+              <li class="relative grid grid-cols-[20px_60px_minmax(0,1fr)] items-center gap-2 py-1 text-[11px]">
+                <span aria-hidden="true" class="flex size-5 items-center justify-center rounded-full bg-error/12 text-[11px] text-error">
+                  <Icon name="material-symbols:bolt" />
+                </span>
+                <span class="font-mono text-ink/45">{{ crumbClock.format(new Date(record.at)) }}</span>
+                <span class="truncate font-medium text-ink">{{ headline }}</span>
+              </li>
+            </ol>
+          </section>
+        </div>
+
+        <!-- The side column: on what, and what the game attached. -->
+        <aside :class="wide ? 'gap-6 border-t border-line p-5 lg:border-t-0 lg:border-l' : 'gap-5 p-4'" class="flex min-w-0 flex-col">
+          <section class="flex flex-col gap-1.5">
+            <h3 class="log-panel__heading">
+              Context
+            </h3>
+            <dl class="m-0 grid grid-cols-[88px_minmax(0,1fr)] gap-x-3 gap-y-1 text-xs">
+              <template v-for="fact in facts" :key="fact.label">
+                <dt class="text-ink/50">
+                  {{ fact.label }}
+                </dt>
+                <dd class="m-0 flex min-w-0 items-center gap-1">
+                  <button
+                    v-if="fact.filter"
+                    :class="fact.mono ? 'font-mono text-[11px]' : ''"
+                    :title="`Show only records where ${fact.label.toLowerCase()} is ${fact.value}`"
+                    class="truncate text-left text-ink/85 hover:text-primary hover:underline"
+                    type="button"
+                    @click="emit('filter', fact.filter)"
+                  >
+                    {{ fact.value }}
+                  </button>
+                  <span v-else :class="fact.mono ? 'font-mono text-[11px]' : ''" class="truncate text-ink/85">{{ fact.value }}</span>
+                  <CopyButton v-if="fact.copy" :label="`Copy the ${fact.label.toLowerCase()} id`" :value="fact.value" />
+                </dd>
+              </template>
+            </dl>
+          </section>
+
+          <section v-if="attributes.length" class="flex flex-col gap-1.5">
+            <h3 class="log-panel__heading">
+              Attributes
+            </h3>
+            <dl class="m-0 grid grid-cols-[minmax(0,40%)_minmax(0,1fr)] gap-x-3 gap-y-1 text-xs">
+              <template v-for="[key, value] in attributes" :key="key">
+                <dt class="truncate font-mono text-[11px] text-ink/50">
+                  {{ key }}
+                </dt>
+                <dd class="m-0 min-w-0">
+                  <button
+                    :title="`Show only records where ${key} is ${value}`"
+                    class="max-w-full truncate text-left font-mono text-[11px] text-ink/85 hover:text-primary hover:underline"
+                    type="button"
+                    @click="emit('filter', clause(`attr.${key}`, value))"
+                  >
+                    {{ value || '""' }}
+                  </button>
+                </dd>
+              </template>
+            </dl>
+          </section>
+        </aside>
       </div>
     </div>
   </div>

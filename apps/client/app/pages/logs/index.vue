@@ -1,24 +1,20 @@
 <script setup lang="ts">
 import type { Schema } from '@playersense/contracts'
 import type { Kpi } from '~/components/KpiBoard.vue'
-import type { IssueStatus, LogBand, LogIssue, LogRecord, LogRecordSummary } from '~/composables/logs'
+import type { LogBand, LogRecord, LogRecordSummary } from '~/composables/logs'
 
-// Cloud Logging: the game's own log lines, exceptions and crashes, for the environment the
-// header has chosen (…/logs/{environment}). Two views over one range. Logs is the explorer: a
-// histogram to find the moment, a search to narrow it, the records newest first, and one record
-// whole beside them. Issues is the same records grouped into bugs, ranked by how often each hit
-// and how many installs it reached.
+// Cloud Logging's explorer: the game's own log lines, exceptions and crashes, for the environment
+// the header has chosen (…/logs/{environment}). A histogram to find the moment, a search to narrow
+// it, the records newest first, and one record whole beside them. The same records grouped into
+// bugs are the Issues page beside this one.
 //
-// Everything a view is (the range, the level bands, the search, the tab) is in the URL, so a view
-// can be sent to somebody and opens the same for them.
+// Everything a view is (the range, the level bands, the search) is in the URL, so a view can be
+// sent to somebody and opens the same for them.
 const workspace = useWorkspaceStore()
 const path = useLogsPath()
-const storagePath = computed(() => (workspace.projectPath ? `${workspace.projectPath}/log-storage` : null))
 
 const { range, setPreset, setAbsolute, zoomOut, shift, refresh } = useLogRange('24h')
 const colors = useLogColors()
-
-const tab = useQueryChoice('tab', ['logs', 'issues'], 'logs')
 
 // --- The search -------------------------------------------------------------------------------
 
@@ -45,7 +41,7 @@ function addFilter(clauseText: string) {
   const current = draft.value.trim()
   if (current.split(/\s+/).includes(clauseText)) return
   draft.value = current ? `${current} ${clauseText}` : clauseText
-  patch({ q: draft.value, tab: undefined })
+  patch({ q: draft.value })
 }
 
 const SEARCH_HINT = 'Search: timeout "failed to connect" level:error release:1.4.2 -heartbeat'
@@ -180,51 +176,6 @@ useEventListener(listBox, 'scroll', (event) => {
   atTop.value = (event.target as HTMLElement).scrollTop < 8
 }, { capture: true, passive: true })
 
-// --- Issues -----------------------------------------------------------------------------------
-
-type IssueFilter = 'unresolved' | 'resolved' | 'ignored' | 'all'
-const issueStatus = useQueryChoice<IssueFilter>('status', ['unresolved', 'resolved', 'ignored', 'all'], 'unresolved')
-const issueSort = useQueryChoice('sort', ['events', 'installs', 'last_seen', 'first_seen'], 'events')
-const issueText = ref('')
-const issueNeedle = refDebounced(issueText, 300)
-
-const STATUS_OPTIONS: SegmentedOption[] = [
-  { value: 'unresolved', label: 'Open' },
-  { value: 'resolved', label: 'Resolved' },
-  { value: 'ignored', label: 'Ignored' },
-  { value: 'all', label: 'All' }
-]
-const SORTS = [
-  { value: 'events', title: 'Most events' },
-  { value: 'installs', title: 'Most installs' },
-  { value: 'last_seen', title: 'Seen most recently' },
-  { value: 'first_seen', title: 'Newest first seen' }
-]
-
-const issuesRead = useApiGet<Schema<'LogIssuesOut'>>(() => (tab.value === 'issues' && path.value
-  ? withQuery(`${path.value}/issues`, { ...span.value, status: issueStatus.value, sort: issueSort.value, q: issueNeedle.value.trim() })
-  : null))
-const issues = computed<readonly LogIssue[]>(() => issuesRead.data.value?.issues ?? [])
-const issuesError = computed(() => issuesRead.error.value as ApiError | null)
-
-const now = useNow({ interval: 60_000 })
-
-const TABS = computed<PageTab[]>(() => [
-  { value: 'logs', label: 'Logs', count: summaryRead.data.value ? writeFigure(summaryRead.data.value.current.records, { compact: true }) : undefined },
-  { value: 'issues', label: 'Issues', count: summaryRead.data.value?.current.issues }
-])
-
-// --- Storage ----------------------------------------------------------------------------------
-
-const storageOpen = ref(false)
-const storageRead = useApiGet<Schema<'LogStorageOut'>>(() => storagePath.value)
-const storage = computed(() => storageRead.data.value)
-const keptWords = computed(() => {
-  const bytes = storage.value?.kept_bytes ?? 0
-  const gigabytes = bytes / 1e9
-  return gigabytes < 0.01 ? `${(bytes / 1e6).toFixed(1)} MB` : `${gigabytes.toFixed(2)} GB`
-})
-
 const nothingYet = computed(() => !histogramRead.isFetching.value && histogram.value && buckets.value.every(bucket => !LOG_BANDS.some(band => bandCount(bucket, band.key))) && !text.value)
 
 const EXAMPLE = `POST /v1/logs
@@ -248,24 +199,12 @@ Authorization: Bearer <project key>
 
 <template>
   <div class="flex flex-col gap-6">
-    <PageHeader title="Cloud Logging">
+    <PageHeader title="Logs">
       <template #description>
-        The game's own logs, exceptions and crashes in {{ workspace.environment }}, searchable to the millisecond and grouped into issues.
+        The game's own logs, exceptions and crashes in {{ workspace.environment }}, searchable to the millisecond.
       </template>
       <template #actions>
-        <v-btn
-          class="text-xs font-medium"
-          prepend-icon="material-symbols:database-outline"
-          size="small"
-          variant="outlined"
-          @click="storageOpen = true"
-        >
-          <span class="flex items-center gap-1.5">
-            {{ keptWords }}
-            <span class="text-ink/45">·</span>
-            {{ storage ? RETENTION_WORDS[storage.retention_days] ?? `${storage.retention_days} days` : '…' }}
-          </span>
-        </v-btn>
+        <LogStorageButton />
       </template>
     </PageHeader>
 
@@ -276,10 +215,7 @@ Authorization: Bearer <project key>
       title="In this range"
     />
 
-    <PageTabs v-model="tab" :tabs="TABS" label="Cloud Logging views" />
-
-    <!-- ===== Logs ===== -->
-    <SectionCard v-if="tab === 'logs'" :padded="false" title="Explorer">
+    <SectionCard :padded="false" title="Explorer">
       <template #actions>
         <span v-if="histogram" class="font-mono text-[11px] text-ink/50">
           {{ writeFigure(buckets.reduce((sum, bucket) => sum + LOG_BANDS.filter(band => !bands.length || bands.includes(band.key)).reduce((inner, band) => inner + bandCount(bucket, band.key), 0), 0)) }} records
@@ -435,102 +371,13 @@ Authorization: Bearer <project key>
     </SectionCard>
 
     <LayerCard
-      v-if="tab === 'logs' && nothingYet"
+      v-if="nothingYet"
       description="Batches of up to a thousand records, gzip or zstd, with the same key and consent block as analytics. Crashes are written to disk as they happen and sent on the next launch with crash: true."
       expandable
       title="Sending logs"
     >
       <CodeBlock :code="EXAMPLE" lang="json" title="HTTP" />
     </LayerCard>
-
-    <!-- ===== Issues ===== -->
-    <SectionCard v-if="tab === 'issues'" :padded="false" title="Issues">
-      <template #actions>
-        <span class="text-[11px] text-ink/50">{{ rangeWords(range) }}</span>
-      </template>
-      <div class="flex flex-wrap items-center gap-2 border-b border-line px-4 pt-3 pb-3">
-        <SegmentedControl v-model="issueStatus" :options="STATUS_OPTIONS" label="Issue status" />
-        <SearchField
-          v-model="issueText"
-          class="min-w-56 flex-1"
-          label="Search issues"
-          placeholder="Search by exception, message or where it was thrown"
-        />
-        <v-select
-          v-model="issueSort"
-          :items="SORTS"
-          class="max-w-52"
-          density="comfortable"
-          aria-label="Sort issues"
-          hide-details
-          variant="outlined"
-        />
-        <LogTimeRange
-          :range="range"
-          @absolute="setAbsolute"
-          @preset="setPreset"
-          @shift="shift"
-          @zoom-out="zoomOut"
-        />
-      </div>
-
-      <LoadState
-        :error="issuesError"
-        :loading="issuesRead.isFetching.value && !issuesRead.data.value"
-        what="the issues"
-        @retry="issuesRead.execute()"
-      >
-        <ul v-if="issues.length" class="m-0 flex list-none flex-col p-0">
-          <li v-for="issue in issues" :key="issue.id" class="border-b border-line last:border-b-0">
-            <NuxtLink
-              :to="{ path: `/logs/issues/${issue.id}`, query: range.preset ? { range: range.preset } : { from: span.from, to: span.to } }"
-              class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-4 py-3 no-underline transition-colors hover:bg-ink/[0.03] md:grid-cols-[minmax(0,1fr)_120px_72px_72px_110px]"
-            >
-              <span class="flex min-w-0 items-start gap-3">
-                <span :class="issue.kind === 'crash' ? 'bg-error/12 text-error' : issue.kind === 'exception' ? 'bg-warning/12 text-warning' : 'bg-ink/6 text-ink/60'" aria-hidden="true" class="mt-0.5 flex size-7 flex-none items-center justify-center rounded-(--ps-radius-small) text-base">
-                  <Icon :name="ISSUE_KIND[issue.kind]?.icon ?? 'material-symbols:error-outline'" />
-                </span>
-                <span class="flex min-w-0 flex-col gap-0.5">
-                  <span class="flex min-w-0 items-center gap-2">
-                    <span class="truncate text-[13px] font-medium text-ink">{{ issue.exception_type || ISSUE_KIND[issue.kind]?.label }}</span>
-                    <StatusBadge v-if="issue.status !== 'unresolved'" :label="ISSUE_STATUS[issue.status as IssueStatus]?.label ?? issue.status" :tone="ISSUE_STATUS[issue.status as IssueStatus]?.tone" />
-                    <span v-if="Date.parse(issue.first_seen) >= range.from" class="rounded-sm bg-primary/10 px-1 text-[10px] leading-4 font-medium text-primary">NEW</span>
-                  </span>
-                  <span class="truncate font-mono text-xs text-ink/70">{{ issue.title }}</span>
-                  <span class="truncate text-[11px] text-ink/45">
-                    <template v-if="issue.culprit">in <span class="font-mono">{{ issue.culprit }}</span> · </template>
-                    first seen {{ relativeWords(Date.parse(issue.first_seen), now.getTime()) }}<template v-if="issue.first_release"> in {{ issue.first_release }}</template>
-                    · last {{ relativeWords(Date.parse(issue.last_seen), now.getTime()) }}
-                  </span>
-                </span>
-              </span>
-              <Sparkline :height="28" :values="issue.trend" class="hidden h-7 w-[120px] md:block" />
-              <span class="hidden flex-col items-end md:flex">
-                <span class="font-mono text-[13px] text-ink">{{ writeFigure(issue.events, { compact: true }) }}</span>
-                <span class="text-[10px] text-ink/45">events</span>
-              </span>
-              <span class="hidden flex-col items-end md:flex">
-                <span class="font-mono text-[13px] text-ink">{{ writeFigure(issue.installs, { compact: true }) }}</span>
-                <span class="text-[10px] text-ink/45">installs</span>
-              </span>
-              <span class="flex flex-col items-end">
-                <span class="font-mono text-[11px] text-ink/60">{{ issue.last_release || '–' }}</span>
-                <span class="text-[10px] text-ink/45">latest release</span>
-              </span>
-            </NuxtLink>
-          </li>
-        </ul>
-        <EmptyState
-          v-else
-          :description="issueStatus === 'unresolved' ? 'No exception, crash or error log in this range. Resolved and ignored issues are under their own filters.' : 'No issue in this range has that status.'"
-          icon="material-symbols:check-circle-outline"
-          :title="issueStatus === 'unresolved' ? 'No open issues' : 'Nothing here'"
-        />
-        <p v-if="issuesRead.data.value?.truncated" class="m-0 border-t border-line px-4 py-2 text-[11px] text-ink/50">
-          The first 200 issues. Narrow the range or search to see the rest.
-        </p>
-      </LoadState>
-    </SectionCard>
 
     <!-- A record on a narrow screen, where there is no room beside the list. -->
     <v-dialog v-model="dialogOpen" fullscreen>
@@ -546,7 +393,5 @@ Authorization: Bearer <project key>
         />
       </v-card>
     </v-dialog>
-
-    <LogStorageDialog v-model="storageOpen" :path="storagePath" @changed="storageRead.execute()" />
   </div>
 </template>

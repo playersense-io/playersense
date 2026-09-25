@@ -32969,6 +32969,10 @@
               }
             }
           },
+          "breakdown_total": {
+            "type": "integer",
+            "format": "int64"
+          },
           "issue": {
             "$ref": "#/components/schemas/LogIssueOut"
           },
@@ -32996,6 +33000,7 @@
         },
         "required": [
           "breakdown",
+          "breakdown_total",
           "issue",
           "series",
           "step_seconds"
