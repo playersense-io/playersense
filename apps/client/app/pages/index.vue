@@ -329,10 +329,11 @@ const usage = computed(() => {
   const billing = billingRead.data.value
   const monthly = billing?.month as { tracked_players: number, included_players: number, charged_micros: number, pending_micros: number } | undefined
   const included = read?.included ?? {}
+  // Null until the API answers, so a meter shows no data rather than none used.
   return {
-    tracked_players: monthly?.tracked_players ?? 0,
-    events: read?.totals.events ?? 0,
-    retained_bytes: read?.totals.retained_bytes ?? 0,
+    tracked_players: monthly ? monthly.tracked_players : null,
+    events: read ? read.totals.events : null,
+    retained_bytes: read ? read.totals.retained_bytes : null,
     included: {
       tracked_players: monthly?.included_players ?? included.included_mau ?? 0,
       events: included.included_events ?? 0,
