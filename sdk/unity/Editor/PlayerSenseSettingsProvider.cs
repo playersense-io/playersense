@@ -72,6 +72,29 @@ namespace PlayerSense.Editor
                 "Log every dropped event and every refusal, not only the serious ones. Off in a " +
                 "shipped build.");
 
+            EditorGUILayout.Space();
+            EditorGUILayout.LabelField("Errors and crashes", EditorStyles.boldLabel);
+            Field("captureLogs", "Capture logs",
+                "Record errors, exceptions and crashes, with the breadcrumbs before them. " +
+                "Nothing is sent before the player answers the consent question.");
+            using (new EditorGUI.DisabledScope(!settings.captureLogs))
+            {
+                Field("logMinLevel", "Send from",
+                    "The least serious record that is sent. Below it, records are kept in " +
+                    "memory as breadcrumbs and travel with the next error.");
+                Field("captureLogsInEditor", "Capture in the Editor",
+                    "Off, so your console never fills your dashboard.");
+            }
+            Field("childDirected", "Directed at children",
+                "Error reports carry no player id and none of your attributes.");
+            if (settings.captureLogs)
+            {
+                EditorGUILayout.HelpBox(
+                    "Declare Crash Data and Other Diagnostic Data in App Store Connect, and " +
+                    "Crash logs and Diagnostics in Play Console's Data safety form. The package " +
+                    "README lists the answers.", MessageType.Info);
+            }
+
             s_serialized.ApplyModifiedProperties();
 
             var key = settings.projectKey;

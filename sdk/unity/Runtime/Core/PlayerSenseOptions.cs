@@ -79,6 +79,20 @@ namespace PlayerSense
         /// <summary>How often the SDK is given a chance to do background work.</summary>
         public float TickIntervalSeconds = 0.25f;
 
+        /// <summary>Logs, exceptions and crashes. Off until <see cref="LogsOptions.Enabled"/> is set.</summary>
+        public LogsOptions Logs = new LogsOptions();
+
+        /// <summary>
+        /// Your game is directed at children, or this player is one.
+        /// </summary>
+        /// <remarks>
+        /// Error reports then carry no player id and none of your attributes: only what the
+        /// error was, where, and on what kind of device. That is the "support for internal
+        /// operations" COPPA allows without parental consent, and what the Google Play Families
+        /// policy and the App Store Kids category expect of an SDK.
+        /// </remarks>
+        public bool ChildDirected;
+
         internal static PlayerSenseOptions From(PlayerSenseSettings settings) => new PlayerSenseOptions
         {
             ProjectKey = settings.projectKey,
@@ -89,6 +103,13 @@ namespace PlayerSense
             ExposureEvents = settings.exposureEvents,
             Environment = settings.environment,
             DebugLogging = settings.debugLogging,
+            ChildDirected = settings.childDirected,
+            Logs = new LogsOptions
+            {
+                Enabled = settings.captureLogs,
+                MinLevel = settings.logMinLevel,
+                CaptureInEditor = settings.captureLogsInEditor,
+            },
         };
     }
 
@@ -119,6 +140,22 @@ namespace PlayerSense
 
         [Tooltip("Log every dropped event and every refusal, not only the serious ones.")]
         public bool debugLogging;
+
+        [Header("Logs and crashes")]
+        [Tooltip("Capture errors, exceptions and crashes. Turning this on means declaring Crash " +
+                 "Data on the App Store and Crash logs / Diagnostics on Google Play.")]
+        public bool captureLogs;
+
+        [Tooltip("The least serious record that is sent. Below it, records are kept as breadcrumbs " +
+                 "that travel with the next error.")]
+        public LogLevel logMinLevel = LogLevel.Warning;
+
+        [Tooltip("Capture in the Editor as well, so your console reaches the dashboard.")]
+        public bool captureLogsInEditor;
+
+        [Tooltip("The game is directed at children: error reports carry no player id and no " +
+                 "custom attributes.")]
+        public bool childDirected;
 
         internal static PlayerSenseSettings Load() => Resources.Load<PlayerSenseSettings>(ResourcePath);
     }

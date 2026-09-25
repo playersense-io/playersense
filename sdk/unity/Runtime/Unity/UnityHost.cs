@@ -62,6 +62,13 @@ namespace PlayerSense
         private GCHandle _self;
         private bool _debug;
 
+        // Requests the core made from a thread that is not Unity's. UnityWebRequest and
+        // coroutines exist on the main thread only, and the one path that sends from elsewhere
+        // is a crash recorded on the thread it killed: queued here, started on the next tick.
+        private readonly int _mainThread = System.Threading.Thread.CurrentThread.ManagedThreadId;
+        private readonly List<PendingRequest> _deferred = new List<PendingRequest>();
+        private volatile bool _hasDeferred;
+
         /// <summary>Set once the client exists, so a callback can answer it.</summary>
         internal PlayerSenseClient Client { get; set; }
 
@@ -314,6 +321,12 @@ namespace PlayerSense
                     Body = body,
                 };
 
+                if (System.Threading.Thread.CurrentThread.ManagedThreadId != host._mainThread)
+                {
+                    lock (host._deferred) host._deferred.Add(pending);
+                    host._hasDeferred = true;
+                    return;
+                }
                 if (host.Runner == null)
                 {
                     // No driver yet, so nothing can complete the request. Answering with 0 —
@@ -325,6 +338,20 @@ namespace PlayerSense
                 host.Runner.StartCoroutine(host.Perform(pending));
             }
             catch { }
+        }
+
+        /// <summary>Starts the requests made off the main thread. Called by the runner, on it.</summary>
+        internal void StartDeferred()
+        {
+            if (!_hasDeferred || Runner == null) return;
+            PendingRequest[] ready;
+            lock (_deferred)
+            {
+                ready = _deferred.ToArray();
+                _deferred.Clear();
+                _hasDeferred = false;
+            }
+            foreach (var pending in ready) Runner.StartCoroutine(Perform(pending));
         }
 
         private sealed class PendingRequest

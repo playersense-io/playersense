@@ -24,12 +24,13 @@ namespace PlayerSense
         public ContextModule Context { get; }
         public FlagsModule Flags { get; }
         public LiveOpsModule LiveOps { get; }
+        public LogsModule Logs { get; }
 
         internal ulong Handle => _handle;
         internal Utf8Scratch Scratch => _scratch;
         internal UnityHost Host => _host;
 
-        internal PlayerSenseClient(ulong handle, UnityHost host)
+        internal PlayerSenseClient(ulong handle, UnityHost host, LogsOptions logs = null)
         {
             _handle = handle;
             _host = host;
@@ -40,6 +41,7 @@ namespace PlayerSense
             Context = new ContextModule(this);
             Flags = new FlagsModule(this);
             LiveOps = new LiveOpsModule(this);
+            Logs = new LogsModule(this, logs);
 
             // The last document this installation fetched, so a launch with no network answers
             // from it rather than from every fallback (§42). Flags only in effect: no clock
@@ -86,13 +88,24 @@ namespace PlayerSense
 
         internal void Foreground() => Check(Native.ps_client_foreground(_handle), nameof(Foreground));
         internal void Background() => Check(Native.ps_client_background(_handle), nameof(Background));
-        internal void Tick() => Native.ps_client_tick(_handle);
+        internal void Tick()
+        {
+            _host.StartDeferred();
+            // Captured records first, so the tick that follows can already batch them.
+            Logs.Drain();
+            Native.ps_client_tick(_handle);
+        }
 
         /// <summary>One last bounded attempt, then the client is retired.</summary>
         public void Dispose()
         {
             if (_disposed) return;
             _disposed = true;
+
+            // What was captured since the last tick goes into the shutdown attempt, and nothing
+            // captured after this point reaches a client that is gone.
+            Logs.Drain();
+            Logs.Detach();
 
             Native.ps_client_shutdown(_handle);
             Native.ps_client_destroy(_handle);

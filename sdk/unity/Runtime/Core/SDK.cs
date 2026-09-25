@@ -77,6 +77,9 @@ namespace PlayerSense
                 s_runner = PlayerSenseRunner.Create(s_client, options.TickIntervalSeconds);
                 s_client.Host.Runner = s_runner;
 
+                // After the runner exists, so a crash recorded from here on can be sent.
+                s_client.Logs.Attach();
+
                 // The core opens a session on the first event, not here, so this only tells it
                 // the app is in front. A game that initializes while backgrounded — a push
                 // handler, a headless server build — is correct either way.
@@ -220,6 +223,16 @@ namespace PlayerSense
             var platform = scratch.Write(PlatformName());
             var osVersion = scratch.Write(SystemInfo.operatingSystem);
             var locale = scratch.Write(LocaleTag());
+            // The model (iPhone15,2, SM-S918B) and never SystemInfo.deviceName, which is what
+            // the player called their phone ("Emma's iPhone"), nor deviceUniqueIdentifier,
+            // which is a hardware identifier both stores ask SDKs not to read.
+            var deviceModel = scratch.Write(SystemInfo.deviceModel);
+
+            var logs = options.Logs ?? new LogsOptions();
+            bool capturing = LogsModule.IsCapturing(logs);
+            // Where the platform keeps its own account of crashes, it is the account, and the
+            // core's marker would only count each one a second time.
+            bool platformCrashes = capturing && logs.ReportPlatformCrashes && PlatformCrashes.Available();
 
             ulong handle;
             int status;
@@ -249,6 +262,17 @@ namespace PlayerSense
                 config.Compression = options.Compression ? 1 : 0;
                 config.Debug = options.DebugLogging ? 1 : 0;
 
+                config.DeviceModel = deviceModel.Resolve(origin);
+                config.ChildDirected = options.ChildDirected ? 1 : 0;
+                config.LogsEnabled = capturing ? 1 : 0;
+                config.LogMinLevel = (int)logs.MinLevel;
+                config.LogBreadcrumbLevel = (int)logs.BreadcrumbLevel;
+                config.LogMaxPerMinute = logs.MaxPerMinute;
+                config.LogFlushIntervalMs = logs.FlushIntervalMs;
+                config.LogScrub = logs.ScrubPersonalData ? 1 : 0;
+                config.LogAbnormalExits = logs.ReportAbnormalExits && !platformCrashes ? 1 : 0;
+                config.LogHoldCrashes = logs.HoldCrashesUntilConsent ? 1 : 0;
+
                 status = Native.ps_client_create(ref vtable, ref config, out handle);
             }
 
@@ -260,7 +284,7 @@ namespace PlayerSense
                 return null;
             }
 
-            var client = new PlayerSenseClient(handle, host);
+            var client = new PlayerSenseClient(handle, host, logs);
             host.Client = client;
             return client;
         }

@@ -57,5 +57,52 @@ namespace PlayerSense
             }
             module.SetConsent(consent, policyVersion, att, gdprApplies);
         }
+
+        /// <summary>Records that the player agreed to share error reports, whatever they said about analytics.</summary>
+        /// <remarks>
+        /// For a "Share error reports" switch of its own, the way desktop apps ask. Without one,
+        /// error reports follow the analytics answer and you need none of this.
+        /// </remarks>
+        public static void GrantErrorReports(string policyVersion, AttStatus att = AttStatus.NotDetermined,
+                                             bool gdprApplies = true)
+        {
+            var module = SDK.Client?.Privacy;
+            if (module == null)
+            {
+                SDK.WarnNotInitialized("Privacy.GrantErrorReports");
+                return;
+            }
+            module.GrantErrorReports(policyVersion, att, gdprApplies);
+        }
+
+        /// <summary>Records that the player refused error reports. Waiting crash reports are deleted.</summary>
+        public static void DenyErrorReports()
+        {
+            var module = SDK.Client?.Privacy;
+            if (module == null)
+            {
+                SDK.WarnNotInitialized("Privacy.DenyErrorReports");
+                return;
+            }
+            module.DenyErrorReports();
+        }
+
+        /// <summary>Error reports follow the analytics answer again. The default.</summary>
+        public static void ErrorReportsFollowAnalytics()
+        {
+            var module = SDK.Client?.Privacy;
+            if (module == null)
+            {
+                SDK.WarnNotInitialized("Privacy.ErrorReportsFollowAnalytics");
+                return;
+            }
+            module.ErrorReportsFollowAnalytics();
+        }
+
+        /// <summary>How many crash reports are waiting on the device for the player's answer.</summary>
+        public static int PendingCrashReports => SDK.Client?.Privacy.PendingCrashReports ?? 0;
+
+        /// <summary>Deletes the crash reports waiting on the device, without changing any answer.</summary>
+        public static void DiscardPendingCrashReports() => SDK.Client?.Privacy.DiscardPendingCrashReports();
     }
 }

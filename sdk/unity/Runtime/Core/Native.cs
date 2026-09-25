@@ -38,6 +38,11 @@ namespace PlayerSense.Core
         /// could not tell them apart would make a studio's typo look like a decision.
         /// </remarks>
         internal const int NotFound = 3;
+        // What can correctly become of a log record, besides being queued (§15).
+        internal const int LogFolded = 4;
+        internal const int LogBreadcrumb = 5;
+        internal const int LogRateLimited = 6;
+        internal const int LogDisabled = 7;
 
         internal const int ErrBadHandle = -1;
         internal const int ErrBadHost = -2;
@@ -66,7 +71,7 @@ namespace PlayerSense.Core
         internal const int LevelWarn = 2;
         internal const int LevelError = 3;
 
-        internal const uint AbiVersion = 2;
+        internal const uint AbiVersion = 3;
 
         // ---- layouts --------------------------------------------------------
         //
@@ -159,6 +164,73 @@ namespace PlayerSense.Core
             public int Compression;
             public int Debug;
             public int Pad2;
+
+            // Appended in ABI 3: logs, exceptions and crashes (§15).
+            public PsStr DeviceModel;
+            public int LogsEnabled;
+            public int LogMinLevel;
+            public int LogBreadcrumbLevel;
+            public int LogMaxPerMinute;
+            public long LogFlushIntervalMs;
+            public int LogScrub;
+            public int LogAbnormalExits;
+            public int LogHoldCrashes;
+            public int ChildDirected;
+        }
+
+        [StructLayout(LayoutKind.Sequential, Pack = 8)]
+        internal struct PsFrame
+        {
+            public PsStr Function;
+            public PsStr Module;
+            public PsStr File;
+            public int Line;
+            public int InApp;
+        }
+
+        [StructLayout(LayoutKind.Sequential, Pack = 8)]
+        internal struct PsAttribute
+        {
+            public PsStr Key;
+            public PsStr Value;
+        }
+
+        [StructLayout(LayoutKind.Sequential, Pack = 8)]
+        internal unsafe struct PsLogRecord
+        {
+            public uint StructSize;
+            // 0 trace, 1 debug, 2 info, 3 warn, 4 error, 5 fatal.
+            public int Level;
+            public PsStr Message;
+            public PsStr Logger;
+            public PsStr ExceptionType;
+            public PsStr ExceptionValue;
+            public int Handled;
+            public int Crash;
+            public PsFrame* Frames;
+            public long FrameCount;
+            public PsAttribute* Attributes;
+            public long AttributeCount;
+            public PsStr* Fingerprint;
+            public long FingerprintCount;
+            // Unix milliseconds, for a crash read back from a previous run; 0 is now.
+            public long TimeMs;
+        }
+
+        [StructLayout(LayoutKind.Sequential, Pack = 8)]
+        internal struct PsLogStats
+        {
+            public uint StructSize;
+            public uint Pad;
+            public ulong Recorded;
+            public ulong Folded;
+            public ulong Breadcrumbs;
+            public ulong RateLimited;
+            public ulong WithoutConsent;
+            public ulong Evicted;
+            public ulong BatchesDelivered;
+            public ulong AcceptedByServer;
+            public ulong DroppedByServer;
         }
 
         [StructLayout(LayoutKind.Sequential, Pack = 8)]
@@ -205,6 +277,11 @@ namespace PlayerSense.Core
             public uint SizeofValue;
             public uint SizeofProperty;
             public uint SizeofRequest;
+            // Appended in ABI 3.
+            public uint SizeofLogRecord;
+            public uint SizeofFrame;
+            public uint SizeofAttribute;
+            public uint SizeofLogStats;
         }
 
         // ---- the entry points ------------------------------------------------
@@ -284,6 +361,24 @@ namespace PlayerSense.Core
         internal static extern unsafe int ps_client_liveops_upcoming(
             ulong client, byte* buffer, long cap, out long len);
 
+        // ---- logs, exceptions and crashes (§15) ----------------------------
+
+        [DllImport(Library)]
+        internal static extern unsafe int ps_client_log(ulong client, ref PsLogRecord record);
+
+        [DllImport(Library)]
+        internal static extern int ps_client_add_breadcrumb(ulong client, PsStr category, PsStr message, int level);
+
+        [DllImport(Library)]
+        internal static extern int ps_client_set_diagnostics_granted(
+            ulong client, PsStr policyVersion, PsStr attStatus, int gdprApplies, long collectedAtMs);
+
+        [DllImport(Library)] internal static extern int ps_client_set_diagnostics_denied(ulong client);
+        [DllImport(Library)] internal static extern int ps_client_set_diagnostics_follow_analytics(ulong client);
+        [DllImport(Library)] internal static extern int ps_client_held_crash_reports(ulong client, out long count);
+        [DllImport(Library)] internal static extern int ps_client_discard_held_crash_reports(ulong client);
+        [DllImport(Library)] internal static extern int ps_client_log_stats(ulong client, ref PsLogStats stats);
+
         [DllImport(Library)]
         internal static extern unsafe int ps_client_on_response(
             ulong client, ulong requestId, ushort status, long retryAfterMs, byte* body, long bodyLen);
@@ -306,6 +401,10 @@ namespace PlayerSense.Core
                 SizeofValue = (uint)Marshal.SizeOf<PsValue>(),
                 SizeofProperty = (uint)Marshal.SizeOf<PsProperty>(),
                 SizeofRequest = (uint)Marshal.SizeOf<PsRequest>(),
+                SizeofLogRecord = (uint)Marshal.SizeOf<PsLogRecord>(),
+                SizeofFrame = (uint)Marshal.SizeOf<PsFrame>(),
+                SizeofAttribute = (uint)Marshal.SizeOf<PsAttribute>(),
+                SizeofLogStats = (uint)Marshal.SizeOf<PsLogStats>(),
             };
 
             int code = ps_abi_selfcheck(ref sizes);
@@ -341,6 +440,10 @@ namespace PlayerSense.Core
                 case Ok: return "ok";
                 case HeldForConsent: return "held in memory until the player answers";
                 case DeclinedByConsent: return "discarded: the player declined analytics";
+                case LogFolded: return "counted on the identical record before it";
+                case LogBreadcrumb: return "below the capture level; kept as a breadcrumb";
+                case LogRateLimited: return "over this device's log budget for the minute";
+                case LogDisabled: return "log capture is off (PlayerSenseOptions.Logs.Enabled)";
                 case ErrBadHandle: return "the client handle is stale or was never valid";
                 case ErrBadHost: return "the host is missing a required callback";
                 case ErrInvalidArgument: return "an argument was malformed";
