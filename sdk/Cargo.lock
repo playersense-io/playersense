@@ -270,6 +270,7 @@ dependencies = [
  "cbindgen",
  "flate2",
  "playersense-core",
+ "serde_json",
 ]
 
 [[package]]

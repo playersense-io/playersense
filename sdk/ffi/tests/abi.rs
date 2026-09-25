@@ -183,6 +183,10 @@ impl Fixture {
     }
 
     fn with_store(store: BTreeMap<String, Vec<u8>>) -> Self {
+        Self::with(store, |_| {})
+    }
+
+    fn with(store: BTreeMap<String, Vec<u8>>, tweak: impl FnOnce(&mut PsConfig)) -> Self {
         // Into a raw pointer up front, so nothing this fixture does can move it afterwards.
         let state = Box::into_raw(Box::new(MockState {
             wall_ms: 1_789_560_000_000,
@@ -197,6 +201,7 @@ impl Fixture {
         config.endpoint = str_of("https://ingest.eu-1.example");
         config.sdk_name = str_of("test");
         config.platform = str_of("ios");
+        tweak(&mut config);
 
         let mut handle = 0u64;
         let code = unsafe { ps_client_create(&host, &config, &mut handle) };
@@ -275,6 +280,10 @@ fn the_selfcheck_accepts_a_matching_binding_and_refuses_a_drifted_one() {
         sizeof_value: size_of::<PsValue>() as u32,
         sizeof_property: size_of::<PsProperty>() as u32,
         sizeof_request: size_of::<PsRequest>() as u32,
+        sizeof_log_record: size_of::<PsLogRecord>() as u32,
+        sizeof_frame: size_of::<PsFrame>() as u32,
+        sizeof_attribute: size_of::<PsAttribute>() as u32,
+        sizeof_log_stats: size_of::<PsLogStats>() as u32,
     };
     assert_eq!(unsafe { ps_abi_selfcheck(&matching) }, PS_OK);
 
@@ -719,4 +728,99 @@ fn gunzip(body: &[u8]) -> Vec<u8> {
         .read_to_end(&mut out)
         .unwrap();
     out
+}
+
+/// A log record crosses the C boundary whole: its level, its stack and its attributes, onto a
+/// log batch of its own (§15). And capture is off unless the configuration turns it on.
+#[test]
+fn a_log_record_crosses_the_abi_to_a_batch_of_its_own() {
+    let mut off = Fixture::new();
+    off.consent();
+    let record = PsLogRecord {
+        struct_size: size_of::<PsLogRecord>() as u32,
+        level: 4,
+        message: str_of("boom"),
+        logger: ABSENT,
+        exception_type: ABSENT,
+        exception_value: ABSENT,
+        handled: 0,
+        crash: 0,
+        frames: std::ptr::null(),
+        frame_count: 0,
+        attributes: std::ptr::null(),
+        attribute_count: 0,
+        fingerprint: std::ptr::null(),
+        fingerprint_count: 0,
+        time_ms: 0,
+    };
+    assert_eq!(
+        unsafe { ps_client_log(off.handle, &record) },
+        PS_LOG_DISABLED
+    );
+    drop(off.take_sent());
+
+    let mut on = Fixture::with(BTreeMap::new(), |c| {
+        c.logs_enabled = 1;
+        c.device_model = str_of("iPhone15,2");
+    });
+    on.consent();
+    drop(on.take_sent());
+
+    let frames = [
+        PsFrame {
+            function: str_of("Update"),
+            module: str_of("Game.Player"),
+            file: str_of("Player.cs"),
+            line: 42,
+            in_app: 1,
+        },
+        PsFrame {
+            function: str_of("Grant"),
+            module: str_of("Game.Store"),
+            file: ABSENT,
+            line: 0,
+            in_app: 1,
+        },
+    ];
+    let attributes = [PsAttribute {
+        key: str_of("scene"),
+        value: str_of("Shop"),
+    }];
+    let thrown = PsLogRecord {
+        exception_type: str_of("NullReferenceException"),
+        exception_value: str_of("Object reference not set"),
+        frames: frames.as_ptr(),
+        frame_count: 2,
+        attributes: attributes.as_ptr(),
+        attribute_count: 1,
+        ..record
+    };
+    assert_eq!(unsafe { ps_client_log(on.handle, &thrown) }, PS_OK);
+    assert_eq!(ps_client_flush(on.handle), PS_OK);
+
+    let sent = on.take_sent();
+    let batch = sent
+        .iter()
+        .map(|s| {
+            if s.compressed {
+                gunzip(&s.body)
+            } else {
+                s.body.clone()
+            }
+        })
+        .map(|b| serde_json::from_slice::<serde_json::Value>(&b).unwrap())
+        .find(|j| j.get("records").is_some())
+        .expect("a log batch was sent");
+    assert_eq!(batch["device"]["model"], "iPhone15,2");
+    let rec = &batch["records"][0];
+    assert_eq!(rec["exception"]["type"], "NullReferenceException");
+    assert_eq!(rec["exception"]["frames"][0]["line"], 42);
+    assert_eq!(rec["attributes"]["scene"], "Shop");
+
+    let mut stats = PsLogStats {
+        struct_size: size_of::<PsLogStats>() as u32,
+        ..Default::default()
+    };
+    assert_eq!(unsafe { ps_client_log_stats(on.handle, &mut stats) }, PS_OK);
+    assert_eq!(stats.recorded, 1);
 }

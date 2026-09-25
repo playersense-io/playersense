@@ -197,6 +197,26 @@ pub unsafe fn config(raw: &PsConfig) -> Result<Config, i32> {
     config.compression = raw.compression != 0;
     config.debug = raw.debug != 0;
 
+    // Logs, exceptions and crashes (§15).
+    unsafe { set_if_given(&mut config.device_model, raw.device_model)? };
+    config.logs_enabled = raw.logs_enabled == 1;
+    if let Some(level) = playersense_core::LogLevel::from_i32(raw.log_min_level) {
+        config.log_min_level = level;
+    }
+    if let Some(level) = playersense_core::LogLevel::from_i32(raw.log_breadcrumb_level) {
+        config.log_breadcrumb_level = level;
+    }
+    if raw.log_max_per_minute > 0 {
+        config.log_max_per_minute = raw.log_max_per_minute as u32;
+    }
+    if raw.log_flush_interval_ms > 0 {
+        config.log_flush_interval_ms = raw.log_flush_interval_ms;
+    }
+    config.log_scrub = raw.log_scrub != 0;
+    config.log_abnormal_exits = raw.log_abnormal_exits != 0;
+    config.log_hold_crashes = raw.log_hold_crashes != 0;
+    config.child_directed = raw.child_directed != 0;
+
     Ok(config)
 }
 

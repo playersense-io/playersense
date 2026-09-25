@@ -160,6 +160,16 @@ pub unsafe extern "C" fn ps_config_default(out: *mut PsConfig) {
             compression: i32::from(defaults.compression),
             debug: i32::from(defaults.debug),
             _pad2: 0,
+            device_model: empty,
+            logs_enabled: i32::from(defaults.logs_enabled),
+            log_min_level: -1,
+            log_breadcrumb_level: -1,
+            log_max_per_minute: defaults.log_max_per_minute as i32,
+            log_flush_interval_ms: defaults.log_flush_interval_ms,
+            log_scrub: i32::from(defaults.log_scrub),
+            log_abnormal_exits: i32::from(defaults.log_abnormal_exits),
+            log_hold_crashes: i32::from(defaults.log_hold_crashes),
+            child_directed: i32::from(defaults.child_directed),
         };
     }
 }
@@ -178,6 +188,16 @@ pub unsafe extern "C" fn ps_abi_selfcheck(sizes: *const PsAbiSizes) -> i32 {
     clear_last_error();
     if sizes.is_null() {
         return PS_ERR_INVALID_ARGUMENT;
+    }
+    // The version first, read alone: a binding from another ABI passes a struct of another
+    // length, and reading the whole of ours from it would read past the end of theirs.
+    let version = unsafe { std::ptr::addr_of!((*sizes).abi_version).read_unaligned() };
+    if version != crate::PS_ABI_VERSION {
+        set_last_error(format!(
+            "abi_version: the binding says {version} and this binary says {}",
+            crate::PS_ABI_VERSION
+        ));
+        return PS_ERR_ABI_MISMATCH;
     }
     let theirs = unsafe { *sizes };
 
@@ -201,6 +221,22 @@ pub unsafe extern "C" fn ps_abi_selfcheck(sizes: *const PsAbiSizes) -> i32 {
             "PsRequest",
             theirs.sizeof_request,
             size_of::<PsRequest>() as u32,
+        ),
+        (
+            "PsLogRecord",
+            theirs.sizeof_log_record,
+            size_of::<PsLogRecord>() as u32,
+        ),
+        ("PsFrame", theirs.sizeof_frame, size_of::<PsFrame>() as u32),
+        (
+            "PsAttribute",
+            theirs.sizeof_attribute,
+            size_of::<PsAttribute>() as u32,
+        ),
+        (
+            "PsLogStats",
+            theirs.sizeof_log_stats,
+            size_of::<PsLogStats>() as u32,
         ),
     ];
     for (name, theirs, ours) in expected {
@@ -840,5 +876,231 @@ pub unsafe extern "C" fn ps_client_liveops_upcoming(
     with_client(client, |c| {
         let rendered = c.liveops_upcoming_json();
         unsafe { fill(rendered.as_bytes(), out, cap, out_len) }
+    })
+}
+
+// ---- logs, exceptions and crashes (§15) ------------------------------------------------------
+
+/// Reads text from a record: never refused, because a log line with a bad byte in it is still
+/// the log line somebody needs. Invalid UTF-8 is replaced, not rejected.
+///
+/// # Safety
+/// As [`str_lossy`].
+unsafe fn text(s: PsStr) -> Result<String, i32> {
+    unsafe { str_lossy(s) }.map(|(text, _)| text)
+}
+
+/// Reads a borrowed array, `{ NULL, 0 }` being empty.
+///
+/// # Safety
+/// `ptr` must be null with `len == 0`, or point at `len` readable values.
+unsafe fn array<'a, T>(ptr: *const T, len: i64) -> Result<&'a [T], i32> {
+    if len < 0 || (ptr.is_null() && len != 0) {
+        return Err(PS_ERR_INVALID_ARGUMENT);
+    }
+    if len == 0 {
+        return Ok(&[]);
+    }
+    Ok(unsafe { std::slice::from_raw_parts(ptr, len as usize) })
+}
+
+/// # Safety
+/// `raw` must be a readable, fully-initialized [`PsLogRecord`] whose arrays and strings obey
+/// the borrowing rule.
+unsafe fn log_record(raw: &PsLogRecord) -> Result<playersense_core::LogRecord, i32> {
+    use playersense_core::{LogException, LogLevel, LogRecord, StackFrame};
+
+    if (raw.struct_size as usize) < size_of::<PsLogRecord>() {
+        return Err(PS_ERR_ABI_MISMATCH);
+    }
+    let mut record = LogRecord {
+        level: LogLevel::from_i32(raw.level),
+        message: unsafe { text(raw.message)? },
+        logger: unsafe { text(raw.logger)? },
+        crash: raw.crash != 0,
+        time_ms: (raw.time_ms > 0).then_some(raw.time_ms),
+        ..LogRecord::default()
+    };
+    if !is_absent(raw.exception_type) {
+        let frames = unsafe { array(raw.frames, raw.frame_count)? };
+        let mut read = Vec::with_capacity(frames.len());
+        for f in frames {
+            read.push(StackFrame {
+                function: unsafe { text(f.function)? },
+                module: unsafe { text(f.module)? },
+                file: unsafe { text(f.file)? },
+                line: f.line.max(0) as u32,
+                in_app: f.in_app != 0,
+            });
+        }
+        record.exception = Some(LogException {
+            type_name: unsafe { text(raw.exception_type)? },
+            value: unsafe { text(raw.exception_value)? },
+            handled: raw.handled != 0,
+            frames: read,
+        });
+    }
+    for a in unsafe { array(raw.attributes, raw.attribute_count)? } {
+        record
+            .attributes
+            .insert(unsafe { text(a.key)? }, unsafe { text(a.value)? });
+    }
+    for part in unsafe { array(raw.fingerprint, raw.fingerprint_count)? } {
+        record.fingerprint.push(unsafe { text(*part)? });
+    }
+    Ok(record)
+}
+
+/// Records a log line, an exception or a crash. Never blocks and never throws.
+///
+/// Returns [`PS_OK`] when it was queued, and a positive status for every other thing that can
+/// correctly happen to it: held for consent, declined, folded into the line before, kept as a
+/// breadcrumb, over the device's budget, or capture being off.
+///
+/// # Safety
+/// `record` must point at a readable [`PsLogRecord`] whose contents obey the borrowing rule.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ps_client_log(client: u64, record: *const PsLogRecord) -> i32 {
+    if record.is_null() {
+        return PS_ERR_INVALID_ARGUMENT;
+    }
+    with_client(client, |c| {
+        let record = match unsafe { log_record(&*record) } {
+            Ok(r) => r,
+            Err(code) => return code,
+        };
+        use playersense_core::Logged;
+        match c.log(record) {
+            Logged::Queued => PS_OK,
+            Logged::Folded => PS_LOG_FOLDED,
+            Logged::Breadcrumb => PS_LOG_BREADCRUMB,
+            Logged::AwaitingConsent => PS_HELD_FOR_CONSENT,
+            Logged::Declined => PS_DECLINED_BY_CONSENT,
+            Logged::RateLimited => PS_LOG_RATE_LIMITED,
+            Logged::Disabled => PS_LOG_DISABLED,
+        }
+    })
+}
+
+/// Keeps something that happened, in memory, for the next error to carry.
+///
+/// # Safety
+/// The strings must obey the borrowing rule.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ps_client_add_breadcrumb(
+    client: u64,
+    category: PsStr,
+    message: PsStr,
+    level: i32,
+) -> i32 {
+    with_client(client, |c| {
+        let (category, message) = match unsafe { (text(category), text(message)) } {
+            (Ok(a), Ok(b)) => (a, b),
+            _ => return PS_ERR_INVALID_ARGUMENT,
+        };
+        let level =
+            playersense_core::LogLevel::from_i32(level).unwrap_or(playersense_core::LogLevel::Info);
+        c.add_breadcrumb(&category, &message, level);
+        PS_OK
+    })
+}
+
+/// Records that the player agreed to share error reports, whatever they said about analytics.
+///
+/// # Safety
+/// The strings must obey the borrowing rule.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ps_client_set_diagnostics_granted(
+    client: u64,
+    policy_version: PsStr,
+    att_status: PsStr,
+    gdpr_applies: i32,
+    collected_at_ms: i64,
+) -> i32 {
+    with_client(client, |c| {
+        let (policy, att) = match unsafe { (str_strict(policy_version), str_strict(att_status)) } {
+            (Ok(p), Ok(a)) => (p, a),
+            _ => return PS_ERR_INVALID_ARGUMENT,
+        };
+        let State::Granted(block) = granted(policy, att, gdpr_applies != 0, collected_at_ms) else {
+            return PS_ERR_INVALID_ARGUMENT;
+        };
+        c.set_diagnostics_consent(playersense_core::Diagnostics::Granted(block));
+        PS_OK
+    })
+}
+
+/// Records that the player refused error reports. What was waiting is deleted.
+#[unsafe(no_mangle)]
+pub extern "C" fn ps_client_set_diagnostics_denied(client: u64) -> i32 {
+    with_client(client, |c| {
+        c.set_diagnostics_consent(playersense_core::Diagnostics::Denied);
+        PS_OK
+    })
+}
+
+/// Error reports follow the analytics answer again: the default.
+#[unsafe(no_mangle)]
+pub extern "C" fn ps_client_set_diagnostics_follow_analytics(client: u64) -> i32 {
+    with_client(client, |c| {
+        c.set_diagnostics_consent(playersense_core::Diagnostics::FollowAnalytics);
+        PS_OK
+    })
+}
+
+/// How many crash reports are waiting on the device for the player's answer.
+///
+/// # Safety
+/// `out` must be writable.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ps_client_held_crash_reports(client: u64, out: *mut i64) -> i32 {
+    if out.is_null() {
+        return PS_ERR_INVALID_ARGUMENT;
+    }
+    with_client(client, |c| {
+        unsafe { *out = c.held_crash_reports() as i64 };
+        PS_OK
+    })
+}
+
+/// Deletes the crash reports waiting for an answer, without sending them.
+#[unsafe(no_mangle)]
+pub extern "C" fn ps_client_discard_held_crash_reports(client: u64) -> i32 {
+    with_client(client, |c| {
+        c.discard_held_crash_reports();
+        PS_OK
+    })
+}
+
+/// What the log stream has done.
+///
+/// # Safety
+/// `out` must point at a writable [`PsLogStats`] whose `struct_size` is set.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ps_client_log_stats(client: u64, out: *mut PsLogStats) -> i32 {
+    if out.is_null() {
+        return PS_ERR_INVALID_ARGUMENT;
+    }
+    if (unsafe { (*out).struct_size } as usize) < size_of::<PsLogStats>() {
+        return PS_ERR_ABI_MISMATCH;
+    }
+    with_client(client, |c| {
+        let s = c.log_stats();
+        unsafe {
+            *out = PsLogStats {
+                struct_size: size_of::<PsLogStats>() as u32,
+                _pad: 0,
+                recorded: s.recorded,
+                folded: s.folded,
+                breadcrumbs: s.breadcrumbs,
+                rate_limited: s.rate_limited,
+                without_consent: s.without_consent,
+                evicted: s.evicted,
+                batches_delivered: s.batches_delivered,
+                accepted_by_server: s.accepted_by_server,
+                dropped_by_server: s.dropped_by_server,
+            };
+        }
+        PS_OK
     })
 }

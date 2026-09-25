@@ -79,6 +79,14 @@ pub const PS_ERR_ABI_MISMATCH: i32 = -7;
 /// means [`PS_HELD_FOR_CONSENT`]. Two meanings for one number is how a binding that checks
 /// `status > 0` generically ends up treating a missing flag as a held event.
 pub const PS_NOT_FOUND: i32 = 3;
+/// The log record was the same line as the one before it, and was counted on it (§15).
+pub const PS_LOG_FOLDED: i32 = 4;
+/// The log record was below the capture level and was kept as a breadcrumb instead.
+pub const PS_LOG_BREADCRUMB: i32 = 5;
+/// The log record was over this device's per-minute budget, and was dropped.
+pub const PS_LOG_RATE_LIMITED: i32 = 6;
+/// Log capture is off in the configuration; nothing was recorded.
+pub const PS_LOG_DISABLED: i32 = 7;
 
 /// The event name is empty, too long, or outside `[a-zA-Z0-9_.:-]`.
 pub const PS_REJECTED_EVENT_NAME: i32 = -20;
@@ -226,6 +234,100 @@ pub struct PsConfig {
     /// 0 or 1.
     pub debug: i32,
     pub _pad2: i32,
+
+    // ---- appended in ABI 3: logs, exceptions and crashes (§15) --------------------------
+    /// The hardware model, `iPhone15,2` or `SM-S918B`. `{ NULL, 0 }` sends none.
+    pub device_model: PsStr,
+    /// 0 off, 1 on. **Off by default**: turning it on changes what a studio declares in its
+    /// store listings, so it is the studio's decision.
+    pub logs_enabled: i32,
+    /// The least serious level sent as a record, 0 trace to 5 fatal. -1 takes the default, warn.
+    pub log_min_level: i32,
+    /// The least serious level kept as a breadcrumb. -1 takes the default, info.
+    pub log_breadcrumb_level: i32,
+    /// The most records one device sends a minute, crashes aside. 0 takes the default.
+    pub log_max_per_minute: i32,
+    /// How long ordinary records wait before a batch is sealed. 0 takes the default.
+    pub log_flush_interval_ms: i64,
+    /// Personal data scrubbed on the device. 0 or 1; the default is 1.
+    pub log_scrub: i32,
+    /// A run that ended in the foreground reported on the next launch. 0 or 1; default 1.
+    pub log_abnormal_exits: i32,
+    /// A crash kept on the device, unsent, until the player answers. 0 or 1; default 1.
+    pub log_hold_crashes: i32,
+    /// A game for children: no player id and no attributes on a record. 0 or 1.
+    pub child_directed: i32,
+}
+
+/// One frame of a stack.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct PsFrame {
+    pub function: PsStr,
+    pub module: PsStr,
+    pub file: PsStr,
+    pub line: i32,
+    /// 1 when the frame is the game's own code rather than the engine's or a library's.
+    pub in_app: i32,
+}
+
+/// One attribute of a log record: text keyed by a name.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct PsAttribute {
+    pub key: PsStr,
+    pub value: PsStr,
+}
+
+/// A log line, an exception or a crash. `struct_size` is set by the caller.
+///
+/// Everything in it is borrowed for the call (R1). What a record *is* follows from what it
+/// carries, as on the wire: `crash` set is a crash, an `exception_type` is an exception, and
+/// anything else is a line.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct PsLogRecord {
+    pub struct_size: u32,
+    /// 0 trace, 1 debug, 2 info, 3 warn, 4 error, 5 fatal.
+    pub level: i32,
+    pub message: PsStr,
+    /// Where it was logged from: a category, a subsystem, a class.
+    pub logger: PsStr,
+    /// `{ NULL, 0 }` for a line that is not an exception.
+    pub exception_type: PsStr,
+    pub exception_value: PsStr,
+    /// 0 or 1: whether the game caught it.
+    pub handled: i32,
+    /// 0 or 1: the process died of it.
+    pub crash: i32,
+    /// Outermost first, innermost last.
+    pub frames: *const PsFrame,
+    pub frame_count: i64,
+    pub attributes: *const PsAttribute,
+    pub attribute_count: i64,
+    /// Overrides how the record groups into an issue.
+    pub fingerprint: *const PsStr,
+    pub fingerprint_count: i64,
+    /// When it happened, in Unix milliseconds, for a crash read back from a previous run.
+    /// 0 is now.
+    pub time_ms: i64,
+}
+
+/// What the log stream has done. `struct_size` is set by the caller.
+#[repr(C)]
+#[derive(Clone, Copy, Default)]
+pub struct PsLogStats {
+    pub struct_size: u32,
+    pub _pad: u32,
+    pub recorded: u64,
+    pub folded: u64,
+    pub breadcrumbs: u64,
+    pub rate_limited: u64,
+    pub without_consent: u64,
+    pub evicted: u64,
+    pub batches_delivered: u64,
+    pub accepted_by_server: u64,
+    pub dropped_by_server: u64,
 }
 
 /// One HTTP request the host is asked to perform.
@@ -324,6 +426,11 @@ pub struct PsAbiSizes {
     pub sizeof_value: u32,
     pub sizeof_property: u32,
     pub sizeof_request: u32,
+    // Appended in ABI 3.
+    pub sizeof_log_record: u32,
+    pub sizeof_frame: u32,
+    pub sizeof_attribute: u32,
+    pub sizeof_log_stats: u32,
 }
 
 #[cfg(test)]
@@ -337,7 +444,12 @@ mod tests {
         assert_eq!(size_of::<PsStr>(), 16);
         assert_eq!(size_of::<PsValue>(), 40);
         assert_eq!(size_of::<PsProperty>(), 56);
-        assert_eq!(size_of::<PsAbiSizes>(), 32);
+        assert_eq!(size_of::<PsAbiSizes>(), 48);
+        assert_eq!(size_of::<PsFrame>(), 56);
+        assert_eq!(size_of::<PsAttribute>(), 32);
+        assert_eq!(size_of::<PsLogRecord>(), 136);
+        assert_eq!(size_of::<PsLogStats>(), 80);
+        assert_eq!(align_of::<PsLogRecord>(), 8);
 
         // Every struct is 8-aligned, so the SysV i386 ABI — where `int64_t` is 4-aligned —
         // lays them out identically to everywhere else.

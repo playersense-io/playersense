@@ -22,7 +22,7 @@ pub use types::*;
 /// so there is nothing to negotiate. A binding compares this against its own constant and
 /// refuses to continue on a mismatch, which turns a silently corrupt struct layout into one
 /// log line.
-pub const PS_ABI_VERSION: u32 = 2;
+pub const PS_ABI_VERSION: u32 = 3;
 
 /// Returns [`PS_ABI_VERSION`], so a binding can check the binary rather than the header it
 /// was compiled against.

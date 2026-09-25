@@ -106,7 +106,7 @@
  * refuses to continue on a mismatch, which turns a silently corrupt struct layout into one
  * log line.
  */
-#define PS_ABI_VERSION 2
+#define PS_ABI_VERSION 3
 
 #define PS_OK 0
 
@@ -177,6 +177,26 @@
  * `status > 0` generically ends up treating a missing flag as a held event.
  */
 #define PS_NOT_FOUND 3
+
+/**
+ * The log record was the same line as the one before it, and was counted on it (§15).
+ */
+#define PS_LOG_FOLDED 4
+
+/**
+ * The log record was below the capture level and was kept as a breadcrumb instead.
+ */
+#define PS_LOG_BREADCRUMB 5
+
+/**
+ * The log record was over this device's per-minute budget, and was dropped.
+ */
+#define PS_LOG_RATE_LIMITED 6
+
+/**
+ * Log capture is off in the configuration; nothing was recorded.
+ */
+#define PS_LOG_DISABLED 7
 
 /**
  * The event name is empty, too long, or outside `[a-zA-Z0-9_.:-]`.
@@ -300,6 +320,47 @@ typedef struct PsConfig {
      */
     int32_t debug;
     int32_t _pad2;
+    /**
+     * The hardware model, `iPhone15,2` or `SM-S918B`. `{ NULL, 0 }` sends none.
+     */
+    struct PsStr device_model;
+    /**
+     * 0 off, 1 on. **Off by default**: turning it on changes what a studio declares in its
+     * store listings, so it is the studio's decision.
+     */
+    int32_t logs_enabled;
+    /**
+     * The least serious level sent as a record, 0 trace to 5 fatal. -1 takes the default, warn.
+     */
+    int32_t log_min_level;
+    /**
+     * The least serious level kept as a breadcrumb. -1 takes the default, info.
+     */
+    int32_t log_breadcrumb_level;
+    /**
+     * The most records one device sends a minute, crashes aside. 0 takes the default.
+     */
+    int32_t log_max_per_minute;
+    /**
+     * How long ordinary records wait before a batch is sealed. 0 takes the default.
+     */
+    int64_t log_flush_interval_ms;
+    /**
+     * Personal data scrubbed on the device. 0 or 1; the default is 1.
+     */
+    int32_t log_scrub;
+    /**
+     * A run that ended in the foreground reported on the next launch. 0 or 1; default 1.
+     */
+    int32_t log_abnormal_exits;
+    /**
+     * A crash kept on the device, unsent, until the player answers. 0 or 1; default 1.
+     */
+    int32_t log_hold_crashes;
+    /**
+     * A game for children: no player id and no attributes on a record. 0 or 1.
+     */
+    int32_t child_directed;
 } PsConfig;
 
 /**
@@ -319,6 +380,10 @@ typedef struct PsAbiSizes {
     uint32_t sizeof_value;
     uint32_t sizeof_property;
     uint32_t sizeof_request;
+    uint32_t sizeof_log_record;
+    uint32_t sizeof_frame;
+    uint32_t sizeof_attribute;
+    uint32_t sizeof_log_stats;
 } PsAbiSizes;
 
 /**
@@ -469,6 +534,95 @@ typedef struct PsProperty {
     struct PsStr key;
     struct PsValue value;
 } PsProperty;
+
+/**
+ * One frame of a stack.
+ */
+typedef struct PsFrame {
+    struct PsStr function;
+    struct PsStr module;
+    struct PsStr file;
+    int32_t line;
+    /**
+     * 1 when the frame is the game's own code rather than the engine's or a library's.
+     */
+    int32_t in_app;
+} PsFrame;
+
+/**
+ * One attribute of a log record: text keyed by a name.
+ */
+typedef struct PsAttribute {
+    struct PsStr key;
+    struct PsStr value;
+} PsAttribute;
+
+/**
+ * A log line, an exception or a crash. `struct_size` is set by the caller.
+ *
+ * Everything in it is borrowed for the call (R1). What a record *is* follows from what it
+ * carries, as on the wire: `crash` set is a crash, an `exception_type` is an exception, and
+ * anything else is a line.
+ */
+typedef struct PsLogRecord {
+    uint32_t struct_size;
+    /**
+     * 0 trace, 1 debug, 2 info, 3 warn, 4 error, 5 fatal.
+     */
+    int32_t level;
+    struct PsStr message;
+    /**
+     * Where it was logged from: a category, a subsystem, a class.
+     */
+    struct PsStr logger;
+    /**
+     * `{ NULL, 0 }` for a line that is not an exception.
+     */
+    struct PsStr exception_type;
+    struct PsStr exception_value;
+    /**
+     * 0 or 1: whether the game caught it.
+     */
+    int32_t handled;
+    /**
+     * 0 or 1: the process died of it.
+     */
+    int32_t crash;
+    /**
+     * Outermost first, innermost last.
+     */
+    const struct PsFrame *frames;
+    int64_t frame_count;
+    const struct PsAttribute *attributes;
+    int64_t attribute_count;
+    /**
+     * Overrides how the record groups into an issue.
+     */
+    const struct PsStr *fingerprint;
+    int64_t fingerprint_count;
+    /**
+     * When it happened, in Unix milliseconds, for a crash read back from a previous run.
+     * 0 is now.
+     */
+    int64_t time_ms;
+} PsLogRecord;
+
+/**
+ * What the log stream has done. `struct_size` is set by the caller.
+ */
+typedef struct PsLogStats {
+    uint32_t struct_size;
+    uint32_t _pad;
+    uint64_t recorded;
+    uint64_t folded;
+    uint64_t breadcrumbs;
+    uint64_t rate_limited;
+    uint64_t without_consent;
+    uint64_t evicted;
+    uint64_t batches_delivered;
+    uint64_t accepted_by_server;
+    uint64_t dropped_by_server;
+} PsLogStats;
 
 #ifdef __cplusplus
 extern "C" {
@@ -802,6 +956,72 @@ int32_t ps_client_liveops_active(uint64_t client, uint8_t *out, int64_t cap, int
  * `out` must be writable for `cap` bytes; `out_len` writable.
  */
 int32_t ps_client_liveops_upcoming(uint64_t client, uint8_t *out, int64_t cap, int64_t *out_len);
+
+/**
+ * Records a log line, an exception or a crash. Never blocks and never throws.
+ *
+ * Returns [`PS_OK`] when it was queued, and a positive status for every other thing that can
+ * correctly happen to it: held for consent, declined, folded into the line before, kept as a
+ * breadcrumb, over the device's budget, or capture being off.
+ *
+ * # Safety
+ * `record` must point at a readable [`PsLogRecord`] whose contents obey the borrowing rule.
+ */
+int32_t ps_client_log(uint64_t client, const struct PsLogRecord *record);
+
+/**
+ * Keeps something that happened, in memory, for the next error to carry.
+ *
+ * # Safety
+ * The strings must obey the borrowing rule.
+ */
+int32_t ps_client_add_breadcrumb(uint64_t client,
+                                 struct PsStr category,
+                                 struct PsStr message,
+                                 int32_t level);
+
+/**
+ * Records that the player agreed to share error reports, whatever they said about analytics.
+ *
+ * # Safety
+ * The strings must obey the borrowing rule.
+ */
+int32_t ps_client_set_diagnostics_granted(uint64_t client,
+                                          struct PsStr policy_version,
+                                          struct PsStr att_status,
+                                          int32_t gdpr_applies,
+                                          int64_t collected_at_ms);
+
+/**
+ * Records that the player refused error reports. What was waiting is deleted.
+ */
+int32_t ps_client_set_diagnostics_denied(uint64_t client);
+
+/**
+ * Error reports follow the analytics answer again: the default.
+ */
+int32_t ps_client_set_diagnostics_follow_analytics(uint64_t client);
+
+/**
+ * How many crash reports are waiting on the device for the player's answer.
+ *
+ * # Safety
+ * `out` must be writable.
+ */
+int32_t ps_client_held_crash_reports(uint64_t client, int64_t *out);
+
+/**
+ * Deletes the crash reports waiting for an answer, without sending them.
+ */
+int32_t ps_client_discard_held_crash_reports(uint64_t client);
+
+/**
+ * What the log stream has done.
+ *
+ * # Safety
+ * `out` must point at a writable [`PsLogStats`] whose `struct_size` is set.
+ */
+int32_t ps_client_log_stats(uint64_t client, struct PsLogStats *out);
 
 #ifdef __cplusplus
 }  // extern "C"
