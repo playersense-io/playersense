@@ -16,8 +16,6 @@ export function useRealtime(everyMs = 10_000) {
 
   const read = useApiGet<LiveWindow>(url)
   /** When the figures on screen were read. */
-  const updatedAt = ref(Date.now())
-  watch(read.data, () => (updatedAt.value = Date.now()))
 
   const { pause, resume, isActive } = useIntervalFn(() => {
     if (!read.isFetching.value) void read.execute()
@@ -27,5 +25,5 @@ export function useRealtime(everyMs = 10_000) {
   const loading = computed(() => read.isFetching.value && !read.data.value)
   const error = computed(() => read.error.value as ApiError | null)
 
-  return { window, loading, error, updatedAt: readonly(updatedAt), live: isActive, pause, resume, reload: () => read.execute() }
+  return { window, loading, error, live: isActive, pause, resume, reload: () => read.execute() }
 }

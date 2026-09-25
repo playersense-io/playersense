@@ -7,11 +7,7 @@ import type { LiveMinute } from '~/composables/realtime'
 // (GET …/analytics/{env}/realtime). It keeps itself current and can be paused to read a moment
 // without it moving. Minutes and event names only: individual events are on an event's page.
 const workspace = useWorkspaceStore()
-const { window: live, loading, error, updatedAt, live: running, pause, resume, reload } = useRealtime()
-
-// "Updated 2s ago", ticking on its own so it keeps counting while paused.
-const clock = useNow({ interval: 1_000 })
-const since = computed(() => Math.max(0, Math.round((clock.value.getTime() - updatedAt.value) / 1_000)))
+const { window: live, loading, error, live: running, pause, resume, reload } = useRealtime()
 
 // --- The window --------------------------------------------------------------------------
 
@@ -193,9 +189,6 @@ const eventRows = computed<EventRow[]>(() => (live.value?.names ?? []).map(entry
         shows up here within about ten seconds of being sent.
       </template>
       <template #actions>
-        <span class="text-xs text-ink/55 tabular-nums" aria-live="off">
-          Updated {{ since === 0 ? 'just now' : `${since}s ago` }}
-        </span>
         <v-btn
           :prepend-icon="running ? 'material-symbols:pause' : 'material-symbols:play-arrow'"
           class="text-xs"
