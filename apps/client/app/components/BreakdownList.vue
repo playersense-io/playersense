@@ -13,7 +13,14 @@ const largest = computed(() => Math.max(1, ...props.rows.map(row => row.count)))
 </script>
 
 <template>
-  <ul :aria-label="label" class="m-0 flex list-none flex-col gap-3 p-0">
+  <!-- Nothing to list yet: the watermark every chart uses, at the height of a short list. -->
+  <NoDataPlaceholder
+    v-if="!rows.length || !total"
+    :height="96"
+    :seed="label.length"
+    label="No data yet"
+  />
+  <ul v-else :aria-label="label" class="m-0 flex list-none flex-col gap-3 p-0">
     <li v-for="row in rows" :key="row.value" class="flex flex-col gap-1.5">
       <div class="flex items-baseline justify-between gap-3 text-[13px]">
         <span class="truncate text-ink">{{ row.value }}</span>

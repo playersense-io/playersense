@@ -2,8 +2,12 @@
 export interface Kpi {
   key: string
   label: string
-  /** Already written, with its sign or percent: "$388.4k", "53.1k", "2.35%". */
-  value: string
+  /**
+   * Already written, with its sign or percent: "$388.4k", "53.1k", "2.35%". Null is a figure
+   * with nothing behind it yet (no rows came back, or they were held back), drawn as a dash
+   * rather than a zero: a zero says the figure was taken and was nothing.
+   */
+  value: string | null
   /** Set after the figure, smaller: "min". */
   unit?: string
   /** The exact figure, for the tooltip on a compacted one. */
@@ -68,13 +72,16 @@ defineProps<{
         </div>
 
         <div v-else class="flex min-w-0 items-center gap-2">
-          <p :title="item.exact" class="m-0 flex min-w-0 items-baseline gap-1">
+          <p v-if="item.value === null" :aria-label="`${item.label}: no data yet`" class="m-0 font-mono text-2xl leading-8 text-ink/30">
+            &ndash;
+          </p>
+          <p v-else :title="item.exact" class="m-0 flex min-w-0 items-baseline gap-1">
             <span class="truncate font-mono text-2xl leading-8 text-ink tabular-nums">{{ item.value }}</span>
             <span v-if="item.unit" class="text-xs text-ink/55">{{ item.unit }}</span>
           </p>
 
           <span
-            v-if="item.trend"
+            v-if="item.trend && item.value !== null"
             :class="TREND_TONES[item.trend.tone]"
             class="inline-flex flex-none items-center gap-0.5 font-mono text-xs tabular-nums"
           >

@@ -38,6 +38,9 @@ const items = computed(() => props.values.flatMap((row, weekday) =>
 
 const largest = computed(() => Math.max(1, ...props.values.flat()))
 
+/* A week with nothing in it has no busiest hour to name and no shades to tell apart. */
+const empty = computed(() => props.values.flat().every(value => !value))
+
 const SHADES = [0.12, 0.3, 0.5, 0.72, 1]
 
 const thresholds = computed(() => SHADES.map((alpha, index) => ({
@@ -133,6 +136,13 @@ const facts = computed<Fact[]>(() => {
       </template>
     </div>
   </div>
+
+  <NoDataPlaceholder
+    v-else-if="empty"
+    :height="220"
+    :seed="unit.length"
+    label="No data yet"
+  />
 
   <div v-else class="flex flex-col gap-5">
     <FactGrid :columns="4" :facts="facts" label="When players play, in words" />

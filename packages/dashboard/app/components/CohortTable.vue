@@ -486,9 +486,9 @@ const GLYPH_CLASS = { up: 'cohort-card__glyph--up', down: 'cohort-card__glyph--d
         </tbody>
       </table>
 
-      <p v-else class="m-0 px-4 py-10 text-center text-sm text-ink/55">
-        No cohorts in this range yet.
-      </p>
+      <div v-else class="p-4">
+        <NoDataPlaceholder :height="160" :seed="7" label="No cohorts in this range yet" />
+      </div>
     </div>
 
     <div v-if="!loading" class="flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-line px-4 py-3 text-[11px] text-ink/55">

@@ -20,6 +20,9 @@ const props = defineProps<{
 }>()
 
 const grouped = computed(() => props.breakdown.length > 0)
+
+/* Nobody entered the first step: no bars to draw, whether the count is zero or held back. */
+const empty = computed(() => !props.total.players[0])
 const bars = computed(() => (grouped.value ? props.breakdown : [props.total]))
 
 /** A palette slot for each breakdown value, in order; the accent for every player. */
@@ -101,7 +104,13 @@ function spoken(series: FunnelSeries, step: number): string {
 </script>
 
 <template>
-  <div class="flex flex-col gap-4">
+  <NoDataPlaceholder
+    v-if="empty"
+    :height="240"
+    :seed="steps.length"
+    label="No data yet"
+  />
+  <div v-else class="flex flex-col gap-4">
     <ul v-if="grouped" aria-label="Breakdown" class="m-0 flex list-none flex-wrap gap-x-4 gap-y-1.5 p-0">
       <li v-for="(series, index) in bars" :key="series.name" class="flex items-center gap-1.5 text-xs text-ink/70">
         <span :style="{ background: `rgb(${colourOf(index)})` }" aria-hidden="true" class="size-2 rounded-full" />
