@@ -37,6 +37,9 @@ import (
 	"playersense.dev/backend/ent/memberproject"
 	"playersense.dev/backend/ent/monthlyusage"
 	"playersense.dev/backend/ent/notificationchannel"
+	"playersense.dev/backend/ent/notificationmark"
+	"playersense.dev/backend/ent/notificationoutbox"
+	"playersense.dev/backend/ent/notificationrule"
 	"playersense.dev/backend/ent/organization"
 	"playersense.dev/backend/ent/organizationmember"
 	"playersense.dev/backend/ent/paymentcard"
@@ -149,6 +152,9 @@ func checkColumn(t, c string) error {
 			memberproject.Table:       memberproject.ValidColumn,
 			monthlyusage.Table:        monthlyusage.ValidColumn,
 			notificationchannel.Table: notificationchannel.ValidColumn,
+			notificationmark.Table:    notificationmark.ValidColumn,
+			notificationoutbox.Table:  notificationoutbox.ValidColumn,
+			notificationrule.Table:    notificationrule.ValidColumn,
 			organization.Table:        organization.ValidColumn,
 			organizationmember.Table:  organizationmember.ValidColumn,
 			paymentcard.Table:         paymentcard.ValidColumn,

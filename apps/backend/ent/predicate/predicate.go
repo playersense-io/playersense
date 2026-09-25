@@ -81,6 +81,15 @@ type MonthlyUsage func(*sql.Selector)
 // NotificationChannel is the predicate function for notificationchannel builders.
 type NotificationChannel func(*sql.Selector)
 
+// NotificationMark is the predicate function for notificationmark builders.
+type NotificationMark func(*sql.Selector)
+
+// NotificationOutbox is the predicate function for notificationoutbox builders.
+type NotificationOutbox func(*sql.Selector)
+
+// NotificationRule is the predicate function for notificationrule builders.
+type NotificationRule func(*sql.Selector)
+
 // Organization is the predicate function for organization builders.
 type Organization func(*sql.Selector)
 

@@ -40,6 +40,9 @@ import (
 	"playersense.dev/backend/ent/memberproject"
 	"playersense.dev/backend/ent/monthlyusage"
 	"playersense.dev/backend/ent/notificationchannel"
+	"playersense.dev/backend/ent/notificationmark"
+	"playersense.dev/backend/ent/notificationoutbox"
+	"playersense.dev/backend/ent/notificationrule"
 	"playersense.dev/backend/ent/organization"
 	"playersense.dev/backend/ent/organizationmember"
 	"playersense.dev/backend/ent/paymentcard"
@@ -126,6 +129,12 @@ type Client struct {
 	MonthlyUsage *MonthlyUsageClient
 	// NotificationChannel is the client for interacting with the NotificationChannel builders.
 	NotificationChannel *NotificationChannelClient
+	// NotificationMark is the client for interacting with the NotificationMark builders.
+	NotificationMark *NotificationMarkClient
+	// NotificationOutbox is the client for interacting with the NotificationOutbox builders.
+	NotificationOutbox *NotificationOutboxClient
+	// NotificationRule is the client for interacting with the NotificationRule builders.
+	NotificationRule *NotificationRuleClient
 	// Organization is the client for interacting with the Organization builders.
 	Organization *OrganizationClient
 	// OrganizationMember is the client for interacting with the OrganizationMember builders.
@@ -216,6 +225,9 @@ func (c *Client) init() {
 	c.MemberProject = NewMemberProjectClient(c.config)
 	c.MonthlyUsage = NewMonthlyUsageClient(c.config)
 	c.NotificationChannel = NewNotificationChannelClient(c.config)
+	c.NotificationMark = NewNotificationMarkClient(c.config)
+	c.NotificationOutbox = NewNotificationOutboxClient(c.config)
+	c.NotificationRule = NewNotificationRuleClient(c.config)
 	c.Organization = NewOrganizationClient(c.config)
 	c.OrganizationMember = NewOrganizationMemberClient(c.config)
 	c.PaymentCard = NewPaymentCardClient(c.config)
@@ -360,6 +372,9 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		MemberProject:       NewMemberProjectClient(cfg),
 		MonthlyUsage:        NewMonthlyUsageClient(cfg),
 		NotificationChannel: NewNotificationChannelClient(cfg),
+		NotificationMark:    NewNotificationMarkClient(cfg),
+		NotificationOutbox:  NewNotificationOutboxClient(cfg),
+		NotificationRule:    NewNotificationRuleClient(cfg),
 		Organization:        NewOrganizationClient(cfg),
 		OrganizationMember:  NewOrganizationMemberClient(cfg),
 		PaymentCard:         NewPaymentCardClient(cfg),
@@ -431,6 +446,9 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		MemberProject:       NewMemberProjectClient(cfg),
 		MonthlyUsage:        NewMonthlyUsageClient(cfg),
 		NotificationChannel: NewNotificationChannelClient(cfg),
+		NotificationMark:    NewNotificationMarkClient(cfg),
+		NotificationOutbox:  NewNotificationOutboxClient(cfg),
+		NotificationRule:    NewNotificationRuleClient(cfg),
 		Organization:        NewOrganizationClient(cfg),
 		OrganizationMember:  NewOrganizationMemberClient(cfg),
 		PaymentCard:         NewPaymentCardClient(cfg),
@@ -492,7 +510,8 @@ func (c *Client) Use(hooks ...Hook) {
 		c.DataDeletionRequest, c.DataExportRequest, c.Environment, c.EventDefinition,
 		c.Experiment, c.FeatureFlag, c.FxRate, c.Invitation, c.Invoice, c.InvoiceLine,
 		c.LedgerEntry, c.LiveOpsEvent, c.LogIssue, c.MemberProject, c.MonthlyUsage,
-		c.NotificationChannel, c.Organization, c.OrganizationMember, c.PaymentCard,
+		c.NotificationChannel, c.NotificationMark, c.NotificationOutbox,
+		c.NotificationRule, c.Organization, c.OrganizationMember, c.PaymentCard,
 		c.Plan, c.Project, c.PurchaseAttempt, c.PurchaseChange, c.PurchaseProvider,
 		c.RateCard, c.Receipt, c.Report, c.ReportExport, c.ReportRun, c.ReportRunEvent,
 		c.Role, c.SavedFunnel, c.Segment, c.StaffAccess, c.StaffMember, c.StripeEvent,
@@ -512,7 +531,8 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.DataDeletionRequest, c.DataExportRequest, c.Environment, c.EventDefinition,
 		c.Experiment, c.FeatureFlag, c.FxRate, c.Invitation, c.Invoice, c.InvoiceLine,
 		c.LedgerEntry, c.LiveOpsEvent, c.LogIssue, c.MemberProject, c.MonthlyUsage,
-		c.NotificationChannel, c.Organization, c.OrganizationMember, c.PaymentCard,
+		c.NotificationChannel, c.NotificationMark, c.NotificationOutbox,
+		c.NotificationRule, c.Organization, c.OrganizationMember, c.PaymentCard,
 		c.Plan, c.Project, c.PurchaseAttempt, c.PurchaseChange, c.PurchaseProvider,
 		c.RateCard, c.Receipt, c.Report, c.ReportExport, c.ReportRun, c.ReportRunEvent,
 		c.Role, c.SavedFunnel, c.Segment, c.StaffAccess, c.StaffMember, c.StripeEvent,
@@ -576,6 +596,12 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.MonthlyUsage.mutate(ctx, m)
 	case *NotificationChannelMutation:
 		return c.NotificationChannel.mutate(ctx, m)
+	case *NotificationMarkMutation:
+		return c.NotificationMark.mutate(ctx, m)
+	case *NotificationOutboxMutation:
+		return c.NotificationOutbox.mutate(ctx, m)
+	case *NotificationRuleMutation:
+		return c.NotificationRule.mutate(ctx, m)
 	case *OrganizationMutation:
 		return c.Organization.mutate(ctx, m)
 	case *OrganizationMemberMutation:
@@ -4694,6 +4720,405 @@ func (c *NotificationChannelClient) mutate(ctx context.Context, m *NotificationC
 		return (&NotificationChannelDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown NotificationChannel mutation op: %q", m.Op())
+	}
+}
+
+// NotificationMarkClient is a client for the NotificationMark schema.
+type NotificationMarkClient struct {
+	config
+}
+
+// NewNotificationMarkClient returns a client for the NotificationMark from the given config.
+func NewNotificationMarkClient(c config) *NotificationMarkClient {
+	return &NotificationMarkClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `notificationmark.Hooks(f(g(h())))`.
+func (c *NotificationMarkClient) Use(hooks ...Hook) {
+	c.hooks.NotificationMark = append(c.hooks.NotificationMark, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `notificationmark.Intercept(f(g(h())))`.
+func (c *NotificationMarkClient) Intercept(interceptors ...Interceptor) {
+	c.inters.NotificationMark = append(c.inters.NotificationMark, interceptors...)
+}
+
+// Create returns a builder for creating a NotificationMark entity.
+func (c *NotificationMarkClient) Create() *NotificationMarkCreate {
+	mutation := newNotificationMarkMutation(c.config, OpCreate)
+	return &NotificationMarkCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of NotificationMark entities.
+func (c *NotificationMarkClient) CreateBulk(builders ...*NotificationMarkCreate) *NotificationMarkCreateBulk {
+	return &NotificationMarkCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *NotificationMarkClient) MapCreateBulk(slice any, setFunc func(*NotificationMarkCreate, int)) *NotificationMarkCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &NotificationMarkCreateBulk{err: fmt.Errorf("calling to NotificationMarkClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*NotificationMarkCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &NotificationMarkCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for NotificationMark.
+func (c *NotificationMarkClient) Update() *NotificationMarkUpdate {
+	mutation := newNotificationMarkMutation(c.config, OpUpdate)
+	return &NotificationMarkUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *NotificationMarkClient) UpdateOne(_m *NotificationMark) *NotificationMarkUpdateOne {
+	mutation := newNotificationMarkMutation(c.config, OpUpdateOne, withNotificationMark(_m))
+	return &NotificationMarkUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *NotificationMarkClient) UpdateOneID(id int) *NotificationMarkUpdateOne {
+	mutation := newNotificationMarkMutation(c.config, OpUpdateOne, withNotificationMarkID(id))
+	return &NotificationMarkUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for NotificationMark.
+func (c *NotificationMarkClient) Delete() *NotificationMarkDelete {
+	mutation := newNotificationMarkMutation(c.config, OpDelete)
+	return &NotificationMarkDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *NotificationMarkClient) DeleteOne(_m *NotificationMark) *NotificationMarkDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *NotificationMarkClient) DeleteOneID(id int) *NotificationMarkDeleteOne {
+	builder := c.Delete().Where(notificationmark.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &NotificationMarkDeleteOne{builder}
+}
+
+// Query returns a query builder for NotificationMark.
+func (c *NotificationMarkClient) Query() *NotificationMarkQuery {
+	return &NotificationMarkQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeNotificationMark},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a NotificationMark entity by its id.
+func (c *NotificationMarkClient) Get(ctx context.Context, id int) (*NotificationMark, error) {
+	return c.Query().Where(notificationmark.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *NotificationMarkClient) GetX(ctx context.Context, id int) *NotificationMark {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *NotificationMarkClient) Hooks() []Hook {
+	return c.hooks.NotificationMark
+}
+
+// Interceptors returns the client interceptors.
+func (c *NotificationMarkClient) Interceptors() []Interceptor {
+	return c.inters.NotificationMark
+}
+
+func (c *NotificationMarkClient) mutate(ctx context.Context, m *NotificationMarkMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&NotificationMarkCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&NotificationMarkUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&NotificationMarkUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&NotificationMarkDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown NotificationMark mutation op: %q", m.Op())
+	}
+}
+
+// NotificationOutboxClient is a client for the NotificationOutbox schema.
+type NotificationOutboxClient struct {
+	config
+}
+
+// NewNotificationOutboxClient returns a client for the NotificationOutbox from the given config.
+func NewNotificationOutboxClient(c config) *NotificationOutboxClient {
+	return &NotificationOutboxClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `notificationoutbox.Hooks(f(g(h())))`.
+func (c *NotificationOutboxClient) Use(hooks ...Hook) {
+	c.hooks.NotificationOutbox = append(c.hooks.NotificationOutbox, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `notificationoutbox.Intercept(f(g(h())))`.
+func (c *NotificationOutboxClient) Intercept(interceptors ...Interceptor) {
+	c.inters.NotificationOutbox = append(c.inters.NotificationOutbox, interceptors...)
+}
+
+// Create returns a builder for creating a NotificationOutbox entity.
+func (c *NotificationOutboxClient) Create() *NotificationOutboxCreate {
+	mutation := newNotificationOutboxMutation(c.config, OpCreate)
+	return &NotificationOutboxCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of NotificationOutbox entities.
+func (c *NotificationOutboxClient) CreateBulk(builders ...*NotificationOutboxCreate) *NotificationOutboxCreateBulk {
+	return &NotificationOutboxCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *NotificationOutboxClient) MapCreateBulk(slice any, setFunc func(*NotificationOutboxCreate, int)) *NotificationOutboxCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &NotificationOutboxCreateBulk{err: fmt.Errorf("calling to NotificationOutboxClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*NotificationOutboxCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &NotificationOutboxCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for NotificationOutbox.
+func (c *NotificationOutboxClient) Update() *NotificationOutboxUpdate {
+	mutation := newNotificationOutboxMutation(c.config, OpUpdate)
+	return &NotificationOutboxUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *NotificationOutboxClient) UpdateOne(_m *NotificationOutbox) *NotificationOutboxUpdateOne {
+	mutation := newNotificationOutboxMutation(c.config, OpUpdateOne, withNotificationOutbox(_m))
+	return &NotificationOutboxUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *NotificationOutboxClient) UpdateOneID(id int) *NotificationOutboxUpdateOne {
+	mutation := newNotificationOutboxMutation(c.config, OpUpdateOne, withNotificationOutboxID(id))
+	return &NotificationOutboxUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for NotificationOutbox.
+func (c *NotificationOutboxClient) Delete() *NotificationOutboxDelete {
+	mutation := newNotificationOutboxMutation(c.config, OpDelete)
+	return &NotificationOutboxDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *NotificationOutboxClient) DeleteOne(_m *NotificationOutbox) *NotificationOutboxDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *NotificationOutboxClient) DeleteOneID(id int) *NotificationOutboxDeleteOne {
+	builder := c.Delete().Where(notificationoutbox.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &NotificationOutboxDeleteOne{builder}
+}
+
+// Query returns a query builder for NotificationOutbox.
+func (c *NotificationOutboxClient) Query() *NotificationOutboxQuery {
+	return &NotificationOutboxQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeNotificationOutbox},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a NotificationOutbox entity by its id.
+func (c *NotificationOutboxClient) Get(ctx context.Context, id int) (*NotificationOutbox, error) {
+	return c.Query().Where(notificationoutbox.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *NotificationOutboxClient) GetX(ctx context.Context, id int) *NotificationOutbox {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *NotificationOutboxClient) Hooks() []Hook {
+	return c.hooks.NotificationOutbox
+}
+
+// Interceptors returns the client interceptors.
+func (c *NotificationOutboxClient) Interceptors() []Interceptor {
+	return c.inters.NotificationOutbox
+}
+
+func (c *NotificationOutboxClient) mutate(ctx context.Context, m *NotificationOutboxMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&NotificationOutboxCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&NotificationOutboxUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&NotificationOutboxUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&NotificationOutboxDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown NotificationOutbox mutation op: %q", m.Op())
+	}
+}
+
+// NotificationRuleClient is a client for the NotificationRule schema.
+type NotificationRuleClient struct {
+	config
+}
+
+// NewNotificationRuleClient returns a client for the NotificationRule from the given config.
+func NewNotificationRuleClient(c config) *NotificationRuleClient {
+	return &NotificationRuleClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `notificationrule.Hooks(f(g(h())))`.
+func (c *NotificationRuleClient) Use(hooks ...Hook) {
+	c.hooks.NotificationRule = append(c.hooks.NotificationRule, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `notificationrule.Intercept(f(g(h())))`.
+func (c *NotificationRuleClient) Intercept(interceptors ...Interceptor) {
+	c.inters.NotificationRule = append(c.inters.NotificationRule, interceptors...)
+}
+
+// Create returns a builder for creating a NotificationRule entity.
+func (c *NotificationRuleClient) Create() *NotificationRuleCreate {
+	mutation := newNotificationRuleMutation(c.config, OpCreate)
+	return &NotificationRuleCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of NotificationRule entities.
+func (c *NotificationRuleClient) CreateBulk(builders ...*NotificationRuleCreate) *NotificationRuleCreateBulk {
+	return &NotificationRuleCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *NotificationRuleClient) MapCreateBulk(slice any, setFunc func(*NotificationRuleCreate, int)) *NotificationRuleCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &NotificationRuleCreateBulk{err: fmt.Errorf("calling to NotificationRuleClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*NotificationRuleCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &NotificationRuleCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for NotificationRule.
+func (c *NotificationRuleClient) Update() *NotificationRuleUpdate {
+	mutation := newNotificationRuleMutation(c.config, OpUpdate)
+	return &NotificationRuleUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *NotificationRuleClient) UpdateOne(_m *NotificationRule) *NotificationRuleUpdateOne {
+	mutation := newNotificationRuleMutation(c.config, OpUpdateOne, withNotificationRule(_m))
+	return &NotificationRuleUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *NotificationRuleClient) UpdateOneID(id int) *NotificationRuleUpdateOne {
+	mutation := newNotificationRuleMutation(c.config, OpUpdateOne, withNotificationRuleID(id))
+	return &NotificationRuleUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for NotificationRule.
+func (c *NotificationRuleClient) Delete() *NotificationRuleDelete {
+	mutation := newNotificationRuleMutation(c.config, OpDelete)
+	return &NotificationRuleDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *NotificationRuleClient) DeleteOne(_m *NotificationRule) *NotificationRuleDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *NotificationRuleClient) DeleteOneID(id int) *NotificationRuleDeleteOne {
+	builder := c.Delete().Where(notificationrule.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &NotificationRuleDeleteOne{builder}
+}
+
+// Query returns a query builder for NotificationRule.
+func (c *NotificationRuleClient) Query() *NotificationRuleQuery {
+	return &NotificationRuleQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeNotificationRule},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a NotificationRule entity by its id.
+func (c *NotificationRuleClient) Get(ctx context.Context, id int) (*NotificationRule, error) {
+	return c.Query().Where(notificationrule.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *NotificationRuleClient) GetX(ctx context.Context, id int) *NotificationRule {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *NotificationRuleClient) Hooks() []Hook {
+	return c.hooks.NotificationRule
+}
+
+// Interceptors returns the client interceptors.
+func (c *NotificationRuleClient) Interceptors() []Interceptor {
+	return c.inters.NotificationRule
+}
+
+func (c *NotificationRuleClient) mutate(ctx context.Context, m *NotificationRuleMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&NotificationRuleCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&NotificationRuleUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&NotificationRuleUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&NotificationRuleDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown NotificationRule mutation op: %q", m.Op())
 	}
 }
 
@@ -9051,7 +9476,8 @@ type (
 		DataDeletionRequest, DataExportRequest, Environment, EventDefinition,
 		Experiment, FeatureFlag, FxRate, Invitation, Invoice, InvoiceLine, LedgerEntry,
 		LiveOpsEvent, LogIssue, MemberProject, MonthlyUsage, NotificationChannel,
-		Organization, OrganizationMember, PaymentCard, Plan, Project, PurchaseAttempt,
+		NotificationMark, NotificationOutbox, NotificationRule, Organization,
+		OrganizationMember, PaymentCard, Plan, Project, PurchaseAttempt,
 		PurchaseChange, PurchaseProvider, RateCard, Receipt, Report, ReportExport,
 		ReportRun, ReportRunEvent, Role, SavedFunnel, Segment, StaffAccess,
 		StaffMember, StripeEvent, UsageCharge, UsageDaily, User, VerifiedPurchase,
@@ -9063,7 +9489,8 @@ type (
 		DataDeletionRequest, DataExportRequest, Environment, EventDefinition,
 		Experiment, FeatureFlag, FxRate, Invitation, Invoice, InvoiceLine, LedgerEntry,
 		LiveOpsEvent, LogIssue, MemberProject, MonthlyUsage, NotificationChannel,
-		Organization, OrganizationMember, PaymentCard, Plan, Project, PurchaseAttempt,
+		NotificationMark, NotificationOutbox, NotificationRule, Organization,
+		OrganizationMember, PaymentCard, Plan, Project, PurchaseAttempt,
 		PurchaseChange, PurchaseProvider, RateCard, Receipt, Report, ReportExport,
 		ReportRun, ReportRunEvent, Role, SavedFunnel, Segment, StaffAccess,
 		StaffMember, StripeEvent, UsageCharge, UsageDaily, User, VerifiedPurchase,

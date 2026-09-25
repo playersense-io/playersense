@@ -31,6 +31,9 @@ import (
 	"playersense.dev/backend/ent/memberproject"
 	"playersense.dev/backend/ent/monthlyusage"
 	"playersense.dev/backend/ent/notificationchannel"
+	"playersense.dev/backend/ent/notificationmark"
+	"playersense.dev/backend/ent/notificationoutbox"
+	"playersense.dev/backend/ent/notificationrule"
 	"playersense.dev/backend/ent/organization"
 	"playersense.dev/backend/ent/organizationmember"
 	"playersense.dev/backend/ent/paymentcard"
@@ -1745,6 +1748,120 @@ func init() {
 	notificationchannel.DefaultUpdatedBy = notificationchannelDescUpdatedBy.Default.(string)
 	// notificationchannel.UpdatedByValidator is a validator for the "updated_by" field. It is called by the builders before save.
 	notificationchannel.UpdatedByValidator = notificationchannelDescUpdatedBy.Validators[0].(func(string) error)
+	notificationmarkFields := schema.NotificationMark{}.Fields()
+	_ = notificationmarkFields
+	// notificationmarkDescKey is the schema descriptor for key field.
+	notificationmarkDescKey := notificationmarkFields[1].Descriptor()
+	// notificationmark.KeyValidator is a validator for the "key" field. It is called by the builders before save.
+	notificationmark.KeyValidator = notificationmarkDescKey.Validators[0].(func(string) error)
+	notificationoutboxMixin := schema.NotificationOutbox{}.Mixin()
+	notificationoutboxMixinFields0 := notificationoutboxMixin[0].Fields()
+	_ = notificationoutboxMixinFields0
+	notificationoutboxFields := schema.NotificationOutbox{}.Fields()
+	_ = notificationoutboxFields
+	// notificationoutboxDescUID is the schema descriptor for uid field.
+	notificationoutboxDescUID := notificationoutboxMixinFields0[1].Descriptor()
+	// notificationoutbox.DefaultUID holds the default value on creation for the uid field.
+	notificationoutbox.DefaultUID = notificationoutboxDescUID.Default.(func() uuid.UUID)
+	// notificationoutboxDescCreatedAt is the schema descriptor for created_at field.
+	notificationoutboxDescCreatedAt := notificationoutboxMixinFields0[2].Descriptor()
+	// notificationoutbox.DefaultCreatedAt holds the default value on creation for the created_at field.
+	notificationoutbox.DefaultCreatedAt = notificationoutboxDescCreatedAt.Default.(func() time.Time)
+	// notificationoutboxDescUpdatedAt is the schema descriptor for updated_at field.
+	notificationoutboxDescUpdatedAt := notificationoutboxMixinFields0[3].Descriptor()
+	// notificationoutbox.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	notificationoutbox.DefaultUpdatedAt = notificationoutboxDescUpdatedAt.Default.(func() time.Time)
+	// notificationoutbox.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	notificationoutbox.UpdateDefaultUpdatedAt = notificationoutboxDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// notificationoutboxDescType is the schema descriptor for type field.
+	notificationoutboxDescType := notificationoutboxFields[3].Descriptor()
+	// notificationoutbox.TypeValidator is a validator for the "type" field. It is called by the builders before save.
+	notificationoutbox.TypeValidator = notificationoutboxDescType.Validators[0].(func(string) error)
+	// notificationoutboxDescEnvironment is the schema descriptor for environment field.
+	notificationoutboxDescEnvironment := notificationoutboxFields[4].Descriptor()
+	// notificationoutbox.DefaultEnvironment holds the default value on creation for the environment field.
+	notificationoutbox.DefaultEnvironment = notificationoutboxDescEnvironment.Default.(string)
+	// notificationoutbox.EnvironmentValidator is a validator for the "environment" field. It is called by the builders before save.
+	notificationoutbox.EnvironmentValidator = notificationoutboxDescEnvironment.Validators[0].(func(string) error)
+	// notificationoutboxDescData is the schema descriptor for data field.
+	notificationoutboxDescData := notificationoutboxFields[7].Descriptor()
+	// notificationoutbox.DefaultData holds the default value on creation for the data field.
+	notificationoutbox.DefaultData = notificationoutboxDescData.Default.(map[string]interface{})
+	// notificationoutboxDescAttempts is the schema descriptor for attempts field.
+	notificationoutboxDescAttempts := notificationoutboxFields[9].Descriptor()
+	// notificationoutbox.DefaultAttempts holds the default value on creation for the attempts field.
+	notificationoutbox.DefaultAttempts = notificationoutboxDescAttempts.Default.(int)
+	// notificationoutboxDescNextAt is the schema descriptor for next_at field.
+	notificationoutboxDescNextAt := notificationoutboxFields[10].Descriptor()
+	// notificationoutbox.DefaultNextAt holds the default value on creation for the next_at field.
+	notificationoutbox.DefaultNextAt = notificationoutboxDescNextAt.Default.(func() time.Time)
+	// notificationoutboxDescLastError is the schema descriptor for last_error field.
+	notificationoutboxDescLastError := notificationoutboxFields[12].Descriptor()
+	// notificationoutbox.DefaultLastError holds the default value on creation for the last_error field.
+	notificationoutbox.DefaultLastError = notificationoutboxDescLastError.Default.(string)
+	// notificationoutbox.LastErrorValidator is a validator for the "last_error" field. It is called by the builders before save.
+	notificationoutbox.LastErrorValidator = notificationoutboxDescLastError.Validators[0].(func(string) error)
+	notificationruleMixin := schema.NotificationRule{}.Mixin()
+	notificationruleMixinFields0 := notificationruleMixin[0].Fields()
+	_ = notificationruleMixinFields0
+	notificationruleFields := schema.NotificationRule{}.Fields()
+	_ = notificationruleFields
+	// notificationruleDescUID is the schema descriptor for uid field.
+	notificationruleDescUID := notificationruleMixinFields0[1].Descriptor()
+	// notificationrule.DefaultUID holds the default value on creation for the uid field.
+	notificationrule.DefaultUID = notificationruleDescUID.Default.(func() uuid.UUID)
+	// notificationruleDescCreatedAt is the schema descriptor for created_at field.
+	notificationruleDescCreatedAt := notificationruleMixinFields0[2].Descriptor()
+	// notificationrule.DefaultCreatedAt holds the default value on creation for the created_at field.
+	notificationrule.DefaultCreatedAt = notificationruleDescCreatedAt.Default.(func() time.Time)
+	// notificationruleDescUpdatedAt is the schema descriptor for updated_at field.
+	notificationruleDescUpdatedAt := notificationruleMixinFields0[3].Descriptor()
+	// notificationrule.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	notificationrule.DefaultUpdatedAt = notificationruleDescUpdatedAt.Default.(func() time.Time)
+	// notificationrule.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	notificationrule.UpdateDefaultUpdatedAt = notificationruleDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// notificationruleDescName is the schema descriptor for name field.
+	notificationruleDescName := notificationruleFields[2].Descriptor()
+	// notificationrule.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	notificationrule.NameValidator = func() func(string) error {
+		validators := notificationruleDescName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(name string) error {
+			for _, fn := range fns {
+				if err := fn(name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// notificationruleDescEnabled is the schema descriptor for enabled field.
+	notificationruleDescEnabled := notificationruleFields[3].Descriptor()
+	// notificationrule.DefaultEnabled holds the default value on creation for the enabled field.
+	notificationrule.DefaultEnabled = notificationruleDescEnabled.Default.(bool)
+	// notificationruleDescEnvironments is the schema descriptor for environments field.
+	notificationruleDescEnvironments := notificationruleFields[5].Descriptor()
+	// notificationrule.DefaultEnvironments holds the default value on creation for the environments field.
+	notificationrule.DefaultEnvironments = notificationruleDescEnvironments.Default.([]string)
+	// notificationruleDescCooldownMinutes is the schema descriptor for cooldown_minutes field.
+	notificationruleDescCooldownMinutes := notificationruleFields[7].Descriptor()
+	// notificationrule.DefaultCooldownMinutes holds the default value on creation for the cooldown_minutes field.
+	notificationrule.DefaultCooldownMinutes = notificationruleDescCooldownMinutes.Default.(int)
+	// notificationruleDescCreatedBy is the schema descriptor for created_by field.
+	notificationruleDescCreatedBy := notificationruleFields[10].Descriptor()
+	// notificationrule.DefaultCreatedBy holds the default value on creation for the created_by field.
+	notificationrule.DefaultCreatedBy = notificationruleDescCreatedBy.Default.(string)
+	// notificationrule.CreatedByValidator is a validator for the "created_by" field. It is called by the builders before save.
+	notificationrule.CreatedByValidator = notificationruleDescCreatedBy.Validators[0].(func(string) error)
+	// notificationruleDescUpdatedBy is the schema descriptor for updated_by field.
+	notificationruleDescUpdatedBy := notificationruleFields[11].Descriptor()
+	// notificationrule.DefaultUpdatedBy holds the default value on creation for the updated_by field.
+	notificationrule.DefaultUpdatedBy = notificationruleDescUpdatedBy.Default.(string)
+	// notificationrule.UpdatedByValidator is a validator for the "updated_by" field. It is called by the builders before save.
+	notificationrule.UpdatedByValidator = notificationruleDescUpdatedBy.Validators[0].(func(string) error)
 	organizationMixin := schema.Organization{}.Mixin()
 	organizationMixinFields0 := organizationMixin[0].Fields()
 	_ = organizationMixinFields0

@@ -64,6 +64,12 @@ type Tx struct {
 	MonthlyUsage *MonthlyUsageClient
 	// NotificationChannel is the client for interacting with the NotificationChannel builders.
 	NotificationChannel *NotificationChannelClient
+	// NotificationMark is the client for interacting with the NotificationMark builders.
+	NotificationMark *NotificationMarkClient
+	// NotificationOutbox is the client for interacting with the NotificationOutbox builders.
+	NotificationOutbox *NotificationOutboxClient
+	// NotificationRule is the client for interacting with the NotificationRule builders.
+	NotificationRule *NotificationRuleClient
 	// Organization is the client for interacting with the Organization builders.
 	Organization *OrganizationClient
 	// OrganizationMember is the client for interacting with the OrganizationMember builders.
@@ -274,6 +280,9 @@ func (tx *Tx) init() {
 	tx.MemberProject = NewMemberProjectClient(tx.config)
 	tx.MonthlyUsage = NewMonthlyUsageClient(tx.config)
 	tx.NotificationChannel = NewNotificationChannelClient(tx.config)
+	tx.NotificationMark = NewNotificationMarkClient(tx.config)
+	tx.NotificationOutbox = NewNotificationOutboxClient(tx.config)
+	tx.NotificationRule = NewNotificationRuleClient(tx.config)
 	tx.Organization = NewOrganizationClient(tx.config)
 	tx.OrganizationMember = NewOrganizationMemberClient(tx.config)
 	tx.PaymentCard = NewPaymentCardClient(tx.config)

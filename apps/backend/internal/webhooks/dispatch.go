@@ -48,6 +48,9 @@ type Dispatcher struct {
 	// BusyWait is how long a delivery waits for a busy endpoint's slot before it is held back.
 	BusyWait time.Duration
 	Logger   *slog.Logger
+	// Alerts, when set, hears every event taken, for the project's notification rules
+	// (internal/alerts). Nil in a deployment without them.
+	Alerts AlertSink
 
 	// Counts since the process started, for its metrics: tries made and landed, and deliveries
 	// held back without a try.
@@ -168,6 +171,17 @@ func (d *Dispatcher) Pass(ctx context.Context) (int, error) {
 	if err != nil {
 		return 0, err
 	}
+	// Queued for people before anything is delivered to endpoints: a failure here returns before
+	// any try, so the batch is taken again whole once its lease passes and no endpoint hears an
+	// event twice. Queuing twice is harmless; its rows are keyed by the event.
+	if d.Alerts != nil {
+		for _, ev := range events {
+			if err := d.Alerts.Enqueue(ctx, ClaimedEvent{EventUID: ev.uid, ProjectID: ev.projectID,
+				Environment: ev.environment, Type: ev.kind, Body: ev.body, CreatedAt: ev.createdAt}); err != nil {
+				return 0, fmt.Errorf("queue notifications for %s: %w", ev.kind, err)
+			}
+		}
+	}
 	for _, ev := range events {
 		targets, err := d.targetsFor(ctx, ev.projectID, ev.kind, ev.environment)
 		if err != nil {
@@ -207,6 +221,21 @@ func (d *Dispatcher) Pass(ctx context.Context) (int, error) {
 		}
 	}
 	return len(events) + len(retries), nil
+}
+
+// AlertSink hears every event the dispatcher takes, for notification rules.
+type AlertSink interface {
+	Enqueue(ctx context.Context, e ClaimedEvent) error
+}
+
+// ClaimedEvent is an event as the dispatcher took it.
+type ClaimedEvent struct {
+	EventUID    uuid.UUID
+	ProjectID   int
+	Environment string
+	Type        string
+	Body        []byte
+	CreatedAt   time.Time
 }
 
 type claimedEvent struct {

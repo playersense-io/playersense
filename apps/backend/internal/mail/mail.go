@@ -39,6 +39,9 @@ const (
 	Notification Kind = "notification"
 	// WebhookDisabled tells owners a webhook endpoint was turned off after three days of failures.
 	WebhookDisabled Kind = "webhook_disabled"
+	// Alert tells owners, admins and billing members about the organization's account: a failed
+	// top-up, a suspension (internal/alerts).
+	Alert Kind = "alert"
 )
 
 // Message is one email.

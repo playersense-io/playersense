@@ -1102,6 +1102,88 @@ var (
 			},
 		},
 	}
+	// NotificationMarksColumns holds the columns for the "notification_marks" table.
+	NotificationMarksColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
+		{Name: "key", Type: field.TypeString, Unique: true, Size: 200, Comment: "class=none"},
+		{Name: "fired_at", Type: field.TypeTime, Comment: "class=none"},
+	}
+	// NotificationMarksTable holds the schema information for the "notification_marks" table.
+	NotificationMarksTable = &schema.Table{
+		Name:       "notification_marks",
+		Columns:    NotificationMarksColumns,
+		PrimaryKey: []*schema.Column{NotificationMarksColumns[0]},
+	}
+	// NotificationOutboxesColumns holds the columns for the "notification_outboxes" table.
+	NotificationOutboxesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
+		{Name: "uid", Type: field.TypeUUID, Unique: true, Comment: "class=none"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "updated_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "organization_id", Type: field.TypeInt, Comment: "class=none"},
+		{Name: "project_id", Type: field.TypeInt, Nullable: true, Comment: "class=none"},
+		{Name: "event_uid", Type: field.TypeUUID, Comment: "class=none"},
+		{Name: "type", Type: field.TypeString, Size: 80, Comment: "class=none"},
+		{Name: "environment", Type: field.TypeString, Size: 20, Comment: "class=none", Default: ""},
+		{Name: "rule_id", Type: field.TypeInt, Nullable: true, Comment: "class=none"},
+		{Name: "channel_id", Type: field.TypeInt, Nullable: true, Comment: "class=none"},
+		{Name: "data", Type: field.TypeJSON, Comment: "class=none"},
+		{Name: "occurred_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "attempts", Type: field.TypeInt, Comment: "class=none", Default: 0},
+		{Name: "next_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "claimed_until", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
+		{Name: "last_error", Type: field.TypeString, Size: 500, Comment: "class=none", Default: ""},
+	}
+	// NotificationOutboxesTable holds the schema information for the "notification_outboxes" table.
+	NotificationOutboxesTable = &schema.Table{
+		Name:       "notification_outboxes",
+		Columns:    NotificationOutboxesColumns,
+		PrimaryKey: []*schema.Column{NotificationOutboxesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "notificationoutbox_event_uid_rule_id_channel_id",
+				Unique:  true,
+				Columns: []*schema.Column{NotificationOutboxesColumns[6], NotificationOutboxesColumns[9], NotificationOutboxesColumns[10]},
+			},
+			{
+				Name:    "notificationoutbox_next_at",
+				Unique:  false,
+				Columns: []*schema.Column{NotificationOutboxesColumns[14]},
+			},
+		},
+	}
+	// NotificationRulesColumns holds the columns for the "notification_rules" table.
+	NotificationRulesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
+		{Name: "uid", Type: field.TypeUUID, Unique: true, Comment: "class=none"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "updated_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "organization_id", Type: field.TypeInt, Comment: "class=none"},
+		{Name: "project_id", Type: field.TypeInt, Nullable: true, Comment: "class=none"},
+		{Name: "name", Type: field.TypeString, Size: 120, Comment: "class=none"},
+		{Name: "enabled", Type: field.TypeBool, Comment: "class=none", Default: true},
+		{Name: "events", Type: field.TypeJSON, Comment: "class=none"},
+		{Name: "environments", Type: field.TypeJSON, Comment: "class=none"},
+		{Name: "channels", Type: field.TypeJSON, Comment: "class=none"},
+		{Name: "cooldown_minutes", Type: field.TypeInt, Comment: "class=none", Default: 0},
+		{Name: "muted_until", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
+		{Name: "last_fired_at", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
+		{Name: "created_by", Type: field.TypeString, Size: 254, Comment: "class=none", Default: ""},
+		{Name: "updated_by", Type: field.TypeString, Size: 254, Comment: "class=none", Default: ""},
+	}
+	// NotificationRulesTable holds the schema information for the "notification_rules" table.
+	NotificationRulesTable = &schema.Table{
+		Name:       "notification_rules",
+		Columns:    NotificationRulesColumns,
+		PrimaryKey: []*schema.Column{NotificationRulesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "notificationrule_organization_id_project_id",
+				Unique:  false,
+				Columns: []*schema.Column{NotificationRulesColumns[4], NotificationRulesColumns[5]},
+			},
+		},
+	}
 	// OrganizationsColumns holds the columns for the "organizations" table.
 	OrganizationsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
@@ -2139,6 +2221,9 @@ var (
 		MemberProjectsTable,
 		MonthlyUsageTable,
 		NotificationChannelsTable,
+		NotificationMarksTable,
+		NotificationOutboxesTable,
+		NotificationRulesTable,
 		OrganizationsTable,
 		OrganizationMembersTable,
 		PaymentCardsTable,
