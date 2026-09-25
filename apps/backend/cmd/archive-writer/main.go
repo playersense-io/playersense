@@ -31,7 +31,7 @@ import (
 )
 
 func main() {
-	settings := config.MustLoad(filepath.Join(repoRoot(), ".env"))
+	settings := config.MustLoad(config.EnvFile(repoRoot()))
 
 	app, err := build(settings)
 	if err != nil {

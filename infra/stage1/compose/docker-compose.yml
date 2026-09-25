@@ -1,11 +1,12 @@
 # PlayerSense — Stage 1 local stack (§7.1).
 #
-# Every published port comes from .env and none of them is a service default, so this
-# stack can run beside any other local database without a collision. Change a port in
-# .env and nowhere else.
+# Every published port comes from apps/backend/.env and none of them is a service default,
+# so this stack can run beside any other local database without a collision. Change a port
+# there and nowhere else: the backend reads the same file.
 #
 # Run from the repository root:
 #   export COMPOSE_FILE=infra/stage1/compose/docker-compose.yml
+#   export COMPOSE_ENV_FILES=apps/backend/.env
 #   docker compose up -d
 
 name: ${COMPOSE_PROJECT_NAME:-playersense}

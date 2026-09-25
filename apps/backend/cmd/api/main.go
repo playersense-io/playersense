@@ -76,7 +76,7 @@ func main() {
 		"print the OpenAPI document to stdout and exit, instead of serving")
 	flag.Parse()
 
-	settings := config.MustLoad(filepath.Join(repoRoot(), ".env"))
+	settings := config.MustLoad(config.EnvFile(repoRoot()))
 
 	app, err := build(settings)
 	if err != nil {
@@ -586,7 +586,7 @@ func logFormat(name string) muzak.LogFormat {
 	}
 }
 
-// repoRoot walks upward for go.work, so the binary finds .env when run from anywhere in
+// repoRoot walks upward for go.work, so the binary finds apps/backend/.env when run from anywhere in
 // the tree during development.
 func repoRoot() string {
 	dir, err := os.Getwd()

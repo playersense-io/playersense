@@ -2,6 +2,7 @@
 package config
 
 import (
+	"path/filepath"
 	"time"
 
 	muzak "muzak.dev/framework"
@@ -540,6 +541,13 @@ type Settings struct {
 	// period Cloud Run allows after SIGTERM, which is about ten seconds — a drain the
 	// platform kills part way through is not a drain.
 	ShutdownTimeout time.Duration `env:"SHUTDOWN_TIMEOUT" default:"8s"`
+}
+
+// EnvFile is where a checkout keeps the backend's settings: apps/backend/.env, beside
+// apps/backend/.env.example. Each app keeps its own; the backend's also holds the local stack's
+// ports and passwords, which docker compose reads from it too.
+func EnvFile(repoRoot string) string {
+	return filepath.Join(repoRoot, "apps", "backend", ".env")
 }
 
 // Load reads the configuration, reporting every problem at once.

@@ -78,7 +78,7 @@ import (
 )
 
 func main() {
-	settings := config.MustLoad(filepath.Join(repoRoot(), ".env"))
+	settings := config.MustLoad(config.EnvFile(repoRoot()))
 
 	if len(os.Args) > 1 {
 		switch os.Args[1] {

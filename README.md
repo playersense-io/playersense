@@ -7,8 +7,8 @@ meets them.
 ## Local stack
 
 Ports are deliberately **not** the service defaults — a `21xxx` block, below the macOS
-ephemeral range so nothing collides with an OS-assigned port. Change them in `.env` and
-nowhere else.
+ephemeral range so nothing collides with an OS-assigned port. Change them in
+`apps/backend/.env` and nowhere else.
 
 | Service | Port |
 |---|---|
@@ -17,15 +17,21 @@ nowhere else.
 | ClickHouse native | 21900 |
 | Valkey | 21379 |
 
+Each app keeps its own settings beside it: `apps/backend/.env` (which the local stack reads
+too), `apps/client/.env` and `apps/admin/.env`, each copied from the `.env.example` next to it.
+
 ```bash
-cp .env.example .env
+cp apps/backend/.env.example apps/backend/.env
+cp apps/client/.env.example apps/client/.env
+cp apps/admin/.env.example apps/admin/.env
 export COMPOSE_FILE=infra/stage1/compose/docker-compose.yml
+export COMPOSE_ENV_FILES=apps/backend/.env
 docker compose up -d
 ```
 
 The cold volume of the hot/cold policy is a second local directory by default, which
 exercises the policy and the part movement for real. To point it at a GCS bucket instead, set
-`CH_COLD_ENDPOINT` and the HMAC pair in `.env` and add the overlay:
+`CH_COLD_ENDPOINT` and the HMAC pair in `apps/backend/.env` and add the overlay:
 
 ```bash
 export COMPOSE_FILE=infra/stage1/compose/docker-compose.yml:infra/stage1/compose/docker-compose.cold-object.yml

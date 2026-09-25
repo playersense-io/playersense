@@ -1,12 +1,3 @@
-import { existsSync } from 'node:fs'
-import { fileURLToPath } from 'node:url'
-
-// The repository's one .env holds the Firebase web settings and the API's address, beside the
-// backend's own settings; Nuxt reads only this app's folder, so it is loaded here too. Values
-// already in the environment win, which is how a deployment sets them.
-const rootEnv = fileURLToPath(new URL('../../.env', import.meta.url))
-if (existsSync(rootEnv)) process.loadEnvFile(rootEnv)
-
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   // packages/dashboard brings Vuetify, Tailwind, icons, the theme, the shell and the
@@ -24,6 +15,7 @@ export default defineNuxtConfig({
 
   css: ['~/assets/css/main.css'],
 
+  // From this folder's .env (see .env.example), which Nuxt loads before reading this file.
   // Public by nature: a browser app's Firebase settings name the project, and grant nothing
   // without a signed-in user. NUXT_PUBLIC_* overrides each at runtime.
   runtimeConfig: {

@@ -3,7 +3,6 @@ package main
 import (
 	"net/http"
 	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/google/uuid"
@@ -14,14 +13,14 @@ import (
 	"playersense.dev/backend/internal/firebase/fbtest"
 )
 
-// testSettings loads the developer's .env and quiets the application.
+// testSettings loads the developer's apps/backend/.env and quiets the application.
 //
 // The suite runs against the local stack rather than a mock: the point of testclient is
 // that a test exercises middleware, guards, binding, validation and the store together,
 // and a faked store would remove most of what is worth testing.
 func testSettings(t *testing.T) config.Settings {
 	t.Helper()
-	settings, err := config.Load(filepath.Join(repoRoot(), ".env"))
+	settings, err := config.Load(config.EnvFile(repoRoot()))
 	if err != nil {
 		t.Skipf("no local environment: %v", err)
 	}

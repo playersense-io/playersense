@@ -26,7 +26,7 @@ func open(t *testing.T) *sql.DB {
 	if err != nil {
 		t.Fatal(err)
 	}
-	settings, err := config.Load(filepath.Join(root, ".env"))
+	settings, err := config.Load(config.EnvFile(root))
 	if err != nil {
 		t.Skipf("no local environment: %v", err)
 	}

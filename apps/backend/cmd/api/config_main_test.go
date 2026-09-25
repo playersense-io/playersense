@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"net/http"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -20,7 +19,7 @@ import (
 
 func configSettings(t *testing.T) config.Settings {
 	t.Helper()
-	settings, err := config.Load(filepath.Join(repoRoot(), ".env"))
+	settings, err := config.Load(config.EnvFile(repoRoot()))
 	if err != nil {
 		t.Skipf("no local environment: %v", err)
 	}

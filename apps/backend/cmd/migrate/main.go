@@ -49,7 +49,7 @@ func main() {
 
 func run() error {
 	var (
-		envFile = flag.String("env", "", "path to a .env file (default: <repo root>/.env)")
+		envFile = flag.String("env", "", "path to a .env file (default: <repo root>/apps/backend/.env)")
 		dir     = flag.String("dir", "", "ClickHouse migrations directory (default: <repo root>/db/clickhouse/migrations)")
 	)
 	flag.Parse()
@@ -59,7 +59,7 @@ func run() error {
 		return err
 	}
 	if *envFile == "" {
-		*envFile = filepath.Join(root, ".env")
+		*envFile = config.EnvFile(root)
 	}
 	if *dir == "" {
 		*dir = filepath.Join(root, "db", "clickhouse", "migrations")

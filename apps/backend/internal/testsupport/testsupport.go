@@ -40,7 +40,7 @@ import (
 // a wall of failures that say nothing about the code.
 func Settings(t *testing.T) config.Settings {
 	t.Helper()
-	settings, err := config.Load(filepath.Join(RepoRoot(t), ".env"))
+	settings, err := config.Load(config.EnvFile(RepoRoot(t)))
 	if err != nil {
 		t.Skipf("no local environment: %v", err)
 	}

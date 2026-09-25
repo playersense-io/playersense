@@ -87,8 +87,8 @@ jobs:
       # them removes most of what is worth testing.
       - name: Start the stack
         run: |
-          cp .env.example .env
-          docker compose -f infra/stage1/compose/docker-compose.yml up -d --wait
+          cp apps/backend/.env.example apps/backend/.env
+          docker compose --env-file apps/backend/.env -f infra/stage1/compose/docker-compose.yml up -d --wait
 
       - name: Migrate
         run: go run ./apps/backend/cmd/migrate up
@@ -108,7 +108,7 @@ jobs:
 
       - name: Stack logs
         if: failure()
-        run: docker compose -f infra/stage1/compose/docker-compose.yml logs --tail=100
+        run: docker compose --env-file apps/backend/.env -f infra/stage1/compose/docker-compose.yml logs --tail=100
 
   native:
     name: Native — ${{ matrix.name }}
@@ -187,10 +187,10 @@ jobs:
           go-version-file: apps/backend/go.mod
           cache-dependency-path: apps/backend/go.sum
 
-      # config.MustLoad reads the repository's .env, and only the defaults matter here:
+      # config.MustLoad reads apps/backend/.env, and only the defaults matter here:
       # nothing this job runs dials anything.
       - name: Settings
-        run: cp .env.example .env
+        run: cp apps/backend/.env.example apps/backend/.env
 
       - name: Install
         run: pnpm install --frozen-lockfile

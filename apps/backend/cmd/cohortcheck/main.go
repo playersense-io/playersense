@@ -63,7 +63,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	settings, err := config.Load(filepath.Join(root, ".env"))
+	settings, err := config.Load(config.EnvFile(root))
 	if err != nil {
 		return err
 	}
