@@ -287,6 +287,20 @@ func build(settings config.Settings, overrides ...muzak.RouterOption) (*muzak.Ap
 			//                        requests, and a client that cannot read the tag
 			//                        cannot send it back.
 			//   Content-Disposition  the filename on a §101 export download.
+			// The request headers a browser app sends beyond the framework's three. Listed, not
+			// defaulted: a header missing here is refused by the browser before the request is
+			// made, which the API never sees and so can never explain.
+			//
+			//   X-Staff-Ticket, X-Staff-Note  every console read of a customer's records (§104).
+			//   X-Staff-View-As               support viewing a customer's dashboard.
+			//   If-None-Match                 a conditional request for a document with an ETag.
+			//   Last-Event-ID                 a report run's stream resuming where it dropped.
+			AllowedHeaders: []string{
+				"Content-Type", "Authorization", muzak.HeaderRequestID,
+				core.StaffTicketHeader, core.StaffNoteHeader, core.StaffViewAsHeader,
+				"If-None-Match", "Last-Event-ID",
+			},
+
 			ExposedHeaders: []string{
 				muzak.HeaderRetryAfter,
 				muzak.HeaderRequestID,

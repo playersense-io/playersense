@@ -671,6 +671,14 @@ A route that reaches one customer's records (the directory included), or changes
 runs; `TestEveryCustomerRouteAsksForATicket` fails for one that forgets. Changes to an account are also
 in the customer's audit log as **PlayerSense staff** with the verified address.
 
+**Viewing as a customer.** Support sends `X-Staff-View-As: <org slug>` with a ticket on the
+customer dashboard's own routes (`/v1/organizations/{org}/...`) and sees what a member who may read
+everything sees, and nothing more: `GET` and `HEAD` only, every read permission on every project,
+and read-only on the actor, so a write is refused even on a route that forgot to say it writes.
+Every request is a `staff_access` row (`support.view_as`, with the method and path) written before
+it is answered. The browser apps' request headers, these included, are allowed by the API's CORS
+policy by name.
+
 ```
 GET              /v1/operator/me              who you are to the console
 GET   POST       /v1/operator/staff           admin: who is staff, and adding somebody

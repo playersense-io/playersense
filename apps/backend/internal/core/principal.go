@@ -146,6 +146,12 @@ func resolve(ctx *muzak.Context, mayCreate bool) (*Principal, error) {
 	// The dashboard requests verification emails directly from Firebase. Resolving a
 	// principal does not send mail; the verified claim controls write access below.
 
+	// Support viewing a customer's dashboard: a staff member, not a member, and read-only
+	// (viewas.go). Decided before anything is created for the caller.
+	if slug := ctx.PathValue(OrgPathValue); slug != "" && ctx.Header(StaffViewAsHeader) != "" {
+		return viewAs(ctx, db, claims, slug)
+	}
+
 	person, err := findOrCreate(ctx, db, claims, mayCreate)
 	if err != nil {
 		return nil, err
