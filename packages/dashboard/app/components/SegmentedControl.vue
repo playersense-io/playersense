@@ -140,20 +140,23 @@ function move(event: KeyboardEvent, from: number) {
 }
 
 /*
- * The chosen segment is raised: the surface, a hairline of the theme's line, and a
- * shadow light enough to read as a lift rather than a smudge. In the dark theme the
+ * The chosen segment is raised: the surface and a soft shadow under it, no outline, so it
+ * reads as a lift rather than a ring drawn round it. Two layers, a close one that gives the
+ * edge and a wider, fainter one that gives the height. In the dark theme the
  * surface is the darkest thing in the track, so the raised segment takes a tint of the
  * ink instead, which is the same idea with the values the other way up.
  */
 .segmented__option[aria-checked="true"] {
   background: rgb(var(--v-theme-surface));
   box-shadow:
-    0 1px 2px rgba(0, 0, 0, 0.08),
-    0 0 0 1px rgba(var(--v-border-color), var(--v-border-opacity));
+    0 1px 2px rgba(0, 0, 0, 0.06),
+    0 2px 6px rgba(0, 0, 0, 0.08);
 }
 
 :where(.v-theme--dark) .segmented__option[aria-checked="true"] {
   background: color-mix(in srgb, rgb(var(--v-theme-on-surface)) 10%, rgb(var(--v-theme-surface)));
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.24);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.2),
+    0 2px 6px rgba(0, 0, 0, 0.24);
 }
 </style>
