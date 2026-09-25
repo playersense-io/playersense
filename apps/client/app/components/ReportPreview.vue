@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // What comes out of the selected node, under the canvas: its rows as a table, or, for a
-// chart, the chart itself. The first hundred rows are drawn; the count is of all of them.
+// chart, the chart itself, from the first fifty rows the API previews; the count is of all.
 const props = defineProps<{
   node: GraphNode
   result: NodeResult | null

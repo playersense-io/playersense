@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { Schema } from '@playersense/contracts'
+
 // The selected node's settings, beside the canvas, in the same fields a flag's rules are
 // written with: 36px outlined fields, the panel's own menus, a column picker drawn as a field,
 // and a list of conditions with the joining word between rows. What can be chosen comes from
@@ -14,12 +16,14 @@ const props = defineProps<{
   timing?: string | null
   /** For a Schedule on Start, the deliveries it sends; for Start, its Schedules; for Finish, the outputs. */
   drives?: readonly string[]
+  /** Whose rows the report reads, for the events a source can pick. */
+  environment?: string
 }>()
 
 const emit = defineEmits<{
   update: [patch: Partial<ReportNodeData>]
   remove: []
-  /** Preview a Notify's message and send it as a test. */
+  /** Preview a Notify's message and send it as a test; run the report, for an Export. */
   test: []
 }>()
 
@@ -61,7 +65,15 @@ function without<T>(list: readonly T[], index: number): T[] {
 // --- Source -------------------------------------------------------------------------------
 
 const RANGE_OPTIONS: SegmentedOption[] = RANGES.map(entry => ({ value: entry.value, label: entry.label.replace('Last ', '') }))
-const EVENT_ITEMS = [{ value: '', title: 'Every event' }, ...EVENT_NAMES.map(name => ({ value: name, title: name }))]
+/* The events the project has had, in the report's environment (GET …/analytics/{env}/events). */
+const workspace = useWorkspaceStore()
+const catalogue = useApiGet<Schema<'EventCatalogueOut'>>(() => workspace.projectPath && `${workspace.projectPath}/analytics/${props.environment ?? workspace.environment}/events`)
+const EVENT_ITEMS = computed(() => {
+  const names = (catalogue.data.value?.events ?? []).map(event => event.name).sort()
+  /* One picked before and not seen lately stays on offer, so the field never blanks. */
+  if (config.value.event && !names.includes(config.value.event)) names.unshift(config.value.event)
+  return [{ value: '', title: 'Every event' }, ...names.map(name => ({ value: name, title: name }))]
+})
 
 function chooseSource(source: SourceKey) {
   const renamed = data.value.title === SOURCES[config.value.source ?? 'purchases'].label
@@ -181,12 +193,17 @@ const CHART_OPTIONS: SegmentedOption[] = [
   { value: 'bar', label: 'Bars' },
   { value: 'area', label: 'Area' }
 ]
+/* What the server writes today: JSON or CSV, to a download. The rest are said to be coming, and
+   a run that meets one says it was skipped. */
 const FILE_OPTIONS: SegmentedOption[] = [
   { value: 'json', label: 'JSON' },
-  { value: 'csv', label: 'CSV' },
-  { value: 'parquet', label: 'Parquet' }
+  { value: 'csv', label: 'CSV' }
 ]
-const DESTINATION_OPTIONS = computed<ChoiceOption[]>(() => (Object.entries(DESTINATIONS) as [keyof typeof DESTINATIONS, typeof DESTINATIONS[keyof typeof DESTINATIONS]][]).map(([value, info]) => ({ value, label: info.label, note: info.note })))
+const DESTINATION_OPTIONS = computed<ChoiceOption[]>(() => (Object.entries(DESTINATIONS) as [keyof typeof DESTINATIONS, typeof DESTINATIONS[keyof typeof DESTINATIONS]][]).map(([value, info]) => ({
+  value,
+  label: value === 'download' ? info.label : `${info.label}, coming`,
+  note: value === 'download' ? info.note : `${info.note} Not written yet: a run skips it and says so.`
+})))
 
 const limitText = computed({
   get: () => (config.value.limit ? String(config.value.limit) : ''),
@@ -198,30 +215,8 @@ const limitText = computed({
 
 const figures = computed(() => config.value.y ?? [])
 
-/*
- * The result as a file, now: what a download destination does. JSON is an array of rows keyed
- * by column, CSV the rows under a header; Parquet is columnar and binary, written by the
- * server, so it is only offered once reports run there.
- */
-const downloaded = ref(false)
 const file = computed(() => config.value.file ?? 'json')
-function downloadNow() {
-  const result = props.result
-  if (!result || result.error || file.value === 'parquet') return
-  const slug = fileSlug(data.value.title || 'report')
-  if (file.value === 'csv') {
-    const header = result.columns.map(column => column.key)
-    downloadCsv(slug, [header, ...result.rows.map(row => result.columns.map(column => row[column.key] ?? null))])
-  } else {
-    const body = JSON.stringify(result.rows.map(row => Object.fromEntries(result.columns.map(column => [column.key, row[column.key] ?? null]))), null, 2)
-    const link = document.createElement('a')
-    link.href = URL.createObjectURL(new Blob([body], { type: 'application/json' }))
-    link.download = `${slug}.json`
-    link.click()
-    URL.revokeObjectURL(link.href)
-  }
-  downloaded.value = true
-}
+const writable = computed(() => (config.value.destination ?? 'download') === 'download' && (file.value === 'json' || file.value === 'csv'))
 
 // --- Schedule -----------------------------------------------------------------------------
 
@@ -1141,17 +1136,17 @@ const ids = { title: useId(), newColumn: useId(), limit: useId(), target: useId(
         </div>
         <div class="flex flex-col gap-1.5">
           <v-btn
-            :disabled="!result || Boolean(result.error) || file === 'parquet'"
+            :disabled="!result || Boolean(result.error) || !writable"
             block
             class="text-xs font-medium"
             color="primary"
-            prepend-icon="material-symbols:download"
+            prepend-icon="material-symbols:play-arrow-outline"
             variant="flat"
-            @click="downloadNow"
+            @click="emit('test')"
           >
-            Download {{ file.toUpperCase() }}{{ result && !result.error ? `, ${result.rows.length.toLocaleString('en')} rows` : '' }}
+            Write it now{{ result && !result.error ? `, ${rowsOf(result).toLocaleString('en')} rows` : '' }}
           </v-btn>
-          <span class="text-[11px] leading-4 text-ink/50">{{ file === 'parquet' ? 'Parquet is written by the server once reports run there; choose JSON or CSV to download from here now.' : downloaded ? `Downloaded as ${file.toUpperCase()} from the sample rows.` : `The sample rows as ${file.toUpperCase()}, now. On its schedule, the full result goes to ${DESTINATIONS[config.destination ?? 'download'].label}.` }}</span>
+          <span class="text-[11px] leading-4 text-ink/50">{{ writable ? `A test run writes the whole result as ${file.toUpperCase()}. Every run's file is kept for seven days, to download from the report's runs.` : 'Only JSON or CSV to a download is written for now. Choose those to write it.' }}</span>
         </div>
       </template>
 

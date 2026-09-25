@@ -6,11 +6,11 @@
 // A report is built by connecting parts: sources to steps to outputs, between a Start and a
 // Finish that every report has and none can lose. Start's lines into the sources and the
 // outputs' lines into Finish are drawn for the report (utils/report-builder.ts, frameLines);
-// a Schedule joins Start's top edge and runs the whole report. Every node runs as it
-// is changed (utils/report-builder.ts, over sample rows), so the preview and each card's
-// row count are always the report as it stands. Reports save themselves in this browser.
-// A test run plays on the canvas as its events arrive: rows flow along the lines into the
-// node that is running, and every card says how far the run has got with it.
+// a Schedule joins Start's top edge and runs the whole report. The API runs the graph as it is
+// changed (…/reports/preview, over the report's environment, sending nothing), so the preview
+// and each card's row count are the report as it stands. Reports save themselves to the API.
+// A test run is the server's: it plays on the canvas as its events stream in, rows flowing
+// along the lines into the node that is running, every card saying how far it has got.
 import { type Connection, ConnectionMode, type Edge, type Node, useVueFlow, VueFlow } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
 import { ControlButton, Controls } from '@vue-flow/controls'
@@ -20,8 +20,7 @@ definePageMeta({ layout: 'canvas' })
 const route = useRoute()
 const router = useRouter()
 
-const { reports, reportById, create, save, duplicate, remove } = useReports()
-const { run: liveRun, running: testRunning, start: startRun, stop: stopRun, clear: clearRun } = useReportRun()
+const { reports, loading, error, saving, saveError, reload, reportById, create, save, flush, duplicate, remove, preview } = useReports()
 const { screenToFlowCoordinate, fitView, removeNodes } = useVueFlow()
 
 // --- Which report -------------------------------------------------------------------------
@@ -36,6 +35,9 @@ const reportId = computed({
   }
 })
 const report = computed(() => reportById(reportId.value))
+
+const { runs, reload: reloadRuns, download } = useReportRuns(() => report.value?.id)
+const { run: liveRun, running: testRunning, start: startRun, stop: stopRun, clear: clearRun } = useReportRun(() => void reloadRuns())
 
 usePageCrumb(() => report.value?.name ?? 'Report Builder')
 
@@ -94,6 +96,7 @@ function load(id: string) {
   nodes.value = (entry?.nodes ?? []).map(node => ({ id: node.id, type: 'report', position: { ...node.position }, data: plain(node.data), ...(isFrame(node.data.kind) ? { deletable: false } : {}) }))
   edges.value = []
   selectedId.value = null
+  results.value = new Map()
   clearRun()
   fitPending = true
   nextTick(() => {
@@ -105,6 +108,7 @@ function load(id: string) {
       .map(edge => lineOf(edge.id, edge.source, edge.target, edge.targetHandle ?? null)))
     savedShape = snapshot()
     settling = false
+    void askPreview()
   })
 }
 
@@ -130,12 +134,33 @@ const shape = computed(() => JSON.stringify({
   edges: drawn.value.map(edge => ({ id: edge.id, source: edge.source, target: edge.target, targetHandle: edge.targetHandle ?? null }))
 }))
 
-const day = Math.floor(Date.now() / 86_400_000) * 86_400_000
+/*
+ * What each node gives, from the API: asked again a moment after the report stops changing,
+ * the latest answer winning. Kept while the next is on its way, so the cards do not flicker.
+ */
+const results = shallowRef(new Map<string, NodeResult>())
+const previewing = ref(false)
+const previewError = ref('')
+let asked = 0
 
-const results = computed(() => {
-  const graph = JSON.parse(shape.value) as { nodes: GraphNode[], edges: GraphEdge[] }
-  return runReport(graph.nodes, graph.edges, day)
-})
+const askPreview = useDebounceFn(async () => {
+  const entry = report.value
+  if (!entry || settling) return
+  const mine = ++asked
+  previewing.value = true
+  try {
+    const answer = await preview({ name: entry.name, environment: entry.environment }, JSON.parse(shape.value) as { nodes: GraphNode[], edges: GraphEdge[] })
+    if (mine !== asked) return
+    results.value = answer
+    previewError.value = ''
+  } catch (caught) {
+    if (mine === asked) previewError.value = caught instanceof Error ? caught.message : String(caught)
+  } finally {
+    if (mine === asked) previewing.value = false
+  }
+}, 400)
+
+watch([shape, () => report.value?.environment], () => void askPreview())
 
 // --- Saving -------------------------------------------------------------------------------
 
@@ -154,26 +179,16 @@ let savedShape = ''
 
 watch(reportId, load, { immediate: true })
 
-const saving = ref(false)
-const lastSaved = ref<string | null>(report.value?.updated_at ?? null)
-
-const persist = useDebounceFn(() => {
-  if (!report.value) return
+/* Each change goes to useReports' save, which sends the latest a moment after the last. */
+watch([nodes, edges], () => {
+  if (settling || !report.value) return
+  const next = snapshot()
+  if (next === savedShape) return
+  savedShape = next
   save(report.value.id, {
     nodes: nodes.value.map(node => ({ id: node.id, position: { x: Math.round(node.position.x), y: Math.round(node.position.y) }, data: plain(node.data) })),
     edges: drawn.value.map(edge => ({ id: edge.id, source: edge.source, target: edge.target, targetHandle: edge.targetHandle ?? null }))
   })
-  saving.value = false
-  lastSaved.value = new Date().toISOString()
-}, 500)
-
-watch([nodes, edges], () => {
-  if (settling) return
-  const next = snapshot()
-  if (next === savedShape) return
-  savedShape = next
-  saving.value = true
-  persist()
 }, { deep: true })
 
 /* Start's and Finish's lines follow the nodes, a tick after them, like any line to a new node. */
@@ -486,31 +501,50 @@ function openReport(id: string) {
   reportId.value = id
 }
 
+/* What went wrong with the last thing asked of the reports, shown in the bar. */
+const problem = ref('')
+const busy = ref(false)
+
+async function attempt(change: () => Promise<void>) {
+  busy.value = true
+  problem.value = ''
+  try {
+    await change()
+  } catch (caught) {
+    problem.value = caught instanceof Error ? caught.message : String(caught)
+  } finally {
+    busy.value = false
+  }
+}
+
 function newReport(template?: ReportTemplate) {
-  openReport(create(template))
+  void attempt(async () => openReport(await create(template)))
 }
 
 function duplicateReport() {
-  if (!report.value) return
-  const id = duplicate(report.value.id)
-  if (id) openReport(id)
+  const entry = report.value
+  if (!entry) return
+  void attempt(async () => {
+    const id = await duplicate(entry.id)
+    if (id) openReport(id)
+  })
 }
 
 const deleting = ref(false)
 function confirmDelete() {
-  if (!report.value) return
-  const gone = report.value.id
-  remove(gone)
-  const next = reports.value[0]?.id
-  if (next) openReport(next)
-  else newReport()
+  const entry = report.value
+  if (!entry) return
+  void attempt(async () => {
+    await remove(entry.id)
+    const next = reports.value[0]?.id
+    if (next) openReport(next)
+  })
 }
 
 // --- What it produces ---------------------------------------------------------------------
 
 const outputs = computed(() => nodes.value.filter(node => KINDS[node.data.kind].family === 'output'))
 const schedules = computed(() => nodes.value.filter(node => node.data.kind === 'schedule'))
-const runs = computed(() => report.value?.runs ?? [])
 
 // --- Testing ------------------------------------------------------------------------------
 
@@ -523,12 +557,14 @@ function openTest(focus: string | null = null) {
 }
 const testGraph = computed(() => JSON.parse(shape.value) as { nodes: GraphNode[], edges: GraphEdge[] })
 
-/* Send steps the dialog aside, so the run can be watched on the canvas. */
-function sendTest() {
-  if (!report.value) return
+/* Send steps the dialog aside, so the run can be watched on the canvas. The server runs what
+   is saved, so anything still on its way is saved first. */
+async function sendTest() {
+  const entry = report.value
+  if (!entry) return
   testing.value = false
-  const graph = testGraph.value
-  startRun({ report: { id: report.value.id, name: report.value.name }, nodes: graph.nodes, edges: graph.edges, results: results.value, focus: testFocus.value })
+  await flush(entry.id)
+  await startRun({ report: { id: entry.id, name: entry.name }, focus: testFocus.value })
 }
 
 /* The run on the canvas, once the stream has said which nodes it runs. */
@@ -568,11 +604,72 @@ const previewNode = computed(() => {
 })
 const previewOpen = useLocalStorage('playersense.reports.preview', true)
 
+const ENVIRONMENT_OPTIONS: SegmentedOption[] = [
+  { value: 'production', label: 'Production' },
+  { value: 'staging', label: 'Staging' },
+  { value: 'development', label: 'Development' }
+]
+
+/* An Export's file from a run, while it is kept. */
+const liveExports = (run: ReportRun) => run.exports.filter(file => Date.parse(file.expires_at) > Date.now())
+
+async function downloadFile(file: ReportExport) {
+  await attempt(() => download(file))
+}
+
 const ids = { name: useId(), description: useId() }
 </script>
 
 <template>
-  <div class="flex h-full min-h-0">
+  <!-- No report to show yet: on its way, refused, or none made. -->
+  <div v-if="!report" class="flex h-full items-center justify-center overflow-y-auto p-6">
+    <LoadState
+      :error="error"
+      :loading="loading"
+      class="w-full max-w-xl"
+      what="the reports"
+      @retry="reload"
+    >
+      <div class="flex max-w-md flex-col items-center gap-4 rounded-(--ps-radius-x-large) border border-line bg-surface p-6 text-center">
+        <span aria-hidden="true" class="flex size-10 items-center justify-center rounded-(--ps-radius-large) bg-primary/10 text-xl text-primary">
+          <Icon name="material-symbols:account-tree-outline" />
+        </span>
+        <span class="flex flex-col gap-1">
+          <span class="text-sm font-medium text-ink">No reports yet</span>
+          <span class="text-xs leading-5 text-ink/60">A report reads the project's rows, shapes them, and ends in a chart, a table, a file or a message, by hand or on a schedule.</span>
+        </span>
+        <span class="flex flex-wrap justify-center gap-1.5">
+          <v-btn
+            :loading="busy"
+            class="text-xs font-medium"
+            color="primary"
+            size="small"
+            variant="flat"
+            @click="newReport()"
+          >
+            Blank report
+          </v-btn>
+          <v-btn
+            v-for="template in TEMPLATES"
+            :key="template.key"
+            :disabled="busy"
+            class="text-xs"
+            color="neutral"
+            size="small"
+            variant="outlined"
+            @click="newReport(template)"
+          >
+            {{ template.name }}
+          </v-btn>
+        </span>
+        <p v-if="problem" class="m-0 text-xs text-error">
+          {{ problem }}
+        </p>
+      </div>
+    </LoadState>
+  </div>
+
+  <div v-else class="flex h-full min-h-0">
     <!-- The parts. -->
     <aside class="hidden w-64 flex-none border-r border-line bg-surface lg:block" aria-label="Parts">
       <ReportPalette @add="addFromPalette" />
@@ -589,8 +686,8 @@ const ids = { name: useId(), description: useId() }
           size="small"
           @update:model-value="openReport(String($event))"
         />
-        <span class="hidden text-[11px] text-ink/45 sm:inline">
-          {{ saving ? 'Saving…' : lastSaved ? 'Saved' : '' }}
+        <span :class="saveError || problem ? 'text-error' : 'text-ink/45'" class="hidden truncate text-[11px] sm:inline">
+          {{ problem || saveError || (saving ? 'Saving…' : 'Saved') }}
         </span>
 
         <span class="ml-auto flex items-center gap-1.5">
@@ -600,6 +697,7 @@ const ids = { name: useId(), description: useId() }
           </span>
           <v-btn
             :disabled="testRunning || !outputs.some(node => node.data.kind === 'notify' || node.data.kind === 'export')"
+            :loading="testRunning && !liveRun?.plan.length"
             class="text-xs font-medium"
             color="neutral"
             prepend-icon="material-symbols:play-arrow-outline"
@@ -776,9 +874,18 @@ const ids = { name: useId(), description: useId() }
           <template v-if="previewNode">
             <span class="truncate text-xs text-ink/60">{{ previewNode.data.title }}</span>
             <span v-if="results.get(previewNode.id) && !results.get(previewNode.id)!.error" class="font-mono text-[11px] text-ink/45">
-              {{ results.get(previewNode.id)!.rows.length.toLocaleString('en') }} rows
+              {{ rowsOf(results.get(previewNode.id)).toLocaleString('en') }} rows
             </span>
-            <span class="ml-auto hidden text-[11px] text-ink/40 sm:inline">Sample rows. Reports run on your full data once they run on the server.</span>
+            <span v-if="previewError" class="ml-auto truncate text-[11px] text-error">{{ previewError }}</span>
+            <span v-else class="ml-auto hidden items-center gap-1.5 text-[11px] text-ink/40 sm:flex">
+              <v-progress-circular
+                v-if="previewing"
+                indeterminate
+                size="10"
+                width="1.5"
+              />
+              The first {{ Math.min(50, rowsOf(results.get(previewNode.id))) || 50 }}, from {{ report.environment }}. Nothing is sent.
+            </span>
           </template>
           <span v-else class="text-xs text-ink/45">Select a node to see what comes out of it.</span>
         </header>
@@ -797,9 +904,10 @@ const ids = { name: useId(), description: useId() }
         :node="selectedGraph"
         :result="results.get(selectedGraph.id) ?? null"
         :drives="drives(selectedGraph.id)"
+        :environment="report?.environment"
         :timing="timings.get(selectedGraph.id) ?? null"
         @remove="removeSelected"
-        @test="openTest(selectedGraph.id)"
+        @test="openTest(selectedGraph.data.kind === 'notify' ? selectedGraph.id : null)"
         @update="updateNode(selectedGraph.id, $event)"
       />
 
@@ -826,6 +934,16 @@ const ids = { name: useId(), description: useId() }
               placeholder="Weekly revenue"
               variant="outlined"
               @update:model-value="save(report.id, { name: String($event ?? '') })"
+            />
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <span class="text-xs text-ink/60">Reads the rows of</span>
+            <SegmentedControl
+              :model-value="report.environment"
+              :options="ENVIRONMENT_OPTIONS"
+              label="Environment"
+              stretch
+              @update:model-value="save(report.id, { environment: $event as ReportEnvironment })"
             />
           </div>
           <div class="flex flex-col gap-1.5">
@@ -897,18 +1015,33 @@ const ids = { name: useId(), description: useId() }
               <span>Runs <span class="font-mono font-normal">{{ runs.length }}</span></span>
             </p>
             <ol v-if="runs.length" class="m-0 flex list-none flex-col p-0">
-              <li v-for="run in runs.slice(0, 8)" :key="run.id" class="flex items-center gap-2 border-t border-line/60 py-2 first:border-t-0">
-                <span class="flex min-w-0 flex-1 flex-col">
-                  <span class="text-xs text-ink">{{ runStamp(run.at) }}</span>
-                  <span class="truncate text-[11px] text-ink/50">
-                    {{ run.trigger === 'test' ? 'Test run' : 'On schedule' }} · {{ run.status === 'quiet' ? 'its rule kept it quiet' : `${run.deliveries.filter(entry => !entry.quiet && entry.ok).length} of ${run.deliveries.filter(entry => !entry.quiet).length} sent` }}{{ run.deliveries.some(entry => !entry.ok) ? ` · ${run.deliveries.find(entry => !entry.ok)!.detail}` : '' }}
+              <li v-for="run in runs.slice(0, 8)" :key="run.id" class="flex flex-col gap-1 border-t border-line/60 py-2 first:border-t-0">
+                <span class="flex items-center gap-2">
+                  <span class="flex min-w-0 flex-1 flex-col">
+                    <span class="text-xs text-ink">{{ runStamp(run.at) }}</span>
+                    <span class="truncate text-[11px] text-ink/50">
+                      {{ run.trigger === 'test' ? `Test run${run.requestedBy ? ` by ${run.requestedBy}` : ''}` : 'On schedule' }} · {{ run.error ? run.error : run.status === 'quiet' ? 'its rule kept it quiet' : `${run.deliveries.filter(entry => !entry.quiet && entry.ok).length} of ${run.deliveries.filter(entry => !entry.quiet).length} sent` }}{{ run.deliveries.some(entry => !entry.ok) ? ` · ${run.deliveries.find(entry => !entry.ok)!.detail}` : '' }}
+                    </span>
                   </span>
+                  <StatusBadge :label="RUN_STATUS[run.status].label" :tone="RUN_STATUS[run.status].tone" />
                 </span>
-                <StatusBadge :label="RUN_STATUS[run.status].label" :tone="RUN_STATUS[run.status].tone" />
+                <button
+                  v-for="file in liveExports(run)"
+                  :key="file.node"
+                  class="flex cursor-pointer items-center gap-1.5 text-left text-[11px] text-primary hover:underline"
+                  type="button"
+                  @click="downloadFile(file)"
+                >
+                  <Icon aria-hidden="true" class="flex-none text-sm" name="material-symbols:download" />
+                  <span class="truncate">{{ file.file_name }}, {{ file.rows.toLocaleString('en') }} rows</span>
+                </button>
               </li>
             </ol>
             <p v-else class="m-0 text-xs text-ink/55">
               No runs yet. Test run sends it once now; a Schedule sends it from then on.
+            </p>
+            <p v-if="report.next_run_at" class="m-0 text-[11px] text-ink/50">
+              Next on its schedule {{ runStamp(Date.parse(report.next_run_at)) }}.
             </p>
           </div>
 
@@ -942,6 +1075,7 @@ const ids = { name: useId(), description: useId() }
       :nodes="testGraph.nodes"
       :report="{ id: report.id, name: report.name }"
       :results="results"
+      :environment="report.environment"
       :run="liveRun"
       @send="sendTest"
     />

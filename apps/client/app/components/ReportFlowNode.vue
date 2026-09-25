@@ -38,7 +38,7 @@ const kindLabel = computed(() => (props.data.kind === 'source' ? `Source · ${SO
 
 const summary = computed(() => summaryOf(props.data, props.result?.columns ?? []))
 
-const rows = computed(() => props.result?.rows.length ?? 0)
+const rows = computed(() => rowsOf(props.result))
 
 const frame = computed(() => {
   switch (props.run?.state) {

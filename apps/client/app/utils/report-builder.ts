@@ -3,10 +3,9 @@
 // result: a chart, a table, or a file delivered somewhere on a schedule. The last is what
 // Exports was; an export is now any report that ends in a file.
 //
-// Everything here is pure: what each kind of node is, what it is set to, and `runReport`,
-// which runs a graph over sample rows so every node can show what passes through it. The
-// rows stand in for the query service (project.md §31-33), which will run the same graph
-// as one query; the shape of a report does not change when it does.
+// Everything here is pure: what each kind of node is and what it is set to. The graph is run
+// by the API (…/reports/preview for what each node gives, …/reports/{id}/runs for a run),
+// over the project's own rows; this file only describes it.
 
 // --- Columns and rows -------------------------------------------------------------------------
 
@@ -304,40 +303,27 @@ export interface NotifyOutcome {
 }
 
 /**
- * What a Notify step does with a run's result: whether its rule lets it send, and the
- * message it sends, with the variables filled in from the rows it received.
+ * What a Notify step would do with the rows it receives, as the API's preview decided it:
+ * whether its rule lets it send, why, and the message, with the rows it includes. Null until
+ * the preview has come back for it.
  */
-export function evaluateNotify(node: GraphNode, result: NodeResult, report: { id: string, name: string }, at: number): NotifyOutcome {
+export function notifyOutcomeOf(node: GraphNode, result: NodeResult | null, report: { id: string, name: string }): NotifyOutcome | null {
+  const decided = result?.notify
+  if (!result || result.error || !decided) return null
   const config = node.data.config
-  const context = { report: report.name, columns: result.columns, rows: result.rows, at }
-  let send = true
-  let reason = 'Sends on every run.'
-  if (config.when === 'rows') {
-    send = result.rows.length > 0
-    reason = send ? `${result.rows.length.toLocaleString('en')} rows came out, so it sends.` : 'No rows came out, so it stays quiet.'
-  }
-  if (config.when === 'threshold' && config.threshold) {
-    const column = result.columns.find(entry => entry.key === config.threshold!.column)
-    const value = Number(result.rows[0]?.[config.threshold.column])
-    const line = Number(config.threshold.value)
-    const crossed = Number.isFinite(value) && (config.threshold.op === 'gt' ? value > line : value < line)
-    send = crossed
-    const written = column ? writeCell(Number.isFinite(value) ? value : null, column.type) : '–'
-    const name = column?.label ?? config.threshold.column
-    reason = `${name.charAt(0).toUpperCase()}${name.slice(1)} is ${written}, ${crossed ? '' : 'not '}${config.threshold.op === 'gt' ? 'over' : 'under'} ${config.threshold.value}: ${crossed ? 'it sends' : 'it stays quiet'}.`
-  }
   const include = config.include ?? 'rows'
   const shown = result.columns.slice(0, 5)
+  const body = [decided.body, ...(decided.lines ?? [])].filter(Boolean).join('\n')
   return {
-    send,
-    reason,
+    send: decided.send,
+    reason: decided.reason,
     message: {
-      title: fillMessage(config.subject || '{{report}}', context),
-      body: fillMessage(config.body ?? '', context),
-      severity: config.severity ?? 'warning',
-      link: `https://app.playersense.io/reports?report=${report.id}`,
+      title: decided.title,
+      body,
+      severity: (decided.severity || config.severity || 'warning') as Severity,
+      link: `/reports?report=${report.id}`,
       ...(include === 'rows' && result.rows.length ? { table: { columns: shown, rows: result.rows.slice(0, 5) } } : {}),
-      ...(include === 'file' ? { attachment: { name: `${fileSlug(report.name)}.csv`, rows: result.rows.length } } : {})
+      ...(include === 'file' ? { attachment: { name: `${fileSlug(report.name)}.csv`, rows: result.total ?? result.rows.length } } : {})
     }
   }
 }
@@ -374,12 +360,30 @@ export interface GraphEdge {
   targetHandle?: string | null
 }
 
+/** A Notify's decision on the preview's rows (NotifyOutcomeOut). */
+export interface NotifyPreview {
+  send: boolean
+  reason: string
+  title: string
+  body?: string
+  severity: string
+  lines?: string[]
+}
+
+/** What one node gives, from the API's preview: the first rows, and how many there are. */
 export interface NodeResult {
   columns: ReportColumn[]
+  /** The first fifty at most. */
   rows: ReportRow[]
+  /** Every row the node gives. */
+  total?: number
   /** Why it has nothing: no input, a setting that no longer fits. */
   error?: string
+  notify?: NotifyPreview
 }
+
+/** How many rows a node gives: every one, not only those previewed. */
+export const rowsOf = (result: NodeResult | null | undefined) => result?.total ?? result?.rows.length ?? 0
 
 /** Whether a line is one of Start's or Finish's, drawn for the report rather than by hand. */
 export const isFrameLine = (edge: { id: string }) => edge.id.startsWith('frame:')
@@ -398,318 +402,6 @@ export function frameLines(nodes: readonly GraphNode[], drawn: readonly GraphEdg
     ...(start ? nodes.filter(node => node.data.kind === 'source').map(node => ({ id: `frame:${start.id}:${node.id}`, source: start.id, target: node.id, targetHandle: START_HANDLE })) : []),
     ...(finish ? nodes.filter(node => KINDS[node.data.kind].family === 'output' && fed(node.id)).map(node => ({ id: `frame:${node.id}:${finish.id}`, source: node.id, sourceHandle: FINISH_HANDLE, target: finish.id })) : [])
   ]
-}
-
-/** Every node's result, running each once from the sources forward. */
-export function runReport(nodes: readonly GraphNode[], edges: readonly GraphEdge[], now: number): Map<string, NodeResult> {
-  const results = new Map<string, NodeResult>()
-  const visiting = new Set<string>()
-  const byId = new Map(nodes.map(node => [node.id, node]))
-
-  /* A Schedule's line into a delivery's top edge is when it runs, not rows: never an input. */
-  const inputOf = (id: string, handle?: string) => {
-    const edge = edges.find(entry => entry.target === id && entry.targetHandle !== 'when' && (handle ? entry.targetHandle === handle : true))
-    return edge ? run(edge.source) : null
-  }
-
-  function run(id: string): NodeResult {
-    const known = results.get(id)
-    if (known) return known
-    const node = byId.get(id)
-    if (!node || visiting.has(id)) return { columns: [], rows: [], error: 'It loops back on itself.' }
-    visiting.add(id)
-    let result: NodeResult
-    try {
-      result = step(node, inputOf, now)
-    } catch (error) {
-      result = { columns: [], rows: [], error: error instanceof Error ? error.message : 'It could not run.' }
-    }
-    visiting.delete(id)
-    results.set(id, result)
-    return result
-  }
-
-  for (const node of nodes) run(node.id)
-  return results
-}
-
-const fail = (error: string): NodeResult => ({ columns: [], rows: [], error })
-
-function step(node: GraphNode, inputOf: (id: string, handle?: string) => NodeResult | null, now: number): NodeResult {
-  const { kind, config } = node.data
-  if (kind === 'start' || kind === 'finish') return { columns: [], rows: [] }
-  if (kind === 'schedule') {
-    const parsed = parseCron(config.cron ?? '')
-    return typeof parsed === 'string' ? fail(parsed) : { columns: [], rows: [] }
-  }
-  if (kind === 'source') return sourceRows(config, now)
-
-  if (kind === 'join') {
-    const left = inputOf(node.id, 'left')
-    const right = inputOf(node.id, 'right')
-    if (!left || !right) return fail('Connect two inputs: left and right.')
-    if (left.error || right.error) return fail('An input has a problem to fix first.')
-    return joinRows(left, right, config.mode ?? 'inner')
-  }
-
-  const input = inputOf(node.id)
-  if (!input) return fail(`Connect ${kind === 'chart' || kind === 'table' || kind === 'export' ? 'a result' : 'rows'} into it.`)
-  if (input.error) return fail('Its input has a problem to fix first.')
-  const has = (key: string) => input.columns.some(column => column.key === key)
-  const columnOf = (key: string) => input.columns.find(column => column.key === key)
-
-  switch (kind) {
-    case 'filter': {
-      const conditions = (config.conditions ?? []).filter(condition => condition.column)
-      const missing = conditions.find(condition => !has(condition.column))
-      if (missing) return fail(`${missing.column} is not a column here any more.`)
-      if (!conditions.length) return input
-      const test = (row: ReportRow, condition: FilterCondition) => matches(row[condition.column] ?? null, columnOf(condition.column)!.type, condition, now)
-      const rows = input.rows.filter(row => (config.match === 'any' ? conditions.some(condition => test(row, condition)) : conditions.every(condition => test(row, condition))))
-      return { columns: input.columns, rows }
-    }
-    case 'group': {
-      const by = (config.by ?? []).filter(Boolean)
-      const metrics = (config.metrics ?? []).filter(metric => metric.as.trim())
-      const lost = [...by, ...metrics.filter(metric => METRIC_FNS[metric.fn].needsColumn).map(metric => metric.column)].find(key => !key || !has(key))
-      if (!metrics.length) return fail('Add a figure to work out: a count or a sum.')
-      if (lost !== undefined) return fail(lost ? `${lost} is not a column here any more.` : 'Choose the column each figure is worked out from.')
-      return groupRows(input, by, config.bucket ?? 'day', metrics)
-    }
-    case 'formula': {
-      const name = (config.name ?? '').trim().replace(/\s+/g, '_')
-      if (!name) return fail('Name the new column.')
-      if (!config.left || !has(config.left)) return fail('Choose the column it starts from.')
-      const constant = Number(config.right)
-      const byColumn = config.right ? has(config.right) : false
-      if (!byColumn && !Number.isFinite(constant)) return fail('Choose a column or a number to work it out with.')
-      const operate = (a: number, b: number) => (config.op === '+' ? a + b : config.op === '-' ? a - b : config.op === '*' ? a * b : b === 0 ? null : a / b)
-      const rows = input.rows.map((row) => {
-        const a = Number(row[config.left!])
-        const b = byColumn ? Number(row[config.right!]) : constant
-        const value = Number.isFinite(a) && Number.isFinite(b) ? operate(a, b) : null
-        return { ...row, [name]: value === null ? null : Math.round(value * 10_000) / 10_000 }
-      })
-      return { columns: [...input.columns.filter(column => column.key !== name), { key: name, label: name.replace(/_/g, ' '), type: config.format ?? 'number' }], rows }
-    }
-    case 'sort': {
-      if (config.column && !has(config.column)) return fail(`${config.column} is not a column here any more.`)
-      const rows = config.column ? [...input.rows].sort((a, b) => compareCells(a[config.column!] ?? null, b[config.column!] ?? null) * (config.order === 'asc' ? 1 : -1)) : [...input.rows]
-      return { columns: input.columns, rows: config.limit ? rows.slice(0, config.limit) : rows }
-    }
-    case 'notify': {
-      if (!(config.channels ?? []).length) return { ...input, error: 'Choose a channel to send to.' }
-      if (config.when === 'threshold' && (!config.threshold?.column || !has(config.threshold.column))) return { ...input, error: 'Choose the figure to watch.' }
-      const line = (config.threshold?.value ?? '').trim()
-      if (config.when === 'threshold' && (!line || !Number.isFinite(Number(line)))) return { ...input, error: 'Set the line the figure is watched against.' }
-      return input
-    }
-    case 'chart': {
-      if (!config.x || !has(config.x)) return { ...input, error: 'Choose what runs along the bottom.' }
-      const y = (config.y ?? []).filter(key => has(key))
-      if (!y.length) return { ...input, error: 'Choose a figure to draw.' }
-      return input
-    }
-    default:
-      return input
-  }
-}
-
-function matches(value: Cell, type: ColumnType, condition: FilterCondition, now: number): boolean {
-  const target = condition.value.trim()
-  switch (condition.op) {
-    case 'is': return String(value ?? '').toLowerCase() === target.toLowerCase()
-    case 'is_not': return String(value ?? '').toLowerCase() !== target.toLowerCase()
-    case 'gt': return Number(value) > Number(target)
-    case 'lt': return Number(value) < Number(target)
-    case 'contains': return String(value ?? '').toLowerCase().includes(target.toLowerCase())
-    case 'within': return type === 'time' && typeof value === 'number' && value >= now - Number(target || 0) * DAY_MS
-  }
-}
-
-function compareCells(a: Cell, b: Cell): number {
-  if (a === null) return b === null ? 0 : -1
-  if (b === null) return 1
-  if (typeof a === 'number' && typeof b === 'number') return a - b
-  return String(a).localeCompare(String(b))
-}
-
-function joinRows(left: NodeResult, right: NodeResult, mode: 'inner' | 'left'): NodeResult {
-  if (!left.columns.some(column => column.key === 'player_id') || !right.columns.some(column => column.key === 'player_id')) {
-    return fail('Both inputs need a Player column to join on.')
-  }
-  const extra = right.columns.filter(column => !left.columns.some(entry => entry.key === column.key))
-  const index = new Map<Cell, ReportRow>()
-  for (const row of right.rows) index.set(row.player_id ?? null, row)
-  const rows: ReportRow[] = []
-  for (const row of left.rows) {
-    const match = index.get(row.player_id ?? null)
-    if (!match && mode === 'inner') continue
-    const joined: ReportRow = { ...row }
-    for (const column of extra) joined[column.key] = match ? match[column.key] ?? null : null
-    rows.push(joined)
-  }
-  return { columns: [...left.columns, ...extra], rows }
-}
-
-/** One figure of a group: its rows, and the numbers in the column it is worked out from. */
-function figure(fn: MetricFn, members: readonly ReportRow[], values: readonly number[], column: string): number {
-  const total = values.reduce((sum, entry) => sum + entry, 0)
-  switch (fn) {
-    case 'count':
-      return members.length
-    case 'count_distinct':
-      return new Set(members.map(row => row[column])).size
-    case 'sum':
-      return total
-    case 'avg':
-      return values.length ? total / values.length : 0
-    case 'min':
-      return values.length ? Math.min(...values) : 0
-    case 'max':
-      return values.length ? Math.max(...values) : 0
-  }
-}
-
-/** A time as the bucket it falls in, written so it sorts: "2026-09-14", "2026-09". */
-function bucketOf(at: number, bucket: 'day' | 'week' | 'month'): string {
-  const date = new Date(at)
-  if (bucket === 'month') return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`
-  if (bucket === 'week') date.setUTCDate(date.getUTCDate() - ((date.getUTCDay() + 6) % 7))
-  return date.toISOString().slice(0, 10)
-}
-
-function groupRows(input: NodeResult, by: string[], bucket: 'day' | 'week' | 'month', metrics: GroupMetric[]): NodeResult {
-  const typeOf = (key: string) => input.columns.find(column => column.key === key)!.type
-  const groups = new Map<string, { key: ReportRow, rows: ReportRow[] }>()
-  for (const row of input.rows) {
-    const key: ReportRow = {}
-    for (const column of by) {
-      const value = row[column] ?? null
-      key[column] = typeOf(column) === 'time' && typeof value === 'number' ? bucketOf(value, bucket) : value
-    }
-    const id = JSON.stringify(key)
-    const group = groups.get(id) ?? { key, rows: [] }
-    group.rows.push(row)
-    groups.set(id, group)
-  }
-
-  const rows = [...groups.values()].map(({ key, rows: members }) => {
-    const out: ReportRow = { ...key }
-    for (const metric of metrics) {
-      const values = members.map(row => Number(row[metric.column])).filter(Number.isFinite)
-      out[metric.as.trim().replace(/\s+/g, '_')] = Math.round(figure(metric.fn, members, values, metric.column) * 100) / 100
-    }
-    return out
-  })
-  if (by.length) rows.sort((a, b) => compareCells(a[by[0]!] ?? null, b[by[0]!] ?? null))
-
-  const columns: ReportColumn[] = [
-    ...by.map((key) => {
-      const column = input.columns.find(entry => entry.key === key)!
-      return column.type === 'time' ? { key, label: `${column.label} (${bucket})`, type: 'string' as const } : column
-    }),
-    ...metrics.map((metric) => {
-      const source = input.columns.find(entry => entry.key === metric.column)
-      const type: ColumnType = METRIC_FNS[metric.fn].numeric && source?.type === 'money' ? 'money' : 'number'
-      return { key: metric.as.trim().replace(/\s+/g, '_'), label: metric.as.trim(), type }
-    })
-  ]
-  return { columns, rows }
-}
-
-// --- Sample rows ------------------------------------------------------------------------------
-
-const DAY_MS = 86_400_000
-
-function seeded(text: string): () => number {
-  let state = 0
-  for (const char of text) state = (Math.imul(state, 31) + char.charCodeAt(0)) >>> 0
-  return () => {
-    state = (state + 0x6D2B79F5) >>> 0
-    let t = state
-    t = Math.imul(t ^ (t >>> 15), t | 1)
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
-  }
-}
-
-const COUNTRIES = [['US', 24], ['DE', 12], ['TR', 11], ['BR', 10], ['GB', 8], ['JP', 8], ['FR', 7], ['KR', 6], ['MX', 7], ['IN', 7]] as const
-const PLATFORMS = [['iOS', 42], ['Android', 50], ['Steam', 8]] as const
-const PRODUCTS = [['Pouch of gems', 1.99, 34], ['Starter pack', 2.99, 18], ['Season pass', 4.99, 16], ['Chest of gems', 9.99, 18], ['VIP club, monthly', 6.99, 9], ['Vault of gems', 99.99, 5]] as const
-const EVENTS = [['session_start', 30], ['level_complete', 22], ['level_fail', 14], ['ad_watched', 12], ['shop_open', 9], ['tutorial_complete', 4], ['purchase', 3]] as const
-
-export const EVENT_NAMES = EVENTS.map(([name]) => name)
-
-function weighted<T>(entries: readonly (readonly [T, ...unknown[]])[], weight: (entry: readonly [T, ...unknown[]]) => number, random: () => number): readonly [T, ...unknown[]] {
-  const total = entries.reduce((sum, entry) => sum + weight(entry), 0)
-  let roll = random() * total
-  for (const entry of entries) {
-    roll -= weight(entry)
-    if (roll <= 0) return entry
-  }
-  return entries.at(-1)!
-}
-
-/** 900 players, the same on every run: everything else is drawn from them. */
-const PLAYERS = (() => {
-  const random = seeded('report-players')
-  return Array.from({ length: 900 }, (_, index) => {
-    const country = weighted(COUNTRIES, entry => entry[1] as number, random)[0]
-    const platform = weighted(PLATFORMS, entry => entry[1] as number, random)[0]
-    return { id: `p_${(index * 7919 + 104729).toString(36)}`, country, platform, age: Math.floor(random() ** 1.6 * 120), payer: random() < 0.14 }
-  })
-})()
-
-const sourceCache = new Map<string, ReportRow[]>()
-
-function sourceRows(config: NodeConfig, now: number): NodeResult {
-  const source = config.source ?? 'purchases'
-  const days = Number(config.range ?? 30)
-  const today = Math.floor(now / DAY_MS) * DAY_MS
-  const key = `${source}:${days}:${config.event ?? ''}:${today}`
-  let rows = sourceCache.get(key)
-  if (!rows) {
-    rows = drawRows(source, days, today, config.event ?? '')
-    sourceCache.set(key, rows)
-  }
-  return { columns: SOURCES[source].columns, rows }
-}
-
-function drawRows(source: SourceKey, days: number, today: number, event: string): ReportRow[] {
-  const random = seeded(`report:${source}:${days}:${today}`)
-  const within = () => today + DAY_MS - Math.floor(random() * days * DAY_MS)
-  const player = () => PLAYERS[Math.floor(random() * PLAYERS.length)]!
-  const payer = () => {
-    const pool = PLAYERS.filter(entry => entry.payer)
-    return pool[Math.floor(random() * pool.length)]!
-  }
-
-  switch (source) {
-    case 'players':
-      return PLAYERS.filter(entry => entry.age <= days + 30).map((entry) => {
-        const spend = entry.payer ? Math.round((2 + random() ** 3 * 180) * 100) / 100 : 0
-        return { player_id: entry.id, country: entry.country, platform: entry.platform, first_seen: today - entry.age * DAY_MS, sessions: 1 + Math.floor(random() ** 2 * 60), spend, payer: entry.payer ? 'yes' : 'no' }
-      })
-    case 'purchases':
-      return Array.from({ length: Math.round(days * 14) }, (_, index) => {
-        const who = payer()
-        const [product, price] = weighted(PRODUCTS, entry => entry[2] as number, random) as readonly [string, number, number]
-        const roll = random()
-        return { purchase_id: `pur_${(index * 104729 + days).toString(36)}`, player_id: who.id, product, price, country: who.country, store: who.platform === 'iOS' ? 'App Store' : who.platform === 'Android' ? 'Google Play' : 'Steam', status: roll < 0.93 ? 'verified' : roll < 0.97 ? 'refunded' : 'rejected', at: within() }
-      })
-    case 'sessions':
-      return Array.from({ length: Math.round(days * 30) }, (_, index) => {
-        const who = player()
-        return { session_id: `ses_${(index * 7907 + days).toString(36)}`, player_id: who.id, country: who.country, platform: who.platform, at: within(), minutes: Math.round((2 + random() ** 1.8 * 40) * 10) / 10 }
-      })
-    case 'events':
-      return Array.from({ length: Math.round(days * 60) }, () => {
-        const who = player()
-        const name = event || (weighted(EVENTS, entry => entry[1] as number, random)[0] as string)
-        return { event: name, player_id: who.id, country: who.country, platform: who.platform, at: within(), level: name.startsWith('level') ? 1 + Math.floor(random() ** 1.4 * 40) : null }
-      }).filter(row => !event || row.event === event)
-  }
 }
 
 // --- Words ------------------------------------------------------------------------------------
@@ -785,8 +477,8 @@ export const TEMPLATES: ReportTemplate[] = [
       node('week', 600, 120, 'group', { by: ['at'], bucket: 'week', metrics: [{ fn: 'sum', column: 'price', as: 'revenue' }, { fn: 'count_distinct', column: 'player_id', as: 'payers' }, { fn: 'count', column: '', as: 'purchases' }] }, 'By week'),
       node('arppu', 900, 120, 'formula', { name: 'per_payer', left: 'revenue', op: '/', right: 'payers', format: 'money' }, 'Revenue per payer'),
       node('chart', 1200, 360, 'chart', { chart: 'bar', x: 'at', y: ['revenue'] }, 'Revenue a week'),
-      node('export', 1200, 0, 'export', { file: 'csv', destination: 'email', target: 'finance@starfall.games' }, 'CSV to finance'),
-      node('slack', 1200, 170, 'notify', { channels: ['ch_slack_liveops'], when: 'always', subject: '{{report}}: {{sum.revenue}} over the last weeks', body: 'Revenue per payer last week: {{first.per_payer}}.', include: 'rows', severity: 'info' }, 'Note in #live-ops')
+      node('export', 1200, 0, 'export', { file: 'csv', destination: 'download' }, 'CSV for finance'),
+      node('slack', 1200, 170, 'notify', { channels: [], when: 'always', subject: '{{report}}: {{sum.revenue}} over the last weeks', body: 'Revenue per payer last week: {{first.per_payer}}.', include: 'rows', severity: 'info' }, 'Note to the team')
     ],
     edges: [edge('src', 'verified'), edge('verified', 'week'), edge('week', 'arppu'), edge('arppu', 'chart'), edge('arppu', 'export'), edge('arppu', 'slack'), edge('monday', 'export', WHEN_HANDLE), edge('monday', 'slack', WHEN_HANDLE)]
   },
@@ -827,8 +519,8 @@ export const TEMPLATES: ReportTemplate[] = [
       node('daily', 600, -80, 'schedule', { cron: '0 6 * * *', timezone: 'UTC' }, 'Every morning'),
       node('src', 0, 120, 'source', { source: 'purchases', range: '7' }),
       node('refunded', 300, 120, 'filter', { conditions: [{ column: 'status', op: 'is', value: 'refunded' }] }, 'Refunded'),
-      node('export', 600, 120, 'export', { file: 'parquet', destination: 's3', target: 's3://starfall-finance/refunds/' }, 'To the finance bucket'),
-      node('email', 600, 300, 'notify', { channels: ['ch_email_finance'], when: 'rows', subject: '{{rows}} refunds in the last week', body: 'Refunded purchases up to {{date}}, every one of them attached.', include: 'file', severity: 'info' }, 'Email finance')
+      node('export', 600, 120, 'export', { file: 'csv', destination: 'download' }, 'Refunds as CSV'),
+      node('email', 600, 300, 'notify', { channels: [], when: 'rows', subject: '{{rows}} refunds in the last week', body: 'Refunded purchases up to {{date}}, every one of them attached.', include: 'file', severity: 'info' }, 'Email finance')
     ],
     edges: [edge('src', 'refunded'), edge('refunded', 'export'), edge('refunded', 'email'), edge('daily', 'export', WHEN_HANDLE), edge('daily', 'email', WHEN_HANDLE)]
   },
@@ -842,7 +534,7 @@ export const TEMPLATES: ReportTemplate[] = [
       node('verified', 300, 140, 'filter', { conditions: [{ column: 'status', op: 'is', value: 'verified' }] }, 'Verified only'),
       node('day', 600, 140, 'group', { by: ['at'], bucket: 'day', metrics: [{ fn: 'sum', column: 'price', as: 'revenue' }, { fn: 'count', column: '', as: 'purchases' }] }, 'By day'),
       node('latest', 900, 140, 'sort', { column: 'at', order: 'desc', limit: 1 }, 'The latest day'),
-      node('alert', 1200, 140, 'notify', { channels: ['ch_slack_alerts', 'ch_pagerduty_oncall'], when: 'threshold', threshold: { column: 'revenue', op: 'lt', value: '500' }, subject: 'Revenue on {{first.at}} is {{first.revenue}}', body: 'Under the $500 a day line, from {{first.purchases}} purchases. Check the stores and the last release.', include: 'rows', severity: 'critical' }, 'Page on call')
+      node('alert', 1200, 140, 'notify', { channels: [], when: 'threshold', threshold: { column: 'revenue', op: 'lt', value: '500' }, subject: 'Revenue on {{first.at}} is {{first.revenue}}', body: 'Under the $500 a day line, from {{first.purchases}} purchases. Check the stores and the last release.', include: 'rows', severity: 'critical' }, 'Page on call')
     ],
     edges: [edge('src', 'verified'), edge('verified', 'day'), edge('day', 'latest'), edge('latest', 'alert'), edge('morning', 'alert', WHEN_HANDLE)]
   }

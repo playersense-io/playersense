@@ -1,10 +1,12 @@
+import type { Schema } from '@playersense/contracts'
+
 /**
  * The test run Report Builder is watching: every node's progress, built up from the run's
  * events (utils/report-run.ts) as they arrive, so the canvas can draw where the run is.
  *
- * The run is played here (`simulateRun`) until the reports API exists; then `start` posts
- * for a run and follows it with `followRun`, and the server keeps it in the report's runs.
- * Until then this does that too, once the run has finished.
+ * `start` asks the API for a run (POST …/reports/{id}/runs) and follows its stream; the
+ * server runs it, reaches the channels and keeps it in the report's runs. `stop` asks the
+ * server to stop it, and the stream says where it stopped.
  */
 export interface RunNode {
   state: RunNodeState
@@ -23,25 +25,25 @@ export interface LiveRun {
   report: string
   /** One Notify only, when the run was asked for from it. */
   focus: string | null
-  status: 'starting' | 'running' | 'stopped' | ReportRun['status']
+  status: 'starting' | ReportRun['status']
   plan: string[]
   nodes: Record<string, RunNode>
   deliveries: RunDelivery[]
   startedAt: number
   finishedAt: number | null
+  /** Why the run could not be started or followed. */
+  problem?: string
 }
 
 export interface RunRequest {
   report: { id: string, name: string }
-  nodes: readonly GraphNode[]
-  edges: readonly GraphEdge[]
-  results: ReadonlyMap<string, NodeResult>
   focus: string | null
 }
 
-export function useReportRun() {
-  const { channelById } = useChannels()
-  const { addRun } = useReports()
+/** `finished` is told when a run ends, so the report's runs can be read again. */
+export function useReportRun(finished?: (report: string) => void) {
+  const workspace = useWorkspaceStore()
+  const base = useRuntimeConfig().public.apiBase.replace(/\/$/, '')
 
   const run = ref<LiveRun | null>(null)
   let unfollow: StopFollowing | null = null
@@ -81,53 +83,61 @@ export function useReportRun() {
         current.status = event.status
         current.finishedAt = event.at
         unfollow = null
-        record(current)
+        finished?.(current.report)
         break
     }
   }
 
-  /* Kept in the report's runs, as the server will keep it. */
-  function record(done: LiveRun) {
-    addRun(done.report, { id: done.id, at: done.startedAt, trigger: 'test', dry: false, status: runStatusOf(done.deliveries), deliveries: [...done.deliveries] })
-  }
-
-  function start(request: RunRequest) {
-    stop()
-    const id = `run_${Math.random().toString(36).slice(2, 10)}`
-    run.value = { id, report: request.report.id, focus: request.focus, status: 'starting', plan: [], nodes: {}, deliveries: [], startedAt: Date.now(), finishedAt: null }
-    unfollow = simulateRun({
-      run: id,
-      ...request,
-      channelOf: channelById,
-      // Played in the browser until test runs stream from the reports API: nothing is sent.
-      send: () => ({ at: new Date().toISOString(), ok: false, detail: 'Not sent: test runs in this browser do not reach channels', ms: 0 })
-    }, apply)
-  }
-
-  /** Stops the run where it is. What it has already sent stays sent, and is kept. */
-  function stop() {
-    if (!unfollow) return
-    unfollow()
-    unfollow = null
-    const current = run.value
-    if (!current || current.finishedAt) return
-    current.status = 'stopped'
-    current.finishedAt = Date.now()
-    for (const entry of Object.values(current.nodes)) {
-      if (entry.state === 'running' || entry.state === 'queued') entry.state = 'skipped'
+  async function start(request: RunRequest) {
+    unfollowNow()
+    const report = request.report.id
+    run.value = { id: '', report, focus: request.focus, status: 'starting', plan: [], nodes: {}, deliveries: [], startedAt: Date.now(), finishedAt: null }
+    try {
+      const out = await apiRequest<Schema<'StartedRunOut'>>('POST', `${workspace.projectPath}/reports/${report}/runs`, { dry: false, focus: request.focus ?? '' })
+      const current = run.value
+      if (!current || current.report !== report || current.id) return
+      current.id = out.run.id
+      current.startedAt = Date.parse(out.run.started_at)
+      unfollow = followRun(base + out.stream_url, apply, () => {
+        const lost = run.value
+        if (lost?.id === out.run.id && !lost.finishedAt) {
+          lost.problem = 'Lost the run\'s progress. It goes on on the server, and its outcome is in the report\'s runs.'
+          lost.finishedAt = Date.now()
+          unfollow = null
+          finished?.(report)
+        }
+      })
+    } catch (caught) {
+      if (run.value?.report !== report) return
+      run.value = { ...run.value, status: 'failed', finishedAt: Date.now(), problem: caught instanceof Error ? caught.message : String(caught) }
     }
-    if (current.deliveries.length) record(current)
   }
 
-  /** Stops the run, if it is still going, and forgets it. */
+  function unfollowNow() {
+    unfollow?.()
+    unfollow = null
+  }
+
+  /** Asks the server to stop the run. What it has already sent stays sent; the stream says where it stopped. */
+  async function stop() {
+    const current = run.value
+    if (!current?.id || current.finishedAt) return
+    try {
+      await apiRequest('POST', `${workspace.projectPath}/reports/${current.report}/runs/${current.id}/cancel`)
+    } catch (caught) {
+      current.problem = caught instanceof Error ? caught.message : String(caught)
+    }
+  }
+
+  /** Stops following the run, and forgets it. The run itself goes on, on the server. */
   function clear() {
-    stop()
+    unfollowNow()
     run.value = null
   }
 
-  onScopeDispose(stop)
+  onScopeDispose(unfollowNow)
 
-  const running = computed(() => run.value?.status === 'starting' || run.value?.status === 'running')
+  const running = computed(() => Boolean(run.value && !run.value.finishedAt))
 
   return { run, running, start, stop, clear }
 }

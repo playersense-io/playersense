@@ -10,7 +10,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{ stop: [], results: [], dismiss: [] }>()
 
-const live = computed(() => props.run.status === 'starting' || props.run.status === 'running')
+const live = computed(() => !props.run.finishedAt)
 const entries = computed(() => props.run.plan.map(id => props.run.nodes[id]).filter((entry): entry is RunNode => Boolean(entry)))
 const ended = computed(() => entries.value.filter(entry => entry.state !== 'queued' && entry.state !== 'running').length)
 const broken = computed(() => entries.value.filter(entry => entry.state === 'failed').length)
@@ -25,9 +25,11 @@ const LOOK: Record<Exclude<LiveRun['status'], 'starting' | 'running'>, { icon: s
   partial: { icon: 'material-symbols:error-outline', colour: 'text-warning', label: RUN_STATUS.partial.label },
   failed: { icon: 'material-symbols:cancel-outline', colour: 'text-error', label: RUN_STATUS.failed.label },
   quiet: { icon: 'material-symbols:do-not-disturb-on-outline', colour: 'text-ink/50', label: RUN_STATUS.quiet.label },
-  stopped: { icon: 'material-symbols:stop-circle-outline', colour: 'text-ink/50', label: 'Stopped' }
+  stopped: { icon: 'material-symbols:stop-circle-outline', colour: 'text-ink/50', label: RUN_STATUS.stopped.label }
 }
-const look = computed(() => (live.value ? null : LOOK[props.run.status as keyof typeof LOOK]))
+/* A run given up on before it said how it ended: it could not start, or its stream was lost. */
+const UNKNOWN = { icon: 'material-symbols:help-outline', colour: 'text-warning', label: 'Not followed to the end' }
+const look = computed(() => (live.value ? null : LOOK[props.run.status as keyof typeof LOOK] ?? UNKNOWN))
 
 const headline = computed(() => {
   if (props.run.status === 'starting') return 'Starting the test run'
@@ -43,6 +45,7 @@ const seconds = computed(() => (((props.run.finishedAt ?? Date.now()) - props.ru
 const detail = computed(() => {
   const plan = props.run.plan.length
   if (live.value) return plan ? `${ended.value} of ${plan} steps done` : 'Asking for a run'
+  if (props.run.problem) return props.run.problem
   const parts = [
     tried.value.length ? `${sent.value} of ${tried.value.length} sent` : props.run.deliveries.length ? 'its rule kept it quiet' : 'nothing sent',
     ...(broken.value ? [`${broken.value} ${broken.value === 1 ? 'step' : 'steps'} failed`] : []),
@@ -97,6 +100,7 @@ const progress = computed(() => (props.run.plan.length ? (ended.value / props.ru
       </v-btn>
       <template v-else>
         <v-btn
+          v-if="run.id"
           class="text-xs font-medium"
           color="neutral"
           size="small"

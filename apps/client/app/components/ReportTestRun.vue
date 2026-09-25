@@ -2,14 +2,17 @@
 // A report run now, the way its schedule would run it, to see that everything works before it
 // is left to run on its own. Every delivery is shown with what it would do: a Notify with
 // whether its rule lets it send and why, and the message as each of its channels will show it;
-// an Export with the file it would write and where. Nothing leaves until Send is pressed; then
-// the dialog steps aside and the run plays on the canvas (pages/reports.vue), and once it has
-// finished, what every channel answered is shown here.
+// an Export with the file it would write and where, all from the API's preview. Nothing leaves
+// until Send is pressed; then the server runs it, the dialog steps aside and the run plays on
+// the canvas (pages/reports.vue), and once it has finished, what every channel answered is
+// shown here.
 const props = defineProps<{
   report: { id: string, name: string }
   nodes: readonly GraphNode[]
   edges: readonly GraphEdge[]
   results: ReadonlyMap<string, NodeResult>
+  /** Whose rows it reads. */
+  environment: string
   /** One Notify only, from its own "Preview and send a test". */
   focus?: string | null
   /** The run this dialog sent, once Send has been pressed. */
@@ -54,7 +57,7 @@ const steps = computed<Step[]>(() => props.nodes
       node,
       result,
       timing: timing.value,
-      outcome: node.data.kind === 'notify' && result && !result.error ? evaluateNotify(node, result, props.report, at) : null,
+      outcome: node.data.kind === 'notify' ? notifyOutcomeOf(node, result, props.report) : null,
       channels: (node.data.config.channels ?? []).map(id => channels.value.find(channel => channel.id === id)).filter((channel): channel is NotificationChannel => Boolean(channel))
     }
   }))
@@ -99,7 +102,7 @@ function stateOf(step: Step): { label: string, tone: BadgeTone } {
             Test run: {{ report.name }}
           </h2>
           <p class="m-0 text-xs leading-5 text-ink/60">
-            Runs {{ focus ? 'this step' : 'the report' }} now, on the sample rows, the way its schedule would, and shows what {{ focus ? 'it' : 'each delivery' }} would send. Nothing is sent until you press Send.
+            Runs {{ focus ? 'this step' : 'the report' }} now, on {{ environment }}'s rows, the way its schedule would. Below is what {{ focus ? 'it' : 'each delivery' }} would send; nothing is sent until you press Send.
           </p>
         </div>
       </header>
@@ -132,7 +135,7 @@ function stateOf(step: Step): { label: string, tone: BadgeTone } {
                 <p class="m-0 flex items-start gap-2 text-xs leading-5 text-ink/75">
                   <Icon aria-hidden="true" class="mt-0.5 flex-none text-sm text-ink/45" name="material-symbols:description-outline" />
                   <span>
-                    <span class="font-mono text-ink">{{ fileOf(step) }}</span>, {{ step.result?.rows.length.toLocaleString('en') }} rows, to {{ destinationOf(step) }}.
+                    <span class="font-mono text-ink">{{ fileOf(step) }}</span>, {{ rowsOf(step.result).toLocaleString('en') }} rows, to {{ destinationOf(step) }}.
                   </span>
                 </p>
                 <p v-if="answers[step.node.id]" class="m-0 flex items-center gap-2 text-[11px] text-success">
@@ -194,6 +197,9 @@ function stateOf(step: Step): { label: string, tone: BadgeTone } {
                   </template>
                 </template>
               </template>
+              <p v-else class="m-0 text-xs text-ink/55">
+                Working out what it would send…
+              </p>
             </div>
           </section>
         </div>
@@ -201,7 +207,8 @@ function stateOf(step: Step): { label: string, tone: BadgeTone } {
 
       <footer class="flex flex-wrap items-center justify-between gap-3 border-t border-line px-5 py-3">
         <span class="text-[11px] text-ink/55">
-          <template v-if="sent">
+          <span v-if="run?.problem" class="text-error">{{ run.problem }}</span>
+          <template v-else-if="sent">
             {{ run?.status === 'stopped' ? 'Stopped before it finished. What it sent is in the report\'s history.' : failures ? `Sent, with ${failures} ${failures === 1 ? 'channel' : 'channels'} failing. Fix ${failures === 1 ? 'it' : 'them'} under Notification channels.` : 'Sent. The run is in the report\'s history.' }}
           </template>
           <template v-else>
