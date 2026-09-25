@@ -69,7 +69,7 @@ func OperatorIngestion(ctx *muzak.Context, in schemas.IngestionParams) (schemas.
 	if in.Interval == "minute" && to.Sub(from) > 0 {
 		return schemas.IngestionOut{}, muzak.BadRequest("a minute series covers one day; name the same day as from and to")
 	}
-	out, err := console.Ingestion(ctx.Context(), from, to, in.Interval, time.Now())
+	out, err := console.Ingestion(ctx.Context(), from, to, in.Interval, uint32(in.Project), time.Now())
 	if err != nil {
 		return schemas.IngestionOut{}, muzak.ServiceUnavailable("the ingestion rollups could not be read").Wrap(err)
 	}

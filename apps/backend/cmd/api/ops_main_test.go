@@ -3,6 +3,7 @@ package main
 import (
 	"net/http"
 	"net/url"
+	"strconv"
 	"testing"
 
 	"muzak.dev/framework/testclient"
@@ -24,7 +25,11 @@ func TestTheOperationsConsoleSeesTheWholePlatform(t *testing.T) {
 	seedStaff(t, r.db, engineer, staff.Ops)
 	operator := testclient.New(t, app, testclient.WithHeader("Authorization", "Bearer "+r.google.Token(engineer)))
 
-	ingestion := get[schemas.IngestionOut](t, operator, "/v1/operator/ingestion", r.yesterdayOnly(), http.StatusOK)
+	// Asked about its own project: a shared database holds many projects with a day like this one,
+	// and whether a small one makes the platform's top hundred is not what this test is about.
+	query := r.yesterdayOnly()
+	query.Set("project", strconv.Itoa(r.project.ProjectSeq))
+	ingestion := get[schemas.IngestionOut](t, operator, "/v1/operator/ingestion", query, http.StatusOK)
 	var ours *schemas.IngestionProjectOut
 	for i, p := range ingestion.Projects {
 		if int(p.ProjectSeq) == r.project.ProjectSeq {

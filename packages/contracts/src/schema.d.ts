@@ -9540,6 +9540,8 @@ export interface operations {
                 readonly to?: string;
                 /** @description minute (the last day at most) or hour (default) */
                 readonly interval?: "minute" | "hour";
+                /** @description One project's number; the whole platform when absent */
+                readonly project?: number;
             };
             readonly header?: never;
             readonly path?: never;

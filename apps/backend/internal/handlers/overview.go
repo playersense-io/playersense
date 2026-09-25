@@ -25,7 +25,7 @@ func OperatorOverview(ctx *muzak.Context, _ struct{}) (schemas.OverviewOut, erro
 	today := now.Truncate(24 * time.Hour)
 	out := schemas.OverviewOut{CheckedAt: now, Errors: map[string]string{}}
 
-	if ingestion, err := console.Ingestion(ctx.Context(), today, today, "hour", now); err != nil {
+	if ingestion, err := console.Ingestion(ctx.Context(), today, today, "hour", 0, now); err != nil {
 		out.Errors["ingestion"] = err.Error()
 	} else {
 		one := &schemas.OverviewIngestionOut{Now: ingestion.Now}

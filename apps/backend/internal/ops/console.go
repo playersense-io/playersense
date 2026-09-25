@@ -61,7 +61,8 @@ func timestamp(t time.Time) string { return t.UTC().Format("2006-01-02 15:04:05"
 // Ingestion reads every tenant's ingestion over [from, to], by minute or hour, and the busiest
 // projects, from the whole-project rollups (00013). The minute tier keeps seven days; a minute
 // series is bounded by the caller to one.
-func (c *Console) Ingestion(ctx context.Context, from, to time.Time, interval string, now time.Time) (*schemas.IngestionOut, error) {
+// project narrows both the series and the table to one project; 0 is the whole platform.
+func (c *Console) Ingestion(ctx context.Context, from, to time.Time, interval string, project uint32, now time.Time) (*schemas.IngestionOut, error) {
 	end := to.AddDate(0, 0, 1)
 	table, bucket := "activity_1h", "hour"
 	if interval == "minute" {
@@ -75,9 +76,9 @@ func (c *Console) Ingestion(ctx context.Context, from, to time.Time, interval st
 		       sum(sessions), sum(purchases), sum(late_events),
 		       if(sum(events) = 0, 0, sum(lag_ms_sum) / sum(events)), max(lag_ms_max)
 		FROM `+table+`
-		WHERE `+bucket+` >= ? AND `+bucket+` < ?
+		WHERE `+bucket+` >= ? AND `+bucket+` < ? AND (? = 0 OR project_seq = ?)
 		GROUP BY at ORDER BY at`,
-		[]any{timestamp(from), timestamp(end)}, func(rows driver.Rows) error {
+		[]any{timestamp(from), timestamp(end), project, project}, func(rows driver.Rows) error {
 			var b schemas.IngestionBucketOut
 			if err := rows.Scan(&b.At, &b.Events, &b.Bytes, &b.Batches, &b.Players, &b.Sessions,
 				&b.Purchases, &b.LateEvents, &b.LagMsAvg, &b.LagMsMax); err != nil {
@@ -94,11 +95,11 @@ func (c *Console) Ingestion(ctx context.Context, from, to time.Time, interval st
 		       uniqCombinedMerge(12)(batches), uniqCombinedMerge(14)(players), sum(late_events),
 		       if(sum(events) = 0, 0, sum(lag_ms_sum) / sum(events)), max(lag_ms_max)
 		FROM activity_1h
-		WHERE hour >= ? AND hour < ?
+		WHERE hour >= ? AND hour < ? AND (? = 0 OR project_seq = ?)
 		GROUP BY project_seq, environment_seq
-		ORDER BY sum(events) DESC
+		ORDER BY sum(events) DESC, project_seq DESC
 		LIMIT 100`,
-		[]any{timestamp(from), timestamp(end)}, func(rows driver.Rows) error {
+		[]any{timestamp(from), timestamp(end), project, project}, func(rows driver.Rows) error {
 			var p schemas.IngestionProjectOut
 			if err := rows.Scan(&p.ProjectSeq, &p.OrgSeq, &p.EnvironmentSeq, &p.Events, &p.Bytes,
 				&p.Batches, &p.Players, &p.LateEvents, &p.LagMsAvg, &p.LagMsMax); err != nil {

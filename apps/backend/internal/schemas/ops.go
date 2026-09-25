@@ -1,6 +1,7 @@
 package schemas
 
 import (
+	"math"
 	"time"
 
 	"github.com/google/uuid"
@@ -16,12 +17,16 @@ type IngestionParams struct {
 	From     string `query:"from,omitzero" doc:"YYYY-MM-DD, inclusive. Defaults to six days before to"`
 	To       string `query:"to,omitzero" doc:"YYYY-MM-DD, inclusive. Defaults to today (UTC)"`
 	Interval string `query:"interval,omitzero" doc:"minute (the last day at most) or hour (default)"`
+	// Project narrows the whole view to one tenant: the one somebody is asking about, which a
+	// top-100 table would not show if it were small.
+	Project int `query:"project,omitzero" doc:"One project's number; the whole platform when absent"`
 }
 
 func (in *IngestionParams) Validate(v *muzak.Validation) {
 	v.String(&in.From).Trim().MaxLen(10)
 	v.String(&in.To).Trim().MaxLen(10)
 	v.String(&in.Interval).Trim().Lower().OneOf("minute", "hour")
+	v.Number(&in.Project).As("project").Between(0, math.MaxUint32)
 }
 
 // IngestionOut is every tenant's ingestion together, and the busiest projects.

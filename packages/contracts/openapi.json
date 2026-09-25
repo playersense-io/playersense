@@ -873,6 +873,17 @@
                 "hour"
               ]
             }
+          },
+          {
+            "name": "project",
+            "in": "query",
+            "description": "One project's number; the whole platform when absent",
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0,
+              "maximum": 4294967295
+            }
           }
         ],
         "responses": {
