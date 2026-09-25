@@ -16,6 +16,21 @@ async function signOut() {
   await navigateTo('/login')
 }
 
+const accepting = ref('')
+const acceptProblem = ref('')
+
+async function accept(slug: string) {
+  accepting.value = slug
+  acceptProblem.value = ''
+  try {
+    await workspace.acceptInvitation(slug)
+  } catch (caught) {
+    acceptProblem.value = caught instanceof Error ? caught.message : String(caught)
+  } finally {
+    accepting.value = ''
+  }
+}
+
 const items: MenuItem[] = [
   { title: 'Billing', icon: 'material-symbols:receipt-long-outline', to: '/settings/billing' },
   { title: 'Settings', icon: 'material-symbols:settings-outline', to: '/settings' },
@@ -42,5 +57,29 @@ const items: MenuItem[] = [
         <Icon aria-hidden="true" class="text-base text-ink/70" name="material-symbols:check" />
       </template>
     </v-list-item>
+
+    <template v-if="workspace.invitations.length">
+      <p class="m-0 px-3 pt-2 pb-1 text-[11px] text-ink/45">
+        Invitations
+      </p>
+      <v-list-item
+        v-for="invitation in workspace.invitations"
+        :key="invitation.organization_slug"
+        :disabled="Boolean(accepting)"
+        :subtitle="`As ${invitation.role}. Click to join`"
+        :title="invitation.organization"
+        @click="accept(invitation.organization_slug)"
+      >
+        <template #prepend>
+          <Icon aria-hidden="true" class="text-primary" name="material-symbols:mail-outline" />
+        </template>
+        <template v-if="accepting === invitation.organization_slug" #append>
+          <v-progress-circular indeterminate size="14" width="2" />
+        </template>
+      </v-list-item>
+      <p v-if="acceptProblem" class="m-0 px-3 pb-1 text-[11px] text-error">
+        {{ acceptProblem }}
+      </p>
+    </template>
   </SidebarAccountMenu>
 </template>

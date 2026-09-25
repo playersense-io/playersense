@@ -14,3 +14,19 @@ export const MEMBER_ROLES: Record<MemberRole, { label: string, note: string, ton
 }
 
 export const MEMBER_ROLE_ORDER: readonly MemberRole[] = ['owner', 'admin', 'liveops_manager', 'developer', 'growth_manager', 'billing']
+
+/** How a role is drawn: a system role in its own colour and words, an organization's own in
+ *  neutral with the description it was given. */
+export function roleLook(role: { key: string, name: string, description?: string }): { label: string, note: string, tone: string } {
+  const known = MEMBER_ROLES[role.key as MemberRole]
+  return known ?? { label: role.name, note: role.description ?? '', tone: 'neutral' }
+}
+
+/** Roles in the order the menu lists them: the system ones most powerful first, then the rest by name. */
+export function sortRoles<T extends { key: string, name: string }>(roles: readonly T[]): T[] {
+  const rank = (role: T) => {
+    const index = MEMBER_ROLE_ORDER.indexOf(role.key as MemberRole)
+    return index < 0 ? MEMBER_ROLE_ORDER.length : index
+  }
+  return [...roles].sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name))
+}

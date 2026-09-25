@@ -8,11 +8,14 @@ import type { Schema } from '@playersense/contracts'
 export type Me = Schema<'MeOut'>
 export type MeOrganization = Schema<'MeOrganizationOut'>
 export type ProjectRecord = Schema<'ProjectOut'>
+export type PendingInvitation = Schema<'PendingInvitationOut'>
 export type EnvironmentKind = 'production' | 'staging' | 'development'
 
 export const useWorkspaceStore = defineStore('workspace', () => {
   const me = ref<Me | null>(null)
   const projects = ref<ProjectRecord[]>([])
+  /** Invitations addressed to the signed-in person, waiting to be accepted. */
+  const invitations = ref<PendingInvitation[]>([])
   const loading = ref(false)
   const loaded = ref(false)
   const error = ref<string | null>(null)
@@ -44,6 +47,23 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     if (!projects.value.some(entry => entry.slug === projectSlug.value)) projectSlug.value = projects.value[0]?.slug ?? ''
   }
 
+  async function loadInvitations() {
+    try {
+      const out = await apiRequest<Schema<'PendingInvitationListOut'>>('GET', '/v1/invitations')
+      invitations.value = [...(out.invitations ?? [])]
+    } catch {
+      // Only a list to offer: the dashboard works without it.
+      invitations.value = []
+    }
+  }
+
+  /** Joins the organization an invitation is from, and shows it. */
+  async function acceptInvitation(organizationSlug: string) {
+    await apiRequest('POST', '/v1/invitations/accept', { organization: organizationSlug })
+    await load(true)
+    await selectOrganization(organizationSlug)
+  }
+
   /** Reads who the person is and where they may go; once, unless forced. */
   async function load(force = false) {
     if ((loaded.value && !force) || loading.value) return
@@ -52,7 +72,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     try {
       me.value = await apiRequest<Me>('GET', '/v1/users/me')
       if (!organizations.value.some(entry => entry.slug === orgSlug.value)) orgSlug.value = organizations.value[0]?.slug ?? ''
-      await loadProjects()
+      await Promise.all([loadProjects(), loadInvitations()])
       loaded.value = true
     } catch (caught) {
       error.value = caught instanceof Error ? caught.message : String(caught)
@@ -80,11 +100,12 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   function reset() {
     me.value = null
     projects.value = []
+    invitations.value = []
     loaded.value = false
   }
 
   return {
-    me, projects, loading, loaded, error, organizations, organization, project, environment,
-    orgPath, projectPath, analyticsPath, load, loadProjects, selectOrganization, selectProject, selectEnvironment, reset
+    me, projects, invitations, loading, loaded, error, organizations, organization, project, environment,
+    orgPath, projectPath, analyticsPath, load, loadProjects, acceptInvitation, selectOrganization, selectProject, selectEnvironment, reset
   }
 })

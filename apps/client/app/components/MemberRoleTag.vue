@@ -1,27 +1,33 @@
 <script setup lang="ts">
 // A member's role in the members list: a tag in the role's colour, the way a flag's kind is
 // drawn in its list, that is also the control that changes it. It darkens and shows its
-// chevron under the pointer; a click opens the roles, each with what it may do, taken from
-// the role templates (apps/backend/internal/authz/roles.go).
+// chevron under the pointer; a click opens the organization's roles (GET …/roles), each with
+// what it may do.
 //
 // The last owner cannot be made anything else: an organisation with no owner has nobody who
 // can give the role back.
-import type { MemberRole } from '~/types'
+import type { RoleRecord } from '~/composables/members'
 
 const props = defineProps<{
+  /** The roles it can be, from the API. */
+  roles: RoleRecord[]
   /** Whose role it is, for a screen reader: "Role of Sam Okafor". */
   label: string
   /** Why the role cannot change, when it cannot. */
   locked?: string
 }>()
 
-const role = defineModel<MemberRole>({ required: true })
+/** The role's key. */
+const role = defineModel<string>({ required: true })
 
 const open = ref(false)
 
-function choose(next: MemberRole) {
-  role.value = next
+const ordered = computed(() => sortRoles(props.roles))
+const current = computed(() => roleLook(props.roles.find(entry => entry.key === role.value) ?? { key: role.value, name: role.value }))
+
+function choose(next: string) {
   open.value = false
+  if (next !== role.value) role.value = next
 }
 </script>
 
@@ -36,14 +42,14 @@ function choose(next: MemberRole) {
     <template #activator="{ props: activator }">
       <button
         v-bind="activator"
-        :aria-label="`${label}: ${MEMBER_ROLES[role].label}`"
+        :aria-label="`${label}: ${current.label}`"
         :class="[open ? 'ps-role-tag--open' : '', locked ? 'cursor-default' : 'cursor-pointer']"
-        :style="{ '--tag': `var(--v-theme-${MEMBER_ROLES[role].tone})` }"
+        :style="{ '--tag': `var(--v-theme-${current.tone})` }"
         :title="locked || undefined"
         class="ps-role-tag group inline-flex h-6 max-w-full items-center gap-0.5 rounded-full pr-1.5 pl-2.5 text-[11px] font-medium whitespace-nowrap transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         type="button"
       >
-        <span class="truncate">{{ MEMBER_ROLES[role].label }}</span>
+        <span class="truncate">{{ current.label }}</span>
         <Icon
           v-if="!locked"
           :class="open ? 'rotate-180 opacity-100' : 'opacity-50 group-hover:opacity-100'"
@@ -65,22 +71,22 @@ function choose(next: MemberRole) {
         Role
       </v-list-subheader>
       <v-list-item
-        v-for="key in MEMBER_ROLE_ORDER"
-        :key="key"
-        :active="key === role"
+        v-for="entry in ordered"
+        :key="entry.key"
+        :active="entry.key === role"
         lines="two"
-        @click="choose(key)"
+        @click="choose(entry.key)"
       >
         <template #prepend>
-          <span :style="{ background: `rgb(var(--v-theme-${MEMBER_ROLES[key].tone}))` }" aria-hidden="true" class="mr-3 size-2 rounded-full" />
+          <span :style="{ background: `rgb(var(--v-theme-${roleLook(entry).tone}))` }" aria-hidden="true" class="mr-3 size-2 rounded-full" />
         </template>
         <v-list-item-title class="text-xs font-medium">
-          {{ MEMBER_ROLES[key].label }}
+          {{ roleLook(entry).label }}
         </v-list-item-title>
         <v-list-item-subtitle class="text-[11px]">
-          {{ MEMBER_ROLES[key].note }}
+          {{ roleLook(entry).note }}
         </v-list-item-subtitle>
-        <template v-if="key === role" #append>
+        <template v-if="entry.key === role" #append>
           <Icon aria-hidden="true" class="text-base text-ink/70" name="material-symbols:check" />
         </template>
       </v-list-item>
