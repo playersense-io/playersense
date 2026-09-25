@@ -83,6 +83,8 @@ const (
 	EventArchived    Action = "liveops_event.archive"
 	ConfigPublished  Action = "liveops.publish"
 	ConfigRolledBack Action = "liveops.rollback"
+	// DraftRestored is the draft set back to what a published version was compiled from.
+	DraftRestored Action = "liveops.restore_draft"
 
 	ExperimentWritten   Action = "experiment.write"
 	ExperimentDeleted   Action = "experiment.delete"

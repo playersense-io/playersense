@@ -14151,6 +14151,142 @@
         }
       }
     },
+    "/v1/organizations/{org}/projects/{project}/config/{environment}/versions/{version}/restore": {
+      "post": {
+        "tags": [
+          "liveops"
+        ],
+        "summary": "Set the draft back to a version",
+        "description": "The flags and segments that version was compiled from, written back into the draft in one step: each flag's fallback, rules, reach and bucketing as they were, flags not in it archived, and anything since deleted made again. Nothing is published; the environments serve what they serve until the draft is published. For a version to serve again as it was, roll back instead.",
+        "operationId": "post_v1_organizations_by_org_projects_by_project_config_by_environment_versions_by_version_restore",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "project",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "environment",
+            "in": "path",
+            "description": "development, staging or production",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "development",
+                "staging",
+                "production"
+              ]
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DraftRestoredOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not do that",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such environment or version",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The version was published before drafts were kept with versions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/organizations/{org}/projects/{project}/config/{environment}/versions/{version}/rollback": {
       "post": {
         "tags": [
@@ -27450,6 +27586,52 @@
           "needs_player_facts",
           "next_version",
           "published_version"
+        ]
+      },
+      "DraftRestoredOut": {
+        "type": "object",
+        "properties": {
+          "environment": {
+            "type": "string"
+          },
+          "flags_archived": {
+            "type": "array",
+            "description": "In the draft, not in the version: archived, and back with a restore of a later one",
+            "items": {
+              "type": "string"
+            }
+          },
+          "flags_restored": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "flags_skipped": {
+            "type": "array",
+            "description": "Made again since with another kind, which a flag cannot change: left as they are",
+            "items": {
+              "type": "string"
+            }
+          },
+          "segments_restored": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "version": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "environment",
+          "flags_archived",
+          "flags_restored",
+          "flags_skipped",
+          "segments_restored",
+          "version"
         ]
       },
       "DrawOut": {

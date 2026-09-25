@@ -67,3 +67,36 @@ func TestARollbackRepublishesTheOldDocument(t *testing.T) {
 		t.Fatalf("audit %+v", log.Events)
 	}
 }
+
+// TestADraftIsSetBackToAVersion: a version keeps the draft it was compiled from, and restoring
+// it writes those flags back, archives what was added since, and publishes nothing.
+func TestADraftIsSetBackToAVersion(t *testing.T) {
+	a := newAuthoring(t)
+	client := a.client(t)
+	client.Post(a.base()+"/flags", testclient.RawJSON(`{"key":"hud_v2","name":"HUD v2","kind":"bool","fallback":false}`)).
+		AssertStatus(http.StatusCreated)
+	client.Post(a.base()+"/config/production/publish", testclient.JSON(map[string]string{"environment": "production"})).
+		AssertStatus(http.StatusCreated)
+
+	// The draft moves on: the flag changed, another added.
+	client.Put(a.base()+"/flags/hud_v2", testclient.RawJSON(`{"name":"HUD v2","fallback":true}`)).
+		AssertStatus(http.StatusOK)
+	client.Post(a.base()+"/flags", testclient.RawJSON(`{"key":"shop_v3","name":"Shop v3","kind":"bool","fallback":true}`)).
+		AssertStatus(http.StatusCreated)
+
+	restored := testclient.Decoded[schemas.DraftRestoredOut](client.Post(a.base()+"/config/production/versions/1/restore",
+		testclient.JSON(map[string]any{})).AssertStatus(http.StatusOK))
+	if len(restored.FlagsRestored) != 1 || restored.FlagsRestored[0] != "hud_v2" ||
+		len(restored.FlagsArchived) != 1 || restored.FlagsArchived[0] != "shop_v3" {
+		t.Fatalf("restored %+v", restored)
+	}
+	flag := testclient.Decoded[map[string]any](client.Get(a.base() + "/flags/hud_v2").AssertStatus(http.StatusOK))
+	if flag["fallback"] != false {
+		t.Fatalf("the flag after the restore: %v", flag)
+	}
+	list := testclient.Decoded[schemas.ConfigVersionListOut](client.Get(a.base() + "/config/production/versions").AssertStatus(http.StatusOK))
+	if list.Current != 1 {
+		t.Fatalf("a restore published something: current %d", list.Current)
+	}
+	client.Post(a.base()+"/config/production/versions/9/restore", testclient.JSON(map[string]any{})).AssertStatus(http.StatusNotFound)
+}

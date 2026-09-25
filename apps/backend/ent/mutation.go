@@ -10614,6 +10614,7 @@ type ConfigVersionMutation struct {
 	note                     *string
 	rollback_of              *int
 	addrollback_of           *int
+	draft                    *map[string]interface{}
 	clearedFields            map[string]struct{}
 	project                  *int
 	clearedproject           bool
@@ -11244,6 +11245,55 @@ func (m *ConfigVersionMutation) ResetRollbackOf() {
 	delete(m.clearedFields, configversion.FieldRollbackOf)
 }
 
+// SetDraft sets the "draft" field.
+func (m *ConfigVersionMutation) SetDraft(value map[string]interface{}) {
+	m.draft = &value
+}
+
+// Draft returns the value of the "draft" field in the mutation.
+func (m *ConfigVersionMutation) Draft() (r map[string]interface{}, exists bool) {
+	v := m.draft
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDraft returns the old "draft" field's value of the ConfigVersion entity.
+// If the ConfigVersion object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConfigVersionMutation) OldDraft(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDraft is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDraft requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDraft: %w", err)
+	}
+	return oldValue.Draft, nil
+}
+
+// ClearDraft clears the value of the "draft" field.
+func (m *ConfigVersionMutation) ClearDraft() {
+	m.draft = nil
+	m.clearedFields[configversion.FieldDraft] = struct{}{}
+}
+
+// DraftCleared returns if the "draft" field was cleared in this mutation.
+func (m *ConfigVersionMutation) DraftCleared() bool {
+	_, ok := m.clearedFields[configversion.FieldDraft]
+	return ok
+}
+
+// ResetDraft resets all changes to the "draft" field.
+func (m *ConfigVersionMutation) ResetDraft() {
+	m.draft = nil
+	delete(m.clearedFields, configversion.FieldDraft)
+}
+
 // ClearProject clears the "project" edge to the Project entity.
 func (m *ConfigVersionMutation) ClearProject() {
 	m.clearedproject = true
@@ -11386,7 +11436,7 @@ func (m *ConfigVersionMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ConfigVersionMutation) Fields() []string {
-	fields := make([]string, 0, 12)
+	fields := make([]string, 0, 13)
 	if m.uid != nil {
 		fields = append(fields, configversion.FieldUID)
 	}
@@ -11423,6 +11473,9 @@ func (m *ConfigVersionMutation) Fields() []string {
 	if m.rollback_of != nil {
 		fields = append(fields, configversion.FieldRollbackOf)
 	}
+	if m.draft != nil {
+		fields = append(fields, configversion.FieldDraft)
+	}
 	return fields
 }
 
@@ -11455,6 +11508,8 @@ func (m *ConfigVersionMutation) Field(name string) (ent.Value, bool) {
 		return m.Note()
 	case configversion.FieldRollbackOf:
 		return m.RollbackOf()
+	case configversion.FieldDraft:
+		return m.Draft()
 	}
 	return nil, false
 }
@@ -11488,6 +11543,8 @@ func (m *ConfigVersionMutation) OldField(ctx context.Context, name string) (ent.
 		return m.OldNote(ctx)
 	case configversion.FieldRollbackOf:
 		return m.OldRollbackOf(ctx)
+	case configversion.FieldDraft:
+		return m.OldDraft(ctx)
 	}
 	return nil, fmt.Errorf("unknown ConfigVersion field %s", name)
 }
@@ -11581,6 +11638,13 @@ func (m *ConfigVersionMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetRollbackOf(v)
 		return nil
+	case configversion.FieldDraft:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDraft(v)
+		return nil
 	}
 	return fmt.Errorf("unknown ConfigVersion field %s", name)
 }
@@ -11647,6 +11711,9 @@ func (m *ConfigVersionMutation) ClearedFields() []string {
 	if m.FieldCleared(configversion.FieldRollbackOf) {
 		fields = append(fields, configversion.FieldRollbackOf)
 	}
+	if m.FieldCleared(configversion.FieldDraft) {
+		fields = append(fields, configversion.FieldDraft)
+	}
 	return fields
 }
 
@@ -11669,6 +11736,9 @@ func (m *ConfigVersionMutation) ClearField(name string) error {
 		return nil
 	case configversion.FieldRollbackOf:
 		m.ClearRollbackOf()
+		return nil
+	case configversion.FieldDraft:
+		m.ClearDraft()
 		return nil
 	}
 	return fmt.Errorf("unknown ConfigVersion nullable field %s", name)
@@ -11713,6 +11783,9 @@ func (m *ConfigVersionMutation) ResetField(name string) error {
 		return nil
 	case configversion.FieldRollbackOf:
 		m.ResetRollbackOf()
+		return nil
+	case configversion.FieldDraft:
+		m.ResetDraft()
 		return nil
 	}
 	return fmt.Errorf("unknown ConfigVersion field %s", name)

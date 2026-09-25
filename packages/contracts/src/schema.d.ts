@@ -2108,6 +2108,26 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/v1/organizations/{org}/projects/{project}/config/{environment}/versions/{version}/restore": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Set the draft back to a version
+         * @description The flags and segments that version was compiled from, written back into the draft in one step: each flag's fallback, rules, reach and bucketing as they were, flags not in it archived, and anything since deleted made again. Nothing is published; the environments serve what they serve until the draft is published. For a version to serve again as it was, roll back instead.
+         */
+        readonly post: operations["post_v1_organizations_by_org_projects_by_project_config_by_environment_versions_by_version_restore"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/v1/organizations/{org}/projects/{project}/config/{environment}/versions/{version}/rollback": {
         readonly parameters: {
             readonly query?: never;
@@ -4303,6 +4323,17 @@ export interface components {
             readonly problem?: string;
             /** Format: int64 */
             readonly published_version: number;
+        };
+        readonly DraftRestoredOut: {
+            readonly environment: string;
+            /** @description In the draft, not in the version: archived, and back with a restore of a later one */
+            readonly flags_archived: readonly string[];
+            readonly flags_restored: readonly string[];
+            /** @description Made again since with another kind, which a flag cannot change: left as they are */
+            readonly flags_skipped: readonly string[];
+            readonly segments_restored: readonly string[];
+            /** Format: int64 */
+            readonly version: number;
         };
         readonly DrawOut: {
             /** Format: int64 */
@@ -17439,6 +17470,95 @@ export interface operations {
             };
             /** @description No such environment or version */
             readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly post_v1_organizations_by_org_projects_by_project_config_by_environment_versions_by_version_restore: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly org: string;
+                readonly project: string;
+                /** @description development, staging or production */
+                readonly environment: "development" | "staging" | "production";
+                readonly version: number;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["DraftRestoredOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not do that */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No such environment or version */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The version was published before drafts were kept with versions */
+            readonly 409: {
                 headers: {
                     readonly [name: string]: unknown;
                 };

@@ -175,3 +175,13 @@ func (in *RollbackConfigIn) Validate(v *muzak.Validation) {
 	v.Number(&in.Version).Min(1)
 	v.String(&in.Reason).Trim().Required().MaxLen(400)
 }
+
+// DraftRestoredOut is what restoring a version into the draft changed.
+type DraftRestoredOut struct {
+	Environment      string   `json:"environment"`
+	Version          int      `json:"version"`
+	FlagsRestored    []string `json:"flags_restored"`
+	FlagsArchived    []string `json:"flags_archived" doc:"In the draft, not in the version: archived, and back with a restore of a later one"`
+	FlagsSkipped     []string `json:"flags_skipped" doc:"Made again since with another kind, which a flag cannot change: left as they are"`
+	SegmentsRestored []string `json:"segments_restored"`
+}

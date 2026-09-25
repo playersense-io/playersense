@@ -551,6 +551,16 @@ func RollbackOfNotNil() predicate.ConfigVersion {
 	return predicate.ConfigVersion(sql.FieldNotNull(FieldRollbackOf))
 }
 
+// DraftIsNil applies the IsNil predicate on the "draft" field.
+func DraftIsNil() predicate.ConfigVersion {
+	return predicate.ConfigVersion(sql.FieldIsNull(FieldDraft))
+}
+
+// DraftNotNil applies the NotNil predicate on the "draft" field.
+func DraftNotNil() predicate.ConfigVersion {
+	return predicate.ConfigVersion(sql.FieldNotNull(FieldDraft))
+}
+
 // HasProject applies the HasEdge predicate on the "project" edge.
 func HasProject() predicate.ConfigVersion {
 	return predicate.ConfigVersion(func(s *sql.Selector) {

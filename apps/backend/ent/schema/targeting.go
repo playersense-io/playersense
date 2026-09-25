@@ -295,6 +295,10 @@ func (ConfigVersion) Fields() []ent.Field {
 		// A rollback is a publish of an earlier version's document, unchanged: this is the
 		// version it republished. Nothing is deleted, so the history reads forwards.
 		field.Int("rollback_of").Optional().Nillable().Immutable().Comment(dataclass.None),
+		// Draft is the draft this version was compiled from: its flags and segments as written,
+		// before segments were written into rules. What restoring a version into the draft puts
+		// back, since the document alone cannot say which segment a rule named.
+		field.JSON("draft", map[string]any{}).Optional().Immutable().Comment(dataclass.None),
 	}
 }
 

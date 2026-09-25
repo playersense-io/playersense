@@ -88,12 +88,18 @@ func PublishConfig(ctx *muzak.Context, in schemas.PublishConfigIn) (schemas.Conf
 		return schemas.ConfigVersionOut{}, core.AsHTTPError(err)
 	}
 
+	draft, err := snapshotDraft(ctx.Context(), db.Client, project.ID)
+	if err != nil {
+		return schemas.ConfigVersionOut{}, core.AsHTTPError(err)
+	}
+
 	tx, err := db.Client.Tx(ctx.Context())
 	if err != nil {
 		return schemas.ConfigVersionOut{}, core.AsHTTPError(err)
 	}
 
 	created, err := tx.ConfigVersion.Create().
+		SetDraft(draft).
 		SetProjectID(project.ID).
 		SetEnvironmentID(env.ID).
 		SetVersion(next).

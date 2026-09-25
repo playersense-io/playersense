@@ -168,6 +168,17 @@ func LiveConfig() *muzak.Router {
 		core.Require(authz.LiveOpsRead),
 		muzak.WithResponseDoc(http.StatusNotFound, "No such environment or version"))
 
+	r.Post("/organizations/{org}/projects/{project}/config/{environment}/versions/{version}/restore",
+		handlers.RestoreDraft,
+		muzak.Summary("Set the draft back to a version"),
+		muzak.Description("The flags and segments that version was compiled from, written back into the draft in "+
+			"one step: each flag's fallback, rules, reach and bucketing as they were, flags not in it "+
+			"archived, and anything since deleted made again. Nothing is published; the environments serve what "+
+			"they serve until the draft is published. For a version to serve again as it was, roll back instead."),
+		core.Require(authz.LiveOpsWrite),
+		muzak.WithResponseDoc(http.StatusNotFound, "No such environment or version"),
+		muzak.WithResponseDoc(http.StatusConflict, "The version was published before drafts were kept with versions"))
+
 	r.Post("/organizations/{org}/projects/{project}/config/{environment}/versions/{version}/rollback",
 		handlers.RollbackConfig,
 		muzak.Summary("Go back to an earlier version"),

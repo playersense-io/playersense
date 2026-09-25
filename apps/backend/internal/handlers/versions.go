@@ -173,6 +173,10 @@ func RollbackConfig(ctx *muzak.Context, in schemas.RollbackConfigIn) (schemas.Co
 		create := tx.ConfigVersion.Create().
 			SetProjectID(project.ID).SetEnvironmentID(env.ID).SetVersion(next).SetDocument(stored).
 			SetNote(note).SetRollbackOf(target.Version)
+		if len(target.Draft) > 0 {
+			// A rollback serves that version's document again, so it was compiled from that draft.
+			create = create.SetDraft(target.Draft)
+		}
 		if principal.User != nil {
 			create = create.SetPublishedByUserID(principal.User.ID).SetPublishedByLabel(principal.User.Email)
 		}

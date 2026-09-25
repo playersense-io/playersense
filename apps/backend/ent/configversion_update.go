@@ -104,6 +104,9 @@ func (_u *ConfigVersionUpdate) sqlSave(ctx context.Context) (_node int, err erro
 	if _u.mutation.RollbackOfCleared() {
 		_spec.ClearField(configversion.FieldRollbackOf, field.TypeInt)
 	}
+	if _u.mutation.DraftCleared() {
+		_spec.ClearField(configversion.FieldDraft, field.TypeJSON)
+	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{configversion.Label}
@@ -229,6 +232,9 @@ func (_u *ConfigVersionUpdateOne) sqlSave(ctx context.Context) (_node *ConfigVer
 	}
 	if _u.mutation.RollbackOfCleared() {
 		_spec.ClearField(configversion.FieldRollbackOf, field.TypeInt)
+	}
+	if _u.mutation.DraftCleared() {
+		_spec.ClearField(configversion.FieldDraft, field.TypeJSON)
 	}
 	_node = &ConfigVersion{config: _u.config}
 	_spec.Assign = _node.assignValues

@@ -48,6 +48,8 @@ type ConfigVersion struct {
 	Note string `json:"note,omitempty"`
 	// class=none
 	RollbackOf *int `json:"rollback_of,omitempty"`
+	// class=none
+	Draft map[string]interface{} `json:"draft,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the ConfigVersionQuery when eager-loading is set.
 	Edges        ConfigVersionEdges `json:"edges"`
@@ -118,7 +120,7 @@ func (*ConfigVersion) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case configversion.FieldDocument:
+		case configversion.FieldDocument, configversion.FieldDraft:
 			values[i] = new([]byte)
 		case configversion.FieldID, configversion.FieldProjectID, configversion.FieldEnvironmentID, configversion.FieldVersion, configversion.FieldPublishedByUserID, configversion.FieldPublishedByKeyID, configversion.FieldRollbackOf:
 			values[i] = new(sql.NullInt64)
@@ -226,6 +228,14 @@ func (_m *ConfigVersion) assignValues(columns []string, values []any) error {
 				_m.RollbackOf = new(int)
 				*_m.RollbackOf = int(value.Int64)
 			}
+		case configversion.FieldDraft:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field draft", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.Draft); err != nil {
+					return fmt.Errorf("unmarshal field draft: %w", err)
+				}
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -323,6 +333,9 @@ func (_m *ConfigVersion) String() string {
 		builder.WriteString("rollback_of=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
+	builder.WriteString(", ")
+	builder.WriteString("draft=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Draft))
 	builder.WriteByte(')')
 	return builder.String()
 }

@@ -39,6 +39,8 @@ const (
 	FieldNote = "note"
 	// FieldRollbackOf holds the string denoting the rollback_of field in the database.
 	FieldRollbackOf = "rollback_of"
+	// FieldDraft holds the string denoting the draft field in the database.
+	FieldDraft = "draft"
 	// EdgeProject holds the string denoting the project edge name in mutations.
 	EdgeProject = "project"
 	// EdgeEnvironment holds the string denoting the environment edge name in mutations.
@@ -94,6 +96,7 @@ var Columns = []string{
 	FieldPublishedByLabel,
 	FieldNote,
 	FieldRollbackOf,
+	FieldDraft,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).

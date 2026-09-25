@@ -163,6 +163,12 @@ func (_c *ConfigVersionCreate) SetNillableRollbackOf(v *int) *ConfigVersionCreat
 	return _c
 }
 
+// SetDraft sets the "draft" field.
+func (_c *ConfigVersionCreate) SetDraft(v map[string]interface{}) *ConfigVersionCreate {
+	_c.mutation.SetDraft(v)
+	return _c
+}
+
 // SetID sets the "id" field.
 func (_c *ConfigVersionCreate) SetID(v int) *ConfigVersionCreate {
 	_c.mutation.SetID(v)
@@ -361,6 +367,10 @@ func (_c *ConfigVersionCreate) createSpec() (*ConfigVersion, *sqlgraph.CreateSpe
 		_spec.SetField(configversion.FieldRollbackOf, field.TypeInt, value)
 		_node.RollbackOf = &value
 	}
+	if value, ok := _c.mutation.Draft(); ok {
+		_spec.SetField(configversion.FieldDraft, field.TypeJSON, value)
+		_node.Draft = value
+	}
 	if nodes := _c.mutation.ProjectIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
@@ -542,6 +552,9 @@ func (u *ConfigVersionUpsertOne) UpdateNewValues() *ConfigVersionUpsertOne {
 		}
 		if _, exists := u.create.mutation.RollbackOf(); exists {
 			s.SetIgnore(configversion.FieldRollbackOf)
+		}
+		if _, exists := u.create.mutation.Draft(); exists {
+			s.SetIgnore(configversion.FieldDraft)
 		}
 	}))
 	return u
@@ -802,6 +815,9 @@ func (u *ConfigVersionUpsertBulk) UpdateNewValues() *ConfigVersionUpsertBulk {
 			}
 			if _, exists := b.mutation.RollbackOf(); exists {
 				s.SetIgnore(configversion.FieldRollbackOf)
+			}
+			if _, exists := b.mutation.Draft(); exists {
+				s.SetIgnore(configversion.FieldDraft)
 			}
 		}
 	}))
