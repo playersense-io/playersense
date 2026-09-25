@@ -125,3 +125,14 @@ type ReceiptOut struct {
 	HostedURL   string     `json:"hosted_url,omitzero" doc:"Stripe's page for it"`
 	PDFURL      string     `json:"pdf_url,omitzero"`
 }
+
+// CardParams names one saved card.
+type CardParams struct {
+	OrgSlug string `path:"org"`
+	CardID  string `path:"card" doc:"Stripe's payment method id"`
+}
+
+func (in *CardParams) Validate(v *muzak.Validation) {
+	v.String(&in.OrgSlug).Trim().Lower().Required().MaxLen(64)
+	v.String(&in.CardID).Trim().Required().MaxLen(255)
+}

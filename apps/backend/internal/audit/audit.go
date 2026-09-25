@@ -107,6 +107,10 @@ const (
 	StoreDisconnected Action = "store.disconnect"
 	StoreURLRotated   Action = "store.rotate_url"
 
+	// A saved card made the default, or removed.
+	CardDefaultSet Action = "billing.card_default"
+	CardRemoved    Action = "billing.card_remove"
+
 	// The store shares an organization's net revenue is estimated with.
 	RevenueSettingsChanged Action = "org.revenue_settings"
 

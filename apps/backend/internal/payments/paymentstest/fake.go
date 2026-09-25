@@ -45,6 +45,7 @@ type Gateway struct {
 	requests  map[string]payments.OffSessionRequest
 	Checkouts []payments.CheckoutRequest
 	Setups    []payments.SetupCheckoutRequest
+	Detached  []string
 
 	// Details is what DescribeCustomer answers, by customer. Absent: a customer with the
 	// fake's Card, if any, and no details.
@@ -76,7 +77,7 @@ func New() *Gateway {
 		Card: "pm_card_visa", Customers: map[string]string{},
 		Charges: map[string]payments.Payment{}, requests: map[string]payments.OffSessionRequest{},
 		Invoices: map[string]payments.IssuedInvoice{}, BillingEmails: map[string]string{},
-		PaidInvoices: map[string]string{},
+		PaidInvoices: map[string]string{}, Details: map[string]payments.CustomerDetails{},
 	}
 }
 
@@ -133,6 +134,46 @@ func (g *Gateway) CreateSetupCheckout(_ context.Context, in payments.SetupChecko
 	id := "cs_test_" + uuid.NewString()[:12]
 	return payments.Checkout{ID: id, URL: "https://checkout.stripe.test/" + id,
 		ExpiresAt: time.Now().Add(24 * time.Hour).UTC()}, nil
+}
+
+// SetDefaultCard makes a card the customer's default in the details this fake describes.
+func (g *Gateway) SetDefaultCard(_ context.Context, customer, card string) error {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.Down {
+		return ErrTimeout
+	}
+	if g.Details == nil {
+		g.Details = map[string]payments.CustomerDetails{}
+	}
+	d := g.Details[customer]
+	d.DefaultCard = card
+	g.Details[customer] = d
+	return nil
+}
+
+// DetachCard removes a card from whichever customer this fake describes it for.
+func (g *Gateway) DetachCard(_ context.Context, card string) error {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.Down {
+		return ErrTimeout
+	}
+	for customer, d := range g.Details {
+		kept := d.Cards[:0]
+		for _, c := range d.Cards {
+			if c.ID != card {
+				kept = append(kept, c)
+			}
+		}
+		d.Cards = kept
+		if d.DefaultCard == card {
+			d.DefaultCard = ""
+		}
+		g.Details[customer] = d
+	}
+	g.Detached = append(g.Detached, card)
+	return nil
 }
 
 func (g *Gateway) CreatePortal(_ context.Context, customer, _ string) (string, error) {

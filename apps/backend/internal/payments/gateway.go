@@ -251,6 +251,12 @@ type Gateway interface {
 	// without charging it.
 	CreateSetupCheckout(ctx context.Context, in SetupCheckoutRequest) (Checkout, error)
 
+	// SetDefaultCard makes a saved card the one Stripe charges: invoices, and automatic top-up.
+	SetDefaultCard(ctx context.Context, customer, card string) error
+
+	// DetachCard removes a saved card from the customer. Stripe keeps nothing of it to charge.
+	DetachCard(ctx context.Context, card string) error
+
 	// ChargeableCard is the payment method an off-session charge would use: the customer's
 	// default, or failing that the most recently saved card. Empty when there is none.
 	ChargeableCard(ctx context.Context, customer string) (string, error)
@@ -325,6 +331,10 @@ func (Disabled) DescribeCustomer(context.Context, string) (CustomerDetails, erro
 func (Disabled) CreateSetupCheckout(context.Context, SetupCheckoutRequest) (Checkout, error) {
 	return Checkout{}, ErrNotConfigured
 }
+
+func (Disabled) SetDefaultCard(context.Context, string, string) error { return ErrNotConfigured }
+
+func (Disabled) DetachCard(context.Context, string) error { return ErrNotConfigured }
 
 func (Disabled) CreatePortal(context.Context, string, string) (string, error) {
 	return "", ErrNotConfigured

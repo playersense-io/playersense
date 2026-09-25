@@ -10,6 +10,7 @@ import (
 	"playersense.dev/backend/ent"
 	"playersense.dev/backend/ent/paymentcard"
 	"playersense.dev/backend/ent/receipt"
+	"playersense.dev/backend/internal/audit"
 	"playersense.dev/backend/internal/config"
 	"playersense.dev/backend/internal/core"
 	"playersense.dev/backend/internal/payments"
@@ -96,6 +97,87 @@ func AddCard(ctx *muzak.Context, _ schemas.OrganizationParams) (schemas.Checkout
 		return schemas.CheckoutOut{}, paymentsError(err)
 	}
 	return schemas.CheckoutOut{URL: checkout.URL, ID: checkout.ID, ExpiresAt: checkout.ExpiresAt}, nil
+}
+
+// cardOf is one of the account's saved cards, still attached.
+func cardOf(ctx *muzak.Context, id string) (*ent.BillingAccount, *ent.PaymentCard, error) {
+	db := muzak.From[*core.DB](ctx)
+	org := muzak.From[*core.Principal](ctx).Organization
+	account, err := accountOf(ctx.Context(), db, org.ID)
+	if err != nil {
+		return nil, nil, err
+	}
+	card, err := db.Client.PaymentCard.Query().Where(paymentcard.AccountID(account.ID),
+		paymentcard.StripePaymentMethodID(id), paymentcard.DetachedAtIsNil()).Only(ctx.Context())
+	if ent.IsNotFound(err) || account.StripeCustomerID == nil {
+		return nil, nil, muzak.NotFound("this organization has no such card")
+	}
+	if err != nil {
+		return nil, nil, core.AsHTTPError(err)
+	}
+	return account, card, nil
+}
+
+// SetDefaultCard makes a saved card the one Stripe charges: automatic top-up and invoices.
+func SetDefaultCard(ctx *muzak.Context, in schemas.CardParams) (schemas.CardsOut, error) {
+	gateway := muzak.From[payments.Gateway](ctx)
+	account, card, err := cardOf(ctx, in.CardID)
+	if err != nil {
+		return schemas.CardsOut{}, err
+	}
+	if err := gateway.SetDefaultCard(ctx.Context(), *account.StripeCustomerID, card.StripePaymentMethodID); err != nil {
+		return schemas.CardsOut{}, paymentsError(err)
+	}
+	if _, err := inTx(ctx, func(tx *ent.Tx) (struct{}, error) {
+		if err := payments.MarkDefault(ctx.Context(), tx, account.ID, card.StripePaymentMethodID); err != nil {
+			return struct{}{}, core.AsHTTPError(err)
+		}
+		return struct{}{}, auditFor(ctx).record(ctx.Context(), tx, audit.CardDefaultSet, "payment_card", card.UID.String(),
+			map[string]any{"brand": card.Brand, "last4": card.Last4})
+	}); err != nil {
+		return schemas.CardsOut{}, err
+	}
+	return ListCards(ctx, schemas.CardsParams{OrgSlug: in.OrgSlug})
+}
+
+// RemoveCard removes a saved card at Stripe. The newest card left becomes the default; with none
+// left, automatic top-up is turned off, since there is nothing to charge.
+func RemoveCard(ctx *muzak.Context, in schemas.CardParams) (schemas.CardsOut, error) {
+	gateway := muzak.From[payments.Gateway](ctx)
+	account, card, err := cardOf(ctx, in.CardID)
+	if err != nil {
+		return schemas.CardsOut{}, err
+	}
+	if err := gateway.DetachCard(ctx.Context(), card.StripePaymentMethodID); err != nil {
+		return schemas.CardsOut{}, paymentsError(err)
+	}
+	var next string
+	if _, err := inTx(ctx, func(tx *ent.Tx) (struct{}, error) {
+		next, err = payments.MarkDetached(ctx.Context(), tx, account.ID, card.StripePaymentMethodID, nowUTC())
+		if err != nil {
+			return struct{}{}, core.AsHTTPError(err)
+		}
+		topUpOff := false
+		if next == "" && account.AutoTopupEnabled {
+			if err := tx.BillingAccount.UpdateOne(account).SetAutoTopupEnabled(false).Exec(ctx.Context()); err != nil {
+				return struct{}{}, core.AsHTTPError(err)
+			}
+			topUpOff = true
+		}
+		return struct{}{}, auditFor(ctx).record(ctx.Context(), tx, audit.CardRemoved, "payment_card", card.UID.String(),
+			map[string]any{"brand": card.Brand, "last4": card.Last4, "auto_topup_turned_off": topUpOff})
+	}); err != nil {
+		return schemas.CardsOut{}, err
+	}
+	if next != "" && card.IsDefault {
+		// The removed card was the default: Stripe is told which charges now, as the list says.
+		if err := gateway.SetDefaultCard(ctx.Context(), *account.StripeCustomerID, next); err == nil {
+			_, _ = inTx(ctx, func(tx *ent.Tx) (struct{}, error) {
+				return struct{}{}, payments.MarkDefault(ctx.Context(), tx, account.ID, next)
+			})
+		}
+	}
+	return ListCards(ctx, schemas.CardsParams{OrgSlug: in.OrgSlug})
 }
 
 // ReadInvoiceDetails is what Stripe prints on the organization's invoices.

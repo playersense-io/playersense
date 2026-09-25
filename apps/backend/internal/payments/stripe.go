@@ -157,6 +157,26 @@ func CardOf(pm *stripe.PaymentMethod) (Card, bool) {
 		Funding: string(pm.Card.Funding), Country: pm.Card.Country}, true
 }
 
+// SetDefaultCard makes a card the customer's default payment method, which is what invoices and
+// ChargeableCard use.
+func (s *Stripe) SetDefaultCard(ctx context.Context, customer, card string) error {
+	if _, err := s.client.V1Customers.Update(ctx, customer, &stripe.CustomerUpdateParams{
+		InvoiceSettings: &stripe.CustomerUpdateInvoiceSettingsParams{DefaultPaymentMethod: stripe.String(card)},
+	}); err != nil {
+		return fmt.Errorf("set the default card: %w", err)
+	}
+	return nil
+}
+
+// DetachCard detaches a payment method from its customer. It arrives as payment_method.detached
+// too, which finds it already marked.
+func (s *Stripe) DetachCard(ctx context.Context, card string) error {
+	if _, err := s.client.V1PaymentMethods.Detach(ctx, card, nil); err != nil {
+		return fmt.Errorf("remove the card: %w", err)
+	}
+	return nil
+}
+
 // CreateSetupCheckout opens Checkout in setup mode: the card is saved for off-session use and
 // nothing is charged. It arrives as payment_method.attached.
 func (s *Stripe) CreateSetupCheckout(ctx context.Context, in SetupCheckoutRequest) (Checkout, error) {

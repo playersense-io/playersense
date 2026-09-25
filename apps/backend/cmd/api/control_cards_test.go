@@ -56,6 +56,28 @@ func TestTheBillingPageFollowsStripe(t *testing.T) {
 	if len(cards.Cards) != 1 || cards.Cards[0].ID != two || !cards.Cards[0].IsDefault || cards.Cards[0].Brand != "mastercard" {
 		t.Fatalf("after the webhooks %+v", cards.Cards)
 	}
+	// From the page: a third card made the default, then removed, and the one left takes over.
+	three := unique("pm_three")
+	deliver("payment_method.attached", map[string]any{"id": three, "object": "payment_method", "type": "card",
+		"customer": customer, "card": map[string]any{"brand": "amex", "last4": "0005", "exp_month": 3, "exp_year": 2032}})
+	cards = testclient.Decoded[schemas.CardsOut](client.Put(w.base()+"/billing/cards/"+three+"/default",
+		testclient.JSON(map[string]any{})).AssertStatus(http.StatusOK))
+	if len(cards.Cards) != 2 || cards.Cards[0].ID != three || !cards.Cards[0].IsDefault || cards.Cards[1].IsDefault {
+		t.Fatalf("after making the third the default %+v", cards.Cards)
+	}
+	if stripe.Details[customer].DefaultCard != three {
+		t.Fatal("Stripe was not told the new default")
+	}
+	cards = testclient.Decoded[schemas.CardsOut](client.Delete(w.base() + "/billing/cards/" + three).AssertStatus(http.StatusOK))
+	if len(cards.Cards) != 1 || cards.Cards[0].ID != two || !cards.Cards[0].IsDefault {
+		t.Fatalf("after removing the default %+v", cards.Cards)
+	}
+	if stripe.Details[customer].DefaultCard != two || len(stripe.Detached) != 1 {
+		t.Fatalf("Stripe after the removal: default %q, detached %v", stripe.Details[customer].DefaultCard, stripe.Detached)
+	}
+	client.Delete(w.base() + "/billing/cards/" + three).AssertStatus(http.StatusNotFound)
+	client.Put(w.base()+"/billing/cards/pm_nobodys/default", testclient.JSON(map[string]any{})).AssertStatus(http.StatusNotFound)
+
 	details := testclient.Decoded[schemas.InvoiceDetailsOut](client.Get(w.base() + "/billing/details").AssertStatus(http.StatusOK))
 	if details.Email != "billing@pixelforge.example" || len(details.Address) != 2 || details.Country != "TR" ||
 		len(details.TaxIDs) != 1 || details.TaxIDs[0] != "eu_vat DE123456789" || details.Customer != customer {

@@ -114,10 +114,23 @@ func Billing() *muzak.Router {
 		muzak.Summary("The saved cards"),
 		muzak.Description("Brand, last four digits, expiry and which is the default, as Stripe describes "+
 			"them; never a card number. Read from Stripe the first time and with refresh=true, and "+
-			"kept current by its webhooks after that. Cards are managed in the billing portal."),
+			"kept current by its webhooks after that."),
 		core.Require(authz.BillingRead),
 		muzak.WithResponseDoc(http.StatusServiceUnavailable, "A refresh was asked for and Stripe could not be reached"))
 
+	r.Put("/organizations/{org}/billing/cards/{card}/default", handlers.SetDefaultCard,
+		muzak.Summary("Make a card the default"),
+		muzak.Description("The card Stripe charges for automatic top-up and invoices."),
+		core.Require(authz.BillingManage),
+		muzak.WithResponseDoc(http.StatusNotFound, "The organization has no such card"),
+		muzak.WithResponseDoc(http.StatusServiceUnavailable, "Stripe could not be reached, or payments are not configured"))
+	r.Delete("/organizations/{org}/billing/cards/{card}", handlers.RemoveCard,
+		muzak.Summary("Remove a card"),
+		muzak.Description("Removed at Stripe, so nothing can charge it. The newest card left becomes the default; "+
+			"with none left, automatic top-up is turned off."),
+		core.Require(authz.BillingManage),
+		muzak.WithResponseDoc(http.StatusNotFound, "The organization has no such card"),
+		muzak.WithResponseDoc(http.StatusServiceUnavailable, "Stripe could not be reached, or payments are not configured"))
 	r.Post("/organizations/{org}/billing/cards", handlers.AddCard,
 		muzak.Summary("Save a card"),
 		muzak.Description("Opens Stripe Checkout to save a card for automatic top-up without paying, and "+

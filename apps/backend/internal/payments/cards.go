@@ -287,3 +287,26 @@ func SyncCustomer(ctx context.Context, tx *ent.Tx, accountID int, d CustomerDeta
 	}
 	return tx.BillingAccount.UpdateOneID(accountID).SetCardsSyncedAt(now).Exec(ctx)
 }
+
+// MarkDefault records a card as the account's default, as Stripe was just told.
+func MarkDefault(ctx context.Context, tx *ent.Tx, accountID int, card string) error {
+	return setDefault(ctx, tx, accountID, card)
+}
+
+// MarkDetached records a card as removed, as Stripe was just told. It answers the account's next
+// default: the newest card left, or empty when none is.
+func MarkDetached(ctx context.Context, tx *ent.Tx, accountID int, card string, now time.Time) (string, error) {
+	if err := tx.PaymentCard.Update().Where(paymentcard.AccountID(accountID), paymentcard.StripePaymentMethodID(card)).
+		SetDetachedAt(now).SetIsDefault(false).Exec(ctx); err != nil {
+		return "", err
+	}
+	next, err := tx.PaymentCard.Query().Where(paymentcard.AccountID(accountID), paymentcard.DetachedAtIsNil()).
+		Order(ent.Desc(paymentcard.FieldIsDefault), ent.Desc(paymentcard.FieldID)).First(ctx)
+	if ent.IsNotFound(err) {
+		return "", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	return next.StripePaymentMethodID, nil
+}
