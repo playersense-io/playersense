@@ -19,6 +19,7 @@ import (
 	"playersense.dev/backend/ent/featureflag"
 	"playersense.dev/backend/ent/liveopsevent"
 	"playersense.dev/backend/ent/memberproject"
+	"playersense.dev/backend/ent/notificationchannel"
 	"playersense.dev/backend/ent/organization"
 	"playersense.dev/backend/ent/project"
 	"playersense.dev/backend/ent/savedfunnel"
@@ -349,6 +350,21 @@ func (_c *ProjectCreate) AddEventDefinitions(v ...*EventDefinition) *ProjectCrea
 		ids[i] = v[i].ID
 	}
 	return _c.AddEventDefinitionIDs(ids...)
+}
+
+// AddNotificationChannelIDs adds the "notification_channels" edge to the NotificationChannel entity by IDs.
+func (_c *ProjectCreate) AddNotificationChannelIDs(ids ...int) *ProjectCreate {
+	_c.mutation.AddNotificationChannelIDs(ids...)
+	return _c
+}
+
+// AddNotificationChannels adds the "notification_channels" edges to the NotificationChannel entity.
+func (_c *ProjectCreate) AddNotificationChannels(v ...*NotificationChannel) *ProjectCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddNotificationChannelIDs(ids...)
 }
 
 // AddMemberAccesIDs adds the "member_access" edge to the MemberProject entity by IDs.
@@ -721,6 +737,22 @@ func (_c *ProjectCreate) createSpec() (*Project, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(eventdefinition.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.NotificationChannelsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.NotificationChannelsTable,
+			Columns: []string{project.NotificationChannelsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(notificationchannel.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

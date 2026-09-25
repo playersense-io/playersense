@@ -21,6 +21,7 @@ import (
 	"playersense.dev/backend/ent/billableplayer"
 	"playersense.dev/backend/ent/billingaccount"
 	"playersense.dev/backend/ent/billingcontract"
+	"playersense.dev/backend/ent/channeldelivery"
 	"playersense.dev/backend/ent/configversion"
 	"playersense.dev/backend/ent/creditlot"
 	"playersense.dev/backend/ent/datadeletionrequest"
@@ -36,6 +37,7 @@ import (
 	"playersense.dev/backend/ent/liveopsevent"
 	"playersense.dev/backend/ent/memberproject"
 	"playersense.dev/backend/ent/monthlyusage"
+	"playersense.dev/backend/ent/notificationchannel"
 	"playersense.dev/backend/ent/organization"
 	"playersense.dev/backend/ent/organizationmember"
 	"playersense.dev/backend/ent/paymentcard"
@@ -74,6 +76,8 @@ type Client struct {
 	BillingAccount *BillingAccountClient
 	// BillingContract is the client for interacting with the BillingContract builders.
 	BillingContract *BillingContractClient
+	// ChannelDelivery is the client for interacting with the ChannelDelivery builders.
+	ChannelDelivery *ChannelDeliveryClient
 	// ConfigVersion is the client for interacting with the ConfigVersion builders.
 	ConfigVersion *ConfigVersionClient
 	// CreditLot is the client for interacting with the CreditLot builders.
@@ -104,6 +108,8 @@ type Client struct {
 	MemberProject *MemberProjectClient
 	// MonthlyUsage is the client for interacting with the MonthlyUsage builders.
 	MonthlyUsage *MonthlyUsageClient
+	// NotificationChannel is the client for interacting with the NotificationChannel builders.
+	NotificationChannel *NotificationChannelClient
 	// Organization is the client for interacting with the Organization builders.
 	Organization *OrganizationClient
 	// OrganizationMember is the client for interacting with the OrganizationMember builders.
@@ -155,6 +161,7 @@ func (c *Client) init() {
 	c.BillablePlayer = NewBillablePlayerClient(c.config)
 	c.BillingAccount = NewBillingAccountClient(c.config)
 	c.BillingContract = NewBillingContractClient(c.config)
+	c.ChannelDelivery = NewChannelDeliveryClient(c.config)
 	c.ConfigVersion = NewConfigVersionClient(c.config)
 	c.CreditLot = NewCreditLotClient(c.config)
 	c.DataDeletionRequest = NewDataDeletionRequestClient(c.config)
@@ -170,6 +177,7 @@ func (c *Client) init() {
 	c.LiveOpsEvent = NewLiveOpsEventClient(c.config)
 	c.MemberProject = NewMemberProjectClient(c.config)
 	c.MonthlyUsage = NewMonthlyUsageClient(c.config)
+	c.NotificationChannel = NewNotificationChannelClient(c.config)
 	c.Organization = NewOrganizationClient(c.config)
 	c.OrganizationMember = NewOrganizationMemberClient(c.config)
 	c.PaymentCard = NewPaymentCardClient(c.config)
@@ -285,6 +293,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		BillablePlayer:      NewBillablePlayerClient(cfg),
 		BillingAccount:      NewBillingAccountClient(cfg),
 		BillingContract:     NewBillingContractClient(cfg),
+		ChannelDelivery:     NewChannelDeliveryClient(cfg),
 		ConfigVersion:       NewConfigVersionClient(cfg),
 		CreditLot:           NewCreditLotClient(cfg),
 		DataDeletionRequest: NewDataDeletionRequestClient(cfg),
@@ -300,6 +309,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		LiveOpsEvent:        NewLiveOpsEventClient(cfg),
 		MemberProject:       NewMemberProjectClient(cfg),
 		MonthlyUsage:        NewMonthlyUsageClient(cfg),
+		NotificationChannel: NewNotificationChannelClient(cfg),
 		Organization:        NewOrganizationClient(cfg),
 		OrganizationMember:  NewOrganizationMemberClient(cfg),
 		PaymentCard:         NewPaymentCardClient(cfg),
@@ -342,6 +352,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		BillablePlayer:      NewBillablePlayerClient(cfg),
 		BillingAccount:      NewBillingAccountClient(cfg),
 		BillingContract:     NewBillingContractClient(cfg),
+		ChannelDelivery:     NewChannelDeliveryClient(cfg),
 		ConfigVersion:       NewConfigVersionClient(cfg),
 		CreditLot:           NewCreditLotClient(cfg),
 		DataDeletionRequest: NewDataDeletionRequestClient(cfg),
@@ -357,6 +368,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		LiveOpsEvent:        NewLiveOpsEventClient(cfg),
 		MemberProject:       NewMemberProjectClient(cfg),
 		MonthlyUsage:        NewMonthlyUsageClient(cfg),
+		NotificationChannel: NewNotificationChannelClient(cfg),
 		Organization:        NewOrganizationClient(cfg),
 		OrganizationMember:  NewOrganizationMemberClient(cfg),
 		PaymentCard:         NewPaymentCardClient(cfg),
@@ -404,13 +416,14 @@ func (c *Client) Close() error {
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.APIKey, c.ArchiveManifest, c.AuditEvent, c.BillablePlayer, c.BillingAccount,
-		c.BillingContract, c.ConfigVersion, c.CreditLot, c.DataDeletionRequest,
-		c.DataExportRequest, c.Environment, c.EventDefinition, c.Experiment,
-		c.FeatureFlag, c.Invitation, c.Invoice, c.InvoiceLine, c.LedgerEntry,
-		c.LiveOpsEvent, c.MemberProject, c.MonthlyUsage, c.Organization,
-		c.OrganizationMember, c.PaymentCard, c.Plan, c.Project, c.RateCard, c.Receipt,
-		c.Role, c.SavedFunnel, c.Segment, c.StaffAccess, c.StaffMember, c.StripeEvent,
-		c.UsageCharge, c.UsageDaily, c.User, c.VerifiedPurchase,
+		c.BillingContract, c.ChannelDelivery, c.ConfigVersion, c.CreditLot,
+		c.DataDeletionRequest, c.DataExportRequest, c.Environment, c.EventDefinition,
+		c.Experiment, c.FeatureFlag, c.Invitation, c.Invoice, c.InvoiceLine,
+		c.LedgerEntry, c.LiveOpsEvent, c.MemberProject, c.MonthlyUsage,
+		c.NotificationChannel, c.Organization, c.OrganizationMember, c.PaymentCard,
+		c.Plan, c.Project, c.RateCard, c.Receipt, c.Role, c.SavedFunnel, c.Segment,
+		c.StaffAccess, c.StaffMember, c.StripeEvent, c.UsageCharge, c.UsageDaily,
+		c.User, c.VerifiedPurchase,
 	} {
 		n.Use(hooks...)
 	}
@@ -421,13 +434,14 @@ func (c *Client) Use(hooks ...Hook) {
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.APIKey, c.ArchiveManifest, c.AuditEvent, c.BillablePlayer, c.BillingAccount,
-		c.BillingContract, c.ConfigVersion, c.CreditLot, c.DataDeletionRequest,
-		c.DataExportRequest, c.Environment, c.EventDefinition, c.Experiment,
-		c.FeatureFlag, c.Invitation, c.Invoice, c.InvoiceLine, c.LedgerEntry,
-		c.LiveOpsEvent, c.MemberProject, c.MonthlyUsage, c.Organization,
-		c.OrganizationMember, c.PaymentCard, c.Plan, c.Project, c.RateCard, c.Receipt,
-		c.Role, c.SavedFunnel, c.Segment, c.StaffAccess, c.StaffMember, c.StripeEvent,
-		c.UsageCharge, c.UsageDaily, c.User, c.VerifiedPurchase,
+		c.BillingContract, c.ChannelDelivery, c.ConfigVersion, c.CreditLot,
+		c.DataDeletionRequest, c.DataExportRequest, c.Environment, c.EventDefinition,
+		c.Experiment, c.FeatureFlag, c.Invitation, c.Invoice, c.InvoiceLine,
+		c.LedgerEntry, c.LiveOpsEvent, c.MemberProject, c.MonthlyUsage,
+		c.NotificationChannel, c.Organization, c.OrganizationMember, c.PaymentCard,
+		c.Plan, c.Project, c.RateCard, c.Receipt, c.Role, c.SavedFunnel, c.Segment,
+		c.StaffAccess, c.StaffMember, c.StripeEvent, c.UsageCharge, c.UsageDaily,
+		c.User, c.VerifiedPurchase,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -448,6 +462,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.BillingAccount.mutate(ctx, m)
 	case *BillingContractMutation:
 		return c.BillingContract.mutate(ctx, m)
+	case *ChannelDeliveryMutation:
+		return c.ChannelDelivery.mutate(ctx, m)
 	case *ConfigVersionMutation:
 		return c.ConfigVersion.mutate(ctx, m)
 	case *CreditLotMutation:
@@ -478,6 +494,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.MemberProject.mutate(ctx, m)
 	case *MonthlyUsageMutation:
 		return c.MonthlyUsage.mutate(ctx, m)
+	case *NotificationChannelMutation:
+		return c.NotificationChannel.mutate(ctx, m)
 	case *OrganizationMutation:
 		return c.Organization.mutate(ctx, m)
 	case *OrganizationMemberMutation:
@@ -1617,6 +1635,139 @@ func (c *BillingContractClient) mutate(ctx context.Context, m *BillingContractMu
 		return (&BillingContractDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown BillingContract mutation op: %q", m.Op())
+	}
+}
+
+// ChannelDeliveryClient is a client for the ChannelDelivery schema.
+type ChannelDeliveryClient struct {
+	config
+}
+
+// NewChannelDeliveryClient returns a client for the ChannelDelivery from the given config.
+func NewChannelDeliveryClient(c config) *ChannelDeliveryClient {
+	return &ChannelDeliveryClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `channeldelivery.Hooks(f(g(h())))`.
+func (c *ChannelDeliveryClient) Use(hooks ...Hook) {
+	c.hooks.ChannelDelivery = append(c.hooks.ChannelDelivery, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `channeldelivery.Intercept(f(g(h())))`.
+func (c *ChannelDeliveryClient) Intercept(interceptors ...Interceptor) {
+	c.inters.ChannelDelivery = append(c.inters.ChannelDelivery, interceptors...)
+}
+
+// Create returns a builder for creating a ChannelDelivery entity.
+func (c *ChannelDeliveryClient) Create() *ChannelDeliveryCreate {
+	mutation := newChannelDeliveryMutation(c.config, OpCreate)
+	return &ChannelDeliveryCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of ChannelDelivery entities.
+func (c *ChannelDeliveryClient) CreateBulk(builders ...*ChannelDeliveryCreate) *ChannelDeliveryCreateBulk {
+	return &ChannelDeliveryCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ChannelDeliveryClient) MapCreateBulk(slice any, setFunc func(*ChannelDeliveryCreate, int)) *ChannelDeliveryCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ChannelDeliveryCreateBulk{err: fmt.Errorf("calling to ChannelDeliveryClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ChannelDeliveryCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ChannelDeliveryCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for ChannelDelivery.
+func (c *ChannelDeliveryClient) Update() *ChannelDeliveryUpdate {
+	mutation := newChannelDeliveryMutation(c.config, OpUpdate)
+	return &ChannelDeliveryUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ChannelDeliveryClient) UpdateOne(_m *ChannelDelivery) *ChannelDeliveryUpdateOne {
+	mutation := newChannelDeliveryMutation(c.config, OpUpdateOne, withChannelDelivery(_m))
+	return &ChannelDeliveryUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ChannelDeliveryClient) UpdateOneID(id int) *ChannelDeliveryUpdateOne {
+	mutation := newChannelDeliveryMutation(c.config, OpUpdateOne, withChannelDeliveryID(id))
+	return &ChannelDeliveryUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for ChannelDelivery.
+func (c *ChannelDeliveryClient) Delete() *ChannelDeliveryDelete {
+	mutation := newChannelDeliveryMutation(c.config, OpDelete)
+	return &ChannelDeliveryDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ChannelDeliveryClient) DeleteOne(_m *ChannelDelivery) *ChannelDeliveryDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ChannelDeliveryClient) DeleteOneID(id int) *ChannelDeliveryDeleteOne {
+	builder := c.Delete().Where(channeldelivery.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ChannelDeliveryDeleteOne{builder}
+}
+
+// Query returns a query builder for ChannelDelivery.
+func (c *ChannelDeliveryClient) Query() *ChannelDeliveryQuery {
+	return &ChannelDeliveryQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeChannelDelivery},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a ChannelDelivery entity by its id.
+func (c *ChannelDeliveryClient) Get(ctx context.Context, id int) (*ChannelDelivery, error) {
+	return c.Query().Where(channeldelivery.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ChannelDeliveryClient) GetX(ctx context.Context, id int) *ChannelDelivery {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *ChannelDeliveryClient) Hooks() []Hook {
+	return c.hooks.ChannelDelivery
+}
+
+// Interceptors returns the client interceptors.
+func (c *ChannelDeliveryClient) Interceptors() []Interceptor {
+	return c.inters.ChannelDelivery
+}
+
+func (c *ChannelDeliveryClient) mutate(ctx context.Context, m *ChannelDeliveryMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ChannelDeliveryCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ChannelDeliveryUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ChannelDeliveryUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ChannelDeliveryDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown ChannelDelivery mutation op: %q", m.Op())
 	}
 }
 
@@ -4015,6 +4166,155 @@ func (c *MonthlyUsageClient) mutate(ctx context.Context, m *MonthlyUsageMutation
 	}
 }
 
+// NotificationChannelClient is a client for the NotificationChannel schema.
+type NotificationChannelClient struct {
+	config
+}
+
+// NewNotificationChannelClient returns a client for the NotificationChannel from the given config.
+func NewNotificationChannelClient(c config) *NotificationChannelClient {
+	return &NotificationChannelClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `notificationchannel.Hooks(f(g(h())))`.
+func (c *NotificationChannelClient) Use(hooks ...Hook) {
+	c.hooks.NotificationChannel = append(c.hooks.NotificationChannel, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `notificationchannel.Intercept(f(g(h())))`.
+func (c *NotificationChannelClient) Intercept(interceptors ...Interceptor) {
+	c.inters.NotificationChannel = append(c.inters.NotificationChannel, interceptors...)
+}
+
+// Create returns a builder for creating a NotificationChannel entity.
+func (c *NotificationChannelClient) Create() *NotificationChannelCreate {
+	mutation := newNotificationChannelMutation(c.config, OpCreate)
+	return &NotificationChannelCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of NotificationChannel entities.
+func (c *NotificationChannelClient) CreateBulk(builders ...*NotificationChannelCreate) *NotificationChannelCreateBulk {
+	return &NotificationChannelCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *NotificationChannelClient) MapCreateBulk(slice any, setFunc func(*NotificationChannelCreate, int)) *NotificationChannelCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &NotificationChannelCreateBulk{err: fmt.Errorf("calling to NotificationChannelClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*NotificationChannelCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &NotificationChannelCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for NotificationChannel.
+func (c *NotificationChannelClient) Update() *NotificationChannelUpdate {
+	mutation := newNotificationChannelMutation(c.config, OpUpdate)
+	return &NotificationChannelUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *NotificationChannelClient) UpdateOne(_m *NotificationChannel) *NotificationChannelUpdateOne {
+	mutation := newNotificationChannelMutation(c.config, OpUpdateOne, withNotificationChannel(_m))
+	return &NotificationChannelUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *NotificationChannelClient) UpdateOneID(id int) *NotificationChannelUpdateOne {
+	mutation := newNotificationChannelMutation(c.config, OpUpdateOne, withNotificationChannelID(id))
+	return &NotificationChannelUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for NotificationChannel.
+func (c *NotificationChannelClient) Delete() *NotificationChannelDelete {
+	mutation := newNotificationChannelMutation(c.config, OpDelete)
+	return &NotificationChannelDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *NotificationChannelClient) DeleteOne(_m *NotificationChannel) *NotificationChannelDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *NotificationChannelClient) DeleteOneID(id int) *NotificationChannelDeleteOne {
+	builder := c.Delete().Where(notificationchannel.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &NotificationChannelDeleteOne{builder}
+}
+
+// Query returns a query builder for NotificationChannel.
+func (c *NotificationChannelClient) Query() *NotificationChannelQuery {
+	return &NotificationChannelQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeNotificationChannel},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a NotificationChannel entity by its id.
+func (c *NotificationChannelClient) Get(ctx context.Context, id int) (*NotificationChannel, error) {
+	return c.Query().Where(notificationchannel.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *NotificationChannelClient) GetX(ctx context.Context, id int) *NotificationChannel {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryProject queries the project edge of a NotificationChannel.
+func (c *NotificationChannelClient) QueryProject(_m *NotificationChannel) *ProjectQuery {
+	query := (&ProjectClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(notificationchannel.Table, notificationchannel.FieldID, id),
+			sqlgraph.To(project.Table, project.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, notificationchannel.ProjectTable, notificationchannel.ProjectColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *NotificationChannelClient) Hooks() []Hook {
+	return c.hooks.NotificationChannel
+}
+
+// Interceptors returns the client interceptors.
+func (c *NotificationChannelClient) Interceptors() []Interceptor {
+	return c.inters.NotificationChannel
+}
+
+func (c *NotificationChannelClient) mutate(ctx context.Context, m *NotificationChannelMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&NotificationChannelCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&NotificationChannelUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&NotificationChannelUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&NotificationChannelDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown NotificationChannel mutation op: %q", m.Op())
+	}
+}
+
 // OrganizationClient is a client for the Organization schema.
 type OrganizationClient struct {
 	config
@@ -5001,6 +5301,22 @@ func (c *ProjectClient) QueryEventDefinitions(_m *Project) *EventDefinitionQuery
 			sqlgraph.From(project.Table, project.FieldID, id),
 			sqlgraph.To(eventdefinition.Table, eventdefinition.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, project.EventDefinitionsTable, project.EventDefinitionsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryNotificationChannels queries the notification_channels edge of a Project.
+func (c *ProjectClient) QueryNotificationChannels(_m *Project) *NotificationChannelQuery {
+	query := (&NotificationChannelClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(project.Table, project.FieldID, id),
+			sqlgraph.To(notificationchannel.Table, notificationchannel.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, project.NotificationChannelsTable, project.NotificationChannelsColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -6939,21 +7255,23 @@ func (c *VerifiedPurchaseClient) mutate(ctx context.Context, m *VerifiedPurchase
 type (
 	hooks struct {
 		APIKey, ArchiveManifest, AuditEvent, BillablePlayer, BillingAccount,
-		BillingContract, ConfigVersion, CreditLot, DataDeletionRequest,
-		DataExportRequest, Environment, EventDefinition, Experiment, FeatureFlag,
-		Invitation, Invoice, InvoiceLine, LedgerEntry, LiveOpsEvent, MemberProject,
-		MonthlyUsage, Organization, OrganizationMember, PaymentCard, Plan, Project,
-		RateCard, Receipt, Role, SavedFunnel, Segment, StaffAccess, StaffMember,
-		StripeEvent, UsageCharge, UsageDaily, User, VerifiedPurchase []ent.Hook
+		BillingContract, ChannelDelivery, ConfigVersion, CreditLot,
+		DataDeletionRequest, DataExportRequest, Environment, EventDefinition,
+		Experiment, FeatureFlag, Invitation, Invoice, InvoiceLine, LedgerEntry,
+		LiveOpsEvent, MemberProject, MonthlyUsage, NotificationChannel, Organization,
+		OrganizationMember, PaymentCard, Plan, Project, RateCard, Receipt, Role,
+		SavedFunnel, Segment, StaffAccess, StaffMember, StripeEvent, UsageCharge,
+		UsageDaily, User, VerifiedPurchase []ent.Hook
 	}
 	inters struct {
 		APIKey, ArchiveManifest, AuditEvent, BillablePlayer, BillingAccount,
-		BillingContract, ConfigVersion, CreditLot, DataDeletionRequest,
-		DataExportRequest, Environment, EventDefinition, Experiment, FeatureFlag,
-		Invitation, Invoice, InvoiceLine, LedgerEntry, LiveOpsEvent, MemberProject,
-		MonthlyUsage, Organization, OrganizationMember, PaymentCard, Plan, Project,
-		RateCard, Receipt, Role, SavedFunnel, Segment, StaffAccess, StaffMember,
-		StripeEvent, UsageCharge, UsageDaily, User, VerifiedPurchase []ent.Interceptor
+		BillingContract, ChannelDelivery, ConfigVersion, CreditLot,
+		DataDeletionRequest, DataExportRequest, Environment, EventDefinition,
+		Experiment, FeatureFlag, Invitation, Invoice, InvoiceLine, LedgerEntry,
+		LiveOpsEvent, MemberProject, MonthlyUsage, NotificationChannel, Organization,
+		OrganizationMember, PaymentCard, Plan, Project, RateCard, Receipt, Role,
+		SavedFunnel, Segment, StaffAccess, StaffMember, StripeEvent, UsageCharge,
+		UsageDaily, User, VerifiedPurchase []ent.Interceptor
 	}
 )
 

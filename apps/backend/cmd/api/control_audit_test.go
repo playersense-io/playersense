@@ -84,6 +84,10 @@ func TestEveryMutatingRouteDecidesAboutAudit(t *testing.T) {
 
 		"PUT /v1/organizations/{org}/projects/{project}/event-definitions/{name}": audit.EventDefined,
 
+		"POST /v1/organizations/{org}/projects/{project}/channels":             audit.ChannelWritten,
+		"PUT /v1/organizations/{org}/projects/{project}/channels/{channel}":    audit.ChannelWritten,
+		"DELETE /v1/organizations/{org}/projects/{project}/channels/{channel}": audit.ChannelDeleted,
+
 		"POST /v1/organizations/{org}/projects/{project}/funnels":            audit.FunnelWritten,
 		"PUT /v1/organizations/{org}/projects/{project}/funnels/{funnel}":    audit.FunnelWritten,
 		"DELETE /v1/organizations/{org}/projects/{project}/funnels/{funnel}": audit.FunnelDeleted,
@@ -146,12 +150,14 @@ func TestEveryMutatingRouteDecidesAboutAudit(t *testing.T) {
 		// Payments (ADR 0040). Opening a Checkout page or the portal changes nothing on our side
 		// until Stripe reports a payment, and a payment is recorded better than a log line could:
 		// in stripe_events with its whole body, and in the ledger with its PaymentIntent.
-		"POST /v1/organizations/{org}/billing/top-ups":      "opens a Stripe page; the payment is in stripe_events and the ledger",
-		"POST /v1/organizations/{org}/billing/portal":       "opens Stripe's portal; nothing here changes",
-		"POST /v1/organizations/{org}/billing/subscription": "opens a Stripe page; the plan changes by webhook",
-		"POST /v1/organizations/{org}/billing/cards":        "opens a Stripe page; the card arrives by webhook",
-		"PUT /v1/operator/plans/{plan}/subscription":        "the catalogue; the prices are Stripe objects that keep their own history",
-		"POST /v1/stripe/webhook":                           "Stripe's delivery, recorded whole in stripe_events",
+		"POST /v1/organizations/{org}/billing/top-ups":                            "opens a Stripe page; the payment is in stripe_events and the ledger",
+		"POST /v1/organizations/{org}/billing/portal":                             "opens Stripe's portal; nothing here changes",
+		"POST /v1/organizations/{org}/billing/subscription":                       "opens a Stripe page; the plan changes by webhook",
+		"POST /v1/organizations/{org}/projects/{project}/channels/test":           "sends a test to a channel not saved; nothing changes",
+		"POST /v1/organizations/{org}/projects/{project}/channels/{channel}/test": "sends a test; kept in the channel's delivery log",
+		"POST /v1/organizations/{org}/billing/cards":                              "opens a Stripe page; the card arrives by webhook",
+		"PUT /v1/operator/plans/{plan}/subscription":                              "the catalogue; the prices are Stripe objects that keep their own history",
+		"POST /v1/stripe/webhook":                                                 "Stripe's delivery, recorded whole in stripe_events",
 	}
 
 	app := mustBuild(t, testSettings(t))

@@ -94,7 +94,10 @@ const (
 
 	FunnelWritten Action = "funnel.write"
 	EventDefined  Action = "event.define"
-	FunnelDeleted Action = "funnel.delete"
+
+	ChannelWritten Action = "channel.write"
+	ChannelDeleted Action = "channel.delete"
+	FunnelDeleted  Action = "funnel.delete"
 
 	CreditGranted  Action = "credit.grant"
 	CreditCharged  Action = "credit.charge"

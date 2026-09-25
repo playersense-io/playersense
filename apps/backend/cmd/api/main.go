@@ -47,6 +47,7 @@ import (
 	"playersense.dev/backend/internal/ingest"
 	"playersense.dev/backend/internal/liveconfig"
 	"playersense.dev/backend/internal/mail"
+	"playersense.dev/backend/internal/notify"
 	"playersense.dev/backend/internal/ops"
 	"playersense.dev/backend/internal/payments"
 	"playersense.dev/backend/internal/pgdb"
@@ -360,6 +361,8 @@ func build(settings config.Settings, overrides ...muzak.RouterOption) (*muzak.Ap
 			valkey.NewRateLimitStorage(cache), true, !settings.RateLimitDisabled)),
 		// The same counters, read by the operations console's rate-limit page.
 		muzak.WithSingleton(valkey.NewRateLimitStorage(cache)),
+		// Where reports notify: email, incoming webhooks, PagerDuty, signed webhooks.
+		muzak.WithSingleton(notify.NewSender(sender, settings.NotifyAllowPrivate)),
 		// Requests per key per hour, for the keys page, at one atomic add per request.
 		muzak.WithSingleton(core.NewKeyUsage(cache, db, slog.Default(), 15*time.Second)),
 	}
@@ -421,6 +424,7 @@ func build(settings config.Settings, overrides ...muzak.RouterOption) (*muzak.Ap
 	api.Include(routers.Experiments())
 	api.Include(routers.SavedFunnels())
 	api.Include(routers.PrivacyRequests())
+	api.Include(routers.Channels())
 
 	// The invitation routes the *invited* person uses, which name no organization: there
 	// is no membership yet, which is the whole point. Mounted in the same subtree so they

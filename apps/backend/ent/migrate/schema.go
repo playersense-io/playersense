@@ -294,6 +294,45 @@ var (
 			},
 		},
 	}
+	// ChannelDeliveriesColumns holds the columns for the "channel_deliveries" table.
+	ChannelDeliveriesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
+		{Name: "uid", Type: field.TypeUUID, Unique: true, Comment: "class=none"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "updated_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "project_id", Type: field.TypeInt, Comment: "class=none"},
+		{Name: "channel_id", Type: field.TypeInt, Comment: "class=none"},
+		{Name: "channel_name", Type: field.TypeString, Size: 120, Comment: "class=none", Default: ""},
+		{Name: "source", Type: field.TypeString, Size: 200, Comment: "class=none", Default: ""},
+		{Name: "title", Type: field.TypeString, Size: 300, Comment: "class=none", Default: ""},
+		{Name: "ok", Type: field.TypeBool, Comment: "class=none"},
+		{Name: "detail", Type: field.TypeString, Size: 500, Comment: "class=none", Default: ""},
+		{Name: "test", Type: field.TypeBool, Comment: "class=none", Default: false},
+		{Name: "duration_ms", Type: field.TypeInt, Comment: "class=none", Default: 0},
+	}
+	// ChannelDeliveriesTable holds the schema information for the "channel_deliveries" table.
+	ChannelDeliveriesTable = &schema.Table{
+		Name:       "channel_deliveries",
+		Columns:    ChannelDeliveriesColumns,
+		PrimaryKey: []*schema.Column{ChannelDeliveriesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "channeldelivery_project_id_id",
+				Unique:  false,
+				Columns: []*schema.Column{ChannelDeliveriesColumns[4], ChannelDeliveriesColumns[0]},
+			},
+			{
+				Name:    "channeldelivery_channel_id_id",
+				Unique:  false,
+				Columns: []*schema.Column{ChannelDeliveriesColumns[5], ChannelDeliveriesColumns[0]},
+			},
+			{
+				Name:    "channeldelivery_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{ChannelDeliveriesColumns[2]},
+			},
+		},
+	}
 	// ConfigVersionsColumns holds the columns for the "config_versions" table.
 	ConfigVersionsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
@@ -961,6 +1000,45 @@ var (
 			},
 		},
 	}
+	// NotificationChannelsColumns holds the columns for the "notification_channels" table.
+	NotificationChannelsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
+		{Name: "uid", Type: field.TypeUUID, Unique: true, Comment: "class=none"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "updated_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "type", Type: field.TypeEnum, Comment: "class=none", Enums: []string{"email", "slack", "discord", "teams", "pagerduty", "webhook"}},
+		{Name: "name", Type: field.TypeString, Size: 120, Comment: "class=none"},
+		{Name: "enabled", Type: field.TypeBool, Comment: "class=none", Default: true},
+		{Name: "config", Type: field.TypeJSON, Comment: "class=none"},
+		{Name: "secret", Type: field.TypeJSON, Comment: "class=none"},
+		{Name: "last_test_at", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
+		{Name: "last_test_ok", Type: field.TypeBool, Nullable: true, Comment: "class=none"},
+		{Name: "last_test_detail", Type: field.TypeString, Size: 500, Comment: "class=none", Default: ""},
+		{Name: "created_by", Type: field.TypeString, Size: 254, Comment: "class=none", Default: ""},
+		{Name: "updated_by", Type: field.TypeString, Size: 254, Comment: "class=none", Default: ""},
+		{Name: "project_id", Type: field.TypeInt, Comment: "class=none"},
+	}
+	// NotificationChannelsTable holds the schema information for the "notification_channels" table.
+	NotificationChannelsTable = &schema.Table{
+		Name:       "notification_channels",
+		Columns:    NotificationChannelsColumns,
+		PrimaryKey: []*schema.Column{NotificationChannelsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "notification_channels_projects_notification_channels",
+				Columns:    []*schema.Column{NotificationChannelsColumns[14]},
+				RefColumns: []*schema.Column{ProjectsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "notificationchannel_project_id",
+				Unique:  false,
+				Columns: []*schema.Column{NotificationChannelsColumns[14]},
+			},
+		},
+	}
 	// OrganizationsColumns holds the columns for the "organizations" table.
 	OrganizationsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
@@ -1574,6 +1652,7 @@ var (
 		BillablePlayerTable,
 		BillingAccountsTable,
 		BillingContractsTable,
+		ChannelDeliveriesTable,
 		ConfigVersionsTable,
 		CreditLotsTable,
 		DataDeletionRequestsTable,
@@ -1589,6 +1668,7 @@ var (
 		LiveopsEventsTable,
 		MemberProjectsTable,
 		MonthlyUsageTable,
+		NotificationChannelsTable,
 		OrganizationsTable,
 		OrganizationMembersTable,
 		PaymentCardsTable,
@@ -1647,6 +1727,7 @@ func init() {
 	MonthlyUsageTable.Annotation = &entsql.Annotation{
 		Table: "monthly_usage",
 	}
+	NotificationChannelsTable.ForeignKeys[0].RefTable = ProjectsTable
 	OrganizationMembersTable.ForeignKeys[0].RefTable = OrganizationsTable
 	OrganizationMembersTable.ForeignKeys[1].RefTable = RolesTable
 	OrganizationMembersTable.ForeignKeys[2].RefTable = UsersTable

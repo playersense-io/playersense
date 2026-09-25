@@ -33,8 +33,11 @@ import (
 // Kind labels a message for logs and tests without disclosing what is in it.
 type Kind string
 
-// Invitation is the one message in the product.
-const Invitation Kind = "invitation"
+// The messages in the product: an invitation, and a notification to a report's email channel.
+const (
+	Invitation   Kind = "invitation"
+	Notification Kind = "notification"
+)
 
 // Message is one email.
 //

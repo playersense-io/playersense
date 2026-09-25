@@ -20,6 +20,7 @@ import (
 	"playersense.dev/backend/ent/featureflag"
 	"playersense.dev/backend/ent/liveopsevent"
 	"playersense.dev/backend/ent/memberproject"
+	"playersense.dev/backend/ent/notificationchannel"
 	"playersense.dev/backend/ent/organization"
 	"playersense.dev/backend/ent/predicate"
 	"playersense.dev/backend/ent/project"
@@ -31,22 +32,23 @@ import (
 // ProjectQuery is the builder for querying Project entities.
 type ProjectQuery struct {
 	config
-	ctx                  *QueryContext
-	order                []project.OrderOption
-	inters               []Interceptor
-	predicates           []predicate.Project
-	withOrganization     *OrganizationQuery
-	withEnvironments     *EnvironmentQuery
-	withSegments         *SegmentQuery
-	withFeatureFlags     *FeatureFlagQuery
-	withLiveopsEvents    *LiveOpsEventQuery
-	withConfigVersions   *ConfigVersionQuery
-	withExperiments      *ExperimentQuery
-	withSavedFunnels     *SavedFunnelQuery
-	withEventDefinitions *EventDefinitionQuery
-	withMemberAccess     *MemberProjectQuery
-	withUsageDaily       *UsageDailyQuery
-	modifiers            []func(*sql.Selector)
+	ctx                      *QueryContext
+	order                    []project.OrderOption
+	inters                   []Interceptor
+	predicates               []predicate.Project
+	withOrganization         *OrganizationQuery
+	withEnvironments         *EnvironmentQuery
+	withSegments             *SegmentQuery
+	withFeatureFlags         *FeatureFlagQuery
+	withLiveopsEvents        *LiveOpsEventQuery
+	withConfigVersions       *ConfigVersionQuery
+	withExperiments          *ExperimentQuery
+	withSavedFunnels         *SavedFunnelQuery
+	withEventDefinitions     *EventDefinitionQuery
+	withNotificationChannels *NotificationChannelQuery
+	withMemberAccess         *MemberProjectQuery
+	withUsageDaily           *UsageDailyQuery
+	modifiers                []func(*sql.Selector)
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -274,6 +276,28 @@ func (_q *ProjectQuery) QueryEventDefinitions() *EventDefinitionQuery {
 			sqlgraph.From(project.Table, project.FieldID, selector),
 			sqlgraph.To(eventdefinition.Table, eventdefinition.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, project.EventDefinitionsTable, project.EventDefinitionsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryNotificationChannels chains the current query on the "notification_channels" edge.
+func (_q *ProjectQuery) QueryNotificationChannels() *NotificationChannelQuery {
+	query := (&NotificationChannelClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(project.Table, project.FieldID, selector),
+			sqlgraph.To(notificationchannel.Table, notificationchannel.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, project.NotificationChannelsTable, project.NotificationChannelsColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -512,22 +536,23 @@ func (_q *ProjectQuery) Clone() *ProjectQuery {
 		return nil
 	}
 	return &ProjectQuery{
-		config:               _q.config,
-		ctx:                  _q.ctx.Clone(),
-		order:                append([]project.OrderOption{}, _q.order...),
-		inters:               append([]Interceptor{}, _q.inters...),
-		predicates:           append([]predicate.Project{}, _q.predicates...),
-		withOrganization:     _q.withOrganization.Clone(),
-		withEnvironments:     _q.withEnvironments.Clone(),
-		withSegments:         _q.withSegments.Clone(),
-		withFeatureFlags:     _q.withFeatureFlags.Clone(),
-		withLiveopsEvents:    _q.withLiveopsEvents.Clone(),
-		withConfigVersions:   _q.withConfigVersions.Clone(),
-		withExperiments:      _q.withExperiments.Clone(),
-		withSavedFunnels:     _q.withSavedFunnels.Clone(),
-		withEventDefinitions: _q.withEventDefinitions.Clone(),
-		withMemberAccess:     _q.withMemberAccess.Clone(),
-		withUsageDaily:       _q.withUsageDaily.Clone(),
+		config:                   _q.config,
+		ctx:                      _q.ctx.Clone(),
+		order:                    append([]project.OrderOption{}, _q.order...),
+		inters:                   append([]Interceptor{}, _q.inters...),
+		predicates:               append([]predicate.Project{}, _q.predicates...),
+		withOrganization:         _q.withOrganization.Clone(),
+		withEnvironments:         _q.withEnvironments.Clone(),
+		withSegments:             _q.withSegments.Clone(),
+		withFeatureFlags:         _q.withFeatureFlags.Clone(),
+		withLiveopsEvents:        _q.withLiveopsEvents.Clone(),
+		withConfigVersions:       _q.withConfigVersions.Clone(),
+		withExperiments:          _q.withExperiments.Clone(),
+		withSavedFunnels:         _q.withSavedFunnels.Clone(),
+		withEventDefinitions:     _q.withEventDefinitions.Clone(),
+		withNotificationChannels: _q.withNotificationChannels.Clone(),
+		withMemberAccess:         _q.withMemberAccess.Clone(),
+		withUsageDaily:           _q.withUsageDaily.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -633,6 +658,17 @@ func (_q *ProjectQuery) WithEventDefinitions(opts ...func(*EventDefinitionQuery)
 	return _q
 }
 
+// WithNotificationChannels tells the query-builder to eager-load the nodes that are connected to
+// the "notification_channels" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *ProjectQuery) WithNotificationChannels(opts ...func(*NotificationChannelQuery)) *ProjectQuery {
+	query := (&NotificationChannelClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withNotificationChannels = query
+	return _q
+}
+
 // WithMemberAccess tells the query-builder to eager-load the nodes that are connected to
 // the "member_access" edge. The optional arguments are used to configure the query builder of the edge.
 func (_q *ProjectQuery) WithMemberAccess(opts ...func(*MemberProjectQuery)) *ProjectQuery {
@@ -733,7 +769,7 @@ func (_q *ProjectQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Proj
 	var (
 		nodes       = []*Project{}
 		_spec       = _q.querySpec()
-		loadedTypes = [11]bool{
+		loadedTypes = [12]bool{
 			_q.withOrganization != nil,
 			_q.withEnvironments != nil,
 			_q.withSegments != nil,
@@ -743,6 +779,7 @@ func (_q *ProjectQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Proj
 			_q.withExperiments != nil,
 			_q.withSavedFunnels != nil,
 			_q.withEventDefinitions != nil,
+			_q.withNotificationChannels != nil,
 			_q.withMemberAccess != nil,
 			_q.withUsageDaily != nil,
 		}
@@ -827,6 +864,15 @@ func (_q *ProjectQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Proj
 		if err := _q.loadEventDefinitions(ctx, query, nodes,
 			func(n *Project) { n.Edges.EventDefinitions = []*EventDefinition{} },
 			func(n *Project, e *EventDefinition) { n.Edges.EventDefinitions = append(n.Edges.EventDefinitions, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withNotificationChannels; query != nil {
+		if err := _q.loadNotificationChannels(ctx, query, nodes,
+			func(n *Project) { n.Edges.NotificationChannels = []*NotificationChannel{} },
+			func(n *Project, e *NotificationChannel) {
+				n.Edges.NotificationChannels = append(n.Edges.NotificationChannels, e)
+			}); err != nil {
 			return nil, err
 		}
 	}
@@ -1101,6 +1147,36 @@ func (_q *ProjectQuery) loadEventDefinitions(ctx context.Context, query *EventDe
 	}
 	query.Where(predicate.EventDefinition(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(project.EventDefinitionsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.ProjectID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "project_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *ProjectQuery) loadNotificationChannels(ctx context.Context, query *NotificationChannelQuery, nodes []*Project, init func(*Project), assign func(*Project, *NotificationChannel)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Project)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(notificationchannel.FieldProjectID)
+	}
+	query.Where(predicate.NotificationChannel(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(project.NotificationChannelsColumn), fks...))
 	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {

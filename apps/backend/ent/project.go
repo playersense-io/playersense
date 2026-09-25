@@ -76,13 +76,15 @@ type ProjectEdges struct {
 	SavedFunnels []*SavedFunnel `json:"saved_funnels,omitempty"`
 	// EventDefinitions holds the value of the event_definitions edge.
 	EventDefinitions []*EventDefinition `json:"event_definitions,omitempty"`
+	// NotificationChannels holds the value of the notification_channels edge.
+	NotificationChannels []*NotificationChannel `json:"notification_channels,omitempty"`
 	// MemberAccess holds the value of the member_access edge.
 	MemberAccess []*MemberProject `json:"member_access,omitempty"`
 	// UsageDaily holds the value of the usage_daily edge.
 	UsageDaily []*UsageDaily `json:"usage_daily,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [11]bool
+	loadedTypes [12]bool
 }
 
 // OrganizationOrErr returns the Organization value or an error if the edge
@@ -168,10 +170,19 @@ func (e ProjectEdges) EventDefinitionsOrErr() ([]*EventDefinition, error) {
 	return nil, &NotLoadedError{edge: "event_definitions"}
 }
 
+// NotificationChannelsOrErr returns the NotificationChannels value or an error if the edge
+// was not loaded in eager-loading.
+func (e ProjectEdges) NotificationChannelsOrErr() ([]*NotificationChannel, error) {
+	if e.loadedTypes[9] {
+		return e.NotificationChannels, nil
+	}
+	return nil, &NotLoadedError{edge: "notification_channels"}
+}
+
 // MemberAccessOrErr returns the MemberAccess value or an error if the edge
 // was not loaded in eager-loading.
 func (e ProjectEdges) MemberAccessOrErr() ([]*MemberProject, error) {
-	if e.loadedTypes[9] {
+	if e.loadedTypes[10] {
 		return e.MemberAccess, nil
 	}
 	return nil, &NotLoadedError{edge: "member_access"}
@@ -180,7 +191,7 @@ func (e ProjectEdges) MemberAccessOrErr() ([]*MemberProject, error) {
 // UsageDailyOrErr returns the UsageDaily value or an error if the edge
 // was not loaded in eager-loading.
 func (e ProjectEdges) UsageDailyOrErr() ([]*UsageDaily, error) {
-	if e.loadedTypes[10] {
+	if e.loadedTypes[11] {
 		return e.UsageDaily, nil
 	}
 	return nil, &NotLoadedError{edge: "usage_daily"}
@@ -372,6 +383,11 @@ func (_m *Project) QuerySavedFunnels() *SavedFunnelQuery {
 // QueryEventDefinitions queries the "event_definitions" edge of the Project entity.
 func (_m *Project) QueryEventDefinitions() *EventDefinitionQuery {
 	return NewProjectClient(_m.config).QueryEventDefinitions(_m)
+}
+
+// QueryNotificationChannels queries the "notification_channels" edge of the Project entity.
+func (_m *Project) QueryNotificationChannels() *NotificationChannelQuery {
+	return NewProjectClient(_m.config).QueryNotificationChannels(_m)
 }
 
 // QueryMemberAccess queries the "member_access" edge of the Project entity.

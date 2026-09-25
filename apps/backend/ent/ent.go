@@ -18,6 +18,7 @@ import (
 	"playersense.dev/backend/ent/billableplayer"
 	"playersense.dev/backend/ent/billingaccount"
 	"playersense.dev/backend/ent/billingcontract"
+	"playersense.dev/backend/ent/channeldelivery"
 	"playersense.dev/backend/ent/configversion"
 	"playersense.dev/backend/ent/creditlot"
 	"playersense.dev/backend/ent/datadeletionrequest"
@@ -33,6 +34,7 @@ import (
 	"playersense.dev/backend/ent/liveopsevent"
 	"playersense.dev/backend/ent/memberproject"
 	"playersense.dev/backend/ent/monthlyusage"
+	"playersense.dev/backend/ent/notificationchannel"
 	"playersense.dev/backend/ent/organization"
 	"playersense.dev/backend/ent/organizationmember"
 	"playersense.dev/backend/ent/paymentcard"
@@ -116,6 +118,7 @@ func checkColumn(t, c string) error {
 			billableplayer.Table:      billableplayer.ValidColumn,
 			billingaccount.Table:      billingaccount.ValidColumn,
 			billingcontract.Table:     billingcontract.ValidColumn,
+			channeldelivery.Table:     channeldelivery.ValidColumn,
 			configversion.Table:       configversion.ValidColumn,
 			creditlot.Table:           creditlot.ValidColumn,
 			datadeletionrequest.Table: datadeletionrequest.ValidColumn,
@@ -131,6 +134,7 @@ func checkColumn(t, c string) error {
 			liveopsevent.Table:        liveopsevent.ValidColumn,
 			memberproject.Table:       memberproject.ValidColumn,
 			monthlyusage.Table:        monthlyusage.ValidColumn,
+			notificationchannel.Table: notificationchannel.ValidColumn,
 			organization.Table:        organization.ValidColumn,
 			organizationmember.Table:  organizationmember.ValidColumn,
 			paymentcard.Table:         paymentcard.ValidColumn,

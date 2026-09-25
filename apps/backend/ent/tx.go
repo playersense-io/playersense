@@ -26,6 +26,8 @@ type Tx struct {
 	BillingAccount *BillingAccountClient
 	// BillingContract is the client for interacting with the BillingContract builders.
 	BillingContract *BillingContractClient
+	// ChannelDelivery is the client for interacting with the ChannelDelivery builders.
+	ChannelDelivery *ChannelDeliveryClient
 	// ConfigVersion is the client for interacting with the ConfigVersion builders.
 	ConfigVersion *ConfigVersionClient
 	// CreditLot is the client for interacting with the CreditLot builders.
@@ -56,6 +58,8 @@ type Tx struct {
 	MemberProject *MemberProjectClient
 	// MonthlyUsage is the client for interacting with the MonthlyUsage builders.
 	MonthlyUsage *MonthlyUsageClient
+	// NotificationChannel is the client for interacting with the NotificationChannel builders.
+	NotificationChannel *NotificationChannelClient
 	// Organization is the client for interacting with the Organization builders.
 	Organization *OrganizationClient
 	// OrganizationMember is the client for interacting with the OrganizationMember builders.
@@ -227,6 +231,7 @@ func (tx *Tx) init() {
 	tx.BillablePlayer = NewBillablePlayerClient(tx.config)
 	tx.BillingAccount = NewBillingAccountClient(tx.config)
 	tx.BillingContract = NewBillingContractClient(tx.config)
+	tx.ChannelDelivery = NewChannelDeliveryClient(tx.config)
 	tx.ConfigVersion = NewConfigVersionClient(tx.config)
 	tx.CreditLot = NewCreditLotClient(tx.config)
 	tx.DataDeletionRequest = NewDataDeletionRequestClient(tx.config)
@@ -242,6 +247,7 @@ func (tx *Tx) init() {
 	tx.LiveOpsEvent = NewLiveOpsEventClient(tx.config)
 	tx.MemberProject = NewMemberProjectClient(tx.config)
 	tx.MonthlyUsage = NewMonthlyUsageClient(tx.config)
+	tx.NotificationChannel = NewNotificationChannelClient(tx.config)
 	tx.Organization = NewOrganizationClient(tx.config)
 	tx.OrganizationMember = NewOrganizationMemberClient(tx.config)
 	tx.PaymentCard = NewPaymentCardClient(tx.config)

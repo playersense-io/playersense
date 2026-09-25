@@ -1028,6 +1028,29 @@ func HasEventDefinitionsWith(preds ...predicate.EventDefinition) predicate.Proje
 	})
 }
 
+// HasNotificationChannels applies the HasEdge predicate on the "notification_channels" edge.
+func HasNotificationChannels() predicate.Project {
+	return predicate.Project(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, NotificationChannelsTable, NotificationChannelsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasNotificationChannelsWith applies the HasEdge predicate on the "notification_channels" edge with a given conditions (other predicates).
+func HasNotificationChannelsWith(preds ...predicate.NotificationChannel) predicate.Project {
+	return predicate.Project(func(s *sql.Selector) {
+		step := newNotificationChannelsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // HasMemberAccess applies the HasEdge predicate on the "member_access" edge.
 func HasMemberAccess() predicate.Project {
 	return predicate.Project(func(s *sql.Selector) {

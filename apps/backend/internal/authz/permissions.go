@@ -80,6 +80,12 @@ const (
 	LiveOpsWrite   Permission = "liveops.write"
 	LiveOpsPublish Permission = "liveops.publish"
 
+	// Reports and the channels they notify: reading them, and building, running and
+	// changing them. A report's rows are analytics, so running one needs analytics.read and
+	// player.read as well; these say only who may shape and send them.
+	ReportsRead  Permission = "reports.read"
+	ReportsWrite Permission = "reports.write"
+
 	PrivacyRead   Permission = "privacy.read"
 	PrivacyErase  Permission = "privacy.erase"
 	PrivacyExport Permission = "privacy.export"
@@ -120,6 +126,9 @@ var scopes = map[Permission]Scope{
 	PrivacyRead:   ScopeProject,
 	PrivacyErase:  ScopeProject,
 	PrivacyExport: ScopeProject,
+
+	ReportsRead:  ScopeProject,
+	ReportsWrite: ScopeProject,
 }
 
 // reads is the half of the vocabulary that only looks.
@@ -138,6 +147,7 @@ var reads = map[Permission]bool{
 	OrgRead:       true,
 	MemberRead:    true,
 	BillingRead:   true,
+	ReportsRead:   true,
 	AuditRead:     true,
 	KeyRead:       true,
 	AnalyticsRead: true,

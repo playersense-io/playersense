@@ -68,7 +68,7 @@ func TestTheBillingPageFollowsStripe(t *testing.T) {
 		"number": "PS-0001", "currency": "usd", "total": 4000, "created": now,
 		"hosted_invoice_url": "https://invoice.stripe.test/in_topup", "invoice_pdf": "https://invoice.stripe.test/in_topup.pdf",
 		"status_transitions": map[string]any{"finalized_at": now, "paid_at": now},
-		"metadata": map[string]string{payments.MetaAccount: uid, payments.MetaKind: payments.KindCheckout}})
+		"metadata":           map[string]string{payments.MetaAccount: uid, payments.MetaKind: payments.KindCheckout}})
 	receipts := testclient.Decoded[schemas.ReceiptsOut](client.Get(w.base() + "/billing/receipts").AssertStatus(http.StatusOK))
 	if len(receipts.Receipts) != 1 {
 		t.Fatalf("%d receipts", len(receipts.Receipts))

@@ -81,6 +81,18 @@ func (f BillingContractFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Va
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.BillingContractMutation", m)
 }
 
+// The ChannelDeliveryFunc type is an adapter to allow the use of ordinary
+// function as ChannelDelivery mutator.
+type ChannelDeliveryFunc func(context.Context, *ent.ChannelDeliveryMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ChannelDeliveryFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ChannelDeliveryMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ChannelDeliveryMutation", m)
+}
+
 // The ConfigVersionFunc type is an adapter to allow the use of ordinary
 // function as ConfigVersion mutator.
 type ConfigVersionFunc func(context.Context, *ent.ConfigVersionMutation) (ent.Value, error)
@@ -259,6 +271,18 @@ func (f MonthlyUsageFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.MonthlyUsageMutation", m)
+}
+
+// The NotificationChannelFunc type is an adapter to allow the use of ordinary
+// function as NotificationChannel mutator.
+type NotificationChannelFunc func(context.Context, *ent.NotificationChannelMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f NotificationChannelFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.NotificationChannelMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.NotificationChannelMutation", m)
 }
 
 // The OrganizationFunc type is an adapter to allow the use of ordinary

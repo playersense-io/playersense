@@ -64,6 +64,8 @@ const (
 	EdgeSavedFunnels = "saved_funnels"
 	// EdgeEventDefinitions holds the string denoting the event_definitions edge name in mutations.
 	EdgeEventDefinitions = "event_definitions"
+	// EdgeNotificationChannels holds the string denoting the notification_channels edge name in mutations.
+	EdgeNotificationChannels = "notification_channels"
 	// EdgeMemberAccess holds the string denoting the member_access edge name in mutations.
 	EdgeMemberAccess = "member_access"
 	// EdgeUsageDaily holds the string denoting the usage_daily edge name in mutations.
@@ -133,6 +135,13 @@ const (
 	EventDefinitionsInverseTable = "event_definitions"
 	// EventDefinitionsColumn is the table column denoting the event_definitions relation/edge.
 	EventDefinitionsColumn = "project_id"
+	// NotificationChannelsTable is the table that holds the notification_channels relation/edge.
+	NotificationChannelsTable = "notification_channels"
+	// NotificationChannelsInverseTable is the table name for the NotificationChannel entity.
+	// It exists in this package in order to avoid circular dependency with the "notificationchannel" package.
+	NotificationChannelsInverseTable = "notification_channels"
+	// NotificationChannelsColumn is the table column denoting the notification_channels relation/edge.
+	NotificationChannelsColumn = "project_id"
 	// MemberAccessTable is the table that holds the member_access relation/edge.
 	MemberAccessTable = "member_projects"
 	// MemberAccessInverseTable is the table name for the MemberProject entity.
@@ -429,6 +438,20 @@ func ByEventDefinitions(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption 
 	}
 }
 
+// ByNotificationChannelsCount orders the results by notification_channels count.
+func ByNotificationChannelsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newNotificationChannelsStep(), opts...)
+	}
+}
+
+// ByNotificationChannels orders the results by notification_channels terms.
+func ByNotificationChannels(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newNotificationChannelsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
 // ByMemberAccessCount orders the results by member_access count.
 func ByMemberAccessCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -517,6 +540,13 @@ func newEventDefinitionsStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(EventDefinitionsInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, EventDefinitionsTable, EventDefinitionsColumn),
+	)
+}
+func newNotificationChannelsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(NotificationChannelsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, NotificationChannelsTable, NotificationChannelsColumn),
 	)
 }
 func newMemberAccessStep() *sqlgraph.Step {

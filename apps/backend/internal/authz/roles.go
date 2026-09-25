@@ -69,15 +69,19 @@ func Templates() []Template {
 				KeyRead, KeyCreate, KeyRevoke,
 				LiveOpsRead, LiveOpsWrite,
 				AnalyticsRead, PlayerRead,
+				ReportsRead, ReportsWrite,
 			},
 		},
 		{
 			Key: RoleGrowthManager, Name: "Growth Manager",
-			// Reads the numbers and sees what is scheduled, changes neither. Reads players
+			// Reads the numbers and sees what is scheduled, changes neither, and builds the
+			// reports that send those numbers on. Reads players
 			// as well, since finding the whales and the lapsed is most of the job; a studio
 			// that wants the numbers alone removes player.read.
 			Permissions: []Permission{
 				AnalyticsRead, PlayerRead, LiveOpsRead,
+				// Reports are the numbers, sent somewhere on a schedule: the same job.
+				ReportsRead, ReportsWrite,
 			},
 		},
 		{

@@ -154,6 +154,24 @@ every five minutes per key. A rolled key stops at once, or after a grace of up t
 of servers can move over; an SDK key is inside shipped builds, so rolling one with no grace stops
 every build that carries it.
 
+**Notification channels**, where reports notify (`reports.read` to see, `reports.write` to change):
+
+```
+GET    POST                 /v1/organizations/{org}/projects/{project}/channels
+       POST                 …/channels/test                     a draft, before it is saved
+GET                         …/channels/deliveries               every send, kept ninety days
+GET    PUT    DELETE        …/channels/{id}
+       POST                 …/channels/{id}/test
+```
+
+Email, and incoming webhooks rather than apps: Slack, Discord and Microsoft Teams URLs made in the
+studio's own workspace, a PagerDuty service's Events API v2 key, or a webhook of the studio's, signed
+with `X-PlayerSense-Id`, `-Timestamp` and `-Signature: v1=<HMAC-SHA256 of id.timestamp.body>` with a
+secret shown once at creation. A URL is a credential, so it is stored apart and shown back masked.
+Every destination is reached through a client that refuses private and special-purpose addresses
+after resolution and follows no redirects (`NOTIFY_ALLOW_PRIVATE=true` lifts that for a local
+receiver in development).
+
 **A project's settings**:
 
 ```

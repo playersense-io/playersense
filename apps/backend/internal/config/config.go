@@ -505,6 +505,11 @@ type Settings struct {
 	// logs, and is readable by people who were never invited.
 	MailLogBody bool `env:"MAIL_LOG_BODY" default:"false"`
 
+	// NotifyAllowPrivate lets notification channels and webhooks post to this machine or a
+	// private network, for development against a local receiver. Off in production, where a
+	// customer's URL must be on the public internet (notify.NewClient).
+	NotifyAllowPrivate bool `env:"NOTIFY_ALLOW_PRIVATE" default:"false"`
+
 	// CreditExpiryMaxLots bounds one pass of the wallet's expiry sweep.
 	//
 	// A pass writes two rows per lapsed lot inside one transaction, so the bound is about how

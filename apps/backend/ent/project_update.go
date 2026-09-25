@@ -18,6 +18,7 @@ import (
 	"playersense.dev/backend/ent/featureflag"
 	"playersense.dev/backend/ent/liveopsevent"
 	"playersense.dev/backend/ent/memberproject"
+	"playersense.dev/backend/ent/notificationchannel"
 	"playersense.dev/backend/ent/organization"
 	"playersense.dev/backend/ent/predicate"
 	"playersense.dev/backend/ent/project"
@@ -367,6 +368,21 @@ func (_u *ProjectUpdate) AddEventDefinitions(v ...*EventDefinition) *ProjectUpda
 	return _u.AddEventDefinitionIDs(ids...)
 }
 
+// AddNotificationChannelIDs adds the "notification_channels" edge to the NotificationChannel entity by IDs.
+func (_u *ProjectUpdate) AddNotificationChannelIDs(ids ...int) *ProjectUpdate {
+	_u.mutation.AddNotificationChannelIDs(ids...)
+	return _u
+}
+
+// AddNotificationChannels adds the "notification_channels" edges to the NotificationChannel entity.
+func (_u *ProjectUpdate) AddNotificationChannels(v ...*NotificationChannel) *ProjectUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddNotificationChannelIDs(ids...)
+}
+
 // AddMemberAccesIDs adds the "member_access" edge to the MemberProject entity by IDs.
 func (_u *ProjectUpdate) AddMemberAccesIDs(ids ...int) *ProjectUpdate {
 	_u.mutation.AddMemberAccesIDs(ids...)
@@ -574,6 +590,27 @@ func (_u *ProjectUpdate) RemoveEventDefinitions(v ...*EventDefinition) *ProjectU
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveEventDefinitionIDs(ids...)
+}
+
+// ClearNotificationChannels clears all "notification_channels" edges to the NotificationChannel entity.
+func (_u *ProjectUpdate) ClearNotificationChannels() *ProjectUpdate {
+	_u.mutation.ClearNotificationChannels()
+	return _u
+}
+
+// RemoveNotificationChannelIDs removes the "notification_channels" edge to NotificationChannel entities by IDs.
+func (_u *ProjectUpdate) RemoveNotificationChannelIDs(ids ...int) *ProjectUpdate {
+	_u.mutation.RemoveNotificationChannelIDs(ids...)
+	return _u
+}
+
+// RemoveNotificationChannels removes "notification_channels" edges to NotificationChannel entities.
+func (_u *ProjectUpdate) RemoveNotificationChannels(v ...*NotificationChannel) *ProjectUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveNotificationChannelIDs(ids...)
 }
 
 // ClearMemberAccess clears all "member_access" edges to the MemberProject entity.
@@ -1132,6 +1169,51 @@ func (_u *ProjectUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.NotificationChannelsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.NotificationChannelsTable,
+			Columns: []string{project.NotificationChannelsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(notificationchannel.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedNotificationChannelsIDs(); len(nodes) > 0 && !_u.mutation.NotificationChannelsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.NotificationChannelsTable,
+			Columns: []string{project.NotificationChannelsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(notificationchannel.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.NotificationChannelsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.NotificationChannelsTable,
+			Columns: []string{project.NotificationChannelsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(notificationchannel.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _u.mutation.MemberAccessCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
@@ -1570,6 +1652,21 @@ func (_u *ProjectUpdateOne) AddEventDefinitions(v ...*EventDefinition) *ProjectU
 	return _u.AddEventDefinitionIDs(ids...)
 }
 
+// AddNotificationChannelIDs adds the "notification_channels" edge to the NotificationChannel entity by IDs.
+func (_u *ProjectUpdateOne) AddNotificationChannelIDs(ids ...int) *ProjectUpdateOne {
+	_u.mutation.AddNotificationChannelIDs(ids...)
+	return _u
+}
+
+// AddNotificationChannels adds the "notification_channels" edges to the NotificationChannel entity.
+func (_u *ProjectUpdateOne) AddNotificationChannels(v ...*NotificationChannel) *ProjectUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddNotificationChannelIDs(ids...)
+}
+
 // AddMemberAccesIDs adds the "member_access" edge to the MemberProject entity by IDs.
 func (_u *ProjectUpdateOne) AddMemberAccesIDs(ids ...int) *ProjectUpdateOne {
 	_u.mutation.AddMemberAccesIDs(ids...)
@@ -1777,6 +1874,27 @@ func (_u *ProjectUpdateOne) RemoveEventDefinitions(v ...*EventDefinition) *Proje
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveEventDefinitionIDs(ids...)
+}
+
+// ClearNotificationChannels clears all "notification_channels" edges to the NotificationChannel entity.
+func (_u *ProjectUpdateOne) ClearNotificationChannels() *ProjectUpdateOne {
+	_u.mutation.ClearNotificationChannels()
+	return _u
+}
+
+// RemoveNotificationChannelIDs removes the "notification_channels" edge to NotificationChannel entities by IDs.
+func (_u *ProjectUpdateOne) RemoveNotificationChannelIDs(ids ...int) *ProjectUpdateOne {
+	_u.mutation.RemoveNotificationChannelIDs(ids...)
+	return _u
+}
+
+// RemoveNotificationChannels removes "notification_channels" edges to NotificationChannel entities.
+func (_u *ProjectUpdateOne) RemoveNotificationChannels(v ...*NotificationChannel) *ProjectUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveNotificationChannelIDs(ids...)
 }
 
 // ClearMemberAccess clears all "member_access" edges to the MemberProject entity.
@@ -2358,6 +2476,51 @@ func (_u *ProjectUpdateOne) sqlSave(ctx context.Context) (_node *Project, err er
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(eventdefinition.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.NotificationChannelsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.NotificationChannelsTable,
+			Columns: []string{project.NotificationChannelsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(notificationchannel.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedNotificationChannelsIDs(); len(nodes) > 0 && !_u.mutation.NotificationChannelsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.NotificationChannelsTable,
+			Columns: []string{project.NotificationChannelsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(notificationchannel.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.NotificationChannelsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.NotificationChannelsTable,
+			Columns: []string{project.NotificationChannelsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(notificationchannel.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

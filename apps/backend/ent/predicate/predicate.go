@@ -24,6 +24,9 @@ type BillingAccount func(*sql.Selector)
 // BillingContract is the predicate function for billingcontract builders.
 type BillingContract func(*sql.Selector)
 
+// ChannelDelivery is the predicate function for channeldelivery builders.
+type ChannelDelivery func(*sql.Selector)
+
 // ConfigVersion is the predicate function for configversion builders.
 type ConfigVersion func(*sql.Selector)
 
@@ -68,6 +71,9 @@ type MemberProject func(*sql.Selector)
 
 // MonthlyUsage is the predicate function for monthlyusage builders.
 type MonthlyUsage func(*sql.Selector)
+
+// NotificationChannel is the predicate function for notificationchannel builders.
+type NotificationChannel func(*sql.Selector)
 
 // Organization is the predicate function for organization builders.
 type Organization func(*sql.Selector)

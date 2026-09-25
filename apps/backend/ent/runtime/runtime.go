@@ -12,6 +12,7 @@ import (
 	"playersense.dev/backend/ent/billableplayer"
 	"playersense.dev/backend/ent/billingaccount"
 	"playersense.dev/backend/ent/billingcontract"
+	"playersense.dev/backend/ent/channeldelivery"
 	"playersense.dev/backend/ent/configversion"
 	"playersense.dev/backend/ent/creditlot"
 	"playersense.dev/backend/ent/datadeletionrequest"
@@ -27,6 +28,7 @@ import (
 	"playersense.dev/backend/ent/liveopsevent"
 	"playersense.dev/backend/ent/memberproject"
 	"playersense.dev/backend/ent/monthlyusage"
+	"playersense.dev/backend/ent/notificationchannel"
 	"playersense.dev/backend/ent/organization"
 	"playersense.dev/backend/ent/organizationmember"
 	"playersense.dev/backend/ent/paymentcard"
@@ -504,6 +506,57 @@ func init() {
 	billingcontract.DefaultOperator = billingcontractDescOperator.Default.(string)
 	// billingcontract.OperatorValidator is a validator for the "operator" field. It is called by the builders before save.
 	billingcontract.OperatorValidator = billingcontractDescOperator.Validators[0].(func(string) error)
+	channeldeliveryMixin := schema.ChannelDelivery{}.Mixin()
+	channeldeliveryMixinFields0 := channeldeliveryMixin[0].Fields()
+	_ = channeldeliveryMixinFields0
+	channeldeliveryFields := schema.ChannelDelivery{}.Fields()
+	_ = channeldeliveryFields
+	// channeldeliveryDescUID is the schema descriptor for uid field.
+	channeldeliveryDescUID := channeldeliveryMixinFields0[1].Descriptor()
+	// channeldelivery.DefaultUID holds the default value on creation for the uid field.
+	channeldelivery.DefaultUID = channeldeliveryDescUID.Default.(func() uuid.UUID)
+	// channeldeliveryDescCreatedAt is the schema descriptor for created_at field.
+	channeldeliveryDescCreatedAt := channeldeliveryMixinFields0[2].Descriptor()
+	// channeldelivery.DefaultCreatedAt holds the default value on creation for the created_at field.
+	channeldelivery.DefaultCreatedAt = channeldeliveryDescCreatedAt.Default.(func() time.Time)
+	// channeldeliveryDescUpdatedAt is the schema descriptor for updated_at field.
+	channeldeliveryDescUpdatedAt := channeldeliveryMixinFields0[3].Descriptor()
+	// channeldelivery.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	channeldelivery.DefaultUpdatedAt = channeldeliveryDescUpdatedAt.Default.(func() time.Time)
+	// channeldelivery.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	channeldelivery.UpdateDefaultUpdatedAt = channeldeliveryDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// channeldeliveryDescChannelName is the schema descriptor for channel_name field.
+	channeldeliveryDescChannelName := channeldeliveryFields[2].Descriptor()
+	// channeldelivery.DefaultChannelName holds the default value on creation for the channel_name field.
+	channeldelivery.DefaultChannelName = channeldeliveryDescChannelName.Default.(string)
+	// channeldelivery.ChannelNameValidator is a validator for the "channel_name" field. It is called by the builders before save.
+	channeldelivery.ChannelNameValidator = channeldeliveryDescChannelName.Validators[0].(func(string) error)
+	// channeldeliveryDescSource is the schema descriptor for source field.
+	channeldeliveryDescSource := channeldeliveryFields[3].Descriptor()
+	// channeldelivery.DefaultSource holds the default value on creation for the source field.
+	channeldelivery.DefaultSource = channeldeliveryDescSource.Default.(string)
+	// channeldelivery.SourceValidator is a validator for the "source" field. It is called by the builders before save.
+	channeldelivery.SourceValidator = channeldeliveryDescSource.Validators[0].(func(string) error)
+	// channeldeliveryDescTitle is the schema descriptor for title field.
+	channeldeliveryDescTitle := channeldeliveryFields[4].Descriptor()
+	// channeldelivery.DefaultTitle holds the default value on creation for the title field.
+	channeldelivery.DefaultTitle = channeldeliveryDescTitle.Default.(string)
+	// channeldelivery.TitleValidator is a validator for the "title" field. It is called by the builders before save.
+	channeldelivery.TitleValidator = channeldeliveryDescTitle.Validators[0].(func(string) error)
+	// channeldeliveryDescDetail is the schema descriptor for detail field.
+	channeldeliveryDescDetail := channeldeliveryFields[6].Descriptor()
+	// channeldelivery.DefaultDetail holds the default value on creation for the detail field.
+	channeldelivery.DefaultDetail = channeldeliveryDescDetail.Default.(string)
+	// channeldelivery.DetailValidator is a validator for the "detail" field. It is called by the builders before save.
+	channeldelivery.DetailValidator = channeldeliveryDescDetail.Validators[0].(func(string) error)
+	// channeldeliveryDescTest is the schema descriptor for test field.
+	channeldeliveryDescTest := channeldeliveryFields[7].Descriptor()
+	// channeldelivery.DefaultTest holds the default value on creation for the test field.
+	channeldelivery.DefaultTest = channeldeliveryDescTest.Default.(bool)
+	// channeldeliveryDescDurationMs is the schema descriptor for duration_ms field.
+	channeldeliveryDescDurationMs := channeldeliveryFields[8].Descriptor()
+	// channeldelivery.DefaultDurationMs holds the default value on creation for the duration_ms field.
+	channeldelivery.DefaultDurationMs = channeldeliveryDescDurationMs.Default.(int)
 	configversionMixin := schema.ConfigVersion{}.Mixin()
 	configversionMixinFields0 := configversionMixin[0].Fields()
 	_ = configversionMixinFields0
@@ -1535,6 +1588,73 @@ func init() {
 	monthlyusageDescChargedMicros := monthlyusageFields[3].Descriptor()
 	// monthlyusage.DefaultChargedMicros holds the default value on creation for the charged_micros field.
 	monthlyusage.DefaultChargedMicros = monthlyusageDescChargedMicros.Default.(int64)
+	notificationchannelMixin := schema.NotificationChannel{}.Mixin()
+	notificationchannelMixinFields0 := notificationchannelMixin[0].Fields()
+	_ = notificationchannelMixinFields0
+	notificationchannelFields := schema.NotificationChannel{}.Fields()
+	_ = notificationchannelFields
+	// notificationchannelDescUID is the schema descriptor for uid field.
+	notificationchannelDescUID := notificationchannelMixinFields0[1].Descriptor()
+	// notificationchannel.DefaultUID holds the default value on creation for the uid field.
+	notificationchannel.DefaultUID = notificationchannelDescUID.Default.(func() uuid.UUID)
+	// notificationchannelDescCreatedAt is the schema descriptor for created_at field.
+	notificationchannelDescCreatedAt := notificationchannelMixinFields0[2].Descriptor()
+	// notificationchannel.DefaultCreatedAt holds the default value on creation for the created_at field.
+	notificationchannel.DefaultCreatedAt = notificationchannelDescCreatedAt.Default.(func() time.Time)
+	// notificationchannelDescUpdatedAt is the schema descriptor for updated_at field.
+	notificationchannelDescUpdatedAt := notificationchannelMixinFields0[3].Descriptor()
+	// notificationchannel.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	notificationchannel.DefaultUpdatedAt = notificationchannelDescUpdatedAt.Default.(func() time.Time)
+	// notificationchannel.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	notificationchannel.UpdateDefaultUpdatedAt = notificationchannelDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// notificationchannelDescName is the schema descriptor for name field.
+	notificationchannelDescName := notificationchannelFields[2].Descriptor()
+	// notificationchannel.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	notificationchannel.NameValidator = func() func(string) error {
+		validators := notificationchannelDescName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(name string) error {
+			for _, fn := range fns {
+				if err := fn(name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// notificationchannelDescEnabled is the schema descriptor for enabled field.
+	notificationchannelDescEnabled := notificationchannelFields[3].Descriptor()
+	// notificationchannel.DefaultEnabled holds the default value on creation for the enabled field.
+	notificationchannel.DefaultEnabled = notificationchannelDescEnabled.Default.(bool)
+	// notificationchannelDescConfig is the schema descriptor for config field.
+	notificationchannelDescConfig := notificationchannelFields[4].Descriptor()
+	// notificationchannel.DefaultConfig holds the default value on creation for the config field.
+	notificationchannel.DefaultConfig = notificationchannelDescConfig.Default.(map[string]interface{})
+	// notificationchannelDescSecret is the schema descriptor for secret field.
+	notificationchannelDescSecret := notificationchannelFields[5].Descriptor()
+	// notificationchannel.DefaultSecret holds the default value on creation for the secret field.
+	notificationchannel.DefaultSecret = notificationchannelDescSecret.Default.(map[string]string)
+	// notificationchannelDescLastTestDetail is the schema descriptor for last_test_detail field.
+	notificationchannelDescLastTestDetail := notificationchannelFields[8].Descriptor()
+	// notificationchannel.DefaultLastTestDetail holds the default value on creation for the last_test_detail field.
+	notificationchannel.DefaultLastTestDetail = notificationchannelDescLastTestDetail.Default.(string)
+	// notificationchannel.LastTestDetailValidator is a validator for the "last_test_detail" field. It is called by the builders before save.
+	notificationchannel.LastTestDetailValidator = notificationchannelDescLastTestDetail.Validators[0].(func(string) error)
+	// notificationchannelDescCreatedBy is the schema descriptor for created_by field.
+	notificationchannelDescCreatedBy := notificationchannelFields[9].Descriptor()
+	// notificationchannel.DefaultCreatedBy holds the default value on creation for the created_by field.
+	notificationchannel.DefaultCreatedBy = notificationchannelDescCreatedBy.Default.(string)
+	// notificationchannel.CreatedByValidator is a validator for the "created_by" field. It is called by the builders before save.
+	notificationchannel.CreatedByValidator = notificationchannelDescCreatedBy.Validators[0].(func(string) error)
+	// notificationchannelDescUpdatedBy is the schema descriptor for updated_by field.
+	notificationchannelDescUpdatedBy := notificationchannelFields[10].Descriptor()
+	// notificationchannel.DefaultUpdatedBy holds the default value on creation for the updated_by field.
+	notificationchannel.DefaultUpdatedBy = notificationchannelDescUpdatedBy.Default.(string)
+	// notificationchannel.UpdatedByValidator is a validator for the "updated_by" field. It is called by the builders before save.
+	notificationchannel.UpdatedByValidator = notificationchannelDescUpdatedBy.Validators[0].(func(string) error)
 	organizationMixin := schema.Organization{}.Mixin()
 	organizationMixinFields0 := organizationMixin[0].Fields()
 	_ = organizationMixinFields0
