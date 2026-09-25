@@ -57,12 +57,12 @@ function focusSearch() {
         type="button"
       >
         <template v-if="chosen">
-          <Icon :name="COLUMN_TYPE_ICONS[chosen.type]" aria-hidden="true" class="flex-none text-sm text-ink/45" />
+          <Icon :name="COLUMN_TYPE_ICONS[chosen.type]" :aria-hidden="true" class="flex-none text-sm text-ink/45" />
           <span class="min-w-0 truncate">{{ chosen.label }}</span>
         </template>
         <span v-else-if="key" class="min-w-0 truncate text-error">{{ key }}, gone</span>
         <span v-else class="flex-1 truncate text-left">{{ placeholder }}</span>
-        <Icon aria-hidden="true" class="ml-auto flex-none text-base text-ink/40" name="material-symbols:unfold-more" />
+        <Icon :aria-hidden="true" class="ml-auto flex-none text-base text-ink/40" name="material-symbols:unfold-more" />
       </button>
     </template>
 
@@ -89,7 +89,7 @@ function focusSearch() {
           type="button"
           @click="choose(column.key)"
         >
-          <Icon :name="COLUMN_TYPE_ICONS[column.type]" aria-hidden="true" class="flex-none text-sm text-ink/45" />
+          <Icon :name="COLUMN_TYPE_ICONS[column.type]" :aria-hidden="true" class="flex-none text-sm text-ink/45" />
           <span class="min-w-0 flex-1 truncate text-xs text-ink">{{ column.label }}</span>
           <span class="flex-none font-mono text-[10px] text-ink/40">{{ column.key }}</span>
         </button>

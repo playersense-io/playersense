@@ -117,7 +117,7 @@ const recent = computed(() => deliveries.value.slice(0, 12))
       @retry="reload"
     >
       <p v-if="counts.failing" class="m-0 flex items-start gap-2.5 rounded-(--ps-radius-large) bg-error/6 px-4 py-3 text-xs leading-5 text-ink/80 ring-1 ring-error/20 ring-inset">
-        <Icon aria-hidden="true" class="mt-0.5 flex-none text-base text-error" name="material-symbols:error-outline" />
+        <Icon :aria-hidden="true" class="mt-0.5 flex-none text-base text-error" name="material-symbols:error-outline" />
         <span>{{ counts.failing === 1 ? 'One channel failed' : `${counts.failing} channels failed` }} its last test. Reports that notify it skip it and say so in their runs. Fix it below and send a test again.</span>
       </p>
 
@@ -226,7 +226,7 @@ const recent = computed(() => deliveries.value.slice(0, 12))
             <Icon
               :class="entry.ok ? 'text-success' : 'text-error'"
               :name="entry.ok ? 'material-symbols:check-circle-outline' : 'material-symbols:cancel-outline'"
-              aria-hidden="true"
+              :aria-hidden="true"
               class="flex-none text-base"
             />
             <ChannelMark v-if="entry.channelId && channelById(entry.channelId)" :type="channelById(entry.channelId)!.type" size="small" />

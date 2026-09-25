@@ -58,7 +58,7 @@ defineProps<{
             <template #activator="{ props: activator }">
               <Icon
                 v-bind="activator"
-                aria-hidden="true"
+                :aria-hidden="true"
                 class="flex-none text-sm text-ink/35"
                 name="material-symbols:info-outline"
               />
@@ -85,7 +85,7 @@ defineProps<{
             :class="TREND_TONES[item.trend.tone]"
             class="inline-flex flex-none items-center gap-0.5 font-mono text-xs tabular-nums"
           >
-            <Icon :name="TREND_ICONS[item.trend.direction]" aria-hidden="true" class="text-sm" />
+            <Icon :name="TREND_ICONS[item.trend.direction]" :aria-hidden="true" class="text-sm" />
             {{ item.trend.text }}
           </span>
         </div>

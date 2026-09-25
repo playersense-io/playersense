@@ -162,7 +162,7 @@ const descriptionId = useId()
 
         <ul v-if="(problems.length && name.trim()) || refusal" class="m-0 flex list-none flex-col gap-1 p-0">
           <li v-for="problem in refusal ? [refusal] : problems" :key="problem" class="flex items-start gap-1.5 text-xs text-error">
-            <Icon aria-hidden="true" class="mt-0.5 flex-none text-sm" name="material-symbols:error-outline" />
+            <Icon :aria-hidden="true" class="mt-0.5 flex-none text-sm" name="material-symbols:error-outline" />
             {{ problem }}
           </li>
         </ul>

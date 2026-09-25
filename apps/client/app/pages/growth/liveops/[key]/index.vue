@@ -493,11 +493,11 @@ const activateWords = computed(() => (event.value
           :key="index"
           class="flex items-start gap-2.5 rounded-(--ps-radius) bg-warning/8 px-3 py-2.5 text-xs leading-5 text-ink/80 ring-1 ring-warning/20 ring-inset"
         >
-          <Icon :name="warning.icon" aria-hidden="true" class="mt-0.5 flex-none text-sm text-warning" />
+          <Icon :name="warning.icon" :aria-hidden="true" class="mt-0.5 flex-none text-sm text-warning" />
           <span>{{ warning.text }}</span>
         </li>
         <li v-if="overlaps.length" class="flex items-start gap-2.5 rounded-(--ps-radius) bg-ink/4 px-3 py-2.5 text-xs leading-5 text-ink/75 ring-1 ring-ink/6 ring-inset">
-          <Icon aria-hidden="true" class="mt-0.5 flex-none text-sm text-ink/50" name="material-symbols:layers-outline" />
+          <Icon :aria-hidden="true" class="mt-0.5 flex-none text-sm text-ink/50" name="material-symbols:layers-outline" />
           <span>
             Also on at the time:
             <template v-for="(entry, index) in overlaps.slice(0, 4)" :key="entry.id">
@@ -686,7 +686,7 @@ const activateWords = computed(() => (event.value
           <SectionCard :description="`${isRecurring ? `It has opened ${pastCount} ${pastCount === 1 ? 'time' : 'times'} so far.` : ''} The server works out each window; the game is only told the one it is in and the next.`" title="When it is on">
             <div class="flex flex-col gap-4">
               <div class="flex items-start gap-2.5 rounded-(--ps-radius) bg-ink/4 px-3.5 py-3 ring-1 ring-ink/6 ring-inset">
-                <Icon :name="isRecurring ? 'material-symbols:event-repeat-outline' : 'material-symbols:event-outline'" aria-hidden="true" class="mt-0.5 flex-none text-base text-ink/55" />
+                <Icon :name="isRecurring ? 'material-symbols:event-repeat-outline' : 'material-symbols:event-outline'" :aria-hidden="true" class="mt-0.5 flex-none text-base text-ink/55" />
                 <span class="flex flex-col gap-0.5">
                   <span class="text-[13px] font-medium text-ink">{{ scheduleWords(event.schedule) }}</span>
                   <span class="text-[11px] text-ink/50">{{ event.schedule.timezone ?? 'UTC' }} clock{{ event.status === 'paused' ? '. Paused: none of these are served until it is resumed.' : '' }}</span>

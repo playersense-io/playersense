@@ -97,7 +97,7 @@ watch(() => route.path, () => {
             <span class="flex size-10 flex-none items-center justify-center">
               <Icon
                 :name="collapsed ? 'material-symbols:chevron-right' : 'material-symbols:chevron-left'"
-                aria-hidden="true"
+                :aria-hidden="true"
                 class="text-lg"
               />
             </span>

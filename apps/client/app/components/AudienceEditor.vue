@@ -62,7 +62,7 @@ const history = computed(() => {
     />
 
     <p v-if="problem" class="m-0 flex items-start gap-1.5 text-xs text-error">
-      <Icon aria-hidden="true" class="mt-0.5 flex-none text-sm" name="material-symbols:error-outline" />
+      <Icon :aria-hidden="true" class="mt-0.5 flex-none text-sm" name="material-symbols:error-outline" />
       {{ problem }}
     </p>
 
@@ -74,7 +74,7 @@ const history = computed(() => {
     </InfoNote>
 
     <p v-if="history" class="m-0 flex items-start gap-1.5 text-[11px] leading-4 text-ink/50">
-      <Icon aria-hidden="true" class="mt-px flex-none text-sm" name="material-symbols:history" />
+      <Icon :aria-hidden="true" class="mt-px flex-none text-sm" name="material-symbols:history" />
       Reads the player's purchase or activity history: each request costs a lookup, cached for an hour.
     </p>
 

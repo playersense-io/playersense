@@ -40,7 +40,7 @@ const alignOf = (type: ColumnType) => (isNumeric(type) ? 'text-right' : 'text-le
   <div class="flex h-full min-h-0 flex-col">
     <div v-if="result?.error" class="flex flex-1 items-center justify-center p-6">
       <p class="m-0 flex max-w-md items-start gap-2 text-xs leading-5 text-ink/70">
-        <Icon aria-hidden="true" class="mt-0.5 flex-none text-sm text-warning" name="material-symbols:error-outline" />
+        <Icon :aria-hidden="true" class="mt-0.5 flex-none text-sm text-warning" name="material-symbols:error-outline" />
         {{ result.error }}
       </p>
     </div>

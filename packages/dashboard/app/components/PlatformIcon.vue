@@ -34,7 +34,7 @@ const mark = computed(() => PLATFORMS[props.platform.toLowerCase()] ?? { icon: '
     :class="mark.ink ? 'ps-platform-icon--ink' : ''"
     :name="mark.icon"
     :style="{ width: `${size}px`, height: `${size}px` }"
-    aria-hidden="true"
+    :aria-hidden="true"
     class="ps-platform-icon"
   />
 </template>

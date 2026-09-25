@@ -76,7 +76,7 @@ const progress = computed(() => (props.run.plan.length ? (ended.value / props.ru
         v-else
         :class="look!.colour"
         :name="look!.icon"
-        aria-hidden="true"
+        :aria-hidden="true"
         class="text-lg"
       />
     </span>

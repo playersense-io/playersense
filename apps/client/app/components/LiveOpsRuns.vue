@@ -156,7 +156,7 @@ const worked = computed(() => ended.value.filter(entry => outcomeOf(entry.impact
         </dd>
       </div>
       <p v-if="wearing" class="m-0 flex items-start gap-2 rounded-(--ps-radius) bg-warning/8 px-3 py-2.5 text-[11px] leading-4 text-ink/75 ring-1 ring-warning/20 ring-inset">
-        <Icon aria-hidden="true" class="mt-px flex-none text-sm text-warning" name="material-symbols:trending-down" />
+        <Icon :aria-hidden="true" class="mt-px flex-none text-sm text-warning" name="material-symbols:trending-down" />
         <span>Wearing off: {{ (wearing.early * 100).toFixed(0) }}% in its first windows, {{ (wearing.late * 100).toFixed(0) }}% lately. Run it less often, or change what it gives.</span>
       </p>
     </dl>

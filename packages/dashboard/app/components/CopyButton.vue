@@ -33,7 +33,7 @@ const { copy, copied } = useClipboard({ copiedDuring: 1400, legacy: true })
         <Icon
           :class="copied ? 'text-success' : ''"
           :name="copied ? 'material-symbols:check' : 'material-symbols:content-copy-outline'"
-          aria-hidden="true"
+          :aria-hidden="true"
           class="text-sm"
         />
       </button>

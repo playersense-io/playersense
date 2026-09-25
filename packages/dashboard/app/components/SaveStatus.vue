@@ -31,12 +31,12 @@ const savedAgo = computed(() => {
   >
     <template v-if="saving">
       <span class="leading-none">Saving</span>
-      <Icon aria-hidden="true" class="-mx-1.5 flex-none text-xl text-ink/60" name="lucide:dot" />
+      <Icon :aria-hidden="true" class="-mx-1.5 flex-none text-xl text-ink/60" name="lucide:dot" />
       <span class="leading-none">a moment</span>
     </template>
     <template v-else-if="lastSaved">
       <span class="leading-none">Last saved</span>
-      <Icon aria-hidden="true" class="-mx-1.5 flex-none text-xl text-ink/60" name="lucide:dot" />
+      <Icon :aria-hidden="true" class="-mx-1.5 flex-none text-xl text-ink/60" name="lucide:dot" />
       <v-tooltip :text="formatDateTime(lastSaved)" location="top">
         <template #activator="{ props: tip }">
           <span v-bind="tip" class="leading-none text-ink/70">{{ savedAgo }}</span>
@@ -45,7 +45,7 @@ const savedAgo = computed(() => {
     </template>
     <template v-else>
       <span class="leading-none">Nothing changed</span>
-      <Icon aria-hidden="true" class="-mx-1.5 flex-none text-xl text-ink/60" name="lucide:dot" />
+      <Icon :aria-hidden="true" class="-mx-1.5 flex-none text-xl text-ink/60" name="lucide:dot" />
       <span class="leading-none">this session</span>
     </template>
   </p>

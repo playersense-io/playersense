@@ -195,7 +195,7 @@ const openCode = computed(() => (open.value ? JSON.stringify(open.value, null, 2
               variant="text"
               @click="open = item"
             >
-              <Icon aria-hidden="true" class="text-lg" name="material-symbols:open-in-full" />
+              <Icon :aria-hidden="true" class="text-lg" name="material-symbols:open-in-full" />
               <v-tooltip activator="parent" location="top" text="Details" />
             </v-btn>
           </template>
@@ -235,7 +235,7 @@ const openCode = computed(() => (open.value ? JSON.stringify(open.value, null, 2
             variant="text"
             @click="open = null"
           >
-            <Icon aria-hidden="true" class="text-lg" name="material-symbols:close" />
+            <Icon :aria-hidden="true" class="text-lg" name="material-symbols:close" />
           </v-btn>
         </header>
         <div class="flex flex-col gap-4 p-5">

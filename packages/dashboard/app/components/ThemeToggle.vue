@@ -19,7 +19,7 @@ const { isDark, toggle } = useColorScheme()
   >
     <Icon
       :name="isDark ? 'material-symbols:sunny-outline-rounded' : 'material-symbols:moon-stars-outline-rounded'"
-      aria-hidden="true"
+      :aria-hidden="true"
       class="text-lg"
     />
     <v-tooltip :text="isDark ? 'Light mode' : 'Dark mode'" activator="parent" location="bottom" />

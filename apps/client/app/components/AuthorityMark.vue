@@ -22,7 +22,7 @@ const about = computed(() => AUTHORITIES[props.authority])
         class="ps-authority-mark inline-flex flex-none items-center gap-1 text-[11px] leading-4"
         role="img"
       >
-        <Icon :name="about.icon" aria-hidden="true" class="text-sm" />
+        <Icon :name="about.icon" :aria-hidden="true" class="text-sm" />
         <span v-if="labelled">{{ about.short }}</span>
       </span>
     </template>

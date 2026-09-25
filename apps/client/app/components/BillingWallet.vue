@@ -208,7 +208,7 @@ function exportLedger() {
           <span :class="expiry(item).soon ? 'text-warning' : 'text-ink/60'" class="flex items-center gap-1 text-xs">
             <Icon
               v-if="expiry(item).soon"
-              aria-hidden="true"
+              :aria-hidden="true"
               class="text-sm"
               name="material-symbols:schedule-outline"
             />

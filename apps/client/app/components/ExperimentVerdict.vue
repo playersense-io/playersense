@@ -69,7 +69,7 @@ const left = computed(() => props.experiment.plannedDays - (days.value + 1))
         :key="breach.variant.id + breach.metric"
         class="flex items-start gap-2.5 rounded-(--ps-radius) bg-warning/8 px-3 py-2.5 text-xs leading-5 text-ink/80 ring-1 ring-warning/20 ring-inset"
       >
-        <Icon aria-hidden="true" class="mt-0.5 flex-none text-sm text-warning" name="material-symbols:warning-outline" />
+        <Icon :aria-hidden="true" class="mt-0.5 flex-none text-sm text-warning" name="material-symbols:warning-outline" />
         <span>
           Guardrail: {{ breach.variant.name }} lowered {{ EXPERIMENT_METRICS[breach.metric].label.toLowerCase() }}
           by {{ writeLift(breach.metric, breach.comparison).replace('-', '') }}, and it is {{ writeChance(1 - breach.comparison.chance) }} sure it is really worse.

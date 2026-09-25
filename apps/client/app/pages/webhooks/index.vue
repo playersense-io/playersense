@@ -365,7 +365,7 @@ const HOW_IT_WORKS = [
           <div class="flex flex-col">
             <section v-for="{ group, events } in catalog" :key="group.key" class="border-t border-line first:border-t-0">
               <header class="flex items-center gap-2.5 bg-ink/2 px-5 py-2.5">
-                <Icon :name="group.icon" aria-hidden="true" class="text-base text-ink/55" />
+                <Icon :name="group.icon" :aria-hidden="true" class="text-base text-ink/55" />
                 <h3 class="m-0 text-xs font-medium text-ink">
                   {{ group.label }}
                 </h3>

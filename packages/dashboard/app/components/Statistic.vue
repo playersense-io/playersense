@@ -132,7 +132,7 @@ useResizeObserver([row, run, aside], fit)
           class="flex size-4 flex-none items-center justify-center rounded-full text-ink/40 transition-colors duration-150 hover:text-ink/80 focus-visible:text-ink/80 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary"
           type="button"
         >
-          <Icon aria-hidden="true" class="text-sm" name="material-symbols:info-outline" />
+          <Icon :aria-hidden="true" class="text-sm" name="material-symbols:info-outline" />
           <v-tooltip
             :text="info"
             activator="parent"
@@ -176,7 +176,7 @@ useResizeObserver([row, run, aside], fit)
             :class="TREND_TONES[trend.tone]"
             class="inline-flex items-center gap-0.5 font-mono font-medium tabular-nums"
           >
-            <Icon :name="TREND_ICONS[trend.direction]" aria-hidden="true" class="text-sm" />
+            <Icon :name="TREND_ICONS[trend.direction]" :aria-hidden="true" class="text-sm" />
             {{ trend.text }}
           </span>
           <span class="text-ink/55">{{ compare }}</span>

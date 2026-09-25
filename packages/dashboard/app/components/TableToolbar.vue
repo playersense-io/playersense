@@ -45,7 +45,7 @@ const emit = defineEmits<{
             type="button"
             @click="emit('remove', filter.key)"
           >
-            <Icon aria-hidden="true" class="text-xs" name="material-symbols:close" />
+            <Icon :aria-hidden="true" class="text-xs" name="material-symbols:close" />
           </button>
         </span>
         <button

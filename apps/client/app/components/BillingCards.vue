@@ -118,11 +118,11 @@ async function refresh() {
 
           <span class="flex w-44 items-center gap-1.5 text-xs">
             <template v-if="cardExpiry(card, now) === 'expired'">
-              <Icon aria-hidden="true" class="text-sm text-error" name="material-symbols:error-outline" />
+              <Icon :aria-hidden="true" class="text-sm text-error" name="material-symbols:error-outline" />
               <span class="text-error">Expired {{ expiryText(card) }}</span>
             </template>
             <template v-else-if="cardExpiry(card, now) === 'soon'">
-              <Icon aria-hidden="true" class="text-sm text-warning" name="material-symbols:schedule-outline" />
+              <Icon :aria-hidden="true" class="text-sm text-warning" name="material-symbols:schedule-outline" />
               <span class="text-ink/80">Expires <span class="font-mono">{{ expiryText(card) }}</span></span>
             </template>
             <span v-else class="text-ink/60">Expires <span class="font-mono">{{ expiryText(card) }}</span></span>
@@ -139,7 +139,7 @@ async function refresh() {
             size="small"
             variant="text"
           >
-            <Icon aria-hidden="true" class="text-lg" name="material-symbols:more-vert" />
+            <Icon :aria-hidden="true" class="text-lg" name="material-symbols:more-vert" />
             <v-menu activator="parent" location="bottom end" :offset="4">
               <v-list min-width="200" nav>
                 <v-list-item
@@ -187,7 +187,7 @@ async function refresh() {
           <template #actions>
             <button class="flex cursor-pointer items-center gap-1 text-xs text-ink/60 transition-colors hover:text-ink" type="button" @click="$emit('autoTopUp')">
               {{ auto?.enabled ? 'On' : 'Off' }}
-              <Icon aria-hidden="true" class="text-sm" name="material-symbols:chevron-right" />
+              <Icon :aria-hidden="true" class="text-sm" name="material-symbols:chevron-right" />
             </button>
           </template>
         </SettingRow>

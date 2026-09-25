@@ -184,7 +184,7 @@ async function confirmRevoke() {
           <span class="flex flex-1 flex-col gap-1.5 text-xs leading-5">
             <span class="text-ink/75">{{ API_KEY_KINDS[kind].can }}</span>
             <span :class="API_KEY_KINDS[kind].secret ? 'text-ink/55' : 'text-warning'" class="flex items-start gap-1.5 text-[11px] leading-4">
-              <Icon :name="API_KEY_KINDS[kind].secret ? 'material-symbols:lock-outline' : 'material-symbols:lock-open-outline'" aria-hidden="true" class="mt-px flex-none text-sm" />
+              <Icon :name="API_KEY_KINDS[kind].secret ? 'material-symbols:lock-outline' : 'material-symbols:lock-open-outline'" :aria-hidden="true" class="mt-px flex-none text-sm" />
               {{ API_KEY_KINDS[kind].cannot }}
             </span>
           </span>
@@ -213,7 +213,7 @@ async function confirmRevoke() {
       >
         <ul class="m-0 flex list-none flex-col p-0">
           <li v-for="finding in findings" :key="finding.key.id" class="flex flex-wrap items-center gap-3 border-t border-line/70 px-5 py-3 first:border-t-0">
-            <Icon :name="finding.icon" aria-hidden="true" class="flex-none text-base text-warning" />
+            <Icon :name="finding.icon" :aria-hidden="true" class="flex-none text-base text-warning" />
             <span class="flex min-w-0 flex-1 basis-72 flex-col gap-0.5">
               <span class="text-xs leading-5 text-ink/80">{{ finding.text }}</span>
               <span class="font-mono text-[11px] text-ink/45">{{ finding.key.public_id }}</span>
@@ -300,7 +300,7 @@ async function confirmRevoke() {
               size="small"
               variant="text"
             >
-              <Icon aria-hidden="true" class="text-lg" name="material-symbols:more-vert" />
+              <Icon :aria-hidden="true" class="text-lg" name="material-symbols:more-vert" />
               <v-menu activator="parent" location="bottom end" :offset="4">
                 <v-list min-width="200" nav>
                   <v-list-item

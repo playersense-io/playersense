@@ -19,7 +19,7 @@ withDefaults(defineProps<{
     size="small"
     variant="text"
   >
-    <Icon aria-hidden="true" class="text-lg" name="material-symbols:notifications-outline" />
+    <Icon :aria-hidden="true" class="text-lg" name="material-symbols:notifications-outline" />
     <span
       v-if="count"
       aria-hidden="true"

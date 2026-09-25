@@ -51,10 +51,10 @@ const items: MenuItem[] = [
       @click="selectOrganization(candidate.id)"
     >
       <template #prepend>
-        <Icon aria-hidden="true" class="text-ink/60" name="material-symbols:domain" />
+        <Icon :aria-hidden="true" class="text-ink/60" name="material-symbols:domain" />
       </template>
       <template v-if="candidate.id === organization.id" #append>
-        <Icon aria-hidden="true" class="text-base text-ink/70" name="material-symbols:check" />
+        <Icon :aria-hidden="true" class="text-base text-ink/70" name="material-symbols:check" />
       </template>
     </v-list-item>
 
@@ -71,7 +71,7 @@ const items: MenuItem[] = [
         @click="accept(invitation.organization_slug)"
       >
         <template #prepend>
-          <Icon aria-hidden="true" class="text-primary" name="material-symbols:mail-outline" />
+          <Icon :aria-hidden="true" class="text-primary" name="material-symbols:mail-outline" />
         </template>
         <template v-if="accepting === invitation.organization_slug" #append>
           <v-progress-circular indeterminate size="14" width="2" />

@@ -489,13 +489,13 @@ const clipped = (bar: Bar) => ({ start: bar.start < from.value, end: bar.end > w
             >
               <Icon
                 :name="folded.includes(band.id) ? 'material-symbols:chevron-right' : 'material-symbols:expand-more'"
-                aria-hidden="true"
+                :aria-hidden="true"
                 class="flex-none text-sm text-ink/45"
               />
               <Icon
                 :name="band.icon"
                 :style="{ color: band.tone ? toneColour(band.tone) : undefined }"
-                aria-hidden="true"
+                :aria-hidden="true"
                 class="flex-none text-sm"
               />
               <span class="text-[10px] font-semibold tracking-widest text-ink/60 uppercase">{{ band.label }}</span>
@@ -551,7 +551,7 @@ const clipped = (bar: Bar) => ({ start: bar.start < from.value, end: bar.end > w
                     >
                       <Icon
                         v-if="clipped(bar).start"
-                        aria-hidden="true"
+                        :aria-hidden="true"
                         class="relative flex-none text-sm opacity-80"
                         name="material-symbols:chevron-left"
                       />
@@ -563,7 +563,7 @@ const clipped = (bar: Bar) => ({ start: bar.start < from.value, end: bar.end > w
                         tabindex="0"
                         @click.prevent.stop
                       >
-                        <Icon :class="compact ? 'text-[11px]' : 'text-[13px]'" aria-hidden="true" name="material-symbols:info-outline" />
+                        <Icon :class="compact ? 'text-[11px]' : 'text-[13px]'" :aria-hidden="true" name="material-symbols:info-outline" />
                         <v-tooltip
                           activator="parent"
                           location="top"
@@ -608,7 +608,7 @@ const clipped = (bar: Bar) => ({ start: bar.start < from.value, end: bar.end > w
                         <Icon
                           :class="compact ? 'text-[11px]' : 'text-[13px]'"
                           :style="{ color: toneColour(line.tone) }"
-                          aria-hidden="true"
+                          :aria-hidden="true"
                           name="material-symbols:info-outline"
                         />
                         <v-tooltip
@@ -655,7 +655,7 @@ const clipped = (bar: Bar) => ({ start: bar.start < from.value, end: bar.end > w
                             tabindex="0"
                             @click.prevent.stop
                           >
-                            <Icon :class="compact ? 'text-[11px]' : 'text-[13px]'" aria-hidden="true" name="material-symbols:info-outline" />
+                            <Icon :class="compact ? 'text-[11px]' : 'text-[13px]'" :aria-hidden="true" name="material-symbols:info-outline" />
                             <v-tooltip
                               activator="parent"
                               location="top"

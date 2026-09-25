@@ -140,7 +140,7 @@ const fillers = computed(() => {
           class="flex size-4 flex-none items-center justify-center rounded-full text-ink/40 transition-colors duration-150 hover:text-ink/80 focus-visible:text-ink/80 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary"
           type="button"
         >
-          <Icon aria-hidden="true" class="text-sm" name="material-symbols:info-outline" />
+          <Icon :aria-hidden="true" class="text-sm" name="material-symbols:info-outline" />
           <v-tooltip
             :text="fact.info"
             activator="parent"
@@ -166,7 +166,7 @@ const fillers = computed(() => {
         >
           <span class="truncate">{{ fact.value }}</span>
           <Icon
-            aria-hidden="true"
+            :aria-hidden="true"
             class="flex-none text-base text-ink/40"
             name="material-symbols:chevron-right"
           />

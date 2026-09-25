@@ -39,7 +39,7 @@ const tone = computed(() => (share.value >= 0.85 ? 'bg-warning' : 'bg-primary'))
         <template #activator="{ props: activator }">
           <Icon
             v-bind="activator"
-            aria-hidden="true"
+            :aria-hidden="true"
             class="text-sm text-ink/40"
             name="material-symbols:info-outline"
           />

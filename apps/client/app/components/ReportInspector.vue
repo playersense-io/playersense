@@ -325,16 +325,16 @@ const ids = { title: useId(), newColumn: useId(), limit: useId(), target: useId(
           </p>
           <ul class="m-0 flex list-none flex-col gap-1 p-0">
             <li class="flex items-center gap-2 text-xs text-ink/75">
-              <Icon aria-hidden="true" class="text-sm text-ink/45" name="material-symbols:play-arrow-outline" />
+              <Icon :aria-hidden="true" class="text-sm text-ink/45" name="material-symbols:play-arrow-outline" />
               When you run it
             </li>
             <li v-for="name in drives" :key="name" class="flex items-center gap-2 text-xs text-ink/75">
-              <Icon aria-hidden="true" class="text-sm text-ink/45" name="material-symbols:schedule-outline" />
+              <Icon :aria-hidden="true" class="text-sm text-ink/45" name="material-symbols:schedule-outline" />
               {{ name }}
             </li>
           </ul>
           <p v-if="!drives?.length" class="m-0 flex items-start gap-2 rounded-(--ps-radius-small) bg-ink/4 px-3 py-2.5 text-xs leading-5 text-ink/70">
-            <Icon aria-hidden="true" class="mt-0.5 flex-none text-base text-ink/45" name="material-symbols:schedule-outline" />
+            <Icon :aria-hidden="true" class="mt-0.5 flex-none text-base text-ink/45" name="material-symbols:schedule-outline" />
             To run it on its own, add a Schedule from the parts: it joins Start's top edge.
           </p>
         </div>
@@ -351,12 +351,12 @@ const ids = { title: useId(), newColumn: useId(), limit: useId(), target: useId(
           </p>
           <ul v-if="drives?.length" class="m-0 flex list-none flex-col gap-1 p-0">
             <li v-for="name in drives" :key="name" class="flex items-center gap-2 text-xs text-ink/75">
-              <Icon aria-hidden="true" class="text-sm text-ink/45" name="material-symbols:subdirectory-arrow-right" />
+              <Icon :aria-hidden="true" class="text-sm text-ink/45" name="material-symbols:subdirectory-arrow-right" />
               {{ name }}
             </li>
           </ul>
           <p v-else class="m-0 flex items-start gap-2 rounded-(--ps-radius-small) bg-ink/4 px-3 py-2.5 text-xs leading-5 text-ink/70">
-            <Icon aria-hidden="true" class="mt-0.5 flex-none text-base text-ink/45" name="material-symbols:bar-chart" />
+            <Icon :aria-hidden="true" class="mt-0.5 flex-none text-base text-ink/45" name="material-symbols:bar-chart" />
             Nothing yet. Every chart, table, export and notify leads here on its own.
           </p>
         </div>
@@ -445,12 +445,12 @@ const ids = { title: useId(), newColumn: useId(), limit: useId(), target: useId(
           </p>
           <ul v-if="drives?.length" class="m-0 flex list-none flex-col gap-1 p-0">
             <li v-for="name in drives" :key="name" class="flex items-center gap-2 text-xs text-ink/75">
-              <Icon aria-hidden="true" class="text-sm text-ink/45" name="material-symbols:subdirectory-arrow-right" />
+              <Icon :aria-hidden="true" class="text-sm text-ink/45" name="material-symbols:subdirectory-arrow-right" />
               {{ name }}
             </li>
           </ul>
           <p v-else class="m-0 flex items-start gap-2 rounded-(--ps-radius-small) bg-ink/4 px-3 py-2.5 text-xs leading-5 text-ink/70">
-            <Icon aria-hidden="true" class="mt-0.5 flex-none text-base text-ink/45" name="material-symbols:schedule-outline" />
+            <Icon :aria-hidden="true" class="mt-0.5 flex-none text-base text-ink/45" name="material-symbols:schedule-outline" />
             Not running anything. Drag from its bottom edge to the top of Start.
           </p>
         </div>
@@ -608,7 +608,7 @@ const ids = { title: useId(), newColumn: useId(), limit: useId(), target: useId(
             When it runs
           </p>
           <p class="m-0 flex items-start gap-2 rounded-(--ps-radius-small) bg-ink/4 px-3 py-2.5 text-xs leading-5 text-ink/70">
-            <Icon aria-hidden="true" class="mt-0.5 flex-none text-base text-ink/45" name="material-symbols:schedule-outline" />
+            <Icon :aria-hidden="true" class="mt-0.5 flex-none text-base text-ink/45" name="material-symbols:schedule-outline" />
             {{ timing ?? 'Only when you run it. Join a Schedule to Start to send it on its own.' }}
           </p>
           <v-btn
@@ -640,7 +640,7 @@ const ids = { title: useId(), newColumn: useId(), limit: useId(), target: useId(
               type="button"
               @click="chooseSource(key)"
             >
-              <Icon :name="SOURCES[key].icon" aria-hidden="true" class="flex-none text-base text-ink/60" />
+              <Icon :name="SOURCES[key].icon" :aria-hidden="true" class="flex-none text-base text-ink/60" />
               <span class="truncate text-xs text-ink">{{ SOURCES[key].label }}</span>
             </button>
           </div>
@@ -695,7 +695,7 @@ const ids = { title: useId(), newColumn: useId(), limit: useId(), target: useId(
           </div>
 
           <p v-if="!conditions.length" class="m-0 flex items-center gap-2 rounded-(--ps-radius-small) bg-ink/4 px-3 py-2.5 text-xs text-ink/70">
-            <Icon aria-hidden="true" class="text-base text-ink/45" name="material-symbols:filter-alt-outline" />
+            <Icon :aria-hidden="true" class="text-base text-ink/45" name="material-symbols:filter-alt-outline" />
             Every row. Add a condition to narrow it.
           </p>
 
@@ -794,7 +794,7 @@ const ids = { title: useId(), newColumn: useId(), limit: useId(), target: useId(
           />
         </div>
         <p class="m-0 flex items-start gap-2 rounded-(--ps-radius-small) bg-ink/4 px-3 py-2.5 text-xs leading-5 text-ink/70">
-          <Icon aria-hidden="true" class="mt-0.5 flex-none text-base text-ink/45" name="material-symbols:join-inner" />
+          <Icon :aria-hidden="true" class="mt-0.5 flex-none text-base text-ink/45" name="material-symbols:join-inner" />
           <span>
             {{ config.mode === 'left' ? 'Every row from the left input, with the right one\'s columns where the player matches, and empty where not.' : 'Only rows whose player is in both inputs.' }}
             Matched on Player; a column both sides have is kept from the left.
@@ -809,7 +809,7 @@ const ids = { title: useId(), newColumn: useId(), limit: useId(), target: useId(
             Group by
           </p>
           <p v-if="!by.length" class="m-0 flex items-center gap-2 rounded-(--ps-radius-small) bg-ink/4 px-3 py-2.5 text-xs text-ink/70">
-            <Icon aria-hidden="true" class="text-base text-ink/45" name="material-symbols:functions" />
+            <Icon :aria-hidden="true" class="text-base text-ink/45" name="material-symbols:functions" />
             Nothing: one row for everything.
           </p>
           <ol class="m-0 flex list-none flex-col gap-2 p-0">
@@ -1089,7 +1089,7 @@ const ids = { title: useId(), newColumn: useId(), limit: useId(), target: useId(
 
       <!-- Table. -->
       <p v-else-if="data.kind === 'table'" class="m-0 flex items-start gap-2 rounded-(--ps-radius-small) bg-ink/4 px-3 py-2.5 text-xs leading-5 text-ink/70">
-        <Icon aria-hidden="true" class="mt-0.5 flex-none text-base text-ink/45" name="material-symbols:table-outline" />
+        <Icon :aria-hidden="true" class="mt-0.5 flex-none text-base text-ink/45" name="material-symbols:table-outline" />
         Every column of its input, as a table. Put a Sort before it to choose the order and how many rows it keeps.
       </p>
 
@@ -1130,7 +1130,7 @@ const ids = { title: useId(), newColumn: useId(), limit: useId(), target: useId(
         <div class="flex flex-col gap-1.5">
           <span class="text-xs text-ink/60">When</span>
           <p class="m-0 flex items-start gap-2 rounded-(--ps-radius-small) bg-ink/4 px-3 py-2.5 text-xs leading-5 text-ink/70">
-            <Icon aria-hidden="true" class="mt-0.5 flex-none text-base text-ink/45" name="material-symbols:schedule-outline" />
+            <Icon :aria-hidden="true" class="mt-0.5 flex-none text-base text-ink/45" name="material-symbols:schedule-outline" />
             {{ timing ?? 'Only when you run it. Join a Schedule to Start to write it on its own.' }}
           </p>
         </div>
@@ -1157,7 +1157,7 @@ const ids = { title: useId(), newColumn: useId(), limit: useId(), target: useId(
         </p>
         <ul class="m-0 flex list-none flex-wrap gap-1 p-0">
           <li v-for="column in result.columns" :key="column.key" class="inline-flex items-center gap-1 rounded-(--ps-radius-x-small) bg-ink/5 px-1.5 py-0.5 font-mono text-[10px] text-ink/70">
-            <Icon :name="COLUMN_TYPE_ICONS[column.type]" aria-hidden="true" class="text-[11px] text-ink/45" />
+            <Icon :name="COLUMN_TYPE_ICONS[column.type]" :aria-hidden="true" class="text-[11px] text-ink/45" />
             {{ column.key }}
           </li>
         </ul>

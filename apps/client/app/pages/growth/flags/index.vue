@@ -341,7 +341,7 @@ function onCreated(key: string) {
                   </span>
                 </span>
                 <span v-if="rolloutWords(item)" class="flex items-center gap-1 text-[11px] text-ink/50">
-                  <Icon aria-hidden="true" class="text-xs" name="material-symbols:donut-large" />
+                  <Icon :aria-hidden="true" class="text-xs" name="material-symbols:donut-large" />
                   {{ rolloutWords(item) }}
                 </span>
               </span>

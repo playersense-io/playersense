@@ -158,7 +158,7 @@ onMounted(() => {
         >
           Sign in
           <template #append>
-            <Icon aria-hidden="true" class="text-base" name="material-symbols:arrow-forward" />
+            <Icon class="text-base" name="material-symbols:arrow-forward" />
           </template>
         </v-btn>
       </form>
@@ -236,7 +236,7 @@ onMounted(() => {
         >
           Email me a link
           <template #append>
-            <Icon aria-hidden="true" class="text-base" name="material-symbols:arrow-forward" />
+            <Icon class="text-base" name="material-symbols:arrow-forward" />
           </template>
         </v-btn>
       </form>

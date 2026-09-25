@@ -67,7 +67,7 @@ async function go() {
           </li>
         </ol>
         <p class="m-0 flex items-start gap-2 rounded-(--ps-radius-small) bg-ink/4 px-3 py-2.5 text-[11px] leading-4 text-ink/65">
-          <Icon aria-hidden="true" class="mt-px flex-none text-sm text-ink/45" name="material-symbols:shield-outline" />
+          <Icon :aria-hidden="true" class="mt-px flex-none text-sm text-ink/45" name="material-symbols:shield-outline" />
           The card is entered on Stripe's page and stays at Stripe. PlayerSense keeps its brand, last four digits and expiry, and nothing else.
         </p>
         <p v-if="problem" class="m-0 text-xs text-error">

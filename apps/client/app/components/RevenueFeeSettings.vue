@@ -70,7 +70,7 @@ const ratesWords = computed(() => {
     >
       <div v-if="settings" class="flex flex-col gap-4">
         <p class="m-0 flex items-start gap-2.5 rounded-(--ps-radius) bg-ink/4 px-3.5 py-3 text-xs leading-5 text-ink/75">
-          <Icon aria-hidden="true" class="mt-0.5 flex-none text-base text-primary" name="material-symbols:info-outline" />
+          <Icon :aria-hidden="true" class="mt-0.5 flex-none text-base text-primary" name="material-symbols:info-outline" />
           <span>{{ settings.note }}</span>
         </p>
 
@@ -114,7 +114,7 @@ const ratesWords = computed(() => {
         <div class="flex flex-wrap items-center justify-end gap-2 border-t border-line pt-4">
           <span class="mr-auto text-[11px] text-ink/50">{{ ratesWords }}</span>
           <span v-if="saved" class="flex items-center gap-1 text-xs text-success">
-            <Icon aria-hidden="true" class="text-sm" name="material-symbols:check" />
+            <Icon :aria-hidden="true" class="text-sm" name="material-symbols:check" />
             Saved
           </span>
           <span v-else-if="problem" class="text-xs text-error">{{ problem }}</span>

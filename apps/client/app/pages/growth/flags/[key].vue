@@ -407,7 +407,7 @@ const changeCount = computed(() => {
             type="button"
             @click="addRule"
           >
-            <Icon aria-hidden="true" class="text-xl text-ink/40" name="material-symbols:alt-route" />
+            <Icon :aria-hidden="true" class="text-xl text-ink/40" name="material-symbols:alt-route" />
             <span class="text-xs font-medium text-ink">No rules: everybody in the flag gets the fallback</span>
             <span class="text-[11px] text-ink/55">Add a rule to serve something else to a platform, a country, payers, a level range, a segment…</span>
           </button>
@@ -620,7 +620,7 @@ const changeCount = computed(() => {
           </header>
           <ul class="m-0 flex list-none flex-col gap-1.5 p-0">
             <li v-for="line in comparison" :key="line" class="flex items-start gap-2 text-xs text-ink/80">
-              <Icon aria-hidden="true" class="mt-0.5 flex-none text-sm text-warning" name="material-symbols:edit-outline" />
+              <Icon :aria-hidden="true" class="mt-0.5 flex-none text-sm text-warning" name="material-symbols:edit-outline" />
               {{ line }}
             </li>
           </ul>

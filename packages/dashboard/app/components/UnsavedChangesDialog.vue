@@ -81,7 +81,7 @@ function discard() {
           class="m-0 flex items-start gap-1.5 text-[11px] leading-4 text-ink/60"
         >
           <Icon
-            aria-hidden="true"
+            :aria-hidden="true"
             class="mt-px flex-none text-sm text-ink/45"
             name="material-symbols:info-outline"
           />

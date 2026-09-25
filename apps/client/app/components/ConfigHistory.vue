@@ -36,7 +36,7 @@ const ACTIONS: Record<AuditAction, { verb: string, icon: string, tone: string }>
         :class="ACTIONS[entry.action].tone"
         class="relative flex size-6 flex-none items-center justify-center rounded-full border border-line bg-surface"
       >
-        <Icon :name="ACTIONS[entry.action].icon" aria-hidden="true" class="text-sm" />
+        <Icon :name="ACTIONS[entry.action].icon" :aria-hidden="true" class="text-sm" />
       </span>
       <div class="flex min-w-0 flex-1 flex-col gap-1 pt-0.5">
         <p class="m-0 flex flex-wrap items-baseline gap-x-1.5 text-xs text-ink/70">

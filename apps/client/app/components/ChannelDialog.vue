@@ -254,7 +254,7 @@ const ids = { name: useId(), url: useId(), key: useId(), header: useId(), header
             <Icon
               :class="tested.ok ? 'text-success' : 'text-error'"
               :name="tested.ok ? 'material-symbols:check-circle-outline' : 'material-symbols:cancel-outline'"
-              aria-hidden="true"
+              :aria-hidden="true"
               class="mt-0.5 flex-none text-base"
             />
             <span class="flex flex-col gap-0.5">

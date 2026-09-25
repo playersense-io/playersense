@@ -119,7 +119,7 @@ function reset() {
               type="button"
               @click="move(column, -1)"
             >
-              <Icon aria-hidden="true" class="text-base" name="material-symbols:keyboard-arrow-up" />
+              <Icon :aria-hidden="true" class="text-base" name="material-symbols:keyboard-arrow-up" />
             </button>
             <button
               :aria-label="`Move ${column.title} down`"
@@ -128,7 +128,7 @@ function reset() {
               type="button"
               @click="move(column, 1)"
             >
-              <Icon aria-hidden="true" class="text-base" name="material-symbols:keyboard-arrow-down" />
+              <Icon :aria-hidden="true" class="text-base" name="material-symbols:keyboard-arrow-down" />
             </button>
           </span>
         </li>

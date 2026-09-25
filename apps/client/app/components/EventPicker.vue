@@ -46,7 +46,7 @@ function focusSearch() {
         type="button"
       >
         {{ event }}
-        <Icon aria-hidden="true" class="text-sm text-ink/45" name="material-symbols:unfold-more" />
+        <Icon :aria-hidden="true" class="text-sm text-ink/45" name="material-symbols:unfold-more" />
       </button>
     </template>
 

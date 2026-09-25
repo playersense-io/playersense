@@ -273,7 +273,7 @@ const STRIP: { key: string, icon: string, label: string, tone: string, value: (t
           <div class="flex w-11 flex-none items-end justify-center border-r border-line/60 pb-3">
             <span class="flex rotate-180 items-center gap-1.5 text-[10px] font-semibold tracking-widest text-ink/45 uppercase [writing-mode:vertical-rl]">
               A/B tests
-              <Icon aria-hidden="true" class="rotate-90 text-sm" name="material-symbols:science-outline" />
+              <Icon :aria-hidden="true" class="rotate-90 text-sm" name="material-symbols:science-outline" />
             </span>
           </div>
           <div class="relative flex-1">
@@ -320,7 +320,7 @@ const STRIP: { key: string, icon: string, label: string, tone: string, value: (t
                     >
                       <Icon
                         v-if="bar.clippedStart"
-                        aria-hidden="true"
+                        :aria-hidden="true"
                         class="flex-none text-sm opacity-80"
                         name="material-symbols:chevron-left"
                       />

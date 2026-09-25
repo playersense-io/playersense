@@ -57,7 +57,7 @@ function initial(name: string): string {
         {{ workspace.environment }}
       </span>
       <Icon
-        aria-hidden="true"
+        :aria-hidden="true"
         class="
           flex-none text-base text-ink/50 transition-colors
           group-hover:text-ink/80
@@ -98,12 +98,12 @@ function initial(name: string): string {
             </span>
           </template>
           <template v-if="candidate.id === project.id" #append>
-            <Icon aria-hidden="true" class="text-base text-ink/70" name="material-symbols:check" />
+            <Icon :aria-hidden="true" class="text-base text-ink/70" name="material-symbols:check" />
           </template>
         </v-list-item>
         <v-list-item title="New project" @click="creating = true">
           <template #prepend>
-            <Icon aria-hidden="true" class="text-ink/60" name="material-symbols:add" />
+            <Icon :aria-hidden="true" class="text-ink/60" name="material-symbols:add" />
           </template>
         </v-list-item>
         <v-divider class="my-1" />
@@ -118,7 +118,7 @@ function initial(name: string): string {
           @click="workspace.selectEnvironment(entry.kind)"
         >
           <template v-if="entry.kind === workspace.environment" #append>
-            <Icon aria-hidden="true" class="text-base text-ink/70" name="material-symbols:check" />
+            <Icon :aria-hidden="true" class="text-base text-ink/70" name="material-symbols:check" />
           </template>
         </v-list-item>
       </v-list>

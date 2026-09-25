@@ -60,7 +60,7 @@ const rollbackOpen = computed({
 
       <div class="flex items-center gap-2.5">
         <span class="flex size-8 flex-none items-center justify-center rounded-(--ps-radius) bg-ink/5 text-base text-ink/60">
-          <Icon :name="STEP_ICONS[stage.environment]" aria-hidden="true" />
+          <Icon :name="STEP_ICONS[stage.environment]" :aria-hidden="true" />
         </span>
         <span class="flex min-w-0 flex-col">
           <span class="text-sm font-medium text-ink">{{ ENVIRONMENT_LABELS[stage.environment] }}</span>
@@ -76,7 +76,7 @@ const rollbackOpen = computed({
           >
             <Icon
               :name="!stage.version ? 'material-symbols:info-outline' : stage.waiting ? 'material-symbols:schedule-outline' : 'material-symbols:check-circle-outline'"
-              aria-hidden="true"
+              :aria-hidden="true"
               class="flex-none text-sm"
             />
             <template v-if="!stage.version">Never published</template>

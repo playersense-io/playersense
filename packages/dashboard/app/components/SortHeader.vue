@@ -33,7 +33,7 @@ defineEmits<{ toggle: [] }>()
     <Icon
       :class="direction === null ? 'opacity-0 group-hover/sort:opacity-40' : 'text-ink opacity-100'"
       :name="direction === 'desc' ? 'material-symbols:arrow-downward' : 'material-symbols:arrow-upward'"
-      aria-hidden="true"
+      :aria-hidden="true"
       class="flex-none text-[13px] transition-opacity duration-150"
     />
   </button>

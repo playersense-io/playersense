@@ -101,7 +101,7 @@ const planWords = computed(() => {
       <Icon
         :class="returned === 'success' ? 'text-success' : 'text-ink/50'"
         :name="returned === 'success' ? 'material-symbols:check-circle-outline' : 'material-symbols:info-outline'"
-        aria-hidden="true"
+        :aria-hidden="true"
         class="mt-0.5 flex-none text-base"
       />
       <span class="flex-1">{{ returned === 'success' ? 'Back from Stripe. What you paid for shows here as soon as Stripe confirms it, usually within seconds.' : 'Back from Stripe. Nothing was paid or saved.' }}</span>
@@ -111,7 +111,7 @@ const planWords = computed(() => {
         type="button"
         @click="returned = null"
       >
-        <Icon aria-hidden="true" name="material-symbols:close" />
+        <Icon :aria-hidden="true" name="material-symbols:close" />
       </button>
     </p>
 
@@ -151,7 +151,7 @@ const planWords = computed(() => {
         </section>
 
         <p v-if="billing.state !== 'active'" class="m-0 flex items-start gap-2.5 rounded-(--ps-radius-large) bg-warning/8 px-4 py-3 text-xs leading-5 text-ink/80 ring-1 ring-warning/20 ring-inset">
-          <Icon aria-hidden="true" class="mt-0.5 flex-none text-base text-warning" name="material-symbols:warning-outline" />
+          <Icon :aria-hidden="true" class="mt-0.5 flex-none text-base text-warning" name="material-symbols:warning-outline" />
           {{ state.note }}
         </p>
 

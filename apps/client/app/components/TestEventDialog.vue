@@ -93,7 +93,7 @@ async function send() {
               <Icon
                 :class="answerOk(result) ? 'text-success' : 'text-error'"
                 :name="answerOk(result) ? 'material-symbols:check-circle-outline' : 'material-symbols:cancel-outline'"
-                aria-hidden="true"
+                :aria-hidden="true"
                 class="text-base"
               />
               {{ answerOk(result) ? 'Delivered' : 'Not delivered' }}:

@@ -75,7 +75,7 @@ const attrs = computed(() => {
   >
     <Icon
       v-if="loading"
-      aria-hidden="true"
+      :aria-hidden="true"
       class="animate-spin text-sm"
       name="material-symbols:progress-activity"
     />

@@ -158,7 +158,7 @@ async function resendSelected() {
     </TableToolbar>
 
     <p v-if="resent" class="m-0 flex items-center gap-2 border-b border-line bg-ink/2 px-4 py-2 text-xs text-ink/75">
-      <Icon aria-hidden="true" class="text-sm text-primary" name="material-symbols:send-outline" />
+      <Icon :aria-hidden="true" class="text-sm text-primary" name="material-symbols:send-outline" />
       Resent {{ resent.total }}: {{ resent.ok }} delivered{{ resent.total - resent.ok ? `, ${resent.total - resent.ok} not` : '' }}.{{ resent.refused ? ` ${resent.refused}` : '' }}
       <button class="ml-auto cursor-pointer text-ink/50 hover:text-ink" type="button" @click="resent = null">
         Dismiss

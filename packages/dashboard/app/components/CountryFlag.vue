@@ -76,13 +76,13 @@ const icon = computed(() => FLAGS[props.code.toLowerCase()])
     v-if="icon"
     :name="icon"
     :style="{ width: `${size}px`, height: `${size}px` }"
-    aria-hidden="true"
+    :aria-hidden="true"
     class="ps-country-flag"
   />
   <Icon
     v-else
     :style="{ width: `${size}px`, height: `${size}px` }"
-    aria-hidden="true"
+    :aria-hidden="true"
     class="ps-country-flag ps-country-flag--other"
     name="material-symbols:public"
   />

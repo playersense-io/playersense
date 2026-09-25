@@ -93,7 +93,7 @@ const canNest = computed(() => props.depth < 3)
     </div>
 
     <p v-if="root && !group.children.length" class="m-0 flex items-center gap-2 rounded-(--ps-radius-small) bg-ink/4 px-3 py-2.5 text-xs text-ink/70">
-      <Icon aria-hidden="true" class="text-base text-ink/45" name="material-symbols:groups-outline" />
+      <Icon :aria-hidden="true" class="text-base text-ink/45" name="material-symbols:groups-outline" />
       Everyone. Add a condition or a segment to narrow it.
     </p>
 
@@ -114,7 +114,7 @@ const canNest = computed(() => props.depth < 3)
 
         <div v-else-if="child.type === 'segment'" class="flex flex-wrap items-center gap-1.5">
           <span class="inline-flex h-(--ps-toolbar-height) items-center gap-1.5 px-1 text-[13px] text-ink/60">
-            <Icon aria-hidden="true" class="text-sm" name="material-symbols:group-outline" />
+            <Icon :aria-hidden="true" class="text-sm" name="material-symbols:group-outline" />
             Player
           </span>
           <v-select

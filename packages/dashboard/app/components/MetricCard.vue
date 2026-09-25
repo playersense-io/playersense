@@ -268,7 +268,7 @@ const chartLabel = computed(() => {
               :class="TREND_TONES[trend.tone]"
               class="inline-flex items-center gap-0.5 font-mono font-medium tabular-nums"
             >
-              <Icon :name="TREND_ICONS[trend.direction]" aria-hidden="true" class="text-sm" />
+              <Icon :name="TREND_ICONS[trend.direction]" :aria-hidden="true" class="text-sm" />
               {{ trend.text }}
             </span>
             <span class="text-ink/55">{{ compare }}</span>

@@ -34,7 +34,7 @@ const TONES = {
     <Icon
       v-if="icon"
       :name="icon"
-      aria-hidden="true"
+      :aria-hidden="true"
       class="mt-0.5 flex-none text-base text-ink/45"
     />
     <span

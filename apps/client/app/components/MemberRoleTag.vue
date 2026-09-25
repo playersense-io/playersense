@@ -53,13 +53,13 @@ function choose(next: string) {
         <Icon
           v-if="!locked"
           :class="open ? 'rotate-180 opacity-100' : 'opacity-50 group-hover:opacity-100'"
-          aria-hidden="true"
+          :aria-hidden="true"
           class="flex-none text-sm transition-[opacity,transform] duration-150"
           name="material-symbols:keyboard-arrow-down"
         />
         <Icon
           v-else
-          aria-hidden="true"
+          :aria-hidden="true"
           class="flex-none text-xs opacity-60"
           name="material-symbols:lock-outline"
         />
@@ -87,7 +87,7 @@ function choose(next: string) {
           {{ roleLook(entry).note }}
         </v-list-item-subtitle>
         <template v-if="entry.key === role" #append>
-          <Icon aria-hidden="true" class="text-base text-ink/70" name="material-symbols:check" />
+          <Icon :aria-hidden="true" class="text-base text-ink/70" name="material-symbols:check" />
         </template>
       </v-list-item>
     </v-list>

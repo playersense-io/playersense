@@ -217,7 +217,7 @@ const seatWords = computed(() => (limit.value.max
               size="small"
               variant="text"
             >
-              <Icon aria-hidden="true" class="text-lg" name="material-symbols:more-vert" />
+              <Icon :aria-hidden="true" class="text-lg" name="material-symbols:more-vert" />
               <v-menu activator="parent" location="bottom end" :offset="4">
                 <v-list min-width="200" nav>
                   <v-list-item prepend-icon="material-symbols:manage-accounts-outline" title="Edit access" @click="editing = item" />

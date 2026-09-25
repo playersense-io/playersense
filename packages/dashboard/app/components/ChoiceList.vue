@@ -85,7 +85,7 @@ function frame(value: string): string {
       <Icon
         v-if="option.icon"
         :name="option.icon"
-        aria-hidden="true"
+        :aria-hidden="true"
         class="mt-px flex-none text-sm text-ink/60"
       />
       <span class="flex min-w-0 flex-col gap-0.5">

@@ -62,7 +62,7 @@ const id = useId()
           type="button"
           @click="remove(tag)"
         >
-          <Icon aria-hidden="true" class="text-sm" name="material-symbols:close" />
+          <Icon :aria-hidden="true" class="text-sm" name="material-symbols:close" />
         </button>
       </span>
       <span v-if="!tags.length" class="text-xs text-ink/45">No tags yet.</span>
@@ -90,7 +90,7 @@ const id = useId()
         type="button"
         @click="add(tag)"
       >
-        <Icon aria-hidden="true" class="text-xs" name="material-symbols:add" />
+        <Icon :aria-hidden="true" class="text-xs" name="material-symbols:add" />
         {{ tag }}
       </button>
     </div>

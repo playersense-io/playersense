@@ -50,7 +50,7 @@ function list(names: string[]): string {
 
     <ul class="m-0 flex list-none flex-col gap-3 p-0">
       <li class="flex items-start gap-2.5 text-xs leading-5 text-ink/75">
-        <Icon aria-hidden="true" class="mt-0.5 flex-none text-base text-ink/45" name="material-symbols:deployed-code-outline" />
+        <Icon :aria-hidden="true" class="mt-0.5 flex-none text-base text-ink/45" name="material-symbols:deployed-code-outline" />
         <span v-if="servedIn.length">
           {{ list(servedIn.map(environment => ENVIRONMENT_LABELS[environment])) }} {{ servedIn.length === 1 ? 'serves' : 'serve' }} it now,
           and keep serving it until the next publish there. After that, devices use the value written in the game's code.
@@ -65,7 +65,7 @@ function list(names: string[]): string {
         <Icon
           :class="reads ? 'text-warning' : 'text-success'"
           :name="reads ? 'material-symbols:warning-outline' : 'material-symbols:check-circle-outline'"
-          aria-hidden="true"
+          :aria-hidden="true"
           class="mt-0.5 flex-none text-base"
         />
         <span v-if="reads">
@@ -76,7 +76,7 @@ function list(names: string[]): string {
       </li>
 
       <li class="flex items-start gap-2.5 text-xs leading-5 text-ink/75">
-        <Icon aria-hidden="true" class="mt-0.5 flex-none text-base text-ink/45" name="material-symbols:history" />
+        <Icon :aria-hidden="true" class="mt-0.5 flex-none text-base text-ink/45" name="material-symbols:history" />
         <span>
           Nothing is deleted. Its rules and history stay, it can be restored at any time, and its key
           <span class="font-mono text-ink">{{ flag.key }}</span> is never given to another flag.

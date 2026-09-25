@@ -252,7 +252,7 @@ const confirmResendFailed = () => attempt(async () => {
       {{ problem }}
     </p>
     <p v-else-if="notice" class="m-0 flex items-center gap-2 rounded-(--ps-radius) bg-ink/4 px-3.5 py-3 text-xs text-ink/75">
-      <Icon aria-hidden="true" class="flex-none text-sm text-primary" name="material-symbols:replay" />
+      <Icon :aria-hidden="true" class="flex-none text-sm text-primary" name="material-symbols:replay" />
       {{ notice }}
     </p>
 
@@ -279,7 +279,7 @@ const confirmResendFailed = () => attempt(async () => {
     </section>
 
     <section v-else-if="destination.status === 'disabled'" class="flex items-start gap-3 rounded-(--ps-radius-x-large) bg-ink/4 p-4 ring-1 ring-ink/8 ring-inset">
-      <Icon aria-hidden="true" class="mt-0.5 flex-none text-base text-ink/50" name="material-symbols:pause-circle-outline" />
+      <Icon :aria-hidden="true" class="mt-0.5 flex-none text-base text-ink/50" name="material-symbols:pause-circle-outline" />
       <p class="m-0 text-xs leading-5 text-ink/70">
         Disabled {{ destination.disabled_reason === 'failing' ? 'by PlayerSense after three days of nothing but failures' : 'by hand' }}{{ destination.disabled_at ? ` ${relativeWords(Date.parse(destination.disabled_at), time)}` : '' }}. Nothing is sent to it, and events that happen meanwhile are not kept for it: enabling it sends what happens from then on.
       </p>
@@ -374,7 +374,7 @@ const confirmResendFailed = () => attempt(async () => {
         </template>
         <section v-for="{ group, events } in listened" :key="group.key" class="border-t border-line first:border-t-0">
           <header class="flex items-center gap-2.5 bg-ink/2 px-5 py-2.5">
-            <Icon :name="group.icon" aria-hidden="true" class="text-base text-ink/55" />
+            <Icon :name="group.icon" :aria-hidden="true" class="text-base text-ink/55" />
             <h3 class="m-0 text-xs font-medium text-ink">
               {{ group.label }}
             </h3>

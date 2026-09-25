@@ -93,7 +93,7 @@ const stamp = (iso: string) => new Date(iso).toLocaleString('en', { month: 'shor
         <span v-else class="text-[11px] text-ink/50">Made {{ stamp(destination.secret.created_at) }}. Showing it is recorded in the audit log.</span>
 
         <p v-if="previousUntil" class="m-0 flex items-start gap-2 rounded-(--ps-radius) bg-primary/6 px-3 py-2.5 text-xs leading-5 text-ink/80 ring-1 ring-primary/15 ring-inset">
-          <Icon aria-hidden="true" class="mt-0.5 flex-none text-sm text-primary" name="material-symbols:sync" />
+          <Icon :aria-hidden="true" class="mt-0.5 flex-none text-sm text-primary" name="material-symbols:sync" />
           <span>
             The old secret signs too until {{ stamp(previousUntil) }}, {{ relativeWords(Date.parse(previousUntil), time) }}. Every delivery carries both signatures until then, so move your server to the new one at any point before.
           </span>

@@ -100,7 +100,7 @@ const addCard = () => store.addCardUrl()
             {{ problem }}.
           </p>
           <p v-else-if="enabled" class="m-0 flex items-start gap-2.5 rounded-(--ps-radius) bg-ink/4 px-3.5 py-3 text-xs leading-5 text-ink/75">
-            <Icon aria-hidden="true" class="mt-0.5 flex-none text-base text-primary" name="material-symbols:autorenew" />
+            <Icon :aria-hidden="true" class="mt-0.5 flex-none text-base text-primary" name="material-symbols:autorenew" />
             <span>
               When the balance falls under <span class="font-mono text-ink">{{ writeMicros(threshold) }}</span>,
               {{ cardName }} is charged <span class="font-mono text-ink">{{ writeMicros(amount) }}</span>.
@@ -111,7 +111,7 @@ const addCard = () => store.addCardUrl()
 
           <div class="flex items-center justify-end gap-2 border-t border-line pt-4">
             <span v-if="saved" class="mr-auto flex items-center gap-1 text-xs text-success">
-              <Icon aria-hidden="true" class="text-sm" name="material-symbols:check" />
+              <Icon :aria-hidden="true" class="text-sm" name="material-symbols:check" />
               Saved
             </span>
             <span v-else-if="failure" class="mr-auto text-xs text-error">{{ failure }}</span>
@@ -146,7 +146,7 @@ const addCard = () => store.addCardUrl()
             <template #actions>
               <button class="flex cursor-pointer items-center gap-1 text-xs text-ink/60 transition-colors hover:text-ink" type="button" @click="$emit('cards')">
                 <span class="font-mono">{{ cardName }}</span>
-                <Icon aria-hidden="true" class="text-sm" name="material-symbols:chevron-right" />
+                <Icon :aria-hidden="true" class="text-sm" name="material-symbols:chevron-right" />
               </button>
             </template>
           </SettingRow>
@@ -154,7 +154,7 @@ const addCard = () => store.addCardUrl()
           <SettingRow description="A declined charge turns nothing off. Stripe's reason is shown here, and the next check tries again." label="When a charge fails" />
         </div>
         <p v-if="auto.last_error" class="m-0 mt-4 flex items-start gap-2 rounded-(--ps-radius) bg-error/8 px-3.5 py-3 text-xs leading-5 text-ink/80 ring-1 ring-error/20 ring-inset">
-          <Icon aria-hidden="true" class="mt-0.5 flex-none text-base text-error" name="material-symbols:error-outline" />
+          <Icon :aria-hidden="true" class="mt-0.5 flex-none text-base text-error" name="material-symbols:error-outline" />
           The last charge failed: {{ auto.last_error }}
         </p>
       </SectionCard>

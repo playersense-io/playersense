@@ -110,13 +110,13 @@ function stateOf(step: Step): { label: string, tone: BadgeTone } {
       <div class="overflow-y-auto">
         <div class="flex flex-col gap-4 p-5">
           <p v-if="nothing" class="m-0 flex items-start gap-2 rounded-(--ps-radius-small) bg-ink/4 px-3 py-2.5 text-xs leading-5 text-ink/70">
-            <Icon aria-hidden="true" class="mt-0.5 flex-none text-base text-ink/45" name="material-symbols:info-outline" />
+            <Icon :aria-hidden="true" class="mt-0.5 flex-none text-base text-ink/45" name="material-symbols:info-outline" />
             Nothing to run: the report has no Notify or Export yet. Add one at its end.
           </p>
 
           <section v-for="step in steps" :key="step.node.id" class="flex flex-col overflow-hidden rounded-(--ps-radius-large) border border-line">
             <header class="flex items-center gap-2.5 border-b border-line bg-ink/2 px-4 py-2.5">
-              <Icon :name="KINDS[step.node.data.kind].icon" aria-hidden="true" class="flex-none text-base text-ink/55" />
+              <Icon :name="KINDS[step.node.data.kind].icon" :aria-hidden="true" class="flex-none text-base text-ink/55" />
               <span class="flex min-w-0 flex-1 flex-col">
                 <span class="truncate text-xs font-medium text-ink">{{ step.node.data.title }}</span>
                 <span class="truncate text-[11px] text-ink/50">{{ step.timing ?? 'Runs when you run it' }}</span>
@@ -126,20 +126,20 @@ function stateOf(step: Step): { label: string, tone: BadgeTone } {
 
             <div class="flex flex-col gap-3 p-4">
               <p v-if="step.result?.error" class="m-0 flex items-start gap-2 text-xs leading-5 text-ink/75">
-                <Icon aria-hidden="true" class="mt-0.5 flex-none text-sm text-warning" name="material-symbols:error-outline" />
+                <Icon :aria-hidden="true" class="mt-0.5 flex-none text-sm text-warning" name="material-symbols:error-outline" />
                 {{ step.result.error }}
               </p>
 
               <!-- An export: the file, and where. -->
               <template v-else-if="step.node.data.kind === 'export'">
                 <p class="m-0 flex items-start gap-2 text-xs leading-5 text-ink/75">
-                  <Icon aria-hidden="true" class="mt-0.5 flex-none text-sm text-ink/45" name="material-symbols:description-outline" />
+                  <Icon :aria-hidden="true" class="mt-0.5 flex-none text-sm text-ink/45" name="material-symbols:description-outline" />
                   <span>
                     <span class="font-mono text-ink">{{ fileOf(step) }}</span>, {{ rowsOf(step.result).toLocaleString('en') }} rows, to {{ destinationOf(step) }}.
                   </span>
                 </p>
                 <p v-if="answers[step.node.id]" class="m-0 flex items-center gap-2 text-[11px] text-success">
-                  <Icon aria-hidden="true" class="text-sm" name="material-symbols:check-circle-outline" />
+                  <Icon :aria-hidden="true" class="text-sm" name="material-symbols:check-circle-outline" />
                   {{ answers[step.node.id]!.detail }}.
                 </p>
               </template>
@@ -150,7 +150,7 @@ function stateOf(step: Step): { label: string, tone: BadgeTone } {
                   <Icon
                     :class="step.outcome.send ? 'text-success' : 'text-ink/45'"
                     :name="step.outcome.send ? 'material-symbols:check-circle-outline' : 'material-symbols:do-not-disturb-on-outline'"
-                    aria-hidden="true"
+                    :aria-hidden="true"
                     class="mt-0.5 flex-none text-sm"
                   />
                   <span><span class="text-ink/50">{{ notifyWhenWords(step.node.data.config, key => step.result?.columns.find(column => column.key === key)?.label ?? key ?? '') }}.</span> {{ step.outcome.reason }}</span>
@@ -174,7 +174,7 @@ function stateOf(step: Step): { label: string, tone: BadgeTone } {
                         v-if="answers[`${step.node.id}:${channel.id}`]"
                         :class="answers[`${step.node.id}:${channel.id}`]!.ok ? 'text-success' : 'text-error'"
                         :name="answers[`${step.node.id}:${channel.id}`]!.ok ? 'material-symbols:check-circle-outline' : 'material-symbols:cancel-outline'"
-                        aria-hidden="true"
+                        :aria-hidden="true"
                         class="text-sm"
                       />
                       <span v-else-if="statusOf(channel) === 'failing'" class="text-[10px] text-error">Failing</span>

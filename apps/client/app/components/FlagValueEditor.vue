@@ -171,7 +171,7 @@ const lines = computed(() => Math.min(14, Math.max(4, text.value.split('\n').len
       @update:model-value="onText($event)"
     />
     <span class="flex items-center gap-1.5 text-[11px]" :class="problem ? 'text-error' : 'text-ink/50'">
-      <Icon :name="problem ? 'material-symbols:error-outline' : 'material-symbols:check-circle-outline'" aria-hidden="true" class="text-sm" />
+      <Icon :name="problem ? 'material-symbols:error-outline' : 'material-symbols:check-circle-outline'" :aria-hidden="true" class="text-sm" />
       {{ problem || 'Valid JSON. PlayerSense passes it through untouched; the game parses it.' }}
     </span>
   </div>

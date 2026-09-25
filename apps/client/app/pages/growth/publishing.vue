@@ -291,7 +291,7 @@ const restoreWords = computed(() => {
                     <Icon
                       :class="CHANGE_LOOK[row.change].tone"
                       :name="CHANGE_LOOK[row.change].icon"
-                      aria-hidden="true"
+                      :aria-hidden="true"
                       class="mt-0.5 flex-none text-base"
                     />
                     <div class="flex min-w-0 flex-col gap-0.5">
@@ -312,11 +312,11 @@ const restoreWords = computed(() => {
                 </td>
                 <td v-for="environment in ENVIRONMENTS" :key="environment" class="px-3 py-3 text-center">
                   <span v-if="row.waiting.includes(environment)" class="inline-flex items-center gap-1 rounded-full bg-warning/12 px-2 py-0.5 text-[11px] text-warning">
-                    <Icon aria-hidden="true" class="text-xs" name="material-symbols:schedule-outline" />
+                    <Icon :aria-hidden="true" class="text-xs" name="material-symbols:schedule-outline" />
                     Waiting
                   </span>
                   <span v-else class="inline-flex items-center gap-1 text-[11px] text-success">
-                    <Icon aria-hidden="true" class="text-sm" name="material-symbols:check-circle-outline" />
+                    <Icon :aria-hidden="true" class="text-sm" name="material-symbols:check-circle-outline" />
                     Live
                   </span>
                 </td>
@@ -433,7 +433,7 @@ const restoreWords = computed(() => {
             </div>
           </dl>
           <p class="m-0 flex items-start gap-2 text-xs leading-5 text-ink/65">
-            <Icon aria-hidden="true" class="mt-0.5 flex-none text-sm text-ink/45" name="material-symbols:history" />
+            <Icon :aria-hidden="true" class="mt-0.5 flex-none text-sm text-ink/45" name="material-symbols:history" />
             <span v-if="check.needsPlayerFacts">
               Some rules read players' purchases or activity, so serving it costs a history lookup per request,
               cached for an hour per player.
@@ -445,7 +445,7 @@ const restoreWords = computed(() => {
             <ul class="m-0 flex list-none flex-col gap-1 p-0">
               <li v-for="entry in check.excluded" :key="`${entry.kind}:${entry.key}`" class="flex items-center justify-between gap-2 text-xs">
                 <span class="flex min-w-0 items-center gap-2">
-                  <Icon :name="entry.kind === 'flag' ? 'material-symbols:flag-outline' : 'material-symbols:group-outline'" aria-hidden="true" class="flex-none text-sm text-ink/40" />
+                  <Icon :name="entry.kind === 'flag' ? 'material-symbols:flag-outline' : 'material-symbols:group-outline'" :aria-hidden="true" class="flex-none text-sm text-ink/40" />
                   <span class="truncate font-mono text-ink/80">{{ entry.key }}</span>
                 </span>
                 <span class="flex-none text-[11px] text-ink/45">{{ entry.reason }}</span>

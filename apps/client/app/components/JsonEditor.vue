@@ -115,7 +115,7 @@ const height = computed(() => `${Math.max(props.minLines, lines.value.length) * 
       </div>
     </div>
     <span :class="problem ? 'text-error' : 'text-ink/50'" class="flex items-center gap-1.5 text-[11px]">
-      <Icon :name="problem ? 'material-symbols:error-outline' : 'material-symbols:check-circle-outline'" aria-hidden="true" class="text-sm" />
+      <Icon :name="problem ? 'material-symbols:error-outline' : 'material-symbols:check-circle-outline'" :aria-hidden="true" class="text-sm" />
       {{ problem || 'Valid JSON. PlayerSense passes it through untouched; the game parses it.' }}
     </span>
   </div>

@@ -100,7 +100,7 @@ const code = computed(() => (props.record ? JSON.stringify(props.record, null, 2
             <li v-for="(step, index) in steps" :key="index" class="relative flex gap-3 pb-4 last:pb-0">
               <span aria-hidden="true" class="absolute top-7 bottom-0 left-[13px] w-px bg-line [li:last-child>&]:hidden" />
               <span :class="step.tone" class="relative flex size-7 flex-none items-center justify-center rounded-full border border-line bg-surface">
-                <Icon :name="step.icon" aria-hidden="true" class="text-sm" />
+                <Icon :name="step.icon" :aria-hidden="true" class="text-sm" />
               </span>
               <div class="flex min-w-0 flex-1 flex-col gap-0.5 pt-1">
                 <span class="flex flex-wrap items-baseline justify-between gap-x-3">

@@ -77,7 +77,7 @@ const daysLeft = computed(() => (project.value?.deletion_at ? Math.max(0, Math.c
         </p>
 
         <p v-if="project.deletion_at" class="m-0 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-(--ps-radius-large) bg-error/6 px-4 py-3 text-xs leading-5 text-ink/80 ring-1 ring-error/20 ring-inset">
-          <Icon aria-hidden="true" class="flex-none text-base text-error" name="material-symbols:delete-outline" />
+          <Icon :aria-hidden="true" class="flex-none text-base text-error" name="material-symbols:delete-outline" />
           <span class="min-w-0 flex-1">
             This project is deleted on <span class="font-medium text-ink">{{ formatDate(project.deletion_at) }}</span>, in {{ daysLeft }} days. Events are still collected until then.
           </span>
@@ -120,7 +120,7 @@ const daysLeft = computed(() => (project.value?.deletion_at ? Math.max(0, Math.c
                 Save
               </v-btn>
               <span v-if="saved" class="mb-2 flex items-center gap-1 text-xs text-success">
-                <Icon aria-hidden="true" class="text-sm" name="material-symbols:check" />
+                <Icon :aria-hidden="true" class="text-sm" name="material-symbols:check" />
                 Saved
               </span>
               <span v-else-if="nameProblem" class="mb-2 text-xs text-error">{{ nameProblem }}</span>
@@ -134,7 +134,7 @@ const daysLeft = computed(() => (project.value?.deletion_at ? Math.max(0, Math.c
           <template #actions>
             <NuxtLink class="inline-flex items-center gap-0.5 text-xs text-ink/55 no-underline transition-colors hover:text-ink" to="/settings/api-keys">
               API keys
-              <Icon aria-hidden="true" class="text-sm" name="material-symbols:chevron-right" />
+              <Icon :aria-hidden="true" class="text-sm" name="material-symbols:chevron-right" />
             </NuxtLink>
           </template>
 
@@ -187,7 +187,7 @@ const daysLeft = computed(() => (project.value?.deletion_at ? Math.max(0, Math.c
                   {{ entry.label }}
                   <Icon
                     v-if="key === project.policy_tier"
-                    aria-hidden="true"
+                    :aria-hidden="true"
                     class="text-base text-primary"
                     name="material-symbols:check-circle"
                   />

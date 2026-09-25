@@ -90,7 +90,7 @@ function hrefOf(crumb: Crumb, index: number): string | undefined {
           <Icon
             v-if="crumb.icon"
             :name="crumb.icon"
-            aria-hidden="true"
+            :aria-hidden="true"
             class="flex-none text-[15px]"
           />
           <span class="truncate">{{ crumb.title }}</span>

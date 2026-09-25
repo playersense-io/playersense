@@ -21,7 +21,7 @@ const trend = computed(() => (props.previous === null ? null : trendOf(props.val
       :class="TREND_TONES[trend.tone]"
       class="inline-flex w-14 flex-none items-center justify-end gap-0.5 text-[11px]"
     >
-      <Icon :name="TREND_ICONS[trend.direction]" aria-hidden="true" class="text-xs" />
+      <Icon :name="TREND_ICONS[trend.direction]" :aria-hidden="true" class="text-xs" />
       {{ trend.text }}
     </span>
     <span v-else aria-hidden="true" class="inline-flex w-14 flex-none" />

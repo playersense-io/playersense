@@ -139,7 +139,7 @@ const matched = computed(() => {
               target="_blank"
               variant="text"
             >
-              <Icon aria-hidden="true" class="text-lg" name="material-symbols:download" />
+              <Icon :aria-hidden="true" class="text-lg" name="material-symbols:download" />
             </v-btn>
             <v-btn
               v-if="invoice.hosted_url"
@@ -151,7 +151,7 @@ const matched = computed(() => {
               target="_blank"
               variant="text"
             >
-              <Icon aria-hidden="true" class="text-lg" name="material-symbols:open-in-new" />
+              <Icon :aria-hidden="true" class="text-lg" name="material-symbols:open-in-new" />
             </v-btn>
           </span>
         </li>
@@ -210,7 +210,7 @@ const matched = computed(() => {
               target="_blank"
               variant="text"
             >
-              <Icon aria-hidden="true" class="text-lg" name="material-symbols:download" />
+              <Icon :aria-hidden="true" class="text-lg" name="material-symbols:download" />
               <v-tooltip activator="parent" location="top" text="PDF" />
             </v-btn>
             <v-btn
@@ -223,7 +223,7 @@ const matched = computed(() => {
               target="_blank"
               variant="text"
             >
-              <Icon aria-hidden="true" class="text-lg" name="material-symbols:open-in-new" />
+              <Icon :aria-hidden="true" class="text-lg" name="material-symbols:open-in-new" />
               <v-tooltip activator="parent" location="top" text="Open on Stripe" />
             </v-btn>
           </span>

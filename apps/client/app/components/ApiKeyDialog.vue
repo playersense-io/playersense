@@ -112,7 +112,7 @@ const ids = { name: useId() }
         <div class="overflow-y-auto">
           <form class="flex flex-col gap-5 p-5" @submit.prevent="submit">
             <p v-if="replaces && replaces.kind === 'project'" class="m-0 flex items-start gap-2 rounded-(--ps-radius) bg-warning/8 px-3 py-2.5 text-xs leading-5 text-ink/80 ring-1 ring-warning/20 ring-inset">
-              <Icon aria-hidden="true" class="mt-0.5 flex-none text-sm text-warning" name="material-symbols:warning-outline" />
+              <Icon :aria-hidden="true" class="mt-0.5 flex-none text-sm text-warning" name="material-symbols:warning-outline" />
               <span>Builds already out carry {{ replaces.name }}. Once it stops, they send no events and fetch no config until players update to a build with the new key.</span>
             </p>
             <div v-if="replaces" class="flex flex-col gap-1.5">
@@ -131,7 +131,7 @@ const ids = { name: useId() }
                 label="Kind"
               />
               <span :class="API_KEY_KINDS[chosenKind].secret ? 'text-ink/55' : 'text-warning'" class="flex items-start gap-1.5 text-[11px] leading-4">
-                <Icon :name="API_KEY_KINDS[chosenKind].secret ? 'material-symbols:lock-outline' : 'material-symbols:lock-open-outline'" aria-hidden="true" class="mt-px flex-none text-sm" />
+                <Icon :name="API_KEY_KINDS[chosenKind].secret ? 'material-symbols:lock-outline' : 'material-symbols:lock-open-outline'" :aria-hidden="true" class="mt-px flex-none text-sm" />
                 {{ API_KEY_KINDS[chosenKind].cannot }}
               </span>
             </div>
@@ -215,7 +215,7 @@ const ids = { name: useId() }
         <div class="overflow-y-auto">
           <div class="flex flex-col gap-4 p-5">
             <p class="m-0 flex items-start gap-2 rounded-(--ps-radius) bg-warning/8 px-3 py-2.5 text-xs leading-5 text-ink/80 ring-1 ring-warning/20 ring-inset">
-              <Icon aria-hidden="true" class="mt-0.5 flex-none text-sm text-warning" name="material-symbols:warning-outline" />
+              <Icon :aria-hidden="true" class="mt-0.5 flex-none text-sm text-warning" name="material-symbols:warning-outline" />
               <span>Copy it now. This is the only time it is shown: only a digest is kept, so nobody can show it again, us included. Lose it and you make a new one.</span>
             </p>
 

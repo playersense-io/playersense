@@ -51,7 +51,7 @@ function remove(property: string) {
       type="button"
       @click="remove(condition.property)"
     >
-      <Icon aria-hidden="true" class="text-sm" name="material-symbols:close" />
+      <Icon :aria-hidden="true" class="text-sm" name="material-symbols:close" />
     </button>
   </span>
 
@@ -68,7 +68,7 @@ function remove(property: string) {
         class="inline-flex h-6 items-center gap-0.5 rounded-(--ps-radius-x-small) px-1.5 text-[11px] text-ink/50 transition-colors duration-150 hover:bg-ink/5 hover:text-ink"
         type="button"
       >
-        <Icon aria-hidden="true" class="text-sm" name="material-symbols:add" />
+        <Icon :aria-hidden="true" class="text-sm" name="material-symbols:add" />
         where
       </button>
     </template>
@@ -80,7 +80,7 @@ function remove(property: string) {
           type="button"
           @click="picking = null"
         >
-          <Icon aria-hidden="true" class="text-sm" name="material-symbols:keyboard-arrow-left" />
+          <Icon :aria-hidden="true" class="text-sm" name="material-symbols:keyboard-arrow-left" />
           <span class="font-mono">{{ picking }}</span> =
         </button>
         <div class="max-h-64 overflow-y-auto p-1">

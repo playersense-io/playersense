@@ -33,7 +33,7 @@ defineEmits<{ confirm: [] }>()
     <header class="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-3 py-2">
       <div class="flex min-w-0 flex-col gap-0.5">
         <h2 class="m-0 flex items-center gap-2 text-sm font-medium text-ink">
-          <Icon aria-hidden="true" class="text-base text-error" name="material-symbols:warning-outline" />
+          <Icon :aria-hidden="true" class="text-base text-error" name="material-symbols:warning-outline" />
           {{ title }}
         </h2>
         <p v-if="description" class="m-0 text-xs text-ink/55">

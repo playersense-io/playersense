@@ -98,7 +98,7 @@ function move(event: KeyboardEvent, from: number) {
       <Icon
         v-if="option.icon"
         :name="option.icon"
-        aria-hidden="true"
+        :aria-hidden="true"
         class="text-base"
       />
       <span v-if="option.label">{{ option.label }}</span>

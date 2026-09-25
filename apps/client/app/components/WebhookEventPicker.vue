@@ -153,7 +153,7 @@ const BOX = {
                 <Icon v-if="everything || stateOf(all) === 'all'" class="text-[11px]" name="material-symbols:check" />
                 <Icon v-else-if="stateOf(all) === 'some'" class="text-[11px]" name="material-symbols:remove" />
               </span>
-              <Icon :name="group.icon" aria-hidden="true" class="flex-none text-base text-ink/55" />
+              <Icon :name="group.icon" :aria-hidden="true" class="flex-none text-base text-ink/55" />
               <span class="text-xs font-medium text-ink">{{ group.label }}</span>
             </button>
             <span class="min-w-0 flex-1 truncate text-[11px] text-ink/50">{{ group.note }}</span>

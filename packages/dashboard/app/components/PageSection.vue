@@ -54,7 +54,7 @@ const panelId = useId()
           <Icon
             v-if="foldable"
             :class="open ? 'rotate-180' : ''"
-            aria-hidden="true"
+            :aria-hidden="true"
             class="text-base text-ink/45 transition-transform duration-200 group-hover:text-ink"
             name="material-symbols:keyboard-arrow-down"
           />
@@ -83,7 +83,7 @@ const panelId = useId()
           class="inline-flex items-center gap-0.5 text-xs font-medium text-ink/55 no-underline transition-colors duration-150 hover:text-ink"
         >
           {{ action }}
-          <Icon aria-hidden="true" class="text-sm" name="material-symbols:chevron-right" />
+          <Icon :aria-hidden="true" class="text-sm" name="material-symbols:chevron-right" />
         </NuxtLink>
       </div>
     </div>

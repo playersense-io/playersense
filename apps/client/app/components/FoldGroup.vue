@@ -37,7 +37,7 @@ const panelId = useId()
       >{{ summary }}</span>
       <Icon
         :class="open ? 'rotate-180' : ''"
-        aria-hidden="true"
+        :aria-hidden="true"
         class="flex-none text-base text-ink/45 transition-transform duration-200 group-hover:text-ink"
         name="material-symbols:keyboard-arrow-down"
       />

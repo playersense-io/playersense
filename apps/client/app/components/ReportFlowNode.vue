@@ -189,7 +189,7 @@ const frameLine = computed(() => {
         </template>
         <template v-else-if="run?.state === 'failed' || run?.state === 'skipped'">
           <Icon
-            aria-hidden="true"
+            :aria-hidden="true"
             class="flex-none text-xs"
             :class="run.state === 'failed' ? 'text-error' : 'text-ink/40'"
             name="material-symbols:error-outline"
@@ -202,11 +202,11 @@ const frameLine = computed(() => {
           <span class="ml-auto flex-none font-mono text-ink/45">{{ took(run.ms ?? 0) }}</span>
         </template>
         <template v-else-if="result?.error">
-          <Icon aria-hidden="true" class="flex-none text-xs text-warning" name="material-symbols:error-outline" />
+          <Icon :aria-hidden="true" class="flex-none text-xs text-warning" name="material-symbols:error-outline" />
           <span class="truncate text-warning">{{ result.error }}</span>
         </template>
         <template v-else-if="data.kind === 'schedule'">
-          <Icon aria-hidden="true" class="flex-none text-xs text-ink/45" name="material-symbols:event-upcoming-outline" />
+          <Icon :aria-hidden="true" class="flex-none text-xs text-ink/45" name="material-symbols:event-upcoming-outline" />
           <span class="truncate text-ink/55">{{ timing ?? 'Not running' }}</span>
         </template>
         <template v-else-if="result">
@@ -220,7 +220,7 @@ const frameLine = computed(() => {
         <Icon
           :class="timing ? '' : 'text-ink/35'"
           :style="timing ? { color: toneColour(familyTone('trigger')) } : undefined"
-          aria-hidden="true"
+          :aria-hidden="true"
           class="flex-none text-xs"
           name="material-symbols:schedule-outline"
         />

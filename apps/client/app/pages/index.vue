@@ -395,7 +395,7 @@ const wallet = computed<Fact[]>(() => [
         No projects yet. Make one from the project menu, send events with its SDK key, and they show here.
       </p>
       <p v-else-if="withheld" class="m-0 flex items-start gap-2 rounded-(--ps-radius-large) bg-ink/4 px-4 py-3 text-xs leading-5 text-ink/70">
-        <Icon aria-hidden="true" class="mt-0.5 flex-none text-sm text-ink/45" name="material-symbols:visibility-off-outline" />
+        <Icon :aria-hidden="true" class="mt-0.5 flex-none text-sm text-ink/45" name="material-symbols:visibility-off-outline" />
         Days with fewer than {{ threshold }} players in a project are left out, so no one player can be picked out: {{ withheld }} {{ withheld === 1 ? 'day was' : 'days were' }} held back.
       </p>
 
@@ -511,7 +511,7 @@ const wallet = computed<Fact[]>(() => [
             to="/settings/billing"
           >
             Billing
-            <Icon aria-hidden="true" class="text-sm" name="material-symbols:chevron-right" />
+            <Icon :aria-hidden="true" class="text-sm" name="material-symbols:chevron-right" />
           </NuxtLink>
         </template>
 

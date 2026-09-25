@@ -103,7 +103,7 @@ function entered() {
   >
     <span class="truncate">{{ current?.label ?? placeholder }}</span>
     <Icon
-      aria-hidden="true"
+      :aria-hidden="true"
       class="flex-none text-base text-ink/50 transition-colors duration-150 group-hover:text-ink/80"
       name="material-symbols:unfold-more"
     />
@@ -181,7 +181,7 @@ function entered() {
               </span>
               <Icon
                 v-if="option.value === model"
-                aria-hidden="true"
+                :aria-hidden="true"
                 class="mt-0.5 flex-none text-base text-primary"
                 name="material-symbols:check"
               />

@@ -678,7 +678,7 @@ const ids = { name: useId(), description: useId() }
     <div class="flex min-w-0 flex-1 flex-col">
       <!-- The report: which one, and what can be done with it. -->
       <header class="flex h-12 flex-none items-center gap-3 border-b border-line bg-surface px-3">
-        <Icon aria-hidden="true" class="flex-none text-base text-ink/50" name="material-symbols:account-tree-outline" />
+        <Icon :aria-hidden="true" class="flex-none text-base text-ink/50" name="material-symbols:account-tree-outline" />
         <GhostSelect
           :model-value="reportId"
           :options="REPORT_OPTIONS"
@@ -692,7 +692,7 @@ const ids = { name: useId(), description: useId() }
 
         <span class="ml-auto flex items-center gap-1.5">
           <span v-if="problems.length" class="mr-1 hidden items-center gap-1 text-[11px] text-warning md:flex">
-            <Icon aria-hidden="true" class="text-sm" name="material-symbols:error-outline" />
+            <Icon :aria-hidden="true" class="text-sm" name="material-symbols:error-outline" />
             {{ problems.length }} to fix
           </span>
           <v-btn
@@ -797,7 +797,7 @@ const ids = { name: useId(), description: useId() }
           <Background :gap="18" :size="1.2" />
           <Controls :show-interactive="false" position="bottom-left">
             <ControlButton title="Tidy up" @click="tidy">
-              <Icon aria-hidden="true" name="material-symbols:auto-awesome-mosaic-outline" />
+              <Icon :aria-hidden="true" name="material-symbols:auto-awesome-mosaic-outline" />
             </ControlButton>
           </Controls>
 
@@ -865,7 +865,7 @@ const ids = { name: useId(), description: useId() }
           >
             <Icon
               :class="previewOpen ? '' : 'rotate-180'"
-              aria-hidden="true"
+              :aria-hidden="true"
               class="text-base text-ink/50 transition-transform"
               name="material-symbols:keyboard-arrow-down"
             />
@@ -968,7 +968,7 @@ const ids = { name: useId(), description: useId() }
             <ul v-if="outputs.length" class="m-0 flex list-none flex-col gap-1.5 p-0">
               <li v-for="node in outputs" :key="node.id">
                 <button class="flex w-full cursor-pointer items-start gap-2.5 rounded-(--ps-radius) border border-line px-2.5 py-2 text-left transition-colors duration-150 hover:bg-ink/3" type="button" @click="selectedId = node.id">
-                  <Icon :name="KINDS[node.data.kind].icon" aria-hidden="true" class="mt-0.5 flex-none text-base text-ink/55" />
+                  <Icon :name="KINDS[node.data.kind].icon" :aria-hidden="true" class="mt-0.5 flex-none text-base text-ink/55" />
                   <span class="flex min-w-0 flex-col">
                     <span class="truncate text-xs text-ink">{{ node.data.title }}</span>
                     <span class="truncate text-[11px] text-ink/50">{{ summaryOf(node.data, results.get(node.id)?.columns ?? []).join(' · ') }}</span>
@@ -977,7 +977,7 @@ const ids = { name: useId(), description: useId() }
               </li>
             </ul>
             <p v-else class="m-0 flex items-center gap-2 rounded-(--ps-radius-small) bg-ink/4 px-3 py-2.5 text-xs text-ink/70">
-              <Icon aria-hidden="true" class="text-base text-ink/45" name="material-symbols:bar-chart" />
+              <Icon :aria-hidden="true" class="text-base text-ink/45" name="material-symbols:bar-chart" />
               Nothing yet. End the report with a chart, a table or an export.
             </p>
           </div>
@@ -992,7 +992,7 @@ const ids = { name: useId(), description: useId() }
                 <button class="flex w-full cursor-pointer items-start gap-2.5 rounded-(--ps-radius) border border-line px-2.5 py-2 text-left transition-colors duration-150 hover:bg-ink/3" type="button" @click="selectedId = node.id">
                   <Icon
                     :style="{ color: toneColour(familyTone('trigger')) }"
-                    aria-hidden="true"
+                    :aria-hidden="true"
                     class="mt-0.5 flex-none text-base"
                     name="material-symbols:schedule-outline"
                   />
@@ -1004,7 +1004,7 @@ const ids = { name: useId(), description: useId() }
               </li>
             </ul>
             <p v-else class="m-0 flex items-start gap-2 rounded-(--ps-radius-small) bg-ink/4 px-3 py-2.5 text-xs leading-5 text-ink/70">
-              <Icon aria-hidden="true" class="mt-0.5 flex-none text-base text-ink/45" name="material-symbols:schedule-outline" />
+              <Icon :aria-hidden="true" class="mt-0.5 flex-none text-base text-ink/45" name="material-symbols:schedule-outline" />
               Runs only when you run it. Add a Schedule from the parts: it joins Start's top edge and runs the report on its own.
             </p>
           </div>
@@ -1032,7 +1032,7 @@ const ids = { name: useId(), description: useId() }
                   type="button"
                   @click="downloadFile(file)"
                 >
-                  <Icon aria-hidden="true" class="flex-none text-sm" name="material-symbols:download" />
+                  <Icon :aria-hidden="true" class="flex-none text-sm" name="material-symbols:download" />
                   <span class="truncate">{{ file.file_name }}, {{ file.rows.toLocaleString('en') }} rows</span>
                 </button>
               </li>
@@ -1052,7 +1052,7 @@ const ids = { name: useId(), description: useId() }
             <ul class="m-0 flex list-none flex-col gap-1 p-0">
               <li v-for="node in problems" :key="node.id">
                 <button class="flex w-full cursor-pointer items-start gap-2 text-left text-[11px] leading-4 text-ink/75 hover:text-ink" type="button" @click="selectedId = node.id">
-                  <Icon aria-hidden="true" class="mt-px flex-none text-sm text-warning" name="material-symbols:error-outline" />
+                  <Icon :aria-hidden="true" class="mt-px flex-none text-sm text-warning" name="material-symbols:error-outline" />
                   <span><span class="font-medium">{{ node.data.title }}:</span> {{ results.get(node.id)?.error }}</span>
                 </button>
               </li>

@@ -158,7 +158,7 @@ const disabled = computed(() => props.destination.status === 'disabled')
                   <Icon
                     :class="answerOk(entry) ? 'text-success' : 'text-error'"
                     :name="answerOk(entry) ? 'material-symbols:check-circle-outline' : 'material-symbols:cancel-outline'"
-                    aria-hidden="true"
+                    :aria-hidden="true"
                     class="text-base"
                   />
                   <span class="flex min-w-0 items-baseline gap-2">
@@ -170,7 +170,7 @@ const disabled = computed(() => props.destination.status === 'disabled')
                 </button>
               </li>
               <li v-if="shown.status === 'retrying' && shown.next" class="grid grid-cols-[1.5rem_minmax(0,1fr)_auto] items-center gap-3 bg-ink/2 px-3 py-2">
-                <Icon aria-hidden="true" class="text-base text-warning" name="material-symbols:schedule-outline" />
+                <Icon :aria-hidden="true" class="text-base text-warning" name="material-symbols:schedule-outline" />
                 <span class="text-[11px] text-ink/60">Try {{ shown.attempts + 1 }}, on the schedule</span>
                 <span class="w-32 text-right text-[11px] text-ink/55">{{ when(shown.next) }}</span>
               </li>

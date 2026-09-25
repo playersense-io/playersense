@@ -78,7 +78,7 @@ function add() {
           type="button"
           @click="move(index, -1)"
         >
-          <Icon aria-hidden="true" class="text-base" name="material-symbols:keyboard-arrow-up" />
+          <Icon :aria-hidden="true" class="text-base" name="material-symbols:keyboard-arrow-up" />
         </button>
         <button
           :aria-label="`Move step ${index + 1} down`"
@@ -87,7 +87,7 @@ function add() {
           type="button"
           @click="move(index, 1)"
         >
-          <Icon aria-hidden="true" class="text-base" name="material-symbols:keyboard-arrow-down" />
+          <Icon :aria-hidden="true" class="text-base" name="material-symbols:keyboard-arrow-down" />
         </button>
         <button
           :aria-label="`Remove step ${index + 1}`"
@@ -96,7 +96,7 @@ function add() {
           type="button"
           @click="remove(index)"
         >
-          <Icon aria-hidden="true" class="text-base" name="material-symbols:close" />
+          <Icon :aria-hidden="true" class="text-base" name="material-symbols:close" />
         </button>
       </span>
     </li>

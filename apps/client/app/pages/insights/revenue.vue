@@ -243,11 +243,11 @@ const workspace = useWorkspaceStore()
       </LayerCard>
       <template v-else-if="data">
         <p v-if="!money" class="m-0 flex items-start gap-2.5 rounded-(--ps-radius-large) bg-ink/4 px-4 py-3 text-xs leading-5 text-ink/75">
-          <Icon aria-hidden="true" class="mt-0.5 flex-none text-base text-ink/50" name="material-symbols:currency-exchange" />
+          <Icon :aria-hidden="true" class="mt-0.5 flex-none text-base text-ink/50" name="material-symbols:currency-exchange" />
           <span>No exchange rates on this deployment, so revenue is shown {{ currencyWords(data) }}, and net cannot be estimated.</span>
         </p>
         <p v-else-if="money.unconverted.length || !money.exact" class="m-0 flex items-start gap-2.5 rounded-(--ps-radius-large) bg-warning/8 px-4 py-3 text-xs leading-5 text-ink/80 ring-1 ring-warning/20 ring-inset">
-          <Icon aria-hidden="true" class="mt-0.5 flex-none text-base text-warning" name="material-symbols:currency-exchange" />
+          <Icon :aria-hidden="true" class="mt-0.5 flex-none text-base text-warning" name="material-symbols:currency-exchange" />
           <span>
             <template v-if="money.unconverted.length">{{ money.unconverted.join(', ') }} had no exchange rate and {{ money.unconverted.length === 1 ? 'is' : 'are' }} left out of every dollar figure. </template>
             <template v-if="!money.exact">Some days had no rates of their own and were converted at the nearest day's.</template>

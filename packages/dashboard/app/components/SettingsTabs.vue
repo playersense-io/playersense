@@ -49,7 +49,7 @@ const labelId = `${useId()}-rail`
         >
           <Icon
             :name="tab.icon"
-            aria-hidden="true"
+            :aria-hidden="true"
             class="flex-none text-lg text-ink/55 transition-colors group-hover:text-ink/80 lg:mt-px"
           />
           <span class="flex min-w-0 flex-col">

@@ -34,7 +34,7 @@ withDefaults(
     <Icon
       :class="tone === 'warning' ? 'text-warning' : 'text-ink/40'"
       :name="icon"
-      aria-hidden="true"
+      :aria-hidden="true"
       class="mt-0.5 flex-none text-sm"
     />
     <span><slot>{{ text }}</slot></span>

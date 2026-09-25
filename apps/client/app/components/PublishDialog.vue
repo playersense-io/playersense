@@ -125,7 +125,7 @@ const noteId = useId()
               <Icon
                 :class="change.change === 'removed' ? 'text-error' : change.change === 'added' ? 'text-success' : 'text-warning'"
                 :name="CHANGE_ICONS[change.change]"
-                aria-hidden="true"
+                :aria-hidden="true"
                 class="mt-0.5 flex-none text-sm"
               />
               <div class="flex min-w-0 flex-col gap-0.5">

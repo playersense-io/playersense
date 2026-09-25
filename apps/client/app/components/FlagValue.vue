@@ -24,7 +24,7 @@ const pretty = computed(() => (props.value !== null && typeof props.value === 'o
         v-bind="tip"
         class="inline-flex max-w-full items-center gap-1 rounded-(--ps-radius-x-small) bg-ink/5 px-1.5 font-mono text-[11px] leading-5 text-ink/80"
       >
-        <Icon aria-hidden="true" class="flex-none text-xs text-ink/45" name="material-symbols:data-object" />
+        <Icon :aria-hidden="true" class="flex-none text-xs text-ink/45" name="material-symbols:data-object" />
         <span class="truncate">{{ writeValue(value) }}</span>
       </span>
     </template>

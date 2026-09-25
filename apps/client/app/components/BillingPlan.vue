@@ -162,23 +162,23 @@ const portal = () => store.portalUrl()
 
           <ul class="m-0 flex flex-1 list-none flex-col gap-1.5 p-0 text-xs text-ink/75">
             <li class="flex items-center gap-2">
-              <Icon aria-hidden="true" class="flex-none text-sm text-success" name="material-symbols:check" />
+              <Icon :aria-hidden="true" class="flex-none text-sm text-success" name="material-symbols:check" />
               {{ writeFigure(entry.entitlements?.included_mau ?? 0, { compact: true }) }} tracked players a month
             </li>
             <li class="flex items-center gap-2">
-              <Icon aria-hidden="true" class="flex-none text-sm text-success" name="material-symbols:check" />
+              <Icon :aria-hidden="true" class="flex-none text-sm text-success" name="material-symbols:check" />
               {{ writeFigure(entry.entitlements?.included_events ?? 0, { compact: true }) }} events a month
             </li>
             <li class="flex items-center gap-2">
-              <Icon aria-hidden="true" class="flex-none text-sm text-success" name="material-symbols:check" />
+              <Icon :aria-hidden="true" class="flex-none text-sm text-success" name="material-symbols:check" />
               Raw events kept up to {{ entry.entitlements?.max_raw_retention_days ?? 30 }} days
             </li>
             <li class="flex items-center gap-2">
-              <Icon aria-hidden="true" class="flex-none text-sm text-success" name="material-symbols:check" />
+              <Icon :aria-hidden="true" class="flex-none text-sm text-success" name="material-symbols:check" />
               {{ entry.entitlements?.max_projects ?? 1 }} {{ (entry.entitlements?.max_projects ?? 1) === 1 ? 'project' : 'projects' }}
             </li>
             <li v-for="feature in entry.features" :key="feature" class="flex items-center gap-2">
-              <Icon aria-hidden="true" class="flex-none text-sm text-success" name="material-symbols:check" />
+              <Icon :aria-hidden="true" class="flex-none text-sm text-success" name="material-symbols:check" />
               {{ FEATURES[feature] ?? feature }}
             </li>
           </ul>

@@ -123,7 +123,7 @@ const versionId = useId()
               <Icon
                 :class="CHANGE_LOOK[change.change].tone"
                 :name="CHANGE_LOOK[change.change].icon"
-                aria-hidden="true"
+                :aria-hidden="true"
                 class="mt-0.5 flex-none text-sm"
               />
               <div class="flex min-w-0 flex-col gap-0.5">

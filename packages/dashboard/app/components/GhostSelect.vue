@@ -52,7 +52,7 @@ const open = ref(false)
       {{ options.find((option) => option.value === model)?.label ?? placeholder }}
     </span>
     <Icon
-      aria-hidden="true"
+      :aria-hidden="true"
       class="flex-none text-base text-ink/50 transition-colors duration-150 group-hover:text-ink/80"
       name="material-symbols:unfold-more"
     />
@@ -83,7 +83,7 @@ const open = ref(false)
             @click="model = option.value"
           >
             <template v-if="option.value === model" #append>
-              <Icon aria-hidden="true" class="text-base text-ink/70" name="material-symbols:check" />
+              <Icon :aria-hidden="true" class="text-base text-ink/70" name="material-symbols:check" />
             </template>
           </v-list-item>
         </template>

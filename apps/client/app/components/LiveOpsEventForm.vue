@@ -515,7 +515,7 @@ const SECTIONS = [
             type="button"
             @click="patchRepeat(preset.draft())"
           >
-            <Icon :name="preset.icon" aria-hidden="true" class="text-sm" />
+            <Icon :name="preset.icon" :aria-hidden="true" class="text-sm" />
             {{ preset.label }}
           </button>
         </div>
@@ -668,7 +668,7 @@ const SECTIONS = [
             <div class="flex min-w-0 items-start gap-2.5">
               <Icon
                 v-if="problem"
-                aria-hidden="true"
+                :aria-hidden="true"
                 class="mt-0.5 flex-none text-base text-error"
                 name="material-symbols:error-outline"
               />
@@ -694,7 +694,7 @@ const SECTIONS = [
               </span>
               <span class="flex min-w-0 flex-1 items-center gap-1.5 text-xs text-ink/80">
                 <span class="truncate">{{ windowEdges(window).start }}</span>
-                <Icon aria-hidden="true" class="flex-none text-sm text-ink/35" name="material-symbols:arrow-forward" />
+                <Icon :aria-hidden="true" class="flex-none text-sm text-ink/35" name="material-symbols:arrow-forward" />
                 <span class="truncate">{{ windowEdges(window).end }}</span>
               </span>
               <span class="flex-none font-mono text-[11px] text-ink/45">{{ relativeWords(window.start, Date.now()) }}</span>
@@ -903,13 +903,13 @@ const SECTIONS = [
           <ul v-if="missing.length" class="m-0 flex list-none flex-col gap-1.5 p-0">
             <li v-for="item in missing" :key="item.text">
               <button class="flex cursor-pointer items-start gap-2 text-left text-xs leading-4 text-ink/75 hover:text-ink" type="button" @click="jump(item.section)">
-                <Icon aria-hidden="true" class="mt-px flex-none text-sm text-warning" name="material-symbols:error-outline" />
+                <Icon :aria-hidden="true" class="mt-px flex-none text-sm text-warning" name="material-symbols:error-outline" />
                 {{ item.text }}
               </button>
             </li>
           </ul>
           <p v-else class="m-0 flex items-center gap-2 text-xs text-success">
-            <Icon aria-hidden="true" class="flex-none text-sm" name="material-symbols:check-circle-outline" />
+            <Icon :aria-hidden="true" class="flex-none text-sm" name="material-symbols:check-circle-outline" />
             Ready to save
           </p>
         </div>

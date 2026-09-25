@@ -218,11 +218,11 @@ async function download(request: PrivacyRequest) {
             </figure>
 
             <p v-if="lowering" class="m-0 flex items-start gap-2.5 rounded-(--ps-radius) bg-error/6 px-3.5 py-3 text-xs leading-5 text-ink/80 ring-1 ring-error/20 ring-inset">
-              <Icon aria-hidden="true" class="mt-0.5 flex-none text-base text-error" name="material-symbols:warning-outline" />
+              <Icon :aria-hidden="true" class="mt-0.5 flex-none text-base text-error" name="material-symbols:warning-outline" />
               Raw events older than {{ choice }} days are deleted within a day of saving. They cannot be brought back by raising the tier again.
             </p>
             <p v-else-if="changed" class="m-0 flex items-start gap-2.5 rounded-(--ps-radius) bg-ink/4 px-3.5 py-3 text-xs leading-5 text-ink/75">
-              <Icon aria-hidden="true" class="mt-0.5 flex-none text-base text-primary" name="material-symbols:info-outline" />
+              <Icon :aria-hidden="true" class="mt-0.5 flex-none text-base text-primary" name="material-symbols:info-outline" />
               Events are kept for {{ choice }} days from now on. What was already deleted under {{ project.retention_days }} days stays deleted, so the full {{ choice }} days fill in over time.
             </p>
 
@@ -233,7 +233,7 @@ async function download(request: PrivacyRequest) {
                 <span v-if="project.retention_purge_until && Date.parse(project.retention_purge_until) > Date.now()">Older events are being deleted until {{ formatDate(project.retention_purge_until) }}.</span>
               </span>
               <span v-if="saved" class="flex items-center gap-1 text-xs text-success">
-                <Icon aria-hidden="true" class="text-sm" name="material-symbols:check" />
+                <Icon :aria-hidden="true" class="text-sm" name="material-symbols:check" />
                 Saved
               </span>
               <v-btn
@@ -369,7 +369,7 @@ async function download(request: PrivacyRequest) {
                 variant="text"
                 @click="ask(item.kind, item.player_id)"
               >
-                <Icon aria-hidden="true" class="text-lg" name="material-symbols:refresh" />
+                <Icon :aria-hidden="true" class="text-lg" name="material-symbols:refresh" />
                 <v-tooltip activator="parent" location="top" text="Try again" />
               </v-btn>
               <v-btn
@@ -380,7 +380,7 @@ async function download(request: PrivacyRequest) {
                 variant="text"
                 @click="download(item)"
               >
-                <Icon aria-hidden="true" class="text-lg" name="material-symbols:download" />
+                <Icon :aria-hidden="true" class="text-lg" name="material-symbols:download" />
                 <v-tooltip activator="parent" location="top" text="Download, JSON" />
               </v-btn>
             </template>
@@ -445,7 +445,7 @@ async function download(request: PrivacyRequest) {
           </div>
 
           <p class="m-0 flex items-start gap-2 rounded-(--ps-radius-small) bg-ink/4 px-3 py-2.5 text-[11px] leading-4 text-ink/70">
-            <Icon aria-hidden="true" class="mt-px flex-none text-sm text-ink/45" name="material-symbols:info-outline" />
+            <Icon :aria-hidden="true" class="mt-px flex-none text-sm text-ink/45" name="material-symbols:info-outline" />
             <template v-if="kind === 'erase'">
               The player is hidden from every view at once. Their events, sessions and profile are deleted everywhere within 30 days, and cannot be restored. Counts they were part of stay.
             </template>

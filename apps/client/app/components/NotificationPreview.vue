@@ -89,7 +89,7 @@ const SEVERITY_TONE: Record<Severity, string> = {
       <span class="flex flex-wrap items-center gap-2">
         <span class="inline-flex h-7 items-center rounded-(--ps-radius-small) bg-primary px-3 text-[11px] font-medium text-white">Open the report</span>
         <span v-if="message.attachment" class="inline-flex h-7 items-center gap-1.5 rounded-(--ps-radius-small) border border-line px-2 text-[11px] text-ink/70">
-          <Icon aria-hidden="true" class="text-sm" name="material-symbols:attach-file" />
+          <Icon :aria-hidden="true" class="text-sm" name="material-symbols:attach-file" />
           {{ message.attachment.name }} · {{ message.attachment.rows.toLocaleString('en') }} rows
         </span>
       </span>
@@ -113,7 +113,7 @@ const SEVERITY_TONE: Record<Severity, string> = {
       <span class="flex flex-wrap items-center gap-2 pt-0.5">
         <span class="inline-flex h-7 items-center rounded-(--ps-radius-small) border border-line px-2.5 text-[11px] font-medium text-ink/80">Open the report</span>
         <span v-if="message.attachment && channel.type !== 'teams'" class="inline-flex h-7 items-center gap-1.5 rounded-(--ps-radius-small) border border-line px-2 text-[11px] text-ink/70">
-          <Icon aria-hidden="true" class="text-sm" name="material-symbols:attach-file" />
+          <Icon :aria-hidden="true" class="text-sm" name="material-symbols:attach-file" />
           {{ message.attachment.name }}
         </span>
       </span>

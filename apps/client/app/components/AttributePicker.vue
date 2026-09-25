@@ -79,7 +79,7 @@ function focusSearch() {
           <span class="min-w-0 truncate">{{ chosen.label }}</span>
         </template>
         <span v-else class="flex-1 text-left">Choose a key</span>
-        <Icon aria-hidden="true" class="ml-auto flex-none text-base text-ink/40" name="material-symbols:unfold-more" />
+        <Icon :aria-hidden="true" class="ml-auto flex-none text-base text-ink/40" name="material-symbols:unfold-more" />
       </button>
     </template>
 
@@ -106,7 +106,7 @@ function focusSearch() {
           type="button"
           @click="choose(customKey, true)"
         >
-          <Icon aria-hidden="true" class="text-base text-primary" name="material-symbols:add" />
+          <Icon :aria-hidden="true" class="text-base text-primary" name="material-symbols:add" />
           <span class="flex min-w-0 flex-col">
             <span class="text-xs text-ink">Use <span class="font-mono">{{ customKey }}</span></span>
             <span class="text-[11px] text-ink/55">A key the game sets with Context.Set</span>

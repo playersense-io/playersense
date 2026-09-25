@@ -425,7 +425,7 @@ const emptyStyle = computed(() => (visible.value > 0 ? { width: `${visible.value
             >
               <Icon
                 v-if="movable(column.key)"
-                aria-hidden="true"
+                :aria-hidden="true"
                 class="data-table__grip -ml-1 text-sm opacity-0 transition-opacity duration-150 group-hover:opacity-40"
                 name="material-symbols:drag-indicator"
               />
@@ -433,7 +433,7 @@ const emptyStyle = computed(() => (visible.value > 0 ? { width: `${visible.value
               <Icon
                 :class="ariaSort(column.key) === 'none' ? 'opacity-0 group-hover:opacity-40' : 'text-ink opacity-100'"
                 :name="ariaSort(column.key) === 'descending' ? 'material-symbols:arrow-downward' : 'material-symbols:arrow-upward'"
-                aria-hidden="true"
+                :aria-hidden="true"
                 class="text-[13px] transition-opacity duration-150"
               />
             </button>
@@ -441,7 +441,7 @@ const emptyStyle = computed(() => (visible.value > 0 ? { width: `${visible.value
             <span v-else class="inline-flex h-6 items-center gap-1">
               <Icon
                 v-if="movable(column.key)"
-                aria-hidden="true"
+                :aria-hidden="true"
                 class="data-table__grip -ml-1 text-sm opacity-0 transition-opacity duration-150 group-hover:opacity-40"
                 name="material-symbols:drag-indicator"
               />
@@ -525,7 +525,7 @@ const emptyStyle = computed(() => (visible.value > 0 ? { width: `${visible.value
         <div :style="emptyStyle" class="sticky left-0">
           <slot name="empty">
             <div class="flex flex-col items-center gap-1 px-4 py-14 text-center">
-              <Icon aria-hidden="true" class="mb-1 text-2xl text-ink/25" name="material-symbols:search-off" />
+              <Icon :aria-hidden="true" class="mb-1 text-2xl text-ink/25" name="material-symbols:search-off" />
               <p class="m-0 text-sm font-medium text-ink">
                 {{ emptyTitle }}
               </p>
@@ -568,7 +568,7 @@ const emptyStyle = computed(() => (visible.value > 0 ? { width: `${visible.value
                 >
                   <span class="font-mono tabular-nums text-ink">{{ itemsPerPage }}</span>
                   per page
-                  <Icon aria-hidden="true" class="text-sm" name="material-symbols:unfold-more" />
+                  <Icon :aria-hidden="true" class="text-sm" name="material-symbols:unfold-more" />
                 </button>
               </template>
               <v-list density="compact" min-width="132" nav>
@@ -590,7 +590,7 @@ const emptyStyle = computed(() => (visible.value > 0 ? { width: `${visible.value
                 type="button"
                 @click="page = page - 1"
               >
-                <Icon aria-hidden="true" class="text-base" name="material-symbols:chevron-left" />
+                <Icon :aria-hidden="true" class="text-base" name="material-symbols:chevron-left" />
               </button>
               <span class="px-1 font-mono text-xs tabular-nums text-ink/70">
                 {{ page }}<span class="text-ink/35"> / </span>{{ pageCount }}
@@ -602,7 +602,7 @@ const emptyStyle = computed(() => (visible.value > 0 ? { width: `${visible.value
                 type="button"
                 @click="page = page + 1"
               >
-                <Icon aria-hidden="true" class="text-base" name="material-symbols:chevron-right" />
+                <Icon :aria-hidden="true" class="text-base" name="material-symbols:chevron-right" />
               </button>
             </div>
           </div>

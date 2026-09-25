@@ -58,7 +58,7 @@ function named(name: string) {
           <span class="truncate">{{ name }}</span>
           <span v-if="dirty" aria-hidden="true" class="size-1.5 flex-none rounded-full bg-primary" />
           <Icon
-            aria-hidden="true"
+            :aria-hidden="true"
             class="flex-none text-base text-ink/50 transition-colors duration-150 group-hover:text-ink/80"
             name="material-symbols:unfold-more"
           />
@@ -90,7 +90,7 @@ function named(name: string) {
             type="button"
             @click="selected = kind.id"
           >
-            <Icon aria-hidden="true" class="mt-px text-base text-ink/60" name="material-symbols:add" />
+            <Icon :aria-hidden="true" class="mt-px text-base text-ink/60" name="material-symbols:add" />
             <span class="flex flex-col">
               <span class="text-xs text-ink">{{ kind.label }}</span>
               <span class="text-[11px] text-ink/50">{{ kind.note }}</span>

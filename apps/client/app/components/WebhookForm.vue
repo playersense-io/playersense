@@ -288,7 +288,7 @@ const SECTIONS = [
         </div>
         <CheckList v-model="environments" :options="ENVIRONMENT_CHOICES" label="Environments" />
         <p v-if="environments.includes('production') && environments.length > 1" class="m-0 flex items-start gap-2 rounded-(--ps-radius) bg-warning/8 px-3 py-2.5 text-xs leading-5 text-ink/80 ring-1 ring-warning/20 ring-inset">
-          <Icon aria-hidden="true" class="mt-0.5 flex-none text-sm text-warning" name="material-symbols:warning-outline" />
+          <Icon :aria-hidden="true" class="mt-0.5 flex-none text-sm text-warning" name="material-symbols:warning-outline" />
           Production and test builds to one URL: your server has to read project.environment on every event, or a sandbox purchase is granted like a real one.
         </p>
       </section>
@@ -450,13 +450,13 @@ const SECTIONS = [
           <ul v-if="missing.length" class="m-0 flex list-none flex-col gap-1.5 p-0">
             <li v-for="item in missing" :key="item.text">
               <button class="flex cursor-pointer items-start gap-2 text-left text-xs leading-4 text-ink/75 hover:text-ink" type="button" @click="jump(item.section)">
-                <Icon aria-hidden="true" class="mt-px flex-none text-sm text-warning" name="material-symbols:error-outline" />
+                <Icon :aria-hidden="true" class="mt-px flex-none text-sm text-warning" name="material-symbols:error-outline" />
                 {{ item.text }}
               </button>
             </li>
           </ul>
           <p v-else class="m-0 flex items-center gap-2 text-xs text-success">
-            <Icon aria-hidden="true" class="flex-none text-sm" name="material-symbols:check-circle-outline" />
+            <Icon :aria-hidden="true" class="flex-none text-sm" name="material-symbols:check-circle-outline" />
             Ready to {{ editing ? 'save' : 'add' }}
           </p>
           <p v-if="problem" class="m-0 mt-2 text-xs text-error">

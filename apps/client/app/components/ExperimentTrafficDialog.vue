@@ -54,7 +54,7 @@ function confirm() {
         </div>
 
         <p v-if="lowering" class="m-0 flex items-start gap-2 rounded-(--ps-radius) bg-warning/8 px-3 py-2.5 text-xs leading-5 text-ink/80 ring-1 ring-warning/20 ring-inset">
-          <Icon aria-hidden="true" class="mt-0.5 flex-none text-sm text-warning" name="material-symbols:warning-outline" />
+          <Icon :aria-hidden="true" class="mt-0.5 flex-none text-sm text-warning" name="material-symbols:warning-outline" />
           Lowering it takes players out of a test they are already in. Their results so far stay, but they will stop seeing their variant.
         </p>
         <p v-else class="m-0 text-[11px] leading-4 text-ink/55">
