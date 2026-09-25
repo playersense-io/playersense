@@ -54,3 +54,32 @@ func TestNormalizeLogs(t *testing.T) {
 		t.Fatal("a retried batch must derive the same ids")
 	}
 }
+
+func TestNormalizeLogsScrubsAndKeepsTheTrailOfAPlainError(t *testing.T) {
+	now := time.Date(2026, 9, 25, 12, 0, 0, 0, time.UTC)
+	batch := &protocol.LogBatch{
+		BatchID: "7d1c1d1e-3333-4333-8333-333333333333", InstallID: "7d1c1d1e-4444-4444-8444-444444444444",
+		Records: []protocol.LogRecord{{
+			Level: "error", Message: "Receipt refused for emma@example.com",
+			Attributes:  map[string]any{"path": "/Users/emma/save.dat"},
+			Breadcrumbs: []protocol.Breadcrumb{{At: now, Category: "log", Message: "token=abc123 sent", Level: "info"}},
+		}, {
+			Level: "info", Message: "plain line",
+			Breadcrumbs: []protocol.Breadcrumb{{At: now, Category: "log", Message: "ignored", Level: "info"}},
+		}},
+	}
+	out, err := NormalizeLogs(batch, &core.Tenant{}, "", now, DefaultLogLimits())
+	if err != nil {
+		t.Fatal(err)
+	}
+	failure, info := out.Batch.Records[0], out.Batch.Records[1]
+	if failure.Message != "Receipt refused for [email]" || failure.Attributes["path"] != "/Users/[user]/save.dat" {
+		t.Fatalf("not scrubbed: %q %q", failure.Message, failure.Attributes["path"])
+	}
+	if len(failure.Breadcrumbs) != 1 || failure.Breadcrumbs[0].Message != "token=[redacted] sent" {
+		t.Fatalf("an error lost or leaked its trail: %+v", failure.Breadcrumbs)
+	}
+	if len(info.Breadcrumbs) != 0 {
+		t.Fatalf("an info line kept a trail: %+v", info.Breadcrumbs)
+	}
+}

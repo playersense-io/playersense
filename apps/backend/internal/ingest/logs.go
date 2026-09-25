@@ -195,7 +195,7 @@ func normalizeRecord(in *protocol.LogRecord, batchID string, index int, now time
 		Severity:  severity,
 		Kind:      "log",
 		Logger:    clip(strings.TrimSpace(in.Logger), 128),
-		Message:   clip(in.Message, limits.MaxMessageBytes),
+		Message:   Scrub(clip(in.Message, limits.MaxMessageBytes)),
 		SessionID: clip(in.SessionID, 64),
 		PlayerID:  clip(strings.TrimSpace(in.PlayerID), 128),
 	}
@@ -203,7 +203,7 @@ func normalizeRecord(in *protocol.LogRecord, batchID string, index int, now time
 	if ex := in.Exception; ex != nil {
 		out.Kind = "exception"
 		out.ExceptionType = clip(strings.TrimSpace(ex.Type), 256)
-		out.ExceptionValue = clip(ex.Value, limits.MaxExceptionBytes)
+		out.ExceptionValue = Scrub(clip(ex.Value, limits.MaxExceptionBytes))
 		out.Handled = ex.Handled
 		frames := ex.Frames
 		// The innermost frames are the ones that say where it broke, so a stack too deep keeps
@@ -215,7 +215,7 @@ func normalizeRecord(in *protocol.LogRecord, batchID string, index int, now time
 		for i, f := range frames {
 			out.Frames[i] = protocol.StackFrame{
 				Function: clip(f.Function, 256), Module: clip(f.Module, 256),
-				File: clip(f.File, 256), Line: max(f.Line, 0), InApp: f.InApp,
+				File: Scrub(clip(f.File, 256)), Line: max(f.Line, 0), InApp: f.InApp,
 			}
 		}
 	}
@@ -226,7 +226,9 @@ func normalizeRecord(in *protocol.LogRecord, batchID string, index int, now time
 			out.Severity = "fatal"
 		}
 	}
-	if out.Kind != "log" && len(in.Breadcrumbs) > 0 {
+	// An error carries the trail that led to it whether or not it came with an exception: a
+	// Debug.LogError is often the only report a failure gets.
+	if (out.Kind != "log" || out.Severity == "error" || out.Severity == "fatal") && len(in.Breadcrumbs) > 0 {
 		crumbs := in.Breadcrumbs
 		if len(crumbs) > limits.MaxBreadcrumbs {
 			crumbs = crumbs[len(crumbs)-limits.MaxBreadcrumbs:]
@@ -235,7 +237,7 @@ func normalizeRecord(in *protocol.LogRecord, batchID string, index int, now time
 		for i, b := range crumbs {
 			out.Breadcrumbs[i] = protocol.Breadcrumb{
 				At: b.At.UTC(), Category: clip(b.Category, 64),
-				Message: clip(b.Message, 512), Level: clip(b.Level, 16),
+				Message: Scrub(clip(b.Message, 512)), Level: clip(b.Level, 16),
 			}
 		}
 	}
@@ -260,7 +262,7 @@ func normalizeRecord(in *protocol.LogRecord, batchID string, index int, now time
 		}
 		out.Attributes = make(map[string]string, len(keys))
 		for _, key := range keys {
-			out.Attributes[key] = clip(attributeText(in.Attributes[key]), limits.MaxAttributeValue)
+			out.Attributes[key] = Scrub(clip(attributeText(in.Attributes[key]), limits.MaxAttributeValue))
 		}
 	}
 

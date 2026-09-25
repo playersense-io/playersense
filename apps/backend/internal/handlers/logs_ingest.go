@@ -53,12 +53,14 @@ func AcceptLogs(ctx *muzak.Context, in schemas.IngestLogsIn) (protocol.LogsAccep
 	}
 
 	// §97 holds for diagnostics as for analytics: the consent the SDK already carries is the
-	// basis, and without it the batch is accepted and discarded rather than refused.
-	if !in.Consent.Analytics {
+	// basis, and without it the batch is accepted and discarded rather than refused. Either
+	// answer is a basis for error reports: the analytics one, or the player's separate "share
+	// error reports" answer (§15.9).
+	if !in.Consent.Analytics && !in.Consent.Diagnostics {
 		return protocol.LogsAccepted{
 			BatchID: in.BatchID,
 			Dropped: len(in.Records),
-			Reasons: []string{"analytics consent was not granted, so nothing was stored"},
+			Reasons: []string{"neither analytics nor error-report consent was granted, so nothing was stored"},
 		}, nil
 	}
 

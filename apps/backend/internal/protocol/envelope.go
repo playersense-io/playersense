@@ -100,7 +100,10 @@ type Device struct {
 // was collected under, and a withdrawal cannot be scoped to anything narrower than
 // everything.
 type Consent struct {
-	Analytics     bool      `json:"analytics" doc:"Whether the player agreed to analytics collection"`
+	Analytics bool `json:"analytics" doc:"Whether the player agreed to analytics collection"`
+	// Diagnostics is set on a log batch when the player agreed to share error reports on
+	// their own, apart from analytics (§15.9). It is the basis for that batch alone.
+	Diagnostics   bool      `json:"diagnostics,omitzero" doc:"Whether the player agreed to share error reports, apart from analytics"`
 	PolicyVersion string    `json:"policy_version" doc:"Which version of the terms they agreed to"`
 	ATTStatus     string    `json:"att_status,omitzero" doc:"authorized, denied, not_determined or restricted"`
 	GDPRApplies   bool      `json:"gdpr_applies,omitzero"`
