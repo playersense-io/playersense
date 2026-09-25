@@ -1,13 +1,10 @@
 // A project's API keys (project.md §52-53): what each kind of key may do and where it goes,
-// what a key looks like, and a studio's usual keys as sample data.
+// and what a key looks like.
 //
 // A key is one kind in one environment, never a set of scopes: what it may do is the single
 // most important thing about it. The public half, `ps_<kind>_<env>_<random>`, is kept in the
 // clear and says what the key is to anybody who reads it; the private half is kept only as a
 // digest, so a key is shown once, when it is made, and never again.
-//
-// The routes exist (POST, GET and DELETE /organizations/{org}/projects/{project}/keys); the
-// page keeps its keys in this browser until the dashboard is wired to them.
 
 export type ApiKeyKind = 'project' | 'server' | 'reporting'
 
@@ -65,34 +62,25 @@ export interface ApiKeyDef {
   last_used_at: string | null
   revoked_at: string | null
   revoked_by?: string
-  /** Requests it made in the last 24 hours, an hour at a time: a sample figure. */
+  /** Requests it made in the last 24 hours, an hour at a time, oldest first. */
   hourly: number[]
-  /** When it was rolled: a new key of the same kind and environment took its place, and it stopped working. */
+  /** When it was rolled: a new key of the same kind and environment took its place. */
   rolled_at?: string | null
   /** The key that took its place. */
   replaced_by?: string
+  /** When a rolled key stops working: it works on until then, so the new one can be deployed. */
+  expires_at?: string | null
 }
+
+/** Whether a key still opens anything: not revoked, and not past a roll's grace. */
+export const keyWorks = (key: ApiKeyDef, now = Date.now()) => !key.revoked_at
+  && !(key.rolled_at && (!key.expires_at || Date.parse(key.expires_at) <= now))
 
 /** The environment as the key writes it: production is `live`. */
 export const keyEnvironment = (environment: EnvironmentKind) => (environment === 'production' ? 'live' : environment)
 
 /** The part of the public half that is the same for every key of a kind and environment. */
 export const publicPrefix = (kind: ApiKeyKind, environment: EnvironmentKind) => `ps_${kind}_${keyEnvironment(environment)}_`
-
-const BASE32 = 'abcdefghijklmnopqrstuvwxyz234567'
-const BASE64URL = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_'
-
-function randomText(alphabet: string, length: number, random: () => number = Math.random): string {
-  let out = ''
-  for (let index = 0; index < length; index++) out += alphabet[Math.floor(random() * alphabet.length)]
-  return out
-}
-
-/** A new key, both halves, the way the server mints one: 48 public bits and 192 private. */
-export function mintKey(kind: ApiKeyKind, environment: EnvironmentKind) {
-  const publicId = `${publicPrefix(kind, environment)}${randomText(BASE32, 10)}`
-  return { publicId, secret: `${publicId}:${randomText(BASE64URL, 32)}` }
-}
 
 /** How long ago a key was last used before it is worth asking whether it is still needed. */
 export const STALE_AFTER_DAYS = 90
@@ -141,64 +129,4 @@ curl -X POST "$PLAYERSENSE_API/v1/purchases/verify" \\
 curl "$PLAYERSENSE_API/v1/reports/retention?from=2026-09-01&to=2026-09-24" \\
   -H "Authorization: Bearer $PLAYERSENSE_REPORTING_KEY"`
   }
-}
-
-// --- Sample keys ------------------------------------------------------------------------------
-
-function seeded(text: string): () => number {
-  let state = 0
-  for (const char of text) state = (Math.imul(state, 31) + char.charCodeAt(0)) >>> 0
-  return () => {
-    state = (state + 0x6D2B79F5) >>> 0
-    let t = state
-    t = Math.imul(t ^ (t >>> 15), t | 1)
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
-  }
-}
-
-const MINUTE_MS = 60_000
-const HOUR_MS = 3_600_000
-const DAY_MS = 86_400_000
-
-/** A day of requests an hour, around `rate`, busier in the evening. */
-export function sampleHourly(seed: string, rate: number): number[] {
-  const random = seeded(seed)
-  const hour = new Date().getHours()
-  return Array.from({ length: 24 }, (_, index) => {
-    const at = (hour - 23 + index + 24) % 24
-    const shape = 0.6 + 0.8 * Math.max(0, Math.sin(((at - 7) / 24) * Math.PI * 2) * 0.5 + 0.5)
-    return rate ? Math.round(rate * shape * (0.85 + random() * 0.3)) : 0
-  })
-}
-
-export function seedApiKeys(): ApiKeyDef[] {
-  const now = Date.now()
-  const ago = (ms: number) => new Date(now - ms).toISOString()
-  const key = (seed: string, kind: ApiKeyKind, environment: EnvironmentKind, rest: Omit<ApiKeyDef, 'id' | 'kind' | 'environment' | 'public_id' | 'hourly'> & { rate: number }): ApiKeyDef => {
-    const random = seeded(seed)
-    const { rate, ...fields } = rest
-    return {
-      id: `key_${randomText(BASE32, 12, random)}`,
-      kind,
-      environment,
-      public_id: `${publicPrefix(kind, environment)}${randomText(BASE32, 10, random)}`,
-      hourly: sampleHourly(seed, rate),
-      ...fields
-    }
-  }
-
-  const releaseV2 = key('sdk-live-2', 'project', 'production', { name: 'Release builds', created_at: ago(142 * DAY_MS), created_by: 'deniz@starfall.games', last_used_at: ago(4_000), revoked_at: null, rate: 184_000 })
-  return [
-    releaseV2,
-    key('sdk-staging', 'project', 'staging', { name: 'QA builds', created_at: ago(301 * DAY_MS), created_by: 'deniz@starfall.games', last_used_at: ago(3 * MINUTE_MS), revoked_at: null, rate: 2_400 }),
-    key('sdk-dev', 'project', 'development', { name: 'Editor and team devices', created_at: ago(301 * DAY_MS), created_by: 'deniz@starfall.games', last_used_at: ago(26 * MINUTE_MS), revoked_at: null, rate: 380 }),
-    key('server-live', 'server', 'production', { name: 'Game server', created_at: ago(214 * DAY_MS), created_by: 'deniz@starfall.games', last_used_at: ago(40_000), revoked_at: null, rate: 3_100 }),
-    key('server-staging', 'server', 'staging', { name: 'Staging server', created_at: ago(180 * DAY_MS), created_by: 'deniz@starfall.games', last_used_at: ago(2 * HOUR_MS), revoked_at: null, rate: 60 }),
-    key('server-exporter', 'server', 'production', { name: 'Nightly export job (old)', created_at: ago(260 * DAY_MS), created_by: 'lena@starfall.games', last_used_at: ago(118 * DAY_MS), revoked_at: null, rate: 0 }),
-    key('reporting-looker', 'reporting', 'production', { name: 'Looker dashboards', created_at: ago(96 * DAY_MS), created_by: 'lena@starfall.games', last_used_at: ago(52 * MINUTE_MS), revoked_at: null, rate: 44 }),
-    key('reporting-notebook', 'reporting', 'production', { name: 'Data team notebooks', created_at: ago(33 * DAY_MS), created_by: 'ada@starfall.games', last_used_at: null, revoked_at: null, rate: 0 }),
-    { ...key('sdk-live-1', 'project', 'production', { name: 'Release builds (1.x)', created_at: ago(310 * DAY_MS), created_by: 'deniz@starfall.games', last_used_at: ago(142 * DAY_MS), revoked_at: null, rate: 0 }), rolled_at: ago(142 * DAY_MS), replaced_by: releaseV2.id },
-    key('server-leaked', 'server', 'production', { name: 'Contractor sandbox', created_at: ago(200 * DAY_MS), created_by: 'deniz@starfall.games', last_used_at: ago(71 * DAY_MS), revoked_at: ago(70 * DAY_MS), revoked_by: 'deniz@starfall.games', rate: 0 })
-  ]
 }

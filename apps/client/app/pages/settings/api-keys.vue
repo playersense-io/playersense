@@ -6,17 +6,15 @@
 //
 // A key is shown once, when it is made (ApiKeyDialog). After that the list knows its public
 // half, which is safe to show and says what the key is, and never the key.
-const { project } = useWorkspace()
-const { keys, revoke } = useApiKeys()
+const { keys, loading, error, reload, revoke } = useApiKeys()
 
 const now = useNow({ interval: 60_000 })
 const time = computed(() => now.value.getTime())
 
 const DAY = 86_400_000
 
-/* Revoked and rolled keys work no more, and are not listed. A key saved before rolling had its
-   own date is rolled when something replaced it. */
-const active = computed(() => keys.value.filter(key => !key.revoked_at && !key.rolled_at && !key.replaced_by))
+/* Revoked keys, and rolled ones past their grace, work no more and are not listed. */
+const active = computed(() => keys.value.filter(key => keyWorks(key, time.value)))
 const countOf = (kind: ApiKeyKind) => active.value.filter(key => key.kind === kind).length
 const requestsOf = (key: ApiKeyDef) => key.hourly.reduce((sum, value) => sum + value, 0)
 
@@ -55,6 +53,10 @@ interface Finding {
 const findings = computed<Finding[]>(() => {
   const out: Finding[] = []
   for (const key of active.value) {
+    if (key.rolled_at && key.expires_at) {
+      out.push({ key, icon: 'material-symbols:autorenew', text: `${key.name} was rolled and stops working ${relativeWords(Date.parse(key.expires_at), time.value)}. Put its replacement everywhere it is used before then.` })
+      continue
+    }
     const age = time.value - Date.parse(key.created_at)
     if (!key.last_used_at && age > 14 * DAY) {
       out.push({ key, icon: 'material-symbols:schedule-outline', text: `${key.name} was made ${relativeWords(Date.parse(key.created_at), time.value)} and has never been used. A key nobody uses is only a key somebody can leak.` })
@@ -127,17 +129,22 @@ const revokeOpen = computed({
   }
 })
 
-function confirmRevoke() {
-  if (revoking.value) revoke(revoking.value.id)
+const problem = ref('')
+
+async function confirmRevoke() {
+  if (!revoking.value) return
+  problem.value = ''
+  try {
+    await revoke(revoking.value.id)
+  } catch (caught) {
+    problem.value = caught instanceof Error ? caught.message : String(caught)
+  }
 }
 </script>
 
 <template>
   <div class="flex flex-col gap-6">
-    <PageHeader title="API keys">
-      <template #description>
-        The keys your game and your servers reach <span class="font-medium text-ink">{{ project.name }}</span> with. Each is one kind in one environment, and is shown once, when it is made.
-      </template>
+    <PageHeader description="The keys your game and your servers reach PlayerSense with. Each is one kind in one environment, and is shown once, when it is made." title="API keys">
       <template #actions>
         <v-btn
           class="text-xs font-medium"
@@ -152,154 +159,169 @@ function confirmRevoke() {
       </template>
     </PageHeader>
 
-    <InfoNote text="Keys are sample data until this page is wired to the keys API, which exists: creating and revoking here work in this browser." />
+    <p v-if="problem" class="m-0 rounded-(--ps-radius) bg-error/6 px-3.5 py-3 text-xs text-error ring-1 ring-error/20 ring-inset">
+      {{ problem }}
+    </p>
 
-    <!-- The three kinds, and where each goes: picking the wrong one is the mistake that matters. -->
-    <ul class="m-0 grid list-none gap-3 p-0 md:grid-cols-3">
-      <li v-for="kind in API_KEY_KIND_ORDER" :key="kind" class="flex flex-col gap-3 rounded-(--ps-radius-large) border border-line bg-surface p-4">
-        <span class="flex items-center gap-2.5">
-          <span aria-hidden="true" class="flex size-8 flex-none items-center justify-center rounded-(--ps-radius) bg-primary/10 text-base text-primary">
-            <Icon :name="API_KEY_KINDS[kind].icon" />
-          </span>
-          <span class="flex min-w-0 flex-col">
-            <span class="text-sm font-medium text-ink">{{ API_KEY_KINDS[kind].label }}</span>
-            <span class="text-[11px] text-ink/50">{{ API_KEY_KINDS[kind].where }}</span>
-          </span>
-        </span>
-        <span class="flex flex-1 flex-col gap-1.5 text-xs leading-5">
-          <span class="text-ink/75">{{ API_KEY_KINDS[kind].can }}</span>
-          <span :class="API_KEY_KINDS[kind].secret ? 'text-ink/55' : 'text-warning'" class="flex items-start gap-1.5 text-[11px] leading-4">
-            <Icon :name="API_KEY_KINDS[kind].secret ? 'material-symbols:lock-outline' : 'material-symbols:lock-open-outline'" aria-hidden="true" class="mt-px flex-none text-sm" />
-            {{ API_KEY_KINDS[kind].cannot }}
-          </span>
-        </span>
-        <span class="flex items-center justify-between gap-2 border-t border-line/70 pt-3">
-          <span class="text-[11px] text-ink/55"><span class="font-mono text-ink">{{ countOf(kind) }}</span> active</span>
-          <v-btn
-            class="text-xs"
-            color="neutral"
-            prepend-icon="material-symbols:add"
-            size="small"
-            variant="text"
-            @click="openCreate(kind)"
-          >
-            Create
-          </v-btn>
-        </span>
-      </li>
-    </ul>
-
-    <!-- Keys that want a decision. -->
-    <SectionCard
-      v-if="findings.length"
-      :padded="false"
-      description="Keys that work and may not need to. Every working key is one that can leak."
-      title="Worth a look"
+    <LoadState
+      :error="error"
+      :loading="loading"
+      what="the keys"
+      @retry="reload"
     >
-      <ul class="m-0 flex list-none flex-col p-0">
-        <li v-for="finding in findings" :key="finding.key.id" class="flex flex-wrap items-center gap-3 border-t border-line/70 px-5 py-3 first:border-t-0">
-          <Icon :name="finding.icon" aria-hidden="true" class="flex-none text-base text-warning" />
-          <span class="flex min-w-0 flex-1 basis-72 flex-col gap-0.5">
-            <span class="text-xs leading-5 text-ink/80">{{ finding.text }}</span>
-            <span class="font-mono text-[11px] text-ink/45">{{ finding.key.public_id }}</span>
-          </span>
-          <v-btn
-            class="flex-none text-xs"
-            color="error"
-            size="small"
-            variant="outlined"
-            @click="revoking = finding.key"
-          >
-            Revoke
-          </v-btn>
-        </li>
-      </ul>
-    </SectionCard>
-
-    <SectionCard :padded="false" description="Every key, with where it is used and when it last was. Only the public half is kept in view; the key itself was shown once." title="Keys">
-      <TableToolbar :filters="activeFilters" @clear="clearFilters" @remove="removeFilter">
-        <SegmentedControl v-model="kindFilter" :options="KIND_FILTERS" label="Kind" />
-        <SearchField
-          v-model="query"
-          class="w-52"
-          label="Search keys"
-          placeholder="Name or public id"
-        />
-        <FilterMenu v-model="filters" :groups="FILTER_GROUPS" />
-      </TableToolbar>
-
-      <DataTable
-        v-model:column-state="columns"
-        v-model:sort-by="sortBy"
-        :columns="COLUMNS"
-        :items="shown"
-        empty-description="No key matches these filters."
-        empty-title="No keys match."
-        item-value="id"
-        label="API keys"
-      >
-        <template #cell.name="{ item }">
-          <span class="flex min-w-0 items-center gap-3 py-1.5">
-            <span aria-hidden="true" class="flex size-8 flex-none items-center justify-center rounded-(--ps-radius) bg-ink/5 text-base text-ink/60">
-              <Icon :name="API_KEY_KINDS[item.kind].icon" />
+      <!-- The three kinds, and where each goes: picking the wrong one is the mistake that matters. -->
+      <ul class="m-0 grid list-none gap-3 p-0 md:grid-cols-3">
+        <li v-for="kind in API_KEY_KIND_ORDER" :key="kind" class="flex flex-col gap-3 rounded-(--ps-radius-large) border border-line bg-surface p-4">
+          <span class="flex items-center gap-2.5">
+            <span aria-hidden="true" class="flex size-8 flex-none items-center justify-center rounded-(--ps-radius) bg-primary/10 text-base text-primary">
+              <Icon :name="API_KEY_KINDS[kind].icon" />
             </span>
             <span class="flex min-w-0 flex-col">
-              <span class="flex items-center gap-2">
-                <span class="truncate text-[13px] text-ink">{{ item.name }}</span>
-              </span>
-              <span class="flex items-center gap-1">
-                <span class="truncate font-mono text-[11px] text-ink/45">{{ item.public_id }}</span>
-                <CopyButton :value="item.public_id" label="Copy the public id" />
-              </span>
+              <span class="text-sm font-medium text-ink">{{ API_KEY_KINDS[kind].label }}</span>
+              <span class="text-[11px] text-ink/50">{{ API_KEY_KINDS[kind].where }}</span>
             </span>
           </span>
-        </template>
-        <template #cell.kind="{ item }">
-          <span class="text-xs text-ink/70">{{ API_KEY_KINDS[item.kind].label }}</span>
-        </template>
-        <template #cell.environment="{ item }">
-          <span :class="item.environment === 'production' ? 'bg-primary/10 text-primary' : 'bg-ink/5 text-ink/65'" class="rounded-full px-1.5 py-px text-[11px]">{{ ENVIRONMENT_LABELS[item.environment] }}</span>
-        </template>
-        <template #cell.used="{ item }">
-          <span v-if="item.last_used_at" class="flex items-center gap-1.5 text-xs whitespace-nowrap text-ink/65">
-            <span :class="time - Date.parse(item.last_used_at) < DAY ? 'bg-success' : time - Date.parse(item.last_used_at) > STALE_AFTER_DAYS * DAY ? 'bg-warning' : 'bg-ink/30'" aria-hidden="true" class="size-1.5 flex-none rounded-full" />
-            {{ relativeWords(Date.parse(item.last_used_at), time) }}
+          <span class="flex flex-1 flex-col gap-1.5 text-xs leading-5">
+            <span class="text-ink/75">{{ API_KEY_KINDS[kind].can }}</span>
+            <span :class="API_KEY_KINDS[kind].secret ? 'text-ink/55' : 'text-warning'" class="flex items-start gap-1.5 text-[11px] leading-4">
+              <Icon :name="API_KEY_KINDS[kind].secret ? 'material-symbols:lock-outline' : 'material-symbols:lock-open-outline'" aria-hidden="true" class="mt-px flex-none text-sm" />
+              {{ API_KEY_KINDS[kind].cannot }}
+            </span>
           </span>
-          <span v-else class="text-[11px] text-ink/40">Never</span>
-        </template>
-        <template #cell.requests="{ item }">
-          <span v-if="requestsOf(item)" :title="`${writeFigure(requestsOf(item))} requests`" class="font-mono text-xs text-ink/75">{{ writeFigure(requestsOf(item), { compact: true }) }}</span>
-          <span v-else class="font-mono text-xs text-ink/35">0</span>
-        </template>
-        <template #cell.created="{ item }">
-          <span class="flex flex-col">
-            <span class="text-xs whitespace-nowrap text-ink/65">{{ stamp(item.created_at) }}</span>
-            <span class="truncate text-[11px] text-ink/40">{{ item.created_by }}</span>
+          <span class="flex items-center justify-between gap-2 border-t border-line/70 pt-3">
+            <span class="text-[11px] text-ink/55"><span class="font-mono text-ink">{{ countOf(kind) }}</span> active</span>
+            <v-btn
+              class="text-xs"
+              color="neutral"
+              prepend-icon="material-symbols:add"
+              size="small"
+              variant="text"
+              @click="openCreate(kind)"
+            >
+              Create
+            </v-btn>
           </span>
-        </template>
-        <template #actions="{ item }">
-          <v-btn
-            :aria-label="`Actions for ${item.name}`"
-            icon
-            size="small"
-            variant="text"
-          >
-            <Icon aria-hidden="true" class="text-lg" name="material-symbols:more-vert" />
-            <v-menu activator="parent" location="bottom end" :offset="4">
-              <v-list min-width="200" nav>
-                <v-list-item prepend-icon="material-symbols:autorenew" title="Roll key" @click="openRoll(item)" />
-                <v-list-item
-                  base-color="error"
-                  prepend-icon="material-symbols:block"
-                  title="Revoke"
-                  @click="revoking = item"
-                />
-              </v-list>
-            </v-menu>
-          </v-btn>
-        </template>
-      </DataTable>
-    </SectionCard>
+        </li>
+      </ul>
+
+      <!-- Keys that want a decision. -->
+      <SectionCard
+        v-if="findings.length"
+        :padded="false"
+        description="Keys that work and may not need to. Every working key is one that can leak."
+        title="Worth a look"
+      >
+        <ul class="m-0 flex list-none flex-col p-0">
+          <li v-for="finding in findings" :key="finding.key.id" class="flex flex-wrap items-center gap-3 border-t border-line/70 px-5 py-3 first:border-t-0">
+            <Icon :name="finding.icon" aria-hidden="true" class="flex-none text-base text-warning" />
+            <span class="flex min-w-0 flex-1 basis-72 flex-col gap-0.5">
+              <span class="text-xs leading-5 text-ink/80">{{ finding.text }}</span>
+              <span class="font-mono text-[11px] text-ink/45">{{ finding.key.public_id }}</span>
+            </span>
+            <v-btn
+              class="flex-none text-xs"
+              color="error"
+              size="small"
+              variant="outlined"
+              @click="revoking = finding.key"
+            >
+              Revoke
+            </v-btn>
+          </li>
+        </ul>
+      </SectionCard>
+
+      <SectionCard :padded="false" description="Every key, with where it is used and when it last was. Only the public half is kept in view; the key itself was shown once." title="Keys">
+        <TableToolbar :filters="activeFilters" @clear="clearFilters" @remove="removeFilter">
+          <SegmentedControl v-model="kindFilter" :options="KIND_FILTERS" label="Kind" />
+          <SearchField
+            v-model="query"
+            class="w-52"
+            label="Search keys"
+            placeholder="Name or public id"
+          />
+          <FilterMenu v-model="filters" :groups="FILTER_GROUPS" />
+        </TableToolbar>
+
+        <DataTable
+          v-model:column-state="columns"
+          v-model:sort-by="sortBy"
+          :columns="COLUMNS"
+          :items="shown"
+          empty-description="No key matches these filters."
+          empty-title="No keys match."
+          item-value="id"
+          label="API keys"
+        >
+          <template #cell.name="{ item }">
+            <span class="flex min-w-0 items-center gap-3 py-1.5">
+              <span aria-hidden="true" class="flex size-8 flex-none items-center justify-center rounded-(--ps-radius) bg-ink/5 text-base text-ink/60">
+                <Icon :name="API_KEY_KINDS[item.kind].icon" />
+              </span>
+              <span class="flex min-w-0 flex-col">
+                <span class="flex items-center gap-2">
+                  <span class="truncate text-[13px] text-ink">{{ item.name }}</span>
+                  <span v-if="item.rolled_at && item.expires_at" class="flex-none rounded-full bg-warning/12 px-1.5 text-[10px] leading-4 text-warning">Stops {{ stamp(item.expires_at) }}</span>
+                </span>
+                <span class="flex items-center gap-1">
+                  <span class="truncate font-mono text-[11px] text-ink/45">{{ item.public_id }}</span>
+                  <CopyButton :value="item.public_id" label="Copy the public id" />
+                </span>
+              </span>
+            </span>
+          </template>
+          <template #cell.kind="{ item }">
+            <span class="text-xs text-ink/70">{{ API_KEY_KINDS[item.kind].label }}</span>
+          </template>
+          <template #cell.environment="{ item }">
+            <span :class="item.environment === 'production' ? 'bg-primary/10 text-primary' : 'bg-ink/5 text-ink/65'" class="rounded-full px-1.5 py-px text-[11px]">{{ ENVIRONMENT_LABELS[item.environment] }}</span>
+          </template>
+          <template #cell.used="{ item }">
+            <span v-if="item.last_used_at" class="flex items-center gap-1.5 text-xs whitespace-nowrap text-ink/65">
+              <span :class="time - Date.parse(item.last_used_at) < DAY ? 'bg-success' : time - Date.parse(item.last_used_at) > STALE_AFTER_DAYS * DAY ? 'bg-warning' : 'bg-ink/30'" aria-hidden="true" class="size-1.5 flex-none rounded-full" />
+              {{ relativeWords(Date.parse(item.last_used_at), time) }}
+            </span>
+            <span v-else class="text-[11px] text-ink/40">Never</span>
+          </template>
+          <template #cell.requests="{ item }">
+            <span v-if="requestsOf(item)" :title="`${writeFigure(requestsOf(item))} requests`" class="font-mono text-xs text-ink/75">{{ writeFigure(requestsOf(item), { compact: true }) }}</span>
+            <span v-else class="font-mono text-xs text-ink/35">0</span>
+          </template>
+          <template #cell.created="{ item }">
+            <span class="flex flex-col">
+              <span class="text-xs whitespace-nowrap text-ink/65">{{ stamp(item.created_at) }}</span>
+              <span class="truncate text-[11px] text-ink/40">{{ item.created_by }}</span>
+            </span>
+          </template>
+          <template #actions="{ item }">
+            <v-btn
+              :aria-label="`Actions for ${item.name}`"
+              icon
+              size="small"
+              variant="text"
+            >
+              <Icon aria-hidden="true" class="text-lg" name="material-symbols:more-vert" />
+              <v-menu activator="parent" location="bottom end" :offset="4">
+                <v-list min-width="200" nav>
+                  <v-list-item
+                    v-if="!item.rolled_at"
+                    prepend-icon="material-symbols:autorenew"
+                    title="Roll key"
+                    @click="openRoll(item)"
+                  />
+                  <v-list-item
+                    base-color="error"
+                    prepend-icon="material-symbols:block"
+                    title="Revoke"
+                    @click="revoking = item"
+                  />
+                </v-list>
+              </v-menu>
+            </v-btn>
+          </template>
+        </DataTable>
+      </SectionCard>
+    </LoadState>
 
     <ApiKeyDialog
       v-if="creating"

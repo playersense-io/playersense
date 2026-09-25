@@ -4,7 +4,8 @@
 // how: only a digest of its private half is kept, so nobody can show it again, us included.
 //
 // Rolling a key opens the same dialog with the old key's kind, environment and name, and the
-// new key takes its place: the old one stops working the moment the new one is made.
+// new key takes its place: the old one stops at once, or after the grace asked for, so the
+// new one can be deployed first.
 const props = defineProps<{
   /** The kind to start on, from a kind's own Create button. */
   kind?: ApiKeyKind
@@ -14,13 +15,22 @@ const props = defineProps<{
 
 const open = defineModel<boolean>({ required: true })
 
-const { create } = useApiKeys()
+const { create, roll } = useApiKeys()
 
 const step = ref<'form' | 'reveal'>('form')
 
 const kind = ref<string | null>(props.replaces?.kind ?? props.kind ?? 'project')
 const environment = ref<string>(props.replaces?.environment ?? 'production')
-const name = ref(props.replaces ? `${props.replaces.name} (new)` : '')
+const name = ref(props.replaces?.name ?? '')
+
+/* How long a rolled key works on. An SDK key is in shipped builds, so it gets the longest. */
+const GRACE_OPTIONS: SegmentedOption[] = [
+  { value: '0', label: 'Stop now' },
+  { value: '24', label: '1 day' },
+  { value: '72', label: '3 days' },
+  { value: '168', label: '7 days' }
+]
+const grace = ref(props.replaces ? (props.replaces.kind === 'project' ? '168' : '24') : '0')
 
 const KIND_OPTIONS = computed<ChoiceOption[]>(() => API_KEY_KIND_ORDER.map(value => ({
   value,
@@ -42,11 +52,23 @@ const ready = computed(() => name.value.trim().length >= 2 && kind.value !== nul
 
 const created = ref<{ key: ApiKeyDef, secret: string } | null>(null)
 const copied = ref(false)
+const saving = ref(false)
+const problem = ref('')
 
-function submit() {
-  if (!ready.value) return
-  created.value = create(chosenKind.value, chosenEnvironment.value, name.value.trim(), props.replaces?.id)
-  step.value = 'reveal'
+async function submit() {
+  if (!ready.value || saving.value) return
+  saving.value = true
+  problem.value = ''
+  try {
+    created.value = props.replaces
+      ? await roll(props.replaces.id, Number(grace.value))
+      : await create(chosenKind.value, chosenEnvironment.value, name.value.trim())
+    step.value = 'reveal'
+  } catch (caught) {
+    problem.value = caught instanceof Error ? caught.message : String(caught)
+  } finally {
+    saving.value = false
+  }
 }
 
 async function copy() {
@@ -79,7 +101,7 @@ const ids = { name: useId() }
           </h2>
           <p class="m-0 text-xs text-ink/60">
             <template v-if="replaces">
-              A new key of the same kind and environment takes its place. {{ replaces.name }} stops working the moment the new one is made.
+              A new key of the same kind, environment and name takes its place. {{ replaces.name }} stops at once, or after the time you choose, so the new one can be deployed first.
             </template>
             <template v-else>
               A key is one kind in one environment. Make one for each place it goes, so each can be revoked alone.
@@ -91,8 +113,15 @@ const ids = { name: useId() }
           <form class="flex flex-col gap-5 p-5" @submit.prevent="submit">
             <p v-if="replaces && replaces.kind === 'project'" class="m-0 flex items-start gap-2 rounded-(--ps-radius) bg-warning/8 px-3 py-2.5 text-xs leading-5 text-ink/80 ring-1 ring-warning/20 ring-inset">
               <Icon aria-hidden="true" class="mt-0.5 flex-none text-sm text-warning" name="material-symbols:warning-outline" />
-              <span>Builds already out carry {{ replaces.name }}. Rolled, it stops working for them at once: they send no events and fetch no config until players update to a build with the new key.</span>
+              <span>Builds already out carry {{ replaces.name }}. Once it stops, they send no events and fetch no config until players update to a build with the new key.</span>
             </p>
+            <div v-if="replaces" class="flex flex-col gap-1.5">
+              <span class="text-xs font-medium text-ink">The old key keeps working</span>
+              <SegmentedControl v-model="grace" :options="GRACE_OPTIONS" label="The old key keeps working" />
+              <span class="text-[11px] text-ink/55">
+                {{ grace === '0' ? `${replaces.name} is refused from the next request.` : `${replaces.name} works for ${GRACE_OPTIONS.find(option => option.value === grace)?.label} more, then stops on its own.` }}
+              </span>
+            </div>
             <div class="flex flex-col gap-1.5">
               <span class="text-xs font-medium text-ink">Kind</span>
               <ChoiceList
@@ -118,7 +147,7 @@ const ids = { name: useId() }
               <span class="text-[11px] text-ink/55">{{ ENVIRONMENT_NOTES[chosenEnvironment] }} It only ever sees this environment's data and config.</span>
             </div>
 
-            <div class="flex flex-col gap-1.5">
+            <div v-if="!replaces" class="flex flex-col gap-1.5">
               <label :for="ids.name" class="text-xs font-medium text-ink">Name <span class="font-normal text-ink/45">where it is used, so its row is recognisable</span></label>
               <v-text-field
                 :id="ids.name"
@@ -137,6 +166,9 @@ const ids = { name: useId() }
               <span class="font-mono text-xs text-ink">{{ publicPrefix(chosenKind, chosenEnvironment) }}<span class="text-ink/35">••••••••••:••••••••</span></span>
               <span class="text-[11px] text-ink/50">The start names its kind and environment, so a key in the wrong place is plain to see.</span>
             </div>
+            <p v-if="problem" class="m-0 text-xs text-error">
+              {{ problem }}
+            </p>
           </form>
         </div>
 
@@ -152,6 +184,7 @@ const ids = { name: useId() }
           </v-btn>
           <v-btn
             :disabled="!ready"
+            :loading="saving"
             class="text-xs font-medium"
             color="primary"
             size="small"
@@ -206,7 +239,12 @@ const ids = { name: useId() }
             </div>
 
             <p v-if="replaces" class="m-0 text-[11px] leading-4 text-ink/55">
-              {{ replaces.name }} was rolled and no longer works. Put the new key wherever the old one was.
+              <template v-if="grace === '0'">
+                {{ replaces.name }} was rolled and no longer works. Put the new key wherever the old one was.
+              </template>
+              <template v-else>
+                {{ replaces.name }} was rolled and works for {{ GRACE_OPTIONS.find(option => option.value === grace)?.label }} more. Put the new key wherever the old one was before then.
+              </template>
             </p>
           </div>
         </div>
