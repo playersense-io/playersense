@@ -163,3 +163,83 @@ type OrgChannelOut struct {
 type OrgChannelListOut struct {
 	Channels []OrgChannelOut `json:"channels"`
 }
+
+// ChannelActivityParams is the window the Activity page asks about.
+type ChannelActivityParams struct {
+	OrgSlug     string `path:"org"`
+	ProjectSlug string `path:"project"`
+	Range       string `query:"range,omitzero" default:"7d" doc:"24h (by the hour), 7d or 30d (by the day)"`
+}
+
+func (in *ChannelActivityParams) Validate(v *muzak.Validation) {
+	v.String(&in.OrgSlug).Trim().Lower().Required().MaxLen(64)
+	v.String(&in.ProjectSlug).Trim().Lower().Required().MaxLen(64)
+	v.String(&in.Range).Trim().OneOf("", "24h", "7d", "30d")
+}
+
+// ActivityTotalsOut is one window's figures. Tests are counted apart from the rest.
+type ActivityTotalsOut struct {
+	Sent      int `json:"sent" doc:"Sent by rules and reports, tests aside"`
+	Delivered int `json:"delivered"`
+	Failed    int `json:"failed"`
+	Tests     int `json:"tests"`
+	P50Ms     int `json:"p50_ms" doc:"Half of the sends, tests included, were answered faster than this"`
+	P95Ms     int `json:"p95_ms"`
+}
+
+// ActivityBucketOut is one hour or day.
+type ActivityBucketOut struct {
+	At        time.Time `json:"at"`
+	Delivered int       `json:"delivered"`
+	Failed    int       `json:"failed"`
+	Tests     int       `json:"tests"`
+}
+
+// ChannelActivityRowOut is one channel's share of the window.
+type ChannelActivityRowOut struct {
+	ChannelID *uuid.UUID `json:"channel_id,omitzero" doc:"Absent for a channel deleted since"`
+	Name      string     `json:"name"`
+	Type      string     `json:"type,omitzero"`
+	Sent      int        `json:"sent"`
+	Failed    int        `json:"failed"`
+	P50Ms     int        `json:"p50_ms"`
+	LastAt    *time.Time `json:"last_at,omitzero"`
+	LastOK    bool       `json:"last_ok"`
+	Spark     []int      `json:"spark" doc:"Sends a bucket, tests aside"`
+}
+
+// ActivitySourceOut is what one rule or report sent.
+type ActivitySourceOut struct {
+	Source string     `json:"source"`
+	RuleID *uuid.UUID `json:"rule_id,omitzero"`
+	Sent   int        `json:"sent"`
+	Failed int        `json:"failed"`
+}
+
+// ChannelActivityOut is the Activity page's figures and charts.
+type ChannelActivityOut struct {
+	Range    string                  `json:"range"`
+	Bucket   string                  `json:"bucket" doc:"hour or day"`
+	Buckets  []ActivityBucketOut     `json:"buckets"`
+	Current  ActivityTotalsOut       `json:"current"`
+	Previous ActivityTotalsOut       `json:"previous" doc:"The same length of time just before"`
+	Channels []ChannelActivityRowOut `json:"channels"`
+	Sources  []ActivitySourceOut     `json:"sources"`
+	Waiting  int                     `json:"waiting" doc:"Queued and not tried yet"`
+	Retrying int                     `json:"retrying" doc:"Failed at least once and due another try"`
+}
+
+// RuleStatOut is one rule's last seven days.
+type RuleStatOut struct {
+	RuleID uuid.UUID  `json:"rule_id"`
+	Sent   int        `json:"sent"`
+	Failed int        `json:"failed"`
+	LastAt *time.Time `json:"last_at,omitzero"`
+	Spark  []int      `json:"spark" doc:"Sends a day, oldest first, tests aside"`
+}
+
+// RuleStatsOut is a scope's rules' last seven days.
+type RuleStatsOut struct {
+	Days  int           `json:"days"`
+	Rules []RuleStatOut `json:"rules"`
+}

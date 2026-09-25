@@ -60,6 +60,16 @@ existing `notify.Sender`, and logs every send in the channels' delivery log with
 Billing to #finance"). A failure is retried at 30 seconds, 2, 10 and 30 minutes, 1 and 2 hours, then
 given up on: yesterday's alert delivered tomorrow helps nobody.
 
+**Measured from an hourly rollup, not the log.** Every logged send also increments one row of
+`channel_delivery_hours`, keyed by project, hour, channel, rule and source, in the same upsert: sends
+delivered, failed and tested, the last send and its answer, and answer times as an eight-bucket
+histogram (to 100 ms, 250 ms, 500 ms, 1 s, 2.5 s, 5 s, 10 s, and beyond) whose columns sum across
+rows, so a window's median and 95th percentile are read off one `SUM` instead of a sort of the log.
+The Activity page, each rule's weekly sparkline and each channel's are read from it: thirty days is
+at most 720 rows a channel and source, however many notifications went out. A rule's sends are keyed
+by the rule, not its name, so a renamed rule is one history. The rollup is pruned with the log, at
+ninety days, and `migrate postgres` fills it once from the log for the time before it existed.
+
 **The dashboard** has a Notifications section of its own (Rules, Channels, Activity) rather than a
 settings tab, because rules change as the game does. The Rules page shows what is always on above
 the rules, so nobody writes a rule for an email they already get.

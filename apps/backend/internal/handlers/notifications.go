@@ -265,7 +265,7 @@ func testRule(ctx *muzak.Context, s ruleScope, id uuid.UUID) (schemas.Notificati
 	msg.Source = "Test of rule " + row.Name
 	out := schemas.NotificationRuleTestOut{Type: kind.Type, Channels: []schemas.NotificationRuleTestResult{}}
 	for _, ch := range channels {
-		r := sender.Deliver(ctx.Context(), db.Client, ch, msg, "Test of rule "+row.Name+" by "+actorOf(ctx).Label)
+		r := sender.DeliverFor(ctx.Context(), db.Client, ch, msg, "Test of rule "+row.Name+" by "+actorOf(ctx).Label, &row.ID)
 		out.Channels = append(out.Channels, schemas.NotificationRuleTestResult{ChannelID: ch.UID, Name: ch.Name,
 			OK: r.OK, Detail: r.Detail})
 	}
@@ -369,4 +369,102 @@ func ListOrgChannels(ctx *muzak.Context, _ schemas.OrganizationParams) (schemas.
 			Name: row.Name, Enabled: row.Enabled, Project: name})
 	}
 	return out, nil
+}
+
+// ReadChannelActivity is what was sent to the project's channels in a window, beside the window
+// before it: the Activity page's figures and charts.
+func ReadChannelActivity(ctx *muzak.Context, in schemas.ChannelActivityParams) (schemas.ChannelActivityOut, error) {
+	db := muzak.From[*core.DB](ctx)
+	proj := muzak.From[*core.Principal](ctx).Project
+	r, ok := alerts.Ranges[in.Range]
+	if !ok {
+		r = alerts.Ranges["7d"]
+	}
+	a, err := alerts.ProjectActivity(ctx.Context(), db.Client, proj.ID, r, nowUTC())
+	if err != nil {
+		return schemas.ChannelActivityOut{}, core.AsHTTPError(err)
+	}
+	totals := func(t alerts.Totals) schemas.ActivityTotalsOut {
+		return schemas.ActivityTotalsOut{Sent: t.Sent, Delivered: t.Delivered, Failed: t.Failed, Tests: t.Tests,
+			P50Ms: t.P50Ms, P95Ms: t.P95Ms}
+	}
+	out := schemas.ChannelActivityOut{Range: r.Name, Bucket: r.Bucket, Current: totals(a.Current),
+		Previous: totals(a.Previous), Waiting: a.Waiting, Retrying: a.Retrying,
+		Buckets:  make([]schemas.ActivityBucketOut, 0, len(a.Buckets)),
+		Channels: make([]schemas.ChannelActivityRowOut, 0, len(a.Channels)),
+		Sources:  make([]schemas.ActivitySourceOut, 0, len(a.Sources))}
+	for _, b := range a.Buckets {
+		out.Buckets = append(out.Buckets, schemas.ActivityBucketOut{At: b.At, Delivered: b.Delivered, Failed: b.Failed, Tests: b.Tests})
+	}
+	for _, c := range a.Channels {
+		row := schemas.ChannelActivityRowOut{Name: c.Name, Type: c.Type, Sent: c.Sent, Failed: c.Failed,
+			P50Ms: c.P50Ms, LastAt: c.LastAt, LastOK: c.LastOK, Spark: c.Spark}
+		if c.UID != uuid.Nil {
+			id := c.UID
+			row.ChannelID = &id
+		}
+		out.Channels = append(out.Channels, row)
+	}
+	ruleIDs := map[int]uuid.UUID{}
+	var ids []int
+	for _, s := range a.Sources {
+		if s.RuleID != nil {
+			ids = append(ids, *s.RuleID)
+		}
+	}
+	if len(ids) > 0 {
+		rows, err := db.Client.NotificationRule.Query().Where(notificationrule.IDIn(ids...)).All(ctx.Context())
+		if err != nil {
+			return schemas.ChannelActivityOut{}, core.AsHTTPError(err)
+		}
+		for _, row := range rows {
+			ruleIDs[row.ID] = row.UID
+		}
+	}
+	for _, s := range a.Sources {
+		src := schemas.ActivitySourceOut{Source: s.Source, Sent: s.Sent, Failed: s.Failed}
+		if s.RuleID != nil {
+			if uid, found := ruleIDs[*s.RuleID]; found {
+				src.RuleID = &uid
+			}
+		}
+		out.Sources = append(out.Sources, src)
+	}
+	return out, nil
+}
+
+// ruleStatDays is how far back a rule's sparkline reaches.
+const ruleStatDays = 7
+
+func ruleStats(ctx *muzak.Context, s ruleScope) (schemas.RuleStatsOut, error) {
+	db := muzak.From[*core.DB](ctx)
+	rules, err := s.query(db.Client).All(ctx.Context())
+	if err != nil {
+		return schemas.RuleStatsOut{}, core.AsHTTPError(err)
+	}
+	ids := make([]int, len(rules))
+	for i, r := range rules {
+		ids[i] = r.ID
+	}
+	stats, err := alerts.RuleStats(ctx.Context(), db.Client, ids, ruleStatDays, nowUTC())
+	if err != nil {
+		return schemas.RuleStatsOut{}, core.AsHTTPError(err)
+	}
+	out := schemas.RuleStatsOut{Days: ruleStatDays, Rules: make([]schemas.RuleStatOut, 0, len(rules))}
+	for _, r := range rules {
+		st := stats[r.ID]
+		out.Rules = append(out.Rules, schemas.RuleStatOut{RuleID: r.UID, Sent: st.Sent, Failed: st.Failed,
+			LastAt: st.LastAt, Spark: st.Spark})
+	}
+	return out, nil
+}
+
+// ReadNotificationRuleStats is what each of a project's rules sent in the last seven days.
+func ReadNotificationRuleStats(ctx *muzak.Context, _ schemas.ProjectParams) (schemas.RuleStatsOut, error) {
+	return ruleStats(ctx, projectScope(ctx))
+}
+
+// ReadOrgNotificationRuleStats is what each of the organization's rules sent in the last seven days.
+func ReadOrgNotificationRuleStats(ctx *muzak.Context, _ schemas.OrganizationParams) (schemas.RuleStatsOut, error) {
+	return ruleStats(ctx, orgScope(ctx))
 }

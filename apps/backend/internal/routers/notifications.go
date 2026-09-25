@@ -35,6 +35,16 @@ func Notifications() *muzak.Router {
 		muzak.Description("These events, from these environments, to these channels, at most this often. "+
 			"The channels are the project's own."),
 		core.Require(authz.ReportsWrite), muzak.Status(http.StatusCreated), bad)
+	r.Get(project+"/stats", handlers.ReadNotificationRuleStats,
+		muzak.Summary("What a project's rules sent this week"),
+		muzak.Description("Each rule's sends and failures over the last seven days, with a count a day. Tests aside."),
+		core.Require(authz.ReportsRead))
+	r.Get("/organizations/{org}/projects/{project}/channels/activity", handlers.ReadChannelActivity,
+		muzak.Summary("What was sent to the project's channels"),
+		muzak.Description("Sends, deliveries, failures and answer times over 24 hours (by the hour), 7 or 30 days "+
+			"(by the day), beside the same length of time before; each channel's share with a sparkline; what each "+
+			"rule and report sent; and what is queued or retrying now. Tests are counted apart."),
+		core.Require(authz.ReportsRead))
 	r.Put(project+"/{rule}", handlers.UpdateNotificationRule,
 		muzak.Summary("Change a notification rule"),
 		core.Require(authz.ReportsWrite), bad)
@@ -57,6 +67,9 @@ func Notifications() *muzak.Router {
 			"suspension. Its channels may be any project's. The owners, admins and billing members are "+
 			"emailed about these whatever the rules say."),
 		core.Require(authz.BillingManage), muzak.Status(http.StatusCreated), bad)
+	r.Get(org+"/stats", handlers.ReadOrgNotificationRuleStats,
+		muzak.Summary("What the organization's rules sent this week"),
+		core.Require(authz.BillingRead))
 	r.Put(org+"/{rule}", handlers.UpdateOrgNotificationRule,
 		muzak.Summary("Change a rule of the organization"),
 		core.Require(authz.BillingManage), bad)

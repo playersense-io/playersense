@@ -10015,6 +10015,99 @@
         }
       }
     },
+    "/v1/organizations/{org}/notification-rules/stats": {
+      "get": {
+        "tags": [
+          "notifications"
+        ],
+        "summary": "What the organization's rules sent this week",
+        "operationId": "get_v1_organizations_by_org_notification_rules_stats",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "description": "The organization's slug",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuleStatsOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not do that",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The organization, project or rule does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/organizations/{org}/notification-rules/{rule}": {
       "put": {
         "tags": [
@@ -13840,6 +13933,123 @@
           },
           "422": {
             "description": "The destination cannot work: the message says why",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/organizations/{org}/projects/{project}/channels/activity": {
+      "get": {
+        "tags": [
+          "notifications"
+        ],
+        "summary": "What was sent to the project's channels",
+        "description": "Sends, deliveries, failures and answer times over 24 hours (by the hour), 7 or 30 days (by the day), beside the same length of time before; each channel's share with a sparkline; what each rule and report sent; and what is queued or retrying now. Tests are counted apart.",
+        "operationId": "get_v1_organizations_by_org_projects_by_project_channels_activity",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "project",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "range",
+            "in": "query",
+            "description": "24h (by the hour), 7d or 30d (by the day)",
+            "schema": {
+              "type": "string",
+              "default": "7d",
+              "enum": [
+                "",
+                "24h",
+                "7d",
+                "30d"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChannelActivityOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not do that",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The organization, project or rule does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
             "content": {
               "application/json": {
                 "schema": {
@@ -21367,6 +21577,110 @@
         }
       }
     },
+    "/v1/organizations/{org}/projects/{project}/notification-rules/stats": {
+      "get": {
+        "tags": [
+          "notifications"
+        ],
+        "summary": "What a project's rules sent this week",
+        "description": "Each rule's sends and failures over the last seven days, with a count a day. Tests aside.",
+        "operationId": "get_v1_organizations_by_org_projects_by_project_notification_rules_stats",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "description": "The organization's slug",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "project",
+            "in": "path",
+            "description": "The project's slug",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuleStatsOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not do that",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The organization, project or rule does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/organizations/{org}/projects/{project}/notification-rules/{rule}": {
       "put": {
         "tags": [
@@ -28752,6 +29066,99 @@
           "state_changed_at"
         ]
       },
+      "ActivityBucketOut": {
+        "type": "object",
+        "properties": {
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "delivered": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "failed": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "tests": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "at",
+          "delivered",
+          "failed",
+          "tests"
+        ]
+      },
+      "ActivitySourceOut": {
+        "type": "object",
+        "properties": {
+          "failed": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "rule_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sent": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "source": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "failed",
+          "sent",
+          "source"
+        ]
+      },
+      "ActivityTotalsOut": {
+        "type": "object",
+        "properties": {
+          "delivered": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "failed": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "p50_ms": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Half of the sends, tests included, were answered faster than this"
+          },
+          "p95_ms": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "sent": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Sent by rules and reports, tests aside"
+          },
+          "tests": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "delivered",
+          "failed",
+          "p50_ms",
+          "p95_ms",
+          "sent",
+          "tests"
+        ]
+      },
       "App": {
         "type": "object",
         "properties": {
@@ -29293,6 +29700,120 @@
         },
         "required": [
           "cards"
+        ]
+      },
+      "ChannelActivityOut": {
+        "type": "object",
+        "properties": {
+          "bucket": {
+            "type": "string",
+            "description": "hour or day"
+          },
+          "buckets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ActivityBucketOut"
+            }
+          },
+          "channels": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChannelActivityRowOut"
+            }
+          },
+          "current": {
+            "$ref": "#/components/schemas/ActivityTotalsOut"
+          },
+          "previous": {
+            "$ref": "#/components/schemas/ActivityTotalsOut",
+            "description": "The same length of time just before"
+          },
+          "range": {
+            "type": "string"
+          },
+          "retrying": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Failed at least once and due another try"
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ActivitySourceOut"
+            }
+          },
+          "waiting": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Queued and not tried yet"
+          }
+        },
+        "required": [
+          "bucket",
+          "buckets",
+          "channels",
+          "current",
+          "previous",
+          "range",
+          "retrying",
+          "sources",
+          "waiting"
+        ]
+      },
+      "ChannelActivityRowOut": {
+        "type": "object",
+        "properties": {
+          "channel_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Absent for a channel deleted since"
+          },
+          "failed": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "last_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "last_ok": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "p50_ms": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "sent": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "spark": {
+            "type": "array",
+            "description": "Sends a bucket, tests aside",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "failed",
+          "last_ok",
+          "name",
+          "p50_ms",
+          "sent",
+          "spark"
         ]
       },
       "ChannelConfigIn": {
@@ -39841,6 +40362,62 @@
         "required": [
           "key",
           "replaced"
+        ]
+      },
+      "RuleStatOut": {
+        "type": "object",
+        "properties": {
+          "failed": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "last_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "rule_id": {
+            "type": "string"
+          },
+          "sent": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "spark": {
+            "type": "array",
+            "description": "Sends a day, oldest first, tests aside",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        },
+        "required": [
+          "failed",
+          "rule_id",
+          "sent",
+          "spark"
+        ]
+      },
+      "RuleStatsOut": {
+        "type": "object",
+        "properties": {
+          "days": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "rules": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RuleStatOut"
+            }
+          }
+        },
+        "required": [
+          "days",
+          "rules"
         ]
       },
       "SDK": {

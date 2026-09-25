@@ -326,3 +326,70 @@ func TestASuspensionIsAnnouncedAndAPaidAccountIsWelcomedBack(t *testing.T) {
 		}
 	}
 }
+
+func TestActivityCountsWhatWasSentAndSetsTestsApart(t *testing.T) {
+	f := setup(t)
+	ctx := context.Background()
+	now := time.Now().UTC()
+	slack := f.channel(t, f.project, "https://hooks.example/a")
+	mail := f.channel(t, f.project, "https://hooks.example/b")
+	project := f.project
+	rule := f.rule(t, &project, []string{"config.published"}, []uuid.UUID{slack.UID}, nil)
+
+	send := func(ch *ent.NotificationChannel, at time.Time, ok, test bool, source string, ruleID *int) {
+		t.Helper()
+		ms := time.Duration(80+len(source)) * time.Millisecond
+		if err := notify.RollUp(ctx, f.db.Client, ch, notify.Result{OK: ok, Duration: ms}, test, source, ruleID, at); err != nil {
+			t.Fatal(err)
+		}
+	}
+	day := 24 * time.Hour
+	send(slack, now.Add(-2*time.Hour), true, false, "Rule: Publishing", &rule.ID)
+	send(slack, now.Add(-day-time.Hour), true, false, "Rule: Publishing to ops", &rule.ID) // renamed since
+	send(slack, now.Add(-2*day), false, false, "Rule: Publishing to ops", &rule.ID)
+	send(mail, now.Add(-3*day), true, false, "Report: Daily revenue", nil)
+	send(mail, now.Add(-time.Hour), true, true, "Test by ada@studio.example", nil)
+	send(mail, now.Add(-9*day), true, false, "Report: Daily revenue", nil) // the week before
+
+	a, err := alerts.ProjectActivity(ctx, f.db.Client, f.project, alerts.Ranges["7d"], now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a.Current.Sent != 4 || a.Current.Delivered != 3 || a.Current.Failed != 1 || a.Current.Tests != 1 {
+		t.Fatalf("current %+v; want 4 sent, 3 delivered, 1 failed, 1 test", a.Current)
+	}
+	if a.Previous.Sent != 1 {
+		t.Fatalf("previous %+v; want the one send of the week before", a.Previous)
+	}
+	var delivered, failed, tests int
+	for _, b := range a.Buckets {
+		delivered, failed, tests = delivered+b.Delivered, failed+b.Failed, tests+b.Tests
+	}
+	if len(a.Buckets) != 7 || delivered != 3 || failed != 1 || tests != 1 {
+		t.Fatalf("%d buckets holding %d, %d, %d", len(a.Buckets), delivered, failed, tests)
+	}
+	if len(a.Channels) != 2 || a.Channels[0].UID != slack.UID || a.Channels[0].Sent != 3 || a.Channels[0].Failed != 1 {
+		t.Fatalf("channels %+v", a.Channels)
+	}
+	sum := 0
+	for _, n := range a.Channels[0].Spark {
+		sum += n
+	}
+	if sum != 3 || !a.Channels[0].LastOK {
+		t.Fatalf("slack's spark sums to %d, last ok %v", sum, a.Channels[0].LastOK)
+	}
+	if len(a.Sources) != 2 || a.Sources[0].RuleID == nil || a.Sources[0].Sent != 3 || a.Sources[0].Source != "Rule: rule" {
+		t.Fatalf("sources %+v; want the rule once, under its current name, then the report", a.Sources)
+	}
+	if a.Current.P50Ms < 100 || a.Current.P50Ms > 250 {
+		t.Fatalf("median answer %d ms; every send took 80 to 120 ms", a.Current.P50Ms)
+	}
+
+	stats, err := alerts.RuleStats(ctx, f.db.Client, []int{rule.ID}, 7, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if st := stats[rule.ID]; st.Sent != 3 || st.Failed != 1 || st.Spark[6] != 1 || st.LastAt == nil {
+		t.Fatalf("rule stats %+v", st)
+	}
+}
