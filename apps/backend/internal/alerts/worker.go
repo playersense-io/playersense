@@ -185,7 +185,7 @@ func (w *Worker) send(ctx context.Context, row *ent.NotificationOutbox) outcome 
 		}
 	}
 	msg.Source = source
-	r := w.Notify.DeliverFor(ctx, client, channel, msg, source, row.RuleID)
+	r := w.Notify.Deliver(ctx, client, channel, msg, source, row.RuleID)
 	return outcome{sent: r.OK, why: r.Detail}
 }
 

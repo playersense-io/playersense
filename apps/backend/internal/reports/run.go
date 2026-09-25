@@ -244,7 +244,7 @@ func (x *execution) notify(ctx context.Context, n Node, result *Result, channels
 				Title: outcome.Title, Summary: outcome.Body, Lines: outcome.Lines, Severity: outcome.Severity,
 				Source: source, Link: link, Test: x.t.Run.Trigger == reportrun.TriggerTest,
 				Payload: map[string]any{"report": x.t.Report.UID.String(), "run": x.t.Run.UID.String(), "rows": len(result.Rows)},
-			}, source)
+			}, source, nil)
 			d.OK, d.Detail = r.OK, r.Detail
 			x.deliver(ctx, d, time.Since(began).Milliseconds())
 			continue

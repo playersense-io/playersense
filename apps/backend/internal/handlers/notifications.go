@@ -265,7 +265,7 @@ func testRule(ctx *muzak.Context, s ruleScope, id uuid.UUID) (schemas.Notificati
 	msg.Source = "Test of rule " + row.Name
 	out := schemas.NotificationRuleTestOut{Type: kind.Type, Channels: []schemas.NotificationRuleTestResult{}}
 	for _, ch := range channels {
-		r := sender.DeliverFor(ctx.Context(), db.Client, ch, msg, "Test of rule "+row.Name+" by "+actorOf(ctx).Label, &row.ID)
+		r := sender.Deliver(ctx.Context(), db.Client, ch, msg, "Test of rule "+row.Name+" by "+actorOf(ctx).Label, &row.ID)
 		out.Channels = append(out.Channels, schemas.NotificationRuleTestResult{ChannelID: ch.UID, Name: ch.Name,
 			OK: r.OK, Detail: r.Detail})
 	}

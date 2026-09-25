@@ -43,32 +43,47 @@ func Mask(raw string) string {
 	return scheme + "://" + host + "/" + path + "…"
 }
 
-// Deliver sends to a stored channel and writes the send to its delivery log. A test is also
-// kept as the channel's last test, which is what its status says.
-func (s *Sender) Deliver(ctx context.Context, client *ent.Client, row *ent.NotificationChannel, m Message, source string) Result {
-	return s.DeliverFor(ctx, client, row, m, source, nil)
-}
-
-// DeliverFor is Deliver for a notification rule's send, logged with the rule's id so its
-// history survives a rename.
-func (s *Sender) DeliverFor(ctx context.Context, client *ent.Client, row *ent.NotificationChannel, m Message, source string, ruleID *int) Result {
+// Deliver sends to a stored channel and records the send: a row of its delivery log and a count in
+// its hour's rollup, in one transaction, so the Activity page's figures never drift from the log.
+// ruleID is the notification rule that sent it, if one did, so a renamed rule keeps one history. A
+// test is also kept as the channel's last test, which is what its status says.
+//
+// The send itself is never undone: a record that could not be written is a warning in the process
+// log, not a notification that did not happen.
+func (s *Sender) Deliver(ctx context.Context, client *ent.Client, row *ent.NotificationChannel, m Message,
+	source string, ruleID *int) Result {
 	r := s.Send(ctx, ChannelOf(row), m)
-	if err := client.ChannelDelivery.Create().SetNillableRuleID(ruleID).
-		SetProjectID(row.ProjectID).SetChannelID(row.ID).SetChannelName(row.Name).
-		SetSource(clip(source, 200)).SetTitle(clip(m.Title, 300)).SetOk(r.OK).SetDetail(r.Detail).
-		SetTest(m.Test).SetDurationMs(int(r.Duration / time.Millisecond)).Exec(ctx); err != nil {
-		slog.Default().Warn("could not log a channel delivery", "channel", row.UID, "error", err)
-	}
-	if err := RollUp(ctx, client, row, r, m.Test, source, ruleID, time.Now()); err != nil {
-		slog.Default().Warn("could not roll up a channel delivery", "channel", row.UID, "error", err)
+	now := time.Now().UTC()
+	if err := record(ctx, client, row, m, r, source, ruleID, now); err != nil {
+		slog.Default().Warn("could not record a channel delivery", "channel", row.UID, "error", err)
 	}
 	if m.Test {
-		if err := client.NotificationChannel.UpdateOne(row).SetLastTestAt(time.Now().UTC()).
+		if err := client.NotificationChannel.UpdateOne(row).SetLastTestAt(now).
 			SetLastTestOk(r.OK).SetLastTestDetail(r.Detail).Exec(ctx); err != nil {
 			slog.Default().Warn("could not keep a channel's last test", "channel", row.UID, "error", err)
 		}
 	}
 	return r
+}
+
+// record writes one send to the log and to its hour's rollup, both or neither.
+func record(ctx context.Context, client *ent.Client, row *ent.NotificationChannel, m Message, r Result,
+	source string, ruleID *int, at time.Time) error {
+	tx, err := client.Tx(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	if err := tx.ChannelDelivery.Create().SetNillableRuleID(ruleID).
+		SetProjectID(row.ProjectID).SetChannelID(row.ID).SetChannelName(row.Name).
+		SetSource(clip(source, 200)).SetTitle(clip(m.Title, 300)).SetOk(r.OK).SetDetail(r.Detail).
+		SetTest(m.Test).SetDurationMs(int(r.Duration / time.Millisecond)).SetCreatedAt(at).Exec(ctx); err != nil {
+		return err
+	}
+	if err := RollUp(ctx, tx.Client(), row, r, m.Test, source, ruleID, at); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 // LatencyBounds are the upper edges, in milliseconds, of the rollup's answer-time histogram; a
@@ -135,36 +150,4 @@ func otherColumns(except string) []string {
 		}
 	}
 	return out
-}
-
-// BackfillHours fills the rollup from the delivery log for the time before its first hour: sends
-// logged before the rollup existed. Idempotent: once it has run, the rollup starts where the log
-// does and there is nothing older to add. It answers how many hour rows it wrote.
-func BackfillHours(ctx context.Context, client *ent.Client) (int64, error) {
-	res, err := client.ExecContext(ctx, `
-		INSERT INTO channel_delivery_hours
-			(project_id, hour, channel_id, rule_id, source, channel_name, delivered, failed, tests,
-			 lat_100, lat_250, lat_500, lat_1000, lat_2500, lat_5000, lat_10000, lat_over, last_at, last_ok)
-		SELECT d.project_id, date_trunc('hour', d.created_at), d.channel_id, coalesce(d.rule_id, 0),
-		       CASE WHEN d.rule_id IS NOT NULL OR d.test THEN '' ELSE d.source END,
-		       (array_agg(d.channel_name ORDER BY d.created_at DESC))[1],
-		       count(*) FILTER (WHERE NOT d.test AND d.ok), count(*) FILTER (WHERE NOT d.test AND NOT d.ok),
-		       count(*) FILTER (WHERE d.test),
-		       count(*) FILTER (WHERE d.duration_ms <= 100),
-		       count(*) FILTER (WHERE d.duration_ms > 100 AND d.duration_ms <= 250),
-		       count(*) FILTER (WHERE d.duration_ms > 250 AND d.duration_ms <= 500),
-		       count(*) FILTER (WHERE d.duration_ms > 500 AND d.duration_ms <= 1000),
-		       count(*) FILTER (WHERE d.duration_ms > 1000 AND d.duration_ms <= 2500),
-		       count(*) FILTER (WHERE d.duration_ms > 2500 AND d.duration_ms <= 5000),
-		       count(*) FILTER (WHERE d.duration_ms > 5000 AND d.duration_ms <= 10000),
-		       count(*) FILTER (WHERE d.duration_ms > 10000),
-		       max(d.created_at), (array_agg(d.ok ORDER BY d.created_at DESC))[1]
-		FROM channel_deliveries d
-		WHERE d.created_at < coalesce((SELECT min(hour) FROM channel_delivery_hours), 'infinity')
-		GROUP BY 1, 2, 3, 4, 5
-		ON CONFLICT (project_id, hour, channel_id, rule_id, source) DO NOTHING`)
-	if err != nil {
-		return 0, err
-	}
-	return res.RowsAffected()
 }

@@ -67,8 +67,9 @@ histogram (to 100 ms, 250 ms, 500 ms, 1 s, 2.5 s, 5 s, 10 s, and beyond) whose c
 rows, so a window's median and 95th percentile are read off one `SUM` instead of a sort of the log.
 The Activity page, each rule's weekly sparkline and each channel's are read from it: thirty days is
 at most 720 rows a channel and source, however many notifications went out. A rule's sends are keyed
-by the rule, not its name, so a renamed rule is one history. The rollup is pruned with the log, at
-ninety days, and `migrate postgres` fills it once from the log for the time before it existed.
+by the rule, not its name, so a renamed rule is one history. The log row and the rollup's count are
+written in one transaction, so the two never disagree, and the rollup is pruned with the log, at
+ninety days.
 
 **The dashboard** has a Notifications section of its own (Rules, Channels, Activity) rather than a
 settings tab, because rules change as the game does. The Rules page shows what is always on above

@@ -236,7 +236,7 @@ func TestChannel(ctx *muzak.Context, in schemas.ChannelParams) (schemas.ChannelT
 	if err != nil {
 		return schemas.ChannelTestOut{}, err
 	}
-	r := sender.Deliver(ctx.Context(), db.Client, row, testMessage(ctx), "Test by "+actorOf(ctx).Label)
+	r := sender.Deliver(ctx.Context(), db.Client, row, testMessage(ctx), "Test by "+actorOf(ctx).Label, nil)
 	return schemas.ChannelTestOut{At: nowUTC(), OK: r.OK, Detail: r.Detail}, nil
 }
 

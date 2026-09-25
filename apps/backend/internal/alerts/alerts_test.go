@@ -105,7 +105,7 @@ func (f fixture) rule(t *testing.T, project *int, events []string, channels []uu
 func (f fixture) queued(t *testing.T) []*ent.NotificationOutbox {
 	t.Helper()
 	rows, err := f.db.Client.NotificationOutbox.Query().
-		Where(notificationoutbox.OrganizationID(f.org)).All(context.Background())
+		Where(notificationoutbox.OrganizationID(f.org)).Order(ent.Asc(notificationoutbox.FieldID)).All(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}

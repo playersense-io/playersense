@@ -37,7 +37,6 @@ import (
 
 	"playersense.dev/backend/internal/config"
 	"playersense.dev/backend/internal/dataclass"
-	"playersense.dev/backend/internal/notify"
 	"playersense.dev/backend/internal/pgdb"
 )
 
@@ -158,13 +157,6 @@ func postgresUp(ctx context.Context, settings config.Settings) error {
 		return fmt.Errorf("migrate postgres: %w", err)
 	}
 	fmt.Println("ok   postgres (ent): accounts, projects, keys, purchases, requests, manifests")
-	// The notification channels' hourly rollup, filled once from the log it summarises; a no-op
-	// once it has rows.
-	if n, err := notify.BackfillHours(ctx, db.Client); err != nil {
-		return fmt.Errorf("backfill the channel delivery rollup: %w", err)
-	} else if n > 0 {
-		fmt.Printf("ok   postgres: rolled up %d hours of channel deliveries\n", n)
-	}
 	return nil
 }
 
