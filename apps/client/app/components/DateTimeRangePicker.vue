@@ -76,10 +76,19 @@ const end = ref(0)
 /** Which end the time columns set. */
 const editing = ref<'start' | 'end'>('start')
 
+/*
+ * The calendar's own selection, which it owns while a span is drawn: one day after the first click,
+ * two after the second. Bound back as it came rather than rebuilt from the start and the end,
+ * because a rebuilt value always has both ends, and the calendar reads a value with both ends as a
+ * finished span, so the second click would start a new one instead of ending this one.
+ */
+const draft = ref<Date[]>([])
+
 function seed() {
   pendingPreset.value = props.preset
   start.value = props.from
   end.value = props.to
+  draft.value = [midnight(props.from), midnight(props.to)]
   editing.value = 'start'
 }
 watch(open, (value) => {
@@ -92,35 +101,27 @@ function choosePreset(value: string) {
   pendingPreset.value = value
   end.value = Date.now()
   start.value = end.value - preset.span
+  draft.value = [midnight(start.value), midnight(end.value)]
 }
 
-/* The calendar speaks local midnights; a day keeps the time of day each end already had. */
-const atDay = (day: Date, time: number) => {
-  const clock = new Date(time)
-  return new Date(day.getFullYear(), day.getMonth(), day.getDate(), clock.getHours(), clock.getMinutes()).getTime()
-}
 const midnight = (at: number) => {
   const d = new Date(at)
   return new Date(d.getFullYear(), d.getMonth(), d.getDate())
 }
 
-const calendar = computed(() => [midnight(start.value), midnight(end.value)])
-
 function onCalendar(value: unknown) {
   const days = (Array.isArray(value) ? value : []).filter((entry): entry is Date => entry instanceof Date)
   const first = days[0]
   const last = days.at(-1)
+  draft.value = days
   if (!first || !last) return
   pendingPreset.value = null
-  if (days.length === 1) {
-    // One click is a single day: the whole of it, or up to now when it is today. The second
-    // click makes it a span, keeping each end's time of day.
-    start.value = midnight(first.getTime()).getTime()
-    end.value = Math.min(start.value + 86_400_000 - 60_000, Date.now())
-    return
-  }
-  start.value = atDay(first, start.value)
-  end.value = atDay(last, end.value)
+  // Days picked are whole days, the first from midnight and the last to its final minute (or to
+  // now, when it is today); the time columns narrow either end afterwards. After the first click
+  // the span is that one day, until the second click ends it.
+  const endOfDay = (day: Date) => Math.min(new Date(day.getFullYear(), day.getMonth(), day.getDate(), 23, 59).getTime(), Date.now())
+  start.value = midnight(first.getTime()).getTime()
+  end.value = endOfDay(last)
 }
 
 const HOURS = Array.from({ length: 24 }, (_, hour) => hour)
@@ -171,6 +172,7 @@ const problem = computed(() => {
 const note = computed(() => {
   const preset = props.presets.find(entry => entry.value === pendingPreset.value)
   if (preset) return preset.hint
+  if (draft.value.length === 1) return `From ${spanWords(start.value, end.value)}. Pick the last day, or Apply for this one.`
   return problem.value || `${durationWords(end.value - start.value)}, ${spanWords(start.value, end.value)}.`
 })
 
@@ -240,7 +242,7 @@ function cancel() {
           :first-day-of-week="1"
           :max="max"
           :min="min"
-          :model-value="calendar"
+          :model-value="draft"
           :weeks-in-month="'dynamic'"
           class="ps-range__picker min-w-0"
           color="primary"
