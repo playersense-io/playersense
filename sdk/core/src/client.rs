@@ -607,6 +607,18 @@ impl<H: Host> Client<H> {
 
     /// Called regularly by the host — a frame loop, a timer. Cheap when there is nothing due.
     pub fn tick(&mut self) {
+        let job = self.tick_begin();
+        let sealed = job.map(crate::logs::SealJob::encode);
+        self.tick_finish(sealed);
+    }
+
+    /// A tick, less the one part that takes time: encoding a log batch that is due.
+    ///
+    /// For a binding that shares the client between threads. It calls this under its lock,
+    /// runs [`SealJob::encode`](crate::logs::SealJob::encode) after letting go, and hands the
+    /// result to [`tick_finish`](Self::tick_finish) under the lock again, so a game thread
+    /// calling in meanwhile waits microseconds, not the milliseconds encoding takes.
+    pub fn tick_begin(&mut self) -> Option<crate::logs::SealJob> {
         let monotonic = self.host.monotonic_ms();
 
         let idle = monotonic - self.last_batch_mono_ms >= self.config.flush_interval_ms;
@@ -616,20 +628,28 @@ impl<H: Host> Client<H> {
         }
         self.pump();
 
-        let session = self.session.as_ref().map(|s| s.id.clone());
-        self.logs.tick(
-            &self.host,
-            &self.config,
-            &self.consent,
-            session.as_deref(),
-            &mut self.next_request_id,
-        );
-
         if self
             .liveconfig
             .due(monotonic, self.config.config_refresh_interval_ms)
         {
             self.send_config_request(monotonic);
+        }
+
+        let session = self.session.as_ref().map(|s| s.id.clone());
+        self.logs.tick_begin(
+            &self.host,
+            &self.config,
+            &self.consent,
+            session.as_deref(),
+            &mut self.next_request_id,
+        )
+    }
+
+    /// Spools the log batch [`tick_begin`](Self::tick_begin) returned, once encoded.
+    pub fn tick_finish(&mut self, sealed: Option<crate::logs::Sealed>) {
+        if sealed.is_some() {
+            self.logs
+                .tick_finish(&self.host, &self.config, sealed, &mut self.next_request_id);
         }
     }
 

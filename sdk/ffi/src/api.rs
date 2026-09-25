@@ -639,8 +639,23 @@ pub extern "C" fn ps_client_background(client: u64) -> i32 {
 /// Called regularly — a frame loop, a timer. Cheap when nothing is due.
 #[unsafe(no_mangle)]
 pub extern "C" fn ps_client_tick(client: u64) -> i32 {
+    let mut job = None;
+    let status = with_client(client, |c| {
+        job = c.tick_begin();
+        PS_OK
+    });
+    let Some(job) = job else {
+        return status;
+    };
+    // Outside the lock: serializing and compressing a log batch is the only part of a tick that
+    // takes milliseconds, and a game thread calling in meanwhile must not wait for it. A panic
+    // here loses this batch and nothing else, since the client never saw it.
+    let Ok(sealed) = catch_unwind(AssertUnwindSafe(|| job.encode())) else {
+        set_last_error("a log batch could not be encoded and was dropped");
+        return PS_OK;
+    };
     with_client(client, |c| {
-        c.tick();
+        c.tick_finish(Some(sealed));
         PS_OK
     })
 }

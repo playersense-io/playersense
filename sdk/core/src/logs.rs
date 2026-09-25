@@ -38,7 +38,7 @@ use crate::consent::{Granted, State};
 use crate::event::Priority;
 use crate::host::{Host, Level};
 use crate::ids::uuid_v4;
-use crate::scrub::scrub;
+use crate::scrub::scrub_owned;
 use crate::spool::{self, Bounds};
 use crate::time::rfc3339_ms;
 
@@ -67,11 +67,14 @@ const MAX_ATTRIBUTE_VALUE: usize = 1024;
 const MAX_BREADCRUMB_MESSAGE: usize = 256;
 
 /// How serious a record is. Ordered: a threshold keeps everything at or above it.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize,
+)]
 #[serde(rename_all = "lowercase")]
 pub enum LogLevel {
     Trace,
     Debug,
+    #[default]
     Info,
     Warn,
     Error,
@@ -256,6 +259,17 @@ impl Pending {
     }
 }
 
+/// A breadcrumb as the ring keeps it: raw, until an error carries it.
+#[derive(Default)]
+struct Crumb {
+    at_ms: i64,
+    category: String,
+    message: String,
+    level: LogLevel,
+    /// Scrubbed already, or scrubbing is off.
+    clean: bool,
+}
+
 struct InFlight {
     request_id: u64,
     key: String,
@@ -268,7 +282,7 @@ pub struct Logs {
     pending: Vec<Pending>,
     pending_bytes: usize,
     preconsent: Vec<Pending>,
-    breadcrumbs: VecDeque<Breadcrumb>,
+    breadcrumbs: VecDeque<Crumb>,
 
     tokens: f64,
     tokens_mono_ms: i64,
@@ -287,6 +301,8 @@ pub struct Logs {
     /// Set when a batch was sealed that should go now (a crash, consent just granted); the
     /// client sends it before returning, as it does for a critical event.
     wants_pump: bool,
+    /// A batch is full and is sealed on the next tick.
+    seal_due: bool,
 
     pub stats: LogStats,
 }
@@ -324,6 +340,7 @@ impl Logs {
             cold: false,
             stopped: false,
             wants_pump: false,
+            seal_due: false,
             stats: LogStats::default(),
         }
     }
@@ -409,7 +426,14 @@ impl Logs {
             return Logged::RateLimited;
         }
 
-        let pending = self.stamp(config, now_ms, mono, level, fold_key, stamp, record, heavy);
+        // Only an error or worse carries what came before it; a warning does not need it, and
+        // it is most of a record's bytes.
+        let trail = if heavy || level >= LogLevel::Error {
+            self.trail()
+        } else {
+            Vec::new()
+        };
+        let pending = self.stamp(config, now_ms, mono, level, fold_key, stamp, record, trail);
         self.stats.recorded += 1;
 
         // A line worth keeping is also something that happened, for whatever breaks next.
@@ -419,11 +443,16 @@ impl Logs {
             State::Granted(_) => {
                 let urgent = pending.urgent();
                 self.enqueue(pending);
-                if urgent
-                    || self.pending.len() >= config.log_max_records_per_batch
-                    || self.pending_bytes >= config.log_max_batch_bytes
-                {
+                let full = self.pending.len() >= config.log_max_records_per_batch
+                    || self.pending_bytes >= config.log_max_batch_bytes;
+                // A crash is on the disk before this returns: the process may be about to go.
+                // A full batch is not sealed here, in the caller's frame, but on the next tick,
+                // which a binding can run off the game's thread. Only a queue four batches
+                // deep, a binding that has stopped ticking, is sealed on the spot.
+                if urgent || self.pending_bytes >= config.log_max_batch_bytes.saturating_mul(4) {
                     self.seal(host, config, analytics);
+                } else if full {
+                    self.seal_due = true;
                 }
                 Logged::Queued
             }
@@ -458,18 +487,46 @@ impl Logs {
         while self.breadcrumbs.len() >= config.log_max_breadcrumbs {
             self.breadcrumbs.pop_front();
         }
-        let message = clip(message, MAX_BREADCRUMB_MESSAGE);
+        // The slot that falls off the ring is reused, so a full ring takes a breadcrumb without
+        // allocating. Nothing is scrubbed or formatted here: most breadcrumbs are never sent,
+        // and the ones that are get it done once, when an error first carries them.
+        let mut crumb = if self.breadcrumbs.len() >= config.log_max_breadcrumbs {
+            self.breadcrumbs.pop_front().unwrap_or_default()
+        } else {
+            Crumb::default()
+        };
+        while self.breadcrumbs.len() >= config.log_max_breadcrumbs {
+            self.breadcrumbs.pop_front();
+        }
+        crumb.at_ms = now_ms;
+        crumb.level = level;
+        crumb.clean = !config.log_scrub;
+        crumb.category.clear();
+        push_clipped(&mut crumb.category, category, 32);
+        crumb.message.clear();
+        push_clipped(&mut crumb.message, message, MAX_BREADCRUMB_MESSAGE);
         self.stats.breadcrumbs += 1;
-        self.breadcrumbs.push_back(Breadcrumb {
-            at: rfc3339_ms(now_ms),
-            category: clip(category, 32),
-            message: if config.log_scrub {
-                scrub(&message)
-            } else {
-                message
-            },
-            level: level_name(level).to_owned(),
-        });
+        self.breadcrumbs.push_back(crumb);
+    }
+
+    /// The trail as an error carries it: each breadcrumb scrubbed the first time it is sent,
+    /// and never again.
+    fn trail(&mut self) -> Vec<Breadcrumb> {
+        self.breadcrumbs
+            .iter_mut()
+            .map(|crumb| {
+                if !crumb.clean {
+                    crumb.message = scrub_owned(std::mem::take(&mut crumb.message));
+                    crumb.clean = true;
+                }
+                Breadcrumb {
+                    at: rfc3339_ms(crumb.at_ms),
+                    category: crumb.category.clone(),
+                    message: crumb.message.clone(),
+                    level: level_name(crumb.level).to_owned(),
+                }
+            })
+            .collect()
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -482,11 +539,15 @@ impl Logs {
         fold_key: u64,
         stamp: Stamp<'_>,
         record: LogRecord,
-        heavy: bool,
+        trail: Vec<Breadcrumb>,
     ) -> Pending {
         let clean = |text: &str, max: usize| {
             let cut = clip(text, max);
-            if config.log_scrub { scrub(&cut) } else { cut }
+            if config.log_scrub {
+                scrub_owned(cut)
+            } else {
+                cut
+            }
         };
         let mut attributes = BTreeMap::new();
         // A child-directed game sends nothing that could identify the child: no player id,
@@ -513,7 +574,7 @@ impl Logs {
             }
             for frame in &mut e.frames {
                 if config.log_scrub {
-                    frame.file = scrub(&frame.file);
+                    frame.file = scrub_owned(std::mem::take(&mut frame.file));
                 }
             }
             LogException {
@@ -537,13 +598,7 @@ impl Logs {
             attributes,
             exception,
             crash: record.crash,
-            // Only an error or worse carries what came before it; a warning does not need it,
-            // and it is most of a record's bytes.
-            breadcrumbs: if heavy || level >= LogLevel::Error {
-                self.breadcrumbs.iter().cloned().collect()
-            } else {
-                Vec::new()
-            },
+            breadcrumbs: trail,
             fingerprint: record
                 .fingerprint
                 .into_iter()
@@ -772,13 +827,48 @@ impl Logs {
         session_id: Option<&str>,
         ids: &mut u64,
     ) {
+        let job = self.tick_begin(host, config, analytics, session_id, ids);
+        let sealed = job.map(SealJob::encode);
+        self.tick_finish(host, config, sealed, ids);
+    }
+
+    /// The part of a tick that needs the client: the heartbeat, and taking a batch that is due
+    /// out of the queue. Returns the batch to encode, which is the part that takes time, so a
+    /// binding can do it without holding the client (see [`SealJob`]). With nothing due it
+    /// sends what is spooled and returns nothing.
+    pub fn tick_begin<H: Host>(
+        &mut self,
+        host: &H,
+        config: &Config,
+        analytics: &State,
+        session_id: Option<&str>,
+        ids: &mut u64,
+    ) -> Option<SealJob> {
         let mono = host.monotonic_ms();
         if self.foreground && mono - self.heartbeat_mono_ms >= HEARTBEAT_MS {
             self.write_marker(host, config, session_id);
         }
-        if !self.pending.is_empty() && mono - self.last_seal_mono_ms >= config.log_flush_interval_ms
-        {
-            self.seal(host, config, analytics);
+        let due = self.seal_due || mono - self.last_seal_mono_ms >= config.log_flush_interval_ms;
+        if !self.pending.is_empty() && due {
+            let consent = self.effective(analytics);
+            if let Some(job) = self.begin_seal(host, config, &consent, analytics) {
+                return Some(job);
+            }
+        }
+        self.pump(host, config, ids);
+        None
+    }
+
+    /// Spools what [`tick_begin`](Self::tick_begin) took, once encoded, and sends.
+    pub fn tick_finish<H: Host>(
+        &mut self,
+        host: &H,
+        config: &Config,
+        sealed: Option<Sealed>,
+        ids: &mut u64,
+    ) {
+        if let Some(sealed) = sealed {
+            self.finish_seal(host, config, sealed);
         }
         self.pump(host, config, ids);
     }
@@ -799,7 +889,7 @@ impl Logs {
         self.seal_under(host, config, &consent, analytics);
     }
 
-    /// Turns what is pending into one immutable batch on the spool, under `consent`.
+    /// Turns what is pending into one immutable batch on the spool, under `consent`, in one go.
     fn seal_under<H: Host>(
         &mut self,
         host: &H,
@@ -807,26 +897,43 @@ impl Logs {
         consent: &State,
         analytics: &State,
     ) {
-        if self.pending.is_empty() {
-            return;
+        if let Some(job) = self.begin_seal(host, config, consent, analytics) {
+            let sealed = job.encode();
+            self.finish_seal(host, config, sealed);
         }
-        let Some(granted) = consent.granted() else {
-            return;
-        };
-        self.last_seal_mono_ms = host.monotonic_ms();
-        let records = std::mem::take(&mut self.pending);
-        self.pending_bytes = 0;
-        let urgent = records.iter().any(Pending::urgent);
+    }
 
-        let batch_id = uuid_v4(host);
-        let body = match serde_json::to_vec(&envelope(
-            config,
-            self.install_id.clone(),
-            &batch_id,
+    /// Takes what is pending out of the queue, with everything encoding it will need.
+    fn begin_seal<H: Host>(
+        &mut self,
+        host: &H,
+        config: &Config,
+        consent: &State,
+        analytics: &State,
+    ) -> Option<SealJob> {
+        if self.pending.is_empty() {
+            return None;
+        }
+        let granted = consent.granted()?.clone();
+        self.last_seal_mono_ms = host.monotonic_ms();
+        self.seal_due = false;
+        self.pending_bytes = 0;
+        // Reserved now, so a batch sealed while this one encodes sorts after it.
+        self.ordinal += 1;
+        Some(SealJob {
+            ordinal: self.ordinal,
+            batch_id: uuid_v4(host),
+            header: Header::of(config, &self.install_id),
             granted,
-            analytics.is_granted(),
-            &records,
-        )) {
+            analytics: analytics.is_granted(),
+            compress: config.compression,
+            records: std::mem::take(&mut self.pending),
+        })
+    }
+
+    /// Writes an encoded batch to the spool.
+    fn finish_seal<H: Host>(&mut self, host: &H, config: &Config, sealed: Sealed) {
+        let body = match sealed.body {
             Ok(body) => body,
             Err(err) => {
                 host.log(
@@ -836,15 +943,13 @@ impl Logs {
                 return;
             }
         };
-        self.ordinal += 1;
-        let priority = if urgent {
+        let priority = if sealed.urgent {
             Priority::Critical
         } else {
             Priority::Normal
         };
-        let key = spool::key_in(PREFIX, self.ordinal, host.now_ms(), priority, body.len());
+        let key = spool::key_in(PREFIX, sealed.ordinal, host.now_ms(), priority, body.len());
         if host.store_put(&key, &body).is_err() {
-            self.ordinal -= 1;
             host.log(
                 Level::Warn,
                 "could not write a log batch to the spool; it is dropped",
@@ -854,7 +959,7 @@ impl Logs {
         let _ = host.store_put(KEY_ORDINAL, self.ordinal.to_string().as_bytes());
         let evicted = spool::enforce_in(host, PREFIX, bounds(config), host.now_ms());
         self.stats.evicted += (evicted.aged + evicted.overflowed) as u64;
-        if urgent {
+        if sealed.urgent {
             self.next_attempt_mono_ms = self.next_attempt_mono_ms.min(host.monotonic_ms());
             self.wants_pump = true;
         }
@@ -877,14 +982,9 @@ impl Logs {
             host.store_delete(&meta.key);
             return;
         };
-        let (body, encoding) = if config.compression {
-            match crate::client::gzip(&body) {
-                Some(compressed) => (compressed, Some("gzip")),
-                None => (body, None),
-            }
-        } else {
-            (body, None)
-        };
+        // Compressed when it was sealed, so sending is a read and nothing else. gzip's magic
+        // bytes say which: JSON never starts with 0x1f.
+        let encoding = body.starts_with(&[0x1f, 0x8b]).then_some("gzip");
         let request_id = *ids;
         *ids += 1;
         self.in_flight = Some(InFlight {
@@ -984,6 +1084,87 @@ impl Logs {
     }
 }
 
+/// A batch taken out of the queue and not yet encoded.
+///
+/// Owns everything encoding needs, so [`encode`](Self::encode), the only part of a tick that
+/// takes milliseconds (serializing and compressing up to 64 KB), can run without the client:
+/// a binding takes the job under its lock, encodes it after letting go, and hands the result
+/// back. The game's own calls into the SDK never wait behind it.
+pub struct SealJob {
+    ordinal: u64,
+    batch_id: String,
+    header: Header,
+    granted: Granted,
+    analytics: bool,
+    compress: bool,
+    records: Vec<Pending>,
+}
+
+/// An encoded batch, ready for the spool.
+pub struct Sealed {
+    ordinal: u64,
+    urgent: bool,
+    body: Result<Vec<u8>, String>,
+}
+
+impl SealJob {
+    /// Serializes and compresses. Touches nothing but the job.
+    pub fn encode(self) -> Sealed {
+        let urgent = self.records.iter().any(Pending::urgent);
+        let body = serde_json::to_vec(&envelope(
+            &self.header,
+            &self.batch_id,
+            &self.granted,
+            self.analytics,
+            &self.records,
+        ))
+        .map_err(|err| err.to_string())
+        .map(|json| {
+            if self.compress {
+                crate::client::gzip(&json).unwrap_or(json)
+            } else {
+                json
+            }
+        });
+        Sealed {
+            ordinal: self.ordinal,
+            urgent,
+            body,
+        }
+    }
+}
+
+/// The batch header, copied out of the config so encoding needs no borrow of it.
+struct Header {
+    environment: String,
+    install_id: String,
+    sdk_name: String,
+    sdk_version: String,
+    app_version: String,
+    app_build: String,
+    platform: String,
+    os_version: String,
+    locale: String,
+    device_model: String,
+}
+
+impl Header {
+    fn of(config: &Config, install_id: &str) -> Self {
+        Self {
+            environment: config.environment.clone(),
+            install_id: install_id.to_owned(),
+            sdk_name: config.sdk_name.clone(),
+            sdk_version: config.sdk_version.clone(),
+            app_version: config.app_version.clone(),
+            app_build: config.app_build.clone(),
+            platform: config.platform.clone(),
+            os_version: config.os_version.clone(),
+            locale: config.locale.clone(),
+            device_model: config.device_model.clone(),
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize)]
 struct RunMarker {
     alive_ms: i64,
@@ -1045,6 +1226,20 @@ fn clip(text: &str, max: usize) -> String {
     format!("{}…", &text[..cut])
 }
 
+/// [`clip`] into a buffer that is already there.
+fn push_clipped(out: &mut String, text: &str, max: usize) {
+    if text.len() <= max {
+        out.push_str(text);
+        return;
+    }
+    let mut cut = max.saturating_sub(3);
+    while cut > 0 && !text.is_char_boundary(cut) {
+        cut -= 1;
+    }
+    out.push_str(&text[..cut]);
+    out.push('…');
+}
+
 fn is_false(b: &bool) -> bool {
     !*b
 }
@@ -1060,7 +1255,7 @@ struct WireLogBatch<'a> {
     schema_version: u32,
     batch_id: &'a str,
     environment: &'a str,
-    install_id: String,
+    install_id: &'a str,
     sdk: WireNamed<'a>,
     app: WireApp<'a>,
     device: WireDevice<'a>,
@@ -1129,8 +1324,7 @@ struct WireRecord<'a> {
 }
 
 fn envelope<'a>(
-    config: &'a Config,
-    install_id: String,
+    header: &'a Header,
     batch_id: &'a str,
     granted: &'a Granted,
     analytics: bool,
@@ -1139,21 +1333,21 @@ fn envelope<'a>(
     WireLogBatch {
         schema_version: crate::config::SCHEMA_VERSION,
         batch_id,
-        environment: &config.environment,
-        install_id,
+        environment: &header.environment,
+        install_id: &header.install_id,
         sdk: WireNamed {
-            name: &config.sdk_name,
-            version: &config.sdk_version,
+            name: &header.sdk_name,
+            version: &header.sdk_version,
         },
         app: WireApp {
-            version: &config.app_version,
-            build: &config.app_build,
+            version: &header.app_version,
+            build: &header.app_build,
         },
         device: WireDevice {
-            platform: &config.platform,
-            os_version: &config.os_version,
-            locale: &config.locale,
-            model: &config.device_model,
+            platform: &header.platform,
+            os_version: &header.os_version,
+            locale: &header.locale,
+            model: &header.device_model,
         },
         consent: WireConsent {
             analytics,

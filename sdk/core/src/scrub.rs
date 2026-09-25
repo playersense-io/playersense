@@ -17,34 +17,51 @@
 
 /// Replaces what looks like personal data or a credential in `text`.
 pub fn scrub(text: &str) -> String {
-    if text.is_empty() {
-        return String::new();
-    }
-    let text = user_paths(text);
-    let text = secrets(&text);
-    let text = emails(&text);
-    let text = card_numbers(&text);
-    ip_addresses(&text)
+    scrub_owned(text.to_owned())
 }
 
-/// Whether anything in `text` needs scrubbing, so a clean string is never copied.
-fn might_need(text: &str) -> bool {
-    text.bytes().any(|b| {
-        b == b'@'
-            || b == b'/'
-            || b == b'\\'
-            || b == b'.'
-            || b == b':'
-            || b.is_ascii_digit()
-            || b == b'='
-    })
+/// Scrubs a string it is given to keep. A clean string, which is nearly every string, comes
+/// back as it went in: each scanner runs only when a byte-level check says it could match, so
+/// the common case is a few scans of the text and no copy at all.
+pub fn scrub_owned(mut text: String) -> String {
+    if text.is_empty() {
+        return text;
+    }
+    // Lowered once, so each check below is the standard library's substring search rather than
+    // a case-insensitive walk per word.
+    let lower = text.to_ascii_lowercase();
+    if lower.contains("users") || lower.contains("/home/") {
+        text = user_paths(&text);
+    }
+    if might_hold_secret(&text, &lower) {
+        text = secrets(&text);
+    }
+    if text.contains('@') {
+        text = emails(&text);
+    }
+    if text.bytes().filter(u8::is_ascii_digit).count() >= 13 {
+        text = card_numbers(&text);
+    }
+    if text.bytes().filter(|&b| b == b'.').count() >= 3 {
+        text = ip_addresses(&text);
+    }
+    text
+}
+
+/// Whether [`secrets`] could change anything: a JWT's header, a scheme word, or a separator
+/// with one of the key words beside it somewhere. `lower` is `text` in lower case.
+fn might_hold_secret(text: &str, lower: &str) -> bool {
+    if text.contains("eyJ") || lower.contains("bearer") || lower.contains("basic") {
+        return true;
+    }
+    (text.contains('=') || text.contains(':'))
+        && ["pass", "secret", "token", "key", "auth", "session"]
+            .iter()
+            .any(|word| lower.contains(word))
 }
 
 /// `/Users/emma/…`, `/home/emma/…` and `C:\Users\Emma\…`: the account name is the player's.
 fn user_paths(text: &str) -> String {
-    if !might_need(text) {
-        return text.to_owned();
-    }
     let mut out = String::with_capacity(text.len());
     let bytes = text.as_bytes();
     let mut i = 0;

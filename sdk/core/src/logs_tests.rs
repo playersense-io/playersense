@@ -328,3 +328,101 @@ fn a_log_in_flight_does_not_hold_up_an_event() {
     assert!(urls.iter().any(|u| u.ends_with("/v1/logs")));
     assert!(urls.iter().any(|u| u.ends_with("/v1/batches")));
 }
+
+#[test]
+fn a_full_batch_is_sealed_on_the_next_tick_not_in_the_callers_frame() {
+    let mut small = config();
+    small.log_max_records_per_batch = 3;
+    let mut client = client_with(TestHost::new(), small);
+    grant(&mut client);
+    for n in 0..3 {
+        client.log(error(&format!("failure {n}")));
+    }
+    assert!(
+        log_bodies(&client).is_empty(),
+        "the log call that filled the batch sealed and sent it"
+    );
+    client.tick();
+    let bodies = log_bodies(&client);
+    assert_eq!(bodies.len(), 1);
+    assert_eq!(bodies[0]["records"].as_array().unwrap().len(), 3);
+}
+
+#[test]
+fn a_batch_is_spooled_compressed_and_sent_as_it_was_spooled() {
+    let mut client = client_with(TestHost::new(), config());
+    grant(&mut client);
+    // Unanswered, so the batch stays on the spool to be looked at.
+    client.log(LogRecord {
+        crash: true,
+        message: "died".into(),
+        ..Default::default()
+    });
+    let spooled: Vec<Vec<u8>> = client
+        .host()
+        .surviving_store()
+        .into_iter()
+        .filter(|(k, _)| k.starts_with("ps.l.0"))
+        .map(|(_, v)| v)
+        .collect();
+    assert_eq!(spooled.len(), 1);
+    assert!(
+        spooled[0].starts_with(&[0x1f, 0x8b]),
+        "spooled uncompressed"
+    );
+    let sent = client.host().take_sent();
+    assert_eq!(sent[0].content_encoding, Some("gzip"));
+    assert_eq!(sent[0].body, spooled[0]);
+}
+
+#[test]
+fn the_client_is_free_while_a_batch_encodes() {
+    let mut small = config();
+    small.log_max_records_per_batch = 2;
+    let mut client = client_with(TestHost::new(), small);
+    grant(&mut client);
+    client.log(error("first"));
+    client.log(error("second"));
+    let job = client.tick_begin().expect("a full batch is due");
+
+    // What a game thread does while another encodes: nothing waits and nothing is lost.
+    assert_eq!(client.log(error("third")), Logged::Queued);
+    client.tick_finish(Some(job.encode()));
+    client.flush();
+
+    // One batch is in flight at a time; answered, the next one goes.
+    let mut messages = Vec::new();
+    for _ in 0..3 {
+        for request in client.host().take_sent() {
+            if request.url.ends_with("/v1/logs") {
+                let mut json = Vec::new();
+                std::io::Read::read_to_end(
+                    &mut flate2::read::GzDecoder::new(&request.body[..]),
+                    &mut json,
+                )
+                .unwrap();
+                let body: Json = serde_json::from_slice(&json).unwrap();
+                for r in body["records"].as_array().unwrap() {
+                    messages.push(r["message"].as_str().unwrap().to_owned());
+                }
+            }
+            client.on_response(accepted(request.id, 1));
+        }
+    }
+    assert!(messages.contains(&"first".to_owned()));
+    assert!(messages.contains(&"third".to_owned()));
+}
+
+#[test]
+fn a_breadcrumb_is_scrubbed_when_it_is_sent() {
+    let mut client = client_with(TestHost::new(), config());
+    grant(&mut client);
+    client.add_breadcrumb("ui", "Signed in as emma@example.com", LogLevel::Info);
+    client.log(error("boom"));
+    client.log(error("boom again"));
+    client.flush();
+    let bodies = log_bodies(&client);
+    for record in bodies[0]["records"].as_array().unwrap() {
+        assert_eq!(record["breadcrumbs"][0]["message"], "Signed in as [email]");
+    }
+}

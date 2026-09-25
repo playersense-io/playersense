@@ -39,6 +39,8 @@ pub mod transport;
 #[cfg(test)]
 mod conformance;
 #[cfg(test)]
+mod logs_bench;
+#[cfg(test)]
 mod logs_tests;
 #[cfg(test)]
 mod testhost;

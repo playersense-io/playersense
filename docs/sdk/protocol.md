@@ -756,8 +756,37 @@ storage, outside platform backup.
 record: what broke, where, and on what kind of device. That is COPPA's support for internal
 operations, and what the Families policy and the Kids category expect of an SDK.
 
-**Cost on the device.** The capture callback copies two references into a fixed ring under a
-lock and returns; parsing, filtering and the native call happen four times a second on the main
-thread. An error repeated within 10 seconds is one record with a `ps.repeat` count, a device sends
-at most 120 records a minute (crashes excepted), and a batch is gzip, at most 200 records or
-64 KB, sent every 15 seconds, or at once for a crash.
+**Cost on the device.** Nothing that takes time happens in the game's frame:
+
+- The capture callback copies two references into a fixed ring under a lock and returns. It
+  allocates nothing.
+- Parsing, filtering and recording happen on the SDK's own thread, four times a second. A
+  binding without threads (WebGL) does them on the main thread.
+- A full batch is never sealed inside the call that filled it. It is sealed on the next tick,
+  and the part that takes milliseconds (JSON and gzip) runs outside the client's lock
+  (`tick_begin`, `SealJob::encode`, `tick_finish`), so a game thread calling in waits
+  microseconds at most.
+- A batch is compressed once, when it is sealed, and spooled compressed: sending is a read.
+- Breadcrumbs are kept raw and scrubbed only when an error first carries them, since most never
+  are.
+- A binding mirrors the per-minute budget before parsing, so a storm of distinct errors is not
+  parsed only to be refused: garbage made on any thread is a collection that pauses the main
+  one.
+
+An error repeated within 10 seconds is one record with a `ps.repeat` count, a device sends at
+most 120 records a minute (crashes excepted), and a batch is gzip, at most 200 records or 64 KB,
+sent every 15 seconds, or at once for a crash.
+
+Measured on a Galaxy S23 (`sdk/core/src/logs_bench.rs`, run over adb) with the benchmark pinned
+to one Cortex-A510 efficiency core, the nearest a flagship gets to a budget phone:
+
+| | median | p99 |
+|---|---|---|
+| A breadcrumb | 0.57 µs | 0.62 µs |
+| Scrubbing a clean line | 2.3 µs | 2.5 µs |
+| Recording a new error with 24 frames (SDK thread) | 51 µs | 316 µs |
+| The locked part of sealing a 64 KB batch | 34 µs | 104 µs |
+| Encoding it, outside the lock (SDK thread) | 3.8 ms | 7.9 ms |
+
+Before this design the whole seal ran inline and under the lock: 13.7 ms on the same core, most
+of a 60 fps frame.
