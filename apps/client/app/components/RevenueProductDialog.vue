@@ -1,82 +1,89 @@
 <script setup lang="ts">
 import type { ShareRow } from '~/components/ShareList.vue'
 
-// One package, in detail: what it made and where it went — gross, less refunds, less the
-// stores' fees, to net — how many sold, to how many players, and how many of them it
-// made payers; its revenue day by day; which stores and countries bought it; and why the
-// refunded ones were refunded. What a product manager opens before repricing a pack.
+// One package, in detail: what it made and where it went, gross, less refunds, less the stores'
+// share, to an estimated net; how many sold and to how many players; its revenue day by day;
+// which stores and countries bought it; and why the refunded ones were refunded. Read from the
+// revenue answer narrowed to this package, over the page's range and its other filters.
 const props = defineProps<{
-  line: ProductLine | null
-  days: readonly number[]
+  /** The package's product id; null while none is open. */
+  product: string | null
+  range: { from: string, to: string }
+  /** The page's store and country filters, which the package's figures keep. */
+  filters: Record<string, readonly string[]>
 }>()
 
 const open = defineModel<boolean>({ required: true })
 
-const dayFormat = new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric', timeZone: 'UTC' })
+const answer = useRevenue(
+  () => props.range,
+  () => ({ store: props.filters.store ?? [], country: props.filters.country ?? [], product: props.product ? [props.product] : [] }),
+  () => Boolean(props.product)
+)
+const data = computed(() => (props.product ? answer.data.value : null))
+const money = computed(() => data.value?.money ?? null)
+const usd = computed(() => Boolean(money.value))
+
+const gross = computed(() => money.value?.gross ?? (data.value?.totals.revenue_micros ?? 0) / 1_000_000)
 
 const facts = computed<Fact[]>(() => {
-  const line = props.line
-  if (!line) return []
-  const refundRate = line.transactions ? line.refunded / line.transactions : 0
-  return [
-    { key: 'gross', label: 'Gross', value: formatExactMoney(line.gross), mono: true, note: line.previousGross ? `${formatChange((line.gross - line.previousGross) / line.previousGross)} on the range before` : 'New this range' },
-    { key: 'refunds', label: 'Refunded', value: formatExactMoney(line.refunds), mono: true, note: `${formatShare(refundRate)} of sales` },
-    { key: 'fees', label: 'Store fees', value: formatExactMoney(line.fees), mono: true, note: 'What the stores kept' },
-    { key: 'net', label: 'Net', value: formatExactMoney(line.net), mono: true, note: `${formatShare(line.gross ? line.net / line.gross : 0)} of gross` },
-    { key: 'sold', label: 'Sold', value: writeFigure(Math.round(line.transactions)), mono: true, note: `to ${writeFigure(Math.round(line.buyers))} players` },
-    { key: 'first', label: 'First purchases', value: writeFigure(Math.round(line.firstPurchases)), mono: true, note: 'Players it made payers' }
+  const revenue = data.value
+  if (!revenue) return []
+  const { totals } = revenue
+  const trend = totals.previous_revenue_micros ? (totals.revenue_micros - totals.previous_revenue_micros) / totals.previous_revenue_micros : null
+  const out: Fact[] = [
+    { key: 'gross', label: 'Gross', value: writeExactMoney(gross.value, usd.value), mono: true, note: trend === null ? 'New this range' : `${formatChange(trend)} on the range before` },
+    { key: 'sold', label: 'Sold', value: writeFigure(totals.purchases), mono: true, note: totals.buyers ? `to ${writeFigure(totals.buyers)} players` : undefined },
+    { key: 'refunds', label: 'Refunded', value: writeFigure(totals.refunds), mono: true, note: money.value ? `${writeExactMoney(money.value.refunded)} given back` : `${formatShare(totals.purchases ? totals.refunds / totals.purchases : 0)} of sales` }
   ]
+  if (money.value) {
+    out.push(
+      { key: 'fees', label: 'Store fees', value: writeExactMoney(money.value.fees), mono: true, note: 'Estimated' },
+      { key: 'net', label: 'Net', value: writeExactMoney(money.value.net), mono: true, note: `Estimated, ${formatShare(money.value.gross ? money.value.net / money.value.gross : 0)} of gross` }
+    )
+  }
+  return out
 })
 
-const series = computed<MetricSeries[]>(() => (props.line ? [{ name: 'Gross', data: props.line.daily.map(value => Math.round(value * 100) / 100), type: 'bar', tone: 1 }] : []))
-
-const stores = computed<ShareRow[]>(() => {
-  const line = props.line
-  if (!line) return []
-  const total = STORE_KEYS.reduce((sum, store) => sum + line.byStore[store], 0) || 1
-  return STORE_KEYS.filter(store => line.byStore[store] > 0).map(store => ({
-    key: store,
-    label: STORES[store].label,
-    value: line.byStore[store],
-    display: formatMoney(line.byStore[store]),
-    note: formatShare(line.byStore[store] / total),
-    mark: { kind: 'platform' as const, code: STORES[store].platform }
-  })).sort((a, b) => b.value - a.value)
+const categories = computed(() => (data.value?.days ?? []).map(day => dayLabel(day.day)))
+const series = computed<MetricSeries[]>(() => {
+  const revenue = data.value
+  if (!revenue) return []
+  const values = revenue.money
+    ? revenue.money.days.map(day => Math.round(day.gross * 100) / 100)
+    : revenue.days.map(day => Math.round(day.revenue_micros / 10_000) / 100)
+  return [{ name: 'Gross', data: values, type: 'bar', tone: 1 }]
 })
 
-const countries = computed<ShareRow[]>(() => {
-  const line = props.line
-  if (!line) return []
-  return line.byCountry.slice(0, 6).map(entry => ({
-    key: entry.code,
-    label: segmentName('install_country', entry.code),
-    value: entry.gross,
-    display: formatMoney(entry.gross),
-    note: formatShare(entry.gross / (line.gross || 1)),
-    mark: { kind: 'country' as const, code: entry.code }
+const shareRows = (slices: readonly RevenueSlice[], describe: (key: string) => { label: string, mark?: SegmentMarkValue }, limit = 6): ShareRow[] => {
+  const total = slices.reduce((sum, slice) => sum + grossOf(slice), 0) || 1
+  return slices.slice(0, limit).map(slice => ({
+    key: slice.key,
+    ...describe(slice.key),
+    value: grossOf(slice),
+    display: writeMoney(grossOf(slice), usd.value),
+    note: formatShare(grossOf(slice) / total)
   }))
-})
+}
 
-const reasons = computed<ShareRow[]>(() => (props.line?.reasons ?? [])
-  .filter(entry => entry.count >= 0.5)
-  .map(entry => ({ key: entry.reason, label: entry.reason, value: entry.count, display: writeFigure(Math.round(entry.count)) }))
+const stores = computed(() => shareRows(data.value?.stores ?? [], key => ({ label: storeLook(key).label, mark: { kind: 'platform', code: storeLook(key).platform } })))
+const countries = computed(() => shareRows(data.value?.countries ?? [], key => ({ label: countryName(key), mark: { kind: 'country', code: key } })))
+
+const reasons = computed<ShareRow[]>(() => (data.value?.refunds?.reasons ?? [])
+  .map(entry => ({ key: entry.reason, label: entry.reason || 'No reason given', value: entry.refunds, display: writeFigure(entry.refunds), note: entry.usd ? writeMoney(entry.usd) : undefined }))
   .sort((a, b) => b.value - a.value))
 </script>
 
 <template>
   <v-dialog v-model="open" max-width="880" scrollable>
-    <v-card v-if="line" border flat>
+    <v-card v-if="product" border flat>
       <header class="flex items-start justify-between gap-4 border-b border-line px-5 py-4">
         <div class="flex flex-col gap-1">
-          <h2 class="m-0 flex items-center gap-2 text-base font-medium text-ink">
-            {{ line.product.name }}
-            <span class="rounded-(--ps-radius-x-small) bg-ink/5 px-1.5 text-[11px] font-normal text-ink/60">{{ KIND_LABELS[line.product.kind] }}</span>
+          <h2 class="m-0 font-mono text-base font-medium text-ink">
+            {{ product }}
           </h2>
           <p class="m-0 text-xs text-ink/55">
-            <span class="font-mono">{{ line.product.id }}</span> · {{ formatExactMoney(line.product.price) }}
-            <template v-if="line.product.window">
-              · on sale {{ dayFormat.format(Date.now() - line.product.window[0] * 86_400_000) }} – {{ dayFormat.format(Date.now() - line.product.window[1] * 86_400_000) }}
-            </template>
+            {{ range.from === range.to ? range.from : `${range.from} to ${range.to}` }}, {{ currencyWords(data) }}
           </p>
         </div>
         <v-btn
@@ -89,42 +96,52 @@ const reasons = computed<ShareRow[]>(() => (props.line?.reasons ?? [])
         />
       </header>
 
-      <div class="flex flex-col gap-6 overflow-y-auto p-5">
-        <FactGrid :columns="3" :facts="facts" :label="`${line.product.name} in figures`" />
+      <div class="overflow-y-auto">
+        <LoadState
+          :error="answer.error.value"
+          :loading="answer.loading.value"
+          what="the package"
+          @retry="answer.reload"
+        >
+          <div class="flex flex-col gap-6 p-5">
+            <FactGrid :columns="3" :facts="facts" :label="`${product} in figures`" />
 
-        <MetricCard
-          :categories="days.map(at => dayFormat.format(at))"
-          :decimals="2"
-          :height="180"
-          :series="series"
-          category-label="Day"
-          description="Gross revenue, day by day."
-          prefix="$"
-          title="Revenue"
-          type="bar"
-        />
+            <MetricCard
+              :categories="categories"
+              :decimals="2"
+              :height="180"
+              :loading="answer.pending.value"
+              :prefix="usd ? '$' : ''"
+              :series="series"
+              category-label="Day"
+              description="Gross revenue, day by day."
+              title="Revenue"
+              type="bar"
+            />
 
-        <div class="grid gap-6 md:grid-cols-2">
-          <section class="flex flex-col gap-2">
-            <h3 class="m-0 text-xs font-medium text-ink/70">
-              By store
-            </h3>
-            <ShareList :rows="stores" label="Revenue by store" />
-          </section>
-          <section class="flex flex-col gap-2">
-            <h3 class="m-0 text-xs font-medium text-ink/70">
-              Top countries
-            </h3>
-            <ShareList :rows="countries" label="Revenue by country" />
-          </section>
-        </div>
+            <div class="grid gap-6 md:grid-cols-2">
+              <section class="flex flex-col gap-2">
+                <h3 class="m-0 text-xs font-medium text-ink/70">
+                  By store
+                </h3>
+                <ShareList :rows="stores" label="Revenue by store" />
+              </section>
+              <section class="flex flex-col gap-2">
+                <h3 class="m-0 text-xs font-medium text-ink/70">
+                  Top countries
+                </h3>
+                <ShareList :rows="countries" label="Revenue by country" />
+              </section>
+            </div>
 
-        <section v-if="reasons.length" class="flex flex-col gap-2">
-          <h3 class="m-0 text-xs font-medium text-ink/70">
-            Why it was refunded
-          </h3>
-          <ShareList :rows="reasons" label="Refunds by reason" tone="error" />
-        </section>
+            <section v-if="reasons.length" class="flex flex-col gap-2">
+              <h3 class="m-0 text-xs font-medium text-ink/70">
+                Why it was refunded
+              </h3>
+              <ShareList :rows="reasons" label="Refunds by reason" tone="error" />
+            </section>
+          </div>
+        </LoadState>
       </div>
     </v-card>
   </v-dialog>

@@ -1,82 +1,106 @@
 <script setup lang="ts">
+// The money that came back: how much, how often, and why the stores said it was refunded, day by
+// day, and the latest refunded purchases one by one, each with the transaction the store knows it
+// by. Refunds are what the stores report, so they are there only for stores the project verifies
+// purchases with (Settings > Stores).
 import type { ShareRow } from '~/components/ShareList.vue'
 
-// The money that came back: how much, how often, and why — a customer's request, an
-// accidental tap, a chargeback, fraud — which packages are refunded most, day by day, and
-// the latest refunds one by one, each with the transaction the store knows it by. A
-// refund rate that climbs is a pack that disappoints, or a card thief who found the game.
 const props = defineProps<{
-  sample: RevenueSample
-  categories: readonly string[]
+  revenue: RevenueRecord | null
+  range: { from: string, to: string }
+  filters: Record<string, readonly string[]>
   loading?: boolean
 }>()
 
-const dayFormat = new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric', timeZone: 'UTC' })
-
-function daysBefore(refund: { purchasedAt: number, refundedAt: number }) {
-  const days = Math.round((refund.refundedAt - refund.purchasedAt) / 86_400_000)
-  return days === 1 ? '1 day before' : `${days} days before`
-}
-
-const chargebacks = computed(() => props.sample.refunds.reasons.find(entry => entry.reason === 'Chargeback'))
+const money = computed(() => props.revenue?.money ?? null)
+const refunds = computed(() => props.revenue?.refunds ?? null)
+const totals = computed(() => props.revenue?.totals ?? null)
 
 const facts = computed<Fact[]>(() => {
-  const { total, previous } = props.sample
-  const rate = total.transactions ? total.refunded / total.transactions : 0
-  const was = previous.transactions ? previous.refunded / previous.transactions : 0
+  const all = totals.value
+  if (!all) return []
+  const rate = all.purchases ? all.refunds / all.purchases : 0
+  const amount = money.value ? money.value.refunded : all.refunded_micros / 1_000_000
+  const gross = money.value ? money.value.gross : all.revenue_micros / 1_000_000
   return [
-    { key: 'amount', label: 'Refunded', value: formatExactMoney(total.refunds), mono: true, note: `${formatShare(total.gross ? total.refunds / total.gross : 0)} of gross` },
-    { key: 'rate', label: 'Refund rate', value: formatShare(rate), mono: true, note: `${formatShare(was)} the range before` },
-    { key: 'chargebacks', label: 'Chargebacks', value: writeFigure(Math.round(chargebacks.value?.count ?? 0)), mono: true, note: `${formatExactMoney(chargebacks.value?.amount ?? 0)}, and a fee each` },
-    { key: 'days', label: 'Median days to refund', value: `${props.sample.refunds.medianDays} days`, mono: true, note: 'From purchase to refund' }
+    { key: 'amount', label: 'Refunded', value: writeExactMoney(amount, Boolean(money.value)), mono: true, note: `${formatShare(gross ? amount / gross : 0)} of gross` },
+    { key: 'count', label: 'Refunds', value: writeFigure(all.refunds), mono: true, note: `${formatShare(rate)} of purchases` },
+    { key: 'days', label: 'Median days to refund', value: refunds.value ? `${writeFigure(refunds.value.median_days, { decimals: 1 })} days` : 'None yet', mono: true, note: 'From purchase to refund' }
   ]
 })
 
+const categories = computed(() => (money.value?.days ?? []).map(day => dayLabel(day.day)))
 const series = computed<MetricSeries[]>(() => [{
   name: 'Refunded',
-  data: props.sample.daily.map(day => Math.round(day.refunds * 100) / 100),
+  data: (money.value?.days ?? []).map(day => Math.round(day.refunded * 100) / 100),
   type: 'bar',
   tone: 2
 }])
 
-const reasons = computed<ShareRow[]>(() => props.sample.refunds.reasons
-  .map(entry => ({ key: entry.reason, label: entry.reason, value: entry.amount, display: formatMoney(entry.amount), note: `${writeFigure(Math.round(entry.count))} refunds` }))
+const reasons = computed<ShareRow[]>(() => (refunds.value?.reasons ?? [])
+  .map(entry => ({
+    key: entry.reason,
+    label: entry.reason || 'No reason given',
+    value: entry.refunds,
+    display: writeFigure(entry.refunds),
+    note: money.value ? writeMoney(entry.usd) : undefined
+  }))
   .sort((a, b) => b.value - a.value))
 
-const byPackage = computed<ShareRow[]>(() => props.sample.products
-  .map(line => ({ key: line.product.id, label: line.product.name, value: line.transactions ? line.refunded / line.transactions : 0, display: formatShare(line.transactions ? line.refunded / line.transactions : 0), note: formatMoney(line.refunds) }))
-  .sort((a, b) => b.value - a.value))
+// --- The latest, one by one ------------------------------------------------------------------
+
+const ledger = usePurchaseLedger(() => props.range, () => props.filters, ['refunded'])
+const latest = computed(() => ledger.purchases.value.slice(0, 20))
+
+const dayFormat = new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric', timeZone: 'UTC' })
+
+function daysAfter(purchase: PurchaseRow) {
+  if (!purchase.refunded_at) return ''
+  const days = Math.round((Date.parse(purchase.refunded_at) - Date.parse(purchase.at)) / 86_400_000)
+  return days === 1 ? '1 day after' : `${days} days after`
+}
 </script>
 
 <template>
   <div class="flex flex-col gap-5">
-    <SectionCard description="Refunds granted by the stores in the range, and chargebacks raised through a player's bank." title="Refunds">
-      <FactGrid :columns="4" :facts="facts" label="Refunds in figures" />
+    <SectionCard description="Refunds the stores granted in the range, and chargebacks raised through a player's bank." title="Refunds">
+      <FactGrid :columns="3" :facts="facts" label="Refunds in figures" />
+      <p v-if="!refunds" class="m-0 mt-4 text-xs leading-5 text-ink/55">
+        Refunds come from the stores themselves, so they show only for stores this project verifies purchases with. Connect App Store, Google Play or Steam in
+        <NuxtLink class="text-primary no-underline hover:underline" to="/settings/stores">Settings, Stores</NuxtLink>.
+      </p>
     </SectionCard>
 
     <MetricCard
+      v-if="money"
       :categories="categories"
       :decimals="2"
       :loading="loading"
       :series="series"
       category-label="Day"
-      description="Revenue refunded each day, taken off net revenue on the day the store refunded it."
+      description="Revenue refunded each day, in USD, taken off net revenue on the day the store refunded it."
       prefix="$"
       title="Refunded by day"
       type="bar"
     />
 
-    <div class="grid gap-5 lg:grid-cols-2">
-      <SectionCard description="What the store or the bank gave as the reason." title="Why">
-        <ShareList :rows="reasons" label="Refunds by reason" tone="error" />
-      </SectionCard>
-      <SectionCard description="The share of each package's sales refunded. Above 3% is worth a look." title="By package">
-        <ShareList :rows="byPackage" label="Refund rate by package" tone="warning" />
-      </SectionCard>
-    </div>
+    <SectionCard description="What the store or the bank gave as the reason." title="Why">
+      <ShareList
+        v-if="reasons.length"
+        :rows="reasons"
+        label="Refunds by reason"
+        tone="error"
+      />
+      <p v-else class="m-0 text-xs text-ink/55">
+        No refund in the range.
+      </p>
+    </SectionCard>
 
-    <SectionCard :padded="false" description="The latest refunds, with the transaction the store knows each by." title="Latest refunds">
-      <div class="overflow-x-auto">
+    <SectionCard :padded="false" description="The latest refunded purchases bought in the range, with the transaction the store knows each by." title="Latest refunds">
+      <p v-if="!ledger.pending.value && !latest.length" class="m-0 px-5 py-4 text-xs text-ink/55">
+        No refunded purchase in the range.
+      </p>
+      <div v-else class="overflow-x-auto">
         <table class="ps-revenue-refunds">
           <thead>
             <tr>
@@ -85,41 +109,40 @@ const byPackage = computed<ShareRow[]>(() => props.sample.products
               <th>Store</th>
               <th>Country</th>
               <th>Amount</th>
-              <th>Bought</th>
+              <th>After</th>
               <th>Reason</th>
               <th>Transaction</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="refund in sample.refunds.recent" :key="refund.id">
+            <tr v-for="purchase in latest" :key="purchase.event_id">
               <td class="font-mono">
-                {{ dayFormat.format(refund.refundedAt) }}
+                {{ purchase.refunded_at ? dayFormat.format(Date.parse(purchase.refunded_at)) : '' }}
               </td>
-              <td>{{ refund.product }}</td>
-              <td>
-                <span class="inline-flex items-center gap-1.5">
-                  <PlatformIcon :platform="STORES[refund.store].platform" />{{ STORES[refund.store].label }}
-                </span>
+              <td class="font-mono">
+                {{ purchase.product_id }}
               </td>
               <td>
                 <span class="inline-flex items-center gap-1.5">
-                  <CountryFlag :code="refund.country" />{{ segmentName('install_country', refund.country) }}
+                  <PlatformIcon :platform="storeLook(purchase.store).platform" />{{ storeLook(purchase.store).label }}
+                </span>
+              </td>
+              <td>
+                <span v-if="purchase.country" class="inline-flex items-center gap-1.5">
+                  <CountryFlag :code="purchase.country" />{{ countryName(purchase.country) }}
                 </span>
               </td>
               <td class="font-mono">
-                {{ formatExactMoney(refund.amount) }}
+                {{ writeAmount(purchase.revenue_micros, purchase.currency) }}
               </td>
               <td class="font-mono text-ink/60">
-                {{ daysBefore(refund) }}
+                {{ daysAfter(purchase) }}
               </td>
               <td>
-                <span
-                  :class="refund.reason === 'Chargeback' || refund.reason === 'Fraud' ? 'bg-error/12 text-error' : 'bg-ink/5 text-ink/70'"
-                  class="rounded-(--ps-radius-x-small) px-1.5 py-0.5 text-[11px]"
-                >{{ refund.reason }}</span>
+                <span v-if="purchase.refund_reason" class="rounded-(--ps-radius-x-small) bg-ink/5 px-1.5 py-0.5 text-[11px] text-ink/70">{{ purchase.refund_reason }}</span>
               </td>
               <td class="font-mono text-[11px] text-ink/55">
-                {{ refund.id }}
+                {{ purchase.store_transaction_id ?? '' }}
               </td>
             </tr>
           </tbody>

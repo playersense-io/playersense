@@ -1,59 +1,66 @@
 <script setup lang="ts">
-import type { ShareRow } from '~/components/ShareList.vue'
-
-// Who pays, and how unevenly: how many players paid, how many for the first time, the
-// spender tiers from minnows to top whales with each tier's share of payers against its
-// share of revenue, how much of it the top few bring, new against returning payers day by
-// day, and the package that turns a player into a payer.
+// Who pays, and how unevenly: how many players paid, how many for the first time, and the spender
+// tiers from the smallest spenders to the largest, each tier's share of payers against its share of
+// revenue, and first-time payers day by day.
 //
-// Tiers are by spend over the range, in the fixed bands of the spend buckets (project.md
-// §29.11), so a player moves between them as they spend rather than as the bands move.
+// Tiers are by what a payer has spent in their whole life, in the reported currency, in fixed
+// bands, so a player moves between them as they spend rather than as the bands move. Neither the
+// tiers nor the new payers follow the filters: both are about the payer, not about one product or
+// store. A tier or a day with too few payers to disclose is left blank.
 const props = defineProps<{
-  sample: RevenueSample
+  revenue: RevenueRecord | null
   categories: readonly string[]
   loading?: boolean
 }>()
 
-const tiers = computed(() => SPENDER_TIERS.map(tier => ({
-  ...tier,
-  players: props.sample.payers.total * tier.payers,
-  amount: props.sample.total.gross * tier.revenue
-})))
-
-const top = (count: number) => SPENDER_TIERS.slice(-count).reduce((sum, tier) => sum + tier.revenue, 0)
+const newPayers = computed(() => (props.revenue?.new_payers ?? []).reduce((sum, day) => sum + (day.payers ?? 0), 0))
 
 const facts = computed<Fact[]>(() => {
-  const { payers, total } = props.sample
+  const totals = props.revenue?.totals
+  if (!totals) return []
+  const buyers = totals.buyers ?? null
   return [
-    { key: 'payers', label: 'Paying players', value: writeFigure(Math.round(payers.total)), mono: true, note: `${writeFigure(total.transactions / Math.max(payers.total, 1), { decimals: 1 })} purchases each` },
-    { key: 'new', label: 'New payers', value: writeFigure(Math.round(payers.newPayers)), mono: true, note: `${formatShare(payers.newPayers / Math.max(payers.total, 1))} paid for the first time` },
-    { key: 'top1', label: 'Top 1% of payers', value: formatShare(top(1)), mono: true, note: 'of revenue' },
-    { key: 'top10', label: 'Top 10% of payers', value: formatShare(top(2)), mono: true, note: 'of revenue' }
+    { key: 'payers', label: 'Paying players', value: buyers === null ? 'Too few to show' : writeFigure(buyers), mono: true, note: buyers ? `${writeFigure(totals.purchases / buyers, { decimals: 1 })} purchases each` : undefined },
+    { key: 'new', label: 'New payers', value: writeFigure(newPayers.value), mono: true, note: buyers ? `${formatShare(newPayers.value / Math.max(buyers, 1))} paid for the first time` : 'Paid for the first time' },
+    { key: 'previous', label: 'The range before', value: totals.previous_buyers == null ? 'Too few to show' : writeFigure(totals.previous_buyers), mono: true, note: 'Paying players' }
   ]
 })
 
-const series = computed<MetricSeries[]>(() => [
-  { name: 'Returning payers', data: props.sample.payers.daily.map(day => Math.round(day.returning)), type: 'bar', stack: 'payers', tone: 1 },
-  { name: 'New payers', data: props.sample.payers.daily.map(day => Math.round(day.new)), type: 'bar', stack: 'payers', tone: 3 }
-])
+const band = (from: number, to?: number) => {
+  const write = (micros: number) => writeFigure(micros / 1_000_000)
+  return to ? `${write(from)} to ${write(to)}` : `${write(from)} and more`
+}
 
-const first = computed<ShareRow[]>(() => props.sample.products
-  .map(line => ({ key: line.product.id, label: line.product.name, value: line.firstPurchases, display: writeFigure(Math.round(line.firstPurchases)), note: formatShare(line.firstPurchases / Math.max(props.sample.payers.newPayers, 1)) }))
-  .sort((a, b) => b.value - a.value))
+const tiers = computed(() => {
+  const rows = props.revenue?.spender_tiers ?? []
+  const payers = rows.reduce((sum, tier) => sum + (tier.payers ?? 0), 0) || 1
+  const revenue = rows.reduce((sum, tier) => sum + (tier.revenue_micros ?? 0), 0) || 1
+  return rows.map(tier => ({
+    key: tier.from_micros,
+    band: band(tier.from_micros, tier.to_micros),
+    payers: tier.payers ?? null,
+    revenue: tier.revenue_micros == null ? null : tier.revenue_micros / 1_000_000,
+    payerShare: (tier.payers ?? 0) / payers,
+    revenueShare: (tier.revenue_micros ?? 0) / revenue
+  }))
+})
+
+const series = computed<MetricSeries[]>(() => [
+  { name: 'New payers', data: (props.revenue?.new_payers ?? []).map(day => day.payers ?? 0), type: 'bar', tone: 3 }
+])
 </script>
 
 <template>
   <div class="flex flex-col gap-5">
-    <SectionCard description="The players who paid in the range, and how much of the money the biggest spenders bring." title="Payers">
-      <FactGrid :columns="4" :facts="facts" label="Payers in figures" />
+    <SectionCard description="The players who paid in the range." title="Payers">
+      <FactGrid :columns="3" :facts="facts" label="Payers in figures" />
     </SectionCard>
 
-    <SectionCard :padded="false" description="Payers by what they spent in the range. The gap between a tier's share of payers and its share of revenue is how the game is paid for." title="Spender tiers">
+    <SectionCard :padded="false" description="Everybody who bought in the range, by what they have spent in their life, as reported. The gap between a tier's share of payers and its share of revenue is how the game is paid for." title="Spender tiers">
       <table class="ps-revenue-tiers">
         <thead>
           <tr>
-            <th>Tier</th>
-            <th>Spent</th>
+            <th>Spent in their life</th>
             <th>Payers</th>
             <th class="w-2/5">
               Share of payers · of revenue
@@ -63,33 +70,30 @@ const first = computed<ShareRow[]>(() => props.sample.products
           </tr>
         </thead>
         <tbody>
-          <tr v-for="tier in tiers" :key="tier.tier">
+          <tr v-for="tier in tiers" :key="tier.key">
             <td class="text-ink">
-              {{ tier.tier }}
-            </td>
-            <td class="text-ink/60">
               {{ tier.band }}
             </td>
             <td class="font-mono">
-              {{ writeFigure(Math.round(tier.players)) }}
+              {{ tier.payers === null ? 'Too few' : writeFigure(tier.payers) }}
             </td>
             <td>
               <span class="flex flex-col gap-1">
                 <span class="flex items-center gap-2">
-                  <span class="h-1.5 flex-1 overflow-hidden rounded-full bg-ink/6"><span :style="{ width: `${tier.payers * 100}%` }" class="block h-full rounded-full bg-ink/35" /></span>
-                  <span class="w-12 text-right font-mono text-[11px] text-ink/55">{{ formatShare(tier.payers) }}</span>
+                  <span class="h-1.5 flex-1 overflow-hidden rounded-full bg-ink/6"><span :style="{ width: `${tier.payerShare * 100}%` }" class="block h-full rounded-full bg-ink/35" /></span>
+                  <span class="w-12 text-right font-mono text-[11px] text-ink/55">{{ formatShare(tier.payerShare) }}</span>
                 </span>
                 <span class="flex items-center gap-2">
-                  <span class="h-1.5 flex-1 overflow-hidden rounded-full bg-ink/6"><span :style="{ width: `${tier.revenue * 100}%` }" class="block h-full rounded-full bg-primary" /></span>
-                  <span class="w-12 text-right font-mono text-[11px] text-ink">{{ formatShare(tier.revenue) }}</span>
+                  <span class="h-1.5 flex-1 overflow-hidden rounded-full bg-ink/6"><span :style="{ width: `${tier.revenueShare * 100}%` }" class="block h-full rounded-full bg-primary" /></span>
+                  <span class="w-12 text-right font-mono text-[11px] text-ink">{{ formatShare(tier.revenueShare) }}</span>
                 </span>
               </span>
             </td>
             <td class="font-mono">
-              {{ formatMoney(tier.amount) }}
+              {{ tier.revenue === null ? '' : writeMoney(tier.revenue, false) }}
             </td>
             <td class="font-mono text-ink/70">
-              {{ formatExactMoney(tier.amount / Math.max(tier.players, 1)) }}
+              {{ tier.revenue === null || !tier.payers ? '' : writeExactMoney(tier.revenue / tier.payers, false) }}
             </td>
           </tr>
         </tbody>
@@ -100,21 +104,16 @@ const first = computed<ShareRow[]>(() => props.sample.products
       </p>
     </SectionCard>
 
-    <div class="grid gap-5 lg:grid-cols-[3fr_2fr]">
-      <MetricCard
-        :categories="categories"
-        :decimals="0"
-        :loading="loading"
-        :series="series"
-        category-label="Day"
-        description="Players who paid each day: those paying for the first time, over those who had paid before."
-        title="New and returning payers"
-        type="bar"
-      />
-      <SectionCard description="The package bought first by the players who became payers in the range." title="What makes a payer">
-        <ShareList :rows="first" label="First purchases by package" tone="success" />
-      </SectionCard>
-    </div>
+    <MetricCard
+      :categories="categories"
+      :decimals="0"
+      :loading="loading"
+      :series="series"
+      category-label="Day"
+      description="Players who paid for the first time ever, each day. A day with too few to disclose shows none."
+      title="New payers"
+      type="bar"
+    />
   </div>
 </template>
 

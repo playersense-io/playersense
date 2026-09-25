@@ -5,12 +5,28 @@
 // great deal, and a shop is read by which packages carry the purchases and which the money.
 //
 // One bar across the top shows the mix by the measure chosen; below it, every package with both
-// shares side by side and how far apart they are.
-const props = defineProps<{
-  packages: readonly PackageWeight[]
+// shares side by side and how far apart they are. A package is its product id, as the game sent it.
+const props = withDefaults(defineProps<{
+  lines: readonly RevenueLine[]
+  /** Whether the figures are dollars. */
+  usd?: boolean
   /** While the figures are on their way: the sentence, the bar and the rows as bones. */
   loading?: boolean
-}>()
+}>(), { usd: true, loading: false })
+
+interface PackageWeight {
+  id: string
+  purchases: number
+  gross: number
+  purchaseShare: number
+  revenueShare: number
+}
+
+const packages = computed<PackageWeight[]>(() => {
+  const purchases = props.lines.reduce((sum, line) => sum + line.purchases, 0) || 1
+  const gross = props.lines.reduce((sum, line) => sum + line.gross, 0) || 1
+  return props.lines.map(line => ({ id: line.key, purchases: line.purchases, gross: line.gross, purchaseShare: line.purchases / purchases, revenueShare: line.gross / gross }))
+})
 
 const MEASURES: SegmentedOption[] = [
   { value: 'purchases', label: 'By purchases' },
@@ -27,11 +43,11 @@ const measureModel = computed({
 const shareOf = (entry: PackageWeight) => (measure.value === 'purchases' ? entry.purchaseShare : entry.revenueShare)
 
 /* The biggest six by the measure chosen each get a colour; the rest share one, as "Others". */
-const ranked = computed(() => [...props.packages].sort((a, b) => shareOf(b) - shareOf(a)))
-const coloured = computed(() => new Map(ranked.value.slice(0, 6).map((entry, index) => [entry.product.id, index + 1])))
+const ranked = computed(() => [...packages.value].sort((a, b) => shareOf(b) - shareOf(a)))
+const coloured = computed(() => new Map(ranked.value.slice(0, 6).map((entry, index) => [entry.id, index + 1])))
 
 const segments = computed(() => {
-  const top = ranked.value.slice(0, 6).map(entry => ({ key: entry.product.id, label: entry.product.name, share: shareOf(entry), colour: toneColour(coloured.value.get(entry.product.id)!) }))
+  const top = ranked.value.slice(0, 6).map(entry => ({ key: entry.id, label: entry.id, share: shareOf(entry), colour: toneColour(coloured.value.get(entry.id)!) }))
   const rest = ranked.value.slice(6).reduce((sum, entry) => sum + shareOf(entry), 0)
   return rest > 0.001 ? [...top, { key: 'others', label: 'Others', share: rest, colour: 'rgba(var(--v-theme-on-surface), 0.2)' }] : top
 })
@@ -48,15 +64,15 @@ function pull(entry: PackageWeight) {
   return { text: 'About its share', tone: 'text-ink/50' }
 }
 
-const largest = computed(() => Math.max(0.01, ...props.packages.flatMap(entry => [entry.purchaseShare, entry.revenueShare])))
+const largest = computed(() => Math.max(0.01, ...packages.value.flatMap(entry => [entry.purchaseShare, entry.revenueShare])))
 
 /* The contrast in a sentence: the most bought, and the one that earns most for how rarely it is bought. */
 const summary = computed(() => {
-  if (props.packages.length < 2) return ''
-  const mostBought = [...props.packages].sort((a, b) => b.purchaseShare - a.purchaseShare)[0]!
-  const heaviest = [...props.packages].sort((a, b) => b.revenueShare / b.purchaseShare - a.revenueShare / a.purchaseShare)[0]!
-  if (mostBought.product.id === heaviest.product.id) return ''
-  return `${mostBought.product.name} is the most bought, ${percent(mostBought.purchaseShare)} of purchases, and brings ${percent(mostBought.revenueShare)} of revenue. ${heaviest.product.name} is ${percent(heaviest.purchaseShare)} of purchases and ${percent(heaviest.revenueShare)} of revenue.`
+  if (packages.value.length < 2) return ''
+  const mostBought = [...packages.value].sort((a, b) => b.purchaseShare - a.purchaseShare)[0]!
+  const heaviest = [...packages.value].sort((a, b) => b.revenueShare / Math.max(b.purchaseShare, 1e-9) - a.revenueShare / Math.max(a.purchaseShare, 1e-9))[0]!
+  if (mostBought.id === heaviest.id) return ''
+  return `${mostBought.id} is the most bought, ${percent(mostBought.purchaseShare)} of purchases, and brings ${percent(mostBought.revenueShare)} of revenue. ${heaviest.id} is ${percent(heaviest.purchaseShare)} of purchases and ${percent(heaviest.revenueShare)} of revenue.`
 })
 </script>
 
@@ -154,13 +170,13 @@ const summary = computed(() => {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="entry in ranked" :key="entry.product.id" class="border-b border-line/70 last:border-b-0">
+          <tr v-for="entry in ranked" :key="entry.id" class="border-b border-line/70 last:border-b-0">
             <td class="px-5 py-2.5">
               <span class="flex min-w-0 items-center gap-2.5">
-                <span :style="{ background: colourOf(entry.product.id) }" aria-hidden="true" class="size-2.5 flex-none rounded-[3px]" />
+                <span :style="{ background: colourOf(entry.id) }" aria-hidden="true" class="size-2.5 flex-none rounded-[3px]" />
                 <span class="flex min-w-0 flex-col">
-                  <span class="truncate text-[13px] text-ink">{{ entry.product.name }}</span>
-                  <span class="truncate text-[11px] text-ink/45">{{ KIND_LABELS[entry.product.kind] }} · {{ formatExactMoney(entry.product.price) }}</span>
+                  <span class="truncate font-mono text-[13px] text-ink">{{ entry.id }}</span>
+                  <span class="truncate text-[11px] text-ink/45">{{ writeExactMoney(entry.gross / Math.max(entry.purchases, 1), usd) }} a purchase</span>
                 </span>
               </span>
             </td>
@@ -180,7 +196,7 @@ const summary = computed(() => {
                 </span>
                 <span class="w-12 flex-none text-right font-mono text-xs text-ink">{{ percent(entry.revenueShare) }}</span>
               </span>
-              <span class="font-mono text-[10px] text-ink/40">{{ formatMoney(entry.gross) }}</span>
+              <span class="font-mono text-[10px] text-ink/40">{{ writeMoney(entry.gross, usd) }}</span>
             </td>
             <td :class="pull(entry).tone" class="px-5 py-2.5 text-right text-[11px] whitespace-nowrap">
               {{ pull(entry).text }}

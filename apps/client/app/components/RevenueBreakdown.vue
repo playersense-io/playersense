@@ -1,49 +1,45 @@
 <script setup lang="ts">
-// Revenue split by where it came from — a country, a store — as a table with one figure to
-// a column, so each can be read down and compared: the revenue with a bar against the
-// largest, its share, how it moved on the range before, the payers there and what each
-// spent, the purchases and their average, how much was refunded, and for stores what the
-// store kept. Ranked by revenue; any column sorts it.
-//
-// A refund rate above 3% is marked, as in the packages table: where chargebacks and card
-// fraud cluster, the money made there is worth less than it looks.
+// Revenue split by where it came from (a country, a store) as a table with one figure to a
+// column, so each can be read down and compared: the revenue with a bar against the largest,
+// its share, how it moved on the range before, the buyers there and what each spent, the
+// purchases and their average, and for stores the share each keeps and what was left. Ranked by
+// revenue; any column sorts it.
 const props = withDefaults(defineProps<{
-  lines: readonly BreakdownLine[]
-  basis: 'gross' | 'net'
+  lines: readonly RevenueLine[]
   /** What a row is: "Country", "Store". */
   noun: string
   /** A row's name and mark. */
-  describe: (line: BreakdownLine) => { label: string, mark?: SegmentMarkValue }
-  /** Whether to show what each row's store kept. */
+  describe: (line: RevenueLine) => { label: string, mark?: SegmentMarkValue }
+  /** Whether to show what each row's store kept, and what was left. */
   fees?: boolean
+  /** Whether the figures are dollars. */
+  usd?: boolean
   /** Rows shown before "Show all". Every row when absent. */
   limit?: number
 }>(), {
   fees: false,
+  usd: true,
   limit: undefined
 })
 
-type Key = 'name' | 'revenue' | 'trend' | 'payers' | 'arppu' | 'purchases' | 'average' | 'refunds' | 'fees'
+type Key = 'name' | 'revenue' | 'trend' | 'buyers' | 'arppu' | 'purchases' | 'average' | 'fee' | 'net'
 
 const sort = ref<TableSort | null>(null)
 const showAll = ref(false)
 
-const total = computed(() => props.lines.reduce((sum, line) => sum + line[props.basis], 0) || 1)
-const largest = computed(() => Math.max(0, ...props.lines.map(line => line[props.basis])) || 1)
+const total = computed(() => props.lines.reduce((sum, line) => sum + line.gross, 0) || 1)
+const largest = computed(() => Math.max(0, ...props.lines.map(line => line.gross)) || 1)
 
-const trendOf = (line: BreakdownLine) => (line.previousGross ? (line.gross - line.previousGross) / line.previousGross : null)
-const refundRate = (line: BreakdownLine) => (line.transactions ? line.refunded / line.transactions : 0)
-
-const VALUES: Record<Key, (line: BreakdownLine) => number | string> = {
+const VALUES: Record<Key, (line: RevenueLine) => number | string> = {
   name: line => props.describe(line).label,
-  revenue: line => line[props.basis],
-  trend: line => trendOf(line) ?? -Infinity,
-  payers: line => line.payers,
-  arppu: line => line.gross / Math.max(line.payers, 1),
-  purchases: line => line.transactions,
-  average: line => line.gross / Math.max(line.transactions, 1),
-  refunds: refundRate,
-  fees: line => line.fees
+  revenue: line => line.gross,
+  trend: line => line.trend ?? -Infinity,
+  buyers: line => line.buyers,
+  arppu: line => line.gross / Math.max(line.buyers, 1),
+  purchases: line => line.purchases,
+  average: line => line.gross / Math.max(line.purchases, 1),
+  fee: line => line.feePercent ?? 0,
+  net: line => line.net ?? 0
 }
 
 const ranked = computed(() => {
@@ -61,14 +57,18 @@ const ranked = computed(() => {
 
 const columns = computed(() => [
   { key: 'name' as const, label: props.noun, align: 'start' as const },
-  { key: 'revenue' as const, label: props.basis === 'gross' ? 'Gross' : 'Net', align: 'start' as const },
+  { key: 'revenue' as const, label: 'Gross', align: 'start' as const },
   { key: 'trend' as const, label: 'Trend', align: 'end' as const },
-  { key: 'payers' as const, label: 'Payers', align: 'end' as const },
-  { key: 'arppu' as const, label: 'Per payer', align: 'end' as const },
+  { key: 'buyers' as const, label: 'Buyers', align: 'end' as const },
+  { key: 'arppu' as const, label: 'Per buyer', align: 'end' as const },
   { key: 'purchases' as const, label: 'Purchases', align: 'end' as const },
   { key: 'average' as const, label: 'Average', align: 'end' as const },
-  { key: 'refunds' as const, label: 'Refunded', align: 'end' as const },
-  ...(props.fees ? [{ key: 'fees' as const, label: 'Store fees', align: 'end' as const }] : [])
+  ...(props.fees
+    ? [
+        { key: 'fee' as const, label: 'Store keeps', align: 'end' as const },
+        { key: 'net' as const, label: 'Net, estimated', align: 'end' as const }
+      ]
+    : [])
 ])
 
 const count = (value: number) => writeFigure(Math.round(value), { compact: value >= 100_000 })
@@ -106,38 +106,38 @@ const count = (value: number) => writeFigure(Math.round(value), { compact: value
             </td>
             <td class="ps-revenue-breakdown__revenue">
               <span class="flex items-center gap-3">
-                <span class="w-16 text-right font-mono text-ink">{{ formatMoney(line[basis]) }}</span>
+                <span class="w-16 text-right font-mono text-ink">{{ writeMoney(line.gross, usd) }}</span>
                 <span class="h-1.5 min-w-16 flex-1 overflow-hidden rounded-full bg-ink/6">
-                  <span :style="{ width: `${line[basis] / largest * 100}%` }" class="block h-full rounded-full bg-primary" />
+                  <span :style="{ width: `${line.gross / largest * 100}%` }" class="block h-full rounded-full bg-primary" />
                 </span>
-                <span class="w-12 text-right font-mono text-[11px] text-ink/55">{{ formatShare(line[basis] / total) }}</span>
+                <span class="w-12 text-right font-mono text-[11px] text-ink/55">{{ formatShare(line.gross / total) }}</span>
               </span>
             </td>
             <td class="font-mono">
               <span
-                :class="trendOf(line) === null ? 'text-ink/40' : trendOf(line)! >= 0 ? 'text-success' : 'text-error'"
-              >{{ trendOf(line) === null ? 'new' : formatChange(trendOf(line)!) }}</span>
+                :class="line.trend === null ? 'text-ink/40' : line.trend >= 0 ? 'text-success' : 'text-error'"
+              >{{ line.trend === null ? 'new' : formatChange(line.trend) }}</span>
             </td>
             <td class="font-mono text-ink/80">
-              {{ count(line.payers) }}
+              {{ count(line.buyers) }}
             </td>
             <td class="font-mono">
-              {{ formatExactMoney(line.gross / Math.max(line.payers, 1)) }}
+              {{ writeExactMoney(line.gross / Math.max(line.buyers, 1), usd) }}
             </td>
             <td class="font-mono text-ink/80">
-              {{ count(line.transactions) }}
+              {{ count(line.purchases) }}
             </td>
             <td class="font-mono text-ink/80">
-              {{ formatExactMoney(line.gross / Math.max(line.transactions, 1)) }}
+              {{ writeExactMoney(line.gross / Math.max(line.purchases, 1), usd) }}
             </td>
-            <td class="font-mono">
-              <span :class="refundRate(line) > 0.03 ? 'bg-error/12 text-error' : 'text-ink/70'" class="rounded-(--ps-radius-x-small) px-1.5 py-0.5">
-                {{ formatShare(refundRate(line)) }}
-              </span>
-            </td>
-            <td v-if="fees" class="font-mono text-ink/70">
-              {{ formatMoney(line.fees) }}
-            </td>
+            <template v-if="fees">
+              <td class="font-mono text-ink/70">
+                {{ line.feePercent === undefined ? '' : `${line.feePercent}%` }}
+              </td>
+              <td class="font-mono text-ink/70">
+                {{ line.net === undefined ? '' : writeMoney(line.net, usd) }}
+              </td>
+            </template>
           </tr>
         </tbody>
       </table>

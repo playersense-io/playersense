@@ -1,127 +1,115 @@
 <script setup lang="ts">
 import type { Kpi } from '~/components/KpiBoard.vue'
 
-// What the game earned, and everything between the price and the money in the bank:
-// gross verified purchases, less refunds, less the stores' fees, to net; who paid and how
-// much; each package's part in it; the refunds and why; and what the SDK's verification
-// turned away before any of it counted. Over 7, 30 or 90 days, narrowed by store, country
-// and package, against the range before.
+// What the game earned, and everything between the price and the money in the bank: gross, less
+// refunds, less the stores' share, to an estimated net; who paid; each package's part in it; the
+// refunds and why; and what purchase verification turned away before any of it counted. Over 7,
+// 30 or 90 days, narrowed by store, country and package, against the range before.
 //
-// Sample data (app/utils/revenue-sample.ts says what stands in for what): packages,
-// stores, refunds, fees and verification need the verified purchase record, which the
-// backend has a schema for and no handler yet. Every choice is in the URL.
-const { project } = useWorkspace()
-
+// One answer from the API (…/analytics/{env}/revenue). Money is in US dollars at each day's rate
+// when the deployment has exchange rates, and as reported otherwise, and the page says which.
+// Every choice is in the URL.
 const RANGES: SegmentedOption[] = [
   { value: '7d', label: 'Last 7 days' },
   { value: '30d', label: 'Last 30 days' },
   { value: '90d', label: 'Last 90 days' }
 ]
+const RANGE_DAYS: Record<string, number> = { '7d': 7, '30d': 30, '90d': 90 }
+const RANGE_WORDS: Record<string, string> = { '7d': 'the last 7 days', '30d': 'the last 30 days', '90d': 'the last 90 days' }
 
 const BASES: SegmentedOption[] = [
   { value: 'gross', label: 'Gross', title: 'What players paid' },
-  { value: 'net', label: 'Net', title: 'What is left after refunds and the stores\' fees' }
+  { value: 'net', label: 'Net', title: 'What is left after refunds and the stores\' share, estimated' }
 ]
 
-const range = useQueryChoice<RevenueRange>('range', ['7d', '30d', '90d'], '30d')
+const range = useQueryChoice<'7d' | '30d' | '90d'>('range', ['7d', '30d', '90d'], '30d')
 const basis = useQueryChoice<'gross' | 'net'>('basis', ['gross', 'net'], 'gross')
+
+const DAY = 86_400_000
+const span = computed(() => {
+  const today = Math.floor(Date.now() / DAY) * DAY
+  return { from: isoDate(today - (RANGE_DAYS[range.value]! - 1) * DAY), to: isoDate(today) }
+})
 
 // --- Filters ------------------------------------------------------------------------------
 
-const COUNTRY_CODES = COHORT_DIMENSIONS.install_country.values.map(([code]) => code)
+const { stores, countries, products, filters, query, remove: removeFilter, clear: clearFilters } = useRevenueFilters()
 
-const stores = useQueryList('store', STORE_KEYS)
-const countries = useQueryList('country', COUNTRY_CODES)
-const packages = useQueryList('package', PRODUCTS.map(product => product.id))
+const { data, pending, loading, error, reload } = useRevenue(span, query)
 
-const filters = computed<Record<string, string[]>>({
-  get: () => ({ store: stores.value, country: countries.value, product: packages.value }),
-  set: (value) => {
-    stores.value = value.store ?? []
-    countries.value = value.country ?? []
-    packages.value = value.product ?? []
-  }
-})
+const money = computed(() => data.value?.money ?? null)
+const usd = computed(() => Boolean(money.value))
 
-const FILTER_GROUPS: FilterGroup[] = [
+/* The options are what the answer names, and whatever is chosen already, so a choice never vanishes. */
+const optionsOf = (slices: readonly RevenueSlice[] | undefined, chosen: readonly string[]) => [...new Set([...(slices ?? []).map(slice => slice.key), ...chosen])]
+
+const FILTER_GROUPS = computed<FilterGroup[]>(() => [
   {
     key: 'store',
     label: 'Store',
     noun: 'store',
-    options: STORE_KEYS.map(store => ({ value: store, label: STORES[store].label, note: `${formatShare(STORES[store].fee)} fee`, mark: { kind: 'platform', code: STORES[store].platform } }))
+    options: optionsOf(data.value?.stores, stores.value).map(store => ({ value: store, label: storeLook(store).label, mark: { kind: 'platform', code: storeLook(store).platform } }))
   },
   {
     key: 'country',
     label: 'Country',
     noun: 'country',
-    options: COHORT_DIMENSIONS.install_country.values.map(([code]) => ({
-      value: code,
-      label: segmentName('install_country', code),
-      note: code === 'Other' ? undefined : code,
-      mark: { kind: 'country', code }
-    }))
+    options: optionsOf(data.value?.countries, countries.value).map(code => ({ value: code, label: countryName(code), note: code, mark: { kind: 'country', code } }))
   },
   {
     key: 'product',
     label: 'Package',
     noun: 'package',
-    options: PRODUCTS.map(product => ({ value: product.id, label: product.name, note: formatExactMoney(product.price) }))
+    options: optionsOf(data.value?.products, products.value).map(id => ({ value: id, label: id }))
   }
-]
-
-const activeFilters = computed<ActiveFilter[]>(() => [
-  ...stores.value.map(store => ({ key: `store:${store}`, label: STORES[store as RevenueStore].label, mark: { kind: 'platform' as const, code: STORES[store as RevenueStore].platform } })),
-  ...countries.value.map(code => ({ key: `country:${code}`, label: segmentName('install_country', code), mark: { kind: 'country' as const, code } })),
-  ...packages.value.map(id => ({ key: `product:${id}`, label: `Package: ${PRODUCTS.find(product => product.id === id)?.name ?? id}` }))
 ])
 
-function removeFilter(key: string) {
-  const [group, value] = key.split(':') as [string, string]
-  filters.value = { ...filters.value, [group]: (filters.value[group] ?? []).filter(entry => entry !== value) }
-}
+const activeFilters = computed<ActiveFilter[]>(() => [
+  ...stores.value.map(store => ({ key: `store:${store}`, label: storeLook(store).label, mark: { kind: 'platform' as const, code: storeLook(store).platform } })),
+  ...countries.value.map(code => ({ key: `country:${code}`, label: countryName(code), mark: { kind: 'country' as const, code } })),
+  ...products.value.map(id => ({ key: `product:${id}`, label: `Package: ${id}` }))
+])
 
-function clearFilters() {
-  filters.value = { store: [], country: [], product: [] }
-}
-
-// --- The answer ---------------------------------------------------------------------------
-
-const { data, pending } = useSampleQuery(
-  () => ({ range: range.value, filters: { store: stores.value, country: countries.value, product: packages.value } }),
-  question => sampleRevenue(question.range, question.filters)
-)
-
-const dayFormat = new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric', timeZone: 'UTC' })
-const categories = computed(() => data.value.days.map(at => dayFormat.format(at)))
-
-const RANGE_WORDS: Record<RevenueRange, string> = { '7d': 'the last 7 days', '30d': 'the last 30 days', '90d': 'the last 90 days' }
+// --- The figures --------------------------------------------------------------------------
 
 const moneyBoard = computed<Kpi[]>(() => {
-  const { total, previous } = data.value
-  const average = total.transactions ? total.gross / total.transactions : 0
-  const previousAverage = previous.transactions ? previous.gross / previous.transactions : 0
-  return [
-    { key: 'gross', label: 'Gross revenue', value: formatMoney(total.gross), exact: formatExactMoney(total.gross), trend: trendOf(total.gross, previous.gross), info: 'Verified purchases, in USD, before refunds and the stores\' fees.' },
-    { key: 'net', label: 'Net revenue', value: formatMoney(total.net), exact: formatExactMoney(total.net), trend: trendOf(total.net, previous.net), info: 'Gross, less refunds and the stores\' fees: what reaches the studio.' },
-    { key: 'refunds', label: 'Refunded', value: formatMoney(total.refunds), exact: formatExactMoney(total.refunds), trend: trendOf(total.refunds, previous.refunds, 'down'), info: 'Refunds granted by the stores and chargebacks through players\' banks.' },
-    { key: 'transactions', label: 'Purchases', value: writeFigure(Math.round(total.transactions), { compact: true }), exact: writeFigure(Math.round(total.transactions)), trend: trendOf(total.transactions, previous.transactions), info: 'Verified purchases. Receipts turned away and test purchases are not counted.' },
-    { key: 'average', label: 'Average purchase', value: formatExactMoney(average), trend: trendOf(average, previousAverage), info: 'Gross over purchases.' }
+  const revenue = data.value
+  if (!revenue) return []
+  const { totals } = revenue
+  const m = revenue.money
+  const gross = m ? m.gross : totals.revenue_micros / 1_000_000
+  const previousGross = m ? m.previous_gross : totals.previous_revenue_micros / 1_000_000
+  const refunded = m ? m.refunded : totals.refunded_micros / 1_000_000
+  const average = totals.purchases ? gross / totals.purchases : 0
+  const previousAverage = totals.previous_purchases ? previousGross / totals.previous_purchases : 0
+  const board: Kpi[] = [
+    { key: 'gross', label: 'Gross revenue', value: writeMoney(gross, usd.value), exact: writeExactMoney(gross, usd.value), trend: trendOf(gross, previousGross), info: `What players paid, ${currencyWords(revenue)}, before refunds and the stores' share.` }
   ]
+  if (m) board.push({ key: 'net', label: 'Net revenue', value: writeMoney(m.net), exact: writeExactMoney(m.net), trend: trendOf(m.net, m.previous_net), info: `Estimated: gross, less refunds and each store's share. ${m.note}` })
+  board.push(
+    { key: 'refunds', label: 'Refunded', value: writeMoney(refunded, usd.value), exact: writeExactMoney(refunded, usd.value), info: `${writeFigure(totals.refunds)} refunds the stores granted in the range.` },
+    { key: 'purchases', label: 'Purchases', value: writeFigure(totals.purchases, { compact: true }), exact: writeFigure(totals.purchases), trend: trendOf(totals.purchases, totals.previous_purchases), info: 'Purchases that count: test purchases and receipts turned away are not.' },
+    { key: 'average', label: 'Average purchase', value: writeExactMoney(average, usd.value), trend: trendOf(average, previousAverage), info: 'Gross over purchases.' }
+  )
+  return board
 })
 
+const newPayers = computed(() => (data.value?.new_payers ?? []).reduce((sum, day) => sum + (day.payers ?? 0), 0))
+
 const payerBoard = computed<Kpi[]>(() => {
-  const { total, payers, activePlayers, previousActivePlayers, uniquePlayers, previous } = data.value
-  const conversion = payers.total / Math.max(uniquePlayers, 1)
-  const arppu = total.gross / Math.max(payers.total, 1)
-  const previousArppu = previous.gross / Math.max(payers.previousTotal, 1)
-  const arpdau = total.gross / Math.max(activePlayers, 1)
-  const previousArpdau = previous.gross / Math.max(previousActivePlayers, 1)
+  const revenue = data.value
+  if (!revenue) return []
+  const { totals } = revenue
+  const gross = revenue.money ? revenue.money.gross : totals.revenue_micros / 1_000_000
+  const previousGross = revenue.money ? revenue.money.previous_gross : totals.previous_revenue_micros / 1_000_000
+  const buyers = totals.buyers ?? 0
+  const previousBuyers = totals.previous_buyers ?? 0
+  const arppu = buyers ? gross / buyers : 0
+  const previousArppu = previousBuyers ? previousGross / previousBuyers : 0
   return [
-    { key: 'payers', label: 'Paying players', value: writeFigure(Math.round(payers.total), { compact: true }), exact: writeFigure(Math.round(payers.total)), trend: trendOf(payers.total, payers.previousTotal), info: 'Players with at least one verified purchase in the range.' },
-    { key: 'conversion', label: 'Payer conversion', value: formatShare(conversion), info: 'Paying players over every player active in the range.' },
-    { key: 'new', label: 'New payers', value: writeFigure(Math.round(payers.newPayers), { compact: true }), info: 'Players whose first purchase ever was in the range.' },
-    { key: 'arppu', label: 'ARPPU', value: formatExactMoney(arppu), trend: trendOf(arppu, previousArppu), info: 'Gross over paying players: what a payer spends.' },
-    { key: 'arpdau', label: 'ARPDAU', value: formatExactMoney(arpdau), trend: trendOf(arpdau, previousArpdau), info: 'Gross over daily active players, summed over the range: what a player is worth a day.' }
+    { key: 'payers', label: 'Paying players', value: totals.buyers == null ? 'Too few' : writeFigure(buyers, { compact: true }), exact: totals.buyers == null ? undefined : writeFigure(buyers), trend: totals.buyers != null && totals.previous_buyers != null ? trendOf(buyers, previousBuyers) : undefined, info: `Players with at least one purchase in the range${revenue.approximate ? ', counted approximately' : ''}.` },
+    { key: 'new', label: 'New payers', value: writeFigure(newPayers.value, { compact: true }), exact: writeFigure(newPayers.value), info: 'Players whose first purchase ever was in the range. Not narrowed by the filters.' },
+    { key: 'arppu', label: 'ARPPU', value: writeExactMoney(arppu, usd.value), trend: buyers && previousBuyers ? trendOf(arppu, previousArppu) : undefined, info: 'Gross over paying players: what a payer spends.' }
   ]
 })
 
@@ -129,7 +117,7 @@ const payerBoard = computed<Kpi[]>(() => {
 
 const tabs = computed<PageTab[]>(() => [
   { value: 'overview', label: 'Overview' },
-  { value: 'packages', label: 'Packages', count: data.value.products.length },
+  { value: 'packages', label: 'Packages', count: data.value?.products.length },
   { value: 'refunds', label: 'Refunds' },
   { value: 'payers', label: 'Payers' },
   { value: 'verification', label: 'Verification' }
@@ -137,19 +125,41 @@ const tabs = computed<PageTab[]>(() => [
 
 const tab = useQueryChoice('tab', ['overview', 'packages', 'refunds', 'payers', 'verification'], 'overview')
 
-const byStoreSeries = computed<MetricSeries[]>(() => STORE_KEYS
-  .filter(store => data.value.daily.some(day => day.byStore[store].gross > 0))
-  .map((store, index) => ({
-    name: STORES[store].label,
-    data: data.value.daily.map(day => Math.round(day.byStore[store][basis.value] * 100) / 100),
+const categories = computed(() => (data.value?.days ?? []).map(day => dayLabel(day.day)))
+
+/* Gross by store, stacked; net as one line, since the stores' shares are estimated for the whole. */
+const chartSeries = computed<MetricSeries[]>(() => {
+  const revenue = data.value
+  if (!revenue) return []
+  if (basis.value === 'net' && revenue.money) {
+    return [{ name: 'Net, estimated', data: revenue.money.days.map(day => Math.round(day.net * 100) / 100), type: 'area', tone: 1 }]
+  }
+  const days = revenue.money ? revenue.money.days : revenue.days
+  const keys = [...new Set(days.flatMap(day => Object.keys(day.by_store ?? {})))]
+  if (!keys.length) {
+    const values = revenue.money ? revenue.money.days.map(day => day.gross) : revenue.days.map(day => day.revenue_micros / 1_000_000)
+    return [{ name: 'Gross', data: values.map(value => Math.round(value * 100) / 100), type: 'area', tone: 1 }]
+  }
+  return keys.map((store, index) => ({
+    name: storeLook(store).label,
+    data: days.map((day) => {
+      const value = (day.by_store as Record<string, number> | undefined)?.[store] ?? 0
+      return Math.round((revenue.money ? value : value / 1_000_000) * 100) / 100
+    }),
     type: 'area',
     stack: 'stores',
     tone: ((index % 6) + 1) as 1 | 2 | 3 | 4 | 5 | 6
-  })))
+  }))
+})
 
-/** A country's or a store's name and mark, for the breakdown tables. */
-const describeCountry = (line: BreakdownLine) => ({ label: segmentName('install_country', line.key), mark: { kind: 'country' as const, code: line.key } })
-const describeStore = (line: BreakdownLine) => ({ label: STORES[line.key as RevenueStore].label, mark: { kind: 'platform' as const, code: STORES[line.key as RevenueStore].platform } })
+const countryLines = computed(() => linesOf(data.value?.countries ?? []))
+const storeLines = computed(() => linesOf(data.value?.stores ?? [], money.value))
+const productLines = computed(() => linesOf(data.value?.products ?? []))
+
+const describeCountry = (line: RevenueLine) => ({ label: countryName(line.key), mark: { kind: 'country' as const, code: line.key } })
+const describeStore = (line: RevenueLine) => ({ label: storeLook(line.key).label, mark: { kind: 'platform' as const, code: storeLook(line.key).platform } })
+
+const withheld = computed(() => (data.value?.suppressed_cells ?? 0) > 0)
 
 // --- Packages -----------------------------------------------------------------------------
 
@@ -160,43 +170,27 @@ const packageOpen = computed({
     if (!value) openPackage.value = null
   }
 })
-const openLine = computed(() => data.value.products.find(line => line.product.id === openPackage.value) ?? null)
 
 function downloadPackages() {
-  const header = ['package', 'id', 'kind', 'price', 'purchases', 'buyers', 'gross', 'refunds', 'store fees', 'net', 'refund rate', 'first purchases']
-  const round = (value: number, places = 2) => Math.round(value * 10 ** places) / 10 ** places
-  const lines = data.value.products.map(line => [
-    line.product.name,
-    line.product.id,
-    line.product.kind,
-    line.product.price,
-    Math.round(line.transactions),
-    Math.round(line.buyers),
-    round(line.gross),
-    round(line.refunds),
-    round(line.fees),
-    round(line.net),
-    round(line.transactions ? line.refunded / line.transactions : 0, 4),
-    Math.round(line.firstPurchases)
-  ])
+  const header = ['package', 'purchases', 'buyers', usd.value ? 'gross (USD)' : 'gross (as reported)', 'trend']
+  const lines = productLines.value.map(line => [line.key, line.purchases, line.buyers, Math.round(line.gross * 100) / 100, line.trend === null ? '' : Math.round(line.trend * 10_000) / 10_000])
   downloadCsv(`revenue-packages-${range.value}`, [header, ...lines])
 }
 </script>
 
 <template>
   <div class="flex flex-col gap-8">
-    <PageHeader title="Revenue">
-      <template #description>
-        What <span class="text-ink">{{ project.name }}</span> earned, package by package, and what
-        was left after refunds and the stores.
-      </template>
+    <PageHeader description="What the game earned, package by package, and what was left after refunds and the stores." title="Revenue">
       <template #actions>
-        <SegmentedControl v-model="basis" :options="BASES" label="Revenue" />
+        <SegmentedControl
+          v-if="money"
+          v-model="basis"
+          :options="BASES"
+          label="Revenue"
+        />
         <SegmentedControl v-model="range" :options="RANGES" label="Range" />
       </template>
     </PageHeader>
-
-    <InfoNote text="Packages, stores, refunds, fees and verification are sample data until verified purchases are recorded server-side. Revenue, purchases and payers over time are what the metrics query answers today." />
 
     <!-- The filters stay in reach down the whole page, figures and tabs alike. -->
     <StickyBar>
@@ -212,100 +206,132 @@ function downloadPackages() {
       </v-card>
     </StickyBar>
 
-    <KpiBoard
-      :description="`Verified purchases in ${RANGE_WORDS[range]}, in USD, against the range before.`"
-      :items="moneyBoard"
-      :loading="pending"
-      title="Revenue"
-    />
+    <LoadState
+      :error="error"
+      :loading="loading"
+      what="revenue"
+      @retry="reload"
+    >
+      <template v-if="data">
+        <p v-if="!money" class="m-0 flex items-start gap-2.5 rounded-(--ps-radius-large) bg-ink/4 px-4 py-3 text-xs leading-5 text-ink/75">
+          <Icon aria-hidden="true" class="mt-0.5 flex-none text-base text-ink/50" name="material-symbols:currency-exchange" />
+          <span>No exchange rates on this deployment, so revenue is shown {{ currencyWords(data) }}, and net cannot be estimated.</span>
+        </p>
+        <p v-else-if="money.unconverted.length || !money.exact" class="m-0 flex items-start gap-2.5 rounded-(--ps-radius-large) bg-warning/8 px-4 py-3 text-xs leading-5 text-ink/80 ring-1 ring-warning/20 ring-inset">
+          <Icon aria-hidden="true" class="mt-0.5 flex-none text-base text-warning" name="material-symbols:currency-exchange" />
+          <span>
+            <template v-if="money.unconverted.length">{{ money.unconverted.join(', ') }} had no exchange rate and {{ money.unconverted.length === 1 ? 'is' : 'are' }} left out of every dollar figure. </template>
+            <template v-if="!money.exact">Some days had no rates of their own and were converted at the nearest day's.</template>
+          </span>
+        </p>
 
-    <KpiBoard
-      :items="payerBoard"
-      :loading="pending"
-      description="The players behind it."
-      title="Payers"
-    />
-
-    <div class="flex flex-col gap-5">
-      <PageTabs v-model="tab" :tabs="tabs" label="Revenue views" />
-
-      <template v-if="tab === 'overview'">
-        <MetricCard
-          :categories="categories"
-          :decimals="2"
-          :description="basis === 'gross' ? 'What players paid each day, by the store they paid through.' : 'What was left each day after refunds and each store\'s fee, by store.'"
+        <KpiBoard
+          :description="`${RANGE_WORDS[range]}, ${currencyWords(data)}, against the range before.`"
+          :items="moneyBoard"
           :loading="pending"
-          :series="byStoreSeries"
-          category-label="Day"
-          prefix="$"
-          :title="basis === 'gross' ? 'Gross revenue by store' : 'Net revenue by store'"
-          type="area"
+          title="Revenue"
         />
 
-        <SectionCard
-          :padded="false"
-          description="Where the money comes from: each country's revenue and share, how it moved, and what its payers spend."
-          title="By country"
-        >
-          <RevenueBreakdown
-            :basis="basis"
-            :describe="describeCountry"
-            :limit="10"
-            :lines="data.countries"
-            noun="Country"
-          />
-        </SectionCard>
+        <KpiBoard
+          :items="payerBoard"
+          :loading="pending"
+          description="The players behind it."
+          title="Payers"
+        />
 
-        <SectionCard :padded="false" description="Each store's part, and what it kept of it." title="By store">
-          <RevenueBreakdown
-            :basis="basis"
-            :describe="describeStore"
-            :lines="data.stores"
-            fees
-            noun="Store"
+        <div class="flex flex-col gap-5">
+          <PageTabs v-model="tab" :tabs="tabs" label="Revenue views" />
+
+          <template v-if="tab === 'overview'">
+            <MetricCard
+              :categories="categories"
+              :decimals="2"
+              :description="basis === 'net' && money ? 'What was left each day after refunds and the stores\' share, estimated.' : 'What players paid each day, by the store they paid through.'"
+              :loading="pending"
+              :prefix="usd ? '$' : ''"
+              :series="chartSeries"
+              :title="basis === 'net' && money ? 'Net revenue' : 'Gross revenue by store'"
+              category-label="Day"
+              type="area"
+            />
+
+            <SectionCard
+              :padded="false"
+              description="Where the money comes from: each country's revenue and share, how it moved, and what its buyers spend."
+              title="By country"
+            >
+              <RevenueBreakdown
+                :describe="describeCountry"
+                :limit="10"
+                :lines="countryLines"
+                :usd="usd"
+                noun="Country"
+              />
+            </SectionCard>
+
+            <SectionCard :padded="false" description="Each store's part, the share it is taken to keep, and what was left." title="By store">
+              <RevenueBreakdown
+                :describe="describeStore"
+                :fees="Boolean(money)"
+                :lines="storeLines"
+                :usd="usd"
+                noun="Store"
+              />
+            </SectionCard>
+
+            <p v-if="withheld" class="m-0 text-[11px] leading-4 text-ink/50">
+              {{ data.suppressed_cells }} {{ data.suppressed_cells === 1 ? 'row is' : 'rows are' }} left out: bought by fewer than {{ data.suppression_threshold }} players, too few to show without pointing at someone.
+            </p>
+
+            <RevenueFeeSettings @saved="reload" />
+          </template>
+
+          <SectionCard
+            v-else-if="tab === 'packages'"
+            :padded="false"
+            description="Every package sold in the range, by the product id the game sent. Open one for its day-by-day revenue, stores, countries and refunds."
+            title="Packages"
+          >
+            <template #actions>
+              <v-btn
+                aria-label="Download as CSV"
+                color="neutral"
+                icon="material-symbols:download"
+                size="small"
+                variant="text"
+                @click="downloadPackages"
+              />
+            </template>
+            <RevenueProducts :lines="productLines" :usd="usd" @open="openPackage = $event" />
+          </SectionCard>
+
+          <RevenueRefunds
+            v-else-if="tab === 'refunds'"
+            :filters="query"
+            :loading="pending"
+            :range="span"
+            :revenue="data"
           />
-        </SectionCard>
+          <RevenuePayers
+            v-else-if="tab === 'payers'"
+            :categories="categories"
+            :loading="pending"
+            :revenue="data"
+          />
+          <RevenueVerification
+            v-else
+            :loading="pending"
+            :revenue="data"
+          />
+        </div>
       </template>
+    </LoadState>
 
-      <SectionCard
-        v-else-if="tab === 'packages'"
-        :padded="false"
-        description="Every package in the shop. Open one for its day-by-day revenue, stores, countries and refunds."
-        title="Packages"
-      >
-        <template #actions>
-          <v-btn
-            aria-label="Download as CSV"
-            color="neutral"
-            icon="material-symbols:download"
-            size="small"
-            variant="text"
-            @click="downloadPackages"
-          />
-        </template>
-        <RevenueProducts :basis="basis" :lines="data.products" @open="openPackage = $event" />
-      </SectionCard>
-
-      <RevenueRefunds
-        v-else-if="tab === 'refunds'"
-        :categories="categories"
-        :loading="pending"
-        :sample="data"
-      />
-      <RevenuePayers
-        v-else-if="tab === 'payers'"
-        :categories="categories"
-        :loading="pending"
-        :sample="data"
-      />
-      <RevenueVerification
-        v-else
-        :categories="categories"
-        :loading="pending"
-        :sample="data"
-      />
-    </div>
-
-    <RevenueProductDialog v-model="packageOpen" :days="data.days" :line="openLine" />
+    <RevenueProductDialog
+      v-model="packageOpen"
+      :filters="query"
+      :product="openPackage"
+      :range="span"
+    />
   </div>
 </template>
