@@ -1,10 +1,19 @@
+import { existsSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+
+// The repository's one .env holds the Firebase web settings and the API's address, beside the
+// backend's own settings; Nuxt reads only this app's folder, so it is loaded here too. Values
+// already in the environment win, which is how a deployment sets them.
+const rootEnv = fileURLToPath(new URL('../../.env', import.meta.url))
+if (existsSync(rootEnv)) process.loadEnvFile(rootEnv)
+
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   // packages/dashboard brings Vuetify, Tailwind, icons, the theme, the shell and the
   // common components; packages/ui the brand marks and favicons.
   extends: ['../../packages/dashboard', '../../packages/ui'],
 
-  modules: ['@nuxt/eslint', 'nuxt-shiki'],
+  modules: ['@nuxt/eslint', 'nuxt-shiki', '@pinia/nuxt'],
 
   // Behind Firebase auth, no public content to server-render.
   ssr: false,
@@ -14,6 +23,22 @@ export default defineNuxtConfig({
   },
 
   css: ['~/assets/css/main.css'],
+
+  // Public by nature: a browser app's Firebase settings name the project, and grant nothing
+  // without a signed-in user. NUXT_PUBLIC_* overrides each at runtime.
+  runtimeConfig: {
+    public: {
+      apiBase: process.env.API_PUBLIC_URL ?? 'http://localhost:21080',
+      firebase: {
+        apiKey: process.env.FIREBASE_API_KEY ?? '',
+        authDomain: process.env.FIREBASE_AUTH_DOMAIN ?? '',
+        projectId: process.env.FIREBASE_PROJECT_ID ?? '',
+        storageBucket: process.env.FIREBASE_STORAGE_BUCKET ?? '',
+        messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID ?? '',
+        appId: process.env.FIREBASE_APP_ID ?? ''
+      }
+    }
+  },
 
   routeRules: {
     '/api/**': {

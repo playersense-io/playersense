@@ -3,23 +3,28 @@ defineProps<{
   rail: boolean
 }>()
 
-// Placeholder until Firebase sign-in is wired in (§55): the signed-in address then comes
-// from the Firebase user, and "Sign out" calls it.
-const name = 'hmmusicproducing@gmail.com'
-
-// The organization is picked here rather than at the top of the drawer: a member changes
-// project many times a day and organization rarely, and the drawer's head is the project's.
+// Who is signed in (Firebase), and the organizations they belong to. The organization is picked
+// here rather than at the top of the drawer: a member changes project many times a day and
+// organization rarely, and the drawer's head is the project's.
+const auth = useAuthStore()
+const workspace = useWorkspaceStore()
 const { organizations, organization, selectOrganization } = useWorkspace()
+
+async function signOut() {
+  await auth.signOut()
+  workspace.reset()
+  await navigateTo('/login')
+}
 
 const items: MenuItem[] = [
   { title: 'Billing', icon: 'material-symbols:receipt-long-outline', to: '/settings/billing' },
   { title: 'Settings', icon: 'material-symbols:settings-outline', to: '/settings' },
-  { title: 'Sign out', icon: 'material-symbols:logout' }
+  { title: 'Sign out', icon: 'material-symbols:logout', onSelect: () => void signOut() }
 ]
 </script>
 
 <template>
-  <SidebarAccountMenu :items="items" :name="name" :rail="rail">
+  <SidebarAccountMenu :items="items" :name="auth.displayName || '-'" :rail="rail">
     <p class="m-0 px-3 pt-1 pb-1 text-[11px] text-ink/45">
       Organization
     </p>

@@ -8,10 +8,10 @@
 // Docs are desktop only — on a phone the breadcrumb needs the row.
 const { mdAndUp } = useDisplay()
 
-// The sample wallet Billing keeps in this browser, so the bar and Billing agree until both
-// read GET /v1/users/me's `balance` (LiveBalanceOut).
-const { balance: available } = useBilling()
-const balance = computed(() => (import.meta.client ? { available_micros: available.value, owed_micros: 0 } : null))
+// The organization's live balance, from GET /v1/users/me; absent for a role without
+// billing.read, and then nothing is shown.
+const workspace = useWorkspaceStore()
+const balance = computed(() => workspace.organization?.balance ?? null)
 
 const dollars = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' })
 

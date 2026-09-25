@@ -9,6 +9,15 @@ defineProps<{
 }>()
 
 const { organization, project, selectProject } = useWorkspace()
+const workspace = useWorkspaceStore()
+
+const ENVIRONMENTS = [
+  { kind: 'production', label: 'Production' },
+  { kind: 'staging', label: 'Staging' },
+  { kind: 'development', label: 'Development' }
+] as const
+
+const creating = ref(false)
 
 function initial(name: string): string {
   return name.trim().charAt(0).toUpperCase()
@@ -42,7 +51,10 @@ function initial(name: string): string {
 
     <template v-if="!rail">
       <span class="min-w-0 flex-1 truncate text-left text-[13px] font-medium">
-        {{ project.name }}
+        {{ project.name || 'No project yet' }}
+      </span>
+      <span v-if="workspace.environment !== 'production'" class="flex-none rounded bg-warning/15 px-1.5 text-[10px] font-medium text-warning">
+        {{ workspace.environment }}
       </span>
       <Icon
         aria-hidden="true"
@@ -72,7 +84,7 @@ function initial(name: string): string {
           :key="candidate.id"
           :active="candidate.id === project.id"
           :title="candidate.name"
-          @click="selectProject(candidate.id)"
+          @click="selectProject(candidate.slug)"
         >
           <template #prepend>
             <span
@@ -89,7 +101,28 @@ function initial(name: string): string {
             <Icon aria-hidden="true" class="text-base text-ink/70" name="material-symbols:check" />
           </template>
         </v-list-item>
+        <v-list-item title="New project" @click="creating = true">
+          <template #prepend>
+            <Icon aria-hidden="true" class="text-ink/60" name="material-symbols:add" />
+          </template>
+        </v-list-item>
+        <v-divider class="my-1" />
+        <p class="px-3 pt-1 pb-1 text-[11px] text-ink/45">
+          Environment
+        </p>
+        <v-list-item
+          v-for="entry in ENVIRONMENTS"
+          :key="entry.kind"
+          :active="entry.kind === workspace.environment"
+          :title="entry.label"
+          @click="workspace.selectEnvironment(entry.kind)"
+        >
+          <template v-if="entry.kind === workspace.environment" #append>
+            <Icon aria-hidden="true" class="text-base text-ink/70" name="material-symbols:check" />
+          </template>
+        </v-list-item>
       </v-list>
     </v-menu>
   </button>
+  <NewProjectDialog v-model="creating" />
 </template>
