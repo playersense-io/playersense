@@ -14,6 +14,7 @@ import (
 
 	"playersense.dev/backend/ent"
 	"playersense.dev/backend/ent/billingaccount"
+	"playersense.dev/backend/internal/alerts"
 	"playersense.dev/backend/internal/billing"
 	"playersense.dev/backend/internal/pgdb"
 	"playersense.dev/backend/internal/wallet"
@@ -360,14 +361,29 @@ func (a *AutoTopUp) settle(ctx context.Context, c *claim, p Payment) error {
 	return tx.Commit()
 }
 
-// release ends a claim that was never sent.
+// release ends a claim that was never sent, and announces it: an automatic top-up that cannot
+// charge (no saved card) is one the owners must hear about as much as a decline.
 func (a *AutoTopUp) release(ctx context.Context, c *claim, reason string) error {
-	return a.DB.Client.BillingAccount.Update().
+	tx, err := a.DB.Client.Tx(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	n, err := tx.BillingAccount.Update().
 		Where(billingaccount.ID(c.account.ID), billingaccount.AutoTopupPendingKey(c.key)).
 		ClearAutoTopupPendingKey().ClearAutoTopupPendingAt().ClearAutoTopupPendingAmountMicros().
 		SetAutoTopupRetryAfter(a.now().Add(a.retryAfter())).
 		SetAutoTopupLastError(reason).
-		Exec(ctx)
+		Save(ctx)
+	if err != nil {
+		return err
+	}
+	if n == 1 {
+		if err := alerts.TopUpDeclined(ctx, tx.Client(), c.account, c.amount, reason); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
 }
 
 // Amount is what an automatic top-up charges, and whether one is needed at all.

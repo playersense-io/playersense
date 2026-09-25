@@ -56,16 +56,13 @@ func (j *Job) invoiced(ctx context.Context) (suspended, reactivated int, err err
 		}
 		switch {
 		case due && account.State != billingaccount.StateSuspended:
-			n, err := j.DB.Client.BillingAccount.Update().
-				Where(billingaccount.ID(account.ID), billingaccount.StateNEQ(billingaccount.StateSuspended)).
-				SetState(billingaccount.StateSuspended).
-				SetStateChangedAt(now).
-				Save(ctx)
+			moved, err := j.move(ctx, account, billingaccount.StateSuspended, now,
+				billingaccount.StateNEQ(billingaccount.StateSuspended))
 			if err != nil {
 				errs = append(errs, fmt.Errorf("suspend account %d: %w", account.ID, err))
 				continue
 			}
-			if n == 1 {
+			if moved {
 				suspended++
 				j.log().Warn("suspended ingestion for an invoiced account", "account_id", account.ID,
 					"org", account.OrganizationID, "reason", reason)
@@ -77,16 +74,13 @@ func (j *Job) invoiced(ctx context.Context) (suspended, reactivated int, err err
 			if account.OverdueSince != nil {
 				state = billingaccount.StateGracePeriod
 			}
-			n, err := j.DB.Client.BillingAccount.Update().
-				Where(billingaccount.ID(account.ID), billingaccount.StateEQ(billingaccount.StateSuspended)).
-				SetState(state).
-				SetStateChangedAt(now).
-				Save(ctx)
+			moved, err := j.move(ctx, account, state, now,
+				billingaccount.StateEQ(billingaccount.StateSuspended))
 			if err != nil {
 				errs = append(errs, fmt.Errorf("reactivate account %d: %w", account.ID, err))
 				continue
 			}
-			if n == 1 {
+			if moved {
 				reactivated++
 				j.log().Info("let an invoiced account back in", "account_id", account.ID,
 					"org", account.OrganizationID)

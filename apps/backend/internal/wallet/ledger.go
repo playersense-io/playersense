@@ -10,6 +10,7 @@ import (
 	"playersense.dev/backend/ent/billingaccount"
 	"playersense.dev/backend/ent/creditlot"
 	"playersense.dev/backend/ent/ledgerentry"
+	"playersense.dev/backend/internal/alerts"
 	"playersense.dev/backend/internal/billing"
 )
 
@@ -376,6 +377,9 @@ func record(ctx context.Context, tx *ent.Tx, account *ent.BillingAccount, in mov
 		SetReceivableMicros(receivable)
 	if state, changed := stateFor(account, arrears); changed {
 		update = update.SetState(state).SetStateChangedAt(time.Now().UTC())
+		if err := alerts.AccountMoved(ctx, tx.Client(), account, account.State, state, after, arrears); err != nil {
+			return nil, err
+		}
 		account.State = state
 	}
 	// The automatic top-up signal rides on the same UPDATE (ADR 0041): a movement that leaves the

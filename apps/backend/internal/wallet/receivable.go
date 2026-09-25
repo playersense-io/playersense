@@ -8,6 +8,7 @@ import (
 	"playersense.dev/backend/ent"
 	"playersense.dev/backend/ent/billingaccount"
 	"playersense.dev/backend/ent/creditlot"
+	"playersense.dev/backend/internal/alerts"
 	"playersense.dev/backend/internal/billing"
 )
 
@@ -237,6 +238,10 @@ func SetOverdue(ctx context.Context, tx *ent.Tx, accountID int, since *time.Time
 	account.OverdueSince = since
 	if state, changed := stateFor(account, account.ArrearsMicros); changed {
 		update = update.SetState(state).SetStateChangedAt(time.Now().UTC())
+		if err := alerts.AccountMoved(ctx, tx.Client(), account, account.State, state,
+			account.BalanceMicros, account.ArrearsMicros); err != nil {
+			return nil, err
+		}
 		account.State = state
 	}
 	if err := update.Exec(ctx); err != nil {

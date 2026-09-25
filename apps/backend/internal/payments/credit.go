@@ -11,6 +11,7 @@ import (
 
 	"playersense.dev/backend/ent"
 	"playersense.dev/backend/ent/billingaccount"
+	"playersense.dev/backend/internal/alerts"
 	"playersense.dev/backend/internal/billing"
 	"playersense.dev/backend/internal/wallet"
 )
@@ -86,12 +87,21 @@ func Release(ctx context.Context, tx *ent.Tx, p Payment, retryAt time.Time, reas
 	if err != nil {
 		return err
 	}
-	return tx.BillingAccount.Update().
+	n, err := tx.BillingAccount.Update().
 		Where(billingaccount.ID(account.ID), billingaccount.AutoTopupPendingKey(key)).
 		ClearAutoTopupPendingKey().ClearAutoTopupPendingAt().ClearAutoTopupPendingAmountMicros().
 		SetAutoTopupRetryAfter(retryAt).
 		SetAutoTopupLastError(truncate(reason, 500)).
-		Exec(ctx)
+		Save(ctx)
+	if err != nil || n == 0 {
+		// n == 0: the claim was already released, by the webhook or the worker, and announced then.
+		return err
+	}
+	var amount int64
+	if account.AutoTopupPendingAmountMicros != nil {
+		amount = *account.AutoTopupPendingAmountMicros
+	}
+	return alerts.TopUpDeclined(ctx, tx.Client(), account, amount, truncate(reason, 300))
 }
 
 // accountFor resolves the account a payment names, and checks the payment is really its.

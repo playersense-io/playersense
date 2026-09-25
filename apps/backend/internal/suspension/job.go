@@ -10,7 +10,9 @@ import (
 
 	"playersense.dev/backend/ent"
 	"playersense.dev/backend/ent/billingaccount"
+	"playersense.dev/backend/ent/predicate"
 	"playersense.dev/backend/ent/usagecharge"
+	"playersense.dev/backend/internal/alerts"
 	"playersense.dev/backend/internal/billing"
 	"playersense.dev/backend/internal/pgdb"
 	"playersense.dev/backend/internal/valkey"
@@ -82,25 +84,41 @@ func (j *Job) suspend(ctx context.Context) (int, error) {
 		}
 		// Under the row lock, and only if it still owes and is still in grace: a top-up that
 		// landed between the read and here has already made it active.
-		n, err := j.DB.Client.BillingAccount.Update().
-			Where(
-				billingaccount.ID(account.ID),
-				billingaccount.StateEQ(billingaccount.StateGracePeriod),
-				billingaccount.ArrearsMicrosGT(0),
-			).
-			SetState(billingaccount.StateSuspended).
-			SetStateChangedAt(now).
-			Save(ctx)
+		moved, err := j.move(ctx, account, billingaccount.StateSuspended, now,
+			billingaccount.StateEQ(billingaccount.StateGracePeriod),
+			billingaccount.ArrearsMicrosGT(0))
 		if err != nil {
 			return done, fmt.Errorf("suspend account %d: %w", account.ID, err)
 		}
-		if n == 1 {
+		if moved {
 			done++
 			j.log().Warn("suspended ingestion for an account", "account_id", account.ID,
 				"org", account.OrganizationID, "arrears", billing.USD(account.ArrearsMicros), "reason", reason)
 		}
 	}
 	return done, nil
+}
+
+// move changes an account's state, only while it still meets `where`, and announces the change in
+// the same transaction (internal/alerts): the owners hear of a suspension exactly when it happens.
+func (j *Job) move(ctx context.Context, account *ent.BillingAccount, to billingaccount.State, now time.Time,
+	where ...predicate.BillingAccount) (bool, error) {
+	tx, err := j.DB.Client.Tx(ctx)
+	if err != nil {
+		return false, err
+	}
+	defer func() { _ = tx.Rollback() }()
+	n, err := tx.BillingAccount.Update().
+		Where(append([]predicate.BillingAccount{billingaccount.ID(account.ID)}, where...)...).
+		SetState(to).SetStateChangedAt(now).Save(ctx)
+	if err != nil || n == 0 {
+		return false, err
+	}
+	if err := alerts.AccountMoved(ctx, tx.Client(), account, account.State, to,
+		account.BalanceMicros, account.ArrearsMicros); err != nil {
+		return false, err
+	}
+	return true, tx.Commit()
 }
 
 // due reports whether an account in grace has passed either bound, and which.
