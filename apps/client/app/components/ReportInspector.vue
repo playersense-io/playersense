@@ -461,7 +461,7 @@ const ids = { title: useId(), newColumn: useId(), limit: useId(), target: useId(
         <div class="flex flex-col gap-2">
           <span class="flex items-center justify-between gap-2">
             <span class="text-xs text-ink/60">Send to</span>
-            <NuxtLink class="text-[11px] text-primary no-underline hover:underline" to="/settings/notifications">Manage channels</NuxtLink>
+            <NuxtLink class="text-[11px] text-primary no-underline hover:underline" to="/notifications/channels">Manage channels</NuxtLink>
           </span>
           <div class="flex flex-col gap-1.5" role="group" aria-label="Send to">
             <button
@@ -491,7 +491,7 @@ const ids = { title: useId(), newColumn: useId(), limit: useId(), target: useId(
             </button>
           </div>
           <p v-if="!channels.length" class="m-0 text-xs text-ink/55">
-            No channels yet. Add one under Settings, Notification channels.
+            No channels yet. Add one under Notifications, Channels.
           </p>
         </div>
 

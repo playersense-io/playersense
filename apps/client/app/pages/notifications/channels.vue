@@ -1,22 +1,28 @@
 <script setup lang="ts">
-// Where the project can tell people something, set up once and chosen by name from a report's
-// Notify step. Laid out the way Google Cloud lays out its notification channels: a section a
-// type, each with its channels and an Add button, so what exists and what does not is read at
-// a glance. Every channel can be tested from here, and the last test is kept beside it: a
-// report that notifies a channel that stopped working says so before it is counted on.
-const { channels, deliveries, loading, error, reload, channelById, setEnabled, remove, test: sendTest } = useChannels()
+// Where the project can tell people something, set up once and chosen by name from a
+// notification rule or a report's Notify step. Laid out the way Google Cloud lays out its
+// notification channels: a section a type, each with its channels and an Add button, so what
+// exists and what does not is read at a glance. Every channel can be tested from here, and the
+// last test is kept beside it: a channel that stopped working says so before it is counted on.
+// What was sent to them is on the Activity page.
+const { channels, loading, error, reload, setEnabled, remove, test: sendTest } = useChannels()
 const { reports } = useReports()
+const { rules } = useNotificationRules('project')
 
 const now = useNow({ interval: 60_000 })
 const time = computed(() => now.value.getTime())
 
-/* Which reports notify each channel, by name. */
+/* Which rules and reports notify each channel, by name. */
 const usedBy = computed(() => {
   const out = new Map<string, string[]>()
+  const add = (id: string, name: string) => out.set(id, [...new Set([...(out.get(id) ?? []), name])])
+  for (const rule of rules.value) {
+    for (const id of rule.channels) add(id, rule.name)
+  }
   for (const report of reports.value) {
     for (const node of report.nodes) {
       if (node.data.kind !== 'notify') continue
-      for (const id of node.data.config.channels ?? []) out.set(id, [...new Set([...(out.get(id) ?? []), report.name])])
+      for (const id of node.data.config.channels ?? []) add(id, report.name)
     }
   }
   return out
@@ -64,17 +70,13 @@ const deleteOpen = computed({
     if (!value) deleting.value = null
   }
 })
-
-const stamp = (at: number | string) => new Date(at).toLocaleString('en', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })
-
-const recent = computed(() => deliveries.value.slice(0, 12))
 </script>
 
 <template>
   <div class="flex flex-col gap-6">
-    <PageHeader title="Notification channels">
+    <PageHeader title="Channels">
       <template #description>
-        Where reports and alerts tell people something: an email list, a Slack channel, the one on call. Set up once here, chosen by name wherever something notifies.
+        Where rules and reports tell people something: an email list, a Slack channel, the one on call. Add as many of each as you need, one per destination; rules choose them by name.
       </template>
       <template #actions>
         <v-menu location="bottom end">
@@ -118,7 +120,7 @@ const recent = computed(() => deliveries.value.slice(0, 12))
     >
       <p v-if="counts.failing" class="m-0 flex items-start gap-2.5 rounded-(--ps-radius-large) bg-error/6 px-4 py-3 text-xs leading-5 text-ink/80 ring-1 ring-error/20 ring-inset">
         <Icon :aria-hidden="true" class="mt-0.5 flex-none text-base text-error" name="material-symbols:error-outline" />
-        <span>{{ counts.failing === 1 ? 'One channel failed' : `${counts.failing} channels failed` }} its last test. Reports that notify it skip it and say so in their runs. Fix it below and send a test again.</span>
+        <span>{{ counts.failing === 1 ? 'One channel failed' : `${counts.failing} channels failed` }} its last test. Rules and reports that notify it keep trying and say so in the activity log. Fix it below and send a test again.</span>
       </p>
 
       <!-- A section a type. -->
@@ -158,7 +160,7 @@ const recent = computed(() => deliveries.value.slice(0, 12))
             </span>
             <span class="w-40 flex-none text-[11px] text-ink/55">
               <template v-if="usedBy.get(channel.id)?.length">
-                Used by <span class="text-ink/80">{{ usedBy.get(channel.id)!.length === 1 ? usedBy.get(channel.id)![0] : `${usedBy.get(channel.id)!.length} reports` }}</span>
+                Used by <span class="text-ink/80">{{ usedBy.get(channel.id)!.length === 1 ? usedBy.get(channel.id)![0] : `${usedBy.get(channel.id)!.length} rules and reports` }}</span>
               </template>
               <template v-else>Not used yet</template>
             </span>
@@ -215,31 +217,6 @@ const recent = computed(() => deliveries.value.slice(0, 12))
           No {{ CHANNEL_TYPES[type].label }} channels.
         </p>
       </section>
-
-      <!-- What was sent. -->
-      <SectionCard :padded="false" description="Everything sent to a channel lately: by a report's schedule, a test run, or a test from this page." title="Recent notifications">
-        <p v-if="!recent.length" class="m-0 px-5 py-4 text-xs text-ink/50">
-          Nothing sent yet. A test from above is the first.
-        </p>
-        <ul v-else class="m-0 flex list-none flex-col p-0">
-          <li v-for="entry in recent" :key="entry.id" class="flex items-center gap-3 border-t border-line/70 px-5 py-2.5 first:border-t-0">
-            <Icon
-              :class="entry.ok ? 'text-success' : 'text-error'"
-              :name="entry.ok ? 'material-symbols:check-circle-outline' : 'material-symbols:cancel-outline'"
-              :aria-hidden="true"
-              class="flex-none text-base"
-            />
-            <ChannelMark v-if="entry.channelId && channelById(entry.channelId)" :type="channelById(entry.channelId)!.type" size="small" />
-            <span class="flex min-w-0 flex-1 flex-col">
-              <span class="truncate text-xs text-ink">{{ entry.title }}</span>
-              <span class="truncate text-[11px] text-ink/50">
-                {{ entry.channelName }}<template v-if="!entry.channelId"> (deleted)</template> · {{ entry.test ? entry.source : `from ${entry.source}` }} · <span :class="entry.ok ? '' : 'text-error'">{{ entry.detail }}</span>
-              </span>
-            </span>
-            <span class="flex-none text-[11px] whitespace-nowrap text-ink/45">{{ stamp(entry.at) }}</span>
-          </li>
-        </ul>
-      </SectionCard>
     </LoadState>
 
     <ChannelDialog
@@ -247,6 +224,7 @@ const recent = computed(() => deliveries.value.slice(0, 12))
       v-model="dialogOpen"
       :channel="dialog.channel"
       :type="dialog.type"
+      @saved="reload"
     />
 
     <ConfirmDialog

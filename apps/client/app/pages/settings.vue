@@ -11,7 +11,6 @@ const TABS: readonly SettingsTab[] = [
   { to: '/settings/data-retention', title: 'Data retention', scope: 'This project', icon: 'lucide:database' },
   { to: '/settings/members', title: 'Members', scope: 'Organization', icon: 'lucide:users' },
   { to: '/settings/api-keys', title: 'API keys', scope: 'This project', icon: 'lucide:key-round' },
-  { to: '/settings/notifications', title: 'Notification channels', scope: 'This project', icon: 'lucide:bell' },
   { to: '/settings/stores', title: 'Stores', scope: 'This project', icon: 'lucide:store' },
   { to: '/settings/billing', title: 'Billing', scope: 'Organization', icon: 'lucide:receipt' },
   { to: '/settings/audit-log', title: 'Audit log', scope: 'Organization', icon: 'lucide:history' }

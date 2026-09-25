@@ -209,7 +209,7 @@ function stateOf(step: Step): { label: string, tone: BadgeTone } {
         <span class="text-[11px] text-ink/55">
           <span v-if="run?.problem" class="text-error">{{ run.problem }}</span>
           <template v-else-if="sent">
-            {{ run?.status === 'stopped' ? 'Stopped before it finished. What it sent is in the report\'s history.' : failures ? `Sent, with ${failures} ${failures === 1 ? 'channel' : 'channels'} failing. Fix ${failures === 1 ? 'it' : 'them'} under Notification channels.` : 'Sent. The run is in the report\'s history.' }}
+            {{ run?.status === 'stopped' ? 'Stopped before it finished. What it sent is in the report\'s history.' : failures ? `Sent, with ${failures} ${failures === 1 ? 'channel' : 'channels'} failing. Fix ${failures === 1 ? 'it' : 'them'} under Notifications, Channels.` : 'Sent. The run is in the report\'s history.' }}
           </template>
           <template v-else>
             Sending runs it on the canvas, reaches the channels for real and is kept in the report's runs.

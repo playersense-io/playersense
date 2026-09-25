@@ -6,30 +6,52 @@
 // "Every event" is its own choice rather than every box ticked: it takes the events added
 // later too, which ticking today's boxes does not, and a destination listening to everything
 // is a choice somebody should make on purpose.
-defineProps<{
+//
+// The webhook catalog by default. A notification rule passes its own events and groups (the
+// organization's billing events are not webhook events), and its own words for the two choices.
+const props = withDefaults(defineProps<{
   error?: boolean
-}>()
+  events?: readonly WebhookEventType[]
+  groups?: readonly WebhookGroup[]
+  chosenNote?: string
+  everyNote?: string
+  /** Whether each event's example payload is a click away. */
+  payloads?: boolean
+  placeholder?: string
+}>(), {
+  error: false,
+  events: () => WEBHOOK_EVENTS,
+  groups: () => WEBHOOK_GROUPS,
+  chosenNote: 'Only the ones ticked below. Recommended: your server handles what it asked for, nothing else.',
+  everyNote: '',
+  payloads: true,
+  placeholder: 'purchase, refund, export…'
+})
 
 const model = defineModel<string[]>({ required: true })
 
 const query = ref('')
 const everything = computed(() => model.value.includes(EVERY_EVENT))
 
+const groupLabel = (key: string) => props.groups.find(group => group.key === key)?.label ?? key
+
 const matches = (entry: WebhookEventType, needle: string) => !needle
   || entry.type.includes(needle)
   || entry.summary.toLowerCase().includes(needle)
-  || WEBHOOK_GROUP[entry.group].label.toLowerCase().includes(needle)
+  || groupLabel(entry.group).toLowerCase().includes(needle)
 
 const groups = computed(() => {
   const needle = query.value.trim().toLowerCase()
-  return WEBHOOK_GROUPS.map(group => ({
+  return props.groups.map(group => ({
     group,
-    all: WEBHOOK_EVENTS.filter(entry => entry.group === group.key),
-    shown: WEBHOOK_EVENTS.filter(entry => entry.group === group.key && matches(entry, needle))
+    all: props.events.filter(entry => entry.group === group.key),
+    shown: props.events.filter(entry => entry.group === group.key && matches(entry, needle))
   })).filter(entry => entry.shown.length)
 })
 
-const chosen = computed(() => new Set(eventsOf(model.value)))
+const chosen = computed(() => new Set(everything.value
+  ? props.events.map(entry => entry.type)
+  : props.events.filter(entry => model.value.includes(entry.type)).map(entry => entry.type)))
 
 function toggle(type: string) {
   if (everything.value) return
@@ -89,7 +111,7 @@ const BOX = {
         </span>
         <span class="flex min-w-0 flex-col gap-0.5">
           <span class="text-xs font-medium text-ink">Chosen events</span>
-          <span class="text-[11px] leading-4 text-ink/55">Only the ones ticked below. Recommended: your server handles what it asked for, nothing else.</span>
+          <span class="text-[11px] leading-4 text-ink/55">{{ chosenNote }}</span>
         </span>
       </button>
       <button
@@ -105,7 +127,7 @@ const BOX = {
         </span>
         <span class="flex min-w-0 flex-col gap-0.5">
           <span class="text-xs font-medium text-ink">Every event</span>
-          <span class="text-[11px] leading-4 text-ink/55">All {{ WEBHOOK_EVENTS.length }} today, and new ones as they are added. For a log or a data lake.</span>
+          <span class="text-[11px] leading-4 text-ink/55">{{ everyNote || `All ${events.length} today, and new ones as they are added. For a log or a data lake.` }}</span>
         </span>
       </button>
     </div>
@@ -116,12 +138,12 @@ const BOX = {
           v-model="query"
           class="w-64 max-w-full"
           label="Search events"
-          placeholder="purchase, refund, export…"
+          :placeholder="placeholder"
         />
         <span class="ml-auto text-[11px] text-ink/55">
           <template v-if="everything">Every event</template>
           <template v-else>
-            <span class="font-mono text-ink">{{ chosen.size }}</span> of {{ WEBHOOK_EVENTS.length }} chosen
+            <span class="font-mono text-ink">{{ chosen.size }}</span> of {{ events.length }} chosen
           </template>
         </span>
         <v-btn
@@ -182,6 +204,7 @@ const BOX = {
                 </span>
               </button>
               <v-btn
+                v-if="payloads"
                 :aria-label="`See the ${entry.type} payload`"
                 class="flex-none text-[11px] opacity-60 group-hover/row:opacity-100"
                 color="neutral"
