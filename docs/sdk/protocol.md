@@ -623,3 +623,79 @@ one per frame.
 
 **Data-subject requests** (§61, §101) are also server-to-server, on the privacy surface.
 A game client never erases anybody.
+
+**Logs, exceptions and crashes** are §15, a stream of their own beside this one.
+
+## 15. Logs, exceptions and crashes
+
+Cloud Logging (ADR 0050) is a second, separate stream. It shares the spool, the transport and the
+backoff of §5 to §10, and nothing else: its own endpoint, its own queue on disk, its own flush.
+A game that logs heavily must never delay an analytics batch, and a storm of one must never
+starve the other.
+
+```http
+POST {endpoint}/v1/logs
+Authorization: Bearer ps_client_live_...
+Content-Type: application/json
+Content-Encoding: zstd
+```
+
+```json
+{
+  "schema_version": 1,
+  "batch_id": "7d1c1d1e-1111-4111-8111-111111111111",
+  "install_id": "7d1c1d1e-2222-4222-8222-222222222222",
+  "sdk": { "name": "unity", "version": "1.0.0" },
+  "app": { "version": "1.4.2", "build": "412" },
+  "device": { "platform": "android", "os_version": "14", "model": "SM-S918B" },
+  "consent": { "analytics": true, "policy_version": "2026-01" },
+  "records": [
+    { "time": "2026-09-25T14:05:11.204Z", "level": "warn", "logger": "Net",
+      "message": "Retrying request to api.example.com (attempt 2)",
+      "session_id": "…", "attributes": { "scene": "Shop" } },
+    { "time": "2026-09-25T14:05:12.010Z", "level": "error",
+      "exception": { "type": "NullReferenceException", "value": "Object reference not set",
+        "handled": true,
+        "frames": [
+          { "module": "UnityEngine.EventSystems.ExecuteEvents", "function": "Execute" },
+          { "module": "Game.UI.ShopPanel", "function": "OnPurchaseClicked", "file": "ShopPanel.cs", "line": 118, "in_app": true }
+        ] },
+      "breadcrumbs": [ { "at": "2026-09-25T14:05:09.000Z", "category": "ui", "message": "Opened Shop" } ] }
+  ]
+}
+```
+
+The header is §3's, field for field, plus `device.model`. What a record is follows from what it
+carries: `crash: true` is a crash, an `exception` is an exception, anything else is a log line.
+
+**Levels.** `trace`, `debug`, `info`, `warn`, `error`, `fatal`. The engine's own names map onto
+them in the binding (Unity's `Log` is `info`, `Assert` and `Exception` are `error`).
+
+**Frames** are outermost first, innermost (where it was thrown) last, and `in_app` marks the game's
+own code. Grouping into issues reads only in-app frames and never line numbers, so an SDK that
+cannot tell what is in-app should mark nothing rather than everything.
+
+**Crashes** are written to the spool as they happen, from the crash handler, with nothing that
+allocates or locks, and sent on the next launch with `crash: true`. The record's `time` is when it
+happened; the server accepts a record up to 30 days old for exactly this reason.
+
+**Breadcrumbs.** An SDK MUST keep a ring of the last 100 things that happened (scene loads, UI
+taps, network calls, log lines at `info` and above) and attach it to each exception and crash.
+It never sends breadcrumbs with a plain log line.
+
+**Record ids** are optional. Leave them out: the server derives one from `batch_id` and the
+record's position, so a retried batch lands on the same ids (§4).
+
+**Limits.** At most 1,000 records a batch and 4 MB decoded. The server cuts rather than refuses:
+a message at 8 KB, an exception's value at 4 KB, a stack to its innermost 128 frames, breadcrumbs to
+the last 100, attributes to 32 keys of up to 1 KB each. A record with neither a message nor an
+exception is dropped, and says so in the answer.
+
+**Consent** is §6's. Without `consent.analytics` the batch is answered 202 and nothing is stored.
+
+**What the server answers** is §9's table. A 429 (the device, address or project log budget, or a
+suspended account) keeps the batch for later, as it does for events.
+
+**What is billed** is each record's content in bytes, uncompressed: its text, frames, breadcrumbs and
+attributes, plus 64 bytes for the fields every record has. Compression on the wire is free to the
+studio and cheaper for everyone, so an SDK SHOULD always send zstd.

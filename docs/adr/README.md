@@ -76,6 +76,7 @@ a record is never updated to match a drifting document, it is superseded by a ne
 | [0047](0047-the-billing-page-shows-stripes-description.md) | The billing page shows Stripe's own description of cards, invoice details and receipts | Accepted |
 | [0048](0048-verified-purchases-win.md) | A store's verified purchases outrank what the game reports | Accepted |
 | [0049](0049-webhooks-hold-only-what-is-owed.md) | Webhooks keep in PostgreSQL only what is still owed | Accepted |
+| [0050](0050-logs-are-a-stream-of-their-own-billed-as-they-cost.md) | Logs are a stream of their own, stored where they are counted, and billed as they cost | Accepted |
 
 ## Template
 
