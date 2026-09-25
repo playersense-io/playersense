@@ -58,6 +58,15 @@ func explorer(r *muzak.Router, base string) {
 		core.Require(authz.AnalyticsRead),
 		unreadable)
 
+	r.Get(base+"/realtime", handlers.Realtime,
+		muzak.Summary("What is happening now"),
+		muzak.Description("The last minutes (30 by default) minute by minute, against the same minutes yesterday: "+
+			"events by name (the twelve busiest, the rest as other), approximate players and revenue. The "+
+			"current minute is partly filled and says how far. Events are visible within about ten seconds, "+
+			"so polling faster than that shows nothing new."),
+		core.Require(authz.AnalyticsRead),
+		unreadable)
+
 	r.Get(base+"/sessions/recent", handlers.RecentSessions,
 		muzak.Summary("List the newest sessions"),
 		muzak.Description("Today's sessions, newest first, and yesterday's when today has fewer than "+

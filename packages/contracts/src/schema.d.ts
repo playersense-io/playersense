@@ -1825,6 +1825,26 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/v1/organizations/{org}/projects/{project}/analytics/{environment}/realtime": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * What is happening now
+         * @description The last minutes (30 by default) minute by minute, against the same minutes yesterday: events by name (the twelve busiest, the rest as other), approximate players and revenue. The current minute is partly filled and says how far. Events are visible within about ten seconds, so polling faster than that shows nothing new.
+         */
+        readonly get: operations["get_v1_organizations_by_org_projects_by_project_analytics_by_environment_realtime"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/v1/organizations/{org}/projects/{project}/analytics/{environment}/revenue": {
         readonly parameters: {
             readonly query?: never;
@@ -6640,6 +6660,38 @@ export interface components {
             readonly base: string;
             /** Format: int64 */
             readonly currencies: number;
+        };
+        readonly RealtimeMinuteOut: {
+            /** Format: date-time */
+            readonly at: string;
+            readonly by_event: {
+                readonly [key: string]: number;
+            };
+            /** Format: int64 */
+            readonly events: number;
+            /** Format: int64 */
+            readonly players?: number | null;
+            /**
+             * Format: int64
+             * @description As the game reported it, in the currencies it reported
+             */
+            readonly revenue_micros: number;
+        };
+        readonly RealtimeNameOut: {
+            /** Format: int64 */
+            readonly events: number;
+            readonly name: string;
+        };
+        readonly RealtimeOut: {
+            /** Format: date-time */
+            readonly at: string;
+            /** Format: double */
+            readonly elapsed: number;
+            readonly minutes: readonly components["schemas"]["RealtimeMinuteOut"][];
+            readonly names: readonly components["schemas"]["RealtimeNameOut"][];
+            /** Format: int64 */
+            readonly suppression_threshold: number;
+            readonly yesterday: readonly components["schemas"]["RealtimeMinuteOut"][];
         };
         readonly ReceiptOut: {
             readonly currency: string;
@@ -16081,6 +16133,88 @@ export interface operations {
                 };
             };
             /** @description The facts cannot answer this question, and the body explains why */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The facts could not be read */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly get_v1_organizations_by_org_projects_by_project_analytics_by_environment_realtime: {
+        readonly parameters: {
+            readonly query?: {
+                /** @description How many minutes, up to 120 */
+                readonly minutes?: number;
+            };
+            readonly header?: never;
+            readonly path: {
+                readonly org: string;
+                readonly project: string;
+                /** @description development, staging or production */
+                readonly environment: "development" | "staging" | "production";
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["RealtimeOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not read this project's analytics */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The organization, project or environment does not exist, or you cannot see it */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
             readonly 422: {
                 headers: {
                     readonly [name: string]: unknown;

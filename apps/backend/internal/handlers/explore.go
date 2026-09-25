@@ -141,6 +141,20 @@ func RecentSessions(ctx *muzak.Context, in schemas.RecentSessionsParams) (schema
 	return *out, nil
 }
 
+// Realtime is the last minutes of the project against the same minutes yesterday.
+func Realtime(ctx *muzak.Context, in schemas.RealtimeParams) (schemas.RealtimeOut, error) {
+	engine := muzak.From[*query.Engine](ctx)
+	scope, err := scopeForMember(ctx, in.Environment)
+	if err != nil {
+		return schemas.RealtimeOut{}, err
+	}
+	out, err := engine.Realtime(ctx.Context(), scope, in.Minutes, time.Now())
+	if err != nil {
+		return schemas.RealtimeOut{}, exploreFailed(err, "realtime")
+	}
+	return *out, nil
+}
+
 // Players reads one page of the player directory.
 func Players(ctx *muzak.Context, in schemas.PlayerListParams) (schemas.PlayerListOut, error) {
 	engine := muzak.From[*query.Engine](ctx)

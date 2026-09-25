@@ -12039,6 +12039,134 @@
         }
       }
     },
+    "/v1/organizations/{org}/projects/{project}/analytics/{environment}/realtime": {
+      "get": {
+        "tags": [
+          "reporting"
+        ],
+        "summary": "What is happening now",
+        "description": "The last minutes (30 by default) minute by minute, against the same minutes yesterday: events by name (the twelve busiest, the rest as other), approximate players and revenue. The current minute is partly filled and says how far. Events are visible within about ten seconds, so polling faster than that shows nothing new.",
+        "operationId": "get_v1_organizations_by_org_projects_by_project_analytics_by_environment_realtime",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "project",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "environment",
+            "in": "path",
+            "description": "development, staging or production",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "development",
+                "staging",
+                "production"
+              ]
+            }
+          },
+          {
+            "name": "minutes",
+            "in": "query",
+            "description": "How many minutes, up to 120",
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "default": "30",
+              "minimum": 5,
+              "maximum": 120
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RealtimeOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not read this project's analytics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The organization, project or environment does not exist, or you cannot see it",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The facts could not be read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/organizations/{org}/projects/{project}/analytics/{environment}/revenue": {
       "get": {
         "tags": [
@@ -34475,6 +34603,103 @@
           "available",
           "base",
           "currencies"
+        ]
+      },
+      "RealtimeMinuteOut": {
+        "type": "object",
+        "properties": {
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "by_event": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          "events": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "players": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "revenue_micros": {
+            "type": "integer",
+            "format": "int64",
+            "description": "As the game reported it, in the currencies it reported"
+          }
+        },
+        "required": [
+          "at",
+          "by_event",
+          "events",
+          "revenue_micros"
+        ]
+      },
+      "RealtimeNameOut": {
+        "type": "object",
+        "properties": {
+          "events": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "events",
+          "name"
+        ]
+      },
+      "RealtimeOut": {
+        "type": "object",
+        "properties": {
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "elapsed": {
+            "type": "number",
+            "format": "double"
+          },
+          "minutes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RealtimeMinuteOut"
+            }
+          },
+          "names": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RealtimeNameOut"
+            }
+          },
+          "suppression_threshold": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "yesterday": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RealtimeMinuteOut"
+            }
+          }
+        },
+        "required": [
+          "at",
+          "elapsed",
+          "minutes",
+          "names",
+          "suppression_threshold",
+          "yesterday"
         ]
       },
       "ReceiptOut": {

@@ -1401,3 +1401,44 @@ func (in *RevenueSettingsIn) Validate(v *muzak.Validation) {
 		}
 	}
 }
+
+// RealtimeParams asks for the last minutes of a project.
+type RealtimeParams struct {
+	AnalyticsScope
+	Minutes int `query:"minutes,omitzero" default:"30" doc:"How many minutes, up to 120"`
+}
+
+func (in *RealtimeParams) Validate(v *muzak.Validation) {
+	in.validateScope(v)
+	v.Number(&in.Minutes).Min(5).Max(120)
+}
+
+// RealtimeOut is the last minutes against the same minutes yesterday.
+type RealtimeOut struct {
+	At time.Time `json:"at"`
+	// Elapsed is how much of the current minute has passed, 0 to 1: its figures are partial, and
+	// yesterday's same minute is whole.
+	Elapsed   float64             `json:"elapsed"`
+	Minutes   []RealtimeMinuteOut `json:"minutes"`
+	Yesterday []RealtimeMinuteOut `json:"yesterday"`
+	// Names is the busiest event names in the window, busiest first; a minute's other names are
+	// summed under "other".
+	Names                []RealtimeNameOut `json:"names"`
+	SuppressionThreshold int               `json:"suppression_threshold"`
+}
+
+// RealtimeMinuteOut is one minute.
+type RealtimeMinuteOut struct {
+	At     time.Time         `json:"at"`
+	Total  uint64            `json:"events"`
+	Events map[string]uint64 `json:"by_event"`
+	// Players is approximate, and absent when fewer than the threshold played in the minute.
+	Players       *uint64 `json:"players,omitzero"`
+	RevenueMicros int64   `json:"revenue_micros" doc:"As the game reported it, in the currencies it reported"`
+}
+
+// RealtimeNameOut is one event name's count over the window.
+type RealtimeNameOut struct {
+	Name   string `json:"name"`
+	Events uint64 `json:"events"`
+}
