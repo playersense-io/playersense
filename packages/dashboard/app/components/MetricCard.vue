@@ -278,8 +278,9 @@ const chartLabel = computed(() => {
 
       <div class="flex flex-col gap-3">
         <MetricSkeleton v-if="loading && legend.length" :count="legend.length" shape="legend" />
+        <!-- No legend over the no-data watermark: there are no lines for it to name. -->
         <ul
-          v-else-if="legend.length"
+          v-else-if="legend.length && !empty"
           aria-label="Series"
           class="m-0 flex list-none flex-wrap items-center gap-x-4 gap-y-1 p-0 sm:justify-end"
         >
