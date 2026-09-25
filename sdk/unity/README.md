@@ -93,6 +93,109 @@ not be.
 The full set of guarantees, including what happens when the process is killed between spooling
 and the acknowledgement, is [docs/sdk/protocol.md](../../docs/sdk/protocol.md).
 
+## Errors and crashes
+
+Off until you turn it on, because turning it on changes what you declare to the stores (below).
+
+```csharp
+PlayerSense.SDK.Initialize(new PlayerSenseOptions
+{
+    ProjectKey = "ps_project_live_…",
+    Logs = { Enabled = true },
+});
+```
+
+or tick **Capture logs** in Edit ▸ Project Settings ▸ PlayerSense. From then on
+`Debug.LogError`, `Debug.LogException`, exceptions nothing caught (on any thread, and in tasks
+nobody awaited) and crashes are recorded with no code. Lines below Warning are kept in memory as
+breadcrumbs and travel with the next error. For the rest:
+
+```csharp
+PlayerSense.Logs.Error("Receipt refused", new Dictionary<string, string> { ["store"] = "google" });
+PlayerSense.Logs.Exception(e);                        // one your code caught
+PlayerSense.Logs.Breadcrumb("shop", "Opened the gem pack offer");
+```
+
+**Crashes** come from the operating system, read on the next launch: Android's exit reasons on
+Android 11+ (Java and native crashes, ANRs, being killed for memory in front of the player) and
+MetricKit on iOS 14+. The SDK installs no signal handler, so it cannot fight Unity's own crash
+handling or another crash reporter you ship. Elsewhere, a run that ended in the foreground
+without going to the background or quitting is reported as `AbnormalExit`.
+
+**Cost.** Unity's log callback copies two references into a fixed ring and returns. Parsing and
+sending happen four times a second on the main thread. An error thrown every frame becomes one
+record with a count, a device sends at most 120 records a minute (crashes always go), and
+batches are gzip, sent every 15 seconds.
+
+### Consent for error reports
+
+By default error reports follow the analytics answer: one consent screen, one answer, nothing
+else to do. Before the player answers, errors wait in memory and a crash waits on the device;
+"yes" sends them and "no" deletes them.
+
+If your game has its own **Share error reports** switch, the way desktop apps ask:
+
+```csharp
+PlayerSense.Privacy.GrantErrorReports("2026-01");   // yes, whatever they said about analytics
+PlayerSense.Privacy.DenyErrorReports();             // no; waiting crash reports are deleted
+PlayerSense.Privacy.ErrorReportsFollowAnalytics();  // back to the default
+```
+
+Or ask after the fact, when there is something to send:
+
+```csharp
+if (PlayerSense.Privacy.PendingCrashReports > 0)
+    ShowDialog("The game closed unexpectedly last time. Send a report?",
+        yes: () => PlayerSense.Privacy.GrantErrorReports("2026-01"),
+        no: () => PlayerSense.Privacy.DiscardPendingCrashReports());
+```
+
+### What the SDK does about personal data
+
+- **Scrubbed on the device, and again on the server:** emails, bearer tokens and JWTs,
+  `password=`-style pairs, card numbers, IP addresses and the account name in file paths
+  (`C:\Users\Emma\` becomes `C:\Users\[user]\`).
+- **Never read:** the device name (`SystemInfo.deviceName`, which is what the player called
+  their phone), `deviceUniqueIdentifier`, any advertising identifier or IDFV. The device is
+  described by its model (`SM-S918B`, `iPhone15,2`).
+- **Yours to remove:** what only your game knows is personal, such as a display name in a
+  message. `Logs.BeforeSend` sees every record on the main thread; change it or return `false`.
+- **Games for children:** set `ChildDirected` (or tick it in Project Settings). Error reports
+  then carry no player id and none of your attributes.
+
+### What to declare to the stores
+
+The package ships `Runtime/Plugins/iOS/PrivacyInfo.xcprivacy`, which Xcode merges into your
+app's privacy report. Your own answers in App Store Connect and Play Console are still yours;
+these are the ones that match what the SDK collects.
+
+**App Store Connect, App Privacy.** Tracking: **No**.
+
+| Data type | With | Linked to the user | Used for tracking | Purpose |
+|---|---|---|---|---|
+| Product Interaction | analytics | Yes | No | Analytics |
+| Device ID | analytics | Yes | No | Analytics, App Functionality |
+| User ID | `Identity.SetPlayer` | Yes | No | Analytics, App Functionality |
+| Crash Data | log capture | Yes | No | App Functionality |
+| Other Diagnostic Data | log capture | Yes | No | App Functionality |
+
+**Google Play, Data safety.** Collected, not shared, encrypted in transit, and deletable on
+request.
+
+| Category ▸ type | With | Purpose |
+|---|---|---|
+| App activity ▸ App interactions | analytics | Analytics |
+| App info and performance ▸ Crash logs | log capture | App functionality, Analytics |
+| App info and performance ▸ Diagnostics | log capture | App functionality, Analytics |
+| Device or other IDs | analytics | Analytics, App functionality |
+
+"Not shared" holds because PlayerSense processes the data on your behalf, as a service
+provider; Google Play's definition of sharing excludes that.
+
+**Kids.** For the Designed for Families program or the App Store Kids category, set
+`ChildDirected`. What is sent is then what COPPA allows without parental consent for the support
+of internal operations.
+
 ## Did it work?
 
 **Window ▸ Analysis ▸ PlayerSense**, in play mode. A correct SDK is silent by design, so the

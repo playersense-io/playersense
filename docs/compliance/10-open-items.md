@@ -159,10 +159,10 @@ were previously waiting on there being an SDK at all. There is one, and it build
 
 | Item | Consequence of omission |
 |---|---|
-| **`PrivacyInfo.xcprivacy`, signed**, in the Unity package | App Store review rejects *the customer's app*. Nothing in the repository declares one |
-| **Play Data Safety reference**, published | The customer cannot complete their own declaration without guessing |
+| **`PrivacyInfo.xcprivacy` generated**, and signed once the SDK ships as an XCFramework | A hand-written manifest drifts from the schema. One ships today ([04](04-children-and-platform-rules.md)) |
+| **Play Data Safety reference**, published | The Unity README carries the answers today; a page a customer can link is still to do |
 
-Both are generated from the column classification, which exists — see
+Both should be generated from the column classification, which exists: see
 [01](01-data-inventory.md).
 
 ## Explicitly not planned

@@ -8,6 +8,14 @@ First package. Analytics, identity, consent and context over the shared Rust cor
 
 ### Added
 
+- Errors, exceptions and crashes, off until `Logs.Enabled` is set: Unity's log, unhandled and
+  unobserved-task exceptions on any thread, Android exit reasons (11+) and iOS MetricKit (14+)
+  read on the next launch, and an abnormal-exit marker where neither exists. No signal handler.
+  `PlayerSense.Logs` for errors, caught exceptions and breadcrumbs, and `BeforeSend`.
+- A separate answer for error reports: `Privacy.GrantErrorReports`, `DenyErrorReports`,
+  `ErrorReportsFollowAnalytics`, `PendingCrashReports` and `DiscardPendingCrashReports`.
+- `ChildDirected`, which sends no player id and no attributes with an error report.
+- `PrivacyInfo.xcprivacy`, and the answers for App Privacy and Data safety in the README.
 - `PlayerSense.Analytics.Track` and `TrackRevenue`.
 - `PlayerSense.Identity.SetPlayer` / `ClearPlayer`, and the installation identifier.
 - `PlayerSense.Privacy.Grant` / `Deny` / `SetConsent`, with pre-consent events held in memory

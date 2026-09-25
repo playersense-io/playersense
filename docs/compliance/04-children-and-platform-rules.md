@@ -100,9 +100,8 @@ Review team.
 
 ## Apple privacy manifest
 
-Apple requires a signed `PrivacyInfo.xcprivacy` from third-party SDKs, declaring collected
-data types and the reason for each restricted API used — reading `UserDefaults` for the
-install identifier among them.
+Apple requires a `PrivacyInfo.xcprivacy` from third-party SDKs, declaring collected data
+types and the reason for each restricted API used.
 
 Without it, App Store review rejects **the customer's app**, not PlayerSense. That makes it
 a release blocker rather than a compliance task.
@@ -110,13 +109,27 @@ a release blocker rather than a compliance task.
 It is generated from the column classification ([01](01-data-inventory.md)) for the reason
 ADR 0007 gives: a manifest maintained by hand describes a schema that has moved on.
 
-**Status: not built, and no longer waiting on anything.** The Unity package builds for iOS
-today ([platforms.md](../sdk/platforms.md)), so this is the artifact standing between a customer
-and App Store review rather than a task behind an unwritten SDK. Nothing in the repository
-declares a manifest. See [10-open-items.md](10-open-items.md).
+**Status: shipped, by hand.** `sdk/unity/Runtime/Plugins/iOS/PrivacyInfo.xcprivacy`, which
+Unity copies into the Xcode project and Xcode merges into the app's privacy report. It declares:
 
-`NSPrivacyTracking: false` above is what the manifest **will** declare, and is a consequence of
-the identifier design rather than a claim that a file says so today.
+- `NSPrivacyTracking: false`, no tracking domains.
+- Collected, all linked to the installation and none used for tracking: Product Interaction
+  (Analytics), Device ID and User ID (Analytics, App Functionality), Crash Data and Other
+  Diagnostic Data (App Functionality).
+- Required-reason APIs, found by reading what the binding calls rather than guessed:
+  System Boot Time `35F9.1` (`Stopwatch` is `mach_absolute_time` under IL2CPP, for session
+  length and retry delays) and File Timestamp `C617.1` (`File.Exists` on the SDK's own files is
+  `stat`). The native library links none: `nm` on `libplayersense.a` shows only
+  `sysctlbyname` from Rust's standard library, which is not on Apple's list. `UserDefaults` is
+  not used; the installation id is a file.
+
+It lists crash and diagnostic data although log capture is off by default, because a manifest
+cannot change with a runtime switch and under-declaring is what gets an app rejected. A studio's
+App Store Connect answers are its own, and the package README says which to give.
+
+Not yet done: generating it from the column classification, as ADR 0007 asks, and a signature,
+which Apple requires of SDKs distributed as binary XCFrameworks; this package ships a static
+library inside a UPM package, which Xcode builds into the app.
 
 ## Google Play Data Safety
 
