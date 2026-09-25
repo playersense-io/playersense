@@ -29,6 +29,10 @@ const chart = computed(() => {
   }
 })
 
+/* A chart with no rows, or none with a number in it, is no data: the watermark, not a flat line. */
+const chartEmpty = computed(() => !chart.value || !chart.value.categories.length
+  || chart.value.series.every(entry => entry.data.every(point => point === null)))
+
 const alignOf = (type: ColumnType) => (isNumeric(type) ? 'text-right' : 'text-left')
 </script>
 
@@ -42,7 +46,14 @@ const alignOf = (type: ColumnType) => (isNumeric(type) ? 'text-right' : 'text-le
     </div>
 
     <div v-else-if="isChart && chart" class="min-h-0 flex-1 px-4 py-3">
+      <NoDataPlaceholder
+        v-if="chartEmpty"
+        :height="200"
+        :seed="node.data.title.length"
+        label="No data yet"
+      />
       <MetricChart
+        v-else
         :categories="chart.categories"
         :format="chart.format"
         :height="200"

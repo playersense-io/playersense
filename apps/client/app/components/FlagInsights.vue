@@ -57,20 +57,23 @@ const series = computed<MetricSeries[]>(() => (data.value?.values ?? []).map((li
   return {
     // A JSON value is its size, which tells two documents apart no better than its text does.
     name: !line.published ? 'Game default' : value !== null && typeof value === 'object' ? `Value ${index + 1}` : writeValue(value),
-    data: days.value.map(day => byDay.get(day) ?? 0),
+    // A day with no row for this value is no data, drawn as a gap rather than a zero.
+    data: days.value.map(day => byDay.get(day) ?? null),
     type: 'line',
     tone: !line.published ? 'muted' : ((index % 6) + 1) as MetricTone
   }
 }))
 
+/* Nothing read it in the range: every figure is no data, drawn as a dash, not a zero. */
 const board = computed<Kpi[]>(() => {
   const out = data.value
   if (!out) return []
+  const read = out.exposures > 0
   return [
-    { key: 'exposures', label: 'Exposures', value: writeFigure(out.exposures, { compact: true }), exact: writeFigure(out.exposures), info: 'Sessions in which the game read this flag. A read is counted once per session and config version.' },
-    { key: 'values', label: 'Values served', value: String(out.values.filter(line => line.published).length), info: 'Distinct values PlayerSense served for it.' },
-    { key: 'default', label: 'On the game default', value: out.exposures ? formatShare(out.default_share) : '–', info: 'Reads that found no configuration on the device, such as a first launch offline, and used the value written in the code.' },
-    { key: 'versions', label: 'Config versions', value: String(out.versions.length), info: 'Published versions devices held while reading it.' }
+    { key: 'exposures', label: 'Exposures', value: read ? writeFigure(out.exposures, { compact: true }) : null, exact: read ? writeFigure(out.exposures) : undefined, info: 'Sessions in which the game read this flag. A read is counted once per session and config version.' },
+    { key: 'values', label: 'Values served', value: read ? String(out.values.filter(line => line.published).length) : null, info: 'Distinct values PlayerSense served for it.' },
+    { key: 'default', label: 'On the game default', value: read ? formatShare(out.default_share) : null, info: 'Reads that found no configuration on the device, such as a first launch offline, and used the value written in the code.' },
+    { key: 'versions', label: 'Config versions', value: read ? String(out.versions.length) : null, info: 'Published versions devices held while reading it.' }
   ]
 })
 

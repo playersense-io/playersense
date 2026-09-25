@@ -32,16 +32,19 @@ async function refresh() {
 
 // --- The day's figures --------------------------------------------------------------------
 
+/* No health read is no data (a dash); a figure that needs a delivery is a dash without one. */
 const board = computed<Kpi[]>(() => {
+  const known = Boolean(figures.value)
   const current = figures.value?.current ?? NO_DAY
   const previous = figures.value?.previous ?? NO_DAY
+  const sent = known && current.deliveries > 0
   const move = (value: number, before: number, positive: 'up' | 'down' = 'up') => (before > 0 ? trendOf(value, before, positive) : undefined)
   return [
-    { key: 'deliveries', label: 'Events sent', value: writeFigure(current.deliveries, { compact: true }), exact: writeFigure(current.deliveries), trend: move(current.deliveries, previous.deliveries), info: 'Events sent here, one each. A delivery tried three times counts once.' },
-    { key: 'first', label: 'Delivered first try', value: current.deliveries ? `${(current.firstTry * 100).toFixed(current.firstTry > 0.995 ? 2 : 1)}%` : '–', trend: move(current.firstTry, previous.firstTry), info: 'Of the events sent, how many the server took on the first try.' },
+    { key: 'deliveries', label: 'Events sent', value: known ? writeFigure(current.deliveries, { compact: true }) : null, exact: known ? writeFigure(current.deliveries) : undefined, trend: known ? move(current.deliveries, previous.deliveries) : undefined, info: 'Events sent here, one each. A delivery tried three times counts once.' },
+    { key: 'first', label: 'Delivered first try', value: sent ? `${(current.firstTry * 100).toFixed(current.firstTry > 0.995 ? 2 : 1)}%` : null, trend: sent && previous.deliveries ? move(current.firstTry, previous.firstTry) : undefined, info: 'Of the events sent, how many the server took on the first try.' },
     { key: 'retrying', label: 'Retrying now', value: writeFigure(figures.value?.retrying ?? destination.value?.retrying ?? 0), info: 'Not delivered yet, and due another try.' },
-    { key: 'p50', label: 'Median answer', value: current.deliveries ? msWords(current.p50) : '–', trend: current.deliveries ? move(current.p50, previous.p50, 'down') : undefined, info: 'Half of the tries were answered faster than this.' },
-    { key: 'p95', label: 'Slowest 5%', value: current.deliveries ? msWords(current.p95) : '–', trend: current.deliveries ? move(current.p95, previous.p95, 'down') : undefined, info: 'One try in twenty took at least this long. At 10 seconds a try times out.' }
+    { key: 'p50', label: 'Median answer', value: sent ? msWords(current.p50) : null, trend: sent && previous.deliveries ? move(current.p50, previous.p50, 'down') : undefined, info: 'Half of the tries were answered faster than this.' },
+    { key: 'p95', label: 'Slowest 5%', value: sent ? msWords(current.p95) : null, trend: sent && previous.deliveries ? move(current.p95, previous.p95, 'down') : undefined, info: 'One try in twenty took at least this long. At 10 seconds a try times out.' }
   ]
 })
 

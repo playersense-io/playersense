@@ -134,7 +134,8 @@ const planWords = computed(() => {
           </div>
           <div class="flex flex-col gap-1 border-b border-line p-4 xl:border-r xl:border-b-0">
             <span class="text-[11px] text-ink/50">Charged this month</span>
-            <span class="font-mono text-2xl text-ink">{{ writeMicros(month?.charged_micros ?? 0) }}</span>
+            <span v-if="month" class="font-mono text-2xl text-ink">{{ writeMicros(month.charged_micros) }}</span>
+            <span v-else aria-label="Charged this month: no data yet" class="font-mono text-2xl text-ink/30">&ndash;</span>
             <span class="text-[11px] text-ink/50">{{ month ? `${writeFigure(month.tracked_players)} tracked players, ${writeFigure(month.included_players)} included` : 'Usage past the plan\'s allowance' }}</span>
           </div>
           <button class="flex cursor-pointer flex-col gap-1 border-b border-line p-4 text-left transition-colors duration-150 hover:bg-ink/2 sm:border-r sm:border-b-0" type="button" @click="tab = 'auto'">

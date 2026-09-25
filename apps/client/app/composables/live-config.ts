@@ -154,5 +154,8 @@ export function useFlagExposures() {
     const row = byFlag.value.get(key)
     return { reads: row?.exposures ?? 0, previous: row?.previous_exposures ?? 0, daily: [...(row?.daily ?? [])] }
   }
-  return { readsOf, ready: computed(() => Boolean(read.data.value)) }
+  /* Whether production has told us anything: an answer with no flag in it is a project whose
+     devices have not read a flag yet, and its figures are no data rather than zeros. */
+  const hasData = computed(() => (read.data.value?.flags ?? []).length > 0)
+  return { readsOf, ready: computed(() => Boolean(read.data.value)), hasData }
 }

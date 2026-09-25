@@ -41,15 +41,22 @@ const figures = computed(() => {
 
 const retrying = computed(() => destinations.value.reduce((sum, destination) => sum + destination.retrying, 0))
 
+/*
+ * With no destination there is nothing to measure, so every figure is no data (a dash). With
+ * destinations, a zero is what they did: nothing sent is a real answer. A figure that needs a
+ * delivery to exist (the first-try share, the answer time) is a dash when there was none.
+ */
 const board = computed<Kpi[]>(() => {
   const { current, previous } = figures.value
+  const known = destinations.value.length > 0 && Object.keys(healthById.value).length > 0
+  const sent = known && current.deliveries > 0
   const move = (value: number, before: number, positive: 'up' | 'down' = 'up') => (before > 0 ? trendOf(value, before, positive) : undefined)
   return [
-    { key: 'deliveries', label: 'Events sent', value: writeFigure(current.deliveries, { compact: true }), exact: writeFigure(current.deliveries), trend: move(current.deliveries, previous.deliveries), info: 'Events sent to every destination, one each. A delivery tried three times counts once.' },
-    { key: 'first', label: 'Delivered first try', value: current.deliveries ? `${(current.firstTry * 100).toFixed(current.firstTry > 0.995 ? 2 : 1)}%` : '–', trend: move(current.firstTry, previous.firstTry), info: 'Of the events sent, how many your servers took on the first try, with no retry needed.' },
-    { key: 'retrying', label: 'Retrying now', value: writeFigure(retrying.value), info: 'Not delivered yet, and due another try. Each is tried for up to three days.' },
-    { key: 'failed', label: 'Failed', value: writeFigure(current.failed), trend: move(current.failed, previous.failed, 'down'), info: 'Gave up after three days of tries. Resend them from the destination once the server is fixed.' },
-    { key: 'p50', label: 'Slowest median answer', value: current.deliveries ? msWords(current.p50) : '–', trend: current.deliveries ? move(current.p50, previous.p50, 'down') : undefined, info: `Half of the tries to the slowest destination were answered faster than this. Its slowest one in twenty took ${msWords(current.p95)} or more; at 10 seconds a try times out.` }
+    { key: 'deliveries', label: 'Events sent', value: known ? writeFigure(current.deliveries, { compact: true }) : null, exact: known ? writeFigure(current.deliveries) : undefined, trend: known ? move(current.deliveries, previous.deliveries) : undefined, info: 'Events sent to every destination, one each. A delivery tried three times counts once.' },
+    { key: 'first', label: 'Delivered first try', value: sent ? `${(current.firstTry * 100).toFixed(current.firstTry > 0.995 ? 2 : 1)}%` : null, trend: sent && previous.deliveries ? move(current.firstTry, previous.firstTry) : undefined, info: 'Of the events sent, how many your servers took on the first try, with no retry needed.' },
+    { key: 'retrying', label: 'Retrying now', value: destinations.value.length ? writeFigure(retrying.value) : null, info: 'Not delivered yet, and due another try. Each is tried for up to three days.' },
+    { key: 'failed', label: 'Failed', value: known ? writeFigure(current.failed) : null, trend: known ? move(current.failed, previous.failed, 'down') : undefined, info: 'Gave up after three days of tries. Resend them from the destination once the server is fixed.' },
+    { key: 'p50', label: 'Slowest median answer', value: sent ? msWords(current.p50) : null, trend: sent && previous.deliveries ? move(current.p50, previous.p50, 'down') : undefined, info: `Half of the tries to the slowest destination were answered faster than this. Its slowest one in twenty took ${msWords(current.p95)} or more; at 10 seconds a try times out.` }
   ]
 })
 

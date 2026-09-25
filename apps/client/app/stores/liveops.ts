@@ -117,7 +117,9 @@ function impactOf(out: ImpactRecord): EventImpact {
       during,
       expected: expectedValue,
       comparison: comparisonOf(lift, during, expectedValue, spread, windowDays),
-      after: out.live || !later.length ? null : comparisonOf(mean(later), 0, 0, spread, later.length)
+      after: out.live || !later.length ? null : comparisonOf(mean(later), 0, 0, spread, later.length),
+      measured: figure?.actual !== null && figure?.actual !== undefined,
+      baseline: figure?.expected !== null && figure?.expected !== undefined
     }
   }
   daily.ad_revenue = { actual: [], expected: [] }
@@ -205,7 +207,10 @@ export const useLiveOpsStore = defineStore('liveops', () => {
       const out = await apiRequest<Schema<'MetricResult'>>('POST', `${analytics.value}/metrics/query`, { metric: 'active_players', interval: 'day', from, to })
       const next = { ...gameDays.value }
       for (const row of out.rows ?? []) {
-        const players = row.active_players ?? row.value ?? 0
+        // A day held back for having too few players is no data, not a day of nobody.
+        const counted = row.active_players ?? row.value
+        if (counted === null || counted === undefined) continue
+        const players = counted
         const revenue = (row.revenue_micros ?? 0) / 1_000_000
         next[Date.parse(row.bucket.slice(0, 10))] = {
           players,

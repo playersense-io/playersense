@@ -79,6 +79,9 @@ const verdict = computed<{ tone: VerdictTone, icon: string, title: string, detai
   }
   const metric = entry.metrics[goal.value]
   const label = LIVEOPS_METRICS[goal.value].label
+  if (!metric.measured || !metric.baseline) {
+    return { tone: 'neutral', icon: 'material-symbols:hourglass-empty', title: 'No data yet', detail: `${label} for its players has not come back ${when}: none of them has sent anything yet, or too few to show.` }
+  }
   const outcome = outcomeOf(metric.comparison)
   const figures = `${writeOpsMetric(goal.value, metric.during)} a day against ${writeOpsMetric(goal.value, metric.expected)} expected, measured ${methodWords(entry)}. A ${writeChance(metric.comparison.chance)} chance it really rose.`
   if (outcome === 'better') return { tone: 'good', icon: 'material-symbols:trending-up', title: `${label} ${writeOpsLift(goal.value, metric.comparison)} ${when}`, detail: figures }
@@ -100,11 +103,12 @@ const warnings = computed(() => {
   if (!current || !entry) return []
   const out: { icon: string, text: string }[] = []
   for (const metric of current.watch) {
+    if (!entry.metrics[metric].measured || !entry.metrics[metric].baseline) continue
     const comparison = entry.metrics[metric].comparison
     if (outcomeOf(comparison) === 'worse') out.push({ icon: 'material-symbols:warning-outline', text: `Must not get worse: ${LIVEOPS_METRICS[metric].label.toLowerCase()} fell ${writeOpsLift(metric, comparison).replace('-', '')} while it was on, and it is ${writeChance(1 - comparison.chance)} sure that is real.` })
   }
   if (goal.value) {
-    const after = entry.metrics[goal.value].after
+    const after = entry.metrics[goal.value].measured ? entry.metrics[goal.value].after : null
     if (after && outcomeOf(after) === 'worse') out.push({ icon: 'material-symbols:south-east', text: `Pulled forward: in the three days after it ended, ${LIVEOPS_METRICS[goal.value].label.toLowerCase()} ran ${writeOpsLift(goal.value, after).replace('-', '')} under expected. Part of the rise was spending that would have come anyway.` })
   }
   return out
@@ -145,7 +149,8 @@ const days = computed(() => impact.value?.days ?? [])
 const categories = computed(() => days.value.map(at => dayFormat.format(at)))
 
 const scaleOf = (entry: LiveOpsMetricKey) => (LIVEOPS_METRICS[entry].kind === 'rate' ? 100 : 1)
-const scaled = (values: number[]) => values.map(value => Math.round(value * scaleOf(metric.value) * 1000) / 1000)
+/* A day with no figure (NaN from the store) is no data: a gap in the line, not a zero. */
+const scaled = (values: number[]) => values.map(value => (Number.isFinite(value) ? Math.round(value * scaleOf(metric.value) * 1000) / 1000 : null))
 
 const dayIndex = (at: number) => days.value.findIndex(day => day === startOfDay(at))
 
@@ -163,7 +168,7 @@ const series = computed<MetricSeries[]>(() => {
       name: 'Whole game',
       data: days.value.map((at) => {
         const figures = gameDay(at)
-        return figures && at !== startOfDay(time.value) ? Math.round(figures[metric.value] * scaleOf(metric.value) * 1000) / 1000 : null
+        return figures && at !== startOfDay(time.value) && Number.isFinite(figures[metric.value]) ? Math.round(figures[metric.value] * scaleOf(metric.value) * 1000) / 1000 : null
       }),
       type: 'area',
       tone: 1
@@ -218,9 +223,12 @@ const metricRows = computed(() => {
   }))
 })
 
+/* A row is compared only when both its figures came back; the rest are no data. */
+const comparedRow = (row: { measured: boolean, baseline: boolean }) => row.measured && row.baseline
+
 const metricDomain = computed<[number, number]>(() => [
-  Math.min(0, ...metricRows.value.map(row => row.comparison.low)),
-  Math.max(0.05, ...metricRows.value.map(row => row.comparison.high))
+  Math.min(0, ...metricRows.value.filter(comparedRow).map(row => row.comparison.low)),
+  Math.max(0.05, ...metricRows.value.filter(comparedRow).map(row => row.comparison.high))
 ])
 
 const OUTCOME_TEXT = { better: 'text-success', worse: 'text-error', unclear: 'text-ink/60' } as const
@@ -235,8 +243,9 @@ const tiles = computed(() => {
   return keys.map(item => ({
     key: item,
     label: `${LIVEOPS_METRICS[item].label}${item === current.goal ? ' · goal' : ''}`,
-    value: LIVEOPS_METRICS[item].kind === 'rate' ? entry.metrics[item].during * 100 : entry.metrics[item].during,
-    previous: LIVEOPS_METRICS[item].kind === 'rate' ? entry.metrics[item].expected * 100 : entry.metrics[item].expected,
+    // No figure behind it is a dash, and the comparison needs both sides.
+    value: !entry.metrics[item].measured ? null : LIVEOPS_METRICS[item].kind === 'rate' ? entry.metrics[item].during * 100 : entry.metrics[item].during,
+    previous: !comparedRow(entry.metrics[item]) ? null : LIVEOPS_METRICS[item].kind === 'rate' ? entry.metrics[item].expected * 100 : entry.metrics[item].expected,
     prefix: LIVEOPS_METRICS[item].kind === 'money' ? '$' : '',
     unit: ({ rate: '%', money: '', count: '', minutes: 'min', ratio: '' })[LIVEOPS_METRICS[item].kind],
     decimals: LIVEOPS_METRICS[item].kind === 'money' && entry.metrics[item].during < 10 ? 3 : 1,
@@ -605,22 +614,35 @@ const activateWords = computed(() => (event.value
                       </span>
                     </td>
                     <td class="px-3 py-3 text-right font-mono text-xs text-ink">
-                      {{ writeOpsMetric(row.key, row.during) }}
+                      <template v-if="row.measured">
+                        {{ writeOpsMetric(row.key, row.during) }}
+                      </template>
+                      <span v-else class="text-ink/30">&ndash;</span>
                     </td>
                     <td class="px-3 py-3 text-right font-mono text-xs text-ink/60">
-                      {{ writeOpsMetric(row.key, row.expected) }}
+                      <template v-if="row.baseline">
+                        {{ writeOpsMetric(row.key, row.expected) }}
+                      </template>
+                      <span v-else class="text-ink/30">&ndash;</span>
                     </td>
                     <td class="px-3 py-3 text-right">
-                      <span class="flex flex-col items-end">
+                      <span v-if="!comparedRow(row)" class="font-mono text-xs text-ink/30">&ndash;</span>
+                      <span v-else class="flex flex-col items-end">
                         <span :class="OUTCOME_TEXT[outcomeOf(row.comparison)]" class="font-mono text-xs">{{ writeOpsLift(row.key, row.comparison) }}</span>
                         <span class="font-mono text-[10px] text-ink/45">{{ writeChance(row.comparison.chance) }} sure</span>
                       </span>
                     </td>
                     <td class="px-5 py-3">
-                      <EffectBar :comparison="row.comparison" :domain="metricDomain" />
+                      <EffectBar v-if="comparedRow(row)" :comparison="row.comparison" :domain="metricDomain" />
+                      <NoDataPlaceholder
+                        v-else
+                        :height="28"
+                        :seed="row.key.length"
+                        label="No data yet"
+                      />
                     </td>
                     <td class="px-5 py-3 text-right font-mono text-[11px]">
-                      <span v-if="row.after" :class="OUTCOME_TEXT[outcomeOf(row.after)]">{{ writeOpsLift(row.key, row.after) }}</span>
+                      <span v-if="row.after && comparedRow(row)" :class="OUTCOME_TEXT[outcomeOf(row.after)]">{{ writeOpsLift(row.key, row.after) }}</span>
                       <span v-else class="text-ink/35">{{ impact.live ? 'on now' : '–' }}</span>
                     </td>
                   </tr>
@@ -633,7 +655,8 @@ const activateWords = computed(() => (event.value
             <div class="grid gap-5 md:grid-cols-3">
               <div class="flex flex-col gap-1">
                 <span class="text-[11px] text-ink/50">Players it reached</span>
-                <span class="font-mono text-lg text-ink">{{ writeFigure(impact.players, { compact: true }) }} <span class="text-xs text-ink/45">a day</span></span>
+                <span v-if="impact.metrics.players.measured" class="font-mono text-lg text-ink">{{ writeFigure(impact.players, { compact: true }) }} <span class="text-xs text-ink/45">a day</span></span>
+                <span v-else class="font-mono text-lg text-ink/30">&ndash;</span>
                 <span class="text-[11px] leading-4 text-ink/55">{{ audienceWords }}{{ event.rollout < FULL_ROLLOUT ? `, ${formatRollout(event.rollout)} of them` : '' }}.</span>
               </div>
               <div class="flex flex-col gap-1">
@@ -646,7 +669,8 @@ const activateWords = computed(() => (event.value
               </div>
               <div class="flex flex-col gap-1">
                 <span class="text-[11px] text-ink/50">Revenue from its players {{ impact.live ? 'so far' : 'while it was on' }}</span>
-                <span class="font-mono text-lg text-ink">${{ writeFigure(impact.revenue, { compact: true }) }}</span>
+                <span v-if="impact.metrics.revenue.measured" class="font-mono text-lg text-ink">${{ writeFigure(impact.revenue, { compact: true }) }}</span>
+                <span v-else class="font-mono text-lg text-ink/30">&ndash;</span>
                 <span class="text-[11px] leading-4 text-ink/55">All of it, not only what the event added: the table above says how much it added.</span>
               </div>
             </div>

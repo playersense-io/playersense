@@ -18,13 +18,16 @@ const entitlements = computed<Record<string, number>>(() => ({ ...(billing.value
 const month = computed(() => billing.value?.month as { tracked_players: number, included_players: number } | undefined)
 const subscription = computed(() => billing.value?.subscription as { status: string, interval?: string, period_end?: string, cancel_at_period_end: boolean } | undefined)
 
+/* This month's usage, or null (no data) until a day of it has been counted. */
+const counted = computed(() => (usage.data.value?.days?.length ? usage.data.value.totals : null))
+
 const METERS = computed(() => [
   {
     key: 'included_mau',
     label: 'Tracked players',
     format: 'number' as const,
     info: 'Players with qualifying activity this month, counted once however many days they played.',
-    used: month.value?.tracked_players ?? 0,
+    used: month.value?.tracked_players ?? null,
     included: month.value?.included_players ?? entitlements.value.included_mau ?? 0
   },
   {
@@ -32,7 +35,7 @@ const METERS = computed(() => [
     label: 'Events',
     format: 'number' as const,
     info: 'Events accepted by ingestion this month, every project and environment.',
-    used: usage.data.value?.totals.events ?? 0,
+    used: counted.value?.events ?? null,
     included: entitlements.value.included_events ?? 0
   },
   {
@@ -40,7 +43,7 @@ const METERS = computed(() => [
     label: 'Retained storage',
     format: 'bytes' as const,
     info: 'Raw events kept for replay and export, inside the retention window today.',
-    used: usage.data.value?.totals.retained_bytes ?? 0,
+    used: counted.value?.retained_bytes ?? null,
     included: (entitlements.value.included_storage_gb_month ?? 0) * GB
   }
 ])

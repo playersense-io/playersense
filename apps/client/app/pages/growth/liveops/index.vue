@@ -54,14 +54,15 @@ function leftWords(row: Row): string {
  */
 function tileOf(row: Row) {
   const goal = row.goal
-  if (!row.last || !goal) return { label: row.name, value: row.last ? row.last.players : null, compact: true }
+  // A figure that did not come back is no data, a dash; a comparison needs both sides.
+  if (!row.last || !goal) return { label: row.name, value: row.last?.metrics.players.measured ? row.last.players : null, compact: true }
   const kind = LIVEOPS_METRICS[goal].kind
   const scale = kind === 'rate' ? 100 : 1
   const metric = row.last.metrics[goal]
   return {
     label: row.name,
-    value: metric.during * scale,
-    previous: metric.expected * scale,
+    value: metric.measured ? metric.during * scale : null,
+    previous: metric.measured && metric.baseline ? metric.expected * scale : null,
     compare: row.last.method === 'holdout' ? 'vs held back' : 'vs expected',
     prefix: kind === 'money' ? '$' : '',
     unit: ({ rate: '%', money: '', count: '', minutes: 'min', ratio: '' })[kind],
@@ -130,7 +131,7 @@ const gameSeries = computed<MetricSeries[]>(() => [{
   name: LIVEOPS_METRICS[metric.value].label,
   data: chartDays.value.map((at) => {
     const figures = gameDay(at)
-    return figures && at !== startOfDay(time.value) ? Math.round(figures[metric.value] * scaleOf(metric.value) * 1000) / 1000 : null
+    return figures && at !== startOfDay(time.value) && Number.isFinite(figures[metric.value]) ? Math.round(figures[metric.value] * scaleOf(metric.value) * 1000) / 1000 : null
   }),
   type: 'area',
   tone: 1
@@ -186,13 +187,14 @@ interface Ranked {
   goal: LiveOpsMetricKey
 }
 
-/* Every window that ended in the period, on the metric each event was meant to move. */
+/* Every window that ended in the period, on the metric each event was meant to move. A window
+   whose goal figure did not come back has no effect to rank, so it is left out. */
 const ranked = computed<Ranked[]>(() => served.value
   .filter(event => event.goal)
   .flatMap(event => runsOf(event, time.value, 12)
     .filter(run => run.end <= time.value && run.end > time.value - Number(period.value) * DAY)
     .map(run => ({ id: `${event.key}:${run.start}`, event, impact: impactFor(event, run)!, goal: event.goal! })))
-  .filter(entry => entry.impact)
+  .filter(entry => entry.impact && entry.impact.metrics[entry.goal].measured && entry.impact.metrics[entry.goal].baseline)
   .sort((a, b) => b.impact.metrics[b.goal].comparison.lift - a.impact.metrics[a.goal].comparison.lift))
 
 const RANK_COLUMNS: DataTableColumn<Ranked>[] = [
@@ -491,7 +493,8 @@ const calendarFull = ref(false)
             <span class="line-clamp-2 text-xs whitespace-normal text-ink/70">{{ audienceWords(item.audience) }}<template v-if="item.rollout < FULL_ROLLOUT">, {{ formatRollout(item.rollout) }}</template></span>
           </template>
           <template #cell.result="{ item }">
-            <span v-if="item.last && item.goal" class="flex min-w-0 items-baseline gap-2">
+            <span v-if="item.last && item.goal && !(item.last.metrics[item.goal].measured && item.last.metrics[item.goal].baseline)" class="text-[11px] text-ink/40">No data yet</span>
+            <span v-else-if="item.last && item.goal" class="flex min-w-0 items-baseline gap-2">
               <span :class="OUTCOME_TEXT[outcomeOf(item.last.metrics[item.goal].comparison)]" class="font-mono text-xs">{{ writeOpsLift(item.goal, item.last.metrics[item.goal].comparison) }}</span>
               <span class="truncate text-[11px] text-ink/50">{{ LIVEOPS_METRICS[item.goal].label.toLowerCase() }}, {{ windowShort(item.last.occurrence) }}</span>
             </span>

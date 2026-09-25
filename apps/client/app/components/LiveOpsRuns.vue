@@ -17,7 +17,10 @@ const selected = defineModel<number | null>({ required: true })
 
 const PLOT = 136
 
-const comparisons = computed(() => props.runs.map(entry => entry.impact.metrics[props.goal].comparison))
+/* Only windows whose figure came back have an effect to draw; with none, the chart is no data. */
+const measuredRuns = computed(() => props.runs.filter(entry => entry.impact.metrics[props.goal].measured && entry.impact.metrics[props.goal].baseline))
+
+const comparisons = computed(() => measuredRuns.value.map(entry => entry.impact.metrics[props.goal].comparison))
 
 /* The scale: zero, and the largest effect either way. */
 const top = computed(() => Math.max(0.02, ...comparisons.value.map(item => item.lift)) * 1.05)
@@ -32,15 +35,15 @@ const label = (run: Occurrence) => (props.rhythm ? `Week of ${windowShort({ star
 
 // --- The summary --------------------------------------------------------------------------
 
-const ended = computed(() => props.runs.filter(entry => !entry.impact.live))
+const ended = computed(() => measuredRuns.value.filter(entry => !entry.impact.live))
 
 const average = computed(() => {
-  const list = ended.value.length ? ended.value : props.runs
+  const list = ended.value.length ? ended.value : measuredRuns.value
   return list.reduce((sum, entry) => sum + entry.impact.metrics[props.goal].comparison.lift, 0) / Math.max(list.length, 1)
 })
 
-const best = computed(() => [...props.runs].sort((a, b) => b.impact.metrics[props.goal].comparison.lift - a.impact.metrics[props.goal].comparison.lift)[0] ?? null)
-const latest = computed(() => props.runs.at(-1) ?? null)
+const best = computed(() => [...measuredRuns.value].sort((a, b) => b.impact.metrics[props.goal].comparison.lift - a.impact.metrics[props.goal].comparison.lift)[0] ?? null)
+const latest = computed(() => measuredRuns.value.at(-1) ?? null)
 
 /* Its latest windows against its first ones: under four-fifths of it is wearing off. */
 const wearing = computed(() => {
@@ -56,7 +59,13 @@ const worked = computed(() => ended.value.filter(entry => outcomeOf(entry.impact
 </script>
 
 <template>
-  <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_15rem]">
+  <NoDataPlaceholder
+    v-if="!measuredRuns.length"
+    :height="PLOT + 48"
+    :seed="goal.length"
+    label="No data yet"
+  />
+  <div v-else class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_15rem]">
     <!-- The chart. -->
     <div class="min-w-0">
       <div class="relative">
@@ -65,7 +74,7 @@ const worked = computed(() => ended.value.filter(entry => outcomeOf(entry.impact
 
         <div class="relative flex" role="radiogroup" :aria-label="`${LIVEOPS_METRICS[goal].label} each time it ran`">
           <button
-            v-for="entry in runs"
+            v-for="entry in measuredRuns"
             :key="entry.run.start"
             :aria-checked="entry.run.start === selected"
             :aria-label="`${label(entry.run)}: ${writeOpsLift(goal, entry.impact.metrics[goal].comparison)}`"

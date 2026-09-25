@@ -11,7 +11,7 @@ import type { Kpi } from '~/components/KpiBoard.vue'
 // the last seven days.
 const { project } = useWorkspace()
 const { flags, segments, latest, setFlagArchived, loading, error, reload } = useLiveConfig()
-const { readsOf, ready: readsReady } = useFlagExposures()
+const { readsOf, ready: readsReady, hasData: readsKnown } = useFlagExposures()
 
 const problem = ref('')
 
@@ -77,7 +77,15 @@ const board = computed<Kpi[]>(() => {
     { key: 'flags', label: 'Flags', value: String(live.length), info: 'Flags in the draft, archived ones aside.' },
     { key: 'partial', label: 'Rolling out', value: String(partial), info: 'Flags holding some players back: a flag or a rule served to less than all of its audience.' },
     { key: 'waiting', label: 'Waiting for production', value: String(waiting), info: 'Flags the next publish to production would add, change or remove.' },
-    { key: 'reads', label: 'Exposures, 7 days', value: writeFigure(reads, { compact: true }), exact: writeFigure(reads), trend: trendOf(reads, previous), info: 'Sessions in which production devices read a flag, against the week before.' },
+    {
+      key: 'reads',
+      label: 'Exposures, 7 days',
+      // No device has read a flag yet: no data, not a zero. A trend needs a week before it too.
+      value: readsKnown.value ? writeFigure(reads, { compact: true }) : null,
+      exact: readsKnown.value ? writeFigure(reads) : undefined,
+      trend: readsKnown.value && previous > 0 ? trendOf(reads, previous) : undefined,
+      info: 'Sessions in which production devices read a flag, against the week before.'
+    },
     { key: 'attention', label: 'Need attention', value: String(needing.value.length), info: 'Flags nobody reads, releases ready to remove, experiments to decide and value granted to a forgeable audience.' }
   ]
 })
@@ -358,7 +366,7 @@ function onCreated(key: string) {
             </template>
 
             <template #cell.reads="{ item }">
-              <span v-if="item.states.production === 'absent' || item.states.production === 'unpublished' || item.archived" class="text-ink/35">–</span>
+              <span v-if="item.states.production === 'absent' || item.states.production === 'unpublished' || item.archived || !readsKnown" class="text-ink/35">–</span>
               <ProjectFigure
                 v-else
                 :previous="item.previousReads"

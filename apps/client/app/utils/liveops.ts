@@ -691,6 +691,11 @@ export interface MetricImpact {
   comparison: Comparison
   /** The three days after it ended against expected, or null while it is on or for a one-day gap. */
   after: Comparison | null
+  /** Whether its players' figure came back: false is no data (none of them sent anything, or
+   *  too few to show), and `during` and the comparison then mean nothing. */
+  measured: boolean
+  /** Whether the figure it is measured against came back. */
+  baseline: boolean
 }
 
 export interface EventImpact {

@@ -53,12 +53,16 @@ const categories = computed(() => results.value?.days.map(at => dayFormat.format
 
 const scaleOf = (key: MetricKey) => (EXPERIMENT_METRICS[key].kind === 'rate' ? 100 : 1)
 
-const series = computed<MetricSeries[]>(() => (experiment.value?.variants ?? []).map(entry => ({
-  name: variantTitle(experiment.value!, entry),
-  data: (results.value?.daily[entry.id]?.metrics[metric.value] ?? []).map(value => Math.round(value * scaleOf(metric.value) * 1000) / 1000),
-  type: 'line',
-  tone: tones.value[entry.id]
-})))
+/* A day before a variant's first player is no data: a gap in its line, not a zero. */
+const series = computed<MetricSeries[]>(() => (experiment.value?.variants ?? []).map((entry) => {
+  const daily = results.value?.daily[entry.id]
+  return {
+    name: variantTitle(experiment.value!, entry),
+    data: (daily?.metrics[metric.value] ?? []).map((value, index) => (daily?.players[index] ? Math.round(value * scaleOf(metric.value) * 1000) / 1000 : null)),
+    type: 'line',
+    tone: tones.value[entry.id]
+  }
+}))
 
 /* The chance each variant beats the control, day by day, from the running figures. */
 const chanceSeries = computed<MetricSeries[]>(() => {
@@ -74,10 +78,12 @@ const chanceSeries = computed<MetricSeries[]>(() => {
     const sd = res.variants.find(other => other.variant.id === entry.id)!.stats[metric.value].sd
     return {
       name: variantTitle(experiment.value!, entry),
-      data: daily.metrics[metric.value].map((value, index) => Math.round(compareVariants(
-        { n: base.players[index]!, mean: base.metrics[metric.value][index]!, sd: final.stats[metric.value].sd },
-        { n: daily.players[index]!, mean: value, sd }
-      ).chance * 1000) / 10),
+      data: daily.metrics[metric.value].map((value, index) => (base.players[index] && daily.players[index]
+        ? Math.round(compareVariants(
+          { n: base.players[index]!, mean: base.metrics[metric.value][index]!, sd: final.stats[metric.value].sd },
+          { n: daily.players[index]!, mean: value, sd }
+        ).chance * 1000) / 10
+        : null)),
       type: 'line' as const,
       tone: tones.value[entry.id]
     }
@@ -102,6 +108,11 @@ const metricRows = computed(() => {
 })
 
 const OUTCOME_TEXT = { better: 'text-success', worse: 'text-error', unclear: 'text-ink/60' } as const
+
+/* A variant's metric with nobody measured behind it is no data, written as a dash, and a
+   comparison needs both sides measured. */
+const measured = (key: MetricKey, variantId: string) => (results.value?.variants.find(entry => entry.variant.id === variantId)?.stats[key].n ?? 0) > 0
+const compared = (key: MetricKey, variantId: string) => Boolean(split.value) && measured(key, split.value!.control.variant.id) && measured(key, variantId)
 
 // --- Facts --------------------------------------------------------------------------------
 
@@ -303,10 +314,11 @@ async function onTraffic(traffic: number) {
             <div class="flex items-end justify-between gap-4">
               <div class="flex flex-col">
                 <span class="text-[11px] text-ink/50">{{ EXPERIMENT_METRICS[experiment.primaryMetric].label }}</span>
-                <span class="font-mono text-2xl leading-8 text-ink">{{ writeMetric(experiment.primaryMetric, entry.stats[experiment.primaryMetric].mean) }}</span>
+                <span v-if="measured(experiment.primaryMetric, entry.variant.id)" class="font-mono text-2xl leading-8 text-ink">{{ writeMetric(experiment.primaryMetric, entry.stats[experiment.primaryMetric].mean) }}</span>
+                <span v-else :aria-label="`${EXPERIMENT_METRICS[experiment.primaryMetric].label}: no data yet`" class="font-mono text-2xl leading-8 text-ink/30">&ndash;</span>
               </div>
               <template v-for="other in split.others" :key="other.variant.id">
-                <div v-if="other.variant.id === entry.variant.id" class="flex flex-col items-end">
+                <div v-if="other.variant.id === entry.variant.id && compared(experiment.primaryMetric, entry.variant.id)" class="flex flex-col items-end">
                   <span :class="OUTCOME_TEXT[outcomeOf(other.comparisons[experiment.primaryMetric])]" class="font-mono text-lg leading-7">
                     {{ writeLift(experiment.primaryMetric, other.comparisons[experiment.primaryMetric]) }}
                   </span>
@@ -317,7 +329,13 @@ async function onTraffic(traffic: number) {
             </div>
 
             <template v-for="other in split.others" :key="`range-${other.variant.id}`">
-              <div v-if="other.variant.id === entry.variant.id" class="flex flex-col gap-1">
+              <NoDataPlaceholder
+                v-if="other.variant.id === entry.variant.id && !compared(experiment.primaryMetric, entry.variant.id)"
+                :height="40"
+                :seed="entry.variant.id.length"
+                label="No data yet"
+              />
+              <div v-else-if="other.variant.id === entry.variant.id" class="flex flex-col gap-1">
                 <LiftRange :comparison="other.comparisons[experiment.primaryMetric]" :extent="extentOf(experiment.primaryMetric)" />
                 <div class="flex justify-between font-mono text-[10px] text-ink/40">
                   <span>worse</span>
@@ -378,15 +396,31 @@ async function onTraffic(traffic: number) {
                   </span>
                 </td>
                 <td class="px-3 py-3 text-right font-mono text-xs text-ink/70">
-                  {{ writeMetric(row.key, row.control) }}
+                  <template v-if="measured(row.key, split.control.variant.id)">
+                    {{ writeMetric(row.key, row.control) }}
+                  </template>
+                  <span v-else class="text-ink/30">&ndash;</span>
                 </td>
                 <td v-for="other in row.others" :key="other.variant.id" class="px-5 py-3">
                   <div class="flex items-center gap-4">
                     <div class="flex w-28 flex-none flex-col">
-                      <span class="font-mono text-xs text-ink">{{ writeMetric(row.key, other.value) }}</span>
-                      <span :class="OUTCOME_TEXT[outcomeOf(other.comparison)]" class="font-mono text-[11px]">{{ writeLift(row.key, other.comparison) }} · {{ writeChance(other.comparison.chance) }}</span>
+                      <span v-if="measured(row.key, other.variant.id)" class="font-mono text-xs text-ink">{{ writeMetric(row.key, other.value) }}</span>
+                      <span v-else class="font-mono text-xs text-ink/30">&ndash;</span>
+                      <span v-if="compared(row.key, other.variant.id)" :class="OUTCOME_TEXT[outcomeOf(other.comparison)]" class="font-mono text-[11px]">{{ writeLift(row.key, other.comparison) }} · {{ writeChance(other.comparison.chance) }}</span>
                     </div>
-                    <LiftRange :comparison="other.comparison" :extent="extentOf(row.key)" class="min-w-24 flex-1" />
+                    <LiftRange
+                      v-if="compared(row.key, other.variant.id)"
+                      :comparison="other.comparison"
+                      :extent="extentOf(row.key)"
+                      class="min-w-24 flex-1"
+                    />
+                    <NoDataPlaceholder
+                      v-else
+                      :height="32"
+                      :seed="row.key.length + other.variant.id.length"
+                      class="min-w-24 flex-1"
+                      label="No data yet"
+                    />
                   </div>
                 </td>
               </tr>

@@ -181,9 +181,10 @@ function figureOf(event: LiveOpsEventDef, window: Occurrence, look: Look): strin
   if (look !== 'ended' && look !== 'live') return ''
   const impact = liveOps.impactFor(event, window)
   if (!impact) return ''
-  return event.goal === 'revenue' || event.goal === 'arpdau' || event.kind === 'offer'
-    ? `$${compactFigure(impact.revenue)}`
-    : `${compactFigure(impact.players)} players`
+  // A figure that did not come back is left off the band rather than written as a zero.
+  const money = event.goal === 'revenue' || event.goal === 'arpdau' || event.kind === 'offer'
+  if (!impact.metrics[money ? 'revenue' : 'players'].measured) return ''
+  return money ? `$${compactFigure(impact.revenue)}` : `${compactFigure(impact.players)} players`
 }
 
 function tipOf(event: LiveOpsEventDef, window: Occurrence, look: Look): Bar['tip'] {
