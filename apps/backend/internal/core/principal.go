@@ -271,6 +271,10 @@ func MemberActor(member *ent.OrganizationMember, emailVerified bool, reachable [
 	systemRole := ""
 	if role.System {
 		systemRole = role.Key
+		// Computed from the vocabulary, as the members page shows them, rather than read from the
+		// row: the row holds what was true the day it was seeded, and a permission added since
+		// (logs.read, say) would otherwise be missing from every existing owner.
+		permissions = authz.SystemPermissions(role.Key)
 	}
 	actor := authz.UserActor(member.OrganizationID, member.UserID, systemRole, permissions, member.AllProjects, reachable)
 
