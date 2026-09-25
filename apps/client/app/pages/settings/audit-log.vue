@@ -1,13 +1,13 @@
 <script setup lang="ts">
 // Settings > Audit log: every change made in the organization, newest first. Append-only and
 // read-only: nothing on this page changes anything, and there is no delete. Each row opens to
-// the whole event, metadata included, as the API returns it. Sample events until the page
-// reads GET /organizations/{org}/audit.
-const events = ref<AuditEvent[]>(seedAudit())
+// the whole event, metadata included, as the API returns it. The newest 200 are read first,
+// and older ones on asking; search and filters narrow what has been read.
+const { events, loading, error, reload, loadMore, hasMore, loadingMore } = useAuditLog()
 
 const COLUMNS: DataTableColumn<AuditEvent>[] = [
   { key: 'at', title: 'When', fixed: true, mono: true, width: 170, value: event => Date.parse(event.at) },
-  { key: 'actor', title: 'Who', width: 220, skeleton: 'identity', value: event => event.actor ?? '' },
+  { key: 'actor', title: 'Who', width: 220, skeleton: 'identity', value: event => event.actor },
   { key: 'action', title: 'What', value: event => auditAction(event.action).label },
   { key: 'area', title: 'Area', width: 130, skeleton: 'pill', value: event => AUDIT_AREAS[auditAction(event.action).area].label },
   { key: 'target', title: 'Target', width: 240, sortable: false },
@@ -22,7 +22,7 @@ const sortBy = ref<DataTableSort[]>([{ key: 'at', order: 'desc' }])
 const query = ref('')
 const filters = ref<Record<string, string[]>>({ area: [], actor: [] })
 
-const actors = computed(() => [...new Set(events.value.map(event => event.actor ?? 'System'))].sort())
+const actors = computed(() => [...new Set(events.value.map(event => event.actor))].sort())
 
 const FILTER_GROUPS = computed<FilterGroup[]>(() => [
   { key: 'area', label: 'Area', options: (Object.keys(AUDIT_AREAS) as AuditArea[]).map(area => ({ value: area, label: AUDIT_AREAS[area].label })) },
@@ -57,9 +57,9 @@ const matched = computed(() => {
   const people = filters.value.actor ?? []
   return events.value.filter((event) => {
     if (areas.length && !areas.includes(auditAction(event.action).area)) return false
-    if (people.length && !people.includes(event.actor ?? 'System')) return false
+    if (people.length && !people.includes(event.actor)) return false
     if (!needle) return true
-    return [event.action, auditAction(event.action).label, event.actor ?? 'system', event.actor_email ?? '', event.target_type, event.target_id, event.ip ?? '']
+    return [event.action, auditAction(event.action).label, event.actor, event.actor_email ?? '', event.target_type, event.target_id, event.ip ?? '']
       .some(text => text.toLowerCase().includes(needle))
   })
 })
@@ -67,7 +67,7 @@ const matched = computed(() => {
 function exportLog() {
   downloadCsv('audit-log', [
     ['Time', 'Action', 'Actor', 'Actor email', 'Target type', 'Target ID', 'IP address', 'Metadata'],
-    ...matched.value.map(event => [event.at, event.action, event.actor ?? 'System', event.actor_email, event.target_type, event.target_id, event.ip, JSON.stringify(event.metadata)])
+    ...matched.value.map(event => [event.at, event.action, event.actor, event.actor_email, event.target_type, event.target_id, event.ip, JSON.stringify(event.metadata)])
   ])
 }
 
@@ -88,9 +88,9 @@ const openFacts = computed<Fact[]>(() => {
   if (!event) return []
   return [
     { key: 'at', label: 'When', value: formatDateTime(event.at), mono: true },
-    { key: 'who', label: 'Who', value: event.actor ?? 'System', note: event.actor_email ?? 'A webhook or a scheduled job' },
+    { key: 'who', label: 'Who', value: event.actor, note: event.actor_email ?? 'A key, a webhook or a scheduled job' },
     { key: 'ip', label: 'From', value: event.ip ?? 'Inside PlayerSense', mono: Boolean(event.ip) },
-    { key: 'target', label: 'Target', value: event.target_id, mono: true, note: event.target_type.replace(/_/g, ' '), copy: event.target_id }
+    { key: 'target', label: 'Target', value: event.target_id || 'None', mono: Boolean(event.target_id), note: event.target_type.replace(/_/g, ' '), copy: event.target_id || undefined }
   ]
 })
 
@@ -118,83 +118,103 @@ const openCode = computed(() => (open.value ? JSON.stringify(open.value, null, 2
       </template>
     </PageHeader>
 
-    <SectionCard :padded="false" description="Newest first. Open an event for everything recorded with it." title="Events">
-      <TableToolbar :filters="activeFilters" @clear="clearFilters" @remove="removeFilter">
-        <SearchField
-          v-model="query"
-          class="w-56"
-          label="Search the audit log"
-          placeholder="Action, person, target, IP"
-        />
-        <FilterMenu v-model="filters" :groups="FILTER_GROUPS" />
-        <DataTableColumnsMenu v-model="columns" :columns="COLUMNS" />
-      </TableToolbar>
+    <LoadState
+      :error="error"
+      :loading="loading"
+      what="the audit log"
+      @retry="reload"
+    >
+      <SectionCard :padded="false" description="Newest first. Open an event for everything recorded with it. Search and filters narrow the events read so far." title="Events">
+        <TableToolbar :filters="activeFilters" @clear="clearFilters" @remove="removeFilter">
+          <SearchField
+            v-model="query"
+            class="w-56"
+            label="Search the audit log"
+            placeholder="Action, person, target, IP"
+          />
+          <FilterMenu v-model="filters" :groups="FILTER_GROUPS" />
+          <DataTableColumnsMenu v-model="columns" :columns="COLUMNS" />
+        </TableToolbar>
 
-      <DataTable
-        v-model:column-state="columns"
-        v-model:sort-by="sortBy"
-        :columns="COLUMNS"
-        :items="matched"
-        empty-description="No event matches these filters."
-        empty-title="Nothing matches."
-        label="Audit events"
-      >
-        <template #cell.at="{ item }">
-          {{ formatDateTime(item.at) }}
-        </template>
+        <DataTable
+          v-model:column-state="columns"
+          v-model:sort-by="sortBy"
+          :columns="COLUMNS"
+          :items="matched"
+          empty-description="No event matches these filters."
+          empty-title="Nothing matches."
+          label="Audit events"
+        >
+          <template #cell.at="{ item }">
+            {{ formatDateTime(item.at) }}
+          </template>
 
-        <template #cell.actor="{ item }">
-          <span class="flex min-w-0 items-center gap-2.5">
-            <span
-              aria-hidden="true"
-              class="flex size-6 flex-none items-center justify-center rounded-full border border-line bg-ink/4 text-[9px] font-medium text-ink/70"
-            >
-              <Icon v-if="!item.actor" class="text-sm" name="material-symbols:settings-outline" />
-              <template v-else>{{ initials(item.actor) }}</template>
+          <template #cell.actor="{ item }">
+            <span class="flex min-w-0 items-center gap-2.5">
+              <span
+                aria-hidden="true"
+                class="flex size-6 flex-none items-center justify-center rounded-full border border-line bg-ink/4 text-[9px] font-medium text-ink/70"
+              >
+                <Icon v-if="!item.actor_email" class="text-sm" name="material-symbols:settings-outline" />
+                <template v-else>{{ initials(item.actor) }}</template>
+              </span>
+              <span class="flex min-w-0 flex-col">
+                <span class="truncate text-ink">{{ item.actor }}</span>
+                <span v-if="item.actor_email" class="truncate text-[11px] text-ink/50">{{ item.actor_email }}</span>
+              </span>
             </span>
+          </template>
+
+          <template #cell.action="{ item }">
             <span class="flex min-w-0 flex-col">
-              <span class="truncate text-ink">{{ item.actor ?? 'System' }}</span>
-              <span v-if="item.actor_email" class="truncate text-[11px] text-ink/50">{{ item.actor_email }}</span>
+              <span class="truncate text-ink">{{ auditAction(item.action).label }}</span>
+              <span class="truncate font-mono text-[11px] text-ink/45">{{ item.action }}</span>
             </span>
-          </span>
-        </template>
+          </template>
 
-        <template #cell.action="{ item }">
-          <span class="flex min-w-0 flex-col">
-            <span class="truncate text-ink">{{ auditAction(item.action).label }}</span>
-            <span class="truncate font-mono text-[11px] text-ink/45">{{ item.action }}</span>
-          </span>
-        </template>
+          <template #cell.area="{ item }">
+            <Tag :label="AUDIT_AREAS[auditAction(item.action).area].label" :tone="AUDIT_AREAS[auditAction(item.action).area].tone" />
+          </template>
 
-        <template #cell.area="{ item }">
-          <Tag :label="AUDIT_AREAS[auditAction(item.action).area].label" :tone="AUDIT_AREAS[auditAction(item.action).area].tone" />
-        </template>
+          <template #cell.target="{ item }">
+            <span class="flex min-w-0 flex-col">
+              <span class="truncate font-mono text-xs text-ink/80">{{ item.target_id }}</span>
+              <span class="truncate text-[11px] text-ink/45">{{ item.target_type.replace(/_/g, ' ') }}</span>
+            </span>
+          </template>
 
-        <template #cell.target="{ item }">
-          <span class="flex min-w-0 flex-col">
-            <span class="truncate font-mono text-xs text-ink/80">{{ item.target_id }}</span>
-            <span class="truncate text-[11px] text-ink/45">{{ item.target_type.replace(/_/g, ' ') }}</span>
-          </span>
-        </template>
+          <template #cell.ip="{ item }">
+            <span class="text-ink/65">{{ item.ip ?? '' }}</span>
+          </template>
 
-        <template #cell.ip="{ item }">
-          <span class="text-ink/65">{{ item.ip ?? '' }}</span>
-        </template>
+          <template #actions="{ item }">
+            <v-btn
+              :aria-label="`Open the event: ${auditAction(item.action).label}`"
+              icon
+              size="small"
+              variant="text"
+              @click="open = item"
+            >
+              <Icon aria-hidden="true" class="text-lg" name="material-symbols:open-in-full" />
+              <v-tooltip activator="parent" location="top" text="Details" />
+            </v-btn>
+          </template>
+        </DataTable>
 
-        <template #actions="{ item }">
+        <div v-if="hasMore" class="flex justify-center border-t border-line px-5 py-3">
           <v-btn
-            :aria-label="`Open the event: ${auditAction(item.action).label}`"
-            icon
+            :loading="loadingMore"
+            class="text-xs font-medium"
+            color="neutral"
             size="small"
             variant="text"
-            @click="open = item"
+            @click="loadMore"
           >
-            <Icon aria-hidden="true" class="text-lg" name="material-symbols:open-in-full" />
-            <v-tooltip activator="parent" location="top" text="Details" />
+            Load older events
           </v-btn>
-        </template>
-      </DataTable>
-    </SectionCard>
+        </div>
+      </SectionCard>
+    </LoadState>
 
     <v-dialog v-model="opened" max-width="640">
       <v-card v-if="open" border flat>
