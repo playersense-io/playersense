@@ -101,6 +101,12 @@ const (
 	ReportDeleted  Action = "report.delete"
 	FunnelDeleted  Action = "funnel.delete"
 
+	// A store the project verifies purchases with: connected or changed, disconnected, and its
+	// notification URL replaced.
+	StoreConnected    Action = "store.connect"
+	StoreDisconnected Action = "store.disconnect"
+	StoreURLRotated   Action = "store.rotate_url"
+
 	CreditGranted  Action = "credit.grant"
 	CreditCharged  Action = "credit.charge"
 	AutoTopUpSet   Action = "billing.auto_topup"

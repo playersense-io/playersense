@@ -1204,6 +1204,127 @@ var (
 			},
 		},
 	}
+	// PurchaseAttemptsColumns holds the columns for the "purchase_attempts" table.
+	PurchaseAttemptsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
+		{Name: "uid", Type: field.TypeUUID, Unique: true, Comment: "class=none"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "project_id", Type: field.TypeInt, Comment: "class=none"},
+		{Name: "environment_id", Type: field.TypeInt, Comment: "class=none"},
+		{Name: "platform", Type: field.TypeEnum, Comment: "class=none", Enums: []string{"apple", "google", "steam"}},
+		{Name: "via", Type: field.TypeString, Size: 20, Comment: "class=none"},
+		{Name: "player_id", Type: field.TypeString, Size: 128, Comment: "class=identifier", Default: ""},
+		{Name: "install_id", Type: field.TypeString, Size: 64, Comment: "class=identifier", Default: ""},
+		{Name: "product_id", Type: field.TypeString, Size: 255, Comment: "class=none", Default: ""},
+		{Name: "store_transaction_id", Type: field.TypeString, Size: 255, Comment: "class=identifier", Default: ""},
+		{Name: "outcome", Type: field.TypeEnum, Comment: "class=none", Enums: []string{"verified", "duplicate", "rejected", "unavailable", "credentials", "not_configured"}},
+		{Name: "code", Type: field.TypeString, Size: 40, Comment: "class=none", Default: ""},
+		{Name: "detail", Type: field.TypeString, Size: 500, Comment: "class=none", Default: ""},
+		{Name: "duration_ms", Type: field.TypeInt, Comment: "class=none", Default: 0},
+		{Name: "purchase_id", Type: field.TypeInt, Nullable: true, Comment: "class=none"},
+		{Name: "sandbox", Type: field.TypeBool, Comment: "class=none", Default: false},
+		{Name: "trace", Type: field.TypeJSON, Nullable: true, Comment: "class=none"},
+	}
+	// PurchaseAttemptsTable holds the schema information for the "purchase_attempts" table.
+	PurchaseAttemptsTable = &schema.Table{
+		Name:       "purchase_attempts",
+		Columns:    PurchaseAttemptsColumns,
+		PrimaryKey: []*schema.Column{PurchaseAttemptsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "purchaseattempt_project_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{PurchaseAttemptsColumns[3], PurchaseAttemptsColumns[2]},
+			},
+			{
+				Name:    "purchaseattempt_project_id_outcome_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{PurchaseAttemptsColumns[3], PurchaseAttemptsColumns[11], PurchaseAttemptsColumns[2]},
+			},
+			{
+				Name:    "purchaseattempt_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{PurchaseAttemptsColumns[2]},
+			},
+		},
+	}
+	// PurchaseChangesColumns holds the columns for the "purchase_changes" table.
+	PurchaseChangesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
+		{Name: "uid", Type: field.TypeUUID, Unique: true, Comment: "class=none"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "updated_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "purchase_id", Type: field.TypeInt, Nullable: true, Comment: "class=none"},
+		{Name: "attempt_id", Type: field.TypeInt, Nullable: true, Comment: "class=none"},
+		{Name: "kind", Type: field.TypeEnum, Comment: "class=none", Enums: []string{"purchase", "refund", "reinstate", "rejection"}},
+		{Name: "at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "batch", Type: field.TypeUUID, Nullable: true, Comment: "class=none"},
+		{Name: "shipped_at", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
+	}
+	// PurchaseChangesTable holds the schema information for the "purchase_changes" table.
+	PurchaseChangesTable = &schema.Table{
+		Name:       "purchase_changes",
+		Columns:    PurchaseChangesColumns,
+		PrimaryKey: []*schema.Column{PurchaseChangesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "purchasechange_unshipped",
+				Unique:  false,
+				Columns: []*schema.Column{PurchaseChangesColumns[0]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "shipped_at IS NULL",
+				},
+			},
+			{
+				Name:    "purchasechange_batch",
+				Unique:  false,
+				Columns: []*schema.Column{PurchaseChangesColumns[8]},
+			},
+			{
+				Name:    "purchasechange_shipped_at",
+				Unique:  false,
+				Columns: []*schema.Column{PurchaseChangesColumns[9]},
+			},
+		},
+	}
+	// PurchaseProvidersColumns holds the columns for the "purchase_providers" table.
+	PurchaseProvidersColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
+		{Name: "uid", Type: field.TypeUUID, Unique: true, Comment: "class=none"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "updated_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "project_id", Type: field.TypeInt, Comment: "class=none"},
+		{Name: "platform", Type: field.TypeEnum, Comment: "class=none", Enums: []string{"apple", "google", "steam"}},
+		{Name: "enabled", Type: field.TypeBool, Comment: "class=none", Default: true},
+		{Name: "config", Type: field.TypeJSON, Comment: "class=none"},
+		{Name: "secret", Type: field.TypeJSON, Comment: "class=none"},
+		{Name: "notify_token", Type: field.TypeString, Size: 64, Comment: "class=none"},
+		{Name: "verified_since", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "last_verified_at", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
+		{Name: "last_notification_at", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
+		{Name: "last_error", Type: field.TypeString, Size: 500, Comment: "class=none", Default: ""},
+		{Name: "last_error_at", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
+		{Name: "last_test_at", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
+		{Name: "last_test_ok", Type: field.TypeBool, Nullable: true, Comment: "class=none"},
+		{Name: "last_test_detail", Type: field.TypeString, Size: 500, Comment: "class=none", Default: ""},
+		{Name: "sweep_cursor", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
+		{Name: "swept_at", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
+		{Name: "created_by", Type: field.TypeString, Size: 254, Comment: "class=none", Default: ""},
+		{Name: "updated_by", Type: field.TypeString, Size: 254, Comment: "class=none", Default: ""},
+	}
+	// PurchaseProvidersTable holds the schema information for the "purchase_providers" table.
+	PurchaseProvidersTable = &schema.Table{
+		Name:       "purchase_providers",
+		Columns:    PurchaseProvidersColumns,
+		PrimaryKey: []*schema.Column{PurchaseProvidersColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "purchaseprovider_project_id_platform",
+				Unique:  true,
+				Columns: []*schema.Column{PurchaseProvidersColumns[4], PurchaseProvidersColumns[5]},
+			},
+		},
+	}
 	// RateCardsColumns holds the columns for the "rate_cards" table.
 	RateCardsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
@@ -1760,13 +1881,30 @@ var (
 		{Name: "created_at", Type: field.TypeTime, Comment: "class=none"},
 		{Name: "updated_at", Type: field.TypeTime, Comment: "class=none"},
 		{Name: "project_uid", Type: field.TypeUUID, Comment: "class=none"},
-		{Name: "player_id", Type: field.TypeString, Size: 128, Comment: "class=identifier"},
+		{Name: "environment_id", Type: field.TypeInt, Comment: "class=none", Default: 0},
+		{Name: "player_id", Type: field.TypeString, Size: 128, Comment: "class=identifier", Default: ""},
+		{Name: "install_id", Type: field.TypeString, Size: 64, Comment: "class=identifier", Default: ""},
 		{Name: "platform", Type: field.TypeEnum, Comment: "class=none", Enums: []string{"apple", "google", "steam"}},
 		{Name: "store_transaction_id", Type: field.TypeString, Size: 255, Comment: "class=identifier"},
+		{Name: "original_transaction_id", Type: field.TypeString, Size: 255, Comment: "class=identifier", Default: ""},
+		{Name: "order_id", Type: field.TypeString, Size: 255, Comment: "class=identifier", Default: ""},
+		{Name: "token_digest", Type: field.TypeString, Size: 64, Comment: "class=identifier", Default: ""},
 		{Name: "product_id", Type: field.TypeString, Size: 255, Comment: "class=none"},
+		{Name: "kind", Type: field.TypeEnum, Comment: "class=none", Enums: []string{"consumable", "non_consumable", "subscription", "unknown"}, Default: "unknown"},
+		{Name: "quantity", Type: field.TypeInt, Comment: "class=financial", Default: 1},
 		{Name: "amount_micros", Type: field.TypeInt64, Comment: "class=financial"},
 		{Name: "currency", Type: field.TypeString, Size: 3, Comment: "class=financial"},
+		{Name: "price_from_store", Type: field.TypeBool, Comment: "class=none", Default: true},
+		{Name: "country", Type: field.TypeString, Size: 2, Comment: "class=behavioural", Default: ""},
+		{Name: "sandbox", Type: field.TypeBool, Comment: "class=none", Default: false},
 		{Name: "purchased_at", Type: field.TypeTime, Comment: "class=behavioural"},
+		{Name: "status", Type: field.TypeEnum, Comment: "class=financial", Enums: []string{"verified", "refunded"}, Default: "verified"},
+		{Name: "refunded_at", Type: field.TypeTime, Nullable: true, Comment: "class=financial"},
+		{Name: "refund_reason", Type: field.TypeString, Size: 40, Comment: "class=financial", Default: ""},
+		{Name: "refund_source", Type: field.TypeString, Size: 20, Comment: "class=none", Default: ""},
+		{Name: "first_purchase", Type: field.TypeBool, Comment: "class=financial", Default: false},
+		{Name: "verify_ms", Type: field.TypeInt, Comment: "class=none", Default: 0},
+		{Name: "verified_via", Type: field.TypeString, Size: 20, Comment: "class=none", Default: ""},
 	}
 	// VerifiedPurchasesTable holds the schema information for the "verified_purchases" table.
 	VerifiedPurchasesTable = &schema.Table{
@@ -1777,12 +1915,32 @@ var (
 			{
 				Name:    "verifiedpurchase_platform_store_transaction_id",
 				Unique:  true,
-				Columns: []*schema.Column{VerifiedPurchasesColumns[6], VerifiedPurchasesColumns[7]},
+				Columns: []*schema.Column{VerifiedPurchasesColumns[8], VerifiedPurchasesColumns[9]},
 			},
 			{
 				Name:    "verifiedpurchase_project_uid_player_id",
 				Unique:  false,
-				Columns: []*schema.Column{VerifiedPurchasesColumns[4], VerifiedPurchasesColumns[5]},
+				Columns: []*schema.Column{VerifiedPurchasesColumns[4], VerifiedPurchasesColumns[6]},
+			},
+			{
+				Name:    "verifiedpurchase_project_uid_install_id",
+				Unique:  false,
+				Columns: []*schema.Column{VerifiedPurchasesColumns[4], VerifiedPurchasesColumns[7]},
+			},
+			{
+				Name:    "verifiedpurchase_project_uid_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{VerifiedPurchasesColumns[4], VerifiedPurchasesColumns[2]},
+			},
+			{
+				Name:    "verifiedpurchase_platform_token_digest",
+				Unique:  false,
+				Columns: []*schema.Column{VerifiedPurchasesColumns[8], VerifiedPurchasesColumns[12]},
+			},
+			{
+				Name:    "verifiedpurchase_project_uid_platform_order_id",
+				Unique:  false,
+				Columns: []*schema.Column{VerifiedPurchasesColumns[4], VerifiedPurchasesColumns[8], VerifiedPurchasesColumns[11]},
 			},
 		},
 	}
@@ -1816,6 +1974,9 @@ var (
 		PaymentCardsTable,
 		PlansTable,
 		ProjectsTable,
+		PurchaseAttemptsTable,
+		PurchaseChangesTable,
+		PurchaseProvidersTable,
 		RateCardsTable,
 		ReceiptsTable,
 		ReportsTable,

@@ -17,6 +17,9 @@ import (
 	"playersense.dev/backend/ent/archivemanifest"
 	"playersense.dev/backend/ent/environment"
 	"playersense.dev/backend/ent/project"
+	"playersense.dev/backend/ent/purchaseattempt"
+	"playersense.dev/backend/ent/purchaseprovider"
+	"playersense.dev/backend/ent/verifiedpurchase"
 	"playersense.dev/backend/internal/core"
 	"playersense.dev/backend/internal/pgdb"
 	"playersense.dev/backend/internal/valkey"
@@ -167,6 +170,12 @@ func (d *Deletion) close(ctx context.Context, p *ent.Project, now time.Time) err
 			return err
 		}
 	}
+	// Its store credentials go with its keys: nothing verifies for a deleted project, and a
+	// secret with nothing to do is only a secret to leak.
+	if _, err := tx.PurchaseProvider.Delete().Where(purchaseprovider.ProjectID(p.ID)).Exec(ctx); err != nil {
+		_ = tx.Rollback()
+		return err
+	}
 	if err := tx.Project.UpdateOne(p).SetDeletedAt(now).Exec(ctx); err != nil {
 		_ = tx.Rollback()
 		return err
@@ -217,6 +226,14 @@ func (d *Deletion) purge(ctx context.Context, p *ent.Project, now time.Time) err
 			uint32(p.ID)); err != nil {
 			return fmt.Errorf("delete project %s from %s: %w", p.UID, table, err)
 		}
+	}
+
+	// Its players' purchases and the log of their verification.
+	if _, err := d.DB.Client.VerifiedPurchase.Delete().Where(verifiedpurchase.ProjectUID(p.UID)).Exec(ctx); err != nil {
+		return err
+	}
+	if _, err := d.DB.Client.PurchaseAttempt.Delete().Where(purchaseattempt.ProjectID(p.ID)).Exec(ctx); err != nil {
+		return err
 	}
 
 	// The sweep refuses an object whose delete_after is not after its newest event, so each is

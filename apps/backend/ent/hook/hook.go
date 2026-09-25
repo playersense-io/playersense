@@ -345,6 +345,42 @@ func (f ProjectFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, err
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ProjectMutation", m)
 }
 
+// The PurchaseAttemptFunc type is an adapter to allow the use of ordinary
+// function as PurchaseAttempt mutator.
+type PurchaseAttemptFunc func(context.Context, *ent.PurchaseAttemptMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f PurchaseAttemptFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.PurchaseAttemptMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.PurchaseAttemptMutation", m)
+}
+
+// The PurchaseChangeFunc type is an adapter to allow the use of ordinary
+// function as PurchaseChange mutator.
+type PurchaseChangeFunc func(context.Context, *ent.PurchaseChangeMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f PurchaseChangeFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.PurchaseChangeMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.PurchaseChangeMutation", m)
+}
+
+// The PurchaseProviderFunc type is an adapter to allow the use of ordinary
+// function as PurchaseProvider mutator.
+type PurchaseProviderFunc func(context.Context, *ent.PurchaseProviderMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f PurchaseProviderFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.PurchaseProviderMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.PurchaseProviderMutation", m)
+}
+
 // The RateCardFunc type is an adapter to allow the use of ordinary
 // function as RateCard mutator.
 type RateCardFunc func(context.Context, *ent.RateCardMutation) (ent.Value, error)

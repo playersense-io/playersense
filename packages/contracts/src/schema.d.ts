@@ -718,6 +718,86 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/v1/operator/projects/{project}/purchase-check": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Check a receipt against a project's store
+         * @description What a failed verification would do now, step by step, with the store's answer and the purchase on record for it. Nothing is recorded: not a purchase, not an attempt.
+         */
+        readonly post: operations["post_v1_operator_projects_by_project_purchase_check"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/operator/purchase-attempts": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * Every project's verification log
+         * @description Narrowed by project, store, outcome, rejection code or player; newest first.
+         */
+        readonly get: operations["get_v1_operator_purchase_attempts"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/operator/purchase-attempts/{attempt}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * One verification
+         * @description With every step it took.
+         */
+        readonly get: operations["get_v1_operator_purchase_attempts_by_attempt"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/operator/purchase-verification": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * Purchase verification across the platform
+         * @description The last day's verifications by store and outcome, rejections by reason, and the connected stores whose last call failed.
+         */
+        readonly get: operations["get_v1_operator_purchase_verification"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/v1/operator/queue": {
         readonly parameters: {
             readonly query?: never;
@@ -1637,7 +1717,7 @@ export interface paths {
         };
         /**
          * List purchases
-         * @description The purchases ledger, newest first, a page at a time: what was bought, where, for how much, by whom, and whether it was their first. Names players, so it needs player.read.
+         * @description The purchases ledger, newest first, a page at a time: what was bought, where, for how much, by whom, and whether it was their first; for a verified store, its status (verified, refunded, sandbox, rejected) and the store's transaction id. Names players, so it needs player.read.
          */
         readonly get: operations["get_v1_organizations_by_org_projects_by_project_analytics_by_environment_purchases"];
         readonly put?: never;
@@ -1657,7 +1737,7 @@ export interface paths {
         };
         /**
          * Describe the game's revenue
-         * @description Revenue, purchases and buyers against the previous range, by day and store, by product, store and country, by price, the day's first-time payers, spender tiers by lifetime spend, and purchases by weekday and hour. Revenue the game reported, in the currencies it reported, not receipts verified with a store.
+         * @description Revenue, purchases and buyers against the previous range, by day and store, by product, store and country, by price, the day's first-time payers, spender tiers by lifetime spend, and purchases by weekday and hour. For a store the project verifies with, from the day it was connected, its verified purchases; for every other store what the game reported (ADR 0048). In the currencies paid, with refunds, test purchases and rejected receipts beside it.
          */
         readonly get: operations["get_v1_organizations_by_org_projects_by_project_analytics_by_environment_revenue"];
         readonly put?: never;
@@ -2454,6 +2534,26 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/v1/organizations/{org}/projects/{project}/purchase-attempts": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * The verification log
+         * @description Every receipt the game or its server sent, newest first: what the store said and, step by step, how it was checked. Kept thirty days.
+         */
+        readonly get: operations["get_v1_organizations_by_org_projects_by_project_purchase_attempts"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/v1/organizations/{org}/projects/{project}/reports": {
         readonly parameters: {
             readonly query?: never;
@@ -2684,6 +2784,110 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/v1/organizations/{org}/projects/{project}/stores": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * The project's stores
+         * @description App Store, Google Play and Steam, connected or not: how each is reached (never a secret), the URL its notifications go to, how its last test went, and the last day's verifications by outcome.
+         */
+        readonly get: operations["get_v1_organizations_by_org_projects_by_project_stores"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/organizations/{org}/projects/{project}/stores/{store}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        /**
+         * Connect a store
+         * @description Or change how it is reached; a secret not sent is kept. From the moment a store is connected, its revenue is its verified purchases rather than what the game reports.
+         */
+        readonly put: operations["put_v1_organizations_by_org_projects_by_project_stores_by_store"];
+        readonly post?: never;
+        /**
+         * Disconnect a store
+         * @description Its credentials go. Its purchases stay; its revenue is what the game reports again.
+         */
+        readonly delete: operations["delete_v1_organizations_by_org_projects_by_project_stores_by_store"];
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/organizations/{org}/projects/{project}/stores/{store}/notification-url": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Replace a store's notification URL
+         * @description The old URL stops at once: point the store at the new one.
+         */
+        readonly post: operations["post_v1_organizations_by_org_projects_by_project_stores_by_store_notification_url"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/organizations/{org}/projects/{project}/stores/{store}/test": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Test a store's credentials
+         * @description Without a purchase. For the App Store with a key, Apple also sends a test notification to the project's URL. Kept as the store's last test.
+         */
+        readonly post: operations["post_v1_organizations_by_org_projects_by_project_stores_by_store_test"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/organizations/{org}/projects/{project}/verified-purchases/{purchase}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * One verified purchase
+         * @description As the API hands it to the game, with every verification that named it.
+         */
+        readonly get: operations["get_v1_organizations_by_org_projects_by_project_verified_purchases_by_purchase"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/v1/organizations/{org}/roles": {
         readonly parameters: {
             readonly query?: never;
@@ -2716,6 +2920,26 @@ export interface paths {
          * @description Tracked players, events and retained bytes over a range, broken down by project and by day, with the plan's allowances beside them. Defaults to the current calendar month. Tracked players is the busiest day rather than a sum — adding daily figures counts one player once per day they played.
          */
         readonly get: operations["get_v1_organizations_by_org_usage"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/players/{player}/purchases": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * A player's verified purchases
+         * @description Newest first, refunded ones included.
+         */
+        readonly get: operations["get_v1_players_by_player_purchases"];
         readonly put?: never;
         readonly post?: never;
         readonly delete?: never;
@@ -2841,6 +3065,46 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/v1/purchases/verify": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Verify a purchase with its store
+         * @description PlayerSense asks the store (for a StoreKit 2 transaction, checks Apple's signature, which needs no call) and records the purchase once: a retry, or the same receipt from a second device, answers the same purchase with duplicate set, and the same transaction sent for another player is rejected as replayed. The answer's status says what to do: grant on verified or sandbox, keyed by the purchase's id; do not grant on rejected. Takes the game's project key, so a game without a server can act on the answer, or the server key, which §47 prefers for granting.
+         */
+        readonly post: operations["post_v1_purchases_verify"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/purchases/{store}/{transaction}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * Read a verified purchase
+         * @description By the store's transaction id: whether it was verified, and whether it has since been refunded.
+         */
+        readonly get: operations["get_v1_purchases_by_store_by_transaction"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/v1/report-runs/{run}/events": {
         readonly parameters: {
             readonly query?: never;
@@ -2855,6 +3119,46 @@ export interface paths {
         readonly get: operations["get_v1_report_runs_by_run_events"];
         readonly put?: never;
         readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/store-notifications/apple/{project}/{token}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Take an App Store Server Notification
+         * @description Point App Store Connect's V2 notification URL here. A refund or a reversed refund changes the purchase it names; everything else is acknowledged.
+         */
+        readonly post: operations["post_v1_store_notifications_apple_by_project_by_token"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/store-notifications/google/{project}/{token}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Take a Google Play developer notification
+         * @description Point a Pub/Sub push subscription on the app's Real-time Developer Notifications topic here. A voided purchase is recorded as refunded; the refund sweep adds the reason.
+         */
+        readonly post: operations["post_v1_store_notifications_google_by_project_by_token"];
         readonly delete?: never;
         readonly options?: never;
         readonly head?: never;
@@ -3288,6 +3592,27 @@ export interface components {
             readonly at: string;
             readonly detail: string;
             readonly ok: boolean;
+        };
+        readonly CheckedTransaction: {
+            /** Format: int64 */
+            readonly amount_micros: number;
+            readonly app_id: string;
+            readonly country?: string;
+            readonly currency: string;
+            readonly kind: string;
+            readonly order_id?: string;
+            readonly original_transaction_id?: string;
+            readonly price_from_store: boolean;
+            readonly product_id: string;
+            /** Format: date-time */
+            readonly purchased_at: string;
+            /** Format: int64 */
+            readonly quantity: number;
+            readonly refund_reason?: string;
+            /** Format: date-time */
+            readonly refunded_at?: string | null;
+            readonly sandbox: boolean;
+            readonly transaction_id: string;
         };
         readonly CheckoutOut: {
             /** Format: date-time */
@@ -4149,6 +4474,13 @@ export interface components {
             readonly status: string;
             /** Format: date-time */
             readonly updated_at: string;
+        };
+        readonly FailingStoreOut: {
+            readonly last_error: string;
+            /** Format: date-time */
+            readonly last_error_at: string;
+            readonly project: components["schemas"]["ProjectBrief"];
+            readonly store: string;
         };
         readonly Filter: {
             /** @description A sticky cohort dimension */
@@ -5542,6 +5874,12 @@ export interface components {
         readonly ProjectAppsOut: {
             readonly apps: readonly components["schemas"]["ProjectAppOut"][];
         };
+        readonly ProjectBrief: {
+            readonly id: string;
+            readonly name: string;
+            readonly organization: string;
+            readonly slug: string;
+        };
         readonly ProjectCountersOut: {
             readonly counters: readonly components["schemas"]["LiveCounterOut"][];
             readonly project_id: string;
@@ -5634,6 +5972,64 @@ export interface components {
             /** Format: date-time */
             readonly to: string;
         };
+        readonly PurchaseAttemptOut: {
+            /** Format: date-time */
+            readonly at: string;
+            readonly code?: string;
+            readonly detail?: string;
+            /** Format: int64 */
+            readonly duration_ms: number;
+            readonly id: string;
+            readonly install_id?: string;
+            readonly outcome: string;
+            readonly player_id?: string;
+            readonly product_id?: string;
+            /** @description Staff reads only: whose attempt */
+            readonly project?: components["schemas"]["ProjectBrief"] | null;
+            readonly purchase_id?: string | null;
+            readonly sandbox: boolean;
+            readonly store: string;
+            readonly store_transaction_id?: string;
+            readonly trace?: readonly components["schemas"]["TraceStep"][];
+            readonly via: string;
+        };
+        readonly PurchaseAttemptsOut: {
+            readonly attempts: readonly components["schemas"]["PurchaseAttemptOut"][];
+            readonly next?: string | null;
+        };
+        readonly PurchaseCheckOut: {
+            readonly detail?: string;
+            /** Format: int64 */
+            readonly duration_ms: number;
+            readonly outcome: string;
+            readonly recorded?: components["schemas"]["PurchaseDoc"] | null;
+            readonly rejection?: components["schemas"]["PurchaseProblem"] | null;
+            readonly trace: readonly components["schemas"]["TraceStep"][];
+            readonly transaction?: components["schemas"]["CheckedTransaction"] | null;
+        };
+        readonly PurchaseDoc: {
+            readonly country?: string;
+            readonly duplicate: boolean;
+            readonly environment: string;
+            /** @description The player's first counted purchase in the project */
+            readonly first_purchase: boolean;
+            /** @description PlayerSense's id for the purchase; absent when rejected */
+            readonly id?: string;
+            readonly player: components["schemas"]["PurchasePlayer"];
+            readonly price?: components["schemas"]["PurchasePrice"] | null;
+            readonly product: components["schemas"]["PurchaseProduct"];
+            /** Format: date-time */
+            readonly purchased_at?: string | null;
+            readonly refund?: components["schemas"]["PurchaseRefund"] | null;
+            readonly rejection?: components["schemas"]["PurchaseProblem"] | null;
+            readonly status: string;
+            readonly store: components["schemas"]["PurchaseStore"];
+            /** Format: date-time */
+            readonly verified_at?: string | null;
+        };
+        readonly PurchaseDocsOut: {
+            readonly purchases: readonly components["schemas"]["PurchaseDoc"][];
+        };
         readonly PurchaseOut: {
             readonly app_version: string;
             /** Format: date-time */
@@ -5646,16 +6042,75 @@ export interface components {
             readonly platform: string;
             readonly player_id?: string;
             readonly product_id: string;
+            readonly refund_reason?: string;
+            /** Format: date-time */
+            readonly refunded_at?: string | null;
+            readonly rejection?: string;
             /** Format: int64 */
             readonly revenue_micros: number;
             readonly session_id?: string;
+            readonly source: string;
+            readonly status: string;
             readonly store: string;
+            readonly store_transaction_id?: string;
+            /**
+             * Format: int64
+             * @description How long the store took to answer
+             */
+            readonly verify_ms?: number;
+        };
+        readonly PurchasePlayer: {
+            readonly id?: string;
+            readonly install_id?: string;
+        };
+        readonly PurchasePrice: {
+            /** Format: int64 */
+            readonly amount_micros: number;
+            readonly currency: string;
+            readonly from_store: boolean;
+        };
+        readonly PurchaseProblem: {
+            readonly code: string;
+            readonly message: string;
+        };
+        readonly PurchaseProduct: {
+            readonly id?: string;
+            readonly kind?: string;
+            /** Format: int64 */
+            readonly quantity?: number;
+        };
+        readonly PurchaseRefund: {
+            /** Format: date-time */
+            readonly at: string;
+            readonly reason?: string;
+            readonly source?: string;
+        };
+        readonly PurchaseStore: {
+            readonly name: string;
+            readonly order_id?: string;
+            readonly original_transaction_id?: string;
+            readonly transaction_id?: string;
+            /** Format: int64 */
+            readonly verified_in_ms?: number;
+        };
+        readonly PurchaseVerificationOut: {
+            readonly by_store: {
+                readonly [key: string]: components["schemas"]["StoreOutcomes"];
+            };
+            /** @description Connected stores whose last error is recent */
+            readonly failing: readonly components["schemas"]["FailingStoreOut"][];
+            /** @description Rejected receipts by code */
+            readonly rejections: {
+                readonly [key: string]: number;
+            };
+            /** Format: date-time */
+            readonly since: string;
         };
         readonly PurchasesOut: {
             /** @description Pass as before for the next page; absent on the last */
             readonly next?: string;
             readonly purchases: readonly components["schemas"]["PurchaseOut"][];
-            /** @description Always false: these are purchases the game reported */
+            /** @description Whether any store here is counted from its verified purchases */
             readonly verified: boolean;
         };
         readonly QueueGroupOut: {
@@ -5948,7 +6403,16 @@ export interface components {
             /** Format: int64 */
             readonly purchases: number;
             /** Format: int64 */
+            readonly refunded_micros: number;
+            /** Format: int64 */
+            readonly refunds: number;
+            /** Format: int64 */
+            readonly rejected: number;
+            /** Format: int64 */
             readonly revenue_micros: number;
+            /** Format: int64 */
+            readonly sandbox: number;
+            readonly verified: boolean;
         };
         readonly RoleListOut: {
             readonly roles: readonly components["schemas"]["RoleOut"][];
@@ -6291,6 +6755,70 @@ export interface components {
              */
             readonly share: number;
         };
+        readonly StoreListOut: {
+            readonly stores: readonly components["schemas"]["StoreOut"][];
+        };
+        readonly StoreNotificationOut: {
+            readonly ignored?: string;
+            readonly refund: boolean;
+            readonly type?: string;
+        };
+        readonly StoreOut: {
+            /** Format: int64 */
+            readonly app_apple_id?: number;
+            readonly app_id?: string;
+            readonly bundle_id?: string;
+            readonly connected: boolean;
+            readonly created_by?: string;
+            readonly enabled: boolean;
+            readonly has_key: boolean;
+            readonly issuer_id?: string;
+            readonly key_id?: string;
+            /** @description Verifications in the last 24 hours, by what came of them */
+            readonly last_day: components["schemas"]["StoreOutcomes"];
+            readonly last_error?: string;
+            /** Format: date-time */
+            readonly last_error_at?: string | null;
+            /** Format: date-time */
+            readonly last_notification_at?: string | null;
+            readonly last_test?: components["schemas"]["StoreTestOut"] | null;
+            /** Format: date-time */
+            readonly last_verified_at?: string | null;
+            /** @description What is not set that some checks need */
+            readonly missing?: readonly string[];
+            readonly notification_url?: string;
+            readonly package_name?: string;
+            readonly service_account_email?: string;
+            readonly status: string;
+            readonly store: string;
+            /** Format: date-time */
+            readonly swept_at?: string | null;
+            /** Format: date-time */
+            readonly updated_at?: string | null;
+            readonly updated_by?: string;
+            /** Format: date-time */
+            readonly verified_since?: string | null;
+        };
+        readonly StoreOutcomes: {
+            /** Format: int64 */
+            readonly credentials: number;
+            /** Format: int64 */
+            readonly duplicate: number;
+            /** Format: int64 */
+            readonly not_connected: number;
+            /** Format: int64 */
+            readonly rejected: number;
+            /** Format: int64 */
+            readonly unavailable: number;
+            /** Format: int64 */
+            readonly verified: number;
+        };
+        readonly StoreTestOut: {
+            /** Format: date-time */
+            readonly at: string;
+            readonly detail: string;
+            readonly ok: boolean;
+        };
         readonly StripeEventListOut: {
             readonly events: readonly components["schemas"]["StripeEventOut"][];
             readonly next?: string;
@@ -6400,6 +6928,13 @@ export interface components {
             readonly share: number;
             readonly value: string;
         };
+        readonly TraceStep: {
+            readonly detail?: string;
+            /** Format: int64 */
+            readonly ms: number;
+            readonly name: string;
+            readonly ok: boolean;
+        };
         readonly UsageByProjectOut: {
             readonly project: components["schemas"]["ProjectRefOut"];
             readonly totals: components["schemas"]["UsageTotalsOut"];
@@ -6469,6 +7004,38 @@ export interface components {
              * @description What they get. Must match the flag's kind
              */
             readonly value: string;
+        };
+        readonly VerifiedPurchaseOut: {
+            readonly attempts: readonly components["schemas"]["PurchaseAttemptOut"][];
+            readonly purchase: components["schemas"]["PurchaseDoc"];
+        };
+        readonly VerifyPurchaseIn: {
+            /** @description ISO 4217, with price_micros */
+            readonly currency?: string;
+            /** @description The SDK's install id; a purchase before sign-in belongs to the install */
+            readonly install_id?: string;
+            /** @description Steam: the order id the game gave InitTxn */
+            readonly order_id?: string;
+            /** @description The game's own id for the player; send it once they have one */
+            readonly player_id?: string;
+            /**
+             * Format: int64
+             * @description The price the game showed, in millionths. Google's answer has none, so for Google this is what is recorded
+             */
+            readonly price_micros?: number;
+            /** @description The product the game sold. Required for Google Play; checked against the store's answer elsewhere */
+            readonly product_id?: string;
+            /** @description Google Play: the purchase's token */
+            readonly purchase_token?: string;
+            /** @description App Store: the StoreKit 2 transaction's jwsRepresentation. Checked against Apple's certificates with no call to Apple */
+            readonly signed_transaction?: string;
+            /**
+             * @description The store that sold it
+             * @enum {string}
+             */
+            readonly store: "app_store" | "google_play" | "steam";
+            /** @description App Store: a transaction id, looked up with the project's In-App Purchase key */
+            readonly transaction_id?: string;
         };
         readonly WebhookOut: {
             readonly received: boolean;
@@ -9690,6 +10257,328 @@ export interface operations {
                 };
             };
             /** @description ClickHouse could not be read */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly post_v1_operator_projects_by_project_purchase_check: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description A ticket reference for why this customer's data is being read: recorded in staff_access */
+                readonly "X-Staff-Ticket": string;
+                /** @description An optional line beside the ticket */
+                readonly "X-Staff-Note"?: string;
+            };
+            readonly path: {
+                /** @description The project's id */
+                readonly project: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": {
+                    readonly VerifyPurchaseIn: components["schemas"]["VerifyPurchaseIn"];
+                };
+            };
+        };
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["PurchaseCheckOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account is not staff, or lacks the role this needs */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No project has that id */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly get_v1_operator_purchase_attempts: {
+        readonly parameters: {
+            readonly query?: {
+                /** @description One project's attempts */
+                readonly project?: string;
+                readonly store?: "" | "app_store" | "google_play" | "steam";
+                readonly outcome?: "" | "verified" | "duplicate" | "rejected" | "unavailable" | "credentials" | "not_configured";
+                /** @description A rejection's code */
+                readonly code?: string;
+                /** @description A player id or install id */
+                readonly player?: string;
+                /** @description The next cursor of the previous page */
+                readonly before?: string;
+                /** @description Newest first, up to 200 */
+                readonly limit?: number;
+            };
+            readonly header: {
+                /** @description A ticket reference for why this customer's data is being read: recorded in staff_access */
+                readonly "X-Staff-Ticket": string;
+                /** @description An optional line beside the ticket */
+                readonly "X-Staff-Note"?: string;
+            };
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["PurchaseAttemptsOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account is not staff, or lacks the role this needs */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly get_v1_operator_purchase_attempts_by_attempt: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description A ticket reference for why this customer's data is being read: recorded in staff_access */
+                readonly "X-Staff-Ticket": string;
+                /** @description An optional line beside the ticket */
+                readonly "X-Staff-Note"?: string;
+            };
+            readonly path: {
+                readonly attempt: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["PurchaseAttemptOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account is not staff, or lacks the role this needs */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No attempt has that id */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly get_v1_operator_purchase_verification: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description A ticket reference for why this customer's data is being read: recorded in staff_access */
+                readonly "X-Staff-Ticket": string;
+                /** @description An optional line beside the ticket */
+                readonly "X-Staff-Note"?: string;
+            };
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["PurchaseVerificationOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account is not staff, or lacks the role this needs */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
             readonly 503: {
                 headers: {
                     readonly [name: string]: unknown;
@@ -14014,6 +14903,8 @@ export interface operations {
                 readonly limit?: number;
                 /** @description The next cursor of the previous page */
                 readonly before?: string;
+                /** @description Comma-separated: reported, verified, refunded, sandbox, rejected */
+                readonly status?: string;
             };
             readonly header?: never;
             readonly path: {
@@ -18962,6 +19853,94 @@ export interface operations {
             };
         };
     };
+    readonly get_v1_organizations_by_org_projects_by_project_purchase_attempts: {
+        readonly parameters: {
+            readonly query?: {
+                readonly store?: "" | "app_store" | "google_play" | "steam";
+                readonly outcome?: "" | "verified" | "duplicate" | "rejected" | "unavailable" | "credentials" | "not_configured";
+                /** @description A rejection's code */
+                readonly code?: string;
+                /** @description A player id or install id */
+                readonly player?: string;
+                /** @description The next cursor of the previous page */
+                readonly before?: string;
+                /** @description Newest first, up to 200 */
+                readonly limit?: number;
+            };
+            readonly header?: never;
+            readonly path: {
+                readonly org: string;
+                readonly project: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["PurchaseAttemptsOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not do that */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The organization, project or store does not exist */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     readonly get_v1_organizations_by_org_projects_by_project_reports: {
         readonly parameters: {
             readonly query?: never;
@@ -20485,6 +21464,500 @@ export interface operations {
             };
         };
     };
+    readonly get_v1_organizations_by_org_projects_by_project_stores: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                /** @description The organization's slug */
+                readonly org: string;
+                /** @description The project's slug */
+                readonly project: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["StoreListOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not do that */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The organization, project or store does not exist */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly put_v1_organizations_by_org_projects_by_project_stores_by_store: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly org: string;
+                readonly project: string;
+                readonly store: "app_store" | "google_play" | "steam";
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": {
+                    /**
+                     * Format: int64
+                     * @description App Store: the app's Apple id, from App Store Connect
+                     */
+                    readonly app_apple_id?: number;
+                    /** @description Steam: the app id */
+                    readonly app_id?: string;
+                    /** @description App Store: the app's bundle id */
+                    readonly bundle_id?: string;
+                    readonly enabled?: boolean | null;
+                    /** @description App Store: the In-App Purchase key's issuer id */
+                    readonly issuer_id?: string;
+                    /** @description App Store: the In-App Purchase key's id */
+                    readonly key_id?: string;
+                    /** @description Google Play: the app's package name */
+                    readonly package_name?: string;
+                    /** @description App Store: the In-App Purchase key's .p8 file. Write-only */
+                    readonly private_key?: string;
+                    /** @description Steam: a publisher Web API key. Write-only */
+                    readonly publisher_key?: string;
+                    /** @description Google Play: a service account's JSON key with access to the app. Write-only */
+                    readonly service_account?: string;
+                };
+            };
+        };
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["StoreOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not do that */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The organization, project or store does not exist */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Something the store needs is missing or malformed */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly delete_v1_organizations_by_org_projects_by_project_stores_by_store: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly org: string;
+                readonly project: string;
+                readonly store: "app_store" | "google_play" | "steam";
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description No Content */
+            readonly 204: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not do that */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The organization, project or store does not exist */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly post_v1_organizations_by_org_projects_by_project_stores_by_store_notification_url: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly org: string;
+                readonly project: string;
+                readonly store: "app_store" | "google_play" | "steam";
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["StoreOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not do that */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The organization, project or store does not exist */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly post_v1_organizations_by_org_projects_by_project_stores_by_store_test: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly org: string;
+                readonly project: string;
+                readonly store: "app_store" | "google_play" | "steam";
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["StoreTestOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not do that */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The organization, project or store does not exist */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly get_v1_organizations_by_org_projects_by_project_verified_purchases_by_purchase: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly org: string;
+                readonly project: string;
+                readonly purchase: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["VerifiedPurchaseOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not do that */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The organization, project or store does not exist */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     readonly get_v1_organizations_by_org_roles: {
         readonly parameters: {
             readonly query?: never;
@@ -20625,6 +22098,58 @@ export interface operations {
             };
             /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
             readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly get_v1_players_by_player_purchases: {
+        readonly parameters: {
+            readonly query?: {
+                /** @description Newest first, up to 200 */
+                readonly limit?: number;
+            };
+            readonly header?: never;
+            readonly path: {
+                readonly player: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["PurchaseDocsOut"];
+                };
+            };
+            /** @description The key is missing, unknown or revoked */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
                 headers: {
                     readonly [name: string]: unknown;
                 };
@@ -20967,6 +22492,144 @@ export interface operations {
             };
         };
     };
+    readonly post_v1_purchases_verify: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["VerifyPurchaseIn"];
+            };
+        };
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["PurchaseDoc"];
+                };
+            };
+            /** @description The key is missing, unknown or revoked */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The project has not connected this store */
+            readonly 409: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The receipt needs store credentials the project has not added */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too many verifications for this player or project */
+            readonly 429: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The store could not answer, or refused the project's credentials; keep the receipt and retry */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly get_v1_purchases_by_store_by_transaction: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly store: "app_store" | "google_play" | "steam";
+                /** @description The store's transaction id: Apple's transactionId, Google's orderId, Steam's transid */
+                readonly transaction: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["PurchaseDoc"];
+                };
+            };
+            /** @description The key is missing, unknown or revoked */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No verified purchase has that transaction id in this project */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     readonly get_v1_report_runs_by_run_events: {
         readonly parameters: {
             readonly query?: {
@@ -20994,6 +22657,133 @@ export interface operations {
             };
             /** @description The token is missing, lapsed, or for another run */
             readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly post_v1_store_notifications_apple_by_project_by_token: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly project: string;
+                readonly token: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": {
+                    /** @description The notification, signed by Apple */
+                    readonly signedPayload: string;
+                };
+            };
+        };
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["StoreNotificationOut"];
+                };
+            };
+            /** @description The notification is not signed by Apple, or is for another app */
+            readonly 400: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No project listens at this URL */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly post_v1_store_notifications_google_by_project_by_token: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly project: string;
+                readonly token: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": {
+                    /**
+                     * Format: byte
+                     * @description The Pub/Sub message; its data is the notification
+                     */
+                    readonly message: string;
+                    readonly subscription?: string;
+                };
+            };
+        };
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["StoreNotificationOut"];
+                };
+            };
+            /** @description No project listens at this URL */
+            readonly 404: {
                 headers: {
                     readonly [name: string]: unknown;
                 };

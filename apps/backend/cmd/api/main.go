@@ -52,10 +52,12 @@ import (
 	"playersense.dev/backend/internal/ops"
 	"playersense.dev/backend/internal/payments"
 	"playersense.dev/backend/internal/pgdb"
+	"playersense.dev/backend/internal/purchases"
 	"playersense.dev/backend/internal/query"
 	"playersense.dev/backend/internal/ratelimit"
 	"playersense.dev/backend/internal/reports"
 	"playersense.dev/backend/internal/routers"
+	"playersense.dev/backend/internal/stores"
 	"playersense.dev/backend/internal/suspension"
 	"playersense.dev/backend/internal/transport"
 	"playersense.dev/backend/internal/valkey"
@@ -372,6 +374,8 @@ func build(settings config.Settings, overrides ...muzak.RouterOption) (*muzak.Ap
 			Dashboard: settings.DashboardURL}, settings.StreamSigningKey, 4)),
 		// Requests per key per hour, for the keys page, at one atomic add per request.
 		muzak.WithSingleton(core.NewKeyUsage(cache, db, slog.Default(), 15*time.Second)),
+		// Game purchases, verified with the App Store, Google Play and Steam (§46-48).
+		muzak.WithSingleton(&purchases.Service{DB: db, Stores: stores.Live(nil), PublicURL: settings.PublicURL}),
 	}
 
 	// Appended last, so a later declaration of the same type wins.
@@ -418,6 +422,11 @@ func build(settings config.Settings, overrides ...muzak.RouterOption) (*muzak.Ap
 	app.Include(routers.Cohorts())
 	app.Include(routers.Privacy())
 	app.Include(routers.ReportStreams(), muzak.WithPrefix("/v1"))
+	app.Include(routers.PurchaseVerification())
+
+	// Where the stores post. Its credential is the token in the path, and for Apple the
+	// signature on the body, both checked in the handler, so it resolves no key.
+	app.Include(routers.StoreNotifications())
 
 	// ---- the dashboard ------------------------------------------------------
 
@@ -434,6 +443,7 @@ func build(settings config.Settings, overrides ...muzak.RouterOption) (*muzak.Ap
 	api.Include(routers.PrivacyRequests())
 	api.Include(routers.Channels())
 	api.Include(routers.Reports())
+	api.Include(routers.Stores())
 
 	// The invitation routes the *invited* person uses, which name no organization: there
 	// is no membership yet, which is the whole point. Mounted in the same subtree so they
@@ -490,6 +500,7 @@ func build(settings config.Settings, overrides ...muzak.RouterOption) (*muzak.Ap
 	operator.Include(routers.OperatorBilling())
 	operator.Include(routers.OperatorPricing())
 	operator.Include(routers.OperatorAnalytics())
+	operator.Include(routers.OperatorPurchases())
 	app.Include(operator,
 		muzak.WithPrefix("/v1/operator"),
 		muzak.Needs(core.ResolveStaff),

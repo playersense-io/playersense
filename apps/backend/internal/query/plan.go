@@ -25,6 +25,11 @@ type Scope struct {
 
 	// PolicyTier decides which cohorts exist at all for this project (§29.15).
 	PolicyTier string
+
+	// Verified is the stores the project verifies purchases with, which the money facts count
+	// from their verified purchases (ADR 0048). Read by the report builder's purchases source;
+	// the Revenue and Purchases pages take it through RevenueFilter.
+	Verified []VerifiedStore
 }
 
 // Refusal is a question the cohort facts cannot answer.

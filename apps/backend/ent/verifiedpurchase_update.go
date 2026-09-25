@@ -49,6 +49,27 @@ func (_u *VerifiedPurchaseUpdate) SetNillableProjectUID(v *uuid.UUID) *VerifiedP
 	return _u
 }
 
+// SetEnvironmentID sets the "environment_id" field.
+func (_u *VerifiedPurchaseUpdate) SetEnvironmentID(v int) *VerifiedPurchaseUpdate {
+	_u.mutation.ResetEnvironmentID()
+	_u.mutation.SetEnvironmentID(v)
+	return _u
+}
+
+// SetNillableEnvironmentID sets the "environment_id" field if the given value is not nil.
+func (_u *VerifiedPurchaseUpdate) SetNillableEnvironmentID(v *int) *VerifiedPurchaseUpdate {
+	if v != nil {
+		_u.SetEnvironmentID(*v)
+	}
+	return _u
+}
+
+// AddEnvironmentID adds value to the "environment_id" field.
+func (_u *VerifiedPurchaseUpdate) AddEnvironmentID(v int) *VerifiedPurchaseUpdate {
+	_u.mutation.AddEnvironmentID(v)
+	return _u
+}
+
 // SetPlayerID sets the "player_id" field.
 func (_u *VerifiedPurchaseUpdate) SetPlayerID(v string) *VerifiedPurchaseUpdate {
 	_u.mutation.SetPlayerID(v)
@@ -59,6 +80,20 @@ func (_u *VerifiedPurchaseUpdate) SetPlayerID(v string) *VerifiedPurchaseUpdate 
 func (_u *VerifiedPurchaseUpdate) SetNillablePlayerID(v *string) *VerifiedPurchaseUpdate {
 	if v != nil {
 		_u.SetPlayerID(*v)
+	}
+	return _u
+}
+
+// SetInstallID sets the "install_id" field.
+func (_u *VerifiedPurchaseUpdate) SetInstallID(v string) *VerifiedPurchaseUpdate {
+	_u.mutation.SetInstallID(v)
+	return _u
+}
+
+// SetNillableInstallID sets the "install_id" field if the given value is not nil.
+func (_u *VerifiedPurchaseUpdate) SetNillableInstallID(v *string) *VerifiedPurchaseUpdate {
+	if v != nil {
+		_u.SetInstallID(*v)
 	}
 	return _u
 }
@@ -91,6 +126,48 @@ func (_u *VerifiedPurchaseUpdate) SetNillableStoreTransactionID(v *string) *Veri
 	return _u
 }
 
+// SetOriginalTransactionID sets the "original_transaction_id" field.
+func (_u *VerifiedPurchaseUpdate) SetOriginalTransactionID(v string) *VerifiedPurchaseUpdate {
+	_u.mutation.SetOriginalTransactionID(v)
+	return _u
+}
+
+// SetNillableOriginalTransactionID sets the "original_transaction_id" field if the given value is not nil.
+func (_u *VerifiedPurchaseUpdate) SetNillableOriginalTransactionID(v *string) *VerifiedPurchaseUpdate {
+	if v != nil {
+		_u.SetOriginalTransactionID(*v)
+	}
+	return _u
+}
+
+// SetOrderID sets the "order_id" field.
+func (_u *VerifiedPurchaseUpdate) SetOrderID(v string) *VerifiedPurchaseUpdate {
+	_u.mutation.SetOrderID(v)
+	return _u
+}
+
+// SetNillableOrderID sets the "order_id" field if the given value is not nil.
+func (_u *VerifiedPurchaseUpdate) SetNillableOrderID(v *string) *VerifiedPurchaseUpdate {
+	if v != nil {
+		_u.SetOrderID(*v)
+	}
+	return _u
+}
+
+// SetTokenDigest sets the "token_digest" field.
+func (_u *VerifiedPurchaseUpdate) SetTokenDigest(v string) *VerifiedPurchaseUpdate {
+	_u.mutation.SetTokenDigest(v)
+	return _u
+}
+
+// SetNillableTokenDigest sets the "token_digest" field if the given value is not nil.
+func (_u *VerifiedPurchaseUpdate) SetNillableTokenDigest(v *string) *VerifiedPurchaseUpdate {
+	if v != nil {
+		_u.SetTokenDigest(*v)
+	}
+	return _u
+}
+
 // SetProductID sets the "product_id" field.
 func (_u *VerifiedPurchaseUpdate) SetProductID(v string) *VerifiedPurchaseUpdate {
 	_u.mutation.SetProductID(v)
@@ -102,6 +179,41 @@ func (_u *VerifiedPurchaseUpdate) SetNillableProductID(v *string) *VerifiedPurch
 	if v != nil {
 		_u.SetProductID(*v)
 	}
+	return _u
+}
+
+// SetKind sets the "kind" field.
+func (_u *VerifiedPurchaseUpdate) SetKind(v verifiedpurchase.Kind) *VerifiedPurchaseUpdate {
+	_u.mutation.SetKind(v)
+	return _u
+}
+
+// SetNillableKind sets the "kind" field if the given value is not nil.
+func (_u *VerifiedPurchaseUpdate) SetNillableKind(v *verifiedpurchase.Kind) *VerifiedPurchaseUpdate {
+	if v != nil {
+		_u.SetKind(*v)
+	}
+	return _u
+}
+
+// SetQuantity sets the "quantity" field.
+func (_u *VerifiedPurchaseUpdate) SetQuantity(v int) *VerifiedPurchaseUpdate {
+	_u.mutation.ResetQuantity()
+	_u.mutation.SetQuantity(v)
+	return _u
+}
+
+// SetNillableQuantity sets the "quantity" field if the given value is not nil.
+func (_u *VerifiedPurchaseUpdate) SetNillableQuantity(v *int) *VerifiedPurchaseUpdate {
+	if v != nil {
+		_u.SetQuantity(*v)
+	}
+	return _u
+}
+
+// AddQuantity adds value to the "quantity" field.
+func (_u *VerifiedPurchaseUpdate) AddQuantity(v int) *VerifiedPurchaseUpdate {
+	_u.mutation.AddQuantity(v)
 	return _u
 }
 
@@ -140,6 +252,48 @@ func (_u *VerifiedPurchaseUpdate) SetNillableCurrency(v *string) *VerifiedPurcha
 	return _u
 }
 
+// SetPriceFromStore sets the "price_from_store" field.
+func (_u *VerifiedPurchaseUpdate) SetPriceFromStore(v bool) *VerifiedPurchaseUpdate {
+	_u.mutation.SetPriceFromStore(v)
+	return _u
+}
+
+// SetNillablePriceFromStore sets the "price_from_store" field if the given value is not nil.
+func (_u *VerifiedPurchaseUpdate) SetNillablePriceFromStore(v *bool) *VerifiedPurchaseUpdate {
+	if v != nil {
+		_u.SetPriceFromStore(*v)
+	}
+	return _u
+}
+
+// SetCountry sets the "country" field.
+func (_u *VerifiedPurchaseUpdate) SetCountry(v string) *VerifiedPurchaseUpdate {
+	_u.mutation.SetCountry(v)
+	return _u
+}
+
+// SetNillableCountry sets the "country" field if the given value is not nil.
+func (_u *VerifiedPurchaseUpdate) SetNillableCountry(v *string) *VerifiedPurchaseUpdate {
+	if v != nil {
+		_u.SetCountry(*v)
+	}
+	return _u
+}
+
+// SetSandbox sets the "sandbox" field.
+func (_u *VerifiedPurchaseUpdate) SetSandbox(v bool) *VerifiedPurchaseUpdate {
+	_u.mutation.SetSandbox(v)
+	return _u
+}
+
+// SetNillableSandbox sets the "sandbox" field if the given value is not nil.
+func (_u *VerifiedPurchaseUpdate) SetNillableSandbox(v *bool) *VerifiedPurchaseUpdate {
+	if v != nil {
+		_u.SetSandbox(*v)
+	}
+	return _u
+}
+
 // SetPurchasedAt sets the "purchased_at" field.
 func (_u *VerifiedPurchaseUpdate) SetPurchasedAt(v time.Time) *VerifiedPurchaseUpdate {
 	_u.mutation.SetPurchasedAt(v)
@@ -150,6 +304,117 @@ func (_u *VerifiedPurchaseUpdate) SetPurchasedAt(v time.Time) *VerifiedPurchaseU
 func (_u *VerifiedPurchaseUpdate) SetNillablePurchasedAt(v *time.Time) *VerifiedPurchaseUpdate {
 	if v != nil {
 		_u.SetPurchasedAt(*v)
+	}
+	return _u
+}
+
+// SetStatus sets the "status" field.
+func (_u *VerifiedPurchaseUpdate) SetStatus(v verifiedpurchase.Status) *VerifiedPurchaseUpdate {
+	_u.mutation.SetStatus(v)
+	return _u
+}
+
+// SetNillableStatus sets the "status" field if the given value is not nil.
+func (_u *VerifiedPurchaseUpdate) SetNillableStatus(v *verifiedpurchase.Status) *VerifiedPurchaseUpdate {
+	if v != nil {
+		_u.SetStatus(*v)
+	}
+	return _u
+}
+
+// SetRefundedAt sets the "refunded_at" field.
+func (_u *VerifiedPurchaseUpdate) SetRefundedAt(v time.Time) *VerifiedPurchaseUpdate {
+	_u.mutation.SetRefundedAt(v)
+	return _u
+}
+
+// SetNillableRefundedAt sets the "refunded_at" field if the given value is not nil.
+func (_u *VerifiedPurchaseUpdate) SetNillableRefundedAt(v *time.Time) *VerifiedPurchaseUpdate {
+	if v != nil {
+		_u.SetRefundedAt(*v)
+	}
+	return _u
+}
+
+// ClearRefundedAt clears the value of the "refunded_at" field.
+func (_u *VerifiedPurchaseUpdate) ClearRefundedAt() *VerifiedPurchaseUpdate {
+	_u.mutation.ClearRefundedAt()
+	return _u
+}
+
+// SetRefundReason sets the "refund_reason" field.
+func (_u *VerifiedPurchaseUpdate) SetRefundReason(v string) *VerifiedPurchaseUpdate {
+	_u.mutation.SetRefundReason(v)
+	return _u
+}
+
+// SetNillableRefundReason sets the "refund_reason" field if the given value is not nil.
+func (_u *VerifiedPurchaseUpdate) SetNillableRefundReason(v *string) *VerifiedPurchaseUpdate {
+	if v != nil {
+		_u.SetRefundReason(*v)
+	}
+	return _u
+}
+
+// SetRefundSource sets the "refund_source" field.
+func (_u *VerifiedPurchaseUpdate) SetRefundSource(v string) *VerifiedPurchaseUpdate {
+	_u.mutation.SetRefundSource(v)
+	return _u
+}
+
+// SetNillableRefundSource sets the "refund_source" field if the given value is not nil.
+func (_u *VerifiedPurchaseUpdate) SetNillableRefundSource(v *string) *VerifiedPurchaseUpdate {
+	if v != nil {
+		_u.SetRefundSource(*v)
+	}
+	return _u
+}
+
+// SetFirstPurchase sets the "first_purchase" field.
+func (_u *VerifiedPurchaseUpdate) SetFirstPurchase(v bool) *VerifiedPurchaseUpdate {
+	_u.mutation.SetFirstPurchase(v)
+	return _u
+}
+
+// SetNillableFirstPurchase sets the "first_purchase" field if the given value is not nil.
+func (_u *VerifiedPurchaseUpdate) SetNillableFirstPurchase(v *bool) *VerifiedPurchaseUpdate {
+	if v != nil {
+		_u.SetFirstPurchase(*v)
+	}
+	return _u
+}
+
+// SetVerifyMs sets the "verify_ms" field.
+func (_u *VerifiedPurchaseUpdate) SetVerifyMs(v int) *VerifiedPurchaseUpdate {
+	_u.mutation.ResetVerifyMs()
+	_u.mutation.SetVerifyMs(v)
+	return _u
+}
+
+// SetNillableVerifyMs sets the "verify_ms" field if the given value is not nil.
+func (_u *VerifiedPurchaseUpdate) SetNillableVerifyMs(v *int) *VerifiedPurchaseUpdate {
+	if v != nil {
+		_u.SetVerifyMs(*v)
+	}
+	return _u
+}
+
+// AddVerifyMs adds value to the "verify_ms" field.
+func (_u *VerifiedPurchaseUpdate) AddVerifyMs(v int) *VerifiedPurchaseUpdate {
+	_u.mutation.AddVerifyMs(v)
+	return _u
+}
+
+// SetVerifiedVia sets the "verified_via" field.
+func (_u *VerifiedPurchaseUpdate) SetVerifiedVia(v string) *VerifiedPurchaseUpdate {
+	_u.mutation.SetVerifiedVia(v)
+	return _u
+}
+
+// SetNillableVerifiedVia sets the "verified_via" field if the given value is not nil.
+func (_u *VerifiedPurchaseUpdate) SetNillableVerifiedVia(v *string) *VerifiedPurchaseUpdate {
+	if v != nil {
+		_u.SetVerifiedVia(*v)
 	}
 	return _u
 }
@@ -202,6 +467,11 @@ func (_u *VerifiedPurchaseUpdate) check() error {
 			return &ValidationError{Name: "player_id", err: fmt.Errorf(`ent: validator failed for field "VerifiedPurchase.player_id": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.InstallID(); ok {
+		if err := verifiedpurchase.InstallIDValidator(v); err != nil {
+			return &ValidationError{Name: "install_id", err: fmt.Errorf(`ent: validator failed for field "VerifiedPurchase.install_id": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Platform(); ok {
 		if err := verifiedpurchase.PlatformValidator(v); err != nil {
 			return &ValidationError{Name: "platform", err: fmt.Errorf(`ent: validator failed for field "VerifiedPurchase.platform": %w`, err)}
@@ -212,14 +482,59 @@ func (_u *VerifiedPurchaseUpdate) check() error {
 			return &ValidationError{Name: "store_transaction_id", err: fmt.Errorf(`ent: validator failed for field "VerifiedPurchase.store_transaction_id": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.OriginalTransactionID(); ok {
+		if err := verifiedpurchase.OriginalTransactionIDValidator(v); err != nil {
+			return &ValidationError{Name: "original_transaction_id", err: fmt.Errorf(`ent: validator failed for field "VerifiedPurchase.original_transaction_id": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.OrderID(); ok {
+		if err := verifiedpurchase.OrderIDValidator(v); err != nil {
+			return &ValidationError{Name: "order_id", err: fmt.Errorf(`ent: validator failed for field "VerifiedPurchase.order_id": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.TokenDigest(); ok {
+		if err := verifiedpurchase.TokenDigestValidator(v); err != nil {
+			return &ValidationError{Name: "token_digest", err: fmt.Errorf(`ent: validator failed for field "VerifiedPurchase.token_digest": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.ProductID(); ok {
 		if err := verifiedpurchase.ProductIDValidator(v); err != nil {
 			return &ValidationError{Name: "product_id", err: fmt.Errorf(`ent: validator failed for field "VerifiedPurchase.product_id": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.Kind(); ok {
+		if err := verifiedpurchase.KindValidator(v); err != nil {
+			return &ValidationError{Name: "kind", err: fmt.Errorf(`ent: validator failed for field "VerifiedPurchase.kind": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Currency(); ok {
 		if err := verifiedpurchase.CurrencyValidator(v); err != nil {
 			return &ValidationError{Name: "currency", err: fmt.Errorf(`ent: validator failed for field "VerifiedPurchase.currency": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.Country(); ok {
+		if err := verifiedpurchase.CountryValidator(v); err != nil {
+			return &ValidationError{Name: "country", err: fmt.Errorf(`ent: validator failed for field "VerifiedPurchase.country": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.Status(); ok {
+		if err := verifiedpurchase.StatusValidator(v); err != nil {
+			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "VerifiedPurchase.status": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.RefundReason(); ok {
+		if err := verifiedpurchase.RefundReasonValidator(v); err != nil {
+			return &ValidationError{Name: "refund_reason", err: fmt.Errorf(`ent: validator failed for field "VerifiedPurchase.refund_reason": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.RefundSource(); ok {
+		if err := verifiedpurchase.RefundSourceValidator(v); err != nil {
+			return &ValidationError{Name: "refund_source", err: fmt.Errorf(`ent: validator failed for field "VerifiedPurchase.refund_source": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.VerifiedVia(); ok {
+		if err := verifiedpurchase.VerifiedViaValidator(v); err != nil {
+			return &ValidationError{Name: "verified_via", err: fmt.Errorf(`ent: validator failed for field "VerifiedPurchase.verified_via": %w`, err)}
 		}
 	}
 	return nil
@@ -243,8 +558,17 @@ func (_u *VerifiedPurchaseUpdate) sqlSave(ctx context.Context) (_node int, err e
 	if value, ok := _u.mutation.ProjectUID(); ok {
 		_spec.SetField(verifiedpurchase.FieldProjectUID, field.TypeUUID, value)
 	}
+	if value, ok := _u.mutation.EnvironmentID(); ok {
+		_spec.SetField(verifiedpurchase.FieldEnvironmentID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedEnvironmentID(); ok {
+		_spec.AddField(verifiedpurchase.FieldEnvironmentID, field.TypeInt, value)
+	}
 	if value, ok := _u.mutation.PlayerID(); ok {
 		_spec.SetField(verifiedpurchase.FieldPlayerID, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.InstallID(); ok {
+		_spec.SetField(verifiedpurchase.FieldInstallID, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Platform(); ok {
 		_spec.SetField(verifiedpurchase.FieldPlatform, field.TypeEnum, value)
@@ -252,8 +576,26 @@ func (_u *VerifiedPurchaseUpdate) sqlSave(ctx context.Context) (_node int, err e
 	if value, ok := _u.mutation.StoreTransactionID(); ok {
 		_spec.SetField(verifiedpurchase.FieldStoreTransactionID, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.OriginalTransactionID(); ok {
+		_spec.SetField(verifiedpurchase.FieldOriginalTransactionID, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.OrderID(); ok {
+		_spec.SetField(verifiedpurchase.FieldOrderID, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.TokenDigest(); ok {
+		_spec.SetField(verifiedpurchase.FieldTokenDigest, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.ProductID(); ok {
 		_spec.SetField(verifiedpurchase.FieldProductID, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Kind(); ok {
+		_spec.SetField(verifiedpurchase.FieldKind, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.Quantity(); ok {
+		_spec.SetField(verifiedpurchase.FieldQuantity, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedQuantity(); ok {
+		_spec.AddField(verifiedpurchase.FieldQuantity, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.AmountMicros(); ok {
 		_spec.SetField(verifiedpurchase.FieldAmountMicros, field.TypeInt64, value)
@@ -264,8 +606,44 @@ func (_u *VerifiedPurchaseUpdate) sqlSave(ctx context.Context) (_node int, err e
 	if value, ok := _u.mutation.Currency(); ok {
 		_spec.SetField(verifiedpurchase.FieldCurrency, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.PriceFromStore(); ok {
+		_spec.SetField(verifiedpurchase.FieldPriceFromStore, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.Country(); ok {
+		_spec.SetField(verifiedpurchase.FieldCountry, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Sandbox(); ok {
+		_spec.SetField(verifiedpurchase.FieldSandbox, field.TypeBool, value)
+	}
 	if value, ok := _u.mutation.PurchasedAt(); ok {
 		_spec.SetField(verifiedpurchase.FieldPurchasedAt, field.TypeTime, value)
+	}
+	if value, ok := _u.mutation.Status(); ok {
+		_spec.SetField(verifiedpurchase.FieldStatus, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.RefundedAt(); ok {
+		_spec.SetField(verifiedpurchase.FieldRefundedAt, field.TypeTime, value)
+	}
+	if _u.mutation.RefundedAtCleared() {
+		_spec.ClearField(verifiedpurchase.FieldRefundedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.RefundReason(); ok {
+		_spec.SetField(verifiedpurchase.FieldRefundReason, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.RefundSource(); ok {
+		_spec.SetField(verifiedpurchase.FieldRefundSource, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.FirstPurchase(); ok {
+		_spec.SetField(verifiedpurchase.FieldFirstPurchase, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.VerifyMs(); ok {
+		_spec.SetField(verifiedpurchase.FieldVerifyMs, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedVerifyMs(); ok {
+		_spec.AddField(verifiedpurchase.FieldVerifyMs, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.VerifiedVia(); ok {
+		_spec.SetField(verifiedpurchase.FieldVerifiedVia, field.TypeString, value)
 	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -307,6 +685,27 @@ func (_u *VerifiedPurchaseUpdateOne) SetNillableProjectUID(v *uuid.UUID) *Verifi
 	return _u
 }
 
+// SetEnvironmentID sets the "environment_id" field.
+func (_u *VerifiedPurchaseUpdateOne) SetEnvironmentID(v int) *VerifiedPurchaseUpdateOne {
+	_u.mutation.ResetEnvironmentID()
+	_u.mutation.SetEnvironmentID(v)
+	return _u
+}
+
+// SetNillableEnvironmentID sets the "environment_id" field if the given value is not nil.
+func (_u *VerifiedPurchaseUpdateOne) SetNillableEnvironmentID(v *int) *VerifiedPurchaseUpdateOne {
+	if v != nil {
+		_u.SetEnvironmentID(*v)
+	}
+	return _u
+}
+
+// AddEnvironmentID adds value to the "environment_id" field.
+func (_u *VerifiedPurchaseUpdateOne) AddEnvironmentID(v int) *VerifiedPurchaseUpdateOne {
+	_u.mutation.AddEnvironmentID(v)
+	return _u
+}
+
 // SetPlayerID sets the "player_id" field.
 func (_u *VerifiedPurchaseUpdateOne) SetPlayerID(v string) *VerifiedPurchaseUpdateOne {
 	_u.mutation.SetPlayerID(v)
@@ -317,6 +716,20 @@ func (_u *VerifiedPurchaseUpdateOne) SetPlayerID(v string) *VerifiedPurchaseUpda
 func (_u *VerifiedPurchaseUpdateOne) SetNillablePlayerID(v *string) *VerifiedPurchaseUpdateOne {
 	if v != nil {
 		_u.SetPlayerID(*v)
+	}
+	return _u
+}
+
+// SetInstallID sets the "install_id" field.
+func (_u *VerifiedPurchaseUpdateOne) SetInstallID(v string) *VerifiedPurchaseUpdateOne {
+	_u.mutation.SetInstallID(v)
+	return _u
+}
+
+// SetNillableInstallID sets the "install_id" field if the given value is not nil.
+func (_u *VerifiedPurchaseUpdateOne) SetNillableInstallID(v *string) *VerifiedPurchaseUpdateOne {
+	if v != nil {
+		_u.SetInstallID(*v)
 	}
 	return _u
 }
@@ -349,6 +762,48 @@ func (_u *VerifiedPurchaseUpdateOne) SetNillableStoreTransactionID(v *string) *V
 	return _u
 }
 
+// SetOriginalTransactionID sets the "original_transaction_id" field.
+func (_u *VerifiedPurchaseUpdateOne) SetOriginalTransactionID(v string) *VerifiedPurchaseUpdateOne {
+	_u.mutation.SetOriginalTransactionID(v)
+	return _u
+}
+
+// SetNillableOriginalTransactionID sets the "original_transaction_id" field if the given value is not nil.
+func (_u *VerifiedPurchaseUpdateOne) SetNillableOriginalTransactionID(v *string) *VerifiedPurchaseUpdateOne {
+	if v != nil {
+		_u.SetOriginalTransactionID(*v)
+	}
+	return _u
+}
+
+// SetOrderID sets the "order_id" field.
+func (_u *VerifiedPurchaseUpdateOne) SetOrderID(v string) *VerifiedPurchaseUpdateOne {
+	_u.mutation.SetOrderID(v)
+	return _u
+}
+
+// SetNillableOrderID sets the "order_id" field if the given value is not nil.
+func (_u *VerifiedPurchaseUpdateOne) SetNillableOrderID(v *string) *VerifiedPurchaseUpdateOne {
+	if v != nil {
+		_u.SetOrderID(*v)
+	}
+	return _u
+}
+
+// SetTokenDigest sets the "token_digest" field.
+func (_u *VerifiedPurchaseUpdateOne) SetTokenDigest(v string) *VerifiedPurchaseUpdateOne {
+	_u.mutation.SetTokenDigest(v)
+	return _u
+}
+
+// SetNillableTokenDigest sets the "token_digest" field if the given value is not nil.
+func (_u *VerifiedPurchaseUpdateOne) SetNillableTokenDigest(v *string) *VerifiedPurchaseUpdateOne {
+	if v != nil {
+		_u.SetTokenDigest(*v)
+	}
+	return _u
+}
+
 // SetProductID sets the "product_id" field.
 func (_u *VerifiedPurchaseUpdateOne) SetProductID(v string) *VerifiedPurchaseUpdateOne {
 	_u.mutation.SetProductID(v)
@@ -360,6 +815,41 @@ func (_u *VerifiedPurchaseUpdateOne) SetNillableProductID(v *string) *VerifiedPu
 	if v != nil {
 		_u.SetProductID(*v)
 	}
+	return _u
+}
+
+// SetKind sets the "kind" field.
+func (_u *VerifiedPurchaseUpdateOne) SetKind(v verifiedpurchase.Kind) *VerifiedPurchaseUpdateOne {
+	_u.mutation.SetKind(v)
+	return _u
+}
+
+// SetNillableKind sets the "kind" field if the given value is not nil.
+func (_u *VerifiedPurchaseUpdateOne) SetNillableKind(v *verifiedpurchase.Kind) *VerifiedPurchaseUpdateOne {
+	if v != nil {
+		_u.SetKind(*v)
+	}
+	return _u
+}
+
+// SetQuantity sets the "quantity" field.
+func (_u *VerifiedPurchaseUpdateOne) SetQuantity(v int) *VerifiedPurchaseUpdateOne {
+	_u.mutation.ResetQuantity()
+	_u.mutation.SetQuantity(v)
+	return _u
+}
+
+// SetNillableQuantity sets the "quantity" field if the given value is not nil.
+func (_u *VerifiedPurchaseUpdateOne) SetNillableQuantity(v *int) *VerifiedPurchaseUpdateOne {
+	if v != nil {
+		_u.SetQuantity(*v)
+	}
+	return _u
+}
+
+// AddQuantity adds value to the "quantity" field.
+func (_u *VerifiedPurchaseUpdateOne) AddQuantity(v int) *VerifiedPurchaseUpdateOne {
+	_u.mutation.AddQuantity(v)
 	return _u
 }
 
@@ -398,6 +888,48 @@ func (_u *VerifiedPurchaseUpdateOne) SetNillableCurrency(v *string) *VerifiedPur
 	return _u
 }
 
+// SetPriceFromStore sets the "price_from_store" field.
+func (_u *VerifiedPurchaseUpdateOne) SetPriceFromStore(v bool) *VerifiedPurchaseUpdateOne {
+	_u.mutation.SetPriceFromStore(v)
+	return _u
+}
+
+// SetNillablePriceFromStore sets the "price_from_store" field if the given value is not nil.
+func (_u *VerifiedPurchaseUpdateOne) SetNillablePriceFromStore(v *bool) *VerifiedPurchaseUpdateOne {
+	if v != nil {
+		_u.SetPriceFromStore(*v)
+	}
+	return _u
+}
+
+// SetCountry sets the "country" field.
+func (_u *VerifiedPurchaseUpdateOne) SetCountry(v string) *VerifiedPurchaseUpdateOne {
+	_u.mutation.SetCountry(v)
+	return _u
+}
+
+// SetNillableCountry sets the "country" field if the given value is not nil.
+func (_u *VerifiedPurchaseUpdateOne) SetNillableCountry(v *string) *VerifiedPurchaseUpdateOne {
+	if v != nil {
+		_u.SetCountry(*v)
+	}
+	return _u
+}
+
+// SetSandbox sets the "sandbox" field.
+func (_u *VerifiedPurchaseUpdateOne) SetSandbox(v bool) *VerifiedPurchaseUpdateOne {
+	_u.mutation.SetSandbox(v)
+	return _u
+}
+
+// SetNillableSandbox sets the "sandbox" field if the given value is not nil.
+func (_u *VerifiedPurchaseUpdateOne) SetNillableSandbox(v *bool) *VerifiedPurchaseUpdateOne {
+	if v != nil {
+		_u.SetSandbox(*v)
+	}
+	return _u
+}
+
 // SetPurchasedAt sets the "purchased_at" field.
 func (_u *VerifiedPurchaseUpdateOne) SetPurchasedAt(v time.Time) *VerifiedPurchaseUpdateOne {
 	_u.mutation.SetPurchasedAt(v)
@@ -408,6 +940,117 @@ func (_u *VerifiedPurchaseUpdateOne) SetPurchasedAt(v time.Time) *VerifiedPurcha
 func (_u *VerifiedPurchaseUpdateOne) SetNillablePurchasedAt(v *time.Time) *VerifiedPurchaseUpdateOne {
 	if v != nil {
 		_u.SetPurchasedAt(*v)
+	}
+	return _u
+}
+
+// SetStatus sets the "status" field.
+func (_u *VerifiedPurchaseUpdateOne) SetStatus(v verifiedpurchase.Status) *VerifiedPurchaseUpdateOne {
+	_u.mutation.SetStatus(v)
+	return _u
+}
+
+// SetNillableStatus sets the "status" field if the given value is not nil.
+func (_u *VerifiedPurchaseUpdateOne) SetNillableStatus(v *verifiedpurchase.Status) *VerifiedPurchaseUpdateOne {
+	if v != nil {
+		_u.SetStatus(*v)
+	}
+	return _u
+}
+
+// SetRefundedAt sets the "refunded_at" field.
+func (_u *VerifiedPurchaseUpdateOne) SetRefundedAt(v time.Time) *VerifiedPurchaseUpdateOne {
+	_u.mutation.SetRefundedAt(v)
+	return _u
+}
+
+// SetNillableRefundedAt sets the "refunded_at" field if the given value is not nil.
+func (_u *VerifiedPurchaseUpdateOne) SetNillableRefundedAt(v *time.Time) *VerifiedPurchaseUpdateOne {
+	if v != nil {
+		_u.SetRefundedAt(*v)
+	}
+	return _u
+}
+
+// ClearRefundedAt clears the value of the "refunded_at" field.
+func (_u *VerifiedPurchaseUpdateOne) ClearRefundedAt() *VerifiedPurchaseUpdateOne {
+	_u.mutation.ClearRefundedAt()
+	return _u
+}
+
+// SetRefundReason sets the "refund_reason" field.
+func (_u *VerifiedPurchaseUpdateOne) SetRefundReason(v string) *VerifiedPurchaseUpdateOne {
+	_u.mutation.SetRefundReason(v)
+	return _u
+}
+
+// SetNillableRefundReason sets the "refund_reason" field if the given value is not nil.
+func (_u *VerifiedPurchaseUpdateOne) SetNillableRefundReason(v *string) *VerifiedPurchaseUpdateOne {
+	if v != nil {
+		_u.SetRefundReason(*v)
+	}
+	return _u
+}
+
+// SetRefundSource sets the "refund_source" field.
+func (_u *VerifiedPurchaseUpdateOne) SetRefundSource(v string) *VerifiedPurchaseUpdateOne {
+	_u.mutation.SetRefundSource(v)
+	return _u
+}
+
+// SetNillableRefundSource sets the "refund_source" field if the given value is not nil.
+func (_u *VerifiedPurchaseUpdateOne) SetNillableRefundSource(v *string) *VerifiedPurchaseUpdateOne {
+	if v != nil {
+		_u.SetRefundSource(*v)
+	}
+	return _u
+}
+
+// SetFirstPurchase sets the "first_purchase" field.
+func (_u *VerifiedPurchaseUpdateOne) SetFirstPurchase(v bool) *VerifiedPurchaseUpdateOne {
+	_u.mutation.SetFirstPurchase(v)
+	return _u
+}
+
+// SetNillableFirstPurchase sets the "first_purchase" field if the given value is not nil.
+func (_u *VerifiedPurchaseUpdateOne) SetNillableFirstPurchase(v *bool) *VerifiedPurchaseUpdateOne {
+	if v != nil {
+		_u.SetFirstPurchase(*v)
+	}
+	return _u
+}
+
+// SetVerifyMs sets the "verify_ms" field.
+func (_u *VerifiedPurchaseUpdateOne) SetVerifyMs(v int) *VerifiedPurchaseUpdateOne {
+	_u.mutation.ResetVerifyMs()
+	_u.mutation.SetVerifyMs(v)
+	return _u
+}
+
+// SetNillableVerifyMs sets the "verify_ms" field if the given value is not nil.
+func (_u *VerifiedPurchaseUpdateOne) SetNillableVerifyMs(v *int) *VerifiedPurchaseUpdateOne {
+	if v != nil {
+		_u.SetVerifyMs(*v)
+	}
+	return _u
+}
+
+// AddVerifyMs adds value to the "verify_ms" field.
+func (_u *VerifiedPurchaseUpdateOne) AddVerifyMs(v int) *VerifiedPurchaseUpdateOne {
+	_u.mutation.AddVerifyMs(v)
+	return _u
+}
+
+// SetVerifiedVia sets the "verified_via" field.
+func (_u *VerifiedPurchaseUpdateOne) SetVerifiedVia(v string) *VerifiedPurchaseUpdateOne {
+	_u.mutation.SetVerifiedVia(v)
+	return _u
+}
+
+// SetNillableVerifiedVia sets the "verified_via" field if the given value is not nil.
+func (_u *VerifiedPurchaseUpdateOne) SetNillableVerifiedVia(v *string) *VerifiedPurchaseUpdateOne {
+	if v != nil {
+		_u.SetVerifiedVia(*v)
 	}
 	return _u
 }
@@ -473,6 +1116,11 @@ func (_u *VerifiedPurchaseUpdateOne) check() error {
 			return &ValidationError{Name: "player_id", err: fmt.Errorf(`ent: validator failed for field "VerifiedPurchase.player_id": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.InstallID(); ok {
+		if err := verifiedpurchase.InstallIDValidator(v); err != nil {
+			return &ValidationError{Name: "install_id", err: fmt.Errorf(`ent: validator failed for field "VerifiedPurchase.install_id": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Platform(); ok {
 		if err := verifiedpurchase.PlatformValidator(v); err != nil {
 			return &ValidationError{Name: "platform", err: fmt.Errorf(`ent: validator failed for field "VerifiedPurchase.platform": %w`, err)}
@@ -483,14 +1131,59 @@ func (_u *VerifiedPurchaseUpdateOne) check() error {
 			return &ValidationError{Name: "store_transaction_id", err: fmt.Errorf(`ent: validator failed for field "VerifiedPurchase.store_transaction_id": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.OriginalTransactionID(); ok {
+		if err := verifiedpurchase.OriginalTransactionIDValidator(v); err != nil {
+			return &ValidationError{Name: "original_transaction_id", err: fmt.Errorf(`ent: validator failed for field "VerifiedPurchase.original_transaction_id": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.OrderID(); ok {
+		if err := verifiedpurchase.OrderIDValidator(v); err != nil {
+			return &ValidationError{Name: "order_id", err: fmt.Errorf(`ent: validator failed for field "VerifiedPurchase.order_id": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.TokenDigest(); ok {
+		if err := verifiedpurchase.TokenDigestValidator(v); err != nil {
+			return &ValidationError{Name: "token_digest", err: fmt.Errorf(`ent: validator failed for field "VerifiedPurchase.token_digest": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.ProductID(); ok {
 		if err := verifiedpurchase.ProductIDValidator(v); err != nil {
 			return &ValidationError{Name: "product_id", err: fmt.Errorf(`ent: validator failed for field "VerifiedPurchase.product_id": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.Kind(); ok {
+		if err := verifiedpurchase.KindValidator(v); err != nil {
+			return &ValidationError{Name: "kind", err: fmt.Errorf(`ent: validator failed for field "VerifiedPurchase.kind": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Currency(); ok {
 		if err := verifiedpurchase.CurrencyValidator(v); err != nil {
 			return &ValidationError{Name: "currency", err: fmt.Errorf(`ent: validator failed for field "VerifiedPurchase.currency": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.Country(); ok {
+		if err := verifiedpurchase.CountryValidator(v); err != nil {
+			return &ValidationError{Name: "country", err: fmt.Errorf(`ent: validator failed for field "VerifiedPurchase.country": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.Status(); ok {
+		if err := verifiedpurchase.StatusValidator(v); err != nil {
+			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "VerifiedPurchase.status": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.RefundReason(); ok {
+		if err := verifiedpurchase.RefundReasonValidator(v); err != nil {
+			return &ValidationError{Name: "refund_reason", err: fmt.Errorf(`ent: validator failed for field "VerifiedPurchase.refund_reason": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.RefundSource(); ok {
+		if err := verifiedpurchase.RefundSourceValidator(v); err != nil {
+			return &ValidationError{Name: "refund_source", err: fmt.Errorf(`ent: validator failed for field "VerifiedPurchase.refund_source": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.VerifiedVia(); ok {
+		if err := verifiedpurchase.VerifiedViaValidator(v); err != nil {
+			return &ValidationError{Name: "verified_via", err: fmt.Errorf(`ent: validator failed for field "VerifiedPurchase.verified_via": %w`, err)}
 		}
 	}
 	return nil
@@ -531,8 +1224,17 @@ func (_u *VerifiedPurchaseUpdateOne) sqlSave(ctx context.Context) (_node *Verifi
 	if value, ok := _u.mutation.ProjectUID(); ok {
 		_spec.SetField(verifiedpurchase.FieldProjectUID, field.TypeUUID, value)
 	}
+	if value, ok := _u.mutation.EnvironmentID(); ok {
+		_spec.SetField(verifiedpurchase.FieldEnvironmentID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedEnvironmentID(); ok {
+		_spec.AddField(verifiedpurchase.FieldEnvironmentID, field.TypeInt, value)
+	}
 	if value, ok := _u.mutation.PlayerID(); ok {
 		_spec.SetField(verifiedpurchase.FieldPlayerID, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.InstallID(); ok {
+		_spec.SetField(verifiedpurchase.FieldInstallID, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Platform(); ok {
 		_spec.SetField(verifiedpurchase.FieldPlatform, field.TypeEnum, value)
@@ -540,8 +1242,26 @@ func (_u *VerifiedPurchaseUpdateOne) sqlSave(ctx context.Context) (_node *Verifi
 	if value, ok := _u.mutation.StoreTransactionID(); ok {
 		_spec.SetField(verifiedpurchase.FieldStoreTransactionID, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.OriginalTransactionID(); ok {
+		_spec.SetField(verifiedpurchase.FieldOriginalTransactionID, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.OrderID(); ok {
+		_spec.SetField(verifiedpurchase.FieldOrderID, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.TokenDigest(); ok {
+		_spec.SetField(verifiedpurchase.FieldTokenDigest, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.ProductID(); ok {
 		_spec.SetField(verifiedpurchase.FieldProductID, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Kind(); ok {
+		_spec.SetField(verifiedpurchase.FieldKind, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.Quantity(); ok {
+		_spec.SetField(verifiedpurchase.FieldQuantity, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedQuantity(); ok {
+		_spec.AddField(verifiedpurchase.FieldQuantity, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.AmountMicros(); ok {
 		_spec.SetField(verifiedpurchase.FieldAmountMicros, field.TypeInt64, value)
@@ -552,8 +1272,44 @@ func (_u *VerifiedPurchaseUpdateOne) sqlSave(ctx context.Context) (_node *Verifi
 	if value, ok := _u.mutation.Currency(); ok {
 		_spec.SetField(verifiedpurchase.FieldCurrency, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.PriceFromStore(); ok {
+		_spec.SetField(verifiedpurchase.FieldPriceFromStore, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.Country(); ok {
+		_spec.SetField(verifiedpurchase.FieldCountry, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Sandbox(); ok {
+		_spec.SetField(verifiedpurchase.FieldSandbox, field.TypeBool, value)
+	}
 	if value, ok := _u.mutation.PurchasedAt(); ok {
 		_spec.SetField(verifiedpurchase.FieldPurchasedAt, field.TypeTime, value)
+	}
+	if value, ok := _u.mutation.Status(); ok {
+		_spec.SetField(verifiedpurchase.FieldStatus, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.RefundedAt(); ok {
+		_spec.SetField(verifiedpurchase.FieldRefundedAt, field.TypeTime, value)
+	}
+	if _u.mutation.RefundedAtCleared() {
+		_spec.ClearField(verifiedpurchase.FieldRefundedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.RefundReason(); ok {
+		_spec.SetField(verifiedpurchase.FieldRefundReason, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.RefundSource(); ok {
+		_spec.SetField(verifiedpurchase.FieldRefundSource, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.FirstPurchase(); ok {
+		_spec.SetField(verifiedpurchase.FieldFirstPurchase, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.VerifyMs(); ok {
+		_spec.SetField(verifiedpurchase.FieldVerifyMs, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedVerifyMs(); ok {
+		_spec.AddField(verifiedpurchase.FieldVerifyMs, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.VerifiedVia(); ok {
+		_spec.SetField(verifiedpurchase.FieldVerifiedVia, field.TypeString, value)
 	}
 	_node = &VerifiedPurchase{config: _u.config}
 	_spec.Assign = _node.assignValues

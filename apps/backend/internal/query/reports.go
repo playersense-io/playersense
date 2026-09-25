@@ -88,19 +88,21 @@ func (e *Engine) ReportSource(ctx context.Context, scope Scope, source string, d
 			column("revenue_micros", "rev").
 			column("toString(country_code)", "country").
 			column("toString(store)", "store").
-			column("toUnixTimestamp64Milli(event_time)", "at")
+			column("toUnixTimestamp64Milli(event_time)", "at").
+			column("if(status = '', 'reported', toString(status))", "status")
 		scopeAnd(b, scope)
 		b.gte("purchase_date", date(since))
+		RevenueFilter{Verified: scope.Verified}.counted(b, "purchase_date")
 		b.order("purchase_date DESC", "event_time DESC").withLimit(limit)
 		b.deduplicated()
 		err := e.read(ctx, b.statement(), func(rows driver.Rows) error {
-			var id, player, product, country, store string
+			var id, player, product, country, store, status string
 			var rev, at int64
-			if err := rows.Scan(&id, &player, &product, &rev, &country, &store, &at); err != nil {
+			if err := rows.Scan(&id, &player, &product, &rev, &country, &store, &at, &status); err != nil {
 				return err
 			}
 			out = append(out, ReportRow{"purchase_id": id, "player_id": player, "product": product,
-				"price": float64(rev) / 1e6, "country": country, "store": store, "status": "recorded", "at": at})
+				"price": float64(rev) / 1e6, "country": country, "store": store, "status": status, "at": at})
 			return nil
 		})
 		if err != nil {

@@ -16,6 +16,7 @@ import (
 	"playersense.dev/backend/ent/reportexport"
 	"playersense.dev/backend/ent/reportrun"
 	"playersense.dev/backend/ent/reportrunevent"
+	"playersense.dev/backend/internal/purchases"
 	"playersense.dev/backend/internal/query"
 )
 
@@ -230,6 +231,10 @@ func ScopeOf(ctx context.Context, db *ent.Client, p *ent.Project, env string) (q
 			return query.Scope{}, err
 		}
 	}
+	verified, err := purchases.VerifiedStores(ctx, db, p.ID)
+	if err != nil {
+		return query.Scope{}, err
+	}
 	return query.Scope{OrgSeq: uint32(p.OrganizationID), ProjectSeq: uint32(p.ID), EnvironmentSeq: uint16(e.ID),
-		PolicyTier: string(p.PolicyTier)}, nil
+		PolicyTier: string(p.PolicyTier), Verified: verified}, nil
 }

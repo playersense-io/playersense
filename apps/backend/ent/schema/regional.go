@@ -30,13 +30,47 @@ func (VerifiedPurchase) Annotations() []schema.Annotation { return []schema.Anno
 func (VerifiedPurchase) Fields() []ent.Field {
 	return []ent.Field{
 		field.UUID("project_uid", uuid.UUID{}).Comment(dataclass.None),
-		field.String("player_id").NotEmpty().MaxLen(128).Comment(dataclass.Identifier),
+		// The environment whose key verified it, which is where analytics counts it.
+		field.Int("environment_id").Default(0).Comment(dataclass.None),
+
+		// Who bought it: the game's player id, the install, or both. At least one; a purchase
+		// belongs to the player when there is one, and to the install before they sign in.
+		field.String("player_id").MaxLen(128).Default("").Comment(dataclass.Identifier),
+		field.String("install_id").MaxLen(64).Default("").Comment(dataclass.Identifier),
+
 		field.Enum("platform").Values("apple", "google", "steam").Comment(dataclass.None),
 		field.String("store_transaction_id").NotEmpty().MaxLen(255).Comment(dataclass.Identifier),
+		field.String("original_transaction_id").MaxLen(255).Default("").Comment(dataclass.Identifier),
+		// Steam's order id, which the game chose; transid is the transaction id.
+		field.String("order_id").MaxLen(255).Default("").Comment(dataclass.Identifier),
+		// A digest of Google's purchase token, which is all a notification may name it by.
+		field.String("token_digest").MaxLen(64).Default("").Comment(dataclass.Identifier),
+
 		field.String("product_id").NotEmpty().MaxLen(255).Comment(dataclass.None),
+		field.Enum("kind").Values("consumable", "non_consumable", "subscription", "unknown").
+			Default("unknown").Comment(dataclass.None),
+		field.Int("quantity").Default(1).Comment(dataclass.Financial),
 		field.Int64("amount_micros").Comment(dataclass.Financial),
 		field.String("currency").MaxLen(3).Comment(dataclass.Financial),
+		// False where the price is what the game reported rather than what the store said
+		// (Google's answer carries none).
+		field.Bool("price_from_store").Default(true).Comment(dataclass.None),
+		field.String("country").MaxLen(2).Default("").Comment(dataclass.Behavioural),
+		// A tester's purchase: verified, granted, and kept out of revenue.
+		field.Bool("sandbox").Default(false).Comment(dataclass.None),
 		field.Time("purchased_at").Comment(dataclass.Behavioural),
+
+		field.Enum("status").Values("verified", "refunded").Default("verified").Comment(dataclass.Financial),
+		field.Time("refunded_at").Optional().Nillable().Comment(dataclass.Financial),
+		field.String("refund_reason").MaxLen(40).Default("").Comment(dataclass.Financial),
+		// Where the refund was heard: verification, a store notification, or a sweep.
+		field.String("refund_source").MaxLen(20).Default("").Comment(dataclass.None),
+
+		// The player's first counted purchase in the project.
+		field.Bool("first_purchase").Default(false).Comment(dataclass.Financial),
+		// How long the store took, and which key class asked.
+		field.Int("verify_ms").Default(0).Comment(dataclass.None),
+		field.String("verified_via").MaxLen(20).Default("").Comment(dataclass.None),
 	}
 }
 
@@ -46,6 +80,10 @@ func (VerifiedPurchase) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("platform", "store_transaction_id").Unique(),
 		index.Fields("project_uid", "player_id"),
+		index.Fields("project_uid", "install_id"),
+		index.Fields("project_uid", "created_at"),
+		index.Fields("platform", "token_digest"),
+		index.Fields("project_uid", "platform", "order_id"),
 	}
 }
 

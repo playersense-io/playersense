@@ -880,7 +880,8 @@ func TestAnInquiryTakesNothingAndALostDisputeKeepsItTaken(t *testing.T) {
 }
 
 // Invoices, Issuing and Radar reviews never move money here — least of all an invoice describing a
-// payment already credited, which would otherwise be a second report of it.
+// payment already credited, which would otherwise be a second report of it. The invoice events a
+// receipt is kept from (ADR 0047) are processed, for the receipt, and still move nothing.
 func TestInvoiceIssuingAndReviewEventsNeverMoveMoney(t *testing.T) {
 	f := newFixture(t)
 	pi := f.credit(10_000)
@@ -899,8 +900,13 @@ func TestInvoiceIssuingAndReviewEventsNeverMoveMoney(t *testing.T) {
 			"amount_paid": 10_000, "currency": "usd", "customer": f.customer, "status": "paid",
 			"metadata": f.ours(payments.KindCheckout),
 		})
-		if err != nil || out.Status != "ignored" {
-			t.Errorf("%s: %s, %v; want ignored", kind, out.Status, err)
+		want := "ignored"
+		switch kind {
+		case "invoice.finalized", "invoice.paid", "invoice.voided", "invoice.marked_uncollectible", "invoice.updated":
+			want = "processed"
+		}
+		if err != nil || out.Status != want {
+			t.Errorf("%s: %s, %v; want %s", kind, out.Status, err, want)
 		}
 	}
 	if len(f.lots()) != 1 || f.balance() != 100*billing.Micros {

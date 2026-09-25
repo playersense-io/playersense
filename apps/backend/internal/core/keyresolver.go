@@ -365,6 +365,17 @@ func ResolveReportingKey(ctx *muzak.Context) (*Tenant, error) {
 	return requireKind(ctx, KindReporting)
 }
 
+// ResolvePurchaseKey is the provider purchase verification declares: the game's own project key,
+// so a game without a server learns whether a purchase checked out, or the server key §47
+// prefers. Either way the store is asked by PlayerSense, never trusted from the caller.
+func ResolvePurchaseKey(ctx *muzak.Context) (*Tenant, error) {
+	presented, _ := muzak.BearerToken(ctx)
+	if publicID, _, err := ParseKey(presented); err == nil && KindOf(publicID) == KindServer {
+		return requireKind(ctx, KindServer)
+	}
+	return requireKind(ctx, KindProject)
+}
+
 // ResolveServerKey is the provider the server-to-server surface declares (§47).
 func ResolveServerKey(ctx *muzak.Context) (*Tenant, error) {
 	return requireKind(ctx, KindServer)

@@ -20,10 +20,60 @@ import (
 // RevenueFilter narrows revenue_daily and purchases by what was bought and where.
 type RevenueFilter struct {
 	Stores, Countries, Products []string
+
+	// Verified is the stores the project verifies purchases with, each from the day it began.
+	// Those stores' money is their verified purchases; every other store's is what the game
+	// reported ("verified wins", ADR 0048). Empty, everything is what the game reported.
+	Verified []VerifiedStore
+	// Statuses narrows the ledger to verified, refunded, sandbox or rejected purchases, or ""
+	// for reported ones.
+	Statuses []string
 }
 
-func (f RevenueFilter) apply(b *builder) {
+// VerifiedStore is a store whose purchases are verified, and since when.
+type VerifiedStore struct {
+	Store string
+	Since time.Time
+}
+
+func (f RevenueFilter) apply(b *builder) { f.applyOn(b, "day") }
+
+// applyOn narrows a table whose day column is `day`, and picks the purchases it counts.
+func (f RevenueFilter) applyOn(b *builder, day string) {
 	b.in("store", strs(f.Stores)).in("country_code", strs(f.Countries)).in("product_id", strs(f.Products))
+	f.counted(b, day)
+}
+
+// counted is "verified wins" as a predicate: for a store the project verifies with, from the day
+// it began, the verified rows; for the rest, the reported ones. One condition on columns the
+// table already has, so it costs a filter and never a join.
+func (f RevenueFilter) counted(b *builder, day string) {
+	if len(f.Verified) == 0 {
+		b.and("source = 'reported'")
+		return
+	}
+	var conds []string
+	var args []any
+	for _, v := range f.Verified {
+		conds = append(conds, "(store = ? AND "+day+" >= ?)")
+		args = append(args, v.Store, date(v.Since))
+	}
+	b.and("if("+strings.Join(conds, " OR ")+", source = 'verified', source = 'reported')", args...)
+}
+
+// payersCounted is the same choice for payers, which has no day: a verified store's payers are
+// its verified buyers.
+func (f RevenueFilter) payersCounted(b *builder) {
+	if len(f.Verified) == 0 {
+		b.and("source = 'reported'")
+		return
+	}
+	stores := make([]string, len(f.Verified))
+	args := make([]any, len(f.Verified))
+	for i, v := range f.Verified {
+		stores[i], args[i] = "?", v.Store
+	}
+	b.and("if(store IN ("+strings.Join(stores, ", ")+"), source = 'verified', source = 'reported')", args...)
 }
 
 // SpenderLadder is the lifetime spend bands of the spender tiers, in micros of the reported
@@ -50,14 +100,19 @@ func (e *Engine) Revenue(ctx context.Context, scope Scope, w Window, f RevenueFi
 		columnWith("uniqCombinedMergeIf(12)(buyers, day >= ?)", "cur_buyers", cut).
 		columnWith("sumIf(revenue_micros, day < ?)", "prev_rev", cut).
 		columnWith("sumIf(purchases, day < ?)", "prev_n", cut).
-		columnWith("uniqCombinedMergeIf(12)(buyers, day < ?)", "prev_buyers", cut)
+		columnWith("uniqCombinedMergeIf(12)(buyers, day < ?)", "prev_buyers", cut).
+		columnWith("sumIf(refunds, day >= ?)", "refunds", cut).
+		columnWith("sumIf(refunded_micros, day >= ?)", "refunded", cut).
+		columnWith("sumIf(sandbox, day >= ?)", "sandbox", cut).
+		columnWith("sumIf(rejected, day >= ?)", "rejected", cut)
 	scopeAnd(t, scope)
 	t.between("day", date(prev.From), date(w.To))
 	f.apply(t)
 	var buyers, prevBuyers uint64
 	if err := e.read(ctx, t.statement(), func(rows driver.Rows) error {
 		return rows.Scan(&out.Totals.RevenueMicros, &out.Totals.Purchases, &buyers,
-			&out.Totals.PreviousRevenueMicros, &out.Totals.PreviousPurchases, &prevBuyers)
+			&out.Totals.PreviousRevenueMicros, &out.Totals.PreviousPurchases, &prevBuyers,
+			&out.Totals.Refunds, &out.Totals.RefundedMicros, &out.Totals.Sandbox, &out.Totals.Rejected)
 	}); err != nil {
 		return nil, failed("revenue_daily", err)
 	}
@@ -66,7 +121,9 @@ func (e *Engine) Revenue(ctx context.Context, scope Scope, w Window, f RevenueFi
 	if out.Totals.Buyers == nil {
 		// The whole range was bought by fewer than the threshold: what they spent is theirs.
 		out.Totals.RevenueMicros, out.Totals.Purchases = 0, 0
+		out.Totals.Refunds, out.Totals.RefundedMicros = 0, 0
 	}
+	out.Totals.Verified = len(f.Verified) > 0
 	if out.Totals.PreviousBuyers == nil {
 		out.Totals.PreviousRevenueMicros, out.Totals.PreviousPurchases = 0, 0
 	}
@@ -113,10 +170,10 @@ func (e *Engine) Revenue(ctx context.Context, scope Scope, w Window, f RevenueFi
 	}
 	slices.Sort(out.Currencies)
 
-	if err := e.newPayers(ctx, scope, w, out, &withheld); err != nil {
+	if err := e.newPayers(ctx, scope, w, f, out, &withheld); err != nil {
 		return nil, err
 	}
-	if err := e.spenderTiers(ctx, scope, w, out, &withheld); err != nil {
+	if err := e.spenderTiers(ctx, scope, w, f, out, &withheld); err != nil {
 		return nil, err
 	}
 
@@ -261,10 +318,11 @@ func (e *Engine) revenueSlices(ctx context.Context, scope Scope, w Window, f Rev
 // payers holds each paying device as partial rows, so the inner statement finishes each device in
 // key order before its first purchase is true; the outer counts them by day. Both read payers
 // alone, which is a few percent of the players.
-func (e *Engine) newPayers(ctx context.Context, scope Scope, w Window, out *schemas.RevenueOut, withheld *Suppressed) error {
+func (e *Engine) newPayers(ctx context.Context, scope Scope, w Window, f RevenueFilter, out *schemas.RevenueOut, withheld *Suppressed) error {
 	inner := from(factPayers)
 	inner.column("min(first_purchase_at)", "first")
 	scopeAnd(inner, scope)
+	f.payersCounted(inner)
 	inner.group("project_seq", "environment_seq", "device_id").
 		havingThat("first >= ? AND first < ?", timestamp(w.From), timestamp(w.end()))
 
@@ -291,7 +349,7 @@ func (e *Engine) newPayers(ctx context.Context, scope Scope, w Window, out *sche
 }
 
 // spenderTiers splits everybody who bought in the window by what they have spent in their life.
-func (e *Engine) spenderTiers(ctx context.Context, scope Scope, w Window, out *schemas.RevenueOut, withheld *Suppressed) error {
+func (e *Engine) spenderTiers(ctx context.Context, scope Scope, w Window, f RevenueFilter, out *schemas.RevenueOut, withheld *Suppressed) error {
 	ladder := make([]string, len(SpenderLadder))
 	for i, b := range SpenderLadder {
 		ladder[i] = strconv.FormatInt(b, 10)
@@ -300,6 +358,7 @@ func (e *Engine) spenderTiers(ctx context.Context, scope Scope, w Window, out *s
 	inner := from(factPayers)
 	inner.column("sum(revenue_micros)", "spent").column("max(last_purchase_at)", "last")
 	scopeAnd(inner, scope)
+	f.payersCounted(inner)
 	inner.group("project_seq", "environment_seq", "device_id").
 		havingThat("last >= ? AND spent > 0", timestamp(w.From))
 
@@ -367,10 +426,18 @@ func (e *Engine) Purchases(ctx context.Context, scope Scope, w Window, f Revenue
 		column("toString(platform)", "p").
 		column("toString(country_code)", "c").
 		column("toString(app_version)", "v").
-		column("device_id", "device")
+		column("device_id", "device").
+		column("toString(source)", "src").
+		column("toString(status)", "status").
+		column("store_transaction_id", "txn").
+		column("refunded_at", "refunded").
+		column("toString(refund_reason)", "reason").
+		column("toString(rejection)", "rej").
+		column("verify_ms", "vms")
 	scopeAnd(b, scope)
 	b.between("purchase_date", date(w.From), date(w.To))
-	f.apply(b)
+	f.applyOn(b, "purchase_date")
+	b.in("status", strs(f.Statuses))
 	if before != "" {
 		at, id, err := parseCursor(before)
 		if err != nil {
@@ -380,14 +447,20 @@ func (e *Engine) Purchases(ctx context.Context, scope Scope, w Window, f Revenue
 	}
 	b.order("purchase_date DESC", "event_time DESC", "event_id DESC").withLimit(limit + 1)
 
-	out := &schemas.PurchasesOut{}
+	out := &schemas.PurchasesOut{Verified: len(f.Verified) > 0}
 	var devices []uint64
 	if err := e.read(ctx, b.statement(), func(rows driver.Rows) error {
 		var p schemas.PurchaseOut
 		var device uint64
+		var verifyMs uint32
 		if err := rows.Scan(&p.EventID, &p.At, &p.InstallID, &p.PlayerID, &p.SessionID, &p.ProductID,
-			&p.Store, &p.RevenueMicros, &p.Currency, &p.Platform, &p.Country, &p.AppVersion, &device); err != nil {
+			&p.Store, &p.RevenueMicros, &p.Currency, &p.Platform, &p.Country, &p.AppVersion, &device,
+			&p.Source, &p.Status, &p.StoreTransactionID, &p.RefundedAt, &p.RefundReason, &p.Rejection, &verifyMs); err != nil {
 			return err
+		}
+		p.VerifyMs = int(verifyMs)
+		if p.Status == "" {
+			p.Status = "reported"
 		}
 		out.Purchases = append(out.Purchases, p)
 		devices = append(devices, device)
@@ -410,6 +483,7 @@ func (e *Engine) Purchases(ctx context.Context, scope Scope, w Window, f Revenue
 	fb := from(factPayers)
 	fb.column("device_id", "device").column("min(first_purchase_at)", "first")
 	scopeAnd(fb, scope)
+	f.payersCounted(fb)
 	fb.in("device_id", uniqueDevices(devices))
 	fb.group("device_id")
 	if err := e.read(ctx, fb.statement(), func(rows driver.Rows) error {

@@ -65,11 +65,13 @@ import (
 	"playersense.dev/backend/internal/notify"
 	"playersense.dev/backend/internal/pgdb"
 	"playersense.dev/backend/internal/projects"
+	"playersense.dev/backend/internal/purchases"
 	"playersense.dev/backend/internal/query"
 	"playersense.dev/backend/internal/reports"
 	"playersense.dev/backend/internal/retention"
 	"playersense.dev/backend/internal/routers"
 	"playersense.dev/backend/internal/scheduler"
+	"playersense.dev/backend/internal/stores"
 	"playersense.dev/backend/internal/valkey"
 )
 
@@ -143,7 +145,16 @@ func once(settings config.Settings) error {
 		return err
 	}
 	_, reportErr := reportsDue.Run(ctx, time.Now().UTC())
-	return errors.Join(sched.Run(ctx), janitor.Run(ctx), reportErr)
+	shipper, upkeep := newPurchaseLoops(conn, deps)
+	var shipErr error
+	for {
+		n, err := shipper.Ship(ctx)
+		if err != nil || n < 1000 {
+			shipErr = err
+			break
+		}
+	}
+	return errors.Join(sched.Run(ctx), janitor.Run(ctx), reportErr, shipErr, upkeep.Run(ctx, time.Now().UTC()))
 }
 
 func build(settings config.Settings) (*muzak.App, error) {
@@ -167,6 +178,7 @@ func build(settings config.Settings) (*muzak.App, error) {
 	if err != nil {
 		return nil, err
 	}
+	shipper, upkeep := newPurchaseLoops(conn, deps)
 
 	app := muzak.New(muzak.AppOptions{
 		Title:   "PlayerSense Worker",
@@ -198,6 +210,8 @@ func build(settings config.Settings) (*muzak.App, error) {
 		muzak.WithSingleton(sched),
 		muzak.WithSingleton(janitor),
 		muzak.WithSingleton(reportsDue),
+		muzak.WithSingleton(shipper),
+		muzak.WithSingleton(upkeep),
 	)
 
 	app.Include(routers.Meta())
@@ -291,6 +305,14 @@ func newReportScheduler(settings config.Settings, conn *chdb.Conn, deps dependen
 		Engine: query.NewEngine(conn, query.DefaultLimits(), settings.QuerySuppressionK),
 		Every:  30 * time.Second,
 	}, nil
+}
+
+// newPurchaseLoops ships verified purchases to ClickHouse every two seconds, and sweeps the stores
+// for refunds and prunes the log every ten minutes.
+func newPurchaseLoops(conn *chdb.Conn, deps dependencies) (*purchases.Shipper, *purchases.Upkeep) {
+	shipper := &purchases.Shipper{DB: deps.db, ClickHouse: conn}
+	svc := &purchases.Service{DB: deps.db, Stores: stores.Live(nil)}
+	return shipper, &purchases.Upkeep{Service: svc, Shipper: shipper}
 }
 
 // newJanitor assembles §79's data-lifecycle jobs.

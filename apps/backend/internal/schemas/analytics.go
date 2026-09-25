@@ -561,6 +561,16 @@ type RevenueTotalsOut struct {
 	PreviousRevenueMicros int64   `json:"previous_revenue_micros"`
 	PreviousPurchases     uint64  `json:"previous_purchases"`
 	PreviousBuyers        *uint64 `json:"previous_buyers,omitzero"`
+
+	// Refunds are counted on the day the store gave the money back, net of refunds it reversed.
+	Refunds        int64 `json:"refunds"`
+	RefundedMicros int64 `json:"refunded_micros"`
+	// Sandbox is test purchases, verified and kept out of revenue; Rejected is receipts the stores
+	// turned away. Both only for stores the project verifies with.
+	Sandbox  uint64 `json:"sandbox"`
+	Rejected uint64 `json:"rejected"`
+	// Verified is whether any store's money here is its verified purchases (ADR 0048).
+	Verified bool `json:"verified"`
 }
 
 // RevenueDayOut is one day, and each store's share of it.
@@ -617,6 +627,8 @@ type PurchasesParams struct {
 	// Before is the cursor a previous page returned, so paging is stable while purchases keep
 	// arriving.
 	Before string `query:"before,omitzero" doc:"The next cursor of the previous page"`
+
+	Status string `query:"status,omitzero" doc:"Comma-separated: reported, verified, refunded, sandbox, rejected"`
 }
 
 func (in *PurchasesParams) Validate(v *muzak.Validation) {
@@ -625,13 +637,26 @@ func (in *PurchasesParams) Validate(v *muzak.Validation) {
 	in.validateFilter(v)
 	v.Number(&in.Limit).Min(1).Max(200)
 	v.String(&in.Before).Trim().MaxLen(96)
+	v.String(&in.Status).Trim().MaxLen(64)
+}
+
+// Statuses is the status filter as the ledger stores it: reported is the empty status.
+func (in PurchasesParams) Statuses() []string {
+	var out []string
+	for _, s := range splitList(in.Status) {
+		if s == "reported" {
+			s = ""
+		}
+		out = append(out, s)
+	}
+	return out
 }
 
 // PurchasesOut is one page of the ledger.
 type PurchasesOut struct {
 	Purchases []PurchaseOut `json:"purchases"`
 	Next      string        `json:"next,omitzero" doc:"Pass as before for the next page; absent on the last"`
-	Verified  bool          `json:"verified" doc:"Always false: these are purchases the game reported"`
+	Verified  bool          `json:"verified" doc:"Whether any store here is counted from its verified purchases"`
 }
 
 // PurchaseOut is one purchase the game reported.
@@ -651,6 +676,17 @@ type PurchaseOut struct {
 
 	// FirstPurchase is whether this was the install's first purchase ever.
 	FirstPurchase bool `json:"first_purchase"`
+
+	// Source is reported (the game's own event) or verified (checked with the store).
+	Source string `json:"source" enum:"reported,verified"`
+	// Status is reported for a reported purchase, and verified, refunded, sandbox or rejected for
+	// one checked with its store.
+	Status             string     `json:"status" enum:"reported,verified,refunded,sandbox,rejected"`
+	StoreTransactionID string     `json:"store_transaction_id,omitzero"`
+	RefundedAt         *time.Time `json:"refunded_at,omitzero"`
+	RefundReason       string     `json:"refund_reason,omitzero"`
+	Rejection          string     `json:"rejection,omitzero"`
+	VerifyMs           int        `json:"verify_ms,omitzero" doc:"How long the store took to answer"`
 }
 
 // ---- flag exposures ---------------------------------------------------------

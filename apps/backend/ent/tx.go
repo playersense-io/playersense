@@ -70,6 +70,12 @@ type Tx struct {
 	Plan *PlanClient
 	// Project is the client for interacting with the Project builders.
 	Project *ProjectClient
+	// PurchaseAttempt is the client for interacting with the PurchaseAttempt builders.
+	PurchaseAttempt *PurchaseAttemptClient
+	// PurchaseChange is the client for interacting with the PurchaseChange builders.
+	PurchaseChange *PurchaseChangeClient
+	// PurchaseProvider is the client for interacting with the PurchaseProvider builders.
+	PurchaseProvider *PurchaseProviderClient
 	// RateCard is the client for interacting with the RateCard builders.
 	RateCard *RateCardClient
 	// Receipt is the client for interacting with the Receipt builders.
@@ -261,6 +267,9 @@ func (tx *Tx) init() {
 	tx.PaymentCard = NewPaymentCardClient(tx.config)
 	tx.Plan = NewPlanClient(tx.config)
 	tx.Project = NewProjectClient(tx.config)
+	tx.PurchaseAttempt = NewPurchaseAttemptClient(tx.config)
+	tx.PurchaseChange = NewPurchaseChangeClient(tx.config)
+	tx.PurchaseProvider = NewPurchaseProviderClient(tx.config)
 	tx.RateCard = NewRateCardClient(tx.config)
 	tx.Receipt = NewReceiptClient(tx.config)
 	tx.Report = NewReportClient(tx.config)

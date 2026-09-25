@@ -7,6 +7,7 @@ import (
 
 	"playersense.dev/backend/ent"
 	"playersense.dev/backend/ent/dataexportrequest"
+	"playersense.dev/backend/ent/purchaseattempt"
 	"playersense.dev/backend/ent/verifiedpurchase"
 	"playersense.dev/backend/internal/subject"
 )
@@ -81,6 +82,16 @@ func (p *Purger) purgeAccount(ctx context.Context, db *sql.DB, req *ent.DataDele
 		SETTINGS mutations_sync = 2`, req.ProjectSeq, req.ActorKey); err != nil {
 		return fmt.Errorf("purge account: %w", err)
 	}
+	// A purchase verified for a player alone sits on a stand-in device that no event names, so
+	// the device purge cannot reach it; its rows carry the player id, and are matched on that.
+	for _, table := range []string{"purchases", "payers"} {
+		if _, err := db.ExecContext(ctx, `
+			ALTER TABLE `+table+`
+			DELETE WHERE project_seq = ? AND player_id = ?
+			SETTINGS mutations_sync = 2`, req.ProjectSeq, req.ActorKey); err != nil {
+			return fmt.Errorf("purge %s by player: %w", table, err)
+		}
+	}
 	return nil
 }
 
@@ -125,11 +136,20 @@ func (p *Purger) purgePurchases(ctx context.Context, req *ent.DataDeletionReques
 	n, err := p.DB.Client.VerifiedPurchase.Delete().
 		Where(
 			verifiedpurchase.ProjectUID(req.ProjectUID),
-			verifiedpurchase.PlayerID(req.ActorKey),
+			verifiedpurchase.Or(verifiedpurchase.PlayerID(req.ActorKey), verifiedpurchase.InstallID(req.ActorKey)),
 		).
 		Exec(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("purge verified purchases: %w", err)
+	}
+	// The verification log names them too: every receipt they sent, for thirty days.
+	if _, err := p.DB.Client.PurchaseAttempt.Delete().
+		Where(
+			purchaseattempt.ProjectID(int(req.ProjectSeq)),
+			purchaseattempt.Or(purchaseattempt.PlayerID(req.ActorKey), purchaseattempt.InstallID(req.ActorKey)),
+		).
+		Exec(ctx); err != nil {
+		return 0, fmt.Errorf("purge purchase attempts: %w", err)
 	}
 	return n, nil
 }

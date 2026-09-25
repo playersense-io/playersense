@@ -84,9 +84,12 @@ func TestEveryMutatingRouteDecidesAboutAudit(t *testing.T) {
 
 		"PUT /v1/organizations/{org}/projects/{project}/event-definitions/{name}": audit.EventDefined,
 
-		"POST /v1/organizations/{org}/projects/{project}/channels":             audit.ChannelWritten,
-		"PUT /v1/organizations/{org}/projects/{project}/channels/{channel}":    audit.ChannelWritten,
-		"DELETE /v1/organizations/{org}/projects/{project}/channels/{channel}": audit.ChannelDeleted,
+		"POST /v1/organizations/{org}/projects/{project}/channels":                        audit.ChannelWritten,
+		"PUT /v1/organizations/{org}/projects/{project}/channels/{channel}":               audit.ChannelWritten,
+		"DELETE /v1/organizations/{org}/projects/{project}/channels/{channel}":            audit.ChannelDeleted,
+		"PUT /v1/organizations/{org}/projects/{project}/stores/{store}":                   audit.StoreConnected,
+		"DELETE /v1/organizations/{org}/projects/{project}/stores/{store}":                audit.StoreDisconnected,
+		"POST /v1/organizations/{org}/projects/{project}/stores/{store}/notification-url": audit.StoreURLRotated,
 
 		"POST /v1/organizations/{org}/projects/{project}/reports":            audit.ReportWritten,
 		"PUT /v1/organizations/{org}/projects/{project}/reports/{report}":    audit.ReportWritten,
@@ -127,7 +130,12 @@ func TestEveryMutatingRouteDecidesAboutAudit(t *testing.T) {
 
 		// The SDK path. A batch is player data arriving, not a decision somebody made about
 		// an account, and one entry per batch would be tens of millions of rows a day.
-		"POST /v1/batches": "ingestion; an entry per batch is a request log, at ingestion volume",
+		"POST /v1/batches":                                                    "ingestion; an entry per batch is a request log, at ingestion volume",
+		"POST /v1/purchases/verify":                                           "a player's purchase: kept in verified_purchases and the verification log",
+		"POST /v1/store-notifications/apple/{project}/{token}":                "the store's word on a refund, kept on the purchase it changes",
+		"POST /v1/store-notifications/google/{project}/{token}":               "the store's word on a refund, kept on the purchase it changes",
+		"POST /v1/organizations/{org}/projects/{project}/stores/{store}/test": "tests the credentials; kept as the store's last test",
+		"POST /v1/operator/projects/{project}/purchase-check":                 "recorded in staff_access; checks a receipt and records nothing",
 
 		// These two genuinely change something, and they keep a **better** record than an
 		// audit line: their own tables carry a status machine through to completion, plus

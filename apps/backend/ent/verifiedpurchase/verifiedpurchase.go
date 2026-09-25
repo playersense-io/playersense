@@ -23,20 +23,54 @@ const (
 	FieldUpdatedAt = "updated_at"
 	// FieldProjectUID holds the string denoting the project_uid field in the database.
 	FieldProjectUID = "project_uid"
+	// FieldEnvironmentID holds the string denoting the environment_id field in the database.
+	FieldEnvironmentID = "environment_id"
 	// FieldPlayerID holds the string denoting the player_id field in the database.
 	FieldPlayerID = "player_id"
+	// FieldInstallID holds the string denoting the install_id field in the database.
+	FieldInstallID = "install_id"
 	// FieldPlatform holds the string denoting the platform field in the database.
 	FieldPlatform = "platform"
 	// FieldStoreTransactionID holds the string denoting the store_transaction_id field in the database.
 	FieldStoreTransactionID = "store_transaction_id"
+	// FieldOriginalTransactionID holds the string denoting the original_transaction_id field in the database.
+	FieldOriginalTransactionID = "original_transaction_id"
+	// FieldOrderID holds the string denoting the order_id field in the database.
+	FieldOrderID = "order_id"
+	// FieldTokenDigest holds the string denoting the token_digest field in the database.
+	FieldTokenDigest = "token_digest"
 	// FieldProductID holds the string denoting the product_id field in the database.
 	FieldProductID = "product_id"
+	// FieldKind holds the string denoting the kind field in the database.
+	FieldKind = "kind"
+	// FieldQuantity holds the string denoting the quantity field in the database.
+	FieldQuantity = "quantity"
 	// FieldAmountMicros holds the string denoting the amount_micros field in the database.
 	FieldAmountMicros = "amount_micros"
 	// FieldCurrency holds the string denoting the currency field in the database.
 	FieldCurrency = "currency"
+	// FieldPriceFromStore holds the string denoting the price_from_store field in the database.
+	FieldPriceFromStore = "price_from_store"
+	// FieldCountry holds the string denoting the country field in the database.
+	FieldCountry = "country"
+	// FieldSandbox holds the string denoting the sandbox field in the database.
+	FieldSandbox = "sandbox"
 	// FieldPurchasedAt holds the string denoting the purchased_at field in the database.
 	FieldPurchasedAt = "purchased_at"
+	// FieldStatus holds the string denoting the status field in the database.
+	FieldStatus = "status"
+	// FieldRefundedAt holds the string denoting the refunded_at field in the database.
+	FieldRefundedAt = "refunded_at"
+	// FieldRefundReason holds the string denoting the refund_reason field in the database.
+	FieldRefundReason = "refund_reason"
+	// FieldRefundSource holds the string denoting the refund_source field in the database.
+	FieldRefundSource = "refund_source"
+	// FieldFirstPurchase holds the string denoting the first_purchase field in the database.
+	FieldFirstPurchase = "first_purchase"
+	// FieldVerifyMs holds the string denoting the verify_ms field in the database.
+	FieldVerifyMs = "verify_ms"
+	// FieldVerifiedVia holds the string denoting the verified_via field in the database.
+	FieldVerifiedVia = "verified_via"
 	// Table holds the table name of the verifiedpurchase in the database.
 	Table = "verified_purchases"
 )
@@ -48,13 +82,30 @@ var Columns = []string{
 	FieldCreatedAt,
 	FieldUpdatedAt,
 	FieldProjectUID,
+	FieldEnvironmentID,
 	FieldPlayerID,
+	FieldInstallID,
 	FieldPlatform,
 	FieldStoreTransactionID,
+	FieldOriginalTransactionID,
+	FieldOrderID,
+	FieldTokenDigest,
 	FieldProductID,
+	FieldKind,
+	FieldQuantity,
 	FieldAmountMicros,
 	FieldCurrency,
+	FieldPriceFromStore,
+	FieldCountry,
+	FieldSandbox,
 	FieldPurchasedAt,
+	FieldStatus,
+	FieldRefundedAt,
+	FieldRefundReason,
+	FieldRefundSource,
+	FieldFirstPurchase,
+	FieldVerifyMs,
+	FieldVerifiedVia,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -76,14 +127,60 @@ var (
 	DefaultUpdatedAt func() time.Time
 	// UpdateDefaultUpdatedAt holds the default value on update for the "updated_at" field.
 	UpdateDefaultUpdatedAt func() time.Time
+	// DefaultEnvironmentID holds the default value on creation for the "environment_id" field.
+	DefaultEnvironmentID int
+	// DefaultPlayerID holds the default value on creation for the "player_id" field.
+	DefaultPlayerID string
 	// PlayerIDValidator is a validator for the "player_id" field. It is called by the builders before save.
 	PlayerIDValidator func(string) error
+	// DefaultInstallID holds the default value on creation for the "install_id" field.
+	DefaultInstallID string
+	// InstallIDValidator is a validator for the "install_id" field. It is called by the builders before save.
+	InstallIDValidator func(string) error
 	// StoreTransactionIDValidator is a validator for the "store_transaction_id" field. It is called by the builders before save.
 	StoreTransactionIDValidator func(string) error
+	// DefaultOriginalTransactionID holds the default value on creation for the "original_transaction_id" field.
+	DefaultOriginalTransactionID string
+	// OriginalTransactionIDValidator is a validator for the "original_transaction_id" field. It is called by the builders before save.
+	OriginalTransactionIDValidator func(string) error
+	// DefaultOrderID holds the default value on creation for the "order_id" field.
+	DefaultOrderID string
+	// OrderIDValidator is a validator for the "order_id" field. It is called by the builders before save.
+	OrderIDValidator func(string) error
+	// DefaultTokenDigest holds the default value on creation for the "token_digest" field.
+	DefaultTokenDigest string
+	// TokenDigestValidator is a validator for the "token_digest" field. It is called by the builders before save.
+	TokenDigestValidator func(string) error
 	// ProductIDValidator is a validator for the "product_id" field. It is called by the builders before save.
 	ProductIDValidator func(string) error
+	// DefaultQuantity holds the default value on creation for the "quantity" field.
+	DefaultQuantity int
 	// CurrencyValidator is a validator for the "currency" field. It is called by the builders before save.
 	CurrencyValidator func(string) error
+	// DefaultPriceFromStore holds the default value on creation for the "price_from_store" field.
+	DefaultPriceFromStore bool
+	// DefaultCountry holds the default value on creation for the "country" field.
+	DefaultCountry string
+	// CountryValidator is a validator for the "country" field. It is called by the builders before save.
+	CountryValidator func(string) error
+	// DefaultSandbox holds the default value on creation for the "sandbox" field.
+	DefaultSandbox bool
+	// DefaultRefundReason holds the default value on creation for the "refund_reason" field.
+	DefaultRefundReason string
+	// RefundReasonValidator is a validator for the "refund_reason" field. It is called by the builders before save.
+	RefundReasonValidator func(string) error
+	// DefaultRefundSource holds the default value on creation for the "refund_source" field.
+	DefaultRefundSource string
+	// RefundSourceValidator is a validator for the "refund_source" field. It is called by the builders before save.
+	RefundSourceValidator func(string) error
+	// DefaultFirstPurchase holds the default value on creation for the "first_purchase" field.
+	DefaultFirstPurchase bool
+	// DefaultVerifyMs holds the default value on creation for the "verify_ms" field.
+	DefaultVerifyMs int
+	// DefaultVerifiedVia holds the default value on creation for the "verified_via" field.
+	DefaultVerifiedVia string
+	// VerifiedViaValidator is a validator for the "verified_via" field. It is called by the builders before save.
+	VerifiedViaValidator func(string) error
 )
 
 // Platform defines the type for the "platform" enum field.
@@ -107,6 +204,60 @@ func PlatformValidator(pl Platform) error {
 		return nil
 	default:
 		return fmt.Errorf("verifiedpurchase: invalid enum value for platform field: %q", pl)
+	}
+}
+
+// Kind defines the type for the "kind" enum field.
+type Kind string
+
+// KindUnknown is the default value of the Kind enum.
+const DefaultKind = KindUnknown
+
+// Kind values.
+const (
+	KindConsumable    Kind = "consumable"
+	KindNonConsumable Kind = "non_consumable"
+	KindSubscription  Kind = "subscription"
+	KindUnknown       Kind = "unknown"
+)
+
+func (k Kind) String() string {
+	return string(k)
+}
+
+// KindValidator is a validator for the "kind" field enum values. It is called by the builders before save.
+func KindValidator(k Kind) error {
+	switch k {
+	case KindConsumable, KindNonConsumable, KindSubscription, KindUnknown:
+		return nil
+	default:
+		return fmt.Errorf("verifiedpurchase: invalid enum value for kind field: %q", k)
+	}
+}
+
+// Status defines the type for the "status" enum field.
+type Status string
+
+// StatusVerified is the default value of the Status enum.
+const DefaultStatus = StatusVerified
+
+// Status values.
+const (
+	StatusVerified Status = "verified"
+	StatusRefunded Status = "refunded"
+)
+
+func (s Status) String() string {
+	return string(s)
+}
+
+// StatusValidator is a validator for the "status" field enum values. It is called by the builders before save.
+func StatusValidator(s Status) error {
+	switch s {
+	case StatusVerified, StatusRefunded:
+		return nil
+	default:
+		return fmt.Errorf("verifiedpurchase: invalid enum value for status field: %q", s)
 	}
 }
 
@@ -138,9 +289,19 @@ func ByProjectUID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldProjectUID, opts...).ToFunc()
 }
 
+// ByEnvironmentID orders the results by the environment_id field.
+func ByEnvironmentID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldEnvironmentID, opts...).ToFunc()
+}
+
 // ByPlayerID orders the results by the player_id field.
 func ByPlayerID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldPlayerID, opts...).ToFunc()
+}
+
+// ByInstallID orders the results by the install_id field.
+func ByInstallID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldInstallID, opts...).ToFunc()
 }
 
 // ByPlatform orders the results by the platform field.
@@ -153,9 +314,34 @@ func ByStoreTransactionID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldStoreTransactionID, opts...).ToFunc()
 }
 
+// ByOriginalTransactionID orders the results by the original_transaction_id field.
+func ByOriginalTransactionID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldOriginalTransactionID, opts...).ToFunc()
+}
+
+// ByOrderID orders the results by the order_id field.
+func ByOrderID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldOrderID, opts...).ToFunc()
+}
+
+// ByTokenDigest orders the results by the token_digest field.
+func ByTokenDigest(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTokenDigest, opts...).ToFunc()
+}
+
 // ByProductID orders the results by the product_id field.
 func ByProductID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldProductID, opts...).ToFunc()
+}
+
+// ByKind orders the results by the kind field.
+func ByKind(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldKind, opts...).ToFunc()
+}
+
+// ByQuantity orders the results by the quantity field.
+func ByQuantity(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldQuantity, opts...).ToFunc()
 }
 
 // ByAmountMicros orders the results by the amount_micros field.
@@ -168,7 +354,57 @@ func ByCurrency(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCurrency, opts...).ToFunc()
 }
 
+// ByPriceFromStore orders the results by the price_from_store field.
+func ByPriceFromStore(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPriceFromStore, opts...).ToFunc()
+}
+
+// ByCountry orders the results by the country field.
+func ByCountry(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCountry, opts...).ToFunc()
+}
+
+// BySandbox orders the results by the sandbox field.
+func BySandbox(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSandbox, opts...).ToFunc()
+}
+
 // ByPurchasedAt orders the results by the purchased_at field.
 func ByPurchasedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldPurchasedAt, opts...).ToFunc()
+}
+
+// ByStatus orders the results by the status field.
+func ByStatus(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldStatus, opts...).ToFunc()
+}
+
+// ByRefundedAt orders the results by the refunded_at field.
+func ByRefundedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRefundedAt, opts...).ToFunc()
+}
+
+// ByRefundReason orders the results by the refund_reason field.
+func ByRefundReason(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRefundReason, opts...).ToFunc()
+}
+
+// ByRefundSource orders the results by the refund_source field.
+func ByRefundSource(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRefundSource, opts...).ToFunc()
+}
+
+// ByFirstPurchase orders the results by the first_purchase field.
+func ByFirstPurchase(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldFirstPurchase, opts...).ToFunc()
+}
+
+// ByVerifyMs orders the results by the verify_ms field.
+func ByVerifyMs(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldVerifyMs, opts...).ToFunc()
+}
+
+// ByVerifiedVia orders the results by the verified_via field.
+func ByVerifiedVia(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldVerifiedVia, opts...).ToFunc()
 }

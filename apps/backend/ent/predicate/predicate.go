@@ -90,6 +90,15 @@ type Plan func(*sql.Selector)
 // Project is the predicate function for project builders.
 type Project func(*sql.Selector)
 
+// PurchaseAttempt is the predicate function for purchaseattempt builders.
+type PurchaseAttempt func(*sql.Selector)
+
+// PurchaseChange is the predicate function for purchasechange builders.
+type PurchaseChange func(*sql.Selector)
+
+// PurchaseProvider is the predicate function for purchaseprovider builders.
+type PurchaseProvider func(*sql.Selector)
+
 // RateCard is the predicate function for ratecard builders.
 type RateCard func(*sql.Selector)
 

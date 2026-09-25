@@ -12,6 +12,7 @@ import (
 	projectpkg "playersense.dev/backend/ent/project"
 	"playersense.dev/backend/internal/authz"
 	"playersense.dev/backend/internal/core"
+	"playersense.dev/backend/internal/purchases"
 	"playersense.dev/backend/internal/query"
 	"playersense.dev/backend/internal/schemas"
 )
@@ -182,9 +183,15 @@ func timezone(name string) (*time.Location, error) {
 	return tz, nil
 }
 
-func revenueFilter(f schemas.RevenueFilter) query.RevenueFilter {
+// revenueFilter reads the page's filter, with the stores the project verifies purchases with,
+// whose money is their verified purchases (ADR 0048).
+func revenueFilter(ctx *muzak.Context, scope query.Scope, f schemas.RevenueFilter) (query.RevenueFilter, error) {
 	stores, countries, products := f.Lists()
-	return query.RevenueFilter{Stores: stores, Countries: countries, Products: products}
+	verified, err := purchases.VerifiedStores(ctx.Context(), muzak.From[*core.DB](ctx).Client, int(scope.ProjectSeq))
+	if err != nil {
+		return query.RevenueFilter{}, err
+	}
+	return query.RevenueFilter{Stores: stores, Countries: countries, Products: products, Verified: verified}, nil
 }
 
 // Revenue answers the Revenue page.
@@ -197,7 +204,11 @@ func Revenue(ctx *muzak.Context, in schemas.RevenueParams) (schemas.RevenueOut, 
 	if err != nil {
 		return schemas.RevenueOut{}, err
 	}
-	out, err := engine.Revenue(ctx.Context(), scope, w, revenueFilter(in.RevenueFilter), tz)
+	filter, err := revenueFilter(ctx, scope, in.RevenueFilter)
+	if err != nil {
+		return schemas.RevenueOut{}, err
+	}
+	out, err := engine.Revenue(ctx.Context(), scope, w, filter, tz)
 	if err != nil {
 		return schemas.RevenueOut{}, exploreFailed(err, "revenue")
 	}
@@ -210,7 +221,12 @@ func Purchases(ctx *muzak.Context, in schemas.PurchasesParams) (schemas.Purchase
 	if err != nil {
 		return schemas.PurchasesOut{}, err
 	}
-	out, err := engine.Purchases(ctx.Context(), scope, w, revenueFilter(in.RevenueFilter), in.Limit, in.Before)
+	filter, err := revenueFilter(ctx, scope, in.RevenueFilter)
+	if err != nil {
+		return schemas.PurchasesOut{}, err
+	}
+	filter.Statuses = in.Statuses()
+	out, err := engine.Purchases(ctx.Context(), scope, w, filter, in.Limit, in.Before)
 	if err != nil {
 		return schemas.PurchasesOut{}, exploreFailed(err, "purchase")
 	}

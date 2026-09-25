@@ -40,6 +40,9 @@ import (
 	"playersense.dev/backend/ent/paymentcard"
 	"playersense.dev/backend/ent/plan"
 	"playersense.dev/backend/ent/project"
+	"playersense.dev/backend/ent/purchaseattempt"
+	"playersense.dev/backend/ent/purchasechange"
+	"playersense.dev/backend/ent/purchaseprovider"
 	"playersense.dev/backend/ent/ratecard"
 	"playersense.dev/backend/ent/receipt"
 	"playersense.dev/backend/ent/report"
@@ -144,6 +147,9 @@ func checkColumn(t, c string) error {
 			paymentcard.Table:         paymentcard.ValidColumn,
 			plan.Table:                plan.ValidColumn,
 			project.Table:             project.ValidColumn,
+			purchaseattempt.Table:     purchaseattempt.ValidColumn,
+			purchasechange.Table:      purchasechange.ValidColumn,
+			purchaseprovider.Table:    purchaseprovider.ValidColumn,
 			ratecard.Table:            ratecard.ValidColumn,
 			receipt.Table:             receipt.ValidColumn,
 			report.Table:              report.ValidColumn,

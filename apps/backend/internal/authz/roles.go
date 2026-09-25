@@ -70,6 +70,8 @@ func Templates() []Template {
 				LiveOpsRead, LiveOpsWrite,
 				AnalyticsRead, PlayerRead,
 				ReportsRead, ReportsWrite,
+				// Connecting the stores is integration work, like the keys.
+				PurchasesConfigure,
 			},
 		},
 		{

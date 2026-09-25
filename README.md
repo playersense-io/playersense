@@ -201,6 +201,38 @@ a due report by moving its next run forward in one conditional update, so two wo
 schedule twice, and marks a run whose process died as failed. Reading needs `reports.read`; changing
 and running need `reports.write`, and a preview or a run `analytics.read` and `player.read` as well.
 
+**Purchase verification** (project.md §46-48, [ADR 0048](docs/adr/0048-verified-purchases-win.md)):
+
+```
+       POST                 /v1/purchases/verify                 project key or server key
+GET                         /v1/purchases/{store}/{transaction}  server key: what was verified, refunded since
+GET                         /v1/players/{player}/purchases       server key
+       POST                 /v1/store-notifications/apple/{project}/{token}    App Store Server Notifications V2
+       POST                 /v1/store-notifications/google/{project}/{token}   a Pub/Sub push of Play's RTDN
+GET                         /v1/organizations/{org}/projects/{project}/stores
+       PUT    DELETE        …/stores/{app_store|google_play|steam}  connect, change, disconnect
+       POST                 …/stores/{store}/test               the credentials, without a purchase
+       POST                 …/stores/{store}/notification-url   a new URL; the old one stops
+GET                         …/purchase-attempts                  the verification log, with each step
+GET                         …/verified-purchases/{id}
+GET                         /v1/operator/purchase-verification   staff: the day across the platform
+GET                         /v1/operator/purchase-attempts[/{attempt}]
+       POST                 /v1/operator/projects/{project}/purchase-check   staff: a receipt, step by step, recording nothing
+```
+
+The game or its server sends what the store handed it: an App Store purchase's StoreKit 2
+`signed_transaction` (checked against Apple Root CA G3, no call to Apple) or its `transaction_id`
+(looked up with the project's In-App Purchase key); a Google Play `purchase_token` with its
+`product_id` and the price the game showed, since Google's answer carries none; a Steam `order_id`.
+PlayerSense always asks the store, and the answer's `status` says what to do: grant on `verified` or
+`sandbox`, keyed by the purchase `id`, never on `rejected`. A retry answers the same purchase with
+`duplicate` set; the same transaction for another player is rejected as `replayed`. Refunds arrive
+by the stores' notifications and by a sweep of every store every six hours. Each change ships to
+ClickHouse's `purchases` through the `purchase_changes` outbox, exactly once, and from the day a
+store is connected its revenue is its verified purchases rather than what the game reports ("verified
+wins"). Connecting stores needs `purchases.configure`; the log and the purchases need `player.read`.
+The web shop is not verified yet and stays what the game reports.
+
 **A project's settings**:
 
 ```

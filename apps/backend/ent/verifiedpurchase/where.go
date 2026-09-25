@@ -75,9 +75,19 @@ func ProjectUID(v uuid.UUID) predicate.VerifiedPurchase {
 	return predicate.VerifiedPurchase(sql.FieldEQ(FieldProjectUID, v))
 }
 
+// EnvironmentID applies equality check predicate on the "environment_id" field. It's identical to EnvironmentIDEQ.
+func EnvironmentID(v int) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldEQ(FieldEnvironmentID, v))
+}
+
 // PlayerID applies equality check predicate on the "player_id" field. It's identical to PlayerIDEQ.
 func PlayerID(v string) predicate.VerifiedPurchase {
 	return predicate.VerifiedPurchase(sql.FieldEQ(FieldPlayerID, v))
+}
+
+// InstallID applies equality check predicate on the "install_id" field. It's identical to InstallIDEQ.
+func InstallID(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldEQ(FieldInstallID, v))
 }
 
 // StoreTransactionID applies equality check predicate on the "store_transaction_id" field. It's identical to StoreTransactionIDEQ.
@@ -85,9 +95,29 @@ func StoreTransactionID(v string) predicate.VerifiedPurchase {
 	return predicate.VerifiedPurchase(sql.FieldEQ(FieldStoreTransactionID, v))
 }
 
+// OriginalTransactionID applies equality check predicate on the "original_transaction_id" field. It's identical to OriginalTransactionIDEQ.
+func OriginalTransactionID(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldEQ(FieldOriginalTransactionID, v))
+}
+
+// OrderID applies equality check predicate on the "order_id" field. It's identical to OrderIDEQ.
+func OrderID(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldEQ(FieldOrderID, v))
+}
+
+// TokenDigest applies equality check predicate on the "token_digest" field. It's identical to TokenDigestEQ.
+func TokenDigest(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldEQ(FieldTokenDigest, v))
+}
+
 // ProductID applies equality check predicate on the "product_id" field. It's identical to ProductIDEQ.
 func ProductID(v string) predicate.VerifiedPurchase {
 	return predicate.VerifiedPurchase(sql.FieldEQ(FieldProductID, v))
+}
+
+// Quantity applies equality check predicate on the "quantity" field. It's identical to QuantityEQ.
+func Quantity(v int) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldEQ(FieldQuantity, v))
 }
 
 // AmountMicros applies equality check predicate on the "amount_micros" field. It's identical to AmountMicrosEQ.
@@ -100,9 +130,54 @@ func Currency(v string) predicate.VerifiedPurchase {
 	return predicate.VerifiedPurchase(sql.FieldEQ(FieldCurrency, v))
 }
 
+// PriceFromStore applies equality check predicate on the "price_from_store" field. It's identical to PriceFromStoreEQ.
+func PriceFromStore(v bool) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldEQ(FieldPriceFromStore, v))
+}
+
+// Country applies equality check predicate on the "country" field. It's identical to CountryEQ.
+func Country(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldEQ(FieldCountry, v))
+}
+
+// Sandbox applies equality check predicate on the "sandbox" field. It's identical to SandboxEQ.
+func Sandbox(v bool) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldEQ(FieldSandbox, v))
+}
+
 // PurchasedAt applies equality check predicate on the "purchased_at" field. It's identical to PurchasedAtEQ.
 func PurchasedAt(v time.Time) predicate.VerifiedPurchase {
 	return predicate.VerifiedPurchase(sql.FieldEQ(FieldPurchasedAt, v))
+}
+
+// RefundedAt applies equality check predicate on the "refunded_at" field. It's identical to RefundedAtEQ.
+func RefundedAt(v time.Time) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldEQ(FieldRefundedAt, v))
+}
+
+// RefundReason applies equality check predicate on the "refund_reason" field. It's identical to RefundReasonEQ.
+func RefundReason(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldEQ(FieldRefundReason, v))
+}
+
+// RefundSource applies equality check predicate on the "refund_source" field. It's identical to RefundSourceEQ.
+func RefundSource(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldEQ(FieldRefundSource, v))
+}
+
+// FirstPurchase applies equality check predicate on the "first_purchase" field. It's identical to FirstPurchaseEQ.
+func FirstPurchase(v bool) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldEQ(FieldFirstPurchase, v))
+}
+
+// VerifyMs applies equality check predicate on the "verify_ms" field. It's identical to VerifyMsEQ.
+func VerifyMs(v int) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldEQ(FieldVerifyMs, v))
+}
+
+// VerifiedVia applies equality check predicate on the "verified_via" field. It's identical to VerifiedViaEQ.
+func VerifiedVia(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldEQ(FieldVerifiedVia, v))
 }
 
 // UIDEQ applies the EQ predicate on the "uid" field.
@@ -265,6 +340,46 @@ func ProjectUIDLTE(v uuid.UUID) predicate.VerifiedPurchase {
 	return predicate.VerifiedPurchase(sql.FieldLTE(FieldProjectUID, v))
 }
 
+// EnvironmentIDEQ applies the EQ predicate on the "environment_id" field.
+func EnvironmentIDEQ(v int) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldEQ(FieldEnvironmentID, v))
+}
+
+// EnvironmentIDNEQ applies the NEQ predicate on the "environment_id" field.
+func EnvironmentIDNEQ(v int) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldNEQ(FieldEnvironmentID, v))
+}
+
+// EnvironmentIDIn applies the In predicate on the "environment_id" field.
+func EnvironmentIDIn(vs ...int) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldIn(FieldEnvironmentID, vs...))
+}
+
+// EnvironmentIDNotIn applies the NotIn predicate on the "environment_id" field.
+func EnvironmentIDNotIn(vs ...int) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldNotIn(FieldEnvironmentID, vs...))
+}
+
+// EnvironmentIDGT applies the GT predicate on the "environment_id" field.
+func EnvironmentIDGT(v int) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldGT(FieldEnvironmentID, v))
+}
+
+// EnvironmentIDGTE applies the GTE predicate on the "environment_id" field.
+func EnvironmentIDGTE(v int) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldGTE(FieldEnvironmentID, v))
+}
+
+// EnvironmentIDLT applies the LT predicate on the "environment_id" field.
+func EnvironmentIDLT(v int) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldLT(FieldEnvironmentID, v))
+}
+
+// EnvironmentIDLTE applies the LTE predicate on the "environment_id" field.
+func EnvironmentIDLTE(v int) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldLTE(FieldEnvironmentID, v))
+}
+
 // PlayerIDEQ applies the EQ predicate on the "player_id" field.
 func PlayerIDEQ(v string) predicate.VerifiedPurchase {
 	return predicate.VerifiedPurchase(sql.FieldEQ(FieldPlayerID, v))
@@ -328,6 +443,71 @@ func PlayerIDEqualFold(v string) predicate.VerifiedPurchase {
 // PlayerIDContainsFold applies the ContainsFold predicate on the "player_id" field.
 func PlayerIDContainsFold(v string) predicate.VerifiedPurchase {
 	return predicate.VerifiedPurchase(sql.FieldContainsFold(FieldPlayerID, v))
+}
+
+// InstallIDEQ applies the EQ predicate on the "install_id" field.
+func InstallIDEQ(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldEQ(FieldInstallID, v))
+}
+
+// InstallIDNEQ applies the NEQ predicate on the "install_id" field.
+func InstallIDNEQ(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldNEQ(FieldInstallID, v))
+}
+
+// InstallIDIn applies the In predicate on the "install_id" field.
+func InstallIDIn(vs ...string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldIn(FieldInstallID, vs...))
+}
+
+// InstallIDNotIn applies the NotIn predicate on the "install_id" field.
+func InstallIDNotIn(vs ...string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldNotIn(FieldInstallID, vs...))
+}
+
+// InstallIDGT applies the GT predicate on the "install_id" field.
+func InstallIDGT(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldGT(FieldInstallID, v))
+}
+
+// InstallIDGTE applies the GTE predicate on the "install_id" field.
+func InstallIDGTE(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldGTE(FieldInstallID, v))
+}
+
+// InstallIDLT applies the LT predicate on the "install_id" field.
+func InstallIDLT(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldLT(FieldInstallID, v))
+}
+
+// InstallIDLTE applies the LTE predicate on the "install_id" field.
+func InstallIDLTE(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldLTE(FieldInstallID, v))
+}
+
+// InstallIDContains applies the Contains predicate on the "install_id" field.
+func InstallIDContains(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldContains(FieldInstallID, v))
+}
+
+// InstallIDHasPrefix applies the HasPrefix predicate on the "install_id" field.
+func InstallIDHasPrefix(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldHasPrefix(FieldInstallID, v))
+}
+
+// InstallIDHasSuffix applies the HasSuffix predicate on the "install_id" field.
+func InstallIDHasSuffix(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldHasSuffix(FieldInstallID, v))
+}
+
+// InstallIDEqualFold applies the EqualFold predicate on the "install_id" field.
+func InstallIDEqualFold(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldEqualFold(FieldInstallID, v))
+}
+
+// InstallIDContainsFold applies the ContainsFold predicate on the "install_id" field.
+func InstallIDContainsFold(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldContainsFold(FieldInstallID, v))
 }
 
 // PlatformEQ applies the EQ predicate on the "platform" field.
@@ -415,6 +595,201 @@ func StoreTransactionIDContainsFold(v string) predicate.VerifiedPurchase {
 	return predicate.VerifiedPurchase(sql.FieldContainsFold(FieldStoreTransactionID, v))
 }
 
+// OriginalTransactionIDEQ applies the EQ predicate on the "original_transaction_id" field.
+func OriginalTransactionIDEQ(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldEQ(FieldOriginalTransactionID, v))
+}
+
+// OriginalTransactionIDNEQ applies the NEQ predicate on the "original_transaction_id" field.
+func OriginalTransactionIDNEQ(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldNEQ(FieldOriginalTransactionID, v))
+}
+
+// OriginalTransactionIDIn applies the In predicate on the "original_transaction_id" field.
+func OriginalTransactionIDIn(vs ...string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldIn(FieldOriginalTransactionID, vs...))
+}
+
+// OriginalTransactionIDNotIn applies the NotIn predicate on the "original_transaction_id" field.
+func OriginalTransactionIDNotIn(vs ...string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldNotIn(FieldOriginalTransactionID, vs...))
+}
+
+// OriginalTransactionIDGT applies the GT predicate on the "original_transaction_id" field.
+func OriginalTransactionIDGT(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldGT(FieldOriginalTransactionID, v))
+}
+
+// OriginalTransactionIDGTE applies the GTE predicate on the "original_transaction_id" field.
+func OriginalTransactionIDGTE(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldGTE(FieldOriginalTransactionID, v))
+}
+
+// OriginalTransactionIDLT applies the LT predicate on the "original_transaction_id" field.
+func OriginalTransactionIDLT(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldLT(FieldOriginalTransactionID, v))
+}
+
+// OriginalTransactionIDLTE applies the LTE predicate on the "original_transaction_id" field.
+func OriginalTransactionIDLTE(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldLTE(FieldOriginalTransactionID, v))
+}
+
+// OriginalTransactionIDContains applies the Contains predicate on the "original_transaction_id" field.
+func OriginalTransactionIDContains(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldContains(FieldOriginalTransactionID, v))
+}
+
+// OriginalTransactionIDHasPrefix applies the HasPrefix predicate on the "original_transaction_id" field.
+func OriginalTransactionIDHasPrefix(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldHasPrefix(FieldOriginalTransactionID, v))
+}
+
+// OriginalTransactionIDHasSuffix applies the HasSuffix predicate on the "original_transaction_id" field.
+func OriginalTransactionIDHasSuffix(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldHasSuffix(FieldOriginalTransactionID, v))
+}
+
+// OriginalTransactionIDEqualFold applies the EqualFold predicate on the "original_transaction_id" field.
+func OriginalTransactionIDEqualFold(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldEqualFold(FieldOriginalTransactionID, v))
+}
+
+// OriginalTransactionIDContainsFold applies the ContainsFold predicate on the "original_transaction_id" field.
+func OriginalTransactionIDContainsFold(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldContainsFold(FieldOriginalTransactionID, v))
+}
+
+// OrderIDEQ applies the EQ predicate on the "order_id" field.
+func OrderIDEQ(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldEQ(FieldOrderID, v))
+}
+
+// OrderIDNEQ applies the NEQ predicate on the "order_id" field.
+func OrderIDNEQ(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldNEQ(FieldOrderID, v))
+}
+
+// OrderIDIn applies the In predicate on the "order_id" field.
+func OrderIDIn(vs ...string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldIn(FieldOrderID, vs...))
+}
+
+// OrderIDNotIn applies the NotIn predicate on the "order_id" field.
+func OrderIDNotIn(vs ...string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldNotIn(FieldOrderID, vs...))
+}
+
+// OrderIDGT applies the GT predicate on the "order_id" field.
+func OrderIDGT(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldGT(FieldOrderID, v))
+}
+
+// OrderIDGTE applies the GTE predicate on the "order_id" field.
+func OrderIDGTE(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldGTE(FieldOrderID, v))
+}
+
+// OrderIDLT applies the LT predicate on the "order_id" field.
+func OrderIDLT(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldLT(FieldOrderID, v))
+}
+
+// OrderIDLTE applies the LTE predicate on the "order_id" field.
+func OrderIDLTE(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldLTE(FieldOrderID, v))
+}
+
+// OrderIDContains applies the Contains predicate on the "order_id" field.
+func OrderIDContains(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldContains(FieldOrderID, v))
+}
+
+// OrderIDHasPrefix applies the HasPrefix predicate on the "order_id" field.
+func OrderIDHasPrefix(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldHasPrefix(FieldOrderID, v))
+}
+
+// OrderIDHasSuffix applies the HasSuffix predicate on the "order_id" field.
+func OrderIDHasSuffix(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldHasSuffix(FieldOrderID, v))
+}
+
+// OrderIDEqualFold applies the EqualFold predicate on the "order_id" field.
+func OrderIDEqualFold(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldEqualFold(FieldOrderID, v))
+}
+
+// OrderIDContainsFold applies the ContainsFold predicate on the "order_id" field.
+func OrderIDContainsFold(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldContainsFold(FieldOrderID, v))
+}
+
+// TokenDigestEQ applies the EQ predicate on the "token_digest" field.
+func TokenDigestEQ(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldEQ(FieldTokenDigest, v))
+}
+
+// TokenDigestNEQ applies the NEQ predicate on the "token_digest" field.
+func TokenDigestNEQ(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldNEQ(FieldTokenDigest, v))
+}
+
+// TokenDigestIn applies the In predicate on the "token_digest" field.
+func TokenDigestIn(vs ...string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldIn(FieldTokenDigest, vs...))
+}
+
+// TokenDigestNotIn applies the NotIn predicate on the "token_digest" field.
+func TokenDigestNotIn(vs ...string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldNotIn(FieldTokenDigest, vs...))
+}
+
+// TokenDigestGT applies the GT predicate on the "token_digest" field.
+func TokenDigestGT(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldGT(FieldTokenDigest, v))
+}
+
+// TokenDigestGTE applies the GTE predicate on the "token_digest" field.
+func TokenDigestGTE(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldGTE(FieldTokenDigest, v))
+}
+
+// TokenDigestLT applies the LT predicate on the "token_digest" field.
+func TokenDigestLT(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldLT(FieldTokenDigest, v))
+}
+
+// TokenDigestLTE applies the LTE predicate on the "token_digest" field.
+func TokenDigestLTE(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldLTE(FieldTokenDigest, v))
+}
+
+// TokenDigestContains applies the Contains predicate on the "token_digest" field.
+func TokenDigestContains(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldContains(FieldTokenDigest, v))
+}
+
+// TokenDigestHasPrefix applies the HasPrefix predicate on the "token_digest" field.
+func TokenDigestHasPrefix(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldHasPrefix(FieldTokenDigest, v))
+}
+
+// TokenDigestHasSuffix applies the HasSuffix predicate on the "token_digest" field.
+func TokenDigestHasSuffix(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldHasSuffix(FieldTokenDigest, v))
+}
+
+// TokenDigestEqualFold applies the EqualFold predicate on the "token_digest" field.
+func TokenDigestEqualFold(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldEqualFold(FieldTokenDigest, v))
+}
+
+// TokenDigestContainsFold applies the ContainsFold predicate on the "token_digest" field.
+func TokenDigestContainsFold(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldContainsFold(FieldTokenDigest, v))
+}
+
 // ProductIDEQ applies the EQ predicate on the "product_id" field.
 func ProductIDEQ(v string) predicate.VerifiedPurchase {
 	return predicate.VerifiedPurchase(sql.FieldEQ(FieldProductID, v))
@@ -478,6 +853,66 @@ func ProductIDEqualFold(v string) predicate.VerifiedPurchase {
 // ProductIDContainsFold applies the ContainsFold predicate on the "product_id" field.
 func ProductIDContainsFold(v string) predicate.VerifiedPurchase {
 	return predicate.VerifiedPurchase(sql.FieldContainsFold(FieldProductID, v))
+}
+
+// KindEQ applies the EQ predicate on the "kind" field.
+func KindEQ(v Kind) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldEQ(FieldKind, v))
+}
+
+// KindNEQ applies the NEQ predicate on the "kind" field.
+func KindNEQ(v Kind) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldNEQ(FieldKind, v))
+}
+
+// KindIn applies the In predicate on the "kind" field.
+func KindIn(vs ...Kind) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldIn(FieldKind, vs...))
+}
+
+// KindNotIn applies the NotIn predicate on the "kind" field.
+func KindNotIn(vs ...Kind) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldNotIn(FieldKind, vs...))
+}
+
+// QuantityEQ applies the EQ predicate on the "quantity" field.
+func QuantityEQ(v int) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldEQ(FieldQuantity, v))
+}
+
+// QuantityNEQ applies the NEQ predicate on the "quantity" field.
+func QuantityNEQ(v int) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldNEQ(FieldQuantity, v))
+}
+
+// QuantityIn applies the In predicate on the "quantity" field.
+func QuantityIn(vs ...int) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldIn(FieldQuantity, vs...))
+}
+
+// QuantityNotIn applies the NotIn predicate on the "quantity" field.
+func QuantityNotIn(vs ...int) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldNotIn(FieldQuantity, vs...))
+}
+
+// QuantityGT applies the GT predicate on the "quantity" field.
+func QuantityGT(v int) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldGT(FieldQuantity, v))
+}
+
+// QuantityGTE applies the GTE predicate on the "quantity" field.
+func QuantityGTE(v int) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldGTE(FieldQuantity, v))
+}
+
+// QuantityLT applies the LT predicate on the "quantity" field.
+func QuantityLT(v int) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldLT(FieldQuantity, v))
+}
+
+// QuantityLTE applies the LTE predicate on the "quantity" field.
+func QuantityLTE(v int) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldLTE(FieldQuantity, v))
 }
 
 // AmountMicrosEQ applies the EQ predicate on the "amount_micros" field.
@@ -585,6 +1020,91 @@ func CurrencyContainsFold(v string) predicate.VerifiedPurchase {
 	return predicate.VerifiedPurchase(sql.FieldContainsFold(FieldCurrency, v))
 }
 
+// PriceFromStoreEQ applies the EQ predicate on the "price_from_store" field.
+func PriceFromStoreEQ(v bool) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldEQ(FieldPriceFromStore, v))
+}
+
+// PriceFromStoreNEQ applies the NEQ predicate on the "price_from_store" field.
+func PriceFromStoreNEQ(v bool) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldNEQ(FieldPriceFromStore, v))
+}
+
+// CountryEQ applies the EQ predicate on the "country" field.
+func CountryEQ(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldEQ(FieldCountry, v))
+}
+
+// CountryNEQ applies the NEQ predicate on the "country" field.
+func CountryNEQ(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldNEQ(FieldCountry, v))
+}
+
+// CountryIn applies the In predicate on the "country" field.
+func CountryIn(vs ...string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldIn(FieldCountry, vs...))
+}
+
+// CountryNotIn applies the NotIn predicate on the "country" field.
+func CountryNotIn(vs ...string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldNotIn(FieldCountry, vs...))
+}
+
+// CountryGT applies the GT predicate on the "country" field.
+func CountryGT(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldGT(FieldCountry, v))
+}
+
+// CountryGTE applies the GTE predicate on the "country" field.
+func CountryGTE(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldGTE(FieldCountry, v))
+}
+
+// CountryLT applies the LT predicate on the "country" field.
+func CountryLT(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldLT(FieldCountry, v))
+}
+
+// CountryLTE applies the LTE predicate on the "country" field.
+func CountryLTE(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldLTE(FieldCountry, v))
+}
+
+// CountryContains applies the Contains predicate on the "country" field.
+func CountryContains(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldContains(FieldCountry, v))
+}
+
+// CountryHasPrefix applies the HasPrefix predicate on the "country" field.
+func CountryHasPrefix(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldHasPrefix(FieldCountry, v))
+}
+
+// CountryHasSuffix applies the HasSuffix predicate on the "country" field.
+func CountryHasSuffix(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldHasSuffix(FieldCountry, v))
+}
+
+// CountryEqualFold applies the EqualFold predicate on the "country" field.
+func CountryEqualFold(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldEqualFold(FieldCountry, v))
+}
+
+// CountryContainsFold applies the ContainsFold predicate on the "country" field.
+func CountryContainsFold(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldContainsFold(FieldCountry, v))
+}
+
+// SandboxEQ applies the EQ predicate on the "sandbox" field.
+func SandboxEQ(v bool) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldEQ(FieldSandbox, v))
+}
+
+// SandboxNEQ applies the NEQ predicate on the "sandbox" field.
+func SandboxNEQ(v bool) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldNEQ(FieldSandbox, v))
+}
+
 // PurchasedAtEQ applies the EQ predicate on the "purchased_at" field.
 func PurchasedAtEQ(v time.Time) predicate.VerifiedPurchase {
 	return predicate.VerifiedPurchase(sql.FieldEQ(FieldPurchasedAt, v))
@@ -623,6 +1143,321 @@ func PurchasedAtLT(v time.Time) predicate.VerifiedPurchase {
 // PurchasedAtLTE applies the LTE predicate on the "purchased_at" field.
 func PurchasedAtLTE(v time.Time) predicate.VerifiedPurchase {
 	return predicate.VerifiedPurchase(sql.FieldLTE(FieldPurchasedAt, v))
+}
+
+// StatusEQ applies the EQ predicate on the "status" field.
+func StatusEQ(v Status) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldEQ(FieldStatus, v))
+}
+
+// StatusNEQ applies the NEQ predicate on the "status" field.
+func StatusNEQ(v Status) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldNEQ(FieldStatus, v))
+}
+
+// StatusIn applies the In predicate on the "status" field.
+func StatusIn(vs ...Status) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldIn(FieldStatus, vs...))
+}
+
+// StatusNotIn applies the NotIn predicate on the "status" field.
+func StatusNotIn(vs ...Status) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldNotIn(FieldStatus, vs...))
+}
+
+// RefundedAtEQ applies the EQ predicate on the "refunded_at" field.
+func RefundedAtEQ(v time.Time) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldEQ(FieldRefundedAt, v))
+}
+
+// RefundedAtNEQ applies the NEQ predicate on the "refunded_at" field.
+func RefundedAtNEQ(v time.Time) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldNEQ(FieldRefundedAt, v))
+}
+
+// RefundedAtIn applies the In predicate on the "refunded_at" field.
+func RefundedAtIn(vs ...time.Time) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldIn(FieldRefundedAt, vs...))
+}
+
+// RefundedAtNotIn applies the NotIn predicate on the "refunded_at" field.
+func RefundedAtNotIn(vs ...time.Time) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldNotIn(FieldRefundedAt, vs...))
+}
+
+// RefundedAtGT applies the GT predicate on the "refunded_at" field.
+func RefundedAtGT(v time.Time) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldGT(FieldRefundedAt, v))
+}
+
+// RefundedAtGTE applies the GTE predicate on the "refunded_at" field.
+func RefundedAtGTE(v time.Time) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldGTE(FieldRefundedAt, v))
+}
+
+// RefundedAtLT applies the LT predicate on the "refunded_at" field.
+func RefundedAtLT(v time.Time) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldLT(FieldRefundedAt, v))
+}
+
+// RefundedAtLTE applies the LTE predicate on the "refunded_at" field.
+func RefundedAtLTE(v time.Time) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldLTE(FieldRefundedAt, v))
+}
+
+// RefundedAtIsNil applies the IsNil predicate on the "refunded_at" field.
+func RefundedAtIsNil() predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldIsNull(FieldRefundedAt))
+}
+
+// RefundedAtNotNil applies the NotNil predicate on the "refunded_at" field.
+func RefundedAtNotNil() predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldNotNull(FieldRefundedAt))
+}
+
+// RefundReasonEQ applies the EQ predicate on the "refund_reason" field.
+func RefundReasonEQ(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldEQ(FieldRefundReason, v))
+}
+
+// RefundReasonNEQ applies the NEQ predicate on the "refund_reason" field.
+func RefundReasonNEQ(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldNEQ(FieldRefundReason, v))
+}
+
+// RefundReasonIn applies the In predicate on the "refund_reason" field.
+func RefundReasonIn(vs ...string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldIn(FieldRefundReason, vs...))
+}
+
+// RefundReasonNotIn applies the NotIn predicate on the "refund_reason" field.
+func RefundReasonNotIn(vs ...string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldNotIn(FieldRefundReason, vs...))
+}
+
+// RefundReasonGT applies the GT predicate on the "refund_reason" field.
+func RefundReasonGT(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldGT(FieldRefundReason, v))
+}
+
+// RefundReasonGTE applies the GTE predicate on the "refund_reason" field.
+func RefundReasonGTE(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldGTE(FieldRefundReason, v))
+}
+
+// RefundReasonLT applies the LT predicate on the "refund_reason" field.
+func RefundReasonLT(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldLT(FieldRefundReason, v))
+}
+
+// RefundReasonLTE applies the LTE predicate on the "refund_reason" field.
+func RefundReasonLTE(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldLTE(FieldRefundReason, v))
+}
+
+// RefundReasonContains applies the Contains predicate on the "refund_reason" field.
+func RefundReasonContains(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldContains(FieldRefundReason, v))
+}
+
+// RefundReasonHasPrefix applies the HasPrefix predicate on the "refund_reason" field.
+func RefundReasonHasPrefix(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldHasPrefix(FieldRefundReason, v))
+}
+
+// RefundReasonHasSuffix applies the HasSuffix predicate on the "refund_reason" field.
+func RefundReasonHasSuffix(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldHasSuffix(FieldRefundReason, v))
+}
+
+// RefundReasonEqualFold applies the EqualFold predicate on the "refund_reason" field.
+func RefundReasonEqualFold(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldEqualFold(FieldRefundReason, v))
+}
+
+// RefundReasonContainsFold applies the ContainsFold predicate on the "refund_reason" field.
+func RefundReasonContainsFold(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldContainsFold(FieldRefundReason, v))
+}
+
+// RefundSourceEQ applies the EQ predicate on the "refund_source" field.
+func RefundSourceEQ(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldEQ(FieldRefundSource, v))
+}
+
+// RefundSourceNEQ applies the NEQ predicate on the "refund_source" field.
+func RefundSourceNEQ(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldNEQ(FieldRefundSource, v))
+}
+
+// RefundSourceIn applies the In predicate on the "refund_source" field.
+func RefundSourceIn(vs ...string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldIn(FieldRefundSource, vs...))
+}
+
+// RefundSourceNotIn applies the NotIn predicate on the "refund_source" field.
+func RefundSourceNotIn(vs ...string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldNotIn(FieldRefundSource, vs...))
+}
+
+// RefundSourceGT applies the GT predicate on the "refund_source" field.
+func RefundSourceGT(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldGT(FieldRefundSource, v))
+}
+
+// RefundSourceGTE applies the GTE predicate on the "refund_source" field.
+func RefundSourceGTE(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldGTE(FieldRefundSource, v))
+}
+
+// RefundSourceLT applies the LT predicate on the "refund_source" field.
+func RefundSourceLT(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldLT(FieldRefundSource, v))
+}
+
+// RefundSourceLTE applies the LTE predicate on the "refund_source" field.
+func RefundSourceLTE(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldLTE(FieldRefundSource, v))
+}
+
+// RefundSourceContains applies the Contains predicate on the "refund_source" field.
+func RefundSourceContains(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldContains(FieldRefundSource, v))
+}
+
+// RefundSourceHasPrefix applies the HasPrefix predicate on the "refund_source" field.
+func RefundSourceHasPrefix(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldHasPrefix(FieldRefundSource, v))
+}
+
+// RefundSourceHasSuffix applies the HasSuffix predicate on the "refund_source" field.
+func RefundSourceHasSuffix(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldHasSuffix(FieldRefundSource, v))
+}
+
+// RefundSourceEqualFold applies the EqualFold predicate on the "refund_source" field.
+func RefundSourceEqualFold(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldEqualFold(FieldRefundSource, v))
+}
+
+// RefundSourceContainsFold applies the ContainsFold predicate on the "refund_source" field.
+func RefundSourceContainsFold(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldContainsFold(FieldRefundSource, v))
+}
+
+// FirstPurchaseEQ applies the EQ predicate on the "first_purchase" field.
+func FirstPurchaseEQ(v bool) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldEQ(FieldFirstPurchase, v))
+}
+
+// FirstPurchaseNEQ applies the NEQ predicate on the "first_purchase" field.
+func FirstPurchaseNEQ(v bool) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldNEQ(FieldFirstPurchase, v))
+}
+
+// VerifyMsEQ applies the EQ predicate on the "verify_ms" field.
+func VerifyMsEQ(v int) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldEQ(FieldVerifyMs, v))
+}
+
+// VerifyMsNEQ applies the NEQ predicate on the "verify_ms" field.
+func VerifyMsNEQ(v int) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldNEQ(FieldVerifyMs, v))
+}
+
+// VerifyMsIn applies the In predicate on the "verify_ms" field.
+func VerifyMsIn(vs ...int) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldIn(FieldVerifyMs, vs...))
+}
+
+// VerifyMsNotIn applies the NotIn predicate on the "verify_ms" field.
+func VerifyMsNotIn(vs ...int) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldNotIn(FieldVerifyMs, vs...))
+}
+
+// VerifyMsGT applies the GT predicate on the "verify_ms" field.
+func VerifyMsGT(v int) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldGT(FieldVerifyMs, v))
+}
+
+// VerifyMsGTE applies the GTE predicate on the "verify_ms" field.
+func VerifyMsGTE(v int) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldGTE(FieldVerifyMs, v))
+}
+
+// VerifyMsLT applies the LT predicate on the "verify_ms" field.
+func VerifyMsLT(v int) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldLT(FieldVerifyMs, v))
+}
+
+// VerifyMsLTE applies the LTE predicate on the "verify_ms" field.
+func VerifyMsLTE(v int) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldLTE(FieldVerifyMs, v))
+}
+
+// VerifiedViaEQ applies the EQ predicate on the "verified_via" field.
+func VerifiedViaEQ(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldEQ(FieldVerifiedVia, v))
+}
+
+// VerifiedViaNEQ applies the NEQ predicate on the "verified_via" field.
+func VerifiedViaNEQ(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldNEQ(FieldVerifiedVia, v))
+}
+
+// VerifiedViaIn applies the In predicate on the "verified_via" field.
+func VerifiedViaIn(vs ...string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldIn(FieldVerifiedVia, vs...))
+}
+
+// VerifiedViaNotIn applies the NotIn predicate on the "verified_via" field.
+func VerifiedViaNotIn(vs ...string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldNotIn(FieldVerifiedVia, vs...))
+}
+
+// VerifiedViaGT applies the GT predicate on the "verified_via" field.
+func VerifiedViaGT(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldGT(FieldVerifiedVia, v))
+}
+
+// VerifiedViaGTE applies the GTE predicate on the "verified_via" field.
+func VerifiedViaGTE(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldGTE(FieldVerifiedVia, v))
+}
+
+// VerifiedViaLT applies the LT predicate on the "verified_via" field.
+func VerifiedViaLT(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldLT(FieldVerifiedVia, v))
+}
+
+// VerifiedViaLTE applies the LTE predicate on the "verified_via" field.
+func VerifiedViaLTE(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldLTE(FieldVerifiedVia, v))
+}
+
+// VerifiedViaContains applies the Contains predicate on the "verified_via" field.
+func VerifiedViaContains(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldContains(FieldVerifiedVia, v))
+}
+
+// VerifiedViaHasPrefix applies the HasPrefix predicate on the "verified_via" field.
+func VerifiedViaHasPrefix(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldHasPrefix(FieldVerifiedVia, v))
+}
+
+// VerifiedViaHasSuffix applies the HasSuffix predicate on the "verified_via" field.
+func VerifiedViaHasSuffix(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldHasSuffix(FieldVerifiedVia, v))
+}
+
+// VerifiedViaEqualFold applies the EqualFold predicate on the "verified_via" field.
+func VerifiedViaEqualFold(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldEqualFold(FieldVerifiedVia, v))
+}
+
+// VerifiedViaContainsFold applies the ContainsFold predicate on the "verified_via" field.
+func VerifiedViaContainsFold(v string) predicate.VerifiedPurchase {
+	return predicate.VerifiedPurchase(sql.FieldContainsFold(FieldVerifiedVia, v))
 }
 
 // And groups predicates with the AND operator between them.

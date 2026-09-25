@@ -4646,6 +4646,500 @@
         }
       }
     },
+    "/v1/operator/projects/{project}/purchase-check": {
+      "post": {
+        "tags": [
+          "operator"
+        ],
+        "summary": "Check a receipt against a project's store",
+        "description": "What a failed verification would do now, step by step, with the store's answer and the purchase on record for it. Nothing is recorded: not a purchase, not an attempt.",
+        "operationId": "post_v1_operator_projects_by_project_purchase_check",
+        "parameters": [
+          {
+            "name": "X-Staff-Ticket",
+            "in": "header",
+            "description": "A ticket reference for why this customer's data is being read: recorded in staff_access",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Staff-Note",
+            "in": "header",
+            "description": "An optional line beside the ticket",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "project",
+            "in": "path",
+            "description": "The project's id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "VerifyPurchaseIn": {
+                    "$ref": "#/components/schemas/VerifyPurchaseIn"
+                  }
+                },
+                "required": [
+                  "VerifyPurchaseIn"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PurchaseCheckOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account is not staff, or lacks the role this needs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No project has that id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/operator/purchase-attempts": {
+      "get": {
+        "tags": [
+          "operator"
+        ],
+        "summary": "Every project's verification log",
+        "description": "Narrowed by project, store, outcome, rejection code or player; newest first.",
+        "operationId": "get_v1_operator_purchase_attempts",
+        "parameters": [
+          {
+            "name": "X-Staff-Ticket",
+            "in": "header",
+            "description": "A ticket reference for why this customer's data is being read: recorded in staff_access",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Staff-Note",
+            "in": "header",
+            "description": "An optional line beside the ticket",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "project",
+            "in": "query",
+            "description": "One project's attempts",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "store",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "",
+                "app_store",
+                "google_play",
+                "steam"
+              ]
+            }
+          },
+          {
+            "name": "outcome",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "",
+                "verified",
+                "duplicate",
+                "rejected",
+                "unavailable",
+                "credentials",
+                "not_configured"
+              ]
+            }
+          },
+          {
+            "name": "code",
+            "in": "query",
+            "description": "A rejection's code",
+            "schema": {
+              "type": "string",
+              "maxLength": 40
+            }
+          },
+          {
+            "name": "player",
+            "in": "query",
+            "description": "A player id or install id",
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "description": "The next cursor of the previous page",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Newest first, up to 200",
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "default": "50",
+              "minimum": 1,
+              "maximum": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PurchaseAttemptsOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account is not staff, or lacks the role this needs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/operator/purchase-attempts/{attempt}": {
+      "get": {
+        "tags": [
+          "operator"
+        ],
+        "summary": "One verification",
+        "description": "With every step it took.",
+        "operationId": "get_v1_operator_purchase_attempts_by_attempt",
+        "parameters": [
+          {
+            "name": "X-Staff-Ticket",
+            "in": "header",
+            "description": "A ticket reference for why this customer's data is being read: recorded in staff_access",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Staff-Note",
+            "in": "header",
+            "description": "An optional line beside the ticket",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "attempt",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PurchaseAttemptOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account is not staff, or lacks the role this needs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No attempt has that id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/operator/purchase-verification": {
+      "get": {
+        "tags": [
+          "operator"
+        ],
+        "summary": "Purchase verification across the platform",
+        "description": "The last day's verifications by store and outcome, rejections by reason, and the connected stores whose last call failed.",
+        "operationId": "get_v1_operator_purchase_verification",
+        "parameters": [
+          {
+            "name": "X-Staff-Ticket",
+            "in": "header",
+            "description": "A ticket reference for why this customer's data is being read: recorded in staff_access",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Staff-Note",
+            "in": "header",
+            "description": "An optional line beside the ticket",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PurchaseVerificationOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account is not staff, or lacks the role this needs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/operator/queue": {
       "get": {
         "tags": [
@@ -10815,7 +11309,7 @@
           "reporting"
         ],
         "summary": "List purchases",
-        "description": "The purchases ledger, newest first, a page at a time: what was bought, where, for how much, by whom, and whether it was their first. Names players, so it needs player.read.",
+        "description": "The purchases ledger, newest first, a page at a time: what was bought, where, for how much, by whom, and whether it was their first; for a verified store, its status (verified, refunded, sandbox, rejected) and the store's transaction id. Names players, so it needs player.read.",
         "operationId": "get_v1_organizations_by_org_projects_by_project_analytics_by_environment_purchases",
         "parameters": [
           {
@@ -10915,6 +11409,15 @@
               "type": "string",
               "maxLength": 96
             }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "description": "Comma-separated: reported, verified, refunded, sandbox, rejected",
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
           }
         ],
         "responses": {
@@ -10997,7 +11500,7 @@
           "reporting"
         ],
         "summary": "Describe the game's revenue",
-        "description": "Revenue, purchases and buyers against the previous range, by day and store, by product, store and country, by price, the day's first-time payers, spender tiers by lifetime spend, and purchases by weekday and hour. Revenue the game reported, in the currencies it reported, not receipts verified with a store.",
+        "description": "Revenue, purchases and buyers against the previous range, by day and store, by product, store and country, by price, the day's first-time payers, spender tiers by lifetime spend, and purchases by weekday and hour. For a store the project verifies with, from the day it was connected, its verified purchases; for every other store what the game reported (ADR 0048). In the currencies paid, with refunds, test purchases and rejected receipts beside it.",
         "operationId": "get_v1_organizations_by_org_projects_by_project_analytics_by_environment_revenue",
         "parameters": [
           {
@@ -18142,6 +18645,175 @@
         }
       }
     },
+    "/v1/organizations/{org}/projects/{project}/purchase-attempts": {
+      "get": {
+        "tags": [
+          "purchases"
+        ],
+        "summary": "The verification log",
+        "description": "Every receipt the game or its server sent, newest first: what the store said and, step by step, how it was checked. Kept thirty days.",
+        "operationId": "get_v1_organizations_by_org_projects_by_project_purchase_attempts",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "project",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "store",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "",
+                "app_store",
+                "google_play",
+                "steam"
+              ]
+            }
+          },
+          {
+            "name": "outcome",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "",
+                "verified",
+                "duplicate",
+                "rejected",
+                "unavailable",
+                "credentials",
+                "not_configured"
+              ]
+            }
+          },
+          {
+            "name": "code",
+            "in": "query",
+            "description": "A rejection's code",
+            "schema": {
+              "type": "string",
+              "maxLength": 40
+            }
+          },
+          {
+            "name": "player",
+            "in": "query",
+            "description": "A player id or install id",
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "description": "The next cursor of the previous page",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Newest first, up to 200",
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "default": "50",
+              "minimum": 1,
+              "maximum": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PurchaseAttemptsOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not do that",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The organization, project or store does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/organizations/{org}/projects/{project}/reports": {
       "get": {
         "tags": [
@@ -20354,6 +21026,735 @@
         }
       }
     },
+    "/v1/organizations/{org}/projects/{project}/stores": {
+      "get": {
+        "tags": [
+          "purchases"
+        ],
+        "summary": "The project's stores",
+        "description": "App Store, Google Play and Steam, connected or not: how each is reached (never a secret), the URL its notifications go to, how its last test went, and the last day's verifications by outcome.",
+        "operationId": "get_v1_organizations_by_org_projects_by_project_stores",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "description": "The organization's slug",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "project",
+            "in": "path",
+            "description": "The project's slug",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StoreListOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not do that",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The organization, project or store does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/organizations/{org}/projects/{project}/stores/{store}": {
+      "put": {
+        "tags": [
+          "purchases"
+        ],
+        "summary": "Connect a store",
+        "description": "Or change how it is reached; a secret not sent is kept. From the moment a store is connected, its revenue is its verified purchases rather than what the game reports.",
+        "operationId": "put_v1_organizations_by_org_projects_by_project_stores_by_store",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "project",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "store",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "app_store",
+                "google_play",
+                "steam"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "app_apple_id": {
+                    "type": "integer",
+                    "format": "int64",
+                    "description": "App Store: the app's Apple id, from App Store Connect",
+                    "minimum": 0
+                  },
+                  "app_id": {
+                    "type": "string",
+                    "description": "Steam: the app id",
+                    "maxLength": 20
+                  },
+                  "bundle_id": {
+                    "type": "string",
+                    "description": "App Store: the app's bundle id",
+                    "maxLength": 255
+                  },
+                  "enabled": {
+                    "type": [
+                      "boolean",
+                      "null"
+                    ]
+                  },
+                  "issuer_id": {
+                    "type": "string",
+                    "description": "App Store: the In-App Purchase key's issuer id",
+                    "maxLength": 64
+                  },
+                  "key_id": {
+                    "type": "string",
+                    "description": "App Store: the In-App Purchase key's id",
+                    "maxLength": 32
+                  },
+                  "package_name": {
+                    "type": "string",
+                    "description": "Google Play: the app's package name",
+                    "maxLength": 255
+                  },
+                  "private_key": {
+                    "type": "string",
+                    "description": "App Store: the In-App Purchase key's .p8 file. Write-only",
+                    "maxLength": 4096
+                  },
+                  "publisher_key": {
+                    "type": "string",
+                    "description": "Steam: a publisher Web API key. Write-only",
+                    "maxLength": 128
+                  },
+                  "service_account": {
+                    "type": "string",
+                    "description": "Google Play: a service account's JSON key with access to the app. Write-only",
+                    "maxLength": 16384
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StoreOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not do that",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The organization, project or store does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Something the store needs is missing or malformed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "purchases"
+        ],
+        "summary": "Disconnect a store",
+        "description": "Its credentials go. Its purchases stay; its revenue is what the game reports again.",
+        "operationId": "delete_v1_organizations_by_org_projects_by_project_stores_by_store",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "project",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "store",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "app_store",
+                "google_play",
+                "steam"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not do that",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The organization, project or store does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/organizations/{org}/projects/{project}/stores/{store}/notification-url": {
+      "post": {
+        "tags": [
+          "purchases"
+        ],
+        "summary": "Replace a store's notification URL",
+        "description": "The old URL stops at once: point the store at the new one.",
+        "operationId": "post_v1_organizations_by_org_projects_by_project_stores_by_store_notification_url",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "project",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "store",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "app_store",
+                "google_play",
+                "steam"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StoreOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not do that",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The organization, project or store does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/organizations/{org}/projects/{project}/stores/{store}/test": {
+      "post": {
+        "tags": [
+          "purchases"
+        ],
+        "summary": "Test a store's credentials",
+        "description": "Without a purchase. For the App Store with a key, Apple also sends a test notification to the project's URL. Kept as the store's last test.",
+        "operationId": "post_v1_organizations_by_org_projects_by_project_stores_by_store_test",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "project",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "store",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "app_store",
+                "google_play",
+                "steam"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StoreTestOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not do that",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The organization, project or store does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/organizations/{org}/projects/{project}/verified-purchases/{purchase}": {
+      "get": {
+        "tags": [
+          "purchases"
+        ],
+        "summary": "One verified purchase",
+        "description": "As the API hands it to the game, with every verification that named it.",
+        "operationId": "get_v1_organizations_by_org_projects_by_project_verified_purchases_by_purchase",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "project",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "purchase",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerifiedPurchaseOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not do that",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The organization, project or store does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/organizations/{org}/roles": {
       "get": {
         "tags": [
@@ -20538,6 +21939,81 @@
           },
           "503": {
             "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/players/{player}/purchases": {
+      "get": {
+        "tags": [
+          "purchases"
+        ],
+        "summary": "A player's verified purchases",
+        "description": "Newest first, refunded ones included.",
+        "operationId": "get_v1_players_by_player_purchases",
+        "parameters": [
+          {
+            "name": "player",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Newest first, up to 200",
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "default": "50",
+              "minimum": 1,
+              "maximum": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PurchaseDocsOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The key is missing, unknown or revoked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
             "content": {
               "application/json": {
                 "schema": {
@@ -20946,6 +22422,185 @@
         }
       }
     },
+    "/v1/purchases/verify": {
+      "post": {
+        "tags": [
+          "purchases"
+        ],
+        "summary": "Verify a purchase with its store",
+        "description": "PlayerSense asks the store (for a StoreKit 2 transaction, checks Apple's signature, which needs no call) and records the purchase once: a retry, or the same receipt from a second device, answers the same purchase with duplicate set, and the same transaction sent for another player is rejected as replayed. The answer's status says what to do: grant on verified or sandbox, keyed by the purchase's id; do not grant on rejected. Takes the game's project key, so a game without a server can act on the answer, or the server key, which §47 prefers for granting.",
+        "operationId": "post_v1_purchases_verify",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyPurchaseIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PurchaseDoc"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The key is missing, unknown or revoked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The project has not connected this store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The receipt needs store credentials the project has not added",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many verifications for this player or project",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The store could not answer, or refused the project's credentials; keep the receipt and retry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/purchases/{store}/{transaction}": {
+      "get": {
+        "tags": [
+          "purchases"
+        ],
+        "summary": "Read a verified purchase",
+        "description": "By the store's transaction id: whether it was verified, and whether it has since been refunded.",
+        "operationId": "get_v1_purchases_by_store_by_transaction",
+        "parameters": [
+          {
+            "name": "store",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "app_store",
+                "google_play",
+                "steam"
+              ]
+            }
+          },
+          {
+            "name": "transaction",
+            "in": "path",
+            "description": "The store's transaction id: Apple's transactionId, Google's orderId, Steam's transid",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 255
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PurchaseDoc"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The key is missing, unknown or revoked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No verified purchase has that transaction id in this project",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/report-runs/{run}/events": {
       "get": {
         "tags": [
@@ -20986,6 +22641,201 @@
           },
           "401": {
             "description": "The token is missing, lapsed, or for another run",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/store-notifications/apple/{project}/{token}": {
+      "post": {
+        "tags": [
+          "purchases"
+        ],
+        "summary": "Take an App Store Server Notification",
+        "description": "Point App Store Connect's V2 notification URL here. A refund or a reversed refund changes the purchase it names; everything else is acknowledged.",
+        "operationId": "post_v1_store_notifications_apple_by_project_by_token",
+        "parameters": [
+          {
+            "name": "project",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "signedPayload": {
+                    "type": "string",
+                    "description": "The notification, signed by Apple",
+                    "maxLength": 262144
+                  }
+                },
+                "required": [
+                  "signedPayload"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StoreNotificationOut"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The notification is not signed by Apple, or is for another app",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No project listens at this URL",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/store-notifications/google/{project}/{token}": {
+      "post": {
+        "tags": [
+          "purchases"
+        ],
+        "summary": "Take a Google Play developer notification",
+        "description": "Point a Pub/Sub push subscription on the app's Real-time Developer Notifications topic here. A voided purchase is recorded as refunded; the refund sweep adds the reason.",
+        "operationId": "post_v1_store_notifications_google_by_project_by_token",
+        "parameters": [
+          {
+            "name": "project",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "message": {
+                    "type": "string",
+                    "format": "byte",
+                    "description": "The Pub/Sub message; its data is the notification"
+                  },
+                  "subscription": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "message"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StoreNotificationOut"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No project listens at this URL",
             "content": {
               "application/json": {
                 "schema": {
@@ -22211,6 +24061,75 @@
           "at",
           "detail",
           "ok"
+        ]
+      },
+      "CheckedTransaction": {
+        "type": "object",
+        "properties": {
+          "amount_micros": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "app_id": {
+            "type": "string"
+          },
+          "country": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "order_id": {
+            "type": "string"
+          },
+          "original_transaction_id": {
+            "type": "string"
+          },
+          "price_from_store": {
+            "type": "boolean"
+          },
+          "product_id": {
+            "type": "string"
+          },
+          "purchased_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "quantity": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "refund_reason": {
+            "type": "string"
+          },
+          "refunded_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "sandbox": {
+            "type": "boolean"
+          },
+          "transaction_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "amount_micros",
+          "app_id",
+          "currency",
+          "kind",
+          "price_from_store",
+          "product_id",
+          "purchased_at",
+          "quantity",
+          "sandbox",
+          "transaction_id"
         ]
       },
       "CheckoutOut": {
@@ -24600,6 +26519,30 @@
           "received_at",
           "status",
           "updated_at"
+        ]
+      },
+      "FailingStoreOut": {
+        "type": "object",
+        "properties": {
+          "last_error": {
+            "type": "string"
+          },
+          "last_error_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "project": {
+            "$ref": "#/components/schemas/ProjectBrief"
+          },
+          "store": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "last_error",
+          "last_error_at",
+          "project",
+          "store"
         ]
       },
       "Filter": {
@@ -28694,6 +30637,29 @@
           "apps"
         ]
       },
+      "ProjectBrief": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "organization": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "organization",
+          "slug"
+        ]
+      },
       "ProjectCountersOut": {
         "type": "object",
         "properties": {
@@ -28968,6 +30934,261 @@
           "to"
         ]
       },
+      "PurchaseAttemptOut": {
+        "type": "object",
+        "properties": {
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "code": {
+            "type": "string"
+          },
+          "detail": {
+            "type": "string"
+          },
+          "duration_ms": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "id": {
+            "type": "string"
+          },
+          "install_id": {
+            "type": "string"
+          },
+          "outcome": {
+            "type": "string"
+          },
+          "player_id": {
+            "type": "string"
+          },
+          "product_id": {
+            "type": "string"
+          },
+          "project": {
+            "description": "Staff reads only: whose attempt",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProjectBrief"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "purchase_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sandbox": {
+            "type": "boolean"
+          },
+          "store": {
+            "type": "string"
+          },
+          "store_transaction_id": {
+            "type": "string"
+          },
+          "trace": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TraceStep"
+            }
+          },
+          "via": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "at",
+          "duration_ms",
+          "id",
+          "outcome",
+          "sandbox",
+          "store",
+          "via"
+        ]
+      },
+      "PurchaseAttemptsOut": {
+        "type": "object",
+        "properties": {
+          "attempts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PurchaseAttemptOut"
+            }
+          },
+          "next": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "attempts"
+        ]
+      },
+      "PurchaseCheckOut": {
+        "type": "object",
+        "properties": {
+          "detail": {
+            "type": "string"
+          },
+          "duration_ms": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "outcome": {
+            "type": "string"
+          },
+          "recorded": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PurchaseDoc"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rejection": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PurchaseProblem"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "trace": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TraceStep"
+            }
+          },
+          "transaction": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CheckedTransaction"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "duration_ms",
+          "outcome",
+          "trace"
+        ]
+      },
+      "PurchaseDoc": {
+        "type": "object",
+        "properties": {
+          "country": {
+            "type": "string"
+          },
+          "duplicate": {
+            "type": "boolean"
+          },
+          "environment": {
+            "type": "string"
+          },
+          "first_purchase": {
+            "type": "boolean",
+            "description": "The player's first counted purchase in the project"
+          },
+          "id": {
+            "type": "string",
+            "description": "PlayerSense's id for the purchase; absent when rejected"
+          },
+          "player": {
+            "$ref": "#/components/schemas/PurchasePlayer"
+          },
+          "price": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PurchasePrice"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "product": {
+            "$ref": "#/components/schemas/PurchaseProduct"
+          },
+          "purchased_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "refund": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PurchaseRefund"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rejection": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PurchaseProblem"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "type": "string"
+          },
+          "store": {
+            "$ref": "#/components/schemas/PurchaseStore"
+          },
+          "verified_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "duplicate",
+          "environment",
+          "first_purchase",
+          "player",
+          "product",
+          "status",
+          "store"
+        ]
+      },
+      "PurchaseDocsOut": {
+        "type": "object",
+        "properties": {
+          "purchases": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PurchaseDoc"
+            }
+          }
+        },
+        "required": [
+          "purchases"
+        ]
+      },
       "PurchaseOut": {
         "type": "object",
         "properties": {
@@ -29002,6 +31223,19 @@
           "product_id": {
             "type": "string"
           },
+          "refund_reason": {
+            "type": "string"
+          },
+          "refunded_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "rejection": {
+            "type": "string"
+          },
           "revenue_micros": {
             "type": "integer",
             "format": "int64"
@@ -29009,8 +31243,22 @@
           "session_id": {
             "type": "string"
           },
+          "source": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
           "store": {
             "type": "string"
+          },
+          "store_transaction_id": {
+            "type": "string"
+          },
+          "verify_ms": {
+            "type": "integer",
+            "format": "int64",
+            "description": "How long the store took to answer"
           }
         },
         "required": [
@@ -29023,7 +31271,148 @@
           "platform",
           "product_id",
           "revenue_micros",
+          "source",
+          "status",
           "store"
+        ]
+      },
+      "PurchasePlayer": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "install_id": {
+            "type": "string"
+          }
+        }
+      },
+      "PurchasePrice": {
+        "type": "object",
+        "properties": {
+          "amount_micros": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "from_store": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "amount_micros",
+          "currency",
+          "from_store"
+        ]
+      },
+      "PurchaseProblem": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ]
+      },
+      "PurchaseProduct": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "PurchaseRefund": {
+        "type": "object",
+        "properties": {
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "at"
+        ]
+      },
+      "PurchaseStore": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "order_id": {
+            "type": "string"
+          },
+          "original_transaction_id": {
+            "type": "string"
+          },
+          "transaction_id": {
+            "type": "string"
+          },
+          "verified_in_ms": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "PurchaseVerificationOut": {
+        "type": "object",
+        "properties": {
+          "by_store": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/StoreOutcomes"
+            }
+          },
+          "failing": {
+            "type": "array",
+            "description": "Connected stores whose last error is recent",
+            "items": {
+              "$ref": "#/components/schemas/FailingStoreOut"
+            }
+          },
+          "rejections": {
+            "type": "object",
+            "description": "Rejected receipts by code",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          "since": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "by_store",
+          "failing",
+          "rejections",
+          "since"
         ]
       },
       "PurchasesOut": {
@@ -29041,7 +31430,7 @@
           },
           "verified": {
             "type": "boolean",
-            "description": "Always false: these are purchases the game reported"
+            "description": "Whether any store here is counted from its verified purchases"
           }
         },
         "required": [
@@ -29904,16 +32293,40 @@
             "type": "integer",
             "format": "int64"
           },
+          "refunded_micros": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "refunds": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "rejected": {
+            "type": "integer",
+            "format": "int64"
+          },
           "revenue_micros": {
             "type": "integer",
             "format": "int64"
+          },
+          "sandbox": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "verified": {
+            "type": "boolean"
           }
         },
         "required": [
           "previous_purchases",
           "previous_revenue_micros",
           "purchases",
-          "revenue_micros"
+          "refunded_micros",
+          "refunds",
+          "rejected",
+          "revenue_micros",
+          "sandbox",
+          "verified"
         ]
       },
       "RoleListOut": {
@@ -30880,6 +33293,219 @@
           "share"
         ]
       },
+      "StoreListOut": {
+        "type": "object",
+        "properties": {
+          "stores": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StoreOut"
+            }
+          }
+        },
+        "required": [
+          "stores"
+        ]
+      },
+      "StoreNotificationOut": {
+        "type": "object",
+        "properties": {
+          "ignored": {
+            "type": "string"
+          },
+          "refund": {
+            "type": "boolean"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "refund"
+        ]
+      },
+      "StoreOut": {
+        "type": "object",
+        "properties": {
+          "app_apple_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "app_id": {
+            "type": "string"
+          },
+          "bundle_id": {
+            "type": "string"
+          },
+          "connected": {
+            "type": "boolean"
+          },
+          "created_by": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "has_key": {
+            "type": "boolean"
+          },
+          "issuer_id": {
+            "type": "string"
+          },
+          "key_id": {
+            "type": "string"
+          },
+          "last_day": {
+            "$ref": "#/components/schemas/StoreOutcomes",
+            "description": "Verifications in the last 24 hours, by what came of them"
+          },
+          "last_error": {
+            "type": "string"
+          },
+          "last_error_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "last_notification_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "last_test": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StoreTestOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "last_verified_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "missing": {
+            "type": "array",
+            "description": "What is not set that some checks need",
+            "items": {
+              "type": "string"
+            }
+          },
+          "notification_url": {
+            "type": "string"
+          },
+          "package_name": {
+            "type": "string"
+          },
+          "service_account_email": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "store": {
+            "type": "string"
+          },
+          "swept_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "updated_by": {
+            "type": "string"
+          },
+          "verified_since": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "connected",
+          "enabled",
+          "has_key",
+          "last_day",
+          "status",
+          "store"
+        ]
+      },
+      "StoreOutcomes": {
+        "type": "object",
+        "properties": {
+          "credentials": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "duplicate": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "not_connected": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "rejected": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "unavailable": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "verified": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "credentials",
+          "duplicate",
+          "not_connected",
+          "rejected",
+          "unavailable",
+          "verified"
+        ]
+      },
+      "StoreTestOut": {
+        "type": "object",
+        "properties": {
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "detail": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "at",
+          "detail",
+          "ok"
+        ]
+      },
       "StripeEventListOut": {
         "type": "object",
         "properties": {
@@ -31149,6 +33775,29 @@
           "value"
         ]
       },
+      "TraceStep": {
+        "type": "object",
+        "properties": {
+          "detail": {
+            "type": "string"
+          },
+          "ms": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ms",
+          "name",
+          "ok"
+        ]
+      },
       "UsageByProjectOut": {
         "type": "object",
         "properties": {
@@ -31313,6 +33962,87 @@
           "value"
         ]
       },
+      "VerifiedPurchaseOut": {
+        "type": "object",
+        "properties": {
+          "attempts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PurchaseAttemptOut"
+            }
+          },
+          "purchase": {
+            "$ref": "#/components/schemas/PurchaseDoc"
+          }
+        },
+        "required": [
+          "attempts",
+          "purchase"
+        ]
+      },
+      "VerifyPurchaseIn": {
+        "type": "object",
+        "properties": {
+          "currency": {
+            "type": "string",
+            "description": "ISO 4217, with price_micros",
+            "maxLength": 3
+          },
+          "install_id": {
+            "type": "string",
+            "description": "The SDK's install id; a purchase before sign-in belongs to the install",
+            "maxLength": 64
+          },
+          "order_id": {
+            "type": "string",
+            "description": "Steam: the order id the game gave InitTxn",
+            "maxLength": 64
+          },
+          "player_id": {
+            "type": "string",
+            "description": "The game's own id for the player; send it once they have one",
+            "maxLength": 128
+          },
+          "price_micros": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The price the game showed, in millionths. Google's answer has none, so for Google this is what is recorded",
+            "minimum": 0
+          },
+          "product_id": {
+            "type": "string",
+            "description": "The product the game sold. Required for Google Play; checked against the store's answer elsewhere",
+            "maxLength": 255
+          },
+          "purchase_token": {
+            "type": "string",
+            "description": "Google Play: the purchase's token",
+            "maxLength": 1024
+          },
+          "signed_transaction": {
+            "type": "string",
+            "description": "App Store: the StoreKit 2 transaction's jwsRepresentation. Checked against Apple's certificates with no call to Apple",
+            "maxLength": 16384
+          },
+          "store": {
+            "type": "string",
+            "description": "The store that sold it",
+            "enum": [
+              "app_store",
+              "google_play",
+              "steam"
+            ]
+          },
+          "transaction_id": {
+            "type": "string",
+            "description": "App Store: a transaction id, looked up with the project's In-App Purchase key",
+            "maxLength": 64
+          }
+        },
+        "required": [
+          "store"
+        ]
+      },
       "WebhookOut": {
         "type": "object",
         "properties": {
@@ -31406,6 +34136,9 @@
     },
     {
       "name": "reports"
+    },
+    {
+      "name": "purchases"
     },
     {
       "name": "experiments"

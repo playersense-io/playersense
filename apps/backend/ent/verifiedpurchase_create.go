@@ -71,9 +71,45 @@ func (_c *VerifiedPurchaseCreate) SetProjectUID(v uuid.UUID) *VerifiedPurchaseCr
 	return _c
 }
 
+// SetEnvironmentID sets the "environment_id" field.
+func (_c *VerifiedPurchaseCreate) SetEnvironmentID(v int) *VerifiedPurchaseCreate {
+	_c.mutation.SetEnvironmentID(v)
+	return _c
+}
+
+// SetNillableEnvironmentID sets the "environment_id" field if the given value is not nil.
+func (_c *VerifiedPurchaseCreate) SetNillableEnvironmentID(v *int) *VerifiedPurchaseCreate {
+	if v != nil {
+		_c.SetEnvironmentID(*v)
+	}
+	return _c
+}
+
 // SetPlayerID sets the "player_id" field.
 func (_c *VerifiedPurchaseCreate) SetPlayerID(v string) *VerifiedPurchaseCreate {
 	_c.mutation.SetPlayerID(v)
+	return _c
+}
+
+// SetNillablePlayerID sets the "player_id" field if the given value is not nil.
+func (_c *VerifiedPurchaseCreate) SetNillablePlayerID(v *string) *VerifiedPurchaseCreate {
+	if v != nil {
+		_c.SetPlayerID(*v)
+	}
+	return _c
+}
+
+// SetInstallID sets the "install_id" field.
+func (_c *VerifiedPurchaseCreate) SetInstallID(v string) *VerifiedPurchaseCreate {
+	_c.mutation.SetInstallID(v)
+	return _c
+}
+
+// SetNillableInstallID sets the "install_id" field if the given value is not nil.
+func (_c *VerifiedPurchaseCreate) SetNillableInstallID(v *string) *VerifiedPurchaseCreate {
+	if v != nil {
+		_c.SetInstallID(*v)
+	}
 	return _c
 }
 
@@ -89,9 +125,79 @@ func (_c *VerifiedPurchaseCreate) SetStoreTransactionID(v string) *VerifiedPurch
 	return _c
 }
 
+// SetOriginalTransactionID sets the "original_transaction_id" field.
+func (_c *VerifiedPurchaseCreate) SetOriginalTransactionID(v string) *VerifiedPurchaseCreate {
+	_c.mutation.SetOriginalTransactionID(v)
+	return _c
+}
+
+// SetNillableOriginalTransactionID sets the "original_transaction_id" field if the given value is not nil.
+func (_c *VerifiedPurchaseCreate) SetNillableOriginalTransactionID(v *string) *VerifiedPurchaseCreate {
+	if v != nil {
+		_c.SetOriginalTransactionID(*v)
+	}
+	return _c
+}
+
+// SetOrderID sets the "order_id" field.
+func (_c *VerifiedPurchaseCreate) SetOrderID(v string) *VerifiedPurchaseCreate {
+	_c.mutation.SetOrderID(v)
+	return _c
+}
+
+// SetNillableOrderID sets the "order_id" field if the given value is not nil.
+func (_c *VerifiedPurchaseCreate) SetNillableOrderID(v *string) *VerifiedPurchaseCreate {
+	if v != nil {
+		_c.SetOrderID(*v)
+	}
+	return _c
+}
+
+// SetTokenDigest sets the "token_digest" field.
+func (_c *VerifiedPurchaseCreate) SetTokenDigest(v string) *VerifiedPurchaseCreate {
+	_c.mutation.SetTokenDigest(v)
+	return _c
+}
+
+// SetNillableTokenDigest sets the "token_digest" field if the given value is not nil.
+func (_c *VerifiedPurchaseCreate) SetNillableTokenDigest(v *string) *VerifiedPurchaseCreate {
+	if v != nil {
+		_c.SetTokenDigest(*v)
+	}
+	return _c
+}
+
 // SetProductID sets the "product_id" field.
 func (_c *VerifiedPurchaseCreate) SetProductID(v string) *VerifiedPurchaseCreate {
 	_c.mutation.SetProductID(v)
+	return _c
+}
+
+// SetKind sets the "kind" field.
+func (_c *VerifiedPurchaseCreate) SetKind(v verifiedpurchase.Kind) *VerifiedPurchaseCreate {
+	_c.mutation.SetKind(v)
+	return _c
+}
+
+// SetNillableKind sets the "kind" field if the given value is not nil.
+func (_c *VerifiedPurchaseCreate) SetNillableKind(v *verifiedpurchase.Kind) *VerifiedPurchaseCreate {
+	if v != nil {
+		_c.SetKind(*v)
+	}
+	return _c
+}
+
+// SetQuantity sets the "quantity" field.
+func (_c *VerifiedPurchaseCreate) SetQuantity(v int) *VerifiedPurchaseCreate {
+	_c.mutation.SetQuantity(v)
+	return _c
+}
+
+// SetNillableQuantity sets the "quantity" field if the given value is not nil.
+func (_c *VerifiedPurchaseCreate) SetNillableQuantity(v *int) *VerifiedPurchaseCreate {
+	if v != nil {
+		_c.SetQuantity(*v)
+	}
 	return _c
 }
 
@@ -107,9 +213,149 @@ func (_c *VerifiedPurchaseCreate) SetCurrency(v string) *VerifiedPurchaseCreate 
 	return _c
 }
 
+// SetPriceFromStore sets the "price_from_store" field.
+func (_c *VerifiedPurchaseCreate) SetPriceFromStore(v bool) *VerifiedPurchaseCreate {
+	_c.mutation.SetPriceFromStore(v)
+	return _c
+}
+
+// SetNillablePriceFromStore sets the "price_from_store" field if the given value is not nil.
+func (_c *VerifiedPurchaseCreate) SetNillablePriceFromStore(v *bool) *VerifiedPurchaseCreate {
+	if v != nil {
+		_c.SetPriceFromStore(*v)
+	}
+	return _c
+}
+
+// SetCountry sets the "country" field.
+func (_c *VerifiedPurchaseCreate) SetCountry(v string) *VerifiedPurchaseCreate {
+	_c.mutation.SetCountry(v)
+	return _c
+}
+
+// SetNillableCountry sets the "country" field if the given value is not nil.
+func (_c *VerifiedPurchaseCreate) SetNillableCountry(v *string) *VerifiedPurchaseCreate {
+	if v != nil {
+		_c.SetCountry(*v)
+	}
+	return _c
+}
+
+// SetSandbox sets the "sandbox" field.
+func (_c *VerifiedPurchaseCreate) SetSandbox(v bool) *VerifiedPurchaseCreate {
+	_c.mutation.SetSandbox(v)
+	return _c
+}
+
+// SetNillableSandbox sets the "sandbox" field if the given value is not nil.
+func (_c *VerifiedPurchaseCreate) SetNillableSandbox(v *bool) *VerifiedPurchaseCreate {
+	if v != nil {
+		_c.SetSandbox(*v)
+	}
+	return _c
+}
+
 // SetPurchasedAt sets the "purchased_at" field.
 func (_c *VerifiedPurchaseCreate) SetPurchasedAt(v time.Time) *VerifiedPurchaseCreate {
 	_c.mutation.SetPurchasedAt(v)
+	return _c
+}
+
+// SetStatus sets the "status" field.
+func (_c *VerifiedPurchaseCreate) SetStatus(v verifiedpurchase.Status) *VerifiedPurchaseCreate {
+	_c.mutation.SetStatus(v)
+	return _c
+}
+
+// SetNillableStatus sets the "status" field if the given value is not nil.
+func (_c *VerifiedPurchaseCreate) SetNillableStatus(v *verifiedpurchase.Status) *VerifiedPurchaseCreate {
+	if v != nil {
+		_c.SetStatus(*v)
+	}
+	return _c
+}
+
+// SetRefundedAt sets the "refunded_at" field.
+func (_c *VerifiedPurchaseCreate) SetRefundedAt(v time.Time) *VerifiedPurchaseCreate {
+	_c.mutation.SetRefundedAt(v)
+	return _c
+}
+
+// SetNillableRefundedAt sets the "refunded_at" field if the given value is not nil.
+func (_c *VerifiedPurchaseCreate) SetNillableRefundedAt(v *time.Time) *VerifiedPurchaseCreate {
+	if v != nil {
+		_c.SetRefundedAt(*v)
+	}
+	return _c
+}
+
+// SetRefundReason sets the "refund_reason" field.
+func (_c *VerifiedPurchaseCreate) SetRefundReason(v string) *VerifiedPurchaseCreate {
+	_c.mutation.SetRefundReason(v)
+	return _c
+}
+
+// SetNillableRefundReason sets the "refund_reason" field if the given value is not nil.
+func (_c *VerifiedPurchaseCreate) SetNillableRefundReason(v *string) *VerifiedPurchaseCreate {
+	if v != nil {
+		_c.SetRefundReason(*v)
+	}
+	return _c
+}
+
+// SetRefundSource sets the "refund_source" field.
+func (_c *VerifiedPurchaseCreate) SetRefundSource(v string) *VerifiedPurchaseCreate {
+	_c.mutation.SetRefundSource(v)
+	return _c
+}
+
+// SetNillableRefundSource sets the "refund_source" field if the given value is not nil.
+func (_c *VerifiedPurchaseCreate) SetNillableRefundSource(v *string) *VerifiedPurchaseCreate {
+	if v != nil {
+		_c.SetRefundSource(*v)
+	}
+	return _c
+}
+
+// SetFirstPurchase sets the "first_purchase" field.
+func (_c *VerifiedPurchaseCreate) SetFirstPurchase(v bool) *VerifiedPurchaseCreate {
+	_c.mutation.SetFirstPurchase(v)
+	return _c
+}
+
+// SetNillableFirstPurchase sets the "first_purchase" field if the given value is not nil.
+func (_c *VerifiedPurchaseCreate) SetNillableFirstPurchase(v *bool) *VerifiedPurchaseCreate {
+	if v != nil {
+		_c.SetFirstPurchase(*v)
+	}
+	return _c
+}
+
+// SetVerifyMs sets the "verify_ms" field.
+func (_c *VerifiedPurchaseCreate) SetVerifyMs(v int) *VerifiedPurchaseCreate {
+	_c.mutation.SetVerifyMs(v)
+	return _c
+}
+
+// SetNillableVerifyMs sets the "verify_ms" field if the given value is not nil.
+func (_c *VerifiedPurchaseCreate) SetNillableVerifyMs(v *int) *VerifiedPurchaseCreate {
+	if v != nil {
+		_c.SetVerifyMs(*v)
+	}
+	return _c
+}
+
+// SetVerifiedVia sets the "verified_via" field.
+func (_c *VerifiedPurchaseCreate) SetVerifiedVia(v string) *VerifiedPurchaseCreate {
+	_c.mutation.SetVerifiedVia(v)
+	return _c
+}
+
+// SetNillableVerifiedVia sets the "verified_via" field if the given value is not nil.
+func (_c *VerifiedPurchaseCreate) SetNillableVerifiedVia(v *string) *VerifiedPurchaseCreate {
+	if v != nil {
+		_c.SetVerifiedVia(*v)
+	}
 	return _c
 }
 
@@ -166,6 +412,74 @@ func (_c *VerifiedPurchaseCreate) defaults() {
 		v := verifiedpurchase.DefaultUpdatedAt()
 		_c.mutation.SetUpdatedAt(v)
 	}
+	if _, ok := _c.mutation.EnvironmentID(); !ok {
+		v := verifiedpurchase.DefaultEnvironmentID
+		_c.mutation.SetEnvironmentID(v)
+	}
+	if _, ok := _c.mutation.PlayerID(); !ok {
+		v := verifiedpurchase.DefaultPlayerID
+		_c.mutation.SetPlayerID(v)
+	}
+	if _, ok := _c.mutation.InstallID(); !ok {
+		v := verifiedpurchase.DefaultInstallID
+		_c.mutation.SetInstallID(v)
+	}
+	if _, ok := _c.mutation.OriginalTransactionID(); !ok {
+		v := verifiedpurchase.DefaultOriginalTransactionID
+		_c.mutation.SetOriginalTransactionID(v)
+	}
+	if _, ok := _c.mutation.OrderID(); !ok {
+		v := verifiedpurchase.DefaultOrderID
+		_c.mutation.SetOrderID(v)
+	}
+	if _, ok := _c.mutation.TokenDigest(); !ok {
+		v := verifiedpurchase.DefaultTokenDigest
+		_c.mutation.SetTokenDigest(v)
+	}
+	if _, ok := _c.mutation.Kind(); !ok {
+		v := verifiedpurchase.DefaultKind
+		_c.mutation.SetKind(v)
+	}
+	if _, ok := _c.mutation.Quantity(); !ok {
+		v := verifiedpurchase.DefaultQuantity
+		_c.mutation.SetQuantity(v)
+	}
+	if _, ok := _c.mutation.PriceFromStore(); !ok {
+		v := verifiedpurchase.DefaultPriceFromStore
+		_c.mutation.SetPriceFromStore(v)
+	}
+	if _, ok := _c.mutation.Country(); !ok {
+		v := verifiedpurchase.DefaultCountry
+		_c.mutation.SetCountry(v)
+	}
+	if _, ok := _c.mutation.Sandbox(); !ok {
+		v := verifiedpurchase.DefaultSandbox
+		_c.mutation.SetSandbox(v)
+	}
+	if _, ok := _c.mutation.Status(); !ok {
+		v := verifiedpurchase.DefaultStatus
+		_c.mutation.SetStatus(v)
+	}
+	if _, ok := _c.mutation.RefundReason(); !ok {
+		v := verifiedpurchase.DefaultRefundReason
+		_c.mutation.SetRefundReason(v)
+	}
+	if _, ok := _c.mutation.RefundSource(); !ok {
+		v := verifiedpurchase.DefaultRefundSource
+		_c.mutation.SetRefundSource(v)
+	}
+	if _, ok := _c.mutation.FirstPurchase(); !ok {
+		v := verifiedpurchase.DefaultFirstPurchase
+		_c.mutation.SetFirstPurchase(v)
+	}
+	if _, ok := _c.mutation.VerifyMs(); !ok {
+		v := verifiedpurchase.DefaultVerifyMs
+		_c.mutation.SetVerifyMs(v)
+	}
+	if _, ok := _c.mutation.VerifiedVia(); !ok {
+		v := verifiedpurchase.DefaultVerifiedVia
+		_c.mutation.SetVerifiedVia(v)
+	}
 }
 
 // check runs all checks and user-defined validators on the builder.
@@ -182,12 +496,23 @@ func (_c *VerifiedPurchaseCreate) check() error {
 	if _, ok := _c.mutation.ProjectUID(); !ok {
 		return &ValidationError{Name: "project_uid", err: errors.New(`ent: missing required field "VerifiedPurchase.project_uid"`)}
 	}
+	if _, ok := _c.mutation.EnvironmentID(); !ok {
+		return &ValidationError{Name: "environment_id", err: errors.New(`ent: missing required field "VerifiedPurchase.environment_id"`)}
+	}
 	if _, ok := _c.mutation.PlayerID(); !ok {
 		return &ValidationError{Name: "player_id", err: errors.New(`ent: missing required field "VerifiedPurchase.player_id"`)}
 	}
 	if v, ok := _c.mutation.PlayerID(); ok {
 		if err := verifiedpurchase.PlayerIDValidator(v); err != nil {
 			return &ValidationError{Name: "player_id", err: fmt.Errorf(`ent: validator failed for field "VerifiedPurchase.player_id": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.InstallID(); !ok {
+		return &ValidationError{Name: "install_id", err: errors.New(`ent: missing required field "VerifiedPurchase.install_id"`)}
+	}
+	if v, ok := _c.mutation.InstallID(); ok {
+		if err := verifiedpurchase.InstallIDValidator(v); err != nil {
+			return &ValidationError{Name: "install_id", err: fmt.Errorf(`ent: validator failed for field "VerifiedPurchase.install_id": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.Platform(); !ok {
@@ -206,6 +531,30 @@ func (_c *VerifiedPurchaseCreate) check() error {
 			return &ValidationError{Name: "store_transaction_id", err: fmt.Errorf(`ent: validator failed for field "VerifiedPurchase.store_transaction_id": %w`, err)}
 		}
 	}
+	if _, ok := _c.mutation.OriginalTransactionID(); !ok {
+		return &ValidationError{Name: "original_transaction_id", err: errors.New(`ent: missing required field "VerifiedPurchase.original_transaction_id"`)}
+	}
+	if v, ok := _c.mutation.OriginalTransactionID(); ok {
+		if err := verifiedpurchase.OriginalTransactionIDValidator(v); err != nil {
+			return &ValidationError{Name: "original_transaction_id", err: fmt.Errorf(`ent: validator failed for field "VerifiedPurchase.original_transaction_id": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.OrderID(); !ok {
+		return &ValidationError{Name: "order_id", err: errors.New(`ent: missing required field "VerifiedPurchase.order_id"`)}
+	}
+	if v, ok := _c.mutation.OrderID(); ok {
+		if err := verifiedpurchase.OrderIDValidator(v); err != nil {
+			return &ValidationError{Name: "order_id", err: fmt.Errorf(`ent: validator failed for field "VerifiedPurchase.order_id": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.TokenDigest(); !ok {
+		return &ValidationError{Name: "token_digest", err: errors.New(`ent: missing required field "VerifiedPurchase.token_digest"`)}
+	}
+	if v, ok := _c.mutation.TokenDigest(); ok {
+		if err := verifiedpurchase.TokenDigestValidator(v); err != nil {
+			return &ValidationError{Name: "token_digest", err: fmt.Errorf(`ent: validator failed for field "VerifiedPurchase.token_digest": %w`, err)}
+		}
+	}
 	if _, ok := _c.mutation.ProductID(); !ok {
 		return &ValidationError{Name: "product_id", err: errors.New(`ent: missing required field "VerifiedPurchase.product_id"`)}
 	}
@@ -213,6 +562,17 @@ func (_c *VerifiedPurchaseCreate) check() error {
 		if err := verifiedpurchase.ProductIDValidator(v); err != nil {
 			return &ValidationError{Name: "product_id", err: fmt.Errorf(`ent: validator failed for field "VerifiedPurchase.product_id": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.Kind(); !ok {
+		return &ValidationError{Name: "kind", err: errors.New(`ent: missing required field "VerifiedPurchase.kind"`)}
+	}
+	if v, ok := _c.mutation.Kind(); ok {
+		if err := verifiedpurchase.KindValidator(v); err != nil {
+			return &ValidationError{Name: "kind", err: fmt.Errorf(`ent: validator failed for field "VerifiedPurchase.kind": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.Quantity(); !ok {
+		return &ValidationError{Name: "quantity", err: errors.New(`ent: missing required field "VerifiedPurchase.quantity"`)}
 	}
 	if _, ok := _c.mutation.AmountMicros(); !ok {
 		return &ValidationError{Name: "amount_micros", err: errors.New(`ent: missing required field "VerifiedPurchase.amount_micros"`)}
@@ -225,8 +585,60 @@ func (_c *VerifiedPurchaseCreate) check() error {
 			return &ValidationError{Name: "currency", err: fmt.Errorf(`ent: validator failed for field "VerifiedPurchase.currency": %w`, err)}
 		}
 	}
+	if _, ok := _c.mutation.PriceFromStore(); !ok {
+		return &ValidationError{Name: "price_from_store", err: errors.New(`ent: missing required field "VerifiedPurchase.price_from_store"`)}
+	}
+	if _, ok := _c.mutation.Country(); !ok {
+		return &ValidationError{Name: "country", err: errors.New(`ent: missing required field "VerifiedPurchase.country"`)}
+	}
+	if v, ok := _c.mutation.Country(); ok {
+		if err := verifiedpurchase.CountryValidator(v); err != nil {
+			return &ValidationError{Name: "country", err: fmt.Errorf(`ent: validator failed for field "VerifiedPurchase.country": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.Sandbox(); !ok {
+		return &ValidationError{Name: "sandbox", err: errors.New(`ent: missing required field "VerifiedPurchase.sandbox"`)}
+	}
 	if _, ok := _c.mutation.PurchasedAt(); !ok {
 		return &ValidationError{Name: "purchased_at", err: errors.New(`ent: missing required field "VerifiedPurchase.purchased_at"`)}
+	}
+	if _, ok := _c.mutation.Status(); !ok {
+		return &ValidationError{Name: "status", err: errors.New(`ent: missing required field "VerifiedPurchase.status"`)}
+	}
+	if v, ok := _c.mutation.Status(); ok {
+		if err := verifiedpurchase.StatusValidator(v); err != nil {
+			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "VerifiedPurchase.status": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.RefundReason(); !ok {
+		return &ValidationError{Name: "refund_reason", err: errors.New(`ent: missing required field "VerifiedPurchase.refund_reason"`)}
+	}
+	if v, ok := _c.mutation.RefundReason(); ok {
+		if err := verifiedpurchase.RefundReasonValidator(v); err != nil {
+			return &ValidationError{Name: "refund_reason", err: fmt.Errorf(`ent: validator failed for field "VerifiedPurchase.refund_reason": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.RefundSource(); !ok {
+		return &ValidationError{Name: "refund_source", err: errors.New(`ent: missing required field "VerifiedPurchase.refund_source"`)}
+	}
+	if v, ok := _c.mutation.RefundSource(); ok {
+		if err := verifiedpurchase.RefundSourceValidator(v); err != nil {
+			return &ValidationError{Name: "refund_source", err: fmt.Errorf(`ent: validator failed for field "VerifiedPurchase.refund_source": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.FirstPurchase(); !ok {
+		return &ValidationError{Name: "first_purchase", err: errors.New(`ent: missing required field "VerifiedPurchase.first_purchase"`)}
+	}
+	if _, ok := _c.mutation.VerifyMs(); !ok {
+		return &ValidationError{Name: "verify_ms", err: errors.New(`ent: missing required field "VerifiedPurchase.verify_ms"`)}
+	}
+	if _, ok := _c.mutation.VerifiedVia(); !ok {
+		return &ValidationError{Name: "verified_via", err: errors.New(`ent: missing required field "VerifiedPurchase.verified_via"`)}
+	}
+	if v, ok := _c.mutation.VerifiedVia(); ok {
+		if err := verifiedpurchase.VerifiedViaValidator(v); err != nil {
+			return &ValidationError{Name: "verified_via", err: fmt.Errorf(`ent: validator failed for field "VerifiedPurchase.verified_via": %w`, err)}
+		}
 	}
 	return nil
 }
@@ -277,9 +689,17 @@ func (_c *VerifiedPurchaseCreate) createSpec() (*VerifiedPurchase, *sqlgraph.Cre
 		_spec.SetField(verifiedpurchase.FieldProjectUID, field.TypeUUID, value)
 		_node.ProjectUID = value
 	}
+	if value, ok := _c.mutation.EnvironmentID(); ok {
+		_spec.SetField(verifiedpurchase.FieldEnvironmentID, field.TypeInt, value)
+		_node.EnvironmentID = value
+	}
 	if value, ok := _c.mutation.PlayerID(); ok {
 		_spec.SetField(verifiedpurchase.FieldPlayerID, field.TypeString, value)
 		_node.PlayerID = value
+	}
+	if value, ok := _c.mutation.InstallID(); ok {
+		_spec.SetField(verifiedpurchase.FieldInstallID, field.TypeString, value)
+		_node.InstallID = value
 	}
 	if value, ok := _c.mutation.Platform(); ok {
 		_spec.SetField(verifiedpurchase.FieldPlatform, field.TypeEnum, value)
@@ -289,9 +709,29 @@ func (_c *VerifiedPurchaseCreate) createSpec() (*VerifiedPurchase, *sqlgraph.Cre
 		_spec.SetField(verifiedpurchase.FieldStoreTransactionID, field.TypeString, value)
 		_node.StoreTransactionID = value
 	}
+	if value, ok := _c.mutation.OriginalTransactionID(); ok {
+		_spec.SetField(verifiedpurchase.FieldOriginalTransactionID, field.TypeString, value)
+		_node.OriginalTransactionID = value
+	}
+	if value, ok := _c.mutation.OrderID(); ok {
+		_spec.SetField(verifiedpurchase.FieldOrderID, field.TypeString, value)
+		_node.OrderID = value
+	}
+	if value, ok := _c.mutation.TokenDigest(); ok {
+		_spec.SetField(verifiedpurchase.FieldTokenDigest, field.TypeString, value)
+		_node.TokenDigest = value
+	}
 	if value, ok := _c.mutation.ProductID(); ok {
 		_spec.SetField(verifiedpurchase.FieldProductID, field.TypeString, value)
 		_node.ProductID = value
+	}
+	if value, ok := _c.mutation.Kind(); ok {
+		_spec.SetField(verifiedpurchase.FieldKind, field.TypeEnum, value)
+		_node.Kind = value
+	}
+	if value, ok := _c.mutation.Quantity(); ok {
+		_spec.SetField(verifiedpurchase.FieldQuantity, field.TypeInt, value)
+		_node.Quantity = value
 	}
 	if value, ok := _c.mutation.AmountMicros(); ok {
 		_spec.SetField(verifiedpurchase.FieldAmountMicros, field.TypeInt64, value)
@@ -301,9 +741,49 @@ func (_c *VerifiedPurchaseCreate) createSpec() (*VerifiedPurchase, *sqlgraph.Cre
 		_spec.SetField(verifiedpurchase.FieldCurrency, field.TypeString, value)
 		_node.Currency = value
 	}
+	if value, ok := _c.mutation.PriceFromStore(); ok {
+		_spec.SetField(verifiedpurchase.FieldPriceFromStore, field.TypeBool, value)
+		_node.PriceFromStore = value
+	}
+	if value, ok := _c.mutation.Country(); ok {
+		_spec.SetField(verifiedpurchase.FieldCountry, field.TypeString, value)
+		_node.Country = value
+	}
+	if value, ok := _c.mutation.Sandbox(); ok {
+		_spec.SetField(verifiedpurchase.FieldSandbox, field.TypeBool, value)
+		_node.Sandbox = value
+	}
 	if value, ok := _c.mutation.PurchasedAt(); ok {
 		_spec.SetField(verifiedpurchase.FieldPurchasedAt, field.TypeTime, value)
 		_node.PurchasedAt = value
+	}
+	if value, ok := _c.mutation.Status(); ok {
+		_spec.SetField(verifiedpurchase.FieldStatus, field.TypeEnum, value)
+		_node.Status = value
+	}
+	if value, ok := _c.mutation.RefundedAt(); ok {
+		_spec.SetField(verifiedpurchase.FieldRefundedAt, field.TypeTime, value)
+		_node.RefundedAt = &value
+	}
+	if value, ok := _c.mutation.RefundReason(); ok {
+		_spec.SetField(verifiedpurchase.FieldRefundReason, field.TypeString, value)
+		_node.RefundReason = value
+	}
+	if value, ok := _c.mutation.RefundSource(); ok {
+		_spec.SetField(verifiedpurchase.FieldRefundSource, field.TypeString, value)
+		_node.RefundSource = value
+	}
+	if value, ok := _c.mutation.FirstPurchase(); ok {
+		_spec.SetField(verifiedpurchase.FieldFirstPurchase, field.TypeBool, value)
+		_node.FirstPurchase = value
+	}
+	if value, ok := _c.mutation.VerifyMs(); ok {
+		_spec.SetField(verifiedpurchase.FieldVerifyMs, field.TypeInt, value)
+		_node.VerifyMs = value
+	}
+	if value, ok := _c.mutation.VerifiedVia(); ok {
+		_spec.SetField(verifiedpurchase.FieldVerifiedVia, field.TypeString, value)
+		_node.VerifiedVia = value
 	}
 	return _node, _spec
 }
@@ -381,6 +861,24 @@ func (u *VerifiedPurchaseUpsert) UpdateProjectUID() *VerifiedPurchaseUpsert {
 	return u
 }
 
+// SetEnvironmentID sets the "environment_id" field.
+func (u *VerifiedPurchaseUpsert) SetEnvironmentID(v int) *VerifiedPurchaseUpsert {
+	u.Set(verifiedpurchase.FieldEnvironmentID, v)
+	return u
+}
+
+// UpdateEnvironmentID sets the "environment_id" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsert) UpdateEnvironmentID() *VerifiedPurchaseUpsert {
+	u.SetExcluded(verifiedpurchase.FieldEnvironmentID)
+	return u
+}
+
+// AddEnvironmentID adds v to the "environment_id" field.
+func (u *VerifiedPurchaseUpsert) AddEnvironmentID(v int) *VerifiedPurchaseUpsert {
+	u.Add(verifiedpurchase.FieldEnvironmentID, v)
+	return u
+}
+
 // SetPlayerID sets the "player_id" field.
 func (u *VerifiedPurchaseUpsert) SetPlayerID(v string) *VerifiedPurchaseUpsert {
 	u.Set(verifiedpurchase.FieldPlayerID, v)
@@ -390,6 +888,18 @@ func (u *VerifiedPurchaseUpsert) SetPlayerID(v string) *VerifiedPurchaseUpsert {
 // UpdatePlayerID sets the "player_id" field to the value that was provided on create.
 func (u *VerifiedPurchaseUpsert) UpdatePlayerID() *VerifiedPurchaseUpsert {
 	u.SetExcluded(verifiedpurchase.FieldPlayerID)
+	return u
+}
+
+// SetInstallID sets the "install_id" field.
+func (u *VerifiedPurchaseUpsert) SetInstallID(v string) *VerifiedPurchaseUpsert {
+	u.Set(verifiedpurchase.FieldInstallID, v)
+	return u
+}
+
+// UpdateInstallID sets the "install_id" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsert) UpdateInstallID() *VerifiedPurchaseUpsert {
+	u.SetExcluded(verifiedpurchase.FieldInstallID)
 	return u
 }
 
@@ -417,6 +927,42 @@ func (u *VerifiedPurchaseUpsert) UpdateStoreTransactionID() *VerifiedPurchaseUps
 	return u
 }
 
+// SetOriginalTransactionID sets the "original_transaction_id" field.
+func (u *VerifiedPurchaseUpsert) SetOriginalTransactionID(v string) *VerifiedPurchaseUpsert {
+	u.Set(verifiedpurchase.FieldOriginalTransactionID, v)
+	return u
+}
+
+// UpdateOriginalTransactionID sets the "original_transaction_id" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsert) UpdateOriginalTransactionID() *VerifiedPurchaseUpsert {
+	u.SetExcluded(verifiedpurchase.FieldOriginalTransactionID)
+	return u
+}
+
+// SetOrderID sets the "order_id" field.
+func (u *VerifiedPurchaseUpsert) SetOrderID(v string) *VerifiedPurchaseUpsert {
+	u.Set(verifiedpurchase.FieldOrderID, v)
+	return u
+}
+
+// UpdateOrderID sets the "order_id" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsert) UpdateOrderID() *VerifiedPurchaseUpsert {
+	u.SetExcluded(verifiedpurchase.FieldOrderID)
+	return u
+}
+
+// SetTokenDigest sets the "token_digest" field.
+func (u *VerifiedPurchaseUpsert) SetTokenDigest(v string) *VerifiedPurchaseUpsert {
+	u.Set(verifiedpurchase.FieldTokenDigest, v)
+	return u
+}
+
+// UpdateTokenDigest sets the "token_digest" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsert) UpdateTokenDigest() *VerifiedPurchaseUpsert {
+	u.SetExcluded(verifiedpurchase.FieldTokenDigest)
+	return u
+}
+
 // SetProductID sets the "product_id" field.
 func (u *VerifiedPurchaseUpsert) SetProductID(v string) *VerifiedPurchaseUpsert {
 	u.Set(verifiedpurchase.FieldProductID, v)
@@ -426,6 +972,36 @@ func (u *VerifiedPurchaseUpsert) SetProductID(v string) *VerifiedPurchaseUpsert 
 // UpdateProductID sets the "product_id" field to the value that was provided on create.
 func (u *VerifiedPurchaseUpsert) UpdateProductID() *VerifiedPurchaseUpsert {
 	u.SetExcluded(verifiedpurchase.FieldProductID)
+	return u
+}
+
+// SetKind sets the "kind" field.
+func (u *VerifiedPurchaseUpsert) SetKind(v verifiedpurchase.Kind) *VerifiedPurchaseUpsert {
+	u.Set(verifiedpurchase.FieldKind, v)
+	return u
+}
+
+// UpdateKind sets the "kind" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsert) UpdateKind() *VerifiedPurchaseUpsert {
+	u.SetExcluded(verifiedpurchase.FieldKind)
+	return u
+}
+
+// SetQuantity sets the "quantity" field.
+func (u *VerifiedPurchaseUpsert) SetQuantity(v int) *VerifiedPurchaseUpsert {
+	u.Set(verifiedpurchase.FieldQuantity, v)
+	return u
+}
+
+// UpdateQuantity sets the "quantity" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsert) UpdateQuantity() *VerifiedPurchaseUpsert {
+	u.SetExcluded(verifiedpurchase.FieldQuantity)
+	return u
+}
+
+// AddQuantity adds v to the "quantity" field.
+func (u *VerifiedPurchaseUpsert) AddQuantity(v int) *VerifiedPurchaseUpsert {
+	u.Add(verifiedpurchase.FieldQuantity, v)
 	return u
 }
 
@@ -459,6 +1035,42 @@ func (u *VerifiedPurchaseUpsert) UpdateCurrency() *VerifiedPurchaseUpsert {
 	return u
 }
 
+// SetPriceFromStore sets the "price_from_store" field.
+func (u *VerifiedPurchaseUpsert) SetPriceFromStore(v bool) *VerifiedPurchaseUpsert {
+	u.Set(verifiedpurchase.FieldPriceFromStore, v)
+	return u
+}
+
+// UpdatePriceFromStore sets the "price_from_store" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsert) UpdatePriceFromStore() *VerifiedPurchaseUpsert {
+	u.SetExcluded(verifiedpurchase.FieldPriceFromStore)
+	return u
+}
+
+// SetCountry sets the "country" field.
+func (u *VerifiedPurchaseUpsert) SetCountry(v string) *VerifiedPurchaseUpsert {
+	u.Set(verifiedpurchase.FieldCountry, v)
+	return u
+}
+
+// UpdateCountry sets the "country" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsert) UpdateCountry() *VerifiedPurchaseUpsert {
+	u.SetExcluded(verifiedpurchase.FieldCountry)
+	return u
+}
+
+// SetSandbox sets the "sandbox" field.
+func (u *VerifiedPurchaseUpsert) SetSandbox(v bool) *VerifiedPurchaseUpsert {
+	u.Set(verifiedpurchase.FieldSandbox, v)
+	return u
+}
+
+// UpdateSandbox sets the "sandbox" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsert) UpdateSandbox() *VerifiedPurchaseUpsert {
+	u.SetExcluded(verifiedpurchase.FieldSandbox)
+	return u
+}
+
 // SetPurchasedAt sets the "purchased_at" field.
 func (u *VerifiedPurchaseUpsert) SetPurchasedAt(v time.Time) *VerifiedPurchaseUpsert {
 	u.Set(verifiedpurchase.FieldPurchasedAt, v)
@@ -468,6 +1080,102 @@ func (u *VerifiedPurchaseUpsert) SetPurchasedAt(v time.Time) *VerifiedPurchaseUp
 // UpdatePurchasedAt sets the "purchased_at" field to the value that was provided on create.
 func (u *VerifiedPurchaseUpsert) UpdatePurchasedAt() *VerifiedPurchaseUpsert {
 	u.SetExcluded(verifiedpurchase.FieldPurchasedAt)
+	return u
+}
+
+// SetStatus sets the "status" field.
+func (u *VerifiedPurchaseUpsert) SetStatus(v verifiedpurchase.Status) *VerifiedPurchaseUpsert {
+	u.Set(verifiedpurchase.FieldStatus, v)
+	return u
+}
+
+// UpdateStatus sets the "status" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsert) UpdateStatus() *VerifiedPurchaseUpsert {
+	u.SetExcluded(verifiedpurchase.FieldStatus)
+	return u
+}
+
+// SetRefundedAt sets the "refunded_at" field.
+func (u *VerifiedPurchaseUpsert) SetRefundedAt(v time.Time) *VerifiedPurchaseUpsert {
+	u.Set(verifiedpurchase.FieldRefundedAt, v)
+	return u
+}
+
+// UpdateRefundedAt sets the "refunded_at" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsert) UpdateRefundedAt() *VerifiedPurchaseUpsert {
+	u.SetExcluded(verifiedpurchase.FieldRefundedAt)
+	return u
+}
+
+// ClearRefundedAt clears the value of the "refunded_at" field.
+func (u *VerifiedPurchaseUpsert) ClearRefundedAt() *VerifiedPurchaseUpsert {
+	u.SetNull(verifiedpurchase.FieldRefundedAt)
+	return u
+}
+
+// SetRefundReason sets the "refund_reason" field.
+func (u *VerifiedPurchaseUpsert) SetRefundReason(v string) *VerifiedPurchaseUpsert {
+	u.Set(verifiedpurchase.FieldRefundReason, v)
+	return u
+}
+
+// UpdateRefundReason sets the "refund_reason" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsert) UpdateRefundReason() *VerifiedPurchaseUpsert {
+	u.SetExcluded(verifiedpurchase.FieldRefundReason)
+	return u
+}
+
+// SetRefundSource sets the "refund_source" field.
+func (u *VerifiedPurchaseUpsert) SetRefundSource(v string) *VerifiedPurchaseUpsert {
+	u.Set(verifiedpurchase.FieldRefundSource, v)
+	return u
+}
+
+// UpdateRefundSource sets the "refund_source" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsert) UpdateRefundSource() *VerifiedPurchaseUpsert {
+	u.SetExcluded(verifiedpurchase.FieldRefundSource)
+	return u
+}
+
+// SetFirstPurchase sets the "first_purchase" field.
+func (u *VerifiedPurchaseUpsert) SetFirstPurchase(v bool) *VerifiedPurchaseUpsert {
+	u.Set(verifiedpurchase.FieldFirstPurchase, v)
+	return u
+}
+
+// UpdateFirstPurchase sets the "first_purchase" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsert) UpdateFirstPurchase() *VerifiedPurchaseUpsert {
+	u.SetExcluded(verifiedpurchase.FieldFirstPurchase)
+	return u
+}
+
+// SetVerifyMs sets the "verify_ms" field.
+func (u *VerifiedPurchaseUpsert) SetVerifyMs(v int) *VerifiedPurchaseUpsert {
+	u.Set(verifiedpurchase.FieldVerifyMs, v)
+	return u
+}
+
+// UpdateVerifyMs sets the "verify_ms" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsert) UpdateVerifyMs() *VerifiedPurchaseUpsert {
+	u.SetExcluded(verifiedpurchase.FieldVerifyMs)
+	return u
+}
+
+// AddVerifyMs adds v to the "verify_ms" field.
+func (u *VerifiedPurchaseUpsert) AddVerifyMs(v int) *VerifiedPurchaseUpsert {
+	u.Add(verifiedpurchase.FieldVerifyMs, v)
+	return u
+}
+
+// SetVerifiedVia sets the "verified_via" field.
+func (u *VerifiedPurchaseUpsert) SetVerifiedVia(v string) *VerifiedPurchaseUpsert {
+	u.Set(verifiedpurchase.FieldVerifiedVia, v)
+	return u
+}
+
+// UpdateVerifiedVia sets the "verified_via" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsert) UpdateVerifiedVia() *VerifiedPurchaseUpsert {
+	u.SetExcluded(verifiedpurchase.FieldVerifiedVia)
 	return u
 }
 
@@ -553,6 +1261,27 @@ func (u *VerifiedPurchaseUpsertOne) UpdateProjectUID() *VerifiedPurchaseUpsertOn
 	})
 }
 
+// SetEnvironmentID sets the "environment_id" field.
+func (u *VerifiedPurchaseUpsertOne) SetEnvironmentID(v int) *VerifiedPurchaseUpsertOne {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.SetEnvironmentID(v)
+	})
+}
+
+// AddEnvironmentID adds v to the "environment_id" field.
+func (u *VerifiedPurchaseUpsertOne) AddEnvironmentID(v int) *VerifiedPurchaseUpsertOne {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.AddEnvironmentID(v)
+	})
+}
+
+// UpdateEnvironmentID sets the "environment_id" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsertOne) UpdateEnvironmentID() *VerifiedPurchaseUpsertOne {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.UpdateEnvironmentID()
+	})
+}
+
 // SetPlayerID sets the "player_id" field.
 func (u *VerifiedPurchaseUpsertOne) SetPlayerID(v string) *VerifiedPurchaseUpsertOne {
 	return u.Update(func(s *VerifiedPurchaseUpsert) {
@@ -564,6 +1293,20 @@ func (u *VerifiedPurchaseUpsertOne) SetPlayerID(v string) *VerifiedPurchaseUpser
 func (u *VerifiedPurchaseUpsertOne) UpdatePlayerID() *VerifiedPurchaseUpsertOne {
 	return u.Update(func(s *VerifiedPurchaseUpsert) {
 		s.UpdatePlayerID()
+	})
+}
+
+// SetInstallID sets the "install_id" field.
+func (u *VerifiedPurchaseUpsertOne) SetInstallID(v string) *VerifiedPurchaseUpsertOne {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.SetInstallID(v)
+	})
+}
+
+// UpdateInstallID sets the "install_id" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsertOne) UpdateInstallID() *VerifiedPurchaseUpsertOne {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.UpdateInstallID()
 	})
 }
 
@@ -595,6 +1338,48 @@ func (u *VerifiedPurchaseUpsertOne) UpdateStoreTransactionID() *VerifiedPurchase
 	})
 }
 
+// SetOriginalTransactionID sets the "original_transaction_id" field.
+func (u *VerifiedPurchaseUpsertOne) SetOriginalTransactionID(v string) *VerifiedPurchaseUpsertOne {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.SetOriginalTransactionID(v)
+	})
+}
+
+// UpdateOriginalTransactionID sets the "original_transaction_id" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsertOne) UpdateOriginalTransactionID() *VerifiedPurchaseUpsertOne {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.UpdateOriginalTransactionID()
+	})
+}
+
+// SetOrderID sets the "order_id" field.
+func (u *VerifiedPurchaseUpsertOne) SetOrderID(v string) *VerifiedPurchaseUpsertOne {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.SetOrderID(v)
+	})
+}
+
+// UpdateOrderID sets the "order_id" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsertOne) UpdateOrderID() *VerifiedPurchaseUpsertOne {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.UpdateOrderID()
+	})
+}
+
+// SetTokenDigest sets the "token_digest" field.
+func (u *VerifiedPurchaseUpsertOne) SetTokenDigest(v string) *VerifiedPurchaseUpsertOne {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.SetTokenDigest(v)
+	})
+}
+
+// UpdateTokenDigest sets the "token_digest" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsertOne) UpdateTokenDigest() *VerifiedPurchaseUpsertOne {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.UpdateTokenDigest()
+	})
+}
+
 // SetProductID sets the "product_id" field.
 func (u *VerifiedPurchaseUpsertOne) SetProductID(v string) *VerifiedPurchaseUpsertOne {
 	return u.Update(func(s *VerifiedPurchaseUpsert) {
@@ -606,6 +1391,41 @@ func (u *VerifiedPurchaseUpsertOne) SetProductID(v string) *VerifiedPurchaseUpse
 func (u *VerifiedPurchaseUpsertOne) UpdateProductID() *VerifiedPurchaseUpsertOne {
 	return u.Update(func(s *VerifiedPurchaseUpsert) {
 		s.UpdateProductID()
+	})
+}
+
+// SetKind sets the "kind" field.
+func (u *VerifiedPurchaseUpsertOne) SetKind(v verifiedpurchase.Kind) *VerifiedPurchaseUpsertOne {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.SetKind(v)
+	})
+}
+
+// UpdateKind sets the "kind" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsertOne) UpdateKind() *VerifiedPurchaseUpsertOne {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.UpdateKind()
+	})
+}
+
+// SetQuantity sets the "quantity" field.
+func (u *VerifiedPurchaseUpsertOne) SetQuantity(v int) *VerifiedPurchaseUpsertOne {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.SetQuantity(v)
+	})
+}
+
+// AddQuantity adds v to the "quantity" field.
+func (u *VerifiedPurchaseUpsertOne) AddQuantity(v int) *VerifiedPurchaseUpsertOne {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.AddQuantity(v)
+	})
+}
+
+// UpdateQuantity sets the "quantity" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsertOne) UpdateQuantity() *VerifiedPurchaseUpsertOne {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.UpdateQuantity()
 	})
 }
 
@@ -644,6 +1464,48 @@ func (u *VerifiedPurchaseUpsertOne) UpdateCurrency() *VerifiedPurchaseUpsertOne 
 	})
 }
 
+// SetPriceFromStore sets the "price_from_store" field.
+func (u *VerifiedPurchaseUpsertOne) SetPriceFromStore(v bool) *VerifiedPurchaseUpsertOne {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.SetPriceFromStore(v)
+	})
+}
+
+// UpdatePriceFromStore sets the "price_from_store" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsertOne) UpdatePriceFromStore() *VerifiedPurchaseUpsertOne {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.UpdatePriceFromStore()
+	})
+}
+
+// SetCountry sets the "country" field.
+func (u *VerifiedPurchaseUpsertOne) SetCountry(v string) *VerifiedPurchaseUpsertOne {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.SetCountry(v)
+	})
+}
+
+// UpdateCountry sets the "country" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsertOne) UpdateCountry() *VerifiedPurchaseUpsertOne {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.UpdateCountry()
+	})
+}
+
+// SetSandbox sets the "sandbox" field.
+func (u *VerifiedPurchaseUpsertOne) SetSandbox(v bool) *VerifiedPurchaseUpsertOne {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.SetSandbox(v)
+	})
+}
+
+// UpdateSandbox sets the "sandbox" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsertOne) UpdateSandbox() *VerifiedPurchaseUpsertOne {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.UpdateSandbox()
+	})
+}
+
 // SetPurchasedAt sets the "purchased_at" field.
 func (u *VerifiedPurchaseUpsertOne) SetPurchasedAt(v time.Time) *VerifiedPurchaseUpsertOne {
 	return u.Update(func(s *VerifiedPurchaseUpsert) {
@@ -655,6 +1517,118 @@ func (u *VerifiedPurchaseUpsertOne) SetPurchasedAt(v time.Time) *VerifiedPurchas
 func (u *VerifiedPurchaseUpsertOne) UpdatePurchasedAt() *VerifiedPurchaseUpsertOne {
 	return u.Update(func(s *VerifiedPurchaseUpsert) {
 		s.UpdatePurchasedAt()
+	})
+}
+
+// SetStatus sets the "status" field.
+func (u *VerifiedPurchaseUpsertOne) SetStatus(v verifiedpurchase.Status) *VerifiedPurchaseUpsertOne {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.SetStatus(v)
+	})
+}
+
+// UpdateStatus sets the "status" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsertOne) UpdateStatus() *VerifiedPurchaseUpsertOne {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.UpdateStatus()
+	})
+}
+
+// SetRefundedAt sets the "refunded_at" field.
+func (u *VerifiedPurchaseUpsertOne) SetRefundedAt(v time.Time) *VerifiedPurchaseUpsertOne {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.SetRefundedAt(v)
+	})
+}
+
+// UpdateRefundedAt sets the "refunded_at" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsertOne) UpdateRefundedAt() *VerifiedPurchaseUpsertOne {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.UpdateRefundedAt()
+	})
+}
+
+// ClearRefundedAt clears the value of the "refunded_at" field.
+func (u *VerifiedPurchaseUpsertOne) ClearRefundedAt() *VerifiedPurchaseUpsertOne {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.ClearRefundedAt()
+	})
+}
+
+// SetRefundReason sets the "refund_reason" field.
+func (u *VerifiedPurchaseUpsertOne) SetRefundReason(v string) *VerifiedPurchaseUpsertOne {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.SetRefundReason(v)
+	})
+}
+
+// UpdateRefundReason sets the "refund_reason" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsertOne) UpdateRefundReason() *VerifiedPurchaseUpsertOne {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.UpdateRefundReason()
+	})
+}
+
+// SetRefundSource sets the "refund_source" field.
+func (u *VerifiedPurchaseUpsertOne) SetRefundSource(v string) *VerifiedPurchaseUpsertOne {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.SetRefundSource(v)
+	})
+}
+
+// UpdateRefundSource sets the "refund_source" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsertOne) UpdateRefundSource() *VerifiedPurchaseUpsertOne {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.UpdateRefundSource()
+	})
+}
+
+// SetFirstPurchase sets the "first_purchase" field.
+func (u *VerifiedPurchaseUpsertOne) SetFirstPurchase(v bool) *VerifiedPurchaseUpsertOne {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.SetFirstPurchase(v)
+	})
+}
+
+// UpdateFirstPurchase sets the "first_purchase" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsertOne) UpdateFirstPurchase() *VerifiedPurchaseUpsertOne {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.UpdateFirstPurchase()
+	})
+}
+
+// SetVerifyMs sets the "verify_ms" field.
+func (u *VerifiedPurchaseUpsertOne) SetVerifyMs(v int) *VerifiedPurchaseUpsertOne {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.SetVerifyMs(v)
+	})
+}
+
+// AddVerifyMs adds v to the "verify_ms" field.
+func (u *VerifiedPurchaseUpsertOne) AddVerifyMs(v int) *VerifiedPurchaseUpsertOne {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.AddVerifyMs(v)
+	})
+}
+
+// UpdateVerifyMs sets the "verify_ms" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsertOne) UpdateVerifyMs() *VerifiedPurchaseUpsertOne {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.UpdateVerifyMs()
+	})
+}
+
+// SetVerifiedVia sets the "verified_via" field.
+func (u *VerifiedPurchaseUpsertOne) SetVerifiedVia(v string) *VerifiedPurchaseUpsertOne {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.SetVerifiedVia(v)
+	})
+}
+
+// UpdateVerifiedVia sets the "verified_via" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsertOne) UpdateVerifiedVia() *VerifiedPurchaseUpsertOne {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.UpdateVerifiedVia()
 	})
 }
 
@@ -906,6 +1880,27 @@ func (u *VerifiedPurchaseUpsertBulk) UpdateProjectUID() *VerifiedPurchaseUpsertB
 	})
 }
 
+// SetEnvironmentID sets the "environment_id" field.
+func (u *VerifiedPurchaseUpsertBulk) SetEnvironmentID(v int) *VerifiedPurchaseUpsertBulk {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.SetEnvironmentID(v)
+	})
+}
+
+// AddEnvironmentID adds v to the "environment_id" field.
+func (u *VerifiedPurchaseUpsertBulk) AddEnvironmentID(v int) *VerifiedPurchaseUpsertBulk {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.AddEnvironmentID(v)
+	})
+}
+
+// UpdateEnvironmentID sets the "environment_id" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsertBulk) UpdateEnvironmentID() *VerifiedPurchaseUpsertBulk {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.UpdateEnvironmentID()
+	})
+}
+
 // SetPlayerID sets the "player_id" field.
 func (u *VerifiedPurchaseUpsertBulk) SetPlayerID(v string) *VerifiedPurchaseUpsertBulk {
 	return u.Update(func(s *VerifiedPurchaseUpsert) {
@@ -917,6 +1912,20 @@ func (u *VerifiedPurchaseUpsertBulk) SetPlayerID(v string) *VerifiedPurchaseUpse
 func (u *VerifiedPurchaseUpsertBulk) UpdatePlayerID() *VerifiedPurchaseUpsertBulk {
 	return u.Update(func(s *VerifiedPurchaseUpsert) {
 		s.UpdatePlayerID()
+	})
+}
+
+// SetInstallID sets the "install_id" field.
+func (u *VerifiedPurchaseUpsertBulk) SetInstallID(v string) *VerifiedPurchaseUpsertBulk {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.SetInstallID(v)
+	})
+}
+
+// UpdateInstallID sets the "install_id" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsertBulk) UpdateInstallID() *VerifiedPurchaseUpsertBulk {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.UpdateInstallID()
 	})
 }
 
@@ -948,6 +1957,48 @@ func (u *VerifiedPurchaseUpsertBulk) UpdateStoreTransactionID() *VerifiedPurchas
 	})
 }
 
+// SetOriginalTransactionID sets the "original_transaction_id" field.
+func (u *VerifiedPurchaseUpsertBulk) SetOriginalTransactionID(v string) *VerifiedPurchaseUpsertBulk {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.SetOriginalTransactionID(v)
+	})
+}
+
+// UpdateOriginalTransactionID sets the "original_transaction_id" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsertBulk) UpdateOriginalTransactionID() *VerifiedPurchaseUpsertBulk {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.UpdateOriginalTransactionID()
+	})
+}
+
+// SetOrderID sets the "order_id" field.
+func (u *VerifiedPurchaseUpsertBulk) SetOrderID(v string) *VerifiedPurchaseUpsertBulk {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.SetOrderID(v)
+	})
+}
+
+// UpdateOrderID sets the "order_id" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsertBulk) UpdateOrderID() *VerifiedPurchaseUpsertBulk {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.UpdateOrderID()
+	})
+}
+
+// SetTokenDigest sets the "token_digest" field.
+func (u *VerifiedPurchaseUpsertBulk) SetTokenDigest(v string) *VerifiedPurchaseUpsertBulk {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.SetTokenDigest(v)
+	})
+}
+
+// UpdateTokenDigest sets the "token_digest" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsertBulk) UpdateTokenDigest() *VerifiedPurchaseUpsertBulk {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.UpdateTokenDigest()
+	})
+}
+
 // SetProductID sets the "product_id" field.
 func (u *VerifiedPurchaseUpsertBulk) SetProductID(v string) *VerifiedPurchaseUpsertBulk {
 	return u.Update(func(s *VerifiedPurchaseUpsert) {
@@ -959,6 +2010,41 @@ func (u *VerifiedPurchaseUpsertBulk) SetProductID(v string) *VerifiedPurchaseUps
 func (u *VerifiedPurchaseUpsertBulk) UpdateProductID() *VerifiedPurchaseUpsertBulk {
 	return u.Update(func(s *VerifiedPurchaseUpsert) {
 		s.UpdateProductID()
+	})
+}
+
+// SetKind sets the "kind" field.
+func (u *VerifiedPurchaseUpsertBulk) SetKind(v verifiedpurchase.Kind) *VerifiedPurchaseUpsertBulk {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.SetKind(v)
+	})
+}
+
+// UpdateKind sets the "kind" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsertBulk) UpdateKind() *VerifiedPurchaseUpsertBulk {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.UpdateKind()
+	})
+}
+
+// SetQuantity sets the "quantity" field.
+func (u *VerifiedPurchaseUpsertBulk) SetQuantity(v int) *VerifiedPurchaseUpsertBulk {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.SetQuantity(v)
+	})
+}
+
+// AddQuantity adds v to the "quantity" field.
+func (u *VerifiedPurchaseUpsertBulk) AddQuantity(v int) *VerifiedPurchaseUpsertBulk {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.AddQuantity(v)
+	})
+}
+
+// UpdateQuantity sets the "quantity" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsertBulk) UpdateQuantity() *VerifiedPurchaseUpsertBulk {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.UpdateQuantity()
 	})
 }
 
@@ -997,6 +2083,48 @@ func (u *VerifiedPurchaseUpsertBulk) UpdateCurrency() *VerifiedPurchaseUpsertBul
 	})
 }
 
+// SetPriceFromStore sets the "price_from_store" field.
+func (u *VerifiedPurchaseUpsertBulk) SetPriceFromStore(v bool) *VerifiedPurchaseUpsertBulk {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.SetPriceFromStore(v)
+	})
+}
+
+// UpdatePriceFromStore sets the "price_from_store" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsertBulk) UpdatePriceFromStore() *VerifiedPurchaseUpsertBulk {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.UpdatePriceFromStore()
+	})
+}
+
+// SetCountry sets the "country" field.
+func (u *VerifiedPurchaseUpsertBulk) SetCountry(v string) *VerifiedPurchaseUpsertBulk {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.SetCountry(v)
+	})
+}
+
+// UpdateCountry sets the "country" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsertBulk) UpdateCountry() *VerifiedPurchaseUpsertBulk {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.UpdateCountry()
+	})
+}
+
+// SetSandbox sets the "sandbox" field.
+func (u *VerifiedPurchaseUpsertBulk) SetSandbox(v bool) *VerifiedPurchaseUpsertBulk {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.SetSandbox(v)
+	})
+}
+
+// UpdateSandbox sets the "sandbox" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsertBulk) UpdateSandbox() *VerifiedPurchaseUpsertBulk {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.UpdateSandbox()
+	})
+}
+
 // SetPurchasedAt sets the "purchased_at" field.
 func (u *VerifiedPurchaseUpsertBulk) SetPurchasedAt(v time.Time) *VerifiedPurchaseUpsertBulk {
 	return u.Update(func(s *VerifiedPurchaseUpsert) {
@@ -1008,6 +2136,118 @@ func (u *VerifiedPurchaseUpsertBulk) SetPurchasedAt(v time.Time) *VerifiedPurcha
 func (u *VerifiedPurchaseUpsertBulk) UpdatePurchasedAt() *VerifiedPurchaseUpsertBulk {
 	return u.Update(func(s *VerifiedPurchaseUpsert) {
 		s.UpdatePurchasedAt()
+	})
+}
+
+// SetStatus sets the "status" field.
+func (u *VerifiedPurchaseUpsertBulk) SetStatus(v verifiedpurchase.Status) *VerifiedPurchaseUpsertBulk {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.SetStatus(v)
+	})
+}
+
+// UpdateStatus sets the "status" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsertBulk) UpdateStatus() *VerifiedPurchaseUpsertBulk {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.UpdateStatus()
+	})
+}
+
+// SetRefundedAt sets the "refunded_at" field.
+func (u *VerifiedPurchaseUpsertBulk) SetRefundedAt(v time.Time) *VerifiedPurchaseUpsertBulk {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.SetRefundedAt(v)
+	})
+}
+
+// UpdateRefundedAt sets the "refunded_at" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsertBulk) UpdateRefundedAt() *VerifiedPurchaseUpsertBulk {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.UpdateRefundedAt()
+	})
+}
+
+// ClearRefundedAt clears the value of the "refunded_at" field.
+func (u *VerifiedPurchaseUpsertBulk) ClearRefundedAt() *VerifiedPurchaseUpsertBulk {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.ClearRefundedAt()
+	})
+}
+
+// SetRefundReason sets the "refund_reason" field.
+func (u *VerifiedPurchaseUpsertBulk) SetRefundReason(v string) *VerifiedPurchaseUpsertBulk {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.SetRefundReason(v)
+	})
+}
+
+// UpdateRefundReason sets the "refund_reason" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsertBulk) UpdateRefundReason() *VerifiedPurchaseUpsertBulk {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.UpdateRefundReason()
+	})
+}
+
+// SetRefundSource sets the "refund_source" field.
+func (u *VerifiedPurchaseUpsertBulk) SetRefundSource(v string) *VerifiedPurchaseUpsertBulk {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.SetRefundSource(v)
+	})
+}
+
+// UpdateRefundSource sets the "refund_source" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsertBulk) UpdateRefundSource() *VerifiedPurchaseUpsertBulk {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.UpdateRefundSource()
+	})
+}
+
+// SetFirstPurchase sets the "first_purchase" field.
+func (u *VerifiedPurchaseUpsertBulk) SetFirstPurchase(v bool) *VerifiedPurchaseUpsertBulk {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.SetFirstPurchase(v)
+	})
+}
+
+// UpdateFirstPurchase sets the "first_purchase" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsertBulk) UpdateFirstPurchase() *VerifiedPurchaseUpsertBulk {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.UpdateFirstPurchase()
+	})
+}
+
+// SetVerifyMs sets the "verify_ms" field.
+func (u *VerifiedPurchaseUpsertBulk) SetVerifyMs(v int) *VerifiedPurchaseUpsertBulk {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.SetVerifyMs(v)
+	})
+}
+
+// AddVerifyMs adds v to the "verify_ms" field.
+func (u *VerifiedPurchaseUpsertBulk) AddVerifyMs(v int) *VerifiedPurchaseUpsertBulk {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.AddVerifyMs(v)
+	})
+}
+
+// UpdateVerifyMs sets the "verify_ms" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsertBulk) UpdateVerifyMs() *VerifiedPurchaseUpsertBulk {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.UpdateVerifyMs()
+	})
+}
+
+// SetVerifiedVia sets the "verified_via" field.
+func (u *VerifiedPurchaseUpsertBulk) SetVerifiedVia(v string) *VerifiedPurchaseUpsertBulk {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.SetVerifiedVia(v)
+	})
+}
+
+// UpdateVerifiedVia sets the "verified_via" field to the value that was provided on create.
+func (u *VerifiedPurchaseUpsertBulk) UpdateVerifiedVia() *VerifiedPurchaseUpsertBulk {
+	return u.Update(func(s *VerifiedPurchaseUpsert) {
+		s.UpdateVerifiedVia()
 	})
 }
 

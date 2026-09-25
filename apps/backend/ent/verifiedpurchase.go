@@ -27,20 +27,54 @@ type VerifiedPurchase struct {
 	UpdatedAt time.Time `json:"updated_at,omitempty"`
 	// class=none
 	ProjectUID uuid.UUID `json:"project_uid,omitempty"`
+	// class=none
+	EnvironmentID int `json:"environment_id,omitempty"`
 	// class=identifier
 	PlayerID string `json:"player_id,omitempty"`
+	// class=identifier
+	InstallID string `json:"install_id,omitempty"`
 	// class=none
 	Platform verifiedpurchase.Platform `json:"platform,omitempty"`
 	// class=identifier
 	StoreTransactionID string `json:"store_transaction_id,omitempty"`
+	// class=identifier
+	OriginalTransactionID string `json:"original_transaction_id,omitempty"`
+	// class=identifier
+	OrderID string `json:"order_id,omitempty"`
+	// class=identifier
+	TokenDigest string `json:"token_digest,omitempty"`
 	// class=none
 	ProductID string `json:"product_id,omitempty"`
+	// class=none
+	Kind verifiedpurchase.Kind `json:"kind,omitempty"`
+	// class=financial
+	Quantity int `json:"quantity,omitempty"`
 	// class=financial
 	AmountMicros int64 `json:"amount_micros,omitempty"`
 	// class=financial
 	Currency string `json:"currency,omitempty"`
+	// class=none
+	PriceFromStore bool `json:"price_from_store,omitempty"`
 	// class=behavioural
-	PurchasedAt  time.Time `json:"purchased_at,omitempty"`
+	Country string `json:"country,omitempty"`
+	// class=none
+	Sandbox bool `json:"sandbox,omitempty"`
+	// class=behavioural
+	PurchasedAt time.Time `json:"purchased_at,omitempty"`
+	// class=financial
+	Status verifiedpurchase.Status `json:"status,omitempty"`
+	// class=financial
+	RefundedAt *time.Time `json:"refunded_at,omitempty"`
+	// class=financial
+	RefundReason string `json:"refund_reason,omitempty"`
+	// class=none
+	RefundSource string `json:"refund_source,omitempty"`
+	// class=financial
+	FirstPurchase bool `json:"first_purchase,omitempty"`
+	// class=none
+	VerifyMs int `json:"verify_ms,omitempty"`
+	// class=none
+	VerifiedVia  string `json:"verified_via,omitempty"`
 	selectValues sql.SelectValues
 }
 
@@ -49,11 +83,13 @@ func (*VerifiedPurchase) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case verifiedpurchase.FieldID, verifiedpurchase.FieldAmountMicros:
+		case verifiedpurchase.FieldPriceFromStore, verifiedpurchase.FieldSandbox, verifiedpurchase.FieldFirstPurchase:
+			values[i] = new(sql.NullBool)
+		case verifiedpurchase.FieldID, verifiedpurchase.FieldEnvironmentID, verifiedpurchase.FieldQuantity, verifiedpurchase.FieldAmountMicros, verifiedpurchase.FieldVerifyMs:
 			values[i] = new(sql.NullInt64)
-		case verifiedpurchase.FieldPlayerID, verifiedpurchase.FieldPlatform, verifiedpurchase.FieldStoreTransactionID, verifiedpurchase.FieldProductID, verifiedpurchase.FieldCurrency:
+		case verifiedpurchase.FieldPlayerID, verifiedpurchase.FieldInstallID, verifiedpurchase.FieldPlatform, verifiedpurchase.FieldStoreTransactionID, verifiedpurchase.FieldOriginalTransactionID, verifiedpurchase.FieldOrderID, verifiedpurchase.FieldTokenDigest, verifiedpurchase.FieldProductID, verifiedpurchase.FieldKind, verifiedpurchase.FieldCurrency, verifiedpurchase.FieldCountry, verifiedpurchase.FieldStatus, verifiedpurchase.FieldRefundReason, verifiedpurchase.FieldRefundSource, verifiedpurchase.FieldVerifiedVia:
 			values[i] = new(sql.NullString)
-		case verifiedpurchase.FieldCreatedAt, verifiedpurchase.FieldUpdatedAt, verifiedpurchase.FieldPurchasedAt:
+		case verifiedpurchase.FieldCreatedAt, verifiedpurchase.FieldUpdatedAt, verifiedpurchase.FieldPurchasedAt, verifiedpurchase.FieldRefundedAt:
 			values[i] = new(sql.NullTime)
 		case verifiedpurchase.FieldUID, verifiedpurchase.FieldProjectUID:
 			values[i] = new(uuid.UUID)
@@ -102,11 +138,23 @@ func (_m *VerifiedPurchase) assignValues(columns []string, values []any) error {
 			} else if value != nil {
 				_m.ProjectUID = *value
 			}
+		case verifiedpurchase.FieldEnvironmentID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field environment_id", values[i])
+			} else if value.Valid {
+				_m.EnvironmentID = int(value.Int64)
+			}
 		case verifiedpurchase.FieldPlayerID:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field player_id", values[i])
 			} else if value.Valid {
 				_m.PlayerID = value.String
+			}
+		case verifiedpurchase.FieldInstallID:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field install_id", values[i])
+			} else if value.Valid {
+				_m.InstallID = value.String
 			}
 		case verifiedpurchase.FieldPlatform:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -120,11 +168,41 @@ func (_m *VerifiedPurchase) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.StoreTransactionID = value.String
 			}
+		case verifiedpurchase.FieldOriginalTransactionID:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field original_transaction_id", values[i])
+			} else if value.Valid {
+				_m.OriginalTransactionID = value.String
+			}
+		case verifiedpurchase.FieldOrderID:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field order_id", values[i])
+			} else if value.Valid {
+				_m.OrderID = value.String
+			}
+		case verifiedpurchase.FieldTokenDigest:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field token_digest", values[i])
+			} else if value.Valid {
+				_m.TokenDigest = value.String
+			}
 		case verifiedpurchase.FieldProductID:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field product_id", values[i])
 			} else if value.Valid {
 				_m.ProductID = value.String
+			}
+		case verifiedpurchase.FieldKind:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field kind", values[i])
+			} else if value.Valid {
+				_m.Kind = verifiedpurchase.Kind(value.String)
+			}
+		case verifiedpurchase.FieldQuantity:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field quantity", values[i])
+			} else if value.Valid {
+				_m.Quantity = int(value.Int64)
 			}
 		case verifiedpurchase.FieldAmountMicros:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -138,11 +216,72 @@ func (_m *VerifiedPurchase) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.Currency = value.String
 			}
+		case verifiedpurchase.FieldPriceFromStore:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field price_from_store", values[i])
+			} else if value.Valid {
+				_m.PriceFromStore = value.Bool
+			}
+		case verifiedpurchase.FieldCountry:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field country", values[i])
+			} else if value.Valid {
+				_m.Country = value.String
+			}
+		case verifiedpurchase.FieldSandbox:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field sandbox", values[i])
+			} else if value.Valid {
+				_m.Sandbox = value.Bool
+			}
 		case verifiedpurchase.FieldPurchasedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field purchased_at", values[i])
 			} else if value.Valid {
 				_m.PurchasedAt = value.Time
+			}
+		case verifiedpurchase.FieldStatus:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field status", values[i])
+			} else if value.Valid {
+				_m.Status = verifiedpurchase.Status(value.String)
+			}
+		case verifiedpurchase.FieldRefundedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field refunded_at", values[i])
+			} else if value.Valid {
+				_m.RefundedAt = new(time.Time)
+				*_m.RefundedAt = value.Time
+			}
+		case verifiedpurchase.FieldRefundReason:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field refund_reason", values[i])
+			} else if value.Valid {
+				_m.RefundReason = value.String
+			}
+		case verifiedpurchase.FieldRefundSource:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field refund_source", values[i])
+			} else if value.Valid {
+				_m.RefundSource = value.String
+			}
+		case verifiedpurchase.FieldFirstPurchase:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field first_purchase", values[i])
+			} else if value.Valid {
+				_m.FirstPurchase = value.Bool
+			}
+		case verifiedpurchase.FieldVerifyMs:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field verify_ms", values[i])
+			} else if value.Valid {
+				_m.VerifyMs = int(value.Int64)
+			}
+		case verifiedpurchase.FieldVerifiedVia:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field verified_via", values[i])
+			} else if value.Valid {
+				_m.VerifiedVia = value.String
 			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
@@ -192,8 +331,14 @@ func (_m *VerifiedPurchase) String() string {
 	builder.WriteString("project_uid=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ProjectUID))
 	builder.WriteString(", ")
+	builder.WriteString("environment_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.EnvironmentID))
+	builder.WriteString(", ")
 	builder.WriteString("player_id=")
 	builder.WriteString(_m.PlayerID)
+	builder.WriteString(", ")
+	builder.WriteString("install_id=")
+	builder.WriteString(_m.InstallID)
 	builder.WriteString(", ")
 	builder.WriteString("platform=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Platform))
@@ -201,8 +346,23 @@ func (_m *VerifiedPurchase) String() string {
 	builder.WriteString("store_transaction_id=")
 	builder.WriteString(_m.StoreTransactionID)
 	builder.WriteString(", ")
+	builder.WriteString("original_transaction_id=")
+	builder.WriteString(_m.OriginalTransactionID)
+	builder.WriteString(", ")
+	builder.WriteString("order_id=")
+	builder.WriteString(_m.OrderID)
+	builder.WriteString(", ")
+	builder.WriteString("token_digest=")
+	builder.WriteString(_m.TokenDigest)
+	builder.WriteString(", ")
 	builder.WriteString("product_id=")
 	builder.WriteString(_m.ProductID)
+	builder.WriteString(", ")
+	builder.WriteString("kind=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Kind))
+	builder.WriteString(", ")
+	builder.WriteString("quantity=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Quantity))
 	builder.WriteString(", ")
 	builder.WriteString("amount_micros=")
 	builder.WriteString(fmt.Sprintf("%v", _m.AmountMicros))
@@ -210,8 +370,40 @@ func (_m *VerifiedPurchase) String() string {
 	builder.WriteString("currency=")
 	builder.WriteString(_m.Currency)
 	builder.WriteString(", ")
+	builder.WriteString("price_from_store=")
+	builder.WriteString(fmt.Sprintf("%v", _m.PriceFromStore))
+	builder.WriteString(", ")
+	builder.WriteString("country=")
+	builder.WriteString(_m.Country)
+	builder.WriteString(", ")
+	builder.WriteString("sandbox=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Sandbox))
+	builder.WriteString(", ")
 	builder.WriteString("purchased_at=")
 	builder.WriteString(_m.PurchasedAt.Format(time.ANSIC))
+	builder.WriteString(", ")
+	builder.WriteString("status=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Status))
+	builder.WriteString(", ")
+	if v := _m.RefundedAt; v != nil {
+		builder.WriteString("refunded_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("refund_reason=")
+	builder.WriteString(_m.RefundReason)
+	builder.WriteString(", ")
+	builder.WriteString("refund_source=")
+	builder.WriteString(_m.RefundSource)
+	builder.WriteString(", ")
+	builder.WriteString("first_purchase=")
+	builder.WriteString(fmt.Sprintf("%v", _m.FirstPurchase))
+	builder.WriteString(", ")
+	builder.WriteString("verify_ms=")
+	builder.WriteString(fmt.Sprintf("%v", _m.VerifyMs))
+	builder.WriteString(", ")
+	builder.WriteString("verified_via=")
+	builder.WriteString(_m.VerifiedVia)
 	builder.WriteByte(')')
 	return builder.String()
 }

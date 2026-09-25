@@ -20,6 +20,7 @@ import (
 	"playersense.dev/backend/internal/blobstore"
 	"playersense.dev/backend/internal/core"
 	"playersense.dev/backend/internal/notify"
+	"playersense.dev/backend/internal/purchases"
 	"playersense.dev/backend/internal/query"
 	"playersense.dev/backend/internal/reports"
 	"playersense.dev/backend/internal/schemas"
@@ -262,6 +263,9 @@ func DeleteReport(ctx *muzak.Context, in schemas.ReportParams) (muzak.Empty, err
 func reportSources(ctx *muzak.Context, environment string) (reports.SourceReader, error) {
 	scope, err := scopeForMember(ctx, environment)
 	if err != nil {
+		return nil, err
+	}
+	if scope.Verified, err = purchases.VerifiedStores(ctx.Context(), muzak.From[*core.DB](ctx).Client, int(scope.ProjectSeq)); err != nil {
 		return nil, err
 	}
 	return reports.EngineSources{Engine: muzak.From[*query.Engine](ctx), Scope: scope}, nil

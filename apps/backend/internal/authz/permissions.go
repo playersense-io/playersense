@@ -89,6 +89,10 @@ const (
 	PrivacyRead   Permission = "privacy.read"
 	PrivacyErase  Permission = "privacy.erase"
 	PrivacyExport Permission = "privacy.export"
+
+	// Connecting the game's stores: the credentials its players' purchases are verified with.
+	// Reading the purchases themselves is player.read.
+	PurchasesConfigure Permission = "purchases.configure"
 )
 
 // scopes is the vocabulary itself. A permission absent from this map does not exist.
@@ -129,6 +133,8 @@ var scopes = map[Permission]Scope{
 
 	ReportsRead:  ScopeProject,
 	ReportsWrite: ScopeProject,
+
+	PurchasesConfigure: ScopeProject,
 }
 
 // reads is the half of the vocabulary that only looks.

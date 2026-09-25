@@ -43,6 +43,9 @@ import (
 	"playersense.dev/backend/ent/paymentcard"
 	"playersense.dev/backend/ent/plan"
 	"playersense.dev/backend/ent/project"
+	"playersense.dev/backend/ent/purchaseattempt"
+	"playersense.dev/backend/ent/purchasechange"
+	"playersense.dev/backend/ent/purchaseprovider"
 	"playersense.dev/backend/ent/ratecard"
 	"playersense.dev/backend/ent/receipt"
 	"playersense.dev/backend/ent/report"
@@ -124,6 +127,12 @@ type Client struct {
 	Plan *PlanClient
 	// Project is the client for interacting with the Project builders.
 	Project *ProjectClient
+	// PurchaseAttempt is the client for interacting with the PurchaseAttempt builders.
+	PurchaseAttempt *PurchaseAttemptClient
+	// PurchaseChange is the client for interacting with the PurchaseChange builders.
+	PurchaseChange *PurchaseChangeClient
+	// PurchaseProvider is the client for interacting with the PurchaseProvider builders.
+	PurchaseProvider *PurchaseProviderClient
 	// RateCard is the client for interacting with the RateCard builders.
 	RateCard *RateCardClient
 	// Receipt is the client for interacting with the Receipt builders.
@@ -195,6 +204,9 @@ func (c *Client) init() {
 	c.PaymentCard = NewPaymentCardClient(c.config)
 	c.Plan = NewPlanClient(c.config)
 	c.Project = NewProjectClient(c.config)
+	c.PurchaseAttempt = NewPurchaseAttemptClient(c.config)
+	c.PurchaseChange = NewPurchaseChangeClient(c.config)
+	c.PurchaseProvider = NewPurchaseProviderClient(c.config)
 	c.RateCard = NewRateCardClient(c.config)
 	c.Receipt = NewReceiptClient(c.config)
 	c.Report = NewReportClient(c.config)
@@ -331,6 +343,9 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		PaymentCard:         NewPaymentCardClient(cfg),
 		Plan:                NewPlanClient(cfg),
 		Project:             NewProjectClient(cfg),
+		PurchaseAttempt:     NewPurchaseAttemptClient(cfg),
+		PurchaseChange:      NewPurchaseChangeClient(cfg),
+		PurchaseProvider:    NewPurchaseProviderClient(cfg),
 		RateCard:            NewRateCardClient(cfg),
 		Receipt:             NewReceiptClient(cfg),
 		Report:              NewReportClient(cfg),
@@ -394,6 +409,9 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		PaymentCard:         NewPaymentCardClient(cfg),
 		Plan:                NewPlanClient(cfg),
 		Project:             NewProjectClient(cfg),
+		PurchaseAttempt:     NewPurchaseAttemptClient(cfg),
+		PurchaseChange:      NewPurchaseChangeClient(cfg),
+		PurchaseProvider:    NewPurchaseProviderClient(cfg),
 		RateCard:            NewRateCardClient(cfg),
 		Receipt:             NewReceiptClient(cfg),
 		Report:              NewReportClient(cfg),
@@ -445,10 +463,10 @@ func (c *Client) Use(hooks ...Hook) {
 		c.Experiment, c.FeatureFlag, c.Invitation, c.Invoice, c.InvoiceLine,
 		c.LedgerEntry, c.LiveOpsEvent, c.MemberProject, c.MonthlyUsage,
 		c.NotificationChannel, c.Organization, c.OrganizationMember, c.PaymentCard,
-		c.Plan, c.Project, c.RateCard, c.Receipt, c.Report, c.ReportExport,
-		c.ReportRun, c.ReportRunEvent, c.Role, c.SavedFunnel, c.Segment, c.StaffAccess,
-		c.StaffMember, c.StripeEvent, c.UsageCharge, c.UsageDaily, c.User,
-		c.VerifiedPurchase,
+		c.Plan, c.Project, c.PurchaseAttempt, c.PurchaseChange, c.PurchaseProvider,
+		c.RateCard, c.Receipt, c.Report, c.ReportExport, c.ReportRun, c.ReportRunEvent,
+		c.Role, c.SavedFunnel, c.Segment, c.StaffAccess, c.StaffMember, c.StripeEvent,
+		c.UsageCharge, c.UsageDaily, c.User, c.VerifiedPurchase,
 	} {
 		n.Use(hooks...)
 	}
@@ -464,10 +482,10 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.Experiment, c.FeatureFlag, c.Invitation, c.Invoice, c.InvoiceLine,
 		c.LedgerEntry, c.LiveOpsEvent, c.MemberProject, c.MonthlyUsage,
 		c.NotificationChannel, c.Organization, c.OrganizationMember, c.PaymentCard,
-		c.Plan, c.Project, c.RateCard, c.Receipt, c.Report, c.ReportExport,
-		c.ReportRun, c.ReportRunEvent, c.Role, c.SavedFunnel, c.Segment, c.StaffAccess,
-		c.StaffMember, c.StripeEvent, c.UsageCharge, c.UsageDaily, c.User,
-		c.VerifiedPurchase,
+		c.Plan, c.Project, c.PurchaseAttempt, c.PurchaseChange, c.PurchaseProvider,
+		c.RateCard, c.Receipt, c.Report, c.ReportExport, c.ReportRun, c.ReportRunEvent,
+		c.Role, c.SavedFunnel, c.Segment, c.StaffAccess, c.StaffMember, c.StripeEvent,
+		c.UsageCharge, c.UsageDaily, c.User, c.VerifiedPurchase,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -532,6 +550,12 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Plan.mutate(ctx, m)
 	case *ProjectMutation:
 		return c.Project.mutate(ctx, m)
+	case *PurchaseAttemptMutation:
+		return c.PurchaseAttempt.mutate(ctx, m)
+	case *PurchaseChangeMutation:
+		return c.PurchaseChange.mutate(ctx, m)
+	case *PurchaseProviderMutation:
+		return c.PurchaseProvider.mutate(ctx, m)
 	case *RateCardMutation:
 		return c.RateCard.mutate(ctx, m)
 	case *ReceiptMutation:
@@ -5431,6 +5455,405 @@ func (c *ProjectClient) mutate(ctx context.Context, m *ProjectMutation) (Value, 
 	}
 }
 
+// PurchaseAttemptClient is a client for the PurchaseAttempt schema.
+type PurchaseAttemptClient struct {
+	config
+}
+
+// NewPurchaseAttemptClient returns a client for the PurchaseAttempt from the given config.
+func NewPurchaseAttemptClient(c config) *PurchaseAttemptClient {
+	return &PurchaseAttemptClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `purchaseattempt.Hooks(f(g(h())))`.
+func (c *PurchaseAttemptClient) Use(hooks ...Hook) {
+	c.hooks.PurchaseAttempt = append(c.hooks.PurchaseAttempt, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `purchaseattempt.Intercept(f(g(h())))`.
+func (c *PurchaseAttemptClient) Intercept(interceptors ...Interceptor) {
+	c.inters.PurchaseAttempt = append(c.inters.PurchaseAttempt, interceptors...)
+}
+
+// Create returns a builder for creating a PurchaseAttempt entity.
+func (c *PurchaseAttemptClient) Create() *PurchaseAttemptCreate {
+	mutation := newPurchaseAttemptMutation(c.config, OpCreate)
+	return &PurchaseAttemptCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of PurchaseAttempt entities.
+func (c *PurchaseAttemptClient) CreateBulk(builders ...*PurchaseAttemptCreate) *PurchaseAttemptCreateBulk {
+	return &PurchaseAttemptCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *PurchaseAttemptClient) MapCreateBulk(slice any, setFunc func(*PurchaseAttemptCreate, int)) *PurchaseAttemptCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &PurchaseAttemptCreateBulk{err: fmt.Errorf("calling to PurchaseAttemptClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*PurchaseAttemptCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &PurchaseAttemptCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for PurchaseAttempt.
+func (c *PurchaseAttemptClient) Update() *PurchaseAttemptUpdate {
+	mutation := newPurchaseAttemptMutation(c.config, OpUpdate)
+	return &PurchaseAttemptUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *PurchaseAttemptClient) UpdateOne(_m *PurchaseAttempt) *PurchaseAttemptUpdateOne {
+	mutation := newPurchaseAttemptMutation(c.config, OpUpdateOne, withPurchaseAttempt(_m))
+	return &PurchaseAttemptUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *PurchaseAttemptClient) UpdateOneID(id int) *PurchaseAttemptUpdateOne {
+	mutation := newPurchaseAttemptMutation(c.config, OpUpdateOne, withPurchaseAttemptID(id))
+	return &PurchaseAttemptUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for PurchaseAttempt.
+func (c *PurchaseAttemptClient) Delete() *PurchaseAttemptDelete {
+	mutation := newPurchaseAttemptMutation(c.config, OpDelete)
+	return &PurchaseAttemptDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *PurchaseAttemptClient) DeleteOne(_m *PurchaseAttempt) *PurchaseAttemptDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *PurchaseAttemptClient) DeleteOneID(id int) *PurchaseAttemptDeleteOne {
+	builder := c.Delete().Where(purchaseattempt.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &PurchaseAttemptDeleteOne{builder}
+}
+
+// Query returns a query builder for PurchaseAttempt.
+func (c *PurchaseAttemptClient) Query() *PurchaseAttemptQuery {
+	return &PurchaseAttemptQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypePurchaseAttempt},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a PurchaseAttempt entity by its id.
+func (c *PurchaseAttemptClient) Get(ctx context.Context, id int) (*PurchaseAttempt, error) {
+	return c.Query().Where(purchaseattempt.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *PurchaseAttemptClient) GetX(ctx context.Context, id int) *PurchaseAttempt {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *PurchaseAttemptClient) Hooks() []Hook {
+	return c.hooks.PurchaseAttempt
+}
+
+// Interceptors returns the client interceptors.
+func (c *PurchaseAttemptClient) Interceptors() []Interceptor {
+	return c.inters.PurchaseAttempt
+}
+
+func (c *PurchaseAttemptClient) mutate(ctx context.Context, m *PurchaseAttemptMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&PurchaseAttemptCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&PurchaseAttemptUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&PurchaseAttemptUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&PurchaseAttemptDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown PurchaseAttempt mutation op: %q", m.Op())
+	}
+}
+
+// PurchaseChangeClient is a client for the PurchaseChange schema.
+type PurchaseChangeClient struct {
+	config
+}
+
+// NewPurchaseChangeClient returns a client for the PurchaseChange from the given config.
+func NewPurchaseChangeClient(c config) *PurchaseChangeClient {
+	return &PurchaseChangeClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `purchasechange.Hooks(f(g(h())))`.
+func (c *PurchaseChangeClient) Use(hooks ...Hook) {
+	c.hooks.PurchaseChange = append(c.hooks.PurchaseChange, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `purchasechange.Intercept(f(g(h())))`.
+func (c *PurchaseChangeClient) Intercept(interceptors ...Interceptor) {
+	c.inters.PurchaseChange = append(c.inters.PurchaseChange, interceptors...)
+}
+
+// Create returns a builder for creating a PurchaseChange entity.
+func (c *PurchaseChangeClient) Create() *PurchaseChangeCreate {
+	mutation := newPurchaseChangeMutation(c.config, OpCreate)
+	return &PurchaseChangeCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of PurchaseChange entities.
+func (c *PurchaseChangeClient) CreateBulk(builders ...*PurchaseChangeCreate) *PurchaseChangeCreateBulk {
+	return &PurchaseChangeCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *PurchaseChangeClient) MapCreateBulk(slice any, setFunc func(*PurchaseChangeCreate, int)) *PurchaseChangeCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &PurchaseChangeCreateBulk{err: fmt.Errorf("calling to PurchaseChangeClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*PurchaseChangeCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &PurchaseChangeCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for PurchaseChange.
+func (c *PurchaseChangeClient) Update() *PurchaseChangeUpdate {
+	mutation := newPurchaseChangeMutation(c.config, OpUpdate)
+	return &PurchaseChangeUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *PurchaseChangeClient) UpdateOne(_m *PurchaseChange) *PurchaseChangeUpdateOne {
+	mutation := newPurchaseChangeMutation(c.config, OpUpdateOne, withPurchaseChange(_m))
+	return &PurchaseChangeUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *PurchaseChangeClient) UpdateOneID(id int) *PurchaseChangeUpdateOne {
+	mutation := newPurchaseChangeMutation(c.config, OpUpdateOne, withPurchaseChangeID(id))
+	return &PurchaseChangeUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for PurchaseChange.
+func (c *PurchaseChangeClient) Delete() *PurchaseChangeDelete {
+	mutation := newPurchaseChangeMutation(c.config, OpDelete)
+	return &PurchaseChangeDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *PurchaseChangeClient) DeleteOne(_m *PurchaseChange) *PurchaseChangeDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *PurchaseChangeClient) DeleteOneID(id int) *PurchaseChangeDeleteOne {
+	builder := c.Delete().Where(purchasechange.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &PurchaseChangeDeleteOne{builder}
+}
+
+// Query returns a query builder for PurchaseChange.
+func (c *PurchaseChangeClient) Query() *PurchaseChangeQuery {
+	return &PurchaseChangeQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypePurchaseChange},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a PurchaseChange entity by its id.
+func (c *PurchaseChangeClient) Get(ctx context.Context, id int) (*PurchaseChange, error) {
+	return c.Query().Where(purchasechange.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *PurchaseChangeClient) GetX(ctx context.Context, id int) *PurchaseChange {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *PurchaseChangeClient) Hooks() []Hook {
+	return c.hooks.PurchaseChange
+}
+
+// Interceptors returns the client interceptors.
+func (c *PurchaseChangeClient) Interceptors() []Interceptor {
+	return c.inters.PurchaseChange
+}
+
+func (c *PurchaseChangeClient) mutate(ctx context.Context, m *PurchaseChangeMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&PurchaseChangeCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&PurchaseChangeUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&PurchaseChangeUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&PurchaseChangeDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown PurchaseChange mutation op: %q", m.Op())
+	}
+}
+
+// PurchaseProviderClient is a client for the PurchaseProvider schema.
+type PurchaseProviderClient struct {
+	config
+}
+
+// NewPurchaseProviderClient returns a client for the PurchaseProvider from the given config.
+func NewPurchaseProviderClient(c config) *PurchaseProviderClient {
+	return &PurchaseProviderClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `purchaseprovider.Hooks(f(g(h())))`.
+func (c *PurchaseProviderClient) Use(hooks ...Hook) {
+	c.hooks.PurchaseProvider = append(c.hooks.PurchaseProvider, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `purchaseprovider.Intercept(f(g(h())))`.
+func (c *PurchaseProviderClient) Intercept(interceptors ...Interceptor) {
+	c.inters.PurchaseProvider = append(c.inters.PurchaseProvider, interceptors...)
+}
+
+// Create returns a builder for creating a PurchaseProvider entity.
+func (c *PurchaseProviderClient) Create() *PurchaseProviderCreate {
+	mutation := newPurchaseProviderMutation(c.config, OpCreate)
+	return &PurchaseProviderCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of PurchaseProvider entities.
+func (c *PurchaseProviderClient) CreateBulk(builders ...*PurchaseProviderCreate) *PurchaseProviderCreateBulk {
+	return &PurchaseProviderCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *PurchaseProviderClient) MapCreateBulk(slice any, setFunc func(*PurchaseProviderCreate, int)) *PurchaseProviderCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &PurchaseProviderCreateBulk{err: fmt.Errorf("calling to PurchaseProviderClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*PurchaseProviderCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &PurchaseProviderCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for PurchaseProvider.
+func (c *PurchaseProviderClient) Update() *PurchaseProviderUpdate {
+	mutation := newPurchaseProviderMutation(c.config, OpUpdate)
+	return &PurchaseProviderUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *PurchaseProviderClient) UpdateOne(_m *PurchaseProvider) *PurchaseProviderUpdateOne {
+	mutation := newPurchaseProviderMutation(c.config, OpUpdateOne, withPurchaseProvider(_m))
+	return &PurchaseProviderUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *PurchaseProviderClient) UpdateOneID(id int) *PurchaseProviderUpdateOne {
+	mutation := newPurchaseProviderMutation(c.config, OpUpdateOne, withPurchaseProviderID(id))
+	return &PurchaseProviderUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for PurchaseProvider.
+func (c *PurchaseProviderClient) Delete() *PurchaseProviderDelete {
+	mutation := newPurchaseProviderMutation(c.config, OpDelete)
+	return &PurchaseProviderDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *PurchaseProviderClient) DeleteOne(_m *PurchaseProvider) *PurchaseProviderDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *PurchaseProviderClient) DeleteOneID(id int) *PurchaseProviderDeleteOne {
+	builder := c.Delete().Where(purchaseprovider.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &PurchaseProviderDeleteOne{builder}
+}
+
+// Query returns a query builder for PurchaseProvider.
+func (c *PurchaseProviderClient) Query() *PurchaseProviderQuery {
+	return &PurchaseProviderQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypePurchaseProvider},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a PurchaseProvider entity by its id.
+func (c *PurchaseProviderClient) Get(ctx context.Context, id int) (*PurchaseProvider, error) {
+	return c.Query().Where(purchaseprovider.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *PurchaseProviderClient) GetX(ctx context.Context, id int) *PurchaseProvider {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *PurchaseProviderClient) Hooks() []Hook {
+	return c.hooks.PurchaseProvider
+}
+
+// Interceptors returns the client interceptors.
+func (c *PurchaseProviderClient) Interceptors() []Interceptor {
+	return c.inters.PurchaseProvider
+}
+
+func (c *PurchaseProviderClient) mutate(ctx context.Context, m *PurchaseProviderMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&PurchaseProviderCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&PurchaseProviderUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&PurchaseProviderUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&PurchaseProviderDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown PurchaseProvider mutation op: %q", m.Op())
+	}
+}
+
 // RateCardClient is a client for the RateCard schema.
 type RateCardClient struct {
 	config
@@ -7889,9 +8312,10 @@ type (
 		DataDeletionRequest, DataExportRequest, Environment, EventDefinition,
 		Experiment, FeatureFlag, Invitation, Invoice, InvoiceLine, LedgerEntry,
 		LiveOpsEvent, MemberProject, MonthlyUsage, NotificationChannel, Organization,
-		OrganizationMember, PaymentCard, Plan, Project, RateCard, Receipt, Report,
-		ReportExport, ReportRun, ReportRunEvent, Role, SavedFunnel, Segment,
-		StaffAccess, StaffMember, StripeEvent, UsageCharge, UsageDaily, User,
+		OrganizationMember, PaymentCard, Plan, Project, PurchaseAttempt,
+		PurchaseChange, PurchaseProvider, RateCard, Receipt, Report, ReportExport,
+		ReportRun, ReportRunEvent, Role, SavedFunnel, Segment, StaffAccess,
+		StaffMember, StripeEvent, UsageCharge, UsageDaily, User,
 		VerifiedPurchase []ent.Hook
 	}
 	inters struct {
@@ -7900,9 +8324,10 @@ type (
 		DataDeletionRequest, DataExportRequest, Environment, EventDefinition,
 		Experiment, FeatureFlag, Invitation, Invoice, InvoiceLine, LedgerEntry,
 		LiveOpsEvent, MemberProject, MonthlyUsage, NotificationChannel, Organization,
-		OrganizationMember, PaymentCard, Plan, Project, RateCard, Receipt, Report,
-		ReportExport, ReportRun, ReportRunEvent, Role, SavedFunnel, Segment,
-		StaffAccess, StaffMember, StripeEvent, UsageCharge, UsageDaily, User,
+		OrganizationMember, PaymentCard, Plan, Project, PurchaseAttempt,
+		PurchaseChange, PurchaseProvider, RateCard, Receipt, Report, ReportExport,
+		ReportRun, ReportRunEvent, Role, SavedFunnel, Segment, StaffAccess,
+		StaffMember, StripeEvent, UsageCharge, UsageDaily, User,
 		VerifiedPurchase []ent.Interceptor
 	}
 )

@@ -84,6 +84,25 @@ func ConfigBudgets(tenant *Tenant, installID string, addr string) []ratelimit.Bu
 	}
 }
 
+// Purchase verification: a player buys a few things a session, and a game that retries a receipt
+// in a loop is the thing to stop. The project budget is sized above any real store's sales rate:
+// a hundred verifications a second is a hit game's launch day.
+const (
+	PlayerVerifySustained  = 30
+	ProjectVerifySustained = 6_000
+)
+
+// VerifyBudgets is what one purchase verification is counted against: the player (or the install,
+// before sign-in), and the project.
+func VerifyBudgets(tenant *Tenant, who string) []ratelimit.Budget {
+	return []ratelimit.Budget{
+		{Quota: "player-verify-sustained", Subject: tenant.ProjectID + "|" + who,
+			Window: SustainedWindow, Limit: PlayerVerifySustained, Scope: tenant.ProjectID},
+		{Quota: "project-verify-sustained", Subject: tenant.ProjectID,
+			Window: SustainedWindow, Limit: ProjectVerifySustained, Scope: tenant.ProjectID},
+	}
+}
+
 // The invitation budgets, which are the only ones on the dashboard and the only ones that are
 // not about load.
 //
@@ -179,6 +198,8 @@ func Budgets() []BudgetSpec {
 		{"config", "device-config-sustained", "installation", SustainedWindow, DeviceConfigSustained, true},
 		{"config", "address-config-sustained", "address within a project", SustainedWindow, AddressConfigSustained, true},
 		{"config", "project-config-sustained", "project", SustainedWindow, ProjectConfigSustained, true},
+		{"purchases", "player-verify-sustained", "player or installation", SustainedWindow, PlayerVerifySustained, true},
+		{"purchases", "project-verify-sustained", "project", SustainedWindow, ProjectVerifySustained, true},
 		{"invitations", "invitation-address", "invited address", InvitationWindow, InvitationsPerAddress, false},
 		{"invitations", "invitation-organization", "organization", InvitationWindow, InvitationsPerOrganization, false},
 	}

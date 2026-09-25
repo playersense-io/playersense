@@ -88,16 +88,19 @@ func explorer(r *muzak.Router, base string) {
 		muzak.Summary("Describe the game's revenue"),
 		muzak.Description("Revenue, purchases and buyers against the previous range, by day and store, "+
 			"by product, store and country, by price, the day's first-time payers, spender tiers by "+
-			"lifetime spend, and purchases by weekday and hour. Revenue the game reported, in the "+
-			"currencies it reported, not receipts verified with a store."),
+			"lifetime spend, and purchases by weekday and hour. For a store the project verifies with, "+
+			"from the day it was connected, its verified purchases; for every other store what the game "+
+			"reported (ADR 0048). In the currencies paid, with refunds, test purchases and rejected "+
+			"receipts beside it."),
 		core.Require(authz.AnalyticsRead),
 		unreadable)
 
 	r.Get(base+"/purchases", handlers.Purchases,
 		muzak.Summary("List purchases"),
 		muzak.Description("The purchases ledger, newest first, a page at a time: what was bought, "+
-			"where, for how much, by whom, and whether it was their first. Names players, so it needs "+
-			"player.read."),
+			"where, for how much, by whom, and whether it was their first; for a verified store, its "+
+			"status (verified, refunded, sandbox, rejected) and the store's transaction id. Names "+
+			"players, so it needs player.read."),
 		core.Require(authz.AnalyticsRead, authz.PlayerRead),
 		refused, unreadable)
 

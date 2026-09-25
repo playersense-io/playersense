@@ -34,6 +34,9 @@ import (
 	"playersense.dev/backend/ent/paymentcard"
 	"playersense.dev/backend/ent/plan"
 	"playersense.dev/backend/ent/project"
+	"playersense.dev/backend/ent/purchaseattempt"
+	"playersense.dev/backend/ent/purchasechange"
+	"playersense.dev/backend/ent/purchaseprovider"
 	"playersense.dev/backend/ent/ratecard"
 	"playersense.dev/backend/ent/receipt"
 	"playersense.dev/backend/ent/report"
@@ -1995,6 +1998,145 @@ func init() {
 	project.DefaultDeletionRequestedBy = projectDescDeletionRequestedBy.Default.(string)
 	// project.DeletionRequestedByValidator is a validator for the "deletion_requested_by" field. It is called by the builders before save.
 	project.DeletionRequestedByValidator = projectDescDeletionRequestedBy.Validators[0].(func(string) error)
+	purchaseattemptMixin := schema.PurchaseAttempt{}.Mixin()
+	purchaseattemptMixinFields0 := purchaseattemptMixin[0].Fields()
+	_ = purchaseattemptMixinFields0
+	purchaseattemptFields := schema.PurchaseAttempt{}.Fields()
+	_ = purchaseattemptFields
+	// purchaseattemptDescUID is the schema descriptor for uid field.
+	purchaseattemptDescUID := purchaseattemptMixinFields0[1].Descriptor()
+	// purchaseattempt.DefaultUID holds the default value on creation for the uid field.
+	purchaseattempt.DefaultUID = purchaseattemptDescUID.Default.(func() uuid.UUID)
+	// purchaseattemptDescCreatedAt is the schema descriptor for created_at field.
+	purchaseattemptDescCreatedAt := purchaseattemptMixinFields0[2].Descriptor()
+	// purchaseattempt.DefaultCreatedAt holds the default value on creation for the created_at field.
+	purchaseattempt.DefaultCreatedAt = purchaseattemptDescCreatedAt.Default.(func() time.Time)
+	// purchaseattemptDescVia is the schema descriptor for via field.
+	purchaseattemptDescVia := purchaseattemptFields[3].Descriptor()
+	// purchaseattempt.ViaValidator is a validator for the "via" field. It is called by the builders before save.
+	purchaseattempt.ViaValidator = purchaseattemptDescVia.Validators[0].(func(string) error)
+	// purchaseattemptDescPlayerID is the schema descriptor for player_id field.
+	purchaseattemptDescPlayerID := purchaseattemptFields[4].Descriptor()
+	// purchaseattempt.DefaultPlayerID holds the default value on creation for the player_id field.
+	purchaseattempt.DefaultPlayerID = purchaseattemptDescPlayerID.Default.(string)
+	// purchaseattempt.PlayerIDValidator is a validator for the "player_id" field. It is called by the builders before save.
+	purchaseattempt.PlayerIDValidator = purchaseattemptDescPlayerID.Validators[0].(func(string) error)
+	// purchaseattemptDescInstallID is the schema descriptor for install_id field.
+	purchaseattemptDescInstallID := purchaseattemptFields[5].Descriptor()
+	// purchaseattempt.DefaultInstallID holds the default value on creation for the install_id field.
+	purchaseattempt.DefaultInstallID = purchaseattemptDescInstallID.Default.(string)
+	// purchaseattempt.InstallIDValidator is a validator for the "install_id" field. It is called by the builders before save.
+	purchaseattempt.InstallIDValidator = purchaseattemptDescInstallID.Validators[0].(func(string) error)
+	// purchaseattemptDescProductID is the schema descriptor for product_id field.
+	purchaseattemptDescProductID := purchaseattemptFields[6].Descriptor()
+	// purchaseattempt.DefaultProductID holds the default value on creation for the product_id field.
+	purchaseattempt.DefaultProductID = purchaseattemptDescProductID.Default.(string)
+	// purchaseattempt.ProductIDValidator is a validator for the "product_id" field. It is called by the builders before save.
+	purchaseattempt.ProductIDValidator = purchaseattemptDescProductID.Validators[0].(func(string) error)
+	// purchaseattemptDescStoreTransactionID is the schema descriptor for store_transaction_id field.
+	purchaseattemptDescStoreTransactionID := purchaseattemptFields[7].Descriptor()
+	// purchaseattempt.DefaultStoreTransactionID holds the default value on creation for the store_transaction_id field.
+	purchaseattempt.DefaultStoreTransactionID = purchaseattemptDescStoreTransactionID.Default.(string)
+	// purchaseattempt.StoreTransactionIDValidator is a validator for the "store_transaction_id" field. It is called by the builders before save.
+	purchaseattempt.StoreTransactionIDValidator = purchaseattemptDescStoreTransactionID.Validators[0].(func(string) error)
+	// purchaseattemptDescCode is the schema descriptor for code field.
+	purchaseattemptDescCode := purchaseattemptFields[9].Descriptor()
+	// purchaseattempt.DefaultCode holds the default value on creation for the code field.
+	purchaseattempt.DefaultCode = purchaseattemptDescCode.Default.(string)
+	// purchaseattempt.CodeValidator is a validator for the "code" field. It is called by the builders before save.
+	purchaseattempt.CodeValidator = purchaseattemptDescCode.Validators[0].(func(string) error)
+	// purchaseattemptDescDetail is the schema descriptor for detail field.
+	purchaseattemptDescDetail := purchaseattemptFields[10].Descriptor()
+	// purchaseattempt.DefaultDetail holds the default value on creation for the detail field.
+	purchaseattempt.DefaultDetail = purchaseattemptDescDetail.Default.(string)
+	// purchaseattempt.DetailValidator is a validator for the "detail" field. It is called by the builders before save.
+	purchaseattempt.DetailValidator = purchaseattemptDescDetail.Validators[0].(func(string) error)
+	// purchaseattemptDescDurationMs is the schema descriptor for duration_ms field.
+	purchaseattemptDescDurationMs := purchaseattemptFields[11].Descriptor()
+	// purchaseattempt.DefaultDurationMs holds the default value on creation for the duration_ms field.
+	purchaseattempt.DefaultDurationMs = purchaseattemptDescDurationMs.Default.(int)
+	// purchaseattemptDescSandbox is the schema descriptor for sandbox field.
+	purchaseattemptDescSandbox := purchaseattemptFields[13].Descriptor()
+	// purchaseattempt.DefaultSandbox holds the default value on creation for the sandbox field.
+	purchaseattempt.DefaultSandbox = purchaseattemptDescSandbox.Default.(bool)
+	purchasechangeMixin := schema.PurchaseChange{}.Mixin()
+	purchasechangeMixinFields0 := purchasechangeMixin[0].Fields()
+	_ = purchasechangeMixinFields0
+	purchasechangeFields := schema.PurchaseChange{}.Fields()
+	_ = purchasechangeFields
+	// purchasechangeDescUID is the schema descriptor for uid field.
+	purchasechangeDescUID := purchasechangeMixinFields0[1].Descriptor()
+	// purchasechange.DefaultUID holds the default value on creation for the uid field.
+	purchasechange.DefaultUID = purchasechangeDescUID.Default.(func() uuid.UUID)
+	// purchasechangeDescCreatedAt is the schema descriptor for created_at field.
+	purchasechangeDescCreatedAt := purchasechangeMixinFields0[2].Descriptor()
+	// purchasechange.DefaultCreatedAt holds the default value on creation for the created_at field.
+	purchasechange.DefaultCreatedAt = purchasechangeDescCreatedAt.Default.(func() time.Time)
+	// purchasechangeDescUpdatedAt is the schema descriptor for updated_at field.
+	purchasechangeDescUpdatedAt := purchasechangeMixinFields0[3].Descriptor()
+	// purchasechange.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	purchasechange.DefaultUpdatedAt = purchasechangeDescUpdatedAt.Default.(func() time.Time)
+	// purchasechange.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	purchasechange.UpdateDefaultUpdatedAt = purchasechangeDescUpdatedAt.UpdateDefault.(func() time.Time)
+	purchaseproviderMixin := schema.PurchaseProvider{}.Mixin()
+	purchaseproviderMixinFields0 := purchaseproviderMixin[0].Fields()
+	_ = purchaseproviderMixinFields0
+	purchaseproviderFields := schema.PurchaseProvider{}.Fields()
+	_ = purchaseproviderFields
+	// purchaseproviderDescUID is the schema descriptor for uid field.
+	purchaseproviderDescUID := purchaseproviderMixinFields0[1].Descriptor()
+	// purchaseprovider.DefaultUID holds the default value on creation for the uid field.
+	purchaseprovider.DefaultUID = purchaseproviderDescUID.Default.(func() uuid.UUID)
+	// purchaseproviderDescCreatedAt is the schema descriptor for created_at field.
+	purchaseproviderDescCreatedAt := purchaseproviderMixinFields0[2].Descriptor()
+	// purchaseprovider.DefaultCreatedAt holds the default value on creation for the created_at field.
+	purchaseprovider.DefaultCreatedAt = purchaseproviderDescCreatedAt.Default.(func() time.Time)
+	// purchaseproviderDescUpdatedAt is the schema descriptor for updated_at field.
+	purchaseproviderDescUpdatedAt := purchaseproviderMixinFields0[3].Descriptor()
+	// purchaseprovider.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	purchaseprovider.DefaultUpdatedAt = purchaseproviderDescUpdatedAt.Default.(func() time.Time)
+	// purchaseprovider.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	purchaseprovider.UpdateDefaultUpdatedAt = purchaseproviderDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// purchaseproviderDescEnabled is the schema descriptor for enabled field.
+	purchaseproviderDescEnabled := purchaseproviderFields[2].Descriptor()
+	// purchaseprovider.DefaultEnabled holds the default value on creation for the enabled field.
+	purchaseprovider.DefaultEnabled = purchaseproviderDescEnabled.Default.(bool)
+	// purchaseproviderDescConfig is the schema descriptor for config field.
+	purchaseproviderDescConfig := purchaseproviderFields[3].Descriptor()
+	// purchaseprovider.DefaultConfig holds the default value on creation for the config field.
+	purchaseprovider.DefaultConfig = purchaseproviderDescConfig.Default.(map[string]interface{})
+	// purchaseproviderDescSecret is the schema descriptor for secret field.
+	purchaseproviderDescSecret := purchaseproviderFields[4].Descriptor()
+	// purchaseprovider.DefaultSecret holds the default value on creation for the secret field.
+	purchaseprovider.DefaultSecret = purchaseproviderDescSecret.Default.(map[string]string)
+	// purchaseproviderDescNotifyToken is the schema descriptor for notify_token field.
+	purchaseproviderDescNotifyToken := purchaseproviderFields[5].Descriptor()
+	// purchaseprovider.NotifyTokenValidator is a validator for the "notify_token" field. It is called by the builders before save.
+	purchaseprovider.NotifyTokenValidator = purchaseproviderDescNotifyToken.Validators[0].(func(string) error)
+	// purchaseproviderDescLastError is the schema descriptor for last_error field.
+	purchaseproviderDescLastError := purchaseproviderFields[9].Descriptor()
+	// purchaseprovider.DefaultLastError holds the default value on creation for the last_error field.
+	purchaseprovider.DefaultLastError = purchaseproviderDescLastError.Default.(string)
+	// purchaseprovider.LastErrorValidator is a validator for the "last_error" field. It is called by the builders before save.
+	purchaseprovider.LastErrorValidator = purchaseproviderDescLastError.Validators[0].(func(string) error)
+	// purchaseproviderDescLastTestDetail is the schema descriptor for last_test_detail field.
+	purchaseproviderDescLastTestDetail := purchaseproviderFields[13].Descriptor()
+	// purchaseprovider.DefaultLastTestDetail holds the default value on creation for the last_test_detail field.
+	purchaseprovider.DefaultLastTestDetail = purchaseproviderDescLastTestDetail.Default.(string)
+	// purchaseprovider.LastTestDetailValidator is a validator for the "last_test_detail" field. It is called by the builders before save.
+	purchaseprovider.LastTestDetailValidator = purchaseproviderDescLastTestDetail.Validators[0].(func(string) error)
+	// purchaseproviderDescCreatedBy is the schema descriptor for created_by field.
+	purchaseproviderDescCreatedBy := purchaseproviderFields[16].Descriptor()
+	// purchaseprovider.DefaultCreatedBy holds the default value on creation for the created_by field.
+	purchaseprovider.DefaultCreatedBy = purchaseproviderDescCreatedBy.Default.(string)
+	// purchaseprovider.CreatedByValidator is a validator for the "created_by" field. It is called by the builders before save.
+	purchaseprovider.CreatedByValidator = purchaseproviderDescCreatedBy.Validators[0].(func(string) error)
+	// purchaseproviderDescUpdatedBy is the schema descriptor for updated_by field.
+	purchaseproviderDescUpdatedBy := purchaseproviderFields[17].Descriptor()
+	// purchaseprovider.DefaultUpdatedBy holds the default value on creation for the updated_by field.
+	purchaseprovider.DefaultUpdatedBy = purchaseproviderDescUpdatedBy.Default.(string)
+	// purchaseprovider.UpdatedByValidator is a validator for the "updated_by" field. It is called by the builders before save.
+	purchaseprovider.UpdatedByValidator = purchaseproviderDescUpdatedBy.Validators[0].(func(string) error)
 	ratecardMixin := schema.RateCard{}.Mixin()
 	ratecardHooks := schema.RateCard{}.Hooks()
 	ratecard.Hooks[0] = ratecardHooks[0]
@@ -2845,26 +2987,24 @@ func init() {
 	verifiedpurchase.DefaultUpdatedAt = verifiedpurchaseDescUpdatedAt.Default.(func() time.Time)
 	// verifiedpurchase.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	verifiedpurchase.UpdateDefaultUpdatedAt = verifiedpurchaseDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// verifiedpurchaseDescEnvironmentID is the schema descriptor for environment_id field.
+	verifiedpurchaseDescEnvironmentID := verifiedpurchaseFields[1].Descriptor()
+	// verifiedpurchase.DefaultEnvironmentID holds the default value on creation for the environment_id field.
+	verifiedpurchase.DefaultEnvironmentID = verifiedpurchaseDescEnvironmentID.Default.(int)
 	// verifiedpurchaseDescPlayerID is the schema descriptor for player_id field.
-	verifiedpurchaseDescPlayerID := verifiedpurchaseFields[1].Descriptor()
+	verifiedpurchaseDescPlayerID := verifiedpurchaseFields[2].Descriptor()
+	// verifiedpurchase.DefaultPlayerID holds the default value on creation for the player_id field.
+	verifiedpurchase.DefaultPlayerID = verifiedpurchaseDescPlayerID.Default.(string)
 	// verifiedpurchase.PlayerIDValidator is a validator for the "player_id" field. It is called by the builders before save.
-	verifiedpurchase.PlayerIDValidator = func() func(string) error {
-		validators := verifiedpurchaseDescPlayerID.Validators
-		fns := [...]func(string) error{
-			validators[0].(func(string) error),
-			validators[1].(func(string) error),
-		}
-		return func(player_id string) error {
-			for _, fn := range fns {
-				if err := fn(player_id); err != nil {
-					return err
-				}
-			}
-			return nil
-		}
-	}()
+	verifiedpurchase.PlayerIDValidator = verifiedpurchaseDescPlayerID.Validators[0].(func(string) error)
+	// verifiedpurchaseDescInstallID is the schema descriptor for install_id field.
+	verifiedpurchaseDescInstallID := verifiedpurchaseFields[3].Descriptor()
+	// verifiedpurchase.DefaultInstallID holds the default value on creation for the install_id field.
+	verifiedpurchase.DefaultInstallID = verifiedpurchaseDescInstallID.Default.(string)
+	// verifiedpurchase.InstallIDValidator is a validator for the "install_id" field. It is called by the builders before save.
+	verifiedpurchase.InstallIDValidator = verifiedpurchaseDescInstallID.Validators[0].(func(string) error)
 	// verifiedpurchaseDescStoreTransactionID is the schema descriptor for store_transaction_id field.
-	verifiedpurchaseDescStoreTransactionID := verifiedpurchaseFields[3].Descriptor()
+	verifiedpurchaseDescStoreTransactionID := verifiedpurchaseFields[5].Descriptor()
 	// verifiedpurchase.StoreTransactionIDValidator is a validator for the "store_transaction_id" field. It is called by the builders before save.
 	verifiedpurchase.StoreTransactionIDValidator = func() func(string) error {
 		validators := verifiedpurchaseDescStoreTransactionID.Validators
@@ -2881,8 +3021,26 @@ func init() {
 			return nil
 		}
 	}()
+	// verifiedpurchaseDescOriginalTransactionID is the schema descriptor for original_transaction_id field.
+	verifiedpurchaseDescOriginalTransactionID := verifiedpurchaseFields[6].Descriptor()
+	// verifiedpurchase.DefaultOriginalTransactionID holds the default value on creation for the original_transaction_id field.
+	verifiedpurchase.DefaultOriginalTransactionID = verifiedpurchaseDescOriginalTransactionID.Default.(string)
+	// verifiedpurchase.OriginalTransactionIDValidator is a validator for the "original_transaction_id" field. It is called by the builders before save.
+	verifiedpurchase.OriginalTransactionIDValidator = verifiedpurchaseDescOriginalTransactionID.Validators[0].(func(string) error)
+	// verifiedpurchaseDescOrderID is the schema descriptor for order_id field.
+	verifiedpurchaseDescOrderID := verifiedpurchaseFields[7].Descriptor()
+	// verifiedpurchase.DefaultOrderID holds the default value on creation for the order_id field.
+	verifiedpurchase.DefaultOrderID = verifiedpurchaseDescOrderID.Default.(string)
+	// verifiedpurchase.OrderIDValidator is a validator for the "order_id" field. It is called by the builders before save.
+	verifiedpurchase.OrderIDValidator = verifiedpurchaseDescOrderID.Validators[0].(func(string) error)
+	// verifiedpurchaseDescTokenDigest is the schema descriptor for token_digest field.
+	verifiedpurchaseDescTokenDigest := verifiedpurchaseFields[8].Descriptor()
+	// verifiedpurchase.DefaultTokenDigest holds the default value on creation for the token_digest field.
+	verifiedpurchase.DefaultTokenDigest = verifiedpurchaseDescTokenDigest.Default.(string)
+	// verifiedpurchase.TokenDigestValidator is a validator for the "token_digest" field. It is called by the builders before save.
+	verifiedpurchase.TokenDigestValidator = verifiedpurchaseDescTokenDigest.Validators[0].(func(string) error)
 	// verifiedpurchaseDescProductID is the schema descriptor for product_id field.
-	verifiedpurchaseDescProductID := verifiedpurchaseFields[4].Descriptor()
+	verifiedpurchaseDescProductID := verifiedpurchaseFields[9].Descriptor()
 	// verifiedpurchase.ProductIDValidator is a validator for the "product_id" field. It is called by the builders before save.
 	verifiedpurchase.ProductIDValidator = func() func(string) error {
 		validators := verifiedpurchaseDescProductID.Validators
@@ -2899,10 +3057,54 @@ func init() {
 			return nil
 		}
 	}()
+	// verifiedpurchaseDescQuantity is the schema descriptor for quantity field.
+	verifiedpurchaseDescQuantity := verifiedpurchaseFields[11].Descriptor()
+	// verifiedpurchase.DefaultQuantity holds the default value on creation for the quantity field.
+	verifiedpurchase.DefaultQuantity = verifiedpurchaseDescQuantity.Default.(int)
 	// verifiedpurchaseDescCurrency is the schema descriptor for currency field.
-	verifiedpurchaseDescCurrency := verifiedpurchaseFields[6].Descriptor()
+	verifiedpurchaseDescCurrency := verifiedpurchaseFields[13].Descriptor()
 	// verifiedpurchase.CurrencyValidator is a validator for the "currency" field. It is called by the builders before save.
 	verifiedpurchase.CurrencyValidator = verifiedpurchaseDescCurrency.Validators[0].(func(string) error)
+	// verifiedpurchaseDescPriceFromStore is the schema descriptor for price_from_store field.
+	verifiedpurchaseDescPriceFromStore := verifiedpurchaseFields[14].Descriptor()
+	// verifiedpurchase.DefaultPriceFromStore holds the default value on creation for the price_from_store field.
+	verifiedpurchase.DefaultPriceFromStore = verifiedpurchaseDescPriceFromStore.Default.(bool)
+	// verifiedpurchaseDescCountry is the schema descriptor for country field.
+	verifiedpurchaseDescCountry := verifiedpurchaseFields[15].Descriptor()
+	// verifiedpurchase.DefaultCountry holds the default value on creation for the country field.
+	verifiedpurchase.DefaultCountry = verifiedpurchaseDescCountry.Default.(string)
+	// verifiedpurchase.CountryValidator is a validator for the "country" field. It is called by the builders before save.
+	verifiedpurchase.CountryValidator = verifiedpurchaseDescCountry.Validators[0].(func(string) error)
+	// verifiedpurchaseDescSandbox is the schema descriptor for sandbox field.
+	verifiedpurchaseDescSandbox := verifiedpurchaseFields[16].Descriptor()
+	// verifiedpurchase.DefaultSandbox holds the default value on creation for the sandbox field.
+	verifiedpurchase.DefaultSandbox = verifiedpurchaseDescSandbox.Default.(bool)
+	// verifiedpurchaseDescRefundReason is the schema descriptor for refund_reason field.
+	verifiedpurchaseDescRefundReason := verifiedpurchaseFields[20].Descriptor()
+	// verifiedpurchase.DefaultRefundReason holds the default value on creation for the refund_reason field.
+	verifiedpurchase.DefaultRefundReason = verifiedpurchaseDescRefundReason.Default.(string)
+	// verifiedpurchase.RefundReasonValidator is a validator for the "refund_reason" field. It is called by the builders before save.
+	verifiedpurchase.RefundReasonValidator = verifiedpurchaseDescRefundReason.Validators[0].(func(string) error)
+	// verifiedpurchaseDescRefundSource is the schema descriptor for refund_source field.
+	verifiedpurchaseDescRefundSource := verifiedpurchaseFields[21].Descriptor()
+	// verifiedpurchase.DefaultRefundSource holds the default value on creation for the refund_source field.
+	verifiedpurchase.DefaultRefundSource = verifiedpurchaseDescRefundSource.Default.(string)
+	// verifiedpurchase.RefundSourceValidator is a validator for the "refund_source" field. It is called by the builders before save.
+	verifiedpurchase.RefundSourceValidator = verifiedpurchaseDescRefundSource.Validators[0].(func(string) error)
+	// verifiedpurchaseDescFirstPurchase is the schema descriptor for first_purchase field.
+	verifiedpurchaseDescFirstPurchase := verifiedpurchaseFields[22].Descriptor()
+	// verifiedpurchase.DefaultFirstPurchase holds the default value on creation for the first_purchase field.
+	verifiedpurchase.DefaultFirstPurchase = verifiedpurchaseDescFirstPurchase.Default.(bool)
+	// verifiedpurchaseDescVerifyMs is the schema descriptor for verify_ms field.
+	verifiedpurchaseDescVerifyMs := verifiedpurchaseFields[23].Descriptor()
+	// verifiedpurchase.DefaultVerifyMs holds the default value on creation for the verify_ms field.
+	verifiedpurchase.DefaultVerifyMs = verifiedpurchaseDescVerifyMs.Default.(int)
+	// verifiedpurchaseDescVerifiedVia is the schema descriptor for verified_via field.
+	verifiedpurchaseDescVerifiedVia := verifiedpurchaseFields[24].Descriptor()
+	// verifiedpurchase.DefaultVerifiedVia holds the default value on creation for the verified_via field.
+	verifiedpurchase.DefaultVerifiedVia = verifiedpurchaseDescVerifiedVia.Default.(string)
+	// verifiedpurchase.VerifiedViaValidator is a validator for the "verified_via" field. It is called by the builders before save.
+	verifiedpurchase.VerifiedViaValidator = verifiedpurchaseDescVerifiedVia.Validators[0].(func(string) error)
 }
 
 const (
