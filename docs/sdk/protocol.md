@@ -637,7 +637,7 @@ starve the other.
 POST {endpoint}/v1/logs
 Authorization: Bearer ps_client_live_...
 Content-Type: application/json
-Content-Encoding: zstd
+Content-Encoding: gzip
 ```
 
 ```json
@@ -648,7 +648,7 @@ Content-Encoding: zstd
   "sdk": { "name": "unity", "version": "1.0.0" },
   "app": { "version": "1.4.2", "build": "412" },
   "device": { "platform": "android", "os_version": "14", "model": "SM-S918B" },
-  "consent": { "analytics": true, "policy_version": "2026-01" },
+  "consent": { "analytics": true, "diagnostics": true, "policy_version": "2026-01" },
   "records": [
     { "time": "2026-09-25T14:05:11.204Z", "level": "warn", "logger": "Net",
       "message": "Retrying request to api.example.com (attempt 2)",
@@ -675,13 +675,29 @@ them in the binding (Unity's `Log` is `info`, `Assert` and `Exception` are `erro
 own code. Grouping into issues reads only in-app frames and never line numbers, so an SDK that
 cannot tell what is in-app should mark nothing rather than everything.
 
-**Crashes** are written to the spool as they happen, from the crash handler, with nothing that
-allocates or locks, and sent on the next launch with `crash: true`. The record's `time` is when it
-happened; the server accepts a record up to 30 days old for exactly this reason.
+**Crashes** come from three places, and an SDK MUST NOT install a signal handler to get them.
+A handler competes with the engine's own (Mono turns a null dereference into a
+NullReferenceException through SIGSEGV), with IL2CPP's and with any other crash reporter the game
+ships, and a crash reporter that crashes a game is the one thing worse than none.
 
-**Breadcrumbs.** An SDK MUST keep a ring of the last 100 things that happened (scene loads, UI
-taps, network calls, log lines at `info` and above) and attach it to each exception and crash.
-It never sends breadcrumbs with a plain log line.
+1. An exception that is about to end the process is recorded synchronously on the thread it
+   killed, written to the spool before the network is tried, and sent on the next launch if it
+   does not go now.
+2. What the operating system recorded about the last run, read on the next launch: Android's
+   `getHistoricalProcessExitReasons` (Android 11+: Java and native crashes, ANRs, low-memory kills
+   in the foreground) and iOS MetricKit crash diagnostics (iOS 14+).
+3. Where neither exists, a marker (`ps.run`) written when the app comes to the foreground and
+   cleared when it leaves or quits. Found at launch, it means the last run ended in front of the
+   player without either, and is reported as an `AbnormalExit` crash. Where (2) exists the
+   marker is off, so one crash is one record.
+
+The record's `time` is when it happened; the server accepts a record up to 30 days old for
+exactly this reason.
+
+**Breadcrumbs.** An SDK keeps, in memory only, a ring of the last things that happened (scene
+loads, a low-memory warning, log lines below the capture level; 50 by default) and attaches it to
+each exception, crash and record at `error` or above. It never sends breadcrumbs with a lesser
+line, and the server keeps at most the last 100.
 
 **Record ids** are optional. Leave them out: the server derives one from `batch_id` and the
 record's position, so a retried batch lands on the same ids (§4).
@@ -691,7 +707,8 @@ a message at 8 KB, an exception's value at 4 KB, a stack to its innermost 128 fr
 the last 100, attributes to 32 keys of up to 1 KB each. A record with neither a message nor an
 exception is dropped, and says so in the answer.
 
-**Consent** is §6's. Without `consent.analytics` the batch is answered 202 and nothing is stored.
+**Consent** is §6's, with one addition: `consent.diagnostics` (§15.1). A batch carrying neither
+`analytics` nor `diagnostics` is answered 202 and nothing is stored.
 
 **What the server answers** is §9's table. A 429 (the device, address or project log budget, or a
 suspended account) keeps the batch for later, as it does for events.
@@ -699,3 +716,48 @@ suspended account) keeps the batch for later, as it does for events.
 **What is billed** is each record's content in bytes, uncompressed: its text, frames, breadcrumbs and
 attributes, plus 64 bytes for the fields every record has. Compression on the wire is free to the
 studio and cheaper for everyone, so an SDK SHOULD always send zstd.
+
+### 15.1 Privacy, and what an SDK does on the device
+
+Error reports are personal data under GDPR when they carry an installation id, and neither the
+ePrivacy Directive nor any regulator's guidance exempts crash reporting from consent in general.
+So the SDK treats them as it treats events, and every rule below is the SDK's job, not the
+game's.
+
+**Off until the studio turns it on.** Capture changes what a game declares on the App Store (App
+Privacy: Crash Data, Other Diagnostic Data) and Google Play (Data safety: Crash logs,
+Diagnostics). An SDK update must never change those answers behind a studio's back.
+
+**Before the player answers**, records wait in memory (50 at most) and are sent if the answer is
+yes. A crash cannot wait in memory, so it waits on the device under `ps.lh.` and is deleted if the
+answer is no. Games commonly crash before their consent screen is shown, and those are the
+crashes that matter most.
+
+**A second question, when a game asks one.** Error reports follow the analytics answer by
+default: one screen, one answer. A game with its own "Share error reports" switch, the way
+desktop apps ask, records that answer separately and it wins for logs and crashes in either
+direction. A batch sent under it carries `"diagnostics": true`, with `analytics` as it stands. A
+game can also ask after the fact: the SDK reports how many crash reports are waiting, so a game
+can say "The game closed unexpectedly last time. Send a report?"
+
+**Scrubbed twice.** Emails, bearer tokens and JWTs, `password=`-style pairs, Luhn-valid card
+numbers, IPv4 addresses and the account name in a file path (`/Users/emma/`, `C:\Users\Emma\`)
+are replaced with a marker (`[email]`, `[token]`, `[redacted]`, `[card]`, `[ip]`, `[user]`) on
+the device, and again on the server for any SDK that did not. Messages, exception values,
+breadcrumbs, attributes and frame paths are all scrubbed. What only the game knows is personal
+(a display name in a message) is the studio's to remove, in the binding's `BeforeSend`.
+
+**What is never read.** No device name (`SystemInfo.deviceName` is what the player called their
+phone), no hardware or advertising identifier, no IDFV. `device.model` is the hardware model,
+shared by millions of devices. The installation id is random and lives only in the app's own
+storage, outside platform backup.
+
+**Children.** A game that says it is child-directed sends no `player_id` and no attributes on a
+record: what broke, where, and on what kind of device. That is COPPA's support for internal
+operations, and what the Families policy and the Kids category expect of an SDK.
+
+**Cost on the device.** The capture callback copies two references into a fixed ring under a
+lock and returns; parsing, filtering and the native call happen four times a second on the main
+thread. An error repeated within 10 seconds is one record with a `ps.repeat` count, a device sends
+at most 120 records a minute (crashes excepted), and a batch is gzip, at most 200 records or
+64 KB, sent every 15 seconds, or at once for a crash.

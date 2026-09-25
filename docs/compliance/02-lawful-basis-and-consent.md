@@ -51,6 +51,10 @@ Accepted, and nothing is stored.
 for everyone than one told plainly that nothing was stored. Nothing reaches the queue, so
 nothing reaches storage.
 
+A log batch (protocol §15) has a second basis: `consent.diagnostics`, the player's answer to a
+separate "share error reports" question when a game asks one. Either answer is enough for that
+batch, and neither says anything about events.
+
 ## `att_status`
 
 Recorded, not acted on.
