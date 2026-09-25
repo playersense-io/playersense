@@ -9,6 +9,10 @@ import type { OverviewDay } from '~/types'
 //
 // The days are each project's metrics/query added together; the projects table is the
 // organization's analytics/{env}/projects; usage is …/usage and the wallet …/billing.
+//
+// A day no project answered for (nothing sent, or too few players to show) is null, not zero:
+// the charts leave it out, the figures are taken over the days that have rows, and a period
+// with no rows at all shows no figure and no chart rather than a row of zeros.
 
 const workspace = useWorkspaceStore()
 
@@ -25,9 +29,7 @@ const compare = computed(() => `vs previous ${period.value} days`)
 
 // --- The days, every project together -----------------------------------------------------
 
-const EMPTY_DAY = { active_players: 0, new_players: 0, returning_players: 0, sessions: 0, playtime_ms: 0, revenue_micros: 0, purchases: 0, payers: 0 }
-
-const days = ref<{ current: OverviewDay[], previous: OverviewDay[] } | null>(null)
+const days = ref<{ current: (OverviewDay | null)[], previous: (OverviewDay | null)[] } | null>(null)
 const daysLoading = ref(false)
 const daysError = ref<ApiError | null>(null)
 /** Days some project had too few players to show: left out of the sums. */
@@ -48,23 +50,19 @@ async function loadDays() {
   }
   withheld.value = read.reduce((sum, answer) => sum + answer.suppressed_cells, 0)
   const merged = byDay(read.flatMap(answer => answer.rows))
-  const dayOf = (day: string): OverviewDay => {
+  const dayOf = (day: string): OverviewDay | null => {
     const row = merged.get(day)
+    if (!row) return null
     return {
       day,
-      ...EMPTY_DAY,
-      ...(row
-        ? {
-            active_players: row.active_players ?? 0,
-            new_players: row.new_players ?? 0,
-            returning_players: row.returning_players ?? 0,
-            sessions: row.sessions ?? 0,
-            playtime_ms: row.playtime_ms ?? 0,
-            revenue_micros: row.revenue_micros ?? 0,
-            purchases: row.purchases ?? 0,
-            payers: row.payers ?? 0
-          }
-        : {})
+      active_players: row.active_players ?? 0,
+      new_players: row.new_players ?? 0,
+      returning_players: row.returning_players ?? 0,
+      sessions: row.sessions ?? 0,
+      playtime_ms: row.playtime_ms ?? 0,
+      revenue_micros: row.revenue_micros ?? 0,
+      purchases: row.purchases ?? 0,
+      payers: row.payers ?? 0
     }
   }
   days.value = { current: current.map(dayOf), previous: previousDays.map(dayOf) }
@@ -87,8 +85,13 @@ type DayMetric = keyof Omit<OverviewDay, 'day'>
 const total = (days: OverviewDay[], metric: DayMetric) => days.reduce((sum, day) => sum + day[metric], 0)
 const average = (days: OverviewDay[], metric: DayMetric) => (days.length ? total(days, metric) / days.length : 0)
 
-const now = computed(() => days.value?.current ?? [])
-const before = computed(() => days.value?.previous ?? [])
+/** Each day of the period, null where no row came back. */
+const now = computed(() => days.value?.current ?? range.value.days.map(() => null))
+const before = computed(() => days.value?.previous ?? range.value.previousDays.map(() => null))
+/** The days that have rows: what the figures are taken over. */
+const present = (list: readonly (OverviewDay | null)[]) => list.filter((day): day is OverviewDay => day !== null)
+const nowDays = computed(() => present(now.value))
+const beforeDays = computed(() => present(before.value))
 
 // Micros to dollars, for every money figure on the page.
 const dollars = (micros: number) => micros / 1_000_000
@@ -98,8 +101,8 @@ const dollars = (micros: number) => micros / 1_000_000
 const dayTick = new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric', timeZone: 'UTC' })
 const dayTitle = new Intl.DateTimeFormat('en', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' })
 
-const categories = computed(() => now.value.map(day => dayTick.format(new Date(day.day))))
-const titles = computed(() => now.value.map(day => dayTitle.format(new Date(day.day))))
+const categories = computed(() => range.value.days.map(day => dayTick.format(new Date(day))))
+const titles = computed(() => range.value.days.map(day => dayTitle.format(new Date(day))))
 
 const PLAYER_METRICS: MetricOption[] = [
   { value: 'active_players', label: 'Active players', description: 'Players with at least one session that day.' },
@@ -118,58 +121,81 @@ function playerValue(day: OverviewDay, metric: string): number {
 }
 
 const playerSeries = computed<MetricSeries[]>(() => [
-  { name: 'This period', data: now.value.map(day => playerValue(day, playerMetric.value)), type: 'area', tone: 1 },
-  { name: 'Previous period', data: before.value.map(day => playerValue(day, playerMetric.value)), dashed: true, tone: 'muted' }
+  { name: 'This period', data: now.value.map(day => (day ? playerValue(day, playerMetric.value) : null)), type: 'area', tone: 1 },
+  { name: 'Previous period', data: before.value.map(day => (day ? playerValue(day, playerMetric.value) : null)), dashed: true, tone: 'muted' }
 ])
 
 const playerHeadline = computed(() => {
-  const series = now.value.map(day => playerValue(day, playerMetric.value))
-  const previous = before.value.map(day => playerValue(day, playerMetric.value))
+  const series = nowDays.value.map(day => playerValue(day, playerMetric.value))
+  const previous = beforeDays.value.map(day => playerValue(day, playerMetric.value))
   // Players are read as a daily average; sessions and playtime as the period's total.
   const daily = ['active_players', 'returning_players'].includes(playerMetric.value)
-  const reduce = (values: number[]) => values.reduce((a, b) => a + b, 0) / (daily ? values.length || 1 : 1)
+  const reduce = (values: number[]) => (values.length
+    ? Math.round(values.reduce((a, b) => a + b, 0) / (daily ? values.length : 1))
+    : null)
   return {
-    value: Math.round(reduce(series)),
-    previous: Math.round(reduce(previous)),
+    value: reduce(series),
+    previous: reduce(previous),
     unit: playerMetric.value === 'playtime' ? 'h' : ''
   }
 })
 
 const revenueSeries = computed<MetricSeries[]>(() => [
-  { name: 'Revenue', data: now.value.map(day => dollars(day.revenue_micros)), type: 'area', tone: 3 },
-  { name: 'Previous period', data: before.value.map(day => dollars(day.revenue_micros)), dashed: true, tone: 'muted' }
+  { name: 'Revenue', data: now.value.map(day => (day ? dollars(day.revenue_micros) : null)), type: 'area', tone: 3 },
+  { name: 'Previous period', data: before.value.map(day => (day ? dollars(day.revenue_micros) : null)), dashed: true, tone: 'muted' }
 ])
+
+/** The period's revenue, or null when no day has a row. */
+const revenueOf = (list: OverviewDay[]) => (list.length ? dollars(total(list, 'revenue_micros')) : null)
 
 // --- Engagement and monetization -------------------------------------------------------
 
 const money = (value: number) => `$${writeFigure(value, { format: 'money' })}`
 
-// Each headline figure over a period of days.
-function figuresOf(days: OverviewDay[]) {
+type Figures = Record<'active' | 'fresh' | 'sessions' | 'playtime' | 'session' | 'revenue' | 'payers' | 'conversion' | 'arpdau' | 'arppu', number | null>
+
+// Each headline figure over the days that have rows. Null when none has, and a ratio is null
+// when what it divides by is nothing (no players, no sessions, no payers).
+function figuresOf(days: OverviewDay[]): Figures {
   const active = total(days, 'active_players')
   const sessions = total(days, 'sessions')
   const playtime = total(days, 'playtime_ms')
   const revenue = dollars(total(days, 'revenue_micros'))
   const payers = total(days, 'payers')
-  const per = (value: number, over: number) => (over ? value / over : 0)
+  const per = (value: number, over: number) => (over ? value / over : null)
+  if (!days.length) {
+    return { active: null, fresh: null, sessions: null, playtime: null, session: null, revenue: null, payers: null, conversion: null, arpdau: null, arppu: null }
+  }
+  const minutes = (value: number | null) => (value === null ? null : value / 60_000)
+  const percent = (value: number | null) => (value === null ? null : value * 100)
   return {
     active: average(days, 'active_players'),
     fresh: total(days, 'new_players'),
     sessions: per(sessions, active),
-    playtime: per(playtime, active) / 60_000,
-    session: per(playtime, sessions) / 60_000,
+    playtime: minutes(per(playtime, active)),
+    session: minutes(per(playtime, sessions)),
     revenue,
     payers: average(days, 'payers'),
-    conversion: per(payers, active) * 100,
+    conversion: percent(per(payers, active)),
     arpdau: per(revenue, active),
     arppu: per(revenue, payers)
   }
 }
 
-const figures = computed(() => ({ now: figuresOf(now.value), before: figuresOf(before.value) }))
+const figures = computed(() => ({ now: figuresOf(nowDays.value), before: figuresOf(beforeDays.value) }))
 
-function kpi(key: keyof ReturnType<typeof figuresOf>, fields: Omit<Kpi, 'key' | 'trend'>): Kpi {
-  return { key, trend: trendOf(figures.value.now[key], figures.value.before[key]), ...fields }
+/* A figure is written only when there is one; a change only when both periods have one. */
+function kpi(key: keyof Figures, fields: Omit<Kpi, 'key' | 'trend' | 'value' | 'exact'> & { write: (value: number) => string, exact?: (value: number) => string }): Kpi {
+  const value = figures.value.now[key]
+  const previous = figures.value.before[key]
+  const { write, exact, ...rest } = fields
+  return {
+    key,
+    value: value === null ? null : write(value),
+    exact: value === null || !exact ? undefined : exact(value),
+    trend: value === null || previous === null ? undefined : trendOf(value, previous),
+    ...rest
+  }
 }
 
 const compact = (value: number) => writeFigure(value, { compact: true })
@@ -177,28 +203,28 @@ const compact = (value: number) => writeFigure(value, { compact: true })
 const audience = computed<Kpi[]>(() => [
   kpi('active', {
     label: 'Active players',
-    value: compact(figures.value.now.active),
+    write: compact,
     info: 'Players with at least one session, as a daily average over the period.'
   }),
   kpi('fresh', {
     label: 'New players',
-    value: compact(figures.value.now.fresh),
+    write: compact,
     info: 'Players seen for the first time during the period.'
   }),
   kpi('sessions', {
     label: 'Sessions per player',
-    value: writeFigure(figures.value.now.sessions),
+    write: value => writeFigure(value),
     info: 'Sessions divided by active players, per day.'
   }),
   kpi('playtime', {
     label: 'Playtime per player',
-    value: writeFigure(figures.value.now.playtime, { decimals: 0 }),
+    write: value => writeFigure(value, { decimals: 0 }),
     unit: 'min',
     info: 'Minutes played per active player, per day.'
   }),
   kpi('session', {
     label: 'Average session',
-    value: writeFigure(figures.value.now.session),
+    write: value => writeFigure(value),
     unit: 'min',
     info: 'Minutes played per session.'
   })
@@ -207,28 +233,28 @@ const audience = computed<Kpi[]>(() => [
 const monetization = computed<Kpi[]>(() => [
   kpi('revenue', {
     label: 'Revenue',
-    value: `$${compact(figures.value.now.revenue)}`,
-    exact: money(figures.value.now.revenue),
+    write: value => `$${compact(value)}`,
+    exact: money,
     info: 'Purchases per day as counted for analytics, gross, before store fees and refunds. The Revenue page has them verified and in USD.'
   }),
   kpi('payers', {
     label: 'Paying players',
-    value: compact(figures.value.now.payers),
+    write: compact,
     info: 'Players with a verified purchase, as a daily average over the period.'
   }),
   kpi('conversion', {
     label: 'Payer conversion',
-    value: writeFigure(figures.value.now.conversion, { decimals: 2, unit: '%' }),
+    write: value => writeFigure(value, { decimals: 2, unit: '%' }),
     info: 'The share of each day\'s active players who made a verified purchase.'
   }),
   kpi('arpdau', {
     label: 'ARPDAU',
-    value: money(figures.value.now.arpdau),
+    write: money,
     info: 'Average revenue per daily active player: revenue divided by active players, summed by day.'
   }),
   kpi('arppu', {
     label: 'ARPPU',
-    value: money(figures.value.now.arppu),
+    write: money,
     info: 'Average revenue per paying player, per day they paid.'
   })
 ])
@@ -318,25 +344,28 @@ const usage = computed(() => {
   }
 })
 
+/* Money the API has not answered for is a dash, not $0.00. */
+const walletMoney = (micros: number) => (billingRead.data.value ? money(dollars(micros)) : '–')
+
 const wallet = computed<Fact[]>(() => [
   {
     key: 'charged',
     label: `Charged in ${month.value}`,
-    value: money(dollars(usage.value.charged_micros)),
+    value: walletMoney(usage.value.charged_micros),
     mono: true,
     info: 'Usage beyond the plan\'s allowance, taken from the wallet so far this month.'
   },
   {
     key: 'pending',
     label: 'Pending',
-    value: money(dollars(usage.value.pending_micros)),
+    value: walletMoney(usage.value.pending_micros),
     mono: true,
     info: 'Usage counted and not yet taken from the wallet: minutes old at most.'
   },
   {
     key: 'available',
     label: 'Available credit',
-    value: money(dollars(usage.value.available_micros)),
+    value: walletMoney(usage.value.available_micros),
     mono: true,
     to: '/settings/billing'
   }
@@ -391,10 +420,10 @@ const wallet = computed<Fact[]>(() => [
         <MetricCard
           :categories="categories"
           :compare="compare"
-          :previous="dollars(total(before, 'revenue_micros'))"
+          :previous="revenueOf(beforeDays)"
           :series="revenueSeries"
           :titles="titles"
-          :value="dollars(total(now, 'revenue_micros'))"
+          :value="revenueOf(nowDays)"
           category-label="Day"
           compact
           description="Purchases per day, gross, against the same days last period."
@@ -433,7 +462,7 @@ const wallet = computed<Fact[]>(() => [
           <template #cell.active_players="{ item }">
             <ProjectFigure
               v-if="item.active_players !== null"
-              :previous="item.previous_active_players ?? 0"
+              :previous="item.previous_active_players"
               :value="item.active_players"
               :written="writeFigure(item.active_players, { compact: true })"
             />

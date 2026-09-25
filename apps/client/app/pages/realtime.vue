@@ -21,6 +21,15 @@ const threshold = computed(() => live.value?.suppression_threshold ?? 5)
 
 const sumOf = (list: readonly LiveMinute[], pick: (minute: LiveMinute) => number) => list.reduce((sum, minute) => sum + pick(minute), 0)
 
+/*
+ * The API lists every minute of the window, with zeros where nothing came in. A window where
+ * nothing came in at all has nothing to show, so its figures are dashes and its line is left
+ * out, rather than a row of zeros that read as a measured quiet. Inside a window that has
+ * traffic, a zero minute is a real zero.
+ */
+const hasToday = computed(() => minutes.value.some(minute => minute.events > 0 || minute.revenue_micros !== 0))
+const hasYesterday = computed(() => yesterday.value.some(minute => minute.events > 0 || minute.revenue_micros !== 0))
+
 /** How much of the current minute has passed, from 0 to 1. */
 const share = computed(() => Math.min(1, Math.max(0.05, live.value?.elapsed ?? 1)))
 
@@ -46,35 +55,39 @@ const playersOf = (minute: LiveMinute | null) => minute?.players ?? null
 
 const board = computed<Kpi[]>(() => {
   const players = playersOf(lastWhole.value)
+  const pastPlayers = playersOf(lastWholeYesterday.value)
   const events = sumOf(minutes.value, minute => minute.events)
   const revenue = sumOf(minutes.value, minute => minute.revenue_micros)
+  const today = hasToday.value
+  /* A change needs both windows to have had traffic. */
+  const against = (value: number, previous: number | null) => (today && hasYesterday.value && previous !== null ? trendOf(value, previous) : undefined)
   return [
     {
       key: 'players',
       label: 'Players now',
-      value: players === null ? `Under ${threshold.value}` : compact(players),
-      trend: players === null ? undefined : trendOf(players, playersOf(lastWholeYesterday.value) ?? 0),
+      value: !today ? null : players === null ? `Under ${threshold.value}` : compact(players),
+      trend: players === null ? undefined : against(players, pastPlayers),
       info: `Players seen in the last whole minute. Approximate, and not shown when fewer than ${threshold.value} played.`
     },
     {
       key: 'rate',
       label: 'Events per minute',
-      value: compact(lastWhole.value?.events ?? 0),
-      trend: trendOf(lastWhole.value?.events ?? 0, lastWholeYesterday.value?.events ?? 0),
+      value: today ? compact(lastWhole.value?.events ?? 0) : null,
+      trend: against(lastWhole.value?.events ?? 0, lastWholeYesterday.value?.events ?? null),
       info: 'Events accepted in the last whole minute, every event name.'
     },
     {
       key: 'events',
       label: 'Events, 30 minutes',
-      value: compact(events),
-      trend: trendOf(events, yesterdaySum(minute => minute.events)),
+      value: today ? compact(events) : null,
+      trend: against(events, yesterdaySum(minute => minute.events)),
       info: 'Events accepted in the last 30 minutes.'
     },
     {
       key: 'revenue',
       label: 'Reported revenue',
-      value: money(revenue),
-      trend: trendOf(revenue, yesterdaySum(minute => minute.revenue_micros)),
+      value: today ? money(revenue) : null,
+      trend: against(revenue, yesterdaySum(minute => minute.revenue_micros)),
       info: 'Purchases in the last 30 minutes as the game reported them, before verification and in the currencies reported. Revenue in USD is on the Revenue page.'
     }
   ]
@@ -90,8 +103,9 @@ const METRICS: MetricOption[] = [
 
 const metric = ref('events')
 
-function valueOf(minute: LiveMinute): number {
-  if (metric.value === 'players') return minute.players ?? 0
+/* A minute whose players were held back has no figure: the line breaks there. */
+function valueOf(minute: LiveMinute): number | null {
+  if (metric.value === 'players') return minute.players ?? null
   if (metric.value === 'revenue') return Math.round(minute.revenue_micros / 1_000_000)
   return minute.events
 }
@@ -107,12 +121,14 @@ const titles = computed(() => minutes.value.map((minute, index) =>
 const series = computed<MetricSeries[]>(() => [
   {
     name: 'Last 30 minutes',
-    data: minutes.value.map((minute, index) =>
-      index === minutes.value.length - 1 ? Math.round(valueOf(minute) / share.value) : valueOf(minute)),
+    data: minutes.value.map((minute, index) => {
+      const value = hasToday.value ? valueOf(minute) : null
+      return value !== null && index === minutes.value.length - 1 ? Math.round(value / share.value) : value
+    }),
     type: 'area',
     tone: metric.value === 'revenue' ? 3 : 1
   },
-  { name: 'Yesterday', data: yesterday.value.map(valueOf), dashed: true, tone: 'muted' }
+  { name: 'Yesterday', data: yesterday.value.map(minute => (hasYesterday.value ? valueOf(minute) : null)), dashed: true, tone: 'muted' }
 ])
 
 // --- Top events -------------------------------------------------------------------------
@@ -120,7 +136,8 @@ const series = computed<MetricSeries[]>(() => [
 interface EventRow {
   name: string
   total: number
-  previous: number
+  /** Yesterday's count at this moment; null when yesterday's window had no traffic. */
+  previous: number | null
   perMinute: number
 }
 
@@ -136,7 +153,7 @@ const eventSort = ref<DataTableSort[]>([{ key: 'total', order: 'desc' }])
 const eventRows = computed<EventRow[]>(() => (live.value?.names ?? []).map(entry => ({
   name: entry.name,
   total: entry.events,
-  previous: yesterdaySum(minute => minute.by_event[entry.name] ?? 0),
+  previous: hasYesterday.value ? yesterdaySum(minute => minute.by_event[entry.name] ?? 0) : null,
   perMinute: lastWhole.value?.by_event[entry.name] ?? 0
 })))
 </script>

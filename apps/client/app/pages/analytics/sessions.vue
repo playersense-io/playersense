@@ -40,47 +40,63 @@ const error = computed(() => read.error.value as ApiError | null)
 
 const compact = (value: number) => writeFigure(value, { compact: true })
 const minutes = (ms: number) => writeFigure(ms / 60_000, { decimals: 1 })
-const per = (value: number, over: number) => (over ? value / over : 0)
+/* A ratio over nothing (no sessions, no players) is no figure, not zero. */
+const per = (value: number, over: number) => (over ? value / over : null)
 
 // --- Figures ------------------------------------------------------------------------------
 
+/*
+ * A period with no sessions has nothing to show: its figures are dashes, not zeros that read as
+ * measured. A change needs the period before to have had sessions too.
+ */
+const any = computed(() => (overview.value?.totals.sessions ?? 0) > 0)
+
 const board = computed<Kpi[]>(() => {
   const totals = overview.value?.totals
-  if (!totals) return []
-  const { sessions, previous_sessions: previous, playtime_ms: playtime, duration_ms: duration, previous_duration_ms: previousDuration, player_days: playerDays } = totals
+  const seen = any.value && totals !== undefined
+  const sessions = totals?.sessions ?? 0
+  const previous = totals?.previous_sessions ?? 0
+  const playtime = totals?.playtime_ms ?? 0
+  const playerDays = totals?.player_days ?? 0
+  const length = per(totals?.duration_ms ?? 0, sessions)
+  const previousLength = per(totals?.previous_duration_ms ?? 0, previous)
+  const written = (value: number | null, write: (value: number) => string) => (!seen || value === null ? null : write(value))
+  const playerPlaytime = per(playtime, playerDays)
   return [
     {
       key: 'sessions',
       label: 'Sessions',
-      value: compact(sessions),
-      trend: trendOf(sessions, previous),
+      value: written(sessions, compact),
+      trend: seen && previous > 0 ? trendOf(sessions, previous) : undefined,
       info: `Sessions started in ${workspace.environment}.`
     },
     {
       key: 'per-player',
       label: 'Sessions per player',
-      value: writeFigure(per(sessions, playerDays)),
+      value: written(per(sessions, playerDays), value => writeFigure(value)),
       info: 'Sessions divided by active players, per day.'
     },
     {
       key: 'playtime',
       label: 'Playtime',
-      value: compact(playtime / 3_600_000),
+      value: written(playtime / 3_600_000, compact),
       unit: 'h',
       info: 'Hours played across every session, time in the foreground only.'
     },
     {
       key: 'length',
       label: 'Average session',
-      value: minutes(per(duration, sessions)),
+      value: written(length, minutes),
       unit: 'min',
-      trend: trendOf(per(duration, sessions), per(previousDuration, previous)),
-      info: `From the first event to the last. Half of all sessions ran under ${minutes(totals.median_ms)} min, nine in ten under ${minutes(totals.p90_ms)} min.`
+      trend: seen && length !== null && previousLength !== null ? trendOf(length, previousLength) : undefined,
+      info: seen && totals
+        ? `From the first event to the last. Half of all sessions ran under ${minutes(totals.median_ms)} min, nine in ten under ${minutes(totals.p90_ms)} min.`
+        : 'From the first event to the last.'
     },
     {
       key: 'player-playtime',
       label: 'Playtime per player',
-      value: writeFigure(per(playtime, playerDays) / 60_000, { decimals: 0 }),
+      value: written(playerPlaytime === null ? null : playerPlaytime / 60_000, value => writeFigure(value, { decimals: 0 })),
       unit: 'min',
       info: 'Minutes played per active player, per day.'
     }
@@ -99,17 +115,21 @@ const metric = ref('sessions')
 
 type Day = Schema<'SessionDayOut'>
 
-function valueOf(day: Day | undefined, previous = false): number {
-  if (!day) return 0
+/* A day with no row, or an average over no sessions, is no point: the line breaks there. */
+function valueOf(day: Day | undefined, previous = false): number | null {
+  if (!day) return null
   const sessions = previous ? day.previous_sessions : day.sessions
-  if (metric.value === 'playtime') return previous ? 0 : Math.round(day.playtime_ms / 3_600_000)
-  if (metric.value === 'length') return Math.round(per(previous ? day.previous_duration_ms : day.duration_ms, sessions) / 6_000) / 10
+  if (metric.value === 'playtime') return previous ? null : Math.round(day.playtime_ms / 3_600_000)
+  if (metric.value === 'length') {
+    const length = per(previous ? day.previous_duration_ms : day.duration_ms, sessions)
+    return length === null ? null : Math.round(length / 6_000) / 10
+  }
   return sessions
 }
 
 const dayTick = new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric', timeZone: 'UTC' })
 
-/* Every day of the period, a day with no row drawn as nothing played. */
+/* Every day of the period; a day with no row is left out of the line, not drawn as zero. */
 const dayRows = computed(() => {
   const held = new Map((overview.value?.days ?? []).map(day => [day.day.slice(0, 10), day]))
   return range.value.days.map(day => ({ day, row: held.get(day) }))
@@ -148,8 +168,9 @@ const endingOf = (outcome: string) => ENDINGS[outcome] ?? { label: outcome, tone
 const endings = computed(() => {
   const rows = overview.value?.outcomes ?? []
   const total = rows.reduce((sum, row) => sum + row.sessions, 0)
-  return rows.map(row => ({ ...row, share: per(row.sessions, total) }))
+  return rows.map(row => ({ ...row, share: per(row.sessions, total) ?? 0 }))
 })
+const anyEndings = computed(() => endings.value.some(row => row.sessions > 0))
 
 // --- By platform --------------------------------------------------------------------------
 
@@ -159,8 +180,8 @@ const PLATFORM_COLUMNS: DataTableColumn<PlatformRow>[] = [
   { key: 'platform', title: 'Platform', fixed: true },
   { key: 'sessions', title: 'Sessions', mono: true },
   { key: 'share', title: 'Share', mono: true, value: row => row.sessions },
-  { key: 'length', title: 'Average session', mono: true, value: row => per(row.duration_ms, row.sessions) },
-  { key: 'perPlayer', title: 'Per player', mono: true, value: row => per(row.sessions, row.player_days) }
+  { key: 'length', title: 'Average session', mono: true, value: row => per(row.duration_ms, row.sessions) ?? -1 },
+  { key: 'perPlayer', title: 'Per player', mono: true, value: row => per(row.sessions, row.player_days) ?? -1 }
 ]
 
 const platformColumns = ref(defaultColumnState(PLATFORM_COLUMNS))
@@ -248,7 +269,13 @@ const shortId = (id: string) => (id.length > 16 ? `${id.slice(0, 8)}…${id.slic
         </SectionCard>
 
         <SectionCard description="How each session was closed." title="How sessions end">
-          <div class="flex flex-col gap-5">
+          <NoDataPlaceholder
+            v-if="!anyEndings"
+            :height="120"
+            :seed="11"
+            label="No data yet"
+          />
+          <div v-else class="flex flex-col gap-5">
             <!-- One bar cut by share, then the legend under it with the figures. -->
             <div class="flex h-2.5 overflow-hidden rounded-full bg-ink/6">
               <span
@@ -280,6 +307,8 @@ const shortId = (id: string) => (id.length > 16 ? `${id.slice(0, 8)}…${id.slic
           :columns="PLATFORM_COLUMNS"
           :items="platforms"
           :paged="false"
+          empty-description="Sessions show here by platform once the SDK has sent some in the period."
+          empty-title="No sessions in the period."
           item-value="platform"
           label="Sessions by platform"
         >
@@ -287,13 +316,13 @@ const shortId = (id: string) => (id.length > 16 ? `${id.slice(0, 8)}…${id.slic
             {{ compact(item.sessions) }}
           </template>
           <template #cell.share="{ item }">
-            {{ writeFigure(per(item.sessions, platformTotal) * 100, { decimals: 1, unit: '%' }) }}
+            {{ writeFigure((per(item.sessions, platformTotal) ?? 0) * 100, { decimals: 1, unit: '%' }) }}
           </template>
           <template #cell.length="{ item }">
-            {{ minutes(per(item.duration_ms, item.sessions)) }} min
+            {{ per(item.duration_ms, item.sessions) === null ? '–' : `${minutes(per(item.duration_ms, item.sessions)!)} min` }}
           </template>
           <template #cell.perPlayer="{ item }">
-            {{ writeFigure(per(item.sessions, item.player_days)) }}
+            {{ per(item.sessions, item.player_days) === null ? '–' : writeFigure(per(item.sessions, item.player_days)!) }}
           </template>
         </DataTable>
       </SectionCard>

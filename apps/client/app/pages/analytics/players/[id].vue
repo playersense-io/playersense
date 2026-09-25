@@ -88,8 +88,10 @@ const metric = ref('playtime')
 
 type Day = Schema<'PlayerDayOut'>
 
-function valueOf(day: Day | undefined): number {
-  if (!day) return 0
+/* A day the player has no row for is left out of the line, not drawn as a zero; with no day at
+   all in the 90, the card shows the no-data mark. */
+function valueOf(day: Day | undefined): number | null {
+  if (!day) return null
   if (metric.value === 'sessions') return day.sessions
   if (metric.value === 'events') return day.events
   if (metric.value === 'revenue') return day.revenue_micros / 1_000_000

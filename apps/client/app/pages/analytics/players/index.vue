@@ -28,18 +28,25 @@ const range = computed(() => periodOf(Number.parseInt(period.value, 10)))
 
 const compact = (value: number) => writeFigure(value, { compact: true })
 const money = (value: number) => `$${writeFigure(value, { format: 'money' })}`
-const per = (value: number, over: number) => (over ? value / over : 0)
+/* A ratio over nothing (no players, no rows) is no figure, not zero. */
+const per = (value: number, over: number) => (over ? value / over : null)
 
 // --- The player base ----------------------------------------------------------------------
 
 const metrics = ref<Schema<'MetricResult'> | null>(null)
 const lifecycle = ref<Schema<'MetricResult'> | null>(null)
 const baseError = ref<ApiError | null>(null)
+const baseLoading = ref(false)
 
 async function loadBase() {
   const path = workspace.analyticsPath
-  if (!path) return
+  if (!path) {
+    metrics.value = null
+    lifecycle.value = null
+    return
+  }
   baseError.value = null
+  baseLoading.value = !metrics.value
   const { previousFrom, from, to } = range.value
   try {
     const [daily, split] = await Promise.all([
@@ -50,13 +57,17 @@ async function loadBase() {
     lifecycle.value = split
   } catch (caught) {
     baseError.value = caught instanceof ApiError ? caught : new ApiError(String(caught), 0)
+  } finally {
+    baseLoading.value = false
   }
 }
 
 watch([range, () => workspace.analyticsPath], loadBase, { immediate: true })
 
+/* A period's figures, or null when no day of it came back (nothing sent, or every day held back). */
 function sums(from: string, to: string) {
   const rows = (metrics.value?.rows ?? []).filter(row => row.bucket.slice(0, 10) >= from && row.bucket.slice(0, 10) <= to)
+  if (!rows.length) return null
   const add = (pick: (row: typeof rows[number]) => number | undefined) => rows.reduce((sum, row) => sum + (pick(row) ?? 0), 0)
   return {
     playerDays: add(row => row.active_players),
@@ -70,36 +81,41 @@ const board = computed<Kpi[]>(() => {
   const count = range.value.days.length
   const now = sums(range.value.from, range.value.to)
   const before = sums(range.value.previousFrom, range.value.previousTo)
-  const conversion = (figures: typeof now) => per(figures.payerDays, figures.playerDays) * 100
-  const playtime = (figures: typeof now) => per(figures.playtime, figures.playerDays) / 60_000
+  type Figures = NonNullable<typeof now>
+  const scaled = (value: number | null, by: number) => (value === null ? null : value * by)
+  const conversion = (figures: Figures | null) => (figures ? scaled(per(figures.payerDays, figures.playerDays), 100) : null)
+  const playtime = (figures: Figures | null) => (figures ? scaled(per(figures.playtime, figures.playerDays), 1 / 60_000) : null)
+  /* A figure only when there is one, and a change only when both periods have one. */
+  const moved = (value: number | null, previous: number | null) => (value === null || previous === null ? undefined : trendOf(value, previous))
+  const written = (value: number | null, write: (value: number) => string) => (value === null ? null : write(value))
   return [
     {
       key: 'active',
       label: 'Active players',
-      value: compact(now.playerDays / count),
-      trend: trendOf(now.playerDays, before.playerDays),
+      value: written(now ? now.playerDays / count : null, compact),
+      trend: moved(now?.playerDays ?? null, before?.playerDays ?? null),
       info: 'Players with at least one session, as a daily average over the period.'
     },
     {
       key: 'new',
       label: 'New players',
-      value: compact(now.fresh),
-      trend: trendOf(now.fresh, before.fresh),
+      value: written(now?.fresh ?? null, compact),
+      trend: moved(now?.fresh ?? null, before?.fresh ?? null),
       info: 'Players seen for the first time in the period.'
     },
     {
       key: 'payers',
       label: 'Payer conversion',
-      value: writeFigure(conversion(now), { decimals: 2, unit: '%' }),
-      trend: trendOf(conversion(now), conversion(before)),
+      value: written(conversion(now), value => writeFigure(value, { decimals: 2, unit: '%' })),
+      trend: moved(conversion(now), conversion(before)),
       info: 'The share of each day\'s active players who made a purchase that day.'
     },
     {
       key: 'playtime',
       label: 'Playtime per player',
-      value: writeFigure(playtime(now), { decimals: 0 }),
+      value: written(playtime(now), value => writeFigure(value, { decimals: 0 })),
       unit: 'min',
-      trend: trendOf(playtime(now), playtime(before)),
+      trend: moved(playtime(now), playtime(before)),
       info: 'Minutes played per active player, per day.'
     }
   ]
@@ -117,9 +133,10 @@ const lifecycleDays = computed(() => {
 const lifecycleCategories = computed(() => lifecycleDays.value.map(entry => dayTick.format(new Date(entry.day))))
 
 const lifecycleSeries = computed<MetricSeries[]>(() => [
-  { name: 'Continuing', data: lifecycleDays.value.map(entry => entry.row?.continuing_players ?? 0), type: 'bar', stack: 'players', tone: 1 },
-  { name: 'New', data: lifecycleDays.value.map(entry => entry.row?.new_players ?? 0), type: 'bar', stack: 'players', tone: 3 },
-  { name: 'Reactivated', data: lifecycleDays.value.map(entry => entry.row?.reactivated_players ?? 0), type: 'bar', stack: 'players', tone: 4 }
+  /* A day with no row is no bar, not a bar of zero. */
+  { name: 'Continuing', data: lifecycleDays.value.map(entry => (entry.row ? entry.row.continuing_players ?? 0 : null)), type: 'bar', stack: 'players', tone: 1 },
+  { name: 'New', data: lifecycleDays.value.map(entry => (entry.row ? entry.row.new_players ?? 0 : null)), type: 'bar', stack: 'players', tone: 3 },
+  { name: 'Reactivated', data: lifecycleDays.value.map(entry => (entry.row ? entry.row.reactivated_players ?? 0 : null)), type: 'bar', stack: 'players', tone: 4 }
 ])
 
 // --- Directory ----------------------------------------------------------------------------
@@ -285,11 +302,13 @@ const shortId = (id: string) => (id.length > 16 ? `${id.slice(0, 8)}…${id.slic
     <KpiBoard
       :description="`The last ${periodWords}, against the ${periodWords} before.`"
       :items="board"
+      :loading="baseLoading"
       title="Player base"
     />
 
     <MetricCard
       :categories="lifecycleCategories"
+      :loading="baseLoading"
       :series="lifecycleSeries"
       category-label="Day"
       compact
@@ -329,8 +348,8 @@ const shortId = (id: string) => (id.length > 16 ? `${id.slice(0, 8)}…${id.slic
         :columns="COLUMNS"
         :items="matched"
         :loading="directory.isFetching.value && !directory.data.value"
-        empty-description="No player matches these filters. Remove one, or clear them all."
-        empty-title="No players match."
+        :empty-description="active.length ? 'No player matches these filters. Remove one, or clear them all.' : 'Nobody has played yet. Players show here once the SDK sends their first session.'"
+        :empty-title="active.length ? 'No players match.' : 'No players yet.'"
         item-value="install_id"
         label="Players"
       >

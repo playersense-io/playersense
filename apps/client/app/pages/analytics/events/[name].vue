@@ -65,41 +65,50 @@ function ago(iso: string): string {
 
 // --- Figures ------------------------------------------------------------------------------
 
+/*
+ * The API draws a quiet hour as a zero inside a period with occurrences. A period with none at
+ * all has nothing to show: its figures are dashes and its chart the no-data mark, rather than a
+ * flat line at zero. A change needs the period before to have had occurrences too.
+ */
+const any = computed(() => (detail.value?.totals.events ?? 0) > 0)
+const anyBefore = computed(() => (detail.value?.totals.previous_events ?? 0) > 0)
+
 const board = computed<Kpi[]>(() => {
   if (!detail.value) return []
   const { totals } = detail.value
   const players = totals.players ?? null
+  const seen = any.value
   return [
     {
       key: 'count',
       label: 'Occurrences',
-      value: compact(totals.events),
-      trend: trendOf(totals.events, totals.previous_events),
+      value: seen ? compact(totals.events) : null,
+      trend: seen && anyBefore.value ? trendOf(totals.events, totals.previous_events) : undefined,
       info: `Times the event arrived from ${workspace.environment} in the period.`
     },
     {
       key: 'players',
       label: 'Players',
-      value: players === null ? `Under ${threshold.value}` : compact(players),
-      trend: players === null || totals.previous_players == null ? undefined : trendOf(players, totals.previous_players),
+      value: !seen ? null : players === null ? `Under ${threshold.value}` : compact(players),
+      trend: !seen || players === null || totals.previous_players == null ? undefined : trendOf(players, totals.previous_players),
       info: 'Distinct players who sent it at least once. Approximate above a few thousand.'
     },
     {
       key: 'per-player',
       label: 'Per player',
-      value: players ? writeFigure(totals.events / players) : '–',
+      value: seen && players ? writeFigure(totals.events / players) : null,
       info: 'Occurrences divided by the players who sent it.'
     },
     {
       key: 'properties',
       label: 'Properties',
-      value: String(detail.value.properties.length),
+      value: seen ? String(detail.value.properties.length) : null,
       info: 'Distinct property keys seen on the event in the period.'
     },
     {
       key: 'last',
       label: 'Last seen',
-      value: ago(detail.value.last_seen),
+      value: detail.value.last_seen ? ago(detail.value.last_seen) : null,
       info: 'When it last arrived. Events take up to about ten seconds to show.'
     }
   ]
@@ -114,8 +123,8 @@ const categories = computed(() => (detail.value?.series ?? []).map(bucket =>
   (detail.value!.interval === 'hour' ? hourTick : dayTick).format(new Date(bucket.at))))
 
 const series = computed<MetricSeries[]>(() => [
-  { name: 'This period', data: (detail.value?.series ?? []).map(bucket => bucket.events), type: 'area', tone: 1 },
-  { name: 'Previous period', data: (detail.value?.series ?? []).map(bucket => bucket.previous_events), dashed: true, tone: 'muted' }
+  { name: 'This period', data: (detail.value?.series ?? []).map(bucket => (any.value ? bucket.events : null)), type: 'area', tone: 1 },
+  { name: 'Previous period', data: (detail.value?.series ?? []).map(bucket => (anyBefore.value ? bucket.previous_events : null)), dashed: true, tone: 'muted' }
 ])
 
 // --- Where it comes from ------------------------------------------------------------------

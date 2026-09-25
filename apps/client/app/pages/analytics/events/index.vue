@@ -63,30 +63,33 @@ const board = computed<Kpi[]>(() => {
   const previous = rows.value.reduce((sum, row) => sum + row.previous_events, 0)
   const custom = rows.value.filter(row => row.type === 'custom').reduce((sum, row) => sum + row.events, 0)
   const last = rows.value.length ? Math.min(...rows.value.map(row => secondsSince(row.last_seen))) : null
+  /* Nothing arrived in the period: no figures, rather than zeros that read as measured. A change
+     needs the period before to have had events too. */
+  const any = rows.value.length > 0 && total > 0
   return [
     {
       key: 'events',
       label: 'Events',
-      value: compact(total),
-      trend: trendOf(total, previous),
+      value: any ? compact(total) : null,
+      trend: any && previous > 0 ? trendOf(total, previous) : undefined,
       info: `Every event accepted from this project's ${workspace.environment} environment.`
     },
     {
       key: 'names',
       label: 'Event names',
-      value: String(rows.value.length),
+      value: any ? String(rows.value.length) : null,
       info: 'Distinct event names seen in the period.'
     },
     {
       key: 'custom',
       label: 'Custom events',
-      value: `${writeFigure(total ? custom / total * 100 : 0, { decimals: 1 })}%`,
+      value: any ? `${writeFigure(custom / total * 100, { decimals: 1 })}%` : null,
       info: 'The share of events the game named itself, rather than the SDK\'s session, purchase and exposure events.'
     },
     {
       key: 'last',
       label: 'Last event',
-      value: last === null ? 'Never' : ago(last),
+      value: last === null ? null : ago(last),
       info: 'When the most recent event arrived. Events take up to about ten seconds to show.'
     }
   ]
@@ -231,7 +234,7 @@ const sortBy = ref<DataTableSort[]>([{ key: 'events', order: 'desc' }])
             <Tag :label="categoryLabel(item.category)" :tone="categoryTone(item.category)" />
           </template>
           <template #cell.events="{ item }">
-            <ProjectFigure :previous="item.previous_events" :value="item.events" :written="compact(item.events)" />
+            <ProjectFigure :previous="item.previous_events || null" :value="item.events" :written="compact(item.events)" />
           </template>
           <template #cell.players="{ item }">
             <span v-if="item.players != null">{{ compact(item.players) }}</span>
