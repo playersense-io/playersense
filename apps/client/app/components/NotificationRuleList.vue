@@ -13,6 +13,7 @@ const props = defineProps<{
 const { kinds } = useNotificationKinds()
 const { rules, error, forbidden, loading, reload, setEnabled, muteUntil, remove, test: sendTest } = useNotificationRules(props.scope)
 const { channels } = useRuleChannels(props.scope)
+const { byRule: stats, reload: reloadStats } = useRuleStats(props.scope)
 
 const now = useNow({ interval: 60_000 })
 const time = computed(() => now.value.getTime())
@@ -51,6 +52,7 @@ async function test(rule: NotificationRule) {
     else notice.value = `A test of ${rule.name} reached ${out.channels.length === 1 ? out.channels[0]!.name : `all ${out.channels.length} channels`}.`
   })
   testing.value = null
+  await reloadStats()
 }
 
 const deleting = ref<NotificationRule | null>(null)
@@ -145,6 +147,15 @@ const description = computed(() => props.scope === 'organization'
                 <span>{{ rule.cooldownMinutes ? `At most every ${cooldownWords(rule.cooldownMinutes)}` : 'Every time' }}</span>
                 <span aria-hidden="true">·</span>
                 <span>{{ rule.lastFiredAt ? `Fired ${relativeWords(rule.lastFiredAt, time)}` : 'Never fired' }}</span>
+              </span>
+            </span>
+
+            <!-- Its week: what it sent, how much failed, a count a day. -->
+            <span class="flex w-36 flex-none items-center gap-2.5" :title="`What ${rule.name} sent in the last 7 days, tests aside`">
+              <Sparkline :height="24" :values="stats.get(rule.id)?.spark ?? [0, 0, 0, 0, 0, 0, 0]" class="h-6 w-16 flex-none" />
+              <span class="flex flex-col">
+                <span class="font-mono text-xs text-ink tabular-nums">{{ writeFigure(stats.get(rule.id)?.sent ?? 0, { compact: true }) }}</span>
+                <span :class="stats.get(rule.id)?.failed ? 'text-error' : 'text-ink/45'" class="text-[11px]">{{ stats.get(rule.id)?.failed ? `${writeFigure(stats.get(rule.id)!.failed)} failed` : 'this week' }}</span>
               </span>
             </span>
 

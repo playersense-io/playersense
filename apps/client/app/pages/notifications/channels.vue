@@ -8,6 +8,9 @@
 const { channels, loading, error, reload, setEnabled, remove, test: sendTest } = useChannels()
 const { reports } = useReports()
 const { rules } = useNotificationRules('project')
+/* Each channel's week, from the hourly rollup: what it was sent and how much arrived. */
+const { data: week } = useChannelActivity('7d')
+const weekOf = (id: string) => week.value?.channels.find(row => row.channelId === id) ?? null
 
 const now = useNow({ interval: 60_000 })
 const time = computed(() => now.value.getTime())
@@ -157,6 +160,13 @@ const deleteOpen = computed({
             <span class="flex w-44 flex-none flex-col items-start gap-0.5">
               <StatusBadge :label="CHANNEL_STATUS[statusOf(channel)].label" :tone="CHANNEL_STATUS[statusOf(channel)].tone" />
               <span class="text-[11px] text-ink/45">{{ channel.last_test ? `Tested ${relativeWords(Date.parse(channel.last_test.at), time)}` : 'Never tested' }}</span>
+            </span>
+            <span class="flex w-32 flex-none items-center gap-2" :title="`What ${channel.name} was sent in the last 7 days`">
+              <Sparkline :height="20" :values="weekOf(channel.id)?.spark ?? [0, 0, 0, 0, 0, 0, 0]" class="h-5 w-14 flex-none" />
+              <span class="flex flex-col">
+                <span class="font-mono text-[11px] text-ink tabular-nums">{{ writeFigure(weekOf(channel.id)?.sent ?? 0, { compact: true }) }} sent</span>
+                <span :class="weekOf(channel.id)?.failed ? 'text-error' : 'text-ink/45'" class="text-[10px]">{{ weekOf(channel.id)?.failed ? `${writeFigure(weekOf(channel.id)!.failed)} failed` : 'this week' }}</span>
+              </span>
             </span>
             <span class="w-40 flex-none text-[11px] text-ink/55">
               <template v-if="usedBy.get(channel.id)?.length">

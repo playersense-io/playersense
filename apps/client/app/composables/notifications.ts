@@ -124,3 +124,92 @@ export function useRuleChannels(scope: RuleScope) {
     loading: computed(() => get.isFetching.value && !get.data.value)
   }
 }
+
+export type ActivityRange = '24h' | '7d' | '30d'
+
+export interface ActivityTotals {
+  sent: number
+  delivered: number
+  failed: number
+  tests: number
+  p50: number
+  p95: number
+}
+
+export interface ChannelActivityRow {
+  channelId: string | null
+  name: string
+  type: ChannelType | null
+  sent: number
+  failed: number
+  p50: number
+  lastAt: number | null
+  lastOk: boolean
+  spark: number[]
+}
+
+const totalsOf = (out: Schema<'ActivityTotalsOut'>): ActivityTotals => ({
+  sent: out.sent, delivered: out.delivered, failed: out.failed, tests: out.tests, p50: out.p50_ms, p95: out.p95_ms
+})
+
+/**
+ * What was sent to the project's channels over a window, beside the window before it
+ * (…/channels/activity). Read from the hourly rollup, so it costs the same whatever the volume.
+ */
+export function useChannelActivity(range: MaybeRefOrGetter<ActivityRange>) {
+  const workspace = useWorkspaceStore()
+  const get = useApiGet<Schema<'ChannelActivityOut'>>(() => workspace.projectPath
+    && withQuery(`${workspace.projectPath}/channels/activity`, { range: toValue(range) }))
+  const data = computed(() => {
+    const out = get.data.value
+    if (!out) return null
+    return {
+      bucket: out.bucket as 'hour' | 'day',
+      buckets: out.buckets.map(b => ({ at: Date.parse(b.at), delivered: b.delivered, failed: b.failed, tests: b.tests })),
+      current: totalsOf(out.current),
+      previous: totalsOf(out.previous),
+      channels: out.channels.map((c): ChannelActivityRow => ({
+        channelId: c.channel_id ?? null,
+        name: c.name,
+        type: (c.type || null) as ChannelType | null,
+        sent: c.sent,
+        failed: c.failed,
+        p50: c.p50_ms,
+        lastAt: c.last_at ? Date.parse(c.last_at) : null,
+        lastOk: c.last_ok,
+        spark: [...c.spark]
+      })),
+      sources: out.sources.map(s => ({ source: s.source, ruleId: s.rule_id ?? null, sent: s.sent, failed: s.failed })),
+      waiting: out.waiting,
+      retrying: out.retrying
+    }
+  })
+  return {
+    data,
+    loading: computed(() => get.isFetching.value && !get.data.value),
+    error: computed(() => get.error.value as ApiError | null),
+    reload: () => get.execute()
+  }
+}
+
+export interface RuleStat {
+  sent: number
+  failed: number
+  lastAt: number | null
+  spark: number[]
+}
+
+/** What each of a scope's rules sent in the last seven days, tests aside. */
+export function useRuleStats(scope: RuleScope) {
+  const workspace = useWorkspaceStore()
+  const get = useApiGet<Schema<'RuleStatsOut'>>(() => scope === 'project'
+    ? workspace.projectPath && `${workspace.projectPath}/notification-rules/stats`
+    : workspace.orgPath && `${workspace.orgPath}/notification-rules/stats`)
+  const byRule = computed(() => new Map((get.data.value?.rules ?? []).map(rule => [rule.rule_id, {
+    sent: rule.sent,
+    failed: rule.failed,
+    lastAt: rule.last_at ? Date.parse(rule.last_at) : null,
+    spark: [...rule.spark]
+  } satisfies RuleStat])))
+  return { byRule, reload: () => get.execute() }
+}
