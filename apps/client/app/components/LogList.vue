@@ -114,7 +114,7 @@ function summaryOf(record: LogRecordSummary): string {
           v-for="{ data: record, index } in list"
           :key="record.id"
           :aria-selected="record.id === selected"
-          :class="[record.id === selected ? 'bg-primary/10' : index % 2 ? 'bg-ink/[0.018] hover:bg-ink/5' : 'hover:bg-ink/5', record.kind === 'crash' ? 'log-row--crash' : '']"
+          :class="[record.id === selected ? 'bg-primary/10' : index % 2 ? 'bg-ink/[0.018] hover:bg-ink/5' : 'hover:bg-ink/5']"
           :style="{ '--log-level': colors[bandOf(record.level)] }"
           class="log-row group cursor-pointer"
           role="option"
@@ -137,16 +137,27 @@ function summaryOf(record: LogRecordSummary): string {
         </div>
       </div>
 
-      <div v-if="loading && !records.length" class="flex flex-col">
-        <div v-for="index in (records.length ? 3 : 14)" :key="index" class="log-row">
-          <span class="log-row__time"><span class="block h-2.5 w-28 animate-pulse rounded bg-ink/8" /></span>
-          <span class="log-row__level"><span class="block h-2.5 w-10 animate-pulse rounded bg-ink/8" /></span>
-          <span class="flex-1"><span :style="{ width: `${30 + ((index * 23) % 55)}%` }" class="block h-2.5 animate-pulse rounded bg-ink/6" /></span>
+      <!-- Rows on their way, first page or next: bones in the columns the rows will fill, a
+           full screen of them at first and a few under the last row while the next page loads. -->
+      <div
+        v-if="loading"
+        :aria-busy="true"
+        aria-label="Loading records"
+        class="flex flex-col"
+      >
+        <div
+          v-for="index in (records.length ? 6 : 16)"
+          :key="index"
+          aria-hidden="true"
+          class="log-row"
+        >
+          <span class="log-row__time"><span class="block h-2.5 w-32 animate-pulse rounded bg-ink/8" /></span>
+          <span class="log-row__level"><span class="block h-2.5 w-9 animate-pulse rounded bg-ink/8" /></span>
+          <span v-if="!compact" class="log-row__logger"><span :style="{ width: `${40 + ((index * 17) % 45)}%` }" class="block h-2.5 animate-pulse rounded bg-ink/6" /></span>
+          <span class="min-w-0 flex-1"><span :style="{ width: `${30 + ((index * 23) % 55)}%` }" class="block h-2.5 animate-pulse rounded bg-ink/6" /></span>
+          <span v-if="!compact" class="log-row__release flex justify-end"><span class="block h-2.5 w-8 animate-pulse rounded bg-ink/6" /></span>
         </div>
       </div>
-      <p v-else-if="loading" class="m-0 py-3 text-center text-[11px] text-ink/40">
-        Loading more…
-      </p>
       <p v-else-if="done && records.length" class="m-0 py-4 text-center text-[11px] text-ink/40">
         The start of the range. {{ writeFigure(records.length) }} {{ records.length === 1 ? 'record' : 'records' }}.
       </p>
@@ -158,18 +169,12 @@ function summaryOf(record: LogRecordSummary): string {
 <style scoped>
 .log-row {
   align-items: center;
-  box-shadow: inset 3px 0 0 transparent;
   display: flex;
   font-size: 12px;
   gap: 12px;
   height: 32px;
   padding: 0 12px 0 14px;
   white-space: nowrap;
-}
-
-/* The level's colour as a rule down the left edge: scanned, not read. */
-.log-row[style*='--log-level'] {
-  box-shadow: inset 3px 0 0 var(--log-level);
 }
 
 .log-row__time {
@@ -196,14 +201,11 @@ function summaryOf(record: LogRecordSummary): string {
   width: 64px;
 }
 
+/* The level's colour carries it; the weight stays the row's own. */
 .log-level {
   color: var(--log-level);
   font-size: 10.5px;
-  font-weight: 600;
+  font-weight: 400;
   letter-spacing: 0.02em;
-}
-
-.log-row--crash {
-  background-image: linear-gradient(90deg, rgba(var(--v-theme-error), 0.07), transparent 40%);
 }
 </style>

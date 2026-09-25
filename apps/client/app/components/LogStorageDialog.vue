@@ -151,20 +151,6 @@ const monthName = computed(() => storage.value ? new Date(storage.value.period_s
           <p v-else-if="storage?.retention_purge_until" class="m-0 text-[11px] text-ink/50">
             A shorter retention is still being applied to older records.
           </p>
-          <div class="flex items-center justify-end gap-3">
-            <span v-if="failure" class="text-xs text-error">{{ failure }}</span>
-            <v-btn
-              :disabled="!storage || choice === storage.retention_days"
-              :loading="saving"
-              class="text-xs font-medium"
-              :color="lowering ? 'error' : 'primary'"
-              size="small"
-              variant="flat"
-              @click="save"
-            >
-              {{ lowering ? 'Delete older records and save' : 'Save retention' }}
-            </v-btn>
-          </div>
         </section>
 
         <!-- What it holds. -->
@@ -252,6 +238,30 @@ const monthName = computed(() => storage.value ? new Date(storage.value.period_s
           </dl>
         </section>
       </div>
+
+      <!-- The one thing this dialog changes, where a dialog's action is: bottom right. -->
+      <footer class="flex flex-none items-center justify-end gap-3 border-t border-line px-5 py-3">
+        <span v-if="failure" class="mr-auto text-xs text-error">{{ failure }}</span>
+        <v-btn
+          class="text-xs font-medium text-ink/70"
+          size="small"
+          variant="text"
+          @click="open = false"
+        >
+          Close
+        </v-btn>
+        <v-btn
+          :color="lowering ? 'error' : 'primary'"
+          :disabled="!storage || choice === storage.retention_days"
+          :loading="saving"
+          class="text-xs font-medium"
+          size="small"
+          variant="flat"
+          @click="save"
+        >
+          {{ lowering ? 'Delete older records and save' : 'Save retention' }}
+        </v-btn>
+      </footer>
     </v-card>
   </v-dialog>
 </template>
