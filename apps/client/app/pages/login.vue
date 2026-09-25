@@ -44,15 +44,28 @@ async function withProvider(provider: SignInProvider) {
   }
 }
 
-const emailValid = computed(() => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value.trim()))
+const isAddress = (text: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text)
 
-async function sendLink() {
-  if (!emailValid.value) return
+/* The address as the field holds it. A browser's autofill can fill the field without telling
+   Vue, so a submit reads the field itself rather than trusting the model alone. */
+function addressOf(event: Event): string {
+  const field = (event.target as HTMLFormElement).querySelector('input[type="email"]') as HTMLInputElement | null
+  const address = (field?.value || email.value).trim()
+  email.value = address
+  return address
+}
+
+async function sendLink(event: Event) {
+  const address = addressOf(event)
+  if (!isAddress(address)) {
+    problem.value = 'Enter an email address, like you@studio.com.'
+    return
+  }
   problem.value = ''
   busy.value = 'link'
   try {
-    await auth.sendLink(email.value.trim(), next.value)
-    sentTo.value = email.value.trim()
+    await auth.sendLink(address, next.value)
+    sentTo.value = address
   } catch (caught) {
     problem.value = signInError(caught)
   } finally {
@@ -72,6 +85,15 @@ async function completeLink(address: string) {
   } finally {
     busy.value = null
   }
+}
+
+function confirmLink(event: Event) {
+  const address = addressOf(event)
+  if (!isAddress(address)) {
+    problem.value = 'Enter the email address the link was sent to.'
+    return
+  }
+  void completeLink(address)
 }
 
 onMounted(() => {
@@ -114,7 +136,7 @@ onMounted(() => {
           This link was opened in a different browser from the one that asked for it. Type the address it was sent to.
         </p>
       </header>
-      <form class="flex flex-col gap-3" @submit.prevent="completeLink(email.trim())">
+      <form class="flex flex-col gap-3" @submit.prevent="confirmLink">
         <div class="flex flex-col gap-1">
           <label class="text-xs font-medium text-ink" for="confirm-email">Email</label>
           <v-text-field
@@ -128,15 +150,16 @@ onMounted(() => {
           />
         </div>
         <v-btn
-          :disabled="!emailValid"
           block
-          class="ps-login-button"
-          color="primary"
+          class="ps-login-button ps-login-provider"
           size="large"
           type="submit"
           variant="flat"
         >
           Sign in
+          <template #append>
+            <Icon aria-hidden="true" class="text-base" name="material-symbols:arrow-forward" />
+          </template>
         </v-btn>
       </form>
     </template>
@@ -203,16 +226,18 @@ onMounted(() => {
           />
         </div>
         <v-btn
-          :disabled="!emailValid || busy !== null"
+          :disabled="busy !== null"
           :loading="busy === 'link'"
           block
-          class="ps-login-button"
-          color="primary"
+          class="ps-login-button ps-login-provider"
           size="large"
           type="submit"
           variant="flat"
         >
           Email me a link
+          <template #append>
+            <Icon aria-hidden="true" class="text-base" name="material-symbols:arrow-forward" />
+          </template>
         </v-btn>
       </form>
     </template>
@@ -240,6 +265,18 @@ onMounted(() => {
 .ps-login-provider {
   background: rgba(var(--v-theme-on-surface), 0.05);
   color: rgb(var(--v-theme-on-surface));
+}
+
+/* Disabled, while another way of signing in is under way, keeps the same soft fill, fainter,
+   rather than Vuetify's darker grey. */
+.ps-login-provider.v-btn--disabled {
+  background: rgba(var(--v-theme-on-surface), 0.05);
+  color: rgb(var(--v-theme-on-surface));
+  opacity: 0.5;
+}
+
+.ps-login-provider.v-btn--disabled :deep(.v-btn__overlay) {
+  opacity: 0;
 }
 
 .ps-login-provider:hover {
