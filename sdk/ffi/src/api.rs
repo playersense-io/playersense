@@ -647,15 +647,15 @@ pub extern "C" fn ps_client_tick(client: u64) -> i32 {
     let Some(job) = job else {
         return status;
     };
-    // Outside the lock: serializing and compressing a log batch is the only part of a tick that
-    // takes milliseconds, and a game thread calling in meanwhile must not wait for it. A panic
-    // here loses this batch and nothing else, since the client never saw it.
-    let Ok(sealed) = catch_unwind(AssertUnwindSafe(|| job.encode())) else {
-        set_last_error("a log batch could not be encoded and was dropped");
+    // Outside the lock: serializing and compressing a batch (analytics or logs) is the only part
+    // of a tick that takes milliseconds, and a game thread calling in meanwhile must not wait for
+    // it. A panic here loses those batches and nothing else, since the client never saw them.
+    let Ok(done) = catch_unwind(AssertUnwindSafe(|| job.encode())) else {
+        set_last_error("a batch could not be encoded and was dropped");
         return PS_OK;
     };
     with_client(client, |c| {
-        c.tick_finish(Some(sealed));
+        c.tick_finish(Some(done));
         PS_OK
     })
 }

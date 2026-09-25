@@ -250,8 +250,9 @@ fn logs_bench() {
         fast.last().map_or(0, |f| f.1) / 1024
     );
 
-    // Analytics, for comparison: a track call, and a tick that seals and sends a full batch of
-    // events (sealing, the spool, and gzip at send), all of which holds the client's lock.
+    // Analytics: a track call, with the binding ticking as it does (every 250 calls here, outside
+    // the timing), and a tick with a full batch due, split as ps_client_tick splits it: the part
+    // under the client's lock, and the encoding and compression outside it.
     let props = || {
         let mut p = std::collections::BTreeMap::new();
         p.insert("level".to_owned(), crate::event::Value::Int(12));
@@ -259,27 +260,42 @@ fn logs_bench() {
         p
     };
     let mut c = client(120);
-    measure("analytics: track", 100_000, |n| {
+    let mut tracks = Vec::with_capacity(100_000);
+    for n in 0..100_000 {
+        let start = Instant::now();
         black_box(c.track("enemy_killed", props()).ok());
-        if n % 200 == 0 {
+        tracks.push(start.elapsed().as_nanos() as u64);
+        if n % 250 == 249 {
+            c.tick();
             answer(&mut c);
         }
-    });
+    }
+    report("analytics: track (the binding ticking)", &mut tracks);
+
     let mut c = client(120);
-    let mut ticks = Vec::new();
+    let (mut locked, mut unlocked) = (Vec::new(), Vec::new());
     for _ in 0..100 {
         answer(&mut c);
         for _ in 0..250 {
             let _ = c.track("enemy_killed", props());
         }
-        c.host().advance_ms(31_000);
         let start = Instant::now();
-        c.tick();
-        ticks.push(start.elapsed().as_nanos() as u64);
+        let job = c.tick_begin();
+        locked.push(start.elapsed().as_nanos() as u64);
+        let start = Instant::now();
+        let done = job.map(crate::client::TickJob::encode);
+        unlocked.push(start.elapsed().as_nanos() as u64);
+        let start = Instant::now();
+        c.tick_finish(done);
+        *locked.last_mut().unwrap() += start.elapsed().as_nanos() as u64;
     }
     report(
-        "analytics: tick sealing + sending 250 events (locked)",
-        &mut ticks,
+        "analytics: tick, 250 events due: under the lock",
+        &mut locked,
+    );
+    report(
+        "analytics: tick, 250 events due: encoding, outside",
+        &mut unlocked,
     );
 
     let mut c = client(120);

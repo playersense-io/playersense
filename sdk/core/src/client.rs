@@ -91,6 +91,12 @@ pub struct Client<H: Host> {
     /// Whether anything pending is [`Priority::Critical`], which is what makes a batch go
     /// without waiting for an interval.
     pending_critical: bool,
+    /// A full batch waits for the next tick to be sealed, rather than being sealed inside the
+    /// track call that filled it: in the game's frame, and under the lock a game thread waits on.
+    seal_due: bool,
+    /// The newest sealed batch, already compressed while it was encoded (outside the lock, when a
+    /// binding ticks as `ps_client_tick` does), so its first send is a read. Keyed by its spool key.
+    precompressed: Option<(String, Vec<u8>)>,
     /// Collected while consent is unknown. **Memory only** — never the spool (§5).
     preconsent: Vec<Event>,
 
@@ -183,6 +189,8 @@ impl<H: Host> Client<H> {
             pending: Vec::new(),
             pending_bytes: 0,
             pending_critical: false,
+            seal_due: false,
+            precompressed: None,
             preconsent: Vec::new(),
             ordinal,
             last_batch_mono_ms: monotonic,
@@ -608,25 +616,30 @@ impl<H: Host> Client<H> {
     /// Called regularly by the host — a frame loop, a timer. Cheap when there is nothing due.
     pub fn tick(&mut self) {
         let job = self.tick_begin();
-        let sealed = job.map(crate::logs::SealJob::encode);
-        self.tick_finish(sealed);
+        let done = job.map(TickJob::encode);
+        self.tick_finish(done);
     }
 
-    /// A tick, less the one part that takes time: encoding a log batch that is due.
+    /// A tick, less the part that takes time: encoding and compressing an analytics batch and a
+    /// log batch that are due.
     ///
     /// For a binding that shares the client between threads. It calls this under its lock,
-    /// runs [`SealJob::encode`](crate::logs::SealJob::encode) after letting go, and hands the
-    /// result to [`tick_finish`](Self::tick_finish) under the lock again, so a game thread
-    /// calling in meanwhile waits microseconds, not the milliseconds encoding takes.
-    pub fn tick_begin(&mut self) -> Option<crate::logs::SealJob> {
+    /// runs [`TickJob::encode`] after letting go, and hands the result to
+    /// [`tick_finish`](Self::tick_finish) under the lock again, so a game thread calling in
+    /// meanwhile waits microseconds, not the milliseconds encoding takes.
+    pub fn tick_begin(&mut self) -> Option<TickJob> {
         let monotonic = self.host.monotonic_ms();
 
         let idle = monotonic - self.last_batch_mono_ms >= self.config.flush_interval_ms;
         let foreground = self.session.as_ref().is_none_or(|s| !s.is_backgrounded());
-        if idle && foreground && !self.pending.is_empty() {
-            self.seal_batch();
+        let batch = if self.seal_due || (idle && foreground && !self.pending.is_empty()) {
+            self.begin_batch()
+        } else {
+            None
+        };
+        if batch.is_none() {
+            self.pump();
         }
-        self.pump();
 
         if self
             .liveconfig
@@ -636,20 +649,32 @@ impl<H: Host> Client<H> {
         }
 
         let session = self.session.as_ref().map(|s| s.id.clone());
-        self.logs.tick_begin(
+        let logs = self.logs.tick_begin(
             &self.host,
             &self.config,
             &self.consent,
             session.as_deref(),
             &mut self.next_request_id,
-        )
+        );
+        (batch.is_some() || logs.is_some()).then_some(TickJob { batch, logs })
     }
 
-    /// Spools the log batch [`tick_begin`](Self::tick_begin) returned, once encoded.
-    pub fn tick_finish(&mut self, sealed: Option<crate::logs::Sealed>) {
-        if sealed.is_some() {
-            self.logs
-                .tick_finish(&self.host, &self.config, sealed, &mut self.next_request_id);
+    /// Spools what [`tick_begin`](Self::tick_begin) took, once encoded, and sends.
+    pub fn tick_finish(&mut self, done: Option<TickDone>) {
+        let Some(done) = done else {
+            return;
+        };
+        if let Some(batch) = done.batch {
+            self.finish_batch(batch);
+            self.pump();
+        }
+        if done.logs.is_some() {
+            self.logs.tick_finish(
+                &self.host,
+                &self.config,
+                done.logs,
+                &mut self.next_request_id,
+            );
         }
     }
 
@@ -1155,12 +1180,24 @@ impl<H: Host> Client<H> {
         if self.pending.is_empty() {
             return;
         }
-        if self.pending_critical
-            || self.pending.len() >= self.config.max_events_per_batch
-            || self.pending_bytes >= self.config.max_batch_bytes
-        {
+        // A purchase or a session start goes now: it is what somebody is waiting to see.
+        if self.pending_critical {
             self.seal_batch();
             self.pump();
+            return;
+        }
+        let full = self.pending.len() >= self.config.max_events_per_batch
+            || self.pending_bytes >= self.config.max_batch_bytes;
+        // A full batch is sealed on the next tick, off the game's frame when the binding ticks
+        // from a thread of its own. Only a queue four batches deep (nothing is ticking) is sealed
+        // here, so memory stays bounded whatever the binding does.
+        let overflowing = self.pending.len() >= self.config.max_events_per_batch.saturating_mul(4)
+            || self.pending_bytes >= self.config.max_batch_bytes.saturating_mul(4);
+        if overflowing {
+            self.seal_batch();
+            self.pump();
+        } else if full {
+            self.seal_due = true;
         }
     }
 
@@ -1208,60 +1245,65 @@ impl<H: Host> Client<H> {
     /// between attempts would give the same events different identities and defeat
     /// deduplication.
     fn seal_batch(&mut self) {
-        if self.pending.is_empty() {
-            return;
+        if let Some(job) = self.begin_batch() {
+            let sealed = job.encode();
+            self.finish_batch(sealed);
         }
-        let Some(granted) = self.consent.granted().cloned() else {
-            return;
-        };
+    }
 
+    /// Takes what is pending out of the queue, with everything encoding it needs.
+    fn begin_batch(&mut self) -> Option<BatchJob> {
+        if self.pending.is_empty() {
+            return None;
+        }
+        let granted = self.consent.granted().cloned()?;
         let events = std::mem::take(&mut self.pending);
         self.pending_bytes = 0;
         self.pending_critical = false;
+        self.seal_due = false;
         self.last_batch_mono_ms = self.host.monotonic_ms();
+        Some(BatchJob {
+            config: self.config.clone(),
+            install_id: self.install_id.clone(),
+            batch_id: uuid_v4(&self.host),
+            granted,
+            context: self.context_timeline(),
+            events,
+            compress: self.compression,
+        })
+    }
 
-        let batch_id = uuid_v4(&self.host);
-        let context = self.context_timeline();
-        let wire = envelope(
-            &self.config,
-            &self.install_id,
-            &batch_id,
-            &granted,
-            &context,
-            &events,
-        );
-        let body = match serde_json::to_vec(&wire) {
+    /// Writes an encoded batch to the spool, and keeps its compressed body for its first send.
+    fn finish_batch(&mut self, sealed: SealedBatch) {
+        let body = match sealed.body {
             Ok(body) => body,
             Err(err) => {
-                // Unreachable in practice — the envelope is plain data — and dropping is
-                // still the right answer, because a body that cannot be produced now cannot
-                // be produced on a retry either.
+                // Unreachable in practice (the envelope is plain data), and dropping is still the
+                // right answer: a body that cannot be produced now cannot be on a retry either.
                 self.host
                     .log(Level::Error, &format!("could not encode a batch: {err}"));
                 return;
             }
         };
-
-        let priority = events
-            .iter()
-            .map(Event::priority)
-            .max()
-            .unwrap_or(Priority::Normal);
-
-        if !self.write_spool(priority, &body, events.len()) {
-            // The disk refused. Put the events back rather than losing them; the next flush
-            // trigger tries again, and the bound below keeps memory finite (§6).
-            self.pending_critical = events.iter().any(|e| e.priority() == Priority::Critical);
-            self.pending = events;
-            self.pending_bytes = self.pending.iter().map(estimate_bytes).sum();
-            self.bound_pending();
-            return;
+        let events = sealed.events;
+        match self.write_spool(sealed.priority, &body, events.len()) {
+            Some(key) => {
+                self.precompressed = sealed.compressed.map(|gz| (key, gz));
+                self.evict();
+            }
+            None => {
+                // The disk refused. Put the events back rather than losing them; the next flush
+                // trigger tries again, and the bound below keeps memory finite (§6).
+                self.pending_critical = events.iter().any(|e| e.priority() == Priority::Critical);
+                self.pending_bytes = events.iter().map(estimate_bytes).sum();
+                self.pending = events;
+                self.bound_pending();
+            }
         }
-        self.evict();
     }
 
-    /// Writes one batch to the spool, returning whether it landed.
-    fn write_spool(&mut self, priority: Priority, body: &[u8], events: usize) -> bool {
+    /// Writes one batch to the spool, returning its key if it landed.
+    fn write_spool(&mut self, priority: Priority, body: &[u8], events: usize) -> Option<String> {
         self.ordinal += 1;
         let key = spool::key(self.ordinal, self.host.now_ms(), priority, body.len());
 
@@ -1271,7 +1313,7 @@ impl<H: Host> Client<H> {
                 Level::Warn,
                 "could not write a batch to the spool; holding it in memory, where it may be dropped",
             );
-            return false;
+            return None;
         }
         // After the batch, so a crash between the two leaves an ordinal that is reused —
         // which overwrites nothing, because the key also carries the timestamp and size.
@@ -1280,7 +1322,7 @@ impl<H: Host> Client<H> {
             .store_put(KEY_ORDINAL, self.ordinal.to_string().as_bytes());
         self.stats.batches_spooled += 1;
         let _ = events;
-        true
+        Some(key)
     }
 
     /// Keeps the in-memory queue finite when the disk will not take it.
@@ -1318,6 +1360,17 @@ impl<H: Host> Client<H> {
         let Some(meta) = spool::list(&self.host).into_iter().next() else {
             return;
         };
+        let cached = match self.precompressed.take() {
+            Some((key, gz)) if key == meta.key && self.compression => Some(gz),
+            other => {
+                self.precompressed = other;
+                None
+            }
+        };
+        if let Some(gz) = cached {
+            self.send_batch(meta.key, gz, Some("gzip"));
+            return;
+        }
         let Some(body) = self.host.store_get(&meta.key).filter(|b| !b.is_empty()) else {
             // A key with no value: a truncated write, or a store cleared underneath us.
             // Discarded rather than retried forever (§6).
@@ -1337,13 +1390,13 @@ impl<H: Host> Client<H> {
         } else {
             (body, None)
         };
+        self.send_batch(meta.key, body, content_encoding);
+    }
 
+    fn send_batch(&mut self, key: String, body: Vec<u8>, content_encoding: Option<&'static str>) {
         let request_id = self.next_request_id;
         self.next_request_id += 1;
-        self.in_flight = Some(InFlight {
-            request_id,
-            key: meta.key,
-        });
+        self.in_flight = Some(InFlight { request_id, key });
 
         self.host.send(Request {
             id: request_id,
@@ -1465,4 +1518,77 @@ pub fn granted(
         gdpr_applies,
         collected_at: crate::time::rfc3339_ms(collected_at_ms),
     })
+}
+
+/// A tick's slow part, taken out of the client: an analytics batch and a log batch to encode.
+/// Owns everything encoding needs, so it runs without the client's lock.
+pub struct TickJob {
+    batch: Option<BatchJob>,
+    logs: Option<crate::logs::SealJob>,
+}
+
+/// What [`TickJob::encode`] made, for [`Client::tick_finish`].
+pub struct TickDone {
+    batch: Option<SealedBatch>,
+    logs: Option<crate::logs::Sealed>,
+}
+
+impl TickJob {
+    /// Serializes and compresses. Touches nothing but the job.
+    pub fn encode(self) -> TickDone {
+        TickDone {
+            batch: self.batch.map(BatchJob::encode),
+            logs: self.logs.map(crate::logs::SealJob::encode),
+        }
+    }
+}
+
+/// An analytics batch taken out of the queue and not yet encoded.
+struct BatchJob {
+    config: Config,
+    install_id: String,
+    batch_id: String,
+    granted: crate::consent::Granted,
+    context: Vec<crate::context::Frame>,
+    events: Vec<Event>,
+    compress: bool,
+}
+
+/// An encoded analytics batch: the JSON the spool keeps (a batch the gateway calls too large is
+/// split from it) and, when the client compresses, the body its first send uses.
+struct SealedBatch {
+    body: Result<Vec<u8>, String>,
+    compressed: Option<Vec<u8>>,
+    priority: Priority,
+    events: Vec<Event>,
+}
+
+impl BatchJob {
+    fn encode(self) -> SealedBatch {
+        let body = serde_json::to_vec(&envelope(
+            &self.config,
+            &self.install_id,
+            &self.batch_id,
+            &self.granted,
+            &self.context,
+            &self.events,
+        ))
+        .map_err(|err| err.to_string());
+        let compressed = match (&body, self.compress) {
+            (Ok(json), true) => gzip(json),
+            _ => None,
+        };
+        let priority = self
+            .events
+            .iter()
+            .map(Event::priority)
+            .max()
+            .unwrap_or(Priority::Normal);
+        SealedBatch {
+            body,
+            compressed,
+            priority,
+            events: self.events,
+        }
+    }
 }

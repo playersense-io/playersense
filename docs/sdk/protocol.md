@@ -275,12 +275,20 @@ log. It MUST NOT corrupt a spool another process owns.
 | trigger | default | note |
 |---|---|---|
 | a **critical** event | immediately | `session_start` and revenue do not wait |
-| event count | 250 | below §19.1's hard cap of 1000, so a burst has headroom |
-| serialized size | 128 KB | keeps a batch under the wire limit with room to spare |
+| event count | 250, on the next tick | below §19.1's hard cap of 1000, so a burst has headroom |
+| serialized size | 128 KB, on the next tick | keeps a batch under the wire limit with room to spare |
 | time since last flush | 30 s, foreground only | |
 | app backgrounded or quitting | immediately | **spool first, then attempt the network** |
 | `Flush()` | immediately | |
 | network became reachable | immediately, if the spool is non-empty | |
+
+A batch that fills is sealed on the next tick, never inside the track call that filled it: that call
+is in the game's frame. The tick takes the batch under the client's lock, encodes and compresses it
+outside the lock (`tick_begin`, `TickJob::encode`, `tick_finish`), and spools the JSON; the compressed
+body is kept for its first send. Only a queue four batches deep, a binding that has stopped ticking,
+is sealed inside the call. Measured on an M1 Pro, a track call is 0.38 µs at the median and 0.62 µs
+at the 99th percentile, and the locked part of a tick sealing 250 events is 26 µs; the 0.3 ms of
+encoding runs outside the lock.
 
 Background timers MUST stop in the background. A game that is not being played should not be
 waking a radio.

@@ -1661,3 +1661,117 @@ fn a_session_stops_recording_after_the_cap() {
     assert_eq!(exposures_of(&mut client).len(), 5);
     assert!(client.host().logged("feature exposures"));
 }
+
+// ---- off the game's frame -------------------------------------------------------
+
+/// Starts a session and answers what it sent: a session start is critical and goes at once, so a
+/// test about ordinary events begins after it.
+fn open_session(client: &mut Client<TestHost>) {
+    client.track("warm_up", BTreeMap::new()).unwrap();
+    client.flush();
+    for request in client.host().take_sent() {
+        client.on_response(accepted(request.id, 1));
+    }
+}
+
+/// A full batch is sealed on the next tick, not inside the track call that filled it: that call is
+/// in the game's frame, and sealing is the one part of tracking that takes milliseconds.
+#[test]
+fn a_full_batch_is_sealed_on_the_next_tick_not_in_the_track_call() {
+    let mut cfg = config();
+    cfg.max_events_per_batch = 3;
+    let mut client = Client::new(TestHost::new(), cfg);
+    client.set_consent(granted("2026-01-15", "authorized", true, 1_789_560_000_000));
+    open_session(&mut client);
+    for n in 0..4 {
+        client
+            .track("level_completed", props(&[("level", Value::Int(n))]))
+            .unwrap();
+    }
+    assert!(
+        client.host().take_sent().is_empty(),
+        "the track call that filled the batch sealed and sent it"
+    );
+    client.tick();
+    let envelope = last_envelope(&client);
+    assert!(envelope["events"].as_array().unwrap().len() >= 3);
+}
+
+/// A purchase still goes the moment it is tracked: it is what somebody is waiting to see.
+#[test]
+fn a_purchase_is_still_sent_at_once() {
+    let mut client = consenting(TestHost::new());
+    for request in client.host().take_sent() {
+        client.on_response(accepted(request.id, 1));
+    }
+    client
+        .track_revenue("purchase", 990_000, "USD", BTreeMap::new())
+        .unwrap();
+    assert!(
+        client
+            .host()
+            .take_sent()
+            .iter()
+            .any(|r| r.url.ends_with("/v1/batches")),
+        "a purchase waited for a tick"
+    );
+}
+
+/// The batch is compressed once, while it is encoded; its first send uses that body, and the spool
+/// keeps the JSON (a batch the gateway calls too large is split from it).
+#[test]
+fn a_sealed_batch_is_compressed_once_and_spooled_as_json() {
+    let mut client = consenting(TestHost::new());
+    for request in client.host().take_sent() {
+        client.on_response(accepted(request.id, 1));
+    }
+    client.track("level_completed", BTreeMap::new()).unwrap();
+    let job = client.tick_begin();
+    // Nothing is due by time yet; flush seals by hand, through the same encode.
+    drop(job);
+    client.flush();
+    let sent = client.host().take_sent();
+    let batch = sent
+        .iter()
+        .find(|r| r.url.ends_with("/v1/batches"))
+        .expect("the batch was sent");
+    assert_eq!(batch.content_encoding, Some("gzip"));
+    let spooled: Vec<Vec<u8>> = client
+        .host()
+        .surviving_store()
+        .into_iter()
+        .filter(|(k, _)| spool::parse(k).is_some())
+        .map(|(_, v)| v)
+        .collect();
+    assert_eq!(spooled.len(), 1);
+    assert_eq!(spooled[0].first(), Some(&b'{'), "the spool keeps JSON");
+    assert_eq!(
+        gunzip(&batch.body),
+        spooled[0],
+        "the send is the spooled batch, compressed"
+    );
+}
+
+/// Encoding happens without the client: a game thread can track while a tick's batch encodes, and
+/// nothing is lost or reordered.
+#[test]
+fn the_client_takes_events_while_a_batch_encodes() {
+    let mut cfg = config();
+    cfg.max_events_per_batch = 2;
+    let mut client = Client::new(TestHost::new(), cfg);
+    client.set_consent(granted("2026-01-15", "authorized", true, 1_789_560_000_000));
+    open_session(&mut client);
+    client.track("a", BTreeMap::new()).unwrap();
+    client.track("b", BTreeMap::new()).unwrap();
+    let job = client.tick_begin().expect("a full batch is due");
+    client.track("c", BTreeMap::new()).unwrap();
+    client.tick_finish(Some(job.encode()));
+    let first = last_envelope(&client);
+    let names: Vec<&str> = first["events"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|e| e["event_name"].as_str().unwrap())
+        .collect();
+    assert!(names.contains(&"a") && names.contains(&"b") && !names.contains(&"c"));
+}
