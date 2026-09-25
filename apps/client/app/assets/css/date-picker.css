@@ -1,7 +1,7 @@
 /*
  * Vuetify's month grid, set to the panel's scale (VDatePickerMonth.sass, VDatePickerControls.sass),
  * wherever a single date is chosen: DateTimeField puts `ps-date-picker` on it. Global, because the
- * markup is Vuetify's. DateRangePicker keeps Vuetify's own range layout and styles itself.
+ * markup is Vuetify's. The range pickers keep Vuetify's own range layout; their rules are below.
  *
  * Vuetify's days are 44px circles in the body face, which in a menu beside a column of times
  * reads as a phone's calendar. Here a day is a 32px square with its number in the mono face, the
@@ -78,4 +78,89 @@
   font-family: var(--font-mono);
   font-size: 12px;
   letter-spacing: 0;
+}
+
+/*
+ * The range pickers, DateRangePicker (days) and DateTimeRangePicker (days and times), share these:
+ * one look for choosing a stretch of time, wherever it is chosen.
+ *
+ * The picker keeps Vuetify's layout and takes the panel's type. The two months, the rule between
+ * them, the navigation over the pair, the span, the preview of one under the pointer and every
+ * hover overlay are the component's own; what changes is the size of the type, which arrives at
+ * Material's 0.875rem and is larger than the figures on the page the menu opens over.
+ */
+.ps-range__card {
+  max-width: calc(100vw - 2rem);
+}
+
+/*
+ * One kind of rule inside the control. `.v-date-range-picker__divider` is a plain border in the
+ * line colour; `VDivider` takes the same colour through the same opacity and then sets the
+ * opacity on the element as well, so it came out the fainter of the two, and a pixel under the
+ * rail. Both are undone, so the two rules are the same pixel.
+ */
+.ps-range__card .v-divider--vertical {
+  border-color: rgba(var(--v-border-color), var(--v-border-opacity));
+  margin: 0;
+  opacity: 1;
+}
+
+.ps-range__picker .v-date-picker {
+  background: transparent;
+}
+
+.ps-range__picker .v-date-picker-controls {
+  min-height: var(--ps-toolbar-height);
+}
+
+.ps-range__picker .v-date-picker-controls,
+.ps-range__picker .v-date-picker-controls .v-btn,
+.ps-range__picker .v-date-range-picker__header {
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+/* The weekday letters are a legend, not data: a step under the figures they head. */
+.ps-range__picker .v-date-picker-month__weekday {
+  color: rgba(var(--v-theme-on-surface), 0.45);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* Vuetify's own knob for the figure on a day, and only that: 0.75rem is what the tables and
+   the tiles use. */
+.ps-range__picker .v-btn.v-date-picker-month__day-btn {
+  --v-btn-size: 0.75rem;
+
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+/*
+ * The day is a circle, Vuetify's shape for it and the shape of its hover. theme.css rounds every
+ * `.v-btn` to the standard radius and wins on load order, and `.v-btn` clips its overlay to that
+ * radius, so the overlay Vuetify lights under the pointer came out a square inside a round span.
+ * This is the button's radius, not the overlay's, so clipping gives the overlay its shape back.
+ */
+.ps-range__picker .v-btn.v-date-picker-month__day-btn {
+  border-radius: 50%;
+  height: 32px;
+  width: 32px;
+}
+
+/*
+ * Every cell 4px smaller each way than Vuetify draws it, with nothing else changed. A column is
+ * a seventh of the month after its 12px sides, so each panel is 28px narrower (328 to 300); a
+ * row is its 2px padding around the content, so the cell is 40px rather than 44. The day's
+ * button above is 4px smaller to match, and the range band, drawn 2px in from the cell's top
+ * and bottom, stays 2px clear of the button either side, as it was.
+ */
+.ps-range__picker .v-date-picker {
+  width: 300px;
+}
+
+.ps-range__picker .v-date-picker-month__day {
+  height: 40px;
 }
