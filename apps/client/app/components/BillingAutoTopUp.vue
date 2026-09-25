@@ -4,47 +4,57 @@
 // (PUT /billing/auto-topup refuses without one), so with no card the tab is the way to add
 // one and nothing else. The rules are the backend's: a top-up of $5 to $5,000, more than the
 // balance it starts at, at most three a day.
-const { billing, defaultCard, saveCard, saveAutoTopUp } = useBilling()
+const store = useBillingStore()
+const { cards, defaultCard } = storeToRefs(store)
 
 defineEmits<{ cards: [] }>()
 
-const enabled = ref(billing.value.auto.enabled)
-const threshold = ref(billing.value.auto.threshold_micros)
-const amount = ref(billing.value.auto.amount_micros)
+/* What the API has: the form starts from it and discards back to it. */
+const auto = computed(() => store.auto ?? { enabled: false, threshold_micros: 100 * MICROS, amount_micros: 500 * MICROS, daily_limit: 3, used_today: 0, last_error: '', pending: false, queued: false })
+
+const enabled = ref(auto.value.enabled)
+const threshold = ref(auto.value.threshold_micros || 100 * MICROS)
+const amount = ref(auto.value.amount_micros || 500 * MICROS)
 
 const problem = computed(() => (enabled.value ? autoTopUpProblem(threshold.value, amount.value) : null))
-const dirty = computed(() => enabled.value !== billing.value.auto.enabled
-  || (enabled.value && (threshold.value !== billing.value.auto.threshold_micros || amount.value !== billing.value.auto.amount_micros)))
+const dirty = computed(() => enabled.value !== auto.value.enabled
+  || (enabled.value && (threshold.value !== auto.value.threshold_micros || amount.value !== auto.value.amount_micros)))
 
+const saving = ref(false)
 const saved = ref(false)
+const failure = ref('')
 
-function save() {
-  saveAutoTopUp(enabled.value, threshold.value, amount.value)
-  saved.value = true
-  setTimeout(() => (saved.value = false), 2400)
+async function save() {
+  saving.value = true
+  failure.value = ''
+  try {
+    await store.saveAutoTopUp(enabled.value, threshold.value, amount.value)
+    saved.value = true
+    setTimeout(() => (saved.value = false), 2400)
+  } catch (caught) {
+    failure.value = caught instanceof Error ? caught.message : String(caught)
+  } finally {
+    saving.value = false
+  }
 }
 
 function discard() {
-  enabled.value = billing.value.auto.enabled
-  threshold.value = billing.value.auto.threshold_micros
-  amount.value = billing.value.auto.amount_micros
+  enabled.value = auto.value.enabled
+  threshold.value = auto.value.threshold_micros
+  amount.value = auto.value.amount_micros
 }
 
-const cardName = computed(() => (defaultCard.value ? `${CARD_BRANDS[defaultCard.value.brand].label} ending ${defaultCard.value.last4}` : ''))
+const cardName = computed(() => (defaultCard.value ? `${cardBrand(defaultCard.value.brand).label} ending ${defaultCard.value.last4}` : ''))
 
 // --- No card yet -----------------------------------------------------------------------------
 
 const adding = ref(false)
-
-function added() {
-  const card = saveCard()
-  return `Saved. ${CARD_BRANDS[card.brand].label} ending ${card.last4} is on file, and auto top-up can be turned on.`
-}
+const addCard = () => store.addCardUrl()
 </script>
 
 <template>
   <div class="flex flex-col gap-6">
-    <SectionCard v-if="!billing.cards.length" title="Auto top-up">
+    <SectionCard v-if="!cards.length" title="Auto top-up">
       <EmptyState
         description="Auto top-up charges a saved card when the balance runs low, so there has to be one first. Cards are added on Stripe, never on this page."
         icon="material-symbols:lock-outline"
@@ -69,7 +79,7 @@ function added() {
     <template v-else>
       <SectionCard description="Charges the default card when the balance runs low, so events keep being collected past the plan's allowance." title="Auto top-up">
         <template #badge>
-          <StatusBadge :label="billing.auto.enabled ? 'On' : 'Off'" :tone="billing.auto.enabled ? 'success' : 'neutral'" />
+          <StatusBadge :label="auto.enabled ? 'On' : 'Off'" :tone="auto.enabled ? 'success' : 'neutral'" />
         </template>
 
         <div class="flex max-w-xl flex-col gap-5">
@@ -94,8 +104,8 @@ function added() {
             <span>
               When the balance falls under <span class="font-mono text-ink">{{ writeMicros(threshold) }}</span>,
               {{ cardName }} is charged <span class="font-mono text-ink">{{ writeMicros(amount) }}</span>.
-              At most {{ billing.auto.daily_limit }} times a day, so a runaway day costs at most
-              <span class="font-mono text-ink">{{ writeMicros(amount * billing.auto.daily_limit) }}</span>.
+              At most {{ auto.daily_limit }} times a day, so a runaway day costs at most
+              <span class="font-mono text-ink">{{ writeMicros(amount * auto.daily_limit) }}</span>.
             </span>
           </p>
 
@@ -104,6 +114,7 @@ function added() {
               <Icon aria-hidden="true" class="text-sm" name="material-symbols:check" />
               Saved
             </span>
+            <span v-else-if="failure" class="mr-auto text-xs text-error">{{ failure }}</span>
             <v-btn
               :disabled="!dirty"
               class="text-xs font-medium"
@@ -116,6 +127,7 @@ function added() {
             </v-btn>
             <v-btn
               :disabled="!dirty || Boolean(problem)"
+              :loading="saving"
               class="text-xs font-medium"
               color="primary"
               size="small"
@@ -138,12 +150,12 @@ function added() {
               </button>
             </template>
           </SettingRow>
-          <SettingRow :description="`${billing.auto.used_today} of ${billing.auto.daily_limit} used today. The count starts again at midnight UTC.`" fixed="Fixed" label="Three charges a day, at most" />
+          <SettingRow :description="`${auto.used_today} of ${auto.daily_limit} used today. The count starts again at midnight UTC.`" fixed="Fixed" :label="`${auto.daily_limit} charges a day, at most`" />
           <SettingRow description="A declined charge turns nothing off. Stripe's reason is shown here, and the next check tries again." label="When a charge fails" />
         </div>
-        <p v-if="billing.auto.last_error" class="m-0 mt-4 flex items-start gap-2 rounded-(--ps-radius) bg-error/8 px-3.5 py-3 text-xs leading-5 text-ink/80 ring-1 ring-error/20 ring-inset">
+        <p v-if="auto.last_error" class="m-0 mt-4 flex items-start gap-2 rounded-(--ps-radius) bg-error/8 px-3.5 py-3 text-xs leading-5 text-ink/80 ring-1 ring-error/20 ring-inset">
           <Icon aria-hidden="true" class="mt-0.5 flex-none text-base text-error" name="material-symbols:error-outline" />
-          The last charge failed: {{ billing.auto.last_error }}
+          The last charge failed: {{ auto.last_error }}
         </p>
       </SectionCard>
     </template>
@@ -156,7 +168,7 @@ function added() {
         'Stripe checks the card with the bank, and may ask you to confirm it.',
         'Back here, auto top-up can be turned on against it.'
       ]"
-      :run="added"
+      :run="addCard"
       action="Continue to Stripe Checkout"
       intro="The card auto top-up charges. It becomes the default, as the first card on file."
       title="Add a payment method"

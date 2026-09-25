@@ -2,7 +2,18 @@
 // Billing > Wallet: the credit the balance is made of, lot by lot, and every movement of it,
 // each a table. A lot is a top-up or a promotion; usage is taken from the oldest first, and
 // only a promotion can expire, so an expiry coming up is drawn in the warning ink.
-const { billing, balance } = useBilling()
+const store = useBillingStore()
+const { lots: allLots, ledger, ledgerNext, balance } = storeToRefs(store)
+const loadingMore = ref(false)
+
+async function more() {
+  loadingMore.value = true
+  try {
+    await store.moreLedger()
+  } finally {
+    loadingMore.value = false
+  }
+}
 
 defineEmits<{ topUp: [] }>()
 
@@ -73,7 +84,7 @@ function clearLotFilters() {
 const lots = computed(() => {
   const kinds = lotFilters.value.kind ?? []
   const states = lotFilters.value.state ?? []
-  return billing.value.lots.filter(lot => (!kinds.length || kinds.includes(lot.kind))
+  return allLots.value.filter(lot => (!kinds.length || kinds.includes(lot.kind))
     && (!states.length || states.includes(stateOf(lot))))
 })
 
@@ -81,7 +92,7 @@ const lots = computed(() => {
 
 const COLUMNS: DataTableColumn<LedgerEntry>[] = [
   { key: 'at', title: 'Date', fixed: true, mono: true, width: 170, value: entry => Date.parse(entry.at) },
-  { key: 'kind', title: 'Kind', width: 140, skeleton: 'pill', value: entry => LEDGER_KINDS[entry.kind].label },
+  { key: 'kind', title: 'Kind', width: 140, skeleton: 'pill', value: entry => LEDGER_KINDS[entry.kind]?.label ?? entry.kind },
   { key: 'description', title: 'Description', sortable: false },
   { key: 'amount_micros', title: 'Amount', align: 'end', mono: true, width: 140 },
   { key: 'balance_after_micros', title: 'Balance after', align: 'end', mono: true, width: 150 }
@@ -110,13 +121,13 @@ function clearFilters() {
 
 const matched = computed(() => {
   const kinds = filters.value.kind ?? []
-  return billing.value.ledger.filter(entry => !kinds.length || kinds.includes(entry.kind))
+  return ledger.value.filter(entry => !kinds.length || kinds.includes(entry.kind))
 })
 
 function exportLedger() {
   downloadCsv('wallet-ledger', [
     ['Date', 'Kind', 'Description', 'Amount (USD)', 'Balance after (USD)'],
-    ...matched.value.map(entry => [entry.at, LEDGER_KINDS[entry.kind].label, entry.description, entry.amount_micros / MICROS, entry.balance_after_micros / MICROS])
+    ...matched.value.map(entry => [entry.at, LEDGER_KINDS[entry.kind]?.label ?? entry.kind, entry.description, entry.amount_micros / MICROS, entry.balance_after_micros / MICROS])
   ])
 }
 </script>
@@ -142,9 +153,9 @@ function exportLedger() {
         empty-title="Nothing matches."
         label="Credit"
       >
-        <template v-if="!billing.lots.length" #empty>
+        <template v-if="!allLots.length" #empty>
           <EmptyState
-            description="Top up to keep collecting past the plan's allowance. Usage is taken from the wallet every day."
+            description="Top up to keep collecting past the plan's allowance. Usage is taken from the wallet as it happens."
             icon="material-symbols:account-balance-wallet-outline"
             title="The wallet is empty."
           >
@@ -182,7 +193,7 @@ function exportLedger() {
         <template #cell.remaining_micros="{ item }">
           <span class="flex items-center justify-end gap-2.5">
             <span aria-hidden="true" class="h-1.5 w-16 overflow-hidden rounded-full bg-ink/8">
-              <span :style="{ width: `${Math.round((item.remaining_micros / item.amount_micros) * 100)}%` }" class="block h-full rounded-full bg-primary" />
+              <span :style="{ width: `${item.amount_micros ? Math.round((item.remaining_micros / item.amount_micros) * 100) : 0}%` }" class="block h-full rounded-full bg-primary" />
             </span>
             <span :class="item.remaining_micros > 0 ? 'text-ink' : 'text-ink/45'">{{ writeMicros(item.remaining_micros) }}</span>
           </span>
@@ -207,7 +218,7 @@ function exportLedger() {
       </DataTable>
     </SectionCard>
 
-    <SectionCard :padded="false" description="Every movement of the wallet: top-ups, promotions, usage taken each day, the plan, refunds and credit that expired." title="Ledger">
+    <SectionCard :padded="false" description="Every movement of the wallet: top-ups, promotions, usage as it is taken, the plan, refunds and credit that expired." title="Ledger">
       <TableToolbar :filters="activeFilters" @clear="clearFilters" @remove="removeFilter">
         <FilterMenu v-model="filters" :groups="FILTER_GROUPS" />
         <DataTableColumnsMenu v-model="columns" :columns="COLUMNS" />
@@ -237,7 +248,7 @@ function exportLedger() {
           {{ formatDateTime(item.at) }}
         </template>
         <template #cell.kind="{ item }">
-          <Tag :label="LEDGER_KINDS[item.kind].label" :tone="LEDGER_KINDS[item.kind].tone" />
+          <Tag :label="LEDGER_KINDS[item.kind]?.label ?? item.kind" :tone="LEDGER_KINDS[item.kind]?.tone ?? 'neutral'" />
         </template>
         <template #cell.description="{ item }">
           <span class="text-ink/80">{{ item.description }}</span>
@@ -249,6 +260,19 @@ function exportLedger() {
           <span class="text-ink/65">{{ writeMicros(item.balance_after_micros) }}</span>
         </template>
       </DataTable>
+
+      <div v-if="ledgerNext" class="flex justify-center border-t border-line px-5 py-3">
+        <v-btn
+          :loading="loadingMore"
+          class="text-xs font-medium"
+          color="neutral"
+          size="small"
+          variant="text"
+          @click="more"
+        >
+          Load older movements
+        </v-btn>
+      </div>
     </SectionCard>
   </div>
 </template>

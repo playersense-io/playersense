@@ -4,8 +4,8 @@
 // says what happens there and what PlayerSense keeps, sends the reader on, and says what
 // happened when they return. Whatever the dialog asks first (an amount, a plan) is its slot.
 //
-// Stripe is simulated here: "Continue" waits as the redirect would, and `run` stands in for
-// what the return and Stripe's webhook do, returning the sentence that says so.
+// `run` asks the API for the Stripe page (a Checkout Session or a portal session) and the
+// browser goes there. Stripe sends it back to Billing, which reads what Stripe's webhook did.
 const props = withDefaults(defineProps<{
   title: string
   intro: string
@@ -15,8 +15,8 @@ const props = withDefaults(defineProps<{
   action: string
   /** Nothing to continue with yet: an amount out of bounds. */
   disabled?: boolean
-  /** What coming back does. Returns what to tell the reader. */
-  run: () => string
+  /** Asks the API for the Stripe page to go to, and returns its URL. */
+  run: () => Promise<string>
   /** Where Stripe opens: Checkout, or the portal. */
   place?: 'checkout' | 'portal'
 }>(), {
@@ -26,14 +26,18 @@ const props = withDefaults(defineProps<{
 
 const open = defineModel<boolean>({ required: true })
 
-const phase = ref<'ready' | 'away' | 'back'>('ready')
-const outcome = ref('')
+const phase = ref<'ready' | 'away'>('ready')
+const problem = ref('')
 
 async function go() {
   phase.value = 'away'
-  await new Promise(resolve => setTimeout(resolve, 1400))
-  outcome.value = props.run()
-  phase.value = 'back'
+  problem.value = ''
+  try {
+    window.location.assign(await props.run())
+  } catch (caught) {
+    problem.value = caught instanceof Error ? caught.message : String(caught)
+    phase.value = 'ready'
+  }
 }
 </script>
 
@@ -66,6 +70,9 @@ async function go() {
           <Icon aria-hidden="true" class="mt-px flex-none text-sm text-ink/45" name="material-symbols:shield-outline" />
           The card is entered on Stripe's page and stays at Stripe. PlayerSense keeps its brand, last four digits and expiry, and nothing else.
         </p>
+        <p v-if="problem" class="m-0 text-xs text-error">
+          {{ problem }}
+        </p>
       </div>
 
       <div v-else-if="phase === 'away'" class="flex flex-col items-center gap-3 px-5 py-10 text-center">
@@ -78,46 +85,26 @@ async function go() {
         <span class="text-xs text-ink/65">Opening Stripe {{ place === 'portal' ? 'customer portal' : 'Checkout' }}…</span>
       </div>
 
-      <div v-else class="flex flex-col items-center gap-3 px-5 py-8 text-center">
-        <span aria-hidden="true" class="flex size-10 items-center justify-center rounded-full bg-success/12 text-xl text-success">
-          <Icon name="material-symbols:check" />
-        </span>
-        <span class="max-w-sm text-xs leading-5 text-ink/75">{{ outcome }}</span>
-      </div>
-
-      <footer class="flex justify-end gap-2 border-t border-line px-5 py-3">
-        <template v-if="phase === 'ready'">
-          <v-btn
-            class="text-xs font-medium"
-            color="neutral"
-            size="small"
-            variant="text"
-            @click="open = false"
-          >
-            Cancel
-          </v-btn>
-          <v-btn
-            :disabled="disabled"
-            append-icon="material-symbols:open-in-new"
-            class="text-xs font-medium"
-            color="primary"
-            size="small"
-            variant="flat"
-            @click="go"
-          >
-            {{ action }}
-          </v-btn>
-        </template>
+      <footer v-if="phase === 'ready'" class="flex justify-end gap-2 border-t border-line px-5 py-3">
         <v-btn
-          v-else
-          :disabled="phase === 'away'"
+          class="text-xs font-medium"
+          color="neutral"
+          size="small"
+          variant="text"
+          @click="open = false"
+        >
+          Cancel
+        </v-btn>
+        <v-btn
+          :disabled="disabled"
+          append-icon="material-symbols:open-in-new"
           class="text-xs font-medium"
           color="primary"
           size="small"
           variant="flat"
-          @click="open = false"
+          @click="go"
         >
-          Done
+          {{ action }}
         </v-btn>
       </footer>
     </v-card>

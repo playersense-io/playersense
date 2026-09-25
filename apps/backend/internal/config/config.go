@@ -333,11 +333,11 @@ type Settings struct {
 
 	// Where Stripe Checkout sends the person back to. The success page proves nothing — anybody
 	// can load it — so the dashboard shows the balance the webhook produced, not the redirect.
-	StripeCheckoutSuccessURL string `env:"STRIPE_CHECKOUT_SUCCESS_URL" default:"http://localhost:3000/billing/wallet?checkout=success"`
-	StripeCheckoutCancelURL  string `env:"STRIPE_CHECKOUT_CANCEL_URL" default:"http://localhost:3000/billing/wallet?checkout=cancel"`
+	StripeCheckoutSuccessURL string `env:"STRIPE_CHECKOUT_SUCCESS_URL" default:"http://localhost:3001/settings/billing?checkout=success"`
+	StripeCheckoutCancelURL  string `env:"STRIPE_CHECKOUT_CANCEL_URL" default:"http://localhost:3001/settings/billing?checkout=cancel"`
 
 	// StripePortalReturnURL is where Stripe's customer portal links back to.
-	StripePortalReturnURL string `env:"STRIPE_PORTAL_RETURN_URL" default:"http://localhost:3000/billing/wallet"`
+	StripePortalReturnURL string `env:"STRIPE_PORTAL_RETURN_URL" default:"http://localhost:3001/settings/billing"`
 
 	// BillingAutoTopUpEvery is how often the billing writer works the automatic top-up queue:
 	// accounts whose last charge left them below their threshold (ADR 0041). The queue is a
