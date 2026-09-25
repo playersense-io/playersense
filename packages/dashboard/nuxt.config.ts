@@ -29,6 +29,8 @@ export default defineNuxtConfig({
     renderer: 'canvas',
     charts: ['BarChart', 'LineChart', 'PieChart'],
     components: [
+      // Cloud Logging's histogram: dragging across the bars picks the range to zoom into.
+      'BrushComponent',
       'DatasetComponent',
       'GridComponent',
       'LegendComponent',
