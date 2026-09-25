@@ -124,7 +124,7 @@ onMounted(() => {
             autofocus
             hide-details
             type="email"
-            variant="filled"
+            variant="underlined"
           />
         </div>
         <v-btn
@@ -199,7 +199,7 @@ onMounted(() => {
             hide-details
             placeholder="you@studio.com"
             type="email"
-            variant="filled"
+            variant="underlined"
           />
         </div>
         <v-btn
@@ -231,6 +231,7 @@ onMounted(() => {
 /* Full-width rows with their words in the middle, and no outline: a soft fill says they can be
    pressed, as the email field's does. */
 .ps-login-button {
+  font-size: 13px;
   letter-spacing: 0;
   text-transform: none;
   font-weight: 500;
@@ -239,11 +240,6 @@ onMounted(() => {
 .ps-login-provider {
   background: rgba(var(--v-theme-on-surface), 0.05);
   color: rgb(var(--v-theme-on-surface));
-}
-
-/* The fields keep their fill and lose the line under them. */
-:deep(.v-field__outline) {
-  display: none;
 }
 
 .ps-login-provider:hover {
