@@ -62,8 +62,11 @@ function client() {
           return
         }
         const token = await auth.token()
-        const headers = new Headers(options.headers)
-        if (token) headers.set('Authorization', `Bearer ${token}`)
+        // A plain object, keeping VueUse's own spelling: it merges these over its headers by
+        // key, and a Headers object would lowercase Content-Type into a second key, which the
+        // browser then sends as one malformed "application/json, application/json".
+        const headers = { ...(options.headers as Record<string, string> | undefined) }
+        if (token) headers.Authorization = `Bearer ${token}`
         return { options: { ...options, headers } }
       },
       onFetchError(ctx) {
