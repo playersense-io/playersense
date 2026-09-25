@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"io"
 	"log/slog"
+	"math/rand/v2"
 	"testing"
 	"time"
 
@@ -74,13 +75,13 @@ func newFixture(t *testing.T) *fixture {
 
 	f := &fixture{
 		pg: pg, db: db, store: store,
-		project:    uint32(900_000_000 + time.Now().UnixNano()%50_000_000),
+		project:    900_000_000 + rand.Uint32N(50_000_000),
 		projectUID: uuid.New(),
 		orgUID:     uuid.New(),
 		envUID:     uuid.New(),
 	}
 	f.exporter = &export.Exporter{
-		DB: pg,
+		DB: pg, CH: pool{db}, Store: store, Log: quiet(),
 	}
 	return f
 }

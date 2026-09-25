@@ -3,6 +3,7 @@ package cohort_test
 import (
 	"context"
 	"database/sql"
+	"math/rand/v2"
 	"path/filepath"
 	"testing"
 	"time"
@@ -54,7 +55,7 @@ func open(t *testing.T) *sql.DB {
 // The same property is worth knowing for §61's purge: a mutation that keeps deleting is
 // exactly what an erasure wants, and it means mutations accumulate one per request.
 func uniqueProject() uint32 {
-	return uint32(900_000_000 + time.Now().UnixNano()%50_000_000)
+	return 900_000_000 + rand.Uint32N(50_000_000)
 }
 
 // seedUnstamped writes one device whose arrival is known to player_lifetime but whose

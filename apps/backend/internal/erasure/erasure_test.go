@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"io"
 	"log/slog"
+	"math/rand/v2"
 	"testing"
 	"time"
 
@@ -121,7 +122,7 @@ func newFixture(t *testing.T, drain time.Duration) *fixture {
 func quiet() *slog.Logger { return slog.New(slog.NewTextHandler(io.Discard, nil)) }
 
 func uniqueProject() uint32 {
-	return uint32(900_000_000 + time.Now().UnixNano()%50_000_000)
+	return 900_000_000 + rand.Uint32N(50_000_000)
 }
 
 // seedEvents writes one event for each actor, on its own install.
