@@ -1,81 +1,100 @@
-/**
- * The project's settings and its privacy requests, kept in this browser per project until
- * the dashboard is wired to the project routes. Only what a reader changed is stored; the
- * rest is the sample, so a project nobody touched is always the seed.
- */
-interface ProjectChanges {
-  name?: string
-  retention_days?: RetentionDays
-  retention_changed_at?: string
-  deletion_at?: string | null
-  privacy?: PrivacyRequest[]
+import type { Schema } from '@playersense/contracts'
+
+// The project's settings and its privacy requests, from the API: the project itself
+// (GET …/projects/{project}), the apps its events come from, and the erasures and exports asked
+// for its players. Every change is a request, and the page reads the project again after it.
+
+type ProjectSettingsOut = Schema<'ProjectSettingsOut'>
+type PrivacyRequestOut = Schema<'PrivacyRequestOut'>
+
+function settingsOf(out: ProjectSettingsOut | null, apps: Schema<'ProjectAppOut'>[]): ProjectSettings | null {
+  if (!out) return null
+  return {
+    id: out.id,
+    name: out.name,
+    slug: out.slug,
+    policy_tier: out.policy_tier as PolicyTier,
+    retention_days: out.retention_days as RetentionDays,
+    retention_cap: out.retention_cap,
+    retention_changed_at: out.retention_changed_at ?? undefined,
+    retention_purge_until: out.retention_purge_until ?? undefined,
+    environments: (out.environments ?? []).map(env => ({ id: env.id, kind: env.kind as EnvironmentKind })),
+    apps: apps.map(app => ({ platform: app.platform, sdk: app.sdk, sdk_version: app.sdk_version, app_version: app.app_version,
+      events: app.events, first_seen: app.first_seen, last_seen: app.last_seen })),
+    created_at: out.created_at,
+    deletion_at: out.deletion_at ?? undefined,
+    deletion_requested_by: out.deletion_requested_by || undefined
+  }
 }
 
-let shared: Ref<Record<string, ProjectChanges>> | null = null
-
-function stored(): Ref<Record<string, ProjectChanges>> {
-  shared ??= effectScope(true).run(() => useLocalStorage<Record<string, ProjectChanges>>('playersense.project-settings.v1', {}))!
-  return shared
+function privacyOf(out: PrivacyRequestOut): PrivacyRequest {
+  return {
+    id: out.id,
+    kind: out.kind as PrivacyKind,
+    player_id: out.player_id,
+    status: out.status as PrivacyStatus,
+    requested_by: out.requested_by ?? '',
+    requested_at: out.requested_at,
+    completed_at: out.completed_at ?? undefined,
+    expires_at: out.expires_at ?? undefined,
+    failure_reason: out.failure_reason || undefined,
+    download_path: out.download_path || undefined,
+    reference: out.reference || undefined
+  }
 }
 
 export function useProjectSettings() {
-  const store = stored()
-  const { project: current } = useWorkspace()
+  const workspace = useWorkspaceStore()
+  const path = computed(() => workspace.projectPath)
 
-  const changes = computed(() => store.value[current.value.id] ?? {})
+  const settings = useApiGet<ProjectSettingsOut>(path)
+  const apps = useApiGet<Schema<'ProjectAppsOut'>>(() => path.value && `${path.value}/apps`)
+  const requests = useApiGet<Schema<'PrivacyListOut'>>(() => path.value && withQuery(`${path.value}/privacy`, { limit: 200 }))
 
-  const project = computed<ProjectSettings>(() => {
-    const seed = seedProjectSettings(current.value)
-    const change = changes.value
-    return {
-      ...seed,
-      name: change.name ?? seed.name,
-      retention_days: change.retention_days ?? seed.retention_days,
-      retention_changed_at: change.retention_changed_at,
-      deletion_at: change.deletion_at ?? undefined
-    }
-  })
+  const project = computed(() => settingsOf(settings.data.value, [...(apps.data.value?.apps ?? [])]))
+  const privacy = computed(() => (requests.data.value?.requests ?? []).map(privacyOf))
+  const loading = computed(() => settings.isFetching.value && !settings.data.value)
+  const error = computed(() => settings.error.value as ApiError | null)
 
-  const privacy = computed(() => changes.value.privacy ?? seedPrivacyRequests())
-
-  function write(change: ProjectChanges) {
-    store.value = { ...store.value, [current.value.id]: { ...changes.value, ...change } }
+  async function reload() {
+    await settings.execute()
   }
 
-  function rename(name: string) {
-    write({ name: name.trim() })
+  async function rename(name: string) {
+    if (!path.value) return
+    await apiRequest('PATCH', path.value, { name: name.trim() })
+    await Promise.all([reload(), workspace.loadProjects()])
   }
 
-  function setRetention(days: RetentionDays) {
-    write({ retention_days: days, retention_changed_at: new Date().toISOString() })
+  async function setRetention(days: RetentionDays) {
+    if (!path.value) return
+    await apiRequest('PUT', `${path.value}/retention`, { retention_days: days })
+    await reload()
   }
 
-  function scheduleDeletion() {
-    write({ deletion_at: new Date(Date.now() + 30 * 86_400_000).toISOString() })
+  async function scheduleDeletion() {
+    if (!path.value) return
+    await apiRequest('POST', `${path.value}/deletion`)
+    await reload()
   }
 
-  function keepProject() {
-    write({ deletion_at: null })
+  async function keepProject() {
+    if (!path.value) return
+    await apiRequest('DELETE', `${path.value}/deletion`)
+    await reload()
   }
 
-  function requestPrivacy(kind: PrivacyKind, playerId: string, reference: string, by: string) {
-    const request: PrivacyRequest = {
-      id: `prv_${Math.random().toString(36).slice(2, 8)}`,
-      kind,
-      player_id: playerId.trim(),
-      status: 'queued',
-      requested_by: by,
-      requested_at: new Date().toISOString(),
-      reference: reference.trim() || undefined
-    }
-    write({ privacy: [request, ...privacy.value] })
-    return request
+  async function requestPrivacy(kind: PrivacyKind, playerId: string, reference: string) {
+    if (!path.value) return
+    await apiRequest('POST', `${path.value}/privacy/${kind === 'erase' ? 'erasures' : 'exports'}`,
+      { player_id: playerId.trim(), reference: reference.trim() })
+    await requests.execute()
   }
 
-  return { project, privacy, rename, setRetention, scheduleDeletion, keepProject, requestPrivacy }
-}
+  async function downloadExport(request: PrivacyRequest) {
+    if (!request.download_path) return
+    await apiDownload(request.download_path, `export-${request.player_id}.json`)
+  }
 
-/** A project's name as the reader last saved it, for the drawer and the breadcrumb. */
-export function projectNameOf(id: string, fallback: string) {
-  return stored().value[id]?.name ?? fallback
+  return { project, privacy, loading, error, reload, rename, setRetention, scheduleDeletion, keepProject, requestPrivacy, downloadExport }
 }

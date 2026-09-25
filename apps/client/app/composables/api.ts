@@ -114,3 +114,24 @@ export function withQuery(path: string, query: Record<string, string | number | 
   const text = params.toString()
   return text ? `${path}?${text}` : path
 }
+
+/**
+ * Downloads a file the API streams (an export, a report's table): fetched with the user's token,
+ * which a plain link cannot send, and saved under the name the API gave it.
+ */
+export async function apiDownload(url: string, fallbackName = 'download'): Promise<void> {
+  const base = useRuntimeConfig().public.apiBase.replace(/\/$/, '')
+  const token = await useAuthStore().token()
+  const response = await fetch(base + url, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+  if (!response.ok) {
+    throw errorOf(response.status, await response.text(), response.statusText || 'The download failed')
+  }
+  const disposition = response.headers.get('Content-Disposition') ?? ''
+  const name = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(disposition)?.[1] ?? fallbackName
+  const href = URL.createObjectURL(await response.blob())
+  const link = document.createElement('a')
+  link.href = href
+  link.download = decodeURIComponent(name)
+  link.click()
+  setTimeout(() => URL.revokeObjectURL(href), 1000)
+}
