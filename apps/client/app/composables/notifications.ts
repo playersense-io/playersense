@@ -18,6 +18,7 @@ function ruleOf(out: Schema<'NotificationRuleOut'>): NotificationRule {
     environments: [...(out.environments ?? [])] as EnvironmentKind[],
     channels: [...out.channels],
     cooldownMinutes: out.cooldown_minutes,
+    maxPerHour: out.max_per_hour,
     mutedUntil: out.muted_until ? Date.parse(out.muted_until) : null,
     lastFiredAt: out.last_fired_at ? Date.parse(out.last_fired_at) : null,
     createdBy: out.created_by ?? ''
@@ -32,6 +33,7 @@ function bodyOf(draft: NotificationRuleDraft) {
     environments: draft.environments,
     channels: draft.channels,
     cooldown_minutes: draft.cooldownMinutes,
+    max_per_hour: draft.maxPerHour,
     muted_until: draft.mutedUntil === null ? null : new Date(draft.mutedUntil).toISOString()
   }
 }
@@ -43,6 +45,7 @@ export const draftOf = (rule: NotificationRule): NotificationRuleDraft => ({
   environments: [...rule.environments],
   channels: [...rule.channels],
   cooldownMinutes: rule.cooldownMinutes,
+  maxPerHour: rule.maxPerHour,
   mutedUntil: rule.mutedUntil
 })
 

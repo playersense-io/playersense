@@ -146,6 +146,8 @@ const description = computed(() => props.scope === 'organization'
                 </template>
                 <span>{{ rule.cooldownMinutes ? `At most every ${cooldownWords(rule.cooldownMinutes)}` : 'Every time' }}</span>
                 <span aria-hidden="true">·</span>
+                <span>{{ rule.maxPerHour ? `Up to ${rule.maxPerHour} an hour` : 'No hourly limit' }}</span>
+                <span aria-hidden="true">·</span>
                 <span>{{ rule.lastFiredAt ? `Fired ${relativeWords(rule.lastFiredAt, time)}` : 'Never fired' }}</span>
               </span>
             </span>

@@ -12,7 +12,7 @@
 
 // --- Events ---------------------------------------------------------------------------------
 
-export type WebhookGroupKey = 'purchases' | 'subscriptions' | 'publishing' | 'liveops' | 'experiments' | 'alerts' | 'data' | 'project'
+export type WebhookGroupKey = 'purchases' | 'subscriptions' | 'publishing' | 'liveops' | 'issues' | 'experiments' | 'alerts' | 'data' | 'project'
 
 export interface WebhookGroup {
   key: WebhookGroupKey
@@ -28,6 +28,7 @@ export const WEBHOOK_GROUPS: readonly WebhookGroup[] = [
   { key: 'subscriptions', label: 'Subscriptions', note: 'Keep a player\'s membership in step with the store: renewals, cancellations, lapses.', icon: 'material-symbols:autorenew' },
   { key: 'publishing', label: 'Publishing', note: 'Know when a config reaches an environment, or is rolled back.', icon: 'material-symbols:rocket-launch-outline' },
   { key: 'liveops', label: 'Live Ops', note: 'Start and stop things of your own the moment an event\'s window opens or closes.', icon: 'material-symbols:event-outline' },
+  { key: 'issues', label: 'Issues', note: 'Hear when something breaks: a new crash or error, one that came back, or one suddenly far more frequent. Once each, never once per occurrence.', icon: 'material-symbols:bug-report-outline' },
   { key: 'experiments', label: 'Experiments', note: 'Hear when a test starts and when it has an answer.', icon: 'material-symbols:science-outline' },
   { key: 'alerts', label: 'Alerts', note: 'Page somebody when a metric crosses a line you set, and again when it recovers.', icon: 'material-symbols:notifications-outline' },
   { key: 'data', label: 'Data and privacy', note: 'Collect an export when it is ready; record a player\'s deletion in your own systems.', icon: 'material-symbols:database-outline' },
@@ -63,6 +64,9 @@ export const WEBHOOK_EVENTS: readonly WebhookEventType[] = [
   { type: 'config.rolled_back', group: 'publishing', summary: 'An environment was rolled back to an earlier version.', holds: 'The environment, both versions and who rolled it back', environments: true, emitted: true },
   { type: 'liveops.window.started', group: 'liveops', summary: 'A Live Ops event came on: one of its windows opened.', holds: 'The event, its window and its payload', environments: true, emitted: false },
   { type: 'liveops.window.ended', group: 'liveops', summary: 'A Live Ops event\'s window closed.', holds: 'The event and the window that closed', environments: true, emitted: false },
+  { type: 'issue.new', group: 'issues', summary: 'An issue appeared that was never seen before: a new crash, exception or error.', holds: 'The issue: its title, kind, where it happens, release, events and players so far', environments: true, emitted: true },
+  { type: 'issue.regressed', group: 'issues', summary: 'An issue you resolved happened again, and is unresolved once more.', holds: 'The issue, as for a new one', environments: true, emitted: true },
+  { type: 'issue.spiking', group: 'issues', summary: 'An issue is happening far more often than it usually does.', holds: 'The issue, its events this hour and its usual hourly rate', environments: true, emitted: true },
   { type: 'experiment.started', group: 'experiments', summary: 'An experiment started taking players.', holds: 'The experiment, its flag and its arms', environments: false, emitted: true },
   { type: 'experiment.concluded', group: 'experiments', summary: 'An experiment ended with a winner, or with none.', holds: 'The experiment, its flag and its arms', environments: false, emitted: true },
   { type: 'alert.triggered', group: 'alerts', summary: 'A metric crossed a line an alert watches.', holds: 'The alert, the metric, its value and the line', environments: false, emitted: false },
@@ -389,6 +393,22 @@ export function exampleData(type: string, environment: string, now = Date.now())
       return { environment, version: 42, published_by: 'test@example.com', changes: { flags: 2, experiments: 1, liveops_events: 1 }, note: 'A test publish' }
     case 'config.rolled_back':
       return { environment, from_version: 42, to_version: 41, rolled_back_by: 'test@example.com' }
+    case 'issue.new':
+    case 'issue.regressed':
+    case 'issue.spiking':
+      return {
+        fingerprint: '14069318238571245114',
+        issue_title: 'NullReferenceException: Object reference not set to an instance of an object',
+        kind: 'crash',
+        level: 'fatal',
+        exception_type: 'NullReferenceException',
+        culprit: 'Game.Shop.ShopPanel.OnPurchaseClicked',
+        release: '2.7.1',
+        events: type === 'issue.spiking' ? 4210 : 38,
+        players: type === 'issue.spiking' ? 912 : 17,
+        first_seen: at(-(type === 'issue.new' ? 5 : 72 * 60) * 60_000),
+        ...(type === 'issue.spiking' ? { this_hour: 1204, usual_per_hour: 12.5 } : {})
+      }
     case 'experiment.started':
     case 'experiment.concluded':
       return { experiment: { id, key: 'test_experiment', flag: 'shop_layout', arms: ['control', 'grid'], status: type === 'experiment.started' ? 'running' : 'concluded' } }

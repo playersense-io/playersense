@@ -22,7 +22,7 @@ const { channels } = useRuleChannels(props.scope)
 const editing = computed(() => Boolean(props.rule))
 const draft = ref<NotificationRuleDraft>(props.rule
   ? draftOf(props.rule)
-  : { name: '', enabled: true, events: [], environments: [], channels: [], cooldownMinutes: 0, mutedUntil: null })
+  : { name: '', enabled: true, events: [], environments: [], channels: [], cooldownMinutes: 0, maxPerHour: 20, mutedUntil: null })
 
 const kinds = computed(() => kindsOf(props.scope))
 const pickerEvents = computed(() => kinds.value.map(pickerEvent))
@@ -59,6 +59,17 @@ const cooldown = computed({
 const COOLDOWN_OPTIONS: SegmentedOption[] = COOLDOWNS.map(entry => ({ value: entry.value, label: entry.label }))
 const cooldownNote = computed(() => COOLDOWNS.find(entry => entry.value === cooldown.value)?.note
   ?? `At most once every ${cooldownWords(draft.value.cooldownMinutes)} for each kind of event.`)
+
+const cap = computed({
+  get: () => String(draft.value.maxPerHour),
+  set: (value: string) => {
+    draft.value.maxPerHour = Number(value)
+  }
+})
+const CAP_OPTIONS: SegmentedOption[] = HOURLY_CAPS.map(entry => ({ value: entry.value, label: entry.label }))
+
+/* Issue events are announced by what happens to an issue, never by its occurrences: say so. */
+const hearsIssues = computed(() => draft.value.events.some(type => type === EVERY_EVENT || type.startsWith('issue.')))
 
 const problem = computed(() => notificationRuleProblem(draft.value))
 
@@ -202,8 +213,26 @@ const nameId = useId()
               label="How often at most"
               stretch
             />
-            <span class="text-[11px] leading-4 text-ink/50">{{ cooldownNote }}</span>
+            <span class="text-[11px] leading-4 text-ink/50">{{ cooldownNote }}<template v-if="hearsIssues">
+              For issues, per issue: one noisy issue cannot silence another.
+            </template></span>
           </div>
+
+          <div class="flex flex-col gap-1.5">
+            <span class="text-xs text-ink/60">Messages an hour, at most</span>
+            <SegmentedControl
+              v-model="cap"
+              :options="CAP_OPTIONS"
+              label="Messages an hour, at most"
+              stretch
+            />
+            <span class="text-[11px] leading-4 text-ink/50">{{ draft.maxPerHour ? `Past ${draft.maxPerHour} in an hour, the channel gets one notice that the rest are held back, then nothing until the hour turns.` : 'No limit: everything this rule hears is sent.' }}</span>
+          </div>
+
+          <InfoNote
+            v-if="hearsIssues"
+            text="An issue is announced once when it is new, once each time it comes back after being resolved, and once per spike, never once per occurrence: a crash that happens ten thousand times is one message. Many issues at once arrive as one message listing the worst."
+          />
 
           <p v-if="failure" class="m-0 text-xs text-error">
             {{ failure }}

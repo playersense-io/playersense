@@ -33,6 +33,8 @@ export interface NotificationRule {
   environments: EnvironmentKind[]
   channels: string[]
   cooldownMinutes: number
+  /** At most this many messages an hour; 0 is no limit. */
+  maxPerHour: number
   mutedUntil: number | null
   lastFiredAt: number | null
   createdBy: string
@@ -45,6 +47,7 @@ export interface NotificationRuleDraft {
   environments: EnvironmentKind[]
   channels: string[]
   cooldownMinutes: number
+  maxPerHour: number
   mutedUntil: number | null
 }
 
@@ -84,6 +87,13 @@ export const COOLDOWNS: readonly { value: string, label: string, note: string }[
   { value: '60', label: '1 hour', note: 'At most once an hour for each kind of event.' },
   { value: '360', label: '6 hours', note: 'At most every 6 hours for each kind of event.' },
   { value: '1440', label: '1 day', note: 'At most once a day for each kind of event.' }
+]
+
+export const HOURLY_CAPS: readonly { value: string, label: string }[] = [
+  { value: '5', label: '5' },
+  { value: '20', label: '20' },
+  { value: '100', label: '100' },
+  { value: '0', label: 'No limit' }
 ]
 
 export const cooldownWords = (minutes: number) =>
