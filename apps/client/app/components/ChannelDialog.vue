@@ -119,7 +119,7 @@ const ids = { name: useId(), url: useId(), key: useId(), header: useId(), header
         <ChannelMark :type="type" size="large" />
         <div class="flex min-w-0 flex-col gap-1">
           <h2 class="m-0 text-sm font-medium text-ink">
-            {{ editing ? `Edit ${channel!.name}` : `Add a ${info.label} channel` }}
+            {{ editing ? `Edit ${channel!.name}` : `Add ${/^[aeiou]/i.test(info.label) ? 'an' : 'a'} ${info.label} channel` }}
           </h2>
           <p class="m-0 text-xs text-ink/60">
             {{ info.note }}
