@@ -72,10 +72,15 @@ const activeFilters = computed<ActiveFilter[]>(() => [
 
 // --- The figures --------------------------------------------------------------------------
 
+/* What is behind the answer: an empty range comes back as zeros the API filled in, which are
+   drawn as dashes and the no-data mark, not as a measured nothing. */
+const spread = computed(() => revenueSpread(data.value))
+
 const moneyBoard = computed<Kpi[]>(() => {
   const revenue = data.value
   if (!revenue) return []
   const { totals } = revenue
+  const { any, bought, comparable } = spread.value
   const m = revenue.money
   const gross = m ? m.gross : totals.revenue_micros / 1_000_000
   const previousGross = m ? m.previous_gross : totals.previous_revenue_micros / 1_000_000
@@ -83,33 +88,44 @@ const moneyBoard = computed<Kpi[]>(() => {
   const average = totals.purchases ? gross / totals.purchases : 0
   const previousAverage = totals.previous_purchases ? previousGross / totals.previous_purchases : 0
   const board: Kpi[] = [
-    { key: 'gross', label: 'Gross revenue', value: writeMoney(gross, usd.value), exact: writeExactMoney(gross, usd.value), trend: trendOf(gross, previousGross), info: `What players paid, ${currencyWords(revenue)}, before refunds and the stores' share.` }
+    { key: 'gross', label: 'Gross revenue', value: any ? writeMoney(gross, usd.value) : null, exact: any ? writeExactMoney(gross, usd.value) : undefined, trend: comparable ? trendOf(gross, previousGross) : undefined, info: `What players paid, ${currencyWords(revenue)}, before refunds and the stores' share.` }
   ]
-  if (m) board.push({ key: 'net', label: 'Net revenue', value: writeMoney(m.net), exact: writeExactMoney(m.net), trend: trendOf(m.net, m.previous_net), info: `Estimated: gross, less refunds and each store's share. ${m.note}` })
+  if (m) board.push({ key: 'net', label: 'Net revenue', value: any ? writeMoney(m.net) : null, exact: any ? writeExactMoney(m.net) : undefined, trend: comparable ? trendOf(m.net, m.previous_net) : undefined, info: `Estimated: gross, less refunds and each store's share. ${m.note}` })
   board.push(
-    { key: 'refunds', label: 'Refunded', value: writeMoney(refunded, usd.value), exact: writeExactMoney(refunded, usd.value), info: `${writeFigure(totals.refunds)} refunds the stores granted in the range.` },
-    { key: 'purchases', label: 'Purchases', value: writeFigure(totals.purchases, { compact: true }), exact: writeFigure(totals.purchases), trend: trendOf(totals.purchases, totals.previous_purchases), info: 'Purchases that count: test purchases and receipts turned away are not.' },
-    { key: 'average', label: 'Average purchase', value: writeExactMoney(average, usd.value), trend: trendOf(average, previousAverage), info: 'Gross over purchases.' }
+    { key: 'refunds', label: 'Refunded', value: any ? writeMoney(refunded, usd.value) : null, exact: any ? writeExactMoney(refunded, usd.value) : undefined, info: `${writeFigure(totals.refunds)} refunds the stores granted in the range.` },
+    { key: 'purchases', label: 'Purchases', value: any ? writeFigure(totals.purchases, { compact: true }) : null, exact: any ? writeFigure(totals.purchases) : undefined, trend: comparable ? trendOf(totals.purchases, totals.previous_purchases) : undefined, info: 'Purchases that count: test purchases and receipts turned away are not.' },
+    { key: 'average', label: 'Average purchase', value: bought ? writeExactMoney(average, usd.value) : null, trend: comparable ? trendOf(average, previousAverage) : undefined, info: 'Gross over purchases.' }
   )
   return board
 })
 
-const newPayers = computed(() => (data.value?.new_payers ?? []).reduce((sum, day) => sum + (day.payers ?? 0), 0))
+/* New payers are not narrowed by the filters, so they have data of their own: a day held back is
+   null, and a range where every day is null or empty has none. */
+const newPayers = computed<number | null>(() => {
+  const days = data.value?.new_payers ?? []
+  const counted = days.filter(day => day.payers != null)
+  if (!counted.length) return null
+  const total = counted.reduce((sum, day) => sum + (day.payers ?? 0), 0)
+  return total || spread.value.any ? total : null
+})
 
 const payerBoard = computed<Kpi[]>(() => {
   const revenue = data.value
   if (!revenue) return []
   const { totals } = revenue
+  const { bought, comparable } = spread.value
   const gross = revenue.money ? revenue.money.gross : totals.revenue_micros / 1_000_000
   const previousGross = revenue.money ? revenue.money.previous_gross : totals.previous_revenue_micros / 1_000_000
-  const buyers = totals.buyers ?? 0
-  const previousBuyers = totals.previous_buyers ?? 0
-  const arppu = buyers ? gross / buyers : 0
-  const previousArppu = previousBuyers ? previousGross / previousBuyers : 0
+  /* Buyers are held back when too few to show: no figure then, and the note says why. */
+  const buyers = bought ? totals.buyers ?? null : null
+  const previousBuyers = totals.previous_buyers ?? null
+  const arppu = buyers ? gross / buyers : null
+  const previousArppu = previousBuyers ? previousGross / previousBuyers : null
+  const held = bought && totals.buyers == null ? ` Held back: fewer than ${revenue.suppression_threshold} players, too few to show.` : ''
   return [
-    { key: 'payers', label: 'Paying players', value: totals.buyers == null ? 'Too few' : writeFigure(buyers, { compact: true }), exact: totals.buyers == null ? undefined : writeFigure(buyers), trend: totals.buyers != null && totals.previous_buyers != null ? trendOf(buyers, previousBuyers) : undefined, info: `Players with at least one purchase in the range${revenue.approximate ? ', counted approximately' : ''}.` },
-    { key: 'new', label: 'New payers', value: writeFigure(newPayers.value, { compact: true }), exact: writeFigure(newPayers.value), info: 'Players whose first purchase ever was in the range. Not narrowed by the filters.' },
-    { key: 'arppu', label: 'ARPPU', value: writeExactMoney(arppu, usd.value), trend: buyers && previousBuyers ? trendOf(arppu, previousArppu) : undefined, info: 'Gross over paying players: what a payer spends.' }
+    { key: 'payers', label: 'Paying players', value: buyers === null ? null : writeFigure(buyers, { compact: true }), exact: buyers === null ? undefined : writeFigure(buyers), trend: comparable && buyers !== null && previousBuyers !== null ? trendOf(buyers, previousBuyers) : undefined, info: `Players with at least one purchase in the range${revenue.approximate ? ', counted approximately' : ''}.${held}` },
+    { key: 'new', label: 'New payers', value: newPayers.value === null ? null : writeFigure(newPayers.value, { compact: true }), exact: newPayers.value === null ? undefined : writeFigure(newPayers.value), info: 'Players whose first purchase ever was in the range. Not narrowed by the filters.' },
+    { key: 'arppu', label: 'ARPPU', value: arppu === null ? null : writeExactMoney(arppu, usd.value), trend: comparable && arppu !== null && previousArppu !== null ? trendOf(arppu, previousArppu) : undefined, info: `Gross over paying players: what a payer spends.${held}` }
   ]
 })
 
@@ -127,24 +143,27 @@ const tab = useQueryChoice('tab', ['overview', 'packages', 'refunds', 'payers', 
 
 const categories = computed(() => (data.value?.days ?? []).map(day => dayLabel(day.day)))
 
-/* Gross by store, stacked; net as one line, since the stores' shares are estimated for the whole. */
+/* Gross by store, stacked; net as one line, since the stores' shares are estimated for the whole.
+   A day held back, and every day of an empty range, is a gap: all gaps draw the no-data mark. */
 const chartSeries = computed<MetricSeries[]>(() => {
   const revenue = data.value
   if (!revenue) return []
+  const { any } = spread.value
+  const withheld = (index: number) => revenue.days[index]?.withheld
   if (basis.value === 'net' && revenue.money) {
-    return [{ name: 'Net, estimated', data: revenue.money.days.map(day => Math.round(day.net * 100) / 100), type: 'area', tone: 1 }]
+    return [{ name: 'Net, estimated', data: revenue.money.days.map((day, index) => dayPoint(day.net, withheld(index), any)), type: 'area', tone: 1 }]
   }
   const days = revenue.money ? revenue.money.days : revenue.days
   const keys = [...new Set(days.flatMap(day => Object.keys(day.by_store ?? {})))]
   if (!keys.length) {
     const values = revenue.money ? revenue.money.days.map(day => day.gross) : revenue.days.map(day => day.revenue_micros / 1_000_000)
-    return [{ name: 'Gross', data: values.map(value => Math.round(value * 100) / 100), type: 'area', tone: 1 }]
+    return [{ name: 'Gross', data: values.map((value, index) => dayPoint(value, withheld(index), any)), type: 'area', tone: 1 }]
   }
   return keys.map((store, index) => ({
     name: storeLook(store).label,
-    data: days.map((day) => {
+    data: days.map((day, at) => {
       const value = (day.by_store as Record<string, number> | undefined)?.[store] ?? 0
-      return Math.round((revenue.money ? value : value / 1_000_000) * 100) / 100
+      return dayPoint(revenue.money ? value : value / 1_000_000, withheld(at), any)
     }),
     type: 'area',
     stack: 'stores',
@@ -176,6 +195,9 @@ function downloadPackages() {
   const lines = productLines.value.map(line => [line.key, line.purchases, line.buyers, Math.round(line.gross * 100) / 100, line.trend === null ? '' : Math.round(line.trend * 10_000) / 10_000])
   downloadCsv(`revenue-packages-${range.value}`, [header, ...lines])
 }
+
+/* No project yet: nothing to ask the API about, so the page says so instead of drawing zeros. */
+const workspace = useWorkspaceStore()
 </script>
 
 <template>
@@ -212,7 +234,14 @@ function downloadPackages() {
       what="revenue"
       @retry="reload"
     >
-      <template v-if="data">
+      <LayerCard v-if="!workspace.projectPath" :padded="false">
+        <EmptyState
+          description="Make a project from the project menu and send events with its SDK key: its revenue shows here."
+          icon="material-symbols:sports-esports-outline"
+          title="No project yet"
+        />
+      </LayerCard>
+      <template v-else-if="data">
         <p v-if="!money" class="m-0 flex items-start gap-2.5 rounded-(--ps-radius-large) bg-ink/4 px-4 py-3 text-xs leading-5 text-ink/75">
           <Icon aria-hidden="true" class="mt-0.5 flex-none text-base text-ink/50" name="material-symbols:currency-exchange" />
           <span>No exchange rates on this deployment, so revenue is shown {{ currencyWords(data) }}, and net cannot be estimated.</span>

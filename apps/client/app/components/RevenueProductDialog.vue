@@ -26,20 +26,26 @@ const usd = computed(() => Boolean(money.value))
 
 const gross = computed(() => money.value?.gross ?? (data.value?.totals.revenue_micros ?? 0) / 1_000_000)
 
+/* A package with nothing sold or refunded in the range comes back as zeros the API filled in:
+   no data, drawn as dashes and the no-data mark. */
+const spread = computed(() => revenueSpread(data.value))
+const NONE = '–'
+
 const facts = computed<Fact[]>(() => {
   const revenue = data.value
   if (!revenue) return []
   const { totals } = revenue
-  const trend = totals.previous_revenue_micros ? (totals.revenue_micros - totals.previous_revenue_micros) / totals.previous_revenue_micros : null
+  const { any, bought, comparable } = spread.value
+  const trend = comparable && totals.previous_revenue_micros ? (totals.revenue_micros - totals.previous_revenue_micros) / totals.previous_revenue_micros : null
   const out: Fact[] = [
-    { key: 'gross', label: 'Gross', value: writeExactMoney(gross.value, usd.value), mono: true, note: trend === null ? 'New this range' : `${formatChange(trend)} on the range before` },
-    { key: 'sold', label: 'Sold', value: writeFigure(totals.purchases), mono: true, note: totals.buyers ? `to ${writeFigure(totals.buyers)} players` : undefined },
-    { key: 'refunds', label: 'Refunded', value: writeFigure(totals.refunds), mono: true, note: money.value ? `${writeExactMoney(money.value.refunded)} given back` : `${formatShare(totals.purchases ? totals.refunds / totals.purchases : 0)} of sales` }
+    { key: 'gross', label: 'Gross', value: any ? writeExactMoney(gross.value, usd.value) : NONE, mono: true, note: trend !== null ? `${formatChange(trend)} on the range before` : bought ? 'New this range' : 'Nothing sold in the range' },
+    { key: 'sold', label: 'Sold', value: any ? writeFigure(totals.purchases) : NONE, mono: true, note: bought && totals.buyers ? `to ${writeFigure(totals.buyers)} players` : undefined },
+    { key: 'refunds', label: 'Refunded', value: any ? writeFigure(totals.refunds) : NONE, mono: true, note: !any ? undefined : money.value ? `${writeExactMoney(money.value.refunded)} given back` : `${formatShare(totals.purchases ? totals.refunds / totals.purchases : 0)} of sales` }
   ]
   if (money.value) {
     out.push(
-      { key: 'fees', label: 'Store fees', value: writeExactMoney(money.value.fees), mono: true, note: 'Estimated' },
-      { key: 'net', label: 'Net', value: writeExactMoney(money.value.net), mono: true, note: `Estimated, ${formatShare(money.value.gross ? money.value.net / money.value.gross : 0)} of gross` }
+      { key: 'fees', label: 'Store fees', value: any ? writeExactMoney(money.value.fees) : NONE, mono: true, note: 'Estimated' },
+      { key: 'net', label: 'Net', value: any ? writeExactMoney(money.value.net) : NONE, mono: true, note: any && money.value.gross ? `Estimated, ${formatShare(money.value.net / money.value.gross)} of gross` : 'Estimated' }
     )
   }
   return out
@@ -49,9 +55,10 @@ const categories = computed(() => (data.value?.days ?? []).map(day => dayLabel(d
 const series = computed<MetricSeries[]>(() => {
   const revenue = data.value
   if (!revenue) return []
+  const { any } = spread.value
   const values = revenue.money
-    ? revenue.money.days.map(day => Math.round(day.gross * 100) / 100)
-    : revenue.days.map(day => Math.round(day.revenue_micros / 10_000) / 100)
+    ? revenue.money.days.map((day, index) => dayPoint(day.gross, revenue.days[index]?.withheld, any))
+    : revenue.days.map(day => dayPoint(day.revenue_micros / 1_000_000, day.withheld, any))
   return [{ name: 'Gross', data: values, type: 'bar', tone: 1 }]
 })
 
@@ -124,13 +131,25 @@ const reasons = computed<ShareRow[]>(() => (data.value?.refunds?.reasons ?? [])
                 <h3 class="m-0 text-xs font-medium text-ink/70">
                   By store
                 </h3>
-                <ShareList :rows="stores" label="Revenue by store" />
+                <ShareList v-if="stores.length" :rows="stores" label="Revenue by store" />
+                <NoDataPlaceholder
+                  v-else
+                  :height="96"
+                  :seed="3"
+                  label="No data yet"
+                />
               </section>
               <section class="flex flex-col gap-2">
                 <h3 class="m-0 text-xs font-medium text-ink/70">
                   Top countries
                 </h3>
-                <ShareList :rows="countries" label="Revenue by country" />
+                <ShareList v-if="countries.length" :rows="countries" label="Revenue by country" />
+                <NoDataPlaceholder
+                  v-else
+                  :height="96"
+                  :seed="5"
+                  label="No data yet"
+                />
               </section>
             </div>
 

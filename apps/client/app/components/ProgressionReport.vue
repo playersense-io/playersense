@@ -41,10 +41,16 @@ const hardest = computed(() => {
   return at === -1 ? null : { value: data.value.rows[at]!.value, loss: losses.value[at]! }
 })
 
+/* Nobody reached the first value (or too few to show): the progression has nothing behind it,
+   so every figure is a dash and the pictures show the no-data mark. */
+const nobody = computed(() => !data.value.rows[0]?.players)
+
 const board = computed<Kpi[]>(() => {
   const { rows, previous, medianToLast } = data.value
-  const first = rows[0]?.players ?? null
-  const last = rows[rows.length - 1]?.players ?? null
+  const empty = nobody.value
+  const first = empty ? null : rows[0]?.players ?? null
+  const last = empty ? null : rows[rows.length - 1]?.players ?? null
+  const held = ` Held back when fewer than ${threshold.value} players, too few to show.`
   const completion = first && last !== null ? last / first : null
   const previousCompletion = previous.first && previous.last !== null ? previous.last / previous.first : null
   const { from, to } = props.definition
@@ -52,37 +58,37 @@ const board = computed<Kpi[]>(() => {
     {
       key: 'started',
       label: `Reached ${property.value} ${from}`,
-      value: first === null ? `<${threshold.value}` : writeFigure(first, { compact: true }),
+      value: first === null ? null : writeFigure(first, { compact: true }),
       exact: first === null ? undefined : writeFigure(first),
       trend: first !== null && previous.first ? trendOf(first, previous.first) : undefined,
-      info: `Players who did ${props.definition.event} at ${property.value} ${from} in the range.`
+      info: `Players who did ${props.definition.event} at ${property.value} ${from} in the range.${held}`
     },
     {
       key: 'finished',
       label: `Reached ${property.value} ${to}`,
-      value: last === null ? `<${threshold.value}` : writeFigure(last, { compact: true }),
+      value: last === null ? null : writeFigure(last, { compact: true }),
       exact: last === null ? undefined : writeFigure(last),
       trend: last !== null && previous.last ? trendOf(last, previous.last) : undefined,
-      info: `Of those, the players who went on through every ${property.value} to ${to}, ${windowPhrase(props.definition.window)} of the first.`
+      info: `Of those, the players who went on through every ${property.value} to ${to}, ${windowPhrase(props.definition.window)} of the first.${held}`
     },
     {
       key: 'completion',
       label: 'Completion',
-      value: completion === null ? '–' : formatShare(completion),
+      value: completion === null ? null : formatShare(completion),
       trend: completion !== null && previousCompletion !== null ? trendOf(completion, previousCompletion) : undefined,
       info: `Reached ${property.value} ${to} over reached ${property.value} ${from}.`
     },
     {
       key: 'time',
       label: `Median time to ${property.value} ${to}`,
-      value: medianToLast === null ? '–' : formatSeconds(medianToLast),
+      value: empty || medianToLast === null ? null : formatSeconds(medianToLast),
       info: `From ${property.value} ${from} to ${property.value} ${to}, for the players who got there.`
     },
     {
       key: 'hardest',
       label: `Hardest ${property.value}`,
-      value: hardest.value ? String(hardest.value.value) : '–',
-      unit: hardest.value ? `${formatShare(hardest.value.loss)} lost` : undefined,
+      value: !empty && hardest.value ? String(hardest.value.value) : null,
+      unit: !empty && hardest.value ? `${formatShare(hardest.value.loss)} lost` : undefined,
       info: `The ${property.value} the largest share of players got to and never got past.`
     }
   ]
@@ -94,7 +100,7 @@ const categories = computed(() => data.value.rows.map(row => String(row.value)))
 const titles = computed(() => data.value.rows.map(row => `${Property.value} ${row.value}`))
 const lossSeries = computed<MetricSeries[]>(() => [{
   name: 'Lost here',
-  data: losses.value.map(loss => (loss === null ? null : Math.round(loss * 1000) / 10)),
+  data: losses.value.map(loss => (nobody.value || loss === null ? null : Math.round(loss * 1000) / 10)),
   type: 'bar',
   tone: 2
 }])
@@ -188,7 +194,11 @@ function download() {
           />
         </template>
 
+        <div v-if="nobody" class="p-5">
+          <NoDataPlaceholder :height="200" :seed="definition.to - definition.from + 1" label="No data yet" />
+        </div>
         <ProgressionTable
+          v-else
           :order="order"
           :property="definition.property"
           :rows="data.rows"

@@ -104,7 +104,7 @@ function dayKpi(day: number): Kpi {
   return {
     key: `d${day}`,
     label: `Day ${day}`,
-    value: now === null ? '–' : percent(now),
+    value: now === null ? null : percent(now),
     trend: now !== null && before !== null ? trendOf(now, before) : undefined,
     info: now === null
       ? `No cohort in the range is ${day} days old yet, or none had ${threshold.value} players or more.`
@@ -112,15 +112,19 @@ function dayKpi(day: number): Kpi {
   }
 }
 
+/* No cohort came back (nothing installed, or every cohort was under the threshold): no figure,
+   rather than a count of zero, and no trend unless the range before had cohorts too. */
 const board = computed<Kpi[]>(() => {
-  const players = cohortPlayers((answer.value?.rows ?? []).filter(row => row.day_offset === 0))
-  const before = cohortPlayers((previous.value?.rows ?? []).filter(row => row.day_offset === 0))
+  const rows = (answer.value?.rows ?? []).filter(row => row.day_offset === 0)
+  const previousRows = (previous.value?.rows ?? []).filter(row => row.day_offset === 0)
+  const players = rows.length ? cohortPlayers(rows) : null
+  const before = previousRows.length ? cohortPlayers(previousRows) : null
   return [
     {
       key: 'new',
       label: 'New players',
-      value: writeFigure(players, { compact: true }),
-      trend: trendOf(players, before),
+      value: players === null ? null : writeFigure(players, { compact: true }),
+      trend: players !== null && before !== null ? trendOf(players, before) : undefined,
       info: `Installs in the range: the players these cohorts are made of. A cohort under ${threshold.value} players is not counted.`
     },
     dayKpi(1),

@@ -392,17 +392,19 @@ const data = computed(() => ({
 
 const installs = (rows: readonly CohortTableRow[]) => rows.reduce((total, row) => total + (row.size ?? 0), 0)
 
+/* No cohort came back (nothing installed, or every cohort was under the threshold): no figure,
+   rather than a count of zero, and no trend unless the range before had cohorts too. */
 const board = computed<Kpi[]>(() => {
   const { rows, previous } = data.value
-  const now = installs(rows)
-  const before = installs(previous)
+  const now = rows.length ? installs(rows) : null
+  const before = previous.length ? installs(previous) : null
   return [
     {
       key: 'installs',
       label: 'Installs',
-      value: writeFigure(now, { compact: true }),
-      exact: writeFigure(now),
-      trend: trendOf(now, before),
+      value: now === null ? null : writeFigure(now, { compact: true }),
+      exact: now === null ? undefined : writeFigure(now),
+      trend: now !== null && before !== null ? trendOf(now, before) : undefined,
       info: `Players who installed in the range and match the filters: the cohorts below are made of them. A cohort under ${threshold.value} players is left out.`
     },
     ...MILESTONES.map((day): Kpi => {
@@ -411,7 +413,7 @@ const board = computed<Kpi[]>(() => {
       return {
         key: `d${day}`,
         label: `Day ${day}`,
-        value: value === null ? '–' : mode.value.format(value),
+        value: value === null ? null : mode.value.format(value),
         trend: value !== null && was !== null ? trendOf(value, was) : undefined,
         info: value === null
           ? `No cohort in the range is ${day} days old yet.`

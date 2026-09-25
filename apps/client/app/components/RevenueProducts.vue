@@ -55,7 +55,11 @@ const count = (value: number) => writeFigure(Math.round(value), { compact: value
 </script>
 
 <template>
-  <div class="overflow-x-auto">
+  <!-- No package sold in the range: the no-data mark, at the height of a few rows. -->
+  <div v-if="!lines.length" class="p-5">
+    <NoDataPlaceholder :height="120" :seed="9" label="No data yet" />
+  </div>
+  <div v-else class="overflow-x-auto">
     <table class="ps-revenue-products">
       <thead>
         <tr>

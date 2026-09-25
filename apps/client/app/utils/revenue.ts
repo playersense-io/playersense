@@ -125,3 +125,29 @@ export function writeMoney(value: number, usd = true): string {
 
 /** Money to the cent: "$1,240.50". */
 export const writeExactMoney = (value: number, usd = true) => `${usd ? '$' : ''}${value.toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+
+// --- What is behind an answer -----------------------------------------------------------------
+
+/**
+ * Whether a revenue answer has anything behind it. The API writes every day of the range and
+ * every total whether or not a purchase was recorded, so an empty range comes back as zeros it
+ * filled in: those are no data, not a measured nothing. A purchase or a refund in the range is
+ * what makes its figures real; a trend also needs a purchase in the range before.
+ */
+export function revenueSpread(revenue: Pick<RevenueRecord, 'totals'> | null | undefined) {
+  const totals = revenue?.totals
+  const bought = (totals?.purchases ?? 0) > 0
+  const any = bought || (totals?.refunds ?? 0) > 0
+  const boughtBefore = (totals?.previous_purchases ?? 0) > 0
+  return { any, bought, boughtBefore, comparable: bought && boughtBefore }
+}
+
+/**
+ * One day's point for a chart: null on a day held back for being bought by too few, and on
+ * every day of an answer with nothing behind it, so an empty range draws the no-data mark
+ * rather than a flat line at zero.
+ */
+export function dayPoint(value: number, withheld: boolean | undefined, any: boolean): number | null {
+  if (!any || withheld) return null
+  return Math.round(value * 100) / 100
+}

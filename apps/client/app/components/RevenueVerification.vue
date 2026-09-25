@@ -16,23 +16,29 @@ const attempts = computed(() => {
   return v ? v.verified + v.rejected : 0
 })
 
+/* No receipt sent in the range: the zeros are the API's fill, not a count, so they are dashes and
+   the no-data mark. Once a receipt was sent, a zero is real and is shown. */
+const sent = computed(() => attempts.value > 0 || (verification.value?.sandbox ?? 0) > 0)
+const NONE = '–'
+
 const facts = computed<Fact[]>(() => {
   const v = verification.value
   if (!v) return []
   const times = v.by_store.map(entry => entry.median_ms).filter(ms => ms > 0).sort((a, b) => a - b)
   const median = times.length ? times[Math.floor(times.length / 2)]! : 0
+  const count = (value: number) => (sent.value ? writeFigure(value) : NONE)
   return [
-    { key: 'verified', label: 'Verified', value: writeFigure(v.verified), mono: true, note: `${formatShare(v.verified / Math.max(attempts.value, 1))} of receipts sent, tests included` },
-    { key: 'rejected', label: 'Turned away', value: writeFigure(v.rejected), mono: true, note: `${formatShare(v.rejected / Math.max(attempts.value, 1))} of receipts sent` },
-    { key: 'sandbox', label: 'Test purchases', value: writeFigure(v.sandbox), mono: true, note: 'Verified, and kept out of revenue' },
-    { key: 'time', label: 'Median time to verify', value: median ? `${Math.round(median)} ms` : 'None yet', mono: true, note: 'The store\'s answer, the middle store' }
+    { key: 'verified', label: 'Verified', value: count(v.verified), mono: true, note: sent.value ? `${formatShare(v.verified / Math.max(attempts.value, 1))} of receipts sent, tests included` : 'Of receipts sent, tests included' },
+    { key: 'rejected', label: 'Turned away', value: count(v.rejected), mono: true, note: sent.value ? `${formatShare(v.rejected / Math.max(attempts.value, 1))} of receipts sent` : 'Of receipts sent' },
+    { key: 'sandbox', label: 'Test purchases', value: count(v.sandbox), mono: true, note: 'Verified, and kept out of revenue' },
+    { key: 'time', label: 'Median time to verify', value: median ? `${Math.round(median)} ms` : NONE, mono: true, note: 'The store\'s answer, the middle store' }
   ]
 })
 
 const categories = computed(() => (verification.value?.days ?? []).map(day => dayLabel(day.day)))
 const series = computed<MetricSeries[]>(() => [
-  { name: 'Verified', data: (verification.value?.days ?? []).map(day => day.verified), type: 'bar', stack: 'receipts', tone: 1 },
-  { name: 'Turned away', data: (verification.value?.days ?? []).map(day => day.rejected), type: 'bar', stack: 'receipts', tone: 2 }
+  { name: 'Verified', data: (verification.value?.days ?? []).map(day => (sent.value ? day.verified : null)), type: 'bar', stack: 'receipts', tone: 1 },
+  { name: 'Turned away', data: (verification.value?.days ?? []).map(day => (sent.value ? day.rejected : null)), type: 'bar', stack: 'receipts', tone: 2 }
 ])
 </script>
 

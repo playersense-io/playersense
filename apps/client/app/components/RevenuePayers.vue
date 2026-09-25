@@ -13,16 +13,30 @@ const props = defineProps<{
   loading?: boolean
 }>()
 
-const newPayers = computed(() => (props.revenue?.new_payers ?? []).reduce((sum, day) => sum + (day.payers ?? 0), 0))
+/* An empty range comes back as zeros the API filled in: those are no data, drawn as a dash and
+   the no-data mark (revenueSpread). A figure held back for too few players is a dash too. */
+const spread = computed(() => revenueSpread(props.revenue))
+const NONE = '–'
+
+/* New payers do not follow the filters, so they have data of their own: null when every day is
+   held back or the range has nothing behind it. */
+const newPayers = computed<number | null>(() => {
+  const counted = (props.revenue?.new_payers ?? []).filter(day => day.payers != null)
+  if (!counted.length) return null
+  const total = counted.reduce((sum, day) => sum + (day.payers ?? 0), 0)
+  return total || spread.value.any ? total : null
+})
 
 const facts = computed<Fact[]>(() => {
   const totals = props.revenue?.totals
   if (!totals) return []
-  const buyers = totals.buyers ?? null
+  const { bought, boughtBefore } = spread.value
+  const buyers = bought ? totals.buyers ?? null : null
+  const previous = boughtBefore ? totals.previous_buyers ?? null : null
   return [
-    { key: 'payers', label: 'Paying players', value: buyers === null ? 'Too few to show' : writeFigure(buyers), mono: true, note: buyers ? `${writeFigure(totals.purchases / buyers, { decimals: 1 })} purchases each` : undefined },
-    { key: 'new', label: 'New payers', value: writeFigure(newPayers.value), mono: true, note: buyers ? `${formatShare(newPayers.value / Math.max(buyers, 1))} paid for the first time` : 'Paid for the first time' },
-    { key: 'previous', label: 'The range before', value: totals.previous_buyers == null ? 'Too few to show' : writeFigure(totals.previous_buyers), mono: true, note: 'Paying players' }
+    { key: 'payers', label: 'Paying players', value: buyers === null ? NONE : writeFigure(buyers), mono: true, note: buyers ? `${writeFigure(totals.purchases / buyers, { decimals: 1 })} purchases each` : bought ? 'Too few to show' : 'No purchases yet' },
+    { key: 'new', label: 'New payers', value: newPayers.value === null ? NONE : writeFigure(newPayers.value), mono: true, note: buyers && newPayers.value !== null ? `${formatShare(newPayers.value / Math.max(buyers, 1))} paid for the first time` : 'Paid for the first time' },
+    { key: 'previous', label: 'The range before', value: previous === null ? NONE : writeFigure(previous), mono: true, note: boughtBefore && previous === null ? 'Too few to show' : 'Paying players' }
   ]
 })
 
@@ -45,8 +59,12 @@ const tiers = computed(() => {
   }))
 })
 
+/* Whether the tiers have anyone in them to draw shares for. */
+const tiered = computed(() => tiers.value.some(tier => (tier.payers ?? 0) > 0 || (tier.revenue ?? 0) > 0))
+
+/* A day held back is a gap, and so is every day when there are no new payers to count. */
 const series = computed<MetricSeries[]>(() => [
-  { name: 'New payers', data: (props.revenue?.new_payers ?? []).map(day => day.payers ?? 0), type: 'bar', tone: 3 }
+  { name: 'New payers', data: (props.revenue?.new_payers ?? []).map(day => (newPayers.value === null ? null : day.payers ?? null)), type: 'bar', tone: 3 }
 ])
 </script>
 
@@ -57,7 +75,10 @@ const series = computed<MetricSeries[]>(() => [
     </SectionCard>
 
     <SectionCard :padded="false" description="Everybody who bought in the range, by what they have spent in their life, as reported. The gap between a tier's share of payers and its share of revenue is how the game is paid for." title="Spender tiers">
-      <table class="ps-revenue-tiers">
+      <div v-if="!tiered" class="p-5">
+        <NoDataPlaceholder :height="160" :seed="11" label="No data yet" />
+      </div>
+      <table v-else class="ps-revenue-tiers">
         <thead>
           <tr>
             <th>Spent in their life</th>
@@ -98,7 +119,7 @@ const series = computed<MetricSeries[]>(() => [
           </tr>
         </tbody>
       </table>
-      <p class="m-0 flex items-center gap-4 border-t border-line px-5 py-3 text-[11px] text-ink/55">
+      <p v-if="tiered" class="m-0 flex items-center gap-4 border-t border-line px-5 py-3 text-[11px] text-ink/55">
         <span class="flex items-center gap-1.5"><span class="h-1.5 w-4 rounded-full bg-ink/35" /> share of payers</span>
         <span class="flex items-center gap-1.5"><span class="h-1.5 w-4 rounded-full bg-primary" /> share of revenue</span>
       </p>

@@ -123,6 +123,11 @@ const summary = computed(() => {
     </ul>
   </div>
 
+  <!-- No package sold: no mix to draw, at the height of the bar and a few rows. -->
+  <div v-else-if="!lines.length" class="p-5">
+    <NoDataPlaceholder :height="160" :seed="13" label="No data yet" />
+  </div>
+
   <div v-else class="flex flex-col">
     <div class="flex flex-col gap-3 border-b border-line px-5 py-4">
       <div class="flex flex-wrap items-center justify-between gap-3">

@@ -86,28 +86,49 @@ const activeFilters = computed<ActiveFilter[]>(() => [
   ...products.value.map(id => ({ key: `product:${id}`, label: `Package: ${id}` }))
 ])
 
+/* An empty range comes back as zeros the API filled in, which are no data: dashes, not zeros.
+   A purchase, a refund, a receipt turned away or a test purchase is what makes the figures real,
+   and a trend needs purchases in the range before as well (revenueSpread). */
+const spread = computed(() => revenueSpread(data.value))
+const seen = computed(() => {
+  const totals = data.value?.totals
+  return spread.value.any || (totals?.rejected ?? 0) > 0 || (totals?.sandbox ?? 0) > 0
+})
+
+/* First purchases are not narrowed by the filters, so they have data of their own: none when
+   every day is held back, or the range has nothing behind it. */
+const firstPurchases = computed<number | null>(() => {
+  const counted = (data.value?.new_payers ?? []).filter(day => day.payers != null)
+  if (!counted.length) return null
+  const total = counted.reduce((sum, day) => sum + (day.payers ?? 0), 0)
+  return total || seen.value ? total : null
+})
+
 const board = computed<Kpi[]>(() => {
   const revenue = data.value
   if (!revenue) return []
   const { totals } = revenue
+  const { any, bought, comparable } = spread.value
   const gross = money.value ? money.value.gross : totals.revenue_micros / 1_000_000
   const previousGross = money.value ? money.value.previous_gross : totals.previous_revenue_micros / 1_000_000
   const average = gross / Math.max(totals.purchases, 1)
   const previousAverage = previousGross / Math.max(totals.previous_purchases, 1)
   const attempts = totals.purchases + totals.rejected
-  const firstPurchases = revenue.new_payers.reduce((sum, day) => sum + (day.payers ?? 0), 0)
-  const buyers = totals.buyers ?? null
+  const first = firstPurchases.value
+  /* Held back when too few to show: no figure, and the note says why. */
+  const buyers = bought ? totals.buyers ?? null : null
+  const held = bought && totals.buyers == null ? ` Held back: fewer than ${revenue.suppression_threshold} players, too few to show.` : ''
   // Nine, in two rows: how much was bought and for what, then who bought it and what went wrong.
   return [
-    { key: 'purchases', label: 'Purchases', value: writeFigure(totals.purchases, { compact: true }), exact: writeFigure(totals.purchases), trend: trendOf(totals.purchases, totals.previous_purchases), info: 'Purchases that count. Test purchases and receipts turned away are not.' },
-    { key: 'sales', label: 'Sales', value: writeMoney(gross, usd.value), exact: writeExactMoney(gross, usd.value), trend: trendOf(gross, previousGross), info: `What players paid for them, ${currencyWords(revenue)}, before refunds and the stores' share.` },
-    { key: 'average', label: 'Average purchase', value: writeExactMoney(average, usd.value), trend: trendOf(average, previousAverage), info: `What a purchase is worth, ${currencyWords(revenue)}.` },
-    { key: 'buyers', label: 'Buyers', value: buyers === null ? 'Too few' : writeFigure(buyers, { compact: true }), exact: buyers === null ? undefined : writeFigure(buyers), info: `Different players with at least one purchase${revenue.approximate ? ', counted approximately' : ''}.` },
-    { key: 'per-buyer', label: 'Purchases per buyer', value: buyers ? (totals.purchases / buyers).toFixed(1) : '', info: 'How often a buyer came back to the shop in the range.' },
-    { key: 'first', label: 'First purchases', value: writeFigure(firstPurchases, { compact: true }), exact: writeFigure(firstPurchases), info: 'Players whose first purchase ever was in the range: new buyers. Not narrowed by the filters.' },
-    { key: 'refunded', label: 'Refunded', value: formatShare(totals.refunds / Math.max(totals.purchases, 1)), info: `${writeFigure(totals.refunds)} purchases given back by the stores or through players' banks. Verified stores only.` },
-    { key: 'rejected', label: 'Turned away', value: formatShare(totals.rejected / Math.max(attempts, 1)), info: `${writeFigure(totals.rejected)} receipts that did not check out with the store: forged, replayed or altered. Nothing was granted.` },
-    { key: 'sandbox', label: 'Test purchases', value: writeFigure(totals.sandbox, { compact: true }), exact: writeFigure(totals.sandbox), info: 'Made by TestFlight and license-tester accounts: verified, granted in the game, and kept out of revenue.' }
+    { key: 'purchases', label: 'Purchases', value: seen.value ? writeFigure(totals.purchases, { compact: true }) : null, exact: seen.value ? writeFigure(totals.purchases) : undefined, trend: comparable ? trendOf(totals.purchases, totals.previous_purchases) : undefined, info: 'Purchases that count. Test purchases and receipts turned away are not.' },
+    { key: 'sales', label: 'Sales', value: any ? writeMoney(gross, usd.value) : null, exact: any ? writeExactMoney(gross, usd.value) : undefined, trend: comparable ? trendOf(gross, previousGross) : undefined, info: `What players paid for them, ${currencyWords(revenue)}, before refunds and the stores' share.` },
+    { key: 'average', label: 'Average purchase', value: bought ? writeExactMoney(average, usd.value) : null, trend: comparable ? trendOf(average, previousAverage) : undefined, info: `What a purchase is worth, ${currencyWords(revenue)}.` },
+    { key: 'buyers', label: 'Buyers', value: buyers === null ? null : writeFigure(buyers, { compact: true }), exact: buyers === null ? undefined : writeFigure(buyers), info: `Different players with at least one purchase${revenue.approximate ? ', counted approximately' : ''}.${held}` },
+    { key: 'per-buyer', label: 'Purchases per buyer', value: buyers ? (totals.purchases / buyers).toFixed(1) : null, info: `How often a buyer came back to the shop in the range.${held}` },
+    { key: 'first', label: 'First purchases', value: first === null ? null : writeFigure(first, { compact: true }), exact: first === null ? undefined : writeFigure(first), info: 'Players whose first purchase ever was in the range: new buyers. Not narrowed by the filters.' },
+    { key: 'refunded', label: 'Refunded', value: bought ? formatShare(totals.refunds / totals.purchases) : null, info: `${writeFigure(totals.refunds)} purchases given back by the stores or through players' banks. Verified stores only.` },
+    { key: 'rejected', label: 'Turned away', value: attempts ? formatShare(totals.rejected / attempts) : null, info: `${writeFigure(totals.rejected)} receipts that did not check out with the store: forged, replayed or altered. Nothing was granted.` },
+    { key: 'sandbox', label: 'Test purchases', value: seen.value ? writeFigure(totals.sandbox, { compact: true }) : null, exact: seen.value ? writeFigure(totals.sandbox) : undefined, info: 'Made by TestFlight and license-tester accounts: verified, granted in the game, and kept out of revenue.' }
   ]
 })
 
@@ -243,6 +264,9 @@ function downloadLedger() {
   ])
   downloadCsv(`purchases-${period.value.from}-to-${period.value.to}`, [header, ...lines])
 }
+
+/* No project yet: nothing to ask the API about, so the page says so instead of drawing zeros. */
+const workspace = useWorkspaceStore()
 </script>
 
 <template>
@@ -269,7 +293,14 @@ function downloadLedger() {
       what="purchases"
       @retry="reload"
     >
-      <template v-if="data">
+      <LayerCard v-if="!workspace.projectPath" :padded="false">
+        <EmptyState
+          description="Make a project from the project menu and send events with its SDK key: its purchases show here."
+          icon="material-symbols:sports-esports-outline"
+          title="No project yet"
+        />
+      </LayerCard>
+      <template v-else-if="data">
         <KpiBoard
           :description="`Purchases in ${periodWords}, against the same number of days before.`"
           :items="board"
@@ -284,7 +315,14 @@ function downloadLedger() {
 
         <!-- Where: every market in a row of its own, the list flowing into two columns on one scale. -->
         <SectionCard description="Where purchases are made, by revenue, with how many and what a purchase is worth there." title="Sales by country">
+          <NoDataPlaceholder
+            v-if="!pending && !countryRows.length"
+            :height="120"
+            :seed="17"
+            label="No data yet"
+          />
           <ShareList
+            v-else
             :loading="pending"
             :rows="countryRows"
             :skeleton-rows="12"
@@ -298,7 +336,14 @@ function downloadLedger() {
 
         <div class="grid gap-5 lg:grid-cols-2">
           <SectionCard description="Where the purchases below were made." title="By store">
+            <NoDataPlaceholder
+              v-if="!pending && !storeRows.length"
+              :height="120"
+              :seed="19"
+              label="No data yet"
+            />
             <ShareList
+              v-else
               :loading="pending"
               :rows="storeRows"
               :skeleton-rows="4"

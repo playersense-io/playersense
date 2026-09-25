@@ -16,23 +16,30 @@ const money = computed(() => props.revenue?.money ?? null)
 const refunds = computed(() => props.revenue?.refunds ?? null)
 const totals = computed(() => props.revenue?.totals ?? null)
 
+/* An empty range comes back as zeros the API filled in: no data, drawn as a dash and the no-data
+   mark. With purchases in the range, no refund is a real zero and is shown as one. */
+const spread = computed(() => revenueSpread(props.revenue))
+const NONE = '–'
+
 const facts = computed<Fact[]>(() => {
   const all = totals.value
   if (!all) return []
+  const { any, bought } = spread.value
   const rate = all.purchases ? all.refunds / all.purchases : 0
   const amount = money.value ? money.value.refunded : all.refunded_micros / 1_000_000
   const gross = money.value ? money.value.gross : all.revenue_micros / 1_000_000
+  const median = refunds.value && all.refunds > 0 ? refunds.value.median_days : null
   return [
-    { key: 'amount', label: 'Refunded', value: writeExactMoney(amount, Boolean(money.value)), mono: true, note: `${formatShare(gross ? amount / gross : 0)} of gross` },
-    { key: 'count', label: 'Refunds', value: writeFigure(all.refunds), mono: true, note: `${formatShare(rate)} of purchases` },
-    { key: 'days', label: 'Median days to refund', value: refunds.value ? `${writeFigure(refunds.value.median_days, { decimals: 1 })} days` : 'None yet', mono: true, note: 'From purchase to refund' }
+    { key: 'amount', label: 'Refunded', value: any ? writeExactMoney(amount, Boolean(money.value)) : NONE, mono: true, note: any && gross ? `${formatShare(amount / gross)} of gross` : 'Of gross' },
+    { key: 'count', label: 'Refunds', value: any ? writeFigure(all.refunds) : NONE, mono: true, note: bought ? `${formatShare(rate)} of purchases` : 'Of purchases' },
+    { key: 'days', label: 'Median days to refund', value: median === null ? NONE : `${writeFigure(median, { decimals: 1 })} days`, mono: true, note: 'From purchase to refund' }
   ]
 })
 
 const categories = computed(() => (money.value?.days ?? []).map(day => dayLabel(day.day)))
 const series = computed<MetricSeries[]>(() => [{
   name: 'Refunded',
-  data: (money.value?.days ?? []).map(day => Math.round(day.refunded * 100) / 100),
+  data: (money.value?.days ?? []).map((day, index) => dayPoint(day.refunded, props.revenue?.days[index]?.withheld, spread.value.any)),
   type: 'bar',
   tone: 2
 }])

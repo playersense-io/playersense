@@ -54,8 +54,9 @@ const facts = computed<Fact[]>(() => {
     {
       key: 'payback',
       label: 'Payback day',
-      value: payback === null ? `Not by D${lastDay.value}` : `D${payback}`,
-      note: payback === null ? 'LTV is still under the CPI' : 'LTV first reaches the CPI',
+      /* With no cohort to read, there is no day to have missed: a dash, not "Not by D0". */
+      value: !days.value.length ? '–' : payback === null ? `Not by D${lastDay.value}` : `D${payback}`,
+      note: !days.value.length ? 'No cohort in the range yet' : payback === null ? 'LTV is still under the CPI' : 'LTV first reaches the CPI',
       mono: true
     },
     { key: 'd7', label: 'ROAS on day 7', value: percent(roasAt(all, 7)), mono: true },

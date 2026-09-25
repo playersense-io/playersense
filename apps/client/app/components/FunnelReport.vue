@@ -78,47 +78,53 @@ const worstStep = computed(() => {
   return worst
 })
 
+/* Nobody entered step 1 (or too few to show): the funnel has nothing behind it, so every figure
+   is a dash and the pictures show the no-data mark, as FunnelChart does. */
+const nobody = computed(() => !data.value.total.players[0])
+
 const board = computed<Kpi[]>(() => {
   const { total, previous, medianToConvert } = data.value
-  const entered = total.players[0] ?? null
-  const converted = last(total.players) ?? null
-  const rate = conversionOf(total)
+  const empty = nobody.value
+  const entered = empty ? null : total.players[0] ?? null
+  const converted = empty ? null : last(total.players) ?? null
+  const rate = empty ? null : conversionOf(total)
   const previousRate = conversionOf(previous)
-  const worst = worstStep.value
+  const worst = empty ? null : worstStep.value
+  const held = ` Held back when fewer than ${threshold.value} players, too few to show.`
   return [
     {
       key: 'entered',
       label: 'Entered',
-      value: entered === null ? '–' : writeFigure(entered, { compact: true }),
+      value: entered === null ? null : writeFigure(entered, { compact: true }),
       exact: entered === null ? undefined : writeFigure(entered),
       trend: entered !== null && previous.players[0] ? trendOf(entered, previous.players[0]) : undefined,
-      info: 'Players who did step 1 in the range, counted once however often they did it.'
+      info: `Players who did step 1 in the range, counted once however often they did it.${held}`
     },
     {
       key: 'converted',
       label: 'Converted',
-      value: converted === null ? `<${threshold.value}` : writeFigure(converted, { compact: true }),
+      value: converted === null ? null : writeFigure(converted, { compact: true }),
       exact: converted === null ? undefined : writeFigure(converted),
       trend: converted !== null && last(previous.players) ? trendOf(converted, last(previous.players)!) : undefined,
-      info: `Players who went on to do every step, in order, ${windowWords.value} of step 1.`
+      info: `Players who went on to do every step, in order, ${windowWords.value} of step 1.${held}`
     },
     {
       key: 'conversion',
       label: 'Conversion',
-      value: rate === null ? '–' : percent(rate),
+      value: rate === null ? null : percent(rate),
       trend: rate !== null && previousRate !== null ? trendOf(rate, previousRate) : undefined,
       info: 'Converted over entered.'
     },
     {
       key: 'time',
       label: 'Median time to convert',
-      value: medianToConvert === null ? '–' : formatSeconds(medianToConvert),
+      value: empty || medianToConvert === null ? null : formatSeconds(medianToConvert),
       info: 'From step 1 to the last step, for the players who converted.'
     },
     {
       key: 'drop',
       label: worst ? `Biggest drop · step ${worst.step} → ${worst.step + 1}` : 'Biggest drop',
-      value: worst ? percent(worst.lost) : '–',
+      value: worst ? percent(worst.lost) : null,
       info: worst
         ? `The share of players who reached ${props.definition.steps[worst.step - 1]?.event} and did not go on to ${props.definition.steps[worst.step]?.event}.`
         : 'No step can be compared yet.'
@@ -193,7 +199,7 @@ const trendSeries = computed<MetricSeries[]>(() => {
   // Every player's conversion: the API trends the funnel as a whole, not each breakdown value.
   // The points whose players are still inside their window are drawn apart, dashed, joined
   // to the last settled one: they will rise, and read as settled they look like a slump.
-  const rates = series[0]?.rates ?? []
+  const rates = nobody.value ? [] : series[0]?.rates ?? []
   const lastSettled = settled.lastIndexOf(true)
   return [
     { name: 'Conversion', data: rates.map((rate, index) => (settled[index] ? toPercent(rate) : null)), type: 'area', tone: 1 },
@@ -218,7 +224,8 @@ const trendDescription = computed(() => {
 
 const timeCategories = computed(() => data.value.timeToConvert.map(bucket => bucket.label))
 const timeSeries = computed<MetricSeries[]>(() => [
-  { name: 'Players', data: data.value.timeToConvert.map(bucket => bucket.players), type: 'bar', tone: 1 }
+  /* Nobody converted: no buckets to draw, so every one is a gap and the chart shows the no-data mark. */
+  { name: 'Players', data: data.value.timeToConvert.map(bucket => (nobody.value || !last(data.value.total.players) ? null : bucket.players)), type: 'bar', tone: 1 }
 ])
 </script>
 
@@ -267,8 +274,11 @@ const timeSeries = computed<MetricSeries[]>(() => [
           />
         </template>
 
+        <div v-if="funnelView === 'table' && nobody" class="p-5">
+          <NoDataPlaceholder :height="240" :seed="definition.steps.length" label="No data yet" />
+        </div>
         <FunnelStepTable
-          v-if="funnelView === 'table'"
+          v-else-if="funnelView === 'table'"
           :breakdown="data.breakdown"
           :steps="definition.steps"
           :threshold="threshold"
@@ -284,7 +294,7 @@ const timeSeries = computed<MetricSeries[]>(() => [
           />
         </div>
 
-        <div v-if="funnelView === 'chart' && breakdown !== 'none'" class="overflow-x-auto border-t border-line">
+        <div v-if="funnelView === 'chart' && breakdown !== 'none' && !nobody" class="overflow-x-auto border-t border-line">
           <table class="w-full border-separate border-spacing-0 text-xs">
             <thead>
               <tr class="text-ink/55">
