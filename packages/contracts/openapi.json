@@ -9625,6 +9625,705 @@
         }
       }
     },
+    "/v1/organizations/{org}/notification-channels": {
+      "get": {
+        "tags": [
+          "notifications"
+        ],
+        "summary": "Channels a rule of the organization can notify",
+        "description": "Every channel in the organization's projects, by name and type. Where each sends is shown by its project.",
+        "operationId": "get_v1_organizations_by_org_notification_channels",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "description": "The organization's slug",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrgChannelListOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not do that",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The organization, project or rule does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/organizations/{org}/notification-events": {
+      "get": {
+        "tags": [
+          "notifications"
+        ],
+        "summary": "What a notification rule can hear",
+        "description": "Every event type, the organization's own (its account and money) and its projects', with a headline, a sentence, and whether the owners are always emailed about it.",
+        "operationId": "get_v1_organizations_by_org_notification_events",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "description": "The organization's slug",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationKindsOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not do that",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The organization, project or rule does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/organizations/{org}/notification-rules": {
+      "get": {
+        "tags": [
+          "notifications"
+        ],
+        "summary": "List the organization's notification rules",
+        "operationId": "get_v1_organizations_by_org_notification_rules",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "description": "The organization's slug",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationRuleListOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not do that",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The organization, project or rule does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "notifications"
+        ],
+        "summary": "Make a rule of the organization",
+        "description": "For the organization's own events: a failed top-up, a balance below zero, a suspension. Its channels may be any project's. The owners, admins and billing members are emailed about these whatever the rules say.",
+        "operationId": "post_v1_organizations_by_org_notification_rules",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "NotificationRuleBody": {
+                    "$ref": "#/components/schemas/NotificationRuleBody"
+                  }
+                },
+                "required": [
+                  "NotificationRuleBody"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationRuleOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not do that",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The organization, project or rule does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "An event the rule's scope does not have, an unknown environment, or a channel it cannot reach",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/organizations/{org}/notification-rules/{rule}": {
+      "put": {
+        "tags": [
+          "notifications"
+        ],
+        "summary": "Change a rule of the organization",
+        "operationId": "put_v1_organizations_by_org_notification_rules_by_rule",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "rule",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "NotificationRuleBody": {
+                    "$ref": "#/components/schemas/NotificationRuleBody"
+                  }
+                },
+                "required": [
+                  "NotificationRuleBody"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationRuleOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not do that",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The organization, project or rule does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "An event the rule's scope does not have, an unknown environment, or a channel it cannot reach",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "notifications"
+        ],
+        "summary": "Remove a rule of the organization",
+        "operationId": "delete_v1_organizations_by_org_notification_rules_by_rule",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "rule",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not do that",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The organization, project or rule does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/organizations/{org}/notification-rules/{rule}/test": {
+      "post": {
+        "tags": [
+          "notifications"
+        ],
+        "summary": "Send a test of a rule of the organization",
+        "operationId": "post_v1_organizations_by_org_notification_rules_by_rule_test",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "rule",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationRuleTestOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not do that",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The organization, project or rule does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "An event the rule's scope does not have, an unknown environment, or a channel it cannot reach",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/organizations/{org}/projects": {
       "get": {
         "tags": [
@@ -20447,6 +21146,564 @@
         }
       }
     },
+    "/v1/organizations/{org}/projects/{project}/notification-rules": {
+      "get": {
+        "tags": [
+          "notifications"
+        ],
+        "summary": "List a project's notification rules",
+        "operationId": "get_v1_organizations_by_org_projects_by_project_notification_rules",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "description": "The organization's slug",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "project",
+            "in": "path",
+            "description": "The project's slug",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationRuleListOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not do that",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The organization, project or rule does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "notifications"
+        ],
+        "summary": "Make a notification rule",
+        "description": "These events, from these environments, to these channels, at most this often. The channels are the project's own.",
+        "operationId": "post_v1_organizations_by_org_projects_by_project_notification_rules",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "project",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "NotificationRuleBody": {
+                    "$ref": "#/components/schemas/NotificationRuleBody"
+                  }
+                },
+                "required": [
+                  "NotificationRuleBody"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationRuleOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not do that",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The organization, project or rule does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "An event the rule's scope does not have, an unknown environment, or a channel it cannot reach",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/organizations/{org}/projects/{project}/notification-rules/{rule}": {
+      "put": {
+        "tags": [
+          "notifications"
+        ],
+        "summary": "Change a notification rule",
+        "operationId": "put_v1_organizations_by_org_projects_by_project_notification_rules_by_rule",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "project",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "rule",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "NotificationRuleBody": {
+                    "$ref": "#/components/schemas/NotificationRuleBody"
+                  }
+                },
+                "required": [
+                  "NotificationRuleBody"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationRuleOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not do that",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The organization, project or rule does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "An event the rule's scope does not have, an unknown environment, or a channel it cannot reach",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "notifications"
+        ],
+        "summary": "Remove a notification rule",
+        "operationId": "delete_v1_organizations_by_org_projects_by_project_notification_rules_by_rule",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "project",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "rule",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not do that",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The organization, project or rule does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/organizations/{org}/projects/{project}/notification-rules/{rule}/test": {
+      "post": {
+        "tags": [
+          "notifications"
+        ],
+        "summary": "Send a rule's test",
+        "description": "A sample of the rule's first event, sent now to each of its channels, marked as a test and kept in each channel's log.",
+        "operationId": "post_v1_organizations_by_org_projects_by_project_notification_rules_by_rule_test",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "project",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "rule",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationRuleTestOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not do that",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The organization, project or rule does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "An event the rule's scope does not have, an unknown environment, or a channel it cannot reach",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/organizations/{org}/projects/{project}/privacy": {
       "get": {
         "tags": [
@@ -28927,6 +30184,10 @@
             "type": "string",
             "format": "date-time"
           },
+          "diagnostics": {
+            "type": "boolean",
+            "description": "Whether the player agreed to share error reports, apart from analytics"
+          },
           "gdpr_applies": {
             "type": "boolean"
           },
@@ -34159,6 +35420,253 @@
           "total"
         ]
       },
+      "NotificationKindOut": {
+        "type": "object",
+        "properties": {
+          "emitted": {
+            "type": "boolean",
+            "description": "Whether PlayerSense sends it yet"
+          },
+          "environments": {
+            "type": "boolean",
+            "description": "Whether a rule's environments apply to it"
+          },
+          "group": {
+            "type": "string"
+          },
+          "owners": {
+            "type": "boolean",
+            "description": "Owners, admins and billing members are always emailed, at most once a day"
+          },
+          "scope": {
+            "type": "string",
+            "description": "project or organization"
+          },
+          "severity": {
+            "type": "string",
+            "description": "critical, error, warning or info"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "emitted",
+          "environments",
+          "group",
+          "owners",
+          "scope",
+          "severity",
+          "summary",
+          "title",
+          "type"
+        ]
+      },
+      "NotificationKindsOut": {
+        "type": "object",
+        "properties": {
+          "kinds": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NotificationKindOut"
+            }
+          }
+        },
+        "required": [
+          "kinds"
+        ]
+      },
+      "NotificationRuleBody": {
+        "type": "object",
+        "properties": {
+          "channels": {
+            "type": "array",
+            "description": "The channels it notifies",
+            "items": {
+              "type": "string"
+            }
+          },
+          "cooldown_minutes": {
+            "type": "integer",
+            "format": "int64",
+            "description": "At most one notification per event type this often; 0 is every event"
+          },
+          "enabled": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Defaults to on"
+          },
+          "environments": {
+            "type": "array",
+            "description": "production, staging, development; none is every environment",
+            "items": {
+              "type": "string"
+            }
+          },
+          "events": {
+            "type": "array",
+            "description": "Event types, or * for every event of the rule's scope",
+            "items": {
+              "type": "string"
+            }
+          },
+          "muted_until": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Quiet until then; null is not muted"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "channels",
+          "events",
+          "name"
+        ]
+      },
+      "NotificationRuleListOut": {
+        "type": "object",
+        "properties": {
+          "rules": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NotificationRuleOut"
+            }
+          }
+        },
+        "required": [
+          "rules"
+        ]
+      },
+      "NotificationRuleOut": {
+        "type": "object",
+        "properties": {
+          "channels": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "cooldown_minutes": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "created_by": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "environments": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "id": {
+            "type": "string"
+          },
+          "last_fired_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "muted_until": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "name": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string",
+            "description": "project or organization"
+          },
+          "updated_by": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "channels",
+          "cooldown_minutes",
+          "created_at",
+          "enabled",
+          "environments",
+          "events",
+          "id",
+          "name",
+          "scope"
+        ]
+      },
+      "NotificationRuleTestOut": {
+        "type": "object",
+        "properties": {
+          "channels": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NotificationRuleTestResult"
+            }
+          },
+          "type": {
+            "type": "string",
+            "description": "The event type the sample was made of"
+          }
+        },
+        "required": [
+          "channels",
+          "type"
+        ]
+      },
+      "NotificationRuleTestResult": {
+        "type": "object",
+        "properties": {
+          "channel_id": {
+            "type": "string"
+          },
+          "detail": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "channel_id",
+          "detail",
+          "name",
+          "ok"
+        ]
+      },
       "NotifyOutcomeOut": {
         "type": "object",
         "properties": {
@@ -35147,6 +36655,48 @@
           "outbox",
           "outbox_oldest_s",
           "retrying"
+        ]
+      },
+      "OrgChannelListOut": {
+        "type": "object",
+        "properties": {
+          "channels": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrgChannelOut"
+            }
+          }
+        },
+        "required": [
+          "channels"
+        ]
+      },
+      "OrgChannelOut": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "project": {
+            "type": "string",
+            "description": "The project it is set up in"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "enabled",
+          "id",
+          "name",
+          "project",
+          "type"
         ]
       },
       "OrganizationListOut": {
@@ -40649,6 +42199,9 @@
     },
     {
       "name": "channels"
+    },
+    {
+      "name": "notifications"
     },
     {
       "name": "webhooks"

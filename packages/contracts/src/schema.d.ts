@@ -1520,6 +1520,102 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/v1/organizations/{org}/notification-channels": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * Channels a rule of the organization can notify
+         * @description Every channel in the organization's projects, by name and type. Where each sends is shown by its project.
+         */
+        readonly get: operations["get_v1_organizations_by_org_notification_channels"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/organizations/{org}/notification-events": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * What a notification rule can hear
+         * @description Every event type, the organization's own (its account and money) and its projects', with a headline, a sentence, and whether the owners are always emailed about it.
+         */
+        readonly get: operations["get_v1_organizations_by_org_notification_events"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/organizations/{org}/notification-rules": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** List the organization's notification rules */
+        readonly get: operations["get_v1_organizations_by_org_notification_rules"];
+        readonly put?: never;
+        /**
+         * Make a rule of the organization
+         * @description For the organization's own events: a failed top-up, a balance below zero, a suspension. Its channels may be any project's. The owners, admins and billing members are emailed about these whatever the rules say.
+         */
+        readonly post: operations["post_v1_organizations_by_org_notification_rules"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/organizations/{org}/notification-rules/{rule}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        /** Change a rule of the organization */
+        readonly put: operations["put_v1_organizations_by_org_notification_rules_by_rule"];
+        readonly post?: never;
+        /** Remove a rule of the organization */
+        readonly delete: operations["delete_v1_organizations_by_org_notification_rules_by_rule"];
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/organizations/{org}/notification-rules/{rule}/test": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /** Send a test of a rule of the organization */
+        readonly post: operations["post_v1_organizations_by_org_notification_rules_by_rule_test"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/v1/organizations/{org}/projects": {
         readonly parameters: {
             readonly query?: never;
@@ -2773,6 +2869,65 @@ export interface paths {
         readonly get: operations["get_v1_organizations_by_org_projects_by_project_logs_by_environment_summary"];
         readonly put?: never;
         readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/organizations/{org}/projects/{project}/notification-rules": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** List a project's notification rules */
+        readonly get: operations["get_v1_organizations_by_org_projects_by_project_notification_rules"];
+        readonly put?: never;
+        /**
+         * Make a notification rule
+         * @description These events, from these environments, to these channels, at most this often. The channels are the project's own.
+         */
+        readonly post: operations["post_v1_organizations_by_org_projects_by_project_notification_rules"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/organizations/{org}/projects/{project}/notification-rules/{rule}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        /** Change a notification rule */
+        readonly put: operations["put_v1_organizations_by_org_projects_by_project_notification_rules_by_rule"];
+        readonly post?: never;
+        /** Remove a notification rule */
+        readonly delete: operations["delete_v1_organizations_by_org_projects_by_project_notification_rules_by_rule"];
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/organizations/{org}/projects/{project}/notification-rules/{rule}/test": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Send a rule's test
+         * @description A sample of the rule's first event, sent now to each of its channels, marked as a test and kept in each channel's log.
+         */
+        readonly post: operations["post_v1_organizations_by_org_projects_by_project_notification_rules_by_rule_test"];
         readonly delete?: never;
         readonly options?: never;
         readonly head?: never;
@@ -4424,6 +4579,8 @@ export interface components {
             readonly att_status?: string;
             /** Format: date-time */
             readonly collected_at?: string;
+            /** @description Whether the player agreed to share error reports, apart from analytics */
+            readonly diagnostics?: boolean;
             readonly gdpr_applies?: boolean;
             /** @description Which version of the terms they agreed to */
             readonly policy_version: string;
@@ -6305,6 +6462,80 @@ export interface components {
             /** Format: int64 */
             readonly total: number;
         };
+        readonly NotificationKindOut: {
+            /** @description Whether PlayerSense sends it yet */
+            readonly emitted: boolean;
+            /** @description Whether a rule's environments apply to it */
+            readonly environments: boolean;
+            readonly group: string;
+            /** @description Owners, admins and billing members are always emailed, at most once a day */
+            readonly owners: boolean;
+            /** @description project or organization */
+            readonly scope: string;
+            /** @description critical, error, warning or info */
+            readonly severity: string;
+            readonly summary: string;
+            readonly title: string;
+            readonly type: string;
+        };
+        readonly NotificationKindsOut: {
+            readonly kinds: readonly components["schemas"]["NotificationKindOut"][];
+        };
+        readonly NotificationRuleBody: {
+            /** @description The channels it notifies */
+            readonly channels: readonly string[];
+            /**
+             * Format: int64
+             * @description At most one notification per event type this often; 0 is every event
+             */
+            readonly cooldown_minutes?: number;
+            /** @description Defaults to on */
+            readonly enabled?: boolean | null;
+            /** @description production, staging, development; none is every environment */
+            readonly environments?: readonly string[];
+            /** @description Event types, or * for every event of the rule's scope */
+            readonly events: readonly string[];
+            /**
+             * Format: date-time
+             * @description Quiet until then; null is not muted
+             */
+            readonly muted_until?: string | null;
+            readonly name: string;
+        };
+        readonly NotificationRuleListOut: {
+            readonly rules: readonly components["schemas"]["NotificationRuleOut"][];
+        };
+        readonly NotificationRuleOut: {
+            readonly channels: readonly string[];
+            /** Format: int64 */
+            readonly cooldown_minutes: number;
+            /** Format: date-time */
+            readonly created_at: string;
+            readonly created_by?: string;
+            readonly enabled: boolean;
+            readonly environments: readonly string[];
+            readonly events: readonly string[];
+            readonly id: string;
+            /** Format: date-time */
+            readonly last_fired_at?: string | null;
+            /** Format: date-time */
+            readonly muted_until?: string | null;
+            readonly name: string;
+            /** @description project or organization */
+            readonly scope: string;
+            readonly updated_by?: string;
+        };
+        readonly NotificationRuleTestOut: {
+            readonly channels: readonly components["schemas"]["NotificationRuleTestResult"][];
+            /** @description The event type the sample was made of */
+            readonly type: string;
+        };
+        readonly NotificationRuleTestResult: {
+            readonly channel_id: string;
+            readonly detail: string;
+            readonly name: string;
+            readonly ok: boolean;
+        };
         readonly NotifyOutcomeOut: {
             readonly body?: string;
             readonly lines?: readonly string[];
@@ -6629,6 +6860,17 @@ export interface components {
             readonly outbox_oldest_s: number;
             /** Format: int64 */
             readonly retrying: number;
+        };
+        readonly OrgChannelListOut: {
+            readonly channels: readonly components["schemas"]["OrgChannelOut"][];
+        };
+        readonly OrgChannelOut: {
+            readonly enabled: boolean;
+            readonly id: string;
+            readonly name: string;
+            /** @description The project it is set up in */
+            readonly project: string;
+            readonly type: string;
         };
         readonly OrganizationListOut: {
             readonly organizations: readonly components["schemas"]["OrganizationOut"][];
@@ -15291,6 +15533,554 @@ export interface operations {
             };
         };
     };
+    readonly get_v1_organizations_by_org_notification_channels: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                /** @description The organization's slug */
+                readonly org: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["OrgChannelListOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not do that */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The organization, project or rule does not exist */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly get_v1_organizations_by_org_notification_events: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                /** @description The organization's slug */
+                readonly org: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["NotificationKindsOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not do that */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The organization, project or rule does not exist */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly get_v1_organizations_by_org_notification_rules: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                /** @description The organization's slug */
+                readonly org: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["NotificationRuleListOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not do that */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The organization, project or rule does not exist */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly post_v1_organizations_by_org_notification_rules: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly org: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": {
+                    readonly NotificationRuleBody: components["schemas"]["NotificationRuleBody"];
+                };
+            };
+        };
+        readonly responses: {
+            /** @description Created */
+            readonly 201: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["NotificationRuleOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not do that */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The organization, project or rule does not exist */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An event the rule's scope does not have, an unknown environment, or a channel it cannot reach */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly put_v1_organizations_by_org_notification_rules_by_rule: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly org: string;
+                readonly rule: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": {
+                    readonly NotificationRuleBody: components["schemas"]["NotificationRuleBody"];
+                };
+            };
+        };
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["NotificationRuleOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not do that */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The organization, project or rule does not exist */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An event the rule's scope does not have, an unknown environment, or a channel it cannot reach */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly delete_v1_organizations_by_org_notification_rules_by_rule: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly org: string;
+                readonly rule: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description No Content */
+            readonly 204: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not do that */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The organization, project or rule does not exist */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly post_v1_organizations_by_org_notification_rules_by_rule_test: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly org: string;
+                readonly rule: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["NotificationRuleTestOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not do that */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The organization, project or rule does not exist */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An event the rule's scope does not have, an unknown environment, or a channel it cannot reach */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     readonly get_v1_organizations_by_org_projects: {
         readonly parameters: {
             readonly query?: never;
@@ -22372,6 +23162,406 @@ export interface operations {
                 };
             };
             /** @description The logs could not be read */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly get_v1_organizations_by_org_projects_by_project_notification_rules: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                /** @description The organization's slug */
+                readonly org: string;
+                /** @description The project's slug */
+                readonly project: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["NotificationRuleListOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not do that */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The organization, project or rule does not exist */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly post_v1_organizations_by_org_projects_by_project_notification_rules: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly org: string;
+                readonly project: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": {
+                    readonly NotificationRuleBody: components["schemas"]["NotificationRuleBody"];
+                };
+            };
+        };
+        readonly responses: {
+            /** @description Created */
+            readonly 201: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["NotificationRuleOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not do that */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The organization, project or rule does not exist */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An event the rule's scope does not have, an unknown environment, or a channel it cannot reach */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly put_v1_organizations_by_org_projects_by_project_notification_rules_by_rule: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly org: string;
+                readonly project: string;
+                readonly rule: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": {
+                    readonly NotificationRuleBody: components["schemas"]["NotificationRuleBody"];
+                };
+            };
+        };
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["NotificationRuleOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not do that */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The organization, project or rule does not exist */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An event the rule's scope does not have, an unknown environment, or a channel it cannot reach */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly delete_v1_organizations_by_org_projects_by_project_notification_rules_by_rule: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly org: string;
+                readonly project: string;
+                readonly rule: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description No Content */
+            readonly 204: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not do that */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The organization, project or rule does not exist */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly post_v1_organizations_by_org_projects_by_project_notification_rules_by_rule_test: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly org: string;
+                readonly project: string;
+                readonly rule: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["NotificationRuleTestOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not do that */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The organization, project or rule does not exist */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An event the rule's scope does not have, an unknown environment, or a channel it cannot reach */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
             readonly 503: {
                 headers: {
                     readonly [name: string]: unknown;

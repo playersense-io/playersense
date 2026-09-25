@@ -475,6 +475,7 @@ func build(settings config.Settings, overrides ...muzak.RouterOption) (*muzak.Ap
 	api.Include(routers.SavedFunnels())
 	api.Include(routers.PrivacyRequests())
 	api.Include(routers.Channels())
+	api.Include(routers.Notifications())
 	api.Include(routers.Reports())
 	api.Include(routers.Stores())
 	api.Include(routers.Webhooks())

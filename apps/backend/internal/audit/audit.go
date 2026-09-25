@@ -99,9 +99,12 @@ const (
 
 	ChannelWritten Action = "channel.write"
 	ChannelDeleted Action = "channel.delete"
-	ReportWritten  Action = "report.write"
-	ReportDeleted  Action = "report.delete"
-	FunnelDeleted  Action = "funnel.delete"
+	// A notification rule: which events reach which channels (ADR 0051).
+	NotificationRuleWritten Action = "notification_rule.write"
+	NotificationRuleDeleted Action = "notification_rule.delete"
+	ReportWritten           Action = "report.write"
+	ReportDeleted           Action = "report.delete"
+	FunnelDeleted           Action = "funnel.delete"
 
 	// A store the project verifies purchases with: connected or changed, disconnected, and its
 	// notification URL replaced.
