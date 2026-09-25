@@ -48,7 +48,8 @@ func (w Window) Previous() Window {
 // end is the first instant after the window, for timestamp columns.
 func (w Window) end() time.Time { return w.To.AddDate(0, 0, 1) }
 
-func date(t time.Time) string      { return t.Format("2006-01-02") }
+// date is a UTC day, as every day column is kept; a time read from Postgres is in local time.
+func date(t time.Time) string      { return t.UTC().Format("2006-01-02") }
 func timestamp(t time.Time) string { return t.UTC().Format("2006-01-02 15:04:05") }
 
 // Suppressed reports what a page withheld and under which threshold (§32.2), in the shape every
