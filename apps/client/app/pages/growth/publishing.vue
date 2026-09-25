@@ -15,9 +15,31 @@
 // Restoring an old version into the draft is the other way back, for when the draft itself
 // should start again from it.
 //
-// Sample data (app/utils/flags-sample.ts). The API has no route yet to list an environment's
-// versions or read an old document back; this is what that route will return.
-const { flags, segments, versions, audit, latest, draftCheck, restoreDraft } = useLiveConfig()
+// Versions are each environment's list (GET …/config/{environment}/versions); an old one's
+// document is read when it is opened. Edits are the audit log's.
+const { flags, segments, versions, audit, latest, draftCheck, restoreDraft, loadVersion, loading, error, reload } = useLiveConfig()
+
+const problem = ref('')
+const notice = ref('')
+
+/* An older version's document is read before it is shown or restored. */
+async function withDocument(version: ConfigVersionDef, then: (loaded: ConfigVersionDef) => void) {
+  problem.value = ''
+  try {
+    const loaded = await loadVersion(version.environment, version.version)
+    if (loaded) then(loaded)
+  } catch (caught) {
+    problem.value = caught instanceof Error ? caught.message : String(caught)
+  }
+}
+
+async function restore(version: ConfigVersionDef) {
+  const out = await restoreDraft(version)
+  problem.value = out.problem ?? ''
+  notice.value = out.problem
+    ? ''
+    : `Your draft is ${ENVIRONMENT_LABELS[version.environment]} v${version.version} again.${out.skipped.length ? ` Left as they are, because their kind changed since: ${out.skipped.join(', ')}.` : ''}`
+}
 
 const check = computed(() => draftCheck())
 
@@ -171,7 +193,7 @@ const viewOpen = computed({
     if (!value) viewing.value = null
   }
 })
-const documentText = computed(() => (viewing.value ? JSON.stringify(compileDocument(viewing.value.version, viewing.value.flags, viewing.value.segments), null, 2) : ''))
+const documentText = computed(() => (viewing.value ? JSON.stringify(compileDocument(viewing.value.version, viewing.value.flags, []), null, 2) : ''))
 
 /* The draft's technical side, folded away until somebody asks for it. */
 const detailsOpen = ref(false)
@@ -210,215 +232,229 @@ const restoreWords = computed(() => {
       </template>
     </PageHeader>
 
-    <!-- Where things stand, in a sentence, then the three places a change goes. -->
-    <section class="flex flex-col gap-4">
-      <div class="flex items-start gap-4">
-        <span :class="STATUS_LOOK[status.tone]" aria-hidden="true" class="flex size-11 flex-none items-center justify-center rounded-(--ps-radius-large)">
-          <Icon :name="status.icon" class="text-2xl" />
-        </span>
-        <div class="flex min-w-0 flex-col gap-1">
-          <h2 class="m-0 text-lg leading-tight font-semibold tracking-tight text-ink">
-            {{ status.title }}
-          </h2>
-          <p class="m-0 text-sm leading-6 text-ink/65">
-            {{ status.detail }}
-          </p>
-        </div>
-      </div>
+    <p v-if="problem" class="m-0 rounded-(--ps-radius) bg-error/6 px-3.5 py-3 text-xs text-error ring-1 ring-error/20 ring-inset">
+      {{ problem }}
+    </p>
+    <p v-if="notice" class="m-0 rounded-(--ps-radius) bg-success/8 px-3.5 py-3 text-xs text-ink/80 ring-1 ring-success/20 ring-inset">
+      {{ notice }}
+    </p>
 
-      <EnvironmentPipeline @publish="openPublish" />
-    </section>
-
-    <!-- Every change not everywhere yet: a row a change, a column a place. -->
-    <SectionCard :padded="false" description="What you have changed that some environment does not have yet." title="Your changes">
-      <EmptyState
-        v-if="!changeRows.length"
-        description="Every environment already has everything in your draft."
-        icon="material-symbols:done-all"
-        title="Nothing to publish"
-      />
-      <div v-else class="overflow-x-auto">
-        <table class="w-full min-w-[640px] border-collapse text-left">
-          <thead>
-            <tr class="border-b border-line text-[11px] text-ink/45">
-              <th class="px-5 py-2.5 font-normal">
-                Change
-              </th>
-              <th v-for="environment in ENVIRONMENTS" :key="environment" class="w-32 px-3 py-2.5 text-center font-normal">
-                {{ ENVIRONMENT_LABELS[environment] }}
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="row in changeRows" :key="`${row.kind}:${row.key}`" class="border-b border-line/70 last:border-b-0">
-              <td class="px-5 py-3">
-                <div class="flex gap-3">
-                  <Icon
-                    :class="CHANGE_LOOK[row.change].tone"
-                    :name="CHANGE_LOOK[row.change].icon"
-                    aria-hidden="true"
-                    class="mt-0.5 flex-none text-base"
-                  />
-                  <div class="flex min-w-0 flex-col gap-0.5">
-                    <span class="flex flex-wrap items-baseline gap-x-2">
-                      <NuxtLink
-                        v-if="row.kind === 'flag' && row.change !== 'removed'"
-                        :to="`/growth/flags/${encodeURIComponent(row.key)}`"
-                        class="text-[13px] text-ink no-underline hover:text-primary"
-                      >
-                        {{ flagName(row.key) }}
-                      </NuxtLink>
-                      <span v-else class="text-[13px] text-ink">{{ row.kind === 'flag' ? flagName(row.key) : segmentLabel(row.key) }}</span>
-                      <span class="text-[11px] text-ink/45">{{ CHANGE_LOOK[row.change].word }} {{ row.kind }}</span>
-                    </span>
-                    <span v-for="line in row.lines" :key="line" class="text-[11px] leading-4 text-ink/55">{{ line }}</span>
-                  </div>
-                </div>
-              </td>
-              <td v-for="environment in ENVIRONMENTS" :key="environment" class="px-3 py-3 text-center">
-                <span v-if="row.waiting.includes(environment)" class="inline-flex items-center gap-1 rounded-full bg-warning/12 px-2 py-0.5 text-[11px] text-warning">
-                  <Icon aria-hidden="true" class="text-xs" name="material-symbols:schedule-outline" />
-                  Waiting
-                </span>
-                <span v-else class="inline-flex items-center gap-1 text-[11px] text-success">
-                  <Icon aria-hidden="true" class="text-sm" name="material-symbols:check-circle-outline" />
-                  Live
-                </span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </SectionCard>
-
-    <!-- What was published and edited, everywhere, newest first. -->
-    <SectionCard :padded="false" description="Every publish to every environment, and every edit to the draft. Something went out wrong? Roll the environment back to an earlier version from its menu." title="History">
-      <template #actions>
-        <SegmentedControl v-model="historyView" :options="HISTORY_VIEWS" label="Show" />
-      </template>
-
-      <template v-if="historyView === 'publishes'">
-        <div class="border-b border-line px-5 py-2.5">
-          <SegmentedControl v-model="environmentFilter" :options="ENVIRONMENT_FILTERS" label="Environment" />
-        </div>
-        <div class="px-5 py-2">
-          <RecordTable :columns="VERSION_COLUMNS" label="Publishes">
-            <li v-for="version in publishes" :key="`${version.environment}:${version.version}`" class="record-row">
-              <span class="record-cell record-cell--primary flex items-center gap-2" data-label="Where">
-                <Tag :label="ENVIRONMENT_LABELS[version.environment]" :tone="ENVIRONMENT_TONE[version.environment]" />
-                <span class="font-mono text-[11px] text-ink/55">v{{ version.version }}</span>
-                <StatusBadge v-if="version.current" label="Live" tone="success" />
-                <v-tooltip v-if="version.rollback_of" :text="`A rollback: v${version.rollback_of}, published again`" location="top">
-                  <template #activator="{ props: tip }">
-                    <Icon
-                      v-bind="tip"
-                      aria-label="Rollback"
-                      class="text-sm text-warning"
-                      name="material-symbols:undo"
-                    />
-                  </template>
-                </v-tooltip>
-              </span>
-              <span class="record-cell text-xs text-ink/80" data-label="What it was for">{{ version.note || 'No note' }}</span>
-              <span class="record-cell flex flex-col" data-label="Published">
-                <span class="text-xs text-ink/80">{{ sinceWords(version.published_at, now) }}</span>
-                <span class="truncate text-[11px] text-ink/45">{{ version.published_by }}</span>
-              </span>
-              <span class="record-cell record-cell--end record-cell--action">
-                <v-menu location="bottom end">
-                  <template #activator="{ props: activator }">
-                    <v-btn
-                      v-bind="activator"
-                      :aria-label="`${ENVIRONMENT_LABELS[version.environment]} v${version.version} actions`"
-                      color="neutral"
-                      icon="material-symbols:more-horiz"
-                      size="small"
-                      variant="text"
-                    />
-                  </template>
-                  <v-list min-width="220" nav>
-                    <v-list-item
-                      v-if="!version.current"
-                      base-color="warning"
-                      prepend-icon="material-symbols:undo"
-                      :title="`Roll back ${ENVIRONMENT_LABELS[version.environment]} to v${version.version}`"
-                      @click="rollingBack = version"
-                    />
-                    <v-list-item prepend-icon="material-symbols:history" title="Restore into the draft" @click="restoring = version" />
-                    <v-list-item prepend-icon="material-symbols:data-object" title="View what it contained" @click="viewing = version" />
-                  </v-list>
-                </v-menu>
-              </span>
-            </li>
-            <template #empty>
-              <p v-if="!publishes.length" class="m-0 px-3 py-8 text-center text-xs text-ink/55">
-                Nothing has been published here yet.
-              </p>
-            </template>
-          </RecordTable>
-        </div>
-      </template>
-      <div v-else class="p-5">
-        <ConfigHistory :entries="edits" show-target />
-      </div>
-    </SectionCard>
-
-    <!-- The technical side of the draft, for whoever needs it. -->
-    <LayerCard
-      v-model:open="detailsOpen"
-      description="What a publish would carry, checked the way the server checks it."
-      expandable
-      title="Draft details"
+    <LoadState
+      :error="error"
+      :loading="loading && !flags.length"
+      what="the configuration"
+      @retry="reload"
     >
-      <div class="flex flex-col gap-4 p-3">
-        <dl class="m-0 grid grid-cols-2 gap-px overflow-hidden rounded-(--ps-radius) border border-line bg-line sm:grid-cols-3">
-          <div class="flex flex-col gap-1 bg-surface p-3">
-            <dt class="text-[11px] text-ink/50">
-              Compiles
-            </dt>
-            <dd :class="check.compiles ? 'text-success' : 'text-error'" class="m-0 text-sm">
-              {{ check.compiles ? 'Yes' : 'No' }}
-            </dd>
-          </div>
-          <div class="flex flex-col gap-1 bg-surface p-3">
-            <dt class="text-[11px] text-ink/50">
-              Flags
-            </dt>
-            <dd class="m-0 font-mono text-sm text-ink">
-              {{ check.flags }}
-            </dd>
-          </div>
-          <div class="flex flex-col gap-1 bg-surface p-3">
-            <dt class="text-[11px] text-ink/50">
-              Segments
-            </dt>
-            <dd class="m-0 font-mono text-sm text-ink">
-              {{ segments.filter(segment => !segment.archived).length }}
-            </dd>
-          </div>
-        </dl>
-        <p class="m-0 flex items-start gap-2 text-xs leading-5 text-ink/65">
-          <Icon aria-hidden="true" class="mt-0.5 flex-none text-sm text-ink/45" name="material-symbols:history" />
-          <span v-if="check.needsPlayerFacts">
-            Some rules read players' purchases or activity, so serving it costs a history lookup per request,
-            cached for an hour per player.
+      <!-- Where things stand, in a sentence, then the three places a change goes. -->
+      <section class="flex flex-col gap-4">
+        <div class="flex items-start gap-4">
+          <span :class="STATUS_LOOK[status.tone]" aria-hidden="true" class="flex size-11 flex-none items-center justify-center rounded-(--ps-radius-large)">
+            <Icon :name="status.icon" class="text-2xl" />
           </span>
-          <span v-else>No rule reads players' history, so a request is answered from the document alone.</span>
-        </p>
-        <div v-if="check.excluded.length" class="flex flex-col gap-1.5">
-          <span class="text-[11px] text-ink/50">Left out on purpose</span>
-          <ul class="m-0 flex list-none flex-col gap-1 p-0">
-            <li v-for="entry in check.excluded" :key="`${entry.kind}:${entry.key}`" class="flex items-center justify-between gap-2 text-xs">
-              <span class="flex min-w-0 items-center gap-2">
-                <Icon :name="entry.kind === 'flag' ? 'material-symbols:flag-outline' : 'material-symbols:group-outline'" aria-hidden="true" class="flex-none text-sm text-ink/40" />
-                <span class="truncate font-mono text-ink/80">{{ entry.key }}</span>
-              </span>
-              <span class="flex-none text-[11px] text-ink/45">{{ entry.reason }}</span>
-            </li>
-          </ul>
+          <div class="flex min-w-0 flex-col gap-1">
+            <h2 class="m-0 text-lg leading-tight font-semibold tracking-tight text-ink">
+              {{ status.title }}
+            </h2>
+            <p class="m-0 text-sm leading-6 text-ink/65">
+              {{ status.detail }}
+            </p>
+          </div>
         </div>
-      </div>
-    </LayerCard>
+
+        <EnvironmentPipeline @publish="openPublish" />
+      </section>
+
+      <!-- Every change not everywhere yet: a row a change, a column a place. -->
+      <SectionCard :padded="false" description="What you have changed that some environment does not have yet." title="Your changes">
+        <EmptyState
+          v-if="!changeRows.length"
+          description="Every environment already has everything in your draft."
+          icon="material-symbols:done-all"
+          title="Nothing to publish"
+        />
+        <div v-else class="overflow-x-auto">
+          <table class="w-full min-w-[640px] border-collapse text-left">
+            <thead>
+              <tr class="border-b border-line text-[11px] text-ink/45">
+                <th class="px-5 py-2.5 font-normal">
+                  Change
+                </th>
+                <th v-for="environment in ENVIRONMENTS" :key="environment" class="w-32 px-3 py-2.5 text-center font-normal">
+                  {{ ENVIRONMENT_LABELS[environment] }}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="row in changeRows" :key="`${row.kind}:${row.key}`" class="border-b border-line/70 last:border-b-0">
+                <td class="px-5 py-3">
+                  <div class="flex gap-3">
+                    <Icon
+                      :class="CHANGE_LOOK[row.change].tone"
+                      :name="CHANGE_LOOK[row.change].icon"
+                      aria-hidden="true"
+                      class="mt-0.5 flex-none text-base"
+                    />
+                    <div class="flex min-w-0 flex-col gap-0.5">
+                      <span class="flex flex-wrap items-baseline gap-x-2">
+                        <NuxtLink
+                          v-if="row.kind === 'flag' && row.change !== 'removed'"
+                          :to="`/growth/flags/${encodeURIComponent(row.key)}`"
+                          class="text-[13px] text-ink no-underline hover:text-primary"
+                        >
+                          {{ flagName(row.key) }}
+                        </NuxtLink>
+                        <span v-else class="text-[13px] text-ink">{{ row.kind === 'flag' ? flagName(row.key) : segmentLabel(row.key) }}</span>
+                        <span class="text-[11px] text-ink/45">{{ CHANGE_LOOK[row.change].word }} {{ row.kind }}</span>
+                      </span>
+                      <span v-for="line in row.lines" :key="line" class="text-[11px] leading-4 text-ink/55">{{ line }}</span>
+                    </div>
+                  </div>
+                </td>
+                <td v-for="environment in ENVIRONMENTS" :key="environment" class="px-3 py-3 text-center">
+                  <span v-if="row.waiting.includes(environment)" class="inline-flex items-center gap-1 rounded-full bg-warning/12 px-2 py-0.5 text-[11px] text-warning">
+                    <Icon aria-hidden="true" class="text-xs" name="material-symbols:schedule-outline" />
+                    Waiting
+                  </span>
+                  <span v-else class="inline-flex items-center gap-1 text-[11px] text-success">
+                    <Icon aria-hidden="true" class="text-sm" name="material-symbols:check-circle-outline" />
+                    Live
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </SectionCard>
+
+      <!-- What was published and edited, everywhere, newest first. -->
+      <SectionCard :padded="false" description="Every publish to every environment, and every edit to the draft. Something went out wrong? Roll the environment back to an earlier version from its menu." title="History">
+        <template #actions>
+          <SegmentedControl v-model="historyView" :options="HISTORY_VIEWS" label="Show" />
+        </template>
+
+        <template v-if="historyView === 'publishes'">
+          <div class="border-b border-line px-5 py-2.5">
+            <SegmentedControl v-model="environmentFilter" :options="ENVIRONMENT_FILTERS" label="Environment" />
+          </div>
+          <div class="px-5 py-2">
+            <RecordTable :columns="VERSION_COLUMNS" label="Publishes">
+              <li v-for="version in publishes" :key="`${version.environment}:${version.version}`" class="record-row">
+                <span class="record-cell record-cell--primary flex items-center gap-2" data-label="Where">
+                  <Tag :label="ENVIRONMENT_LABELS[version.environment]" :tone="ENVIRONMENT_TONE[version.environment]" />
+                  <span class="font-mono text-[11px] text-ink/55">v{{ version.version }}</span>
+                  <StatusBadge v-if="version.current" label="Live" tone="success" />
+                  <v-tooltip v-if="version.rollback_of" :text="`A rollback: v${version.rollback_of}, published again`" location="top">
+                    <template #activator="{ props: tip }">
+                      <Icon
+                        v-bind="tip"
+                        aria-label="Rollback"
+                        class="text-sm text-warning"
+                        name="material-symbols:undo"
+                      />
+                    </template>
+                  </v-tooltip>
+                </span>
+                <span class="record-cell text-xs text-ink/80" data-label="What it was for">{{ version.note || 'No note' }}</span>
+                <span class="record-cell flex flex-col" data-label="Published">
+                  <span class="text-xs text-ink/80">{{ sinceWords(version.published_at, now) }}</span>
+                  <span class="truncate text-[11px] text-ink/45">{{ version.published_by }}</span>
+                </span>
+                <span class="record-cell record-cell--end record-cell--action">
+                  <v-menu location="bottom end">
+                    <template #activator="{ props: activator }">
+                      <v-btn
+                        v-bind="activator"
+                        :aria-label="`${ENVIRONMENT_LABELS[version.environment]} v${version.version} actions`"
+                        color="neutral"
+                        icon="material-symbols:more-horiz"
+                        size="small"
+                        variant="text"
+                      />
+                    </template>
+                    <v-list min-width="220" nav>
+                      <v-list-item
+                        v-if="!version.current"
+                        base-color="warning"
+                        prepend-icon="material-symbols:undo"
+                        :title="`Roll back ${ENVIRONMENT_LABELS[version.environment]} to v${version.version}`"
+                        @click="rollingBack = version"
+                      />
+                      <v-list-item prepend-icon="material-symbols:history" title="Restore into the draft" @click="withDocument(version, loaded => (restoring = loaded))" />
+                      <v-list-item prepend-icon="material-symbols:data-object" title="View what it contained" @click="withDocument(version, loaded => (viewing = loaded))" />
+                    </v-list>
+                  </v-menu>
+                </span>
+              </li>
+              <template #empty>
+                <p v-if="!publishes.length" class="m-0 px-3 py-8 text-center text-xs text-ink/55">
+                  Nothing has been published here yet.
+                </p>
+              </template>
+            </RecordTable>
+          </div>
+        </template>
+        <div v-else class="p-5">
+          <ConfigHistory :entries="edits" show-target />
+        </div>
+      </SectionCard>
+
+      <!-- The technical side of the draft, for whoever needs it. -->
+      <LayerCard
+        v-model:open="detailsOpen"
+        description="What a publish would carry, checked the way the server checks it."
+        expandable
+        title="Draft details"
+      >
+        <div class="flex flex-col gap-4 p-3">
+          <dl class="m-0 grid grid-cols-2 gap-px overflow-hidden rounded-(--ps-radius) border border-line bg-line sm:grid-cols-3">
+            <div class="flex flex-col gap-1 bg-surface p-3">
+              <dt class="text-[11px] text-ink/50">
+                Compiles
+              </dt>
+              <dd :class="check.compiles ? 'text-success' : 'text-error'" class="m-0 text-sm">
+                {{ check.compiles ? 'Yes' : 'No' }}
+              </dd>
+            </div>
+            <div class="flex flex-col gap-1 bg-surface p-3">
+              <dt class="text-[11px] text-ink/50">
+                Flags
+              </dt>
+              <dd class="m-0 font-mono text-sm text-ink">
+                {{ check.flags }}
+              </dd>
+            </div>
+            <div class="flex flex-col gap-1 bg-surface p-3">
+              <dt class="text-[11px] text-ink/50">
+                Segments
+              </dt>
+              <dd class="m-0 font-mono text-sm text-ink">
+                {{ segments.filter(segment => !segment.archived).length }}
+              </dd>
+            </div>
+          </dl>
+          <p class="m-0 flex items-start gap-2 text-xs leading-5 text-ink/65">
+            <Icon aria-hidden="true" class="mt-0.5 flex-none text-sm text-ink/45" name="material-symbols:history" />
+            <span v-if="check.needsPlayerFacts">
+              Some rules read players' purchases or activity, so serving it costs a history lookup per request,
+              cached for an hour per player.
+            </span>
+            <span v-else>No rule reads players' history, so a request is answered from the document alone.</span>
+          </p>
+          <div v-if="check.excluded.length" class="flex flex-col gap-1.5">
+            <span class="text-[11px] text-ink/50">Left out on purpose</span>
+            <ul class="m-0 flex list-none flex-col gap-1 p-0">
+              <li v-for="entry in check.excluded" :key="`${entry.kind}:${entry.key}`" class="flex items-center justify-between gap-2 text-xs">
+                <span class="flex min-w-0 items-center gap-2">
+                  <Icon :name="entry.kind === 'flag' ? 'material-symbols:flag-outline' : 'material-symbols:group-outline'" aria-hidden="true" class="flex-none text-sm text-ink/40" />
+                  <span class="truncate font-mono text-ink/80">{{ entry.key }}</span>
+                </span>
+                <span class="flex-none text-[11px] text-ink/45">{{ entry.reason }}</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </LayerCard>
+    </LoadState>
 
     <PublishDialog v-if="publishing" v-model="publishing" :environment="publishTo" />
 
@@ -471,7 +507,7 @@ const restoreWords = computed(() => {
       :title="restoring ? `Restore ${ENVIRONMENT_LABELS[restoring.environment]} v${restoring.version} into your draft?` : ''"
       action="Restore into the draft"
       tone="primary"
-      @confirm="restoring && restoreDraft(restoring)"
+      @confirm="restoring && restore(restoring)"
     />
   </div>
 </template>

@@ -1,98 +1,41 @@
 /**
- * The project's experiments and every write to them: create, start, stop, finish, and ship a
- * winner. Kept in this browser until the API has experiments, and seeded with a game's recent
- * tests. Every write is recorded on the experiment's own history, which is what answers "when
- * did we try this, and what happened" months later.
+ * The project's experiments and every write to them: create, start, ramp, stop, finish, and
+ * ship a winner, each made by the API (stores/experiments.ts), which keeps the experiment's own
+ * history of who did what. A write resolves with the API's refusal in its words, or null.
  *
- * Shipping a winner is the one write that reaches past the experiment: it makes the winning
- * value the flag's fallback and drops the rules that split players between variants, as an
- * ordinary save to the draft (useLiveConfig), to be published like any other edit.
+ * Shipping a winner is the one write that reaches past the experiment: the API makes the
+ * winning value the flag's fallback and drops the rules that split players between arms, as an
+ * edit to the draft, to be published like any other.
  */
-let shared: Ref<ExperimentDef[]> | null = null
-
-/* One ref for the app, in a detached scope, so its write to storage outlives any one screen. */
-function storedExperiments(): Ref<ExperimentDef[]> {
-  shared ??= effectScope(true).run(() => useLocalStorage<ExperimentDef[]>('playersense.experiments.v2', seedExperiments, { deep: false }))!
-  return shared
-}
-
 export function useExperiments() {
-  const stored = storedExperiments()
-  const { flagByKey, saveFlag } = useLiveConfig()
+  const store = useExperimentsStore()
+  const { experiments, loading, error } = storeToRefs(store)
+  const live = useLiveConfigStore()
 
-  const experiments = computed<ExperimentDef[]>(() => {
-    const value = stored.value
-    const valid = Array.isArray(value) && value.every(entry => typeof entry?.id === 'string' && Array.isArray(entry.variants) && Array.isArray(entry.events))
-    /* A test stored before traffic existed let everybody in. */
-    return (valid ? value : seedExperiments()).map(entry => ({ ...entry, traffic: entry.traffic ?? 100 }))
-  })
+  void store.load()
 
   const experimentById = (id: string) => experiments.value.find(entry => entry.id === id) ?? null
 
-  function write(id: string, change: (experiment: ExperimentDef) => ExperimentDef, text: string) {
-    stored.value = experiments.value.map(entry => (entry.id === id
-      ? { ...change(entry), events: [...entry.events, { at: new Date().toISOString(), actor: CURRENT_ACTOR, text }] }
-      : entry))
+  /** A new test in draft: its id, or why the API refused it. */
+  async function create(draft: ExperimentDraft): Promise<{ id: string | null, problem: string | null }> {
+    const out = await store.create(draft)
+    return { id: out.experiment?.id ?? null, problem: out.problem }
   }
 
-  /** A new test in draft, and its id. */
-  function create(draft: Omit<ExperimentDef, 'id' | 'status' | 'created_at' | 'events'>): string {
-    const slug = draft.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'experiment'
-    const id = `exp-${slug}-${Date.now().toString(36)}`
-    const now = new Date().toISOString()
-    stored.value = [...experiments.value, { ...draft, id, status: 'draft', created_at: now, events: [{ at: now, actor: CURRENT_ACTOR, text: 'Created' }] }]
-    return id
+  const problemOf = async (write: Promise<{ problem: string | null }>) => (await write).problem
+
+  const start = (id: string) => problemOf(store.start(id))
+  const setTraffic = (id: string, traffic: number) => problemOf(store.setTraffic(id, traffic))
+  const stop = (id: string, reason: string) => problemOf(store.stop(id, reason))
+  /** Ends a test with a decision: a winning arm, or null for none. */
+  const finish = (id: string, winner: string | null, conclusion: string) => problemOf(store.conclude(id, winner, conclusion))
+
+  /** Makes the winner the flag's answer for everybody; the flag is read again after. */
+  async function ship(id: string): Promise<string | null> {
+    const problem = await problemOf(store.ship(id))
+    if (!problem) await live.load(true)
+    return problem
   }
 
-  function start(id: string) {
-    const experiment = experimentById(id)
-    const split = experiment?.variants.map(entry => `${entry.weight}% ${variantTitle(experiment, entry)}`).join(', ') ?? ''
-    write(id, entry => ({ ...entry, status: 'running', started_at: new Date().toISOString() }), `Started with ${experiment?.traffic ?? 100}% of the audience: ${split}`)
-  }
-
-  function stop(id: string, reason: string) {
-    write(id, entry => ({ ...entry, status: 'stopped', ended_at: new Date().toISOString(), winner: null, conclusion: reason || undefined }), `Stopped early${reason ? `: ${reason}` : ''}`)
-  }
-
-  /**
-   * Lets more or fewer of the audience into a running test. Raising it keeps everybody already
-   * in: assignment is a hash of the install, so a wider share only adds players.
-   */
-  function setTraffic(id: string, traffic: number) {
-    const before = experimentById(id)?.traffic ?? 100
-    if (before === traffic) return
-    write(id, entry => ({ ...entry, traffic }), `Traffic ${before}% → ${traffic}% of the audience`)
-  }
-
-  /** Ends a test with a decision: a winning variant, or null for none. */
-  function finish(id: string, winner: string | null, conclusion: string) {
-    const experiment = experimentById(id)
-    const chosen = experiment?.variants.find(entry => entry.id === winner)
-    const name = experiment && chosen ? variantTitle(experiment, chosen) : null
-    write(id, entry => ({ ...entry, status: 'concluded', ended_at: entry.ended_at ?? new Date().toISOString(), winner, conclusion: conclusion || undefined }), name ? `Finished: ${name} won` : 'Finished: no clear winner')
-  }
-
-  /**
-   * Makes the winning variant's value the flag's answer for everybody: the fallback becomes it,
-   * and the rules serving other variants' values to a share of players go. Refused, with the
-   * reason, where the flag's own checks refuse it.
-   */
-  function ship(id: string): string | null {
-    const experiment = experimentById(id)
-    const winner = experiment?.variants.find(entry => entry.id === experiment.winner)
-    if (!experiment || !winner) return 'There is no winner to ship.'
-    const flag = flagByKey(experiment.flagKey)
-    if (!flag) return `Flag "${experiment.flagKey}" does not exist.`
-    const values = experiment.variants.map(entry => JSON.stringify(entry.value))
-    const problem = saveFlag({
-      ...flag,
-      fallback: winner.value,
-      rules: flag.rules.filter(rule => !(values.includes(JSON.stringify(rule.value)) && rule.rollout < FULL_ROLLOUT))
-    })
-    if (problem) return problem
-    write(id, entry => ({ ...entry, shipped: true }), `Shipped ${variantTitle(experiment, winner)}: ${experiment.flagKey} now serves ${writeValue(winner.value)} to everybody`)
-    return null
-  }
-
-  return { experiments, experimentById, create, start, setTraffic, stop, finish, ship }
+  return { experiments, loading, error, reload: () => store.load(true), resultsFor: store.resultsFor, experimentById, create, start, setTraffic, stop, finish, ship }
 }

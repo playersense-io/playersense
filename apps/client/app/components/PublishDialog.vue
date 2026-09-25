@@ -19,7 +19,7 @@ const open = defineModel<boolean>({ required: true })
 
 const emit = defineEmits<{ published: [environment: EnvironmentKind, version: number] }>()
 
-const { flags, segments, latest, draftCheck, publish } = useLiveConfig()
+const { flags, segments, latest, historyOf, draftCheck, publish } = useLiveConfig()
 
 const target = ref<EnvironmentKind>(props.environment)
 const note = ref('')
@@ -53,7 +53,7 @@ const chosen = computed({
   }
 })
 
-const nextVersion = computed(() => (latest(target.value)?.version ?? 0) + 1)
+const nextVersion = computed(() => (historyOf(target.value)[0]?.version ?? 0) + 1)
 const needsNote = computed(() => target.value === 'production' && !note.value.trim())
 const ready = computed(() => check.value.compiles && changes.value.length > 0 && !needsNote.value)
 
@@ -63,14 +63,19 @@ const CHANGE_ICONS: Record<DraftChange['change'], string> = {
   removed: 'material-symbols:do-not-disturb-on-outline'
 }
 
-function confirm() {
-  if (!ready.value) return
-  const problem = publish(target.value, note.value)
+const saving = ref(false)
+
+async function confirm() {
+  if (!ready.value || saving.value) return
+  saving.value = true
+  const version = nextVersion.value
+  const problem = await publish(target.value, note.value)
+  saving.value = false
   if (problem) {
     refusal.value = problem
     return
   }
-  emit('published', target.value, nextVersion.value)
+  emit('published', target.value, version)
   open.value = false
 }
 
@@ -168,6 +173,7 @@ const noteId = useId()
             Cancel
           </v-btn>
           <v-btn
+            :loading="saving"
             :disabled="!ready"
             class="text-xs font-medium"
             color="primary"

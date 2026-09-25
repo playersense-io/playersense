@@ -11,7 +11,7 @@
 const route = useRoute()
 const router = useRouter()
 
-const { flags, segments, audit, flagByKey, saveFlag, setFlagArchived, historyOf, latest, segmentName } = useLiveConfig()
+const { flags, segments, audit, flagByKey, saveFlag, setFlagArchived, latest, segmentName, loading, error, reload } = useLiveConfig()
 
 const key = computed(() => String(route.params.key ?? ''))
 const saved = computed(() => flagByKey(key.value))
@@ -20,17 +20,21 @@ usePageCrumb(() => saved.value?.name ?? key.value)
 
 const copyOf = (flag: FlagDef | null) => (flag ? JSON.parse(JSON.stringify(flag)) as FlagDef : null)
 
-const draft = shallowRef<FlagDef | null>(copyOf(saved.value))
-watch(key, () => {
-  draft.value = copyOf(saved.value)
-})
-
 /** What an edit can change: the stamps are the server's. */
 const editable = (flag: FlagDef | null) => {
   if (!flag) return null
   const { updated_at: _at, updated_by: _by, created_at: _created, ...rest } = flag
   return rest
 }
+
+const draft = shallowRef<FlagDef | null>(copyOf(saved.value))
+watch(key, () => {
+  draft.value = copyOf(saved.value)
+})
+/* The flag arrives after the page does, and again after a save: a copy nobody has edited follows it. */
+watch(saved, (next, previous) => {
+  if (!draft.value || sameJson(editable(draft.value), editable(previous ?? null))) draft.value = copyOf(next)
+})
 
 const dirty = computed(() => draft.value !== null && saved.value !== null && !sameJson(editable(draft.value), editable(saved.value)))
 
@@ -44,9 +48,13 @@ const problemsAt = (where: FlagProblem['where']) => problems.value.filter(proble
 const refusal = ref('')
 const savedNotice = ref(false)
 
-function save() {
-  if (!draft.value || blocked.value) return
-  const problem = saveFlag(draft.value)
+const saving = ref(false)
+
+async function save() {
+  if (!draft.value || blocked.value || saving.value) return
+  saving.value = true
+  const problem = await saveFlag(draft.value)
+  saving.value = false
   if (problem) {
     refusal.value = problem
     return
@@ -54,6 +62,11 @@ function save() {
   refusal.value = ''
   draft.value = copyOf(flagByKey(key.value))
   savedNotice.value = true
+}
+
+async function archive(archived: boolean) {
+  const problem = saved.value ? await setFlagArchived(saved.value.key, archived) : null
+  refusal.value = problem ?? ''
 }
 
 function discard() {
@@ -124,20 +137,8 @@ const TABS: PageTab[] = [
 ]
 const tab = useQueryChoice('tab', TABS.map(entry => entry.value), 'targeting')
 
-/**
- * This flag's own entries, and the publishes and rollbacks that changed what it serves: one that
- * left it as it was is somebody else's news.
- */
-const history = computed(() => audit.value.filter((entry) => {
-  if (entry.target === key.value && entry.action.startsWith('flag.')) return true
-  if ((entry.action !== 'liveops.publish' && entry.action !== 'liveops.rollback') || !entry.environment) return false
-  const list = historyOf(entry.environment)
-  const at = list.findIndex(version => version.version === entry.version)
-  if (at < 0) return false
-  const now = list[at]!.flags.find(flag => flag.key === key.value)
-  const before = list[at + 1]?.flags.find(flag => flag.key === key.value)
-  return !sameJson(now ?? null, before ?? null)
-}))
+/** This flag's own entries in the audit log: who created, edited and archived it, and when. */
+const history = computed(() => audit.value.filter(entry => entry.target === key.value && entry.action.startsWith('flag.')))
 
 // --- Settings -----------------------------------------------------------------------------
 
@@ -189,7 +190,7 @@ const compareOpen = computed({
 const comparison = computed(() => {
   if (!comparing.value || !saved.value) return []
   const published = latest(comparing.value)?.flags.find(flag => flag.key === key.value)
-  if (published) return flagChanges(published, documentOf(saved.value), segmentName)
+  if (published) return flagChanges(compiledFlag(published, new Map()), compiledFlag(documentOf(saved.value), new Map(segments.value.filter(entry => !entry.archived).map(entry => [entry.key, entry.rule]))), segmentName)
   const count = saved.value.rules.length
   return [`Not in ${ENVIRONMENT_LABELS[comparing.value]} yet. Publishing adds it, serving ${writeValue(saved.value.fallback)}${count ? ` and ${count} ${count === 1 ? 'rule' : 'rules'}` : ''}.`]
 })
@@ -231,7 +232,17 @@ const changeCount = computed(() => {
 </script>
 
 <template>
-  <div v-if="!saved || !draft" class="flex flex-col gap-8">
+  <div v-if="(loading && !flags.length) || error" class="flex flex-col gap-8">
+    <PageHeader :title="key" />
+    <LoadState
+      :error="error"
+      :loading="loading"
+      what="the flag"
+      @retry="reload"
+    />
+  </div>
+
+  <div v-else-if="!saved || !draft" class="flex flex-col gap-8">
     <PageHeader title="Flag not found" />
     <LayerCard>
       <EmptyState
@@ -314,7 +325,7 @@ const changeCount = computed(() => {
               v-if="saved.archived"
               prepend-icon="material-symbols:unarchive-outline"
               title="Restore"
-              @click="setFlagArchived(saved.key, false)"
+              @click="archive(false)"
             />
             <v-list-item
               v-else
@@ -530,7 +541,7 @@ const changeCount = computed(() => {
           </div>
         </SectionCard>
 
-        <FlagArchiveCard :flag="saved" @archive="archiving = true" @restore="setFlagArchived(saved.key, false)" />
+        <FlagArchiveCard :flag="saved" @archive="archiving = true" @restore="archive(false)" />
       </div>
     </div>
 
@@ -554,6 +565,7 @@ const changeCount = computed(() => {
       </v-btn>
       <v-btn
         :disabled="problems.length > 0 || blocked"
+        :loading="saving"
         class="text-xs font-medium"
         color="primary"
         size="small"
@@ -652,7 +664,7 @@ const changeCount = computed(() => {
       :description="`${saved.name} leaves the draft. Each environment keeps serving it until the next publish there; after that, devices fall back to the value written in the game's code.`"
       :title="`Archive ${saved.name}?`"
       action="Archive flag"
-      @confirm="discard(); setFlagArchived(saved.key, true)"
+      @confirm="discard(); archive(true)"
     />
 
     <ConfirmDialog

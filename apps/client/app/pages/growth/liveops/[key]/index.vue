@@ -5,16 +5,14 @@
 // without it (the chart, with the window drawn on it), what else did it move, what else was on
 // at the time, and then how it is set up, what the game receives, and who changed what.
 //
-// "What they would have done without it" is the whole question, and it is answered two ways.
-// With a rollout under 100%, against the players held back: same audience, same days, only the
-// event differs. With everybody in, against the same players' four weeks before, weekday for
-// weekday, which is sound for a weekend and weaker for a six-week season. The page says which.
-//
-// Sample data (app/utils/liveops-sample.ts).
+// "What they would have done without it" is the whole question. The API answers it against the
+// game's four weeks before, weekday for weekday, which is sound for a weekend and weaker for a
+// six-week season, and the page says so. How sure a lift is comes from how far the days before
+// the window strayed from their own expectation (stores/liveops.ts).
 const route = useRoute()
 const router = useRouter()
 
-const { events, eventByKey, activate, pause, resume, archive, restore, duplicate, keyProblem } = useLiveOps()
+const { events, eventByKey, activate, pause, resume, archive, restore, duplicate, keyProblem, impactFor, gameDay, loading, error, reload } = useLiveOps()
 const { experiments } = useExperiments()
 const { segmentName } = useLiveConfig()
 
@@ -35,7 +33,7 @@ const look = computed(() => kindLook(event.value?.kind ?? ''))
 const runs = computed(() => {
   const current = event.value
   if (!current || current.status === 'draft') return []
-  return runsOf(current, time.value, 10).reverse().map(run => ({ run, impact: sampleEventImpact(current, run, time.value)! })).filter(entry => entry.impact)
+  return runsOf(current, time.value, 10).reverse().map(run => ({ run, impact: impactFor(current, run)! })).filter(entry => entry.impact)
 })
 
 const selectedAt = computed({
@@ -164,7 +162,7 @@ const series = computed<MetricSeries[]>(() => {
     return [{
       name: 'Whole game',
       data: days.value.map((at) => {
-        const figures = sampleGameDay(at, events.value.filter(other => other.status !== 'draft'))
+        const figures = gameDay(at)
         return figures && at !== startOfDay(time.value) ? Math.round(figures[metric.value] * scaleOf(metric.value) * 1000) / 1000 : null
       }),
       type: 'area',
@@ -286,7 +284,6 @@ const payloadCode = computed(() => JSON.stringify(event.value?.payload ?? null, 
 // --- Actions ------------------------------------------------------------------------------
 
 const pausing = ref(false)
-const pauseReason = ref('')
 const activating = ref(false)
 const archiving = ref(false)
 const copying = ref(false)
@@ -303,18 +300,24 @@ function openCopy() {
 
 const copyProblem = computed(() => keyProblem(copyKey.value))
 
-function confirmCopy() {
-  if (!event.value || copyProblem.value) return
-  duplicate(event.value.key, copyKey.value, copyName.value.trim() || event.value.name)
-  copying.value = false
-  router.push(`/growth/liveops/${copyKey.value}`)
+const refusal = ref('')
+
+async function act(write: Promise<string | null>) {
+  refusal.value = (await write) ?? ''
+  return !refusal.value
 }
 
-function confirmPause() {
+async function confirmCopy() {
+  if (!event.value || copyProblem.value) return
+  const done = await act(duplicate(event.value.key, copyKey.value, copyName.value.trim() || event.value.name))
+  copying.value = false
+  if (done) void router.push(`/growth/liveops/${copyKey.value}`)
+}
+
+async function confirmPause() {
   if (!event.value) return
-  pause(event.value.key, pauseReason.value.trim())
   pausing.value = false
-  pauseReason.value = ''
+  await act(pause(event.value.key))
 }
 
 const activateWords = computed(() => (event.value
@@ -323,7 +326,17 @@ const activateWords = computed(() => (event.value
 </script>
 
 <template>
-  <div v-if="!event || !status" class="flex flex-col gap-8">
+  <div v-if="(loading || error) && !event" class="flex flex-col gap-8">
+    <PageHeader title="Event" />
+    <LoadState
+      :error="error"
+      :loading="loading"
+      what="the event"
+      @retry="reload"
+    />
+  </div>
+
+  <div v-else-if="!event || !status" class="flex flex-col gap-8">
     <PageHeader title="Event not found" />
     <LayerCard>
       <EmptyState description="There is no Live Ops event with this key in the project." icon="material-symbols:event-busy-outline" title="No such event">
@@ -388,7 +401,7 @@ const activateWords = computed(() => (event.value
           prepend-icon="material-symbols:play-arrow-outline"
           size="small"
           variant="flat"
-          @click="resume(event.key)"
+          @click="act(resume(event.key))"
         >
           Resume
         </v-btn>
@@ -399,7 +412,7 @@ const activateWords = computed(() => (event.value
           prepend-icon="material-symbols:unarchive-outline"
           size="small"
           variant="outlined"
-          @click="restore(event.key)"
+          @click="act(restore(event.key))"
         >
           Restore to draft
         </v-btn>
@@ -427,6 +440,10 @@ const activateWords = computed(() => (event.value
         </v-menu>
       </template>
     </PageHeader>
+
+    <p v-if="refusal" class="m-0 rounded-(--ps-radius) bg-error/6 px-3.5 py-3 text-xs text-error ring-1 ring-error/20 ring-inset">
+      {{ refusal }}
+    </p>
 
     <!-- The answer, before any chart. -->
     <section class="flex flex-col gap-5 rounded-(--ps-radius-x-large) border border-line bg-surface p-5">
@@ -736,7 +753,7 @@ const activateWords = computed(() => (event.value
       action="Activate"
       title="Activate this event?"
       tone="primary"
-      @confirm="activate(event.key)"
+      @confirm="act(activate(event.key))"
     />
 
     <ConfirmDialog
@@ -745,7 +762,7 @@ const activateWords = computed(() => (event.value
       description="It stops being served at the next publish and leaves the calendar. Its results and history are kept, and it can be restored to a draft."
       action="Archive event"
       title="Archive this event?"
-      @confirm="archive(event.key)"
+      @confirm="act(archive(event.key))"
     />
 
     <v-dialog v-if="pausing" v-model="pausing" max-width="480">
@@ -759,16 +776,6 @@ const activateWords = computed(() => (event.value
               It is off for everybody from the next publish, a window on now included, whatever its schedule says. Resuming it picks the schedule up where it is by then.
             </p>
           </div>
-          <v-textarea
-            v-model="pauseReason"
-            aria-label="Why"
-            auto-grow
-            hide-details
-            maxlength="200"
-            placeholder="Why, for the history: revenue from returning players fell by a tenth."
-            rows="2"
-            variant="outlined"
-          />
         </div>
         <footer class="flex justify-end gap-2 border-t border-line px-5 py-3">
           <v-btn

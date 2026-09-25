@@ -19,7 +19,8 @@ const { latest } = useLiveConfig()
 
 const servedIn = computed(() => ENVIRONMENTS.filter(environment => latest(environment)?.flags.some(entry => entry.key === props.flag.key)))
 
-const reads = computed(() => (servedIn.value.includes('production') ? sampleWeeklyReads(props.flag.key).reads : 0))
+const { readsOf } = useFlagExposures()
+const reads = computed(() => (servedIn.value.includes('production') ? readsOf(props.flag.key).reads : 0))
 
 function list(names: string[]): string {
   if (names.length <= 1) return names.join('')

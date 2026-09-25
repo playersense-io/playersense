@@ -282,10 +282,19 @@ function draft(status: LiveOpsStatus): LiveOpsDraft {
   }
 }
 
-function save(status: LiveOpsStatus) {
-  if (!ready.value) return
-  if (props.event) update(props.event.key, draft(props.event.status))
-  else create(draft(status))
+const saving = ref(false)
+const refusal = ref('')
+
+async function save(status: LiveOpsStatus) {
+  if (!ready.value || saving.value) return
+  saving.value = true
+  refusal.value = ''
+  const problem = props.event ? await update(props.event.key, draft(props.event.status)) : await create(draft(status))
+  saving.value = false
+  if (problem) {
+    refusal.value = problem
+    return
+  }
   saved.value = true
   emit('saved', key.value)
 }
@@ -906,9 +915,13 @@ const SECTIONS = [
         </div>
 
         <footer class="flex flex-col gap-2 border-t border-line p-4">
+          <p v-if="refusal" class="m-0 text-xs leading-5 text-error">
+            {{ refusal }}
+          </p>
           <template v-if="editing">
             <v-btn
               :disabled="!ready || !dirty"
+              :loading="saving"
               block
               class="text-xs font-medium"
               color="primary"
@@ -921,6 +934,7 @@ const SECTIONS = [
           <template v-else>
             <v-btn
               :disabled="!ready"
+              :loading="saving"
               block
               class="text-xs font-medium"
               color="primary"

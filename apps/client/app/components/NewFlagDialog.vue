@@ -95,9 +95,13 @@ const keyProblem = computed(() => {
 
 const ready = computed(() => draft.value.name !== '' && key.value !== '' && !keyProblem.value && !fallbackInvalid.value && !kindProblem(kind.value, fallback.value))
 
-function confirm() {
-  if (!ready.value) return
-  const problem = createFlag(draft.value)
+const saving = ref(false)
+
+async function confirm() {
+  if (!ready.value || saving.value) return
+  saving.value = true
+  const problem = await createFlag(draft.value)
+  saving.value = false
   if (problem) {
     refusal.value = problem
     return
@@ -223,6 +227,7 @@ const descriptionId = useId()
           Cancel
         </v-btn>
         <v-btn
+          :loading="saving"
           :disabled="!ready"
           class="text-xs font-medium"
           color="primary"

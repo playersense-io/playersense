@@ -9,10 +9,10 @@
 // a sale. That is why every figure on these screens is for the players an event reached against
 // what they would have done without it, and why a result says what else was on at the time.
 //
-// Sample data (app/utils/liveops-sample.ts). Kept in this browser until the dashboard is wired to
-// /liveops-events and a daily query over sessions and purchases.
+// Events are the API's; what each window did is its impact, and the game's days are the daily
+// metrics, both read from production.
 const { project } = useWorkspace()
-const { events } = useLiveOps()
+const { events, impactFor, gameDay, loading, error, reload } = useLiveOps()
 const { experiments } = useExperiments()
 
 const now = useNow({ interval: 60_000 })
@@ -29,7 +29,7 @@ interface Row extends LiveOpsEventDef {
 const rows = computed<Row[]>(() => events.value.map((event) => {
   const { state, current, next } = stateOf(event, time.value)
   const run = runsOf(event, time.value, 1)[0]
-  return { ...event, state, current, next, last: run && event.status !== 'draft' ? sampleEventImpact(event, run, time.value) : null }
+  return { ...event, state, current, next, last: run && event.status !== 'draft' ? impactFor(event, run) : null }
 }))
 
 // --- On now, and next ---------------------------------------------------------------------
@@ -129,7 +129,7 @@ const scaleOf = (key: LiveOpsMetricKey) => (LIVEOPS_METRICS[key].kind === 'rate'
 const gameSeries = computed<MetricSeries[]>(() => [{
   name: LIVEOPS_METRICS[metric.value].label,
   data: chartDays.value.map((at) => {
-    const figures = sampleGameDay(at, served.value)
+    const figures = gameDay(at)
     return figures && at !== startOfDay(time.value) ? Math.round(figures[metric.value] * scaleOf(metric.value) * 1000) / 1000 : null
   }),
   type: 'area',
@@ -191,7 +191,7 @@ const ranked = computed<Ranked[]>(() => served.value
   .filter(event => event.goal)
   .flatMap(event => runsOf(event, time.value, 12)
     .filter(run => run.end <= time.value && run.end > time.value - Number(period.value) * DAY)
-    .map(run => ({ id: `${event.key}:${run.start}`, event, impact: sampleEventImpact(event, run, time.value)!, goal: event.goal! })))
+    .map(run => ({ id: `${event.key}:${run.start}`, event, impact: impactFor(event, run)!, goal: event.goal! })))
   .filter(entry => entry.impact)
   .sort((a, b) => b.impact.metrics[b.goal].comparison.lift - a.impact.metrics[a.goal].comparison.lift))
 
@@ -284,7 +284,7 @@ const calendarFull = ref(false)
   <div class="flex flex-col gap-8">
     <PageHeader title="Live Ops">
       <template #description>
-        What <span class="text-ink">{{ project.name }}</span> has scheduled, what is on now, and what each event did to the game.
+        What <span class="text-ink">{{ project?.name }}</span> has scheduled, what is on now, and what each event did to the game.
       </template>
       <template #actions>
         <v-btn
@@ -300,214 +300,219 @@ const calendarFull = ref(false)
       </template>
     </PageHeader>
 
-    <InfoNote text="Events and their results are sample data until the dashboard reads /liveops-events and the daily figures. Whether an event is on for a player is already decided by the server, from the published schedule." />
-
-    <!-- On now: a tile an event, its metric while on against what was expected without it. -->
-    <section class="flex flex-col gap-3">
-      <h2 class="m-0 flex items-center gap-2 text-sm font-medium text-ink">
-        On now
-        <span class="rounded-full bg-success/12 px-1.5 font-mono text-[11px] leading-4 text-success">{{ live.length }}</span>
-      </h2>
-      <div v-if="live.length" class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <NuxtLink
-          v-for="row in live"
-          :key="row.key"
-          :to="`/growth/liveops/${row.key}`"
-          class="block rounded-(--ps-radius-large) no-underline transition-shadow hover:shadow-[0_0_0_1px_rgba(var(--v-theme-on-surface),0.18)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-        >
-          <Statistic v-bind="tileOf(row)">
-            <template #description>
-              <span class="flex flex-col gap-2">
-                <span class="truncate text-ink/50">{{ row.goal ? LIVEOPS_METRICS[row.goal].label : 'Players reached' }} a day · {{ leftWords(row) }}</span>
-                <span :aria-label="`${Math.round(progress(row) * 100)}% through`" class="relative h-1 overflow-hidden rounded-full bg-ink/8" role="img">
-                  <span :style="{ width: `${progress(row) * 100}%`, background: toneColour(kindLook(row.kind).tone) }" class="absolute inset-y-0 left-0 rounded-full" />
-                </span>
-              </span>
-            </template>
-          </Statistic>
-        </NuxtLink>
-      </div>
-      <LayerCard v-else>
-        <p class="m-0 py-6 text-center text-xs text-ink/50">
-          Nothing is on right now.
-        </p>
-      </LayerCard>
-    </section>
-
-    <!-- Next up: the windows due, soonest first, in one row. -->
-    <section class="flex flex-col gap-3">
-      <h2 class="m-0 text-sm font-medium text-ink">
-        Next up
-      </h2>
-      <div class="flex overflow-x-auto rounded-(--ps-radius-large) border border-line bg-surface">
-        <NuxtLink
-          v-for="row in upcoming"
-          :key="row.key"
-          :to="`/growth/liveops/${row.key}`"
-          class="group flex min-w-52 flex-1 items-center gap-3 border-r border-line/70 px-4 py-3 no-underline last:border-r-0 hover:bg-ink/3"
-        >
-          <LiveOpsKindMark :kind="row.kind" bare />
-          <span class="flex min-w-0 flex-1 flex-col">
-            <span class="truncate text-[13px] text-ink group-hover:text-primary">{{ row.name }}</span>
-            <span class="truncate text-[11px] text-ink/50">{{ startWords(row.next!) }}</span>
-          </span>
-          <span class="flex-none font-mono text-xs text-ink/60">{{ untilWords(row.next!) }}</span>
-        </NuxtLink>
-        <p v-if="!upcoming.length" class="m-0 flex-1 px-4 py-6 text-center text-xs text-ink/50">
-          Nothing is due in the next six weeks.
-        </p>
-      </div>
-    </section>
-
-    <SectionCard :padded="false" description="Every event on the days it was on, in a band per kind, with the A/B tests running at the time and the whole game's day along the top. Hover a bar for what it did; select it for its results." title="Calendar">
-      <div class="p-4">
-        <LiveOpsCalendar
-          :events="events"
-          :experiments="experiments"
-          @create="createOn"
-          @expand="calendarFull = true"
-        />
-      </div>
-    </SectionCard>
-
-    <!-- The game, with every event shaded where it ran. -->
-    <MetricCard
-      v-model="metricModel"
-      :categories="categories"
-      :decimals="LIVEOPS_METRICS[metric].kind === 'money' && metric === 'arpdau' ? 3 : 1"
-      :height="300"
-      :marks="marks"
-      :options="METRIC_OPTIONS"
-      :prefix="metricPrefix"
-      :series="gameSeries"
-      :titles="titles"
-      :unit="metricUnit"
-      category-label="Day"
-      type="area"
+    <LoadState
+      :error="error"
+      :loading="loading && !events.length"
+      what="the events"
+      @retry="reload"
     >
-      <template #description>
-        The whole game, day by day, with the events chosen under Filter shaded in their kind's colour and a line where each began: a figure that rises with the shading rose with the event. Hover a day for everything that was on. Each event's own page says by how much, against its own players.
-      </template>
-      <template #actions>
-        <FilterMenu v-model="markFilter" :groups="MARK_GROUPS" />
-        <SegmentedControl v-model="period" :options="PERIODS" label="Period" />
-      </template>
-    </MetricCard>
-
-    <SectionCard :padded="false" :description="`Every window that ended in the last ${PERIODS.find(entry => entry.value === period)?.label}, on the metric each event was meant to move, best first. The line is the range the true effect is in, 95 times in 100.`" title="What worked">
-      <DataTable
-        v-model:column-state="rankColumns"
-        v-model:sort-by="rankSort"
-        :columns="RANK_COLUMNS"
-        :items="ranked"
-        empty-description="No event with a metric to move ended in this period."
-        empty-title="Nothing ended in this period."
-        item-value="id"
-        label="What worked"
-      >
-        <template #cell.event="{ item }">
-          <NuxtLink :to="`/growth/liveops/${item.event.key}?at=${item.impact.occurrence.start}`" class="group flex min-w-0 items-center gap-2.5 py-1 no-underline">
-            <LiveOpsKindMark :kind="item.event.kind" bare />
-            <span class="truncate text-[13px] text-ink transition-colors group-hover:text-primary">{{ item.event.name }}</span>
+      <!-- On now: a tile an event, its metric while on against what was expected without it. -->
+      <section class="flex flex-col gap-3">
+        <h2 class="m-0 flex items-center gap-2 text-sm font-medium text-ink">
+          On now
+          <span class="rounded-full bg-success/12 px-1.5 font-mono text-[11px] leading-4 text-success">{{ live.length }}</span>
+        </h2>
+        <div v-if="live.length" class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <NuxtLink
+            v-for="row in live"
+            :key="row.key"
+            :to="`/growth/liveops/${row.key}`"
+            class="block rounded-(--ps-radius-large) no-underline transition-shadow hover:shadow-[0_0_0_1px_rgba(var(--v-theme-on-surface),0.18)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          >
+            <Statistic v-bind="tileOf(row)">
+              <template #description>
+                <span class="flex flex-col gap-2">
+                  <span class="truncate text-ink/50">{{ row.goal ? LIVEOPS_METRICS[row.goal].label : 'Players reached' }} a day · {{ leftWords(row) }}</span>
+                  <span :aria-label="`${Math.round(progress(row) * 100)}% through`" class="relative h-1 overflow-hidden rounded-full bg-ink/8" role="img">
+                    <span :style="{ width: `${progress(row) * 100}%`, background: toneColour(kindLook(row.kind).tone) }" class="absolute inset-y-0 left-0 rounded-full" />
+                  </span>
+                </span>
+              </template>
+            </Statistic>
           </NuxtLink>
-        </template>
-        <template #cell.when="{ item }">
-          <span class="text-xs whitespace-nowrap text-ink/65">{{ windowShort(item.impact.occurrence) }}</span>
-        </template>
-        <template #cell.goal="{ item }">
-          <span class="text-xs text-ink/65">{{ LIVEOPS_METRICS[item.goal].label }}</span>
-        </template>
-        <template #cell.effect="{ item }">
-          <span class="flex items-center gap-3">
-            <span :class="OUTCOME_TEXT[outcomeOf(item.impact.metrics[item.goal].comparison)]" class="w-16 flex-none text-right font-mono text-xs">{{ writeOpsLift(item.goal, item.impact.metrics[item.goal].comparison) }}</span>
-            <EffectBar :comparison="item.impact.metrics[item.goal].comparison" :domain="rankDomain" class="min-w-40 flex-1" />
-          </span>
-        </template>
-        <template #cell.after="{ item }">
-          <span v-if="item.impact.metrics[item.goal].after && outcomeOf(item.impact.metrics[item.goal].after!) === 'worse'" class="font-mono text-[11px] text-warning">
-            {{ writeOpsLift(item.goal, item.impact.metrics[item.goal].after!) }}
-          </span>
-          <span v-else class="font-mono text-[11px] text-ink/40">{{ item.impact.metrics[item.goal].after ? 'held' : '–' }}</span>
-        </template>
-      </DataTable>
-    </SectionCard>
+        </div>
+        <LayerCard v-else>
+          <p class="m-0 py-6 text-center text-xs text-ink/50">
+            Nothing is on right now.
+          </p>
+        </LayerCard>
+      </section>
 
-    <SectionCard :padded="false" description="Every event, with when it is on, who it is for, and what it did last time." title="All events">
-      <TableToolbar :filters="activeFilters" @clear="clearFilters" @remove="removeFilter">
-        <SearchField
-          v-model="query"
-          class="w-56"
-          label="Search events"
-          placeholder="Name, key or description"
-        />
-        <FilterMenu v-model="filters" :groups="FILTER_GROUPS" />
-        <DataTableColumnsMenu v-model="columns" :columns="COLUMNS" />
-      </TableToolbar>
-
-      <DataTable
-        v-model:column-state="columns"
-        v-model:sort-by="sortBy"
-        :columns="COLUMNS"
-        :items="matched"
-        empty-description="No event matches these filters."
-        empty-title="No events match."
-        item-value="key"
-        label="Live Ops events"
-      >
-        <template #cell.name="{ item }">
-          <NuxtLink :to="`/growth/liveops/${item.key}`" class="group flex min-w-0 items-center gap-3 py-1 no-underline">
-            <LiveOpsKindMark :kind="item.kind" bare />
-            <span class="flex min-w-0 flex-col">
-              <span class="truncate text-[13px] text-ink transition-colors group-hover:text-primary">{{ item.name }}</span>
-              <span class="truncate font-mono text-[11px] text-ink/45">{{ item.key }}</span>
+      <!-- Next up: the windows due, soonest first, in one row. -->
+      <section class="flex flex-col gap-3">
+        <h2 class="m-0 text-sm font-medium text-ink">
+          Next up
+        </h2>
+        <div class="flex overflow-x-auto rounded-(--ps-radius-large) border border-line bg-surface">
+          <NuxtLink
+            v-for="row in upcoming"
+            :key="row.key"
+            :to="`/growth/liveops/${row.key}`"
+            class="group flex min-w-52 flex-1 items-center gap-3 border-r border-line/70 px-4 py-3 no-underline last:border-r-0 hover:bg-ink/3"
+          >
+            <LiveOpsKindMark :kind="row.kind" bare />
+            <span class="flex min-w-0 flex-1 flex-col">
+              <span class="truncate text-[13px] text-ink group-hover:text-primary">{{ row.name }}</span>
+              <span class="truncate text-[11px] text-ink/50">{{ startWords(row.next!) }}</span>
             </span>
+            <span class="flex-none font-mono text-xs text-ink/60">{{ untilWords(row.next!) }}</span>
           </NuxtLink>
-        </template>
-        <template #cell.state="{ item }">
-          <span class="flex flex-col items-start gap-0.5">
-            <StatusBadge :label="LIVEOPS_STATE[item.state].label" :tone="LIVEOPS_STATE[item.state].tone" />
-            <span class="text-[11px] text-ink/45">{{ stateWords(item, time) }}</span>
-          </span>
-        </template>
-        <template #cell.kind="{ item }">
-          <span class="text-xs text-ink/70">{{ kindLook(item.kind).label }}</span>
-        </template>
-        <template #cell.schedule="{ item }">
-          <span class="flex items-start gap-1.5 text-xs whitespace-normal text-ink/70">
-            <Icon
-              v-if="item.schedule.mode !== 'once'"
-              aria-label="Repeats"
-              class="mt-0.5 flex-none text-sm text-ink/45"
-              name="material-symbols:event-repeat-outline"
-            />
-            <span class="line-clamp-2">{{ scheduleWords(item.schedule) }}</span>
-          </span>
-        </template>
-        <template #cell.audience="{ item }">
-          <span class="line-clamp-2 text-xs whitespace-normal text-ink/70">{{ audienceWords(item.audience) }}<template v-if="item.rollout < FULL_ROLLOUT">, {{ formatRollout(item.rollout) }}</template></span>
-        </template>
-        <template #cell.result="{ item }">
-          <span v-if="item.last && item.goal" class="flex min-w-0 items-baseline gap-2">
-            <span :class="OUTCOME_TEXT[outcomeOf(item.last.metrics[item.goal].comparison)]" class="font-mono text-xs">{{ writeOpsLift(item.goal, item.last.metrics[item.goal].comparison) }}</span>
-            <span class="truncate text-[11px] text-ink/50">{{ LIVEOPS_METRICS[item.goal].label.toLowerCase() }}, {{ windowShort(item.last.occurrence) }}</span>
-          </span>
-          <span v-else class="text-[11px] text-ink/40">{{ item.goal ? 'Not run yet' : 'Not measured' }}</span>
-        </template>
-      </DataTable>
-    </SectionCard>
+          <p v-if="!upcoming.length" class="m-0 flex-1 px-4 py-6 text-center text-xs text-ink/50">
+            Nothing is due in the next six weeks.
+          </p>
+        </div>
+      </section>
 
-    <v-dialog v-model="calendarFull" fullscreen transition="fade-transition">
-      <v-card class="flex h-full flex-col" flat>
-        <LiveOpsCalendar
-          v-if="calendarFull"
-          :events="events"
-          :experiments="experiments"
-          class="min-h-0 flex-1"
-          fullscreen
-          @close="calendarFull = false"
-          @create="createOn"
-        />
-      </v-card>
-    </v-dialog>
+      <SectionCard :padded="false" description="Every event on the days it was on, in a band per kind, with the A/B tests running at the time and the whole game's day along the top. Hover a bar for what it did; select it for its results." title="Calendar">
+        <div class="p-4">
+          <LiveOpsCalendar
+            :events="events"
+            :experiments="experiments"
+            @create="createOn"
+            @expand="calendarFull = true"
+          />
+        </div>
+      </SectionCard>
+
+      <!-- The game, with every event shaded where it ran. -->
+      <MetricCard
+        v-model="metricModel"
+        :categories="categories"
+        :decimals="LIVEOPS_METRICS[metric].kind === 'money' && metric === 'arpdau' ? 3 : 1"
+        :height="300"
+        :marks="marks"
+        :options="METRIC_OPTIONS"
+        :prefix="metricPrefix"
+        :series="gameSeries"
+        :titles="titles"
+        :unit="metricUnit"
+        category-label="Day"
+        type="area"
+      >
+        <template #description>
+          The whole game, day by day, with the events chosen under Filter shaded in their kind's colour and a line where each began: a figure that rises with the shading rose with the event. Hover a day for everything that was on. Each event's own page says by how much, against its own players.
+        </template>
+        <template #actions>
+          <FilterMenu v-model="markFilter" :groups="MARK_GROUPS" />
+          <SegmentedControl v-model="period" :options="PERIODS" label="Period" />
+        </template>
+      </MetricCard>
+
+      <SectionCard :padded="false" :description="`Every window that ended in the last ${PERIODS.find(entry => entry.value === period)?.label}, on the metric each event was meant to move, best first. The line is the range the true effect is in, 95 times in 100.`" title="What worked">
+        <DataTable
+          v-model:column-state="rankColumns"
+          v-model:sort-by="rankSort"
+          :columns="RANK_COLUMNS"
+          :items="ranked"
+          empty-description="No event with a metric to move ended in this period."
+          empty-title="Nothing ended in this period."
+          item-value="id"
+          label="What worked"
+        >
+          <template #cell.event="{ item }">
+            <NuxtLink :to="`/growth/liveops/${item.event.key}?at=${item.impact.occurrence.start}`" class="group flex min-w-0 items-center gap-2.5 py-1 no-underline">
+              <LiveOpsKindMark :kind="item.event.kind" bare />
+              <span class="truncate text-[13px] text-ink transition-colors group-hover:text-primary">{{ item.event.name }}</span>
+            </NuxtLink>
+          </template>
+          <template #cell.when="{ item }">
+            <span class="text-xs whitespace-nowrap text-ink/65">{{ windowShort(item.impact.occurrence) }}</span>
+          </template>
+          <template #cell.goal="{ item }">
+            <span class="text-xs text-ink/65">{{ LIVEOPS_METRICS[item.goal].label }}</span>
+          </template>
+          <template #cell.effect="{ item }">
+            <span class="flex items-center gap-3">
+              <span :class="OUTCOME_TEXT[outcomeOf(item.impact.metrics[item.goal].comparison)]" class="w-16 flex-none text-right font-mono text-xs">{{ writeOpsLift(item.goal, item.impact.metrics[item.goal].comparison) }}</span>
+              <EffectBar :comparison="item.impact.metrics[item.goal].comparison" :domain="rankDomain" class="min-w-40 flex-1" />
+            </span>
+          </template>
+          <template #cell.after="{ item }">
+            <span v-if="item.impact.metrics[item.goal].after && outcomeOf(item.impact.metrics[item.goal].after!) === 'worse'" class="font-mono text-[11px] text-warning">
+              {{ writeOpsLift(item.goal, item.impact.metrics[item.goal].after!) }}
+            </span>
+            <span v-else class="font-mono text-[11px] text-ink/40">{{ item.impact.metrics[item.goal].after ? 'held' : '–' }}</span>
+          </template>
+        </DataTable>
+      </SectionCard>
+
+      <SectionCard :padded="false" description="Every event, with when it is on, who it is for, and what it did last time." title="All events">
+        <TableToolbar :filters="activeFilters" @clear="clearFilters" @remove="removeFilter">
+          <SearchField
+            v-model="query"
+            class="w-56"
+            label="Search events"
+            placeholder="Name, key or description"
+          />
+          <FilterMenu v-model="filters" :groups="FILTER_GROUPS" />
+          <DataTableColumnsMenu v-model="columns" :columns="COLUMNS" />
+        </TableToolbar>
+
+        <DataTable
+          v-model:column-state="columns"
+          v-model:sort-by="sortBy"
+          :columns="COLUMNS"
+          :items="matched"
+          empty-description="No event matches these filters."
+          empty-title="No events match."
+          item-value="key"
+          label="Live Ops events"
+        >
+          <template #cell.name="{ item }">
+            <NuxtLink :to="`/growth/liveops/${item.key}`" class="group flex min-w-0 items-center gap-3 py-1 no-underline">
+              <LiveOpsKindMark :kind="item.kind" bare />
+              <span class="flex min-w-0 flex-col">
+                <span class="truncate text-[13px] text-ink transition-colors group-hover:text-primary">{{ item.name }}</span>
+                <span class="truncate font-mono text-[11px] text-ink/45">{{ item.key }}</span>
+              </span>
+            </NuxtLink>
+          </template>
+          <template #cell.state="{ item }">
+            <span class="flex flex-col items-start gap-0.5">
+              <StatusBadge :label="LIVEOPS_STATE[item.state].label" :tone="LIVEOPS_STATE[item.state].tone" />
+              <span class="text-[11px] text-ink/45">{{ stateWords(item, time) }}</span>
+            </span>
+          </template>
+          <template #cell.kind="{ item }">
+            <span class="text-xs text-ink/70">{{ kindLook(item.kind).label }}</span>
+          </template>
+          <template #cell.schedule="{ item }">
+            <span class="flex items-start gap-1.5 text-xs whitespace-normal text-ink/70">
+              <Icon
+                v-if="item.schedule.mode !== 'once'"
+                aria-label="Repeats"
+                class="mt-0.5 flex-none text-sm text-ink/45"
+                name="material-symbols:event-repeat-outline"
+              />
+              <span class="line-clamp-2">{{ scheduleWords(item.schedule) }}</span>
+            </span>
+          </template>
+          <template #cell.audience="{ item }">
+            <span class="line-clamp-2 text-xs whitespace-normal text-ink/70">{{ audienceWords(item.audience) }}<template v-if="item.rollout < FULL_ROLLOUT">, {{ formatRollout(item.rollout) }}</template></span>
+          </template>
+          <template #cell.result="{ item }">
+            <span v-if="item.last && item.goal" class="flex min-w-0 items-baseline gap-2">
+              <span :class="OUTCOME_TEXT[outcomeOf(item.last.metrics[item.goal].comparison)]" class="font-mono text-xs">{{ writeOpsLift(item.goal, item.last.metrics[item.goal].comparison) }}</span>
+              <span class="truncate text-[11px] text-ink/50">{{ LIVEOPS_METRICS[item.goal].label.toLowerCase() }}, {{ windowShort(item.last.occurrence) }}</span>
+            </span>
+            <span v-else class="text-[11px] text-ink/40">{{ item.goal ? 'Not run yet' : 'Not measured' }}</span>
+          </template>
+        </DataTable>
+      </SectionCard>
+
+      <v-dialog v-model="calendarFull" fullscreen transition="fade-transition">
+        <v-card class="flex h-full flex-col" flat>
+          <LiveOpsCalendar
+            v-if="calendarFull"
+            :events="events"
+            :experiments="experiments"
+            class="min-h-0 flex-1"
+            fullscreen
+            @close="calendarFull = false"
+            @create="createOn"
+          />
+        </v-card>
+      </v-dialog>
+    </LoadState>
   </div>
 </template>

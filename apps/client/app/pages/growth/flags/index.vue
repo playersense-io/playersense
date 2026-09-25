@@ -7,10 +7,17 @@ import type { Kpi } from '~/components/KpiBoard.vue'
 // nothing, and a value-granting flag reached through a key the client sets is a hole — so each
 // row says when it needs somebody, and "Needs attention" gathers them.
 //
-// Sample data (app/utils/flags-sample.ts says what stands in for what). Flags, segments and
-// published versions are kept in this browser and checked as the API checks them.
+// Flags, segments and published versions are the API's; reads are production's exposures over
+// the last seven days.
 const { project } = useWorkspace()
-const { flags, segments, latest, setFlagArchived } = useLiveConfig()
+const { flags, segments, latest, setFlagArchived, loading, error, reload } = useLiveConfig()
+const { readsOf, ready: readsReady } = useFlagExposures()
+
+const problem = ref('')
+
+async function archive(key: string, archived: boolean) {
+  problem.value = (await setFlagArchived(key, archived)) ?? ''
+}
 const router = useRouter()
 
 // --- Attention ----------------------------------------------------------------------------
@@ -39,14 +46,14 @@ interface FlagRow extends FlagDef {
 }
 
 const rows = computed<FlagRow[]>(() => flags.value.map((flag) => {
-  const states = Object.fromEntries(ENVIRONMENTS.map(environment => [environment, flagStateIn(flag, latest(environment))])) as Record<EnvironmentKind, FlagEnvironmentState>
+  const states = Object.fromEntries(ENVIRONMENTS.map(environment => [environment, flagStateIn(flag, latest(environment), segments.value)])) as Record<EnvironmentKind, FlagEnvironmentState>
   const published = production.value?.flags.find(entry => entry.key === flag.key)
-  const weekly = published && !flag.archived ? sampleWeeklyReads(flag.key) : { reads: 0, previous: 0, daily: [] }
+  const weekly = published && !flag.archived ? readsOf(flag.key) : { reads: 0, previous: 0, daily: [] }
   const document = documentOf(flag)
   const attention: Attention[] = []
   if (!flag.archived) {
     if (flag.grantsValue && forgeableKeys(flag, segments.value).length) attention.push('forgeable')
-    if (published && weekly.reads === 0) attention.push('unread')
+    if (published && readsReady.value && weekly.reads === 0) attention.push('unread')
     const settled = Date.now() - Date.parse(flag.updated_at) > 30 * DAY
     if (flag.purpose === 'release' && settled && !isPartial(document) && servedValues(document).length === 1) attention.push('remove')
     if (flag.purpose === 'experiment' && Date.now() - Date.parse(flag.created_at) > 28 * DAY) attention.push('decide')
@@ -69,7 +76,7 @@ const board = computed<Kpi[]>(() => {
   return [
     { key: 'flags', label: 'Flags', value: String(live.length), info: 'Flags in the draft, archived ones aside.' },
     { key: 'partial', label: 'Rolling out', value: String(partial), info: 'Flags holding some players back: a flag or a rule served to less than all of its audience.' },
-    { key: 'waiting', label: 'Waiting for production', value: String(waiting), info: 'Flags and segments the next publish to production would add, change or remove.' },
+    { key: 'waiting', label: 'Waiting for production', value: String(waiting), info: 'Flags the next publish to production would add, change or remove.' },
     { key: 'reads', label: 'Exposures, 7 days', value: writeFigure(reads, { compact: true }), exact: writeFigure(reads), trend: trendOf(reads, previous), info: 'Sessions in which production devices read a flag, against the week before.' },
     { key: 'attention', label: 'Need attention', value: String(needing.value.length), info: 'Flags nobody reads, releases ready to remove, experiments to decide and value granted to a forgeable audience.' }
   ]
@@ -223,7 +230,7 @@ function onCreated(key: string) {
   <div class="flex flex-col gap-8">
     <PageHeader title="Feature flags">
       <template #description>
-        What <span class="text-ink">{{ project.name }}</span> serves each player, decided on the server
+        What <span class="text-ink">{{ project?.name }}</span> serves each player, decided on the server
         and changed without a release.
       </template>
       <template #actions>
@@ -250,177 +257,186 @@ function onCreated(key: string) {
       </template>
     </PageHeader>
 
-    <InfoNote text="Flags, segments and published versions are kept in this browser until the dashboard is wired to the flags API, and every write is checked as the API checks it. Exposures are sample data until feature_exposure events are queried." />
+    <p v-if="problem" class="m-0 rounded-(--ps-radius) bg-error/6 px-3.5 py-3 text-xs text-error ring-1 ring-error/20 ring-inset">
+      {{ problem }}
+    </p>
 
-    <EnvironmentPipeline compact @publish="openPublish" />
+    <LoadState
+      :error="error"
+      :loading="loading && !flags.length"
+      what="the flags"
+      @retry="reload"
+    >
+      <EnvironmentPipeline compact @publish="openPublish" />
 
-    <KpiBoard :items="board" description="The draft, and production over the last 7 days." title="Summary" />
+      <KpiBoard :items="board" description="The draft, and production over the last 7 days." title="Summary" />
 
-    <div class="flex flex-col gap-5">
-      <PageTabs v-model="tab" :tabs="tabs" label="Flag views" />
+      <div class="flex flex-col gap-5">
+        <PageTabs v-model="tab" :tabs="tabs" label="Flag views" />
 
-      <SectionCard
-        :description="tab === 'archived' ? 'Left out of every publish. Restoring one puts it back in the next.' : tab === 'attention' ? 'Flags that need a decision or a cleanup, with the reason on each.' : 'Every flag in the draft. Open one to change who gets what.'"
-        :padded="false"
-        :title="tab === 'archived' ? 'Archived flags' : tab === 'attention' ? 'Needs attention' : 'Flags'"
-      >
-        <TableToolbar :filters="activeFilters" @clear="clearFilters" @remove="removeFilter">
-          <SearchField
-            v-model="query"
-            class="w-56"
-            label="Search flags"
-            placeholder="Name, key or description"
-          />
-          <FilterMenu v-model="filters" :groups="FILTER_GROUPS" />
-          <DataTableColumnsMenu v-model="columns" :columns="COLUMNS" />
-        </TableToolbar>
-
-        <DataTable
-          v-model:column-state="columns"
-          v-model:sort-by="sortBy"
-          :columns="COLUMNS"
-          :items="matched"
-          :paged="matched.length > 25"
-          :empty-description="tab === 'attention' ? 'Every flag is read, current and safely targeted.' : 'No flag matches these filters. Remove one, or clear them all.'"
-          :empty-title="tab === 'attention' ? 'Nothing needs attention.' : 'No flags match.'"
-          item-value="key"
-          label="Flags"
+        <SectionCard
+          :description="tab === 'archived' ? 'Left out of every publish. Restoring one puts it back in the next.' : tab === 'attention' ? 'Flags that need a decision or a cleanup, with the reason on each.' : 'Every flag in the draft. Open one to change who gets what.'"
+          :padded="false"
+          :title="tab === 'archived' ? 'Archived flags' : tab === 'attention' ? 'Needs attention' : 'Flags'"
         >
-          <template #cell.name="{ item }">
-            <NuxtLink :to="`/growth/flags/${encodeURIComponent(item.key)}`" class="group flex min-w-0 items-center gap-3 no-underline">
-              <span
-                aria-hidden="true"
-                class="
+          <TableToolbar :filters="activeFilters" @clear="clearFilters" @remove="removeFilter">
+            <SearchField
+              v-model="query"
+              class="w-56"
+              label="Search flags"
+              placeholder="Name, key or description"
+            />
+            <FilterMenu v-model="filters" :groups="FILTER_GROUPS" />
+            <DataTableColumnsMenu v-model="columns" :columns="COLUMNS" />
+          </TableToolbar>
+
+          <DataTable
+            v-model:column-state="columns"
+            v-model:sort-by="sortBy"
+            :columns="COLUMNS"
+            :items="matched"
+            :paged="matched.length > 25"
+            :empty-description="tab === 'attention' ? 'Every flag is read, current and safely targeted.' : 'No flag matches these filters. Remove one, or clear them all.'"
+            :empty-title="tab === 'attention' ? 'Nothing needs attention.' : 'No flags match.'"
+            item-value="key"
+            label="Flags"
+          >
+            <template #cell.name="{ item }">
+              <NuxtLink :to="`/growth/flags/${encodeURIComponent(item.key)}`" class="group flex min-w-0 items-center gap-3 no-underline">
+                <span
+                  aria-hidden="true"
+                  class="
                   flex size-8 flex-none items-center justify-center rounded-(--ps-radius) bg-ink/5
                   text-ink/60 transition-colors
                   group-hover:bg-primary/10 group-hover:text-primary
                 "
-              >
-                <Icon :name="FLAG_PURPOSES[item.purpose].icon" class="text-base" />
-              </span>
-              <span class="flex min-w-0 flex-col">
-                <span class="truncate text-[13px] text-ink transition-colors group-hover:text-primary">{{ item.name }}</span>
-                <span class="truncate font-mono text-[11px] text-ink/50">{{ item.key }}</span>
-              </span>
-            </NuxtLink>
-          </template>
+                >
+                  <Icon :name="FLAG_PURPOSES[item.purpose].icon" class="text-base" />
+                </span>
+                <span class="flex min-w-0 flex-col">
+                  <span class="truncate text-[13px] text-ink transition-colors group-hover:text-primary">{{ item.name }}</span>
+                  <span class="truncate font-mono text-[11px] text-ink/50">{{ item.key }}</span>
+                </span>
+              </NuxtLink>
+            </template>
 
-          <template #cell.kind="{ item }">
-            <Tag :label="FLAG_KIND_LABELS[item.kind]" :tone="FLAG_KIND_TONES[item.kind]" />
-          </template>
+            <template #cell.kind="{ item }">
+              <Tag :label="FLAG_KIND_LABELS[item.kind]" :tone="FLAG_KIND_TONES[item.kind]" />
+            </template>
 
-          <template #cell.serving="{ item }">
-            <span class="flex min-w-0 flex-col gap-0.5">
-              <span class="flex min-w-0 items-center gap-1.5">
-                <FlagValue :value="item.fallback" />
-                <span v-if="item.rules.length" class="flex-none text-[11px] text-ink/50">
-                  + {{ item.rules.length }} {{ item.rules.length === 1 ? 'rule' : 'rules' }}
+            <template #cell.serving="{ item }">
+              <span class="flex min-w-0 flex-col gap-0.5">
+                <span class="flex min-w-0 items-center gap-1.5">
+                  <FlagValue :value="item.fallback" />
+                  <span v-if="item.rules.length" class="flex-none text-[11px] text-ink/50">
+                    + {{ item.rules.length }} {{ item.rules.length === 1 ? 'rule' : 'rules' }}
+                  </span>
+                </span>
+                <span v-if="rolloutWords(item)" class="flex items-center gap-1 text-[11px] text-ink/50">
+                  <Icon aria-hidden="true" class="text-xs" name="material-symbols:donut-large" />
+                  {{ rolloutWords(item) }}
                 </span>
               </span>
-              <span v-if="rolloutWords(item)" class="flex items-center gap-1 text-[11px] text-ink/50">
-                <Icon aria-hidden="true" class="text-xs" name="material-symbols:donut-large" />
-                {{ rolloutWords(item) }}
+            </template>
+
+            <template #cell.environments="{ item }">
+              <span class="flex items-center gap-2.5">
+                <v-tooltip
+                  v-for="environment in ENVIRONMENTS"
+                  :key="environment"
+                  :text="`${ENVIRONMENT_LABELS[environment]} ${ENV_WORDS[item.states[environment]]}`"
+                  location="top"
+                >
+                  <template #activator="{ props: tip }">
+                    <span v-bind="tip" class="inline-flex items-center gap-1 text-[11px] text-ink/55">
+                      <span :class="ENV_MARKS[item.states[environment]]" aria-hidden="true" class="size-1.5 rounded-full" />
+                      {{ ENVIRONMENT_SHORT[environment] }}
+                    </span>
+                  </template>
+                </v-tooltip>
               </span>
-            </span>
-          </template>
+            </template>
 
-          <template #cell.environments="{ item }">
-            <span class="flex items-center gap-2.5">
-              <v-tooltip
-                v-for="environment in ENVIRONMENTS"
-                :key="environment"
-                :text="`${ENVIRONMENT_LABELS[environment]} ${ENV_WORDS[item.states[environment]]}`"
-                location="top"
-              >
+            <template #cell.reads="{ item }">
+              <span v-if="item.states.production === 'absent' || item.states.production === 'unpublished' || item.archived" class="text-ink/35">–</span>
+              <ProjectFigure
+                v-else
+                :previous="item.previousReads"
+                :value="item.reads"
+                :written="writeFigure(item.reads, { compact: true })"
+              />
+            </template>
+
+            <template #cell.attention="{ item }">
+              <span class="flex flex-wrap gap-1">
+                <v-tooltip
+                  v-for="entry in item.attention"
+                  :key="entry"
+                  :text="ATTENTION[entry].note"
+                  location="top"
+                  max-width="260"
+                >
+                  <template #activator="{ props: tip }">
+                    <span v-bind="tip"><StatusBadge :label="ATTENTION[entry].label" :tone="ATTENTION[entry].tone" /></span>
+                  </template>
+                </v-tooltip>
+                <span v-if="!item.attention.length" class="text-[11px] text-ink/35">–</span>
+              </span>
+            </template>
+
+            <template #cell.purpose="{ item }">
+              {{ FLAG_PURPOSES[item.purpose].label }}
+            </template>
+
+            <template #cell.tags="{ item }">
+              <span class="flex flex-wrap gap-1">
+                <Tag v-for="entry in item.tags" :key="entry" :label="entry" />
+              </span>
+            </template>
+
+            <template #cell.updated_at="{ item }">
+              <v-tooltip :text="`${formatDateTime(item.updated_at)} by ${item.updated_by}`" location="top">
                 <template #activator="{ props: tip }">
-                  <span v-bind="tip" class="inline-flex items-center gap-1 text-[11px] text-ink/55">
-                    <span :class="ENV_MARKS[item.states[environment]]" aria-hidden="true" class="size-1.5 rounded-full" />
-                    {{ ENVIRONMENT_SHORT[environment] }}
-                  </span>
+                  <span v-bind="tip">{{ relativeTime(item.updated_at, now) }}</span>
                 </template>
               </v-tooltip>
-            </span>
-          </template>
+            </template>
 
-          <template #cell.reads="{ item }">
-            <span v-if="item.states.production === 'absent' || item.states.production === 'unpublished' || item.archived" class="text-ink/35">–</span>
-            <ProjectFigure
-              v-else
-              :previous="item.previousReads"
-              :value="item.reads"
-              :written="writeFigure(item.reads, { compact: true })"
-            />
-          </template>
-
-          <template #cell.attention="{ item }">
-            <span class="flex flex-wrap gap-1">
-              <v-tooltip
-                v-for="entry in item.attention"
-                :key="entry"
-                :text="ATTENTION[entry].note"
-                location="top"
-                max-width="260"
-              >
-                <template #activator="{ props: tip }">
-                  <span v-bind="tip"><StatusBadge :label="ATTENTION[entry].label" :tone="ATTENTION[entry].tone" /></span>
+            <template #actions="{ item }">
+              <v-menu location="bottom end">
+                <template #activator="{ props: activator }">
+                  <v-btn
+                    v-bind="activator"
+                    :aria-label="`${item.name} actions`"
+                    color="neutral"
+                    icon="material-symbols:more-horiz"
+                    size="small"
+                    variant="text"
+                  />
                 </template>
-              </v-tooltip>
-              <span v-if="!item.attention.length" class="text-[11px] text-ink/35">–</span>
-            </span>
-          </template>
-
-          <template #cell.purpose="{ item }">
-            {{ FLAG_PURPOSES[item.purpose].label }}
-          </template>
-
-          <template #cell.tags="{ item }">
-            <span class="flex flex-wrap gap-1">
-              <Tag v-for="entry in item.tags" :key="entry" :label="entry" />
-            </span>
-          </template>
-
-          <template #cell.updated_at="{ item }">
-            <v-tooltip :text="`${formatDateTime(item.updated_at)} by ${item.updated_by}`" location="top">
-              <template #activator="{ props: tip }">
-                <span v-bind="tip">{{ relativeTime(item.updated_at, now) }}</span>
-              </template>
-            </v-tooltip>
-          </template>
-
-          <template #actions="{ item }">
-            <v-menu location="bottom end">
-              <template #activator="{ props: activator }">
-                <v-btn
-                  v-bind="activator"
-                  :aria-label="`${item.name} actions`"
-                  color="neutral"
-                  icon="material-symbols:more-horiz"
-                  size="small"
-                  variant="text"
-                />
-              </template>
-              <v-list min-width="200" nav>
-                <v-list-item :to="`/growth/flags/${encodeURIComponent(item.key)}`" prepend-icon="material-symbols:open-in-new" title="Open" />
-                <v-list-item prepend-icon="material-symbols:content-copy-outline" title="Copy key" @click="copy(item.key)" />
-                <v-list-item prepend-icon="material-symbols:library-add-outline" title="Duplicate" @click="duplicating = item" />
-                <v-list-item
-                  v-if="item.archived"
-                  prepend-icon="material-symbols:unarchive-outline"
-                  title="Restore"
-                  @click="setFlagArchived(item.key, false)"
-                />
-                <v-list-item
-                  v-else
-                  prepend-icon="material-symbols:archive-outline"
-                  title="Archive"
-                  @click="archiving = item"
-                />
-              </v-list>
-            </v-menu>
-          </template>
-        </DataTable>
-      </SectionCard>
-    </div>
+                <v-list min-width="200" nav>
+                  <v-list-item :to="`/growth/flags/${encodeURIComponent(item.key)}`" prepend-icon="material-symbols:open-in-new" title="Open" />
+                  <v-list-item prepend-icon="material-symbols:content-copy-outline" title="Copy key" @click="copy(item.key)" />
+                  <v-list-item prepend-icon="material-symbols:library-add-outline" title="Duplicate" @click="duplicating = item" />
+                  <v-list-item
+                    v-if="item.archived"
+                    prepend-icon="material-symbols:unarchive-outline"
+                    title="Restore"
+                    @click="archive(item.key, false)"
+                  />
+                  <v-list-item
+                    v-else
+                    prepend-icon="material-symbols:archive-outline"
+                    title="Archive"
+                    @click="archiving = item"
+                  />
+                </v-list>
+              </v-menu>
+            </template>
+          </DataTable>
+        </SectionCard>
+      </div>
+    </LoadState>
 
     <!-- Mounted only while open: see the note on the flag page. -->
     <NewFlagDialog v-if="creating" v-model="creating" @created="onCreated" />
@@ -439,7 +455,7 @@ function onCreated(key: string) {
       :description="archiving ? `${archiving.name} leaves the draft. Each environment keeps serving it until the next publish there; after that, devices fall back to the value written in the game's code.` : ''"
       :title="archiving ? `Archive ${archiving.name}?` : ''"
       action="Archive flag"
-      @confirm="archiving && setFlagArchived(archiving.key, true)"
+      @confirm="archiving && archive(archiving.key, true)"
     />
   </div>
 </template>

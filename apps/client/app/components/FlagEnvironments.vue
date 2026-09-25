@@ -9,7 +9,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{ compare: [environment: EnvironmentKind] }>()
 
-const { latest } = useLiveConfig()
+const { latest, segments } = useLiveConfig()
 
 const now = useNow({ interval: 60_000 })
 
@@ -22,7 +22,7 @@ const STATES: Record<FlagEnvironmentState, { label: string, tone: BadgeTone }> =
 
 const rows = computed(() => ENVIRONMENTS.map((environment) => {
   const version = latest(environment)
-  const state = flagStateIn(props.flag, version)
+  const state = flagStateIn(props.flag, version, segments.value)
   const published = version?.flags.find(entry => entry.key === props.flag.key) ?? null
   return { environment, version, state, published }
 }))

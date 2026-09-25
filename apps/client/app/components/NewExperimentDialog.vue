@@ -116,9 +116,14 @@ const duplicate = computed(() => {
 const ready = computed(() => name.value.trim() !== '' && flag.value !== null && variants.value.length >= 2
   && !variants.value.some(entry => entry.invalid || entry.weight < 1) && splitTotal.value === 100 && !duplicate.value && plannedDays.value >= MIN_DAYS && traffic.value >= 100)
 
-function confirm() {
-  if (!ready.value || !flag.value) return
-  const id = create({
+const saving = ref(false)
+const refusal = ref('')
+
+async function confirm() {
+  if (!ready.value || !flag.value || saving.value) return
+  saving.value = true
+  refusal.value = ''
+  const { id, problem } = await create({
     name: name.value.trim(),
     hypothesis: hypothesis.value.trim(),
     flagKey: flag.value.key,
@@ -129,6 +134,11 @@ function confirm() {
     variants: variants.value.map((entry, index) => ({ id: entry.id, name: entry.name.trim() || variantLetter(index), value: entry.value, weight: entry.weight, control: index === 0 })),
     plannedDays: plannedDays.value
   })
+  saving.value = false
+  if (problem || !id) {
+    refusal.value = problem ?? 'The experiment was not created.'
+    return
+  }
   emit('created', id)
   open.value = false
 }
@@ -376,6 +386,7 @@ const ids = { name: useId(), hypothesis: useId(), flag: useId(), audience: useId
       </form>
 
       <footer class="flex items-center justify-end gap-2 border-t border-line px-5 py-3">
+        <span v-if="refusal" class="mr-auto text-xs text-error">{{ refusal }}</span>
         <v-btn
           class="text-xs font-medium"
           color="neutral"
@@ -387,6 +398,7 @@ const ids = { name: useId(), hypothesis: useId(), flag: useId(), audience: useId
         </v-btn>
         <v-btn
           :disabled="!ready"
+          :loading="saving"
           class="text-xs font-medium"
           color="primary"
           size="small"

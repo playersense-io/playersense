@@ -101,9 +101,9 @@ export const ENVIRONMENT_NOTES: Record<EnvironmentKind, string> = {
 }
 
 /**
- * One publish: an immutable version of the draft, as it was, in one environment. Holds what
- * was authored — flags and segment rules — and the compiled document is derived from it, so
- * a version can be compared with the draft in the terms somebody edited.
+ * One publish: an immutable version of the draft, compiled, in one environment. Its flags are
+ * the document's, each rule with its segments written in, and are read only once somebody
+ * needs them (`loaded`): the list says who published what and when without them.
  */
 export interface ConfigVersionDef {
   environment: EnvironmentKind
@@ -112,9 +112,16 @@ export interface ConfigVersionDef {
   published_by: string
   note: string
   flags: FlagDocument[]
+  /** Segments are written into the flags that use them; a compiled version keeps none apart. */
   segments: { key: string, rule: TargetRule }[]
   /** A rollback: the earlier version this one republished, unchanged. */
   rollback_of?: number
+  /** From the version list, before its document is read. */
+  flag_count?: number
+  liveops_events?: number
+  needs_player_facts?: boolean
+  /** Whether `flags` holds the document's flags yet. */
+  loaded?: boolean
 }
 
 export type AuditAction
@@ -378,6 +385,20 @@ export function flagChanges(before: FlagDocument, after: FlagDocument, segmentNa
   return lines
 }
 
+/** A flag as a compiled document holds it: each rule's segments written in. */
+export function compiledFlag(flag: FlagDocument, segments: ReadonlyMap<string, TargetRule>): FlagDocument {
+  return {
+    key: flag.key,
+    kind: flag.kind,
+    fallback: flag.fallback,
+    rules: flag.rules.map(rule => ({ audience: inlineSegments(rule.audience, segments), value: rule.value, rollout: rule.rollout })),
+    rollout: flag.rollout,
+    salt: flag.salt ?? ''
+  }
+}
+
+const segmentMap = (segments: readonly SegmentDef[]) => new Map(segments.filter(segment => !segment.archived).map(segment => [segment.key, segment.rule]))
+
 /** The draft against a published version: what the next publish there would change. */
 export interface DraftChange {
   kind: 'flag' | 'segment'
@@ -387,28 +408,18 @@ export interface DraftChange {
 }
 
 export function draftChanges(version: ConfigVersionDef | null, flags: readonly FlagDef[], segments: readonly SegmentDef[]): DraftChange[] {
-  const names = new Map(segments.map(segment => [segment.key, segment.name]))
-  const segmentName = (key: string) => names.get(key) ?? key
+  const rules = segmentMap(segments)
   const changes: DraftChange[] = []
-  const published = new Map((version?.flags ?? []).map(flag => [flag.key, flag]))
+  const published = new Map((version?.flags ?? []).map(flag => [flag.key, compiledFlag(flag, new Map())]))
   const live = flags.filter(flag => !flag.archived)
   for (const flag of live) {
     const before = published.get(flag.key)
-    const after = documentOf(flag)
+    const after = compiledFlag(documentOf(flag), rules)
     if (!before) changes.push({ kind: 'flag', key: flag.key, change: 'added', lines: [`Serves ${writeValue(flag.fallback)} by default${flag.rules.length ? `, with ${flag.rules.length} ${flag.rules.length === 1 ? 'rule' : 'rules'}` : ''}`] })
-    else if (!sameJson(before, after)) changes.push({ kind: 'flag', key: flag.key, change: 'changed', lines: flagChanges(before, after, segmentName) })
+    else if (!sameJson(before, after)) changes.push({ kind: 'flag', key: flag.key, change: 'changed', lines: flagChanges(before, after) })
   }
   for (const flag of published.values()) {
     if (!live.some(entry => entry.key === flag.key)) changes.push({ kind: 'flag', key: flag.key, change: 'removed', lines: ['Archived: the game falls back to its own default'] })
-  }
-  const segmentsBefore = new Map((version?.segments ?? []).map(segment => [segment.key, segment.rule]))
-  for (const segment of segments.filter(entry => !entry.archived)) {
-    const before = segmentsBefore.get(segment.key)
-    if (!before) changes.push({ kind: 'segment', key: segment.key, change: 'added', lines: [describeRule(segment.rule, segmentName)] })
-    else if (!sameJson(before, segment.rule)) changes.push({ kind: 'segment', key: segment.key, change: 'changed', lines: [`Audience: ${describeRule(segment.rule, segmentName)}`] })
-  }
-  for (const key of segmentsBefore.keys()) {
-    if (!segments.some(segment => segment.key === key && !segment.archived)) changes.push({ kind: 'segment', key, change: 'removed', lines: ['Archived'] })
   }
   return changes
 }
@@ -427,12 +438,12 @@ export function versionChanges(from: ConfigVersionDef | null, to: ConfigVersionD
 /** Where one flag stands in one environment. */
 export type FlagEnvironmentState = 'same' | 'changed' | 'absent' | 'unpublished'
 
-export function flagStateIn(flag: FlagDef, version: ConfigVersionDef | null): FlagEnvironmentState {
+export function flagStateIn(flag: FlagDef, version: ConfigVersionDef | null, segments: readonly SegmentDef[] = []): FlagEnvironmentState {
   if (!version) return 'unpublished'
   const published = version.flags.find(entry => entry.key === flag.key)
   if (!published) return flag.archived ? 'same' : 'absent'
   if (flag.archived) return 'changed'
-  return sameJson(published, documentOf(flag)) ? 'same' : 'changed'
+  return sameJson(compiledFlag(published, new Map()), compiledFlag(documentOf(flag), segmentMap(segments))) ? 'same' : 'changed'
 }
 
 // --- Answering a player -------------------------------------------------------------------

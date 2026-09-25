@@ -3,7 +3,7 @@
 // from what is saved, with the key fixed. Saving goes back to the event.
 const route = useRoute()
 
-const { eventByKey } = useLiveOps()
+const { eventByKey, loading, error, reload } = useLiveOps()
 
 const key = computed(() => String(route.params.key ?? ''))
 const event = computed(() => eventByKey(key.value))
@@ -15,7 +15,17 @@ const formKey = ref(0)
 </script>
 
 <template>
-  <div v-if="!event" class="flex flex-col gap-8">
+  <div v-if="(loading || error) && !event" class="flex flex-col gap-8">
+    <PageHeader title="Edit event" />
+    <LoadState
+      :error="error"
+      :loading="loading"
+      what="the event"
+      @retry="reload"
+    />
+  </div>
+
+  <div v-else-if="!event" class="flex flex-col gap-8">
     <PageHeader title="Event not found" />
     <LayerCard>
       <EmptyState description="There is no Live Ops event with this key in the project." icon="material-symbols:event-busy-outline" title="No such event">

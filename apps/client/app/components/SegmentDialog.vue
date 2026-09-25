@@ -55,13 +55,19 @@ const problems = computed(() => {
 })
 
 const uses = computed(() => (props.segment ? usesOf(props.segment.key) : { flags: [], segments: [] }))
-const reach = computed(() => sampleReach(rule.value))
+const { shareOf } = useSegmentReach()
+/* Counted for the segment as saved: an edit is counted once it is saved. */
+const reach = computed(() => (props.segment ? shareOf(props.segment.key) : null))
 
 const ready = computed(() => name.value.trim() !== '' && key.value !== '' && !problems.value.length)
 
-function confirm() {
-  if (!ready.value) return
-  const problem = props.segment ? saveSegment(candidate.value) : createSegment(candidate.value)
+const saving = ref(false)
+
+async function confirm() {
+  if (!ready.value || saving.value) return
+  saving.value = true
+  const problem = props.segment ? await saveSegment(candidate.value) : await createSegment(candidate.value)
+  saving.value = false
   if (problem) {
     refusal.value = problem
     return
@@ -135,7 +141,8 @@ const descriptionId = useId()
         <div class="flex flex-col gap-2">
           <div class="flex items-baseline justify-between gap-2">
             <span class="text-xs font-medium text-ink">Players who match</span>
-            <span class="text-[11px] text-ink/50">about <span class="font-mono text-ink/70">{{ formatShare(reach) }}</span> of last week's players</span>
+            <span v-if="reach !== null" class="text-[11px] text-ink/50">as saved, about <span class="font-mono text-ink/70">{{ formatShare(reach) }}</span> of last week's players</span>
+            <span v-else class="text-[11px] text-ink/50">Counted once it is saved</span>
           </div>
           <div class="rounded-(--ps-radius-large) border border-line p-4">
             <AudienceEditor v-model="rule" :exclude="segment?.key ?? key" :segments="segments" />
@@ -172,6 +179,7 @@ const descriptionId = useId()
           Cancel
         </v-btn>
         <v-btn
+          :loading="saving"
           :disabled="!ready"
           class="text-xs font-medium"
           color="primary"

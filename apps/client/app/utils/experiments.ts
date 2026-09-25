@@ -5,8 +5,8 @@
 // the share of the test's audience that gets each one. The server already decides who is in
 // which variant (a hash of the install, so a player stays in theirs), and the SDK already
 // records which one a player saw (`feature_exposure`); what is new here is the experiment as a
-// thing with a question, a start, an end and an answer. None of it is stored by the API yet
-// (project.md §44 plans it); utils/experiments-sample.ts stands in for the results.
+// thing with a question, a start, an end and an answer. The API keeps it (…/experiments) and
+// measures it (…/analytics/{environment}/experiments/{flag}); stores/experiments.ts reads both.
 //
 // The statistics are the plainest that answer the question honestly: each variant's mean and
 // its spread, the difference from the control with a 95% range, and the chance that the
@@ -36,16 +36,17 @@ export interface MetricDef {
 }
 
 export const EXPERIMENT_METRICS: Record<MetricKey, MetricDef> = {
-  revenue_per_player: { key: 'revenue_per_player', label: 'Revenue per player', kind: 'money', note: 'Verified purchases in the test, in USD, over every player in the variant, payers or not.' },
-  payer_conversion: { key: 'payer_conversion', label: 'Payer conversion', kind: 'rate', note: 'The share of the variant\'s players who bought anything during the test.' },
+  revenue_per_player: { key: 'revenue_per_player', label: 'Revenue per player', kind: 'money', note: 'Verified purchases in the seven days from a player\'s first exposure, in USD, over every player in the variant, payers or not.' },
+  payer_conversion: { key: 'payer_conversion', label: 'Payer conversion', kind: 'rate', note: 'The share of the variant\'s players who bought anything in the seven days from their first exposure.' },
   d1_retention: { key: 'd1_retention', label: 'Day-1 retention', kind: 'rate', note: 'The share who came back the day after they entered the test.' },
   d7_retention: { key: 'd7_retention', label: 'Day-7 retention', kind: 'rate', note: 'The share who played on the seventh day after they entered the test.' },
-  sessions_per_player: { key: 'sessions_per_player', label: 'Sessions per player', kind: 'count', note: 'Sessions played during the test, per player.' },
-  playtime_minutes: { key: 'playtime_minutes', label: 'Playtime per player', kind: 'minutes', note: 'Minutes played during the test, per player.' },
-  ad_revenue_per_player: { key: 'ad_revenue_per_player', label: 'Ad revenue per player', kind: 'money', note: 'Estimated ad revenue during the test, per player.' }
+  sessions_per_player: { key: 'sessions_per_player', label: 'Sessions per player', kind: 'count', note: 'Sessions played in the seven days from a player\'s first exposure.' },
+  playtime_minutes: { key: 'playtime_minutes', label: 'Playtime per player', kind: 'minutes', note: 'Minutes played in the seven days from a player\'s first exposure.' },
+  ad_revenue_per_player: { key: 'ad_revenue_per_player', label: 'Ad revenue per player', kind: 'money', note: 'Estimated ad revenue per player. Not measured yet.' }
 }
 
-export const METRIC_KEYS = Object.keys(EXPERIMENT_METRICS) as MetricKey[]
+/** The metrics a test can be decided and guarded by: what the API measures. Ad revenue is not measured yet. */
+export const METRIC_KEYS = (Object.keys(EXPERIMENT_METRICS) as MetricKey[]).filter(key => key !== 'ad_revenue_per_player')
 
 export interface VariantDef {
   id: string
@@ -103,6 +104,9 @@ export interface ExperimentDef {
   conclusion?: string
   events: ExperimentEvent[]
 }
+
+/** What creating a test sends: everything but what the API decides. */
+export type ExperimentDraft = Omit<ExperimentDef, 'id' | 'status' | 'created_at' | 'events'>
 
 export const EXPERIMENT_STATUS: Record<ExperimentStatus, { label: string, tone: BadgeTone }> = {
   draft: { label: 'Draft', tone: 'neutral' },

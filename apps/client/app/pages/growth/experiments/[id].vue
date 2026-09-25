@@ -4,10 +4,11 @@
 // tested, when and by whom. The answer comes first and in words, because a page of charts that
 // leaves the reader to work out the verdict is how a test gets misread.
 //
-// Sample data (app/utils/experiments-sample.ts).
+// Results are the API's, over the days the test has run, each player measured over the seven
+// days from their first exposure.
 const route = useRoute()
 
-const { experimentById, start, setTraffic, stop, finish, ship } = useExperiments()
+const { experimentById, start, setTraffic, stop, finish, ship, resultsFor, loading, error, reload } = useExperiments()
 const { flagByKey } = useLiveConfig()
 
 const id = computed(() => String(route.params.id ?? ''))
@@ -15,7 +16,7 @@ const experiment = computed(() => experimentById(id.value))
 
 usePageCrumb(() => experiment.value?.name ?? 'Experiment')
 
-const results = computed(() => (experiment.value ? sampleExperimentResults(experiment.value) : null))
+const results = computed(() => (experiment.value ? resultsFor(experiment.value) : null))
 const verdict = computed(() => (experiment.value ? verdictOf(experiment.value, results.value) : null))
 const split = computed(() => (results.value ? againstControl(results.value) : null))
 
@@ -30,12 +31,15 @@ const tones = computed(() => Object.fromEntries((experiment.value?.variants ?? [
 
 // --- Day by day ---------------------------------------------------------------------------
 
+/* The API reports these two day by day; the others only over the whole test. */
+const DAILY_METRICS: MetricKey[] = ['revenue_per_player', 'payer_conversion']
+
 const metric = ref<MetricKey>('revenue_per_player')
 watch(experiment, (value) => {
-  if (value) metric.value = value.primaryMetric
+  if (value) metric.value = DAILY_METRICS.includes(value.primaryMetric) ? value.primaryMetric : 'revenue_per_player'
 }, { immediate: true })
 
-const METRIC_OPTIONS = METRIC_KEYS.map(key => ({ value: key, label: EXPERIMENT_METRICS[key].label, description: EXPERIMENT_METRICS[key].note }))
+const METRIC_OPTIONS = DAILY_METRICS.map(key => ({ value: key, label: EXPERIMENT_METRICS[key].label, description: EXPERIMENT_METRICS[key].note }))
 
 const metricModel = computed({
   get: () => metric.value as string,
@@ -140,20 +144,38 @@ const refusal = ref('')
 
 const winner = computed(() => experiment.value?.variants.find(entry => entry.id === experiment.value?.winner) ?? null)
 
-function onShip() {
+async function onShip() {
   if (!experiment.value) return
-  refusal.value = ship(experiment.value.id) ?? ''
+  refusal.value = (await ship(experiment.value.id)) ?? ''
 }
 
-function onEnd(decision: { winner: string | null, note: string }) {
+async function onEnd(decision: { winner: string | null, note: string }) {
   if (!experiment.value || !ending.value) return
-  if (ending.value === 'stop') stop(experiment.value.id, decision.note)
-  else finish(experiment.value.id, decision.winner, decision.note)
+  const id = experiment.value.id
+  refusal.value = (ending.value === 'stop' ? await stop(id, decision.note) : await finish(id, decision.winner, decision.note)) ?? ''
+}
+
+async function onStart() {
+  if (experiment.value) refusal.value = (await start(experiment.value.id)) ?? ''
+}
+
+async function onTraffic(traffic: number) {
+  if (experiment.value) refusal.value = (await setTraffic(experiment.value.id, traffic)) ?? ''
 }
 </script>
 
 <template>
-  <div v-if="!experiment || !verdict" class="flex flex-col gap-8">
+  <div v-if="(loading && !experiment) || (error && !experiment)" class="flex flex-col gap-8">
+    <PageHeader title="Experiment" />
+    <LoadState
+      :error="error"
+      :loading="loading"
+      what="the experiment"
+      @retry="reload"
+    />
+  </div>
+
+  <div v-else-if="!experiment || !verdict" class="flex flex-col gap-8">
     <PageHeader title="Experiment not found" />
     <LayerCard>
       <EmptyState description="There is no experiment with this id in the project." icon="material-symbols:science-outline" title="No such experiment">
@@ -399,7 +421,7 @@ function onEnd(decision: { winner: string | null, note: string }) {
       action="Start experiment"
       title="Start this experiment?"
       tone="primary"
-      @confirm="start(experiment.id)"
+      @confirm="onStart"
     />
 
     <ConfirmDialog
@@ -416,7 +438,7 @@ function onEnd(decision: { winner: string | null, note: string }) {
       v-if="adjusting"
       v-model="adjusting"
       :experiment="experiment"
-      @confirm="setTraffic(experiment.id, $event)"
+      @confirm="onTraffic"
     />
 
     <ExperimentEndDialog

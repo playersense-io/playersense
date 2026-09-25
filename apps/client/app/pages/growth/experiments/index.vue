@@ -8,10 +8,9 @@
 // other's. Two tests on the same screen or the same number would each blur the other's result,
 // which is why a flag carries one test at a time.
 //
-// Sample data (app/utils/experiments-sample.ts). Kept in this browser until the API has
-// experiments and a query over exposures.
+// Experiments are the API's, and their results its measure of each arm from production.
 const { project } = useWorkspace()
-const { experiments } = useExperiments()
+const { experiments, resultsFor, loading, error, reload } = useExperiments()
 const router = useRouter()
 
 interface Row extends ExperimentDef {
@@ -21,7 +20,7 @@ interface Row extends ExperimentDef {
 }
 
 const rows = computed<Row[]>(() => experiments.value.map((experiment) => {
-  const results = sampleExperimentResults(experiment)
+  const results = resultsFor(experiment)
   const verdict = verdictOf(experiment, results)
   const split = results ? againstControl(results) : null
   const leader = split?.others.find(entry => entry.variant.id === verdict.variant?.id) ?? split?.others[0]
@@ -100,7 +99,7 @@ const creating = ref(false)
   <div class="flex flex-col gap-8">
     <PageHeader title="Experiments">
       <template #description>
-        What <span class="text-ink">{{ project.name }}</span> has tested, what it is testing now, and what each test decided.
+        What <span class="text-ink">{{ project?.name }}</span> has tested, what it is testing now, and what each test decided.
       </template>
       <template #actions>
         <v-btn
@@ -116,119 +115,124 @@ const creating = ref(false)
       </template>
     </PageHeader>
 
-    <InfoNote text="Experiments and their results are sample data until the API stores experiments and queries exposures. Which variant each player gets is already decided by the flag, on the server." />
-
-    <!-- Running now: the tests somebody is waiting on, each with its answer so far. -->
-    <section class="flex flex-col gap-3">
-      <div class="flex flex-col gap-0.5">
-        <h2 class="m-0 text-sm font-medium text-ink">
-          Running now
-        </h2>
-        <p class="m-0 text-xs text-ink/60">
-          Each test changes something different, so several can run at once without spoiling one another.
-        </p>
-      </div>
-
-      <div v-if="running.length" class="grid gap-3 lg:grid-cols-2">
-        <NuxtLink
-          v-for="row in running"
-          :key="row.id"
-          :to="`/growth/experiments/${row.id}`"
-          class="group flex flex-col gap-4 rounded-(--ps-radius-x-large) border border-line bg-surface p-5 no-underline transition-colors hover:border-ink/25"
-        >
-          <div class="flex items-start justify-between gap-3">
-            <div class="flex min-w-0 flex-col gap-0.5">
-              <span class="truncate text-sm font-medium text-ink group-hover:text-primary">{{ row.name }}</span>
-              <span class="truncate text-xs text-ink/55">{{ row.audience }} · {{ EXPERIMENT_METRICS[row.primaryMetric].label }}</span>
-            </div>
-            <StatusBadge :label="row.verdict.title" :tone="RESULT_TONES[row.verdict.kind]" />
-          </div>
-
-          <div v-if="row.lead && row.verdict.kind !== 'collecting'" class="flex items-end justify-between gap-4">
-            <div class="flex flex-col">
-              <span class="text-[11px] text-ink/50">{{ row.verdict.variant ? variantTitle(row, row.verdict.variant) : 'Best variant' }} against A</span>
-              <span :class="outcomeOf(row.lead) === 'better' ? 'text-success' : outcomeOf(row.lead) === 'worse' ? 'text-error' : 'text-ink'" class="font-mono text-2xl leading-8">{{ writeLift(row.primaryMetric, row.lead) }}</span>
-            </div>
-            <div class="flex flex-col items-end">
-              <span class="text-[11px] text-ink/50">Chance it is really better</span>
-              <span class="font-mono text-2xl leading-8 text-ink">{{ writeChance(row.lead.chance) }}</span>
-            </div>
-          </div>
-          <p v-else class="m-0 text-xs leading-5 text-ink/60">
-            {{ row.verdict.detail }}
+    <LoadState
+      :error="error"
+      :loading="loading && !experiments.length"
+      what="the experiments"
+      @retry="reload"
+    >
+      <!-- Running now: the tests somebody is waiting on, each with its answer so far. -->
+      <section class="flex flex-col gap-3">
+        <div class="flex flex-col gap-0.5">
+          <h2 class="m-0 text-sm font-medium text-ink">
+            Running now
+          </h2>
+          <p class="m-0 text-xs text-ink/60">
+            Each test changes something different, so several can run at once without spoiling one another.
           </p>
+        </div>
 
-          <div class="flex flex-col gap-1.5">
-            <span class="relative h-1.5 overflow-hidden rounded-full bg-ink/8">
-              <span :style="{ width: `${Math.min(1, daysRun(row) / row.plannedDays) * 100}%` }" class="absolute inset-y-0 left-0 rounded-full bg-primary" />
-            </span>
-            <span class="text-[11px] text-ink/50">{{ whenWords(row) }}</span>
-          </div>
-        </NuxtLink>
-      </div>
-      <LayerCard v-else>
-        <EmptyState description="Start one from a flag: its values become the variants, and its players are split between them." icon="material-symbols:science-outline" title="Nothing is running" />
-      </LayerCard>
-    </section>
+        <div v-if="running.length" class="grid gap-3 lg:grid-cols-2">
+          <NuxtLink
+            v-for="row in running"
+            :key="row.id"
+            :to="`/growth/experiments/${row.id}`"
+            class="group flex flex-col gap-4 rounded-(--ps-radius-x-large) border border-line bg-surface p-5 no-underline transition-colors hover:border-ink/25"
+          >
+            <div class="flex items-start justify-between gap-3">
+              <div class="flex min-w-0 flex-col gap-0.5">
+                <span class="truncate text-sm font-medium text-ink group-hover:text-primary">{{ row.name }}</span>
+                <span class="truncate text-xs text-ink/55">{{ row.audience }} · {{ EXPERIMENT_METRICS[row.primaryMetric].label }}</span>
+              </div>
+              <StatusBadge :label="row.verdict.title" :tone="RESULT_TONES[row.verdict.kind]" />
+            </div>
 
-    <SectionCard :padded="false" description="Every test on the days it ran, against the whole game's players and revenue. Hover a bar for how it ended; select it to open the results." title="Calendar">
-      <div class="p-4">
-        <ExperimentCalendar :experiments="experiments" />
-      </div>
-    </SectionCard>
+            <div v-if="row.lead && row.verdict.kind !== 'collecting'" class="flex items-end justify-between gap-4">
+              <div class="flex flex-col">
+                <span class="text-[11px] text-ink/50">{{ row.verdict.variant ? variantTitle(row, row.verdict.variant) : 'Best variant' }} against A</span>
+                <span :class="outcomeOf(row.lead) === 'better' ? 'text-success' : outcomeOf(row.lead) === 'worse' ? 'text-error' : 'text-ink'" class="font-mono text-2xl leading-8">{{ writeLift(row.primaryMetric, row.lead) }}</span>
+              </div>
+              <div class="flex flex-col items-end">
+                <span class="text-[11px] text-ink/50">Chance it is really better</span>
+                <span class="font-mono text-2xl leading-8 text-ink">{{ writeChance(row.lead.chance) }}</span>
+              </div>
+            </div>
+            <p v-else class="m-0 text-xs leading-5 text-ink/60">
+              {{ row.verdict.detail }}
+            </p>
 
-    <SectionCard :padded="false" description="Every experiment, with what it was testing and what came of it." title="All experiments">
-      <TableToolbar :filters="activeFilters" @clear="clearFilters" @remove="removeFilter">
-        <SearchField
-          v-model="query"
-          class="w-56"
-          label="Search experiments"
-          placeholder="Name, hypothesis or flag"
-        />
-        <FilterMenu v-model="filters" :groups="FILTER_GROUPS" />
-        <DataTableColumnsMenu v-model="columns" :columns="COLUMNS" />
-      </TableToolbar>
-
-      <DataTable
-        v-model:column-state="columns"
-        v-model:sort-by="sortBy"
-        :columns="COLUMNS"
-        :items="matched"
-        :paged="false"
-        empty-description="No experiment matches these filters."
-        empty-title="No experiments match."
-        item-value="id"
-        label="Experiments"
-      >
-        <template #cell.name="{ item }">
-          <NuxtLink :to="`/growth/experiments/${item.id}`" class="group flex min-w-0 flex-col py-1 no-underline">
-            <span class="truncate text-[13px] text-ink transition-colors group-hover:text-primary">{{ item.name }}</span>
-            <span class="line-clamp-1 text-[11px] whitespace-normal text-ink/50">{{ item.hypothesis }}</span>
+            <div class="flex flex-col gap-1.5">
+              <span class="relative h-1.5 overflow-hidden rounded-full bg-ink/8">
+                <span :style="{ width: `${Math.min(1, daysRun(row) / row.plannedDays) * 100}%` }" class="absolute inset-y-0 left-0 rounded-full bg-primary" />
+              </span>
+              <span class="text-[11px] text-ink/50">{{ whenWords(row) }}</span>
+            </div>
           </NuxtLink>
-        </template>
-        <template #cell.status="{ item }">
-          <StatusBadge :label="EXPERIMENT_STATUS[item.status].label" :tone="EXPERIMENT_STATUS[item.status].tone" />
-        </template>
-        <template #cell.result="{ item }">
-          <span class="flex min-w-0 items-center gap-2">
-            <Icon
-              v-if="item.shipped"
-              aria-label="Shipped"
-              class="flex-none text-sm text-success"
-              name="material-symbols:rocket-launch-outline"
-            />
-            <span class="truncate text-xs text-ink/80">{{ item.verdict.title }}</span>
-            <span v-if="item.lead && item.status !== 'draft'" class="flex-none font-mono text-[11px] text-ink/50">{{ writeLift(item.primaryMetric, item.lead) }}</span>
-          </span>
-        </template>
-        <template #cell.primaryMetric="{ item }">
-          <span class="text-xs">{{ EXPERIMENT_METRICS[item.primaryMetric].label }}</span>
-        </template>
-        <template #cell.started_at="{ item }">
-          <span class="text-xs text-ink/70">{{ whenWords(item) }}</span>
-        </template>
-      </DataTable>
-    </SectionCard>
+        </div>
+        <LayerCard v-else>
+          <EmptyState description="Start one from a flag: its values become the variants, and its players are split between them." icon="material-symbols:science-outline" title="Nothing is running" />
+        </LayerCard>
+      </section>
+
+      <SectionCard :padded="false" description="Every test on the days it ran, against the whole game's players and revenue. Hover a bar for how it ended; select it to open the results." title="Calendar">
+        <div class="p-4">
+          <ExperimentCalendar :experiments="experiments" />
+        </div>
+      </SectionCard>
+
+      <SectionCard :padded="false" description="Every experiment, with what it was testing and what came of it." title="All experiments">
+        <TableToolbar :filters="activeFilters" @clear="clearFilters" @remove="removeFilter">
+          <SearchField
+            v-model="query"
+            class="w-56"
+            label="Search experiments"
+            placeholder="Name, hypothesis or flag"
+          />
+          <FilterMenu v-model="filters" :groups="FILTER_GROUPS" />
+          <DataTableColumnsMenu v-model="columns" :columns="COLUMNS" />
+        </TableToolbar>
+
+        <DataTable
+          v-model:column-state="columns"
+          v-model:sort-by="sortBy"
+          :columns="COLUMNS"
+          :items="matched"
+          :paged="false"
+          empty-description="No experiment matches these filters."
+          empty-title="No experiments match."
+          item-value="id"
+          label="Experiments"
+        >
+          <template #cell.name="{ item }">
+            <NuxtLink :to="`/growth/experiments/${item.id}`" class="group flex min-w-0 flex-col py-1 no-underline">
+              <span class="truncate text-[13px] text-ink transition-colors group-hover:text-primary">{{ item.name }}</span>
+              <span class="line-clamp-1 text-[11px] whitespace-normal text-ink/50">{{ item.hypothesis }}</span>
+            </NuxtLink>
+          </template>
+          <template #cell.status="{ item }">
+            <StatusBadge :label="EXPERIMENT_STATUS[item.status].label" :tone="EXPERIMENT_STATUS[item.status].tone" />
+          </template>
+          <template #cell.result="{ item }">
+            <span class="flex min-w-0 items-center gap-2">
+              <Icon
+                v-if="item.shipped"
+                aria-label="Shipped"
+                class="flex-none text-sm text-success"
+                name="material-symbols:rocket-launch-outline"
+              />
+              <span class="truncate text-xs text-ink/80">{{ item.verdict.title }}</span>
+              <span v-if="item.lead && item.status !== 'draft'" class="flex-none font-mono text-[11px] text-ink/50">{{ writeLift(item.primaryMetric, item.lead) }}</span>
+            </span>
+          </template>
+          <template #cell.primaryMetric="{ item }">
+            <span class="text-xs">{{ EXPERIMENT_METRICS[item.primaryMetric].label }}</span>
+          </template>
+          <template #cell.started_at="{ item }">
+            <span class="text-xs text-ink/70">{{ whenWords(item) }}</span>
+          </template>
+        </DataTable>
+      </SectionCard>
+    </LoadState>
 
     <NewExperimentDialog v-if="creating" v-model="creating" @created="router.push(`/growth/experiments/${$event}`)" />
   </div>

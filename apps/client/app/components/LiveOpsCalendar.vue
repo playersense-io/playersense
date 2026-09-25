@@ -29,6 +29,7 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{ expand: [], close: [], create: [day: number] }>()
 
 const now = useNow({ interval: 60_000 })
+const liveOps = useLiveOpsStore()
 
 const compact = ref(false)
 const span = computed(() => (props.fullscreen ? 35 : 21) * (compact.value ? 2 : 1))
@@ -63,7 +64,7 @@ const days = computed(() => Array.from({ length: span.value }, (_, index) => {
     weekday: date.toLocaleDateString('en', { weekday: 'short' }),
     weekend: weekday === 0 || weekday === 6,
     today: at === startOfDay(now.value.getTime()),
-    figures: sampleGameDay(at, props.events.filter(entry => entry.status !== 'draft'))
+    figures: liveOps.gameDay(at)
   }
 }))
 
@@ -178,7 +179,7 @@ const LOOK_WORDS: Record<Look, string> = { ended: 'Ran', live: 'On now', schedul
 function figureOf(event: LiveOpsEventDef, window: Occurrence, look: Look): string {
   if (look === 'scheduled') return relativeWords(window.start, now.value.getTime())
   if (look !== 'ended' && look !== 'live') return ''
-  const impact = sampleEventImpact(event, window, now.value.getTime())
+  const impact = liveOps.impactFor(event, window)
   if (!impact) return ''
   return event.goal === 'revenue' || event.goal === 'arpdau' || event.kind === 'offer'
     ? `$${compactFigure(impact.revenue)}`
@@ -189,7 +190,7 @@ function tipOf(event: LiveOpsEventDef, window: Occurrence, look: Look): Bar['tip
   const lines = [windowWords(window), describeRule(event.audience) || 'Every player']
   if (event.rollout < FULL_ROLLOUT) lines[1] += `, ${formatRollout(event.rollout)} of them`
   if ((look === 'ended' || look === 'live') && event.goal) {
-    const impact = sampleEventImpact(event, window, now.value.getTime())
+    const impact = liveOps.impactFor(event, window)
     if (impact) {
       const metric = impact.metrics[event.goal]
       lines.push(`${LIVEOPS_METRICS[event.goal].label} ${writeOpsLift(event.goal, metric.comparison)} against expected${look === 'live' ? ' so far' : ''}`)
@@ -222,7 +223,7 @@ function seriesFigure(event: LiveOpsEventDef, window: Occurrence, look: Look): s
     return gap >= 2 * DAY ? `in ${Math.round(gap / DAY)}d` : `in ${Math.max(1, Math.round(gap / 3_600_000))}h`
   }
   if ((look !== 'ended' && look !== 'live') || !event.goal) return figureOf(event, window, look)
-  const impact = sampleEventImpact(event, window, now.value.getTime())
+  const impact = liveOps.impactFor(event, window)
   return impact ? writeOpsLift(event.goal, impact.metrics[event.goal].comparison) : ''
 }
 

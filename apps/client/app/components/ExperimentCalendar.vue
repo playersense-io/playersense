@@ -11,6 +11,15 @@ const props = defineProps<{
   experiments: readonly ExperimentDef[]
 }>()
 
+const experimentsStore = useExperimentsStore()
+const liveOps = useLiveOpsStore()
+
+/* The whole game's day from the daily metrics, for the strip over the calendar. */
+function totalsOf(at: number): DayTotals | null {
+  const figures = liveOps.gameDay(at)
+  return figures ? { players: figures.players, newPlayers: figures.new_players, revenue: figures.revenue } : null
+}
+
 const DAY = 86_400_000
 
 const now = useNow({ interval: 60_000 })
@@ -48,7 +57,7 @@ const days = computed(() => Array.from({ length: span.value }, (_, index) => {
     weekday: date.toLocaleDateString('en', { weekday: 'short' }),
     weekend: weekday === 0 || weekday === 6,
     today: at === startOfDay(now.value.getTime()),
-    totals: sampleDayTotals(at)
+    totals: totalsOf(at)
   }
 }))
 
@@ -102,7 +111,7 @@ const bars = computed(() => {
   for (const item of list) {
     const start = Math.max(0, Math.floor((startOfDay(item.started) - from.value) / DAY))
     const end = Math.min(span.value, Math.ceil((item.last - from.value) / DAY))
-    const results = sampleExperimentResults(item.entry)
+    const results = experimentsStore.resultsFor(item.entry)
     const players = results ? results.variants.reduce((sum, variant) => sum + variant.players, 0) : 0
     const bar: Bar = {
       experiment: item.entry,

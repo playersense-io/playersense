@@ -15,7 +15,7 @@ const props = defineProps<{
 
 const open = defineModel<boolean>({ required: true })
 
-const { latest, historyOf, rollback, segmentName } = useLiveConfig()
+const { latest, historyOf, loadVersion, rollback, segmentName } = useLiveConfig()
 
 const now = useNow({ interval: 60_000 })
 
@@ -37,8 +37,22 @@ const VERSION_ITEMS = computed(() => earlier.value.map(entry => ({
   subtitle: `${sinceWords(entry.published_at, now.value)} by ${entry.published_by}`
 })))
 
+/* An older version's document is read when it is chosen, to say what going back to it undoes. */
+const reading = ref(false)
+watch(chosen, async (version) => {
+  if (!version) return
+  reading.value = true
+  try {
+    await loadVersion(props.environment, version)
+  } catch (caught) {
+    refusal.value = caught instanceof Error ? caught.message : String(caught)
+  } finally {
+    reading.value = false
+  }
+}, { immediate: true })
+
 /* What going back undoes, from what the environment serves now. */
-const changes = computed(() => (target.value ? versionChanges(current.value, target.value, segmentName) : []))
+const changes = computed(() => (target.value?.loaded ? versionChanges(current.value, target.value, segmentName) : []))
 
 const CHANGE_LOOK: Record<DraftChange['change'], { icon: string, tone: string, word: string }> = {
   added: { icon: 'material-symbols:add-circle-outline', tone: 'text-success', word: 'Comes back' },
@@ -46,9 +60,13 @@ const CHANGE_LOOK: Record<DraftChange['change'], { icon: string, tone: string, w
   removed: { icon: 'material-symbols:do-not-disturb-on-outline', tone: 'text-error', word: 'Taken out' }
 }
 
-function confirm() {
-  if (!target.value) return
-  const problem = rollback(props.environment, target.value, reason.value)
+const saving = ref(false)
+
+async function confirm() {
+  if (!target.value || saving.value) return
+  saving.value = true
+  const problem = await rollback(props.environment, target.value, reason.value)
+  saving.value = false
   if (problem) {
     refusal.value = problem
     return
@@ -69,7 +87,7 @@ const versionId = useId()
         </h2>
         <p class="m-0 text-xs leading-5 text-ink/60">
           {{ label }} goes back to {{ target ? `v${target.version}` : 'an earlier version' }} for {{ ENVIRONMENT_WHO_IN_SENTENCE[environment] }} within a minute,
-          published again as v{{ (current?.version ?? 0) + 1 }}. Nothing is deleted, and your draft is not touched: what is rolled back stays in it,
+          published again as v{{ (historyOf(environment)[0]?.version ?? 0) + 1 }}. Nothing is deleted, and your draft is not touched: what is rolled back stays in it,
           waiting, until it is fixed and published again.
         </p>
       </header>
@@ -150,6 +168,7 @@ const versionId = useId()
           Cancel
         </v-btn>
         <v-btn
+          :loading="saving"
           :disabled="!target || !reason.trim()"
           class="text-xs font-medium"
           color="warning"

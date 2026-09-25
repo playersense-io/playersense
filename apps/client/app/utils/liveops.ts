@@ -222,7 +222,8 @@ export const LIVEOPS_METRICS: Record<LiveOpsMetricKey, LiveOpsMetricDef> = {
   ad_revenue: { key: 'ad_revenue', label: 'Ad revenue', kind: 'money', note: 'Estimated ad revenue that day.' }
 }
 
-export const LIVEOPS_METRIC_KEYS = Object.keys(LIVEOPS_METRICS) as LiveOpsMetricKey[]
+/** What an event's goal and watch can name: what its impact is measured on. Ad revenue is not measured yet. */
+export const LIVEOPS_METRIC_KEYS = (Object.keys(LIVEOPS_METRICS) as LiveOpsMetricKey[]).filter(key => key !== 'ad_revenue')
 
 /** A metric's value as a table writes it: "48.2k", "$12.4k", "3.1%", "42 min", "2.4". */
 export function writeOpsMetric(metric: LiveOpsMetricKey, value: number, compact = true): string {
