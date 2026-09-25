@@ -122,10 +122,17 @@ MetricKit on iOS 14+. The SDK installs no signal handler, so it cannot fight Uni
 handling or another crash reporter you ship. Elsewhere, a run that ended in the foreground
 without going to the background or quitting is reported as `AbnormalExit`.
 
-**Cost.** Unity's log callback copies two references into a fixed ring and returns. Parsing and
-sending happen four times a second on the main thread. An error thrown every frame becomes one
-record with a count, a device sends at most 120 records a minute (crashes always go), and
-batches are gzip, sent every 15 seconds.
+**Cost.** Unity's log callback copies two references into a fixed ring and returns, and
+allocates nothing. Parsing, recording, encoding and compressing happen four times a second on
+the SDK's own thread, never in your frame, and the game's own calls into the SDK never wait
+behind that work for more than microseconds. An error thrown every frame becomes one record with
+a count, a device sends at most 120 records a minute (crashes always go), and batches are gzip,
+sent every 15 seconds.
+
+See it on your own device: `PlayerSense.SDK.MainThreadCost` is what the SDK's per-frame work
+took on the main thread, average and worst, and **Window ▸ Analysis ▸ PlayerSense** shows it in
+the Editor. The package's performance tests (`./verify.sh --device`) measure the capture
+callback against the same `Debug.Log` calls without it, and a three-second storm of errors.
 
 ### Consent for error reports
 
@@ -159,7 +166,8 @@ if (PlayerSense.Privacy.PendingCrashReports > 0)
   their phone), `deviceUniqueIdentifier`, any advertising identifier or IDFV. The device is
   described by its model (`SM-S918B`, `iPhone15,2`).
 - **Yours to remove:** what only your game knows is personal, such as a display name in a
-  message. `Logs.BeforeSend` sees every record on the main thread; change it or return `false`.
+  message. `Logs.BeforeSend` sees every record on the SDK's thread (so plain string work only, no Unity
+  APIs); change it or return `false`.
 - **Games for children:** set `ChildDirected` (or tick it in Project Settings). Error reports
   then carry no player id and none of your attributes.
 

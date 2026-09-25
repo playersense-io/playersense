@@ -17,6 +17,8 @@ namespace PlayerSense
         private readonly UnityHost _host;
         private readonly Utf8Scratch _scratch = new Utf8Scratch();
         private bool _disposed;
+        private SdkThread _thread;
+        private volatile bool _flushRequested;
 
         public AnalyticsModule Analytics { get; }
         public IdentityModule Identity { get; }
@@ -84,15 +86,52 @@ namespace PlayerSense
         }
 
         /// <summary>Seals whatever is queued and tries to send. Returns immediately.</summary>
-        public void Flush() => Check(Native.ps_client_flush(_handle), nameof(Flush));
+        /// <remarks>
+        /// On the SDK's thread when there is one: sealing encodes and compresses a batch, which
+        /// is exactly the work that is kept out of the game's frame.
+        /// </remarks>
+        public void Flush()
+        {
+            if (_thread == null)
+            {
+                Check(Native.ps_client_flush(_handle), nameof(Flush));
+                return;
+            }
+            _flushRequested = true;
+            _thread.Wake();
+        }
 
         internal void Foreground() => Check(Native.ps_client_foreground(_handle), nameof(Foreground));
         internal void Background() => Check(Native.ps_client_background(_handle), nameof(Background));
-        internal void Tick()
+
+        /// <summary>
+        /// Moves the SDK's periodic work onto a thread of its own, where the platform has
+        /// threads. Without one, the runner does it on the main thread.
+        /// </summary>
+        internal void StartThread(float intervalSeconds)
+        {
+            if (_thread != null || !SdkThread.Supported) return;
+            _thread = new SdkThread(Work, intervalSeconds);
+        }
+
+        /// <summary>The runner, on the main thread, every tick interval.</summary>
+        internal void MainThreadTick()
         {
             _host.StartDeferred();
+            Logs.CollectPlatformCrashes();
+            if (_thread == null) Work();
+        }
+
+        /// <summary>What the SDK's thread does: record what was captured, then tick the core.</summary>
+        private void Work()
+        {
             // Captured records first, so the tick that follows can already batch them.
             Logs.Drain();
+            if (_flushRequested)
+            {
+                _flushRequested = false;
+                Check(Native.ps_client_flush(_handle), nameof(Flush));
+            }
             Native.ps_client_tick(_handle);
         }
 
@@ -102,8 +141,11 @@ namespace PlayerSense
             if (_disposed) return;
             _disposed = true;
 
-            // What was captured since the last tick goes into the shutdown attempt, and nothing
+            // The thread first, so nothing else is inside the client while it shuts down. Then
+            // what was captured since its last pass goes into the shutdown attempt, and nothing
             // captured after this point reaches a client that is gone.
+            _thread?.Dispose();
+            _thread = null;
             Logs.Drain();
             Logs.Detach();
 

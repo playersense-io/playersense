@@ -45,6 +45,12 @@ namespace PlayerSense
         /// <summary>What the SDK has done, for a diagnostics screen. Zeroes when it never started.</summary>
         public static PlayerSenseStats Stats => s_client?.Stats ?? default;
 
+        /// <summary>
+        /// Time the SDK spent on the main thread per frame since it started: read it on a real
+        /// device to see what it costs your game.
+        /// </summary>
+        public static MainThreadCost MainThreadCost => MainThreadCost.Current;
+
         /// <summary>Starts the SDK with a project key and the defaults.</summary>
         public static void Initialize(string projectKey) =>
             Initialize(new PlayerSenseOptions { ProjectKey = projectKey });
@@ -74,11 +80,13 @@ namespace PlayerSense
                 s_client = Build(options);
                 if (s_client == null) return;
 
+                PlayerSense.MainThreadCost.Reset();
                 s_runner = PlayerSenseRunner.Create(s_client, options.TickIntervalSeconds);
                 s_client.Host.Runner = s_runner;
 
                 // After the runner exists, so a crash recorded from here on can be sent.
                 s_client.Logs.Attach();
+                s_client.StartThread(options.TickIntervalSeconds);
 
                 // The core opens a session on the first event, not here, so this only tells it
                 // the app is in front. A game that initializes while backgrounded — a push

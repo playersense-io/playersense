@@ -101,13 +101,15 @@ namespace PlayerSense
         public string[] NotInAppPrefixes = Array.Empty<string>();
 
         /// <summary>
-        /// Sees every record just before it is sent, on the main thread. Change it, or return
-        /// false to drop it.
+        /// Sees every record just before it is sent, on the SDK's own thread. Change it, or
+        /// return false to drop it.
         /// </summary>
         /// <remarks>
         /// For what only your game knows is personal, such as a player's display name in a
-        /// message. Do not keep a reference to the entry: it is reused. Not called for crashes
-        /// read back from a previous run.
+        /// message. It runs off the main thread so that it is never in your frame, which means
+        /// Unity's own APIs are not available in it; plain string work is. Do not keep a
+        /// reference to the entry: it is reused. Not called for crashes read back from a
+        /// previous run.
         /// </remarks>
         public Func<LogEntry, bool> BeforeSend;
     }

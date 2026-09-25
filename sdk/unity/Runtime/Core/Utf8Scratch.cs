@@ -27,14 +27,23 @@ namespace PlayerSense.Core
         /// Encodes a string and returns where it landed. A null or empty string is recorded as
         /// absent, which is how the ABI spells <c>None</c>.
         /// </summary>
-        internal Span Write(string value)
+        internal Span Write(string value) => Write(value, int.MaxValue);
+
+        /// <summary>
+        /// Encodes at most <paramref name="maxChars"/> characters of a string: a clip that costs
+        /// no Substring, and so no garbage.
+        /// </summary>
+        internal Span Write(string value, int maxChars)
         {
             if (string.IsNullOrEmpty(value)) return Span.Absent;
 
-            int worst = Encoding.UTF8.GetMaxByteCount(value.Length);
+            int count = Math.Min(value.Length, maxChars);
+            // Never split a surrogate pair: the half left over would not be UTF-8.
+            if (count < value.Length && count > 0 && char.IsHighSurrogate(value[count - 1])) count--;
+            int worst = Encoding.UTF8.GetMaxByteCount(count);
             EnsureRoom(worst);
 
-            int written = Encoding.UTF8.GetBytes(value, 0, value.Length, _buffer, _used);
+            int written = Encoding.UTF8.GetBytes(value, 0, count, _buffer, _used);
             var span = new Span(_used, written);
             _used += written;
             return span;

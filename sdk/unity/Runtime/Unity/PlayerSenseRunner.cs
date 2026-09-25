@@ -34,12 +34,23 @@ namespace PlayerSense
 
         private void Update()
         {
-            // On an interval rather than every frame. Nothing here is urgent — the core sends a
-            // session start or a purchase the moment it is tracked — and a per-frame P/Invoke
-            // for work that is usually nothing is a cost a game can feel.
+            long started = System.Diagnostics.Stopwatch.GetTimestamp();
+            Step();
+            MainThreadCost.Record(System.Diagnostics.Stopwatch.GetTimestamp() - started);
+        }
+
+        private void Step()
+        {
+            // A request the SDK's thread made waits for the main thread, the only one that can
+            // start a web request. One field read a frame, so a purchase is not held back by
+            // the interval below.
+            _client?.Host.StartDeferred();
+
+            // The rest on an interval rather than every frame. Nothing here is urgent, and the
+            // heavy work is on the SDK's own thread anyway (SdkThread.cs).
             if (Time.unscaledTime < _next) return;
             _next = Time.unscaledTime + _interval;
-            _client?.Tick();
+            _client?.MainThreadTick();
         }
 
         private void OnApplicationPause(bool paused)

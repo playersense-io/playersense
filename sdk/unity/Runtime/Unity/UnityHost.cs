@@ -63,8 +63,9 @@ namespace PlayerSense
         private bool _debug;
 
         // Requests the core made from a thread that is not Unity's. UnityWebRequest and
-        // coroutines exist on the main thread only, and the one path that sends from elsewhere
-        // is a crash recorded on the thread it killed: queued here, started on the next tick.
+        // coroutines exist on the main thread only, and the SDK's own thread (SdkThread.cs) and a
+        // crash recorded on the thread it killed both send from elsewhere: queued here, started
+        // by the runner on the next frame.
         private readonly int _mainThread = System.Threading.Thread.CurrentThread.ManagedThreadId;
         private readonly List<PendingRequest> _deferred = new List<PendingRequest>();
         private volatile bool _hasDeferred;

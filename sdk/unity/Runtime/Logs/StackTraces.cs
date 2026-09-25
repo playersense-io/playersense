@@ -1,6 +1,6 @@
 // Stacks as frames: Unity's log format, and .NET exceptions.
 //
-// Parsed on the main thread when a batch of captured lines is drained, never inside the log
+// Parsed on the SDK's thread when a batch of captured lines is drained, never inside the log
 // callback, and only for errors and exceptions: a warning or an info line carries no stack,
 // because nobody groups warnings by where they were written and parsing is the only part of
 // capture that costs anything.

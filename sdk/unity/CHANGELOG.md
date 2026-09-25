@@ -15,6 +15,10 @@ First package. Analytics, identity, consent and context over the shared Rust cor
 - A separate answer for error reports: `Privacy.GrantErrorReports`, `DenyErrorReports`,
   `ErrorReportsFollowAnalytics`, `PendingCrashReports` and `DiscardPendingCrashReports`.
 - `ChildDirected`, which sends no player id and no attributes with an error report.
+- A thread of the SDK's own for recording logs and ticking the core, so no SDK work that takes
+  time runs in a frame; `SDK.MainThreadCost` and the diagnostics window show what is left on
+  the main thread. Performance tests for the capture callback, a storm of errors, and garbage
+  per captured line.
 - `PrivacyInfo.xcprivacy`, and the answers for App Privacy and Data safety in the README.
 - `PlayerSense.Analytics.Track` and `TrackRevenue`.
 - `PlayerSense.Identity.SetPlayer` / `ClearPlayer`, and the installation identifier.

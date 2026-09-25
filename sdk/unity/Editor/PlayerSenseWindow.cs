@@ -91,6 +91,14 @@ namespace PlayerSense.Editor
                 "that could not be read.");
 
             EditorGUILayout.Space();
+            EditorGUILayout.LabelField("Cost on the main thread", EditorStyles.boldLabel);
+            var cost = SDK.MainThreadCost;
+            Row("Per frame, average", $"{cost.MeanMicros:0.0} µs",
+                "What the SDK's own per-frame work took on the main thread. Everything heavy " +
+                "(recording logs, encoding and compressing batches) runs on its own thread.");
+            Row("Per frame, worst", $"{cost.MaxMicros:0.0} µs");
+
+            EditorGUILayout.Space();
             using (new EditorGUILayout.HorizontalScope())
             {
                 if (GUILayout.Button("Send a test event"))

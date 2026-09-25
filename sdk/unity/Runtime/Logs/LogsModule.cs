@@ -6,10 +6,11 @@
 // parsing, no allocation, no native call. A game that logs an error every frame pays for a
 // struct copy, not for a crash reporter.
 //
-// The other half runs on the main thread, four times a second, from the runner. It parses the
-// stacks that deserve it, asks BeforeSend, and hands records to the core, which folds repeats,
-// applies the budget, scrubs, batches, compresses and spools. Only one thing skips the queue:
-// an exception that is about to end the process, because there is no next tick.
+// The other half runs on the SDK's own thread (SdkThread.cs), four times a second, so none of it
+// is in the game's frame. It parses the stacks that deserve it, asks BeforeSend, and hands
+// records to the core, which folds repeats, applies the budget, scrubs, batches, compresses and
+// spools. Only one thing skips the queue: an exception that is about to end the process,
+// because there is no next tick.
 
 using System;
 using System.Collections.Generic;
@@ -53,6 +54,7 @@ namespace PlayerSense
             internal string Stack;
             internal string Category;
             internal Exception Exception;
+            internal Dictionary<string, string> Attributes;
             internal LogEntry Entry;
             internal long TimeMs;
         }
@@ -63,7 +65,7 @@ namespace PlayerSense
         private readonly LogLevel _floor;
         private readonly string[] _notInApp;
 
-        // The ring, filled from any thread and emptied on the main one.
+        // The ring, filled from any thread and emptied on the SDK's.
         private readonly object _gate = new object();
         private readonly Captured[] _ring = new Captured[Capacity];
         private readonly Captured[] _draining = new Captured[Capacity];
@@ -71,7 +73,7 @@ namespace PlayerSense
         private int _count;
         private long _overflowed;
 
-        // Sending, which the main thread does every tick and a dying thread may do once.
+        // Sending, which the SDK's thread does every tick and a dying thread may do once.
         private readonly object _sendLock = new object();
         private readonly Utf8Scratch _scratch = new Utf8Scratch();
         private readonly Utf8Scratch.Span[] _frameSpans = new Utf8Scratch.Span[MaxFrames * 3];
@@ -90,12 +92,22 @@ namespace PlayerSense
         private bool _attached;
         private bool _warnedBeforeSend;
 
+        // The core's per-minute budget, mirrored here so that a storm of distinct errors is
+        // dropped before its stacks are parsed rather than after: parsing is what allocates,
+        // and garbage made on any thread is a collection that pauses the main one.
+        private double _tokens;
+        private long _tokensAt;
+        private string _lastMessage;
+        private long _limitedHere;
+
         internal LogsModule(PlayerSenseClient client, LogsOptions options)
         {
             _client = client;
             _options = options ?? new LogsOptions();
             _enabled = IsCapturing(_options);
             _floor = (LogLevel)Math.Min((int)_options.MinLevel, (int)_options.BreadcrumbLevel);
+            _tokens = Math.Max(1, _options.MaxPerMinute);
+            _tokensAt = System.Diagnostics.Stopwatch.GetTimestamp();
 
             var prefixes = new List<string>(StackTraces.DefaultNotInApp);
             if (_options.NotInAppPrefixes != null)
@@ -134,17 +146,14 @@ namespace PlayerSense
         public bool Exception(Exception exception, IDictionary<string, string> attributes = null)
         {
             if (!_enabled || exception == null) return false;
-            if (attributes == null)
+            // The stack is read on the SDK's thread, not the caller's: a catch block in a game
+            // loop pays for a queue entry, not for walking frames.
+            return Enqueue(new Captured
             {
-                return Enqueue(new Captured
-                {
-                    Kind = Kind.Exception, Level = LogLevel.Error, Exception = exception,
-                    Handled = true, TimeMs = Now(),
-                });
-            }
-            var entry = FromException(exception, true);
-            foreach (var pair in attributes) entry.Attributes[pair.Key] = pair.Value;
-            return Record(entry);
+                Kind = Kind.Exception, Level = LogLevel.Error, Exception = exception,
+                Attributes = attributes == null ? null : new Dictionary<string, string>(attributes),
+                Handled = true, TimeMs = Now(),
+            });
         }
 
         /// <summary>
@@ -156,7 +165,7 @@ namespace PlayerSense
             if (!_enabled || string.IsNullOrEmpty(message)) return false;
             return Enqueue(new Captured
             {
-                Kind = Kind.Crumb, Category = category, Message = Clip(message, 256), Level = level,
+                Kind = Kind.Crumb, Category = category, Message = message, Level = level,
             });
         }
 
@@ -172,7 +181,7 @@ namespace PlayerSense
                 Native.ps_client_log_stats(_client.Handle, ref raw);
                 long overflowed;
                 lock (_gate) overflowed = _overflowed;
-                return new LogStats(raw, (ulong)overflowed);
+                return new LogStats(raw, (ulong)overflowed, (ulong)_limitedHere);
             }
         }
 
@@ -208,12 +217,19 @@ namespace PlayerSense
             Application.lowMemory -= OnLowMemory;
         }
 
-        /// <summary>Called by the runner before every tick, on the main thread.</summary>
+        /// <summary>Crashes the platform recorded. On the main thread: Android's are read over JNI.</summary>
+        internal void CollectPlatformCrashes()
+        {
+            if (_enabled && _options.ReportPlatformCrashes) PlatformCrashes.Collect(this);
+        }
+
+        /// <summary>
+        /// Records what was captured. On the SDK's thread, or the main thread where there is
+        /// none; never on both at once.
+        /// </summary>
         internal void Drain()
         {
             if (!_enabled) return;
-
-            if (_options.ReportPlatformCrashes) PlatformCrashes.Collect(this);
 
             int n;
             lock (_gate)
@@ -340,24 +356,32 @@ namespace PlayerSense
             }
         }
 
-        // ---- recording: main thread -------------------------------------------------
+        // ---- recording: the SDK's thread ---------------------------------------------
 
         private void Process(ref Captured item)
         {
             switch (item.Kind)
             {
                 case Kind.UnityCrumb:
-                    AddBreadcrumb("log", Clip(item.Message, 256), item.Level);
-                    return;
                 case Kind.Crumb:
-                    AddBreadcrumb(item.Category, item.Message, item.Level);
+                    AddBreadcrumb(item.Category ?? "log", item.Message, item.Level);
                     return;
                 case Kind.UnityRecord:
+                    // The same line again is folded by the core into a count and costs no parse
+                    // (the stack is cached), so only a new one spends from the budget.
+                    bool repeat = ReferenceEquals(item.Stack, _lastStack)
+                                  || string.Equals(item.Stack, _lastStack, StringComparison.Ordinal)
+                                     && string.Equals(item.Message, _lastMessage, StringComparison.Ordinal);
+                    if (!repeat && !TakeToken()) return;
+                    _lastMessage = item.Message;
                     SendChecked(FromUnity(ref item));
                     return;
                 case Kind.Exception:
+                    if (!TakeToken()) return;
                     var entry = FromException(item.Exception, item.Handled);
                     entry.Logger = item.Category;
+                    if (item.Attributes != null)
+                        foreach (var pair in item.Attributes) entry.Attributes[pair.Key] = pair.Value;
                     entry.TimeMs = item.TimeMs;
                     SendChecked(entry);
                     return;
@@ -482,8 +506,8 @@ namespace PlayerSense
             {
                 var s = _scratch;
                 s.Reset();
-                var c = s.Write(category);
-                var m = s.Write(message);
+                var c = s.Write(category, 32);
+                var m = s.Write(message, 256);
                 fixed (byte* origin = s.Buffer)
                 {
                     Native.ps_client_add_breadcrumb(
@@ -590,6 +614,22 @@ namespace PlayerSense
             }
         }
 
+        private bool TakeToken()
+        {
+            long now = System.Diagnostics.Stopwatch.GetTimestamp();
+            double capacity = Math.Max(1, _options.MaxPerMinute);
+            double elapsedMinutes = (now - _tokensAt) / (double)System.Diagnostics.Stopwatch.Frequency / 60.0;
+            _tokens = Math.Min(capacity, _tokens + elapsedMinutes * capacity);
+            _tokensAt = now;
+            if (_tokens >= 1)
+            {
+                _tokens -= 1;
+                return true;
+            }
+            _limitedHere++;
+            return false;
+        }
+
         private static void Reset(LogEntry entry)
         {
             entry.Level = LogLevel.Error;
@@ -631,12 +671,12 @@ namespace PlayerSense
         /// <summary>Dropped because more arrived between two ticks than the queue holds.</summary>
         public readonly ulong DroppedOnDevice;
 
-        internal LogStats(Native.PsLogStats s, ulong droppedOnDevice)
+        internal LogStats(Native.PsLogStats s, ulong droppedOnDevice, ulong limitedBeforeTheCore)
         {
             Recorded = s.Recorded;
             Folded = s.Folded;
             Breadcrumbs = s.Breadcrumbs;
-            RateLimited = s.RateLimited;
+            RateLimited = s.RateLimited + limitedBeforeTheCore;
             WithoutConsent = s.WithoutConsent;
             Evicted = s.Evicted;
             BatchesDelivered = s.BatchesDelivered;
