@@ -1,41 +1,31 @@
-// The Realtime page's live window: the last 30 minutes, advanced every few seconds, and
-// the same 30 minutes yesterday to measure them against.
-//
-// Sample data today (app/utils/realtime-sample.ts). Once the API client exists this polls
-// `metrics/query` at `interval=minute` instead — at the same cadence, since events take up
-// to ten seconds to become visible and asking more often returns the same answer.
-export function useRealtime(everyMs = 2_000) {
-  const now = ref(Date.now())
-  const minutes = shallowRef(sampleWindow(now.value))
-  const yesterday = shallowRef(sampleYesterday(now.value))
+import type { Schema } from '@playersense/contracts'
 
-  function tick() {
-    const next = Date.now()
+// The Realtime page's live window (GET …/analytics/{env}/realtime): the last 30 minutes, and the
+// same 30 minutes yesterday to measure them against. Read again every ten seconds: an event takes
+// up to about ten seconds to become visible, so asking more often returns the same answer.
 
-    // A new array with the filling minute copied, so everything reading it updates.
-    const shifted = [...minutes.value]
-    const current = shifted.length - 1
-    shifted[current] = structuredClone(toRaw(shifted[current]!))
-    advanceWindow(shifted, now.value, next)
-    minutes.value = shifted
+export type LiveWindow = Schema<'RealtimeOut'>
+export type LiveMinute = Schema<'RealtimeMinuteOut'>
 
-    // Yesterday slides on a minute at a time, so the comparison stays the same time of day.
-    for (let crossed = Math.floor(next / 60_000) - Math.floor(now.value / 60_000); crossed > 0; crossed--) {
-      const last = yesterday.value[yesterday.value.length - 1]!
-      yesterday.value = [...yesterday.value.slice(1), sampleMinute(last.at + 60_000, true)]
-    }
+/** Minutes on screen. */
+const WINDOW_MINUTES = 30
 
-    now.value = next
-  }
+export function useRealtime(everyMs = 10_000) {
+  const workspace = useWorkspaceStore()
+  const url = computed(() => workspace.analyticsPath && withQuery(`${workspace.analyticsPath}/realtime`, { minutes: WINDOW_MINUTES }))
 
-  /** Starts over from now, for another project's window. */
-  function restart() {
-    now.value = Date.now()
-    minutes.value = sampleWindow(now.value)
-    yesterday.value = sampleYesterday(now.value)
-  }
+  const read = useApiGet<LiveWindow>(url)
+  /** When the figures on screen were read. */
+  const updatedAt = ref(Date.now())
+  watch(read.data, () => (updatedAt.value = Date.now()))
 
-  const { pause, resume, isActive } = useIntervalFn(tick, everyMs)
+  const { pause, resume, isActive } = useIntervalFn(() => {
+    if (!read.isFetching.value) void read.execute()
+  }, everyMs)
 
-  return { minutes, yesterday, updatedAt: readonly(now), live: isActive, pause, resume, restart }
+  const window = computed(() => read.data.value)
+  const loading = computed(() => read.isFetching.value && !read.data.value)
+  const error = computed(() => read.error.value as ApiError | null)
+
+  return { window, loading, error, updatedAt: readonly(updatedAt), live: isActive, pause, resume, reload: () => read.execute() }
 }

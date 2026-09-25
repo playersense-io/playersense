@@ -14,6 +14,9 @@ const props = defineProps<{
 
 const steps = defineModel<FunnelStep[]>({ required: true })
 
+/** The most steps the funnel query takes. */
+const MOST_STEPS = 8
+
 function update(index: number, change: Partial<FunnelStep>) {
   steps.value = steps.value.map((step, at) => (at === index ? { ...step, ...change } : step))
 }
@@ -36,7 +39,7 @@ function remove(index: number) {
 }
 
 function add() {
-  if (steps.value.length >= MAX_STEPS) return
+  if (steps.value.length >= MOST_STEPS) return
   const last = steps.value[steps.value.length - 1]
   steps.value = [...steps.value, { event: last?.event ?? props.catalogue[0]?.name ?? '', where: [] }]
 }
@@ -110,7 +113,7 @@ function add() {
       >
         Add step
       </v-btn>
-      <span class="text-[11px] text-ink/45">{{ steps.length }} of {{ MAX_STEPS }} steps</span>
+      <span class="text-[11px] text-ink/45">{{ steps.length }} of {{ MOST_STEPS }} steps</span>
     </li>
   </ol>
 </template>

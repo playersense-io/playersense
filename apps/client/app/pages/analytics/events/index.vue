@@ -1,56 +1,75 @@
 <script setup lang="ts">
+import type { Schema } from '@playersense/contracts'
 import type { Kpi } from '~/components/KpiBoard.vue'
 
 // Every event the selected project's game sends: how often, from how many players, how
-// recently, and how that moved. The catalogue is where somebody checks that an event is
-// arriving at all, and each name opens the event in detail.
-//
-// Sample data until the API client is wired in (app/utils/events-sample.ts says what each
-// part will come from).
-const { project } = useWorkspace()
+// recently, and how that moved (GET …/analytics/{env}/events). The catalogue is where somebody
+// checks that an event is arriving at all, and each name opens the event in detail.
+const workspace = useWorkspaceStore()
 
 const route = useRoute()
 const router = useRouter()
 
+type EventPeriod = '1d' | '7d' | '30d'
+
 const PERIODS: SegmentedOption[] = [
-  { value: '24h', label: '24 hours' },
+  { value: '1d', label: 'Today' },
   { value: '7d', label: '7 days' },
   { value: '30d', label: '30 days' }
 ]
 
 // In the URL, so a link to an event and the way back keep the period.
 const period = computed<EventPeriod>({
-  get: () => (['24h', '7d', '30d'].includes(String(route.query.period)) ? route.query.period as EventPeriod : '7d'),
+  get: () => (['1d', '7d', '30d'].includes(String(route.query.period)) ? route.query.period as EventPeriod : '7d'),
   set: value => void router.replace({ query: { ...route.query, period: value } })
 })
 
-const rows = computed(() => sampleEventSummaries(period.value))
+/* Up to and including today: the catalogue is about what is arriving now. */
+const range = computed(() => {
+  const days = Number.parseInt(period.value, 10)
+  const to = utcDay(Date.now())
+  return { from: utcDay(Date.now() - (days - 1) * 86_400_000), to }
+})
 
-const periodWords = computed(() => (PERIODS.find(option => option.value === period.value)?.label ?? '').toLowerCase())
+const read = useApiGet<Schema<'EventCatalogueOut'>>(() => workspace.analyticsPath
+  && withQuery(`${workspace.analyticsPath}/events`, range.value))
+
+type EventRow = Schema<'EventSummaryOut'>
+
+const rows = computed<EventRow[]>(() => [...(read.data.value?.events ?? [])])
+const loading = computed(() => read.isFetching.value && !read.data.value)
+const error = computed(() => read.error.value as ApiError | null)
+const threshold = computed(() => read.data.value?.suppression_threshold ?? 5)
+
+const periodWords = computed(() => (period.value === '1d' ? 'day' : (PERIODS.find(option => option.value === period.value)?.label ?? '').toLowerCase()))
 
 // --- Summary ------------------------------------------------------------------------------
 
 const compact = (value: number) => writeFigure(value, { compact: true })
 
-/** "4s ago", "3m ago", "2h ago". */
+/** Seconds since an ISO time. */
+const secondsSince = (iso: string) => Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 1_000))
+
+/** "4s ago", "3m ago", "2h ago", "3d ago". */
 function ago(seconds: number): string {
   if (seconds < 60) return `${seconds}s ago`
   if (seconds < 3_600) return `${Math.round(seconds / 60)}m ago`
-  return `${Math.round(seconds / 3_600)}h ago`
+  if (seconds < 172_800) return `${Math.round(seconds / 3_600)}h ago`
+  return `${Math.round(seconds / 86_400)}d ago`
 }
 
 const board = computed<Kpi[]>(() => {
-  const total = rows.value.reduce((sum, row) => sum + row.count, 0)
-  const previous = rows.value.reduce((sum, row) => sum + row.previous, 0)
-  const custom = rows.value.filter(row => row.category === 'custom')
-  const players = Math.max(...rows.value.map(row => row.players))
+  const total = rows.value.reduce((sum, row) => sum + row.events, 0)
+  const previous = rows.value.reduce((sum, row) => sum + row.previous_events, 0)
+  const custom = rows.value.filter(row => row.type === 'custom').reduce((sum, row) => sum + row.events, 0)
+  const last = rows.value.length ? Math.min(...rows.value.map(row => secondsSince(row.last_seen))) : null
   return [
     {
       key: 'events',
       label: 'Events',
       value: compact(total),
       trend: trendOf(total, previous),
-      info: 'Every event accepted from this project\'s production environment.'
+      info: `Every event accepted from this project's ${workspace.environment} environment.`
     },
     {
       key: 'names',
@@ -59,21 +78,15 @@ const board = computed<Kpi[]>(() => {
       info: 'Distinct event names seen in the period.'
     },
     {
-      key: 'per-player',
-      label: 'Events per player',
-      value: compact(total / players),
-      info: 'Events divided by the players who sent any.'
-    },
-    {
       key: 'custom',
       label: 'Custom events',
-      value: `${writeFigure(custom.reduce((sum, row) => sum + row.count, 0) / total * 100, { decimals: 1 })}%`,
-      info: 'The share of events with a name of the game\'s own rather than a standard one.'
+      value: `${writeFigure(total ? custom / total * 100 : 0, { decimals: 1 })}%`,
+      info: 'The share of events the game named itself, rather than the SDK\'s session, purchase and exposure events.'
     },
     {
       key: 'last',
       label: 'Last event',
-      value: ago(Math.min(...rows.value.map(row => row.lastSeen))),
+      value: last === null ? 'Never' : ago(last),
       info: 'When the most recent event arrived. Events take up to about ten seconds to show.'
     }
   ]
@@ -103,7 +116,7 @@ const FILTER_GROUPS: FilterGroup[] = [
 const filters = ref<Record<string, string[]>>({ category: [], status: [] })
 const query = ref('')
 
-const statusOf = (row: EventSummary) => (row.lastSeen < QUIET_AFTER ? 'arriving' : 'quiet')
+const statusOf = (row: EventRow) => (secondsSince(row.last_seen) < QUIET_AFTER ? 'arriving' : 'quiet')
 
 const matched = computed(() => {
   const needle = query.value.trim().toLowerCase()
@@ -111,7 +124,7 @@ const matched = computed(() => {
   return rows.value.filter(row =>
     (!category.length || category.includes(row.category))
     && (!status.length || status.includes(statusOf(row)))
-    && (!needle || row.name.includes(needle) || row.description.toLowerCase().includes(needle)))
+    && (!needle || row.name.toLowerCase().includes(needle) || (row.description ?? '').toLowerCase().includes(needle)))
 })
 
 // What the toolbar shows on its left: one chip per ticked value, and the search.
@@ -137,25 +150,28 @@ function clearFilters() {
   filters.value = { category: [], status: [] }
 }
 
-const COLUMNS: DataTableColumn<EventSummary>[] = [
+const categoryLabel = (category: string) => EVENT_CATEGORY_LABELS[category as EventCategory] ?? category
+const categoryTone = (category: string) => EVENT_CATEGORY_TONES[category as EventCategory] ?? 'neutral'
+
+const COLUMNS: DataTableColumn<EventRow>[] = [
   { key: 'name', title: 'Event', fixed: true, minWidth: 260 },
-  { key: 'category', title: 'Category', value: row => EVENT_CATEGORY_LABELS[row.category] },
-  { key: 'count', title: 'Occurrences', align: 'end', mono: true },
-  { key: 'players', title: 'Players', align: 'end', mono: true },
-  { key: 'perPlayer', title: 'Per player', align: 'end', mono: true, value: row => row.count / row.players },
+  { key: 'category', title: 'Category', value: row => categoryLabel(row.category) },
+  { key: 'events', title: 'Occurrences', align: 'end', mono: true },
+  { key: 'players', title: 'Players', align: 'end', mono: true, value: row => row.players ?? -1 },
+  { key: 'perPlayer', title: 'Per player', align: 'end', mono: true, value: row => (row.players ? row.events / row.players : -1) },
   { key: 'properties', title: 'Properties', align: 'end', mono: true },
-  { key: 'lastSeen', title: 'Last seen', align: 'end', mono: true }
+  { key: 'lastSeen', title: 'Last seen', align: 'end', mono: true, value: row => -Date.parse(row.last_seen) }
 ]
 
 const columns = ref(defaultColumnState(COLUMNS))
-const sortBy = ref<DataTableSort[]>([{ key: 'count', order: 'desc' }])
+const sortBy = ref<DataTableSort[]>([{ key: 'events', order: 'desc' }])
 </script>
 
 <template>
   <div class="flex flex-col gap-8">
     <PageHeader title="Events">
       <template #description>
-        Every event <span class="text-ink">{{ project.name }}</span> sends from production: how
+        Every event <span class="text-ink">{{ workspace.project?.name }}</span> sends from {{ workspace.environment }}: how
         often, from how many players, and whether it is still arriving.
       </template>
       <template #actions>
@@ -163,78 +179,79 @@ const sortBy = ref<DataTableSort[]>([{ key: 'count', order: 'desc' }])
       </template>
     </PageHeader>
 
-    <KpiBoard
-      :description="`The last ${periodWords}, against the ${periodWords} before.`"
-      :items="board"
-      title="Summary"
-    />
-
-    <SectionCard
-      :padded="false"
-      description="Each event name, busiest first. Open one to see it over time, where it comes from and what it carries."
-      title="Event catalogue"
+    <LoadState
+      :error="error"
+      :loading="loading"
+      what="the events"
+      @retry="read.execute()"
     >
-      <TableToolbar :filters="active" @clear="clearFilters" @remove="removeFilter">
-        <SearchField
-          v-model="query"
-          class="w-56"
-          label="Search events"
-          placeholder="Search events"
-        />
-        <FilterMenu v-model="filters" :groups="FILTER_GROUPS" />
-        <DataTableColumnsMenu v-model="columns" :columns="COLUMNS" />
-      </TableToolbar>
+      <KpiBoard
+        :description="period === '1d' ? 'Today so far, against yesterday.' : `The last ${periodWords}, against the ${periodWords} before.`"
+        :items="board"
+        title="Summary"
+      />
 
-      <DataTable
-        v-model:column-state="columns"
-        v-model:sort-by="sortBy"
-        :columns="COLUMNS"
-        :items="matched"
-        :paged="false"
-        empty-description="No event matches these filters. Remove one, or clear them all."
-        empty-title="No events match."
-        item-value="name"
-        label="Events"
+      <SectionCard
+        :padded="false"
+        description="Each event name, busiest first. Open one to see it over time, where it comes from and what it carries."
+        title="Event catalogue"
       >
-        <template #cell.name="{ item }">
-          <NuxtLink
-            :to="{ path: `/analytics/events/${item.name}`, query: { period } }"
-            class="
-              group flex min-w-0 flex-col no-underline
-            "
-          >
-            <span
-              class="
-                truncate font-mono text-[13px] text-ink transition-colors
-                group-hover:text-primary
-              "
-            >{{ item.name }}</span>
-            <span class="truncate text-xs text-ink/55">{{ item.description }}</span>
-          </NuxtLink>
-        </template>
-        <template #cell.category="{ item }">
-          <Tag :label="EVENT_CATEGORY_LABELS[item.category]" :tone="EVENT_CATEGORY_TONES[item.category]" />
-        </template>
-        <template #cell.count="{ item }">
-          <ProjectFigure :previous="item.previous" :value="item.count" :written="compact(item.count)" />
-        </template>
-        <template #cell.players="{ item }">
-          {{ compact(item.players) }}
-        </template>
-        <template #cell.perPlayer="{ item }">
-          {{ writeFigure(item.count / item.players) }}
-        </template>
-        <template #cell.lastSeen="{ item }">
-          <span class="inline-flex items-center gap-1.5">
-            <span
-              :class="statusOf(item) === 'arriving' ? 'bg-success' : 'bg-warning'"
-              aria-hidden="true"
-              class="size-1.5 rounded-full"
-            />
-            {{ ago(item.lastSeen) }}
-          </span>
-        </template>
-      </DataTable>
-    </SectionCard>
+        <TableToolbar :filters="active" @clear="clearFilters" @remove="removeFilter">
+          <SearchField
+            v-model="query"
+            class="w-56"
+            label="Search events"
+            placeholder="Search events"
+          />
+          <FilterMenu v-model="filters" :groups="FILTER_GROUPS" />
+          <DataTableColumnsMenu v-model="columns" :columns="COLUMNS" />
+        </TableToolbar>
+
+        <DataTable
+          v-model:column-state="columns"
+          v-model:sort-by="sortBy"
+          :columns="COLUMNS"
+          :items="matched"
+          :paged="false"
+          :empty-description="rows.length ? 'No event matches these filters. Remove one, or clear them all.' : 'Nothing arrived in the period. Send an event with the SDK and it shows here within seconds.'"
+          :empty-title="rows.length ? 'No events match.' : 'No events yet.'"
+          item-value="name"
+          label="Events"
+        >
+          <template #cell.name="{ item }">
+            <NuxtLink
+              :to="{ path: `/analytics/events/${encodeURIComponent(item.name)}`, query: { period } }"
+              class="group flex min-w-0 flex-col no-underline"
+            >
+              <span class="truncate font-mono text-[13px] text-ink transition-colors group-hover:text-primary">{{ item.name }}</span>
+              <span class="truncate text-xs text-ink/55">{{ item.description }}</span>
+            </NuxtLink>
+          </template>
+          <template #cell.category="{ item }">
+            <Tag :label="categoryLabel(item.category)" :tone="categoryTone(item.category)" />
+          </template>
+          <template #cell.events="{ item }">
+            <ProjectFigure :previous="item.previous_events" :value="item.events" :written="compact(item.events)" />
+          </template>
+          <template #cell.players="{ item }">
+            <span v-if="item.players != null">{{ compact(item.players) }}</span>
+            <span v-else :title="`Fewer than ${threshold} players`" class="text-ink/40">–</span>
+          </template>
+          <template #cell.perPlayer="{ item }">
+            {{ item.players ? writeFigure(item.events / item.players) : '–' }}
+          </template>
+          <template #cell.lastSeen="{ item }">
+            <span class="inline-flex items-center gap-1.5">
+              <span
+                :class="statusOf(item) === 'arriving' ? 'bg-success' : 'bg-warning'"
+                aria-hidden="true"
+                class="size-1.5 rounded-full"
+              />
+              {{ ago(secondsSince(item.last_seen)) }}
+            </span>
+          </template>
+        </DataTable>
+      </SectionCard>
+    </LoadState>
   </div>
 </template>

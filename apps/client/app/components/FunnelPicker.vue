@@ -1,6 +1,6 @@
 <script setup lang="ts">
-// Which saved funnel is open, as the heading of the card that edits it — its name in the
-// heading's own type, a menu of the others behind it — and what else can be done with it:
+// Which saved funnel is open, as the heading of the card that edits it: its name in the
+// heading's own type, a menu of the others behind it, and what else can be done with it:
 // keep it as a new funnel, rename it, delete it. Saving and discarding an edit are the page's action
 // bar's; the dot here only says there is one. The edits are the page's draft; this only
 // says what the reader asked for.
@@ -115,7 +115,7 @@ function named(name: string) {
         <v-list-item title="Save as new funnel…" @click="naming = 'save-as'" />
         <v-list-item :disabled="unsaved" title="Rename…" @click="naming = 'rename'" />
         <v-list-item
-          :disabled="unsaved || funnels.length <= 1"
+          :disabled="unsaved"
           base-color="error"
           title="Delete funnel"
           @click="deleting = true"
@@ -127,14 +127,14 @@ function named(name: string) {
       v-model="dialogOpen"
       :confirm-label="naming === 'rename' ? 'Rename' : 'Save'"
       :current="naming === 'rename' ? name : ''"
-      :description="naming === 'rename' ? '' : 'Saved in this browser, with its steps and window.'"
+      :description="naming === 'rename' ? '' : 'Saved for everyone in the project, with its steps and window.'"
       :title="naming === 'rename' ? 'Rename funnel' : 'Save as a new funnel'"
       @confirm="named"
     />
 
     <ConfirmDialog
       v-model="deleting"
-      :description="`${name} and its steps go for everyone using this browser. This cannot be undone.`"
+      :description="`${name} and its steps go for everyone in the project. This cannot be undone.`"
       :title="`Delete ${name}?`"
       action="Delete funnel"
       @confirm="emit('remove')"

@@ -5,8 +5,8 @@ import type { Kpi } from '~/components/KpiBoard.vue'
 // before, the funnel itself as a chart or a table, the same funnel split by an install
 // dimension, its conversion over time, and how long the players who converted took.
 //
-// The definition is the page's, edited there; this reads it. Sample data until the funnel
-// query exists (app/utils/funnel-sample.ts says what it will ask).
+// The definition is the page's, edited there; this reads it and asks the API what it comes to
+// (useFunnelAnswer), again a moment after each edit.
 const props = defineProps<{
   definition: StepFunnel
   range: FunnelRange
@@ -36,7 +36,19 @@ const TABS: PageTab[] = [
 /** In the URL, so a reload or a link opens the same view. */
 const tab = useQueryChoice('tab', TABS.map(entry => entry.value), 'funnel')
 
-const data = computed(() => sampleFunnel(props.definition, props.range, breakdown.value, EVENT_CATALOGUE))
+const answer = useFunnelAnswer(() => props.definition, () => props.range, () => breakdown.value)
+
+const EMPTY: FunnelSample = {
+  total: { name: 'All players', players: [], medians: [] },
+  previous: { name: 'The range before', players: [], medians: [] },
+  breakdown: [],
+  trend: { categories: [], titles: [], settled: [], series: [] },
+  timeToConvert: [],
+  medianToConvert: null
+}
+
+const data = computed(() => answer.steps.value ?? EMPTY)
+const threshold = computed(() => answer.threshold.value)
 
 const windowWords = computed(() => windowPhrase(props.definition.window))
 
@@ -85,7 +97,7 @@ const board = computed<Kpi[]>(() => {
     {
       key: 'converted',
       label: 'Converted',
-      value: converted === null ? `<${FUNNEL_THRESHOLD}` : writeFigure(converted, { compact: true }),
+      value: converted === null ? `<${threshold.value}` : writeFigure(converted, { compact: true }),
       exact: converted === null ? undefined : writeFigure(converted),
       trend: converted !== null && last(previous.players) ? trendOf(converted, last(previous.players)!) : undefined,
       info: `Players who went on to do every step, in order, ${windowWords.value} of step 1.`
@@ -178,14 +190,7 @@ const trendSeries = computed<MetricSeries[]>(() => {
   const { series, settled } = data.value.trend
   // Two decimals: a funnel into a purchase converts under 1%, and to one it draws as steps.
   const toPercent = (rate: number | null) => (rate === null ? null : Math.round(rate * 10_000) / 100)
-  if (breakdown.value !== 'none') {
-    return series.slice(1).map((entry, index) => ({
-      name: entry.name,
-      data: entry.rates.map(toPercent),
-      type: 'line',
-      tone: ((index % 6) + 1) as 1 | 2 | 3 | 4 | 5 | 6
-    }))
-  }
+  // Every player's conversion: the API trends the funnel as a whole, not each breakdown value.
   // The points whose players are still inside their window are drawn apart, dashed, joined
   // to the last settled one: they will rise, and read as settled they look like a slump.
   const rates = series[0]?.rates ?? []
@@ -219,7 +224,24 @@ const timeSeries = computed<MetricSeries[]>(() => [
 
 <template>
   <div class="flex flex-col gap-8">
-    <KpiBoard :description="`Players who entered in ${RANGE_WORDS[range]}, against the range before.`" :items="board" title="Conversion" />
+    <p v-if="answer.error.value" class="m-0 flex items-center gap-3 rounded-(--ps-radius) bg-error/6 px-3.5 py-3 text-xs text-error ring-1 ring-error/20 ring-inset">
+      <span class="flex-1">{{ answer.error.value.message }}</span>
+      <v-btn
+        class="text-xs"
+        color="error"
+        size="small"
+        variant="text"
+        @click="answer.reload()"
+      >
+        Try again
+      </v-btn>
+    </p>
+    <KpiBoard
+      :description="`Players who entered in ${RANGE_WORDS[range]}, against the range before.`"
+      :items="board"
+      :loading="answer.loading.value && !answer.steps.value"
+      title="Conversion"
+    />
 
     <div class="flex flex-col gap-5">
       <PageTabs v-model="tab" :tabs="TABS" label="Funnel views" />
@@ -249,7 +271,7 @@ const timeSeries = computed<MetricSeries[]>(() => [
           v-if="funnelView === 'table'"
           :breakdown="data.breakdown"
           :steps="definition.steps"
-          :threshold="FUNNEL_THRESHOLD"
+          :threshold="threshold"
           :total="data.total"
         />
 
@@ -257,7 +279,7 @@ const timeSeries = computed<MetricSeries[]>(() => [
           <FunnelChart
             :breakdown="data.breakdown"
             :steps="definition.steps"
-            :threshold="FUNNEL_THRESHOLD"
+            :threshold="threshold"
             :total="data.total"
           />
         </div>
@@ -298,14 +320,14 @@ const timeSeries = computed<MetricSeries[]>(() => [
                   </span>
                 </td>
                 <td class="border-b border-line px-3 py-2 text-right font-mono text-ink/70">
-                  {{ row.series.players[0] === null ? `<${FUNNEL_THRESHOLD}` : writeFigure(row.series.players[0]!) }}
+                  {{ row.series.players[0] === null ? `<${threshold}` : writeFigure(row.series.players[0]!) }}
                 </td>
                 <td
                   v-for="(value, step) in row.shares.slice(1)"
                   :key="step"
                   class="border-b border-line px-3 py-2 text-right font-mono text-ink/70"
                 >
-                  {{ row.series.players[step + 1] === null ? `<${FUNNEL_THRESHOLD}` : value === null ? '–' : percent(value) }}
+                  {{ row.series.players[step + 1] === null ? `<${threshold}` : value === null ? '–' : percent(value) }}
                 </td>
                 <td class="border-b border-line px-5 py-2 text-right font-mono">
                   <span

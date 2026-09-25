@@ -10,8 +10,8 @@ import type { Kpi } from '~/components/KpiBoard.vue'
 // level, the players who got to it and were stuck there. That puts a hard level's loss on
 // the hard level, where a designer looks for it.
 //
-// The definition is the page's, edited there; this reads it. Sample data until the funnel
-// query exists (app/utils/funnel-sample.ts).
+// The definition is the page's, edited there; this reads it and asks the API what it comes to
+// (useFunnelAnswer), again a moment after each edit.
 const props = defineProps<{
   definition: ProgressionFunnel
   range: FunnelRange
@@ -19,7 +19,10 @@ const props = defineProps<{
 
 const RANGE_WORDS: Record<FunnelRange, string> = { '7d': 'the last 7 days', '30d': 'the last 30 days', '90d': 'the last 90 days' }
 
-const data = computed(() => sampleProgression(props.definition, props.range, EVENT_CATALOGUE))
+const answer = useFunnelAnswer(() => props.definition, () => props.range)
+
+const data = computed<ProgressionSample>(() => answer.progression.value ?? { rows: [], previous: { first: null, last: null }, medianToLast: null })
+const threshold = computed(() => answer.threshold.value)
 
 const property = computed(() => props.definition.property.replaceAll('_', ' '))
 const Property = computed(() => property.value.charAt(0).toUpperCase() + property.value.slice(1))
@@ -49,7 +52,7 @@ const board = computed<Kpi[]>(() => {
     {
       key: 'started',
       label: `Reached ${property.value} ${from}`,
-      value: first === null ? `<${FUNNEL_THRESHOLD}` : writeFigure(first, { compact: true }),
+      value: first === null ? `<${threshold.value}` : writeFigure(first, { compact: true }),
       exact: first === null ? undefined : writeFigure(first),
       trend: first !== null && previous.first ? trendOf(first, previous.first) : undefined,
       info: `Players who did ${props.definition.event} at ${property.value} ${from} in the range.`
@@ -57,7 +60,7 @@ const board = computed<Kpi[]>(() => {
     {
       key: 'finished',
       label: `Reached ${property.value} ${to}`,
-      value: last === null ? `<${FUNNEL_THRESHOLD}` : writeFigure(last, { compact: true }),
+      value: last === null ? `<${threshold.value}` : writeFigure(last, { compact: true }),
       exact: last === null ? undefined : writeFigure(last),
       trend: last !== null && previous.last ? trendOf(last, previous.last) : undefined,
       info: `Of those, the players who went on through every ${property.value} to ${to}, ${windowPhrase(props.definition.window)} of the first.`
@@ -133,9 +136,22 @@ function download() {
 
 <template>
   <div class="flex flex-col gap-8">
+    <p v-if="answer.error.value" class="m-0 flex items-center gap-3 rounded-(--ps-radius) bg-error/6 px-3.5 py-3 text-xs text-error ring-1 ring-error/20 ring-inset">
+      <span class="flex-1">{{ answer.error.value.message }}</span>
+      <v-btn
+        class="text-xs"
+        color="error"
+        size="small"
+        variant="text"
+        @click="answer.reload()"
+      >
+        Try again
+      </v-btn>
+    </p>
     <KpiBoard
       :description="`Players who reached ${property} ${definition.from} in ${RANGE_WORDS[range]}, against the range before.`"
       :items="board"
+      :loading="answer.loading.value && !answer.progression.value"
       title="Completion"
     />
 
@@ -176,7 +192,7 @@ function download() {
           :order="order"
           :property="definition.property"
           :rows="data.rows"
-          :threshold="FUNNEL_THRESHOLD"
+          :threshold="threshold"
         />
       </SectionCard>
     </div>

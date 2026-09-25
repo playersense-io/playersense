@@ -1,16 +1,16 @@
 <script setup lang="ts">
+import type { Schema } from '@playersense/contracts'
 import type { Kpi } from '~/components/KpiBoard.vue'
 
-// The selected project's players: how the base is doing as a whole, how each day's players
-// split between newcomers, regulars and the ones who came back, and every player on file,
-// searchable, each opening their own page.
-//
-// Sample data until a player endpoint exists (app/utils/players-sample.ts says what each
-// part will come from).
-const { project } = useWorkspace()
+// The selected project's players: how the base is doing as a whole (metrics/query), how each
+// day's players split between regulars, newcomers and the ones who came back (the lifecycle
+// split), and every player on file (…/players), each opening their own page.
+const workspace = useWorkspaceStore()
 
 const route = useRoute()
 const router = useRouter()
+
+type PlayerPeriod = '7d' | '30d' | '90d'
 
 const PERIODS: SegmentedOption[] = [
   { value: '7d', label: '7 days' },
@@ -24,78 +24,128 @@ const period = computed<PlayerPeriod>({
 })
 
 const periodWords = computed(() => (PERIODS.find(option => option.value === period.value)?.label ?? '').toLowerCase())
-
-const base = computed(() => samplePlayerBase(period.value))
+const range = computed(() => periodOf(Number.parseInt(period.value, 10)))
 
 const compact = (value: number) => writeFigure(value, { compact: true })
 const money = (value: number) => `$${writeFigure(value, { format: 'money' })}`
+const per = (value: number, over: number) => (over ? value / over : 0)
 
 // --- The player base ----------------------------------------------------------------------
 
-const board = computed<Kpi[]>(() => [
-  {
-    key: 'active',
-    label: 'Active players',
-    value: compact(base.value.active),
-    trend: trendOf(base.value.active, base.value.previousActive),
-    info: 'Players with at least one session in the period, each counted once.'
-  },
-  {
-    key: 'new',
-    label: 'New players',
-    value: compact(base.value.fresh),
-    trend: trendOf(base.value.fresh, base.value.previousFresh),
-    info: 'Players seen for the first time in the period.'
-  },
-  {
-    key: 'payers',
-    label: 'Paying players',
-    value: writeFigure(base.value.payersShare, { decimals: 1, unit: '%' }),
-    trend: trendOf(base.value.payersShare, base.value.previousPayersShare),
-    info: 'The share of active players who have ever made a verified purchase.'
-  },
-  {
-    key: 'ltv',
-    label: 'Lifetime value',
-    value: money(base.value.lifetimeValue),
-    trend: trendOf(base.value.lifetimeValue, base.value.previousLifetimeValue),
-    info: 'Average revenue per player over their whole life so far, payers and non-payers together.'
-  },
-  {
-    key: 'playtime',
-    label: 'Playtime per player',
-    value: writeFigure(base.value.playtimePerPlayer, { decimals: 0 }),
-    unit: 'min',
-    trend: trendOf(base.value.playtimePerPlayer, base.value.previousPlaytimePerPlayer),
-    info: 'Minutes played per active player, per day.'
+const metrics = ref<Schema<'MetricResult'> | null>(null)
+const lifecycle = ref<Schema<'MetricResult'> | null>(null)
+const baseError = ref<ApiError | null>(null)
+
+async function loadBase() {
+  const path = workspace.analyticsPath
+  if (!path) return
+  baseError.value = null
+  const { previousFrom, from, to } = range.value
+  try {
+    const [daily, split] = await Promise.all([
+      dailyMetrics(path, previousFrom, to),
+      apiRequest<Schema<'MetricResult'>>('POST', `${path}/metrics/query`, { metric: 'continuing_players', interval: 'day', from, to })
+    ])
+    metrics.value = daily
+    lifecycle.value = split
+  } catch (caught) {
+    baseError.value = caught instanceof ApiError ? caught : new ApiError(String(caught), 0)
   }
-])
+}
+
+watch([range, () => workspace.analyticsPath], loadBase, { immediate: true })
+
+function sums(from: string, to: string) {
+  const rows = (metrics.value?.rows ?? []).filter(row => row.bucket.slice(0, 10) >= from && row.bucket.slice(0, 10) <= to)
+  const add = (pick: (row: typeof rows[number]) => number | undefined) => rows.reduce((sum, row) => sum + (pick(row) ?? 0), 0)
+  return {
+    playerDays: add(row => row.active_players),
+    fresh: add(row => row.new_players),
+    payerDays: add(row => row.payers),
+    playtime: add(row => row.playtime_ms)
+  }
+}
+
+const board = computed<Kpi[]>(() => {
+  const count = range.value.days.length
+  const now = sums(range.value.from, range.value.to)
+  const before = sums(range.value.previousFrom, range.value.previousTo)
+  const conversion = (figures: typeof now) => per(figures.payerDays, figures.playerDays) * 100
+  const playtime = (figures: typeof now) => per(figures.playtime, figures.playerDays) / 60_000
+  return [
+    {
+      key: 'active',
+      label: 'Active players',
+      value: compact(now.playerDays / count),
+      trend: trendOf(now.playerDays, before.playerDays),
+      info: 'Players with at least one session, as a daily average over the period.'
+    },
+    {
+      key: 'new',
+      label: 'New players',
+      value: compact(now.fresh),
+      trend: trendOf(now.fresh, before.fresh),
+      info: 'Players seen for the first time in the period.'
+    },
+    {
+      key: 'payers',
+      label: 'Payer conversion',
+      value: writeFigure(conversion(now), { decimals: 2, unit: '%' }),
+      trend: trendOf(conversion(now), conversion(before)),
+      info: 'The share of each day\'s active players who made a purchase that day.'
+    },
+    {
+      key: 'playtime',
+      label: 'Playtime per player',
+      value: writeFigure(playtime(now), { decimals: 0 }),
+      unit: 'min',
+      trend: trendOf(playtime(now), playtime(before)),
+      info: 'Minutes played per active player, per day.'
+    }
+  ]
+})
 
 // --- Lifecycle ----------------------------------------------------------------------------
 
-const dayTick = new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric' })
+const dayTick = new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric', timeZone: 'UTC' })
 
-const lifecycleCategories = computed(() => base.value.lifecycle.map(day => dayTick.format(day.at)))
+const lifecycleDays = computed(() => {
+  const held = new Map((lifecycle.value?.rows ?? []).map(row => [row.bucket.slice(0, 10), row]))
+  return range.value.days.map(day => ({ day, row: held.get(day) }))
+})
+
+const lifecycleCategories = computed(() => lifecycleDays.value.map(entry => dayTick.format(new Date(entry.day))))
 
 const lifecycleSeries = computed<MetricSeries[]>(() => [
-  { name: 'Returning', data: base.value.lifecycle.map(day => day.returning), type: 'bar', stack: 'players', tone: 1 },
-  { name: 'New', data: base.value.lifecycle.map(day => day.fresh), type: 'bar', stack: 'players', tone: 3 },
-  { name: 'Reactivated', data: base.value.lifecycle.map(day => day.reactivated), type: 'bar', stack: 'players', tone: 4 }
+  { name: 'Continuing', data: lifecycleDays.value.map(entry => entry.row?.continuing_players ?? 0), type: 'bar', stack: 'players', tone: 1 },
+  { name: 'New', data: lifecycleDays.value.map(entry => entry.row?.new_players ?? 0), type: 'bar', stack: 'players', tone: 3 },
+  { name: 'Reactivated', data: lifecycleDays.value.map(entry => entry.row?.reactivated_players ?? 0), type: 'bar', stack: 'players', tone: 4 }
 ])
 
 // --- Directory ----------------------------------------------------------------------------
 
-const players = samplePlayers()
+type PlayerRow = Schema<'PlayerSummaryOut'>
+type PlayerStatus = 'active' | 'lapsed' | 'churned'
 
+const STATUS: Record<PlayerStatus, { label: string, tone: BadgeTone }> = {
+  active: { label: 'Active', tone: 'success' },
+  lapsed: { label: 'Lapsed', tone: 'warning' },
+  churned: { label: 'Churned', tone: 'neutral' }
+}
+const statusOf = (value: string) => STATUS[value as PlayerStatus] ?? { label: value, tone: 'neutral' as BadgeTone }
+
+/* One of each at a time: the API filters on a single value, so each group is a choice. */
 const FILTER_GROUPS: FilterGroup[] = [
   {
     key: 'status',
     label: 'Status',
-    options: (Object.keys(PLAYER_STATUS_LABELS) as PlayerStatus[]).map(value => ({ value, label: PLAYER_STATUS_LABELS[value] }))
+    options: [
+      { value: 'active', label: 'Active, seen within 7 days' },
+      { value: 'lapsed', label: 'Lapsed, 7 to 30 days away' },
+      { value: 'churned', label: 'Churned, over 30 days away' }
+    ]
   },
-  { key: 'spend', label: 'Spend', options: [{ value: 'payer', label: 'Paying' }, { value: 'free', label: 'Never paid' }] },
-  { key: 'platform', label: 'Platform', options: PLAYER_PLATFORMS.map(value => ({ value, label: value })) },
-  { key: 'source', label: 'Acquisition', options: PLAYER_SOURCES.map(value => ({ value, label: value })) }
+  { key: 'spend', label: 'Spend', options: [{ value: 'paying', label: 'Paying' }, { value: 'never', label: 'Never paid' }] }
 ]
 
 const EMPTY_FILTERS = () => Object.fromEntries(FILTER_GROUPS.map(group => [group.key, [] as string[]]))
@@ -103,15 +153,63 @@ const EMPTY_FILTERS = () => Object.fromEntries(FILTER_GROUPS.map(group => [group
 const filters = ref<Record<string, string[]>>(EMPTY_FILTERS())
 const query = ref('')
 
+/* A second choice in a group replaces the first. */
+watch(filters, (value) => {
+  const trimmed = Object.fromEntries(Object.entries(value).map(([key, list]) => [key, list.slice(-1)]))
+  if (Object.entries(trimmed).some(([key, list]) => list.length !== (value[key] ?? []).length)) filters.value = trimmed
+}, { deep: true })
+
+const SORTS: Record<string, string> = {
+  lastSeen: 'last_seen',
+  firstSeen: 'first_seen',
+  revenue: 'revenue',
+  playtime: 'playtime',
+  sessions: 'sessions',
+  activeDays: 'active_days'
+}
+
+const sortBy = ref<DataTableSort[]>([{ key: 'lastSeen', order: 'desc' }])
+
+const directoryUrl = computed(() => workspace.analyticsPath && withQuery(`${workspace.analyticsPath}/players`, {
+  status: filters.value.status?.[0],
+  spend: filters.value.spend?.[0],
+  sort: SORTS[sortBy.value[0]?.key ?? 'lastSeen'] ?? 'last_seen',
+  limit: 200
+}))
+
+const directory = useApiGet<Schema<'PlayerListOut'>>(directoryUrl)
+const more = ref<PlayerRow[]>([])
+const nextOffset = ref<number | undefined>()
+const loadingMore = ref(false)
+
+watch(directory.data, (out) => {
+  more.value = []
+  nextOffset.value = out?.next_offset || undefined
+})
+
+async function loadMore() {
+  if (!directoryUrl.value || !nextOffset.value) return
+  loadingMore.value = true
+  try {
+    const out = await apiRequest<Schema<'PlayerListOut'>>('GET', `${directoryUrl.value}&offset=${nextOffset.value}`)
+    more.value = [...more.value, ...(out.players ?? [])]
+    nextOffset.value = out.next_offset || undefined
+  } finally {
+    loadingMore.value = false
+  }
+}
+
+const players = computed<PlayerRow[]>(() => [...(directory.data.value?.players ?? []), ...more.value])
+
 const matched = computed(() => {
   const needle = query.value.trim().toLowerCase()
-  const { status = [], spend = [], platform = [], source = [] } = filters.value
-  return players.filter(player =>
-    (!status.length || status.includes(player.status))
-    && (!spend.length || spend.includes(player.purchases > 0 ? 'payer' : 'free'))
-    && (!platform.length || platform.includes(player.platform))
-    && (!source.length || source.includes(player.source))
-    && (!needle || player.id.toLowerCase().includes(needle)))
+  return needle ? players.value.filter(player => player.install_id.toLowerCase().includes(needle)) : players.value
+})
+
+/* A search that finds nobody loaded may still be somebody: offer their page by ID. */
+const lookup = computed(() => {
+  const text = query.value.trim()
+  return text.length >= 4 && !matched.value.length ? text : ''
 })
 
 const active = computed<ActiveFilter[]>(() => [
@@ -136,44 +234,34 @@ function clearFilters() {
   filters.value = EMPTY_FILTERS()
 }
 
-const COLUMNS: DataTableColumn<PlayerSummary>[] = [
-  { key: 'id', title: 'Player', fixed: true, minWidth: 220 },
-  { key: 'status', title: 'Status', value: player => PLAYER_STATUS_LABELS[player.status] },
-  { key: 'platform', title: 'Platform', hidden: true },
-  { key: 'country', title: 'Country' },
-  { key: 'source', title: 'Acquisition', hidden: true },
-  { key: 'firstSeen', title: 'First seen', mono: true },
-  { key: 'lastSeen', title: 'Last seen', align: 'end', mono: true },
-  { key: 'activeDays', title: 'Active days', align: 'end', mono: true },
-  { key: 'sessions', title: 'Sessions', align: 'end', mono: true, hidden: true },
-  { key: 'playtimeMs', title: 'Playtime', align: 'end', mono: true },
-  { key: 'revenueMicros', title: 'Revenue', align: 'end', mono: true }
+const COLUMNS: DataTableColumn<PlayerRow>[] = [
+  { key: 'id', title: 'Player', fixed: true, minWidth: 220, sortable: false },
+  { key: 'status', title: 'Status', sortable: false },
+  { key: 'platform', title: 'Platform', hidden: true, sortable: false },
+  { key: 'country', title: 'Country', sortable: false },
+  { key: 'app_version', title: 'App version', mono: true, hidden: true, sortable: false },
+  { key: 'firstSeen', title: 'First seen', mono: true, value: player => Date.parse(player.first_seen) },
+  { key: 'lastSeen', title: 'Last seen', align: 'end', mono: true, value: player => Date.parse(player.last_seen) },
+  { key: 'activeDays', title: 'Active days', align: 'end', mono: true, value: player => player.active_days },
+  { key: 'sessions', title: 'Sessions', align: 'end', mono: true, hidden: true, value: player => player.sessions },
+  { key: 'playtime', title: 'Playtime', align: 'end', mono: true, value: player => player.playtime_ms },
+  { key: 'revenue', title: 'Revenue', align: 'end', mono: true, value: player => player.revenue_micros }
 ]
 
 const columns = ref(defaultColumnState(COLUMNS))
-const sortBy = ref<DataTableSort[]>([{ key: 'lastSeen', order: 'desc' }])
-const perPage = ref(10)
-
-const STATUS_TONES: Record<PlayerStatus, BadgeTone> = { active: 'success', lapsed: 'warning', churned: 'neutral' }
+const perPage = ref(25)
 
 const date = new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric', year: 'numeric' })
 
 /** "12m ago", "5h ago", "3d ago". */
-function ago(at: number): string {
-  const minutes = Math.max(1, Math.round((Date.now() - at) / 60_000))
+function ago(iso: string): string {
+  const minutes = Math.max(1, Math.round((Date.now() - Date.parse(iso)) / 60_000))
   if (minutes < 60) return `${minutes}m ago`
   if (minutes < 1_440) return `${Math.round(minutes / 60)}h ago`
   return `${Math.round(minutes / 1_440)}d ago`
 }
 
 const hours = (ms: number) => `${writeFigure(ms / 3_600_000, { decimals: 1 })} h`
-
-// Written out so @nuxt/icon bundles them.
-const PLATFORM_ICONS: Record<string, string> = {
-  iOS: 'material-symbols:phone-iphone',
-  Android: 'material-symbols:android',
-  Steam: 'material-symbols:desktop-windows-outline'
-}
 
 /** An install UUID shortened in the middle, where it is least read: "1a55f872…27ce7". */
 const shortId = (id: string) => (id.length > 16 ? `${id.slice(0, 8)}…${id.slice(-5)}` : id)
@@ -183,7 +271,7 @@ const shortId = (id: string) => (id.length > 16 ? `${id.slice(0, 8)}…${id.slic
   <div class="flex flex-col gap-8">
     <PageHeader title="Players">
       <template #description>
-        Who plays <span class="text-ink">{{ project.name }}</span>: the player base as a whole,
+        Who plays <span class="text-ink">{{ workspace.project?.name }}</span>: the player base as a whole,
         and every player on file, one click from their own history.
       </template>
       <template #actions>
@@ -191,6 +279,9 @@ const shortId = (id: string) => (id.length > 16 ? `${id.slice(0, 8)}…${id.slic
       </template>
     </PageHeader>
 
+    <p v-if="baseError" class="m-0 rounded-(--ps-radius) bg-error/6 px-3.5 py-3 text-xs text-error ring-1 ring-error/20 ring-inset">
+      {{ baseError.message }}
+    </p>
     <KpiBoard
       :description="`The last ${periodWords}, against the ${periodWords} before.`"
       :items="board"
@@ -202,14 +293,14 @@ const shortId = (id: string) => (id.length > 16 ? `${id.slice(0, 8)}…${id.slic
       :series="lifecycleSeries"
       category-label="Day"
       compact
-      description="Each day's active players: returning regulars, first-timers, and players back after 14 days or more away."
+      description="Each day's active players: regulars who played within the last week, first-timers, and players back after 7 days or more away."
       title="Active players by lifecycle"
       type="bar"
     />
 
     <SectionCard
       :padded="false"
-      description="Everyone who has played, most recently seen first. Open a player to see their history."
+      description="Everyone who has played, most recently seen first. Open a player to see their history. Sorting asks the API; search looks through the players loaded."
       title="Player directory"
     >
       <TableToolbar :filters="active" @clear="clearFilters" @remove="removeFilter">
@@ -217,7 +308,7 @@ const shortId = (id: string) => (id.length > 16 ? `${id.slice(0, 8)}…${id.slic
           v-model="query"
           class="w-56"
           label="Search players"
-          placeholder="Player or install ID"
+          placeholder="Install ID, or a player ID to open"
         />
         <FilterMenu v-model="filters" :groups="FILTER_GROUPS" />
         <DataTableColumnsMenu v-model="columns" :columns="COLUMNS" />
@@ -237,15 +328,16 @@ const shortId = (id: string) => (id.length > 16 ? `${id.slice(0, 8)}…${id.slic
         v-model:sort-by="sortBy"
         :columns="COLUMNS"
         :items="matched"
+        :loading="directory.isFetching.value && !directory.data.value"
         empty-description="No player matches these filters. Remove one, or clear them all."
         empty-title="No players match."
-        item-value="id"
+        item-value="install_id"
         label="Players"
       >
         <template #cell.id="{ item }">
           <NuxtLink
-            :title="item.id"
-            :to="`/analytics/players/${item.id}`"
+            :title="item.install_id"
+            :to="`/analytics/players/${encodeURIComponent(item.install_id)}`"
             class="group flex min-w-0 items-center gap-3 no-underline"
           >
             <span
@@ -256,7 +348,7 @@ const shortId = (id: string) => (id.length > 16 ? `${id.slice(0, 8)}…${id.slic
                 group-hover:bg-primary/10 group-hover:text-primary
               "
             >
-              <Icon :name="PLATFORM_ICONS[item.platform] ?? 'material-symbols:sports-esports-outline'" class="text-base" />
+              <PlatformIcon :platform="item.platform" :size="16" />
             </span>
             <span class="flex min-w-0 flex-col">
               <span
@@ -264,31 +356,59 @@ const shortId = (id: string) => (id.length > 16 ? `${id.slice(0, 8)}…${id.slic
                   truncate font-mono text-[13px] leading-5 text-ink transition-colors
                   group-hover:text-primary
                 "
-              >{{ shortId(item.id) }}</span>
+              >{{ shortId(item.install_id) }}</span>
               <span class="truncate text-[11px] leading-4 text-ink/50">
-                {{ item.identifiedBy === 'actor_key' ? 'Player ID' : 'Install ID' }} · {{ item.platform }}
+                Install ID · {{ item.platform }}
               </span>
             </span>
           </NuxtLink>
         </template>
         <template #cell.status="{ item }">
-          <StatusBadge :label="PLAYER_STATUS_LABELS[item.status]" :tone="STATUS_TONES[item.status]" />
+          <StatusBadge :label="statusOf(item.status).label" :tone="statusOf(item.status).tone" />
+        </template>
+        <template #cell.country="{ item }">
+          {{ item.country || '–' }}
         </template>
         <template #cell.firstSeen="{ item }">
-          {{ date.format(item.firstSeen) }}
+          {{ date.format(new Date(item.first_seen)) }}
         </template>
         <template #cell.lastSeen="{ item }">
-          {{ ago(item.lastSeen) }}
+          {{ ago(item.last_seen) }}
         </template>
-        <template #cell.playtimeMs="{ item }">
-          {{ hours(item.playtimeMs) }}
+        <template #cell.activeDays="{ item }">
+          {{ writeFigure(item.active_days) }}
         </template>
-        <template #cell.revenueMicros="{ item }">
-          <span :class="item.revenueMicros ? 'text-ink' : 'text-ink/40'">
-            {{ money(item.revenueMicros / 1_000_000) }}
+        <template #cell.sessions="{ item }">
+          {{ writeFigure(item.sessions) }}
+        </template>
+        <template #cell.playtime="{ item }">
+          {{ hours(item.playtime_ms) }}
+        </template>
+        <template #cell.revenue="{ item }">
+          <span :class="item.revenue_micros ? 'text-ink' : 'text-ink/40'">
+            {{ money(item.revenue_micros / 1_000_000) }}
           </span>
         </template>
       </DataTable>
+
+      <div v-if="lookup" class="flex items-center justify-center gap-2 border-t border-line px-5 py-3 text-xs text-ink/60">
+        Not among the players loaded.
+        <NuxtLink :to="`/analytics/players/${encodeURIComponent(lookup)}`" class="text-primary no-underline hover:underline">
+          Open {{ lookup }}
+        </NuxtLink>
+      </div>
+      <div v-else-if="nextOffset" class="flex justify-center border-t border-line px-5 py-3">
+        <v-btn
+          :loading="loadingMore"
+          class="text-xs font-medium"
+          color="neutral"
+          size="small"
+          variant="text"
+          @click="loadMore"
+        >
+          Load more players
+        </v-btn>
+      </div>
     </SectionCard>
   </div>
 </template>

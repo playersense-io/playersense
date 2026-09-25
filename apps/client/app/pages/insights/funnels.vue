@@ -1,12 +1,10 @@
 <script setup lang="ts">
 // How far players get through a sequence of steps: a saved funnel, or one being built, as
 // the players who did each step in order within the funnel's window of their first step
-// (project.md §31). This page is which funnel is open and how it is defined — the steps
-// are edited in place, and saving keeps the edit; what the funnel comes to is
-// FunnelReport's, which follows the draft as it changes.
-//
-// Funnels are saved in this browser until the server keeps them.
-const { project } = useWorkspace()
+// (project.md §31). This page is which funnel is open and how it is defined: the steps are
+// edited in place, and saving keeps the edit for everyone in the project (…/funnels); what the
+// funnel comes to is FunnelReport's, which asks the API again as the draft changes.
+const workspace = useWorkspaceStore()
 
 const RANGES: SegmentedOption[] = [
   { value: '7d', label: 'Last 7 days' },
@@ -16,9 +14,16 @@ const RANGES: SegmentedOption[] = [
 
 const range = useQueryChoice<FunnelRange>('range', ['7d', '30d', '90d'], '30d')
 
+// --- The events, for the pickers ----------------------------------------------------------
+
+const { catalogue, ensure } = useEventCatalogue()
+
 // --- Which funnel -------------------------------------------------------------------------
 
-const { funnels, save, create, remove } = useSavedFunnels()
+const { funnels, loading, error, reload, save, create, remove } = useSavedFunnels()
+
+/** The first two events a new funnel starts from: the busiest the project sends. */
+const firstEvents = computed(() => [catalogue.value[0]?.name ?? 'session_start', catalogue.value[1]?.name ?? catalogue.value[0]?.name ?? 'session_start'])
 
 /** A funnel not yet saved, of either kind, opens under one of these. */
 const BLANKS: Record<string, () => FunnelDefinition> = {
@@ -27,7 +32,7 @@ const BLANKS: Record<string, () => FunnelDefinition> = {
     kind: 'steps',
     name: 'Untitled funnel',
     window: '1d',
-    steps: [{ event: 'session_start', where: [] }, { event: 'level_complete', where: [] }]
+    steps: [{ event: firstEvents.value[0]!, where: [] }, { event: firstEvents.value[1]!, where: [] }]
   }),
   'new-progression': () => ({
     id: 'new-progression',
@@ -46,7 +51,7 @@ const BLANKS: Record<string, () => FunnelDefinition> = {
 const selected = useQueryChoice(
   'funnel',
   () => [...Object.keys(BLANKS), ...funnels.value.map(funnel => funnel.id)],
-  () => funnels.value[0]!.id
+  () => funnels.value[0]?.id ?? 'new'
 )
 
 const saved = computed(() => funnels.value.find(funnel => funnel.id === selected.value) ?? null)
@@ -56,9 +61,15 @@ const opened = () => copyFunnel(saved.value ?? (BLANKS[selected.value] ?? BLANKS
 /** The funnel on screen: the saved one, as edited so far. */
 const draft = ref<FunnelDefinition>(opened())
 
-watch(selected, () => {
+/* A new funnel or another saved one opens afresh, and so does the list arriving. */
+watch([selected, () => saved.value?.id], () => {
   draft.value = opened()
 })
+
+/* The events in use offer their properties to the condition menus. */
+watch(draft, (funnel) => {
+  for (const name of funnel.kind === 'steps' ? funnel.steps.map(step => step.event) : [funnel.event]) void ensure(name)
+}, { immediate: true, deep: true })
 
 /** Whether two funnels ask the same question: everything but their id and name. */
 const same = (a: FunnelDefinition, b: FunnelDefinition) => {
@@ -71,27 +82,48 @@ const dirty = computed(() => !saved.value || !same(draft.value, saved.value))
 
 /** A funnel not yet saved has no name of its own, so saving it asks for one. */
 const naming = ref(false)
+const saving = ref(false)
+const problem = ref('')
+
+async function attempt(change: () => Promise<unknown>) {
+  problem.value = ''
+  saving.value = true
+  try {
+    await change()
+  } catch (caught) {
+    problem.value = caught instanceof Error ? caught.message : String(caught)
+  } finally {
+    saving.value = false
+  }
+}
 
 function onSave() {
-  if (saved.value) save(draft.value)
+  if (saved.value) void attempt(() => save(draft.value))
   else naming.value = true
 }
 
 function onSaveAs(name: string) {
-  const id = create(draft.value, name)
-  selected.value = id
+  void attempt(async () => {
+    selected.value = await create(draft.value, name)
+  })
 }
 
 function onRename(name: string) {
-  if (!saved.value) return
-  save({ ...saved.value, name })
-  draft.value = { ...draft.value, name }
+  const current = saved.value
+  if (!current) return
+  void attempt(async () => {
+    await save({ ...current, name })
+    draft.value = { ...draft.value, name }
+  })
 }
 
 function onRemove() {
-  if (!saved.value) return
-  remove(saved.value.id)
-  selected.value = funnels.value[0]!.id
+  const current = saved.value
+  if (!current) return
+  void attempt(async () => {
+    await remove(current.id)
+    selected.value = funnels.value[0]?.id ?? 'new'
+  })
 }
 
 function onDiscard() {
@@ -132,7 +164,7 @@ const windowWords = computed(() => windowPhrase(draft.value.window))
   <div class="flex flex-col gap-8">
     <PageHeader title="Funnels">
       <template #description>
-        How far <span class="text-ink">{{ project.name }}</span>'s players get through a
+        How far <span class="text-ink">{{ workspace.project?.name }}</span>'s players get through a
         sequence of steps or a run of levels, and where they stop.
       </template>
       <template #actions>
@@ -140,58 +172,69 @@ const windowWords = computed(() => windowPhrase(draft.value.window))
       </template>
     </PageHeader>
 
-    <SectionCard
-      v-if="draft.kind === 'steps'"
-      :description="`Players who did each step in order, other events in between allowed, ${windowWords} of step 1.`"
-      :padded="false"
-      :title="draft.name"
-    >
-      <template #title>
-        <FunnelPicker
-          v-model="selected"
-          :dirty="dirty"
-          :funnels="funnels"
-          :name="draft.name"
-          :unsaved="!saved"
-          @remove="onRemove"
-          @rename="onRename"
-          @save-as="onSaveAs"
-        />
-      </template>
-      <template #actions>
-        <span class="text-xs text-ink/55">Converted within</span>
-        <SegmentedControl v-model="conversionWindow" :options="WINDOWS" label="Conversion window" />
-      </template>
-      <FunnelSteps v-model="steps" :catalogue="EVENT_CATALOGUE" />
-    </SectionCard>
+    <p v-if="problem" class="m-0 rounded-(--ps-radius) bg-error/6 px-3.5 py-3 text-xs text-error ring-1 ring-error/20 ring-inset">
+      {{ problem }}
+    </p>
 
-    <SectionCard
-      v-if="progression"
-      :description="`Players who did ${progression.event} at each ${progression.property.replaceAll('_', ' ')} in order, ${windowWords} of the first.`"
-      :padded="false"
-      :title="draft.name"
+    <LoadState
+      :error="error"
+      :loading="loading"
+      what="the funnels"
+      @retry="reload"
     >
-      <template #title>
-        <FunnelPicker
-          v-model="selected"
-          :dirty="dirty"
-          :funnels="funnels"
-          :name="draft.name"
-          :unsaved="!saved"
-          @remove="onRemove"
-          @rename="onRename"
-          @save-as="onSaveAs"
-        />
-      </template>
-      <template #actions>
-        <span class="text-xs text-ink/55">Reached within</span>
-        <SegmentedControl v-model="conversionWindow" :options="WINDOWS" label="Window" />
-      </template>
-      <ProgressionEditor v-model="progression" :catalogue="EVENT_CATALOGUE" />
-    </SectionCard>
+      <SectionCard
+        v-if="draft.kind === 'steps'"
+        :description="`Players who did each step in order, other events in between allowed, ${windowWords} of step 1.`"
+        :padded="false"
+        :title="draft.name"
+      >
+        <template #title>
+          <FunnelPicker
+            v-model="selected"
+            :dirty="dirty"
+            :funnels="funnels"
+            :name="draft.name"
+            :unsaved="!saved"
+            @remove="onRemove"
+            @rename="onRename"
+            @save-as="onSaveAs"
+          />
+        </template>
+        <template #actions>
+          <span class="text-xs text-ink/55">Converted within</span>
+          <SegmentedControl v-model="conversionWindow" :options="WINDOWS" label="Conversion window" />
+        </template>
+        <FunnelSteps v-model="steps" :catalogue="catalogue" />
+      </SectionCard>
 
-    <FunnelReport v-if="draft.kind === 'steps'" :definition="draft" :range="range" />
-    <ProgressionReport v-if="progression" :definition="progression" :range="range" />
+      <SectionCard
+        v-if="progression"
+        :description="`Players who did ${progression.event} at each ${progression.property.replaceAll('_', ' ')} in order, ${windowWords} of the first.`"
+        :padded="false"
+        :title="draft.name"
+      >
+        <template #title>
+          <FunnelPicker
+            v-model="selected"
+            :dirty="dirty"
+            :funnels="funnels"
+            :name="draft.name"
+            :unsaved="!saved"
+            @remove="onRemove"
+            @rename="onRename"
+            @save-as="onSaveAs"
+          />
+        </template>
+        <template #actions>
+          <span class="text-xs text-ink/55">Reached within</span>
+          <SegmentedControl v-model="conversionWindow" :options="WINDOWS" label="Window" />
+        </template>
+        <ProgressionEditor v-model="progression" :catalogue="catalogue" />
+      </SectionCard>
+
+      <FunnelReport v-if="draft.kind === 'steps'" :definition="draft" :range="range" />
+      <ProgressionReport v-if="progression" :definition="progression" :range="range" />
+    </LoadState>
 
     <ActionBar :open="dirty" label="Unsaved funnel">
       <template #status>
@@ -207,6 +250,7 @@ const windowWords = computed(() => windowPhrase(draft.value.window))
         {{ saved ? 'Discard' : 'Start over' }}
       </v-btn>
       <v-btn
+        :loading="saving"
         class="text-xs font-medium"
         color="primary"
         size="small"
@@ -219,7 +263,7 @@ const windowWords = computed(() => windowPhrase(draft.value.window))
 
     <NameDialog
       v-model="naming"
-      description="Saved in this browser, with its steps and window."
+      description="Saved for everyone in the project, with its steps and window."
       title="Save funnel"
       @confirm="onSaveAs"
     />
