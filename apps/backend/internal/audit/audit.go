@@ -107,6 +107,9 @@ const (
 	StoreDisconnected Action = "store.disconnect"
 	StoreURLRotated   Action = "store.rotate_url"
 
+	// The store shares an organization's net revenue is estimated with.
+	RevenueSettingsChanged Action = "org.revenue_settings"
+
 	// A webhook endpoint: made or changed, deleted, its signing secret rolled, and its secret
 	// shown to somebody.
 	WebhookWritten      Action = "webhook.write"

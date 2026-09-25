@@ -3154,6 +3154,30 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/v1/organizations/{org}/revenue-settings": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * How net revenue is estimated
+         * @description Each store's share of gross, the usual rate or the organization's own, why net is an estimate, and whether revenue can be shown in dollars on this deployment.
+         */
+        readonly get: operations["get_v1_organizations_by_org_revenue_settings"];
+        /**
+         * Set the stores' shares
+         * @description Percent of gross each store keeps, as your own statements show it: 15 for Apple's Small Business Program or Google's first million, for instance. A store sent with null goes back to the usual rate. Only the estimate of net changes; gross is the stores' own figure.
+         */
+        readonly put: operations["put_v1_organizations_by_org_revenue_settings"];
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/v1/organizations/{org}/roles": {
         readonly parameters: {
             readonly query?: never;
@@ -6403,6 +6427,8 @@ export interface components {
             readonly status: string;
             readonly store: string;
             readonly store_transaction_id?: string;
+            /** Format: double */
+            readonly usd?: number | null;
             /**
              * Format: int64
              * @description How long the store took to answer
@@ -6536,6 +6562,14 @@ export interface components {
                 readonly [key: string]: number;
             };
         };
+        readonly RatesStatusOut: {
+            /** Format: date-time */
+            readonly as_of?: string | null;
+            readonly available: boolean;
+            readonly base: string;
+            /** Format: int64 */
+            readonly currencies: number;
+        };
         readonly ReceiptOut: {
             readonly currency: string;
             readonly description?: string;
@@ -6590,6 +6624,13 @@ export interface components {
         readonly RecentSessionsOut: {
             readonly sessions: readonly components["schemas"]["SessionOut"][];
         };
+        readonly RefundReasonOut: {
+            readonly reason: string;
+            /** Format: int64 */
+            readonly refunds: number;
+            /** Format: double */
+            readonly usd: number;
+        };
         readonly RefusalHourOut: {
             /** Format: int64 */
             readonly count: number;
@@ -6607,6 +6648,11 @@ export interface components {
             readonly quota: string;
             /** @description A project's id, or an organization's slug for invitations */
             readonly scope: string;
+        };
+        readonly RejectionOut: {
+            readonly code: string;
+            /** Format: int64 */
+            readonly count: number;
         };
         readonly ReplicaOut: {
             /** Format: int64 */
@@ -6708,6 +6754,48 @@ export interface components {
             readonly revenue_micros: number;
             readonly withheld?: boolean;
         };
+        readonly RevenueMoneyDayOut: {
+            readonly by_store?: {
+                readonly [key: string]: number;
+            };
+            /** Format: date-time */
+            readonly day: string;
+            /** Format: double */
+            readonly fees: number;
+            /** Format: double */
+            readonly gross: number;
+            /** Format: double */
+            readonly net: number;
+            /** Format: double */
+            readonly refunded: number;
+        };
+        readonly RevenueMoneyOut: {
+            readonly currency: string;
+            readonly days: readonly components["schemas"]["RevenueMoneyDayOut"][];
+            readonly estimated: boolean;
+            readonly exact: boolean;
+            /**
+             * Format: double
+             * @description Estimated: each store's share of what was not refunded
+             */
+            readonly fees: number;
+            /** Format: double */
+            readonly gross: number;
+            /**
+             * Format: double
+             * @description Estimated: gross less refunds less fees
+             */
+            readonly net: number;
+            readonly note: string;
+            /** Format: double */
+            readonly previous_gross: number;
+            /** Format: double */
+            readonly previous_net: number;
+            /** Format: double */
+            readonly refunded: number;
+            readonly stores: readonly components["schemas"]["RevenueStoreMoneyOut"][];
+            readonly unconverted: readonly string[];
+        };
         readonly RevenueOut: {
             /** @description Buyers are distinct counts from sketches */
             readonly approximate: boolean;
@@ -6718,9 +6806,11 @@ export interface components {
             /** Format: date-time */
             readonly from: string;
             readonly heatmap: readonly (readonly number[])[];
+            readonly money?: components["schemas"]["RevenueMoneyOut"] | null;
             readonly new_payers: readonly components["schemas"]["NewPayersOut"][];
             readonly price_points: readonly components["schemas"]["PricePointOut"][];
             readonly products: readonly components["schemas"]["RevenueSliceOut"][];
+            readonly refunds?: components["schemas"]["RevenueRefundsOut"] | null;
             readonly spender_tiers: readonly components["schemas"]["SpenderTierOut"][];
             readonly stores: readonly components["schemas"]["RevenueSliceOut"][];
             /** Format: int64 */
@@ -6731,8 +6821,24 @@ export interface components {
             /** Format: date-time */
             readonly to: string;
             readonly totals: components["schemas"]["RevenueTotalsOut"];
+            readonly verification?: components["schemas"]["RevenueVerificationOut"] | null;
             /** @description Always false: these are purchases the game reported, not store receipts */
             readonly verified: boolean;
+        };
+        readonly RevenueRefundsOut: {
+            /**
+             * Format: double
+             * @description From the purchase to its refund
+             */
+            readonly median_days: number;
+            readonly reasons: readonly components["schemas"]["RefundReasonOut"][];
+            /** Format: int64 */
+            readonly refunds: number;
+        };
+        readonly RevenueSettingsOut: {
+            readonly note: string;
+            readonly rates: components["schemas"]["RatesStatusOut"];
+            readonly stores: readonly components["schemas"]["StoreFeeOut"][];
         };
         readonly RevenueSliceOut: {
             /** Format: int64 */
@@ -6744,6 +6850,21 @@ export interface components {
             readonly purchases: number;
             /** Format: int64 */
             readonly revenue_micros: number;
+            /** Format: double */
+            readonly revenue_usd?: number | null;
+        };
+        readonly RevenueStoreMoneyOut: {
+            /** Format: double */
+            readonly fee_percent: number;
+            /** Format: double */
+            readonly fees: number;
+            /** Format: double */
+            readonly gross: number;
+            /** Format: double */
+            readonly net: number;
+            /** Format: double */
+            readonly refunded: number;
+            readonly store: string;
         };
         readonly RevenueTotalsOut: {
             /** Format: int64 */
@@ -6767,6 +6888,20 @@ export interface components {
             /** Format: int64 */
             readonly sandbox: number;
             readonly verified: boolean;
+        };
+        readonly RevenueVerificationOut: {
+            readonly by_store: readonly components["schemas"]["VerificationStoreOut"][];
+            readonly days: readonly components["schemas"]["VerificationDayOut"][];
+            /** Format: int64 */
+            readonly rejected: number;
+            readonly rejections: readonly components["schemas"]["RejectionOut"][];
+            /** Format: int64 */
+            readonly sandbox: number;
+            /**
+             * Format: int64
+             * @description Test purchases included
+             */
+            readonly verified: number;
         };
         readonly RoleListOut: {
             readonly roles: readonly components["schemas"]["RoleOut"][];
@@ -7109,6 +7244,15 @@ export interface components {
              */
             readonly share: number;
         };
+        readonly StoreFeeOut: {
+            /** @description Set by the organization rather than the usual rate */
+            readonly custom: boolean;
+            /** Format: double */
+            readonly default_percent: number;
+            /** Format: double */
+            readonly percent: number;
+            readonly store: string;
+        };
         readonly StoreListOut: {
             readonly stores: readonly components["schemas"]["StoreOut"][];
         };
@@ -7358,6 +7502,23 @@ export interface components {
              * @description What they get. Must match the flag's kind
              */
             readonly value: string;
+        };
+        readonly VerificationDayOut: {
+            /** Format: date-time */
+            readonly day: string;
+            /** Format: int64 */
+            readonly rejected: number;
+            /** Format: int64 */
+            readonly verified: number;
+        };
+        readonly VerificationStoreOut: {
+            /** Format: double */
+            readonly median_ms: number;
+            /** Format: int64 */
+            readonly rejected: number;
+            readonly store: string;
+            /** Format: int64 */
+            readonly verified: number;
         };
         readonly VerifiedPurchaseOut: {
             readonly attempts: readonly components["schemas"]["PurchaseAttemptOut"][];
@@ -23750,6 +23911,168 @@ export interface operations {
                 };
             };
             /** @description The delivery log could not be read */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly get_v1_organizations_by_org_revenue_settings: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                /** @description The organization's slug */
+                readonly org: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["RevenueSettingsOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not do that */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The organization does not exist */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unexpected error occurred. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly put_v1_organizations_by_org_revenue_settings: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly org: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": {
+                    /** @description Percent of gross each store keeps, 0 to 100; null for the usual rate */
+                    readonly store_fees: {
+                        readonly [key: string]: number;
+                    };
+                };
+            };
+        };
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["RevenueSettingsOut"];
+                };
+            };
+            /** @description No usable sign-in was presented */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This account may not do that */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The organization does not exist */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request could not be validated. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A sign-in could not be verified right now; the credential is not necessarily bad */
             readonly 503: {
                 headers: {
                     readonly [name: string]: unknown;

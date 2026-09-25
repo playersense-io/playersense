@@ -3,6 +3,7 @@
 package ent
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -32,6 +33,8 @@ type Organization struct {
 	Slug string `json:"slug,omitempty"`
 	// class=none
 	MemberLimit int `json:"member_limit,omitempty"`
+	// class=none
+	StoreFees map[string]float64 `json:"store_fees,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the OrganizationQuery when eager-loading is set.
 	Edges        OrganizationEdges `json:"edges"`
@@ -118,6 +121,8 @@ func (*Organization) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case organization.FieldStoreFees:
+			values[i] = new([]byte)
 		case organization.FieldID, organization.FieldMemberLimit:
 			values[i] = new(sql.NullInt64)
 		case organization.FieldName, organization.FieldSlug:
@@ -182,6 +187,14 @@ func (_m *Organization) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field member_limit", values[i])
 			} else if value.Valid {
 				_m.MemberLimit = int(value.Int64)
+			}
+		case organization.FieldStoreFees:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field store_fees", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.StoreFees); err != nil {
+					return fmt.Errorf("unmarshal field store_fees: %w", err)
+				}
 			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
@@ -266,6 +279,9 @@ func (_m *Organization) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("member_limit=")
 	builder.WriteString(fmt.Sprintf("%v", _m.MemberLimit))
+	builder.WriteString(", ")
+	builder.WriteString("store_fees=")
+	builder.WriteString(fmt.Sprintf("%v", _m.StoreFees))
 	builder.WriteByte(')')
 	return builder.String()
 }

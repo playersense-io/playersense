@@ -26,6 +26,9 @@ func testSettings(t *testing.T) config.Settings {
 		t.Skipf("no local environment: %v", err)
 	}
 	settings.Addr = ":0"
+	// Tests never call Open Exchange Rates: the free plan allows a thousand calls a month, and a
+	// test that needs rates brings its own.
+	settings.OpenExchangeRatesAppID = ""
 	// A passing run should print nothing.
 	settings.LogFormat = "none"
 	// Limits off unless a test is about them.

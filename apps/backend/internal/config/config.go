@@ -515,6 +515,13 @@ type Settings struct {
 	// it; empty makes each process draw its own, which is only right for a single process.
 	StreamSigningKey string `env:"STREAM_SIGNING_KEY" secret:"true"`
 
+	// OpenExchangeRatesAppID is the key the worker fetches each day's exchange rates with, so
+	// revenue can be shown in US dollars at the day's rate. Empty, nothing is fetched and money
+	// stays in the currencies paid.
+	OpenExchangeRatesAppID string `env:"OPENEXCHANGERATES_APP_ID" secret:"true"`
+	// FXBackfillDays is how far back the worker fills missing days' rates, a few days a pass.
+	FXBackfillDays int `env:"FX_BACKFILL_DAYS" default:"400"`
+
 	// CreditExpiryMaxLots bounds one pass of the wallet's expiry sweep.
 	//
 	// A pass writes two rows per lapsed lot inside one transaction, so the bound is about how

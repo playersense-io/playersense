@@ -1,9 +1,11 @@
 package main
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"net/http"
+	"net/http/httptest"
 	"strconv"
 	"strings"
 	"testing"
@@ -14,9 +16,11 @@ import (
 	"muzak.dev/framework/testclient"
 
 	"playersense.dev/backend/ent/environment"
+	"playersense.dev/backend/ent/fxrate"
 	"playersense.dev/backend/ent/project"
 	"playersense.dev/backend/ent/purchaseattempt"
 	"playersense.dev/backend/internal/chdb"
+	"playersense.dev/backend/internal/fx"
 	"playersense.dev/backend/internal/purchases"
 	"playersense.dev/backend/internal/schemas"
 	"playersense.dev/backend/internal/staff"
@@ -45,8 +49,18 @@ func newPurchaseRig(t *testing.T) *purchaseRig {
 	google, steam := stores.NewFake(), stores.NewFake()
 	svc := &purchases.Service{Stores: stores.Set{stores.Apple: &stores.AppleStore{Roots: ca.Roots},
 		stores.Google: google, stores.Steam: steam}, PublicURL: "https://api.playersense.test"}
-	s := newStackWith(t, muzak.WithSingleton(svc))
-	svc.DB = s.db
+	// Exchange rates from a stand-in for Open Exchange Rates: a real of five to the dollar.
+	rates := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"base":"USD","timestamp":` + strconv.FormatInt(time.Now().Unix(), 10) + `,"rates":{"BRL":5}}`))
+	}))
+	t.Cleanup(rates.Close)
+	fxs := &fx.Service{Source: &fx.Source{AppID: "test", BaseURL: rates.URL}}
+	s := newStackWith(t, muzak.WithSingleton(svc), muzak.WithSingleton(fxs))
+	svc.DB, fxs.DB = s.db, s.db
+	// The stand-in's rates are kept as today's; they must not outlive the test.
+	t.Cleanup(func() {
+		_, _ = s.db.Client.FxRate.Delete().Where(fxrate.DayGTE(time.Now().UTC().Truncate(24 * time.Hour))).Exec(context.Background())
+	})
 
 	person := person(t)
 	org := s.createOrg(t, person)
@@ -309,6 +323,30 @@ func TestPurchasesAreVerifiedRecordedOnceAndRefunded(t *testing.T) {
 	if !rev.Totals.Verified || rev.Totals.Sandbox != 1 || rev.Totals.Rejected != 2 {
 		t.Fatalf("revenue totals: %+v", rev.Totals)
 	}
+	// Four buyers, under the threshold: the dollars are withheld with the counts, and the rest is
+	// said anyway.
+	if rev.Money == nil || rev.Money.Gross != 0 || !strings.Contains(rev.Money.Note, "estimate") || len(rev.Money.Unconverted) != 0 {
+		t.Fatalf("money: %+v", rev.Money)
+	}
+	reasons := map[string]uint64{}
+	for _, x := range rev.Refunds.Reasons {
+		reasons[x.Reason] = x.Refunds
+	}
+	if rev.Refunds.Refunds != 3 || reasons["customer_request"] != 1 || reasons["chargeback"] != 1 {
+		t.Fatalf("refunds: %+v", rev.Refunds)
+	}
+	if rev.Verification == nil || rev.Verification.Rejected != 2 || len(rev.Verification.Rejections) == 0 || len(rev.Verification.ByStore) < 2 {
+		t.Fatalf("verification: %+v", rev.Verification)
+	}
+	usd := map[string]float64{}
+	for _, p := range ledger.Purchases {
+		if p.USD != nil {
+			usd[p.Store] += *p.USD
+		}
+	}
+	if usd["web_shop"] != 1.99 || usd["google_play"] < 15.16 || usd["google_play"] > 15.18 {
+		t.Fatalf("the ledger in dollars: %v", usd)
+	}
 
 	// Shipping again sends nothing.
 	if n, err := shipper.Ship(t.Context()); err != nil || n != 0 {
@@ -345,6 +383,29 @@ func TestPurchasesAreVerifiedRecordedOnceAndRefunded(t *testing.T) {
 	}
 	if after, _ := r.db.Client.PurchaseAttempt.Query().Where(purchaseattempt.ProjectID(r.projectID)).Count(t.Context()); after != before {
 		t.Fatalf("a staff check was logged as the project's attempt: %d then %d", before, after)
+	}
+
+	// ---- the organization's own store shares ----
+	settingsURL := "/v1/organizations/" + r.org + "/revenue-settings"
+	fifteen := 15.0
+	set := testclient.Decoded[schemas.RevenueSettingsOut](r.owner.Put(settingsURL, testclient.JSON(map[string]any{
+		"store_fees": map[string]any{"app_store": fifteen}})).AssertStatus(http.StatusOK))
+	shares := map[string]schemas.StoreFeeOut{}
+	for _, f := range set.Stores {
+		shares[f.Store] = f
+	}
+	if shares["app_store"].Percent != 15 || !shares["app_store"].Custom || shares["google_play"].Percent != 30 ||
+		!set.Rates.Available || !strings.Contains(set.Note, "Small Business") {
+		t.Fatalf("revenue settings: %+v", set)
+	}
+	r.owner.Put(settingsURL, testclient.JSON(map[string]any{"store_fees": map[string]any{"app_store": 120}})).
+		AssertStatus(http.StatusUnprocessableEntity)
+	back := testclient.Decoded[schemas.RevenueSettingsOut](r.owner.Put(settingsURL, testclient.JSON(map[string]any{
+		"store_fees": map[string]any{"app_store": nil}})).AssertStatus(http.StatusOK))
+	for _, f := range back.Stores {
+		if f.Store == "app_store" && (f.Custom || f.Percent != 30) {
+			t.Fatalf("back to the usual rate: %+v", f)
+		}
 	}
 
 	// Disconnected, the store verifies nothing more and its money is what the game reports.

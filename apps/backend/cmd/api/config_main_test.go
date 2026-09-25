@@ -27,6 +27,7 @@ func configSettings(t *testing.T) config.Settings {
 	settings.Addr = ":0"
 	settings.LogFormat = "none"
 	settings.RateLimitDisabled = true
+	settings.OpenExchangeRatesAppID = ""
 	// The store's whole job is to not read the database every request, which would make
 	// every test below race its own publish.
 	settings.ConfigCacheTTL = time.Millisecond

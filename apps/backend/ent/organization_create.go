@@ -97,6 +97,12 @@ func (_c *OrganizationCreate) SetNillableMemberLimit(v *int) *OrganizationCreate
 	return _c
 }
 
+// SetStoreFees sets the "store_fees" field.
+func (_c *OrganizationCreate) SetStoreFees(v map[string]float64) *OrganizationCreate {
+	_c.mutation.SetStoreFees(v)
+	return _c
+}
+
 // SetID sets the "id" field.
 func (_c *OrganizationCreate) SetID(v int) *OrganizationCreate {
 	_c.mutation.SetID(v)
@@ -342,6 +348,10 @@ func (_c *OrganizationCreate) createSpec() (*Organization, *sqlgraph.CreateSpec)
 		_spec.SetField(organization.FieldMemberLimit, field.TypeInt, value)
 		_node.MemberLimit = value
 	}
+	if value, ok := _c.mutation.StoreFees(); ok {
+		_spec.SetField(organization.FieldStoreFees, field.TypeJSON, value)
+		_node.StoreFees = value
+	}
 	if nodes := _c.mutation.ProjectsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
@@ -544,6 +554,24 @@ func (u *OrganizationUpsert) AddMemberLimit(v int) *OrganizationUpsert {
 	return u
 }
 
+// SetStoreFees sets the "store_fees" field.
+func (u *OrganizationUpsert) SetStoreFees(v map[string]float64) *OrganizationUpsert {
+	u.Set(organization.FieldStoreFees, v)
+	return u
+}
+
+// UpdateStoreFees sets the "store_fees" field to the value that was provided on create.
+func (u *OrganizationUpsert) UpdateStoreFees() *OrganizationUpsert {
+	u.SetExcluded(organization.FieldStoreFees)
+	return u
+}
+
+// ClearStoreFees clears the value of the "store_fees" field.
+func (u *OrganizationUpsert) ClearStoreFees() *OrganizationUpsert {
+	u.SetNull(organization.FieldStoreFees)
+	return u
+}
+
 // UpdateNewValues updates the mutable fields using the new values that were set on create except the ID field.
 // Using this option is equivalent to using:
 //
@@ -658,6 +686,27 @@ func (u *OrganizationUpsertOne) AddMemberLimit(v int) *OrganizationUpsertOne {
 func (u *OrganizationUpsertOne) UpdateMemberLimit() *OrganizationUpsertOne {
 	return u.Update(func(s *OrganizationUpsert) {
 		s.UpdateMemberLimit()
+	})
+}
+
+// SetStoreFees sets the "store_fees" field.
+func (u *OrganizationUpsertOne) SetStoreFees(v map[string]float64) *OrganizationUpsertOne {
+	return u.Update(func(s *OrganizationUpsert) {
+		s.SetStoreFees(v)
+	})
+}
+
+// UpdateStoreFees sets the "store_fees" field to the value that was provided on create.
+func (u *OrganizationUpsertOne) UpdateStoreFees() *OrganizationUpsertOne {
+	return u.Update(func(s *OrganizationUpsert) {
+		s.UpdateStoreFees()
+	})
+}
+
+// ClearStoreFees clears the value of the "store_fees" field.
+func (u *OrganizationUpsertOne) ClearStoreFees() *OrganizationUpsertOne {
+	return u.Update(func(s *OrganizationUpsert) {
+		s.ClearStoreFees()
 	})
 }
 
@@ -941,6 +990,27 @@ func (u *OrganizationUpsertBulk) AddMemberLimit(v int) *OrganizationUpsertBulk {
 func (u *OrganizationUpsertBulk) UpdateMemberLimit() *OrganizationUpsertBulk {
 	return u.Update(func(s *OrganizationUpsert) {
 		s.UpdateMemberLimit()
+	})
+}
+
+// SetStoreFees sets the "store_fees" field.
+func (u *OrganizationUpsertBulk) SetStoreFees(v map[string]float64) *OrganizationUpsertBulk {
+	return u.Update(func(s *OrganizationUpsert) {
+		s.SetStoreFees(v)
+	})
+}
+
+// UpdateStoreFees sets the "store_fees" field to the value that was provided on create.
+func (u *OrganizationUpsertBulk) UpdateStoreFees() *OrganizationUpsertBulk {
+	return u.Update(func(s *OrganizationUpsert) {
+		s.UpdateStoreFees()
+	})
+}
+
+// ClearStoreFees clears the value of the "store_fees" field.
+func (u *OrganizationUpsertBulk) ClearStoreFees() *OrganizationUpsertBulk {
+	return u.Update(func(s *OrganizationUpsert) {
+		s.ClearStoreFees()
 	})
 }
 

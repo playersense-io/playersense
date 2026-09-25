@@ -87,6 +87,7 @@ func TestEveryMutatingRouteDecidesAboutAudit(t *testing.T) {
 		"POST /v1/organizations/{org}/projects/{project}/channels":                        audit.ChannelWritten,
 		"PUT /v1/organizations/{org}/projects/{project}/channels/{channel}":               audit.ChannelWritten,
 		"DELETE /v1/organizations/{org}/projects/{project}/channels/{channel}":            audit.ChannelDeleted,
+		"PUT /v1/organizations/{org}/revenue-settings":                                    audit.RevenueSettingsChanged,
 		"POST /v1/organizations/{org}/projects/{project}/webhooks":                        audit.WebhookWritten,
 		"PUT /v1/organizations/{org}/projects/{project}/webhooks/{webhook}":               audit.WebhookWritten,
 		"DELETE /v1/organizations/{org}/projects/{project}/webhooks/{webhook}":            audit.WebhookDeleted,

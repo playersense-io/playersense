@@ -28,6 +28,11 @@ type RevenueFilter struct {
 	// Statuses narrows the ledger to verified, refunded, sandbox or rejected purchases, or ""
 	// for reported ones.
 	Statuses []string
+
+	// Rates converts to US dollars at the day's rate; nil leaves money in the currencies paid.
+	Rates Rates
+	// Fees is each store's share in percent as the organization set it, over DefaultStoreFees.
+	Fees map[string]float64
 }
 
 // VerifiedStore is a store whose purchases are verified, and since when.
@@ -174,6 +179,15 @@ func (e *Engine) Revenue(ctx context.Context, scope Scope, w Window, f RevenueFi
 		return nil, err
 	}
 	if err := e.spenderTiers(ctx, scope, w, f, out, &withheld); err != nil {
+		return nil, err
+	}
+	if err := e.revenueMoney(ctx, scope, w, f, out, &withheld); err != nil {
+		return nil, err
+	}
+	if err := e.revenueRefunds(ctx, scope, w, f, out); err != nil {
+		return nil, err
+	}
+	if err := e.revenueVerification(ctx, scope, w, f, out); err != nil {
 		return nil, err
 	}
 
@@ -461,6 +475,11 @@ func (e *Engine) Purchases(ctx context.Context, scope Scope, w Window, f Revenue
 		p.VerifyMs = int(verifyMs)
 		if p.Status == "" {
 			p.Status = "reported"
+		}
+		if f.Rates != nil {
+			if usd, ok := f.Rates.USD(p.RevenueMicros, p.Currency, p.At); ok {
+				p.USD = &usd
+			}
 		}
 		out.Purchases = append(out.Purchases, p)
 		devices = append(devices, device)

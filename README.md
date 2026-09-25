@@ -233,6 +233,16 @@ store is connected its revenue is its verified purchases rather than what the ga
 wins"). Connecting stores needs `purchases.configure`; the log and the purchases need `player.read`.
 The web shop is not verified yet and stays what the game reports.
 
+**Revenue in dollars.** The Revenue page and the purchases ledger carry US dollars at each day's
+rate, from Open Exchange Rates (`OPENEXCHANGERATES_APP_ID`, base USD). The free plan allows a
+thousand calls a month, so rates are fetched at most once an hour: kept in Valkey for an hour, one
+process fetching while the others wait, and each fetch kept as its day's rates in PostgreSQL
+(`fx_rates`), which is how a past day converts at its own rate without the paid historical
+endpoint. A day before the first kept borrows the nearest, and the answer says so (`exact`). Gross
+is the stores' figure; fees and net are estimates, each store's share set per organization
+(`GET PUT /v1/organizations/{org}/revenue-settings`, 30% until set), with the reason net cannot be
+known exactly. Tests never call the rate source.
+
 **Webhooks** (project.md §49-51, [ADR 0049](docs/adr/0049-webhooks-hold-only-what-is-owed.md);
 `webhooks.read` to see, `webhooks.write` to change, test and resend):
 

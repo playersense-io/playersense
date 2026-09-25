@@ -27,6 +27,8 @@ const (
 	FieldSlug = "slug"
 	// FieldMemberLimit holds the string denoting the member_limit field in the database.
 	FieldMemberLimit = "member_limit"
+	// FieldStoreFees holds the string denoting the store_fees field in the database.
+	FieldStoreFees = "store_fees"
 	// EdgeProjects holds the string denoting the projects edge name in mutations.
 	EdgeProjects = "projects"
 	// EdgeMembers holds the string denoting the members edge name in mutations.
@@ -94,6 +96,7 @@ var Columns = []string{
 	FieldName,
 	FieldSlug,
 	FieldMemberLimit,
+	FieldStoreFees,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).

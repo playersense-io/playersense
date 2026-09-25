@@ -37,6 +37,18 @@ func Billing() *muzak.Router {
 		muzak.WithResponseDoc(http.StatusUnprocessableEntity,
 			"The range is not two dates, ends before it starts, or is longer than 400 days"))
 
+	r.Get("/organizations/{org}/revenue-settings", handlers.ReadRevenueSettings,
+		muzak.Summary("How net revenue is estimated"),
+		muzak.Description("Each store's share of gross, the usual rate or the organization's own, why net is "+
+			"an estimate, and whether revenue can be shown in dollars on this deployment."),
+		core.Require(authz.OrgRead))
+	r.Put("/organizations/{org}/revenue-settings", handlers.UpdateRevenueSettings,
+		muzak.Summary("Set the stores' shares"),
+		muzak.Description("Percent of gross each store keeps, as your own statements show it: 15 for Apple's "+
+			"Small Business Program or Google's first million, for instance. A store sent with null goes back "+
+			"to the usual rate. Only the estimate of net changes; gross is the stores' own figure."),
+		core.Require(authz.OrgUpdate))
+
 	r.Get("/organizations/{org}/billing", handlers.ReadBilling,
 		muzak.Summary("The plan, the state and the wallet"),
 		muzak.Description("`available_micros` is what can be spent now: the sum of every grant "+

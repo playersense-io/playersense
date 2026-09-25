@@ -59,6 +59,7 @@ import (
 	"playersense.dev/backend/internal/config"
 	"playersense.dev/backend/internal/erasure"
 	"playersense.dev/backend/internal/export"
+	"playersense.dev/backend/internal/fx"
 	"playersense.dev/backend/internal/jobs"
 	"playersense.dev/backend/internal/mail"
 	"playersense.dev/backend/internal/metering"
@@ -234,6 +235,10 @@ func build(settings config.Settings) (*muzak.App, error) {
 		// holds every try it made.
 		muzak.WithSingleton(hookLog),
 		muzak.WithSingleton(dispatcher),
+		// The day's exchange rates, fetched once an hour whatever else happens, so a quiet day's
+		// rates are still kept.
+		muzak.WithSingleton(&fx.Refresher{Service: &fx.Service{Source: &fx.Source{AppID: settings.OpenExchangeRatesAppID},
+			Cache: deps.cache, DB: deps.db}}),
 	)
 
 	app.Include(routers.Meta())

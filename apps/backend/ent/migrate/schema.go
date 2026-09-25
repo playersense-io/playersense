@@ -670,6 +670,29 @@ var (
 			},
 		},
 	}
+	// FxRatesColumns holds the columns for the "fx_rates" table.
+	FxRatesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
+		{Name: "uid", Type: field.TypeUUID, Unique: true, Comment: "class=none"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "updated_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "day", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "currency", Type: field.TypeString, Size: 3, Comment: "class=none"},
+		{Name: "per_usd", Type: field.TypeFloat64, Comment: "class=none"},
+	}
+	// FxRatesTable holds the schema information for the "fx_rates" table.
+	FxRatesTable = &schema.Table{
+		Name:       "fx_rates",
+		Columns:    FxRatesColumns,
+		PrimaryKey: []*schema.Column{FxRatesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "fxrate_day_currency",
+				Unique:  true,
+				Columns: []*schema.Column{FxRatesColumns[4], FxRatesColumns[5]},
+			},
+		},
+	}
 	// InvitationsColumns holds the columns for the "invitations" table.
 	InvitationsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
@@ -1048,6 +1071,7 @@ var (
 		{Name: "name", Type: field.TypeString, Size: 120, Comment: "class=none"},
 		{Name: "slug", Type: field.TypeString, Unique: true, Size: 64, Comment: "class=none"},
 		{Name: "member_limit", Type: field.TypeInt, Comment: "class=none", Default: 50},
+		{Name: "store_fees", Type: field.TypeJSON, Nullable: true, Comment: "class=none"},
 	}
 	// OrganizationsTable holds the schema information for the "organizations" table.
 	OrganizationsTable = &schema.Table{
@@ -2059,6 +2083,7 @@ var (
 		EventDefinitionsTable,
 		ExperimentsTable,
 		FeatureFlagsTable,
+		FxRatesTable,
 		InvitationsTable,
 		InvoicesTable,
 		InvoiceLinesTable,

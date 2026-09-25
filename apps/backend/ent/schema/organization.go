@@ -39,6 +39,11 @@ func (Organization) Fields() []ent.Field {
 		// and a trigger would put the rule somewhere nobody reading this file would find
 		// it.
 		field.Int("member_limit").Default(MaxMembers).Positive().Comment(dataclass.None),
+		// StoreFees is the percentage of gross each store keeps, as this organization set it
+		// (app_store, google_play, steam, web_shop, or any store it reports): what an estimated
+		// net revenue subtracts. Empty for a store is the usual rate. Nobody but the studio knows
+		// whether Apple's Small Business Program or Google's first million applies to it.
+		field.JSON("store_fees", map[string]float64{}).Optional().Comment(dataclass.None),
 	}
 }
 

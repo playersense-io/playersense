@@ -43,6 +43,7 @@ import (
 	"playersense.dev/backend/internal/eventbus"
 	"playersense.dev/backend/internal/facts"
 	"playersense.dev/backend/internal/firebase"
+	"playersense.dev/backend/internal/fx"
 	"playersense.dev/backend/internal/geoip"
 	"playersense.dev/backend/internal/handlers"
 	"playersense.dev/backend/internal/ingest"
@@ -377,6 +378,9 @@ func build(settings config.Settings, overrides ...muzak.RouterOption) (*muzak.Ap
 		muzak.WithSingleton(core.NewKeyUsage(cache, db, slog.Default(), 15*time.Second)),
 		// Game purchases, verified with the App Store, Google Play and Steam (§46-48).
 		muzak.WithSingleton(&purchases.Service{DB: db, Stores: stores.Live(nil), PublicURL: settings.PublicURL}),
+		// Exchange rates for revenue in dollars: Valkey's copy for an hour, then one fetch from
+		// Open Exchange Rates, whose free plan allows a thousand a month.
+		muzak.WithSingleton(&fx.Service{Source: &fx.Source{AppID: settings.OpenExchangeRatesAppID}, Cache: cache, DB: db}),
 		// A webhook's test sends and resends, made while the person waits (§49-51). The worker
 		// delivers everything else.
 		muzak.WithSingleton(&webhooks.Sender{DB: db, CH: ch, Deliver: webhooks.NewDeliverer(settings.NotifyAllowPrivate),

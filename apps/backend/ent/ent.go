@@ -27,6 +27,7 @@ import (
 	"playersense.dev/backend/ent/eventdefinition"
 	"playersense.dev/backend/ent/experiment"
 	"playersense.dev/backend/ent/featureflag"
+	"playersense.dev/backend/ent/fxrate"
 	"playersense.dev/backend/ent/invitation"
 	"playersense.dev/backend/ent/invoice"
 	"playersense.dev/backend/ent/invoiceline"
@@ -137,6 +138,7 @@ func checkColumn(t, c string) error {
 			eventdefinition.Table:     eventdefinition.ValidColumn,
 			experiment.Table:          experiment.ValidColumn,
 			featureflag.Table:         featureflag.ValidColumn,
+			fxrate.Table:              fxrate.ValidColumn,
 			invitation.Table:          invitation.ValidColumn,
 			invoice.Table:             invoice.ValidColumn,
 			invoiceline.Table:         invoiceline.ValidColumn,

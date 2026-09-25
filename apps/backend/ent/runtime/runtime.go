@@ -21,6 +21,7 @@ import (
 	"playersense.dev/backend/ent/eventdefinition"
 	"playersense.dev/backend/ent/experiment"
 	"playersense.dev/backend/ent/featureflag"
+	"playersense.dev/backend/ent/fxrate"
 	"playersense.dev/backend/ent/invitation"
 	"playersense.dev/backend/ent/invoice"
 	"playersense.dev/backend/ent/invoiceline"
@@ -1157,6 +1158,33 @@ func init() {
 	featureflagDescGrantsValue := featureflagFields[14].Descriptor()
 	// featureflag.DefaultGrantsValue holds the default value on creation for the grants_value field.
 	featureflag.DefaultGrantsValue = featureflagDescGrantsValue.Default.(bool)
+	fxrateMixin := schema.FxRate{}.Mixin()
+	fxrateMixinFields0 := fxrateMixin[0].Fields()
+	_ = fxrateMixinFields0
+	fxrateFields := schema.FxRate{}.Fields()
+	_ = fxrateFields
+	// fxrateDescUID is the schema descriptor for uid field.
+	fxrateDescUID := fxrateMixinFields0[1].Descriptor()
+	// fxrate.DefaultUID holds the default value on creation for the uid field.
+	fxrate.DefaultUID = fxrateDescUID.Default.(func() uuid.UUID)
+	// fxrateDescCreatedAt is the schema descriptor for created_at field.
+	fxrateDescCreatedAt := fxrateMixinFields0[2].Descriptor()
+	// fxrate.DefaultCreatedAt holds the default value on creation for the created_at field.
+	fxrate.DefaultCreatedAt = fxrateDescCreatedAt.Default.(func() time.Time)
+	// fxrateDescUpdatedAt is the schema descriptor for updated_at field.
+	fxrateDescUpdatedAt := fxrateMixinFields0[3].Descriptor()
+	// fxrate.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	fxrate.DefaultUpdatedAt = fxrateDescUpdatedAt.Default.(func() time.Time)
+	// fxrate.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	fxrate.UpdateDefaultUpdatedAt = fxrateDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// fxrateDescCurrency is the schema descriptor for currency field.
+	fxrateDescCurrency := fxrateFields[1].Descriptor()
+	// fxrate.CurrencyValidator is a validator for the "currency" field. It is called by the builders before save.
+	fxrate.CurrencyValidator = fxrateDescCurrency.Validators[0].(func(string) error)
+	// fxrateDescPerUsd is the schema descriptor for per_usd field.
+	fxrateDescPerUsd := fxrateFields[2].Descriptor()
+	// fxrate.PerUsdValidator is a validator for the "per_usd" field. It is called by the builders before save.
+	fxrate.PerUsdValidator = fxrateDescPerUsd.Validators[0].(func(float64) error)
 	invitationMixin := schema.Invitation{}.Mixin()
 	invitationMixinFields0 := invitationMixin[0].Fields()
 	_ = invitationMixinFields0

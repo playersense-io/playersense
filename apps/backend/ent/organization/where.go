@@ -376,6 +376,16 @@ func MemberLimitLTE(v int) predicate.Organization {
 	return predicate.Organization(sql.FieldLTE(FieldMemberLimit, v))
 }
 
+// StoreFeesIsNil applies the IsNil predicate on the "store_fees" field.
+func StoreFeesIsNil() predicate.Organization {
+	return predicate.Organization(sql.FieldIsNull(FieldStoreFees))
+}
+
+// StoreFeesNotNil applies the NotNil predicate on the "store_fees" field.
+func StoreFeesNotNil() predicate.Organization {
+	return predicate.Organization(sql.FieldNotNull(FieldStoreFees))
+}
+
 // HasProjects applies the HasEdge predicate on the "projects" edge.
 func HasProjects() predicate.Organization {
 	return predicate.Organization(func(s *sql.Selector) {

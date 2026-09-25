@@ -12,6 +12,7 @@ import (
 	projectpkg "playersense.dev/backend/ent/project"
 	"playersense.dev/backend/internal/authz"
 	"playersense.dev/backend/internal/core"
+	"playersense.dev/backend/internal/fx"
 	"playersense.dev/backend/internal/purchases"
 	"playersense.dev/backend/internal/query"
 	"playersense.dev/backend/internal/schemas"
@@ -184,14 +185,26 @@ func timezone(name string) (*time.Location, error) {
 }
 
 // revenueFilter reads the page's filter, with the stores the project verifies purchases with,
-// whose money is their verified purchases (ADR 0048).
-func revenueFilter(ctx *muzak.Context, scope query.Scope, f schemas.RevenueFilter) (query.RevenueFilter, error) {
+// whose money is their verified purchases (ADR 0048), the exchange rates for the days from `from`
+// to `to`, and the organization's store fees.
+func revenueFilter(ctx *muzak.Context, scope query.Scope, f schemas.RevenueFilter, from, to time.Time) (query.RevenueFilter, error) {
 	stores, countries, products := f.Lists()
 	verified, err := purchases.VerifiedStores(ctx.Context(), muzak.From[*core.DB](ctx).Client, int(scope.ProjectSeq))
 	if err != nil {
 		return query.RevenueFilter{}, err
 	}
-	return query.RevenueFilter{Stores: stores, Countries: countries, Products: products, Verified: verified}, nil
+	out := query.RevenueFilter{Stores: stores, Countries: countries, Products: products, Verified: verified}
+	if svc, found := muzak.TryFrom[*fx.Service](ctx); found {
+		// Without rates the figures are still right, in the currencies paid: dollars are added
+		// when there are rates to add them with.
+		if table, err := svc.Window(ctx.Context(), from, to); err == nil && !table.Empty() {
+			out.Rates = table
+		}
+	}
+	if principal, found := muzak.TryFrom[*core.Principal](ctx); found && principal.Organization != nil {
+		out.Fees = principal.Organization.StoreFees
+	}
+	return out, nil
 }
 
 // Revenue answers the Revenue page.
@@ -204,7 +217,7 @@ func Revenue(ctx *muzak.Context, in schemas.RevenueParams) (schemas.RevenueOut, 
 	if err != nil {
 		return schemas.RevenueOut{}, err
 	}
-	filter, err := revenueFilter(ctx, scope, in.RevenueFilter)
+	filter, err := revenueFilter(ctx, scope, in.RevenueFilter, w.Previous().From, w.To)
 	if err != nil {
 		return schemas.RevenueOut{}, err
 	}
@@ -221,7 +234,7 @@ func Purchases(ctx *muzak.Context, in schemas.PurchasesParams) (schemas.Purchase
 	if err != nil {
 		return schemas.PurchasesOut{}, err
 	}
-	filter, err := revenueFilter(ctx, scope, in.RevenueFilter)
+	filter, err := revenueFilter(ctx, scope, in.RevenueFilter, w.From, w.To)
 	if err != nil {
 		return schemas.PurchasesOut{}, err
 	}

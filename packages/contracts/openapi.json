@@ -23665,6 +23665,214 @@
         }
       }
     },
+    "/v1/organizations/{org}/revenue-settings": {
+      "get": {
+        "tags": [
+          "billing"
+        ],
+        "summary": "How net revenue is estimated",
+        "description": "Each store's share of gross, the usual rate or the organization's own, why net is an estimate, and whether revenue can be shown in dollars on this deployment.",
+        "operationId": "get_v1_organizations_by_org_revenue_settings",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "description": "The organization's slug",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevenueSettingsOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not do that",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The organization does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "billing"
+        ],
+        "summary": "Set the stores' shares",
+        "description": "Percent of gross each store keeps, as your own statements show it: 15 for Apple's Small Business Program or Google's first million, for instance. A store sent with null goes back to the usual rate. Only the estimate of net changes; gross is the stores' own figure.",
+        "operationId": "put_v1_organizations_by_org_revenue_settings",
+        "parameters": [
+          {
+            "name": "org",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "store_fees": {
+                    "type": "object",
+                    "description": "Percent of gross each store keeps, 0 to 100; null for the usual rate",
+                    "additionalProperties": {
+                      "type": "number",
+                      "format": "double"
+                    }
+                  }
+                },
+                "required": [
+                  "store_fees"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevenueSettingsOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable sign-in was presented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This account may not do that",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The organization does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be validated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A sign-in could not be verified right now; the credential is not necessarily bad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error occurred.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/organizations/{org}/roles": {
       "get": {
         "tags": [
@@ -33457,6 +33665,13 @@
           "store_transaction_id": {
             "type": "string"
           },
+          "usd": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
           "verify_ms": {
             "type": "integer",
             "format": "int64",
@@ -33847,6 +34062,33 @@
           "totals"
         ]
       },
+      "RatesStatusOut": {
+        "type": "object",
+        "properties": {
+          "as_of": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "available": {
+            "type": "boolean"
+          },
+          "base": {
+            "type": "string"
+          },
+          "currencies": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "available",
+          "base",
+          "currencies"
+        ]
+      },
       "ReceiptOut": {
         "type": "object",
         "properties": {
@@ -33975,6 +34217,27 @@
           "sessions"
         ]
       },
+      "RefundReasonOut": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string"
+          },
+          "refunds": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "usd": {
+            "type": "number",
+            "format": "double"
+          }
+        },
+        "required": [
+          "reason",
+          "refunds",
+          "usd"
+        ]
+      },
       "RefusalHourOut": {
         "type": "object",
         "properties": {
@@ -34023,6 +34286,22 @@
           "count",
           "quota",
           "scope"
+        ]
+      },
+      "RejectionOut": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "count": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "code",
+          "count"
         ]
       },
       "ReplicaOut": {
@@ -34334,6 +34613,121 @@
           "revenue_micros"
         ]
       },
+      "RevenueMoneyDayOut": {
+        "type": "object",
+        "properties": {
+          "by_store": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "day": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "fees": {
+            "type": "number",
+            "format": "double"
+          },
+          "gross": {
+            "type": "number",
+            "format": "double"
+          },
+          "net": {
+            "type": "number",
+            "format": "double"
+          },
+          "refunded": {
+            "type": "number",
+            "format": "double"
+          }
+        },
+        "required": [
+          "day",
+          "fees",
+          "gross",
+          "net",
+          "refunded"
+        ]
+      },
+      "RevenueMoneyOut": {
+        "type": "object",
+        "properties": {
+          "currency": {
+            "type": "string"
+          },
+          "days": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RevenueMoneyDayOut"
+            }
+          },
+          "estimated": {
+            "type": "boolean"
+          },
+          "exact": {
+            "type": "boolean"
+          },
+          "fees": {
+            "type": "number",
+            "format": "double",
+            "description": "Estimated: each store's share of what was not refunded"
+          },
+          "gross": {
+            "type": "number",
+            "format": "double"
+          },
+          "net": {
+            "type": "number",
+            "format": "double",
+            "description": "Estimated: gross less refunds less fees"
+          },
+          "note": {
+            "type": "string"
+          },
+          "previous_gross": {
+            "type": "number",
+            "format": "double"
+          },
+          "previous_net": {
+            "type": "number",
+            "format": "double"
+          },
+          "refunded": {
+            "type": "number",
+            "format": "double"
+          },
+          "stores": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RevenueStoreMoneyOut"
+            }
+          },
+          "unconverted": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "currency",
+          "days",
+          "estimated",
+          "exact",
+          "fees",
+          "gross",
+          "net",
+          "note",
+          "previous_gross",
+          "previous_net",
+          "refunded",
+          "stores",
+          "unconverted"
+        ]
+      },
       "RevenueOut": {
         "type": "object",
         "properties": {
@@ -34374,6 +34768,16 @@
               }
             }
           },
+          "money": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RevenueMoneyOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "new_payers": {
             "type": "array",
             "items": {
@@ -34391,6 +34795,16 @@
             "items": {
               "$ref": "#/components/schemas/RevenueSliceOut"
             }
+          },
+          "refunds": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RevenueRefundsOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "spender_tiers": {
             "type": "array",
@@ -34422,6 +34836,16 @@
           "totals": {
             "$ref": "#/components/schemas/RevenueTotalsOut"
           },
+          "verification": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RevenueVerificationOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "verified": {
             "type": "boolean",
             "description": "Always false: these are purchases the game reported, not store receipts"
@@ -34447,6 +34871,53 @@
           "verified"
         ]
       },
+      "RevenueRefundsOut": {
+        "type": "object",
+        "properties": {
+          "median_days": {
+            "type": "number",
+            "format": "double",
+            "description": "From the purchase to its refund"
+          },
+          "reasons": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RefundReasonOut"
+            }
+          },
+          "refunds": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "median_days",
+          "reasons",
+          "refunds"
+        ]
+      },
+      "RevenueSettingsOut": {
+        "type": "object",
+        "properties": {
+          "note": {
+            "type": "string"
+          },
+          "rates": {
+            "$ref": "#/components/schemas/RatesStatusOut"
+          },
+          "stores": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StoreFeeOut"
+            }
+          }
+        },
+        "required": [
+          "note",
+          "rates",
+          "stores"
+        ]
+      },
       "RevenueSliceOut": {
         "type": "object",
         "properties": {
@@ -34468,6 +34939,13 @@
           "revenue_micros": {
             "type": "integer",
             "format": "int64"
+          },
+          "revenue_usd": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
           }
         },
         "required": [
@@ -34476,6 +34954,42 @@
           "previous_revenue_micros",
           "purchases",
           "revenue_micros"
+        ]
+      },
+      "RevenueStoreMoneyOut": {
+        "type": "object",
+        "properties": {
+          "fee_percent": {
+            "type": "number",
+            "format": "double"
+          },
+          "fees": {
+            "type": "number",
+            "format": "double"
+          },
+          "gross": {
+            "type": "number",
+            "format": "double"
+          },
+          "net": {
+            "type": "number",
+            "format": "double"
+          },
+          "refunded": {
+            "type": "number",
+            "format": "double"
+          },
+          "store": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "fee_percent",
+          "fees",
+          "gross",
+          "net",
+          "refunded",
+          "store"
         ]
       },
       "RevenueTotalsOut": {
@@ -34539,6 +35053,50 @@
           "refunds",
           "rejected",
           "revenue_micros",
+          "sandbox",
+          "verified"
+        ]
+      },
+      "RevenueVerificationOut": {
+        "type": "object",
+        "properties": {
+          "by_store": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VerificationStoreOut"
+            }
+          },
+          "days": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VerificationDayOut"
+            }
+          },
+          "rejected": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "rejections": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RejectionOut"
+            }
+          },
+          "sandbox": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "verified": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Test purchases included"
+          }
+        },
+        "required": [
+          "by_store",
+          "days",
+          "rejected",
+          "rejections",
           "sandbox",
           "verified"
         ]
@@ -35507,6 +36065,32 @@
           "share"
         ]
       },
+      "StoreFeeOut": {
+        "type": "object",
+        "properties": {
+          "custom": {
+            "type": "boolean",
+            "description": "Set by the organization rather than the usual rate"
+          },
+          "default_percent": {
+            "type": "number",
+            "format": "double"
+          },
+          "percent": {
+            "type": "number",
+            "format": "double"
+          },
+          "store": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "custom",
+          "default_percent",
+          "percent",
+          "store"
+        ]
+      },
       "StoreListOut": {
         "type": "object",
         "properties": {
@@ -36174,6 +36758,54 @@
         "required": [
           "rollout",
           "value"
+        ]
+      },
+      "VerificationDayOut": {
+        "type": "object",
+        "properties": {
+          "day": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "rejected": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "verified": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "day",
+          "rejected",
+          "verified"
+        ]
+      },
+      "VerificationStoreOut": {
+        "type": "object",
+        "properties": {
+          "median_ms": {
+            "type": "number",
+            "format": "double"
+          },
+          "rejected": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "store": {
+            "type": "string"
+          },
+          "verified": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "median_ms",
+          "rejected",
+          "store",
+          "verified"
         ]
       },
       "VerifiedPurchaseOut": {

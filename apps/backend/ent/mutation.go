@@ -28,6 +28,7 @@ import (
 	"playersense.dev/backend/ent/eventdefinition"
 	"playersense.dev/backend/ent/experiment"
 	"playersense.dev/backend/ent/featureflag"
+	"playersense.dev/backend/ent/fxrate"
 	"playersense.dev/backend/ent/invitation"
 	"playersense.dev/backend/ent/invoice"
 	"playersense.dev/backend/ent/invoiceline"
@@ -94,6 +95,7 @@ const (
 	TypeEventDefinition     = "EventDefinition"
 	TypeExperiment          = "Experiment"
 	TypeFeatureFlag         = "FeatureFlag"
+	TypeFxRate              = "FxRate"
 	TypeInvitation          = "Invitation"
 	TypeInvoice             = "Invoice"
 	TypeInvoiceLine         = "InvoiceLine"
@@ -20433,6 +20435,644 @@ func (m *FeatureFlagMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown FeatureFlag edge %s", name)
 }
 
+// FxRateMutation represents an operation that mutates the FxRate nodes in the graph.
+type FxRateMutation struct {
+	config
+	op            Op
+	typ           string
+	id            *int
+	uid           *uuid.UUID
+	created_at    *time.Time
+	updated_at    *time.Time
+	day           *time.Time
+	currency      *string
+	per_usd       *float64
+	addper_usd    *float64
+	clearedFields map[string]struct{}
+	done          bool
+	oldValue      func(context.Context) (*FxRate, error)
+	predicates    []predicate.FxRate
+}
+
+var _ ent.Mutation = (*FxRateMutation)(nil)
+
+// fxrateOption allows management of the mutation configuration using functional options.
+type fxrateOption func(*FxRateMutation)
+
+// newFxRateMutation creates new mutation for the FxRate entity.
+func newFxRateMutation(c config, op Op, opts ...fxrateOption) *FxRateMutation {
+	m := &FxRateMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeFxRate,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withFxRateID sets the ID field of the mutation.
+func withFxRateID(id int) fxrateOption {
+	return func(m *FxRateMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *FxRate
+		)
+		m.oldValue = func(ctx context.Context) (*FxRate, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().FxRate.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withFxRate sets the old FxRate of the mutation.
+func withFxRate(node *FxRate) fxrateOption {
+	return func(m *FxRateMutation) {
+		m.oldValue = func(context.Context) (*FxRate, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m FxRateMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m FxRateMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of FxRate entities.
+func (m *FxRateMutation) SetID(id int) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *FxRateMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *FxRateMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().FxRate.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetUID sets the "uid" field.
+func (m *FxRateMutation) SetUID(u uuid.UUID) {
+	m.uid = &u
+}
+
+// UID returns the value of the "uid" field in the mutation.
+func (m *FxRateMutation) UID() (r uuid.UUID, exists bool) {
+	v := m.uid
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUID returns the old "uid" field's value of the FxRate entity.
+// If the FxRate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *FxRateMutation) OldUID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUID: %w", err)
+	}
+	return oldValue.UID, nil
+}
+
+// ResetUID resets all changes to the "uid" field.
+func (m *FxRateMutation) ResetUID() {
+	m.uid = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *FxRateMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *FxRateMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the FxRate entity.
+// If the FxRate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *FxRateMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *FxRateMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *FxRateMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *FxRateMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the FxRate entity.
+// If the FxRate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *FxRateMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *FxRateMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetDay sets the "day" field.
+func (m *FxRateMutation) SetDay(t time.Time) {
+	m.day = &t
+}
+
+// Day returns the value of the "day" field in the mutation.
+func (m *FxRateMutation) Day() (r time.Time, exists bool) {
+	v := m.day
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDay returns the old "day" field's value of the FxRate entity.
+// If the FxRate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *FxRateMutation) OldDay(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDay is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDay requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDay: %w", err)
+	}
+	return oldValue.Day, nil
+}
+
+// ResetDay resets all changes to the "day" field.
+func (m *FxRateMutation) ResetDay() {
+	m.day = nil
+}
+
+// SetCurrency sets the "currency" field.
+func (m *FxRateMutation) SetCurrency(s string) {
+	m.currency = &s
+}
+
+// Currency returns the value of the "currency" field in the mutation.
+func (m *FxRateMutation) Currency() (r string, exists bool) {
+	v := m.currency
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCurrency returns the old "currency" field's value of the FxRate entity.
+// If the FxRate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *FxRateMutation) OldCurrency(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCurrency is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCurrency requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCurrency: %w", err)
+	}
+	return oldValue.Currency, nil
+}
+
+// ResetCurrency resets all changes to the "currency" field.
+func (m *FxRateMutation) ResetCurrency() {
+	m.currency = nil
+}
+
+// SetPerUsd sets the "per_usd" field.
+func (m *FxRateMutation) SetPerUsd(f float64) {
+	m.per_usd = &f
+	m.addper_usd = nil
+}
+
+// PerUsd returns the value of the "per_usd" field in the mutation.
+func (m *FxRateMutation) PerUsd() (r float64, exists bool) {
+	v := m.per_usd
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPerUsd returns the old "per_usd" field's value of the FxRate entity.
+// If the FxRate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *FxRateMutation) OldPerUsd(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPerUsd is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPerUsd requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPerUsd: %w", err)
+	}
+	return oldValue.PerUsd, nil
+}
+
+// AddPerUsd adds f to the "per_usd" field.
+func (m *FxRateMutation) AddPerUsd(f float64) {
+	if m.addper_usd != nil {
+		*m.addper_usd += f
+	} else {
+		m.addper_usd = &f
+	}
+}
+
+// AddedPerUsd returns the value that was added to the "per_usd" field in this mutation.
+func (m *FxRateMutation) AddedPerUsd() (r float64, exists bool) {
+	v := m.addper_usd
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetPerUsd resets all changes to the "per_usd" field.
+func (m *FxRateMutation) ResetPerUsd() {
+	m.per_usd = nil
+	m.addper_usd = nil
+}
+
+// Where appends a list predicates to the FxRateMutation builder.
+func (m *FxRateMutation) Where(ps ...predicate.FxRate) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the FxRateMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *FxRateMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.FxRate, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *FxRateMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *FxRateMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (FxRate).
+func (m *FxRateMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *FxRateMutation) Fields() []string {
+	fields := make([]string, 0, 6)
+	if m.uid != nil {
+		fields = append(fields, fxrate.FieldUID)
+	}
+	if m.created_at != nil {
+		fields = append(fields, fxrate.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, fxrate.FieldUpdatedAt)
+	}
+	if m.day != nil {
+		fields = append(fields, fxrate.FieldDay)
+	}
+	if m.currency != nil {
+		fields = append(fields, fxrate.FieldCurrency)
+	}
+	if m.per_usd != nil {
+		fields = append(fields, fxrate.FieldPerUsd)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *FxRateMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case fxrate.FieldUID:
+		return m.UID()
+	case fxrate.FieldCreatedAt:
+		return m.CreatedAt()
+	case fxrate.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case fxrate.FieldDay:
+		return m.Day()
+	case fxrate.FieldCurrency:
+		return m.Currency()
+	case fxrate.FieldPerUsd:
+		return m.PerUsd()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *FxRateMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case fxrate.FieldUID:
+		return m.OldUID(ctx)
+	case fxrate.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case fxrate.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case fxrate.FieldDay:
+		return m.OldDay(ctx)
+	case fxrate.FieldCurrency:
+		return m.OldCurrency(ctx)
+	case fxrate.FieldPerUsd:
+		return m.OldPerUsd(ctx)
+	}
+	return nil, fmt.Errorf("unknown FxRate field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *FxRateMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case fxrate.FieldUID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUID(v)
+		return nil
+	case fxrate.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case fxrate.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case fxrate.FieldDay:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDay(v)
+		return nil
+	case fxrate.FieldCurrency:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCurrency(v)
+		return nil
+	case fxrate.FieldPerUsd:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPerUsd(v)
+		return nil
+	}
+	return fmt.Errorf("unknown FxRate field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *FxRateMutation) AddedFields() []string {
+	var fields []string
+	if m.addper_usd != nil {
+		fields = append(fields, fxrate.FieldPerUsd)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *FxRateMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case fxrate.FieldPerUsd:
+		return m.AddedPerUsd()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *FxRateMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case fxrate.FieldPerUsd:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddPerUsd(v)
+		return nil
+	}
+	return fmt.Errorf("unknown FxRate numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *FxRateMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *FxRateMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *FxRateMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown FxRate nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *FxRateMutation) ResetField(name string) error {
+	switch name {
+	case fxrate.FieldUID:
+		m.ResetUID()
+		return nil
+	case fxrate.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case fxrate.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case fxrate.FieldDay:
+		m.ResetDay()
+		return nil
+	case fxrate.FieldCurrency:
+		m.ResetCurrency()
+		return nil
+	case fxrate.FieldPerUsd:
+		m.ResetPerUsd()
+		return nil
+	}
+	return fmt.Errorf("unknown FxRate field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *FxRateMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *FxRateMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *FxRateMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *FxRateMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *FxRateMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *FxRateMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *FxRateMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown FxRate unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *FxRateMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown FxRate edge %s", name)
+}
+
 // InvitationMutation represents an operation that mutates the Invitation nodes in the graph.
 type InvitationMutation struct {
 	config
@@ -30696,6 +31336,7 @@ type OrganizationMutation struct {
 	slug                   *string
 	member_limit           *int
 	addmember_limit        *int
+	store_fees             *map[string]float64
 	clearedFields          map[string]struct{}
 	projects               map[int]struct{}
 	removedprojects        map[int]struct{}
@@ -31059,6 +31700,55 @@ func (m *OrganizationMutation) ResetMemberLimit() {
 	m.addmember_limit = nil
 }
 
+// SetStoreFees sets the "store_fees" field.
+func (m *OrganizationMutation) SetStoreFees(value map[string]float64) {
+	m.store_fees = &value
+}
+
+// StoreFees returns the value of the "store_fees" field in the mutation.
+func (m *OrganizationMutation) StoreFees() (r map[string]float64, exists bool) {
+	v := m.store_fees
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStoreFees returns the old "store_fees" field's value of the Organization entity.
+// If the Organization object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OrganizationMutation) OldStoreFees(ctx context.Context) (v map[string]float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStoreFees is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStoreFees requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStoreFees: %w", err)
+	}
+	return oldValue.StoreFees, nil
+}
+
+// ClearStoreFees clears the value of the "store_fees" field.
+func (m *OrganizationMutation) ClearStoreFees() {
+	m.store_fees = nil
+	m.clearedFields[organization.FieldStoreFees] = struct{}{}
+}
+
+// StoreFeesCleared returns if the "store_fees" field was cleared in this mutation.
+func (m *OrganizationMutation) StoreFeesCleared() bool {
+	_, ok := m.clearedFields[organization.FieldStoreFees]
+	return ok
+}
+
+// ResetStoreFees resets all changes to the "store_fees" field.
+func (m *OrganizationMutation) ResetStoreFees() {
+	m.store_fees = nil
+	delete(m.clearedFields, organization.FieldStoreFees)
+}
+
 // AddProjectIDs adds the "projects" edge to the Project entity by ids.
 func (m *OrganizationMutation) AddProjectIDs(ids ...int) {
 	if m.projects == nil {
@@ -31402,7 +32092,7 @@ func (m *OrganizationMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *OrganizationMutation) Fields() []string {
-	fields := make([]string, 0, 6)
+	fields := make([]string, 0, 7)
 	if m.uid != nil {
 		fields = append(fields, organization.FieldUID)
 	}
@@ -31420,6 +32110,9 @@ func (m *OrganizationMutation) Fields() []string {
 	}
 	if m.member_limit != nil {
 		fields = append(fields, organization.FieldMemberLimit)
+	}
+	if m.store_fees != nil {
+		fields = append(fields, organization.FieldStoreFees)
 	}
 	return fields
 }
@@ -31441,6 +32134,8 @@ func (m *OrganizationMutation) Field(name string) (ent.Value, bool) {
 		return m.Slug()
 	case organization.FieldMemberLimit:
 		return m.MemberLimit()
+	case organization.FieldStoreFees:
+		return m.StoreFees()
 	}
 	return nil, false
 }
@@ -31462,6 +32157,8 @@ func (m *OrganizationMutation) OldField(ctx context.Context, name string) (ent.V
 		return m.OldSlug(ctx)
 	case organization.FieldMemberLimit:
 		return m.OldMemberLimit(ctx)
+	case organization.FieldStoreFees:
+		return m.OldStoreFees(ctx)
 	}
 	return nil, fmt.Errorf("unknown Organization field %s", name)
 }
@@ -31513,6 +32210,13 @@ func (m *OrganizationMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetMemberLimit(v)
 		return nil
+	case organization.FieldStoreFees:
+		v, ok := value.(map[string]float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStoreFees(v)
+		return nil
 	}
 	return fmt.Errorf("unknown Organization field %s", name)
 }
@@ -31557,7 +32261,11 @@ func (m *OrganizationMutation) AddField(name string, value ent.Value) error {
 // ClearedFields returns all nullable fields that were cleared during this
 // mutation.
 func (m *OrganizationMutation) ClearedFields() []string {
-	return nil
+	var fields []string
+	if m.FieldCleared(organization.FieldStoreFees) {
+		fields = append(fields, organization.FieldStoreFees)
+	}
+	return fields
 }
 
 // FieldCleared returns a boolean indicating if a field with the given name was
@@ -31570,6 +32278,11 @@ func (m *OrganizationMutation) FieldCleared(name string) bool {
 // ClearField clears the value of the field with the given name. It returns an
 // error if the field is not defined in the schema.
 func (m *OrganizationMutation) ClearField(name string) error {
+	switch name {
+	case organization.FieldStoreFees:
+		m.ClearStoreFees()
+		return nil
+	}
 	return fmt.Errorf("unknown Organization nullable field %s", name)
 }
 
@@ -31594,6 +32307,9 @@ func (m *OrganizationMutation) ResetField(name string) error {
 		return nil
 	case organization.FieldMemberLimit:
 		m.ResetMemberLimit()
+		return nil
+	case organization.FieldStoreFees:
+		m.ResetStoreFees()
 		return nil
 	}
 	return fmt.Errorf("unknown Organization field %s", name)

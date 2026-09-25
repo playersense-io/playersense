@@ -44,6 +44,8 @@ type Tx struct {
 	Experiment *ExperimentClient
 	// FeatureFlag is the client for interacting with the FeatureFlag builders.
 	FeatureFlag *FeatureFlagClient
+	// FxRate is the client for interacting with the FxRate builders.
+	FxRate *FxRateClient
 	// Invitation is the client for interacting with the Invitation builders.
 	Invitation *InvitationClient
 	// Invoice is the client for interacting with the Invoice builders.
@@ -260,6 +262,7 @@ func (tx *Tx) init() {
 	tx.EventDefinition = NewEventDefinitionClient(tx.config)
 	tx.Experiment = NewExperimentClient(tx.config)
 	tx.FeatureFlag = NewFeatureFlagClient(tx.config)
+	tx.FxRate = NewFxRateClient(tx.config)
 	tx.Invitation = NewInvitationClient(tx.config)
 	tx.Invoice = NewInvoiceClient(tx.config)
 	tx.InvoiceLine = NewInvoiceLineClient(tx.config)

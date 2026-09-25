@@ -46,6 +46,8 @@ func Settings(t *testing.T) config.Settings {
 	}
 	settings.LogFormat = "none"
 	settings.RateLimitDisabled = true
+	// Never Open Exchange Rates from a test: its free plan is a thousand calls a month.
+	settings.OpenExchangeRatesAppID = ""
 	return settings
 }
 

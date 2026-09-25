@@ -551,6 +551,99 @@ type RevenueOut struct {
 	Approximate          bool `json:"approximate" doc:"Buyers are distinct counts from sketches"`
 	SuppressedCells      int  `json:"suppressed_cells"`
 	SuppressionThreshold int  `json:"suppression_threshold"`
+
+	// Money is the window in US dollars at each day's rate, with estimated fees and net; absent
+	// when the deployment has no exchange rates.
+	Money *RevenueMoneyOut `json:"money,omitzero"`
+	// Refunds and Verification are what the stores said, for stores the project verifies with.
+	Refunds      *RevenueRefundsOut      `json:"refunds,omitzero"`
+	Verification *RevenueVerificationOut `json:"verification,omitzero"`
+}
+
+// RevenueMoneyOut is revenue in dollars. Gross and refunds are the stores' figures converted;
+// fees and net are estimates, and Note says why.
+type RevenueMoneyOut struct {
+	Currency      string  `json:"currency"`
+	Gross         float64 `json:"gross"`
+	Refunded      float64 `json:"refunded"`
+	Fees          float64 `json:"fees" doc:"Estimated: each store's share of what was not refunded"`
+	Net           float64 `json:"net" doc:"Estimated: gross less refunds less fees"`
+	PreviousGross float64 `json:"previous_gross"`
+	PreviousNet   float64 `json:"previous_net"`
+	// Estimated is always true for fees and net; Note is the sentence to show beside them.
+	Estimated bool   `json:"estimated"`
+	Note      string `json:"note"`
+	// Exact is false when some day had no rates of its own and was converted at the nearest day's.
+	Exact bool `json:"exact"`
+	// Unconverted is currencies with no rate at all, left out of every dollar figure.
+	Unconverted []string               `json:"unconverted"`
+	Stores      []RevenueStoreMoneyOut `json:"stores"`
+	Days        []RevenueMoneyDayOut   `json:"days"`
+}
+
+// RevenueStoreMoneyOut is one store's dollars and the share it was taken to keep.
+type RevenueStoreMoneyOut struct {
+	Store      string  `json:"store"`
+	FeePercent float64 `json:"fee_percent"`
+	Gross      float64 `json:"gross"`
+	Refunded   float64 `json:"refunded"`
+	Fees       float64 `json:"fees"`
+	Net        float64 `json:"net"`
+}
+
+// RevenueMoneyDayOut is one day in dollars.
+type RevenueMoneyDayOut struct {
+	Day      time.Time          `json:"day"`
+	Gross    float64            `json:"gross"`
+	Refunded float64            `json:"refunded"`
+	Fees     float64            `json:"fees"`
+	Net      float64            `json:"net"`
+	ByStore  map[string]float64 `json:"by_store,omitzero"`
+}
+
+// RevenueRefundsOut is the refunds in the window.
+type RevenueRefundsOut struct {
+	Refunds    uint64            `json:"refunds"`
+	MedianDays float64           `json:"median_days" doc:"From the purchase to its refund"`
+	Reasons    []RefundReasonOut `json:"reasons"`
+}
+
+// RefundReasonOut is one reason's refunds.
+type RefundReasonOut struct {
+	Reason  string  `json:"reason"`
+	Refunds uint64  `json:"refunds"`
+	USD     float64 `json:"usd"`
+}
+
+// RevenueVerificationOut is what the stores said about the receipts sent.
+type RevenueVerificationOut struct {
+	Verified   uint64                 `json:"verified" doc:"Test purchases included"`
+	Sandbox    uint64                 `json:"sandbox"`
+	Rejected   uint64                 `json:"rejected"`
+	Days       []VerificationDayOut   `json:"days"`
+	ByStore    []VerificationStoreOut `json:"by_store"`
+	Rejections []RejectionOut         `json:"rejections"`
+}
+
+// VerificationDayOut is one day's receipts.
+type VerificationDayOut struct {
+	Day      time.Time `json:"day"`
+	Verified uint64    `json:"verified"`
+	Rejected uint64    `json:"rejected"`
+}
+
+// VerificationStoreOut is one store's receipts, and its median answer.
+type VerificationStoreOut struct {
+	Store    string  `json:"store"`
+	Verified uint64  `json:"verified"`
+	Rejected uint64  `json:"rejected"`
+	MedianMs float64 `json:"median_ms"`
+}
+
+// RejectionOut is how many receipts were turned away for one reason.
+type RejectionOut struct {
+	Code  string `json:"code"`
+	Count uint64 `json:"count"`
 }
 
 // RevenueTotalsOut is the range against the range before it.
@@ -593,6 +686,8 @@ type RevenueSliceOut struct {
 	Purchases             uint64 `json:"purchases"`
 	Buyers                uint64 `json:"buyers"`
 	PreviousRevenueMicros int64  `json:"previous_revenue_micros"`
+	// RevenueUSD is the slice in dollars, each currency at the rate it was paid at over the window.
+	RevenueUSD *float64 `json:"revenue_usd,omitzero"`
 }
 
 // PricePointOut is how often one price was paid.
@@ -687,6 +782,8 @@ type PurchaseOut struct {
 	RefundReason       string     `json:"refund_reason,omitzero"`
 	Rejection          string     `json:"rejection,omitzero"`
 	VerifyMs           int        `json:"verify_ms,omitzero" doc:"How long the store took to answer"`
+	// USD is the amount in dollars at the day's rate; absent without exchange rates.
+	USD *float64 `json:"usd,omitzero"`
 }
 
 // ---- flag exposures ---------------------------------------------------------
@@ -1257,4 +1354,50 @@ type EventDefinitionOut struct {
 // EventDefinitionListOut is a project's described events.
 type EventDefinitionListOut struct {
 	Definitions []EventDefinitionOut `json:"definitions"`
+}
+
+// RevenueSettingsOut is how an organization's net revenue is estimated: each store's share.
+type RevenueSettingsOut struct {
+	Stores []StoreFeeOut `json:"stores"`
+	// Note is why net revenue is an estimate, for the settings page to say.
+	Note string `json:"note"`
+	// Rates says whether revenue can be shown in dollars on this deployment, and as of when.
+	Rates RatesStatusOut `json:"rates"`
+}
+
+// StoreFeeOut is one store's share.
+type StoreFeeOut struct {
+	Store          string  `json:"store"`
+	Percent        float64 `json:"percent"`
+	DefaultPercent float64 `json:"default_percent"`
+	Custom         bool    `json:"custom" doc:"Set by the organization rather than the usual rate"`
+}
+
+// RatesStatusOut is the exchange rates this deployment converts with.
+type RatesStatusOut struct {
+	Available  bool       `json:"available"`
+	Base       string     `json:"base"`
+	AsOf       *time.Time `json:"as_of,omitzero"`
+	Currencies int        `json:"currencies"`
+}
+
+// RevenueSettingsIn sets stores' shares. A store sent with null goes back to the usual rate.
+type RevenueSettingsIn struct {
+	Slug      string              `path:"org"`
+	StoreFees map[string]*float64 `json:"store_fees" doc:"Percent of gross each store keeps, 0 to 100; null for the usual rate"`
+}
+
+func (in *RevenueSettingsIn) Validate(v *muzak.Validation) {
+	v.String(&in.Slug).Trim().Lower().Required().MaxLen(64)
+	if len(in.StoreFees) > 20 {
+		v.Reject(&in.StoreFees, "at most twenty stores")
+	}
+	for store, pct := range in.StoreFees {
+		if len(store) == 0 || len(store) > 40 {
+			v.Reject(&in.StoreFees, "a store is named in 1 to 40 characters")
+		}
+		if pct != nil && (*pct < 0 || *pct > 100) {
+			v.Reject(&in.StoreFees, "a store's share is a percent from 0 to 100")
+		}
+	}
 }

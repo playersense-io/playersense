@@ -30,6 +30,7 @@ import (
 	"playersense.dev/backend/ent/eventdefinition"
 	"playersense.dev/backend/ent/experiment"
 	"playersense.dev/backend/ent/featureflag"
+	"playersense.dev/backend/ent/fxrate"
 	"playersense.dev/backend/ent/invitation"
 	"playersense.dev/backend/ent/invoice"
 	"playersense.dev/backend/ent/invoiceline"
@@ -104,6 +105,8 @@ type Client struct {
 	Experiment *ExperimentClient
 	// FeatureFlag is the client for interacting with the FeatureFlag builders.
 	FeatureFlag *FeatureFlagClient
+	// FxRate is the client for interacting with the FxRate builders.
+	FxRate *FxRateClient
 	// Invitation is the client for interacting with the Invitation builders.
 	Invitation *InvitationClient
 	// Invoice is the client for interacting with the Invoice builders.
@@ -200,6 +203,7 @@ func (c *Client) init() {
 	c.EventDefinition = NewEventDefinitionClient(c.config)
 	c.Experiment = NewExperimentClient(c.config)
 	c.FeatureFlag = NewFeatureFlagClient(c.config)
+	c.FxRate = NewFxRateClient(c.config)
 	c.Invitation = NewInvitationClient(c.config)
 	c.Invoice = NewInvoiceClient(c.config)
 	c.InvoiceLine = NewInvoiceLineClient(c.config)
@@ -342,6 +346,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		EventDefinition:     NewEventDefinitionClient(cfg),
 		Experiment:          NewExperimentClient(cfg),
 		FeatureFlag:         NewFeatureFlagClient(cfg),
+		FxRate:              NewFxRateClient(cfg),
 		Invitation:          NewInvitationClient(cfg),
 		Invoice:             NewInvoiceClient(cfg),
 		InvoiceLine:         NewInvoiceLineClient(cfg),
@@ -411,6 +416,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		EventDefinition:     NewEventDefinitionClient(cfg),
 		Experiment:          NewExperimentClient(cfg),
 		FeatureFlag:         NewFeatureFlagClient(cfg),
+		FxRate:              NewFxRateClient(cfg),
 		Invitation:          NewInvitationClient(cfg),
 		Invoice:             NewInvoiceClient(cfg),
 		InvoiceLine:         NewInvoiceLineClient(cfg),
@@ -478,7 +484,7 @@ func (c *Client) Use(hooks ...Hook) {
 		c.APIKey, c.ArchiveManifest, c.AuditEvent, c.BillablePlayer, c.BillingAccount,
 		c.BillingContract, c.ChannelDelivery, c.ConfigVersion, c.CreditLot,
 		c.DataDeletionRequest, c.DataExportRequest, c.Environment, c.EventDefinition,
-		c.Experiment, c.FeatureFlag, c.Invitation, c.Invoice, c.InvoiceLine,
+		c.Experiment, c.FeatureFlag, c.FxRate, c.Invitation, c.Invoice, c.InvoiceLine,
 		c.LedgerEntry, c.LiveOpsEvent, c.MemberProject, c.MonthlyUsage,
 		c.NotificationChannel, c.Organization, c.OrganizationMember, c.PaymentCard,
 		c.Plan, c.Project, c.PurchaseAttempt, c.PurchaseChange, c.PurchaseProvider,
@@ -498,7 +504,7 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.APIKey, c.ArchiveManifest, c.AuditEvent, c.BillablePlayer, c.BillingAccount,
 		c.BillingContract, c.ChannelDelivery, c.ConfigVersion, c.CreditLot,
 		c.DataDeletionRequest, c.DataExportRequest, c.Environment, c.EventDefinition,
-		c.Experiment, c.FeatureFlag, c.Invitation, c.Invoice, c.InvoiceLine,
+		c.Experiment, c.FeatureFlag, c.FxRate, c.Invitation, c.Invoice, c.InvoiceLine,
 		c.LedgerEntry, c.LiveOpsEvent, c.MemberProject, c.MonthlyUsage,
 		c.NotificationChannel, c.Organization, c.OrganizationMember, c.PaymentCard,
 		c.Plan, c.Project, c.PurchaseAttempt, c.PurchaseChange, c.PurchaseProvider,
@@ -544,6 +550,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Experiment.mutate(ctx, m)
 	case *FeatureFlagMutation:
 		return c.FeatureFlag.mutate(ctx, m)
+	case *FxRateMutation:
+		return c.FxRate.mutate(ctx, m)
 	case *InvitationMutation:
 		return c.Invitation.mutate(ctx, m)
 	case *InvoiceMutation:
@@ -3092,6 +3100,139 @@ func (c *FeatureFlagClient) mutate(ctx context.Context, m *FeatureFlagMutation) 
 		return (&FeatureFlagDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown FeatureFlag mutation op: %q", m.Op())
+	}
+}
+
+// FxRateClient is a client for the FxRate schema.
+type FxRateClient struct {
+	config
+}
+
+// NewFxRateClient returns a client for the FxRate from the given config.
+func NewFxRateClient(c config) *FxRateClient {
+	return &FxRateClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `fxrate.Hooks(f(g(h())))`.
+func (c *FxRateClient) Use(hooks ...Hook) {
+	c.hooks.FxRate = append(c.hooks.FxRate, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `fxrate.Intercept(f(g(h())))`.
+func (c *FxRateClient) Intercept(interceptors ...Interceptor) {
+	c.inters.FxRate = append(c.inters.FxRate, interceptors...)
+}
+
+// Create returns a builder for creating a FxRate entity.
+func (c *FxRateClient) Create() *FxRateCreate {
+	mutation := newFxRateMutation(c.config, OpCreate)
+	return &FxRateCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of FxRate entities.
+func (c *FxRateClient) CreateBulk(builders ...*FxRateCreate) *FxRateCreateBulk {
+	return &FxRateCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *FxRateClient) MapCreateBulk(slice any, setFunc func(*FxRateCreate, int)) *FxRateCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &FxRateCreateBulk{err: fmt.Errorf("calling to FxRateClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*FxRateCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &FxRateCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for FxRate.
+func (c *FxRateClient) Update() *FxRateUpdate {
+	mutation := newFxRateMutation(c.config, OpUpdate)
+	return &FxRateUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *FxRateClient) UpdateOne(_m *FxRate) *FxRateUpdateOne {
+	mutation := newFxRateMutation(c.config, OpUpdateOne, withFxRate(_m))
+	return &FxRateUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *FxRateClient) UpdateOneID(id int) *FxRateUpdateOne {
+	mutation := newFxRateMutation(c.config, OpUpdateOne, withFxRateID(id))
+	return &FxRateUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for FxRate.
+func (c *FxRateClient) Delete() *FxRateDelete {
+	mutation := newFxRateMutation(c.config, OpDelete)
+	return &FxRateDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *FxRateClient) DeleteOne(_m *FxRate) *FxRateDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *FxRateClient) DeleteOneID(id int) *FxRateDeleteOne {
+	builder := c.Delete().Where(fxrate.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &FxRateDeleteOne{builder}
+}
+
+// Query returns a query builder for FxRate.
+func (c *FxRateClient) Query() *FxRateQuery {
+	return &FxRateQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeFxRate},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a FxRate entity by its id.
+func (c *FxRateClient) Get(ctx context.Context, id int) (*FxRate, error) {
+	return c.Query().Where(fxrate.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *FxRateClient) GetX(ctx context.Context, id int) *FxRate {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *FxRateClient) Hooks() []Hook {
+	return c.hooks.FxRate
+}
+
+// Interceptors returns the client interceptors.
+func (c *FxRateClient) Interceptors() []Interceptor {
+	return c.inters.FxRate
+}
+
+func (c *FxRateClient) mutate(ctx context.Context, m *FxRateMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&FxRateCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&FxRateUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&FxRateUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&FxRateDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown FxRate mutation op: %q", m.Op())
 	}
 }
 
@@ -8735,7 +8876,7 @@ type (
 		APIKey, ArchiveManifest, AuditEvent, BillablePlayer, BillingAccount,
 		BillingContract, ChannelDelivery, ConfigVersion, CreditLot,
 		DataDeletionRequest, DataExportRequest, Environment, EventDefinition,
-		Experiment, FeatureFlag, Invitation, Invoice, InvoiceLine, LedgerEntry,
+		Experiment, FeatureFlag, FxRate, Invitation, Invoice, InvoiceLine, LedgerEntry,
 		LiveOpsEvent, MemberProject, MonthlyUsage, NotificationChannel, Organization,
 		OrganizationMember, PaymentCard, Plan, Project, PurchaseAttempt,
 		PurchaseChange, PurchaseProvider, RateCard, Receipt, Report, ReportExport,
@@ -8747,7 +8888,7 @@ type (
 		APIKey, ArchiveManifest, AuditEvent, BillablePlayer, BillingAccount,
 		BillingContract, ChannelDelivery, ConfigVersion, CreditLot,
 		DataDeletionRequest, DataExportRequest, Environment, EventDefinition,
-		Experiment, FeatureFlag, Invitation, Invoice, InvoiceLine, LedgerEntry,
+		Experiment, FeatureFlag, FxRate, Invitation, Invoice, InvoiceLine, LedgerEntry,
 		LiveOpsEvent, MemberProject, MonthlyUsage, NotificationChannel, Organization,
 		OrganizationMember, PaymentCard, Plan, Project, PurchaseAttempt,
 		PurchaseChange, PurchaseProvider, RateCard, Receipt, Report, ReportExport,

@@ -51,6 +51,9 @@ type Experiment func(*sql.Selector)
 // FeatureFlag is the predicate function for featureflag builders.
 type FeatureFlag func(*sql.Selector)
 
+// FxRate is the predicate function for fxrate builders.
+type FxRate func(*sql.Selector)
+
 // Invitation is the predicate function for invitation builders.
 type Invitation func(*sql.Selector)
 

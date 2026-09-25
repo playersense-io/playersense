@@ -89,6 +89,18 @@ func (_u *OrganizationUpdate) AddMemberLimit(v int) *OrganizationUpdate {
 	return _u
 }
 
+// SetStoreFees sets the "store_fees" field.
+func (_u *OrganizationUpdate) SetStoreFees(v map[string]float64) *OrganizationUpdate {
+	_u.mutation.SetStoreFees(v)
+	return _u
+}
+
+// ClearStoreFees clears the value of the "store_fees" field.
+func (_u *OrganizationUpdate) ClearStoreFees() *OrganizationUpdate {
+	_u.mutation.ClearStoreFees()
+	return _u
+}
+
 // AddProjectIDs adds the "projects" edge to the Project entity by IDs.
 func (_u *OrganizationUpdate) AddProjectIDs(ids ...int) *OrganizationUpdate {
 	_u.mutation.AddProjectIDs(ids...)
@@ -381,6 +393,12 @@ func (_u *OrganizationUpdate) sqlSave(ctx context.Context) (_node int, err error
 	}
 	if value, ok := _u.mutation.AddedMemberLimit(); ok {
 		_spec.AddField(organization.FieldMemberLimit, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.StoreFees(); ok {
+		_spec.SetField(organization.FieldStoreFees, field.TypeJSON, value)
+	}
+	if _u.mutation.StoreFeesCleared() {
+		_spec.ClearField(organization.FieldStoreFees, field.TypeJSON)
 	}
 	if _u.mutation.ProjectsCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -711,6 +729,18 @@ func (_u *OrganizationUpdateOne) AddMemberLimit(v int) *OrganizationUpdateOne {
 	return _u
 }
 
+// SetStoreFees sets the "store_fees" field.
+func (_u *OrganizationUpdateOne) SetStoreFees(v map[string]float64) *OrganizationUpdateOne {
+	_u.mutation.SetStoreFees(v)
+	return _u
+}
+
+// ClearStoreFees clears the value of the "store_fees" field.
+func (_u *OrganizationUpdateOne) ClearStoreFees() *OrganizationUpdateOne {
+	_u.mutation.ClearStoreFees()
+	return _u
+}
+
 // AddProjectIDs adds the "projects" edge to the Project entity by IDs.
 func (_u *OrganizationUpdateOne) AddProjectIDs(ids ...int) *OrganizationUpdateOne {
 	_u.mutation.AddProjectIDs(ids...)
@@ -1033,6 +1063,12 @@ func (_u *OrganizationUpdateOne) sqlSave(ctx context.Context) (_node *Organizati
 	}
 	if value, ok := _u.mutation.AddedMemberLimit(); ok {
 		_spec.AddField(organization.FieldMemberLimit, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.StoreFees(); ok {
+		_spec.SetField(organization.FieldStoreFees, field.TypeJSON, value)
+	}
+	if _u.mutation.StoreFeesCleared() {
+		_spec.ClearField(organization.FieldStoreFees, field.TypeJSON)
 	}
 	if _u.mutation.ProjectsCleared() {
 		edge := &sqlgraph.EdgeSpec{
