@@ -11,6 +11,7 @@ import (
 	"playersense.dev/backend/ent/environment"
 	"playersense.dev/backend/ent/project"
 	"playersense.dev/backend/internal/audit"
+	"playersense.dev/backend/internal/billing"
 	"playersense.dev/backend/internal/core"
 	"playersense.dev/backend/internal/identity"
 	"playersense.dev/backend/internal/schemas"
@@ -97,6 +98,14 @@ func CreateProject(ctx *muzak.Context, in schemas.CreateProjectIn) (schemas.Proj
 	tx, err := db.Client.Tx(ctx.Context())
 	if err != nil {
 		return schemas.ProjectOut{}, core.AsHTTPError(err)
+	}
+
+	// A project waiting out its thirty days still counts: it can be kept until then.
+	if err := withinPlan(ctx, tx, org.ID, billing.MaxProjects, func() (int, error) {
+		return tx.Project.Query().Where(project.OrganizationID(org.ID), project.DeletedAtIsNil()).Count(ctx.Context())
+	}, "this organization has as many projects as its plan allows"); err != nil {
+		_ = tx.Rollback()
+		return schemas.ProjectOut{}, err
 	}
 
 	proj, err := tx.Project.Create().

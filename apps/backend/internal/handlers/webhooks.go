@@ -18,6 +18,7 @@ import (
 	"playersense.dev/backend/ent/webhookendpoint"
 	"playersense.dev/backend/ent/webhookretry"
 	"playersense.dev/backend/internal/audit"
+	"playersense.dev/backend/internal/billing"
 	"playersense.dev/backend/internal/chdb"
 	"playersense.dev/backend/internal/core"
 	"playersense.dev/backend/internal/schemas"
@@ -220,6 +221,12 @@ func CreateWebhook(ctx *muzak.Context, in schemas.WebhookIn) (schemas.EndpointOu
 	}
 	who := actorOf(ctx).Label
 	e, err := inTx(ctx, func(tx *ent.Tx) (*ent.WebhookEndpoint, error) {
+		// The plan's limit is a project's, as the webhooks page counts it.
+		if err := withinPlan(ctx, tx, proj.OrganizationID, billing.MaxWebhookEndpoints, func() (int, error) {
+			return tx.WebhookEndpoint.Query().Where(webhookendpoint.ProjectID(proj.ID)).Count(ctx.Context())
+		}, "this project has as many webhook destinations as its plan allows"); err != nil {
+			return nil, err
+		}
 		create := tx.WebhookEndpoint.Create().SetProjectID(proj.ID).SetName(in.Name).SetDescription(in.Description).
 			SetURL(strings.TrimSpace(in.URL)).SetEvents(in.Events).SetEnvironments(in.Environments).
 			SetAPIVersion(webhooks.APIVersion).SetHeaders(headers).SetHeaderSecrets(secrets).

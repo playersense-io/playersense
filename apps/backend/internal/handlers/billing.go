@@ -772,6 +772,39 @@ func resolvedEntitlements(account *ent.BillingAccount) map[string]int64 {
 	return out
 }
 
+// withinPlan refuses one more of something the plan counts (projects, webhook destinations)
+// when the organization already has as many as it allows. It runs inside the transaction that
+// makes the new one, with the organization's row locked, so two made at once cannot both take
+// the last place. An organization with no billing account, or a plan without the limit, is not
+// held to one.
+func withinPlan(ctx *muzak.Context, tx *ent.Tx, orgID int, limit billing.Entitlement,
+	count func() (int, error), refusal string,
+) error {
+	if _, err := tx.Organization.Query().Where(organization.ID(orgID)).ForUpdate().Only(ctx.Context()); err != nil {
+		return core.AsHTTPError(err)
+	}
+	account, err := tx.BillingAccount.Query().Where(billingaccount.OrganizationID(orgID)).WithPlan().Only(ctx.Context())
+	switch {
+	case ent.IsNotFound(err):
+		return nil
+	case err != nil:
+		return core.AsHTTPError(err)
+	}
+	allowed, found := resolvedEntitlements(account)[string(limit)]
+	if !found {
+		return nil
+	}
+	have, err := count()
+	if err != nil {
+		return core.AsHTTPError(err)
+	}
+	if int64(have) >= allowed {
+		return muzak.Conflict(fmt.Sprintf("%s (%d); a larger plan allows more", refusal, allowed)).
+			WithCode(string(limit))
+	}
+	return nil
+}
+
 func limitsOf(raw map[string]int64) billing.Limits {
 	out := make(billing.Limits, len(raw))
 	for name, amount := range raw {
