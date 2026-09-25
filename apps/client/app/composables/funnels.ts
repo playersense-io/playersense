@@ -1,5 +1,5 @@
 import type { Schema } from '@playersense/contracts'
-import type { FunnelDefinition, FunnelSample, FunnelSeries, ProgressionSample } from '~/utils/funnel-sample'
+import type { FunnelDefinition, FunnelResult, FunnelSeries, ProgressionResult } from '~/utils/funnels'
 
 // Funnels, from the API: the project's saved funnels (…/projects/{project}/funnels), and what a
 // funnel comes to over a range (…/analytics/{env}/funnels/query), in the shapes the funnel
@@ -125,7 +125,7 @@ function spanWords(seconds: number): string {
 const dayTick = new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric', timeZone: 'UTC' })
 const dayTitle = new Intl.DateTimeFormat('en', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' })
 
-function sampleOf(now: Schema<'FunnelOut'>, before: Schema<'FunnelOut'> | null, range: FunnelRange, window: string): FunnelSample {
+function resultOf(now: Schema<'FunnelOut'>, before: Schema<'FunnelOut'> | null, range: FunnelRange, window: string): FunnelResult {
   const weekly = range === '90d'
   const settleMs = (WINDOW_SECONDS[window] ?? 86_400) * 1_000
   const days = [...(now.trend ?? [])].sort((a, b) => Date.parse(a.day) - Date.parse(b.day))
@@ -159,7 +159,7 @@ function sampleOf(now: Schema<'FunnelOut'>, before: Schema<'FunnelOut'> | null, 
   }
 }
 
-function progressionOf(now: Schema<'ProgressionOut'>, before: Schema<'ProgressionOut'> | null): ProgressionSample {
+function progressionOf(now: Schema<'ProgressionOut'>, before: Schema<'ProgressionOut'> | null): ProgressionResult {
   const rows = now.rows.map(row => ({ value: row.value, players: row.reached ?? null, tries: row.tries ?? null, toNext: null }))
   const previousRows = before?.rows ?? []
   return {
@@ -179,8 +179,8 @@ function progressionOf(now: Schema<'ProgressionOut'>, before: Schema<'Progressio
 export function useFunnelAnswer(definition: () => FunnelDefinition, range: () => FunnelRange, breakdown: () => string = () => 'none') {
   const workspace = useWorkspaceStore()
 
-  const steps = shallowRef<FunnelSample | null>(null)
-  const progression = shallowRef<ProgressionSample | null>(null)
+  const steps = shallowRef<FunnelResult | null>(null)
+  const progression = shallowRef<ProgressionResult | null>(null)
   const threshold = ref(5)
   const loading = ref(false)
   const error = ref<ApiError | null>(null)
@@ -208,7 +208,7 @@ export function useFunnelAnswer(definition: () => FunnelDefinition, range: () =>
         threshold.value = answer?.suppression_threshold ?? 5
       } else {
         const answer = now.steps as Schema<'FunnelOut'> | undefined
-        steps.value = answer ? sampleOf(answer, (before.steps as Schema<'FunnelOut'> | undefined) ?? null, range(), funnel.window) : null
+        steps.value = answer ? resultOf(answer, (before.steps as Schema<'FunnelOut'> | undefined) ?? null, range(), funnel.window) : null
         threshold.value = answer?.suppression_threshold ?? 5
       }
     } catch (caught) {

@@ -2,7 +2,7 @@
 // One event from the catalogue, chosen from a menu: the event's name as the button, and in
 // the menu every event grouped by category with its description, narrowed by a search that
 // is ready to type into once the menu opens.
-import type { EventDefinition } from '~/utils/events-sample'
+import type { EventDefinition } from '~/utils/events'
 
 const props = defineProps<{
   catalogue: readonly EventDefinition[]

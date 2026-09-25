@@ -655,3 +655,107 @@ export function stateWords(event: LiveOpsEventDef, now: number): string {
   if (state === 'paused') return 'Off until resumed'
   return ''
 }
+
+// --- Windows served, and their impact ----------------------------------------------------------
+
+export const startOfDay = (time: number) => {
+  const at = new Date(time)
+  at.setHours(0, 0, 0, 0)
+  return at.getTime()
+}
+
+/** The last moment an event was served: when it was paused or archived, or never for an active one. */
+export function servedUntil(event: LiveOpsEventDef): number {
+  if (event.status === 'draft') return Number.NEGATIVE_INFINITY
+  if (event.status === 'active') return Number.POSITIVE_INFINITY
+  const stop = [...event.history].reverse().find(entry => /^(Paused|Archived)/.test(entry.text))
+  return stop ? Date.parse(stop.at) : Number.POSITIVE_INFINITY
+}
+
+/** The windows an event was really served in, overlapping [from, to). */
+export function servedWindows(event: LiveOpsEventDef, from: number, to: number): Occurrence[] {
+  const until = servedUntil(event)
+  return occurrencesOf(event.schedule, from, Math.min(to, until)).map(entry => ({ start: entry.start, end: Math.min(entry.end, until) }))
+}
+
+export type DayFigures = Record<LiveOpsMetricKey, number>
+
+export type ImpactMethod = 'holdout' | 'baseline'
+
+export interface MetricImpact {
+  metric: LiveOpsMetricKey
+  /** What its players did while it was on, a day's worth. */
+  during: number
+  /** What they would have done without it, by the method below. */
+  expected: number
+  comparison: Comparison
+  /** The three days after it ended against expected, or null while it is on or for a one-day gap. */
+  after: Comparison | null
+}
+
+export interface EventImpact {
+  occurrence: Occurrence
+  method: ImpactMethod
+  /** Players it reached, a day, while it was on. */
+  players: number
+  /** Players held back from it by the rollout, a day, and measured against. */
+  heldBack: number
+  /** Revenue from the players it reached while it was on, in all. */
+  revenue: number
+  /** The window is still on. */
+  live: boolean
+  /** Day starts, from two weeks before the window to a week after it or today. */
+  days: number[]
+  /** Per metric, what the players did each day, and what they would have without it. */
+  daily: Record<LiveOpsMetricKey, { actual: number[], expected: number[] }>
+  metrics: Record<LiveOpsMetricKey, MetricImpact>
+}
+
+/**
+ * The stretches an event is read in. A window each for most; for one that opens every day or
+ * every few hours, a week of them at a time, because a two-hour happy hour is a sliver of a
+ * day and only a week of them says anything.
+ */
+export function runsOf(event: LiveOpsEventDef, now: number, count = 8): Occurrence[] {
+  const until = Math.min(now, servedUntil(event))
+  if (!isRhythm(event.schedule)) return pastOccurrences(event.schedule, until, count).map(entry => ({ start: entry.start, end: Math.min(entry.end, servedUntil(event)) }))
+  const windows = occurrencesOf(event.schedule, until - count * 7 * DAY, until)
+  if (!windows.length) return []
+  const runs: Occurrence[] = []
+  for (let end = startOfDay(until) + DAY; runs.length < count; end -= 7 * DAY) {
+    const inside = windows.filter(entry => entry.start >= end - 7 * DAY && entry.start < end)
+    if (!inside.length) break
+    runs.push({ start: inside[0]!.start, end: inside.at(-1)!.end })
+  }
+  return runs
+}
+
+/** What else was on while a window was: other events and A/B tests, and for how long. */
+export interface Overlap {
+  kind: 'event' | 'experiment'
+  id: string
+  name: string
+  tone: number
+  /** Share of the window the other was on for. */
+  share: number
+  to: string
+}
+
+export function overlapsOf(event: LiveOpsEventDef, window: Occurrence, events: readonly LiveOpsEventDef[], experiments: readonly ExperimentDef[]): Overlap[] {
+  const length = window.end - window.start
+  const shareOf = (others: Occurrence[]) => others.reduce((sum, other) => sum + Math.max(0, Math.min(other.end, window.end) - Math.max(other.start, window.start)), 0) / length
+  const out: Overlap[] = []
+  for (const other of events) {
+    if (other.key === event.key || other.status === 'draft') continue
+    const share = shareOf(servedWindows(other, window.start, window.end))
+    if (share > 0.02) out.push({ kind: 'event', id: other.key, name: other.name, tone: kindLook(other.kind).tone, share, to: `/growth/liveops/${other.key}` })
+  }
+  for (const test of experiments) {
+    if (!test.started_at) continue
+    const start = Date.parse(test.started_at)
+    const end = test.ended_at ? Date.parse(test.ended_at) : Date.now()
+    const share = shareOf([{ start, end }])
+    if (share > 0.02) out.push({ kind: 'experiment', id: test.id, name: test.name, tone: 1, share, to: `/growth/experiments/${test.id}` })
+  }
+  return out.sort((a, b) => b.share - a.share)
+}

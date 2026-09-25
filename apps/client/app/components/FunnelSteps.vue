@@ -6,7 +6,7 @@
 //
 // Choosing a different event clears the step's conditions, since they name properties of
 // the event it was.
-import type { EventDefinition } from '~/utils/events-sample'
+import type { EventDefinition } from '~/utils/events'
 
 const props = defineProps<{
   catalogue: readonly EventDefinition[]

@@ -5,7 +5,7 @@
 // uses for something else — the level a progression steps through.
 //
 // Laid out as siblings rather than in a box of their own, so they wrap in the caller's row.
-import type { EventDefinition } from '~/utils/events-sample'
+import type { EventDefinition } from '~/utils/events'
 
 const props = withDefaults(defineProps<{
   catalogue: readonly EventDefinition[]

@@ -6,7 +6,7 @@
 //
 // The range is kept whole: `to` never under `from`, and never more than MAX_VALUES
 // values from it.
-import type { EventDefinition } from '~/utils/events-sample'
+import type { EventDefinition } from '~/utils/events'
 
 const props = defineProps<{
   catalogue: readonly EventDefinition[]

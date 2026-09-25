@@ -150,3 +150,6 @@ export interface Invoice {
   hosted_url: string
   pdf_url: string
 }
+
+/** Every cent, for a price or a table's exact figure. */
+export const formatExactMoney = (value: number) => `$${value.toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`

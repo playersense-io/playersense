@@ -96,8 +96,8 @@ export function cohortPlayers(rows: readonly CohortAnswerRow[]): number {
 
 // --- The event catalogue, for the pickers ---------------------------------------------------
 
-type CatalogueEntry = import('~/utils/events-sample').EventDefinition
-type CatalogueProperty = import('~/utils/events-sample').EventProperty
+type CatalogueEntry = import('~/utils/events').EventDefinition
+type CatalogueProperty = import('~/utils/events').EventProperty
 
 const PROPERTY_TYPES: Record<string, CatalogueProperty['type']> = { int: 'number', float: 'number', bool: 'boolean' }
 

@@ -310,3 +310,25 @@ export function verdictOf(experiment: ExperimentDef, results: ExperimentResults 
     breaches
   }
 }
+
+// --- Results, as the API's are read ------------------------------------------------------------
+
+export interface VariantResult {
+  variant: VariantDef
+  players: number
+  stats: Record<MetricKey, VariantStat>
+}
+
+export interface ExperimentResults {
+  /** Day starts, from the first day of the test to the last one with data. */
+  days: number[]
+  variants: VariantResult[]
+  /** Per variant and metric, the running mean at the end of each day. */
+  daily: Record<string, { players: number[], metrics: Record<MetricKey, number[]> }>
+}
+
+export interface DayTotals {
+  players: number
+  newPlayers: number
+  revenue: number
+}

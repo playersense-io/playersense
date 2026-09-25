@@ -38,7 +38,7 @@ const tab = useQueryChoice('tab', TABS.map(entry => entry.value), 'funnel')
 
 const answer = useFunnelAnswer(() => props.definition, () => props.range, () => breakdown.value)
 
-const EMPTY: FunnelSample = {
+const EMPTY: FunnelResult = {
   total: { name: 'All players', players: [], medians: [] },
   previous: { name: 'The range before', players: [], medians: [] },
   breakdown: [],

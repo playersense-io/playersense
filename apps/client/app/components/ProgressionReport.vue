@@ -21,7 +21,7 @@ const RANGE_WORDS: Record<FunnelRange, string> = { '7d': 'the last 7 days', '30d
 
 const answer = useFunnelAnswer(() => props.definition, () => props.range)
 
-const data = computed<ProgressionSample>(() => answer.progression.value ?? { rows: [], previous: { first: null, last: null }, medianToLast: null })
+const data = computed<ProgressionResult>(() => answer.progression.value ?? { rows: [], previous: { first: null, last: null }, medianToLast: null })
 const threshold = computed(() => answer.threshold.value)
 
 const property = computed(() => props.definition.property.replaceAll('_', ' '))
