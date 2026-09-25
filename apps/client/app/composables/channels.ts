@@ -1,63 +1,107 @@
-/**
- * The project's notification channels, and the log of what was sent to them. Kept in this
- * browser; see utils/channels.ts. Sending is simulated (`simulateSend`), and every send, a
- * test or a report's, is logged here so the channels page can show what went where.
- */
-let sharedChannels: Ref<NotificationChannel[]> | null = null
-let sharedLog: Ref<ChannelDelivery[]> | null = null
+import type { Schema } from '@playersense/contracts'
 
-function stores() {
-  const scope = effectScope(true)
-  sharedChannels ??= scope.run(() => useLocalStorage<NotificationChannel[]>('playersense.channels.v1', seedChannels, { deep: false }))!
-  sharedLog ??= scope.run(() => useLocalStorage<ChannelDelivery[]>('playersense.channels.log.v1', seedDeliveries, { deep: false }))!
-  return { stored: sharedChannels, log: sharedLog }
+/**
+ * The project's notification channels (…/projects/{project}/channels) and the log of what was
+ * sent to them (…/channels/deliveries). A test is a real send, made by the API: to a saved
+ * channel it is logged and kept as its last test; to a draft in the dialog it is only answered.
+ */
+
+export type ChannelDraft = { type: ChannelType, name: string, config: ChannelConfigInput }
+
+function channelOf(out: Schema<'ChannelOut'>): NotificationChannel {
+  const test = out.last_test as { at: string, ok: boolean, detail: string } | undefined | null
+  return {
+    id: out.id,
+    type: out.type as ChannelType,
+    name: out.name,
+    enabled: out.enabled,
+    status: out.status as ChannelStatus,
+    config: {
+      addresses: out.config.addresses ? [...out.config.addresses] : undefined,
+      url: out.config.url || undefined,
+      severity: (out.config.severity || undefined) as Severity | undefined,
+      has_routing_key: out.config.has_routing_key || undefined,
+      header_name: out.config.header_name || undefined
+    },
+    created_at: out.created_at,
+    created_by: out.created_by ?? '',
+    last_test: test ? { at: test.at, ok: test.ok, detail: test.detail } : undefined
+  }
 }
 
-export type ChannelDraft = Pick<NotificationChannel, 'type' | 'name' | 'config'>
+function deliveryOf(out: Schema<'ChannelDeliveryOut'>, index: number): ChannelDelivery {
+  return {
+    id: `${out.at}-${index}`,
+    channelId: out.channel_id ?? undefined,
+    channelName: out.channel_name,
+    at: Date.parse(out.at),
+    source: out.source,
+    title: out.title,
+    ok: out.ok,
+    detail: out.detail,
+    test: out.test,
+    ms: out.duration_ms
+  }
+}
+
+/** What a channel keeps on an edit that only turns it on or off: its visible settings. */
+function keptConfig(channel: NotificationChannel): ChannelConfigInput {
+  return { addresses: channel.config.addresses, severity: channel.config.severity, header_name: channel.config.header_name }
+}
 
 export function useChannels() {
-  const { stored, log } = stores()
+  const workspace = useWorkspaceStore()
+  const path = computed(() => workspace.projectPath && `${workspace.projectPath}/channels`)
 
-  const channels = computed<NotificationChannel[]>(() => {
-    const value = stored.value
-    return Array.isArray(value) && value.every(entry => typeof entry?.id === 'string' && entry.type in CHANNEL_TYPES) ? value : seedChannels()
-  })
+  const list = useApiGet<Schema<'ChannelListOut'>>(path)
+  const log = useApiGet<Schema<'ChannelDeliveriesOut'>>(() => path.value && withQuery(`${path.value}/deliveries`, { limit: 50 }))
 
-  const deliveries = computed(() => (Array.isArray(log.value) ? [...log.value].sort((a, b) => b.at - a.at) : []))
+  const channels = computed(() => (list.data.value?.channels ?? []).map(channelOf))
+  const deliveries = computed(() => (log.data.value?.deliveries ?? []).map(deliveryOf))
+  const loading = computed(() => list.isFetching.value && !list.data.value)
+  const error = computed(() => list.error.value as ApiError | null)
 
   const channelById = (id: string) => channels.value.find(entry => entry.id === id) ?? null
 
-  function write(id: string, change: (channel: NotificationChannel) => NotificationChannel) {
-    stored.value = channels.value.map(entry => (entry.id === id ? change(entry) : entry))
+  async function reload() {
+    await Promise.all([list.execute(), log.execute()])
   }
 
-  /** A new channel, on, with the test sent from its dialog as its last test when there was one. */
-  function create(draft: ChannelDraft, lastTest?: ChannelTest): string {
-    const id = `ch_${Math.random().toString(36).slice(2, 10)}`
-    stored.value = [...channels.value, { ...draft, id, enabled: true, created_at: new Date().toISOString(), created_by: CURRENT_ACTOR, ...(lastTest ? { last_test: lastTest } : {}) }]
-    return id
+  /** A new channel, on. A webhook channel's signing secret comes back this once. */
+  async function create(draft: ChannelDraft) {
+    const out = await apiRequest<Schema<'ChannelOut'>>('POST', path.value!, draft)
+    await list.execute()
+    return { id: out.id, signingSecret: out.signing_secret || undefined }
   }
 
-  function update(id: string, draft: ChannelDraft) {
-    /* A new destination is not the one the last test reached. */
-    write(id, entry => ({ ...entry, ...draft, ...(sameJson(entry.config, draft.config) ? {} : { last_test: undefined }) }))
+  async function update(channel: NotificationChannel, draft: Omit<ChannelDraft, 'type'>, enabled?: boolean) {
+    await apiRequest('PUT', `${path.value}/${channel.id}`, { ...draft, ...(enabled === undefined ? {} : { enabled }) })
+    await list.execute()
   }
 
-  function setEnabled(id: string, enabled: boolean) {
-    write(id, entry => ({ ...entry, enabled }))
+  async function setEnabled(channel: NotificationChannel, enabled: boolean) {
+    await update(channel, { name: channel.name, config: keptConfig(channel) }, enabled)
   }
 
-  function remove(id: string) {
-    stored.value = channels.value.filter(entry => entry.id !== id)
+  async function remove(channel: NotificationChannel) {
+    await apiRequest('DELETE', `${path.value}/${channel.id}`)
+    await list.execute()
   }
 
-  /** Sends to one channel now, logs it, and keeps the answer as its last test when it is one. */
-  function send(channel: NotificationChannel, title: string, source: string, test: boolean) {
-    const answer = simulateSend(channel)
-    log.value = [{ id: `nd_${Math.random().toString(36).slice(2, 10)}`, channelId: channel.id, at: Date.parse(answer.at), source, title, ok: answer.ok, detail: answer.detail, test }, ...(log.value ?? [])].slice(0, 200)
-    if (test) write(channel.id, entry => ({ ...entry, last_test: { at: answer.at, ok: answer.ok, detail: answer.detail } }))
-    return answer
+  /** Sends a test to a saved channel: logged, and kept as its last test. */
+  async function test(channel: NotificationChannel): Promise<ChannelSendAnswer> {
+    const started = Date.now()
+    const out = await apiRequest<Schema<'ChannelTestOut'>>('POST', `${path.value}/${channel.id}/test`)
+    await reload()
+    return { at: out.at, ok: out.ok, detail: out.detail, ms: Date.now() - started }
   }
 
-  return { channels, deliveries, channelById, create, update, setEnabled, remove, send }
+  /** Sends a test to a destination not saved yet. */
+  async function testDraft(type: ChannelType, config: ChannelConfigInput): Promise<ChannelSendAnswer> {
+    const started = Date.now()
+    const out = await apiRequest<Schema<'ChannelTestOut'>>('POST', `${path.value}/test`, { type, config })
+    return { at: out.at, ok: out.ok, detail: out.detail, ms: Date.now() - started }
+  }
+
+  return { channels, deliveries, loading, error, reload, channelById, create, update, setEnabled, remove, test, testDraft }
 }

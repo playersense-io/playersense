@@ -40,7 +40,7 @@ export interface RunRequest {
 }
 
 export function useReportRun() {
-  const { channelById, send } = useChannels()
+  const { channelById } = useChannels()
   const { addRun } = useReports()
 
   const run = ref<LiveRun | null>(null)
@@ -99,7 +99,8 @@ export function useReportRun() {
       run: id,
       ...request,
       channelOf: channelById,
-      send: (channel, title) => send(channel, title, `${request.report.name} (test run)`, false)
+      // Played in the browser until test runs stream from the reports API: nothing is sent.
+      send: () => ({ at: new Date().toISOString(), ok: false, detail: 'Not sent: test runs in this browser do not reach channels', ms: 0 })
     }, apply)
   }
 

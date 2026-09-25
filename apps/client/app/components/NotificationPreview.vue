@@ -96,7 +96,7 @@ const SEVERITY_TONE: Record<Severity, string> = {
     </div>
   </div>
 
-  <!-- A chat: Slack, Discord, Teams, Telegram, as the app's post. -->
+  <!-- A chat: Slack, Discord, Teams, as the app's post. -->
   <div v-else class="flex gap-3 rounded-(--ps-radius-large) border border-line bg-surface p-4">
     <span aria-hidden="true" class="flex size-9 flex-none items-center justify-center rounded-(--ps-radius) bg-primary text-sm font-semibold text-white">PS</span>
     <div class="flex min-w-0 flex-1 flex-col gap-1.5">
@@ -104,9 +104,8 @@ const SEVERITY_TONE: Record<Severity, string> = {
         <span class="text-[13px] font-semibold text-ink">PlayerSense</span>
         <span class="rounded-(--ps-radius-x-small) bg-ink/8 px-1 text-[9px] leading-4 font-semibold tracking-wide text-ink/55 uppercase">{{ channel.type === 'slack' ? 'App' : 'Bot' }}</span>
         <span class="text-[11px] text-ink/40">{{ time }}</span>
-        <span v-if="channel.type === 'slack'" class="ml-auto text-[11px] text-ink/40">{{ channel.config.channel }}</span>
       </span>
-      <div :class="channel.type === 'slack' || channel.type === 'telegram' ? '' : 'rounded-(--ps-radius) bg-ink/4 p-3'" class="flex flex-col gap-1.5">
+      <div :class="channel.type === 'slack' ? '' : 'rounded-(--ps-radius) bg-ink/4 p-3'" class="flex flex-col gap-1.5">
         <span class="text-[13px] font-semibold text-ink">{{ message.title }}</span>
         <span class="text-xs leading-5 whitespace-pre-line text-ink/80">{{ message.body }}</span>
         <NotificationTable v-if="table" :table="table" compact />
