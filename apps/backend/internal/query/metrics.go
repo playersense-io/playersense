@@ -266,7 +266,10 @@ func compileSeries(scope Scope, q protocol.MetricQuery, plan *SeriesPlan, limits
 	case factLifecycle:
 		b.column("sum(active_players)", "active_players").
 			column("sum(new_players)", "new_players").
-			column("sum(continuing_players + reactivated_players)", "returning_players").
+			// Qualified: continuing_players and reactivated_players are also this statement's
+			// aliases for their own sums below, and ClickHouse would read an unqualified name as
+			// the alias, a sum inside a sum.
+			column("sum(lifecycle_daily.continuing_players + lifecycle_daily.reactivated_players)", "returning_players").
 			column("toUInt64(0)", "sessions").
 			column("toUInt64(0)", "payers")
 	default:

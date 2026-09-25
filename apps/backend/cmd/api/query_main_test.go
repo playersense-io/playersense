@@ -928,6 +928,27 @@ func TestADailySeriesIsReadBackCorrectly(t *testing.T) {
 	}
 }
 
+// The lifecycle split is read back from ClickHouse, not only planned: its returning figure is
+// a sum over the same columns it also sums alone, which ClickHouse refused as a sum inside a
+// sum until the columns were named by their table.
+func TestTheLifecycleSplitIsReadBack(t *testing.T) {
+	r := newReporting(t, "standard")
+	r.seedCurve(t)
+
+	for _, metric := range []string{"continuing_players", "reactivated_players"} {
+		result := r.series(t, r.seriesQuery(map[string]any{"metric": metric}))
+		if result.Source != "lifecycle_daily" {
+			t.Fatalf("%s answered from %s, want lifecycle_daily", metric, result.Source)
+		}
+		for _, row := range result.Rows {
+			if row.ContinuingPlayers+row.ReactivatedPlayers != row.ReturningPlayers {
+				t.Errorf("%s on %s: %d continuing and %d reactivated, but %d returning",
+					metric, row.Bucket.UTC().Format("2006-01-02"), row.ContinuingPlayers, row.ReactivatedPlayers, row.ReturningPlayers)
+			}
+		}
+	}
+}
+
 // TestMonthlyActivesAreNotTheSumOfTheDays is the property a summed DAU would break.
 //
 // The seeded month has twenty device-days across thirteen devices, because seven of them
