@@ -53,6 +53,14 @@ const compact = (value: number) => writeFigure(value, { compact: true })
 const money = (micros: number) => `$${writeFigure(micros / 1_000_000, { format: 'money' })}`
 const playersOf = (minute: LiveMinute | null) => minute?.players ?? null
 
+/* The busiest minute's players, over the minutes whose count was not held back. */
+const peakOf = (list: readonly LiveMinute[]) => {
+  const counted = list.map(minute => minute.players).filter((players): players is number => typeof players === 'number')
+  return counted.length ? Math.max(...counted) : null
+}
+const peak = computed(() => peakOf(minutes.value))
+const peakYesterday = computed(() => peakOf(yesterday.value))
+
 const board = computed<Kpi[]>(() => {
   const players = playersOf(lastWhole.value)
   const pastPlayers = playersOf(lastWholeYesterday.value)
@@ -82,6 +90,13 @@ const board = computed<Kpi[]>(() => {
       value: today ? compact(events) : null,
       trend: against(events, yesterdaySum(minute => minute.events)),
       info: 'Events accepted in the last 30 minutes.'
+    },
+    {
+      key: 'peak',
+      label: 'Peak players',
+      value: !today ? null : peak.value === null ? `Under ${threshold.value}` : compact(peak.value),
+      trend: peak.value === null ? undefined : against(peak.value, peakYesterday.value),
+      info: `The most players seen in any one minute of the window. Minutes with fewer than ${threshold.value} players are not counted.`
     },
     {
       key: 'revenue',

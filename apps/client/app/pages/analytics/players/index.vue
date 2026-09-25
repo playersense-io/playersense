@@ -73,7 +73,8 @@ function sums(from: string, to: string) {
     playerDays: add(row => row.active_players),
     fresh: add(row => row.new_players),
     payerDays: add(row => row.payers),
-    playtime: add(row => row.playtime_ms)
+    playtime: add(row => row.playtime_ms),
+    sessions: add(row => row.sessions)
   }
 }
 
@@ -85,6 +86,7 @@ const board = computed<Kpi[]>(() => {
   const scaled = (value: number | null, by: number) => (value === null ? null : value * by)
   const conversion = (figures: Figures | null) => (figures ? scaled(per(figures.payerDays, figures.playerDays), 100) : null)
   const playtime = (figures: Figures | null) => (figures ? scaled(per(figures.playtime, figures.playerDays), 1 / 60_000) : null)
+  const sessions = (figures: Figures | null) => (figures ? per(figures.sessions, figures.playerDays) : null)
   /* A figure only when there is one, and a change only when both periods have one. */
   const moved = (value: number | null, previous: number | null) => (value === null || previous === null ? undefined : trendOf(value, previous))
   const written = (value: number | null, write: (value: number) => string) => (value === null ? null : write(value))
@@ -117,6 +119,13 @@ const board = computed<Kpi[]>(() => {
       unit: 'min',
       trend: moved(playtime(now), playtime(before)),
       info: 'Minutes played per active player, per day.'
+    },
+    {
+      key: 'sessions',
+      label: 'Sessions per player',
+      value: written(sessions(now), value => writeFigure(value, { decimals: 1 })),
+      trend: moved(sessions(now), sessions(before)),
+      info: 'Sessions per active player, per day.'
     }
   ]
 })

@@ -73,6 +73,7 @@ const board = computed<Kpi[]>(() => {
     { key: 'exposures', label: 'Exposures', value: read ? writeFigure(out.exposures, { compact: true }) : null, exact: read ? writeFigure(out.exposures) : undefined, info: 'Sessions in which the game read this flag. A read is counted once per session and config version.' },
     { key: 'values', label: 'Values served', value: read ? String(out.values.filter(line => line.published).length) : null, info: 'Distinct values PlayerSense served for it.' },
     { key: 'default', label: 'On the game default', value: read ? formatShare(out.default_share) : null, info: 'Reads that found no configuration on the device, such as a first launch offline, and used the value written in the code.' },
+    { key: 'daily', label: 'Exposures per day', value: read && days.value.length ? writeFigure(out.exposures / days.value.length, { compact: true }) : null, info: 'Exposures on an average day of the range, over the days the flag was read.' },
     { key: 'versions', label: 'Config versions', value: read ? String(out.versions.length) : null, info: 'Published versions devices held while reading it.' }
   ]
 })

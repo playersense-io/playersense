@@ -87,6 +87,12 @@ const board = computed<Kpi[]>(() => {
       info: 'The share of events the game named itself, rather than the SDK\'s session, purchase and exposure events.'
     },
     {
+      key: 'new-names',
+      label: 'New event names',
+      value: any ? String(rows.value.filter(row => row.events > 0 && !row.previous_events).length) : null,
+      info: `Names sent this ${periodWords.value} and not in the one before: new instrumentation, or a misspelt name worth a look.`
+    },
+    {
       key: 'last',
       label: 'Last event',
       value: last === null ? null : ago(last),

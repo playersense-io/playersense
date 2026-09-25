@@ -24,28 +24,43 @@ export interface Kpi {
 // the label, the figure and how far it moved. The period the change is measured against is
 // said once, in the card's description, rather than under every figure.
 //
-// Five across from `lg`, two below it; with five cells the last one spans the pair so no
-// lit square is left where a cell is missing.
-defineProps<{
+// Up to five across from `lg`, as many as there are figures, so a row is never left with an
+// empty cell; a longer board takes the widest row that divides it (five, four or three), and
+// when none does, its last figure widens to close the row. Two across below `lg`, where an odd
+// last figure spans the pair.
+const props = defineProps<{
   title: string
   description?: string
   items: readonly Kpi[]
   /** While the figures are on their way: each cell keeps its label, and its figure is a bone. */
   loading?: boolean
 }>()
+
+/* Written out whole, so Tailwind finds every class it has to build. */
+const COLUMNS = ['lg:grid-cols-1', 'lg:grid-cols-2', 'lg:grid-cols-3', 'lg:grid-cols-4', 'lg:grid-cols-5'] as const
+const SPANS = ['lg:last:col-span-1', 'lg:last:col-span-2', 'lg:last:col-span-3', 'lg:last:col-span-4', 'lg:last:col-span-5'] as const
+
+const columns = computed(() => {
+  const count = Math.max(1, props.items.length)
+  if (count <= 5) return count
+  return [5, 4, 3].find(width => count % width === 0) ?? 5
+})
+
+/* The last figure takes the cells a short final row would leave empty. */
+const lastSpan = computed(() => {
+  const left = props.items.length % columns.value
+  return left === 0 ? 1 : columns.value - left + 1
+})
 </script>
 
 <template>
   <SectionCard :description="description" :padded="false" :title="title">
-    <div :aria-busy="loading || undefined" class="grid grid-cols-2 gap-px bg-line lg:grid-cols-5">
+    <div :aria-busy="loading || undefined" :class="COLUMNS[columns - 1]" class="grid grid-cols-2 gap-px bg-line">
       <div
         v-for="item in items"
         :key="item.key"
-        class="
-          flex min-w-0 flex-col gap-2 bg-surface p-4
-          last:col-span-2
-          lg:last:col-span-1
-        "
+        :class="[items.length % 2 ? 'last:col-span-2' : '', SPANS[lastSpan - 1]]"
+        class="flex min-w-0 flex-col gap-2 bg-surface p-4"
       >
         <div class="flex min-w-0 items-center gap-1.5 text-xs text-ink/55">
           <span class="truncate">{{ item.label }}</span>
