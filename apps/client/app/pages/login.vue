@@ -267,16 +267,22 @@ onMounted(() => {
   color: rgb(var(--v-theme-on-surface));
 }
 
-/* Disabled, while another way of signing in is under way, keeps the same soft fill, fainter,
-   rather than Vuetify's darker grey. */
+/* Disabled, while another way of signing in is under way: a lighter fill and muted words, with
+   the marks faded to match. Drawn from the theme's ink, so a dark page gets the same. */
 .ps-login-provider.v-btn--disabled {
-  background: rgba(var(--v-theme-on-surface), 0.05);
-  color: rgb(var(--v-theme-on-surface));
-  opacity: 0.5;
+  background: rgba(var(--v-theme-on-surface), 0.025);
+  color: rgba(var(--v-theme-on-surface), 0.32);
+  opacity: 1;
 }
 
 .ps-login-provider.v-btn--disabled :deep(.v-btn__overlay) {
   opacity: 0;
+}
+
+.ps-login-provider.v-btn--disabled :deep(.v-btn__prepend),
+.ps-login-provider.v-btn--disabled :deep(.v-btn__append) {
+  filter: grayscale(1);
+  opacity: 0.35;
 }
 
 .ps-login-provider:hover {
