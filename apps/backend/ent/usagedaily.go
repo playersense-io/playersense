@@ -39,6 +39,10 @@ type UsageDaily struct {
 	// class=none
 	RetainedBytes uint64 `json:"retained_bytes,omitempty"`
 	// class=none
+	LogBytes uint64 `json:"log_bytes,omitempty"`
+	// class=none
+	LogIngestedBytes uint64 `json:"log_ingested_bytes,omitempty"`
+	// class=none
 	Final bool `json:"final,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the UsageDailyQuery when eager-loading is set.
@@ -73,7 +77,7 @@ func (*UsageDaily) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case usagedaily.FieldFinal:
 			values[i] = new(sql.NullBool)
-		case usagedaily.FieldID, usagedaily.FieldProjectID, usagedaily.FieldOrganizationID, usagedaily.FieldTrackedPlayers, usagedaily.FieldEventsAccepted, usagedaily.FieldRetainedBytes:
+		case usagedaily.FieldID, usagedaily.FieldProjectID, usagedaily.FieldOrganizationID, usagedaily.FieldTrackedPlayers, usagedaily.FieldEventsAccepted, usagedaily.FieldRetainedBytes, usagedaily.FieldLogBytes, usagedaily.FieldLogIngestedBytes:
 			values[i] = new(sql.NullInt64)
 		case usagedaily.FieldCreatedAt, usagedaily.FieldUpdatedAt, usagedaily.FieldDay:
 			values[i] = new(sql.NullTime)
@@ -154,6 +158,18 @@ func (_m *UsageDaily) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.RetainedBytes = uint64(value.Int64)
 			}
+		case usagedaily.FieldLogBytes:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field log_bytes", values[i])
+			} else if value.Valid {
+				_m.LogBytes = uint64(value.Int64)
+			}
+		case usagedaily.FieldLogIngestedBytes:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field log_ingested_bytes", values[i])
+			} else if value.Valid {
+				_m.LogIngestedBytes = uint64(value.Int64)
+			}
 		case usagedaily.FieldFinal:
 			if value, ok := values[i].(*sql.NullBool); !ok {
 				return fmt.Errorf("unexpected type %T for field final", values[i])
@@ -227,6 +243,12 @@ func (_m *UsageDaily) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("retained_bytes=")
 	builder.WriteString(fmt.Sprintf("%v", _m.RetainedBytes))
+	builder.WriteString(", ")
+	builder.WriteString("log_bytes=")
+	builder.WriteString(fmt.Sprintf("%v", _m.LogBytes))
+	builder.WriteString(", ")
+	builder.WriteString("log_ingested_bytes=")
+	builder.WriteString(fmt.Sprintf("%v", _m.LogIngestedBytes))
 	builder.WriteString(", ")
 	builder.WriteString("final=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Final))

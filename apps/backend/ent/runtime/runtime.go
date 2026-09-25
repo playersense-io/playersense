@@ -27,6 +27,7 @@ import (
 	"playersense.dev/backend/ent/invoiceline"
 	"playersense.dev/backend/ent/ledgerentry"
 	"playersense.dev/backend/ent/liveopsevent"
+	"playersense.dev/backend/ent/logissue"
 	"playersense.dev/backend/ent/memberproject"
 	"playersense.dev/backend/ent/monthlyusage"
 	"playersense.dev/backend/ent/notificationchannel"
@@ -1574,6 +1575,35 @@ func init() {
 	liveopsevent.DefaultUpdatedBy = liveopseventDescUpdatedBy.Default.(string)
 	// liveopsevent.UpdatedByValidator is a validator for the "updated_by" field. It is called by the builders before save.
 	liveopsevent.UpdatedByValidator = liveopseventDescUpdatedBy.Validators[0].(func(string) error)
+	logissueMixin := schema.LogIssue{}.Mixin()
+	logissueMixinFields0 := logissueMixin[0].Fields()
+	_ = logissueMixinFields0
+	logissueFields := schema.LogIssue{}.Fields()
+	_ = logissueFields
+	// logissueDescUID is the schema descriptor for uid field.
+	logissueDescUID := logissueMixinFields0[1].Descriptor()
+	// logissue.DefaultUID holds the default value on creation for the uid field.
+	logissue.DefaultUID = logissueDescUID.Default.(func() uuid.UUID)
+	// logissueDescCreatedAt is the schema descriptor for created_at field.
+	logissueDescCreatedAt := logissueMixinFields0[2].Descriptor()
+	// logissue.DefaultCreatedAt holds the default value on creation for the created_at field.
+	logissue.DefaultCreatedAt = logissueDescCreatedAt.Default.(func() time.Time)
+	// logissueDescUpdatedAt is the schema descriptor for updated_at field.
+	logissueDescUpdatedAt := logissueMixinFields0[3].Descriptor()
+	// logissue.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	logissue.DefaultUpdatedAt = logissueDescUpdatedAt.Default.(func() time.Time)
+	// logissue.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	logissue.UpdateDefaultUpdatedAt = logissueDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// logissueDescFingerprint is the schema descriptor for fingerprint field.
+	logissueDescFingerprint := logissueFields[2].Descriptor()
+	// logissue.FingerprintValidator is a validator for the "fingerprint" field. It is called by the builders before save.
+	logissue.FingerprintValidator = logissueDescFingerprint.Validators[0].(func(string) error)
+	// logissueDescUpdatedBy is the schema descriptor for updated_by field.
+	logissueDescUpdatedBy := logissueFields[5].Descriptor()
+	// logissue.DefaultUpdatedBy holds the default value on creation for the updated_by field.
+	logissue.DefaultUpdatedBy = logissueDescUpdatedBy.Default.(string)
+	// logissue.UpdatedByValidator is a validator for the "updated_by" field. It is called by the builders before save.
+	logissue.UpdatedByValidator = logissueDescUpdatedBy.Validators[0].(func(string) error)
 	memberprojectMixin := schema.MemberProject{}.Mixin()
 	memberprojectMixinFields0 := memberprojectMixin[0].Fields()
 	_ = memberprojectMixinFields0
@@ -1626,6 +1656,28 @@ func init() {
 	monthlyusageDescChargedMicros := monthlyusageFields[3].Descriptor()
 	// monthlyusage.DefaultChargedMicros holds the default value on creation for the charged_micros field.
 	monthlyusage.DefaultChargedMicros = monthlyusageDescChargedMicros.Default.(int64)
+	// monthlyusageDescLogIngestMB is the schema descriptor for log_ingest_mb field.
+	monthlyusageDescLogIngestMB := monthlyusageFields[4].Descriptor()
+	// monthlyusage.DefaultLogIngestMB holds the default value on creation for the log_ingest_mb field.
+	monthlyusage.DefaultLogIngestMB = monthlyusageDescLogIngestMB.Default.(int64)
+	// monthlyusage.LogIngestMBValidator is a validator for the "log_ingest_mb" field. It is called by the builders before save.
+	monthlyusage.LogIngestMBValidator = monthlyusageDescLogIngestMB.Validators[0].(func(int64) error)
+	// monthlyusageDescLogByteDays is the schema descriptor for log_byte_days field.
+	monthlyusageDescLogByteDays := monthlyusageFields[5].Descriptor()
+	// monthlyusage.DefaultLogByteDays holds the default value on creation for the log_byte_days field.
+	monthlyusage.DefaultLogByteDays = monthlyusageDescLogByteDays.Default.(int64)
+	// monthlyusage.LogByteDaysValidator is a validator for the "log_byte_days" field. It is called by the builders before save.
+	monthlyusage.LogByteDaysValidator = monthlyusageDescLogByteDays.Validators[0].(func(int64) error)
+	// monthlyusageDescLogStorageGBDays is the schema descriptor for log_storage_gb_days field.
+	monthlyusageDescLogStorageGBDays := monthlyusageFields[6].Descriptor()
+	// monthlyusage.DefaultLogStorageGBDays holds the default value on creation for the log_storage_gb_days field.
+	monthlyusage.DefaultLogStorageGBDays = monthlyusageDescLogStorageGBDays.Default.(int64)
+	// monthlyusage.LogStorageGBDaysValidator is a validator for the "log_storage_gb_days" field. It is called by the builders before save.
+	monthlyusage.LogStorageGBDaysValidator = monthlyusageDescLogStorageGBDays.Validators[0].(func(int64) error)
+	// monthlyusageDescLogChargedMicros is the schema descriptor for log_charged_micros field.
+	monthlyusageDescLogChargedMicros := monthlyusageFields[8].Descriptor()
+	// monthlyusage.DefaultLogChargedMicros holds the default value on creation for the log_charged_micros field.
+	monthlyusage.DefaultLogChargedMicros = monthlyusageDescLogChargedMicros.Default.(int64)
 	notificationchannelMixin := schema.NotificationChannel{}.Mixin()
 	notificationchannelMixinFields0 := notificationchannelMixin[0].Fields()
 	_ = notificationchannelMixinFields0
@@ -2023,8 +2075,12 @@ func init() {
 	projectDescRetentionDays := projectFields[3].Descriptor()
 	// project.DefaultRetentionDays holds the default value on creation for the retention_days field.
 	project.DefaultRetentionDays = projectDescRetentionDays.Default.(uint16)
+	// projectDescLogRetentionDays is the schema descriptor for log_retention_days field.
+	projectDescLogRetentionDays := projectFields[7].Descriptor()
+	// project.DefaultLogRetentionDays holds the default value on creation for the log_retention_days field.
+	project.DefaultLogRetentionDays = projectDescLogRetentionDays.Default.(uint16)
 	// projectDescDeletionRequestedBy is the schema descriptor for deletion_requested_by field.
-	projectDescDeletionRequestedBy := projectFields[8].Descriptor()
+	projectDescDeletionRequestedBy := projectFields[12].Descriptor()
 	// project.DefaultDeletionRequestedBy holds the default value on creation for the deletion_requested_by field.
 	project.DefaultDeletionRequestedBy = projectDescDeletionRequestedBy.Default.(string)
 	// project.DeletionRequestedByValidator is a validator for the "deletion_requested_by" field. It is called by the builders before save.
@@ -2920,8 +2976,16 @@ func init() {
 	usagedailyDescRetainedBytes := usagedailyFields[5].Descriptor()
 	// usagedaily.DefaultRetainedBytes holds the default value on creation for the retained_bytes field.
 	usagedaily.DefaultRetainedBytes = usagedailyDescRetainedBytes.Default.(uint64)
+	// usagedailyDescLogBytes is the schema descriptor for log_bytes field.
+	usagedailyDescLogBytes := usagedailyFields[6].Descriptor()
+	// usagedaily.DefaultLogBytes holds the default value on creation for the log_bytes field.
+	usagedaily.DefaultLogBytes = usagedailyDescLogBytes.Default.(uint64)
+	// usagedailyDescLogIngestedBytes is the schema descriptor for log_ingested_bytes field.
+	usagedailyDescLogIngestedBytes := usagedailyFields[7].Descriptor()
+	// usagedaily.DefaultLogIngestedBytes holds the default value on creation for the log_ingested_bytes field.
+	usagedaily.DefaultLogIngestedBytes = usagedailyDescLogIngestedBytes.Default.(uint64)
 	// usagedailyDescFinal is the schema descriptor for final field.
-	usagedailyDescFinal := usagedailyFields[6].Descriptor()
+	usagedailyDescFinal := usagedailyFields[8].Descriptor()
 	// usagedaily.DefaultFinal holds the default value on creation for the final field.
 	usagedaily.DefaultFinal = usagedailyDescFinal.Default.(bool)
 	userMixin := schema.User{}.Mixin()

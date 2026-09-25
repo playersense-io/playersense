@@ -33,6 +33,10 @@ const (
 	FieldEventsAccepted = "events_accepted"
 	// FieldRetainedBytes holds the string denoting the retained_bytes field in the database.
 	FieldRetainedBytes = "retained_bytes"
+	// FieldLogBytes holds the string denoting the log_bytes field in the database.
+	FieldLogBytes = "log_bytes"
+	// FieldLogIngestedBytes holds the string denoting the log_ingested_bytes field in the database.
+	FieldLogIngestedBytes = "log_ingested_bytes"
 	// FieldFinal holds the string denoting the final field in the database.
 	FieldFinal = "final"
 	// EdgeProject holds the string denoting the project edge name in mutations.
@@ -60,6 +64,8 @@ var Columns = []string{
 	FieldTrackedPlayers,
 	FieldEventsAccepted,
 	FieldRetainedBytes,
+	FieldLogBytes,
+	FieldLogIngestedBytes,
 	FieldFinal,
 }
 
@@ -88,6 +94,10 @@ var (
 	DefaultEventsAccepted uint64
 	// DefaultRetainedBytes holds the default value on creation for the "retained_bytes" field.
 	DefaultRetainedBytes uint64
+	// DefaultLogBytes holds the default value on creation for the "log_bytes" field.
+	DefaultLogBytes uint64
+	// DefaultLogIngestedBytes holds the default value on creation for the "log_ingested_bytes" field.
+	DefaultLogIngestedBytes uint64
 	// DefaultFinal holds the default value on creation for the "final" field.
 	DefaultFinal bool
 )
@@ -143,6 +153,16 @@ func ByEventsAccepted(opts ...sql.OrderTermOption) OrderOption {
 // ByRetainedBytes orders the results by the retained_bytes field.
 func ByRetainedBytes(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldRetainedBytes, opts...).ToFunc()
+}
+
+// ByLogBytes orders the results by the log_bytes field.
+func ByLogBytes(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLogBytes, opts...).ToFunc()
+}
+
+// ByLogIngestedBytes orders the results by the log_ingested_bytes field.
+func ByLogIngestedBytes(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLogIngestedBytes, opts...).ToFunc()
 }
 
 // ByFinal orders the results by the final field.

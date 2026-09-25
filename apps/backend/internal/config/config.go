@@ -92,6 +92,20 @@ type Settings struct {
 	PubSubProjectID string `env:"PUBSUB_PROJECT_ID"`
 	PubSubTopic     string `env:"PUBSUB_TOPIC" default:"analytics-events"`
 
+	// PubSubLogsTopic carries Cloud Logging's batches (ADR 0050): a topic of its own, so a crash
+	// storm queues behind itself rather than in front of the analytics. The local bus spools them
+	// under EVENT_BUS_DIR/logs for the same reason.
+	PubSubLogsTopic string `env:"PUBSUB_LOGS_TOPIC" default:"game-logs"`
+
+	// Cloud Logging's list prices and free tier (ADR 0050): what a plan with no log rate card of
+	// its own is charged, in micros, and what a plan that states no allowance includes. The cost
+	// model behind the defaults is in the ADR: $0.10 a GB taken in and $0.03 a GB-month kept, over
+	// a cost of roughly $0.02 and $0.005, with the first gigabyte of each free every month.
+	LogIngestPricePerGBMicros       int64 `env:"LOG_INGEST_PRICE_PER_GB_MICROS" default:"100000"`
+	LogStoragePricePerGBMonthMicros int64 `env:"LOG_STORAGE_PRICE_PER_GB_MONTH_MICROS" default:"30000"`
+	LogFreeIngestGB                 int64 `env:"LOG_FREE_INGEST_GB" default:"1"`
+	LogFreeStorageGBMonths          int64 `env:"LOG_FREE_STORAGE_GB_MONTHS" default:"1"`
+
 	// These three decide when a consumer is handed a group: whichever is reached first.
 	// They are the queue half of the insert-size decision (ADR 0023) and, between them,
 	// what actually sets the insert rate — WRITER_BATCH_SIZE is only a ceiling on how a

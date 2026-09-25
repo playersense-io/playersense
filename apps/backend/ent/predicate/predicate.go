@@ -69,6 +69,9 @@ type LedgerEntry func(*sql.Selector)
 // LiveOpsEvent is the predicate function for liveopsevent builders.
 type LiveOpsEvent func(*sql.Selector)
 
+// LogIssue is the predicate function for logissue builders.
+type LogIssue func(*sql.Selector)
+
 // MemberProject is the predicate function for memberproject builders.
 type MemberProject func(*sql.Selector)
 

@@ -76,6 +76,110 @@ func (_u *MonthlyUsageUpdate) AddChargedMicros(v int64) *MonthlyUsageUpdate {
 	return _u
 }
 
+// SetLogIngestMB sets the "log_ingest_mb" field.
+func (_u *MonthlyUsageUpdate) SetLogIngestMB(v int64) *MonthlyUsageUpdate {
+	_u.mutation.ResetLogIngestMB()
+	_u.mutation.SetLogIngestMB(v)
+	return _u
+}
+
+// SetNillableLogIngestMB sets the "log_ingest_mb" field if the given value is not nil.
+func (_u *MonthlyUsageUpdate) SetNillableLogIngestMB(v *int64) *MonthlyUsageUpdate {
+	if v != nil {
+		_u.SetLogIngestMB(*v)
+	}
+	return _u
+}
+
+// AddLogIngestMB adds value to the "log_ingest_mb" field.
+func (_u *MonthlyUsageUpdate) AddLogIngestMB(v int64) *MonthlyUsageUpdate {
+	_u.mutation.AddLogIngestMB(v)
+	return _u
+}
+
+// SetLogByteDays sets the "log_byte_days" field.
+func (_u *MonthlyUsageUpdate) SetLogByteDays(v int64) *MonthlyUsageUpdate {
+	_u.mutation.ResetLogByteDays()
+	_u.mutation.SetLogByteDays(v)
+	return _u
+}
+
+// SetNillableLogByteDays sets the "log_byte_days" field if the given value is not nil.
+func (_u *MonthlyUsageUpdate) SetNillableLogByteDays(v *int64) *MonthlyUsageUpdate {
+	if v != nil {
+		_u.SetLogByteDays(*v)
+	}
+	return _u
+}
+
+// AddLogByteDays adds value to the "log_byte_days" field.
+func (_u *MonthlyUsageUpdate) AddLogByteDays(v int64) *MonthlyUsageUpdate {
+	_u.mutation.AddLogByteDays(v)
+	return _u
+}
+
+// SetLogStorageGBDays sets the "log_storage_gb_days" field.
+func (_u *MonthlyUsageUpdate) SetLogStorageGBDays(v int64) *MonthlyUsageUpdate {
+	_u.mutation.ResetLogStorageGBDays()
+	_u.mutation.SetLogStorageGBDays(v)
+	return _u
+}
+
+// SetNillableLogStorageGBDays sets the "log_storage_gb_days" field if the given value is not nil.
+func (_u *MonthlyUsageUpdate) SetNillableLogStorageGBDays(v *int64) *MonthlyUsageUpdate {
+	if v != nil {
+		_u.SetLogStorageGBDays(*v)
+	}
+	return _u
+}
+
+// AddLogStorageGBDays adds value to the "log_storage_gb_days" field.
+func (_u *MonthlyUsageUpdate) AddLogStorageGBDays(v int64) *MonthlyUsageUpdate {
+	_u.mutation.AddLogStorageGBDays(v)
+	return _u
+}
+
+// SetLogStorageThrough sets the "log_storage_through" field.
+func (_u *MonthlyUsageUpdate) SetLogStorageThrough(v time.Time) *MonthlyUsageUpdate {
+	_u.mutation.SetLogStorageThrough(v)
+	return _u
+}
+
+// SetNillableLogStorageThrough sets the "log_storage_through" field if the given value is not nil.
+func (_u *MonthlyUsageUpdate) SetNillableLogStorageThrough(v *time.Time) *MonthlyUsageUpdate {
+	if v != nil {
+		_u.SetLogStorageThrough(*v)
+	}
+	return _u
+}
+
+// ClearLogStorageThrough clears the value of the "log_storage_through" field.
+func (_u *MonthlyUsageUpdate) ClearLogStorageThrough() *MonthlyUsageUpdate {
+	_u.mutation.ClearLogStorageThrough()
+	return _u
+}
+
+// SetLogChargedMicros sets the "log_charged_micros" field.
+func (_u *MonthlyUsageUpdate) SetLogChargedMicros(v int64) *MonthlyUsageUpdate {
+	_u.mutation.ResetLogChargedMicros()
+	_u.mutation.SetLogChargedMicros(v)
+	return _u
+}
+
+// SetNillableLogChargedMicros sets the "log_charged_micros" field if the given value is not nil.
+func (_u *MonthlyUsageUpdate) SetNillableLogChargedMicros(v *int64) *MonthlyUsageUpdate {
+	if v != nil {
+		_u.SetLogChargedMicros(*v)
+	}
+	return _u
+}
+
+// AddLogChargedMicros adds value to the "log_charged_micros" field.
+func (_u *MonthlyUsageUpdate) AddLogChargedMicros(v int64) *MonthlyUsageUpdate {
+	_u.mutation.AddLogChargedMicros(v)
+	return _u
+}
+
 // Mutation returns the MonthlyUsageMutation object of the builder.
 func (_u *MonthlyUsageUpdate) Mutation() *MonthlyUsageMutation {
 	return _u.mutation
@@ -124,6 +228,21 @@ func (_u *MonthlyUsageUpdate) check() error {
 			return &ValidationError{Name: "tracked_players", err: fmt.Errorf(`ent: validator failed for field "MonthlyUsage.tracked_players": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.LogIngestMB(); ok {
+		if err := monthlyusage.LogIngestMBValidator(v); err != nil {
+			return &ValidationError{Name: "log_ingest_mb", err: fmt.Errorf(`ent: validator failed for field "MonthlyUsage.log_ingest_mb": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.LogByteDays(); ok {
+		if err := monthlyusage.LogByteDaysValidator(v); err != nil {
+			return &ValidationError{Name: "log_byte_days", err: fmt.Errorf(`ent: validator failed for field "MonthlyUsage.log_byte_days": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.LogStorageGBDays(); ok {
+		if err := monthlyusage.LogStorageGBDaysValidator(v); err != nil {
+			return &ValidationError{Name: "log_storage_gb_days", err: fmt.Errorf(`ent: validator failed for field "MonthlyUsage.log_storage_gb_days": %w`, err)}
+		}
+	}
 	if _u.mutation.AccountCleared() && len(_u.mutation.AccountIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "MonthlyUsage.account"`)
 	}
@@ -156,6 +275,36 @@ func (_u *MonthlyUsageUpdate) sqlSave(ctx context.Context) (_node int, err error
 	}
 	if value, ok := _u.mutation.AddedChargedMicros(); ok {
 		_spec.AddField(monthlyusage.FieldChargedMicros, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.LogIngestMB(); ok {
+		_spec.SetField(monthlyusage.FieldLogIngestMB, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedLogIngestMB(); ok {
+		_spec.AddField(monthlyusage.FieldLogIngestMB, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.LogByteDays(); ok {
+		_spec.SetField(monthlyusage.FieldLogByteDays, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedLogByteDays(); ok {
+		_spec.AddField(monthlyusage.FieldLogByteDays, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.LogStorageGBDays(); ok {
+		_spec.SetField(monthlyusage.FieldLogStorageGBDays, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedLogStorageGBDays(); ok {
+		_spec.AddField(monthlyusage.FieldLogStorageGBDays, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.LogStorageThrough(); ok {
+		_spec.SetField(monthlyusage.FieldLogStorageThrough, field.TypeTime, value)
+	}
+	if _u.mutation.LogStorageThroughCleared() {
+		_spec.ClearField(monthlyusage.FieldLogStorageThrough, field.TypeTime)
+	}
+	if value, ok := _u.mutation.LogChargedMicros(); ok {
+		_spec.SetField(monthlyusage.FieldLogChargedMicros, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedLogChargedMicros(); ok {
+		_spec.AddField(monthlyusage.FieldLogChargedMicros, field.TypeInt64, value)
 	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -225,6 +374,110 @@ func (_u *MonthlyUsageUpdateOne) AddChargedMicros(v int64) *MonthlyUsageUpdateOn
 	return _u
 }
 
+// SetLogIngestMB sets the "log_ingest_mb" field.
+func (_u *MonthlyUsageUpdateOne) SetLogIngestMB(v int64) *MonthlyUsageUpdateOne {
+	_u.mutation.ResetLogIngestMB()
+	_u.mutation.SetLogIngestMB(v)
+	return _u
+}
+
+// SetNillableLogIngestMB sets the "log_ingest_mb" field if the given value is not nil.
+func (_u *MonthlyUsageUpdateOne) SetNillableLogIngestMB(v *int64) *MonthlyUsageUpdateOne {
+	if v != nil {
+		_u.SetLogIngestMB(*v)
+	}
+	return _u
+}
+
+// AddLogIngestMB adds value to the "log_ingest_mb" field.
+func (_u *MonthlyUsageUpdateOne) AddLogIngestMB(v int64) *MonthlyUsageUpdateOne {
+	_u.mutation.AddLogIngestMB(v)
+	return _u
+}
+
+// SetLogByteDays sets the "log_byte_days" field.
+func (_u *MonthlyUsageUpdateOne) SetLogByteDays(v int64) *MonthlyUsageUpdateOne {
+	_u.mutation.ResetLogByteDays()
+	_u.mutation.SetLogByteDays(v)
+	return _u
+}
+
+// SetNillableLogByteDays sets the "log_byte_days" field if the given value is not nil.
+func (_u *MonthlyUsageUpdateOne) SetNillableLogByteDays(v *int64) *MonthlyUsageUpdateOne {
+	if v != nil {
+		_u.SetLogByteDays(*v)
+	}
+	return _u
+}
+
+// AddLogByteDays adds value to the "log_byte_days" field.
+func (_u *MonthlyUsageUpdateOne) AddLogByteDays(v int64) *MonthlyUsageUpdateOne {
+	_u.mutation.AddLogByteDays(v)
+	return _u
+}
+
+// SetLogStorageGBDays sets the "log_storage_gb_days" field.
+func (_u *MonthlyUsageUpdateOne) SetLogStorageGBDays(v int64) *MonthlyUsageUpdateOne {
+	_u.mutation.ResetLogStorageGBDays()
+	_u.mutation.SetLogStorageGBDays(v)
+	return _u
+}
+
+// SetNillableLogStorageGBDays sets the "log_storage_gb_days" field if the given value is not nil.
+func (_u *MonthlyUsageUpdateOne) SetNillableLogStorageGBDays(v *int64) *MonthlyUsageUpdateOne {
+	if v != nil {
+		_u.SetLogStorageGBDays(*v)
+	}
+	return _u
+}
+
+// AddLogStorageGBDays adds value to the "log_storage_gb_days" field.
+func (_u *MonthlyUsageUpdateOne) AddLogStorageGBDays(v int64) *MonthlyUsageUpdateOne {
+	_u.mutation.AddLogStorageGBDays(v)
+	return _u
+}
+
+// SetLogStorageThrough sets the "log_storage_through" field.
+func (_u *MonthlyUsageUpdateOne) SetLogStorageThrough(v time.Time) *MonthlyUsageUpdateOne {
+	_u.mutation.SetLogStorageThrough(v)
+	return _u
+}
+
+// SetNillableLogStorageThrough sets the "log_storage_through" field if the given value is not nil.
+func (_u *MonthlyUsageUpdateOne) SetNillableLogStorageThrough(v *time.Time) *MonthlyUsageUpdateOne {
+	if v != nil {
+		_u.SetLogStorageThrough(*v)
+	}
+	return _u
+}
+
+// ClearLogStorageThrough clears the value of the "log_storage_through" field.
+func (_u *MonthlyUsageUpdateOne) ClearLogStorageThrough() *MonthlyUsageUpdateOne {
+	_u.mutation.ClearLogStorageThrough()
+	return _u
+}
+
+// SetLogChargedMicros sets the "log_charged_micros" field.
+func (_u *MonthlyUsageUpdateOne) SetLogChargedMicros(v int64) *MonthlyUsageUpdateOne {
+	_u.mutation.ResetLogChargedMicros()
+	_u.mutation.SetLogChargedMicros(v)
+	return _u
+}
+
+// SetNillableLogChargedMicros sets the "log_charged_micros" field if the given value is not nil.
+func (_u *MonthlyUsageUpdateOne) SetNillableLogChargedMicros(v *int64) *MonthlyUsageUpdateOne {
+	if v != nil {
+		_u.SetLogChargedMicros(*v)
+	}
+	return _u
+}
+
+// AddLogChargedMicros adds value to the "log_charged_micros" field.
+func (_u *MonthlyUsageUpdateOne) AddLogChargedMicros(v int64) *MonthlyUsageUpdateOne {
+	_u.mutation.AddLogChargedMicros(v)
+	return _u
+}
+
 // Mutation returns the MonthlyUsageMutation object of the builder.
 func (_u *MonthlyUsageUpdateOne) Mutation() *MonthlyUsageMutation {
 	return _u.mutation
@@ -286,6 +539,21 @@ func (_u *MonthlyUsageUpdateOne) check() error {
 			return &ValidationError{Name: "tracked_players", err: fmt.Errorf(`ent: validator failed for field "MonthlyUsage.tracked_players": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.LogIngestMB(); ok {
+		if err := monthlyusage.LogIngestMBValidator(v); err != nil {
+			return &ValidationError{Name: "log_ingest_mb", err: fmt.Errorf(`ent: validator failed for field "MonthlyUsage.log_ingest_mb": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.LogByteDays(); ok {
+		if err := monthlyusage.LogByteDaysValidator(v); err != nil {
+			return &ValidationError{Name: "log_byte_days", err: fmt.Errorf(`ent: validator failed for field "MonthlyUsage.log_byte_days": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.LogStorageGBDays(); ok {
+		if err := monthlyusage.LogStorageGBDaysValidator(v); err != nil {
+			return &ValidationError{Name: "log_storage_gb_days", err: fmt.Errorf(`ent: validator failed for field "MonthlyUsage.log_storage_gb_days": %w`, err)}
+		}
+	}
 	if _u.mutation.AccountCleared() && len(_u.mutation.AccountIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "MonthlyUsage.account"`)
 	}
@@ -335,6 +603,36 @@ func (_u *MonthlyUsageUpdateOne) sqlSave(ctx context.Context) (_node *MonthlyUsa
 	}
 	if value, ok := _u.mutation.AddedChargedMicros(); ok {
 		_spec.AddField(monthlyusage.FieldChargedMicros, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.LogIngestMB(); ok {
+		_spec.SetField(monthlyusage.FieldLogIngestMB, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedLogIngestMB(); ok {
+		_spec.AddField(monthlyusage.FieldLogIngestMB, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.LogByteDays(); ok {
+		_spec.SetField(monthlyusage.FieldLogByteDays, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedLogByteDays(); ok {
+		_spec.AddField(monthlyusage.FieldLogByteDays, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.LogStorageGBDays(); ok {
+		_spec.SetField(monthlyusage.FieldLogStorageGBDays, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedLogStorageGBDays(); ok {
+		_spec.AddField(monthlyusage.FieldLogStorageGBDays, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.LogStorageThrough(); ok {
+		_spec.SetField(monthlyusage.FieldLogStorageThrough, field.TypeTime, value)
+	}
+	if _u.mutation.LogStorageThroughCleared() {
+		_spec.ClearField(monthlyusage.FieldLogStorageThrough, field.TypeTime)
+	}
+	if value, ok := _u.mutation.LogChargedMicros(); ok {
+		_spec.SetField(monthlyusage.FieldLogChargedMicros, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedLogChargedMicros(); ok {
+		_spec.AddField(monthlyusage.FieldLogChargedMicros, field.TypeInt64, value)
 	}
 	_node = &MonthlyUsage{config: _u.config}
 	_spec.Assign = _node.assignValues

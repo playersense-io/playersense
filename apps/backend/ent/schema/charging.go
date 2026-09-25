@@ -46,9 +46,11 @@ func (RateCard) Fields() []ent.Field {
 	return []ent.Field{
 		field.Int("plan_id").Immutable().Comment(dataclass.None),
 
-		// Only tracked players today. An enum rather than a string so a card for a meter
-		// nothing charges cannot be published and then quietly never apply.
-		field.Enum("meter").Values(string(billing.TrackedPlayers)).Immutable().
+		// Tracked players, and Cloud Logging's two meters (ADR 0050). An enum rather than a
+		// string so a card for a meter nothing charges cannot be published and then quietly
+		// never apply.
+		field.Enum("meter").Values(string(billing.TrackedPlayers), string(billing.LogIngest),
+			string(billing.LogStorage)).Immutable().
 			Comment(dataclass.None),
 
 		//	graduated  each unit at the band its position falls in (the default)
@@ -183,6 +185,21 @@ func (MonthlyUsage) Fields() []ent.Field {
 		// The sum of every charge queued for this month, settled or not. Equal to the card's
 		// Total(tracked_players) when one card priced the whole month.
 		field.Int64("charged_micros").Default(0).Comment(dataclass.Financial),
+
+		// Cloud Logging's meters for the month (ADR 0050), each advanced under this row's lock
+		// like tracked_players, so two passes never price the same unit twice.
+		//
+		// log_ingest_mb is the megabytes already charged for. log_byte_days is the exact sum of
+		// each accrued day's kept bytes, and log_storage_gb_days the whole gigabyte-days charged
+		// for out of it: a fraction of a gigabyte-day carries to the next day rather than being
+		// rounded away or rounded up. log_storage_through is the last day accrued.
+		field.Int64("log_ingest_mb").Default(0).Min(0).Comment(dataclass.None),
+		field.Int64("log_byte_days").Default(0).Min(0).Comment(dataclass.None),
+		field.Int64("log_storage_gb_days").Default(0).Min(0).Comment(dataclass.None),
+		field.Time("log_storage_through").Optional().Nillable().Comment(dataclass.None),
+		// What the two log meters have cost this month, a part of charged_micros: the invoice
+		// names it on a line of its own.
+		field.Int64("log_charged_micros").Default(0).Comment(dataclass.Financial),
 	}
 }
 

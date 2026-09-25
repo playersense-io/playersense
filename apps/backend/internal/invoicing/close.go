@@ -102,6 +102,15 @@ func Close(ctx context.Context, tx *ent.Tx, accountID int, end time.Time, final 
 		return nil, fmt.Errorf("read the ledger since the last invoice: %w", err)
 	}
 	bill := billOf(entries, month)
+	// Cloud Logging's part of the month's usage (ADR 0050), so the invoice names it apart from the
+	// players. The ledger nets every charge into one spend, so the split comes from the month's own
+	// running totals, which reconcile holds to the ledger.
+	if usage, err := tx.MonthlyUsage.Query().
+		Where(monthlyusage.AccountID(accountID), monthlyusage.PeriodStart(month)).Only(ctx); err == nil {
+		bill.logs = min(usage.LogChargedMicros, bill.usage[month])
+	} else if !ent.IsNotFound(err) {
+		return nil, fmt.Errorf("read the month's log usage: %w", err)
+	}
 
 	// The commitment: what the minimum exceeds this month's usage by. Straight to the receivable,
 	// like the fee — credit is a discount on usage, not on the contract.
@@ -203,6 +212,7 @@ type bill struct {
 	receivable int64               // every accrual: what the invoice bills before the carry
 	usage      map[time.Time]int64 // gross usage by month, credit-paid part included
 	usageOwed  int64               // the part of that usage credit did not cover
+	logs       int64               // the part of this month's usage that was Cloud Logging
 	fee        int64
 	commitment int64
 	other      int64 // any other accrual: arrears carried in at the switch
@@ -268,7 +278,8 @@ func (b *bill) lines(month, start, end time.Time, cents int64) []line {
 		period := m
 		gross += b.usage[m]
 		if m.Equal(month) {
-			push(invoiceline.KindUsage, "Tracked players, "+describePeriod(start, end), b.usage[m], &period)
+			push(invoiceline.KindUsage, "Tracked players, "+describePeriod(start, end), b.usage[m]-b.logs, &period)
+			push(invoiceline.KindUsage, "Cloud Logging, "+describePeriod(start, end), b.logs, &period)
 		} else {
 			push(invoiceline.KindPriorUsage, "Tracked players, "+m.Format("January 2006")+
 				" (settled after it was invoiced)", b.usage[m], &period)

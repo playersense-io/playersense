@@ -658,6 +658,13 @@ func (UsageDaily) Fields() []ent.Field {
 		// what the customer can be told they are paying for.
 		field.Uint64("retained_bytes").Default(0).Comment(dataclass.None),
 
+		// Cloud Logging's meter (ADR 0050): the log bytes kept that day, as the game sent them,
+		// uncompressed. Summed over a month and divided by its days and a gigabyte, it is the
+		// GB-months the month is billed for.
+		field.Uint64("log_bytes").Default(0).Comment(dataclass.None),
+		// And the log bytes taken in that day: the ingestion meter's reading.
+		field.Uint64("log_ingested_bytes").Default(0).Comment(dataclass.None),
+
 		// Whether the day is settled. A day is written as it goes and rewritten when late
 		// events land; after this it is not touched again, which is what makes a closed
 		// month reproducible.

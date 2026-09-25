@@ -121,7 +121,11 @@ const (
 	WebhookWritten      Action = "webhook.write"
 	WebhookDeleted      Action = "webhook.delete"
 	WebhookSecretRolled Action = "webhook.secret_roll"
-	WebhookSecretShown  Action = "webhook.secret_read"
+
+	// Cloud Logging (ADR 0050): how long a project's logs are kept, and what an issue is.
+	LogRetentionSet    Action = "project.log_retention"
+	LogIssueSet        Action = "log_issue.status"
+	WebhookSecretShown Action = "webhook.secret_read"
 
 	CreditGranted  Action = "credit.grant"
 	CreditCharged  Action = "credit.charge"

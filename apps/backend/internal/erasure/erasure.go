@@ -330,6 +330,10 @@ func (p *Purger) advance(
 	if err := p.purgeAccount(ctx, db, req); err != nil {
 		return out, err
 	}
+	// The person's log records: free text from their device, so theirs whatever it says.
+	if err := p.purgeLogs(ctx, db, req, who); err != nil {
+		return out, err
+	}
 
 	if err := p.purgeEvents(ctx, db, req, who); err != nil {
 		return out, err

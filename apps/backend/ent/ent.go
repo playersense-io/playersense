@@ -33,6 +33,7 @@ import (
 	"playersense.dev/backend/ent/invoiceline"
 	"playersense.dev/backend/ent/ledgerentry"
 	"playersense.dev/backend/ent/liveopsevent"
+	"playersense.dev/backend/ent/logissue"
 	"playersense.dev/backend/ent/memberproject"
 	"playersense.dev/backend/ent/monthlyusage"
 	"playersense.dev/backend/ent/notificationchannel"
@@ -144,6 +145,7 @@ func checkColumn(t, c string) error {
 			invoiceline.Table:         invoiceline.ValidColumn,
 			ledgerentry.Table:         ledgerentry.ValidColumn,
 			liveopsevent.Table:        liveopsevent.ValidColumn,
+			logissue.Table:            logissue.ValidColumn,
 			memberproject.Table:       memberproject.ValidColumn,
 			monthlyusage.Table:        monthlyusage.ValidColumn,
 			notificationchannel.Table: notificationchannel.ValidColumn,

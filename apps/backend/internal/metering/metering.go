@@ -29,11 +29,14 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
+
 	"playersense.dev/backend/ent"
 	"playersense.dev/backend/ent/archivemanifest"
 	"playersense.dev/backend/ent/project"
 	"playersense.dev/backend/ent/usagedaily"
 	"playersense.dev/backend/internal/chdb"
+	"playersense.dev/backend/internal/logs"
 	"playersense.dev/backend/internal/pgdb"
 )
 
@@ -61,6 +64,12 @@ type Meter struct {
 	DB  *pgdb.DB
 	CH  *chdb.SQL
 	Log *slog.Logger
+
+	// Logs reads Cloud Logging's two meters for the day (ADR 0050): the log bytes each project
+	// held when the day ended and took in during it. Nil writes neither.
+	Logs interface {
+		DB() (driver.Conn, error)
+	}
 
 	// Now is overridable so a test can decide which days are settled.
 	Now func() time.Time
@@ -112,6 +121,16 @@ func (m *Meter) MeterDay(ctx context.Context, day time.Time) (int, error) {
 	if err != nil {
 		return 0, err
 	}
+	logUsage, err := m.logUsage(ctx, day)
+	if err != nil {
+		return 0, err
+	}
+	// A project that only sent logs that day is metered too: it has a bill even with no players.
+	for id := range logUsage {
+		if _, found := activity[id]; !found {
+			activity[id] = counts{}
+		}
+	}
 	if len(activity) == 0 {
 		return 0, nil
 	}
@@ -152,10 +171,14 @@ func (m *Meter) MeterDay(ctx context.Context, day time.Time) (int, error) {
 			SetTrackedPlayers(counts.Players).
 			SetEventsAccepted(counts.Events).
 			SetRetainedBytes(stored[proj.ID]).
+			SetLogBytes(logUsage[proj.ID].Kept).
+			SetLogIngestedBytes(logUsage[proj.ID].Ingested).
 			OnConflict().
 			UpdateTrackedPlayers().
 			UpdateEventsAccepted().
 			UpdateRetainedBytes().
+			UpdateLogBytes().
+			UpdateLogIngestedBytes().
 			Exec(ctx)
 		if err != nil {
 			return written, fmt.Errorf("write usage for project %d: %w", proj.ID, err)
@@ -163,6 +186,41 @@ func (m *Meter) MeterDay(ctx context.Context, day time.Time) (int, error) {
 		written++
 	}
 	return written, nil
+}
+
+// logUsage reads Cloud Logging's meters for one day, by project, under each project's retention
+// as it stands now.
+func (m *Meter) logUsage(ctx context.Context, day time.Time) (map[int]logs.Usage, error) {
+	if m.Logs == nil {
+		return nil, nil
+	}
+	conn, err := m.Logs.DB()
+	if err != nil {
+		return nil, fmt.Errorf("open clickhouse: %w", err)
+	}
+	projects, err := m.DB.Client.Project.Query().
+		Select(project.FieldID, project.FieldLogRetentionDays).All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("read projects' log retention: %w", err)
+	}
+	retention := make(map[uint32]uint16, len(projects))
+	for _, p := range projects {
+		retention[uint32(p.ID)] = p.LogRetentionDays
+	}
+	usage, err := logs.DayUsage(ctx, conn, day.AddDate(0, 0, 1), func(seq uint32) (uint16, bool) {
+		days, found := retention[seq]
+		return days, found
+	})
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[int]logs.Usage, len(usage))
+	for seq, u := range usage {
+		if _, known := retention[seq]; known && (u.Kept > 0 || u.Ingested > 0) {
+			out[int(seq)] = u
+		}
+	}
+	return out, nil
 }
 
 // counts is one project's activity on one day.

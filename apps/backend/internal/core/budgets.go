@@ -204,3 +204,29 @@ func Budgets() []BudgetSpec {
 		{"invitations", "invitation-organization", "organization", InvitationWindow, InvitationsPerOrganization, false},
 	}
 }
+
+// Cloud Logging's budgets (ADR 0050), counted apart from the analytics ones so a game logging
+// heavily cannot spend the budget its events need. Per device the same shape as ingestion; per
+// project lower, because a log batch is larger and the project figure is there to stop a runaway
+// loop in one build from filling a studio's storage bill in an afternoon.
+const (
+	DeviceLogsBurst     = 20
+	DeviceLogsSustained = 120
+
+	AddressLogsSustained = 12_000
+	ProjectLogsSustained = 60_000
+)
+
+// LogBudgets is what one log batch is counted against.
+func LogBudgets(tenant *Tenant, installID string, addr string) []ratelimit.Budget {
+	return []ratelimit.Budget{
+		{Quota: "device-logs-burst", Subject: tenant.ProjectID + "|" + installID,
+			Window: BurstWindow, Limit: DeviceLogsBurst, Scope: tenant.ProjectID},
+		{Quota: "device-logs-sustained", Subject: tenant.ProjectID + "|" + installID,
+			Window: SustainedWindow, Limit: DeviceLogsSustained, Scope: tenant.ProjectID},
+		{Quota: "address-logs-sustained", Subject: tenant.ProjectID + "|" + addr,
+			Window: SustainedWindow, Limit: AddressLogsSustained, Scope: tenant.ProjectID},
+		{Quota: "project-logs-sustained", Subject: tenant.ProjectID,
+			Window: SustainedWindow, Limit: ProjectLogsSustained, Scope: tenant.ProjectID},
+	}
+}

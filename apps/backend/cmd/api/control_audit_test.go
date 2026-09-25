@@ -72,10 +72,12 @@ func TestEveryMutatingRouteDecidesAboutAudit(t *testing.T) {
 		"POST /v1/organizations/{org}/projects/{project}/experiments/{experiment}/conclude": audit.ExperimentConcluded,
 		"POST /v1/organizations/{org}/projects/{project}/experiments/{experiment}/ship":     audit.ExperimentShipped,
 
-		"PATCH /v1/organizations/{org}/projects/{project}":           audit.ProjectUpdated,
-		"PUT /v1/organizations/{org}/projects/{project}/retention":   audit.RetentionSet,
-		"POST /v1/organizations/{org}/projects/{project}/deletion":   audit.ProjectDeletionScheduled,
-		"DELETE /v1/organizations/{org}/projects/{project}/deletion": audit.ProjectDeletionCancelled,
+		"PATCH /v1/organizations/{org}/projects/{project}":                                 audit.ProjectUpdated,
+		"PUT /v1/organizations/{org}/projects/{project}/retention":                         audit.RetentionSet,
+		"PUT /v1/organizations/{org}/projects/{project}/log-storage":                       audit.LogRetentionSet,
+		"PUT /v1/organizations/{org}/projects/{project}/logs/{environment}/issues/{issue}": audit.LogIssueSet,
+		"POST /v1/organizations/{org}/projects/{project}/deletion":                         audit.ProjectDeletionScheduled,
+		"DELETE /v1/organizations/{org}/projects/{project}/deletion":                       audit.ProjectDeletionCancelled,
 
 		"POST /v1/organizations/{org}/projects/{project}/privacy/erasures": audit.PrivacyErasure,
 		"POST /v1/organizations/{org}/projects/{project}/privacy/exports":  audit.PrivacyExport,
@@ -138,8 +140,9 @@ func TestEveryMutatingRouteDecidesAboutAudit(t *testing.T) {
 
 		// The SDK path. A batch is player data arriving, not a decision somebody made about
 		// an account, and one entry per batch would be tens of millions of rows a day.
-		"POST /v1/batches":                                                                                "ingestion; an entry per batch is a request log, at ingestion volume",
-		"POST /v1/purchases/verify":                                                                       "a player's purchase: kept in verified_purchases and the verification log",
+		"POST /v1/batches":          "ingestion; an entry per batch is a request log, at ingestion volume",
+		"POST /v1/logs":             "ingestion; an entry per log batch is a request log, at ingestion volume",
+		"POST /v1/purchases/verify": "a player's purchase: kept in verified_purchases and the verification log",
 		"POST /v1/store-notifications/apple/{project}/{token}":                                            "the store's word on a refund, kept on the purchase it changes",
 		"POST /v1/store-notifications/google/{project}/{token}":                                           "the store's word on a refund, kept on the purchase it changes",
 		"POST /v1/organizations/{org}/projects/{project}/stores/{store}/test":                             "tests the credentials; kept as the store's last test",

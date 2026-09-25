@@ -98,6 +98,12 @@ const (
 	// A delivery's body names players, so reading is its own grant.
 	WebhooksRead  Permission = "webhooks.read"
 	WebhooksWrite Permission = "webhooks.write"
+
+	// Cloud Logging (ADR 0050): reading the game's logs, exceptions and crashes, and deciding what
+	// an issue is (resolved, ignored). A log line is free text the game wrote and may name a
+	// player, so reading is its own grant rather than a part of analytics.read.
+	LogsRead  Permission = "logs.read"
+	LogsWrite Permission = "logs.write"
 )
 
 // scopes is the vocabulary itself. A permission absent from this map does not exist.
@@ -143,6 +149,9 @@ var scopes = map[Permission]Scope{
 
 	WebhooksRead:  ScopeProject,
 	WebhooksWrite: ScopeProject,
+
+	LogsRead:  ScopeProject,
+	LogsWrite: ScopeProject,
 }
 
 // reads is the half of the vocabulary that only looks.
@@ -163,6 +172,7 @@ var reads = map[Permission]bool{
 	BillingRead:   true,
 	ReportsRead:   true,
 	WebhooksRead:  true,
+	LogsRead:      true,
 	AuditRead:     true,
 	KeyRead:       true,
 	AnalyticsRead: true,

@@ -36,6 +36,7 @@ import (
 	"playersense.dev/backend/ent/invoiceline"
 	"playersense.dev/backend/ent/ledgerentry"
 	"playersense.dev/backend/ent/liveopsevent"
+	"playersense.dev/backend/ent/logissue"
 	"playersense.dev/backend/ent/memberproject"
 	"playersense.dev/backend/ent/monthlyusage"
 	"playersense.dev/backend/ent/notificationchannel"
@@ -117,6 +118,8 @@ type Client struct {
 	LedgerEntry *LedgerEntryClient
 	// LiveOpsEvent is the client for interacting with the LiveOpsEvent builders.
 	LiveOpsEvent *LiveOpsEventClient
+	// LogIssue is the client for interacting with the LogIssue builders.
+	LogIssue *LogIssueClient
 	// MemberProject is the client for interacting with the MemberProject builders.
 	MemberProject *MemberProjectClient
 	// MonthlyUsage is the client for interacting with the MonthlyUsage builders.
@@ -209,6 +212,7 @@ func (c *Client) init() {
 	c.InvoiceLine = NewInvoiceLineClient(c.config)
 	c.LedgerEntry = NewLedgerEntryClient(c.config)
 	c.LiveOpsEvent = NewLiveOpsEventClient(c.config)
+	c.LogIssue = NewLogIssueClient(c.config)
 	c.MemberProject = NewMemberProjectClient(c.config)
 	c.MonthlyUsage = NewMonthlyUsageClient(c.config)
 	c.NotificationChannel = NewNotificationChannelClient(c.config)
@@ -352,6 +356,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		InvoiceLine:         NewInvoiceLineClient(cfg),
 		LedgerEntry:         NewLedgerEntryClient(cfg),
 		LiveOpsEvent:        NewLiveOpsEventClient(cfg),
+		LogIssue:            NewLogIssueClient(cfg),
 		MemberProject:       NewMemberProjectClient(cfg),
 		MonthlyUsage:        NewMonthlyUsageClient(cfg),
 		NotificationChannel: NewNotificationChannelClient(cfg),
@@ -422,6 +427,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		InvoiceLine:         NewInvoiceLineClient(cfg),
 		LedgerEntry:         NewLedgerEntryClient(cfg),
 		LiveOpsEvent:        NewLiveOpsEventClient(cfg),
+		LogIssue:            NewLogIssueClient(cfg),
 		MemberProject:       NewMemberProjectClient(cfg),
 		MonthlyUsage:        NewMonthlyUsageClient(cfg),
 		NotificationChannel: NewNotificationChannelClient(cfg),
@@ -485,7 +491,7 @@ func (c *Client) Use(hooks ...Hook) {
 		c.BillingContract, c.ChannelDelivery, c.ConfigVersion, c.CreditLot,
 		c.DataDeletionRequest, c.DataExportRequest, c.Environment, c.EventDefinition,
 		c.Experiment, c.FeatureFlag, c.FxRate, c.Invitation, c.Invoice, c.InvoiceLine,
-		c.LedgerEntry, c.LiveOpsEvent, c.MemberProject, c.MonthlyUsage,
+		c.LedgerEntry, c.LiveOpsEvent, c.LogIssue, c.MemberProject, c.MonthlyUsage,
 		c.NotificationChannel, c.Organization, c.OrganizationMember, c.PaymentCard,
 		c.Plan, c.Project, c.PurchaseAttempt, c.PurchaseChange, c.PurchaseProvider,
 		c.RateCard, c.Receipt, c.Report, c.ReportExport, c.ReportRun, c.ReportRunEvent,
@@ -505,7 +511,7 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.BillingContract, c.ChannelDelivery, c.ConfigVersion, c.CreditLot,
 		c.DataDeletionRequest, c.DataExportRequest, c.Environment, c.EventDefinition,
 		c.Experiment, c.FeatureFlag, c.FxRate, c.Invitation, c.Invoice, c.InvoiceLine,
-		c.LedgerEntry, c.LiveOpsEvent, c.MemberProject, c.MonthlyUsage,
+		c.LedgerEntry, c.LiveOpsEvent, c.LogIssue, c.MemberProject, c.MonthlyUsage,
 		c.NotificationChannel, c.Organization, c.OrganizationMember, c.PaymentCard,
 		c.Plan, c.Project, c.PurchaseAttempt, c.PurchaseChange, c.PurchaseProvider,
 		c.RateCard, c.Receipt, c.Report, c.ReportExport, c.ReportRun, c.ReportRunEvent,
@@ -562,6 +568,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.LedgerEntry.mutate(ctx, m)
 	case *LiveOpsEventMutation:
 		return c.LiveOpsEvent.mutate(ctx, m)
+	case *LogIssueMutation:
+		return c.LogIssue.mutate(ctx, m)
 	case *MemberProjectMutation:
 		return c.MemberProject.mutate(ctx, m)
 	case *MonthlyUsageMutation:
@@ -4077,6 +4085,155 @@ func (c *LiveOpsEventClient) mutate(ctx context.Context, m *LiveOpsEventMutation
 	}
 }
 
+// LogIssueClient is a client for the LogIssue schema.
+type LogIssueClient struct {
+	config
+}
+
+// NewLogIssueClient returns a client for the LogIssue from the given config.
+func NewLogIssueClient(c config) *LogIssueClient {
+	return &LogIssueClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `logissue.Hooks(f(g(h())))`.
+func (c *LogIssueClient) Use(hooks ...Hook) {
+	c.hooks.LogIssue = append(c.hooks.LogIssue, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `logissue.Intercept(f(g(h())))`.
+func (c *LogIssueClient) Intercept(interceptors ...Interceptor) {
+	c.inters.LogIssue = append(c.inters.LogIssue, interceptors...)
+}
+
+// Create returns a builder for creating a LogIssue entity.
+func (c *LogIssueClient) Create() *LogIssueCreate {
+	mutation := newLogIssueMutation(c.config, OpCreate)
+	return &LogIssueCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of LogIssue entities.
+func (c *LogIssueClient) CreateBulk(builders ...*LogIssueCreate) *LogIssueCreateBulk {
+	return &LogIssueCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *LogIssueClient) MapCreateBulk(slice any, setFunc func(*LogIssueCreate, int)) *LogIssueCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &LogIssueCreateBulk{err: fmt.Errorf("calling to LogIssueClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*LogIssueCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &LogIssueCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for LogIssue.
+func (c *LogIssueClient) Update() *LogIssueUpdate {
+	mutation := newLogIssueMutation(c.config, OpUpdate)
+	return &LogIssueUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *LogIssueClient) UpdateOne(_m *LogIssue) *LogIssueUpdateOne {
+	mutation := newLogIssueMutation(c.config, OpUpdateOne, withLogIssue(_m))
+	return &LogIssueUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *LogIssueClient) UpdateOneID(id int) *LogIssueUpdateOne {
+	mutation := newLogIssueMutation(c.config, OpUpdateOne, withLogIssueID(id))
+	return &LogIssueUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for LogIssue.
+func (c *LogIssueClient) Delete() *LogIssueDelete {
+	mutation := newLogIssueMutation(c.config, OpDelete)
+	return &LogIssueDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *LogIssueClient) DeleteOne(_m *LogIssue) *LogIssueDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *LogIssueClient) DeleteOneID(id int) *LogIssueDeleteOne {
+	builder := c.Delete().Where(logissue.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &LogIssueDeleteOne{builder}
+}
+
+// Query returns a query builder for LogIssue.
+func (c *LogIssueClient) Query() *LogIssueQuery {
+	return &LogIssueQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeLogIssue},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a LogIssue entity by its id.
+func (c *LogIssueClient) Get(ctx context.Context, id int) (*LogIssue, error) {
+	return c.Query().Where(logissue.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *LogIssueClient) GetX(ctx context.Context, id int) *LogIssue {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryProject queries the project edge of a LogIssue.
+func (c *LogIssueClient) QueryProject(_m *LogIssue) *ProjectQuery {
+	query := (&ProjectClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(logissue.Table, logissue.FieldID, id),
+			sqlgraph.To(project.Table, project.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, logissue.ProjectTable, logissue.ProjectColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *LogIssueClient) Hooks() []Hook {
+	return c.hooks.LogIssue
+}
+
+// Interceptors returns the client interceptors.
+func (c *LogIssueClient) Interceptors() []Interceptor {
+	return c.inters.LogIssue
+}
+
+func (c *LogIssueClient) mutate(ctx context.Context, m *LogIssueMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&LogIssueCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&LogIssueUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&LogIssueUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&LogIssueDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown LogIssue mutation op: %q", m.Op())
+	}
+}
+
 // MemberProjectClient is a client for the MemberProject schema.
 type MemberProjectClient struct {
 	config
@@ -5590,6 +5747,22 @@ func (c *ProjectClient) QueryUsageDaily(_m *Project) *UsageDailyQuery {
 			sqlgraph.From(project.Table, project.FieldID, id),
 			sqlgraph.To(usagedaily.Table, usagedaily.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, project.UsageDailyTable, project.UsageDailyColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryLogIssues queries the log_issues edge of a Project.
+func (c *ProjectClient) QueryLogIssues(_m *Project) *LogIssueQuery {
+	query := (&LogIssueClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(project.Table, project.FieldID, id),
+			sqlgraph.To(logissue.Table, logissue.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, project.LogIssuesTable, project.LogIssuesColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -8877,8 +9050,8 @@ type (
 		BillingContract, ChannelDelivery, ConfigVersion, CreditLot,
 		DataDeletionRequest, DataExportRequest, Environment, EventDefinition,
 		Experiment, FeatureFlag, FxRate, Invitation, Invoice, InvoiceLine, LedgerEntry,
-		LiveOpsEvent, MemberProject, MonthlyUsage, NotificationChannel, Organization,
-		OrganizationMember, PaymentCard, Plan, Project, PurchaseAttempt,
+		LiveOpsEvent, LogIssue, MemberProject, MonthlyUsage, NotificationChannel,
+		Organization, OrganizationMember, PaymentCard, Plan, Project, PurchaseAttempt,
 		PurchaseChange, PurchaseProvider, RateCard, Receipt, Report, ReportExport,
 		ReportRun, ReportRunEvent, Role, SavedFunnel, Segment, StaffAccess,
 		StaffMember, StripeEvent, UsageCharge, UsageDaily, User, VerifiedPurchase,
@@ -8889,8 +9062,8 @@ type (
 		BillingContract, ChannelDelivery, ConfigVersion, CreditLot,
 		DataDeletionRequest, DataExportRequest, Environment, EventDefinition,
 		Experiment, FeatureFlag, FxRate, Invitation, Invoice, InvoiceLine, LedgerEntry,
-		LiveOpsEvent, MemberProject, MonthlyUsage, NotificationChannel, Organization,
-		OrganizationMember, PaymentCard, Plan, Project, PurchaseAttempt,
+		LiveOpsEvent, LogIssue, MemberProject, MonthlyUsage, NotificationChannel,
+		Organization, OrganizationMember, PaymentCard, Plan, Project, PurchaseAttempt,
 		PurchaseChange, PurchaseProvider, RateCard, Receipt, Report, ReportExport,
 		ReportRun, ReportRunEvent, Role, SavedFunnel, Segment, StaffAccess,
 		StaffMember, StripeEvent, UsageCharge, UsageDaily, User, VerifiedPurchase,

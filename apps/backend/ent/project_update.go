@@ -17,6 +17,7 @@ import (
 	"playersense.dev/backend/ent/experiment"
 	"playersense.dev/backend/ent/featureflag"
 	"playersense.dev/backend/ent/liveopsevent"
+	"playersense.dev/backend/ent/logissue"
 	"playersense.dev/backend/ent/memberproject"
 	"playersense.dev/backend/ent/notificationchannel"
 	"playersense.dev/backend/ent/organization"
@@ -153,6 +154,87 @@ func (_u *ProjectUpdate) SetNillableRetentionPurgedAt(v *time.Time) *ProjectUpda
 // ClearRetentionPurgedAt clears the value of the "retention_purged_at" field.
 func (_u *ProjectUpdate) ClearRetentionPurgedAt() *ProjectUpdate {
 	_u.mutation.ClearRetentionPurgedAt()
+	return _u
+}
+
+// SetLogRetentionDays sets the "log_retention_days" field.
+func (_u *ProjectUpdate) SetLogRetentionDays(v uint16) *ProjectUpdate {
+	_u.mutation.ResetLogRetentionDays()
+	_u.mutation.SetLogRetentionDays(v)
+	return _u
+}
+
+// SetNillableLogRetentionDays sets the "log_retention_days" field if the given value is not nil.
+func (_u *ProjectUpdate) SetNillableLogRetentionDays(v *uint16) *ProjectUpdate {
+	if v != nil {
+		_u.SetLogRetentionDays(*v)
+	}
+	return _u
+}
+
+// AddLogRetentionDays adds value to the "log_retention_days" field.
+func (_u *ProjectUpdate) AddLogRetentionDays(v int16) *ProjectUpdate {
+	_u.mutation.AddLogRetentionDays(v)
+	return _u
+}
+
+// SetLogRetentionChangedAt sets the "log_retention_changed_at" field.
+func (_u *ProjectUpdate) SetLogRetentionChangedAt(v time.Time) *ProjectUpdate {
+	_u.mutation.SetLogRetentionChangedAt(v)
+	return _u
+}
+
+// SetNillableLogRetentionChangedAt sets the "log_retention_changed_at" field if the given value is not nil.
+func (_u *ProjectUpdate) SetNillableLogRetentionChangedAt(v *time.Time) *ProjectUpdate {
+	if v != nil {
+		_u.SetLogRetentionChangedAt(*v)
+	}
+	return _u
+}
+
+// ClearLogRetentionChangedAt clears the value of the "log_retention_changed_at" field.
+func (_u *ProjectUpdate) ClearLogRetentionChangedAt() *ProjectUpdate {
+	_u.mutation.ClearLogRetentionChangedAt()
+	return _u
+}
+
+// SetLogRetentionPurgeUntil sets the "log_retention_purge_until" field.
+func (_u *ProjectUpdate) SetLogRetentionPurgeUntil(v time.Time) *ProjectUpdate {
+	_u.mutation.SetLogRetentionPurgeUntil(v)
+	return _u
+}
+
+// SetNillableLogRetentionPurgeUntil sets the "log_retention_purge_until" field if the given value is not nil.
+func (_u *ProjectUpdate) SetNillableLogRetentionPurgeUntil(v *time.Time) *ProjectUpdate {
+	if v != nil {
+		_u.SetLogRetentionPurgeUntil(*v)
+	}
+	return _u
+}
+
+// ClearLogRetentionPurgeUntil clears the value of the "log_retention_purge_until" field.
+func (_u *ProjectUpdate) ClearLogRetentionPurgeUntil() *ProjectUpdate {
+	_u.mutation.ClearLogRetentionPurgeUntil()
+	return _u
+}
+
+// SetLogRetentionPurgedAt sets the "log_retention_purged_at" field.
+func (_u *ProjectUpdate) SetLogRetentionPurgedAt(v time.Time) *ProjectUpdate {
+	_u.mutation.SetLogRetentionPurgedAt(v)
+	return _u
+}
+
+// SetNillableLogRetentionPurgedAt sets the "log_retention_purged_at" field if the given value is not nil.
+func (_u *ProjectUpdate) SetNillableLogRetentionPurgedAt(v *time.Time) *ProjectUpdate {
+	if v != nil {
+		_u.SetLogRetentionPurgedAt(*v)
+	}
+	return _u
+}
+
+// ClearLogRetentionPurgedAt clears the value of the "log_retention_purged_at" field.
+func (_u *ProjectUpdate) ClearLogRetentionPurgedAt() *ProjectUpdate {
+	_u.mutation.ClearLogRetentionPurgedAt()
 	return _u
 }
 
@@ -429,6 +511,21 @@ func (_u *ProjectUpdate) AddUsageDaily(v ...*UsageDaily) *ProjectUpdate {
 	return _u.AddUsageDailyIDs(ids...)
 }
 
+// AddLogIssueIDs adds the "log_issues" edge to the LogIssue entity by IDs.
+func (_u *ProjectUpdate) AddLogIssueIDs(ids ...int) *ProjectUpdate {
+	_u.mutation.AddLogIssueIDs(ids...)
+	return _u
+}
+
+// AddLogIssues adds the "log_issues" edges to the LogIssue entity.
+func (_u *ProjectUpdate) AddLogIssues(v ...*LogIssue) *ProjectUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddLogIssueIDs(ids...)
+}
+
 // Mutation returns the ProjectMutation object of the builder.
 func (_u *ProjectUpdate) Mutation() *ProjectMutation {
 	return _u.mutation
@@ -692,6 +789,27 @@ func (_u *ProjectUpdate) RemoveUsageDaily(v ...*UsageDaily) *ProjectUpdate {
 	return _u.RemoveUsageDailyIDs(ids...)
 }
 
+// ClearLogIssues clears all "log_issues" edges to the LogIssue entity.
+func (_u *ProjectUpdate) ClearLogIssues() *ProjectUpdate {
+	_u.mutation.ClearLogIssues()
+	return _u
+}
+
+// RemoveLogIssueIDs removes the "log_issues" edge to LogIssue entities by IDs.
+func (_u *ProjectUpdate) RemoveLogIssueIDs(ids ...int) *ProjectUpdate {
+	_u.mutation.RemoveLogIssueIDs(ids...)
+	return _u
+}
+
+// RemoveLogIssues removes "log_issues" edges to LogIssue entities.
+func (_u *ProjectUpdate) RemoveLogIssues(v ...*LogIssue) *ProjectUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveLogIssueIDs(ids...)
+}
+
 // Save executes the query and returns the number of nodes affected by the update operation.
 func (_u *ProjectUpdate) Save(ctx context.Context) (int, error) {
 	_u.defaults()
@@ -795,6 +913,30 @@ func (_u *ProjectUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.RetentionPurgedAtCleared() {
 		_spec.ClearField(project.FieldRetentionPurgedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.LogRetentionDays(); ok {
+		_spec.SetField(project.FieldLogRetentionDays, field.TypeUint16, value)
+	}
+	if value, ok := _u.mutation.AddedLogRetentionDays(); ok {
+		_spec.AddField(project.FieldLogRetentionDays, field.TypeUint16, value)
+	}
+	if value, ok := _u.mutation.LogRetentionChangedAt(); ok {
+		_spec.SetField(project.FieldLogRetentionChangedAt, field.TypeTime, value)
+	}
+	if _u.mutation.LogRetentionChangedAtCleared() {
+		_spec.ClearField(project.FieldLogRetentionChangedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.LogRetentionPurgeUntil(); ok {
+		_spec.SetField(project.FieldLogRetentionPurgeUntil, field.TypeTime, value)
+	}
+	if _u.mutation.LogRetentionPurgeUntilCleared() {
+		_spec.ClearField(project.FieldLogRetentionPurgeUntil, field.TypeTime)
+	}
+	if value, ok := _u.mutation.LogRetentionPurgedAt(); ok {
+		_spec.SetField(project.FieldLogRetentionPurgedAt, field.TypeTime, value)
+	}
+	if _u.mutation.LogRetentionPurgedAtCleared() {
+		_spec.ClearField(project.FieldLogRetentionPurgedAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.DeletionAt(); ok {
 		_spec.SetField(project.FieldDeletionAt, field.TypeTime, value)
@@ -1386,6 +1528,51 @@ func (_u *ProjectUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.LogIssuesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.LogIssuesTable,
+			Columns: []string{project.LogIssuesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(logissue.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedLogIssuesIDs(); len(nodes) > 0 && !_u.mutation.LogIssuesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.LogIssuesTable,
+			Columns: []string{project.LogIssuesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(logissue.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.LogIssuesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.LogIssuesTable,
+			Columns: []string{project.LogIssuesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(logissue.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{project.Label}
@@ -1518,6 +1705,87 @@ func (_u *ProjectUpdateOne) SetNillableRetentionPurgedAt(v *time.Time) *ProjectU
 // ClearRetentionPurgedAt clears the value of the "retention_purged_at" field.
 func (_u *ProjectUpdateOne) ClearRetentionPurgedAt() *ProjectUpdateOne {
 	_u.mutation.ClearRetentionPurgedAt()
+	return _u
+}
+
+// SetLogRetentionDays sets the "log_retention_days" field.
+func (_u *ProjectUpdateOne) SetLogRetentionDays(v uint16) *ProjectUpdateOne {
+	_u.mutation.ResetLogRetentionDays()
+	_u.mutation.SetLogRetentionDays(v)
+	return _u
+}
+
+// SetNillableLogRetentionDays sets the "log_retention_days" field if the given value is not nil.
+func (_u *ProjectUpdateOne) SetNillableLogRetentionDays(v *uint16) *ProjectUpdateOne {
+	if v != nil {
+		_u.SetLogRetentionDays(*v)
+	}
+	return _u
+}
+
+// AddLogRetentionDays adds value to the "log_retention_days" field.
+func (_u *ProjectUpdateOne) AddLogRetentionDays(v int16) *ProjectUpdateOne {
+	_u.mutation.AddLogRetentionDays(v)
+	return _u
+}
+
+// SetLogRetentionChangedAt sets the "log_retention_changed_at" field.
+func (_u *ProjectUpdateOne) SetLogRetentionChangedAt(v time.Time) *ProjectUpdateOne {
+	_u.mutation.SetLogRetentionChangedAt(v)
+	return _u
+}
+
+// SetNillableLogRetentionChangedAt sets the "log_retention_changed_at" field if the given value is not nil.
+func (_u *ProjectUpdateOne) SetNillableLogRetentionChangedAt(v *time.Time) *ProjectUpdateOne {
+	if v != nil {
+		_u.SetLogRetentionChangedAt(*v)
+	}
+	return _u
+}
+
+// ClearLogRetentionChangedAt clears the value of the "log_retention_changed_at" field.
+func (_u *ProjectUpdateOne) ClearLogRetentionChangedAt() *ProjectUpdateOne {
+	_u.mutation.ClearLogRetentionChangedAt()
+	return _u
+}
+
+// SetLogRetentionPurgeUntil sets the "log_retention_purge_until" field.
+func (_u *ProjectUpdateOne) SetLogRetentionPurgeUntil(v time.Time) *ProjectUpdateOne {
+	_u.mutation.SetLogRetentionPurgeUntil(v)
+	return _u
+}
+
+// SetNillableLogRetentionPurgeUntil sets the "log_retention_purge_until" field if the given value is not nil.
+func (_u *ProjectUpdateOne) SetNillableLogRetentionPurgeUntil(v *time.Time) *ProjectUpdateOne {
+	if v != nil {
+		_u.SetLogRetentionPurgeUntil(*v)
+	}
+	return _u
+}
+
+// ClearLogRetentionPurgeUntil clears the value of the "log_retention_purge_until" field.
+func (_u *ProjectUpdateOne) ClearLogRetentionPurgeUntil() *ProjectUpdateOne {
+	_u.mutation.ClearLogRetentionPurgeUntil()
+	return _u
+}
+
+// SetLogRetentionPurgedAt sets the "log_retention_purged_at" field.
+func (_u *ProjectUpdateOne) SetLogRetentionPurgedAt(v time.Time) *ProjectUpdateOne {
+	_u.mutation.SetLogRetentionPurgedAt(v)
+	return _u
+}
+
+// SetNillableLogRetentionPurgedAt sets the "log_retention_purged_at" field if the given value is not nil.
+func (_u *ProjectUpdateOne) SetNillableLogRetentionPurgedAt(v *time.Time) *ProjectUpdateOne {
+	if v != nil {
+		_u.SetLogRetentionPurgedAt(*v)
+	}
+	return _u
+}
+
+// ClearLogRetentionPurgedAt clears the value of the "log_retention_purged_at" field.
+func (_u *ProjectUpdateOne) ClearLogRetentionPurgedAt() *ProjectUpdateOne {
+	_u.mutation.ClearLogRetentionPurgedAt()
 	return _u
 }
 
@@ -1794,6 +2062,21 @@ func (_u *ProjectUpdateOne) AddUsageDaily(v ...*UsageDaily) *ProjectUpdateOne {
 	return _u.AddUsageDailyIDs(ids...)
 }
 
+// AddLogIssueIDs adds the "log_issues" edge to the LogIssue entity by IDs.
+func (_u *ProjectUpdateOne) AddLogIssueIDs(ids ...int) *ProjectUpdateOne {
+	_u.mutation.AddLogIssueIDs(ids...)
+	return _u
+}
+
+// AddLogIssues adds the "log_issues" edges to the LogIssue entity.
+func (_u *ProjectUpdateOne) AddLogIssues(v ...*LogIssue) *ProjectUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddLogIssueIDs(ids...)
+}
+
 // Mutation returns the ProjectMutation object of the builder.
 func (_u *ProjectUpdateOne) Mutation() *ProjectMutation {
 	return _u.mutation
@@ -2057,6 +2340,27 @@ func (_u *ProjectUpdateOne) RemoveUsageDaily(v ...*UsageDaily) *ProjectUpdateOne
 	return _u.RemoveUsageDailyIDs(ids...)
 }
 
+// ClearLogIssues clears all "log_issues" edges to the LogIssue entity.
+func (_u *ProjectUpdateOne) ClearLogIssues() *ProjectUpdateOne {
+	_u.mutation.ClearLogIssues()
+	return _u
+}
+
+// RemoveLogIssueIDs removes the "log_issues" edge to LogIssue entities by IDs.
+func (_u *ProjectUpdateOne) RemoveLogIssueIDs(ids ...int) *ProjectUpdateOne {
+	_u.mutation.RemoveLogIssueIDs(ids...)
+	return _u
+}
+
+// RemoveLogIssues removes "log_issues" edges to LogIssue entities.
+func (_u *ProjectUpdateOne) RemoveLogIssues(v ...*LogIssue) *ProjectUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveLogIssueIDs(ids...)
+}
+
 // Where appends a list predicates to the ProjectUpdate builder.
 func (_u *ProjectUpdateOne) Where(ps ...predicate.Project) *ProjectUpdateOne {
 	_u.mutation.Where(ps...)
@@ -2190,6 +2494,30 @@ func (_u *ProjectUpdateOne) sqlSave(ctx context.Context) (_node *Project, err er
 	}
 	if _u.mutation.RetentionPurgedAtCleared() {
 		_spec.ClearField(project.FieldRetentionPurgedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.LogRetentionDays(); ok {
+		_spec.SetField(project.FieldLogRetentionDays, field.TypeUint16, value)
+	}
+	if value, ok := _u.mutation.AddedLogRetentionDays(); ok {
+		_spec.AddField(project.FieldLogRetentionDays, field.TypeUint16, value)
+	}
+	if value, ok := _u.mutation.LogRetentionChangedAt(); ok {
+		_spec.SetField(project.FieldLogRetentionChangedAt, field.TypeTime, value)
+	}
+	if _u.mutation.LogRetentionChangedAtCleared() {
+		_spec.ClearField(project.FieldLogRetentionChangedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.LogRetentionPurgeUntil(); ok {
+		_spec.SetField(project.FieldLogRetentionPurgeUntil, field.TypeTime, value)
+	}
+	if _u.mutation.LogRetentionPurgeUntilCleared() {
+		_spec.ClearField(project.FieldLogRetentionPurgeUntil, field.TypeTime)
+	}
+	if value, ok := _u.mutation.LogRetentionPurgedAt(); ok {
+		_spec.SetField(project.FieldLogRetentionPurgedAt, field.TypeTime, value)
+	}
+	if _u.mutation.LogRetentionPurgedAtCleared() {
+		_spec.ClearField(project.FieldLogRetentionPurgedAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.DeletionAt(); ok {
 		_spec.SetField(project.FieldDeletionAt, field.TypeTime, value)
@@ -2774,6 +3102,51 @@ func (_u *ProjectUpdateOne) sqlSave(ctx context.Context) (_node *Project, err er
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(usagedaily.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.LogIssuesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.LogIssuesTable,
+			Columns: []string{project.LogIssuesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(logissue.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedLogIssuesIDs(); len(nodes) > 0 && !_u.mutation.LogIssuesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.LogIssuesTable,
+			Columns: []string{project.LogIssuesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(logissue.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.LogIssuesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.LogIssuesTable,
+			Columns: []string{project.LogIssuesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(logissue.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

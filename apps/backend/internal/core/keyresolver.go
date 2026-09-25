@@ -33,12 +33,27 @@ type Tenant struct {
 	PolicyTier    string `json:"policy_tier"`
 	RetentionTier uint16 `json:"retention_tier"`
 
+	// LogRetentionDays is the project's Cloud Logging retention (ADR 0050). Zero in an entry
+	// cached before the field existed, which LogRetention reads as the default.
+	LogRetentionDays uint16 `json:"log_retention_days,omitzero"`
+
 	KeyKind     string `json:"key_kind"`
 	KeyPublicID string `json:"key_public_id"`
 
 	// KeyExpiresAt is when a rolled key stops, carried so a cached entry stops with it rather
 	// than when the cache happens to expire.
 	KeyExpiresAt *time.Time `json:"key_expires_at,omitempty"`
+}
+
+// DefaultLogRetentionDays is a project's log retention until somebody chooses another.
+const DefaultLogRetentionDays = 14
+
+// LogRetention is how many days this tenant's log records are kept.
+func (t *Tenant) LogRetention() uint16 {
+	if t.LogRetentionDays == 0 {
+		return DefaultLogRetentionDays
+	}
+	return t.LogRetentionDays
 }
 
 // expired reports whether the key this tenant came from has reached its end.
@@ -309,6 +324,8 @@ func (r *KeyResolver) verify(ctx context.Context, publicID, private string) (*Te
 		Environment:   string(env.Kind),
 		PolicyTier:    string(proj.PolicyTier),
 		RetentionTier: proj.RetentionDays,
+
+		LogRetentionDays: proj.LogRetentionDays,
 
 		KeyKind:      string(key.Kind),
 		KeyPublicID:  key.PublicID,

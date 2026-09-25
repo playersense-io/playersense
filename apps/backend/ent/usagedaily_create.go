@@ -126,6 +126,34 @@ func (_c *UsageDailyCreate) SetNillableRetainedBytes(v *uint64) *UsageDailyCreat
 	return _c
 }
 
+// SetLogBytes sets the "log_bytes" field.
+func (_c *UsageDailyCreate) SetLogBytes(v uint64) *UsageDailyCreate {
+	_c.mutation.SetLogBytes(v)
+	return _c
+}
+
+// SetNillableLogBytes sets the "log_bytes" field if the given value is not nil.
+func (_c *UsageDailyCreate) SetNillableLogBytes(v *uint64) *UsageDailyCreate {
+	if v != nil {
+		_c.SetLogBytes(*v)
+	}
+	return _c
+}
+
+// SetLogIngestedBytes sets the "log_ingested_bytes" field.
+func (_c *UsageDailyCreate) SetLogIngestedBytes(v uint64) *UsageDailyCreate {
+	_c.mutation.SetLogIngestedBytes(v)
+	return _c
+}
+
+// SetNillableLogIngestedBytes sets the "log_ingested_bytes" field if the given value is not nil.
+func (_c *UsageDailyCreate) SetNillableLogIngestedBytes(v *uint64) *UsageDailyCreate {
+	if v != nil {
+		_c.SetLogIngestedBytes(*v)
+	}
+	return _c
+}
+
 // SetFinal sets the "final" field.
 func (_c *UsageDailyCreate) SetFinal(v bool) *UsageDailyCreate {
 	_c.mutation.SetFinal(v)
@@ -210,6 +238,14 @@ func (_c *UsageDailyCreate) defaults() {
 		v := usagedaily.DefaultRetainedBytes
 		_c.mutation.SetRetainedBytes(v)
 	}
+	if _, ok := _c.mutation.LogBytes(); !ok {
+		v := usagedaily.DefaultLogBytes
+		_c.mutation.SetLogBytes(v)
+	}
+	if _, ok := _c.mutation.LogIngestedBytes(); !ok {
+		v := usagedaily.DefaultLogIngestedBytes
+		_c.mutation.SetLogIngestedBytes(v)
+	}
 	if _, ok := _c.mutation.Final(); !ok {
 		v := usagedaily.DefaultFinal
 		_c.mutation.SetFinal(v)
@@ -244,6 +280,12 @@ func (_c *UsageDailyCreate) check() error {
 	}
 	if _, ok := _c.mutation.RetainedBytes(); !ok {
 		return &ValidationError{Name: "retained_bytes", err: errors.New(`ent: missing required field "UsageDaily.retained_bytes"`)}
+	}
+	if _, ok := _c.mutation.LogBytes(); !ok {
+		return &ValidationError{Name: "log_bytes", err: errors.New(`ent: missing required field "UsageDaily.log_bytes"`)}
+	}
+	if _, ok := _c.mutation.LogIngestedBytes(); !ok {
+		return &ValidationError{Name: "log_ingested_bytes", err: errors.New(`ent: missing required field "UsageDaily.log_ingested_bytes"`)}
 	}
 	if _, ok := _c.mutation.Final(); !ok {
 		return &ValidationError{Name: "final", err: errors.New(`ent: missing required field "UsageDaily.final"`)}
@@ -315,6 +357,14 @@ func (_c *UsageDailyCreate) createSpec() (*UsageDaily, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.RetainedBytes(); ok {
 		_spec.SetField(usagedaily.FieldRetainedBytes, field.TypeUint64, value)
 		_node.RetainedBytes = value
+	}
+	if value, ok := _c.mutation.LogBytes(); ok {
+		_spec.SetField(usagedaily.FieldLogBytes, field.TypeUint64, value)
+		_node.LogBytes = value
+	}
+	if value, ok := _c.mutation.LogIngestedBytes(); ok {
+		_spec.SetField(usagedaily.FieldLogIngestedBytes, field.TypeUint64, value)
+		_node.LogIngestedBytes = value
 	}
 	if value, ok := _c.mutation.Final(); ok {
 		_spec.SetField(usagedaily.FieldFinal, field.TypeBool, value)
@@ -452,6 +502,42 @@ func (u *UsageDailyUpsert) UpdateRetainedBytes() *UsageDailyUpsert {
 // AddRetainedBytes adds v to the "retained_bytes" field.
 func (u *UsageDailyUpsert) AddRetainedBytes(v uint64) *UsageDailyUpsert {
 	u.Add(usagedaily.FieldRetainedBytes, v)
+	return u
+}
+
+// SetLogBytes sets the "log_bytes" field.
+func (u *UsageDailyUpsert) SetLogBytes(v uint64) *UsageDailyUpsert {
+	u.Set(usagedaily.FieldLogBytes, v)
+	return u
+}
+
+// UpdateLogBytes sets the "log_bytes" field to the value that was provided on create.
+func (u *UsageDailyUpsert) UpdateLogBytes() *UsageDailyUpsert {
+	u.SetExcluded(usagedaily.FieldLogBytes)
+	return u
+}
+
+// AddLogBytes adds v to the "log_bytes" field.
+func (u *UsageDailyUpsert) AddLogBytes(v uint64) *UsageDailyUpsert {
+	u.Add(usagedaily.FieldLogBytes, v)
+	return u
+}
+
+// SetLogIngestedBytes sets the "log_ingested_bytes" field.
+func (u *UsageDailyUpsert) SetLogIngestedBytes(v uint64) *UsageDailyUpsert {
+	u.Set(usagedaily.FieldLogIngestedBytes, v)
+	return u
+}
+
+// UpdateLogIngestedBytes sets the "log_ingested_bytes" field to the value that was provided on create.
+func (u *UsageDailyUpsert) UpdateLogIngestedBytes() *UsageDailyUpsert {
+	u.SetExcluded(usagedaily.FieldLogIngestedBytes)
+	return u
+}
+
+// AddLogIngestedBytes adds v to the "log_ingested_bytes" field.
+func (u *UsageDailyUpsert) AddLogIngestedBytes(v uint64) *UsageDailyUpsert {
+	u.Add(usagedaily.FieldLogIngestedBytes, v)
 	return u
 }
 
@@ -604,6 +690,48 @@ func (u *UsageDailyUpsertOne) AddRetainedBytes(v uint64) *UsageDailyUpsertOne {
 func (u *UsageDailyUpsertOne) UpdateRetainedBytes() *UsageDailyUpsertOne {
 	return u.Update(func(s *UsageDailyUpsert) {
 		s.UpdateRetainedBytes()
+	})
+}
+
+// SetLogBytes sets the "log_bytes" field.
+func (u *UsageDailyUpsertOne) SetLogBytes(v uint64) *UsageDailyUpsertOne {
+	return u.Update(func(s *UsageDailyUpsert) {
+		s.SetLogBytes(v)
+	})
+}
+
+// AddLogBytes adds v to the "log_bytes" field.
+func (u *UsageDailyUpsertOne) AddLogBytes(v uint64) *UsageDailyUpsertOne {
+	return u.Update(func(s *UsageDailyUpsert) {
+		s.AddLogBytes(v)
+	})
+}
+
+// UpdateLogBytes sets the "log_bytes" field to the value that was provided on create.
+func (u *UsageDailyUpsertOne) UpdateLogBytes() *UsageDailyUpsertOne {
+	return u.Update(func(s *UsageDailyUpsert) {
+		s.UpdateLogBytes()
+	})
+}
+
+// SetLogIngestedBytes sets the "log_ingested_bytes" field.
+func (u *UsageDailyUpsertOne) SetLogIngestedBytes(v uint64) *UsageDailyUpsertOne {
+	return u.Update(func(s *UsageDailyUpsert) {
+		s.SetLogIngestedBytes(v)
+	})
+}
+
+// AddLogIngestedBytes adds v to the "log_ingested_bytes" field.
+func (u *UsageDailyUpsertOne) AddLogIngestedBytes(v uint64) *UsageDailyUpsertOne {
+	return u.Update(func(s *UsageDailyUpsert) {
+		s.AddLogIngestedBytes(v)
+	})
+}
+
+// UpdateLogIngestedBytes sets the "log_ingested_bytes" field to the value that was provided on create.
+func (u *UsageDailyUpsertOne) UpdateLogIngestedBytes() *UsageDailyUpsertOne {
+	return u.Update(func(s *UsageDailyUpsert) {
+		s.UpdateLogIngestedBytes()
 	})
 }
 
@@ -924,6 +1052,48 @@ func (u *UsageDailyUpsertBulk) AddRetainedBytes(v uint64) *UsageDailyUpsertBulk 
 func (u *UsageDailyUpsertBulk) UpdateRetainedBytes() *UsageDailyUpsertBulk {
 	return u.Update(func(s *UsageDailyUpsert) {
 		s.UpdateRetainedBytes()
+	})
+}
+
+// SetLogBytes sets the "log_bytes" field.
+func (u *UsageDailyUpsertBulk) SetLogBytes(v uint64) *UsageDailyUpsertBulk {
+	return u.Update(func(s *UsageDailyUpsert) {
+		s.SetLogBytes(v)
+	})
+}
+
+// AddLogBytes adds v to the "log_bytes" field.
+func (u *UsageDailyUpsertBulk) AddLogBytes(v uint64) *UsageDailyUpsertBulk {
+	return u.Update(func(s *UsageDailyUpsert) {
+		s.AddLogBytes(v)
+	})
+}
+
+// UpdateLogBytes sets the "log_bytes" field to the value that was provided on create.
+func (u *UsageDailyUpsertBulk) UpdateLogBytes() *UsageDailyUpsertBulk {
+	return u.Update(func(s *UsageDailyUpsert) {
+		s.UpdateLogBytes()
+	})
+}
+
+// SetLogIngestedBytes sets the "log_ingested_bytes" field.
+func (u *UsageDailyUpsertBulk) SetLogIngestedBytes(v uint64) *UsageDailyUpsertBulk {
+	return u.Update(func(s *UsageDailyUpsert) {
+		s.SetLogIngestedBytes(v)
+	})
+}
+
+// AddLogIngestedBytes adds v to the "log_ingested_bytes" field.
+func (u *UsageDailyUpsertBulk) AddLogIngestedBytes(v uint64) *UsageDailyUpsertBulk {
+	return u.Update(func(s *UsageDailyUpsert) {
+		s.AddLogIngestedBytes(v)
+	})
+}
+
+// UpdateLogIngestedBytes sets the "log_ingested_bytes" field to the value that was provided on create.
+func (u *UsageDailyUpsertBulk) UpdateLogIngestedBytes() *UsageDailyUpsertBulk {
+	return u.Update(func(s *UsageDailyUpsert) {
+		s.UpdateLogIngestedBytes()
 	})
 }
 

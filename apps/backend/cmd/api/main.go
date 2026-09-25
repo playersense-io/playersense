@@ -48,6 +48,7 @@ import (
 	"playersense.dev/backend/internal/handlers"
 	"playersense.dev/backend/internal/ingest"
 	"playersense.dev/backend/internal/liveconfig"
+	"playersense.dev/backend/internal/logs"
 	"playersense.dev/backend/internal/mail"
 	"playersense.dev/backend/internal/notify"
 	"playersense.dev/backend/internal/ops"
@@ -168,6 +169,12 @@ func build(settings config.Settings, overrides ...muzak.RouterOption) (*muzak.Ap
 		return nil, err
 	}
 
+	// Cloud Logging's topic, beside the analytics one (ADR 0050).
+	logQueue, err := newLogQueue(settings)
+	if err != nil {
+		return nil, err
+	}
+
 	notifier := notify.NewSender(sender, settings.NotifyAllowPrivate)
 
 	store, err := newStore(settings)
@@ -237,6 +244,7 @@ func build(settings config.Settings, overrides ...muzak.RouterOption) (*muzak.Ap
 			{Name: "config", Description: "What a player gets."},
 			{Name: "reporting", Description: "Reading analytics, with a key or as a person."},
 			{Name: "privacy", Description: "Erasing and exporting one player's data."},
+			{Name: "logs", Description: "Cloud Logging: the game's logs, exceptions and crashes."},
 		},
 
 		Addr: settings.Addr,
@@ -330,6 +338,7 @@ func build(settings config.Settings, overrides ...muzak.RouterOption) (*muzak.Ap
 		muzak.WithSingleton(liveStore),
 		muzak.WithSingleton(playerFacts),
 		muzak.WithSingleton(ingest.DefaultLimits()),
+		muzak.WithSingleton(ingest.DefaultLogLimits()),
 
 		// Registered as lifecycles as well as singletons: the engine and the facts cache
 		// hold them but do not own their connections, and the application opens them
@@ -340,6 +349,7 @@ func build(settings config.Settings, overrides ...muzak.RouterOption) (*muzak.Ap
 		// Published as the interface, so no handler can depend on which implementation is
 		// running — §3.6's whole point.
 		muzak.WithSingleton(bus),
+		muzak.WithSingleton(logQueue),
 		muzak.WithSingleton(sender),
 
 		// Which organizations may not ingest until they pay (ADR 0043), read from Valkey and
@@ -511,6 +521,17 @@ func build(settings config.Settings, overrides ...muzak.RouterOption) (*muzak.Ap
 			"A sign-in could not be verified right now; the credential is not necessarily bad"),
 	)
 
+	// Cloud Logging's pages (ADR 0050), in the same subtree as the reporting routes for the same
+	// reasons: the records are in this cell's ClickHouse, and a cell never creates an account.
+	app.Include(routers.Logs(),
+		muzak.WithPrefix("/v1"),
+		muzak.Needs(core.ResolveKnownUser),
+		muzak.WithResponseDoc(http.StatusUnauthorized, "No usable sign-in was presented"),
+		muzak.WithResponseDoc(http.StatusForbidden, "This account may not read this project's logs"),
+		muzak.WithResponseDoc(http.StatusServiceUnavailable,
+			"A sign-in could not be verified right now; the credential is not necessarily bad"),
+	)
+
 	// The operations console's surface (§56), behind a signed-in PlayerSense staff member.
 	//
 	// Its own subtree because its credential is different in kind: everything above resolves a
@@ -555,6 +576,22 @@ func newBus(settings config.Settings) (eventbus.Bus, error) {
 		// redelivery — but the publish side of §19 behaves identically, which is what
 		// makes this endpoint exercisable without a cloud dependency.
 		return eventbus.NewLocal(settings.EventBusDir), nil
+	default:
+		return nil, fmt.Errorf("unknown EVENT_BUS %q; want local or pubsub", settings.EventBus)
+	}
+}
+
+// newLogQueue picks the logs topic's implementation: the same choice as newBus, on a topic of its
+// own, or a spool directory of its own.
+func newLogQueue(settings config.Settings) (*logs.Queue, error) {
+	switch settings.EventBus {
+	case "pubsub":
+		if settings.PubSubProjectID == "" {
+			return nil, fmt.Errorf("EVENT_BUS=pubsub needs PUBSUB_PROJECT_ID")
+		}
+		return logs.NewQueue(eventbus.NewPubSub(settings.PubSubProjectID, settings.PubSubLogsTopic)), nil
+	case "local", "":
+		return logs.NewQueue(eventbus.NewLocal(filepath.Join(settings.EventBusDir, "logs"))), nil
 	default:
 		return nil, fmt.Errorf("unknown EVENT_BUS %q; want local or pubsub", settings.EventBus)
 	}

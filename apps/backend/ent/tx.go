@@ -56,6 +56,8 @@ type Tx struct {
 	LedgerEntry *LedgerEntryClient
 	// LiveOpsEvent is the client for interacting with the LiveOpsEvent builders.
 	LiveOpsEvent *LiveOpsEventClient
+	// LogIssue is the client for interacting with the LogIssue builders.
+	LogIssue *LogIssueClient
 	// MemberProject is the client for interacting with the MemberProject builders.
 	MemberProject *MemberProjectClient
 	// MonthlyUsage is the client for interacting with the MonthlyUsage builders.
@@ -268,6 +270,7 @@ func (tx *Tx) init() {
 	tx.InvoiceLine = NewInvoiceLineClient(tx.config)
 	tx.LedgerEntry = NewLedgerEntryClient(tx.config)
 	tx.LiveOpsEvent = NewLiveOpsEventClient(tx.config)
+	tx.LogIssue = NewLogIssueClient(tx.config)
 	tx.MemberProject = NewMemberProjectClient(tx.config)
 	tx.MonthlyUsage = NewMonthlyUsageClient(tx.config)
 	tx.NotificationChannel = NewNotificationChannelClient(tx.config)

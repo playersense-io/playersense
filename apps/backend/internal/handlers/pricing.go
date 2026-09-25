@@ -206,7 +206,7 @@ func PublishRateCard(ctx *muzak.Context, in schemas.PublishRateCardIn) (schemas.
 	}
 	created, err := db.Client.RateCard.Create().
 		SetPlanID(found.ID).
-		SetMeter(ratecard.Meter(billing.TrackedPlayers)).
+		SetMeter(ratecard.Meter(meterOr(in.Meter))).
 		SetMode(ratecard.Mode(card.Mode)).
 		SetCurrency(found.Currency).
 		SetTiers(card.Tiers).
@@ -643,4 +643,12 @@ func invalidateOrg(ctx *muzak.Context, orgID int) {
 		ctx.Logger().Warn("could not invalidate the organization's cached pricing; it expires on its own",
 			"org_id", orgID, "error", err)
 	}
+}
+
+// meterOr is the meter a card is published for: tracked players unless the input names another.
+func meterOr(meter string) billing.Meter {
+	if meter == "" {
+		return billing.TrackedPlayers
+	}
+	return billing.Meter(meter)
 }

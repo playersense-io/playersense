@@ -19,6 +19,7 @@ import (
 	"playersense.dev/backend/ent/experiment"
 	"playersense.dev/backend/ent/featureflag"
 	"playersense.dev/backend/ent/liveopsevent"
+	"playersense.dev/backend/ent/logissue"
 	"playersense.dev/backend/ent/memberproject"
 	"playersense.dev/backend/ent/notificationchannel"
 	"playersense.dev/backend/ent/organization"
@@ -50,6 +51,7 @@ type ProjectQuery struct {
 	withReports              *ReportQuery
 	withMemberAccess         *MemberProjectQuery
 	withUsageDaily           *UsageDailyQuery
+	withLogIssues            *LogIssueQuery
 	modifiers                []func(*sql.Selector)
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
@@ -373,6 +375,28 @@ func (_q *ProjectQuery) QueryUsageDaily() *UsageDailyQuery {
 	return query
 }
 
+// QueryLogIssues chains the current query on the "log_issues" edge.
+func (_q *ProjectQuery) QueryLogIssues() *LogIssueQuery {
+	query := (&LogIssueClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(project.Table, project.FieldID, selector),
+			sqlgraph.To(logissue.Table, logissue.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, project.LogIssuesTable, project.LogIssuesColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
 // First returns the first Project entity from the query.
 // Returns a *NotFoundError when no Project was found.
 func (_q *ProjectQuery) First(ctx context.Context) (*Project, error) {
@@ -578,6 +602,7 @@ func (_q *ProjectQuery) Clone() *ProjectQuery {
 		withReports:              _q.withReports.Clone(),
 		withMemberAccess:         _q.withMemberAccess.Clone(),
 		withUsageDaily:           _q.withUsageDaily.Clone(),
+		withLogIssues:            _q.withLogIssues.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -727,6 +752,17 @@ func (_q *ProjectQuery) WithUsageDaily(opts ...func(*UsageDailyQuery)) *ProjectQ
 	return _q
 }
 
+// WithLogIssues tells the query-builder to eager-load the nodes that are connected to
+// the "log_issues" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *ProjectQuery) WithLogIssues(opts ...func(*LogIssueQuery)) *ProjectQuery {
+	query := (&LogIssueClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withLogIssues = query
+	return _q
+}
+
 // GroupBy is used to group vertices by one or more fields/columns.
 // It is often used with aggregate functions, like: count, max, mean, min, sum.
 //
@@ -805,7 +841,7 @@ func (_q *ProjectQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Proj
 	var (
 		nodes       = []*Project{}
 		_spec       = _q.querySpec()
-		loadedTypes = [13]bool{
+		loadedTypes = [14]bool{
 			_q.withOrganization != nil,
 			_q.withEnvironments != nil,
 			_q.withSegments != nil,
@@ -819,6 +855,7 @@ func (_q *ProjectQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Proj
 			_q.withReports != nil,
 			_q.withMemberAccess != nil,
 			_q.withUsageDaily != nil,
+			_q.withLogIssues != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -931,6 +968,13 @@ func (_q *ProjectQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Proj
 		if err := _q.loadUsageDaily(ctx, query, nodes,
 			func(n *Project) { n.Edges.UsageDaily = []*UsageDaily{} },
 			func(n *Project, e *UsageDaily) { n.Edges.UsageDaily = append(n.Edges.UsageDaily, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withLogIssues; query != nil {
+		if err := _q.loadLogIssues(ctx, query, nodes,
+			func(n *Project) { n.Edges.LogIssues = []*LogIssue{} },
+			func(n *Project, e *LogIssue) { n.Edges.LogIssues = append(n.Edges.LogIssues, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -1311,6 +1355,36 @@ func (_q *ProjectQuery) loadUsageDaily(ctx context.Context, query *UsageDailyQue
 	}
 	query.Where(predicate.UsageDaily(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(project.UsageDailyColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.ProjectID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "project_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *ProjectQuery) loadLogIssues(ctx context.Context, query *LogIssueQuery, nodes []*Project, init func(*Project), assign func(*Project, *LogIssue)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Project)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(logissue.FieldProjectID)
+	}
+	query.Where(predicate.LogIssue(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(project.LogIssuesColumn), fks...))
 	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {

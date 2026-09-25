@@ -25,6 +25,7 @@ import (
 	"playersense.dev/backend/internal/chdb"
 	"playersense.dev/backend/internal/config"
 	"playersense.dev/backend/internal/eventbus"
+	"playersense.dev/backend/internal/logs"
 	"playersense.dev/backend/internal/routers"
 	"playersense.dev/backend/internal/valkey"
 	"playersense.dev/backend/internal/writer"
@@ -60,6 +61,15 @@ func build(settings config.Settings) (*muzak.App, error) {
 		MaxAttempts:      settings.WriterMaxAttempts,
 	})
 
+	// Cloud Logging's writer (ADR 0050), on its own topic and subscription in this same process:
+	// one always-on process is cheaper than two, and the positions are separate, so neither
+	// stream can hold the other back.
+	logQueue, err := newLogQueue(settings)
+	if err != nil {
+		return nil, err
+	}
+	logWriter := &logs.Writer{Queue: logQueue, CH: ch, Log: logger, MaxRows: settings.WriterBatchSize}
+
 	app := muzak.New(muzak.AppOptions{
 		Title:       "PlayerSense Analytics Writer",
 		Version:     "0.1.0",
@@ -87,6 +97,8 @@ func build(settings config.Settings) (*muzak.App, error) {
 		// components start in parallel but the writer dials nothing in Start, so there is
 		// no ordering to get wrong there.
 		muzak.WithSingleton(consumer),
+		muzak.WithSingleton(logQueue),
+		muzak.WithSingleton(logWriter),
 	)
 
 	app.Include(routers.Meta())
@@ -113,6 +125,27 @@ func newBus(settings config.Settings) (eventbus.Bus, error) {
 		bus.SetPollInterval(settings.WriterFlushInterval)
 		bus.SetLogger(slog.Default())
 		return bus, nil
+	default:
+		return nil, fmt.Errorf("unknown EVENT_BUS %q; want local or pubsub", settings.EventBus)
+	}
+}
+
+// newLogQueue is newBus for the logs topic, and must agree with the API's for the same reason.
+func newLogQueue(settings config.Settings) (*logs.Queue, error) {
+	switch settings.EventBus {
+	case "pubsub":
+		if settings.PubSubProjectID == "" {
+			return nil, fmt.Errorf("EVENT_BUS=pubsub needs PUBSUB_PROJECT_ID")
+		}
+		bus := eventbus.NewPubSub(settings.PubSubProjectID, settings.PubSubLogsTopic)
+		bus.SetDelivery(settings.BusDeliveryMaxRows,
+			settings.BusDeliveryMaxMessages, settings.BusDeliveryMaxWait)
+		return logs.NewQueue(bus), nil
+	case "local", "":
+		bus := eventbus.NewLocal(filepath.Join(settings.EventBusDir, "logs"))
+		bus.SetPollInterval(settings.WriterFlushInterval)
+		bus.SetLogger(slog.Default())
+		return logs.NewQueue(bus), nil
 	default:
 		return nil, fmt.Errorf("unknown EVENT_BUS %q; want local or pubsub", settings.EventBus)
 	}

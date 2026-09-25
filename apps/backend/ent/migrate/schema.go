@@ -955,6 +955,40 @@ var (
 			},
 		},
 	}
+	// LogIssuesColumns holds the columns for the "log_issues" table.
+	LogIssuesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
+		{Name: "uid", Type: field.TypeUUID, Unique: true, Comment: "class=none"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "updated_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "environment", Type: field.TypeEnum, Comment: "class=none", Enums: []string{"development", "staging", "production"}},
+		{Name: "fingerprint", Type: field.TypeString, Size: 20, Comment: "class=none"},
+		{Name: "status", Type: field.TypeEnum, Comment: "class=none", Enums: []string{"unresolved", "resolved", "ignored"}, Default: "unresolved"},
+		{Name: "resolved_at", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
+		{Name: "updated_by", Type: field.TypeString, Size: 254, Comment: "class=none", Default: ""},
+		{Name: "project_id", Type: field.TypeInt, Comment: "class=none"},
+	}
+	// LogIssuesTable holds the schema information for the "log_issues" table.
+	LogIssuesTable = &schema.Table{
+		Name:       "log_issues",
+		Columns:    LogIssuesColumns,
+		PrimaryKey: []*schema.Column{LogIssuesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "log_issues_projects_log_issues",
+				Columns:    []*schema.Column{LogIssuesColumns[9]},
+				RefColumns: []*schema.Column{ProjectsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "logissue_environment_fingerprint_project_id",
+				Unique:  true,
+				Columns: []*schema.Column{LogIssuesColumns[4], LogIssuesColumns[5], LogIssuesColumns[9]},
+			},
+		},
+	}
 	// MemberProjectsColumns holds the columns for the "member_projects" table.
 	MemberProjectsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
@@ -1001,6 +1035,11 @@ var (
 		{Name: "period_start", Type: field.TypeTime, Comment: "class=none"},
 		{Name: "tracked_players", Type: field.TypeInt64, Comment: "class=none", Default: 0},
 		{Name: "charged_micros", Type: field.TypeInt64, Comment: "class=financial", Default: 0},
+		{Name: "log_ingest_mb", Type: field.TypeInt64, Comment: "class=none", Default: 0},
+		{Name: "log_byte_days", Type: field.TypeInt64, Comment: "class=none", Default: 0},
+		{Name: "log_storage_gb_days", Type: field.TypeInt64, Comment: "class=none", Default: 0},
+		{Name: "log_storage_through", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
+		{Name: "log_charged_micros", Type: field.TypeInt64, Comment: "class=financial", Default: 0},
 		{Name: "account_id", Type: field.TypeInt, Comment: "class=none"},
 	}
 	// MonthlyUsageTable holds the schema information for the "monthly_usage" table.
@@ -1011,7 +1050,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "monthly_usage_billing_accounts_monthly_usage",
-				Columns:    []*schema.Column{MonthlyUsageColumns[7]},
+				Columns:    []*schema.Column{MonthlyUsageColumns[12]},
 				RefColumns: []*schema.Column{BillingAccountsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -1020,7 +1059,7 @@ var (
 			{
 				Name:    "monthlyusage_period_start_account_id",
 				Unique:  true,
-				Columns: []*schema.Column{MonthlyUsageColumns[4], MonthlyUsageColumns[7]},
+				Columns: []*schema.Column{MonthlyUsageColumns[4], MonthlyUsageColumns[12]},
 			},
 		},
 	}
@@ -1202,6 +1241,10 @@ var (
 		{Name: "retention_changed_at", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
 		{Name: "retention_purge_until", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
 		{Name: "retention_purged_at", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
+		{Name: "log_retention_days", Type: field.TypeUint16, Comment: "class=none", Default: 14},
+		{Name: "log_retention_changed_at", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
+		{Name: "log_retention_purge_until", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
+		{Name: "log_retention_purged_at", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
 		{Name: "deletion_at", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
 		{Name: "deletion_requested_by", Type: field.TypeString, Size: 254, Comment: "class=none", Default: ""},
 		{Name: "deleted_at", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
@@ -1216,7 +1259,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "projects_organizations_projects",
-				Columns:    []*schema.Column{ProjectsColumns[15]},
+				Columns:    []*schema.Column{ProjectsColumns[19]},
 				RefColumns: []*schema.Column{OrganizationsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -1225,7 +1268,7 @@ var (
 			{
 				Name:    "project_slug_organization_id",
 				Unique:  true,
-				Columns: []*schema.Column{ProjectsColumns[5], ProjectsColumns[15]},
+				Columns: []*schema.Column{ProjectsColumns[5], ProjectsColumns[19]},
 			},
 		},
 	}
@@ -1355,7 +1398,7 @@ var (
 		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
 		{Name: "uid", Type: field.TypeUUID, Unique: true, Comment: "class=none"},
 		{Name: "created_at", Type: field.TypeTime, Comment: "class=none"},
-		{Name: "meter", Type: field.TypeEnum, Comment: "class=none", Enums: []string{"tracked_players"}},
+		{Name: "meter", Type: field.TypeEnum, Comment: "class=none", Enums: []string{"tracked_players", "log_ingest_mb", "log_storage_gb_days"}},
 		{Name: "mode", Type: field.TypeEnum, Comment: "class=none", Enums: []string{"graduated", "volume"}, Default: "graduated"},
 		{Name: "currency", Type: field.TypeString, Size: 3, Comment: "class=financial", Default: "usd"},
 		{Name: "tiers", Type: field.TypeJSON, Comment: "class=financial"},
@@ -1849,6 +1892,8 @@ var (
 		{Name: "tracked_players", Type: field.TypeUint64, Comment: "class=none", Default: 0},
 		{Name: "events_accepted", Type: field.TypeUint64, Comment: "class=none", Default: 0},
 		{Name: "retained_bytes", Type: field.TypeUint64, Comment: "class=none", Default: 0},
+		{Name: "log_bytes", Type: field.TypeUint64, Comment: "class=none", Default: 0},
+		{Name: "log_ingested_bytes", Type: field.TypeUint64, Comment: "class=none", Default: 0},
 		{Name: "final", Type: field.TypeBool, Comment: "class=none", Default: false},
 		{Name: "project_id", Type: field.TypeInt, Comment: "class=none"},
 	}
@@ -1860,7 +1905,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "usage_daily_projects_usage_daily",
-				Columns:    []*schema.Column{UsageDailyColumns[10]},
+				Columns:    []*schema.Column{UsageDailyColumns[12]},
 				RefColumns: []*schema.Column{ProjectsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -1869,7 +1914,7 @@ var (
 			{
 				Name:    "usagedaily_day_project_id",
 				Unique:  true,
-				Columns: []*schema.Column{UsageDailyColumns[5], UsageDailyColumns[10]},
+				Columns: []*schema.Column{UsageDailyColumns[5], UsageDailyColumns[12]},
 			},
 			{
 				Name:    "usagedaily_organization_id_day",
@@ -2090,6 +2135,7 @@ var (
 		InvoiceLinesTable,
 		LedgerEntriesTable,
 		LiveopsEventsTable,
+		LogIssuesTable,
 		MemberProjectsTable,
 		MonthlyUsageTable,
 		NotificationChannelsTable,
@@ -2155,6 +2201,7 @@ func init() {
 	LiveopsEventsTable.Annotation = &entsql.Annotation{
 		Table: "liveops_events",
 	}
+	LogIssuesTable.ForeignKeys[0].RefTable = ProjectsTable
 	MemberProjectsTable.ForeignKeys[0].RefTable = OrganizationMembersTable
 	MemberProjectsTable.ForeignKeys[1].RefTable = ProjectsTable
 	MonthlyUsageTable.ForeignKeys[0].RefTable = BillingAccountsTable

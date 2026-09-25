@@ -106,6 +106,76 @@ func (_c *MonthlyUsageCreate) SetNillableChargedMicros(v *int64) *MonthlyUsageCr
 	return _c
 }
 
+// SetLogIngestMB sets the "log_ingest_mb" field.
+func (_c *MonthlyUsageCreate) SetLogIngestMB(v int64) *MonthlyUsageCreate {
+	_c.mutation.SetLogIngestMB(v)
+	return _c
+}
+
+// SetNillableLogIngestMB sets the "log_ingest_mb" field if the given value is not nil.
+func (_c *MonthlyUsageCreate) SetNillableLogIngestMB(v *int64) *MonthlyUsageCreate {
+	if v != nil {
+		_c.SetLogIngestMB(*v)
+	}
+	return _c
+}
+
+// SetLogByteDays sets the "log_byte_days" field.
+func (_c *MonthlyUsageCreate) SetLogByteDays(v int64) *MonthlyUsageCreate {
+	_c.mutation.SetLogByteDays(v)
+	return _c
+}
+
+// SetNillableLogByteDays sets the "log_byte_days" field if the given value is not nil.
+func (_c *MonthlyUsageCreate) SetNillableLogByteDays(v *int64) *MonthlyUsageCreate {
+	if v != nil {
+		_c.SetLogByteDays(*v)
+	}
+	return _c
+}
+
+// SetLogStorageGBDays sets the "log_storage_gb_days" field.
+func (_c *MonthlyUsageCreate) SetLogStorageGBDays(v int64) *MonthlyUsageCreate {
+	_c.mutation.SetLogStorageGBDays(v)
+	return _c
+}
+
+// SetNillableLogStorageGBDays sets the "log_storage_gb_days" field if the given value is not nil.
+func (_c *MonthlyUsageCreate) SetNillableLogStorageGBDays(v *int64) *MonthlyUsageCreate {
+	if v != nil {
+		_c.SetLogStorageGBDays(*v)
+	}
+	return _c
+}
+
+// SetLogStorageThrough sets the "log_storage_through" field.
+func (_c *MonthlyUsageCreate) SetLogStorageThrough(v time.Time) *MonthlyUsageCreate {
+	_c.mutation.SetLogStorageThrough(v)
+	return _c
+}
+
+// SetNillableLogStorageThrough sets the "log_storage_through" field if the given value is not nil.
+func (_c *MonthlyUsageCreate) SetNillableLogStorageThrough(v *time.Time) *MonthlyUsageCreate {
+	if v != nil {
+		_c.SetLogStorageThrough(*v)
+	}
+	return _c
+}
+
+// SetLogChargedMicros sets the "log_charged_micros" field.
+func (_c *MonthlyUsageCreate) SetLogChargedMicros(v int64) *MonthlyUsageCreate {
+	_c.mutation.SetLogChargedMicros(v)
+	return _c
+}
+
+// SetNillableLogChargedMicros sets the "log_charged_micros" field if the given value is not nil.
+func (_c *MonthlyUsageCreate) SetNillableLogChargedMicros(v *int64) *MonthlyUsageCreate {
+	if v != nil {
+		_c.SetLogChargedMicros(*v)
+	}
+	return _c
+}
+
 // SetID sets the "id" field.
 func (_c *MonthlyUsageCreate) SetID(v int) *MonthlyUsageCreate {
 	_c.mutation.SetID(v)
@@ -172,6 +242,22 @@ func (_c *MonthlyUsageCreate) defaults() {
 		v := monthlyusage.DefaultChargedMicros
 		_c.mutation.SetChargedMicros(v)
 	}
+	if _, ok := _c.mutation.LogIngestMB(); !ok {
+		v := monthlyusage.DefaultLogIngestMB
+		_c.mutation.SetLogIngestMB(v)
+	}
+	if _, ok := _c.mutation.LogByteDays(); !ok {
+		v := monthlyusage.DefaultLogByteDays
+		_c.mutation.SetLogByteDays(v)
+	}
+	if _, ok := _c.mutation.LogStorageGBDays(); !ok {
+		v := monthlyusage.DefaultLogStorageGBDays
+		_c.mutation.SetLogStorageGBDays(v)
+	}
+	if _, ok := _c.mutation.LogChargedMicros(); !ok {
+		v := monthlyusage.DefaultLogChargedMicros
+		_c.mutation.SetLogChargedMicros(v)
+	}
 }
 
 // check runs all checks and user-defined validators on the builder.
@@ -201,6 +287,33 @@ func (_c *MonthlyUsageCreate) check() error {
 	}
 	if _, ok := _c.mutation.ChargedMicros(); !ok {
 		return &ValidationError{Name: "charged_micros", err: errors.New(`ent: missing required field "MonthlyUsage.charged_micros"`)}
+	}
+	if _, ok := _c.mutation.LogIngestMB(); !ok {
+		return &ValidationError{Name: "log_ingest_mb", err: errors.New(`ent: missing required field "MonthlyUsage.log_ingest_mb"`)}
+	}
+	if v, ok := _c.mutation.LogIngestMB(); ok {
+		if err := monthlyusage.LogIngestMBValidator(v); err != nil {
+			return &ValidationError{Name: "log_ingest_mb", err: fmt.Errorf(`ent: validator failed for field "MonthlyUsage.log_ingest_mb": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.LogByteDays(); !ok {
+		return &ValidationError{Name: "log_byte_days", err: errors.New(`ent: missing required field "MonthlyUsage.log_byte_days"`)}
+	}
+	if v, ok := _c.mutation.LogByteDays(); ok {
+		if err := monthlyusage.LogByteDaysValidator(v); err != nil {
+			return &ValidationError{Name: "log_byte_days", err: fmt.Errorf(`ent: validator failed for field "MonthlyUsage.log_byte_days": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.LogStorageGBDays(); !ok {
+		return &ValidationError{Name: "log_storage_gb_days", err: errors.New(`ent: missing required field "MonthlyUsage.log_storage_gb_days"`)}
+	}
+	if v, ok := _c.mutation.LogStorageGBDays(); ok {
+		if err := monthlyusage.LogStorageGBDaysValidator(v); err != nil {
+			return &ValidationError{Name: "log_storage_gb_days", err: fmt.Errorf(`ent: validator failed for field "MonthlyUsage.log_storage_gb_days": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.LogChargedMicros(); !ok {
+		return &ValidationError{Name: "log_charged_micros", err: errors.New(`ent: missing required field "MonthlyUsage.log_charged_micros"`)}
 	}
 	if len(_c.mutation.AccountIDs()) == 0 {
 		return &ValidationError{Name: "account", err: errors.New(`ent: missing required edge "MonthlyUsage.account"`)}
@@ -261,6 +374,26 @@ func (_c *MonthlyUsageCreate) createSpec() (*MonthlyUsage, *sqlgraph.CreateSpec)
 	if value, ok := _c.mutation.ChargedMicros(); ok {
 		_spec.SetField(monthlyusage.FieldChargedMicros, field.TypeInt64, value)
 		_node.ChargedMicros = value
+	}
+	if value, ok := _c.mutation.LogIngestMB(); ok {
+		_spec.SetField(monthlyusage.FieldLogIngestMB, field.TypeInt64, value)
+		_node.LogIngestMB = value
+	}
+	if value, ok := _c.mutation.LogByteDays(); ok {
+		_spec.SetField(monthlyusage.FieldLogByteDays, field.TypeInt64, value)
+		_node.LogByteDays = value
+	}
+	if value, ok := _c.mutation.LogStorageGBDays(); ok {
+		_spec.SetField(monthlyusage.FieldLogStorageGBDays, field.TypeInt64, value)
+		_node.LogStorageGBDays = value
+	}
+	if value, ok := _c.mutation.LogStorageThrough(); ok {
+		_spec.SetField(monthlyusage.FieldLogStorageThrough, field.TypeTime, value)
+		_node.LogStorageThrough = &value
+	}
+	if value, ok := _c.mutation.LogChargedMicros(); ok {
+		_spec.SetField(monthlyusage.FieldLogChargedMicros, field.TypeInt64, value)
+		_node.LogChargedMicros = value
 	}
 	if nodes := _c.mutation.AccountIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
@@ -379,6 +512,96 @@ func (u *MonthlyUsageUpsert) AddChargedMicros(v int64) *MonthlyUsageUpsert {
 	return u
 }
 
+// SetLogIngestMB sets the "log_ingest_mb" field.
+func (u *MonthlyUsageUpsert) SetLogIngestMB(v int64) *MonthlyUsageUpsert {
+	u.Set(monthlyusage.FieldLogIngestMB, v)
+	return u
+}
+
+// UpdateLogIngestMB sets the "log_ingest_mb" field to the value that was provided on create.
+func (u *MonthlyUsageUpsert) UpdateLogIngestMB() *MonthlyUsageUpsert {
+	u.SetExcluded(monthlyusage.FieldLogIngestMB)
+	return u
+}
+
+// AddLogIngestMB adds v to the "log_ingest_mb" field.
+func (u *MonthlyUsageUpsert) AddLogIngestMB(v int64) *MonthlyUsageUpsert {
+	u.Add(monthlyusage.FieldLogIngestMB, v)
+	return u
+}
+
+// SetLogByteDays sets the "log_byte_days" field.
+func (u *MonthlyUsageUpsert) SetLogByteDays(v int64) *MonthlyUsageUpsert {
+	u.Set(monthlyusage.FieldLogByteDays, v)
+	return u
+}
+
+// UpdateLogByteDays sets the "log_byte_days" field to the value that was provided on create.
+func (u *MonthlyUsageUpsert) UpdateLogByteDays() *MonthlyUsageUpsert {
+	u.SetExcluded(monthlyusage.FieldLogByteDays)
+	return u
+}
+
+// AddLogByteDays adds v to the "log_byte_days" field.
+func (u *MonthlyUsageUpsert) AddLogByteDays(v int64) *MonthlyUsageUpsert {
+	u.Add(monthlyusage.FieldLogByteDays, v)
+	return u
+}
+
+// SetLogStorageGBDays sets the "log_storage_gb_days" field.
+func (u *MonthlyUsageUpsert) SetLogStorageGBDays(v int64) *MonthlyUsageUpsert {
+	u.Set(monthlyusage.FieldLogStorageGBDays, v)
+	return u
+}
+
+// UpdateLogStorageGBDays sets the "log_storage_gb_days" field to the value that was provided on create.
+func (u *MonthlyUsageUpsert) UpdateLogStorageGBDays() *MonthlyUsageUpsert {
+	u.SetExcluded(monthlyusage.FieldLogStorageGBDays)
+	return u
+}
+
+// AddLogStorageGBDays adds v to the "log_storage_gb_days" field.
+func (u *MonthlyUsageUpsert) AddLogStorageGBDays(v int64) *MonthlyUsageUpsert {
+	u.Add(monthlyusage.FieldLogStorageGBDays, v)
+	return u
+}
+
+// SetLogStorageThrough sets the "log_storage_through" field.
+func (u *MonthlyUsageUpsert) SetLogStorageThrough(v time.Time) *MonthlyUsageUpsert {
+	u.Set(monthlyusage.FieldLogStorageThrough, v)
+	return u
+}
+
+// UpdateLogStorageThrough sets the "log_storage_through" field to the value that was provided on create.
+func (u *MonthlyUsageUpsert) UpdateLogStorageThrough() *MonthlyUsageUpsert {
+	u.SetExcluded(monthlyusage.FieldLogStorageThrough)
+	return u
+}
+
+// ClearLogStorageThrough clears the value of the "log_storage_through" field.
+func (u *MonthlyUsageUpsert) ClearLogStorageThrough() *MonthlyUsageUpsert {
+	u.SetNull(monthlyusage.FieldLogStorageThrough)
+	return u
+}
+
+// SetLogChargedMicros sets the "log_charged_micros" field.
+func (u *MonthlyUsageUpsert) SetLogChargedMicros(v int64) *MonthlyUsageUpsert {
+	u.Set(monthlyusage.FieldLogChargedMicros, v)
+	return u
+}
+
+// UpdateLogChargedMicros sets the "log_charged_micros" field to the value that was provided on create.
+func (u *MonthlyUsageUpsert) UpdateLogChargedMicros() *MonthlyUsageUpsert {
+	u.SetExcluded(monthlyusage.FieldLogChargedMicros)
+	return u
+}
+
+// AddLogChargedMicros adds v to the "log_charged_micros" field.
+func (u *MonthlyUsageUpsert) AddLogChargedMicros(v int64) *MonthlyUsageUpsert {
+	u.Add(monthlyusage.FieldLogChargedMicros, v)
+	return u
+}
+
 // UpdateNewValues updates the mutable fields using the new values that were set on create except the ID field.
 // Using this option is equivalent to using:
 //
@@ -492,6 +715,111 @@ func (u *MonthlyUsageUpsertOne) AddChargedMicros(v int64) *MonthlyUsageUpsertOne
 func (u *MonthlyUsageUpsertOne) UpdateChargedMicros() *MonthlyUsageUpsertOne {
 	return u.Update(func(s *MonthlyUsageUpsert) {
 		s.UpdateChargedMicros()
+	})
+}
+
+// SetLogIngestMB sets the "log_ingest_mb" field.
+func (u *MonthlyUsageUpsertOne) SetLogIngestMB(v int64) *MonthlyUsageUpsertOne {
+	return u.Update(func(s *MonthlyUsageUpsert) {
+		s.SetLogIngestMB(v)
+	})
+}
+
+// AddLogIngestMB adds v to the "log_ingest_mb" field.
+func (u *MonthlyUsageUpsertOne) AddLogIngestMB(v int64) *MonthlyUsageUpsertOne {
+	return u.Update(func(s *MonthlyUsageUpsert) {
+		s.AddLogIngestMB(v)
+	})
+}
+
+// UpdateLogIngestMB sets the "log_ingest_mb" field to the value that was provided on create.
+func (u *MonthlyUsageUpsertOne) UpdateLogIngestMB() *MonthlyUsageUpsertOne {
+	return u.Update(func(s *MonthlyUsageUpsert) {
+		s.UpdateLogIngestMB()
+	})
+}
+
+// SetLogByteDays sets the "log_byte_days" field.
+func (u *MonthlyUsageUpsertOne) SetLogByteDays(v int64) *MonthlyUsageUpsertOne {
+	return u.Update(func(s *MonthlyUsageUpsert) {
+		s.SetLogByteDays(v)
+	})
+}
+
+// AddLogByteDays adds v to the "log_byte_days" field.
+func (u *MonthlyUsageUpsertOne) AddLogByteDays(v int64) *MonthlyUsageUpsertOne {
+	return u.Update(func(s *MonthlyUsageUpsert) {
+		s.AddLogByteDays(v)
+	})
+}
+
+// UpdateLogByteDays sets the "log_byte_days" field to the value that was provided on create.
+func (u *MonthlyUsageUpsertOne) UpdateLogByteDays() *MonthlyUsageUpsertOne {
+	return u.Update(func(s *MonthlyUsageUpsert) {
+		s.UpdateLogByteDays()
+	})
+}
+
+// SetLogStorageGBDays sets the "log_storage_gb_days" field.
+func (u *MonthlyUsageUpsertOne) SetLogStorageGBDays(v int64) *MonthlyUsageUpsertOne {
+	return u.Update(func(s *MonthlyUsageUpsert) {
+		s.SetLogStorageGBDays(v)
+	})
+}
+
+// AddLogStorageGBDays adds v to the "log_storage_gb_days" field.
+func (u *MonthlyUsageUpsertOne) AddLogStorageGBDays(v int64) *MonthlyUsageUpsertOne {
+	return u.Update(func(s *MonthlyUsageUpsert) {
+		s.AddLogStorageGBDays(v)
+	})
+}
+
+// UpdateLogStorageGBDays sets the "log_storage_gb_days" field to the value that was provided on create.
+func (u *MonthlyUsageUpsertOne) UpdateLogStorageGBDays() *MonthlyUsageUpsertOne {
+	return u.Update(func(s *MonthlyUsageUpsert) {
+		s.UpdateLogStorageGBDays()
+	})
+}
+
+// SetLogStorageThrough sets the "log_storage_through" field.
+func (u *MonthlyUsageUpsertOne) SetLogStorageThrough(v time.Time) *MonthlyUsageUpsertOne {
+	return u.Update(func(s *MonthlyUsageUpsert) {
+		s.SetLogStorageThrough(v)
+	})
+}
+
+// UpdateLogStorageThrough sets the "log_storage_through" field to the value that was provided on create.
+func (u *MonthlyUsageUpsertOne) UpdateLogStorageThrough() *MonthlyUsageUpsertOne {
+	return u.Update(func(s *MonthlyUsageUpsert) {
+		s.UpdateLogStorageThrough()
+	})
+}
+
+// ClearLogStorageThrough clears the value of the "log_storage_through" field.
+func (u *MonthlyUsageUpsertOne) ClearLogStorageThrough() *MonthlyUsageUpsertOne {
+	return u.Update(func(s *MonthlyUsageUpsert) {
+		s.ClearLogStorageThrough()
+	})
+}
+
+// SetLogChargedMicros sets the "log_charged_micros" field.
+func (u *MonthlyUsageUpsertOne) SetLogChargedMicros(v int64) *MonthlyUsageUpsertOne {
+	return u.Update(func(s *MonthlyUsageUpsert) {
+		s.SetLogChargedMicros(v)
+	})
+}
+
+// AddLogChargedMicros adds v to the "log_charged_micros" field.
+func (u *MonthlyUsageUpsertOne) AddLogChargedMicros(v int64) *MonthlyUsageUpsertOne {
+	return u.Update(func(s *MonthlyUsageUpsert) {
+		s.AddLogChargedMicros(v)
+	})
+}
+
+// UpdateLogChargedMicros sets the "log_charged_micros" field to the value that was provided on create.
+func (u *MonthlyUsageUpsertOne) UpdateLogChargedMicros() *MonthlyUsageUpsertOne {
+	return u.Update(func(s *MonthlyUsageUpsert) {
+		s.UpdateLogChargedMicros()
 	})
 }
 
@@ -774,6 +1102,111 @@ func (u *MonthlyUsageUpsertBulk) AddChargedMicros(v int64) *MonthlyUsageUpsertBu
 func (u *MonthlyUsageUpsertBulk) UpdateChargedMicros() *MonthlyUsageUpsertBulk {
 	return u.Update(func(s *MonthlyUsageUpsert) {
 		s.UpdateChargedMicros()
+	})
+}
+
+// SetLogIngestMB sets the "log_ingest_mb" field.
+func (u *MonthlyUsageUpsertBulk) SetLogIngestMB(v int64) *MonthlyUsageUpsertBulk {
+	return u.Update(func(s *MonthlyUsageUpsert) {
+		s.SetLogIngestMB(v)
+	})
+}
+
+// AddLogIngestMB adds v to the "log_ingest_mb" field.
+func (u *MonthlyUsageUpsertBulk) AddLogIngestMB(v int64) *MonthlyUsageUpsertBulk {
+	return u.Update(func(s *MonthlyUsageUpsert) {
+		s.AddLogIngestMB(v)
+	})
+}
+
+// UpdateLogIngestMB sets the "log_ingest_mb" field to the value that was provided on create.
+func (u *MonthlyUsageUpsertBulk) UpdateLogIngestMB() *MonthlyUsageUpsertBulk {
+	return u.Update(func(s *MonthlyUsageUpsert) {
+		s.UpdateLogIngestMB()
+	})
+}
+
+// SetLogByteDays sets the "log_byte_days" field.
+func (u *MonthlyUsageUpsertBulk) SetLogByteDays(v int64) *MonthlyUsageUpsertBulk {
+	return u.Update(func(s *MonthlyUsageUpsert) {
+		s.SetLogByteDays(v)
+	})
+}
+
+// AddLogByteDays adds v to the "log_byte_days" field.
+func (u *MonthlyUsageUpsertBulk) AddLogByteDays(v int64) *MonthlyUsageUpsertBulk {
+	return u.Update(func(s *MonthlyUsageUpsert) {
+		s.AddLogByteDays(v)
+	})
+}
+
+// UpdateLogByteDays sets the "log_byte_days" field to the value that was provided on create.
+func (u *MonthlyUsageUpsertBulk) UpdateLogByteDays() *MonthlyUsageUpsertBulk {
+	return u.Update(func(s *MonthlyUsageUpsert) {
+		s.UpdateLogByteDays()
+	})
+}
+
+// SetLogStorageGBDays sets the "log_storage_gb_days" field.
+func (u *MonthlyUsageUpsertBulk) SetLogStorageGBDays(v int64) *MonthlyUsageUpsertBulk {
+	return u.Update(func(s *MonthlyUsageUpsert) {
+		s.SetLogStorageGBDays(v)
+	})
+}
+
+// AddLogStorageGBDays adds v to the "log_storage_gb_days" field.
+func (u *MonthlyUsageUpsertBulk) AddLogStorageGBDays(v int64) *MonthlyUsageUpsertBulk {
+	return u.Update(func(s *MonthlyUsageUpsert) {
+		s.AddLogStorageGBDays(v)
+	})
+}
+
+// UpdateLogStorageGBDays sets the "log_storage_gb_days" field to the value that was provided on create.
+func (u *MonthlyUsageUpsertBulk) UpdateLogStorageGBDays() *MonthlyUsageUpsertBulk {
+	return u.Update(func(s *MonthlyUsageUpsert) {
+		s.UpdateLogStorageGBDays()
+	})
+}
+
+// SetLogStorageThrough sets the "log_storage_through" field.
+func (u *MonthlyUsageUpsertBulk) SetLogStorageThrough(v time.Time) *MonthlyUsageUpsertBulk {
+	return u.Update(func(s *MonthlyUsageUpsert) {
+		s.SetLogStorageThrough(v)
+	})
+}
+
+// UpdateLogStorageThrough sets the "log_storage_through" field to the value that was provided on create.
+func (u *MonthlyUsageUpsertBulk) UpdateLogStorageThrough() *MonthlyUsageUpsertBulk {
+	return u.Update(func(s *MonthlyUsageUpsert) {
+		s.UpdateLogStorageThrough()
+	})
+}
+
+// ClearLogStorageThrough clears the value of the "log_storage_through" field.
+func (u *MonthlyUsageUpsertBulk) ClearLogStorageThrough() *MonthlyUsageUpsertBulk {
+	return u.Update(func(s *MonthlyUsageUpsert) {
+		s.ClearLogStorageThrough()
+	})
+}
+
+// SetLogChargedMicros sets the "log_charged_micros" field.
+func (u *MonthlyUsageUpsertBulk) SetLogChargedMicros(v int64) *MonthlyUsageUpsertBulk {
+	return u.Update(func(s *MonthlyUsageUpsert) {
+		s.SetLogChargedMicros(v)
+	})
+}
+
+// AddLogChargedMicros adds v to the "log_charged_micros" field.
+func (u *MonthlyUsageUpsertBulk) AddLogChargedMicros(v int64) *MonthlyUsageUpsertBulk {
+	return u.Update(func(s *MonthlyUsageUpsert) {
+		s.AddLogChargedMicros(v)
+	})
+}
+
+// UpdateLogChargedMicros sets the "log_charged_micros" field to the value that was provided on create.
+func (u *MonthlyUsageUpsertBulk) UpdateLogChargedMicros() *MonthlyUsageUpsertBulk {
+	return u.Update(func(s *MonthlyUsageUpsert) {
+		s.UpdateLogChargedMicros()
 	})
 }
 

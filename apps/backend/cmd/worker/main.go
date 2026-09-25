@@ -55,6 +55,7 @@ import (
 	muzak "muzak.dev/framework"
 
 	"playersense.dev/backend/internal/blobstore"
+	"playersense.dev/backend/internal/charging"
 	"playersense.dev/backend/internal/chdb"
 	"playersense.dev/backend/internal/config"
 	"playersense.dev/backend/internal/erasure"
@@ -133,15 +134,15 @@ func once(settings config.Settings) error {
 	if err != nil {
 		return err
 	}
-	janitor, err := newJanitor(settings, db, deps, slog.Default())
-	if err != nil {
-		return err
-	}
 	conn := chdb.New(settings.ClickHouseDSN)
 	if err := conn.Start(ctx); err != nil {
 		return err
 	}
 	defer conn.Stop(ctx) //nolint:errcheck // the process is exiting
+	janitor, err := newJanitor(settings, db, conn, deps, slog.Default())
+	if err != nil {
+		return err
+	}
 	reportsDue, err := newReportScheduler(settings, conn, deps)
 	if err != nil {
 		return err
@@ -184,11 +185,11 @@ func build(settings config.Settings) (*muzak.App, error) {
 	if err != nil {
 		return nil, err
 	}
-	janitor, err := newJanitor(settings, db, deps, slog.Default())
+	conn := chdb.New(settings.ClickHouseDSN)
+	janitor, err := newJanitor(settings, db, conn, deps, slog.Default())
 	if err != nil {
 		return nil, err
 	}
-	conn := chdb.New(settings.ClickHouseDSN)
 	reportsDue, err := newReportScheduler(settings, conn, deps)
 	if err != nil {
 		return nil, err
@@ -358,7 +359,7 @@ func newWebhookLoops(settings config.Settings, conn *chdb.Conn, deps dependencie
 //
 // Each is handed the pools rather than the handles inside them, for the reason newScheduler
 // gives: the application opens them after this runs.
-func newJanitor(settings config.Settings, db *chdb.SQL, deps dependencies, log *slog.Logger) (*scheduler.Janitor, error) {
+func newJanitor(settings config.Settings, db *chdb.SQL, conn *chdb.Conn, deps dependencies, log *slog.Logger) (*scheduler.Janitor, error) {
 	return scheduler.NewJanitor(log, scheduler.JanitorOptions{
 		Every: settings.WorkerJanitorEvery,
 
@@ -388,9 +389,21 @@ func newJanitor(settings config.Settings, db *chdb.SQL, deps dependencies, log *
 
 		// §40's usage meter and the wallet's expiry sweep.
 		Meter: &metering.Meter{
-			DB:  deps.db,
-			CH:  db,
-			Log: log,
+			DB:   deps.db,
+			CH:   db,
+			Log:  log,
+			Logs: conn,
+		},
+
+		// Cloud Logging's two meters, priced (ADR 0050).
+		LogCharges: &charging.LogAccruer{
+			DB: deps.db, CH: conn, Log: log,
+			Prices: charging.LogPrices{
+				IngestPerGBMicros:       settings.LogIngestPricePerGBMicros,
+				StoragePerGBMonthMicros: settings.LogStoragePricePerGBMonthMicros,
+				FreeIngestGB:            settings.LogFreeIngestGB,
+				FreeStorageGBMonths:     settings.LogFreeStorageGBMonths,
+			},
 		},
 		Credit: scheduler.CreditExpiry(deps.db, log, settings.CreditExpiryMaxLots),
 

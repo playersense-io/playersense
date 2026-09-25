@@ -101,6 +101,26 @@ func RetentionPurgedAt(v time.Time) predicate.Project {
 	return predicate.Project(sql.FieldEQ(FieldRetentionPurgedAt, v))
 }
 
+// LogRetentionDays applies equality check predicate on the "log_retention_days" field. It's identical to LogRetentionDaysEQ.
+func LogRetentionDays(v uint16) predicate.Project {
+	return predicate.Project(sql.FieldEQ(FieldLogRetentionDays, v))
+}
+
+// LogRetentionChangedAt applies equality check predicate on the "log_retention_changed_at" field. It's identical to LogRetentionChangedAtEQ.
+func LogRetentionChangedAt(v time.Time) predicate.Project {
+	return predicate.Project(sql.FieldEQ(FieldLogRetentionChangedAt, v))
+}
+
+// LogRetentionPurgeUntil applies equality check predicate on the "log_retention_purge_until" field. It's identical to LogRetentionPurgeUntilEQ.
+func LogRetentionPurgeUntil(v time.Time) predicate.Project {
+	return predicate.Project(sql.FieldEQ(FieldLogRetentionPurgeUntil, v))
+}
+
+// LogRetentionPurgedAt applies equality check predicate on the "log_retention_purged_at" field. It's identical to LogRetentionPurgedAtEQ.
+func LogRetentionPurgedAt(v time.Time) predicate.Project {
+	return predicate.Project(sql.FieldEQ(FieldLogRetentionPurgedAt, v))
+}
+
 // DeletionAt applies equality check predicate on the "deletion_at" field. It's identical to DeletionAtEQ.
 func DeletionAt(v time.Time) predicate.Project {
 	return predicate.Project(sql.FieldEQ(FieldDeletionAt, v))
@@ -584,6 +604,196 @@ func RetentionPurgedAtIsNil() predicate.Project {
 // RetentionPurgedAtNotNil applies the NotNil predicate on the "retention_purged_at" field.
 func RetentionPurgedAtNotNil() predicate.Project {
 	return predicate.Project(sql.FieldNotNull(FieldRetentionPurgedAt))
+}
+
+// LogRetentionDaysEQ applies the EQ predicate on the "log_retention_days" field.
+func LogRetentionDaysEQ(v uint16) predicate.Project {
+	return predicate.Project(sql.FieldEQ(FieldLogRetentionDays, v))
+}
+
+// LogRetentionDaysNEQ applies the NEQ predicate on the "log_retention_days" field.
+func LogRetentionDaysNEQ(v uint16) predicate.Project {
+	return predicate.Project(sql.FieldNEQ(FieldLogRetentionDays, v))
+}
+
+// LogRetentionDaysIn applies the In predicate on the "log_retention_days" field.
+func LogRetentionDaysIn(vs ...uint16) predicate.Project {
+	return predicate.Project(sql.FieldIn(FieldLogRetentionDays, vs...))
+}
+
+// LogRetentionDaysNotIn applies the NotIn predicate on the "log_retention_days" field.
+func LogRetentionDaysNotIn(vs ...uint16) predicate.Project {
+	return predicate.Project(sql.FieldNotIn(FieldLogRetentionDays, vs...))
+}
+
+// LogRetentionDaysGT applies the GT predicate on the "log_retention_days" field.
+func LogRetentionDaysGT(v uint16) predicate.Project {
+	return predicate.Project(sql.FieldGT(FieldLogRetentionDays, v))
+}
+
+// LogRetentionDaysGTE applies the GTE predicate on the "log_retention_days" field.
+func LogRetentionDaysGTE(v uint16) predicate.Project {
+	return predicate.Project(sql.FieldGTE(FieldLogRetentionDays, v))
+}
+
+// LogRetentionDaysLT applies the LT predicate on the "log_retention_days" field.
+func LogRetentionDaysLT(v uint16) predicate.Project {
+	return predicate.Project(sql.FieldLT(FieldLogRetentionDays, v))
+}
+
+// LogRetentionDaysLTE applies the LTE predicate on the "log_retention_days" field.
+func LogRetentionDaysLTE(v uint16) predicate.Project {
+	return predicate.Project(sql.FieldLTE(FieldLogRetentionDays, v))
+}
+
+// LogRetentionChangedAtEQ applies the EQ predicate on the "log_retention_changed_at" field.
+func LogRetentionChangedAtEQ(v time.Time) predicate.Project {
+	return predicate.Project(sql.FieldEQ(FieldLogRetentionChangedAt, v))
+}
+
+// LogRetentionChangedAtNEQ applies the NEQ predicate on the "log_retention_changed_at" field.
+func LogRetentionChangedAtNEQ(v time.Time) predicate.Project {
+	return predicate.Project(sql.FieldNEQ(FieldLogRetentionChangedAt, v))
+}
+
+// LogRetentionChangedAtIn applies the In predicate on the "log_retention_changed_at" field.
+func LogRetentionChangedAtIn(vs ...time.Time) predicate.Project {
+	return predicate.Project(sql.FieldIn(FieldLogRetentionChangedAt, vs...))
+}
+
+// LogRetentionChangedAtNotIn applies the NotIn predicate on the "log_retention_changed_at" field.
+func LogRetentionChangedAtNotIn(vs ...time.Time) predicate.Project {
+	return predicate.Project(sql.FieldNotIn(FieldLogRetentionChangedAt, vs...))
+}
+
+// LogRetentionChangedAtGT applies the GT predicate on the "log_retention_changed_at" field.
+func LogRetentionChangedAtGT(v time.Time) predicate.Project {
+	return predicate.Project(sql.FieldGT(FieldLogRetentionChangedAt, v))
+}
+
+// LogRetentionChangedAtGTE applies the GTE predicate on the "log_retention_changed_at" field.
+func LogRetentionChangedAtGTE(v time.Time) predicate.Project {
+	return predicate.Project(sql.FieldGTE(FieldLogRetentionChangedAt, v))
+}
+
+// LogRetentionChangedAtLT applies the LT predicate on the "log_retention_changed_at" field.
+func LogRetentionChangedAtLT(v time.Time) predicate.Project {
+	return predicate.Project(sql.FieldLT(FieldLogRetentionChangedAt, v))
+}
+
+// LogRetentionChangedAtLTE applies the LTE predicate on the "log_retention_changed_at" field.
+func LogRetentionChangedAtLTE(v time.Time) predicate.Project {
+	return predicate.Project(sql.FieldLTE(FieldLogRetentionChangedAt, v))
+}
+
+// LogRetentionChangedAtIsNil applies the IsNil predicate on the "log_retention_changed_at" field.
+func LogRetentionChangedAtIsNil() predicate.Project {
+	return predicate.Project(sql.FieldIsNull(FieldLogRetentionChangedAt))
+}
+
+// LogRetentionChangedAtNotNil applies the NotNil predicate on the "log_retention_changed_at" field.
+func LogRetentionChangedAtNotNil() predicate.Project {
+	return predicate.Project(sql.FieldNotNull(FieldLogRetentionChangedAt))
+}
+
+// LogRetentionPurgeUntilEQ applies the EQ predicate on the "log_retention_purge_until" field.
+func LogRetentionPurgeUntilEQ(v time.Time) predicate.Project {
+	return predicate.Project(sql.FieldEQ(FieldLogRetentionPurgeUntil, v))
+}
+
+// LogRetentionPurgeUntilNEQ applies the NEQ predicate on the "log_retention_purge_until" field.
+func LogRetentionPurgeUntilNEQ(v time.Time) predicate.Project {
+	return predicate.Project(sql.FieldNEQ(FieldLogRetentionPurgeUntil, v))
+}
+
+// LogRetentionPurgeUntilIn applies the In predicate on the "log_retention_purge_until" field.
+func LogRetentionPurgeUntilIn(vs ...time.Time) predicate.Project {
+	return predicate.Project(sql.FieldIn(FieldLogRetentionPurgeUntil, vs...))
+}
+
+// LogRetentionPurgeUntilNotIn applies the NotIn predicate on the "log_retention_purge_until" field.
+func LogRetentionPurgeUntilNotIn(vs ...time.Time) predicate.Project {
+	return predicate.Project(sql.FieldNotIn(FieldLogRetentionPurgeUntil, vs...))
+}
+
+// LogRetentionPurgeUntilGT applies the GT predicate on the "log_retention_purge_until" field.
+func LogRetentionPurgeUntilGT(v time.Time) predicate.Project {
+	return predicate.Project(sql.FieldGT(FieldLogRetentionPurgeUntil, v))
+}
+
+// LogRetentionPurgeUntilGTE applies the GTE predicate on the "log_retention_purge_until" field.
+func LogRetentionPurgeUntilGTE(v time.Time) predicate.Project {
+	return predicate.Project(sql.FieldGTE(FieldLogRetentionPurgeUntil, v))
+}
+
+// LogRetentionPurgeUntilLT applies the LT predicate on the "log_retention_purge_until" field.
+func LogRetentionPurgeUntilLT(v time.Time) predicate.Project {
+	return predicate.Project(sql.FieldLT(FieldLogRetentionPurgeUntil, v))
+}
+
+// LogRetentionPurgeUntilLTE applies the LTE predicate on the "log_retention_purge_until" field.
+func LogRetentionPurgeUntilLTE(v time.Time) predicate.Project {
+	return predicate.Project(sql.FieldLTE(FieldLogRetentionPurgeUntil, v))
+}
+
+// LogRetentionPurgeUntilIsNil applies the IsNil predicate on the "log_retention_purge_until" field.
+func LogRetentionPurgeUntilIsNil() predicate.Project {
+	return predicate.Project(sql.FieldIsNull(FieldLogRetentionPurgeUntil))
+}
+
+// LogRetentionPurgeUntilNotNil applies the NotNil predicate on the "log_retention_purge_until" field.
+func LogRetentionPurgeUntilNotNil() predicate.Project {
+	return predicate.Project(sql.FieldNotNull(FieldLogRetentionPurgeUntil))
+}
+
+// LogRetentionPurgedAtEQ applies the EQ predicate on the "log_retention_purged_at" field.
+func LogRetentionPurgedAtEQ(v time.Time) predicate.Project {
+	return predicate.Project(sql.FieldEQ(FieldLogRetentionPurgedAt, v))
+}
+
+// LogRetentionPurgedAtNEQ applies the NEQ predicate on the "log_retention_purged_at" field.
+func LogRetentionPurgedAtNEQ(v time.Time) predicate.Project {
+	return predicate.Project(sql.FieldNEQ(FieldLogRetentionPurgedAt, v))
+}
+
+// LogRetentionPurgedAtIn applies the In predicate on the "log_retention_purged_at" field.
+func LogRetentionPurgedAtIn(vs ...time.Time) predicate.Project {
+	return predicate.Project(sql.FieldIn(FieldLogRetentionPurgedAt, vs...))
+}
+
+// LogRetentionPurgedAtNotIn applies the NotIn predicate on the "log_retention_purged_at" field.
+func LogRetentionPurgedAtNotIn(vs ...time.Time) predicate.Project {
+	return predicate.Project(sql.FieldNotIn(FieldLogRetentionPurgedAt, vs...))
+}
+
+// LogRetentionPurgedAtGT applies the GT predicate on the "log_retention_purged_at" field.
+func LogRetentionPurgedAtGT(v time.Time) predicate.Project {
+	return predicate.Project(sql.FieldGT(FieldLogRetentionPurgedAt, v))
+}
+
+// LogRetentionPurgedAtGTE applies the GTE predicate on the "log_retention_purged_at" field.
+func LogRetentionPurgedAtGTE(v time.Time) predicate.Project {
+	return predicate.Project(sql.FieldGTE(FieldLogRetentionPurgedAt, v))
+}
+
+// LogRetentionPurgedAtLT applies the LT predicate on the "log_retention_purged_at" field.
+func LogRetentionPurgedAtLT(v time.Time) predicate.Project {
+	return predicate.Project(sql.FieldLT(FieldLogRetentionPurgedAt, v))
+}
+
+// LogRetentionPurgedAtLTE applies the LTE predicate on the "log_retention_purged_at" field.
+func LogRetentionPurgedAtLTE(v time.Time) predicate.Project {
+	return predicate.Project(sql.FieldLTE(FieldLogRetentionPurgedAt, v))
+}
+
+// LogRetentionPurgedAtIsNil applies the IsNil predicate on the "log_retention_purged_at" field.
+func LogRetentionPurgedAtIsNil() predicate.Project {
+	return predicate.Project(sql.FieldIsNull(FieldLogRetentionPurgedAt))
+}
+
+// LogRetentionPurgedAtNotNil applies the NotNil predicate on the "log_retention_purged_at" field.
+func LogRetentionPurgedAtNotNil() predicate.Project {
+	return predicate.Project(sql.FieldNotNull(FieldLogRetentionPurgedAt))
 }
 
 // DeletionAtEQ applies the EQ predicate on the "deletion_at" field.
@@ -1112,6 +1322,29 @@ func HasUsageDaily() predicate.Project {
 func HasUsageDailyWith(preds ...predicate.UsageDaily) predicate.Project {
 	return predicate.Project(func(s *sql.Selector) {
 		step := newUsageDailyStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasLogIssues applies the HasEdge predicate on the "log_issues" edge.
+func HasLogIssues() predicate.Project {
+	return predicate.Project(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, LogIssuesTable, LogIssuesColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasLogIssuesWith applies the HasEdge predicate on the "log_issues" edge with a given conditions (other predicates).
+func HasLogIssuesWith(preds ...predicate.LogIssue) predicate.Project {
+	return predicate.Project(func(s *sql.Selector) {
+		step := newLogIssuesStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

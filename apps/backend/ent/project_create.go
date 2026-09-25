@@ -18,6 +18,7 @@ import (
 	"playersense.dev/backend/ent/experiment"
 	"playersense.dev/backend/ent/featureflag"
 	"playersense.dev/backend/ent/liveopsevent"
+	"playersense.dev/backend/ent/logissue"
 	"playersense.dev/backend/ent/memberproject"
 	"playersense.dev/backend/ent/notificationchannel"
 	"playersense.dev/backend/ent/organization"
@@ -156,6 +157,62 @@ func (_c *ProjectCreate) SetRetentionPurgedAt(v time.Time) *ProjectCreate {
 func (_c *ProjectCreate) SetNillableRetentionPurgedAt(v *time.Time) *ProjectCreate {
 	if v != nil {
 		_c.SetRetentionPurgedAt(*v)
+	}
+	return _c
+}
+
+// SetLogRetentionDays sets the "log_retention_days" field.
+func (_c *ProjectCreate) SetLogRetentionDays(v uint16) *ProjectCreate {
+	_c.mutation.SetLogRetentionDays(v)
+	return _c
+}
+
+// SetNillableLogRetentionDays sets the "log_retention_days" field if the given value is not nil.
+func (_c *ProjectCreate) SetNillableLogRetentionDays(v *uint16) *ProjectCreate {
+	if v != nil {
+		_c.SetLogRetentionDays(*v)
+	}
+	return _c
+}
+
+// SetLogRetentionChangedAt sets the "log_retention_changed_at" field.
+func (_c *ProjectCreate) SetLogRetentionChangedAt(v time.Time) *ProjectCreate {
+	_c.mutation.SetLogRetentionChangedAt(v)
+	return _c
+}
+
+// SetNillableLogRetentionChangedAt sets the "log_retention_changed_at" field if the given value is not nil.
+func (_c *ProjectCreate) SetNillableLogRetentionChangedAt(v *time.Time) *ProjectCreate {
+	if v != nil {
+		_c.SetLogRetentionChangedAt(*v)
+	}
+	return _c
+}
+
+// SetLogRetentionPurgeUntil sets the "log_retention_purge_until" field.
+func (_c *ProjectCreate) SetLogRetentionPurgeUntil(v time.Time) *ProjectCreate {
+	_c.mutation.SetLogRetentionPurgeUntil(v)
+	return _c
+}
+
+// SetNillableLogRetentionPurgeUntil sets the "log_retention_purge_until" field if the given value is not nil.
+func (_c *ProjectCreate) SetNillableLogRetentionPurgeUntil(v *time.Time) *ProjectCreate {
+	if v != nil {
+		_c.SetLogRetentionPurgeUntil(*v)
+	}
+	return _c
+}
+
+// SetLogRetentionPurgedAt sets the "log_retention_purged_at" field.
+func (_c *ProjectCreate) SetLogRetentionPurgedAt(v time.Time) *ProjectCreate {
+	_c.mutation.SetLogRetentionPurgedAt(v)
+	return _c
+}
+
+// SetNillableLogRetentionPurgedAt sets the "log_retention_purged_at" field if the given value is not nil.
+func (_c *ProjectCreate) SetNillableLogRetentionPurgedAt(v *time.Time) *ProjectCreate {
+	if v != nil {
+		_c.SetLogRetentionPurgedAt(*v)
 	}
 	return _c
 }
@@ -413,6 +470,21 @@ func (_c *ProjectCreate) AddUsageDaily(v ...*UsageDaily) *ProjectCreate {
 	return _c.AddUsageDailyIDs(ids...)
 }
 
+// AddLogIssueIDs adds the "log_issues" edge to the LogIssue entity by IDs.
+func (_c *ProjectCreate) AddLogIssueIDs(ids ...int) *ProjectCreate {
+	_c.mutation.AddLogIssueIDs(ids...)
+	return _c
+}
+
+// AddLogIssues adds the "log_issues" edges to the LogIssue entity.
+func (_c *ProjectCreate) AddLogIssues(v ...*LogIssue) *ProjectCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddLogIssueIDs(ids...)
+}
+
 // Mutation returns the ProjectMutation object of the builder.
 func (_c *ProjectCreate) Mutation() *ProjectMutation {
 	return _c.mutation
@@ -468,6 +540,10 @@ func (_c *ProjectCreate) defaults() {
 		v := project.DefaultRetentionDays
 		_c.mutation.SetRetentionDays(v)
 	}
+	if _, ok := _c.mutation.LogRetentionDays(); !ok {
+		v := project.DefaultLogRetentionDays
+		_c.mutation.SetLogRetentionDays(v)
+	}
 	if _, ok := _c.mutation.DeletionRequestedBy(); !ok {
 		v := project.DefaultDeletionRequestedBy
 		_c.mutation.SetDeletionRequestedBy(v)
@@ -511,6 +587,9 @@ func (_c *ProjectCreate) check() error {
 	}
 	if _, ok := _c.mutation.RetentionDays(); !ok {
 		return &ValidationError{Name: "retention_days", err: errors.New(`ent: missing required field "Project.retention_days"`)}
+	}
+	if _, ok := _c.mutation.LogRetentionDays(); !ok {
+		return &ValidationError{Name: "log_retention_days", err: errors.New(`ent: missing required field "Project.log_retention_days"`)}
 	}
 	if _, ok := _c.mutation.DeletionRequestedBy(); !ok {
 		return &ValidationError{Name: "deletion_requested_by", err: errors.New(`ent: missing required field "Project.deletion_requested_by"`)}
@@ -598,6 +677,22 @@ func (_c *ProjectCreate) createSpec() (*Project, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.RetentionPurgedAt(); ok {
 		_spec.SetField(project.FieldRetentionPurgedAt, field.TypeTime, value)
 		_node.RetentionPurgedAt = &value
+	}
+	if value, ok := _c.mutation.LogRetentionDays(); ok {
+		_spec.SetField(project.FieldLogRetentionDays, field.TypeUint16, value)
+		_node.LogRetentionDays = value
+	}
+	if value, ok := _c.mutation.LogRetentionChangedAt(); ok {
+		_spec.SetField(project.FieldLogRetentionChangedAt, field.TypeTime, value)
+		_node.LogRetentionChangedAt = &value
+	}
+	if value, ok := _c.mutation.LogRetentionPurgeUntil(); ok {
+		_spec.SetField(project.FieldLogRetentionPurgeUntil, field.TypeTime, value)
+		_node.LogRetentionPurgeUntil = &value
+	}
+	if value, ok := _c.mutation.LogRetentionPurgedAt(); ok {
+		_spec.SetField(project.FieldLogRetentionPurgedAt, field.TypeTime, value)
+		_node.LogRetentionPurgedAt = &value
 	}
 	if value, ok := _c.mutation.DeletionAt(); ok {
 		_spec.SetField(project.FieldDeletionAt, field.TypeTime, value)
@@ -824,6 +919,22 @@ func (_c *ProjectCreate) createSpec() (*Project, *sqlgraph.CreateSpec) {
 		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
+	if nodes := _c.mutation.LogIssuesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.LogIssuesTable,
+			Columns: []string{project.LogIssuesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(logissue.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
 	return _node, _spec
 }
 
@@ -981,6 +1092,78 @@ func (u *ProjectUpsert) UpdateRetentionPurgedAt() *ProjectUpsert {
 // ClearRetentionPurgedAt clears the value of the "retention_purged_at" field.
 func (u *ProjectUpsert) ClearRetentionPurgedAt() *ProjectUpsert {
 	u.SetNull(project.FieldRetentionPurgedAt)
+	return u
+}
+
+// SetLogRetentionDays sets the "log_retention_days" field.
+func (u *ProjectUpsert) SetLogRetentionDays(v uint16) *ProjectUpsert {
+	u.Set(project.FieldLogRetentionDays, v)
+	return u
+}
+
+// UpdateLogRetentionDays sets the "log_retention_days" field to the value that was provided on create.
+func (u *ProjectUpsert) UpdateLogRetentionDays() *ProjectUpsert {
+	u.SetExcluded(project.FieldLogRetentionDays)
+	return u
+}
+
+// AddLogRetentionDays adds v to the "log_retention_days" field.
+func (u *ProjectUpsert) AddLogRetentionDays(v uint16) *ProjectUpsert {
+	u.Add(project.FieldLogRetentionDays, v)
+	return u
+}
+
+// SetLogRetentionChangedAt sets the "log_retention_changed_at" field.
+func (u *ProjectUpsert) SetLogRetentionChangedAt(v time.Time) *ProjectUpsert {
+	u.Set(project.FieldLogRetentionChangedAt, v)
+	return u
+}
+
+// UpdateLogRetentionChangedAt sets the "log_retention_changed_at" field to the value that was provided on create.
+func (u *ProjectUpsert) UpdateLogRetentionChangedAt() *ProjectUpsert {
+	u.SetExcluded(project.FieldLogRetentionChangedAt)
+	return u
+}
+
+// ClearLogRetentionChangedAt clears the value of the "log_retention_changed_at" field.
+func (u *ProjectUpsert) ClearLogRetentionChangedAt() *ProjectUpsert {
+	u.SetNull(project.FieldLogRetentionChangedAt)
+	return u
+}
+
+// SetLogRetentionPurgeUntil sets the "log_retention_purge_until" field.
+func (u *ProjectUpsert) SetLogRetentionPurgeUntil(v time.Time) *ProjectUpsert {
+	u.Set(project.FieldLogRetentionPurgeUntil, v)
+	return u
+}
+
+// UpdateLogRetentionPurgeUntil sets the "log_retention_purge_until" field to the value that was provided on create.
+func (u *ProjectUpsert) UpdateLogRetentionPurgeUntil() *ProjectUpsert {
+	u.SetExcluded(project.FieldLogRetentionPurgeUntil)
+	return u
+}
+
+// ClearLogRetentionPurgeUntil clears the value of the "log_retention_purge_until" field.
+func (u *ProjectUpsert) ClearLogRetentionPurgeUntil() *ProjectUpsert {
+	u.SetNull(project.FieldLogRetentionPurgeUntil)
+	return u
+}
+
+// SetLogRetentionPurgedAt sets the "log_retention_purged_at" field.
+func (u *ProjectUpsert) SetLogRetentionPurgedAt(v time.Time) *ProjectUpsert {
+	u.Set(project.FieldLogRetentionPurgedAt, v)
+	return u
+}
+
+// UpdateLogRetentionPurgedAt sets the "log_retention_purged_at" field to the value that was provided on create.
+func (u *ProjectUpsert) UpdateLogRetentionPurgedAt() *ProjectUpsert {
+	u.SetExcluded(project.FieldLogRetentionPurgedAt)
+	return u
+}
+
+// ClearLogRetentionPurgedAt clears the value of the "log_retention_purged_at" field.
+func (u *ProjectUpsert) ClearLogRetentionPurgedAt() *ProjectUpsert {
+	u.SetNull(project.FieldLogRetentionPurgedAt)
 	return u
 }
 
@@ -1242,6 +1425,90 @@ func (u *ProjectUpsertOne) UpdateRetentionPurgedAt() *ProjectUpsertOne {
 func (u *ProjectUpsertOne) ClearRetentionPurgedAt() *ProjectUpsertOne {
 	return u.Update(func(s *ProjectUpsert) {
 		s.ClearRetentionPurgedAt()
+	})
+}
+
+// SetLogRetentionDays sets the "log_retention_days" field.
+func (u *ProjectUpsertOne) SetLogRetentionDays(v uint16) *ProjectUpsertOne {
+	return u.Update(func(s *ProjectUpsert) {
+		s.SetLogRetentionDays(v)
+	})
+}
+
+// AddLogRetentionDays adds v to the "log_retention_days" field.
+func (u *ProjectUpsertOne) AddLogRetentionDays(v uint16) *ProjectUpsertOne {
+	return u.Update(func(s *ProjectUpsert) {
+		s.AddLogRetentionDays(v)
+	})
+}
+
+// UpdateLogRetentionDays sets the "log_retention_days" field to the value that was provided on create.
+func (u *ProjectUpsertOne) UpdateLogRetentionDays() *ProjectUpsertOne {
+	return u.Update(func(s *ProjectUpsert) {
+		s.UpdateLogRetentionDays()
+	})
+}
+
+// SetLogRetentionChangedAt sets the "log_retention_changed_at" field.
+func (u *ProjectUpsertOne) SetLogRetentionChangedAt(v time.Time) *ProjectUpsertOne {
+	return u.Update(func(s *ProjectUpsert) {
+		s.SetLogRetentionChangedAt(v)
+	})
+}
+
+// UpdateLogRetentionChangedAt sets the "log_retention_changed_at" field to the value that was provided on create.
+func (u *ProjectUpsertOne) UpdateLogRetentionChangedAt() *ProjectUpsertOne {
+	return u.Update(func(s *ProjectUpsert) {
+		s.UpdateLogRetentionChangedAt()
+	})
+}
+
+// ClearLogRetentionChangedAt clears the value of the "log_retention_changed_at" field.
+func (u *ProjectUpsertOne) ClearLogRetentionChangedAt() *ProjectUpsertOne {
+	return u.Update(func(s *ProjectUpsert) {
+		s.ClearLogRetentionChangedAt()
+	})
+}
+
+// SetLogRetentionPurgeUntil sets the "log_retention_purge_until" field.
+func (u *ProjectUpsertOne) SetLogRetentionPurgeUntil(v time.Time) *ProjectUpsertOne {
+	return u.Update(func(s *ProjectUpsert) {
+		s.SetLogRetentionPurgeUntil(v)
+	})
+}
+
+// UpdateLogRetentionPurgeUntil sets the "log_retention_purge_until" field to the value that was provided on create.
+func (u *ProjectUpsertOne) UpdateLogRetentionPurgeUntil() *ProjectUpsertOne {
+	return u.Update(func(s *ProjectUpsert) {
+		s.UpdateLogRetentionPurgeUntil()
+	})
+}
+
+// ClearLogRetentionPurgeUntil clears the value of the "log_retention_purge_until" field.
+func (u *ProjectUpsertOne) ClearLogRetentionPurgeUntil() *ProjectUpsertOne {
+	return u.Update(func(s *ProjectUpsert) {
+		s.ClearLogRetentionPurgeUntil()
+	})
+}
+
+// SetLogRetentionPurgedAt sets the "log_retention_purged_at" field.
+func (u *ProjectUpsertOne) SetLogRetentionPurgedAt(v time.Time) *ProjectUpsertOne {
+	return u.Update(func(s *ProjectUpsert) {
+		s.SetLogRetentionPurgedAt(v)
+	})
+}
+
+// UpdateLogRetentionPurgedAt sets the "log_retention_purged_at" field to the value that was provided on create.
+func (u *ProjectUpsertOne) UpdateLogRetentionPurgedAt() *ProjectUpsertOne {
+	return u.Update(func(s *ProjectUpsert) {
+		s.UpdateLogRetentionPurgedAt()
+	})
+}
+
+// ClearLogRetentionPurgedAt clears the value of the "log_retention_purged_at" field.
+func (u *ProjectUpsertOne) ClearLogRetentionPurgedAt() *ProjectUpsertOne {
+	return u.Update(func(s *ProjectUpsert) {
+		s.ClearLogRetentionPurgedAt()
 	})
 }
 
@@ -1682,6 +1949,90 @@ func (u *ProjectUpsertBulk) UpdateRetentionPurgedAt() *ProjectUpsertBulk {
 func (u *ProjectUpsertBulk) ClearRetentionPurgedAt() *ProjectUpsertBulk {
 	return u.Update(func(s *ProjectUpsert) {
 		s.ClearRetentionPurgedAt()
+	})
+}
+
+// SetLogRetentionDays sets the "log_retention_days" field.
+func (u *ProjectUpsertBulk) SetLogRetentionDays(v uint16) *ProjectUpsertBulk {
+	return u.Update(func(s *ProjectUpsert) {
+		s.SetLogRetentionDays(v)
+	})
+}
+
+// AddLogRetentionDays adds v to the "log_retention_days" field.
+func (u *ProjectUpsertBulk) AddLogRetentionDays(v uint16) *ProjectUpsertBulk {
+	return u.Update(func(s *ProjectUpsert) {
+		s.AddLogRetentionDays(v)
+	})
+}
+
+// UpdateLogRetentionDays sets the "log_retention_days" field to the value that was provided on create.
+func (u *ProjectUpsertBulk) UpdateLogRetentionDays() *ProjectUpsertBulk {
+	return u.Update(func(s *ProjectUpsert) {
+		s.UpdateLogRetentionDays()
+	})
+}
+
+// SetLogRetentionChangedAt sets the "log_retention_changed_at" field.
+func (u *ProjectUpsertBulk) SetLogRetentionChangedAt(v time.Time) *ProjectUpsertBulk {
+	return u.Update(func(s *ProjectUpsert) {
+		s.SetLogRetentionChangedAt(v)
+	})
+}
+
+// UpdateLogRetentionChangedAt sets the "log_retention_changed_at" field to the value that was provided on create.
+func (u *ProjectUpsertBulk) UpdateLogRetentionChangedAt() *ProjectUpsertBulk {
+	return u.Update(func(s *ProjectUpsert) {
+		s.UpdateLogRetentionChangedAt()
+	})
+}
+
+// ClearLogRetentionChangedAt clears the value of the "log_retention_changed_at" field.
+func (u *ProjectUpsertBulk) ClearLogRetentionChangedAt() *ProjectUpsertBulk {
+	return u.Update(func(s *ProjectUpsert) {
+		s.ClearLogRetentionChangedAt()
+	})
+}
+
+// SetLogRetentionPurgeUntil sets the "log_retention_purge_until" field.
+func (u *ProjectUpsertBulk) SetLogRetentionPurgeUntil(v time.Time) *ProjectUpsertBulk {
+	return u.Update(func(s *ProjectUpsert) {
+		s.SetLogRetentionPurgeUntil(v)
+	})
+}
+
+// UpdateLogRetentionPurgeUntil sets the "log_retention_purge_until" field to the value that was provided on create.
+func (u *ProjectUpsertBulk) UpdateLogRetentionPurgeUntil() *ProjectUpsertBulk {
+	return u.Update(func(s *ProjectUpsert) {
+		s.UpdateLogRetentionPurgeUntil()
+	})
+}
+
+// ClearLogRetentionPurgeUntil clears the value of the "log_retention_purge_until" field.
+func (u *ProjectUpsertBulk) ClearLogRetentionPurgeUntil() *ProjectUpsertBulk {
+	return u.Update(func(s *ProjectUpsert) {
+		s.ClearLogRetentionPurgeUntil()
+	})
+}
+
+// SetLogRetentionPurgedAt sets the "log_retention_purged_at" field.
+func (u *ProjectUpsertBulk) SetLogRetentionPurgedAt(v time.Time) *ProjectUpsertBulk {
+	return u.Update(func(s *ProjectUpsert) {
+		s.SetLogRetentionPurgedAt(v)
+	})
+}
+
+// UpdateLogRetentionPurgedAt sets the "log_retention_purged_at" field to the value that was provided on create.
+func (u *ProjectUpsertBulk) UpdateLogRetentionPurgedAt() *ProjectUpsertBulk {
+	return u.Update(func(s *ProjectUpsert) {
+		s.UpdateLogRetentionPurgedAt()
+	})
+}
+
+// ClearLogRetentionPurgedAt clears the value of the "log_retention_purged_at" field.
+func (u *ProjectUpsertBulk) ClearLogRetentionPurgedAt() *ProjectUpsertBulk {
+	return u.Update(func(s *ProjectUpsert) {
+		s.ClearLogRetentionPurgedAt()
 	})
 }
 

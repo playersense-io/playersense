@@ -59,3 +59,37 @@ func (in *IngestBatchIn) Validate(v *muzak.Validation) {
 	// limit is known.
 	v.Slice(&in.Events).Required().MinItems(1)
 }
+
+// IngestLogsIn is a Cloud Logging batch as a bindable input (ADR 0050). The header is the
+// analytics batch's, so its rules are too; the records are bounded by the handler, which knows the
+// limits, and cleaned rather than refused (ingest.NormalizeLogs).
+type IngestLogsIn struct {
+	protocol.LogBatch
+}
+
+// Validate bounds the envelope before any of it is trusted.
+func (in *IngestLogsIn) Validate(v *muzak.Validation) {
+	v.Number(&in.SchemaVersion).Required().Between(1, 1)
+	v.String(&in.BatchID).Trim().Required().UUID()
+	v.String(&in.InstallID).Trim().Required().UUID()
+	v.String(&in.Environment).Trim().Lower().OneOf("development", "staging", "production")
+
+	v.String(&in.SDK.Name).As("sdk.name").Trim().Lower().Required().MaxLen(32).
+		Matches(`^[a-z0-9._-]+$`).
+		Message("must be an SDK name such as unity, unreal or javascript")
+	v.String(&in.SDK.Version).As("sdk.version").Trim().Required().MaxLen(32)
+	v.String(&in.App.Version).As("app.version").Trim().Required().MaxLen(32)
+	v.String(&in.App.Build).As("app.build").Trim().MaxLen(32)
+
+	v.String(&in.Device.Platform).As("device.platform").Trim().Lower().Required().
+		OneOf("ios", "android", "windows", "macos", "linux", "web", "console")
+	v.String(&in.Device.OSVersion).As("device.os_version").Trim().MaxLen(64)
+	v.String(&in.Device.Locale).As("device.locale").Trim().MaxLen(24)
+	v.String(&in.Device.Model).As("device.model").Trim().MaxLen(64)
+
+	v.String(&in.Consent.PolicyVersion).As("consent.policy_version").Trim().Required().MaxLen(32)
+	v.String(&in.Consent.ATTStatus).As("consent.att_status").Trim().Lower().
+		OneOf("authorized", "denied", "not_determined", "restricted")
+
+	v.Slice(&in.Records).Required().MinItems(1)
+}

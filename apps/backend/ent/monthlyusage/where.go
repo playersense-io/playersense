@@ -91,6 +91,31 @@ func ChargedMicros(v int64) predicate.MonthlyUsage {
 	return predicate.MonthlyUsage(sql.FieldEQ(FieldChargedMicros, v))
 }
 
+// LogIngestMB applies equality check predicate on the "log_ingest_mb" field. It's identical to LogIngestMBEQ.
+func LogIngestMB(v int64) predicate.MonthlyUsage {
+	return predicate.MonthlyUsage(sql.FieldEQ(FieldLogIngestMB, v))
+}
+
+// LogByteDays applies equality check predicate on the "log_byte_days" field. It's identical to LogByteDaysEQ.
+func LogByteDays(v int64) predicate.MonthlyUsage {
+	return predicate.MonthlyUsage(sql.FieldEQ(FieldLogByteDays, v))
+}
+
+// LogStorageGBDays applies equality check predicate on the "log_storage_gb_days" field. It's identical to LogStorageGBDaysEQ.
+func LogStorageGBDays(v int64) predicate.MonthlyUsage {
+	return predicate.MonthlyUsage(sql.FieldEQ(FieldLogStorageGBDays, v))
+}
+
+// LogStorageThrough applies equality check predicate on the "log_storage_through" field. It's identical to LogStorageThroughEQ.
+func LogStorageThrough(v time.Time) predicate.MonthlyUsage {
+	return predicate.MonthlyUsage(sql.FieldEQ(FieldLogStorageThrough, v))
+}
+
+// LogChargedMicros applies equality check predicate on the "log_charged_micros" field. It's identical to LogChargedMicrosEQ.
+func LogChargedMicros(v int64) predicate.MonthlyUsage {
+	return predicate.MonthlyUsage(sql.FieldEQ(FieldLogChargedMicros, v))
+}
+
 // UIDEQ applies the EQ predicate on the "uid" field.
 func UIDEQ(v uuid.UUID) predicate.MonthlyUsage {
 	return predicate.MonthlyUsage(sql.FieldEQ(FieldUID, v))
@@ -349,6 +374,216 @@ func ChargedMicrosLT(v int64) predicate.MonthlyUsage {
 // ChargedMicrosLTE applies the LTE predicate on the "charged_micros" field.
 func ChargedMicrosLTE(v int64) predicate.MonthlyUsage {
 	return predicate.MonthlyUsage(sql.FieldLTE(FieldChargedMicros, v))
+}
+
+// LogIngestMBEQ applies the EQ predicate on the "log_ingest_mb" field.
+func LogIngestMBEQ(v int64) predicate.MonthlyUsage {
+	return predicate.MonthlyUsage(sql.FieldEQ(FieldLogIngestMB, v))
+}
+
+// LogIngestMBNEQ applies the NEQ predicate on the "log_ingest_mb" field.
+func LogIngestMBNEQ(v int64) predicate.MonthlyUsage {
+	return predicate.MonthlyUsage(sql.FieldNEQ(FieldLogIngestMB, v))
+}
+
+// LogIngestMBIn applies the In predicate on the "log_ingest_mb" field.
+func LogIngestMBIn(vs ...int64) predicate.MonthlyUsage {
+	return predicate.MonthlyUsage(sql.FieldIn(FieldLogIngestMB, vs...))
+}
+
+// LogIngestMBNotIn applies the NotIn predicate on the "log_ingest_mb" field.
+func LogIngestMBNotIn(vs ...int64) predicate.MonthlyUsage {
+	return predicate.MonthlyUsage(sql.FieldNotIn(FieldLogIngestMB, vs...))
+}
+
+// LogIngestMBGT applies the GT predicate on the "log_ingest_mb" field.
+func LogIngestMBGT(v int64) predicate.MonthlyUsage {
+	return predicate.MonthlyUsage(sql.FieldGT(FieldLogIngestMB, v))
+}
+
+// LogIngestMBGTE applies the GTE predicate on the "log_ingest_mb" field.
+func LogIngestMBGTE(v int64) predicate.MonthlyUsage {
+	return predicate.MonthlyUsage(sql.FieldGTE(FieldLogIngestMB, v))
+}
+
+// LogIngestMBLT applies the LT predicate on the "log_ingest_mb" field.
+func LogIngestMBLT(v int64) predicate.MonthlyUsage {
+	return predicate.MonthlyUsage(sql.FieldLT(FieldLogIngestMB, v))
+}
+
+// LogIngestMBLTE applies the LTE predicate on the "log_ingest_mb" field.
+func LogIngestMBLTE(v int64) predicate.MonthlyUsage {
+	return predicate.MonthlyUsage(sql.FieldLTE(FieldLogIngestMB, v))
+}
+
+// LogByteDaysEQ applies the EQ predicate on the "log_byte_days" field.
+func LogByteDaysEQ(v int64) predicate.MonthlyUsage {
+	return predicate.MonthlyUsage(sql.FieldEQ(FieldLogByteDays, v))
+}
+
+// LogByteDaysNEQ applies the NEQ predicate on the "log_byte_days" field.
+func LogByteDaysNEQ(v int64) predicate.MonthlyUsage {
+	return predicate.MonthlyUsage(sql.FieldNEQ(FieldLogByteDays, v))
+}
+
+// LogByteDaysIn applies the In predicate on the "log_byte_days" field.
+func LogByteDaysIn(vs ...int64) predicate.MonthlyUsage {
+	return predicate.MonthlyUsage(sql.FieldIn(FieldLogByteDays, vs...))
+}
+
+// LogByteDaysNotIn applies the NotIn predicate on the "log_byte_days" field.
+func LogByteDaysNotIn(vs ...int64) predicate.MonthlyUsage {
+	return predicate.MonthlyUsage(sql.FieldNotIn(FieldLogByteDays, vs...))
+}
+
+// LogByteDaysGT applies the GT predicate on the "log_byte_days" field.
+func LogByteDaysGT(v int64) predicate.MonthlyUsage {
+	return predicate.MonthlyUsage(sql.FieldGT(FieldLogByteDays, v))
+}
+
+// LogByteDaysGTE applies the GTE predicate on the "log_byte_days" field.
+func LogByteDaysGTE(v int64) predicate.MonthlyUsage {
+	return predicate.MonthlyUsage(sql.FieldGTE(FieldLogByteDays, v))
+}
+
+// LogByteDaysLT applies the LT predicate on the "log_byte_days" field.
+func LogByteDaysLT(v int64) predicate.MonthlyUsage {
+	return predicate.MonthlyUsage(sql.FieldLT(FieldLogByteDays, v))
+}
+
+// LogByteDaysLTE applies the LTE predicate on the "log_byte_days" field.
+func LogByteDaysLTE(v int64) predicate.MonthlyUsage {
+	return predicate.MonthlyUsage(sql.FieldLTE(FieldLogByteDays, v))
+}
+
+// LogStorageGBDaysEQ applies the EQ predicate on the "log_storage_gb_days" field.
+func LogStorageGBDaysEQ(v int64) predicate.MonthlyUsage {
+	return predicate.MonthlyUsage(sql.FieldEQ(FieldLogStorageGBDays, v))
+}
+
+// LogStorageGBDaysNEQ applies the NEQ predicate on the "log_storage_gb_days" field.
+func LogStorageGBDaysNEQ(v int64) predicate.MonthlyUsage {
+	return predicate.MonthlyUsage(sql.FieldNEQ(FieldLogStorageGBDays, v))
+}
+
+// LogStorageGBDaysIn applies the In predicate on the "log_storage_gb_days" field.
+func LogStorageGBDaysIn(vs ...int64) predicate.MonthlyUsage {
+	return predicate.MonthlyUsage(sql.FieldIn(FieldLogStorageGBDays, vs...))
+}
+
+// LogStorageGBDaysNotIn applies the NotIn predicate on the "log_storage_gb_days" field.
+func LogStorageGBDaysNotIn(vs ...int64) predicate.MonthlyUsage {
+	return predicate.MonthlyUsage(sql.FieldNotIn(FieldLogStorageGBDays, vs...))
+}
+
+// LogStorageGBDaysGT applies the GT predicate on the "log_storage_gb_days" field.
+func LogStorageGBDaysGT(v int64) predicate.MonthlyUsage {
+	return predicate.MonthlyUsage(sql.FieldGT(FieldLogStorageGBDays, v))
+}
+
+// LogStorageGBDaysGTE applies the GTE predicate on the "log_storage_gb_days" field.
+func LogStorageGBDaysGTE(v int64) predicate.MonthlyUsage {
+	return predicate.MonthlyUsage(sql.FieldGTE(FieldLogStorageGBDays, v))
+}
+
+// LogStorageGBDaysLT applies the LT predicate on the "log_storage_gb_days" field.
+func LogStorageGBDaysLT(v int64) predicate.MonthlyUsage {
+	return predicate.MonthlyUsage(sql.FieldLT(FieldLogStorageGBDays, v))
+}
+
+// LogStorageGBDaysLTE applies the LTE predicate on the "log_storage_gb_days" field.
+func LogStorageGBDaysLTE(v int64) predicate.MonthlyUsage {
+	return predicate.MonthlyUsage(sql.FieldLTE(FieldLogStorageGBDays, v))
+}
+
+// LogStorageThroughEQ applies the EQ predicate on the "log_storage_through" field.
+func LogStorageThroughEQ(v time.Time) predicate.MonthlyUsage {
+	return predicate.MonthlyUsage(sql.FieldEQ(FieldLogStorageThrough, v))
+}
+
+// LogStorageThroughNEQ applies the NEQ predicate on the "log_storage_through" field.
+func LogStorageThroughNEQ(v time.Time) predicate.MonthlyUsage {
+	return predicate.MonthlyUsage(sql.FieldNEQ(FieldLogStorageThrough, v))
+}
+
+// LogStorageThroughIn applies the In predicate on the "log_storage_through" field.
+func LogStorageThroughIn(vs ...time.Time) predicate.MonthlyUsage {
+	return predicate.MonthlyUsage(sql.FieldIn(FieldLogStorageThrough, vs...))
+}
+
+// LogStorageThroughNotIn applies the NotIn predicate on the "log_storage_through" field.
+func LogStorageThroughNotIn(vs ...time.Time) predicate.MonthlyUsage {
+	return predicate.MonthlyUsage(sql.FieldNotIn(FieldLogStorageThrough, vs...))
+}
+
+// LogStorageThroughGT applies the GT predicate on the "log_storage_through" field.
+func LogStorageThroughGT(v time.Time) predicate.MonthlyUsage {
+	return predicate.MonthlyUsage(sql.FieldGT(FieldLogStorageThrough, v))
+}
+
+// LogStorageThroughGTE applies the GTE predicate on the "log_storage_through" field.
+func LogStorageThroughGTE(v time.Time) predicate.MonthlyUsage {
+	return predicate.MonthlyUsage(sql.FieldGTE(FieldLogStorageThrough, v))
+}
+
+// LogStorageThroughLT applies the LT predicate on the "log_storage_through" field.
+func LogStorageThroughLT(v time.Time) predicate.MonthlyUsage {
+	return predicate.MonthlyUsage(sql.FieldLT(FieldLogStorageThrough, v))
+}
+
+// LogStorageThroughLTE applies the LTE predicate on the "log_storage_through" field.
+func LogStorageThroughLTE(v time.Time) predicate.MonthlyUsage {
+	return predicate.MonthlyUsage(sql.FieldLTE(FieldLogStorageThrough, v))
+}
+
+// LogStorageThroughIsNil applies the IsNil predicate on the "log_storage_through" field.
+func LogStorageThroughIsNil() predicate.MonthlyUsage {
+	return predicate.MonthlyUsage(sql.FieldIsNull(FieldLogStorageThrough))
+}
+
+// LogStorageThroughNotNil applies the NotNil predicate on the "log_storage_through" field.
+func LogStorageThroughNotNil() predicate.MonthlyUsage {
+	return predicate.MonthlyUsage(sql.FieldNotNull(FieldLogStorageThrough))
+}
+
+// LogChargedMicrosEQ applies the EQ predicate on the "log_charged_micros" field.
+func LogChargedMicrosEQ(v int64) predicate.MonthlyUsage {
+	return predicate.MonthlyUsage(sql.FieldEQ(FieldLogChargedMicros, v))
+}
+
+// LogChargedMicrosNEQ applies the NEQ predicate on the "log_charged_micros" field.
+func LogChargedMicrosNEQ(v int64) predicate.MonthlyUsage {
+	return predicate.MonthlyUsage(sql.FieldNEQ(FieldLogChargedMicros, v))
+}
+
+// LogChargedMicrosIn applies the In predicate on the "log_charged_micros" field.
+func LogChargedMicrosIn(vs ...int64) predicate.MonthlyUsage {
+	return predicate.MonthlyUsage(sql.FieldIn(FieldLogChargedMicros, vs...))
+}
+
+// LogChargedMicrosNotIn applies the NotIn predicate on the "log_charged_micros" field.
+func LogChargedMicrosNotIn(vs ...int64) predicate.MonthlyUsage {
+	return predicate.MonthlyUsage(sql.FieldNotIn(FieldLogChargedMicros, vs...))
+}
+
+// LogChargedMicrosGT applies the GT predicate on the "log_charged_micros" field.
+func LogChargedMicrosGT(v int64) predicate.MonthlyUsage {
+	return predicate.MonthlyUsage(sql.FieldGT(FieldLogChargedMicros, v))
+}
+
+// LogChargedMicrosGTE applies the GTE predicate on the "log_charged_micros" field.
+func LogChargedMicrosGTE(v int64) predicate.MonthlyUsage {
+	return predicate.MonthlyUsage(sql.FieldGTE(FieldLogChargedMicros, v))
+}
+
+// LogChargedMicrosLT applies the LT predicate on the "log_charged_micros" field.
+func LogChargedMicrosLT(v int64) predicate.MonthlyUsage {
+	return predicate.MonthlyUsage(sql.FieldLT(FieldLogChargedMicros, v))
+}
+
+// LogChargedMicrosLTE applies the LTE predicate on the "log_charged_micros" field.
+func LogChargedMicrosLTE(v int64) predicate.MonthlyUsage {
+	return predicate.MonthlyUsage(sql.FieldLTE(FieldLogChargedMicros, v))
 }
 
 // HasAccount applies the HasEdge predicate on the "account" edge.

@@ -36,7 +36,7 @@ type PublishRateCardIn struct {
 
 	PlanKey string `path:"plan"`
 
-	Meter string   `json:"meter,omitzero" default:"tracked_players" doc:"Only tracked_players today"`
+	Meter string   `json:"meter,omitzero" default:"tracked_players" doc:"tracked_players (per player), log_ingest_mb (per megabyte taken in) or log_storage_gb_days (per gigabyte kept a day)"`
 	Mode  string   `json:"mode,omitzero" default:"graduated" doc:"graduated (each band at its own price) or volume (the whole month at the band reached)"`
 	Tiers []TierIn `json:"tiers" doc:"Lowest band first"`
 
@@ -50,7 +50,8 @@ type PublishRateCardIn struct {
 
 func (in *PublishRateCardIn) Validate(v *muzak.Validation) {
 	v.String(&in.PlanKey).Trim().Lower().Required().MaxLen(64)
-	v.String(&in.Meter).Trim().Lower().OneOf(string(billing.TrackedPlayers))
+	v.String(&in.Meter).Trim().Lower().OneOf(string(billing.TrackedPlayers),
+		string(billing.LogIngest), string(billing.LogStorage))
 	v.String(&in.Mode).Trim().Lower().OneOf(string(billing.Graduated), string(billing.Volume))
 	v.Slice(&in.Tiers).MinItems(1).MaxItems(billing.MaxTiers)
 	v.String(&in.Note).Trim().MaxLen(500)

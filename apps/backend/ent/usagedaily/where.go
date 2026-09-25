@@ -101,6 +101,16 @@ func RetainedBytes(v uint64) predicate.UsageDaily {
 	return predicate.UsageDaily(sql.FieldEQ(FieldRetainedBytes, v))
 }
 
+// LogBytes applies equality check predicate on the "log_bytes" field. It's identical to LogBytesEQ.
+func LogBytes(v uint64) predicate.UsageDaily {
+	return predicate.UsageDaily(sql.FieldEQ(FieldLogBytes, v))
+}
+
+// LogIngestedBytes applies equality check predicate on the "log_ingested_bytes" field. It's identical to LogIngestedBytesEQ.
+func LogIngestedBytes(v uint64) predicate.UsageDaily {
+	return predicate.UsageDaily(sql.FieldEQ(FieldLogIngestedBytes, v))
+}
+
 // Final applies equality check predicate on the "final" field. It's identical to FinalEQ.
 func Final(v bool) predicate.UsageDaily {
 	return predicate.UsageDaily(sql.FieldEQ(FieldFinal, v))
@@ -444,6 +454,86 @@ func RetainedBytesLT(v uint64) predicate.UsageDaily {
 // RetainedBytesLTE applies the LTE predicate on the "retained_bytes" field.
 func RetainedBytesLTE(v uint64) predicate.UsageDaily {
 	return predicate.UsageDaily(sql.FieldLTE(FieldRetainedBytes, v))
+}
+
+// LogBytesEQ applies the EQ predicate on the "log_bytes" field.
+func LogBytesEQ(v uint64) predicate.UsageDaily {
+	return predicate.UsageDaily(sql.FieldEQ(FieldLogBytes, v))
+}
+
+// LogBytesNEQ applies the NEQ predicate on the "log_bytes" field.
+func LogBytesNEQ(v uint64) predicate.UsageDaily {
+	return predicate.UsageDaily(sql.FieldNEQ(FieldLogBytes, v))
+}
+
+// LogBytesIn applies the In predicate on the "log_bytes" field.
+func LogBytesIn(vs ...uint64) predicate.UsageDaily {
+	return predicate.UsageDaily(sql.FieldIn(FieldLogBytes, vs...))
+}
+
+// LogBytesNotIn applies the NotIn predicate on the "log_bytes" field.
+func LogBytesNotIn(vs ...uint64) predicate.UsageDaily {
+	return predicate.UsageDaily(sql.FieldNotIn(FieldLogBytes, vs...))
+}
+
+// LogBytesGT applies the GT predicate on the "log_bytes" field.
+func LogBytesGT(v uint64) predicate.UsageDaily {
+	return predicate.UsageDaily(sql.FieldGT(FieldLogBytes, v))
+}
+
+// LogBytesGTE applies the GTE predicate on the "log_bytes" field.
+func LogBytesGTE(v uint64) predicate.UsageDaily {
+	return predicate.UsageDaily(sql.FieldGTE(FieldLogBytes, v))
+}
+
+// LogBytesLT applies the LT predicate on the "log_bytes" field.
+func LogBytesLT(v uint64) predicate.UsageDaily {
+	return predicate.UsageDaily(sql.FieldLT(FieldLogBytes, v))
+}
+
+// LogBytesLTE applies the LTE predicate on the "log_bytes" field.
+func LogBytesLTE(v uint64) predicate.UsageDaily {
+	return predicate.UsageDaily(sql.FieldLTE(FieldLogBytes, v))
+}
+
+// LogIngestedBytesEQ applies the EQ predicate on the "log_ingested_bytes" field.
+func LogIngestedBytesEQ(v uint64) predicate.UsageDaily {
+	return predicate.UsageDaily(sql.FieldEQ(FieldLogIngestedBytes, v))
+}
+
+// LogIngestedBytesNEQ applies the NEQ predicate on the "log_ingested_bytes" field.
+func LogIngestedBytesNEQ(v uint64) predicate.UsageDaily {
+	return predicate.UsageDaily(sql.FieldNEQ(FieldLogIngestedBytes, v))
+}
+
+// LogIngestedBytesIn applies the In predicate on the "log_ingested_bytes" field.
+func LogIngestedBytesIn(vs ...uint64) predicate.UsageDaily {
+	return predicate.UsageDaily(sql.FieldIn(FieldLogIngestedBytes, vs...))
+}
+
+// LogIngestedBytesNotIn applies the NotIn predicate on the "log_ingested_bytes" field.
+func LogIngestedBytesNotIn(vs ...uint64) predicate.UsageDaily {
+	return predicate.UsageDaily(sql.FieldNotIn(FieldLogIngestedBytes, vs...))
+}
+
+// LogIngestedBytesGT applies the GT predicate on the "log_ingested_bytes" field.
+func LogIngestedBytesGT(v uint64) predicate.UsageDaily {
+	return predicate.UsageDaily(sql.FieldGT(FieldLogIngestedBytes, v))
+}
+
+// LogIngestedBytesGTE applies the GTE predicate on the "log_ingested_bytes" field.
+func LogIngestedBytesGTE(v uint64) predicate.UsageDaily {
+	return predicate.UsageDaily(sql.FieldGTE(FieldLogIngestedBytes, v))
+}
+
+// LogIngestedBytesLT applies the LT predicate on the "log_ingested_bytes" field.
+func LogIngestedBytesLT(v uint64) predicate.UsageDaily {
+	return predicate.UsageDaily(sql.FieldLT(FieldLogIngestedBytes, v))
+}
+
+// LogIngestedBytesLTE applies the LTE predicate on the "log_ingested_bytes" field.
+func LogIngestedBytesLTE(v uint64) predicate.UsageDaily {
+	return predicate.UsageDaily(sql.FieldLTE(FieldLogIngestedBytes, v))
 }
 
 // FinalEQ applies the EQ predicate on the "final" field.

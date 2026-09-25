@@ -74,6 +74,8 @@ func Templates() []Template {
 				// endpoints a studio's own backend listens on.
 				PurchasesConfigure,
 				WebhooksRead, WebhooksWrite,
+				// Reading the game's own logs and crashes is the other half of integrating it.
+				LogsRead, LogsWrite,
 			},
 		},
 		{

@@ -60,6 +60,12 @@ const (
 	// replication overhead is our implementation detail, not the customer's.
 	IncludedStorageGBMonth Entitlement = "included_storage_gb_month"
 
+	// Cloud Logging's free tier (ADR 0050): what an organization takes in and keeps each month
+	// before either log meter charges. Every plan has one; a plan that does not state it gets the
+	// deployment's default, which is a gigabyte of each.
+	IncludedLogIngestGB       Entitlement = "included_log_ingest_gb"
+	IncludedLogStorageGBMonth Entitlement = "included_log_storage_gb_month"
+
 	// MaxRawRetentionDays caps what a project may set, not what it stores today.
 	MaxRawRetentionDays Entitlement = "max_raw_retention_days"
 
@@ -75,6 +81,7 @@ const (
 // entitlements is the closed set, in the order a pricing page reads.
 var entitlements = []Entitlement{
 	IncludedMAU, IncludedEvents, IncludedStorageGBMonth,
+	IncludedLogIngestGB, IncludedLogStorageGBMonth,
 	MaxRawRetentionDays, MaxProjects, MaxWebhookEndpoints, CreditLimit,
 }
 

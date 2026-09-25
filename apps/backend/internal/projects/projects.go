@@ -94,6 +94,47 @@ func (r *Retention) Run(ctx context.Context, now time.Time) (RetentionResult, er
 	return out, nil
 }
 
+// RunLogs is Run for Cloud Logging's retention (ADR 0050): for each project whose log retention was
+// lowered and whose enforcement is due, the log records older than the new retention are deleted,
+// once a day until log_retention_purge_until.
+//
+// A lightweight delete rather than a mutation. Most of these rows are on the cold volume, in object
+// storage, where a mutation would download, rewrite and upload every part it touches: a bill in
+// operations for rows nobody will read again. A lightweight delete writes a small mask beside each
+// part instead, and the rows are gone from every read at once; the parts themselves go when their
+// TTL drops them.
+func (r *Retention) RunLogs(ctx context.Context, now time.Time) (RetentionResult, error) {
+	var out RetentionResult
+	due, err := r.DB.Client.Project.Query().Where(
+		project.DeletedAtIsNil(),
+		project.LogRetentionPurgeUntilGT(now),
+		project.LogRetentionChangedAtLT(now.Add(-keyCacheSettle)),
+		project.Or(project.LogRetentionPurgedAtIsNil(), project.LogRetentionPurgedAtLT(now.Add(-23*time.Hour))),
+	).All(ctx)
+	if err != nil || len(due) == 0 {
+		return out, err
+	}
+	db, err := r.CH.DB()
+	if err != nil {
+		return out, err
+	}
+	for _, p := range due {
+		cutoff := now.AddDate(0, 0, -int(p.LogRetentionDays))
+		if _, err := db.ExecContext(ctx, `
+			DELETE FROM logs
+			WHERE project_seq = ? AND timestamp < ?
+			SETTINGS lightweight_deletes_sync = 2`, uint32(p.ID), cutoff); err != nil {
+			return out, fmt.Errorf("enforce %d days on logs for project %s: %w", p.LogRetentionDays, p.UID, err)
+		}
+		if err := r.DB.Client.Project.UpdateOne(p).SetLogRetentionPurgedAt(now).Exec(ctx); err != nil {
+			return out, err
+		}
+		out.Projects++
+		r.log().Info("enforced a lowered log retention", "project", p.UID, "days", p.LogRetentionDays)
+	}
+	return out, nil
+}
+
 func (r *Retention) log() *slog.Logger {
 	if r.Log != nil {
 		return r.Log

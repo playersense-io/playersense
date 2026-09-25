@@ -34,6 +34,7 @@ import (
 	"playersense.dev/backend/ent/invoiceline"
 	"playersense.dev/backend/ent/ledgerentry"
 	"playersense.dev/backend/ent/liveopsevent"
+	"playersense.dev/backend/ent/logissue"
 	"playersense.dev/backend/ent/memberproject"
 	"playersense.dev/backend/ent/monthlyusage"
 	"playersense.dev/backend/ent/notificationchannel"
@@ -101,6 +102,7 @@ const (
 	TypeInvoiceLine         = "InvoiceLine"
 	TypeLedgerEntry         = "LedgerEntry"
 	TypeLiveOpsEvent        = "LiveOpsEvent"
+	TypeLogIssue            = "LogIssue"
 	TypeMemberProject       = "MemberProject"
 	TypeMonthlyUsage        = "MonthlyUsage"
 	TypeNotificationChannel = "NotificationChannel"
@@ -28780,6 +28782,849 @@ func (m *LiveOpsEventMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown LiveOpsEvent edge %s", name)
 }
 
+// LogIssueMutation represents an operation that mutates the LogIssue nodes in the graph.
+type LogIssueMutation struct {
+	config
+	op             Op
+	typ            string
+	id             *int
+	uid            *uuid.UUID
+	created_at     *time.Time
+	updated_at     *time.Time
+	environment    *logissue.Environment
+	fingerprint    *string
+	status         *logissue.Status
+	resolved_at    *time.Time
+	updated_by     *string
+	clearedFields  map[string]struct{}
+	project        *int
+	clearedproject bool
+	done           bool
+	oldValue       func(context.Context) (*LogIssue, error)
+	predicates     []predicate.LogIssue
+}
+
+var _ ent.Mutation = (*LogIssueMutation)(nil)
+
+// logissueOption allows management of the mutation configuration using functional options.
+type logissueOption func(*LogIssueMutation)
+
+// newLogIssueMutation creates new mutation for the LogIssue entity.
+func newLogIssueMutation(c config, op Op, opts ...logissueOption) *LogIssueMutation {
+	m := &LogIssueMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeLogIssue,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withLogIssueID sets the ID field of the mutation.
+func withLogIssueID(id int) logissueOption {
+	return func(m *LogIssueMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *LogIssue
+		)
+		m.oldValue = func(ctx context.Context) (*LogIssue, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().LogIssue.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withLogIssue sets the old LogIssue of the mutation.
+func withLogIssue(node *LogIssue) logissueOption {
+	return func(m *LogIssueMutation) {
+		m.oldValue = func(context.Context) (*LogIssue, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m LogIssueMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m LogIssueMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of LogIssue entities.
+func (m *LogIssueMutation) SetID(id int) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *LogIssueMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *LogIssueMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().LogIssue.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetUID sets the "uid" field.
+func (m *LogIssueMutation) SetUID(u uuid.UUID) {
+	m.uid = &u
+}
+
+// UID returns the value of the "uid" field in the mutation.
+func (m *LogIssueMutation) UID() (r uuid.UUID, exists bool) {
+	v := m.uid
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUID returns the old "uid" field's value of the LogIssue entity.
+// If the LogIssue object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LogIssueMutation) OldUID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUID: %w", err)
+	}
+	return oldValue.UID, nil
+}
+
+// ResetUID resets all changes to the "uid" field.
+func (m *LogIssueMutation) ResetUID() {
+	m.uid = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *LogIssueMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *LogIssueMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the LogIssue entity.
+// If the LogIssue object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LogIssueMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *LogIssueMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *LogIssueMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *LogIssueMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the LogIssue entity.
+// If the LogIssue object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LogIssueMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *LogIssueMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetProjectID sets the "project_id" field.
+func (m *LogIssueMutation) SetProjectID(i int) {
+	m.project = &i
+}
+
+// ProjectID returns the value of the "project_id" field in the mutation.
+func (m *LogIssueMutation) ProjectID() (r int, exists bool) {
+	v := m.project
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProjectID returns the old "project_id" field's value of the LogIssue entity.
+// If the LogIssue object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LogIssueMutation) OldProjectID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProjectID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProjectID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProjectID: %w", err)
+	}
+	return oldValue.ProjectID, nil
+}
+
+// ResetProjectID resets all changes to the "project_id" field.
+func (m *LogIssueMutation) ResetProjectID() {
+	m.project = nil
+}
+
+// SetEnvironment sets the "environment" field.
+func (m *LogIssueMutation) SetEnvironment(l logissue.Environment) {
+	m.environment = &l
+}
+
+// Environment returns the value of the "environment" field in the mutation.
+func (m *LogIssueMutation) Environment() (r logissue.Environment, exists bool) {
+	v := m.environment
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEnvironment returns the old "environment" field's value of the LogIssue entity.
+// If the LogIssue object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LogIssueMutation) OldEnvironment(ctx context.Context) (v logissue.Environment, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEnvironment is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEnvironment requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEnvironment: %w", err)
+	}
+	return oldValue.Environment, nil
+}
+
+// ResetEnvironment resets all changes to the "environment" field.
+func (m *LogIssueMutation) ResetEnvironment() {
+	m.environment = nil
+}
+
+// SetFingerprint sets the "fingerprint" field.
+func (m *LogIssueMutation) SetFingerprint(s string) {
+	m.fingerprint = &s
+}
+
+// Fingerprint returns the value of the "fingerprint" field in the mutation.
+func (m *LogIssueMutation) Fingerprint() (r string, exists bool) {
+	v := m.fingerprint
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFingerprint returns the old "fingerprint" field's value of the LogIssue entity.
+// If the LogIssue object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LogIssueMutation) OldFingerprint(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFingerprint is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFingerprint requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFingerprint: %w", err)
+	}
+	return oldValue.Fingerprint, nil
+}
+
+// ResetFingerprint resets all changes to the "fingerprint" field.
+func (m *LogIssueMutation) ResetFingerprint() {
+	m.fingerprint = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *LogIssueMutation) SetStatus(l logissue.Status) {
+	m.status = &l
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *LogIssueMutation) Status() (r logissue.Status, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the LogIssue entity.
+// If the LogIssue object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LogIssueMutation) OldStatus(ctx context.Context) (v logissue.Status, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *LogIssueMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetResolvedAt sets the "resolved_at" field.
+func (m *LogIssueMutation) SetResolvedAt(t time.Time) {
+	m.resolved_at = &t
+}
+
+// ResolvedAt returns the value of the "resolved_at" field in the mutation.
+func (m *LogIssueMutation) ResolvedAt() (r time.Time, exists bool) {
+	v := m.resolved_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldResolvedAt returns the old "resolved_at" field's value of the LogIssue entity.
+// If the LogIssue object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LogIssueMutation) OldResolvedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldResolvedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldResolvedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldResolvedAt: %w", err)
+	}
+	return oldValue.ResolvedAt, nil
+}
+
+// ClearResolvedAt clears the value of the "resolved_at" field.
+func (m *LogIssueMutation) ClearResolvedAt() {
+	m.resolved_at = nil
+	m.clearedFields[logissue.FieldResolvedAt] = struct{}{}
+}
+
+// ResolvedAtCleared returns if the "resolved_at" field was cleared in this mutation.
+func (m *LogIssueMutation) ResolvedAtCleared() bool {
+	_, ok := m.clearedFields[logissue.FieldResolvedAt]
+	return ok
+}
+
+// ResetResolvedAt resets all changes to the "resolved_at" field.
+func (m *LogIssueMutation) ResetResolvedAt() {
+	m.resolved_at = nil
+	delete(m.clearedFields, logissue.FieldResolvedAt)
+}
+
+// SetUpdatedBy sets the "updated_by" field.
+func (m *LogIssueMutation) SetUpdatedBy(s string) {
+	m.updated_by = &s
+}
+
+// UpdatedBy returns the value of the "updated_by" field in the mutation.
+func (m *LogIssueMutation) UpdatedBy() (r string, exists bool) {
+	v := m.updated_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedBy returns the old "updated_by" field's value of the LogIssue entity.
+// If the LogIssue object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LogIssueMutation) OldUpdatedBy(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedBy: %w", err)
+	}
+	return oldValue.UpdatedBy, nil
+}
+
+// ResetUpdatedBy resets all changes to the "updated_by" field.
+func (m *LogIssueMutation) ResetUpdatedBy() {
+	m.updated_by = nil
+}
+
+// ClearProject clears the "project" edge to the Project entity.
+func (m *LogIssueMutation) ClearProject() {
+	m.clearedproject = true
+	m.clearedFields[logissue.FieldProjectID] = struct{}{}
+}
+
+// ProjectCleared reports if the "project" edge to the Project entity was cleared.
+func (m *LogIssueMutation) ProjectCleared() bool {
+	return m.clearedproject
+}
+
+// ProjectIDs returns the "project" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// ProjectID instead. It exists only for internal usage by the builders.
+func (m *LogIssueMutation) ProjectIDs() (ids []int) {
+	if id := m.project; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetProject resets all changes to the "project" edge.
+func (m *LogIssueMutation) ResetProject() {
+	m.project = nil
+	m.clearedproject = false
+}
+
+// Where appends a list predicates to the LogIssueMutation builder.
+func (m *LogIssueMutation) Where(ps ...predicate.LogIssue) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the LogIssueMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *LogIssueMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.LogIssue, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *LogIssueMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *LogIssueMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (LogIssue).
+func (m *LogIssueMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *LogIssueMutation) Fields() []string {
+	fields := make([]string, 0, 9)
+	if m.uid != nil {
+		fields = append(fields, logissue.FieldUID)
+	}
+	if m.created_at != nil {
+		fields = append(fields, logissue.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, logissue.FieldUpdatedAt)
+	}
+	if m.project != nil {
+		fields = append(fields, logissue.FieldProjectID)
+	}
+	if m.environment != nil {
+		fields = append(fields, logissue.FieldEnvironment)
+	}
+	if m.fingerprint != nil {
+		fields = append(fields, logissue.FieldFingerprint)
+	}
+	if m.status != nil {
+		fields = append(fields, logissue.FieldStatus)
+	}
+	if m.resolved_at != nil {
+		fields = append(fields, logissue.FieldResolvedAt)
+	}
+	if m.updated_by != nil {
+		fields = append(fields, logissue.FieldUpdatedBy)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *LogIssueMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case logissue.FieldUID:
+		return m.UID()
+	case logissue.FieldCreatedAt:
+		return m.CreatedAt()
+	case logissue.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case logissue.FieldProjectID:
+		return m.ProjectID()
+	case logissue.FieldEnvironment:
+		return m.Environment()
+	case logissue.FieldFingerprint:
+		return m.Fingerprint()
+	case logissue.FieldStatus:
+		return m.Status()
+	case logissue.FieldResolvedAt:
+		return m.ResolvedAt()
+	case logissue.FieldUpdatedBy:
+		return m.UpdatedBy()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *LogIssueMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case logissue.FieldUID:
+		return m.OldUID(ctx)
+	case logissue.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case logissue.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case logissue.FieldProjectID:
+		return m.OldProjectID(ctx)
+	case logissue.FieldEnvironment:
+		return m.OldEnvironment(ctx)
+	case logissue.FieldFingerprint:
+		return m.OldFingerprint(ctx)
+	case logissue.FieldStatus:
+		return m.OldStatus(ctx)
+	case logissue.FieldResolvedAt:
+		return m.OldResolvedAt(ctx)
+	case logissue.FieldUpdatedBy:
+		return m.OldUpdatedBy(ctx)
+	}
+	return nil, fmt.Errorf("unknown LogIssue field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *LogIssueMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case logissue.FieldUID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUID(v)
+		return nil
+	case logissue.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case logissue.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case logissue.FieldProjectID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProjectID(v)
+		return nil
+	case logissue.FieldEnvironment:
+		v, ok := value.(logissue.Environment)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEnvironment(v)
+		return nil
+	case logissue.FieldFingerprint:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFingerprint(v)
+		return nil
+	case logissue.FieldStatus:
+		v, ok := value.(logissue.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case logissue.FieldResolvedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetResolvedAt(v)
+		return nil
+	case logissue.FieldUpdatedBy:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedBy(v)
+		return nil
+	}
+	return fmt.Errorf("unknown LogIssue field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *LogIssueMutation) AddedFields() []string {
+	var fields []string
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *LogIssueMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *LogIssueMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown LogIssue numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *LogIssueMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(logissue.FieldResolvedAt) {
+		fields = append(fields, logissue.FieldResolvedAt)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *LogIssueMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *LogIssueMutation) ClearField(name string) error {
+	switch name {
+	case logissue.FieldResolvedAt:
+		m.ClearResolvedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown LogIssue nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *LogIssueMutation) ResetField(name string) error {
+	switch name {
+	case logissue.FieldUID:
+		m.ResetUID()
+		return nil
+	case logissue.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case logissue.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case logissue.FieldProjectID:
+		m.ResetProjectID()
+		return nil
+	case logissue.FieldEnvironment:
+		m.ResetEnvironment()
+		return nil
+	case logissue.FieldFingerprint:
+		m.ResetFingerprint()
+		return nil
+	case logissue.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case logissue.FieldResolvedAt:
+		m.ResetResolvedAt()
+		return nil
+	case logissue.FieldUpdatedBy:
+		m.ResetUpdatedBy()
+		return nil
+	}
+	return fmt.Errorf("unknown LogIssue field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *LogIssueMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.project != nil {
+		edges = append(edges, logissue.EdgeProject)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *LogIssueMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case logissue.EdgeProject:
+		if id := m.project; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *LogIssueMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *LogIssueMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *LogIssueMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.clearedproject {
+		edges = append(edges, logissue.EdgeProject)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *LogIssueMutation) EdgeCleared(name string) bool {
+	switch name {
+	case logissue.EdgeProject:
+		return m.clearedproject
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *LogIssueMutation) ClearEdge(name string) error {
+	switch name {
+	case logissue.EdgeProject:
+		m.ClearProject()
+		return nil
+	}
+	return fmt.Errorf("unknown LogIssue unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *LogIssueMutation) ResetEdge(name string) error {
+	switch name {
+	case logissue.EdgeProject:
+		m.ResetProject()
+		return nil
+	}
+	return fmt.Errorf("unknown LogIssue edge %s", name)
+}
+
 // MemberProjectMutation represents an operation that mutates the MemberProject nodes in the graph.
 type MemberProjectMutation struct {
 	config
@@ -29488,23 +30333,32 @@ func (m *MemberProjectMutation) ResetEdge(name string) error {
 // MonthlyUsageMutation represents an operation that mutates the MonthlyUsage nodes in the graph.
 type MonthlyUsageMutation struct {
 	config
-	op                 Op
-	typ                string
-	id                 *int
-	uid                *uuid.UUID
-	created_at         *time.Time
-	updated_at         *time.Time
-	period_start       *time.Time
-	tracked_players    *int64
-	addtracked_players *int64
-	charged_micros     *int64
-	addcharged_micros  *int64
-	clearedFields      map[string]struct{}
-	account            *int
-	clearedaccount     bool
-	done               bool
-	oldValue           func(context.Context) (*MonthlyUsage, error)
-	predicates         []predicate.MonthlyUsage
+	op                     Op
+	typ                    string
+	id                     *int
+	uid                    *uuid.UUID
+	created_at             *time.Time
+	updated_at             *time.Time
+	period_start           *time.Time
+	tracked_players        *int64
+	addtracked_players     *int64
+	charged_micros         *int64
+	addcharged_micros      *int64
+	log_ingest_mb          *int64
+	addlog_ingest_mb       *int64
+	log_byte_days          *int64
+	addlog_byte_days       *int64
+	log_storage_gb_days    *int64
+	addlog_storage_gb_days *int64
+	log_storage_through    *time.Time
+	log_charged_micros     *int64
+	addlog_charged_micros  *int64
+	clearedFields          map[string]struct{}
+	account                *int
+	clearedaccount         bool
+	done                   bool
+	oldValue               func(context.Context) (*MonthlyUsage, error)
+	predicates             []predicate.MonthlyUsage
 }
 
 var _ ent.Mutation = (*MonthlyUsageMutation)(nil)
@@ -29903,6 +30757,279 @@ func (m *MonthlyUsageMutation) ResetChargedMicros() {
 	m.addcharged_micros = nil
 }
 
+// SetLogIngestMB sets the "log_ingest_mb" field.
+func (m *MonthlyUsageMutation) SetLogIngestMB(i int64) {
+	m.log_ingest_mb = &i
+	m.addlog_ingest_mb = nil
+}
+
+// LogIngestMB returns the value of the "log_ingest_mb" field in the mutation.
+func (m *MonthlyUsageMutation) LogIngestMB() (r int64, exists bool) {
+	v := m.log_ingest_mb
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLogIngestMB returns the old "log_ingest_mb" field's value of the MonthlyUsage entity.
+// If the MonthlyUsage object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MonthlyUsageMutation) OldLogIngestMB(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLogIngestMB is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLogIngestMB requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLogIngestMB: %w", err)
+	}
+	return oldValue.LogIngestMB, nil
+}
+
+// AddLogIngestMB adds i to the "log_ingest_mb" field.
+func (m *MonthlyUsageMutation) AddLogIngestMB(i int64) {
+	if m.addlog_ingest_mb != nil {
+		*m.addlog_ingest_mb += i
+	} else {
+		m.addlog_ingest_mb = &i
+	}
+}
+
+// AddedLogIngestMB returns the value that was added to the "log_ingest_mb" field in this mutation.
+func (m *MonthlyUsageMutation) AddedLogIngestMB() (r int64, exists bool) {
+	v := m.addlog_ingest_mb
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetLogIngestMB resets all changes to the "log_ingest_mb" field.
+func (m *MonthlyUsageMutation) ResetLogIngestMB() {
+	m.log_ingest_mb = nil
+	m.addlog_ingest_mb = nil
+}
+
+// SetLogByteDays sets the "log_byte_days" field.
+func (m *MonthlyUsageMutation) SetLogByteDays(i int64) {
+	m.log_byte_days = &i
+	m.addlog_byte_days = nil
+}
+
+// LogByteDays returns the value of the "log_byte_days" field in the mutation.
+func (m *MonthlyUsageMutation) LogByteDays() (r int64, exists bool) {
+	v := m.log_byte_days
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLogByteDays returns the old "log_byte_days" field's value of the MonthlyUsage entity.
+// If the MonthlyUsage object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MonthlyUsageMutation) OldLogByteDays(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLogByteDays is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLogByteDays requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLogByteDays: %w", err)
+	}
+	return oldValue.LogByteDays, nil
+}
+
+// AddLogByteDays adds i to the "log_byte_days" field.
+func (m *MonthlyUsageMutation) AddLogByteDays(i int64) {
+	if m.addlog_byte_days != nil {
+		*m.addlog_byte_days += i
+	} else {
+		m.addlog_byte_days = &i
+	}
+}
+
+// AddedLogByteDays returns the value that was added to the "log_byte_days" field in this mutation.
+func (m *MonthlyUsageMutation) AddedLogByteDays() (r int64, exists bool) {
+	v := m.addlog_byte_days
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetLogByteDays resets all changes to the "log_byte_days" field.
+func (m *MonthlyUsageMutation) ResetLogByteDays() {
+	m.log_byte_days = nil
+	m.addlog_byte_days = nil
+}
+
+// SetLogStorageGBDays sets the "log_storage_gb_days" field.
+func (m *MonthlyUsageMutation) SetLogStorageGBDays(i int64) {
+	m.log_storage_gb_days = &i
+	m.addlog_storage_gb_days = nil
+}
+
+// LogStorageGBDays returns the value of the "log_storage_gb_days" field in the mutation.
+func (m *MonthlyUsageMutation) LogStorageGBDays() (r int64, exists bool) {
+	v := m.log_storage_gb_days
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLogStorageGBDays returns the old "log_storage_gb_days" field's value of the MonthlyUsage entity.
+// If the MonthlyUsage object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MonthlyUsageMutation) OldLogStorageGBDays(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLogStorageGBDays is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLogStorageGBDays requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLogStorageGBDays: %w", err)
+	}
+	return oldValue.LogStorageGBDays, nil
+}
+
+// AddLogStorageGBDays adds i to the "log_storage_gb_days" field.
+func (m *MonthlyUsageMutation) AddLogStorageGBDays(i int64) {
+	if m.addlog_storage_gb_days != nil {
+		*m.addlog_storage_gb_days += i
+	} else {
+		m.addlog_storage_gb_days = &i
+	}
+}
+
+// AddedLogStorageGBDays returns the value that was added to the "log_storage_gb_days" field in this mutation.
+func (m *MonthlyUsageMutation) AddedLogStorageGBDays() (r int64, exists bool) {
+	v := m.addlog_storage_gb_days
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetLogStorageGBDays resets all changes to the "log_storage_gb_days" field.
+func (m *MonthlyUsageMutation) ResetLogStorageGBDays() {
+	m.log_storage_gb_days = nil
+	m.addlog_storage_gb_days = nil
+}
+
+// SetLogStorageThrough sets the "log_storage_through" field.
+func (m *MonthlyUsageMutation) SetLogStorageThrough(t time.Time) {
+	m.log_storage_through = &t
+}
+
+// LogStorageThrough returns the value of the "log_storage_through" field in the mutation.
+func (m *MonthlyUsageMutation) LogStorageThrough() (r time.Time, exists bool) {
+	v := m.log_storage_through
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLogStorageThrough returns the old "log_storage_through" field's value of the MonthlyUsage entity.
+// If the MonthlyUsage object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MonthlyUsageMutation) OldLogStorageThrough(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLogStorageThrough is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLogStorageThrough requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLogStorageThrough: %w", err)
+	}
+	return oldValue.LogStorageThrough, nil
+}
+
+// ClearLogStorageThrough clears the value of the "log_storage_through" field.
+func (m *MonthlyUsageMutation) ClearLogStorageThrough() {
+	m.log_storage_through = nil
+	m.clearedFields[monthlyusage.FieldLogStorageThrough] = struct{}{}
+}
+
+// LogStorageThroughCleared returns if the "log_storage_through" field was cleared in this mutation.
+func (m *MonthlyUsageMutation) LogStorageThroughCleared() bool {
+	_, ok := m.clearedFields[monthlyusage.FieldLogStorageThrough]
+	return ok
+}
+
+// ResetLogStorageThrough resets all changes to the "log_storage_through" field.
+func (m *MonthlyUsageMutation) ResetLogStorageThrough() {
+	m.log_storage_through = nil
+	delete(m.clearedFields, monthlyusage.FieldLogStorageThrough)
+}
+
+// SetLogChargedMicros sets the "log_charged_micros" field.
+func (m *MonthlyUsageMutation) SetLogChargedMicros(i int64) {
+	m.log_charged_micros = &i
+	m.addlog_charged_micros = nil
+}
+
+// LogChargedMicros returns the value of the "log_charged_micros" field in the mutation.
+func (m *MonthlyUsageMutation) LogChargedMicros() (r int64, exists bool) {
+	v := m.log_charged_micros
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLogChargedMicros returns the old "log_charged_micros" field's value of the MonthlyUsage entity.
+// If the MonthlyUsage object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MonthlyUsageMutation) OldLogChargedMicros(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLogChargedMicros is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLogChargedMicros requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLogChargedMicros: %w", err)
+	}
+	return oldValue.LogChargedMicros, nil
+}
+
+// AddLogChargedMicros adds i to the "log_charged_micros" field.
+func (m *MonthlyUsageMutation) AddLogChargedMicros(i int64) {
+	if m.addlog_charged_micros != nil {
+		*m.addlog_charged_micros += i
+	} else {
+		m.addlog_charged_micros = &i
+	}
+}
+
+// AddedLogChargedMicros returns the value that was added to the "log_charged_micros" field in this mutation.
+func (m *MonthlyUsageMutation) AddedLogChargedMicros() (r int64, exists bool) {
+	v := m.addlog_charged_micros
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetLogChargedMicros resets all changes to the "log_charged_micros" field.
+func (m *MonthlyUsageMutation) ResetLogChargedMicros() {
+	m.log_charged_micros = nil
+	m.addlog_charged_micros = nil
+}
+
 // ClearAccount clears the "account" edge to the BillingAccount entity.
 func (m *MonthlyUsageMutation) ClearAccount() {
 	m.clearedaccount = true
@@ -29964,7 +31091,7 @@ func (m *MonthlyUsageMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *MonthlyUsageMutation) Fields() []string {
-	fields := make([]string, 0, 7)
+	fields := make([]string, 0, 12)
 	if m.uid != nil {
 		fields = append(fields, monthlyusage.FieldUID)
 	}
@@ -29985,6 +31112,21 @@ func (m *MonthlyUsageMutation) Fields() []string {
 	}
 	if m.charged_micros != nil {
 		fields = append(fields, monthlyusage.FieldChargedMicros)
+	}
+	if m.log_ingest_mb != nil {
+		fields = append(fields, monthlyusage.FieldLogIngestMB)
+	}
+	if m.log_byte_days != nil {
+		fields = append(fields, monthlyusage.FieldLogByteDays)
+	}
+	if m.log_storage_gb_days != nil {
+		fields = append(fields, monthlyusage.FieldLogStorageGBDays)
+	}
+	if m.log_storage_through != nil {
+		fields = append(fields, monthlyusage.FieldLogStorageThrough)
+	}
+	if m.log_charged_micros != nil {
+		fields = append(fields, monthlyusage.FieldLogChargedMicros)
 	}
 	return fields
 }
@@ -30008,6 +31150,16 @@ func (m *MonthlyUsageMutation) Field(name string) (ent.Value, bool) {
 		return m.TrackedPlayers()
 	case monthlyusage.FieldChargedMicros:
 		return m.ChargedMicros()
+	case monthlyusage.FieldLogIngestMB:
+		return m.LogIngestMB()
+	case monthlyusage.FieldLogByteDays:
+		return m.LogByteDays()
+	case monthlyusage.FieldLogStorageGBDays:
+		return m.LogStorageGBDays()
+	case monthlyusage.FieldLogStorageThrough:
+		return m.LogStorageThrough()
+	case monthlyusage.FieldLogChargedMicros:
+		return m.LogChargedMicros()
 	}
 	return nil, false
 }
@@ -30031,6 +31183,16 @@ func (m *MonthlyUsageMutation) OldField(ctx context.Context, name string) (ent.V
 		return m.OldTrackedPlayers(ctx)
 	case monthlyusage.FieldChargedMicros:
 		return m.OldChargedMicros(ctx)
+	case monthlyusage.FieldLogIngestMB:
+		return m.OldLogIngestMB(ctx)
+	case monthlyusage.FieldLogByteDays:
+		return m.OldLogByteDays(ctx)
+	case monthlyusage.FieldLogStorageGBDays:
+		return m.OldLogStorageGBDays(ctx)
+	case monthlyusage.FieldLogStorageThrough:
+		return m.OldLogStorageThrough(ctx)
+	case monthlyusage.FieldLogChargedMicros:
+		return m.OldLogChargedMicros(ctx)
 	}
 	return nil, fmt.Errorf("unknown MonthlyUsage field %s", name)
 }
@@ -30089,6 +31251,41 @@ func (m *MonthlyUsageMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetChargedMicros(v)
 		return nil
+	case monthlyusage.FieldLogIngestMB:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLogIngestMB(v)
+		return nil
+	case monthlyusage.FieldLogByteDays:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLogByteDays(v)
+		return nil
+	case monthlyusage.FieldLogStorageGBDays:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLogStorageGBDays(v)
+		return nil
+	case monthlyusage.FieldLogStorageThrough:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLogStorageThrough(v)
+		return nil
+	case monthlyusage.FieldLogChargedMicros:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLogChargedMicros(v)
+		return nil
 	}
 	return fmt.Errorf("unknown MonthlyUsage field %s", name)
 }
@@ -30103,6 +31300,18 @@ func (m *MonthlyUsageMutation) AddedFields() []string {
 	if m.addcharged_micros != nil {
 		fields = append(fields, monthlyusage.FieldChargedMicros)
 	}
+	if m.addlog_ingest_mb != nil {
+		fields = append(fields, monthlyusage.FieldLogIngestMB)
+	}
+	if m.addlog_byte_days != nil {
+		fields = append(fields, monthlyusage.FieldLogByteDays)
+	}
+	if m.addlog_storage_gb_days != nil {
+		fields = append(fields, monthlyusage.FieldLogStorageGBDays)
+	}
+	if m.addlog_charged_micros != nil {
+		fields = append(fields, monthlyusage.FieldLogChargedMicros)
+	}
 	return fields
 }
 
@@ -30115,6 +31324,14 @@ func (m *MonthlyUsageMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedTrackedPlayers()
 	case monthlyusage.FieldChargedMicros:
 		return m.AddedChargedMicros()
+	case monthlyusage.FieldLogIngestMB:
+		return m.AddedLogIngestMB()
+	case monthlyusage.FieldLogByteDays:
+		return m.AddedLogByteDays()
+	case monthlyusage.FieldLogStorageGBDays:
+		return m.AddedLogStorageGBDays()
+	case monthlyusage.FieldLogChargedMicros:
+		return m.AddedLogChargedMicros()
 	}
 	return nil, false
 }
@@ -30138,6 +31355,34 @@ func (m *MonthlyUsageMutation) AddField(name string, value ent.Value) error {
 		}
 		m.AddChargedMicros(v)
 		return nil
+	case monthlyusage.FieldLogIngestMB:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddLogIngestMB(v)
+		return nil
+	case monthlyusage.FieldLogByteDays:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddLogByteDays(v)
+		return nil
+	case monthlyusage.FieldLogStorageGBDays:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddLogStorageGBDays(v)
+		return nil
+	case monthlyusage.FieldLogChargedMicros:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddLogChargedMicros(v)
+		return nil
 	}
 	return fmt.Errorf("unknown MonthlyUsage numeric field %s", name)
 }
@@ -30145,7 +31390,11 @@ func (m *MonthlyUsageMutation) AddField(name string, value ent.Value) error {
 // ClearedFields returns all nullable fields that were cleared during this
 // mutation.
 func (m *MonthlyUsageMutation) ClearedFields() []string {
-	return nil
+	var fields []string
+	if m.FieldCleared(monthlyusage.FieldLogStorageThrough) {
+		fields = append(fields, monthlyusage.FieldLogStorageThrough)
+	}
+	return fields
 }
 
 // FieldCleared returns a boolean indicating if a field with the given name was
@@ -30158,6 +31407,11 @@ func (m *MonthlyUsageMutation) FieldCleared(name string) bool {
 // ClearField clears the value of the field with the given name. It returns an
 // error if the field is not defined in the schema.
 func (m *MonthlyUsageMutation) ClearField(name string) error {
+	switch name {
+	case monthlyusage.FieldLogStorageThrough:
+		m.ClearLogStorageThrough()
+		return nil
+	}
 	return fmt.Errorf("unknown MonthlyUsage nullable field %s", name)
 }
 
@@ -30185,6 +31439,21 @@ func (m *MonthlyUsageMutation) ResetField(name string) error {
 		return nil
 	case monthlyusage.FieldChargedMicros:
 		m.ResetChargedMicros()
+		return nil
+	case monthlyusage.FieldLogIngestMB:
+		m.ResetLogIngestMB()
+		return nil
+	case monthlyusage.FieldLogByteDays:
+		m.ResetLogByteDays()
+		return nil
+	case monthlyusage.FieldLogStorageGBDays:
+		m.ResetLogStorageGBDays()
+		return nil
+	case monthlyusage.FieldLogStorageThrough:
+		m.ResetLogStorageThrough()
+		return nil
+	case monthlyusage.FieldLogChargedMicros:
+		m.ResetLogChargedMicros()
 		return nil
 	}
 	return fmt.Errorf("unknown MonthlyUsage field %s", name)
@@ -36143,6 +37412,11 @@ type ProjectMutation struct {
 	retention_changed_at         *time.Time
 	retention_purge_until        *time.Time
 	retention_purged_at          *time.Time
+	log_retention_days           *uint16
+	addlog_retention_days        *int16
+	log_retention_changed_at     *time.Time
+	log_retention_purge_until    *time.Time
+	log_retention_purged_at      *time.Time
 	deletion_at                  *time.Time
 	deletion_requested_by        *string
 	deleted_at                   *time.Time
@@ -36186,6 +37460,9 @@ type ProjectMutation struct {
 	usage_daily                  map[int]struct{}
 	removedusage_daily           map[int]struct{}
 	clearedusage_daily           bool
+	log_issues                   map[int]struct{}
+	removedlog_issues            map[int]struct{}
+	clearedlog_issues            bool
 	done                         bool
 	oldValue                     func(context.Context) (*Project, error)
 	predicates                   []predicate.Project
@@ -36712,6 +37989,209 @@ func (m *ProjectMutation) RetentionPurgedAtCleared() bool {
 func (m *ProjectMutation) ResetRetentionPurgedAt() {
 	m.retention_purged_at = nil
 	delete(m.clearedFields, project.FieldRetentionPurgedAt)
+}
+
+// SetLogRetentionDays sets the "log_retention_days" field.
+func (m *ProjectMutation) SetLogRetentionDays(u uint16) {
+	m.log_retention_days = &u
+	m.addlog_retention_days = nil
+}
+
+// LogRetentionDays returns the value of the "log_retention_days" field in the mutation.
+func (m *ProjectMutation) LogRetentionDays() (r uint16, exists bool) {
+	v := m.log_retention_days
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLogRetentionDays returns the old "log_retention_days" field's value of the Project entity.
+// If the Project object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProjectMutation) OldLogRetentionDays(ctx context.Context) (v uint16, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLogRetentionDays is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLogRetentionDays requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLogRetentionDays: %w", err)
+	}
+	return oldValue.LogRetentionDays, nil
+}
+
+// AddLogRetentionDays adds u to the "log_retention_days" field.
+func (m *ProjectMutation) AddLogRetentionDays(u int16) {
+	if m.addlog_retention_days != nil {
+		*m.addlog_retention_days += u
+	} else {
+		m.addlog_retention_days = &u
+	}
+}
+
+// AddedLogRetentionDays returns the value that was added to the "log_retention_days" field in this mutation.
+func (m *ProjectMutation) AddedLogRetentionDays() (r int16, exists bool) {
+	v := m.addlog_retention_days
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetLogRetentionDays resets all changes to the "log_retention_days" field.
+func (m *ProjectMutation) ResetLogRetentionDays() {
+	m.log_retention_days = nil
+	m.addlog_retention_days = nil
+}
+
+// SetLogRetentionChangedAt sets the "log_retention_changed_at" field.
+func (m *ProjectMutation) SetLogRetentionChangedAt(t time.Time) {
+	m.log_retention_changed_at = &t
+}
+
+// LogRetentionChangedAt returns the value of the "log_retention_changed_at" field in the mutation.
+func (m *ProjectMutation) LogRetentionChangedAt() (r time.Time, exists bool) {
+	v := m.log_retention_changed_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLogRetentionChangedAt returns the old "log_retention_changed_at" field's value of the Project entity.
+// If the Project object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProjectMutation) OldLogRetentionChangedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLogRetentionChangedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLogRetentionChangedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLogRetentionChangedAt: %w", err)
+	}
+	return oldValue.LogRetentionChangedAt, nil
+}
+
+// ClearLogRetentionChangedAt clears the value of the "log_retention_changed_at" field.
+func (m *ProjectMutation) ClearLogRetentionChangedAt() {
+	m.log_retention_changed_at = nil
+	m.clearedFields[project.FieldLogRetentionChangedAt] = struct{}{}
+}
+
+// LogRetentionChangedAtCleared returns if the "log_retention_changed_at" field was cleared in this mutation.
+func (m *ProjectMutation) LogRetentionChangedAtCleared() bool {
+	_, ok := m.clearedFields[project.FieldLogRetentionChangedAt]
+	return ok
+}
+
+// ResetLogRetentionChangedAt resets all changes to the "log_retention_changed_at" field.
+func (m *ProjectMutation) ResetLogRetentionChangedAt() {
+	m.log_retention_changed_at = nil
+	delete(m.clearedFields, project.FieldLogRetentionChangedAt)
+}
+
+// SetLogRetentionPurgeUntil sets the "log_retention_purge_until" field.
+func (m *ProjectMutation) SetLogRetentionPurgeUntil(t time.Time) {
+	m.log_retention_purge_until = &t
+}
+
+// LogRetentionPurgeUntil returns the value of the "log_retention_purge_until" field in the mutation.
+func (m *ProjectMutation) LogRetentionPurgeUntil() (r time.Time, exists bool) {
+	v := m.log_retention_purge_until
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLogRetentionPurgeUntil returns the old "log_retention_purge_until" field's value of the Project entity.
+// If the Project object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProjectMutation) OldLogRetentionPurgeUntil(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLogRetentionPurgeUntil is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLogRetentionPurgeUntil requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLogRetentionPurgeUntil: %w", err)
+	}
+	return oldValue.LogRetentionPurgeUntil, nil
+}
+
+// ClearLogRetentionPurgeUntil clears the value of the "log_retention_purge_until" field.
+func (m *ProjectMutation) ClearLogRetentionPurgeUntil() {
+	m.log_retention_purge_until = nil
+	m.clearedFields[project.FieldLogRetentionPurgeUntil] = struct{}{}
+}
+
+// LogRetentionPurgeUntilCleared returns if the "log_retention_purge_until" field was cleared in this mutation.
+func (m *ProjectMutation) LogRetentionPurgeUntilCleared() bool {
+	_, ok := m.clearedFields[project.FieldLogRetentionPurgeUntil]
+	return ok
+}
+
+// ResetLogRetentionPurgeUntil resets all changes to the "log_retention_purge_until" field.
+func (m *ProjectMutation) ResetLogRetentionPurgeUntil() {
+	m.log_retention_purge_until = nil
+	delete(m.clearedFields, project.FieldLogRetentionPurgeUntil)
+}
+
+// SetLogRetentionPurgedAt sets the "log_retention_purged_at" field.
+func (m *ProjectMutation) SetLogRetentionPurgedAt(t time.Time) {
+	m.log_retention_purged_at = &t
+}
+
+// LogRetentionPurgedAt returns the value of the "log_retention_purged_at" field in the mutation.
+func (m *ProjectMutation) LogRetentionPurgedAt() (r time.Time, exists bool) {
+	v := m.log_retention_purged_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLogRetentionPurgedAt returns the old "log_retention_purged_at" field's value of the Project entity.
+// If the Project object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProjectMutation) OldLogRetentionPurgedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLogRetentionPurgedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLogRetentionPurgedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLogRetentionPurgedAt: %w", err)
+	}
+	return oldValue.LogRetentionPurgedAt, nil
+}
+
+// ClearLogRetentionPurgedAt clears the value of the "log_retention_purged_at" field.
+func (m *ProjectMutation) ClearLogRetentionPurgedAt() {
+	m.log_retention_purged_at = nil
+	m.clearedFields[project.FieldLogRetentionPurgedAt] = struct{}{}
+}
+
+// LogRetentionPurgedAtCleared returns if the "log_retention_purged_at" field was cleared in this mutation.
+func (m *ProjectMutation) LogRetentionPurgedAtCleared() bool {
+	_, ok := m.clearedFields[project.FieldLogRetentionPurgedAt]
+	return ok
+}
+
+// ResetLogRetentionPurgedAt resets all changes to the "log_retention_purged_at" field.
+func (m *ProjectMutation) ResetLogRetentionPurgedAt() {
+	m.log_retention_purged_at = nil
+	delete(m.clearedFields, project.FieldLogRetentionPurgedAt)
 }
 
 // SetDeletionAt sets the "deletion_at" field.
@@ -37608,6 +39088,60 @@ func (m *ProjectMutation) ResetUsageDaily() {
 	m.removedusage_daily = nil
 }
 
+// AddLogIssueIDs adds the "log_issues" edge to the LogIssue entity by ids.
+func (m *ProjectMutation) AddLogIssueIDs(ids ...int) {
+	if m.log_issues == nil {
+		m.log_issues = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.log_issues[ids[i]] = struct{}{}
+	}
+}
+
+// ClearLogIssues clears the "log_issues" edge to the LogIssue entity.
+func (m *ProjectMutation) ClearLogIssues() {
+	m.clearedlog_issues = true
+}
+
+// LogIssuesCleared reports if the "log_issues" edge to the LogIssue entity was cleared.
+func (m *ProjectMutation) LogIssuesCleared() bool {
+	return m.clearedlog_issues
+}
+
+// RemoveLogIssueIDs removes the "log_issues" edge to the LogIssue entity by IDs.
+func (m *ProjectMutation) RemoveLogIssueIDs(ids ...int) {
+	if m.removedlog_issues == nil {
+		m.removedlog_issues = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.log_issues, ids[i])
+		m.removedlog_issues[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedLogIssues returns the removed IDs of the "log_issues" edge to the LogIssue entity.
+func (m *ProjectMutation) RemovedLogIssuesIDs() (ids []int) {
+	for id := range m.removedlog_issues {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// LogIssuesIDs returns the "log_issues" edge IDs in the mutation.
+func (m *ProjectMutation) LogIssuesIDs() (ids []int) {
+	for id := range m.log_issues {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetLogIssues resets all changes to the "log_issues" edge.
+func (m *ProjectMutation) ResetLogIssues() {
+	m.log_issues = nil
+	m.clearedlog_issues = false
+	m.removedlog_issues = nil
+}
+
 // Where appends a list predicates to the ProjectMutation builder.
 func (m *ProjectMutation) Where(ps ...predicate.Project) {
 	m.predicates = append(m.predicates, ps...)
@@ -37642,7 +39176,7 @@ func (m *ProjectMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ProjectMutation) Fields() []string {
-	fields := make([]string, 0, 15)
+	fields := make([]string, 0, 19)
 	if m.uid != nil {
 		fields = append(fields, project.FieldUID)
 	}
@@ -37672,6 +39206,18 @@ func (m *ProjectMutation) Fields() []string {
 	}
 	if m.retention_purged_at != nil {
 		fields = append(fields, project.FieldRetentionPurgedAt)
+	}
+	if m.log_retention_days != nil {
+		fields = append(fields, project.FieldLogRetentionDays)
+	}
+	if m.log_retention_changed_at != nil {
+		fields = append(fields, project.FieldLogRetentionChangedAt)
+	}
+	if m.log_retention_purge_until != nil {
+		fields = append(fields, project.FieldLogRetentionPurgeUntil)
+	}
+	if m.log_retention_purged_at != nil {
+		fields = append(fields, project.FieldLogRetentionPurgedAt)
 	}
 	if m.deletion_at != nil {
 		fields = append(fields, project.FieldDeletionAt)
@@ -37716,6 +39262,14 @@ func (m *ProjectMutation) Field(name string) (ent.Value, bool) {
 		return m.RetentionPurgeUntil()
 	case project.FieldRetentionPurgedAt:
 		return m.RetentionPurgedAt()
+	case project.FieldLogRetentionDays:
+		return m.LogRetentionDays()
+	case project.FieldLogRetentionChangedAt:
+		return m.LogRetentionChangedAt()
+	case project.FieldLogRetentionPurgeUntil:
+		return m.LogRetentionPurgeUntil()
+	case project.FieldLogRetentionPurgedAt:
+		return m.LogRetentionPurgedAt()
 	case project.FieldDeletionAt:
 		return m.DeletionAt()
 	case project.FieldDeletionRequestedBy:
@@ -37755,6 +39309,14 @@ func (m *ProjectMutation) OldField(ctx context.Context, name string) (ent.Value,
 		return m.OldRetentionPurgeUntil(ctx)
 	case project.FieldRetentionPurgedAt:
 		return m.OldRetentionPurgedAt(ctx)
+	case project.FieldLogRetentionDays:
+		return m.OldLogRetentionDays(ctx)
+	case project.FieldLogRetentionChangedAt:
+		return m.OldLogRetentionChangedAt(ctx)
+	case project.FieldLogRetentionPurgeUntil:
+		return m.OldLogRetentionPurgeUntil(ctx)
+	case project.FieldLogRetentionPurgedAt:
+		return m.OldLogRetentionPurgedAt(ctx)
 	case project.FieldDeletionAt:
 		return m.OldDeletionAt(ctx)
 	case project.FieldDeletionRequestedBy:
@@ -37844,6 +39406,34 @@ func (m *ProjectMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetRetentionPurgedAt(v)
 		return nil
+	case project.FieldLogRetentionDays:
+		v, ok := value.(uint16)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLogRetentionDays(v)
+		return nil
+	case project.FieldLogRetentionChangedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLogRetentionChangedAt(v)
+		return nil
+	case project.FieldLogRetentionPurgeUntil:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLogRetentionPurgeUntil(v)
+		return nil
+	case project.FieldLogRetentionPurgedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLogRetentionPurgedAt(v)
+		return nil
 	case project.FieldDeletionAt:
 		v, ok := value.(time.Time)
 		if !ok {
@@ -37890,6 +39480,9 @@ func (m *ProjectMutation) AddedFields() []string {
 	if m.addretention_days != nil {
 		fields = append(fields, project.FieldRetentionDays)
 	}
+	if m.addlog_retention_days != nil {
+		fields = append(fields, project.FieldLogRetentionDays)
+	}
 	return fields
 }
 
@@ -37900,6 +39493,8 @@ func (m *ProjectMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
 	case project.FieldRetentionDays:
 		return m.AddedRetentionDays()
+	case project.FieldLogRetentionDays:
+		return m.AddedLogRetentionDays()
 	}
 	return nil, false
 }
@@ -37915,6 +39510,13 @@ func (m *ProjectMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddRetentionDays(v)
+		return nil
+	case project.FieldLogRetentionDays:
+		v, ok := value.(int16)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddLogRetentionDays(v)
 		return nil
 	}
 	return fmt.Errorf("unknown Project numeric field %s", name)
@@ -37932,6 +39534,15 @@ func (m *ProjectMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(project.FieldRetentionPurgedAt) {
 		fields = append(fields, project.FieldRetentionPurgedAt)
+	}
+	if m.FieldCleared(project.FieldLogRetentionChangedAt) {
+		fields = append(fields, project.FieldLogRetentionChangedAt)
+	}
+	if m.FieldCleared(project.FieldLogRetentionPurgeUntil) {
+		fields = append(fields, project.FieldLogRetentionPurgeUntil)
+	}
+	if m.FieldCleared(project.FieldLogRetentionPurgedAt) {
+		fields = append(fields, project.FieldLogRetentionPurgedAt)
 	}
 	if m.FieldCleared(project.FieldDeletionAt) {
 		fields = append(fields, project.FieldDeletionAt)
@@ -37964,6 +39575,15 @@ func (m *ProjectMutation) ClearField(name string) error {
 		return nil
 	case project.FieldRetentionPurgedAt:
 		m.ClearRetentionPurgedAt()
+		return nil
+	case project.FieldLogRetentionChangedAt:
+		m.ClearLogRetentionChangedAt()
+		return nil
+	case project.FieldLogRetentionPurgeUntil:
+		m.ClearLogRetentionPurgeUntil()
+		return nil
+	case project.FieldLogRetentionPurgedAt:
+		m.ClearLogRetentionPurgedAt()
 		return nil
 	case project.FieldDeletionAt:
 		m.ClearDeletionAt()
@@ -38012,6 +39632,18 @@ func (m *ProjectMutation) ResetField(name string) error {
 	case project.FieldRetentionPurgedAt:
 		m.ResetRetentionPurgedAt()
 		return nil
+	case project.FieldLogRetentionDays:
+		m.ResetLogRetentionDays()
+		return nil
+	case project.FieldLogRetentionChangedAt:
+		m.ResetLogRetentionChangedAt()
+		return nil
+	case project.FieldLogRetentionPurgeUntil:
+		m.ResetLogRetentionPurgeUntil()
+		return nil
+	case project.FieldLogRetentionPurgedAt:
+		m.ResetLogRetentionPurgedAt()
+		return nil
 	case project.FieldDeletionAt:
 		m.ResetDeletionAt()
 		return nil
@@ -38033,7 +39665,7 @@ func (m *ProjectMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *ProjectMutation) AddedEdges() []string {
-	edges := make([]string, 0, 13)
+	edges := make([]string, 0, 14)
 	if m.organization != nil {
 		edges = append(edges, project.EdgeOrganization)
 	}
@@ -38072,6 +39704,9 @@ func (m *ProjectMutation) AddedEdges() []string {
 	}
 	if m.usage_daily != nil {
 		edges = append(edges, project.EdgeUsageDaily)
+	}
+	if m.log_issues != nil {
+		edges = append(edges, project.EdgeLogIssues)
 	}
 	return edges
 }
@@ -38156,13 +39791,19 @@ func (m *ProjectMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case project.EdgeLogIssues:
+		ids := make([]ent.Value, 0, len(m.log_issues))
+		for id := range m.log_issues {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *ProjectMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 13)
+	edges := make([]string, 0, 14)
 	if m.removedenvironments != nil {
 		edges = append(edges, project.EdgeEnvironments)
 	}
@@ -38198,6 +39839,9 @@ func (m *ProjectMutation) RemovedEdges() []string {
 	}
 	if m.removedusage_daily != nil {
 		edges = append(edges, project.EdgeUsageDaily)
+	}
+	if m.removedlog_issues != nil {
+		edges = append(edges, project.EdgeLogIssues)
 	}
 	return edges
 }
@@ -38278,13 +39922,19 @@ func (m *ProjectMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case project.EdgeLogIssues:
+		ids := make([]ent.Value, 0, len(m.removedlog_issues))
+		for id := range m.removedlog_issues {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *ProjectMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 13)
+	edges := make([]string, 0, 14)
 	if m.clearedorganization {
 		edges = append(edges, project.EdgeOrganization)
 	}
@@ -38324,6 +39974,9 @@ func (m *ProjectMutation) ClearedEdges() []string {
 	if m.clearedusage_daily {
 		edges = append(edges, project.EdgeUsageDaily)
 	}
+	if m.clearedlog_issues {
+		edges = append(edges, project.EdgeLogIssues)
+	}
 	return edges
 }
 
@@ -38357,6 +40010,8 @@ func (m *ProjectMutation) EdgeCleared(name string) bool {
 		return m.clearedmember_access
 	case project.EdgeUsageDaily:
 		return m.clearedusage_daily
+	case project.EdgeLogIssues:
+		return m.clearedlog_issues
 	}
 	return false
 }
@@ -38414,6 +40069,9 @@ func (m *ProjectMutation) ResetEdge(name string) error {
 		return nil
 	case project.EdgeUsageDaily:
 		m.ResetUsageDaily()
+		return nil
+	case project.EdgeLogIssues:
+		m.ResetLogIssues()
 		return nil
 	}
 	return fmt.Errorf("unknown Project edge %s", name)
@@ -55163,28 +56821,32 @@ func (m *UsageChargeMutation) ResetEdge(name string) error {
 // UsageDailyMutation represents an operation that mutates the UsageDaily nodes in the graph.
 type UsageDailyMutation struct {
 	config
-	op                 Op
-	typ                string
-	id                 *int
-	uid                *uuid.UUID
-	created_at         *time.Time
-	updated_at         *time.Time
-	organization_id    *int
-	addorganization_id *int
-	day                *time.Time
-	tracked_players    *uint64
-	addtracked_players *int64
-	events_accepted    *uint64
-	addevents_accepted *int64
-	retained_bytes     *uint64
-	addretained_bytes  *int64
-	final              *bool
-	clearedFields      map[string]struct{}
-	project            *int
-	clearedproject     bool
-	done               bool
-	oldValue           func(context.Context) (*UsageDaily, error)
-	predicates         []predicate.UsageDaily
+	op                    Op
+	typ                   string
+	id                    *int
+	uid                   *uuid.UUID
+	created_at            *time.Time
+	updated_at            *time.Time
+	organization_id       *int
+	addorganization_id    *int
+	day                   *time.Time
+	tracked_players       *uint64
+	addtracked_players    *int64
+	events_accepted       *uint64
+	addevents_accepted    *int64
+	retained_bytes        *uint64
+	addretained_bytes     *int64
+	log_bytes             *uint64
+	addlog_bytes          *int64
+	log_ingested_bytes    *uint64
+	addlog_ingested_bytes *int64
+	final                 *bool
+	clearedFields         map[string]struct{}
+	project               *int
+	clearedproject        bool
+	done                  bool
+	oldValue              func(context.Context) (*UsageDaily, error)
+	predicates            []predicate.UsageDaily
 }
 
 var _ ent.Mutation = (*UsageDailyMutation)(nil)
@@ -55695,6 +57357,118 @@ func (m *UsageDailyMutation) ResetRetainedBytes() {
 	m.addretained_bytes = nil
 }
 
+// SetLogBytes sets the "log_bytes" field.
+func (m *UsageDailyMutation) SetLogBytes(u uint64) {
+	m.log_bytes = &u
+	m.addlog_bytes = nil
+}
+
+// LogBytes returns the value of the "log_bytes" field in the mutation.
+func (m *UsageDailyMutation) LogBytes() (r uint64, exists bool) {
+	v := m.log_bytes
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLogBytes returns the old "log_bytes" field's value of the UsageDaily entity.
+// If the UsageDaily object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageDailyMutation) OldLogBytes(ctx context.Context) (v uint64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLogBytes is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLogBytes requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLogBytes: %w", err)
+	}
+	return oldValue.LogBytes, nil
+}
+
+// AddLogBytes adds u to the "log_bytes" field.
+func (m *UsageDailyMutation) AddLogBytes(u int64) {
+	if m.addlog_bytes != nil {
+		*m.addlog_bytes += u
+	} else {
+		m.addlog_bytes = &u
+	}
+}
+
+// AddedLogBytes returns the value that was added to the "log_bytes" field in this mutation.
+func (m *UsageDailyMutation) AddedLogBytes() (r int64, exists bool) {
+	v := m.addlog_bytes
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetLogBytes resets all changes to the "log_bytes" field.
+func (m *UsageDailyMutation) ResetLogBytes() {
+	m.log_bytes = nil
+	m.addlog_bytes = nil
+}
+
+// SetLogIngestedBytes sets the "log_ingested_bytes" field.
+func (m *UsageDailyMutation) SetLogIngestedBytes(u uint64) {
+	m.log_ingested_bytes = &u
+	m.addlog_ingested_bytes = nil
+}
+
+// LogIngestedBytes returns the value of the "log_ingested_bytes" field in the mutation.
+func (m *UsageDailyMutation) LogIngestedBytes() (r uint64, exists bool) {
+	v := m.log_ingested_bytes
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLogIngestedBytes returns the old "log_ingested_bytes" field's value of the UsageDaily entity.
+// If the UsageDaily object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageDailyMutation) OldLogIngestedBytes(ctx context.Context) (v uint64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLogIngestedBytes is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLogIngestedBytes requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLogIngestedBytes: %w", err)
+	}
+	return oldValue.LogIngestedBytes, nil
+}
+
+// AddLogIngestedBytes adds u to the "log_ingested_bytes" field.
+func (m *UsageDailyMutation) AddLogIngestedBytes(u int64) {
+	if m.addlog_ingested_bytes != nil {
+		*m.addlog_ingested_bytes += u
+	} else {
+		m.addlog_ingested_bytes = &u
+	}
+}
+
+// AddedLogIngestedBytes returns the value that was added to the "log_ingested_bytes" field in this mutation.
+func (m *UsageDailyMutation) AddedLogIngestedBytes() (r int64, exists bool) {
+	v := m.addlog_ingested_bytes
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetLogIngestedBytes resets all changes to the "log_ingested_bytes" field.
+func (m *UsageDailyMutation) ResetLogIngestedBytes() {
+	m.log_ingested_bytes = nil
+	m.addlog_ingested_bytes = nil
+}
+
 // SetFinal sets the "final" field.
 func (m *UsageDailyMutation) SetFinal(b bool) {
 	m.final = &b
@@ -55792,7 +57566,7 @@ func (m *UsageDailyMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UsageDailyMutation) Fields() []string {
-	fields := make([]string, 0, 10)
+	fields := make([]string, 0, 12)
 	if m.uid != nil {
 		fields = append(fields, usagedaily.FieldUID)
 	}
@@ -55819,6 +57593,12 @@ func (m *UsageDailyMutation) Fields() []string {
 	}
 	if m.retained_bytes != nil {
 		fields = append(fields, usagedaily.FieldRetainedBytes)
+	}
+	if m.log_bytes != nil {
+		fields = append(fields, usagedaily.FieldLogBytes)
+	}
+	if m.log_ingested_bytes != nil {
+		fields = append(fields, usagedaily.FieldLogIngestedBytes)
 	}
 	if m.final != nil {
 		fields = append(fields, usagedaily.FieldFinal)
@@ -55849,6 +57629,10 @@ func (m *UsageDailyMutation) Field(name string) (ent.Value, bool) {
 		return m.EventsAccepted()
 	case usagedaily.FieldRetainedBytes:
 		return m.RetainedBytes()
+	case usagedaily.FieldLogBytes:
+		return m.LogBytes()
+	case usagedaily.FieldLogIngestedBytes:
+		return m.LogIngestedBytes()
 	case usagedaily.FieldFinal:
 		return m.Final()
 	}
@@ -55878,6 +57662,10 @@ func (m *UsageDailyMutation) OldField(ctx context.Context, name string) (ent.Val
 		return m.OldEventsAccepted(ctx)
 	case usagedaily.FieldRetainedBytes:
 		return m.OldRetainedBytes(ctx)
+	case usagedaily.FieldLogBytes:
+		return m.OldLogBytes(ctx)
+	case usagedaily.FieldLogIngestedBytes:
+		return m.OldLogIngestedBytes(ctx)
 	case usagedaily.FieldFinal:
 		return m.OldFinal(ctx)
 	}
@@ -55952,6 +57740,20 @@ func (m *UsageDailyMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetRetainedBytes(v)
 		return nil
+	case usagedaily.FieldLogBytes:
+		v, ok := value.(uint64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLogBytes(v)
+		return nil
+	case usagedaily.FieldLogIngestedBytes:
+		v, ok := value.(uint64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLogIngestedBytes(v)
+		return nil
 	case usagedaily.FieldFinal:
 		v, ok := value.(bool)
 		if !ok {
@@ -55979,6 +57781,12 @@ func (m *UsageDailyMutation) AddedFields() []string {
 	if m.addretained_bytes != nil {
 		fields = append(fields, usagedaily.FieldRetainedBytes)
 	}
+	if m.addlog_bytes != nil {
+		fields = append(fields, usagedaily.FieldLogBytes)
+	}
+	if m.addlog_ingested_bytes != nil {
+		fields = append(fields, usagedaily.FieldLogIngestedBytes)
+	}
 	return fields
 }
 
@@ -55995,6 +57803,10 @@ func (m *UsageDailyMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedEventsAccepted()
 	case usagedaily.FieldRetainedBytes:
 		return m.AddedRetainedBytes()
+	case usagedaily.FieldLogBytes:
+		return m.AddedLogBytes()
+	case usagedaily.FieldLogIngestedBytes:
+		return m.AddedLogIngestedBytes()
 	}
 	return nil, false
 }
@@ -56031,6 +57843,20 @@ func (m *UsageDailyMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddRetainedBytes(v)
+		return nil
+	case usagedaily.FieldLogBytes:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddLogBytes(v)
+		return nil
+	case usagedaily.FieldLogIngestedBytes:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddLogIngestedBytes(v)
 		return nil
 	}
 	return fmt.Errorf("unknown UsageDaily numeric field %s", name)
@@ -56085,6 +57911,12 @@ func (m *UsageDailyMutation) ResetField(name string) error {
 		return nil
 	case usagedaily.FieldRetainedBytes:
 		m.ResetRetainedBytes()
+		return nil
+	case usagedaily.FieldLogBytes:
+		m.ResetLogBytes()
+		return nil
+	case usagedaily.FieldLogIngestedBytes:
+		m.ResetLogIngestedBytes()
 		return nil
 	case usagedaily.FieldFinal:
 		m.ResetFinal()

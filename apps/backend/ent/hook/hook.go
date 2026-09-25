@@ -261,6 +261,18 @@ func (f LiveOpsEventFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.LiveOpsEventMutation", m)
 }
 
+// The LogIssueFunc type is an adapter to allow the use of ordinary
+// function as LogIssue mutator.
+type LogIssueFunc func(context.Context, *ent.LogIssueMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f LogIssueFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.LogIssueMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.LogIssueMutation", m)
+}
+
 // The MemberProjectFunc type is an adapter to allow the use of ordinary
 // function as MemberProject mutator.
 type MemberProjectFunc func(context.Context, *ent.MemberProjectMutation) (ent.Value, error)

@@ -97,6 +97,48 @@ func (_u *UsageDailyUpdate) AddRetainedBytes(v int64) *UsageDailyUpdate {
 	return _u
 }
 
+// SetLogBytes sets the "log_bytes" field.
+func (_u *UsageDailyUpdate) SetLogBytes(v uint64) *UsageDailyUpdate {
+	_u.mutation.ResetLogBytes()
+	_u.mutation.SetLogBytes(v)
+	return _u
+}
+
+// SetNillableLogBytes sets the "log_bytes" field if the given value is not nil.
+func (_u *UsageDailyUpdate) SetNillableLogBytes(v *uint64) *UsageDailyUpdate {
+	if v != nil {
+		_u.SetLogBytes(*v)
+	}
+	return _u
+}
+
+// AddLogBytes adds value to the "log_bytes" field.
+func (_u *UsageDailyUpdate) AddLogBytes(v int64) *UsageDailyUpdate {
+	_u.mutation.AddLogBytes(v)
+	return _u
+}
+
+// SetLogIngestedBytes sets the "log_ingested_bytes" field.
+func (_u *UsageDailyUpdate) SetLogIngestedBytes(v uint64) *UsageDailyUpdate {
+	_u.mutation.ResetLogIngestedBytes()
+	_u.mutation.SetLogIngestedBytes(v)
+	return _u
+}
+
+// SetNillableLogIngestedBytes sets the "log_ingested_bytes" field if the given value is not nil.
+func (_u *UsageDailyUpdate) SetNillableLogIngestedBytes(v *uint64) *UsageDailyUpdate {
+	if v != nil {
+		_u.SetLogIngestedBytes(*v)
+	}
+	return _u
+}
+
+// AddLogIngestedBytes adds value to the "log_ingested_bytes" field.
+func (_u *UsageDailyUpdate) AddLogIngestedBytes(v int64) *UsageDailyUpdate {
+	_u.mutation.AddLogIngestedBytes(v)
+	return _u
+}
+
 // SetFinal sets the "final" field.
 func (_u *UsageDailyUpdate) SetFinal(v bool) *UsageDailyUpdate {
 	_u.mutation.SetFinal(v)
@@ -193,6 +235,18 @@ func (_u *UsageDailyUpdate) sqlSave(ctx context.Context) (_node int, err error) 
 	if value, ok := _u.mutation.AddedRetainedBytes(); ok {
 		_spec.AddField(usagedaily.FieldRetainedBytes, field.TypeUint64, value)
 	}
+	if value, ok := _u.mutation.LogBytes(); ok {
+		_spec.SetField(usagedaily.FieldLogBytes, field.TypeUint64, value)
+	}
+	if value, ok := _u.mutation.AddedLogBytes(); ok {
+		_spec.AddField(usagedaily.FieldLogBytes, field.TypeUint64, value)
+	}
+	if value, ok := _u.mutation.LogIngestedBytes(); ok {
+		_spec.SetField(usagedaily.FieldLogIngestedBytes, field.TypeUint64, value)
+	}
+	if value, ok := _u.mutation.AddedLogIngestedBytes(); ok {
+		_spec.AddField(usagedaily.FieldLogIngestedBytes, field.TypeUint64, value)
+	}
 	if value, ok := _u.mutation.Final(); ok {
 		_spec.SetField(usagedaily.FieldFinal, field.TypeBool, value)
 	}
@@ -282,6 +336,48 @@ func (_u *UsageDailyUpdateOne) SetNillableRetainedBytes(v *uint64) *UsageDailyUp
 // AddRetainedBytes adds value to the "retained_bytes" field.
 func (_u *UsageDailyUpdateOne) AddRetainedBytes(v int64) *UsageDailyUpdateOne {
 	_u.mutation.AddRetainedBytes(v)
+	return _u
+}
+
+// SetLogBytes sets the "log_bytes" field.
+func (_u *UsageDailyUpdateOne) SetLogBytes(v uint64) *UsageDailyUpdateOne {
+	_u.mutation.ResetLogBytes()
+	_u.mutation.SetLogBytes(v)
+	return _u
+}
+
+// SetNillableLogBytes sets the "log_bytes" field if the given value is not nil.
+func (_u *UsageDailyUpdateOne) SetNillableLogBytes(v *uint64) *UsageDailyUpdateOne {
+	if v != nil {
+		_u.SetLogBytes(*v)
+	}
+	return _u
+}
+
+// AddLogBytes adds value to the "log_bytes" field.
+func (_u *UsageDailyUpdateOne) AddLogBytes(v int64) *UsageDailyUpdateOne {
+	_u.mutation.AddLogBytes(v)
+	return _u
+}
+
+// SetLogIngestedBytes sets the "log_ingested_bytes" field.
+func (_u *UsageDailyUpdateOne) SetLogIngestedBytes(v uint64) *UsageDailyUpdateOne {
+	_u.mutation.ResetLogIngestedBytes()
+	_u.mutation.SetLogIngestedBytes(v)
+	return _u
+}
+
+// SetNillableLogIngestedBytes sets the "log_ingested_bytes" field if the given value is not nil.
+func (_u *UsageDailyUpdateOne) SetNillableLogIngestedBytes(v *uint64) *UsageDailyUpdateOne {
+	if v != nil {
+		_u.SetLogIngestedBytes(*v)
+	}
+	return _u
+}
+
+// AddLogIngestedBytes adds value to the "log_ingested_bytes" field.
+func (_u *UsageDailyUpdateOne) AddLogIngestedBytes(v int64) *UsageDailyUpdateOne {
+	_u.mutation.AddLogIngestedBytes(v)
 	return _u
 }
 
@@ -410,6 +506,18 @@ func (_u *UsageDailyUpdateOne) sqlSave(ctx context.Context) (_node *UsageDaily, 
 	}
 	if value, ok := _u.mutation.AddedRetainedBytes(); ok {
 		_spec.AddField(usagedaily.FieldRetainedBytes, field.TypeUint64, value)
+	}
+	if value, ok := _u.mutation.LogBytes(); ok {
+		_spec.SetField(usagedaily.FieldLogBytes, field.TypeUint64, value)
+	}
+	if value, ok := _u.mutation.AddedLogBytes(); ok {
+		_spec.AddField(usagedaily.FieldLogBytes, field.TypeUint64, value)
+	}
+	if value, ok := _u.mutation.LogIngestedBytes(); ok {
+		_spec.SetField(usagedaily.FieldLogIngestedBytes, field.TypeUint64, value)
+	}
+	if value, ok := _u.mutation.AddedLogIngestedBytes(); ok {
+		_spec.AddField(usagedaily.FieldLogIngestedBytes, field.TypeUint64, value)
 	}
 	if value, ok := _u.mutation.Final(); ok {
 		_spec.SetField(usagedaily.FieldFinal, field.TypeBool, value)

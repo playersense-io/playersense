@@ -36,6 +36,14 @@ const (
 	FieldRetentionPurgeUntil = "retention_purge_until"
 	// FieldRetentionPurgedAt holds the string denoting the retention_purged_at field in the database.
 	FieldRetentionPurgedAt = "retention_purged_at"
+	// FieldLogRetentionDays holds the string denoting the log_retention_days field in the database.
+	FieldLogRetentionDays = "log_retention_days"
+	// FieldLogRetentionChangedAt holds the string denoting the log_retention_changed_at field in the database.
+	FieldLogRetentionChangedAt = "log_retention_changed_at"
+	// FieldLogRetentionPurgeUntil holds the string denoting the log_retention_purge_until field in the database.
+	FieldLogRetentionPurgeUntil = "log_retention_purge_until"
+	// FieldLogRetentionPurgedAt holds the string denoting the log_retention_purged_at field in the database.
+	FieldLogRetentionPurgedAt = "log_retention_purged_at"
 	// FieldDeletionAt holds the string denoting the deletion_at field in the database.
 	FieldDeletionAt = "deletion_at"
 	// FieldDeletionRequestedBy holds the string denoting the deletion_requested_by field in the database.
@@ -72,6 +80,8 @@ const (
 	EdgeMemberAccess = "member_access"
 	// EdgeUsageDaily holds the string denoting the usage_daily edge name in mutations.
 	EdgeUsageDaily = "usage_daily"
+	// EdgeLogIssues holds the string denoting the log_issues edge name in mutations.
+	EdgeLogIssues = "log_issues"
 	// Table holds the table name of the project in the database.
 	Table = "projects"
 	// OrganizationTable is the table that holds the organization relation/edge.
@@ -165,6 +175,13 @@ const (
 	UsageDailyInverseTable = "usage_daily"
 	// UsageDailyColumn is the table column denoting the usage_daily relation/edge.
 	UsageDailyColumn = "project_id"
+	// LogIssuesTable is the table that holds the log_issues relation/edge.
+	LogIssuesTable = "log_issues"
+	// LogIssuesInverseTable is the table name for the LogIssue entity.
+	// It exists in this package in order to avoid circular dependency with the "logissue" package.
+	LogIssuesInverseTable = "log_issues"
+	// LogIssuesColumn is the table column denoting the log_issues relation/edge.
+	LogIssuesColumn = "project_id"
 )
 
 // Columns holds all SQL columns for project fields.
@@ -180,6 +197,10 @@ var Columns = []string{
 	FieldRetentionChangedAt,
 	FieldRetentionPurgeUntil,
 	FieldRetentionPurgedAt,
+	FieldLogRetentionDays,
+	FieldLogRetentionChangedAt,
+	FieldLogRetentionPurgeUntil,
+	FieldLogRetentionPurgedAt,
 	FieldDeletionAt,
 	FieldDeletionRequestedBy,
 	FieldDeletedAt,
@@ -212,6 +233,8 @@ var (
 	SlugValidator func(string) error
 	// DefaultRetentionDays holds the default value on creation for the "retention_days" field.
 	DefaultRetentionDays uint16
+	// DefaultLogRetentionDays holds the default value on creation for the "log_retention_days" field.
+	DefaultLogRetentionDays uint16
 	// DefaultDeletionRequestedBy holds the default value on creation for the "deletion_requested_by" field.
 	DefaultDeletionRequestedBy string
 	// DeletionRequestedByValidator is a validator for the "deletion_requested_by" field. It is called by the builders before save.
@@ -301,6 +324,26 @@ func ByRetentionPurgeUntil(opts ...sql.OrderTermOption) OrderOption {
 // ByRetentionPurgedAt orders the results by the retention_purged_at field.
 func ByRetentionPurgedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldRetentionPurgedAt, opts...).ToFunc()
+}
+
+// ByLogRetentionDays orders the results by the log_retention_days field.
+func ByLogRetentionDays(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLogRetentionDays, opts...).ToFunc()
+}
+
+// ByLogRetentionChangedAt orders the results by the log_retention_changed_at field.
+func ByLogRetentionChangedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLogRetentionChangedAt, opts...).ToFunc()
+}
+
+// ByLogRetentionPurgeUntil orders the results by the log_retention_purge_until field.
+func ByLogRetentionPurgeUntil(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLogRetentionPurgeUntil, opts...).ToFunc()
+}
+
+// ByLogRetentionPurgedAt orders the results by the log_retention_purged_at field.
+func ByLogRetentionPurgedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLogRetentionPurgedAt, opts...).ToFunc()
 }
 
 // ByDeletionAt orders the results by the deletion_at field.
@@ -502,6 +545,20 @@ func ByUsageDaily(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newUsageDailyStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
+
+// ByLogIssuesCount orders the results by log_issues count.
+func ByLogIssuesCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newLogIssuesStep(), opts...)
+	}
+}
+
+// ByLogIssues orders the results by log_issues terms.
+func ByLogIssues(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newLogIssuesStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newOrganizationStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -591,5 +648,12 @@ func newUsageDailyStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(UsageDailyInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, UsageDailyTable, UsageDailyColumn),
+	)
+}
+func newLogIssuesStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(LogIssuesInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, LogIssuesTable, LogIssuesColumn),
 	)
 }

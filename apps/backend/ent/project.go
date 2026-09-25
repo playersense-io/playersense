@@ -41,6 +41,14 @@ type Project struct {
 	// class=none
 	RetentionPurgedAt *time.Time `json:"retention_purged_at,omitempty"`
 	// class=none
+	LogRetentionDays uint16 `json:"log_retention_days,omitempty"`
+	// class=none
+	LogRetentionChangedAt *time.Time `json:"log_retention_changed_at,omitempty"`
+	// class=none
+	LogRetentionPurgeUntil *time.Time `json:"log_retention_purge_until,omitempty"`
+	// class=none
+	LogRetentionPurgedAt *time.Time `json:"log_retention_purged_at,omitempty"`
+	// class=none
 	DeletionAt *time.Time `json:"deletion_at,omitempty"`
 	// class=none
 	DeletionRequestedBy string `json:"deletion_requested_by,omitempty"`
@@ -84,9 +92,11 @@ type ProjectEdges struct {
 	MemberAccess []*MemberProject `json:"member_access,omitempty"`
 	// UsageDaily holds the value of the usage_daily edge.
 	UsageDaily []*UsageDaily `json:"usage_daily,omitempty"`
+	// LogIssues holds the value of the log_issues edge.
+	LogIssues []*LogIssue `json:"log_issues,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [13]bool
+	loadedTypes [14]bool
 }
 
 // OrganizationOrErr returns the Organization value or an error if the edge
@@ -208,16 +218,25 @@ func (e ProjectEdges) UsageDailyOrErr() ([]*UsageDaily, error) {
 	return nil, &NotLoadedError{edge: "usage_daily"}
 }
 
+// LogIssuesOrErr returns the LogIssues value or an error if the edge
+// was not loaded in eager-loading.
+func (e ProjectEdges) LogIssuesOrErr() ([]*LogIssue, error) {
+	if e.loadedTypes[13] {
+		return e.LogIssues, nil
+	}
+	return nil, &NotLoadedError{edge: "log_issues"}
+}
+
 // scanValues returns the types for scanning values from sql.Rows.
 func (*Project) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case project.FieldID, project.FieldRetentionDays, project.FieldOrganizationID:
+		case project.FieldID, project.FieldRetentionDays, project.FieldLogRetentionDays, project.FieldOrganizationID:
 			values[i] = new(sql.NullInt64)
 		case project.FieldName, project.FieldSlug, project.FieldPolicyTier, project.FieldDeletionRequestedBy:
 			values[i] = new(sql.NullString)
-		case project.FieldCreatedAt, project.FieldUpdatedAt, project.FieldRetentionChangedAt, project.FieldRetentionPurgeUntil, project.FieldRetentionPurgedAt, project.FieldDeletionAt, project.FieldDeletedAt, project.FieldDeletionPurgedAt:
+		case project.FieldCreatedAt, project.FieldUpdatedAt, project.FieldRetentionChangedAt, project.FieldRetentionPurgeUntil, project.FieldRetentionPurgedAt, project.FieldLogRetentionChangedAt, project.FieldLogRetentionPurgeUntil, project.FieldLogRetentionPurgedAt, project.FieldDeletionAt, project.FieldDeletedAt, project.FieldDeletionPurgedAt:
 			values[i] = new(sql.NullTime)
 		case project.FieldUID:
 			values[i] = new(uuid.UUID)
@@ -304,6 +323,33 @@ func (_m *Project) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.RetentionPurgedAt = new(time.Time)
 				*_m.RetentionPurgedAt = value.Time
+			}
+		case project.FieldLogRetentionDays:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field log_retention_days", values[i])
+			} else if value.Valid {
+				_m.LogRetentionDays = uint16(value.Int64)
+			}
+		case project.FieldLogRetentionChangedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field log_retention_changed_at", values[i])
+			} else if value.Valid {
+				_m.LogRetentionChangedAt = new(time.Time)
+				*_m.LogRetentionChangedAt = value.Time
+			}
+		case project.FieldLogRetentionPurgeUntil:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field log_retention_purge_until", values[i])
+			} else if value.Valid {
+				_m.LogRetentionPurgeUntil = new(time.Time)
+				*_m.LogRetentionPurgeUntil = value.Time
+			}
+		case project.FieldLogRetentionPurgedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field log_retention_purged_at", values[i])
+			} else if value.Valid {
+				_m.LogRetentionPurgedAt = new(time.Time)
+				*_m.LogRetentionPurgedAt = value.Time
 			}
 		case project.FieldDeletionAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -416,6 +462,11 @@ func (_m *Project) QueryUsageDaily() *UsageDailyQuery {
 	return NewProjectClient(_m.config).QueryUsageDaily(_m)
 }
 
+// QueryLogIssues queries the "log_issues" edge of the Project entity.
+func (_m *Project) QueryLogIssues() *LogIssueQuery {
+	return NewProjectClient(_m.config).QueryLogIssues(_m)
+}
+
 // Update returns a builder for updating this Project.
 // Note that you need to call Project.Unwrap() before calling this method if this Project
 // was returned from a transaction, and the transaction was committed or rolled back.
@@ -472,6 +523,24 @@ func (_m *Project) String() string {
 	builder.WriteString(", ")
 	if v := _m.RetentionPurgedAt; v != nil {
 		builder.WriteString("retention_purged_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("log_retention_days=")
+	builder.WriteString(fmt.Sprintf("%v", _m.LogRetentionDays))
+	builder.WriteString(", ")
+	if v := _m.LogRetentionChangedAt; v != nil {
+		builder.WriteString("log_retention_changed_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := _m.LogRetentionPurgeUntil; v != nil {
+		builder.WriteString("log_retention_purge_until=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := _m.LogRetentionPurgedAt; v != nil {
+		builder.WriteString("log_retention_purged_at=")
 		builder.WriteString(v.Format(time.ANSIC))
 	}
 	builder.WriteString(", ")

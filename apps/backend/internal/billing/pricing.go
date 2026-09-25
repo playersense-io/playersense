@@ -34,6 +34,28 @@ type Meter string
 // TrackedPlayers is §36's primary meter: distinct players seen in a calendar month.
 const TrackedPlayers Meter = "tracked_players"
 
+// Cloud Logging's two meters (ADR 0050). Each is priced by its own rate cards, per unit, as the
+// month's units arrive, exactly as players are: Total(n + k) - Total(n).
+//
+// Two, because a log costs twice. Taking it in costs the queue, the CPU that bounds and groups it,
+// and the object-store writes that land its parts: all of it proportional to the bytes that arrive,
+// once. Keeping it costs disk and object storage for as long as the studio chooses to keep it. One
+// price for both would either overcharge a studio that keeps a day or undercharge one that keeps
+// ninety; two let a retention choice be exactly what it costs.
+const (
+	// LogIngest counts megabytes (10^6 bytes) of logs taken in during a month, as the game sent
+	// them, uncompressed. A megabyte rather than a gigabyte so a unit price in integer micros can
+	// say "$0.10 a gigabyte" exactly: 100 micros a megabyte.
+	LogIngest Meter = "log_ingest_mb"
+
+	// LogStorage counts gigabyte-days: a gigabyte kept for a day is one. A month's gigabyte-days
+	// divided by its days are its GB-months, which is how a pricing page states it.
+	LogStorage Meter = "log_storage_gb_days"
+)
+
+// Meters is every meter a rate card can price.
+func Meters() []Meter { return []Meter{TrackedPlayers, LogIngest, LogStorage} }
+
 // Mode is how a card's tiers combine.
 type Mode string
 

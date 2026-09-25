@@ -95,6 +95,43 @@ func (p *Purger) purgeAccount(ctx context.Context, db *sql.DB, req *ent.DataDele
 	return nil
 }
 
+// purgeLogs removes the person's Cloud Logging records (ADR 0050): every record naming their
+// player id, and every record from one of their installs. A log line is free text the game wrote,
+// so a record from their device is theirs whatever it says.
+//
+// Matched on the install as well as on the device surrogate the other tables use, because the
+// logs table has no device_id column: the surrogate is computed here exactly as events_raw
+// materializes it, sipHash64 of project, environment and install.
+func (p *Purger) purgeLogs(ctx context.Context, db *sql.DB, req *ent.DataDeletionRequest, s subject.Subject) error {
+	if req.ActorKey == "" && len(s.Devices) == 0 {
+		return nil
+	}
+	where := "project_seq = ? AND (ifNull(player_id, '') = ? OR toString(install_id) = ?"
+	args := []any{req.ProjectSeq, req.ActorKey, req.ActorKey}
+	for start := 0; start < len(s.Devices) || start == 0; start += subject.ChunkSize {
+		clause, chunkArgs := where+")", args
+		if len(s.Devices) > 0 {
+			end := min(start+subject.ChunkSize, len(s.Devices))
+			batch := s.Devices[start:end]
+			clause = where + " OR sipHash64(project_seq, environment_seq, toString(install_id)) IN (" +
+				subject.Placeholders(len(batch)) + "))"
+			for _, device := range batch {
+				chunkArgs = append(chunkArgs, device)
+			}
+		}
+		if _, err := db.ExecContext(ctx, `
+			ALTER TABLE logs
+			DELETE WHERE `+clause+`
+			SETTINGS mutations_sync = 2`, chunkArgs...); err != nil {
+			return fmt.Errorf("purge logs: %w", err)
+		}
+		if len(s.Devices) == 0 {
+			break
+		}
+	}
+	return nil
+}
+
 // purgeEvents removes the raw events themselves.
 //
 // Last of the ClickHouse work, because resolution reads this table: deleting it first would

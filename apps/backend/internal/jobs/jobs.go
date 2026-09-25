@@ -22,6 +22,7 @@ const (
 	ArchiveExpiry = "archive_expiry"
 	UsageMeter    = "usage_meter"
 	CreditExpiry  = "credit_expiry"
+	LogCharges    = "log_charges"
 
 	RetentionEnforce = "retention_enforce"
 	ProjectDeletion  = "project_deletion"
@@ -29,7 +30,7 @@ const (
 
 // Names is every job, in the order the worker runs them.
 func Names() []string {
-	return []string{Derivation, Erasure, Export, ProjectDeletion, RetentionEnforce, ArchiveExpiry, UsageMeter, CreditExpiry}
+	return []string{Derivation, Erasure, Export, ProjectDeletion, RetentionEnforce, ArchiveExpiry, UsageMeter, LogCharges, CreditExpiry}
 }
 
 // Run is one pass of one job.

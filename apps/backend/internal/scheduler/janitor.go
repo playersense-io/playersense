@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"playersense.dev/backend/internal/charging"
 	"playersense.dev/backend/internal/erasure"
 	"playersense.dev/backend/internal/export"
 	"playersense.dev/backend/internal/jobs"
@@ -78,6 +79,9 @@ type JanitorOptions struct {
 	// never overspent, because the spend path refuses a lapsed lot on its own.
 	Meter  *metering.Meter
 	Credit *creditExpiry
+
+	// LogCharges prices Cloud Logging's two meters (ADR 0050).
+	LogCharges *charging.LogAccruer
 
 	// Deletion carries out scheduled project deletions and Retention enforces a lowered raw
 	// retention on rows already written. Both before archive expiry, so a deleted project's
@@ -163,7 +167,8 @@ func NewJanitor(log *slog.Logger, opts JanitorOptions) (*Janitor, error) {
 		opts.Every = DefaultJanitorEvery
 	}
 	if opts.Sweeper == nil && opts.Purger == nil && opts.Exporter == nil &&
-		opts.Meter == nil && opts.Credit == nil && opts.Deletion == nil && opts.Retention == nil {
+		opts.Meter == nil && opts.Credit == nil && opts.Deletion == nil && opts.Retention == nil &&
+		opts.LogCharges == nil {
 		return nil, errors.New("the janitor has no jobs configured")
 	}
 	if log == nil {
@@ -338,7 +343,11 @@ func (j *Janitor) Run(ctx context.Context) error {
 	if j.opts.Retention != nil {
 		err := jobs.Time(ctx, rec, jobs.RetentionEnforce, j.now, func() (map[string]int64, error) {
 			done, err := j.opts.Retention.Run(ctx, j.now())
-			return map[string]int64{"projects": int64(done.Projects)}, err
+			if err != nil {
+				return map[string]int64{"projects": int64(done.Projects)}, err
+			}
+			logged, err := j.opts.Retention.RunLogs(ctx, j.now())
+			return map[string]int64{"projects": int64(done.Projects), "log_projects": int64(logged.Projects)}, err
 		})
 		if err != nil {
 			problems = append(problems, fmt.Errorf("retention: %w", err))
@@ -385,6 +394,25 @@ func (j *Janitor) Run(ctx context.Context) error {
 		})
 		if err != nil {
 			problems = append(problems, fmt.Errorf("usage meter: %w", err))
+		}
+	}
+
+	// Cloud Logging's charges (ADR 0050): what each organization has taken in this month, every
+	// pass, and what it kept, once a day. On this loop because a quarter of an hour is as late as a
+	// log charge should be: long enough to batch, short enough that a runaway build is on the
+	// balance, and under the suspension gate, within the hour.
+	if j.opts.LogCharges != nil {
+		err := jobs.Time(ctx, rec, jobs.LogCharges, j.now, func() (map[string]int64, error) {
+			done, err := j.opts.LogCharges.Run(ctx)
+			if done.IngestMicros > 0 || done.StorageMicros > 0 {
+				j.log.Info("log charges pass", "organizations", done.Organizations,
+					"ingest_micros", done.IngestMicros, "storage_micros", done.StorageMicros)
+			}
+			return map[string]int64{"organizations": int64(done.Organizations),
+				"ingest_micros": done.IngestMicros, "storage_micros": done.StorageMicros}, err
+		})
+		if err != nil {
+			problems = append(problems, fmt.Errorf("log charges: %w", err))
 		}
 	}
 

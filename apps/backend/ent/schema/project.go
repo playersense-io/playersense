@@ -46,6 +46,16 @@ func (Project) Fields() []ent.Field {
 		field.Time("retention_purge_until").Optional().Nillable().Comment(dataclass.None),
 		field.Time("retention_purged_at").Optional().Nillable().Comment(dataclass.None),
 
+		// Cloud Logging's retention (ADR 0050), the studio's own choice and separate from the
+		// analytics tier: logs are billed by the gigabyte stored, so how long they are kept is how
+		// much they cost, and a studio decides that per game. The same three fields as the analytics
+		// tier beside them, for the same reasons: new rows take a change as the key cache turns
+		// over, and a lowered one is enforced on rows already written until log_retention_purge_until.
+		field.Uint16("log_retention_days").Default(14).Comment(dataclass.None),
+		field.Time("log_retention_changed_at").Optional().Nillable().Comment(dataclass.None),
+		field.Time("log_retention_purge_until").Optional().Nillable().Comment(dataclass.None),
+		field.Time("log_retention_purged_at").Optional().Nillable().Comment(dataclass.None),
+
 		// Deletion asked for: the project goes at this moment, and can be kept until then.
 		// Thirty days, because a deletion is not undoable and the person who asked is not
 		// always the person who would have said no.
@@ -86,6 +96,9 @@ func (Project) Edges() []ent.Edge {
 		// The meter (§40). Per project rather than per organisation, because a studio
 		// with five games needs to know which one costs what.
 		edge.To("usage_daily", UsageDaily.Type),
+
+		// What the studio decided about each Cloud Logging issue.
+		edge.To("log_issues", LogIssue.Type),
 	}
 }
 

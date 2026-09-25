@@ -29,6 +29,16 @@ const (
 	FieldTrackedPlayers = "tracked_players"
 	// FieldChargedMicros holds the string denoting the charged_micros field in the database.
 	FieldChargedMicros = "charged_micros"
+	// FieldLogIngestMB holds the string denoting the log_ingest_mb field in the database.
+	FieldLogIngestMB = "log_ingest_mb"
+	// FieldLogByteDays holds the string denoting the log_byte_days field in the database.
+	FieldLogByteDays = "log_byte_days"
+	// FieldLogStorageGBDays holds the string denoting the log_storage_gb_days field in the database.
+	FieldLogStorageGBDays = "log_storage_gb_days"
+	// FieldLogStorageThrough holds the string denoting the log_storage_through field in the database.
+	FieldLogStorageThrough = "log_storage_through"
+	// FieldLogChargedMicros holds the string denoting the log_charged_micros field in the database.
+	FieldLogChargedMicros = "log_charged_micros"
 	// EdgeAccount holds the string denoting the account edge name in mutations.
 	EdgeAccount = "account"
 	// Table holds the table name of the monthlyusage in the database.
@@ -52,6 +62,11 @@ var Columns = []string{
 	FieldPeriodStart,
 	FieldTrackedPlayers,
 	FieldChargedMicros,
+	FieldLogIngestMB,
+	FieldLogByteDays,
+	FieldLogStorageGBDays,
+	FieldLogStorageThrough,
+	FieldLogChargedMicros,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -79,6 +94,20 @@ var (
 	TrackedPlayersValidator func(int64) error
 	// DefaultChargedMicros holds the default value on creation for the "charged_micros" field.
 	DefaultChargedMicros int64
+	// DefaultLogIngestMB holds the default value on creation for the "log_ingest_mb" field.
+	DefaultLogIngestMB int64
+	// LogIngestMBValidator is a validator for the "log_ingest_mb" field. It is called by the builders before save.
+	LogIngestMBValidator func(int64) error
+	// DefaultLogByteDays holds the default value on creation for the "log_byte_days" field.
+	DefaultLogByteDays int64
+	// LogByteDaysValidator is a validator for the "log_byte_days" field. It is called by the builders before save.
+	LogByteDaysValidator func(int64) error
+	// DefaultLogStorageGBDays holds the default value on creation for the "log_storage_gb_days" field.
+	DefaultLogStorageGBDays int64
+	// LogStorageGBDaysValidator is a validator for the "log_storage_gb_days" field. It is called by the builders before save.
+	LogStorageGBDaysValidator func(int64) error
+	// DefaultLogChargedMicros holds the default value on creation for the "log_charged_micros" field.
+	DefaultLogChargedMicros int64
 )
 
 // OrderOption defines the ordering options for the MonthlyUsage queries.
@@ -122,6 +151,31 @@ func ByTrackedPlayers(opts ...sql.OrderTermOption) OrderOption {
 // ByChargedMicros orders the results by the charged_micros field.
 func ByChargedMicros(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldChargedMicros, opts...).ToFunc()
+}
+
+// ByLogIngestMB orders the results by the log_ingest_mb field.
+func ByLogIngestMB(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLogIngestMB, opts...).ToFunc()
+}
+
+// ByLogByteDays orders the results by the log_byte_days field.
+func ByLogByteDays(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLogByteDays, opts...).ToFunc()
+}
+
+// ByLogStorageGBDays orders the results by the log_storage_gb_days field.
+func ByLogStorageGBDays(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLogStorageGBDays, opts...).ToFunc()
+}
+
+// ByLogStorageThrough orders the results by the log_storage_through field.
+func ByLogStorageThrough(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLogStorageThrough, opts...).ToFunc()
+}
+
+// ByLogChargedMicros orders the results by the log_charged_micros field.
+func ByLogChargedMicros(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLogChargedMicros, opts...).ToFunc()
 }
 
 // ByAccountField orders the results by account field.

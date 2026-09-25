@@ -112,7 +112,9 @@ type Meter string
 
 // Meter values.
 const (
-	MeterTrackedPlayers Meter = "tracked_players"
+	MeterTrackedPlayers   Meter = "tracked_players"
+	MeterLogIngestMB      Meter = "log_ingest_mb"
+	MeterLogStorageGBDays Meter = "log_storage_gb_days"
 )
 
 func (m Meter) String() string {
@@ -122,7 +124,7 @@ func (m Meter) String() string {
 // MeterValidator is a validator for the "meter" field enum values. It is called by the builders before save.
 func MeterValidator(m Meter) error {
 	switch m {
-	case MeterTrackedPlayers:
+	case MeterTrackedPlayers, MeterLogIngestMB, MeterLogStorageGBDays:
 		return nil
 	default:
 		return fmt.Errorf("ratecard: invalid enum value for meter field: %q", m)

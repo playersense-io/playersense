@@ -34,6 +34,16 @@ type MonthlyUsage struct {
 	TrackedPlayers int64 `json:"tracked_players,omitempty"`
 	// class=financial
 	ChargedMicros int64 `json:"charged_micros,omitempty"`
+	// class=none
+	LogIngestMB int64 `json:"log_ingest_mb,omitempty"`
+	// class=none
+	LogByteDays int64 `json:"log_byte_days,omitempty"`
+	// class=none
+	LogStorageGBDays int64 `json:"log_storage_gb_days,omitempty"`
+	// class=none
+	LogStorageThrough *time.Time `json:"log_storage_through,omitempty"`
+	// class=financial
+	LogChargedMicros int64 `json:"log_charged_micros,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the MonthlyUsageQuery when eager-loading is set.
 	Edges        MonthlyUsageEdges `json:"edges"`
@@ -65,9 +75,9 @@ func (*MonthlyUsage) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case monthlyusage.FieldID, monthlyusage.FieldAccountID, monthlyusage.FieldTrackedPlayers, monthlyusage.FieldChargedMicros:
+		case monthlyusage.FieldID, monthlyusage.FieldAccountID, monthlyusage.FieldTrackedPlayers, monthlyusage.FieldChargedMicros, monthlyusage.FieldLogIngestMB, monthlyusage.FieldLogByteDays, monthlyusage.FieldLogStorageGBDays, monthlyusage.FieldLogChargedMicros:
 			values[i] = new(sql.NullInt64)
-		case monthlyusage.FieldCreatedAt, monthlyusage.FieldUpdatedAt, monthlyusage.FieldPeriodStart:
+		case monthlyusage.FieldCreatedAt, monthlyusage.FieldUpdatedAt, monthlyusage.FieldPeriodStart, monthlyusage.FieldLogStorageThrough:
 			values[i] = new(sql.NullTime)
 		case monthlyusage.FieldUID:
 			values[i] = new(uuid.UUID)
@@ -134,6 +144,37 @@ func (_m *MonthlyUsage) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.ChargedMicros = value.Int64
 			}
+		case monthlyusage.FieldLogIngestMB:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field log_ingest_mb", values[i])
+			} else if value.Valid {
+				_m.LogIngestMB = value.Int64
+			}
+		case monthlyusage.FieldLogByteDays:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field log_byte_days", values[i])
+			} else if value.Valid {
+				_m.LogByteDays = value.Int64
+			}
+		case monthlyusage.FieldLogStorageGBDays:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field log_storage_gb_days", values[i])
+			} else if value.Valid {
+				_m.LogStorageGBDays = value.Int64
+			}
+		case monthlyusage.FieldLogStorageThrough:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field log_storage_through", values[i])
+			} else if value.Valid {
+				_m.LogStorageThrough = new(time.Time)
+				*_m.LogStorageThrough = value.Time
+			}
+		case monthlyusage.FieldLogChargedMicros:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field log_charged_micros", values[i])
+			} else if value.Valid {
+				_m.LogChargedMicros = value.Int64
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -195,6 +236,23 @@ func (_m *MonthlyUsage) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("charged_micros=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ChargedMicros))
+	builder.WriteString(", ")
+	builder.WriteString("log_ingest_mb=")
+	builder.WriteString(fmt.Sprintf("%v", _m.LogIngestMB))
+	builder.WriteString(", ")
+	builder.WriteString("log_byte_days=")
+	builder.WriteString(fmt.Sprintf("%v", _m.LogByteDays))
+	builder.WriteString(", ")
+	builder.WriteString("log_storage_gb_days=")
+	builder.WriteString(fmt.Sprintf("%v", _m.LogStorageGBDays))
+	builder.WriteString(", ")
+	if v := _m.LogStorageThrough; v != nil {
+		builder.WriteString("log_storage_through=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("log_charged_micros=")
+	builder.WriteString(fmt.Sprintf("%v", _m.LogChargedMicros))
 	builder.WriteByte(')')
 	return builder.String()
 }
