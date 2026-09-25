@@ -83,7 +83,11 @@ func (w *Worker) Stop(ctx context.Context) error {
 	return nil
 }
 
-// Pass sends one batch of what is due, and answers how many it took.
+// Pass sends one batch of what is due, and answers how many rows it took.
+//
+// Rows of an issue event for the same rule, channel, project and environment go out as one message:
+// a bad release's hundred new issues are one Slack post listing the worst, not a hundred. Each
+// message, a group or a single row, then counts against its rule's hourly cap.
 func (w *Worker) Pass(ctx context.Context) (int, error) {
 	ids, err := w.claim(ctx)
 	if err != nil || len(ids) == 0 {
@@ -93,22 +97,98 @@ func (w *Worker) Pass(ctx context.Context) (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("read claimed notifications: %w", err)
 	}
+	groups, err := w.group(ctx, rows)
+	if err != nil {
+		return 0, err
+	}
 	parallel := w.Parallel
 	if parallel <= 0 {
 		parallel = 8
 	}
 	slots := make(chan struct{}, parallel)
 	var wg sync.WaitGroup
-	for _, row := range rows {
+	taken := 0
+	for _, g := range groups {
+		taken += len(g)
 		slots <- struct{}{}
 		wg.Add(1)
-		go func(row *ent.NotificationOutbox) {
+		go func(g []*ent.NotificationOutbox) {
 			defer func() { <-slots; wg.Done() }()
-			w.settle(ctx, row, w.send(ctx, row))
-		}(row)
+			o := w.send(ctx, g)
+			for _, row := range g {
+				w.settle(ctx, row, o)
+			}
+		}(g)
 	}
 	wg.Wait()
-	return len(rows), nil
+	return taken, nil
+}
+
+type groupKey struct {
+	rule, channel int
+	kind          string
+	project       int
+	environment   string
+}
+
+// group puts rows that are one message together, and takes the rest of each group that is due but
+// was not in this batch, so a burst is one message however it was claimed.
+func (w *Worker) group(ctx context.Context, rows []*ent.NotificationOutbox) ([][]*ent.NotificationOutbox, error) {
+	keys := map[groupKey][]*ent.NotificationOutbox{}
+	var order []groupKey
+	var out [][]*ent.NotificationOutbox
+	for _, row := range rows {
+		if !IsIssueEvent(row.Type) || row.RuleID == nil || row.ChannelID == nil {
+			out = append(out, []*ent.NotificationOutbox{row})
+			continue
+		}
+		k := groupKey{rule: *row.RuleID, channel: *row.ChannelID, kind: row.Type, environment: row.Environment}
+		if row.ProjectID != nil {
+			k.project = *row.ProjectID
+		}
+		if keys[k] == nil {
+			order = append(order, k)
+		}
+		keys[k] = append(keys[k], row)
+	}
+	for _, k := range order {
+		more, err := w.claimGroup(ctx, k)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, append(keys[k], more...))
+	}
+	return out, nil
+}
+
+func (w *Worker) claimGroup(ctx context.Context, k groupKey) ([]*ent.NotificationOutbox, error) {
+	rows, err := w.DB.DB().QueryContext(ctx, `
+		UPDATE notification_outboxes SET claimed_until = now() + $6::interval
+		WHERE id IN (
+			SELECT id FROM notification_outboxes
+			WHERE rule_id = $1 AND channel_id = $2 AND type = $3 AND project_id = $4 AND environment = $5
+				AND next_at <= now() AND (claimed_until IS NULL OR claimed_until < now())
+			LIMIT 5000
+			FOR UPDATE SKIP LOCKED)
+		RETURNING id`, k.rule, k.channel, k.kind, k.project, k.environment,
+		fmt.Sprintf("%d seconds", int(lease.Seconds())))
+	if err != nil {
+		return nil, fmt.Errorf("claim the rest of a group: %w", err)
+	}
+	var ids []int
+	for rows.Next() {
+		var id int
+		if err := rows.Scan(&id); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	rows.Close()
+	if len(ids) == 0 {
+		return nil, rows.Err()
+	}
+	return w.DB.Client.NotificationOutbox.Query().Where(notificationoutbox.IDIn(ids...)).All(ctx)
 }
 
 func (w *Worker) claim(ctx context.Context) ([]int, error) {
@@ -146,27 +226,31 @@ type outcome struct {
 	why   string
 }
 
-func (w *Worker) send(ctx context.Context, row *ent.NotificationOutbox) outcome {
-	kind, ok := Lookup(row.Type)
+// send sends one message: a single row, or a group of one issue event's rows as a digest.
+func (w *Worker) send(ctx context.Context, rows []*ent.NotificationOutbox) outcome {
+	first := rows[0]
+	kind, ok := Lookup(first.Type)
 	if !ok {
 		return outcome{final: true, why: "no such event type any more"}
 	}
 	client := w.DB.Client
-	where, err := w.where(ctx, row)
+	where, err := w.where(ctx, first)
 	if err != nil {
 		return outcome{why: err.Error()}
 	}
-	e := Event{OrganizationID: row.OrganizationID, Environment: row.Environment, Type: row.Type,
-		Data: row.Data, At: row.OccurredAt, UID: row.EventUID}
-	if row.ProjectID != nil {
-		e.ProjectID = *row.ProjectID
+	events := make([]Event, len(rows))
+	for i, row := range rows {
+		events[i] = Event{OrganizationID: row.OrganizationID, Environment: row.Environment, Type: row.Type,
+			Data: row.Data, At: row.OccurredAt, UID: row.EventUID}
+		if row.ProjectID != nil {
+			events[i].ProjectID = *row.ProjectID
+		}
 	}
-	msg := Render(kind, e, where, w.Dashboard)
 
-	if row.ChannelID == nil {
-		return w.emailOwners(ctx, row.OrganizationID, where.Organization, msg)
+	if first.ChannelID == nil {
+		return w.emailOwners(ctx, first.OrganizationID, where.Organization, Render(kind, events[0], where, w.Dashboard))
 	}
-	channel, err := client.NotificationChannel.Get(ctx, *row.ChannelID)
+	channel, err := client.NotificationChannel.Get(ctx, *first.ChannelID)
 	if ent.IsNotFound(err) {
 		return outcome{final: true, why: "the channel was deleted"}
 	}
@@ -177,15 +261,42 @@ func (w *Worker) send(ctx context.Context, row *ent.NotificationOutbox) outcome 
 		return outcome{final: true, why: "the channel was turned off"}
 	}
 	source := "Notification rule"
-	if row.RuleID != nil {
-		if rule, err := client.NotificationRule.Get(ctx, *row.RuleID); err == nil {
-			source = "Rule: " + rule.Name
-		} else if ent.IsNotFound(err) {
+	var rule *ent.NotificationRule
+	if first.RuleID != nil {
+		rule, err = client.NotificationRule.Get(ctx, *first.RuleID)
+		if ent.IsNotFound(err) {
 			return outcome{final: true, why: "the rule was deleted"}
+		}
+		if err != nil {
+			return outcome{why: err.Error()}
+		}
+		source = "Rule: " + rule.Name
+	}
+
+	var msg notify.Message
+	if len(events) > 1 {
+		msg = RenderDigest(kind, events, where, w.Dashboard)
+	} else {
+		msg = Render(kind, events[0], where, w.Dashboard)
+	}
+	// The rule's hourly cap, counted in messages: a digest of a hundred issues is one. The first
+	// message past it becomes a single notice that the rest of the hour is held back; after that,
+	// nothing until the hour turns.
+	if rule != nil && rule.MaxPerHour > 0 {
+		hour := time.Now().UTC().Truncate(time.Hour)
+		n, err := countUp(ctx, client, fmt.Sprintf("rule:%d", rule.ID), hour)
+		if err != nil {
+			return outcome{why: err.Error()}
+		}
+		switch {
+		case n > rule.MaxPerHour+1:
+			return outcome{final: true, why: "held back: the rule reached its limit for the hour"}
+		case n == rule.MaxPerHour+1:
+			msg = RenderHeldBack(rule, hour, where, w.Dashboard)
 		}
 	}
 	msg.Source = source
-	r := w.Notify.Deliver(ctx, client, channel, msg, source, row.RuleID)
+	r := w.Notify.Deliver(ctx, client, channel, msg, source, first.RuleID)
 	return outcome{sent: r.OK, why: r.Detail}
 }
 

@@ -71,15 +71,39 @@ by the rule, not its name, so a renamed rule is one history. The log row and the
 written in one transaction, so the two never disagree, and the rollup is pruned with the log, at
 ninety days.
 
+**Issues, and never a notification per occurrence.** A crash that happens ten thousand times must
+be one message, and a bad release's three hundred new issues must not be three hundred. So:
+
+- **What happens to an issue, not its events.** A detector in the worker reads the ClickHouse
+  rollups (`log_issue_hours`, `log_issues`) once a minute, only for projects with a rule or webhook
+  endpoint that hears issue events, and only issues active in the last two hours. It announces three
+  things: `issue.new` (first seen in the last two hours), `issue.regressed` (a resolved issue seen
+  again, which also puts it back among the unresolved) and `issue.spiking` (at least 50 events this
+  hour and ten times its usual hourly rate, for an issue old enough to have one). Ignored issues say
+  nothing.
+- **Each once.** `log_issue_alerts` remembers what was said of each issue, and each announcement is
+  gated on it: new once ever, regressed once per resolution, spiking once per episode, the episode
+  over only after a whole hour back near normal. The state and the event are written in one
+  transaction, so neither is lost or doubled.
+- **A burst is one message.** An issue's notification waits thirty seconds, and the worker sends every
+  due notification of the same rule, channel, event type, project and environment as one digest:
+  "3 new crashes", the most frequent first.
+- **A cooldown per issue.** For issue events a rule's cooldown is kept per issue, so one noisy issue
+  cannot silence another.
+- **A cap per rule.** At most `max_per_hour` messages an hour (20 by default), counted after grouping:
+  past it, one "held back" notice, then nothing until the hour turns.
+
+Measured end to end against the real rollups (`TestAThousandCrashesAreOneMessage`): a thousand
+crashes of one kind and five of another are two announcements and one message. Against a real Slack
+channel, 3,043 events across three new issues, then 2,000 more of one of them, then a regression,
+were two messages.
+
 **The dashboard** has a Notifications section of its own (Rules, Channels, Activity) rather than a
 settings tab, because rules change as the game does. The Rules page shows what is always on above
 the rules, so nobody writes a rule for an email they already get.
 
 ## Consequences
 
-- Crash and issue alerts (a new issue, a regression, a spike) plug in as project events with their
-  own detector. They must be about issues, not records, with a cooldown per issue, or a crash storm
-  floods Slack.
 - Slack incoming webhooks need one URL per channel. That is fine for a few and tedious for twenty; a
   "Connect Slack" app would let a rule pick a channel by name. Incoming webhooks stay the default
   because they grant PlayerSense nothing else in the customer's workspace.

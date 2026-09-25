@@ -88,8 +88,7 @@ func forRule(ctx context.Context, client *ent.Client, rule *ent.NotificationRule
 		return nil, nil
 	}
 	if rule.CooldownMinutes > 0 {
-		due, err := markDue(ctx, client, fmt.Sprintf("rule:%d:%s", rule.ID, e.Type),
-			time.Duration(rule.CooldownMinutes)*time.Minute, e.At)
+		due, err := markDue(ctx, client, cooldownKey(rule.ID, e), time.Duration(rule.CooldownMinutes)*time.Minute, e.At)
 		if err != nil || !due {
 			return nil, err
 		}
@@ -111,6 +110,48 @@ func forRule(ctx context.Context, client *ent.Client, rule *ent.NotificationRule
 	return rows, nil
 }
 
+// cooldownKey is what a rule's cooldown is kept under: the event type, and for an issue's events
+// the issue too, so one noisy issue cannot silence another.
+func cooldownKey(ruleID int, e Event) string {
+	key := fmt.Sprintf("rule:%d:%s", ruleID, e.Type)
+	if fp, ok := e.Data["fingerprint"].(string); ok && IsIssueEvent(e.Type) && fp != "" {
+		key += ":" + fp
+	}
+	return key
+}
+
+// countUp counts one more notification of a key in an hour, starting again as the hour turns, and
+// answers the count. One statement, so two workers counting at once cannot both be told "first".
+func countUp(ctx context.Context, client *ent.Client, key string, hour time.Time) (int, error) {
+	rows, err := client.QueryContext(ctx, `
+		INSERT INTO notification_counts (key, window_start, count) VALUES ($1, $2, 1)
+		ON CONFLICT (key) DO UPDATE SET
+			count = CASE WHEN notification_counts.window_start = EXCLUDED.window_start
+				THEN notification_counts.count + 1 ELSE 1 END,
+			window_start = EXCLUDED.window_start
+		RETURNING count`, key, hour)
+	if err != nil {
+		return 0, fmt.Errorf("alerts: count %s: %w", key, err)
+	}
+	defer rows.Close()
+	n := 0
+	if rows.Next() {
+		if err := rows.Scan(&n); err != nil {
+			return 0, err
+		}
+	}
+	return n, rows.Err()
+}
+
+// HeldBack is the notice a rule sends in place of its first message past its hourly cap (the
+// worker's, which counts messages, not events). Not an event anybody can listen to: it exists only
+// as a rule's word about itself.
+const HeldBack = "notifications.held_back"
+
+// linger is how long an issue's notification waits before it is sent, so a burst of them (a bad
+// release, a hundred new issues in a minute) goes out as one message rather than a hundred.
+const linger = 30 * time.Second
+
 // channelsOf is a rule's channels that still exist and are on. A rule of a project reaches only that
 // project's; a rule of the organization, those of any of its projects.
 func channelsOf(ctx context.Context, client *ent.Client, rule *ent.NotificationRule) ([]*ent.NotificationChannel, error) {
@@ -129,9 +170,13 @@ func channelsOf(ctx context.Context, client *ent.Client, rule *ent.NotificationR
 }
 
 func outboxRow(client *ent.Client, e Event, ruleID, channelID *int) *ent.NotificationOutboxCreate {
+	next := time.Now().UTC()
+	if IsIssueEvent(e.Type) {
+		next = next.Add(linger)
+	}
 	c := client.NotificationOutbox.Create().SetOrganizationID(e.OrganizationID).SetEventUID(e.UID).
 		SetType(e.Type).SetEnvironment(e.Environment).SetData(e.Data).SetOccurredAt(e.At).
-		SetNextAt(time.Now().UTC()).SetNillableRuleID(ruleID).SetNillableChannelID(channelID)
+		SetNextAt(next).SetNillableRuleID(ruleID).SetNillableChannelID(channelID)
 	if e.ProjectID != 0 {
 		c = c.SetProjectID(e.ProjectID)
 	}

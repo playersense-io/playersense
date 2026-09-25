@@ -70,7 +70,7 @@ func ruleOut(row *ent.NotificationRule) schemas.NotificationRuleOut {
 	}
 	return schemas.NotificationRuleOut{
 		ID: row.UID, Scope: string(scope), Name: row.Name, Enabled: row.Enabled, Events: row.Events,
-		Environments: environments, Channels: row.Channels, CooldownMinutes: row.CooldownMinutes,
+		Environments: environments, Channels: row.Channels, CooldownMinutes: row.CooldownMinutes, MaxPerHour: row.MaxPerHour,
 		MutedUntil: row.MutedUntil, LastFiredAt: row.LastFiredAt, CreatedAt: row.CreatedAt,
 		CreatedBy: row.CreatedBy, UpdatedBy: row.UpdatedBy,
 	}
@@ -157,6 +157,9 @@ func createRule(ctx *muzak.Context, s ruleScope, in schemas.NotificationRuleBody
 		if in.Enabled != nil {
 			create = create.SetEnabled(*in.Enabled)
 		}
+		if in.MaxPerHour != nil {
+			create = create.SetMaxPerHour(*in.MaxPerHour)
+		}
 		row, err := create.Save(ctx.Context())
 		if err != nil {
 			return nil, core.AsHTTPError(err)
@@ -190,6 +193,9 @@ func updateRule(ctx *muzak.Context, s ruleScope, id uuid.UUID, in schemas.Notifi
 		}
 		if in.Enabled != nil {
 			update = update.SetEnabled(*in.Enabled)
+		}
+		if in.MaxPerHour != nil {
+			update = update.SetMaxPerHour(*in.MaxPerHour)
 		}
 		updated, err := update.Save(ctx.Context())
 		if err != nil {

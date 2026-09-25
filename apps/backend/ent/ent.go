@@ -35,9 +35,11 @@ import (
 	"playersense.dev/backend/ent/ledgerentry"
 	"playersense.dev/backend/ent/liveopsevent"
 	"playersense.dev/backend/ent/logissue"
+	"playersense.dev/backend/ent/logissuealert"
 	"playersense.dev/backend/ent/memberproject"
 	"playersense.dev/backend/ent/monthlyusage"
 	"playersense.dev/backend/ent/notificationchannel"
+	"playersense.dev/backend/ent/notificationcount"
 	"playersense.dev/backend/ent/notificationmark"
 	"playersense.dev/backend/ent/notificationoutbox"
 	"playersense.dev/backend/ent/notificationrule"
@@ -151,9 +153,11 @@ func checkColumn(t, c string) error {
 			ledgerentry.Table:         ledgerentry.ValidColumn,
 			liveopsevent.Table:        liveopsevent.ValidColumn,
 			logissue.Table:            logissue.ValidColumn,
+			logissuealert.Table:       logissuealert.ValidColumn,
 			memberproject.Table:       memberproject.ValidColumn,
 			monthlyusage.Table:        monthlyusage.ValidColumn,
 			notificationchannel.Table: notificationchannel.ValidColumn,
+			notificationcount.Table:   notificationcount.ValidColumn,
 			notificationmark.Table:    notificationmark.ValidColumn,
 			notificationoutbox.Table:  notificationoutbox.ValidColumn,
 			notificationrule.Table:    notificationrule.ValidColumn,

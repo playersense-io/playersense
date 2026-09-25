@@ -36016,7 +36016,7 @@
           "cooldown_minutes": {
             "type": "integer",
             "format": "int64",
-            "description": "At most one notification per event type this often; 0 is every event"
+            "description": "At most one notification per event type this often, per issue for an issue's events; 0 is every event"
           },
           "enabled": {
             "type": [
@@ -36038,6 +36038,14 @@
             "items": {
               "type": "string"
             }
+          },
+          "max_per_hour": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "At most this many messages an hour; past it, one notice and nothing more until the hour turns. 0 is no limit; defaults to 20"
           },
           "muted_until": {
             "type": [
@@ -36116,6 +36124,11 @@
             ],
             "format": "date-time"
           },
+          "max_per_hour": {
+            "type": "integer",
+            "format": "int64",
+            "description": "0 is no limit"
+          },
           "muted_until": {
             "type": [
               "string",
@@ -36142,6 +36155,7 @@
           "environments",
           "events",
           "id",
+          "max_per_hour",
           "name",
           "scope"
         ]

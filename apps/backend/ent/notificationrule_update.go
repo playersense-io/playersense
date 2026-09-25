@@ -121,6 +121,27 @@ func (_u *NotificationRuleUpdate) AddCooldownMinutes(v int) *NotificationRuleUpd
 	return _u
 }
 
+// SetMaxPerHour sets the "max_per_hour" field.
+func (_u *NotificationRuleUpdate) SetMaxPerHour(v int) *NotificationRuleUpdate {
+	_u.mutation.ResetMaxPerHour()
+	_u.mutation.SetMaxPerHour(v)
+	return _u
+}
+
+// SetNillableMaxPerHour sets the "max_per_hour" field if the given value is not nil.
+func (_u *NotificationRuleUpdate) SetNillableMaxPerHour(v *int) *NotificationRuleUpdate {
+	if v != nil {
+		_u.SetMaxPerHour(*v)
+	}
+	return _u
+}
+
+// AddMaxPerHour adds value to the "max_per_hour" field.
+func (_u *NotificationRuleUpdate) AddMaxPerHour(v int) *NotificationRuleUpdate {
+	_u.mutation.AddMaxPerHour(v)
+	return _u
+}
+
 // SetMutedUntil sets the "muted_until" field.
 func (_u *NotificationRuleUpdate) SetMutedUntil(v time.Time) *NotificationRuleUpdate {
 	_u.mutation.SetMutedUntil(v)
@@ -285,6 +306,12 @@ func (_u *NotificationRuleUpdate) sqlSave(ctx context.Context) (_node int, err e
 	if value, ok := _u.mutation.AddedCooldownMinutes(); ok {
 		_spec.AddField(notificationrule.FieldCooldownMinutes, field.TypeInt, value)
 	}
+	if value, ok := _u.mutation.MaxPerHour(); ok {
+		_spec.SetField(notificationrule.FieldMaxPerHour, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedMaxPerHour(); ok {
+		_spec.AddField(notificationrule.FieldMaxPerHour, field.TypeInt, value)
+	}
 	if value, ok := _u.mutation.MutedUntil(); ok {
 		_spec.SetField(notificationrule.FieldMutedUntil, field.TypeTime, value)
 	}
@@ -408,6 +435,27 @@ func (_u *NotificationRuleUpdateOne) SetNillableCooldownMinutes(v *int) *Notific
 // AddCooldownMinutes adds value to the "cooldown_minutes" field.
 func (_u *NotificationRuleUpdateOne) AddCooldownMinutes(v int) *NotificationRuleUpdateOne {
 	_u.mutation.AddCooldownMinutes(v)
+	return _u
+}
+
+// SetMaxPerHour sets the "max_per_hour" field.
+func (_u *NotificationRuleUpdateOne) SetMaxPerHour(v int) *NotificationRuleUpdateOne {
+	_u.mutation.ResetMaxPerHour()
+	_u.mutation.SetMaxPerHour(v)
+	return _u
+}
+
+// SetNillableMaxPerHour sets the "max_per_hour" field if the given value is not nil.
+func (_u *NotificationRuleUpdateOne) SetNillableMaxPerHour(v *int) *NotificationRuleUpdateOne {
+	if v != nil {
+		_u.SetMaxPerHour(*v)
+	}
+	return _u
+}
+
+// AddMaxPerHour adds value to the "max_per_hour" field.
+func (_u *NotificationRuleUpdateOne) AddMaxPerHour(v int) *NotificationRuleUpdateOne {
+	_u.mutation.AddMaxPerHour(v)
 	return _u
 }
 
@@ -604,6 +652,12 @@ func (_u *NotificationRuleUpdateOne) sqlSave(ctx context.Context) (_node *Notifi
 	}
 	if value, ok := _u.mutation.AddedCooldownMinutes(); ok {
 		_spec.AddField(notificationrule.FieldCooldownMinutes, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.MaxPerHour(); ok {
+		_spec.SetField(notificationrule.FieldMaxPerHour, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedMaxPerHour(); ok {
+		_spec.AddField(notificationrule.FieldMaxPerHour, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.MutedUntil(); ok {
 		_spec.SetField(notificationrule.FieldMutedUntil, field.TypeTime, value)

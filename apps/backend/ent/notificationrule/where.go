@@ -95,6 +95,11 @@ func CooldownMinutes(v int) predicate.NotificationRule {
 	return predicate.NotificationRule(sql.FieldEQ(FieldCooldownMinutes, v))
 }
 
+// MaxPerHour applies equality check predicate on the "max_per_hour" field. It's identical to MaxPerHourEQ.
+func MaxPerHour(v int) predicate.NotificationRule {
+	return predicate.NotificationRule(sql.FieldEQ(FieldMaxPerHour, v))
+}
+
 // MutedUntil applies equality check predicate on the "muted_until" field. It's identical to MutedUntilEQ.
 func MutedUntil(v time.Time) predicate.NotificationRule {
 	return predicate.NotificationRule(sql.FieldEQ(FieldMutedUntil, v))
@@ -438,6 +443,46 @@ func CooldownMinutesLT(v int) predicate.NotificationRule {
 // CooldownMinutesLTE applies the LTE predicate on the "cooldown_minutes" field.
 func CooldownMinutesLTE(v int) predicate.NotificationRule {
 	return predicate.NotificationRule(sql.FieldLTE(FieldCooldownMinutes, v))
+}
+
+// MaxPerHourEQ applies the EQ predicate on the "max_per_hour" field.
+func MaxPerHourEQ(v int) predicate.NotificationRule {
+	return predicate.NotificationRule(sql.FieldEQ(FieldMaxPerHour, v))
+}
+
+// MaxPerHourNEQ applies the NEQ predicate on the "max_per_hour" field.
+func MaxPerHourNEQ(v int) predicate.NotificationRule {
+	return predicate.NotificationRule(sql.FieldNEQ(FieldMaxPerHour, v))
+}
+
+// MaxPerHourIn applies the In predicate on the "max_per_hour" field.
+func MaxPerHourIn(vs ...int) predicate.NotificationRule {
+	return predicate.NotificationRule(sql.FieldIn(FieldMaxPerHour, vs...))
+}
+
+// MaxPerHourNotIn applies the NotIn predicate on the "max_per_hour" field.
+func MaxPerHourNotIn(vs ...int) predicate.NotificationRule {
+	return predicate.NotificationRule(sql.FieldNotIn(FieldMaxPerHour, vs...))
+}
+
+// MaxPerHourGT applies the GT predicate on the "max_per_hour" field.
+func MaxPerHourGT(v int) predicate.NotificationRule {
+	return predicate.NotificationRule(sql.FieldGT(FieldMaxPerHour, v))
+}
+
+// MaxPerHourGTE applies the GTE predicate on the "max_per_hour" field.
+func MaxPerHourGTE(v int) predicate.NotificationRule {
+	return predicate.NotificationRule(sql.FieldGTE(FieldMaxPerHour, v))
+}
+
+// MaxPerHourLT applies the LT predicate on the "max_per_hour" field.
+func MaxPerHourLT(v int) predicate.NotificationRule {
+	return predicate.NotificationRule(sql.FieldLT(FieldMaxPerHour, v))
+}
+
+// MaxPerHourLTE applies the LTE predicate on the "max_per_hour" field.
+func MaxPerHourLTE(v int) predicate.NotificationRule {
+	return predicate.NotificationRule(sql.FieldLTE(FieldMaxPerHour, v))
 }
 
 // MutedUntilEQ applies the EQ predicate on the "muted_until" field.

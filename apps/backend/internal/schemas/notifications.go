@@ -34,7 +34,8 @@ type NotificationRuleBody struct {
 	Events          []string    `json:"events" doc:"Event types, or * for every event of the rule's scope"`
 	Environments    []string    `json:"environments,omitzero" doc:"production, staging, development; none is every environment"`
 	Channels        []uuid.UUID `json:"channels" doc:"The channels it notifies"`
-	CooldownMinutes int         `json:"cooldown_minutes,omitzero" doc:"At most one notification per event type this often; 0 is every event"`
+	CooldownMinutes int         `json:"cooldown_minutes,omitzero" doc:"At most one notification per event type this often, per issue for an issue's events; 0 is every event"`
+	MaxPerHour      *int        `json:"max_per_hour,omitzero" doc:"At most this many messages an hour; past it, one notice and nothing more until the hour turns. 0 is no limit; defaults to 20"`
 	MutedUntil      *time.Time  `json:"muted_until,omitzero" doc:"Quiet until then; null is not muted"`
 }
 
@@ -44,6 +45,9 @@ func (in *NotificationRuleBody) validate(v *muzak.Validation) {
 	v.Slice(&in.Environments).MaxItems(3)
 	v.Slice(&in.Channels).MinItems(1).MaxItems(20)
 	v.Number(&in.CooldownMinutes).As("cooldown_minutes").Between(0, 7*24*60)
+	if in.MaxPerHour != nil {
+		v.Number(in.MaxPerHour).As("max_per_hour").Between(0, 1000)
+	}
 }
 
 // OrgNotificationRuleIn creates a rule of the organization.
@@ -124,6 +128,7 @@ type NotificationRuleOut struct {
 	Environments    []string    `json:"environments"`
 	Channels        []uuid.UUID `json:"channels"`
 	CooldownMinutes int         `json:"cooldown_minutes"`
+	MaxPerHour      int         `json:"max_per_hour" doc:"0 is no limit"`
 	MutedUntil      *time.Time  `json:"muted_until,omitzero"`
 	LastFiredAt     *time.Time  `json:"last_fired_at,omitzero"`
 	CreatedAt       time.Time   `json:"created_at"`

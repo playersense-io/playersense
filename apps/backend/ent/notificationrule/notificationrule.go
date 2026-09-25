@@ -36,6 +36,8 @@ const (
 	FieldChannels = "channels"
 	// FieldCooldownMinutes holds the string denoting the cooldown_minutes field in the database.
 	FieldCooldownMinutes = "cooldown_minutes"
+	// FieldMaxPerHour holds the string denoting the max_per_hour field in the database.
+	FieldMaxPerHour = "max_per_hour"
 	// FieldMutedUntil holds the string denoting the muted_until field in the database.
 	FieldMutedUntil = "muted_until"
 	// FieldLastFiredAt holds the string denoting the last_fired_at field in the database.
@@ -62,6 +64,7 @@ var Columns = []string{
 	FieldEnvironments,
 	FieldChannels,
 	FieldCooldownMinutes,
+	FieldMaxPerHour,
 	FieldMutedUntil,
 	FieldLastFiredAt,
 	FieldCreatedBy,
@@ -95,6 +98,8 @@ var (
 	DefaultEnvironments []string
 	// DefaultCooldownMinutes holds the default value on creation for the "cooldown_minutes" field.
 	DefaultCooldownMinutes int
+	// DefaultMaxPerHour holds the default value on creation for the "max_per_hour" field.
+	DefaultMaxPerHour int
 	// DefaultCreatedBy holds the default value on creation for the "created_by" field.
 	DefaultCreatedBy string
 	// CreatedByValidator is a validator for the "created_by" field. It is called by the builders before save.
@@ -151,6 +156,11 @@ func ByEnabled(opts ...sql.OrderTermOption) OrderOption {
 // ByCooldownMinutes orders the results by the cooldown_minutes field.
 func ByCooldownMinutes(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCooldownMinutes, opts...).ToFunc()
+}
+
+// ByMaxPerHour orders the results by the max_per_hour field.
+func ByMaxPerHour(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldMaxPerHour, opts...).ToFunc()
 }
 
 // ByMutedUntil orders the results by the muted_until field.

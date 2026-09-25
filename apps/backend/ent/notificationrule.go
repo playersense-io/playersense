@@ -43,6 +43,8 @@ type NotificationRule struct {
 	// class=none
 	CooldownMinutes int `json:"cooldown_minutes,omitempty"`
 	// class=none
+	MaxPerHour int `json:"max_per_hour,omitempty"`
+	// class=none
 	MutedUntil *time.Time `json:"muted_until,omitempty"`
 	// class=none
 	LastFiredAt *time.Time `json:"last_fired_at,omitempty"`
@@ -62,7 +64,7 @@ func (*NotificationRule) scanValues(columns []string) ([]any, error) {
 			values[i] = new([]byte)
 		case notificationrule.FieldEnabled:
 			values[i] = new(sql.NullBool)
-		case notificationrule.FieldID, notificationrule.FieldOrganizationID, notificationrule.FieldProjectID, notificationrule.FieldCooldownMinutes:
+		case notificationrule.FieldID, notificationrule.FieldOrganizationID, notificationrule.FieldProjectID, notificationrule.FieldCooldownMinutes, notificationrule.FieldMaxPerHour:
 			values[i] = new(sql.NullInt64)
 		case notificationrule.FieldName, notificationrule.FieldCreatedBy, notificationrule.FieldUpdatedBy:
 			values[i] = new(sql.NullString)
@@ -164,6 +166,12 @@ func (_m *NotificationRule) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.CooldownMinutes = int(value.Int64)
 			}
+		case notificationrule.FieldMaxPerHour:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field max_per_hour", values[i])
+			} else if value.Valid {
+				_m.MaxPerHour = int(value.Int64)
+			}
 		case notificationrule.FieldMutedUntil:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field muted_until", values[i])
@@ -260,6 +268,9 @@ func (_m *NotificationRule) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("cooldown_minutes=")
 	builder.WriteString(fmt.Sprintf("%v", _m.CooldownMinutes))
+	builder.WriteString(", ")
+	builder.WriteString("max_per_hour=")
+	builder.WriteString(fmt.Sprintf("%v", _m.MaxPerHour))
 	builder.WriteString(", ")
 	if v := _m.MutedUntil; v != nil {
 		builder.WriteString("muted_until=")

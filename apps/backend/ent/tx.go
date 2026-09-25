@@ -60,12 +60,16 @@ type Tx struct {
 	LiveOpsEvent *LiveOpsEventClient
 	// LogIssue is the client for interacting with the LogIssue builders.
 	LogIssue *LogIssueClient
+	// LogIssueAlert is the client for interacting with the LogIssueAlert builders.
+	LogIssueAlert *LogIssueAlertClient
 	// MemberProject is the client for interacting with the MemberProject builders.
 	MemberProject *MemberProjectClient
 	// MonthlyUsage is the client for interacting with the MonthlyUsage builders.
 	MonthlyUsage *MonthlyUsageClient
 	// NotificationChannel is the client for interacting with the NotificationChannel builders.
 	NotificationChannel *NotificationChannelClient
+	// NotificationCount is the client for interacting with the NotificationCount builders.
+	NotificationCount *NotificationCountClient
 	// NotificationMark is the client for interacting with the NotificationMark builders.
 	NotificationMark *NotificationMarkClient
 	// NotificationOutbox is the client for interacting with the NotificationOutbox builders.
@@ -280,9 +284,11 @@ func (tx *Tx) init() {
 	tx.LedgerEntry = NewLedgerEntryClient(tx.config)
 	tx.LiveOpsEvent = NewLiveOpsEventClient(tx.config)
 	tx.LogIssue = NewLogIssueClient(tx.config)
+	tx.LogIssueAlert = NewLogIssueAlertClient(tx.config)
 	tx.MemberProject = NewMemberProjectClient(tx.config)
 	tx.MonthlyUsage = NewMonthlyUsageClient(tx.config)
 	tx.NotificationChannel = NewNotificationChannelClient(tx.config)
+	tx.NotificationCount = NewNotificationCountClient(tx.config)
 	tx.NotificationMark = NewNotificationMarkClient(tx.config)
 	tx.NotificationOutbox = NewNotificationOutboxClient(tx.config)
 	tx.NotificationRule = NewNotificationRuleClient(tx.config)

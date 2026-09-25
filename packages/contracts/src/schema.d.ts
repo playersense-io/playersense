@@ -6619,7 +6619,7 @@ export interface components {
             readonly channels: readonly string[];
             /**
              * Format: int64
-             * @description At most one notification per event type this often; 0 is every event
+             * @description At most one notification per event type this often, per issue for an issue's events; 0 is every event
              */
             readonly cooldown_minutes?: number;
             /** @description Defaults to on */
@@ -6628,6 +6628,11 @@ export interface components {
             readonly environments?: readonly string[];
             /** @description Event types, or * for every event of the rule's scope */
             readonly events: readonly string[];
+            /**
+             * Format: int64
+             * @description At most this many messages an hour; past it, one notice and nothing more until the hour turns. 0 is no limit; defaults to 20
+             */
+            readonly max_per_hour?: number | null;
             /**
              * Format: date-time
              * @description Quiet until then; null is not muted
@@ -6651,6 +6656,11 @@ export interface components {
             readonly id: string;
             /** Format: date-time */
             readonly last_fired_at?: string | null;
+            /**
+             * Format: int64
+             * @description 0 is no limit
+             */
+            readonly max_per_hour: number;
             /** Format: date-time */
             readonly muted_until?: string | null;
             readonly name: string;

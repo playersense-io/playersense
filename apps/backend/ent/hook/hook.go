@@ -285,6 +285,18 @@ func (f LogIssueFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, er
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.LogIssueMutation", m)
 }
 
+// The LogIssueAlertFunc type is an adapter to allow the use of ordinary
+// function as LogIssueAlert mutator.
+type LogIssueAlertFunc func(context.Context, *ent.LogIssueAlertMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f LogIssueAlertFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.LogIssueAlertMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.LogIssueAlertMutation", m)
+}
+
 // The MemberProjectFunc type is an adapter to allow the use of ordinary
 // function as MemberProject mutator.
 type MemberProjectFunc func(context.Context, *ent.MemberProjectMutation) (ent.Value, error)
@@ -319,6 +331,18 @@ func (f NotificationChannelFunc) Mutate(ctx context.Context, m ent.Mutation) (en
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.NotificationChannelMutation", m)
+}
+
+// The NotificationCountFunc type is an adapter to allow the use of ordinary
+// function as NotificationCount mutator.
+type NotificationCountFunc func(context.Context, *ent.NotificationCountMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f NotificationCountFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.NotificationCountMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.NotificationCountMutation", m)
 }
 
 // The NotificationMarkFunc type is an adapter to allow the use of ordinary

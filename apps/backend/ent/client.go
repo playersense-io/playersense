@@ -38,9 +38,11 @@ import (
 	"playersense.dev/backend/ent/ledgerentry"
 	"playersense.dev/backend/ent/liveopsevent"
 	"playersense.dev/backend/ent/logissue"
+	"playersense.dev/backend/ent/logissuealert"
 	"playersense.dev/backend/ent/memberproject"
 	"playersense.dev/backend/ent/monthlyusage"
 	"playersense.dev/backend/ent/notificationchannel"
+	"playersense.dev/backend/ent/notificationcount"
 	"playersense.dev/backend/ent/notificationmark"
 	"playersense.dev/backend/ent/notificationoutbox"
 	"playersense.dev/backend/ent/notificationrule"
@@ -126,12 +128,16 @@ type Client struct {
 	LiveOpsEvent *LiveOpsEventClient
 	// LogIssue is the client for interacting with the LogIssue builders.
 	LogIssue *LogIssueClient
+	// LogIssueAlert is the client for interacting with the LogIssueAlert builders.
+	LogIssueAlert *LogIssueAlertClient
 	// MemberProject is the client for interacting with the MemberProject builders.
 	MemberProject *MemberProjectClient
 	// MonthlyUsage is the client for interacting with the MonthlyUsage builders.
 	MonthlyUsage *MonthlyUsageClient
 	// NotificationChannel is the client for interacting with the NotificationChannel builders.
 	NotificationChannel *NotificationChannelClient
+	// NotificationCount is the client for interacting with the NotificationCount builders.
+	NotificationCount *NotificationCountClient
 	// NotificationMark is the client for interacting with the NotificationMark builders.
 	NotificationMark *NotificationMarkClient
 	// NotificationOutbox is the client for interacting with the NotificationOutbox builders.
@@ -226,9 +232,11 @@ func (c *Client) init() {
 	c.LedgerEntry = NewLedgerEntryClient(c.config)
 	c.LiveOpsEvent = NewLiveOpsEventClient(c.config)
 	c.LogIssue = NewLogIssueClient(c.config)
+	c.LogIssueAlert = NewLogIssueAlertClient(c.config)
 	c.MemberProject = NewMemberProjectClient(c.config)
 	c.MonthlyUsage = NewMonthlyUsageClient(c.config)
 	c.NotificationChannel = NewNotificationChannelClient(c.config)
+	c.NotificationCount = NewNotificationCountClient(c.config)
 	c.NotificationMark = NewNotificationMarkClient(c.config)
 	c.NotificationOutbox = NewNotificationOutboxClient(c.config)
 	c.NotificationRule = NewNotificationRuleClient(c.config)
@@ -374,9 +382,11 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		LedgerEntry:         NewLedgerEntryClient(cfg),
 		LiveOpsEvent:        NewLiveOpsEventClient(cfg),
 		LogIssue:            NewLogIssueClient(cfg),
+		LogIssueAlert:       NewLogIssueAlertClient(cfg),
 		MemberProject:       NewMemberProjectClient(cfg),
 		MonthlyUsage:        NewMonthlyUsageClient(cfg),
 		NotificationChannel: NewNotificationChannelClient(cfg),
+		NotificationCount:   NewNotificationCountClient(cfg),
 		NotificationMark:    NewNotificationMarkClient(cfg),
 		NotificationOutbox:  NewNotificationOutboxClient(cfg),
 		NotificationRule:    NewNotificationRuleClient(cfg),
@@ -449,9 +459,11 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		LedgerEntry:         NewLedgerEntryClient(cfg),
 		LiveOpsEvent:        NewLiveOpsEventClient(cfg),
 		LogIssue:            NewLogIssueClient(cfg),
+		LogIssueAlert:       NewLogIssueAlertClient(cfg),
 		MemberProject:       NewMemberProjectClient(cfg),
 		MonthlyUsage:        NewMonthlyUsageClient(cfg),
 		NotificationChannel: NewNotificationChannelClient(cfg),
+		NotificationCount:   NewNotificationCountClient(cfg),
 		NotificationMark:    NewNotificationMarkClient(cfg),
 		NotificationOutbox:  NewNotificationOutboxClient(cfg),
 		NotificationRule:    NewNotificationRuleClient(cfg),
@@ -516,13 +528,14 @@ func (c *Client) Use(hooks ...Hook) {
 		c.CreditLot, c.DataDeletionRequest, c.DataExportRequest, c.Environment,
 		c.EventDefinition, c.Experiment, c.FeatureFlag, c.FxRate, c.Invitation,
 		c.Invoice, c.InvoiceLine, c.LedgerEntry, c.LiveOpsEvent, c.LogIssue,
-		c.MemberProject, c.MonthlyUsage, c.NotificationChannel, c.NotificationMark,
-		c.NotificationOutbox, c.NotificationRule, c.Organization, c.OrganizationMember,
-		c.PaymentCard, c.Plan, c.Project, c.PurchaseAttempt, c.PurchaseChange,
-		c.PurchaseProvider, c.RateCard, c.Receipt, c.Report, c.ReportExport,
-		c.ReportRun, c.ReportRunEvent, c.Role, c.SavedFunnel, c.Segment, c.StaffAccess,
-		c.StaffMember, c.StripeEvent, c.UsageCharge, c.UsageDaily, c.User,
-		c.VerifiedPurchase, c.WebhookEndpoint, c.WebhookOutbox, c.WebhookRetry,
+		c.LogIssueAlert, c.MemberProject, c.MonthlyUsage, c.NotificationChannel,
+		c.NotificationCount, c.NotificationMark, c.NotificationOutbox,
+		c.NotificationRule, c.Organization, c.OrganizationMember, c.PaymentCard,
+		c.Plan, c.Project, c.PurchaseAttempt, c.PurchaseChange, c.PurchaseProvider,
+		c.RateCard, c.Receipt, c.Report, c.ReportExport, c.ReportRun, c.ReportRunEvent,
+		c.Role, c.SavedFunnel, c.Segment, c.StaffAccess, c.StaffMember, c.StripeEvent,
+		c.UsageCharge, c.UsageDaily, c.User, c.VerifiedPurchase, c.WebhookEndpoint,
+		c.WebhookOutbox, c.WebhookRetry,
 	} {
 		n.Use(hooks...)
 	}
@@ -537,13 +550,14 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.CreditLot, c.DataDeletionRequest, c.DataExportRequest, c.Environment,
 		c.EventDefinition, c.Experiment, c.FeatureFlag, c.FxRate, c.Invitation,
 		c.Invoice, c.InvoiceLine, c.LedgerEntry, c.LiveOpsEvent, c.LogIssue,
-		c.MemberProject, c.MonthlyUsage, c.NotificationChannel, c.NotificationMark,
-		c.NotificationOutbox, c.NotificationRule, c.Organization, c.OrganizationMember,
-		c.PaymentCard, c.Plan, c.Project, c.PurchaseAttempt, c.PurchaseChange,
-		c.PurchaseProvider, c.RateCard, c.Receipt, c.Report, c.ReportExport,
-		c.ReportRun, c.ReportRunEvent, c.Role, c.SavedFunnel, c.Segment, c.StaffAccess,
-		c.StaffMember, c.StripeEvent, c.UsageCharge, c.UsageDaily, c.User,
-		c.VerifiedPurchase, c.WebhookEndpoint, c.WebhookOutbox, c.WebhookRetry,
+		c.LogIssueAlert, c.MemberProject, c.MonthlyUsage, c.NotificationChannel,
+		c.NotificationCount, c.NotificationMark, c.NotificationOutbox,
+		c.NotificationRule, c.Organization, c.OrganizationMember, c.PaymentCard,
+		c.Plan, c.Project, c.PurchaseAttempt, c.PurchaseChange, c.PurchaseProvider,
+		c.RateCard, c.Receipt, c.Report, c.ReportExport, c.ReportRun, c.ReportRunEvent,
+		c.Role, c.SavedFunnel, c.Segment, c.StaffAccess, c.StaffMember, c.StripeEvent,
+		c.UsageCharge, c.UsageDaily, c.User, c.VerifiedPurchase, c.WebhookEndpoint,
+		c.WebhookOutbox, c.WebhookRetry,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -598,12 +612,16 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.LiveOpsEvent.mutate(ctx, m)
 	case *LogIssueMutation:
 		return c.LogIssue.mutate(ctx, m)
+	case *LogIssueAlertMutation:
+		return c.LogIssueAlert.mutate(ctx, m)
 	case *MemberProjectMutation:
 		return c.MemberProject.mutate(ctx, m)
 	case *MonthlyUsageMutation:
 		return c.MonthlyUsage.mutate(ctx, m)
 	case *NotificationChannelMutation:
 		return c.NotificationChannel.mutate(ctx, m)
+	case *NotificationCountMutation:
+		return c.NotificationCount.mutate(ctx, m)
 	case *NotificationMarkMutation:
 		return c.NotificationMark.mutate(ctx, m)
 	case *NotificationOutboxMutation:
@@ -4401,6 +4419,139 @@ func (c *LogIssueClient) mutate(ctx context.Context, m *LogIssueMutation) (Value
 	}
 }
 
+// LogIssueAlertClient is a client for the LogIssueAlert schema.
+type LogIssueAlertClient struct {
+	config
+}
+
+// NewLogIssueAlertClient returns a client for the LogIssueAlert from the given config.
+func NewLogIssueAlertClient(c config) *LogIssueAlertClient {
+	return &LogIssueAlertClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `logissuealert.Hooks(f(g(h())))`.
+func (c *LogIssueAlertClient) Use(hooks ...Hook) {
+	c.hooks.LogIssueAlert = append(c.hooks.LogIssueAlert, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `logissuealert.Intercept(f(g(h())))`.
+func (c *LogIssueAlertClient) Intercept(interceptors ...Interceptor) {
+	c.inters.LogIssueAlert = append(c.inters.LogIssueAlert, interceptors...)
+}
+
+// Create returns a builder for creating a LogIssueAlert entity.
+func (c *LogIssueAlertClient) Create() *LogIssueAlertCreate {
+	mutation := newLogIssueAlertMutation(c.config, OpCreate)
+	return &LogIssueAlertCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of LogIssueAlert entities.
+func (c *LogIssueAlertClient) CreateBulk(builders ...*LogIssueAlertCreate) *LogIssueAlertCreateBulk {
+	return &LogIssueAlertCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *LogIssueAlertClient) MapCreateBulk(slice any, setFunc func(*LogIssueAlertCreate, int)) *LogIssueAlertCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &LogIssueAlertCreateBulk{err: fmt.Errorf("calling to LogIssueAlertClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*LogIssueAlertCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &LogIssueAlertCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for LogIssueAlert.
+func (c *LogIssueAlertClient) Update() *LogIssueAlertUpdate {
+	mutation := newLogIssueAlertMutation(c.config, OpUpdate)
+	return &LogIssueAlertUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *LogIssueAlertClient) UpdateOne(_m *LogIssueAlert) *LogIssueAlertUpdateOne {
+	mutation := newLogIssueAlertMutation(c.config, OpUpdateOne, withLogIssueAlert(_m))
+	return &LogIssueAlertUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *LogIssueAlertClient) UpdateOneID(id int) *LogIssueAlertUpdateOne {
+	mutation := newLogIssueAlertMutation(c.config, OpUpdateOne, withLogIssueAlertID(id))
+	return &LogIssueAlertUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for LogIssueAlert.
+func (c *LogIssueAlertClient) Delete() *LogIssueAlertDelete {
+	mutation := newLogIssueAlertMutation(c.config, OpDelete)
+	return &LogIssueAlertDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *LogIssueAlertClient) DeleteOne(_m *LogIssueAlert) *LogIssueAlertDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *LogIssueAlertClient) DeleteOneID(id int) *LogIssueAlertDeleteOne {
+	builder := c.Delete().Where(logissuealert.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &LogIssueAlertDeleteOne{builder}
+}
+
+// Query returns a query builder for LogIssueAlert.
+func (c *LogIssueAlertClient) Query() *LogIssueAlertQuery {
+	return &LogIssueAlertQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeLogIssueAlert},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a LogIssueAlert entity by its id.
+func (c *LogIssueAlertClient) Get(ctx context.Context, id int) (*LogIssueAlert, error) {
+	return c.Query().Where(logissuealert.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *LogIssueAlertClient) GetX(ctx context.Context, id int) *LogIssueAlert {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *LogIssueAlertClient) Hooks() []Hook {
+	return c.hooks.LogIssueAlert
+}
+
+// Interceptors returns the client interceptors.
+func (c *LogIssueAlertClient) Interceptors() []Interceptor {
+	return c.inters.LogIssueAlert
+}
+
+func (c *LogIssueAlertClient) mutate(ctx context.Context, m *LogIssueAlertMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&LogIssueAlertCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&LogIssueAlertUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&LogIssueAlertUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&LogIssueAlertDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown LogIssueAlert mutation op: %q", m.Op())
+	}
+}
+
 // MemberProjectClient is a client for the MemberProject schema.
 type MemberProjectClient struct {
 	config
@@ -4861,6 +5012,139 @@ func (c *NotificationChannelClient) mutate(ctx context.Context, m *NotificationC
 		return (&NotificationChannelDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown NotificationChannel mutation op: %q", m.Op())
+	}
+}
+
+// NotificationCountClient is a client for the NotificationCount schema.
+type NotificationCountClient struct {
+	config
+}
+
+// NewNotificationCountClient returns a client for the NotificationCount from the given config.
+func NewNotificationCountClient(c config) *NotificationCountClient {
+	return &NotificationCountClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `notificationcount.Hooks(f(g(h())))`.
+func (c *NotificationCountClient) Use(hooks ...Hook) {
+	c.hooks.NotificationCount = append(c.hooks.NotificationCount, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `notificationcount.Intercept(f(g(h())))`.
+func (c *NotificationCountClient) Intercept(interceptors ...Interceptor) {
+	c.inters.NotificationCount = append(c.inters.NotificationCount, interceptors...)
+}
+
+// Create returns a builder for creating a NotificationCount entity.
+func (c *NotificationCountClient) Create() *NotificationCountCreate {
+	mutation := newNotificationCountMutation(c.config, OpCreate)
+	return &NotificationCountCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of NotificationCount entities.
+func (c *NotificationCountClient) CreateBulk(builders ...*NotificationCountCreate) *NotificationCountCreateBulk {
+	return &NotificationCountCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *NotificationCountClient) MapCreateBulk(slice any, setFunc func(*NotificationCountCreate, int)) *NotificationCountCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &NotificationCountCreateBulk{err: fmt.Errorf("calling to NotificationCountClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*NotificationCountCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &NotificationCountCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for NotificationCount.
+func (c *NotificationCountClient) Update() *NotificationCountUpdate {
+	mutation := newNotificationCountMutation(c.config, OpUpdate)
+	return &NotificationCountUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *NotificationCountClient) UpdateOne(_m *NotificationCount) *NotificationCountUpdateOne {
+	mutation := newNotificationCountMutation(c.config, OpUpdateOne, withNotificationCount(_m))
+	return &NotificationCountUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *NotificationCountClient) UpdateOneID(id int) *NotificationCountUpdateOne {
+	mutation := newNotificationCountMutation(c.config, OpUpdateOne, withNotificationCountID(id))
+	return &NotificationCountUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for NotificationCount.
+func (c *NotificationCountClient) Delete() *NotificationCountDelete {
+	mutation := newNotificationCountMutation(c.config, OpDelete)
+	return &NotificationCountDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *NotificationCountClient) DeleteOne(_m *NotificationCount) *NotificationCountDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *NotificationCountClient) DeleteOneID(id int) *NotificationCountDeleteOne {
+	builder := c.Delete().Where(notificationcount.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &NotificationCountDeleteOne{builder}
+}
+
+// Query returns a query builder for NotificationCount.
+func (c *NotificationCountClient) Query() *NotificationCountQuery {
+	return &NotificationCountQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeNotificationCount},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a NotificationCount entity by its id.
+func (c *NotificationCountClient) Get(ctx context.Context, id int) (*NotificationCount, error) {
+	return c.Query().Where(notificationcount.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *NotificationCountClient) GetX(ctx context.Context, id int) *NotificationCount {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *NotificationCountClient) Hooks() []Hook {
+	return c.hooks.NotificationCount
+}
+
+// Interceptors returns the client interceptors.
+func (c *NotificationCountClient) Interceptors() []Interceptor {
+	return c.inters.NotificationCount
+}
+
+func (c *NotificationCountClient) mutate(ctx context.Context, m *NotificationCountMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&NotificationCountCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&NotificationCountUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&NotificationCountUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&NotificationCountDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown NotificationCount mutation op: %q", m.Op())
 	}
 }
 
@@ -9616,26 +9900,28 @@ type (
 		BillingContract, ChannelDelivery, ChannelDeliveryHour, ConfigVersion,
 		CreditLot, DataDeletionRequest, DataExportRequest, Environment,
 		EventDefinition, Experiment, FeatureFlag, FxRate, Invitation, Invoice,
-		InvoiceLine, LedgerEntry, LiveOpsEvent, LogIssue, MemberProject, MonthlyUsage,
-		NotificationChannel, NotificationMark, NotificationOutbox, NotificationRule,
-		Organization, OrganizationMember, PaymentCard, Plan, Project, PurchaseAttempt,
-		PurchaseChange, PurchaseProvider, RateCard, Receipt, Report, ReportExport,
-		ReportRun, ReportRunEvent, Role, SavedFunnel, Segment, StaffAccess,
-		StaffMember, StripeEvent, UsageCharge, UsageDaily, User, VerifiedPurchase,
-		WebhookEndpoint, WebhookOutbox, WebhookRetry []ent.Hook
+		InvoiceLine, LedgerEntry, LiveOpsEvent, LogIssue, LogIssueAlert, MemberProject,
+		MonthlyUsage, NotificationChannel, NotificationCount, NotificationMark,
+		NotificationOutbox, NotificationRule, Organization, OrganizationMember,
+		PaymentCard, Plan, Project, PurchaseAttempt, PurchaseChange, PurchaseProvider,
+		RateCard, Receipt, Report, ReportExport, ReportRun, ReportRunEvent, Role,
+		SavedFunnel, Segment, StaffAccess, StaffMember, StripeEvent, UsageCharge,
+		UsageDaily, User, VerifiedPurchase, WebhookEndpoint, WebhookOutbox,
+		WebhookRetry []ent.Hook
 	}
 	inters struct {
 		APIKey, ArchiveManifest, AuditEvent, BillablePlayer, BillingAccount,
 		BillingContract, ChannelDelivery, ChannelDeliveryHour, ConfigVersion,
 		CreditLot, DataDeletionRequest, DataExportRequest, Environment,
 		EventDefinition, Experiment, FeatureFlag, FxRate, Invitation, Invoice,
-		InvoiceLine, LedgerEntry, LiveOpsEvent, LogIssue, MemberProject, MonthlyUsage,
-		NotificationChannel, NotificationMark, NotificationOutbox, NotificationRule,
-		Organization, OrganizationMember, PaymentCard, Plan, Project, PurchaseAttempt,
-		PurchaseChange, PurchaseProvider, RateCard, Receipt, Report, ReportExport,
-		ReportRun, ReportRunEvent, Role, SavedFunnel, Segment, StaffAccess,
-		StaffMember, StripeEvent, UsageCharge, UsageDaily, User, VerifiedPurchase,
-		WebhookEndpoint, WebhookOutbox, WebhookRetry []ent.Interceptor
+		InvoiceLine, LedgerEntry, LiveOpsEvent, LogIssue, LogIssueAlert, MemberProject,
+		MonthlyUsage, NotificationChannel, NotificationCount, NotificationMark,
+		NotificationOutbox, NotificationRule, Organization, OrganizationMember,
+		PaymentCard, Plan, Project, PurchaseAttempt, PurchaseChange, PurchaseProvider,
+		RateCard, Receipt, Report, ReportExport, ReportRun, ReportRunEvent, Role,
+		SavedFunnel, Segment, StaffAccess, StaffMember, StripeEvent, UsageCharge,
+		UsageDaily, User, VerifiedPurchase, WebhookEndpoint, WebhookOutbox,
+		WebhookRetry []ent.Interceptor
 	}
 )
 

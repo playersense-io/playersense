@@ -88,6 +88,9 @@ var organizationKinds = []Kind{
 
 // titles are the headlines a project event's type does not spell well by itself.
 var titles = map[string]string{
+	"issue.new":                  "New issue",
+	"issue.regressed":            "Issue regressed",
+	"issue.spiking":              "Issue spiking",
 	"liveops.window.started":     "Live Ops window opened",
 	"liveops.window.ended":       "Live Ops window closed",
 	"api_key.created":            "API key created",
@@ -98,6 +101,9 @@ var titles = map[string]string{
 
 // severities are the project events worth more than "info" to an on-call rotation.
 var severities = map[string]string{
+	"issue.new":                  "error",
+	"issue.regressed":            "error",
+	"issue.spiking":              "warning",
 	"purchase.rejected":          "warning",
 	"subscription.billing_issue": "warning",
 	"export.failed":              "error",

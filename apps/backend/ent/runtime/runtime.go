@@ -29,9 +29,11 @@ import (
 	"playersense.dev/backend/ent/ledgerentry"
 	"playersense.dev/backend/ent/liveopsevent"
 	"playersense.dev/backend/ent/logissue"
+	"playersense.dev/backend/ent/logissuealert"
 	"playersense.dev/backend/ent/memberproject"
 	"playersense.dev/backend/ent/monthlyusage"
 	"playersense.dev/backend/ent/notificationchannel"
+	"playersense.dev/backend/ent/notificationcount"
 	"playersense.dev/backend/ent/notificationmark"
 	"playersense.dev/backend/ent/notificationoutbox"
 	"playersense.dev/backend/ent/notificationrule"
@@ -1670,6 +1672,37 @@ func init() {
 	logissue.DefaultUpdatedBy = logissueDescUpdatedBy.Default.(string)
 	// logissue.UpdatedByValidator is a validator for the "updated_by" field. It is called by the builders before save.
 	logissue.UpdatedByValidator = logissueDescUpdatedBy.Validators[0].(func(string) error)
+	logissuealertMixin := schema.LogIssueAlert{}.Mixin()
+	logissuealertMixinFields0 := logissuealertMixin[0].Fields()
+	_ = logissuealertMixinFields0
+	logissuealertFields := schema.LogIssueAlert{}.Fields()
+	_ = logissuealertFields
+	// logissuealertDescUID is the schema descriptor for uid field.
+	logissuealertDescUID := logissuealertMixinFields0[1].Descriptor()
+	// logissuealert.DefaultUID holds the default value on creation for the uid field.
+	logissuealert.DefaultUID = logissuealertDescUID.Default.(func() uuid.UUID)
+	// logissuealertDescCreatedAt is the schema descriptor for created_at field.
+	logissuealertDescCreatedAt := logissuealertMixinFields0[2].Descriptor()
+	// logissuealert.DefaultCreatedAt holds the default value on creation for the created_at field.
+	logissuealert.DefaultCreatedAt = logissuealertDescCreatedAt.Default.(func() time.Time)
+	// logissuealertDescUpdatedAt is the schema descriptor for updated_at field.
+	logissuealertDescUpdatedAt := logissuealertMixinFields0[3].Descriptor()
+	// logissuealert.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	logissuealert.DefaultUpdatedAt = logissuealertDescUpdatedAt.Default.(func() time.Time)
+	// logissuealert.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	logissuealert.UpdateDefaultUpdatedAt = logissuealertDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// logissuealertDescEnvironment is the schema descriptor for environment field.
+	logissuealertDescEnvironment := logissuealertFields[1].Descriptor()
+	// logissuealert.EnvironmentValidator is a validator for the "environment" field. It is called by the builders before save.
+	logissuealert.EnvironmentValidator = logissuealertDescEnvironment.Validators[0].(func(string) error)
+	// logissuealertDescFingerprint is the schema descriptor for fingerprint field.
+	logissuealertDescFingerprint := logissuealertFields[2].Descriptor()
+	// logissuealert.FingerprintValidator is a validator for the "fingerprint" field. It is called by the builders before save.
+	logissuealert.FingerprintValidator = logissuealertDescFingerprint.Validators[0].(func(string) error)
+	// logissuealertDescSpiking is the schema descriptor for spiking field.
+	logissuealertDescSpiking := logissuealertFields[5].Descriptor()
+	// logissuealert.DefaultSpiking holds the default value on creation for the spiking field.
+	logissuealert.DefaultSpiking = logissuealertDescSpiking.Default.(bool)
 	memberprojectMixin := schema.MemberProject{}.Mixin()
 	memberprojectMixinFields0 := memberprojectMixin[0].Fields()
 	_ = memberprojectMixinFields0
@@ -1811,6 +1844,16 @@ func init() {
 	notificationchannel.DefaultUpdatedBy = notificationchannelDescUpdatedBy.Default.(string)
 	// notificationchannel.UpdatedByValidator is a validator for the "updated_by" field. It is called by the builders before save.
 	notificationchannel.UpdatedByValidator = notificationchannelDescUpdatedBy.Validators[0].(func(string) error)
+	notificationcountFields := schema.NotificationCount{}.Fields()
+	_ = notificationcountFields
+	// notificationcountDescKey is the schema descriptor for key field.
+	notificationcountDescKey := notificationcountFields[1].Descriptor()
+	// notificationcount.KeyValidator is a validator for the "key" field. It is called by the builders before save.
+	notificationcount.KeyValidator = notificationcountDescKey.Validators[0].(func(string) error)
+	// notificationcountDescCount is the schema descriptor for count field.
+	notificationcountDescCount := notificationcountFields[3].Descriptor()
+	// notificationcount.DefaultCount holds the default value on creation for the count field.
+	notificationcount.DefaultCount = notificationcountDescCount.Default.(int)
 	notificationmarkFields := schema.NotificationMark{}.Fields()
 	_ = notificationmarkFields
 	// notificationmarkDescKey is the schema descriptor for key field.
@@ -1913,14 +1956,18 @@ func init() {
 	notificationruleDescCooldownMinutes := notificationruleFields[7].Descriptor()
 	// notificationrule.DefaultCooldownMinutes holds the default value on creation for the cooldown_minutes field.
 	notificationrule.DefaultCooldownMinutes = notificationruleDescCooldownMinutes.Default.(int)
+	// notificationruleDescMaxPerHour is the schema descriptor for max_per_hour field.
+	notificationruleDescMaxPerHour := notificationruleFields[8].Descriptor()
+	// notificationrule.DefaultMaxPerHour holds the default value on creation for the max_per_hour field.
+	notificationrule.DefaultMaxPerHour = notificationruleDescMaxPerHour.Default.(int)
 	// notificationruleDescCreatedBy is the schema descriptor for created_by field.
-	notificationruleDescCreatedBy := notificationruleFields[10].Descriptor()
+	notificationruleDescCreatedBy := notificationruleFields[11].Descriptor()
 	// notificationrule.DefaultCreatedBy holds the default value on creation for the created_by field.
 	notificationrule.DefaultCreatedBy = notificationruleDescCreatedBy.Default.(string)
 	// notificationrule.CreatedByValidator is a validator for the "created_by" field. It is called by the builders before save.
 	notificationrule.CreatedByValidator = notificationruleDescCreatedBy.Validators[0].(func(string) error)
 	// notificationruleDescUpdatedBy is the schema descriptor for updated_by field.
-	notificationruleDescUpdatedBy := notificationruleFields[11].Descriptor()
+	notificationruleDescUpdatedBy := notificationruleFields[12].Descriptor()
 	// notificationrule.DefaultUpdatedBy holds the default value on creation for the updated_by field.
 	notificationrule.DefaultUpdatedBy = notificationruleDescUpdatedBy.Default.(string)
 	// notificationrule.UpdatedByValidator is a validator for the "updated_by" field. It is called by the builders before save.

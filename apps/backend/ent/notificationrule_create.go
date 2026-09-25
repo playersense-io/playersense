@@ -137,6 +137,20 @@ func (_c *NotificationRuleCreate) SetNillableCooldownMinutes(v *int) *Notificati
 	return _c
 }
 
+// SetMaxPerHour sets the "max_per_hour" field.
+func (_c *NotificationRuleCreate) SetMaxPerHour(v int) *NotificationRuleCreate {
+	_c.mutation.SetMaxPerHour(v)
+	return _c
+}
+
+// SetNillableMaxPerHour sets the "max_per_hour" field if the given value is not nil.
+func (_c *NotificationRuleCreate) SetNillableMaxPerHour(v *int) *NotificationRuleCreate {
+	if v != nil {
+		_c.SetMaxPerHour(*v)
+	}
+	return _c
+}
+
 // SetMutedUntil sets the "muted_until" field.
 func (_c *NotificationRuleCreate) SetMutedUntil(v time.Time) *NotificationRuleCreate {
 	_c.mutation.SetMutedUntil(v)
@@ -258,6 +272,10 @@ func (_c *NotificationRuleCreate) defaults() {
 		v := notificationrule.DefaultCooldownMinutes
 		_c.mutation.SetCooldownMinutes(v)
 	}
+	if _, ok := _c.mutation.MaxPerHour(); !ok {
+		v := notificationrule.DefaultMaxPerHour
+		_c.mutation.SetMaxPerHour(v)
+	}
 	if _, ok := _c.mutation.CreatedBy(); !ok {
 		v := notificationrule.DefaultCreatedBy
 		_c.mutation.SetCreatedBy(v)
@@ -304,6 +322,9 @@ func (_c *NotificationRuleCreate) check() error {
 	}
 	if _, ok := _c.mutation.CooldownMinutes(); !ok {
 		return &ValidationError{Name: "cooldown_minutes", err: errors.New(`ent: missing required field "NotificationRule.cooldown_minutes"`)}
+	}
+	if _, ok := _c.mutation.MaxPerHour(); !ok {
+		return &ValidationError{Name: "max_per_hour", err: errors.New(`ent: missing required field "NotificationRule.max_per_hour"`)}
 	}
 	if _, ok := _c.mutation.CreatedBy(); !ok {
 		return &ValidationError{Name: "created_by", err: errors.New(`ent: missing required field "NotificationRule.created_by"`)}
@@ -397,6 +418,10 @@ func (_c *NotificationRuleCreate) createSpec() (*NotificationRule, *sqlgraph.Cre
 	if value, ok := _c.mutation.CooldownMinutes(); ok {
 		_spec.SetField(notificationrule.FieldCooldownMinutes, field.TypeInt, value)
 		_node.CooldownMinutes = value
+	}
+	if value, ok := _c.mutation.MaxPerHour(); ok {
+		_spec.SetField(notificationrule.FieldMaxPerHour, field.TypeInt, value)
+		_node.MaxPerHour = value
 	}
 	if value, ok := _c.mutation.MutedUntil(); ok {
 		_spec.SetField(notificationrule.FieldMutedUntil, field.TypeTime, value)
@@ -553,6 +578,24 @@ func (u *NotificationRuleUpsert) UpdateCooldownMinutes() *NotificationRuleUpsert
 // AddCooldownMinutes adds v to the "cooldown_minutes" field.
 func (u *NotificationRuleUpsert) AddCooldownMinutes(v int) *NotificationRuleUpsert {
 	u.Add(notificationrule.FieldCooldownMinutes, v)
+	return u
+}
+
+// SetMaxPerHour sets the "max_per_hour" field.
+func (u *NotificationRuleUpsert) SetMaxPerHour(v int) *NotificationRuleUpsert {
+	u.Set(notificationrule.FieldMaxPerHour, v)
+	return u
+}
+
+// UpdateMaxPerHour sets the "max_per_hour" field to the value that was provided on create.
+func (u *NotificationRuleUpsert) UpdateMaxPerHour() *NotificationRuleUpsert {
+	u.SetExcluded(notificationrule.FieldMaxPerHour)
+	return u
+}
+
+// AddMaxPerHour adds v to the "max_per_hour" field.
+func (u *NotificationRuleUpsert) AddMaxPerHour(v int) *NotificationRuleUpsert {
+	u.Add(notificationrule.FieldMaxPerHour, v)
 	return u
 }
 
@@ -769,6 +812,27 @@ func (u *NotificationRuleUpsertOne) AddCooldownMinutes(v int) *NotificationRuleU
 func (u *NotificationRuleUpsertOne) UpdateCooldownMinutes() *NotificationRuleUpsertOne {
 	return u.Update(func(s *NotificationRuleUpsert) {
 		s.UpdateCooldownMinutes()
+	})
+}
+
+// SetMaxPerHour sets the "max_per_hour" field.
+func (u *NotificationRuleUpsertOne) SetMaxPerHour(v int) *NotificationRuleUpsertOne {
+	return u.Update(func(s *NotificationRuleUpsert) {
+		s.SetMaxPerHour(v)
+	})
+}
+
+// AddMaxPerHour adds v to the "max_per_hour" field.
+func (u *NotificationRuleUpsertOne) AddMaxPerHour(v int) *NotificationRuleUpsertOne {
+	return u.Update(func(s *NotificationRuleUpsert) {
+		s.AddMaxPerHour(v)
+	})
+}
+
+// UpdateMaxPerHour sets the "max_per_hour" field to the value that was provided on create.
+func (u *NotificationRuleUpsertOne) UpdateMaxPerHour() *NotificationRuleUpsertOne {
+	return u.Update(func(s *NotificationRuleUpsert) {
+		s.UpdateMaxPerHour()
 	})
 }
 
@@ -1159,6 +1223,27 @@ func (u *NotificationRuleUpsertBulk) AddCooldownMinutes(v int) *NotificationRule
 func (u *NotificationRuleUpsertBulk) UpdateCooldownMinutes() *NotificationRuleUpsertBulk {
 	return u.Update(func(s *NotificationRuleUpsert) {
 		s.UpdateCooldownMinutes()
+	})
+}
+
+// SetMaxPerHour sets the "max_per_hour" field.
+func (u *NotificationRuleUpsertBulk) SetMaxPerHour(v int) *NotificationRuleUpsertBulk {
+	return u.Update(func(s *NotificationRuleUpsert) {
+		s.SetMaxPerHour(v)
+	})
+}
+
+// AddMaxPerHour adds v to the "max_per_hour" field.
+func (u *NotificationRuleUpsertBulk) AddMaxPerHour(v int) *NotificationRuleUpsertBulk {
+	return u.Update(func(s *NotificationRuleUpsert) {
+		s.AddMaxPerHour(v)
+	})
+}
+
+// UpdateMaxPerHour sets the "max_per_hour" field to the value that was provided on create.
+func (u *NotificationRuleUpsertBulk) UpdateMaxPerHour() *NotificationRuleUpsertBulk {
+	return u.Update(func(s *NotificationRuleUpsert) {
+		s.UpdateMaxPerHour()
 	})
 }
 

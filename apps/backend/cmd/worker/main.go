@@ -150,15 +150,18 @@ func once(settings config.Settings) error {
 	}
 	_, reportErr := reportsDue.Run(ctx, time.Now().UTC())
 	shipper, upkeep := newPurchaseLoops(conn, deps)
-	hookLog, dispatcher, notifications, err := newWebhookLoops(settings, conn, deps)
+	hookLog, dispatcher, notifications, issues, err := newWebhookLoops(settings, conn, deps)
 	if err != nil {
 		return err
 	}
 	var hookErr error
+	if _, err := issues.Pass(ctx, time.Now()); err != nil {
+		hookErr = err
+	}
 	for {
 		n, err := dispatcher.Pass(ctx)
 		if err != nil || n == 0 {
-			hookErr = err
+			hookErr = errors.Join(hookErr, err)
 			break
 		}
 	}
@@ -203,7 +206,7 @@ func build(settings config.Settings) (*muzak.App, error) {
 		return nil, err
 	}
 	shipper, upkeep := newPurchaseLoops(conn, deps)
-	hookLog, dispatcher, notifications, err := newWebhookLoops(settings, conn, deps)
+	hookLog, dispatcher, notifications, issues, err := newWebhookLoops(settings, conn, deps)
 	if err != nil {
 		return nil, err
 	}
@@ -245,6 +248,7 @@ func build(settings config.Settings) (*muzak.App, error) {
 		muzak.WithSingleton(hookLog),
 		muzak.WithSingleton(dispatcher),
 		muzak.WithSingleton(notifications),
+		muzak.WithSingleton(issues),
 		// The day's exchange rates, fetched once an hour whatever else happens, so a quiet day's
 		// rates are still kept.
 		muzak.WithSingleton(&fx.Refresher{Service: &fx.Service{Source: &fx.Source{AppID: settings.OpenExchangeRatesAppID},
@@ -355,17 +359,20 @@ func newPurchaseLoops(conn *chdb.Conn, deps dependencies) (*purchases.Shipper, *
 // newWebhookLoops delivers webhooks: the dispatcher takes events and due retries, and the log
 // writes every try to ClickHouse a second at a time. The dispatcher also hands every event to the
 // notification rules (internal/alerts), whose worker sends what they queue.
-func newWebhookLoops(settings config.Settings, conn *chdb.Conn, deps dependencies) (*webhooks.AttemptLog, *webhooks.Dispatcher, *alerts.Worker, error) {
+func newWebhookLoops(settings config.Settings, conn *chdb.Conn, deps dependencies) (*webhooks.AttemptLog, *webhooks.Dispatcher, *alerts.Worker, *alerts.IssueDetector, error) {
 	mailer, err := mail.New(settings.MailSender, nil, settings.MailLogBody)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 	hookLog := &webhooks.AttemptLog{CH: conn}
 	dispatcher := &webhooks.Dispatcher{DB: deps.db, Deliver: webhooks.NewDeliverer(settings.NotifyAllowPrivate),
 		Log: hookLog, Mail: mailer, Dashboard: settings.DashboardURL, Alerts: &alerts.Sink{Client: deps.db.Client}}
 	notifications := &alerts.Worker{DB: deps.db, Notify: notify.NewSender(mailer, settings.NotifyAllowPrivate),
 		Mail: mailer, Dashboard: settings.DashboardURL}
-	return hookLog, dispatcher, notifications, nil
+	// Issues become events (new, regressed, spiking) once each, from the ClickHouse rollups, and
+	// go out through the dispatcher like any other event.
+	issues := &alerts.IssueDetector{DB: deps.db, CH: conn}
+	return hookLog, dispatcher, notifications, issues, nil
 }
 
 // newJanitor assembles §79's data-lifecycle jobs.

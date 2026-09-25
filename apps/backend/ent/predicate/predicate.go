@@ -75,6 +75,9 @@ type LiveOpsEvent func(*sql.Selector)
 // LogIssue is the predicate function for logissue builders.
 type LogIssue func(*sql.Selector)
 
+// LogIssueAlert is the predicate function for logissuealert builders.
+type LogIssueAlert func(*sql.Selector)
+
 // MemberProject is the predicate function for memberproject builders.
 type MemberProject func(*sql.Selector)
 
@@ -83,6 +86,9 @@ type MonthlyUsage func(*sql.Selector)
 
 // NotificationChannel is the predicate function for notificationchannel builders.
 type NotificationChannel func(*sql.Selector)
+
+// NotificationCount is the predicate function for notificationcount builders.
+type NotificationCount func(*sql.Selector)
 
 // NotificationMark is the predicate function for notificationmark builders.
 type NotificationMark func(*sql.Selector)

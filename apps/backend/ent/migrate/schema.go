@@ -1041,6 +1041,39 @@ var (
 			},
 		},
 	}
+	// LogIssueAlertsColumns holds the columns for the "log_issue_alerts" table.
+	LogIssueAlertsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
+		{Name: "uid", Type: field.TypeUUID, Unique: true, Comment: "class=none"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "updated_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "project_id", Type: field.TypeInt, Comment: "class=none"},
+		{Name: "environment", Type: field.TypeString, Size: 20, Comment: "class=none"},
+		{Name: "fingerprint", Type: field.TypeString, Size: 20, Comment: "class=none"},
+		{Name: "announced_at", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
+		{Name: "regressed_for", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
+		{Name: "spiking", Type: field.TypeBool, Comment: "class=none", Default: false},
+		{Name: "spiking_since", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
+		{Name: "last_seen", Type: field.TypeTime, Comment: "class=none"},
+	}
+	// LogIssueAlertsTable holds the schema information for the "log_issue_alerts" table.
+	LogIssueAlertsTable = &schema.Table{
+		Name:       "log_issue_alerts",
+		Columns:    LogIssueAlertsColumns,
+		PrimaryKey: []*schema.Column{LogIssueAlertsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "logissuealert_project_id_environment_fingerprint",
+				Unique:  true,
+				Columns: []*schema.Column{LogIssueAlertsColumns[4], LogIssueAlertsColumns[5], LogIssueAlertsColumns[6]},
+			},
+			{
+				Name:    "logissuealert_last_seen",
+				Unique:  false,
+				Columns: []*schema.Column{LogIssueAlertsColumns[11]},
+			},
+		},
+	}
 	// MemberProjectsColumns holds the columns for the "member_projects" table.
 	MemberProjectsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
@@ -1154,6 +1187,19 @@ var (
 			},
 		},
 	}
+	// NotificationCountsColumns holds the columns for the "notification_counts" table.
+	NotificationCountsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
+		{Name: "key", Type: field.TypeString, Unique: true, Size: 200, Comment: "class=none"},
+		{Name: "window_start", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "count", Type: field.TypeInt, Comment: "class=none", Default: 0},
+	}
+	// NotificationCountsTable holds the schema information for the "notification_counts" table.
+	NotificationCountsTable = &schema.Table{
+		Name:       "notification_counts",
+		Columns:    NotificationCountsColumns,
+		PrimaryKey: []*schema.Column{NotificationCountsColumns[0]},
+	}
 	// NotificationMarksColumns holds the columns for the "notification_marks" table.
 	NotificationMarksColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
@@ -1218,6 +1264,7 @@ var (
 		{Name: "environments", Type: field.TypeJSON, Comment: "class=none"},
 		{Name: "channels", Type: field.TypeJSON, Comment: "class=none"},
 		{Name: "cooldown_minutes", Type: field.TypeInt, Comment: "class=none", Default: 0},
+		{Name: "max_per_hour", Type: field.TypeInt, Comment: "class=none", Default: 20},
 		{Name: "muted_until", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
 		{Name: "last_fired_at", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
 		{Name: "created_by", Type: field.TypeString, Size: 254, Comment: "class=none", Default: ""},
@@ -2271,9 +2318,11 @@ var (
 		LedgerEntriesTable,
 		LiveopsEventsTable,
 		LogIssuesTable,
+		LogIssueAlertsTable,
 		MemberProjectsTable,
 		MonthlyUsageTable,
 		NotificationChannelsTable,
+		NotificationCountsTable,
 		NotificationMarksTable,
 		NotificationOutboxesTable,
 		NotificationRulesTable,
