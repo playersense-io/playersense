@@ -17,6 +17,7 @@ use crate::exposure::{self, Exposures};
 use crate::host::{Host, Level, Request, Response};
 use crate::ids::uuid_v4;
 use crate::liveconfig::{Event as LiveOpsEvent, Flag, LiveConfig};
+use crate::logs::{Diagnostics, LogLevel, LogRecord, LogStats, Logged, Logs, Stamp};
 use crate::session::Session;
 use crate::spool;
 use crate::transport::{self, Disposition};
@@ -117,6 +118,9 @@ pub struct Client<H: Host> {
     /// Set by a 401 or 403. The spool is kept; nothing further is sent.
     stopped: Option<String>,
 
+    /// Logs, exceptions and crashes: a stream of their own beside the events (§15).
+    logs: Logs,
+
     stats: Stats,
 }
 
@@ -163,6 +167,7 @@ impl<H: Host> Client<H> {
             .unwrap_or(0);
 
         let monotonic = host.monotonic_ms();
+        let logs = Logs::new(&host, &config, &install_id);
         let mut client = Self {
             host,
             config,
@@ -190,6 +195,7 @@ impl<H: Host> Client<H> {
             cold: false,
             compression: true,
             stopped: None,
+            logs,
             stats: Stats::default(),
         };
         client.compression = client.config.compression;
@@ -198,6 +204,11 @@ impl<H: Host> Client<H> {
         // sent — a week-old spool must not be uploaded just because the app reopened (§6).
         client.evict();
         client.load_context();
+        // Whether the last run died in the foreground. Consent is not known yet, so what it
+        // finds waits on the device for the player's answer.
+        client
+            .logs
+            .check_last_run(&client.host, &client.config, &client.consent);
         client
     }
 
@@ -398,6 +409,16 @@ impl<H: Host> Client<H> {
 
     /// Records what the player has said about analytics (§5).
     pub fn set_consent(&mut self, next: State) {
+        let before = self.consent.clone();
+        self.set_analytics_consent(next);
+        // Error reports follow this answer unless the game has asked about them separately.
+        let after = self.consent.clone();
+        self.logs
+            .analytics_moved(&self.host, &self.config, &before, &after);
+        self.pump_logs_if_due();
+    }
+
+    fn set_analytics_consent(&mut self, next: State) {
         match consent::transition(&self.consent, &next) {
             consent::Transition::None => {
                 self.consent = next;
@@ -467,6 +488,66 @@ impl<H: Host> Client<H> {
     pub fn flush(&mut self) {
         self.seal_batch();
         self.pump();
+        self.logs.flush(
+            &self.host,
+            &self.config,
+            &self.consent,
+            &mut self.next_request_id,
+        );
+    }
+
+    // ---- logs, exceptions and crashes (§15) ---------------------------------
+
+    /// Records a log line, an exception or a crash. Never blocks, never throws; the answer
+    /// says what became of it.
+    pub fn log(&mut self, record: LogRecord) -> Logged {
+        let stamp = Stamp {
+            session_id: self.session.as_ref().map(|s| s.id.as_str()),
+            player_id: self.player_id.as_deref(),
+        };
+        let outcome = self
+            .logs
+            .record(&self.host, &self.config, &self.consent, stamp, record);
+        self.pump_logs_if_due();
+        outcome
+    }
+
+    /// Something that happened, kept in memory for the next error to carry.
+    pub fn add_breadcrumb(&mut self, category: &str, message: &str, level: LogLevel) {
+        if self.config.logs_enabled {
+            let now = self.host.now_ms();
+            self.logs
+                .breadcrumb(&self.config, now, category, message, level);
+        }
+    }
+
+    /// The player's answer about error reports, apart from analytics.
+    pub fn set_diagnostics_consent(&mut self, next: Diagnostics) {
+        self.logs
+            .set_diagnostics(&self.host, &self.config, &self.consent, next);
+        self.pump_logs_if_due();
+    }
+
+    /// Crash reports kept on the device while the player has not answered: a game can offer
+    /// to send them ("The game closed unexpectedly. Send a report?").
+    pub fn held_crash_reports(&self) -> usize {
+        self.logs.held_crashes(&self.host)
+    }
+
+    /// Deletes the crash reports waiting for an answer, unsent.
+    pub fn discard_held_crash_reports(&mut self) {
+        self.logs.discard_held(&self.host);
+    }
+
+    pub fn log_stats(&self) -> LogStats {
+        self.logs.stats
+    }
+
+    fn pump_logs_if_due(&mut self) {
+        if self.logs.wants_pump() {
+            self.logs
+                .pump(&self.host, &self.config, &mut self.next_request_id);
+        }
     }
 
     /// The app came back to the front.
@@ -490,6 +571,12 @@ impl<H: Host> Client<H> {
         self.next_attempt_mono_ms = monotonic;
         self.pump();
 
+        let session = self.session.as_ref().map(|s| s.id.clone());
+        self.logs
+            .foreground(&self.host, &self.config, session.as_deref());
+        self.logs
+            .pump(&self.host, &self.config, &mut self.next_request_id);
+
         // A game resumed after three hours is the case where the answer is most likely to
         // have moved, so the interval is brought forward rather than waited out.
         self.refresh_config();
@@ -507,6 +594,15 @@ impl<H: Host> Client<H> {
             session.backgrounded(monotonic);
         }
         self.pump();
+        // The same order for logs: spooled, then attempted, and the running marker cleared,
+        // because going to the background is a clean exit whatever happens next.
+        self.logs.flush(
+            &self.host,
+            &self.config,
+            &self.consent,
+            &mut self.next_request_id,
+        );
+        self.logs.background(&self.host);
     }
 
     /// Called regularly by the host — a frame loop, a timer. Cheap when there is nothing due.
@@ -519,6 +615,15 @@ impl<H: Host> Client<H> {
             self.seal_batch();
         }
         self.pump();
+
+        let session = self.session.as_ref().map(|s| s.id.clone());
+        self.logs.tick(
+            &self.host,
+            &self.config,
+            &self.consent,
+            session.as_deref(),
+            &mut self.next_request_id,
+        );
 
         if self
             .liveconfig
@@ -797,6 +902,13 @@ impl<H: Host> Client<H> {
     pub fn shutdown(&mut self) {
         self.seal_batch();
         self.pump();
+        self.logs.flush(
+            &self.host,
+            &self.config,
+            &self.consent,
+            &mut self.next_request_id,
+        );
+        self.logs.background(&self.host);
     }
 
     // ---- what the host calls back -------------------------------------------
@@ -815,6 +927,16 @@ impl<H: Host> Client<H> {
                 &response.body,
                 response.etag,
                 monotonic,
+            );
+            return;
+        }
+
+        if self.logs.owns(response.id) {
+            self.logs.on_response(
+                &self.host,
+                &self.config,
+                response,
+                &mut self.next_request_id,
             );
             return;
         }
@@ -1301,7 +1423,7 @@ fn estimate_bytes(event: &Event) -> usize {
 
 /// gzip, because it is the encoding every engine can produce and every platform already has
 /// (§8). `None` if compression failed, in which case the body goes as it is.
-fn gzip(body: &[u8]) -> Option<Vec<u8>> {
+pub(crate) fn gzip(body: &[u8]) -> Option<Vec<u8>> {
     use flate2::{Compression, write::GzEncoder};
     use std::io::Write;
 

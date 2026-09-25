@@ -137,6 +137,41 @@ pub struct Config {
 
     /// Logs every dropped event and every refusal at `Info` rather than `Debug`.
     pub debug: bool,
+
+    // ---- logs, exceptions and crashes (§15) ----------------------------------------------
+    /// Whether the log stream runs at all. **Off by default**: turning it on changes what a
+    /// studio must declare in its store listings (App Privacy "Crash Data", Play Data safety
+    /// "Crash logs"), so an SDK update must never turn it on behind a studio's back.
+    pub logs_enabled: bool,
+    /// The least serious level sent as a record. Quieter lines become breadcrumbs.
+    pub log_min_level: crate::logs::LogLevel,
+    /// The least serious level kept as a breadcrumb.
+    pub log_breadcrumb_level: crate::logs::LogLevel,
+    /// How many breadcrumbs an error carries.
+    pub log_max_breadcrumbs: usize,
+    /// How long ordinary records wait before a batch is sealed. Crashes do not wait.
+    pub log_flush_interval_ms: i64,
+    pub log_max_records_per_batch: usize,
+    pub log_max_batch_bytes: usize,
+    /// The most records one device sends a minute, crashes aside.
+    pub log_max_per_minute: u32,
+    pub log_spool_max_bytes: usize,
+    pub log_spool_max_batches: usize,
+    pub log_spool_max_age_ms: i64,
+    /// Records held in memory while the player has not answered.
+    pub log_preconsent_max: usize,
+    /// Emails, tokens, card numbers, addresses and account names in paths, taken out on the
+    /// device. On by default; turning it off is the studio's decision to make in writing.
+    pub log_scrub: bool,
+    /// Keep a crash on the device, unsent, while the player has not answered.
+    pub log_hold_crashes: bool,
+    /// Report a run that ended in the foreground without going to the background or quitting.
+    pub log_abnormal_exits: bool,
+    /// The hardware model (`iPhone15,2`, `SM-S918B`): shared by millions of devices, so it
+    /// describes a product and not a person.
+    pub device_model: String,
+    /// A game for children: no player id and no free-form attributes on a record.
+    pub child_directed: bool,
 }
 
 impl Config {
@@ -175,6 +210,24 @@ impl Config {
 
             compression: true,
             debug: false,
+
+            logs_enabled: false,
+            log_min_level: crate::logs::LogLevel::Warn,
+            log_breadcrumb_level: crate::logs::LogLevel::Info,
+            log_max_breadcrumbs: 50,
+            log_flush_interval_ms: 15_000,
+            log_max_records_per_batch: 200,
+            log_max_batch_bytes: 64 * 1024,
+            log_max_per_minute: 120,
+            log_spool_max_bytes: 2 * 1024 * 1024,
+            log_spool_max_batches: 100,
+            log_spool_max_age_ms: 30 * 24 * 60 * 60 * 1000,
+            log_preconsent_max: 50,
+            log_scrub: true,
+            log_hold_crashes: true,
+            log_abnormal_exits: true,
+            device_model: String::new(),
+            child_directed: false,
         }
     }
 
@@ -206,6 +259,17 @@ impl Config {
         self.spool_max_batches = self.spool_max_batches.max(1);
         self.backoff_base_ms = self.backoff_base_ms.clamp(100, 60_000);
         self.backoff_cap_ms = self.backoff_cap_ms.clamp(self.backoff_base_ms, 3_600_000);
+        self.log_max_breadcrumbs = self.log_max_breadcrumbs.min(100);
+        self.log_flush_interval_ms = self.log_flush_interval_ms.clamp(1_000, 600_000);
+        self.log_max_records_per_batch = self.log_max_records_per_batch.clamp(1, 1000);
+        self.log_max_batch_bytes = self.log_max_batch_bytes.clamp(4 * 1024, 1024 * 1024);
+        self.log_max_per_minute = self.log_max_per_minute.clamp(1, 10_000);
+        self.log_spool_max_batches = self.log_spool_max_batches.max(1);
+        self.log_spool_max_age_ms = self
+            .log_spool_max_age_ms
+            .clamp(60_000, 30 * 24 * 60 * 60 * 1000);
+        self.log_preconsent_max = self.log_preconsent_max.min(1000);
+        self.device_model = self.device_model.chars().take(64).collect();
         self.cold_after_failures = self.cold_after_failures.max(1);
         self
     }

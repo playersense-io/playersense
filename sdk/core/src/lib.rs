@@ -29,6 +29,8 @@ pub mod exposure;
 pub mod host;
 pub mod ids;
 pub mod liveconfig;
+pub mod logs;
+pub mod scrub;
 pub mod session;
 pub mod spool;
 pub mod time;
@@ -37,6 +39,8 @@ pub mod transport;
 #[cfg(test)]
 mod conformance;
 #[cfg(test)]
+mod logs_tests;
+#[cfg(test)]
 mod testhost;
 
 pub use client::{Client, Stats, granted};
@@ -44,3 +48,4 @@ pub use config::Config;
 pub use context::{Context, Scope};
 pub use event::{Priority, Recorded, Rejected, Value};
 pub use host::{Host, Level, Request, Response, StoreError};
+pub use logs::{Diagnostics, LogException, LogLevel, LogRecord, LogStats, Logged, StackFrame};

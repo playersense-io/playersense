@@ -46,11 +46,23 @@ pub struct Meta {
 
 /// Builds the key a batch is stored under.
 pub fn key(ordinal: u64, created_ms: i64, priority: Priority, bytes: usize) -> String {
+    key_in(PREFIX, ordinal, created_ms, priority, bytes)
+}
+
+/// [`key`] under another prefix: the log spool (`crate::logs`) keeps its batches apart, so each
+/// stream is bounded and evicted on its own and a flood of one never evicts the other.
+pub fn key_in(
+    prefix: &str,
+    ordinal: u64,
+    created_ms: i64,
+    priority: Priority,
+    bytes: usize,
+) -> String {
     let p = match priority {
         Priority::Normal => 0,
         Priority::Critical => 1,
     };
-    format!("{PREFIX}{ordinal:020}.{created_ms:013}.{p}.{bytes}")
+    format!("{prefix}{ordinal:020}.{created_ms:013}.{p}.{bytes}")
 }
 
 /// Reads a key back, or `None` if it is not one of ours.
@@ -58,7 +70,12 @@ pub fn key(ordinal: u64, created_ms: i64, priority: Priority, bytes: usize) -> S
 /// A key that does not parse is not an error to report, it is a key to ignore: the store may
 /// hold anything, including a spool written by a version that formatted keys differently.
 pub fn parse(key: &str) -> Option<Meta> {
-    let rest = key.strip_prefix(PREFIX)?;
+    parse_in(PREFIX, key)
+}
+
+/// [`parse`] under another prefix.
+pub fn parse_in(prefix: &str, key: &str) -> Option<Meta> {
+    let rest = key.strip_prefix(prefix)?;
     let mut parts = rest.split('.');
     let ordinal = parts.next()?.parse().ok()?;
     let created_ms = parts.next()?.parse().ok()?;
@@ -82,10 +99,15 @@ pub fn parse(key: &str) -> Option<Meta> {
 
 /// The spooled batches, oldest first.
 pub fn list<H: Host + ?Sized>(host: &H) -> Vec<Meta> {
+    list_in(host, PREFIX)
+}
+
+/// [`list`] under another prefix.
+pub fn list_in<H: Host + ?Sized>(host: &H, prefix: &str) -> Vec<Meta> {
     let mut out: Vec<Meta> = host
-        .store_keys(PREFIX)
+        .store_keys(prefix)
         .iter()
-        .filter_map(|k| parse(k))
+        .filter_map(|k| parse_in(prefix, k))
         .collect();
     out.sort_by_key(|m| m.ordinal);
     out
@@ -119,11 +141,38 @@ impl Evicted {
 /// lowest class present, so a session start or a purchase survives a week of chatty gameplay
 /// events. §18's rule 8, made specific.
 pub fn enforce<H: Host + ?Sized>(host: &H, config: &Config, now_ms: i64) -> Evicted {
+    enforce_in(
+        host,
+        PREFIX,
+        Bounds {
+            max_age_ms: config.spool_max_age_ms,
+            max_bytes: config.spool_max_bytes,
+            max_batches: config.spool_max_batches,
+        },
+        now_ms,
+    )
+}
+
+/// How much a spool may hold, and for how long.
+#[derive(Clone, Copy, Debug)]
+pub struct Bounds {
+    pub max_age_ms: i64,
+    pub max_bytes: usize,
+    pub max_batches: usize,
+}
+
+/// [`enforce`] for any spool.
+pub fn enforce_in<H: Host + ?Sized>(
+    host: &H,
+    prefix: &str,
+    bounds: Bounds,
+    now_ms: i64,
+) -> Evicted {
     let mut out = Evicted::default();
-    let mut entries = list(host);
+    let mut entries = list_in(host, prefix);
 
     entries.retain(|meta| {
-        if now_ms - meta.created_ms < config.spool_max_age_ms {
+        if now_ms - meta.created_ms < bounds.max_age_ms {
             return true;
         }
         host.store_delete(&meta.key);
@@ -140,7 +189,7 @@ pub fn enforce<H: Host + ?Sized>(host: &H, config: &Config, now_ms: i64) -> Evic
     let mut bytes: usize = entries.iter().map(|m| m.bytes).sum();
 
     for i in order {
-        if count <= config.spool_max_batches && bytes <= config.spool_max_bytes {
+        if count <= bounds.max_batches && bytes <= bounds.max_bytes {
             break;
         }
         host.store_delete(&entries[i].key);
@@ -153,8 +202,8 @@ pub fn enforce<H: Host + ?Sized>(host: &H, config: &Config, now_ms: i64) -> Evic
         host.log(
             Level::Warn,
             &format!(
-                "spool evicted {} aged and {} overflowing batches; \
-                 events collected while offline are being dropped",
+                "spool {prefix} evicted {} aged and {} overflowing batches; \
+                 what was collected while offline is being dropped",
                 out.aged, out.overflowed
             ),
         );
